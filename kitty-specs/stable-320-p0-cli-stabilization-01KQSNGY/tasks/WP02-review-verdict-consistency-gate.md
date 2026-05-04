@@ -41,6 +41,7 @@ owned_files:
 - tests/review/**
 - tests/post_merge/test_review_artifact_consistency.py
 - tests/tasks/**
+- tests/specify_cli/cli/commands/agent/test_tasks.py
 tags: []
 task_type: implement
 ---

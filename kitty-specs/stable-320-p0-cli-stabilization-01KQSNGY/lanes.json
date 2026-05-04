@@ -36,6 +36,7 @@
         "src/specify_cli/review/**",
         "tests/post_merge/test_review_artifact_consistency.py",
         "tests/review/**",
+        "tests/specify_cli/cli/commands/agent/test_tasks.py",
         "tests/tasks/**"
       ],
       "predicted_surfaces": [
