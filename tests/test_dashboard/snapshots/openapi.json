@@ -1159,6 +1159,146 @@
         "title": "KanbanTaskData",
         "type": "object"
       },
+      "LaneCounts": {
+        "description": "Lane-keyed integer counts for a mission's work packages.",
+        "properties": {
+          "approved": {
+            "default": 0,
+            "title": "Approved",
+            "type": "integer"
+          },
+          "blocked": {
+            "default": 0,
+            "title": "Blocked",
+            "type": "integer"
+          },
+          "canceled": {
+            "default": 0,
+            "title": "Canceled",
+            "type": "integer"
+          },
+          "claimed": {
+            "default": 0,
+            "title": "Claimed",
+            "type": "integer"
+          },
+          "done": {
+            "default": 0,
+            "title": "Done",
+            "type": "integer"
+          },
+          "for_review": {
+            "default": 0,
+            "title": "For Review",
+            "type": "integer"
+          },
+          "in_progress": {
+            "default": 0,
+            "title": "In Progress",
+            "type": "integer"
+          },
+          "in_review": {
+            "default": 0,
+            "title": "In Review",
+            "type": "integer"
+          },
+          "planned": {
+            "default": 0,
+            "title": "Planned",
+            "type": "integer"
+          },
+          "total": {
+            "default": 0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "title": "LaneCounts",
+        "type": "object"
+      },
+      "Mission": {
+        "additionalProperties": true,
+        "description": "Full mission detail representation.",
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "friendly_name": {
+            "title": "Friendly Name",
+            "type": "string"
+          },
+          "is_legacy": {
+            "default": false,
+            "title": "Is Legacy",
+            "type": "boolean"
+          },
+          "lane_counts": {
+            "$ref": "#/components/schemas/LaneCounts"
+          },
+          "mid8": {
+            "title": "Mid8",
+            "type": "string"
+          },
+          "mission_id": {
+            "title": "Mission Id",
+            "type": "string"
+          },
+          "mission_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mission Number"
+          },
+          "mission_slug": {
+            "title": "Mission Slug",
+            "type": "string"
+          },
+          "mission_type": {
+            "title": "Mission Type",
+            "type": "string"
+          },
+          "target_branch": {
+            "title": "Target Branch",
+            "type": "string"
+          },
+          "weighted_percentage": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weighted Percentage"
+          }
+        },
+        "required": [
+          "mission_id",
+          "mission_slug",
+          "mid8",
+          "friendly_name",
+          "mission_type",
+          "target_branch",
+          "lane_counts"
+        ],
+        "title": "Mission",
+        "type": "object"
+      },
       "MissionContext": {
         "additionalProperties": true,
         "properties": {
@@ -1243,6 +1383,122 @@
         "title": "MissionContext",
         "type": "object"
       },
+      "MissionStatus": {
+        "additionalProperties": true,
+        "description": "Lane counts and progress for a single mission \u2014 polling-friendly.",
+        "properties": {
+          "current_phase": {
+            "default": 2,
+            "title": "Current Phase",
+            "type": "integer"
+          },
+          "done_count": {
+            "title": "Done Count",
+            "type": "integer"
+          },
+          "lane_counts": {
+            "$ref": "#/components/schemas/LaneCounts"
+          },
+          "mission_id": {
+            "title": "Mission Id",
+            "type": "string"
+          },
+          "total_count": {
+            "title": "Total Count",
+            "type": "integer"
+          },
+          "weighted_percentage": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weighted Percentage"
+          }
+        },
+        "required": [
+          "mission_id",
+          "lane_counts",
+          "done_count",
+          "total_count"
+        ],
+        "title": "MissionStatus",
+        "type": "object"
+      },
+      "MissionSummary": {
+        "additionalProperties": true,
+        "description": "Lightweight mission representation for list responses.",
+        "properties": {
+          "friendly_name": {
+            "title": "Friendly Name",
+            "type": "string"
+          },
+          "is_legacy": {
+            "default": false,
+            "title": "Is Legacy",
+            "type": "boolean"
+          },
+          "lane_counts": {
+            "$ref": "#/components/schemas/LaneCounts"
+          },
+          "mid8": {
+            "title": "Mid8",
+            "type": "string"
+          },
+          "mission_id": {
+            "title": "Mission Id",
+            "type": "string"
+          },
+          "mission_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mission Number"
+          },
+          "mission_slug": {
+            "title": "Mission Slug",
+            "type": "string"
+          },
+          "mission_type": {
+            "title": "Mission Type",
+            "type": "string"
+          },
+          "target_branch": {
+            "title": "Target Branch",
+            "type": "string"
+          },
+          "weighted_percentage": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weighted Percentage"
+          }
+        },
+        "required": [
+          "mission_id",
+          "mission_slug",
+          "mid8",
+          "friendly_name",
+          "mission_type",
+          "target_branch",
+          "lane_counts"
+        ],
+        "title": "MissionSummary",
+        "type": "object"
+      },
       "ResearchArtifact": {
         "additionalProperties": true,
         "properties": {
@@ -1293,6 +1549,46 @@
           "artifacts"
         ],
         "title": "ResearchResponse",
+        "type": "object"
+      },
+      "ReviewEvidence": {
+        "description": "Evidence from a review event (in_review -> approved/rejected).",
+        "properties": {
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "reviewed_at": {
+            "format": "date-time",
+            "title": "Reviewed At",
+            "type": "string"
+          },
+          "reviewed_by": {
+            "title": "Reviewed By",
+            "type": "string"
+          },
+          "verdict": {
+            "enum": [
+              "approved",
+              "rejected"
+            ],
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reviewed_by",
+          "reviewed_at",
+          "verdict"
+        ],
+        "title": "ReviewEvidence",
         "type": "object"
       },
       "ShutdownResponse": {
@@ -1485,6 +1781,187 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "WorkPackage": {
+        "additionalProperties": true,
+        "description": "Full WP detail representation.",
+        "properties": {
+          "assignment": {
+            "$ref": "#/components/schemas/WorkPackageAssignment"
+          },
+          "dependencies": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Dependencies",
+            "type": "array"
+          },
+          "prompt_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Ref"
+          },
+          "requirement_refs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Requirement Refs",
+            "type": "array"
+          },
+          "subtasks_done": {
+            "title": "Subtasks Done",
+            "type": "integer"
+          },
+          "subtasks_total": {
+            "title": "Subtasks Total",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "wp_id": {
+            "title": "Wp Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "wp_id",
+          "title",
+          "assignment",
+          "subtasks_done",
+          "subtasks_total",
+          "dependencies",
+          "requirement_refs"
+        ],
+        "title": "WorkPackage",
+        "type": "object"
+      },
+      "WorkPackageAssignment": {
+        "description": "Ownership contract for a single WP.",
+        "properties": {
+          "agent_profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Profile"
+          },
+          "assignee": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assignee"
+          },
+          "blocked_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blocked Reason"
+          },
+          "claimed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Claimed At"
+          },
+          "lane": {
+            "title": "Lane",
+            "type": "string"
+          },
+          "last_event_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Event Id"
+          },
+          "review_evidence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewEvidence"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          },
+          "wp_id": {
+            "title": "Wp Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "wp_id",
+          "lane"
+        ],
+        "title": "WorkPackageAssignment",
+        "type": "object"
+      },
+      "WorkPackageSummary": {
+        "additionalProperties": true,
+        "description": "Lightweight WP representation for list responses.",
+        "properties": {
+          "assignment": {
+            "$ref": "#/components/schemas/WorkPackageAssignment"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "wp_id": {
+            "title": "Wp Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "wp_id",
+          "title",
+          "assignment"
+        ],
+        "title": "WorkPackageSummary",
         "type": "object"
       },
       "WorkflowStatus": {
@@ -2259,6 +2736,217 @@
         "summary": "Get Kanban",
         "tags": [
           "kanban"
+        ]
+      }
+    },
+    "/api/missions": {
+      "get": {
+        "description": "List all missions with HATEOAS-LITE links.",
+        "operationId": "list_missions_api_missions_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MissionSummary"
+                  },
+                  "title": "Response List Missions Api Missions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Missions",
+        "tags": [
+          "missions"
+        ]
+      }
+    },
+    "/api/missions/{mission_id}": {
+      "get": {
+        "description": "Fetch a single mission by mission_id, mid8, or mission_slug.",
+        "operationId": "get_mission_api_missions__mission_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mission_id",
+            "required": true,
+            "schema": {
+              "title": "Mission Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Mission"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Mission",
+        "tags": [
+          "missions"
+        ]
+      }
+    },
+    "/api/missions/{mission_id}/status": {
+      "get": {
+        "description": "Return lane counts and weighted progress for a single mission.",
+        "operationId": "get_mission_status_api_missions__mission_id__status_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mission_id",
+            "required": true,
+            "schema": {
+              "title": "Mission Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MissionStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Mission Status",
+        "tags": [
+          "missions"
+        ]
+      }
+    },
+    "/api/missions/{mission_id}/workpackages": {
+      "get": {
+        "description": "List all work packages for a mission with HATEOAS-LITE links.",
+        "operationId": "list_work_packages_api_missions__mission_id__workpackages_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mission_id",
+            "required": true,
+            "schema": {
+              "title": "Mission Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WorkPackageSummary"
+                  },
+                  "title": "Response List Work Packages Api Missions  Mission Id  Workpackages Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Work Packages",
+        "tags": [
+          "missions"
+        ]
+      }
+    },
+    "/api/missions/{mission_id}/workpackages/{wp_id}": {
+      "get": {
+        "description": "Fetch a single work package by WP ID.",
+        "operationId": "get_work_package_api_missions__mission_id__workpackages__wp_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mission_id",
+            "required": true,
+            "schema": {
+              "title": "Mission Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "wp_id",
+            "required": true,
+            "schema": {
+              "title": "Wp Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkPackage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Work Package",
+        "tags": [
+          "missions"
         ]
       }
     },

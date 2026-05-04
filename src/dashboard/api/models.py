@@ -415,11 +415,13 @@ class ResourceModel(BaseModel):
     Subclasses MUST declare a ``_links: dict[str, Link]`` field. Enforced by
     ``tests/architectural/test_resource_models_have_links.py``.
 
-    No subclass exists in this mission (per spec C-006). Mission B introduces
-    the first subclass when it ships the new resource-oriented endpoints.
+    ``extra="allow"`` is required so that subclasses can receive ``_links``
+    via the ``**{"_links": ...}`` construction pattern (Pydantic v2 does not
+    allow single-underscore identifiers as regular field names; they must be
+    passed through the extras mechanism).
     """
 
-    pass
+    model_config = ConfigDict(extra="allow")
 
 
 # ---------------------------------------------------------------------------

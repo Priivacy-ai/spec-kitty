@@ -107,6 +107,7 @@ def _wire_routers(app: FastAPI) -> None:
         "health",
         "kanban",
         "lint",
+        "missions",
         "shutdown",
         "static_mount",
         "sync",
