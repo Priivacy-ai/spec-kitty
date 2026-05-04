@@ -1,17 +1,17 @@
 {
-  "event_count": 13,
-  "last_event_id": "01KQSXKBR2ZP31VX4A45392A19",
-  "materialized_at": "2026-05-04T16:37:02.850708+00:00",
+  "event_count": 15,
+  "last_event_id": "01KQSXPPM55Y21YNW5HVPB9FQ7",
+  "materialized_at": "2026-05-04T16:38:52.293703+00:00",
   "mission_number": "",
   "mission_slug": "stable-320-p0-cli-stabilization-01KQSNGY",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 1,
+    "approved": 2,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
     "planned": 3
@@ -27,9 +27,9 @@
     "WP02": {
       "actor": "user",
       "force_count": 1,
-      "lane": "for_review",
-      "last_event_id": "01KQSXKBR2ZP31VX4A45392A19",
-      "last_transition_at": "2026-05-04T16:37:02.850708+00:00"
+      "lane": "approved",
+      "last_event_id": "01KQSXPPM55Y21YNW5HVPB9FQ7",
+      "last_transition_at": "2026-05-04T16:38:52.293703+00:00"
     },
     "WP03": {
       "actor": "finalize-tasks",
