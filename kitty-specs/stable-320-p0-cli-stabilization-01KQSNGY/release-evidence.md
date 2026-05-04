@@ -128,3 +128,49 @@ This mission records the failing type gate rather than treating it as a clean re
 ## Hosted Sync Note
 
 Commands that touched Spec Kitty workflow/status sync on this computer were run with `SPEC_KITTY_ENABLE_SAAS_SYNC=1`. Focused pytest commands were local/offline unless their code under test emitted non-fatal sync diagnostics.
+
+## Post-Merge PR Branch Validation
+
+After `spec-kitty merge` landed the approved lanes onto
+`kitty/pr/stable-320-p0-cli-stabilization-01KQSNGY-to-main`, the following
+merged-branch checks passed:
+
+```bash
+uv run pytest tests/status -q --timeout=30
+# 577 passed in 4.91s
+
+uv run pytest \
+  tests/review/test_artifacts.py \
+  tests/post_merge/test_review_artifact_consistency.py \
+  tests/specify_cli/cli/commands/agent/test_tasks.py \
+  tests/post_merge/test_stale_assertions.py \
+  -q --timeout=30
+# 52 passed in 3.89s
+
+uv run pytest \
+  tests/specify_cli/shims/test_registry.py \
+  tests/specify_cli/shims/test_generator.py \
+  tests/specify_cli/runtime/test_agent_commands_routing.py \
+  tests/runtime/test_doctor_command_file_health.py \
+  tests/specify_cli/skills/test_command_installer.py \
+  tests/specify_cli/skills/test_command_renderer.py \
+  tests/specify_cli/skills/test_installer.py \
+  tests/specify_cli/skills/test_verifier.py \
+  tests/runtime/test_agent_skills.py \
+  tests/specify_cli/docs/test_readme_governance.py \
+  -q --timeout=30
+# 342 passed in 1.73s
+
+uv run ruff check src tests
+# All checks passed
+
+uv run spec-kitty agent tests stale-check --base 63c91ecd --head HEAD --json
+# findings: []
+```
+
+The initial merge stale-assertion advisory reported false positives for tests
+that intentionally assert retired `checklist` surfaces are absent, plus
+acceptance-mode tests that use `mode="checklist"` for a different domain
+concept. The PR branch now includes a stale-check analyzer fix for negative
+membership assertions and test constant cleanup for unrelated acceptance-mode
+uses; rerunning the stale check for the merge range returns no findings.
