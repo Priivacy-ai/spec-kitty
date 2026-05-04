@@ -35,6 +35,7 @@ contract.
 from __future__ import annotations
 
 import logging
+import re
 import subprocess
 import tempfile
 from datetime import UTC
@@ -1056,7 +1057,7 @@ def _resolve_review_context(
     repo_root: Path,
     mission_slug: str,
     wp_id: str,
-    _wp_frontmatter: str,
+    wp_frontmatter: str,
 ) -> dict:
     """Resolve git branch and base context for review prompts.
 
@@ -1153,6 +1154,7 @@ def _resolve_review_context(
         ctx["lane_branch"] = branch
     else:
         return ctx
+    branch = ctx["branch_name"]
 
     base_ref = "unknown"
     if workspace.context is not None and workspace.context.base_branch:
@@ -1161,10 +1163,60 @@ def _resolve_review_context(
         base_ref = mission_branch
 
     if base_ref == "unknown":
+        candidates: list[str] = []
+        dep_match = re.search(r"dependencies:\s*\[([^\]]*)\]", wp_frontmatter)
+        if dep_match:
+            dep_content = dep_match.group(1).strip()
+            if dep_content:
+                dep_ids = re.findall(r'"?(WP\d+)"?', dep_content)
+                for dep_id in dep_ids:
+                    try:
+                        dep_workspace = resolve_workspace_for_wp(repo_root, mission_slug, dep_id)
+                    except (ValueError, FileNotFoundError):
+                        continue
+                    dep_branch = dep_workspace.branch_name
+                    if dep_branch and dep_branch != branch:
+                        candidates.append(dep_branch)
+
+        candidates.extend(["main", "2.x", "master", "develop"])
+        best_base = None
+        best_count = -1
+        for candidate in candidates:
+            mb = subprocess.run(
+                ["git", "merge-base", branch, candidate],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                check=False,
+            )
+            if mb.returncode != 0:
+                continue
+            count_r = subprocess.run(
+                ["git", "rev-list", "--count", f"{mb.stdout.strip()}..{branch}"],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                check=False,
+            )
+            if count_r.returncode != 0:
+                continue
+            count = int(count_r.stdout.strip()) if count_r.stdout.strip().isdigit() else 0
+            if best_count == -1 or count < best_count:
+                best_count = count
+                best_base = candidate
+
+        if best_base is not None:
+            ctx["base_branch"] = best_base
+            ctx["base_ref"] = best_base
+            ctx["commit_count"] = best_count
         return ctx
 
     count_r = subprocess.run(
-        ["git", "rev-list", "--count", f"{base_ref}..{ctx['branch_name']}"],
+        ["git", "rev-list", "--count", f"{base_ref}..{branch}"],
         cwd=repo_root,
         capture_output=True,
         text=True,
