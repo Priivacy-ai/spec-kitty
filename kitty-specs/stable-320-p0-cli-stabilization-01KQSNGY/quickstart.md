@@ -19,7 +19,7 @@ export SPEC_KITTY_ENABLE_SAAS_SYNC=1
 Status hang guard:
 
 ```bash
-uv run pytest tests/status -q --timeout=30 --timeout-method=signal
+uv run pytest tests/status -q --timeout=30
 ```
 
 Review consistency and task transition behavior:
@@ -38,6 +38,12 @@ Lint:
 
 ```bash
 uv run ruff check src tests
+```
+
+Type checking:
+
+```bash
+uv run mypy --strict src/specify_cli src/charter src/doctrine
 ```
 
 ## Release Evidence Checklist

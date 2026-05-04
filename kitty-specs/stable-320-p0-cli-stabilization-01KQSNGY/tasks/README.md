@@ -23,19 +23,24 @@ Each WP file **MUST** use YAML frontmatter:
 work_package_id: "WP01"
 title: "Work Package Title"
 dependencies: []
+requirement_refs:
+  - "FR-001"
 planning_base_branch: "main"
 merge_target_branch: "main"
-branch_strategy: "Planning artifacts were generated on main; completed changes must merge back into main."
+branch_strategy: "Planning artifacts for this mission were generated on main; completed changes must merge back into main."
 subtasks:
   - "T001"
   - "T002"
-phase: "Phase 1 - Setup"
-assignee: ""
-agent: ""
-shell_pid: ""
+authoritative_surface: "src/specify_cli/example/"
+execution_mode: "code_change"
+lane: "planned"
+owned_files:
+  - "src/specify_cli/example/**"
+task_type: "implement"
+tags: []
 history:
-  - timestamp: "2025-01-01T00:00:00Z"
-    agent: "system"
+  - at: "2026-05-04T00:00:00Z"
+    actor: "system"
     action: "Prompt generated via /spec-kitty.tasks"
 ---
 

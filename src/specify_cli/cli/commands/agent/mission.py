@@ -1687,7 +1687,7 @@ def finalize_tasks(
         planning_base_branch = target_branch
         merge_target_branch = target_branch
         branch_strategy = (
-            f"Planning artifacts for this feature were generated on {planning_base_branch}. "
+            f"Planning artifacts for this mission were generated on {planning_base_branch}. "
             f"During /spec-kitty.implement this WP may branch from a dependency-specific base, "
             f"but completed changes must merge back into {merge_target_branch} unless the human explicitly redirects the landing branch."
         )

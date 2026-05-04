@@ -16,7 +16,7 @@ requirement_refs:
 - NFR-007
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T021
 - T022
@@ -69,7 +69,7 @@ This WP should not implement major product fixes. If validation exposes a bug in
 Run:
 
 ```bash
-uv run pytest tests/status -q --timeout=30 --timeout-method=signal
+uv run pytest tests/status -q --timeout=30
 ```
 
 Record pass/fail and relevant diagnostics in `release-evidence.md`.
@@ -88,12 +88,13 @@ If this selection is too broad for local iteration, document the narrower focuse
 
 Run the focused runtime/specify_cli tests selected by WP03 and WP04. Evidence must prove no retired checklist command is generated and generated skills include frontmatter.
 
-### T024 - Run lint and broader gates
+### T024 - Run lint, type checking, and broader gates
 
 Run:
 
 ```bash
 uv run ruff check src tests
+uv run mypy --strict src/specify_cli src/charter src/doctrine
 ```
 
 Run additional selected tests based on touched files. If pre-existing failures appear, follow the charter: open a GitHub issue before treating them as accepted baseline.

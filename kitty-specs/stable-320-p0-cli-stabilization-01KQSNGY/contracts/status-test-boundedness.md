@@ -14,7 +14,7 @@ This contract covers #967 status bootstrap and emit behavior for local and CI va
 ## Acceptance Checks
 
 ```bash
-uv run pytest tests/status -q --timeout=30 --timeout-method=signal
+uv run pytest tests/status -q --timeout=30
 ```
 
 The implementation should add narrower checks if root cause lands outside the current status test files.

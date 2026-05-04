@@ -10,7 +10,7 @@ requirement_refs:
 - NFR-003
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T001
 - T002
@@ -50,7 +50,7 @@ Read:
 The required acceptance command is:
 
 ```bash
-uv run pytest tests/status -q --timeout=30 --timeout-method=signal
+uv run pytest tests/status -q --timeout=30
 ```
 
 Default tests must be local and offline. Do not require hosted auth, tracker, SaaS sync, or network access.
@@ -71,8 +71,10 @@ Run the status suite with the required timeout. If it hangs or fails, capture th
 Useful starting points:
 
 ```bash
-uv run pytest tests/status -q --timeout=30 --timeout-method=signal
-uv run pytest tests/status/test_agent_status_emit_cli.py -q --timeout=30 --timeout-method=signal
+uv run pytest tests/status -q --timeout=30
+uv run pytest tests/status/test_bootstrap.py::TestBootstrapSeedsUninitialized::test_three_new_wps -q --timeout=30
+uv run pytest tests/status/test_emit.py -q --timeout=30
+uv run pytest tests/status/test_agent_status_emit_cli.py -q --timeout=30
 rg -n "bootstrap|emit|adapter|sync|lock|event" tests/status src/specify_cli/status
 ```
 

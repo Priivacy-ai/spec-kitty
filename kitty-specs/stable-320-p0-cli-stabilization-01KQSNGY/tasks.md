@@ -24,7 +24,7 @@ Fine-grained subtasks (`Txxx`) roll up into work packages (`WPxx`). Each WP is s
 | T006 | Add latest review-cycle artifact fixtures and tests for rejected/approved precedence | WP02 | No |
 | T007 | Enforce rejected-verdict fail-closed checks before approved/done WP state mutation | WP02 | No |
 | T008 | Add durable explicit override support for rejected verdict supersession | WP02 | No |
-| T009 | Extend mission review or merge preflight contradiction diagnostics | WP02 | Yes |
+| T009 | Extend mission status, mission review, and merge preflight contradiction diagnostics | WP02 | Yes |
 | T010 | Preserve JSON stdout cleanliness for touched review/task commands | WP02 | Yes |
 | T011 | Add end-to-end review consistency regression coverage | WP02 | No |
 | T012 | Inventory active command registries, packaged templates, diagnostics, and counts for retired checklist drift | WP03 | No |
@@ -49,7 +49,7 @@ Fine-grained subtasks (`Txxx`) roll up into work packages (`WPxx`). Each WP is s
 ## Work Package WP01: Status Test Hang Stabilization (Priority: P0)
 
 **Goal**: Fix or deterministically isolate the #967 status bootstrap/emit hang without weakening status semantics.
-**Independent Test**: `uv run pytest tests/status -q --timeout=30 --timeout-method=signal`
+**Independent Test**: `uv run pytest tests/status -q --timeout=30`
 **Prompt**: `tasks/WP01-status-test-hang-stabilization.md`
 **Requirement Refs**: FR-001, FR-002, NFR-001, NFR-002, NFR-003, SC-001
 **Estimated Prompt Size**: ~260 lines
@@ -84,8 +84,8 @@ Timeout-only fixes can hide the real nondeterminism. The WP must document the ca
 
 ## Work Package WP02: Review Verdict Consistency Gate (Priority: P0)
 
-**Goal**: Implement the fail-closed #904 policy across WP completion, mission review, and merge preflight, with explicit durable override support.
-**Independent Test**: A WP with latest `verdict: rejected` cannot move to approved/done, and mission review/merge cannot pass silently, unless an override is recorded.
+**Goal**: Implement the fail-closed #904 policy across WP completion, mission status, mission review, and merge preflight, with explicit durable override support.
+**Independent Test**: A WP with latest `verdict: rejected` cannot move to approved/done, and mission status/review/merge cannot pass silently, unless an override is recorded.
 **Prompt**: `tasks/WP02-review-verdict-consistency-gate.md`
 **Requirement Refs**: FR-003, FR-004, FR-005, FR-006, FR-007, FR-008, NFR-001, NFR-005, SC-002, SC-003
 **Estimated Prompt Size**: ~390 lines
@@ -95,7 +95,7 @@ Timeout-only fixes can hide the real nondeterminism. The WP must document the ca
 - [ ] T006 Add latest review-cycle artifact fixtures and tests for rejected/approved precedence (WP02)
 - [ ] T007 Enforce rejected-verdict fail-closed checks before approved/done WP state mutation (WP02)
 - [ ] T008 Add durable explicit override support for rejected verdict supersession (WP02)
-- [ ] T009 [P] Extend mission review or merge preflight contradiction diagnostics (WP02)
+- [ ] T009 [P] Extend mission status, mission review, and merge preflight contradiction diagnostics (WP02)
 - [ ] T010 [P] Preserve JSON stdout cleanliness for touched review/task commands (WP02)
 - [ ] T011 Add end-to-end review consistency regression coverage (WP02)
 
@@ -203,7 +203,7 @@ Snapshot-only updates can pass while fresh generation remains broken. The WP mus
 - [ ] T021 Run focused validation for WP01 status hang evidence (WP05)
 - [ ] T022 Run focused validation for WP02 review consistency evidence (WP05)
 - [ ] T023 Run focused validation for WP03/WP04 command and skill surface evidence (WP05)
-- [ ] T024 Run ruff and selected broader regression suites (WP05)
+- [ ] T024 Run ruff, mypy, and selected broader regression suites (WP05)
 - [ ] T025 Compile release evidence mapped to #967, #904, #968, and #964 (WP05)
 
 ### Implementation Notes

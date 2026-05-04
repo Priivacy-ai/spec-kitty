@@ -918,7 +918,7 @@ requirement_refs:
         updated = (tasks_dir / "WP01-test.md").read_text(encoding="utf-8")
         assert 'planning_base_branch: main' in updated
         assert 'merge_target_branch: main' in updated
-        assert 'branch_strategy: Planning artifacts for this feature were generated on main.' in updated
+        assert 'branch_strategy: Planning artifacts for this mission were generated on main.' in updated
 
 class TestSetupPlanCommand:
     """Tests for setup-plan command."""

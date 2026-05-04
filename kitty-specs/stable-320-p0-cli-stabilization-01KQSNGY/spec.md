@@ -62,7 +62,7 @@ Warning-only behavior is not acceptable for stable `3.2.0`.
 
 ### Scenario 3 - Mission review and merge detect review contradictions
 
-**Given** a mission where a done or approved WP is contradicted by the latest rejected review-cycle artifact, **when** mission review, mission status, or merge preflight evaluates release readiness, **then** the contradiction is surfaced and stable-release unsafe paths are blocked.
+**Given** a mission where a done or approved WP is contradicted by the latest rejected review-cycle artifact, **when** mission status, mission review, and merge preflight evaluate release readiness, **then** the contradiction is surfaced and stable-release unsafe paths are blocked.
 
 ### Scenario 4 - Retired checklist command stays retired
 
@@ -89,7 +89,7 @@ Warning-only behavior is not acceptable for stable `3.2.0`.
 | FR-003 | When a WP is being moved to `approved` or `done`, Spec Kitty must inspect the latest applicable `review-cycle-N.md` artifact for that WP. | Draft |
 | FR-004 | If the latest applicable review-cycle artifact has `verdict: rejected`, Spec Kitty must fail closed before mutating state unless a supported explicit override is used. | Draft |
 | FR-005 | Failure diagnostics for rejected-review contradictions must name the WP, the latest rejected artifact, and the required repair or override action. | Draft |
-| FR-006 | Mission status, mission review, or merge preflight must surface review-cycle/WP lane contradictions and block stable-release unsafe paths when a done or approved WP still has a latest rejected review-cycle artifact. | Draft |
+| FR-006 | Mission status, mission review, and merge preflight must each surface review-cycle/WP lane contradictions and block stable-release unsafe paths when a done or approved WP still has a latest rejected review-cycle artifact. | Draft |
 | FR-007 | Spec Kitty must provide a clear arbiter or orchestrator override path for intentionally superseding a rejected review. | Draft |
 | FR-008 | Explicit review overrides must be persisted as structured state in review-cycle metadata or a linked override artifact so later operators can see that the rejected verdict was superseded. | Draft |
 | FR-009 | The retired `checklist` command must not remain in active consumer command or skill registries if it is no longer packaged or generated. | Draft |
@@ -141,7 +141,7 @@ Warning-only behavior is not acceptable for stable `3.2.0`.
 |---|---|
 | SC-001 | The previously hanging status bootstrap and emit paths complete under a 30-second timeout with actionable failure output if they regress. |
 | SC-002 | A WP with latest `verdict: rejected` cannot silently become `approved` or `done`; it is either blocked before mutation or superseded by a durable explicit override. |
-| SC-003 | Mission review or merge preflight cannot pass silently when a done or approved WP is contradicted by a latest rejected review-cycle artifact. |
+| SC-003 | Mission status, mission review, and merge preflight cannot pass silently when a done or approved WP is contradicted by a latest rejected review-cycle artifact. |
 | SC-004 | A fresh generated command and skill surface contains zero active `spec-kitty.checklist*` commands. |
 | SC-005 | Active command and skill registry counts, packaged templates, installer cleanup, runtime diagnostics, and generated outputs agree in fresh generation tests. |
 | SC-006 | Generated `SKILL.md` files include required YAML frontmatter, and the #964 Codex skill repro no longer emits missing-frontmatter warnings. |
@@ -182,10 +182,11 @@ Run focused local validation proving all four issue classes are fixed together a
 Run focused tests first, then broader relevant gates:
 
 ```bash
-uv run pytest tests/status -q --timeout=30 --timeout-method=signal
+uv run pytest tests/status -q --timeout=30
 uv run pytest tests/post_merge tests/review tests/tasks -q
 uv run pytest tests/runtime tests/specify_cli -q
 uv run ruff check src tests
+uv run mypy --strict src/specify_cli src/charter src/doctrine
 ```
 
 The exact test selection may be adjusted based on touched files, but acceptance must include the previously hanging status paths under a timeout and fresh command/skill generation evidence.

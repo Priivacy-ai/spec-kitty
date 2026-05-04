@@ -3,7 +3,7 @@
 ## Mission
 
 - **Fields**: mission id, slug, branch contract, status artifacts, tasks directory, review artifacts, generated planning artifacts.
-- **Rules**: The mission remains on `main` for planning/base and final merge. Mission review or merge cannot pass silently if completed WP state contradicts latest rejected review evidence.
+- **Rules**: The mission remains on `main` for planning/base and final merge. Mission status, mission review, and merge preflight cannot pass silently if completed WP state contradicts latest rejected review evidence.
 
 ## Work Package
 
@@ -11,7 +11,7 @@
 - **Rules**: A transition to `approved` or `done` is invalid when the latest applicable review-cycle artifact has `verdict: rejected`, unless a durable override exists.
 - **State transitions in scope**:
   - planned/doing/for_review to approved or done through agent task commands, review actions, or merge/review acceptance paths.
-  - done/approved state evaluated by mission review or merge preflight diagnostics.
+  - done/approved state evaluated by mission status, mission review, and merge preflight diagnostics.
 
 ## Review-Cycle Artifact
 

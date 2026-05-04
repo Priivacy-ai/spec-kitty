@@ -23,7 +23,7 @@ The technical approach is deliberately targeted: inspect the current implementat
 **Language/Version**: Python 3.11+ for CLI and library code.
 **Primary Dependencies**: Typer for CLI commands, Rich for console output, ruamel.yaml for frontmatter parsing, pytest for regression tests, mypy strict mode for typed code paths.
 **Storage**: Repository-local Markdown/YAML frontmatter artifacts, JSON/JSONL status artifacts, generated command/skill files, and git-tracked mission artifacts.
-**Testing**: Focused pytest suites for status, review consistency, post-merge/merge preflight, runtime command inventory, skill generation, and installer cleanup; ruff over touched source and tests.
+**Testing**: Focused pytest suites for status, review consistency, post-merge/merge preflight, runtime command inventory, skill generation, and installer cleanup; ruff over touched source and tests; mypy strict checking over the project type-check gate.
 **Target Platform**: Cross-platform CLI on Linux, macOS, and Windows 10+.
 **Project Type**: Single Python CLI/library repository.
 **Performance Goals**: Previously hanging status paths fail or finish within 30 seconds during validation; typical CLI operations remain under the charter target of 2 seconds for representative projects.
@@ -45,7 +45,7 @@ The technical approach is deliberately targeted: inspect the current implementat
 |---|---|---|
 | Python 3.11+ and project dependency stack | Plan stays inside the existing Python CLI and uses Typer, Rich, ruamel.yaml, pytest, and existing project utilities. | PASS |
 | Testing standards | Each scoped issue gets focused regression coverage. Status hang validation runs with a 30-second timeout. CLI command behavior gets integration-style coverage where command surfaces change. | PASS |
-| Type checking and linting | New typed seams should satisfy strict typing where touched; final validation includes `uv run ruff check src tests`, with mypy selection determined by touched modules. | PASS |
+| Type checking and linting | New typed seams should satisfy strict typing where touched; final validation includes `uv run ruff check src tests` and `uv run mypy --strict src/specify_cli src/charter src/doctrine`. | PASS |
 | CLI performance | Status hang mitigation must bound tests without weakening runtime semantics; no broad runtime rewrite is planned. | PASS |
 | Cross-platform support | Avoid POSIX-only assumptions in timeout, file-lock, path, and generated asset logic; prefer existing project abstractions. | PASS |
 | User customization preservation | Checklist cleanup must remove only package-managed stale files or ignore unknown files safely; name-based deletion alone is not acceptable. | PASS |
@@ -138,7 +138,7 @@ No network API contracts are introduced. Contracts are CLI/artifact behavior con
 - Locate all state transitions that can move a WP to `approved` or `done`.
 - Define a reusable latest-review-cycle lookup and contradiction check if no existing helper is sufficient.
 - Block unsafe transitions before mutation.
-- Extend mission review or merge preflight diagnostics to reject done/approved WPs contradicted by latest rejected artifacts.
+- Extend mission status, mission review, and merge preflight diagnostics to reject or block done/approved WPs contradicted by latest rejected artifacts.
 - Add explicit override input and durable override record semantics.
 
 ### WP03 Retired Checklist Command Cleanup
@@ -160,6 +160,7 @@ No network API contracts are introduced. Contracts are CLI/artifact behavior con
 - Run review consistency/post-merge/tasks tests selected by touched files.
 - Run runtime/specify_cli generation and installer tests selected by touched files.
 - Run ruff over `src` and `tests`.
+- Run the repo type-checking gate: `uv run mypy --strict src/specify_cli src/charter src/doctrine`.
 - Capture final evidence suitable for closing #967, #904, #968, and #964.
 
 ## Risk And Mitigation

@@ -2,7 +2,7 @@
 
 ## Scope
 
-This contract covers #904 review-cycle/WP state consistency during WP transitions, mission review, and merge preflight.
+This contract covers #904 review-cycle/WP state consistency during WP transitions, mission status, mission review, and merge preflight.
 
 ## Required Behavior
 
@@ -12,7 +12,7 @@ This contract covers #904 review-cycle/WP state consistency during WP transition
   - the WP id,
   - the latest rejected review-cycle artifact,
   - the required repair or override action.
-- Mission review or merge preflight must not silently pass when a done or approved WP is contradicted by a latest rejected review-cycle artifact.
+- Mission status, mission review, and merge preflight must not silently pass when a done or approved WP is contradicted by a latest rejected review-cycle artifact.
 - Explicit overrides must be persisted as structured state in review-cycle metadata or a linked override artifact.
 
 ## Acceptance Checks
@@ -20,7 +20,7 @@ This contract covers #904 review-cycle/WP state consistency during WP transition
 - A rejected latest review artifact blocks WP completion and leaves WP state unchanged.
 - A later approved review artifact supersedes an earlier rejected artifact.
 - An explicit override records durable evidence and permits the intended transition.
-- Mission review or merge preflight fails on done/approved plus latest rejected contradiction.
+- Mission status, mission review, and merge preflight fail or report a blocking diagnostic on done/approved plus latest rejected contradiction.
 - JSON-producing commands touched by this behavior keep parseable JSON on stdout.
 
 ## Non-Goals

@@ -13,7 +13,7 @@ requirement_refs:
 - NFR-005
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T006
 - T007
@@ -31,6 +31,8 @@ lane: planned
 owned_files:
 - src/specify_cli/review/**
 - src/specify_cli/post_merge/review_artifact_consistency.py
+- src/specify_cli/cli/commands/review.py
+- src/specify_cli/cli/commands/merge.py
 - src/specify_cli/cli/commands/agent/tasks.py
 - tests/review/**
 - tests/post_merge/test_review_artifact_consistency.py
@@ -43,7 +45,7 @@ task_type: implement
 
 ## Objective
 
-Implement the #904 fail-closed review consistency policy: a WP must not silently move to `approved` or `done`, and mission review or merge must not pass silently, when the latest review-cycle artifact still has `verdict: rejected`.
+Implement the #904 fail-closed review consistency policy: a WP must not silently move to `approved` or `done`, and mission status, mission review, and merge preflight must not pass silently when the latest review-cycle artifact still has `verdict: rejected`.
 
 ## Context
 
@@ -91,9 +93,9 @@ Tests must assert:
 - override evidence remains discoverable later;
 - absent override still blocks.
 
-### T009 - Extend mission review or merge preflight
+### T009 - Extend mission status, mission review, and merge preflight
 
-Ensure mission review or merge preflight does not silently pass when a done/approved WP is contradicted by latest rejected review evidence. `src/specify_cli/post_merge/review_artifact_consistency.py` is the likely starting point.
+Ensure `spec-kitty agent tasks status`, mission review, and merge preflight do not silently pass when a done/approved WP is contradicted by latest rejected review evidence. `src/specify_cli/post_merge/review_artifact_consistency.py` is the likely shared starting point; top-level command gates may also need updates in `src/specify_cli/cli/commands/review.py` and `src/specify_cli/cli/commands/merge.py`.
 
 ### T010 - Preserve JSON stdout cleanliness
 
@@ -106,7 +108,7 @@ Add a focused scenario that starts with a rejected latest review artifact, attem
 ## Definition of Done
 
 - [ ] Latest rejected review-cycle artifacts block approved/done transitions before mutation.
-- [ ] Mission review or merge preflight catches done/approved plus latest rejected contradictions.
+- [ ] Mission status, mission review, and merge preflight catch done/approved plus latest rejected contradictions.
 - [ ] Explicit override is durable and inspectable.
 - [ ] JSON stdout remains parseable for touched JSON commands.
 - [ ] Focused #904 tests pass.
