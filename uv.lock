@@ -2130,7 +2130,7 @@ wheels = [
 
 [[package]]
 name = "spec-kitty-cli"
-version = "3.2.0a10"
+version = "3.2.0a11"
 source = { editable = "." }
 dependencies = [
     { name = "cryptography" },
