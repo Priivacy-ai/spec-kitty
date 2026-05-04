@@ -1,12 +1,14 @@
 {
   "created_at": "2026-05-04T14:15:55.142070+00:00",
-  "friendly_name": "stable 320 p0 cli stabilization",
+  "friendly_name": "3.2.0 Stable P0 CLI Stabilization",
   "mission_id": "01KQSNGYG5B5AGH90CB81JEVMG",
   "mission_number": null,
   "mission_slug": "stable-320-p0-cli-stabilization-01KQSNGY",
   "mission_type": "software-dev",
-  "purpose_context": "This mission advances stable 320 p0 cli stabilization on main so stakeholders can track the work from mission creation onward.",
-  "purpose_tldr": "stable 320 p0 cli stabilization",
+  "purpose_context": "Prepare the Spec Kitty CLI for the stable 3.2.0 release by fixing the remaining P0 stabilization bugs that make command surface, review state, generated agent assets, and status-test confidence untrustworthy.",
+  "purpose_tldr": "Stable 3.2.0 P0 CLI stabilization",
   "slug": "stable-320-p0-cli-stabilization-01KQSNGY",
-  "target_branch": "main"
+  "source_description": "../start-here.md",
+  "target_branch": "main",
+  "vcs": "git"
 }
