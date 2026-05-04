@@ -36,11 +36,11 @@ Fine-grained subtasks (`Txxx`) roll up into work packages (`WPxx`). Each WP is s
 | T018 | Ensure generated `SKILL.md` files include required YAML frontmatter | WP04 | No | [D] |
 | T019 | Add generated-skill frontmatter tests across relevant host surfaces | WP04 | Yes | [D] |
 | T020 | Update snapshots or verifier expectations only after generated output is fixed | WP04 | Yes | [D] |
-| T021 | Run focused validation for WP01 status hang evidence | WP05 | No |
-| T022 | Run focused validation for WP02 review consistency evidence | WP05 | No |
-| T023 | Run focused validation for WP03/WP04 command and skill surface evidence | WP05 | No |
-| T024 | Run ruff and selected broader regression suites | WP05 | No |
-| T025 | Compile release evidence mapped to #967, #904, #968, and #964 | WP05 | No |
+| T021 | Run focused validation for WP01 status hang evidence | WP05 | No | [D] |
+| T022 | Run focused validation for WP02 review consistency evidence | WP05 | No | [D] |
+| T023 | Run focused validation for WP03/WP04 command and skill surface evidence | WP05 | No | [D] |
+| T024 | Run ruff and selected broader regression suites | WP05 | No | [D] |
+| T025 | Compile release evidence mapped to #967, #904, #968, and #964 | WP05 | No | [D] |
 
 ---
 
@@ -200,11 +200,11 @@ Snapshot-only updates can pass while fresh generation remains broken. The WP mus
 
 ### Included Subtasks
 
-- [ ] T021 Run focused validation for WP01 status hang evidence (WP05)
-- [ ] T022 Run focused validation for WP02 review consistency evidence (WP05)
-- [ ] T023 Run focused validation for WP03/WP04 command and skill surface evidence (WP05)
-- [ ] T024 Run ruff, mypy, and selected broader regression suites (WP05)
-- [ ] T025 Compile release evidence mapped to #967, #904, #968, and #964 (WP05)
+- [x] T021 Run focused validation for WP01 status hang evidence (WP05)
+- [x] T022 Run focused validation for WP02 review consistency evidence (WP05)
+- [x] T023 Run focused validation for WP03/WP04 command and skill surface evidence (WP05)
+- [x] T024 Run ruff, mypy, and selected broader regression suites (WP05)
+- [x] T025 Compile release evidence mapped to #967, #904, #968, and #964 (WP05)
 
 ### Implementation Notes
 
