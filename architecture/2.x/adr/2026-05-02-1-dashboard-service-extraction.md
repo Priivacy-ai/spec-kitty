@@ -90,7 +90,7 @@ to the corresponding service object.
   scanner utilities (the canonical implementations remain in `specify_cli.dashboard.scanner`
   until the scanner extraction mission #613). Its ownership, removal trigger, and audit
   trail are documented separately at
-  [`kitty-specs/dashboard-service-extraction-01KQMCA6/scanner-shim-ownership-addendum.md`](../../kitty-specs/dashboard-service-extraction-01KQMCA6/scanner-shim-ownership-addendum.md).
+  [`kitty-specs/dashboard-service-extraction-01KQMCA6/scanner-shim-ownership-addendum.md`](../../../kitty-specs/dashboard-service-extraction-01KQMCA6/scanner-shim-ownership-addendum.md).
   Removal trigger: scanner extraction mission #613 completion.
 
 ## Rejected Alternatives

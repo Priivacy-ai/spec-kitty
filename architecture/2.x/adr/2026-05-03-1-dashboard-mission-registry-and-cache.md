@@ -11,7 +11,7 @@ The FastAPI dashboard transport (mission `frontend-api-fastapi-openapi-migration
 
 On a non-trivial spec-kitty project (the spec-kitty repo itself has ~144 missions today), a single open browser tab causes ~720 file `open()` syscalls per second. Multiple tabs multiply linearly. There is no caching layer, no observability hook, no read-through abstraction — `dashboard.js` polls, the FastAPI router invokes a scanner function, the scanner walks the disk, the response is built. Every request is independent.
 
-The post-FastAPI engineering review surfaced this in [Finding 5 of `docs/implementation/2026-05-03-dashboard-api-review.md`](../../docs/implementation/2026-05-03-dashboard-api-review.md). The operator-stated goal is:
+The post-FastAPI engineering review surfaced this in [Finding 5 of `docs/implementation/2026-05-03-dashboard-api-review.md`](../../../docs/implementation/2026-05-03-dashboard-api-review.md). The operator-stated goal is:
 
 > Each dashboard lookup can be done using an API call, rather than using direct file access.
 

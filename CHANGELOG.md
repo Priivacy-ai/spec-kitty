@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+## [3.2.0a11] - 2026-05-04
+
+3.2.0a11 delivers the resource-oriented mission API surface (epic #645 Mission B),
+HATEOAS-LITE materialization, OpenAPI tag grouping, and a suite of CI, Sonar, and
+packaging fixes.
+
+### Added
+
 - **Resource-oriented mission API** (`GET /api/missions`, `GET /api/missions/{id}`,
   `GET /api/missions/{id}/status`, `GET /api/missions/{id}/workpackages`,
   `GET /api/missions/{id}/workpackages/{wp_id}`) backed by `MissionRegistry` —
@@ -27,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `WorkPackageRecord` gains `claimed_at` and `blocked_reason` populated from
   `status.events.jsonl` by the `MissionRegistry` scan.
 - `dashboard/` top-level Python package now included in the built wheel.
+- User-journey API tests for artifact-serving endpoints (`/api/research/{id}`,
+  `/api/contracts/{id}`, `/api/checklists/{id}`) covering 404 and file-serving
+  paths without mocking the service layer (`tests/test_dashboard/test_artifact_api.py`).
 
 ### Changed
 
