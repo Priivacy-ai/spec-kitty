@@ -8,7 +8,7 @@ WP04 brief).
 """
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, FastAPI, Response
 
@@ -26,9 +26,9 @@ def register(app: FastAPI) -> None:
     @router.post("/api/sync/trigger", response_model=SyncTriggerResponse)
     def trigger_sync(
         response: Response,
-        token: str | None = Depends(verify_project_token),
+        token: Annotated[str | None, Depends(verify_project_token)],
     ) -> dict[str, Any]:
-        result = SyncService().trigger_sync(token=token)
+        result = SyncService().trigger_sync(_token=token)
         response.status_code = result.http_status
         return result.body()
 

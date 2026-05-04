@@ -21,6 +21,8 @@ __all__ = ["APIHandler"]
 
 logger = logging.getLogger(__name__)
 
+_CONTENT_TYPE_JSON = "application/json"
+
 
 class APIHandler(DashboardHandler):
     """Serve dashboard root, health, diagnostics, and shutdown endpoints."""
@@ -43,7 +45,7 @@ class APIHandler(DashboardHandler):
         )
         response_data = service.get_health(token=token)
         self.send_response(200)
-        self.send_header("Content-type", "application/json")
+        self.send_header("Content-type", _CONTENT_TYPE_JSON)
         self.send_header("Cache-Control", "no-cache")
         self.end_headers()
         self.wfile.write(json.dumps(response_data).encode())
@@ -69,7 +71,7 @@ class APIHandler(DashboardHandler):
             _ensure_running=ensure_sync_daemon_running,
             _get_daemon_status=get_sync_daemon_status,
         )
-        result = service.trigger_sync(token=token)
+        result = service.trigger_sync(_token=token)
         self._send_json(result.http_status, result.body())
 
     def handle_diagnostics(self) -> None:
@@ -84,7 +86,7 @@ class APIHandler(DashboardHandler):
             feature_dir: Path | None = None
             diagnostics = run_diagnostics(project_path, feature_dir=feature_dir)
             self.send_response(200)
-            self.send_header("Content-type", "application/json")
+            self.send_header("Content-type", _CONTENT_TYPE_JSON)
             self.send_header("Cache-Control", "no-cache")
             self.end_headers()
             self.wfile.write(json.dumps(diagnostics).encode())
@@ -137,7 +139,7 @@ class APIHandler(DashboardHandler):
         mission_slug = query.get("feature", [None])[0]
         if not mission_slug:
             self.send_response(400)
-            self.send_header("Content-type", "application/json")
+            self.send_header("Content-type", _CONTENT_TYPE_JSON)
             self.end_headers()
             self.wfile.write(json.dumps({"error": "Missing feature parameter"}).encode())
             return
@@ -170,7 +172,7 @@ class APIHandler(DashboardHandler):
                 response = handler.handle_dossier_snapshot_export(mission_slug)
             else:
                 self.send_response(404)
-                self.send_header("Content-type", "application/json")
+                self.send_header("Content-type", _CONTENT_TYPE_JSON)
                 self.end_headers()
                 self.wfile.write(json.dumps({"error": "Dossier endpoint not found"}).encode())
                 return
@@ -179,13 +181,13 @@ class APIHandler(DashboardHandler):
             if isinstance(response, dict) and "error" in response:
                 status_code = response.get("status_code", 500)
                 self.send_response(status_code)
-                self.send_header("Content-type", "application/json")
+                self.send_header("Content-type", _CONTENT_TYPE_JSON)
                 self.end_headers()
                 self.wfile.write(json.dumps(response).encode())
             else:
                 # Success response
                 self.send_response(200)
-                self.send_header("Content-type", "application/json")
+                self.send_header("Content-type", _CONTENT_TYPE_JSON)
                 self.send_header("Cache-Control", "no-cache")
                 self.end_headers()
                 # Use the model's dict() method if available, otherwise direct JSON

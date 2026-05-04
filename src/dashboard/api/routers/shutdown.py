@@ -14,6 +14,7 @@ counter-productive there.
 from __future__ import annotations
 
 import logging
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, FastAPI, Request
 
@@ -30,7 +31,7 @@ def register(app: FastAPI) -> None:
     router = APIRouter()
 
     @router.post("/api/shutdown", response_model=ShutdownResponse)
-    def shutdown(request: Request, _token: str | None = Depends(verify_project_token)):
+    def shutdown(request: Request, _token: Annotated[str | None, Depends(verify_project_token)]):
         server = getattr(request.app.state, "uvicorn_server", None)
         if server is not None:
             server.should_exit = True

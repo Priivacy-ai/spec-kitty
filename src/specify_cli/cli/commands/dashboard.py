@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import json
+import logging
 import webbrowser
 from typing import TYPE_CHECKING, Any
 
 import typer
 
 from specify_cli.cli.helpers import console, get_project_root_or_exit
+
+logger = logging.getLogger(__name__)
 from specify_cli.dashboard import ensure_dashboard_running, stop_dashboard
 
 if TYPE_CHECKING:  # pragma: no cover - type-only import
@@ -202,6 +205,9 @@ def dashboard(
             f"[red]❌ Unknown --transport value: {transport!r}. Use 'legacy' or 'fastapi'.[/red]"
         )
         raise typer.Exit(1)
+
+    if bench_exit_after_first_byte:
+        logger.debug("--bench-exit-after-first-byte requested; dashboard will exit after first byte served")
 
     try:
         dashboard_url, active_port, started = ensure_dashboard_running(

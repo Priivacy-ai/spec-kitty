@@ -19,7 +19,7 @@ subtasks:
 - T028
 - T029
 - T030
-agent: claude
+agent: "claude:claude-sonnet-4-6:curator-carla:curator"
 history: []
 agent_profile: curator-carla
 authoritative_surface: architecture/2.x/
@@ -34,6 +34,7 @@ owned_files:
 - docs/migration/dashboard-fastapi-transport.md
 role: curator
 tags: []
+shell_pid: "1759332"
 ---
 
 ## ⚡ Do This First: Load Agent Profile
@@ -277,3 +278,7 @@ See ADR `2026-05-03-2-resource-oriented-mission-api.md` for the full pathway.
 
 - **Stale snapshot test**: If the snapshot test compares byte-for-byte and the snapshot was regenerated with a different JSON key order, the test may fail. Ensure `sort_keys=True` in the regen script matches whatever the snapshot test expects. Read the test first.
 - **`create_app()` signature**: The factory may require `project_dir` or `project_token`. Check its signature in `src/dashboard/api/app.py` before calling it in the regen script.
+
+## Activity Log
+
+- 2026-05-04T07:35:48Z – claude:claude-sonnet-4-6:curator-carla:curator – shell_pid=1759332 – Started implementation via action command

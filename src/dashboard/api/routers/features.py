@@ -24,6 +24,7 @@ service.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -51,7 +52,7 @@ def register(app: FastAPI) -> None:
     @router.get("/api/features", response_model=FeaturesListResponse)
     def list_features(
         request: Request,
-        registry: MissionRegistry = Depends(get_mission_registry),
+        registry: Annotated[MissionRegistry, Depends(get_mission_registry)],
     ):
         project_dir = Path(request.app.state.project_dir)
         try:

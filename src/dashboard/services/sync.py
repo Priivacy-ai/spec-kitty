@@ -82,7 +82,7 @@ class SyncService:
             _get_daemon_status if _get_daemon_status is not None else get_sync_daemon_status
         )
 
-    def trigger_sync(self, token: str | None = None) -> SyncTriggerResult:
+    def trigger_sync(self, _token: str | None = None) -> SyncTriggerResult:
         """Ensure the daemon is running and ask it to flush soon."""
         from specify_cli.sync.daemon import DaemonIntent
 

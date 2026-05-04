@@ -18,6 +18,7 @@ the mission-identity rule (CLAUDE.md §"Mission Identity Model (083+)"):
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -87,7 +88,7 @@ def register(app: FastAPI) -> None:
     def get_kanban(
         feature_id: str,
         request: Request,
-        registry: MissionRegistry = Depends(get_mission_registry),
+        registry: Annotated[MissionRegistry, Depends(get_mission_registry)],
     ):
         project_dir = Path(request.app.state.project_dir)
 
