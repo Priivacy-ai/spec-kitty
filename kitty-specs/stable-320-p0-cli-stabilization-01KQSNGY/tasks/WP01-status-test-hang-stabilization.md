@@ -31,8 +31,10 @@ execution_mode: code_change
 lane: planned
 owned_files:
 - src/specify_cli/status/**
+- src/specify_cli/sync/background.py
 - src/specify_cli/cli/commands/agent/status.py
 - tests/status/**
+- tests/sync/test_background.py
 - tests/specify_cli/status/**
 tags: []
 task_type: implement

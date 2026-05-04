@@ -12,7 +12,9 @@
       ],
       "write_scope": [
         "src/specify_cli/cli/commands/agent/status.py",
+        "src/specify_cli/sync/background.py",
         "src/specify_cli/status/**",
+        "tests/sync/test_background.py",
         "tests/specify_cli/status/**",
         "tests/status/**"
       ],
