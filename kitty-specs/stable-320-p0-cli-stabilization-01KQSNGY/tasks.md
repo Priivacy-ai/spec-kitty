@@ -21,12 +21,12 @@ Fine-grained subtasks (`Txxx`) roll up into work packages (`WPxx`). Each WP is s
 | T003 | Implement the smallest deterministic status fixture/runtime boundary fix | WP01 | No | [D] |
 | T004 | Add bounded regression tests and diagnostics for bootstrap and emit paths | WP01 | Yes | [D] |
 | T005 | Capture #967 validation evidence for release closeout | WP01 | Yes | [D] |
-| T006 | Add latest review-cycle artifact fixtures and tests for rejected/approved precedence | WP02 | No |
-| T007 | Enforce rejected-verdict fail-closed checks before approved/done WP state mutation | WP02 | No |
-| T008 | Add durable explicit override support for rejected verdict supersession | WP02 | No |
-| T009 | Extend mission status, mission review, and merge preflight contradiction diagnostics | WP02 | Yes |
-| T010 | Preserve JSON stdout cleanliness for touched review/task commands | WP02 | Yes |
-| T011 | Add end-to-end review consistency regression coverage | WP02 | No |
+| T006 | Add latest review-cycle artifact fixtures and tests for rejected/approved precedence | WP02 | No | [D] |
+| T007 | Enforce rejected-verdict fail-closed checks before approved/done WP state mutation | WP02 | No | [D] |
+| T008 | Add durable explicit override support for rejected verdict supersession | WP02 | No | [D] |
+| T009 | Extend mission status, mission review, and merge preflight contradiction diagnostics | WP02 | Yes | [D] |
+| T010 | Preserve JSON stdout cleanliness for touched review/task commands | WP02 | Yes | [D] |
+| T011 | Add end-to-end review consistency regression coverage | WP02 | No | [D] |
 | T012 | Inventory active command registries, packaged templates, diagnostics, and counts for retired checklist drift | WP03 | No |
 | T013 | Remove retired checklist from active registry and generation surfaces | WP03 | No |
 | T014 | Preserve manifest-owned stale checklist cleanup without deleting user-owned files | WP03 | No |
@@ -92,12 +92,12 @@ Timeout-only fixes can hide the real nondeterminism. The WP must document the ca
 
 ### Included Subtasks
 
-- [ ] T006 Add latest review-cycle artifact fixtures and tests for rejected/approved precedence (WP02)
-- [ ] T007 Enforce rejected-verdict fail-closed checks before approved/done WP state mutation (WP02)
-- [ ] T008 Add durable explicit override support for rejected verdict supersession (WP02)
-- [ ] T009 [P] Extend mission status, mission review, and merge preflight contradiction diagnostics (WP02)
-- [ ] T010 [P] Preserve JSON stdout cleanliness for touched review/task commands (WP02)
-- [ ] T011 Add end-to-end review consistency regression coverage (WP02)
+- [x] T006 Add latest review-cycle artifact fixtures and tests for rejected/approved precedence (WP02)
+- [x] T007 Enforce rejected-verdict fail-closed checks before approved/done WP state mutation (WP02)
+- [x] T008 Add durable explicit override support for rejected verdict supersession (WP02)
+- [x] T009 [P] Extend mission status, mission review, and merge preflight contradiction diagnostics (WP02)
+- [x] T010 [P] Preserve JSON stdout cleanliness for touched review/task commands (WP02)
+- [x] T011 Add end-to-end review consistency regression coverage (WP02)
 
 ### Implementation Notes
 
