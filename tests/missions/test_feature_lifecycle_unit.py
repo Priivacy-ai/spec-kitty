@@ -16,6 +16,8 @@ from specify_cli.cli.commands.agent.mission import (
 
 pytestmark = pytest.mark.fast
 
+ACCEPTANCE_MODE_CHECKLIST = "checklist"
+
 
 # =============================================================================
 # Fixtures
@@ -141,13 +143,19 @@ def test_accept_command_passes_flags(mock_locate: MagicMock, mock_accept: MagicM
 
     from specify_cli.cli.commands.agent.mission import accept_feature
 
-    accept_feature(feature="001-test", mode="checklist", json_output=True, lenient=True, no_commit=True)
+    accept_feature(
+        feature="001-test",
+        mode=ACCEPTANCE_MODE_CHECKLIST,
+        json_output=True,
+        lenient=True,
+        no_commit=True,
+    )
 
     # Verify all flags passed to top-level accept
     mock_accept.assert_called_once_with(
         mission="001-test",
         feature=None,
-        mode="checklist",
+        mode=ACCEPTANCE_MODE_CHECKLIST,
         actor=None,
         test=[],
         json_output=True,
@@ -467,7 +475,7 @@ def test_accept_command_with_all_flags_console_output(mock_locate: MagicMock, mo
 
     accept_feature(
         feature="001-test",
-        mode="checklist",
+        mode=ACCEPTANCE_MODE_CHECKLIST,
         json_output=False,  # Console output mode
         lenient=True,
         no_commit=True,
@@ -477,7 +485,7 @@ def test_accept_command_with_all_flags_console_output(mock_locate: MagicMock, mo
     mock_accept.assert_called_once_with(
         mission="001-test",
         feature=None,
-        mode="checklist",
+        mode=ACCEPTANCE_MODE_CHECKLIST,
         actor=None,
         test=[],
         json_output=False,

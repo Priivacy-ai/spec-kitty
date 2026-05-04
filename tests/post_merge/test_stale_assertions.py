@@ -173,6 +173,58 @@ class TestChangedStringLiteralFlaggedLowConfidence:
         symbol_names = {f.changed_symbol for f in low_findings}
         assert "old error message" in symbol_names
 
+    def test_removed_literal_negative_membership_assertion_not_flagged(
+        self, tmp_path: Path
+    ) -> None:
+        repo = _setup_repo(tmp_path)
+
+        _write(repo, "src/registry.py", """\
+            COMMANDS = ("checklist", "specify")
+        """)
+        _write(repo, "tests/test_registry.py", """\
+            from registry import COMMANDS
+
+            def test_retired_command_absent():
+                assert "checklist" not in COMMANDS
+        """)
+        base_sha = _commit(repo, "base")
+
+        _write(repo, "src/registry.py", """\
+            COMMANDS = ("specify",)
+        """)
+        head_sha = _commit(repo, "remove checklist")
+
+        report = run_check(base_ref=base_sha, head_ref=head_sha, repo_root=repo)
+
+        flagged_symbols = {f.changed_symbol for f in report.findings}
+        assert "checklist" not in flagged_symbols
+
+    def test_removed_literal_assert_not_in_call_not_flagged(self, tmp_path: Path) -> None:
+        repo = _setup_repo(tmp_path)
+
+        _write(repo, "src/registry.py", """\
+            COMMANDS = ("checklist", "specify")
+        """)
+        _write(repo, "tests/test_registry.py", """\
+            import unittest
+            from registry import COMMANDS
+
+            class RegistryTests(unittest.TestCase):
+                def test_retired_command_absent(self):
+                    self.assertNotIn("checklist", COMMANDS)
+        """)
+        base_sha = _commit(repo, "base")
+
+        _write(repo, "src/registry.py", """\
+            COMMANDS = ("specify",)
+        """)
+        head_sha = _commit(repo, "remove checklist")
+
+        report = run_check(base_ref=base_sha, head_ref=head_sha, repo_root=repo)
+
+        flagged_symbols = {f.changed_symbol for f in report.findings}
+        assert "checklist" not in flagged_symbols
+
 
 # ---------------------------------------------------------------------------
 # FR-002 worked examples: comments and inert uses must NOT be flagged

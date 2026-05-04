@@ -298,6 +298,66 @@ def _constants_in_subtree(node: ast.AST) -> set[str]:
     return values
 
 
+def _assertion_negatively_checks_literal_absence(assertion: ast.AST, literal: str) -> bool:
+    """Return True for assertions that intentionally require a removed literal to be absent."""
+    if isinstance(assertion, ast.Assert):
+        for node in ast.walk(assertion.test):
+            if not isinstance(node, ast.Compare):
+                continue
+            for op, comparator in zip(node.ops, node.comparators, strict=False):
+                if not isinstance(op, ast.NotIn):
+                    continue
+                if _node_contains_literal(node.left, literal) or _node_contains_literal(
+                    comparator, literal
+                ):
+                    return True
+
+    if isinstance(assertion, ast.Call):
+        func = assertion.func
+        if isinstance(func, ast.Attribute) and func.attr == "assertNotIn":
+            return any(_node_contains_literal(arg, literal) for arg in assertion.args)
+
+    return False
+
+
+def _node_contains_literal(node: ast.AST, literal: str) -> bool:
+    """Return True when *node* contains the exact string literal."""
+    return any(
+        isinstance(child, ast.Constant) and child.value == literal
+        for child in ast.walk(node)
+    )
+
+
+def _literal_findings_for_assertion(
+    assertion: ast.AST,
+    line: int,
+    changed_literals: dict[str, _SourceSymbol],
+    test_path: Path,
+) -> list[StaleAssertionFinding]:
+    """Return low-confidence findings for changed literals in one assertion."""
+    findings: list[StaleAssertionFinding] = []
+    constants_in_assertion = _constants_in_subtree(assertion)
+    for lit_val, sym in changed_literals.items():
+        if _assertion_negatively_checks_literal_absence(assertion, lit_val):
+            continue
+        if lit_val in constants_in_assertion:
+            findings.append(
+                StaleAssertionFinding(
+                    test_file=test_path,
+                    test_line=line,
+                    source_file=sym.source_file,
+                    source_line=sym.source_line,
+                    changed_symbol=lit_val,
+                    confidence="low",
+                    hint=(
+                        f"Assertion contains string literal {lit_val!r} which was "
+                        f"removed from {sym.source_file.name}:{sym.source_line}"
+                    ),
+                )
+            )
+    return findings
+
+
 def _get_node_line(node: ast.AST) -> int:
     """Return the line number of an AST node, defaulting to 0 if unavailable."""
     return getattr(node, "lineno", 0)
@@ -400,23 +460,11 @@ def _scan_test_file(
                 )
 
         # --- Literal matches ---
-        constants_in_assertion = _constants_in_subtree(assertion)
-        for lit_val, sym in changed_literals.items():
-            if lit_val in constants_in_assertion:
-                findings.append(
-                    StaleAssertionFinding(
-                        test_file=test_path,
-                        test_line=line,
-                        source_file=sym.source_file,
-                        source_line=sym.source_line,
-                        changed_symbol=lit_val,
-                        confidence="low",
-                        hint=(
-                            f"Assertion contains string literal {lit_val!r} which was "
-                            f"removed from {sym.source_file.name}:{sym.source_line}"
-                        ),
-                    )
-                )
+        findings.extend(
+            _literal_findings_for_assertion(
+                assertion, line, changed_literals, test_path
+            )
+        )
 
     return findings
 

@@ -8,6 +8,8 @@ import pytest
 import acceptance_support as acc
 import task_helpers as th
 
+ACCEPTANCE_MODE_CHECKLIST = "checklist"
+
 
 def test_collect_feature_summary_reports_metadata_issue(feature_repo: Path, mission_slug: str) -> None:
     # WP files now live in flat tasks/ directory
@@ -55,10 +57,12 @@ def test_perform_acceptance_without_commit(feature_repo: Path, mission_slug: str
     assert summary.metadata_issues == []
     assert summary.activity_issues == []
 
-    result = acc.perform_acceptance(summary, mode="checklist", actor="Tester", auto_commit=False)
+    result = acc.perform_acceptance(
+        summary, mode=ACCEPTANCE_MODE_CHECKLIST, actor="Tester", auto_commit=False
+    )
     payload = result.to_dict()
     assert payload["accepted_by"] == "Tester"
-    assert payload["mode"] == "checklist"
+    assert payload["mode"] == ACCEPTANCE_MODE_CHECKLIST
 
 
 def test_collect_feature_summary_encoding_error(feature_repo: Path, mission_slug: str) -> None:
