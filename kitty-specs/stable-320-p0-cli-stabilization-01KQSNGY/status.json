@@ -1,0 +1,56 @@
+{
+  "event_count": 5,
+  "last_event_id": "01KQSR207NYZ8XRP34W6YBWD8P",
+  "materialized_at": "2026-05-04T15:00:11.125852+00:00",
+  "mission_number": "",
+  "mission_slug": "stable-320-p0-cli-stabilization-01KQSNGY",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 5
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KQSR1ZXQR3JTSSZDT8C61A0R",
+      "last_transition_at": "2026-05-04T15:00:10.807873+00:00"
+    },
+    "WP02": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KQSR204SFA3MNEGM62DF375J",
+      "last_transition_at": "2026-05-04T15:00:11.033887+00:00"
+    },
+    "WP03": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KQSR205QCVXXN9ZN4R9Z8E4A",
+      "last_transition_at": "2026-05-04T15:00:11.063475+00:00"
+    },
+    "WP04": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KQSR206NEZEV9NFH31RH1CVR",
+      "last_transition_at": "2026-05-04T15:00:11.093605+00:00"
+    },
+    "WP05": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KQSR207NYZ8XRP34W6YBWD8P",
+      "last_transition_at": "2026-05-04T15:00:11.125852+00:00"
+    }
+  }
+}
