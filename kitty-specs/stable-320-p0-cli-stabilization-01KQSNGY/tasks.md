@@ -27,11 +27,11 @@ Fine-grained subtasks (`Txxx`) roll up into work packages (`WPxx`). Each WP is s
 | T009 | Extend mission status, mission review, and merge preflight contradiction diagnostics | WP02 | Yes | [D] |
 | T010 | Preserve JSON stdout cleanliness for touched review/task commands | WP02 | Yes | [D] |
 | T011 | Add end-to-end review consistency regression coverage | WP02 | No | [D] |
-| T012 | Inventory active command registries, packaged templates, diagnostics, and counts for retired checklist drift | WP03 | No |
-| T013 | Remove retired checklist from active registry and generation surfaces | WP03 | No |
-| T014 | Preserve manifest-owned stale checklist cleanup without deleting user-owned files | WP03 | No |
-| T015 | Align runtime doctor/count diagnostics and docs/comments with active command reality | WP03 | Yes |
-| T016 | Add fresh command surface inventory tests for #968 | WP03 | Yes |
+| T012 | Inventory active command registries, packaged templates, diagnostics, and counts for retired checklist drift | WP03 | No | [D] |
+| T013 | Remove retired checklist from active registry and generation surfaces | WP03 | No | [D] |
+| T014 | Preserve manifest-owned stale checklist cleanup without deleting user-owned files | WP03 | No | [D] |
+| T015 | Align runtime doctor/count diagnostics and docs/comments with active command reality | WP03 | Yes | [D] |
+| T016 | Add fresh command surface inventory tests for #968 | WP03 | Yes | [D] |
 | T017 | Reproduce #964 with fresh Codex/global skill generation, including `spec-kitty.advise` | WP04 | No |
 | T018 | Ensure generated `SKILL.md` files include required YAML frontmatter | WP04 | No |
 | T019 | Add generated-skill frontmatter tests across relevant host surfaces | WP04 | Yes |
@@ -129,11 +129,11 @@ An override flag without durable metadata would become an invisible bypass. Test
 
 ### Included Subtasks
 
-- [ ] T012 Inventory active command registries, packaged templates, diagnostics, and counts for retired checklist drift (WP03)
-- [ ] T013 Remove retired checklist from active registry and generation surfaces (WP03)
-- [ ] T014 Preserve manifest-owned stale checklist cleanup without deleting user-owned files (WP03)
-- [ ] T015 [P] Align runtime doctor/count diagnostics and docs/comments with active command reality (WP03)
-- [ ] T016 [P] Add fresh command surface inventory tests for #968 (WP03)
+- [x] T012 Inventory active command registries, packaged templates, diagnostics, and counts for retired checklist drift (WP03)
+- [x] T013 Remove retired checklist from active registry and generation surfaces (WP03)
+- [x] T014 Preserve manifest-owned stale checklist cleanup without deleting user-owned files (WP03)
+- [x] T015 [P] Align runtime doctor/count diagnostics and docs/comments with active command reality (WP03)
+- [x] T016 [P] Add fresh command surface inventory tests for #968 (WP03)
 
 ### Implementation Notes
 
