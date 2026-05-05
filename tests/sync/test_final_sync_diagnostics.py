@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import threading
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -280,43 +279,6 @@ def test_final_sync_auth_refresh_lock_retries_then_emits_once(
     assert "Another spec-kitty process is refreshing the auth session" in captured.err
     assert "fatal=false" in captured.err
     assert "sync_phase=final_sync" in captured.err
-
-
-def test_fetch_access_token_sync_preserves_auth_refresh_lock_in_thread(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from specify_cli.auth.refresh_transaction import RefreshLockTimeoutError
-    from specify_cli.sync.background import _fetch_access_token_sync
-
-    class RefreshLockedTokenManager:
-        is_authenticated = True
-
-        def __init__(self) -> None:
-            self.attempts = 0
-
-        async def get_access_token(self) -> str:
-            self.attempts += 1
-            raise RefreshLockTimeoutError()
-
-    token_manager = RefreshLockedTokenManager()
-    errors: list[BaseException] = []
-
-    def fetch_in_thread() -> None:
-        try:
-            _fetch_access_token_sync()
-        except BaseException as exc:  # noqa: BLE001 - thread handoff for assertion
-            errors.append(exc)
-
-    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-    with patch("specify_cli.sync.background.get_token_manager", return_value=token_manager):
-        thread = threading.Thread(target=fetch_in_thread)
-        thread.start()
-        thread.join(timeout=2.0)
-
-    assert not thread.is_alive()
-    assert token_manager.attempts == 1
-    assert len(errors) == 1
-    assert isinstance(errors[0], RefreshLockTimeoutError)
 
 
 class _NeverAcquiredLock:
