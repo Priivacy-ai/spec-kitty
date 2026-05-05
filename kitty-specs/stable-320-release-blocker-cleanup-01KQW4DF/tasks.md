@@ -15,12 +15,12 @@
 | T003 | Refactor `sync/batch.py`: add bounded final-sync retry/backoff, then emit one non-fatal diagnostic through `emit_sync_diagnostic(classified_code, ...)` | WP01 | |
 | T004 | Write `tests/sync/test_final_sync_diagnostics.py` — diagnostics, retry/backoff, and mixed-signal single-emission regression cases | WP01 | |
 | T005 | Extend `tests/e2e/test_mission_create_clean_output.py` — assert JSON stdout valid + stderr has at most one final-sync diagnostic | WP01 | |
-| T006 | Add `TaskIdResolutionOutcome`, `TaskIdResolutionFormat`, `TaskIdResult` types to `tasks.py` | WP02 | [P] |
-| T007 | Implement `_resolve_inline_subtasks()` — regex for `Subtasks: T001, T002` pattern with a durable persisted status update | WP02 | |
-| T008 | Implement `_resolve_wp_id()` — delegate to `emit_status_transition()` for bare WP IDs | WP02 | |
-| T009 | Update `mark_status()` to use strategy stack and collect per-ID results | WP02 | |
-| T010 | Update `--json` output to `results` + `summary` shape per `contracts/mark-status-result.schema.json` | WP02 | |
-| T011 | Write regression tests: 8 cases covering inline, WP-ID, mixed, not-found, backwards-compat formats | WP02 | |
+| T006 | Add `TaskIdResolutionOutcome`, `TaskIdResolutionFormat`, `TaskIdResult` types to `tasks.py` | WP02 | [D] |
+| T007 | Implement `_resolve_inline_subtasks()` — regex for `Subtasks: T001, T002` pattern with a durable persisted status update | WP02 | | [D] |
+| T008 | Implement `_resolve_wp_id()` — delegate to `emit_status_transition()` for bare WP IDs | WP02 | | [D] |
+| T009 | Update `mark_status()` to use strategy stack and collect per-ID results | WP02 | | [D] |
+| T010 | Update `--json` output to `results` + `summary` shape per `contracts/mark-status-result.schema.json` | WP02 | | [D] |
+| T011 | Write regression tests: 8 cases covering inline, WP-ID, mixed, not-found, backwards-compat formats | WP02 | | [D] |
 | T012 | Create `spec-kitty-end-to-end-testing/support/nested_env.py` with `NestedEnvResult` + `create_nested_env()` | WP03 | [D] |
 | T013 | Write `spec-kitty-end-to-end-testing/tests/test_nested_env_helper.py` — 4 unit tests for helper | WP03 | | [D] |
 | T014 | Update `spec-kitty-end-to-end-testing/scenarios/contract_drift_caught.py` to use `create_nested_env()` | WP03 | | [D] |
@@ -75,12 +75,12 @@ Every `updated` or `already_satisfied` result must correspond to durable state: 
 or an appended canonical status event. Inline `Subtasks:` matches must not report success without persistence.
 
 **Included subtasks**:
-- [ ] T006 Add `TaskIdResolutionOutcome`, `TaskIdResolutionFormat`, `TaskIdResult` types to `tasks.py` (WP02)
-- [ ] T007 Implement `_resolve_inline_subtasks()` — regex for `Subtasks: T001, T002` pattern plus durable status persistence (WP02)
-- [ ] T008 Implement `_resolve_wp_id()` — delegate to `emit_status_transition()` for bare WP IDs (WP02)
-- [ ] T009 Update `mark_status()` to use strategy stack and collect per-ID results (WP02)
-- [ ] T010 Update `--json` output to `results` + `summary` per `contracts/mark-status-result.schema.json` (WP02)
-- [ ] T011 Write 8 regression tests covering all formats + edge cases (WP02)
+- [x] T006 Add `TaskIdResolutionOutcome`, `TaskIdResolutionFormat`, `TaskIdResult` types to `tasks.py` (WP02)
+- [x] T007 Implement `_resolve_inline_subtasks()` — regex for `Subtasks: T001, T002` pattern plus durable status persistence (WP02)
+- [x] T008 Implement `_resolve_wp_id()` — delegate to `emit_status_transition()` for bare WP IDs (WP02)
+- [x] T009 Update `mark_status()` to use strategy stack and collect per-ID results (WP02)
+- [x] T010 Update `--json` output to `results` + `summary` per `contracts/mark-status-result.schema.json` (WP02)
+- [x] T011 Write 8 regression tests covering all formats + edge cases (WP02)
 
 **Implementation sketch**: Add types first (T006), implement each resolver (T007, T008), wire into the strategy stack in `mark_status()` (T009), update the JSON output shape (T010), write tests last (T011). The strategy stack executes in order: checkbox -> pipe-table -> inline-subtasks -> wp-id; first match wins. The inline-subtasks resolver must either update a persisted task-status surface or return `not_found`; it must not return `updated` for a read-only match.
 
