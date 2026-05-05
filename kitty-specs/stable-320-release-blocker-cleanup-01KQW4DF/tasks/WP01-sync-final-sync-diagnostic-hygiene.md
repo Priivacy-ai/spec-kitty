@@ -15,6 +15,9 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-stable-320-release-blocker-cleanup-01KQW4DF
+base_commit: 7a8bed0515ec8ae984e792f050c0084356232b1b
+created_at: '2026-05-05T16:28:16.840028+00:00'
 subtasks:
 - T001
 - T002
@@ -22,6 +25,7 @@ subtasks:
 - T004
 - T005
 agent: claude
+shell_pid: '41544'
 history:
 - date: '2026-05-05'
   event: created
