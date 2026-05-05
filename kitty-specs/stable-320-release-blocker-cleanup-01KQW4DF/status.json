@@ -1,19 +1,19 @@
 {
-  "event_count": 18,
-  "last_event_id": "01KQWGFHY1800XFJN9M0T0P9GV",
-  "materialized_at": "2026-05-05T16:45:29.921454+00:00",
+  "event_count": 19,
+  "last_event_id": "01KQWGFKQSVXPY836YEC860E06",
+  "materialized_at": "2026-05-05T16:45:31.770006+00:00",
   "mission_number": "",
   "mission_slug": "stable-320-release-blocker-cleanup-01KQW4DF",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 1,
+    "approved": 2,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 1,
     "in_progress": 1,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 0
   },
   "work_packages": {
@@ -32,11 +32,11 @@
       "last_transition_at": "2026-05-05T16:45:29.921454+00:00"
     },
     "WP03": {
-      "actor": "codex:gpt-5:reviewer-renata:reviewer",
-      "force_count": 2,
-      "lane": "in_review",
-      "last_event_id": "01KQWG38BAT957JW6AX8Y471R0",
-      "last_transition_at": "2026-05-05T16:38:46.890136+00:00"
+      "actor": "user",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01KQWGFKQSVXPY836YEC860E06",
+      "last_transition_at": "2026-05-05T16:45:31.770006+00:00"
     },
     "WP04": {
       "actor": "user",
