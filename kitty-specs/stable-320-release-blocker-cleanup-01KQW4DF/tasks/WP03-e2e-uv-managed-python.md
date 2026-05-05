@@ -18,8 +18,8 @@ subtasks:
 - T012
 - T013
 - T014
-agent: claude
-shell_pid: '42410'
+agent: "codex:gpt-5:python-pedro:implementer"
+shell_pid: "42410"
 history:
 - date: '2026-05-05'
   event: created
@@ -355,3 +355,7 @@ SPEC_KITTY_ENABLE_SAAS_SYNC=1 spec-kitty agent action implement WP03 --agent cla
 2. Run the full E2E scenario with `UV_CACHE_DIR=/private/tmp/spec-kitty-e2e-uv-cache` to confirm PASSED.
 3. Confirm the drift assertion fires: the drifted events package (missing `event_id`) is detected.
 4. Run unit tests: `pytest tests/test_nested_env_helper.py -v` — all 4 pass.
+
+## Activity Log
+
+- 2026-05-05T16:29:06Z – codex:gpt-5:python-pedro:implementer – shell_pid=42410 – Assigned agent via action command
