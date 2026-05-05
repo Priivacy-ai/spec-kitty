@@ -277,7 +277,7 @@ def test_final_sync_auth_refresh_lock_retries_then_emits_once(
         patch("specify_cli.sync.background.get_token_manager", return_value=token_manager),
         patch("specify_cli.sync.batch.time.sleep", side_effect=sleeps.append),
     ):
-        service._guarded_final_sync()
+        service.stop()
 
     captured = capsys.readouterr()
     assert token_manager.attempts == 3
