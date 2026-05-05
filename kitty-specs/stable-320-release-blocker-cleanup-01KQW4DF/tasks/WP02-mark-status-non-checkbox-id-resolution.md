@@ -393,3 +393,4 @@ SPEC_KITTY_ENABLE_SAAS_SYNC=1 spec-kitty agent action implement WP02 --agent cla
 ## Activity Log
 
 - 2026-05-05T16:28:39Z – codex:gpt-5:python-pedro:implementer – shell_pid=41970 – Assigned agent via action command
+- 2026-05-05T16:45:30Z – codex:gpt-5:python-pedro:implementer – shell_pid=41970 – Ready for review: mark-status resolves checkbox, pipe-table, inline Subtasks, and WP IDs with contracted per-ID JSON results

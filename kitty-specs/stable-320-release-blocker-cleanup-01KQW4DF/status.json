@@ -1,7 +1,7 @@
 {
-  "event_count": 17,
-  "last_event_id": "01KQWG6Y0PFGGG75CG4Y41THQC",
-  "materialized_at": "2026-05-05T16:40:47.382456+00:00",
+  "event_count": 18,
+  "last_event_id": "01KQWGFHY1800XFJN9M0T0P9GV",
+  "materialized_at": "2026-05-05T16:45:29.921454+00:00",
   "mission_number": "",
   "mission_slug": "stable-320-release-blocker-cleanup-01KQW4DF",
   "mission_type": "software-dev",
@@ -11,8 +11,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 2,
+    "for_review": 1,
+    "in_progress": 1,
     "in_review": 1,
     "planned": 0
   },
@@ -25,11 +25,11 @@
       "last_transition_at": "2026-05-05T16:28:16.853797+00:00"
     },
     "WP02": {
-      "actor": "codex:gpt-5:python-pedro:implementer",
+      "actor": "user",
       "force_count": 1,
-      "lane": "in_progress",
-      "last_event_id": "01KQWFGMZC0DE76S5GYFY67QN7",
-      "last_transition_at": "2026-05-05T16:28:37.228592+00:00"
+      "lane": "for_review",
+      "last_event_id": "01KQWGFHY1800XFJN9M0T0P9GV",
+      "last_transition_at": "2026-05-05T16:45:29.921454+00:00"
     },
     "WP03": {
       "actor": "codex:gpt-5:reviewer-renata:reviewer",
