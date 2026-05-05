@@ -24,8 +24,8 @@ subtasks:
 - T003
 - T004
 - T005
-agent: claude
-shell_pid: '41544'
+agent: "codex:gpt-5:python-pedro:implementer"
+shell_pid: "41544"
 history:
 - date: '2026-05-05'
   event: created
@@ -377,3 +377,7 @@ Check:
 4. `classify_sync_error()` correctly maps at least the two observed smoke-evidence error strings.
 5. Final sync retries 3 times with 1-second backoff before emitting the non-fatal diagnostic.
 6. `mypy --strict` and `pytest` both pass.
+
+## Activity Log
+
+- 2026-05-05T16:28:20Z – codex:gpt-5:python-pedro:implementer – shell_pid=41544 – Assigned agent via action command
