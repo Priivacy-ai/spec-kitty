@@ -38,6 +38,8 @@ from specify_cli.cli.commands._auth_doctor import (
     render_report,
     render_report_json,
 )
+
+pytestmark = pytest.mark.fast
 from specify_cli.core.file_lock import LockRecord
 from specify_cli.sync.daemon import SyncDaemonStatus
 from specify_cli.sync.orphan_sweep import OrphanDaemon

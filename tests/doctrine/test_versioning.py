@@ -18,6 +18,8 @@ from doctrine.versioning import (
     run_migration,
 )
 
+pytestmark = pytest.mark.fast
+
 
 def _write_v1_bundle(bundle_root: Path) -> Path:
     provenance_dir = bundle_root / "provenance"

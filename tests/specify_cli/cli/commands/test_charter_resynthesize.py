@@ -6,10 +6,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands import charter as charter_module
 from specify_cli.cli.commands.charter import app as charter_app
+
+pytestmark = pytest.mark.fast
 
 
 runner = CliRunner()

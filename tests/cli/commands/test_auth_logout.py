@@ -31,6 +31,8 @@ from specify_cli.auth.flows.revoke import RevokeOutcome
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.cli.commands.auth import app
 
+pytestmark = pytest.mark.fast
+
 
 runner = CliRunner()
 
