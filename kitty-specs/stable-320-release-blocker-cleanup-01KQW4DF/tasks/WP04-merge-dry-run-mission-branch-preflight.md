@@ -20,8 +20,8 @@ subtasks:
 - T016
 - T017
 - T018
-agent: claude
-shell_pid: '42896'
+agent: "codex:gpt-5:python-pedro:implementer"
+shell_pid: "42896"
 history:
 - date: '2026-05-05'
   event: created
@@ -326,3 +326,7 @@ SPEC_KITTY_ENABLE_SAAS_SYNC=1 spec-kitty agent action implement WP04 --agent cla
 3. Confirm `_check_mission_branch()` is called before any git write in the real merge path.
 4. Run `pytest tests/merge/ -v` — zero regressions in pre-existing tests.
 5. Validate JSON output against `contracts/merge-dry-run-blocker.schema.json`.
+
+## Activity Log
+
+- 2026-05-05T16:29:32Z – codex:gpt-5:python-pedro:implementer – shell_pid=42896 – Assigned agent via action command
