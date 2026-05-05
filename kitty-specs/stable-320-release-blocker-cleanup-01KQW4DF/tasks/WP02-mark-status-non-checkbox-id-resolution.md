@@ -395,3 +395,4 @@ SPEC_KITTY_ENABLE_SAAS_SYNC=1 spec-kitty agent action implement WP02 --agent cla
 - 2026-05-05T16:28:39Z – codex:gpt-5:python-pedro:implementer – shell_pid=41970 – Assigned agent via action command
 - 2026-05-05T16:45:30Z – codex:gpt-5:python-pedro:implementer – shell_pid=41970 – Ready for review: mark-status resolves checkbox, pipe-table, inline Subtasks, and WP IDs with contracted per-ID JSON results
 - 2026-05-05T16:46:41Z – codex:gpt-5:reviewer-renata:reviewer – shell_pid=77038 – Started review via action command
+- 2026-05-05T16:53:34Z – codex:gpt-5:reviewer-renata:reviewer – shell_pid=77038 – Review passed: inline Subtasks updates are durable via materialized checkbox rows, WP ID transitions use the canonical event log, and mark-status JSON matches the contracted per-ID results/summary schema.
