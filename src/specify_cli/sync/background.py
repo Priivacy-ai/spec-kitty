@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING
 
 from specify_cli.auth import get_token_manager
 from specify_cli.auth.errors import AuthenticationError
+from specify_cli.auth.refresh_transaction import RefreshLockTimeoutError
 from specify_cli.diagnostics import report_once
 
 from .batch import (
@@ -117,6 +118,8 @@ def _fetch_access_token_sync() -> str | None:
     callers.
 
     Returns ``None`` if the user is not authenticated or refresh failed.
+    Raises ``RefreshLockTimeoutError`` for bounded refresh-lock contention so
+    final-sync callers can retry and emit the canonical non-fatal diagnostic.
     """
     tm = get_token_manager()
     if not tm.is_authenticated:
@@ -147,6 +150,8 @@ def _fetch_access_token_sync() -> str | None:
                 with contextlib.suppress(Exception):
                     asyncio.set_event_loop(None)
                 new_loop.close()
+    except RefreshLockTimeoutError:
+        raise
     except AuthenticationError as exc:
         logger.debug("Background sync token fetch failed: %s", exc)
         return None
@@ -335,7 +340,10 @@ class BackgroundSyncService:
             return result
 
         with self._lock:
-            access_token = _fetch_access_token_sync()
+            try:
+                access_token = _fetch_access_token_sync()
+            except RefreshLockTimeoutError as exc:
+                return self._record_transient_token_fetch_failure(exc)
             if access_token is None:
                 if report_once("sync.unauthenticated"):
                     logger.warning("Not authenticated, skipping sync")
@@ -391,7 +399,10 @@ class BackgroundSyncService:
             result.error_messages.append(saas_sync_disabled_message())
             return result
 
-        access_token = _fetch_access_token_sync()
+        try:
+            access_token = _fetch_access_token_sync()
+        except RefreshLockTimeoutError as exc:
+            return self._record_transient_token_fetch_failure(exc)
         if access_token is None:
             if report_once("sync.unauthenticated"):
                 logger.warning("Not authenticated, skipping sync")
@@ -443,6 +454,23 @@ class BackgroundSyncService:
         if event_sync_succeeded and self._body_queue is not None:
             self._drain_body_queue()
 
+        return result
+
+    def _record_transient_token_fetch_failure(
+        self,
+        exc: RefreshLockTimeoutError,
+    ) -> BatchSyncResult:
+        """Represent auth refresh-lock contention as a retryable sync failure."""
+        self._consecutive_failures += 1
+        self._backoff_seconds = min(self._backoff_seconds * 2, 30.0)
+        logger.debug(
+            "Sync token fetch deferred by auth refresh lock (attempt %d): %s",
+            self._consecutive_failures,
+            exc,
+        )
+        result = BatchSyncResult()
+        result.error_count = 1
+        result.error_messages.append(str(exc))
         return result
 
     def _drain_body_queue(self) -> None:

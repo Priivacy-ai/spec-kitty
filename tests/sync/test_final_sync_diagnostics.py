@@ -215,6 +215,44 @@ def test_final_sync_failure_after_local_success_keeps_stdout_strict_json(
     assert "sync_diagnostic" not in captured.out
 
 
+def test_final_sync_auth_refresh_lock_retries_then_emits_once(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from specify_cli.auth.refresh_transaction import RefreshLockTimeoutError
+
+    class RefreshLockedTokenManager:
+        is_authenticated = True
+
+        def __init__(self) -> None:
+            self.attempts = 0
+
+        async def get_access_token(self) -> str:
+            self.attempts += 1
+            raise RefreshLockTimeoutError()
+
+    token_manager = RefreshLockedTokenManager()
+    service = _queued_service(tmp_path)
+    sleeps: list[float] = []
+    mark_invocation_succeeded()
+
+    with (
+        patch("specify_cli.sync.background.get_token_manager", return_value=token_manager),
+        patch("specify_cli.sync.batch.time.sleep", side_effect=sleeps.append),
+    ):
+        service._guarded_final_sync()
+
+    captured = capsys.readouterr()
+    assert token_manager.attempts == 3
+    assert sleeps == [FINAL_SYNC_RETRY_BACKOFF_SECONDS, FINAL_SYNC_RETRY_BACKOFF_SECONDS]
+    assert captured.out == ""
+    assert captured.err.count("sync_diagnostic severity=warning") == 1
+    assert "diagnostic_code=sync.auth_refresh_in_progress" in captured.err
+    assert "Another spec-kitty process is refreshing the auth session" in captured.err
+    assert "fatal=false" in captured.err
+    assert "sync_phase=final_sync" in captured.err
+
+
 class _NeverAcquiredLock:
     def acquire(self, *, timeout: float) -> bool:
         assert timeout == 5.0
