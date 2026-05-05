@@ -1,7 +1,7 @@
 ---
 affected_files:
-- src/specify_cli/sync/background.py
-- tests/sync/test_final_sync_diagnostics.py
+- path: src/specify_cli/sync/background.py
+- path: tests/sync/test_final_sync_diagnostics.py
 cycle_number: 3
 mission_slug: stable-320-release-blocker-cleanup-01KQW4DF
 reproduction_command: uv run pytest tests/sync/test_final_sync_diagnostics.py tests/e2e/test_mission_create_clean_output.py tests/sync/test_issue_598_hang_fixes.py -q
