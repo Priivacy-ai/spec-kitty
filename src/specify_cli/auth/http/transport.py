@@ -142,7 +142,7 @@ class _BaseHttpClient:
                 kwargs,
                 self._timeout,
             )
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - stdlib fallback converts transport failures to NetworkError
             raise NetworkError(f"HTTP transport error: {exc}") from exc
 
     async def get(self, url: str, **kwargs: Any) -> httpx.Response:
@@ -293,7 +293,7 @@ def _targets_configured_saas(url: str) -> bool:
     target = urlsplit(url)
     try:
         saas = urlsplit(get_saas_base_url())
-    except Exception:
+    except Exception:  # noqa: BLE001 - SaaS URL config failures mean stdlib fallback is not applicable
         return False
     return (
         bool(target.hostname)
@@ -343,7 +343,7 @@ def _request_with_stdlib(
                 content=content,
                 request=request,
             )
-        except Exception as exc:  # pragma: no cover - exercised via async wrapper
+        except Exception as exc:  # noqa: BLE001 - each address failure is retried before surfacing final transport error
             last_exc = exc
         finally:
             if conn is not None:
@@ -368,7 +368,7 @@ def request_with_stdlib_fallback_sync(
     for _ in range(3):
         try:
             return _request_with_stdlib(method, url, kwargs, timeout)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - retry loop converts final stdlib transport failure to NetworkError
             last_exc = exc
     assert last_exc is not None
     raise NetworkError(f"HTTP transport error: {last_exc}") from last_exc

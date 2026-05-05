@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta, UTC
 from unittest.mock import Mock, patch
 
@@ -10,6 +11,7 @@ from typer.testing import CliRunner
 
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.cli.commands import sync as sync_module
+from specify_cli.sync.batch import BatchEventResult, BatchSyncResult
 
 runner = CliRunner()
 pytestmark = pytest.mark.fast
@@ -238,3 +240,54 @@ def test_opt_out_command_can_delete_private_remote_data(monkeypatch: pytest.Monk
     assert result.exit_code == 0, result.stdout
     assert "Deleted private SaaS data for this checkout" in result.stdout
     assert "4 event(s), 1 build(s)" in result.stdout
+
+
+def test_now_logged_out_nonempty_queue_reports_unauthenticated_failures(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    """Issue #829: logged-out sync now is unauthenticated, not generic sync failure."""
+    unauthenticated_result = BatchSyncResult()
+    unauthenticated_result.total_events = 3
+    unauthenticated_result.error_count = 3
+    unauthenticated_result.failed_ids = ["evt-1", "evt-2", "evt-3"]
+    unauthenticated_result.error_messages = [
+        "Not authenticated: no valid access token. Run `spec-kitty auth login`."
+    ]
+    unauthenticated_result.event_results = [
+        BatchEventResult(
+            event_id=f"evt-{index}",
+            status="rejected",
+            error="Not authenticated: no valid access token. Run `spec-kitty auth login`.",
+            error_category="unauthenticated",
+        )
+        for index in range(1, 4)
+    ]
+    service = Mock()
+    service.queue.size.return_value = 3
+    service.sync_now.return_value = unauthenticated_result
+
+    monkeypatch.setattr(sync_module, "is_saas_sync_enabled", lambda: True)
+    monkeypatch.setattr(
+        "specify_cli.sync.background.get_sync_service",
+        lambda: service,
+    )
+    report_path = tmp_path / "sync-failures.json"
+
+    result = runner.invoke(sync_module.app, ["now", "--report", str(report_path)])
+
+    assert result.exit_code == 1
+    assert "unauthenticated" in result.stdout
+    assert "spec-kitty auth login" in result.stdout
+    assert "Errors:" in result.stdout
+    assert "3" in result.stdout
+    assert "Failure report written" in result.stdout
+    assert "server_error" not in result.stdout
+    report = json.loads(report_path.read_text())
+    assert report["summary"]["failed"] == 3
+    assert report["summary"]["categories"] == {"unauthenticated": 3}
+    assert [failure["category"] for failure in report["failures"]] == [
+        "unauthenticated",
+        "unauthenticated",
+        "unauthenticated",
+    ]

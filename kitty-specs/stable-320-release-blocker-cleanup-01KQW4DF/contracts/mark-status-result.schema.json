@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mark-status-result",
+  "title": "mark-status --json result",
+  "description": "Schema for spec-kitty agent tasks mark-status --json output (NFR-004). All ID resolution outcomes (updated, already_satisfied, not_found) must conform.",
+  "type": "object",
+  "required": ["results", "summary"],
+  "additionalProperties": false,
+  "properties": {
+    "results": {
+      "type": "array",
+      "description": "Per-ID result entries, one for each requested task ID.",
+      "items": {
+        "$ref": "#/$defs/TaskIdResult"
+      }
+    },
+    "summary": {
+      "$ref": "#/$defs/ResultSummary"
+    }
+  },
+  "$defs": {
+    "TaskIdResult": {
+      "type": "object",
+      "required": ["id", "outcome", "message"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The bare task ID as requested (e.g., T001, WP02)."
+        },
+        "outcome": {
+          "type": "string",
+          "enum": ["updated", "already_satisfied", "not_found"],
+          "description": "Resolution outcome for this ID."
+        },
+        "format": {
+          "type": ["string", "null"],
+          "enum": ["checkbox", "pipe_table", "inline_subtasks", "wp_id", null],
+          "description": "Which resolution strategy matched. Null when outcome is not_found."
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable explanation of the outcome."
+        }
+      }
+    },
+    "ResultSummary": {
+      "type": "object",
+      "required": ["updated", "already_satisfied", "not_found"],
+      "additionalProperties": false,
+      "properties": {
+        "updated": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of IDs successfully updated."
+        },
+        "already_satisfied": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of IDs already in the requested state."
+        },
+        "not_found": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of IDs not found in any supported format."
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "results": [
+        {
+          "id": "T001",
+          "outcome": "updated",
+          "format": "checkbox",
+          "message": "Marked T001 as done (checkbox row updated)."
+        },
+        {
+          "id": "T002",
+          "outcome": "updated",
+          "format": "inline_subtasks",
+          "message": "Marked T002 as done (found in Subtasks: reference)."
+        },
+        {
+          "id": "WP02",
+          "outcome": "already_satisfied",
+          "format": "wp_id",
+          "message": "WP02 is already in lane 'done'."
+        },
+        {
+          "id": "T999",
+          "outcome": "not_found",
+          "format": null,
+          "message": "T999 was not found in any supported task format."
+        }
+      ],
+      "summary": {
+        "updated": 2,
+        "already_satisfied": 1,
+        "not_found": 1
+      }
+    }
+  ]
+}

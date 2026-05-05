@@ -42,6 +42,19 @@ from specify_cli.auth.token_manager import TokenManager
 # ---------------------------------------------------------------------------
 
 
+class _MembershipRehydrateAttempted(BaseException):
+    """Raised when refresh-lock tests accidentally enter hosted membership I/O."""
+
+
+def _private_teamspace() -> Team:
+    return Team(
+        id="t-private",
+        name="Private",
+        role="owner",
+        is_private_teamspace=True,
+    )
+
+
 def _make_expired_session(
     *,
     refresh_token: str = "rt_seed_v1",
@@ -89,8 +102,11 @@ class _CountingRefreshFlow:
             user_id=session.user_id,
             email=session.email,
             name=session.name,
-            teams=list(session.teams),
-            default_team_id=session.default_team_id,
+            # The refresh-lock contract is about single-flight refresh, not
+            # post-refresh membership rehydrate. Return a Private Teamspace so
+            # TokenManager's membership hook is a no-op in this suite.
+            teams=[_private_teamspace()],
+            default_team_id="t-private",
             access_token=f"at_rotated_v{_CountingRefreshFlow.call_count + 1}",
             refresh_token="rt_rotated_v2",  # rotated material
             session_id=session.session_id,
@@ -128,6 +144,30 @@ def install_counting_refresh_flow(
     return _CountingRefreshFlow
 
 
+@pytest.fixture
+def fail_on_membership_rehydrate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> list[tuple[str, str]]:
+    """Fail if this hermetic refresh-lock suite attempts ``/api/v1/me``.
+
+    Targeted membership-hook coverage lives in ``tests/auth/test_token_manager.py``
+    and ``tests/auth/test_refresh_flow.py``. These tests only validate the
+    refresh transaction's single-flight behavior.
+    """
+    from specify_cli.auth.http import me_fetch
+
+    calls: list[tuple[str, str]] = []
+
+    def _fail(saas_base_url: str, access_token: str) -> dict[str, object]:
+        calls.append((saas_base_url, access_token))
+        raise _MembershipRehydrateAttempted(
+            "refresh-lock tests must not call hosted /api/v1/me"
+        )
+
+    monkeypatch.setattr(me_fetch, "fetch_me_payload", _fail)
+    return calls
+
+
 def _build_token_manager(auth_store_root: Path) -> TokenManager:
     """Construct a :class:`TokenManager` rooted at ``auth_store_root``."""
     storage = FileFallbackStorage(base_dir=auth_store_root)
@@ -144,6 +184,8 @@ def _build_token_manager(auth_store_root: Path) -> TokenManager:
 async def test_concurrent_refresh_one_network_call(
     auth_store_root: Path,
     install_counting_refresh_flow: type[_CountingRefreshFlow],
+    fail_on_membership_rehydrate: list[tuple[str, str]],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Two :class:`TokenManager` instances → exactly one network refresh.
 
@@ -153,6 +195,8 @@ async def test_concurrent_refresh_one_network_call(
     in-memory copy and is non-expired, and adopts it without a
     network call.
     """
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://spec-kitty-dev.fly.dev")
+
     # Seed the encrypted store with an expired session.
     storage = FileFallbackStorage(base_dir=auth_store_root)
     storage.write(_make_expired_session())
@@ -185,11 +229,13 @@ async def test_concurrent_refresh_one_network_call(
     assert session_b is not None
     assert session_a.refresh_token == "rt_rotated_v2"
     assert session_b.refresh_token == "rt_rotated_v2"
+    assert fail_on_membership_rehydrate == []
 
 
 async def test_concurrent_refresh_serializes_through_machine_lock(
     auth_store_root: Path,
     install_counting_refresh_flow: type[_CountingRefreshFlow],
+    fail_on_membership_rehydrate: list[tuple[str, str]],
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """The machine-wide lock serialises overlapping transactions.
@@ -232,3 +278,4 @@ async def test_concurrent_refresh_serializes_through_machine_lock(
 
     # And the network counter is exactly one.
     assert install_counting_refresh_flow.call_count == 1
+    assert fail_on_membership_rehydrate == []

@@ -4,10 +4,14 @@ Provides per-event error parsing, categorization, actionable summaries,
 and JSON failure report export.
 """
 
+from __future__ import annotations
+
 import gzip
 import json
+import time
 from contextlib import suppress
 from collections import Counter
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, UTC
 from pathlib import Path
@@ -15,9 +19,17 @@ from pathlib import Path
 import requests
 
 from specify_cli.auth.http import request_with_stdlib_fallback_sync
-from specify_cli.sync._team import resolve_private_team_id_for_ingress
+from specify_cli.sync._team import (
+    CATEGORY_MISSING_PRIVATE_TEAM,
+    resolve_private_team_id_for_ingress,
+)
 from .feature_flags import is_saas_sync_enabled, saas_sync_disabled_message
 from .queue import OfflineQueue
+from .diagnostics import (
+    SyncDiagnosticCode,
+    classify_sync_error,
+    emit_sync_diagnostic,
+)
 from specify_cli.core.contract_gate import validate_outbound_payload
 
 
@@ -28,15 +40,37 @@ from specify_cli.core.contract_gate import validate_outbound_payload
 ERROR_CATEGORIES: dict[str, list[str]] = {
     "schema_mismatch": ["invalid", "schema", "field", "missing", "type"],
     "auth_expired": ["token", "expired", "unauthorized", "401"],
-    "server_error": ["internal", "500", "timeout", "unavailable"],
+    "unauthenticated": ["not authenticated", "no valid access token"],
+    CATEGORY_MISSING_PRIVATE_TEAM: [
+        "private teamspace",
+        "private team",
+        "direct ingress",
+        CATEGORY_MISSING_PRIVATE_TEAM,
+    ],
+    "retryable_transport": [
+        "timeout",
+        "connection",
+        "network",
+        "unreachable",
+        "unavailable",
+    ],
+    "server_error": ["internal", "500", "502", "503", "504", "server error"],
 }
 
 CATEGORY_ACTIONS: dict[str, str] = {
     "schema_mismatch": "Run `spec-kitty sync diagnose` to inspect invalid events",
     "auth_expired": "Run `spec-kitty auth login` to refresh credentials",
+    "unauthenticated": "Run `spec-kitty auth login` to authenticate",
+    CATEGORY_MISSING_PRIVATE_TEAM: (
+        "Private Teamspace access is required for direct ingress"
+    ),
+    "retryable_transport": "Retry later or check network connectivity",
     "server_error": "Retry later or check server status",
     "unknown": "Inspect the failure report for details: --report <file.json>",
 }
+
+FINAL_SYNC_MAX_ATTEMPTS = 3
+FINAL_SYNC_RETRY_BACKOFF_SECONDS = 1.0
 
 
 def _current_team_slug() -> str | None:
@@ -77,6 +111,76 @@ def categorize_error(error_string: str) -> str:
     return "unknown"
 
 
+def _safe_response_json(response: object) -> dict:
+    """Return a response JSON dict, or an empty dict if unavailable."""
+    try:
+        body = response.json()  # type: ignore[attr-defined]
+    except (TypeError, ValueError):
+        return {}
+    return body if isinstance(body, dict) else {}
+
+
+def _body_mentions_missing_private_team(body: dict) -> bool:
+    values = [
+        body.get("category"),
+        body.get("error_code"),
+        body.get("error"),
+        body.get("message"),
+        body.get("detail"),
+    ]
+    text = " ".join(str(value) for value in values if value is not None).lower()
+    return (
+        CATEGORY_MISSING_PRIVATE_TEAM in text
+        or "private teamspace" in text
+        or ("private team" in text and "direct ingress" in text)
+    )
+
+
+def _http_error_category(status_code: int, body: dict | None = None) -> str:
+    """Map batch HTTP failures to deterministic diagnostic categories."""
+    body = body or {}
+    if status_code == 401:
+        return "auth_expired"
+    if status_code == 403:
+        if _body_mentions_missing_private_team(body):
+            return CATEGORY_MISSING_PRIVATE_TEAM
+        return "unauthorized"
+    if status_code in {408, 429}:
+        return "retryable_transport"
+    if 500 <= status_code < 600:
+        return "server_error"
+    return categorize_error(str(body)) if body else "unknown"
+
+
+def _http_error_message(status_code: int, body: dict | None = None) -> str:
+    body = body or {}
+    message = body.get("message") or body.get("detail") or body.get("error")
+    if isinstance(message, str) and message.strip():
+        return message.strip()
+    return f"HTTP {status_code}"
+
+
+def _record_all_events_failed(
+    result: BatchSyncResult,
+    events: list[dict],
+    *,
+    error: str,
+    category: str,
+) -> None:
+    result.error_messages.append(error)
+    result.error_count = len(events)
+    result.failed_ids = [e.get("event_id") for e in events]
+    for evt in events:
+        result.event_results.append(
+            BatchEventResult(
+                event_id=evt.get("event_id", "unknown"),
+                status="rejected",
+                error=error,
+                error_category=category,
+            )
+        )
+
+
 # ---------------------------------------------------------------------------
 # Per-event result
 # ---------------------------------------------------------------------------
@@ -111,7 +215,7 @@ class BatchSyncResult:
     list ``event_results``.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.total_events: int = 0
         self.synced_count: int = 0
         self.duplicate_count: int = 0
@@ -138,6 +242,104 @@ class BatchSyncResult:
     def category_counts(self) -> dict[str, int]:
         """Counter of error categories among rejected events."""
         return dict(Counter(r.error_category for r in self.failed_results))
+
+
+def run_final_sync_with_retries(
+    sync_operation: Callable[[], BatchSyncResult],
+    *,
+    sleep: Callable[[float], None] | None = None,
+) -> BatchSyncResult:
+    """Run final sync with bounded retry before emitting a non-fatal diagnostic.
+
+    Final sync runs after the local command already succeeded, so exhausted
+    attempts must never change the command exit behavior or write retry noise
+    to stdout. Events remain durable in the queue for later daemon drain.
+    """
+    last_result: BatchSyncResult | None = None
+    last_error: BaseException | None = None
+    sleeper = time.sleep if sleep is None else sleep
+
+    for attempt in range(1, FINAL_SYNC_MAX_ATTEMPTS + 1):
+        try:
+            result = sync_operation()
+        except Exception as exc:  # noqa: BLE001 - final sync is best effort
+            last_error = exc
+            if attempt < FINAL_SYNC_MAX_ATTEMPTS:
+                sleeper(FINAL_SYNC_RETRY_BACKOFF_SECONDS)
+                continue
+            error_text = str(exc)
+            _emit_final_sync_failure_diagnostic(error_text)
+            return _result_from_final_sync_exception(exc)
+
+        last_result = result
+        last_error = None
+        if not _should_retry_final_sync_result(result):
+            if _is_failed_final_sync_result(result):
+                _emit_final_sync_failure_diagnostic(
+                    _final_sync_result_error_text(result)
+                )
+            return result
+        if attempt < FINAL_SYNC_MAX_ATTEMPTS:
+            sleeper(FINAL_SYNC_RETRY_BACKOFF_SECONDS)
+
+    if last_result is not None:
+        error_text = _final_sync_result_error_text(last_result)
+        _emit_final_sync_failure_diagnostic(error_text)
+        return last_result
+    if last_error is not None:
+        _emit_final_sync_failure_diagnostic(str(last_error))
+        return _result_from_final_sync_exception(last_error)
+    return BatchSyncResult()
+
+
+def _should_retry_final_sync_result(result: BatchSyncResult) -> bool:
+    """Return True for transient-looking final-sync failures."""
+    if not _is_failed_final_sync_result(result):
+        return False
+    categories = set(result.category_counts)
+    if not categories:
+        return True
+    non_retryable_categories = {
+        "auth_expired",
+        "schema_mismatch",
+        "unauthenticated",
+        "unauthorized",
+        CATEGORY_MISSING_PRIVATE_TEAM,
+    }
+    return not categories <= non_retryable_categories
+
+
+def _is_failed_final_sync_result(result: BatchSyncResult) -> bool:
+    """Return True when final sync made no progress and reported errors."""
+    return result.error_count > 0 and result.success_count == 0
+
+
+def _final_sync_result_error_text(result: BatchSyncResult) -> str:
+    """Return a compact diagnostic detail string for an exhausted final sync."""
+    if result.error_messages:
+        return "; ".join(result.error_messages)
+    if result.error_count:
+        return f"{result.error_count} queued event(s) failed during final sync"
+    return "final sync failed"
+
+
+def _emit_final_sync_failure_diagnostic(error_text: str) -> None:
+    """Emit the single non-fatal final-sync diagnostic for exhausted retries."""
+    code: SyncDiagnosticCode = classify_sync_error(error_text)
+    emit_sync_diagnostic(
+        code,
+        "Final sync failed after local command success. "
+        "Queued events remain durable and will be retried. "
+        f"Detail: {error_text}",
+    )
+
+
+def _result_from_final_sync_exception(exc: BaseException) -> BatchSyncResult:
+    """Represent an exhausted final-sync exception as a non-fatal batch result."""
+    result = BatchSyncResult()
+    result.error_count = 1
+    result.error_messages.append(str(exc))
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -408,8 +610,11 @@ def batch_sync(  # noqa: C901
         # of spinning indefinitely on a queue that will never drain (Scenario
         # 6 in spec.md). The message is operator-facing diagnostic only; it
         # is NOT printed to stdout because callers route it through stderr/log.
-        result.error_messages.append(
-            "skipped: no Private Teamspace available for direct ingress"
+        _record_all_events_failed(
+            result,
+            events,
+            error="skipped: no Private Teamspace available for direct ingress",
+            category=CATEGORY_MISSING_PRIVATE_TEAM,
         )
         return result
     headers["X-Team-Slug"] = team_slug
@@ -463,18 +668,13 @@ def batch_sync(  # noqa: C901
         else:
             if show_progress:
                 print(f"Batch sync failed: HTTP {response.status_code}")
-            result.error_messages.append(f"HTTP {response.status_code}")
-            result.error_count = len(events)
-            result.failed_ids = [e.get("event_id") for e in events]
-            for evt in events:
-                result.event_results.append(
-                    BatchEventResult(
-                        event_id=evt.get("event_id", "unknown"),
-                        status="rejected",
-                        error=f"HTTP {response.status_code}",
-                        error_category="server_error",
-                    )
-                )
+            response_body = _safe_response_json(response)
+            _record_all_events_failed(
+                result,
+                events,
+                error=_http_error_message(response.status_code, response_body),
+                category=_http_error_category(response.status_code, response_body),
+            )
             queue.process_batch_results(result.event_results)
 
     except requests.exceptions.Timeout:
@@ -520,34 +720,23 @@ def batch_sync(  # noqa: C901
                 return result
             if show_progress:
                 print(f"Batch sync failed: HTTP {response.status_code}")
-            result.error_messages.append(f"HTTP {response.status_code}")
-            result.error_count = len(events)
-            result.failed_ids = [e.get("event_id") for e in events]
-            for evt in events:
-                result.event_results.append(
-                    BatchEventResult(
-                        event_id=evt.get("event_id", "unknown"),
-                        status="rejected",
-                        error=f"HTTP {response.status_code}",
-                        error_category="server_error",
-                    )
-                )
+            response_body = _safe_response_json(response)
+            _record_all_events_failed(
+                result,
+                events,
+                error=_http_error_message(response.status_code, response_body),
+                category=_http_error_category(response.status_code, response_body),
+            )
             queue.process_batch_results(result.event_results)
             return result
         if show_progress:
             print("Batch sync failed: Request timeout")
-        result.error_messages.append("Request timeout")
-        result.error_count = len(events)
-        result.failed_ids = [e.get("event_id") for e in events]
-        for evt in events:
-            result.event_results.append(
-                BatchEventResult(
-                    event_id=evt.get("event_id", "unknown"),
-                    status="rejected",
-                    error="Request timeout",
-                    error_category="server_error",
-                )
-            )
+        _record_all_events_failed(
+            result,
+            events,
+            error="Request timeout",
+            category="retryable_transport",
+        )
         queue.process_batch_results(result.event_results)
 
     except requests.exceptions.ConnectionError as e:
@@ -593,34 +782,23 @@ def batch_sync(  # noqa: C901
                 return result
             if show_progress:
                 print(f"Batch sync failed: HTTP {response.status_code}")
-            result.error_messages.append(f"HTTP {response.status_code}")
-            result.error_count = len(events)
-            result.failed_ids = [e.get("event_id") for e in events]
-            for evt in events:
-                result.event_results.append(
-                    BatchEventResult(
-                        event_id=evt.get("event_id", "unknown"),
-                        status="rejected",
-                        error=f"HTTP {response.status_code}",
-                        error_category="server_error",
-                    )
-                )
+            response_body = _safe_response_json(response)
+            _record_all_events_failed(
+                result,
+                events,
+                error=_http_error_message(response.status_code, response_body),
+                category=_http_error_category(response.status_code, response_body),
+            )
             queue.process_batch_results(result.event_results)
             return result
         if show_progress:
             print(f"Batch sync failed: Connection error - {e}")
-        result.error_messages.append(f"Connection error: {e}")
-        result.error_count = len(events)
-        result.failed_ids = [e.get("event_id") for e in events]
-        for evt in events:
-            result.event_results.append(
-                BatchEventResult(
-                    event_id=evt.get("event_id", "unknown"),
-                    status="rejected",
-                    error=f"Connection error: {e}",
-                    error_category="server_error",
-                )
-            )
+        _record_all_events_failed(
+            result,
+            events,
+            error=f"Connection error: {e}",
+            category="retryable_transport",
+        )
         queue.process_batch_results(result.event_results)
 
     except Exception as e:

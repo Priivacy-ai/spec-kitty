@@ -24,11 +24,18 @@ from typing import TYPE_CHECKING
 
 from specify_cli.auth import get_token_manager
 from specify_cli.auth.errors import AuthenticationError
+from specify_cli.auth.refresh_transaction import RefreshLockTimeoutError
 from specify_cli.diagnostics import report_once
 
-from .batch import BatchSyncResult, batch_sync, sync_all_queued_events
+from .batch import (
+    BatchEventResult,
+    BatchSyncResult,
+    batch_sync,
+    run_final_sync_with_retries,
+    sync_all_queued_events,
+)
 from .config import SyncConfig
-from .diagnostics import SyncDiagnostic, emit_sync_diagnostic
+from .diagnostics import SyncDiagnosticCode, emit_sync_diagnostic
 from .feature_flags import is_saas_sync_enabled, saas_sync_disabled_message
 from .queue import OfflineQueue
 
@@ -41,22 +48,17 @@ logger = logging.getLogger(__name__)
 # Maximum seconds the stop() best-effort sync may run before being
 # abandoned.  Events stay in the durable queue for the daemon to drain.
 _STOP_SYNC_TIMEOUT_SECONDS = 5
+_UNAUTHENTICATED_SYNC_ERROR = (
+    "Not authenticated: no valid access token. Run `spec-kitty auth login`."
+)
 
 
 def _emit_nonfatal_final_sync_diagnostic(
-    diagnostic_code: str,
+    diagnostic_code: SyncDiagnosticCode,
     message: str,
 ) -> None:
     """Report a final-sync problem without failing the local command result."""
-    emit_sync_diagnostic(
-        SyncDiagnostic(
-            severity="warning",
-            diagnostic_code=diagnostic_code,
-            fatal=False,
-            sync_phase="final_sync",
-            message=message,
-        )
-    )
+    emit_sync_diagnostic(diagnostic_code, message)
 
 
 def _safe_optional_queue_size(queue_obj: object | None) -> int:
@@ -74,6 +76,39 @@ def _safe_optional_queue_size(queue_obj: object | None) -> int:
         return 0
 
 
+def _unauthenticated_sync_result(
+    queue: OfflineQueue,
+    *,
+    limit: int | None = None,
+) -> BatchSyncResult:
+    """Classify queued events as unauthenticated without mutating the queue."""
+    result = BatchSyncResult()
+    queue_size = _safe_optional_queue_size(queue)
+    if queue_size <= 0:
+        result.error_messages.append(_UNAUTHENTICATED_SYNC_ERROR)
+        return result
+
+    read_limit = queue_size if limit is None else min(queue_size, limit)
+    events = queue.drain_queue(limit=read_limit)
+    result.total_events = len(events)
+    result.error_count = len(events)
+    result.error_messages.append(_UNAUTHENTICATED_SYNC_ERROR)
+
+    for event in events:
+        event_id = str(event.get("event_id") or "unknown")
+        result.failed_ids.append(event_id)
+        result.event_results.append(
+            BatchEventResult(
+                event_id=event_id,
+                status="rejected",
+                error=_UNAUTHENTICATED_SYNC_ERROR,
+                error_category="unauthenticated",
+            )
+        )
+
+    return result
+
+
 def _fetch_access_token_sync() -> str | None:
     """Fetch a valid access token from the TokenManager (sync bridge).
 
@@ -83,6 +118,8 @@ def _fetch_access_token_sync() -> str | None:
     callers.
 
     Returns ``None`` if the user is not authenticated or refresh failed.
+    Raises ``RefreshLockTimeoutError`` for bounded refresh-lock contention so
+    final-sync callers can retry and emit the canonical non-fatal diagnostic.
     """
     tm = get_token_manager()
     if not tm.is_authenticated:
@@ -113,6 +150,8 @@ def _fetch_access_token_sync() -> str | None:
                 with contextlib.suppress(Exception):
                     asyncio.set_event_loop(None)
                 new_loop.close()
+    except RefreshLockTimeoutError:
+        raise
     except AuthenticationError as exc:
         logger.debug("Background sync token fetch failed: %s", exc)
         return None
@@ -193,7 +232,7 @@ class BackgroundSyncService:
             # Timer thread is stuck holding the lock; skip the final sync
             # rather than blocking shutdown.
             _emit_nonfatal_final_sync_diagnostic(
-                "sync.final_sync_lock_unavailable",
+                SyncDiagnosticCode.LOCK_UNAVAILABLE,
                 "Could not acquire sync lock within 5 s; skipping final sync. "
                 "Queued events will be drained by the daemon.",
             )
@@ -211,7 +250,7 @@ class BackgroundSyncService:
                 sync_thread.start()
             except RuntimeError as exc:
                 _emit_nonfatal_final_sync_diagnostic(
-                    "sync.final_sync_shutdown_unavailable",
+                    SyncDiagnosticCode.EVENT_LOOP_UNAVAILABLE,
                     "Could not start final sync during interpreter shutdown. "
                     f"Queued events will be drained by the daemon. Detail: {exc}",
                 )
@@ -219,7 +258,7 @@ class BackgroundSyncService:
             sync_thread.join(timeout=_STOP_SYNC_TIMEOUT_SECONDS)
             if sync_thread.is_alive():
                 _emit_nonfatal_final_sync_diagnostic(
-                    "sync.final_sync_timeout",
+                    SyncDiagnosticCode.EVENT_LOOP_UNAVAILABLE,
                     f"Final sync did not complete within {_STOP_SYNC_TIMEOUT_SECONDS}s. "
                     "Queued events will be drained by the daemon.",
                 )
@@ -227,14 +266,7 @@ class BackgroundSyncService:
 
     def _guarded_final_sync(self) -> None:
         """Run a single sync batch; swallows all exceptions."""
-        try:
-            self._perform_sync()
-        except Exception as exc:
-            _emit_nonfatal_final_sync_diagnostic(
-                "sync.final_sync_failed",
-                "Final sync failed after local command success. "
-                f"Queued events remain durable and will be retried. Detail: {exc}",
-            )
+        run_final_sync_with_retries(self._perform_sync)
 
     @property
     def last_sync(self) -> datetime | None:
@@ -308,11 +340,14 @@ class BackgroundSyncService:
             return result
 
         with self._lock:
-            access_token = _fetch_access_token_sync()
+            try:
+                access_token = _fetch_access_token_sync()
+            except RefreshLockTimeoutError as exc:
+                return self._record_transient_token_fetch_failure(exc)
             if access_token is None:
                 if report_once("sync.unauthenticated"):
                     logger.warning("Not authenticated, skipping sync")
-                return BatchSyncResult()
+                return _unauthenticated_sync_result(self.queue)
 
             try:
                 result = sync_all_queued_events(
@@ -364,11 +399,14 @@ class BackgroundSyncService:
             result.error_messages.append(saas_sync_disabled_message())
             return result
 
-        access_token = _fetch_access_token_sync()
+        try:
+            access_token = _fetch_access_token_sync()
+        except RefreshLockTimeoutError as exc:
+            return self._record_transient_token_fetch_failure(exc)
         if access_token is None:
             if report_once("sync.unauthenticated"):
                 logger.warning("Not authenticated, skipping sync")
-            return BatchSyncResult()
+            return _unauthenticated_sync_result(self.queue, limit=1000)
 
         event_sync_succeeded = False
         try:
@@ -416,6 +454,23 @@ class BackgroundSyncService:
         if event_sync_succeeded and self._body_queue is not None:
             self._drain_body_queue()
 
+        return result
+
+    def _record_transient_token_fetch_failure(
+        self,
+        exc: RefreshLockTimeoutError,
+    ) -> BatchSyncResult:
+        """Represent auth refresh-lock contention as a retryable sync failure."""
+        self._consecutive_failures += 1
+        self._backoff_seconds = min(self._backoff_seconds * 2, 30.0)
+        logger.debug(
+            "Sync token fetch deferred by auth refresh lock (attempt %d): %s",
+            self._consecutive_failures,
+            exc,
+        )
+        result = BatchSyncResult()
+        result.error_count = 1
+        result.error_messages.append(str(exc))
         return result
 
     def _drain_body_queue(self) -> None:

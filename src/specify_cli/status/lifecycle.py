@@ -245,7 +245,12 @@ def derive_mission_lifecycle(
     )
 
 
-def generate_lifecycle_json(feature_dir: Path, derived_dir: Path, *, now: datetime | None = None) -> None:
+def generate_lifecycle_json(
+    feature_dir: Path,
+    derived_dir: Path,
+    *,
+    now: datetime | None = None,
+) -> None:
     """Write ``lifecycle.json`` for one mission under ``.kittify/derived``."""
     lifecycle = derive_mission_lifecycle(feature_dir, now=now)
     mission_slug = lifecycle.mission_slug or feature_dir.name

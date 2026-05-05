@@ -19,6 +19,7 @@ import json
 import logging
 import os
 import re
+import subprocess
 import time
 from pathlib import Path
 
@@ -83,6 +84,8 @@ LINEAR_HISTORY_REJECTION_TOKENS: tuple[str, ...] = (
     "GH006",
     "non-fast-forward",
 )
+
+MissionBranchBlocker = dict[str, str | bool]
 
 
 def _classify_porcelain_lines(
@@ -540,6 +543,52 @@ def _bake_mission_number_into_mission_branch(
     return next_number
 
 
+def _has_branch_ref(repo_root: Path, ref_name: str) -> bool:
+    """Return True when a local branch/ref resolves to a commit."""
+    probe = subprocess.run(
+        ["git", "rev-parse", "--verify", f"{ref_name}^{{commit}}"],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+    )
+    return probe.returncode == 0
+
+
+def _check_mission_branch(
+    mission_slug: str,
+    repo_root: Path,
+) -> tuple[bool, MissionBranchBlocker | None]:
+    """Check whether the expected mission branch exists locally.
+
+    Dry-run and real merge both use this as a read-only preflight. Missing
+    branches are reported as structured blockers; this function never creates
+    the branch.
+    """
+    expected_branch = f"kitty/mission-{mission_slug}"
+    if _has_branch_ref(repo_root, expected_branch):
+        return True, None
+
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        base_sha = result.stdout.strip()[:12]
+    except subprocess.CalledProcessError:
+        base_sha = "<base-commit>"
+
+    blocker_payload: MissionBranchBlocker = {
+        "ready": False,
+        "blocker": "missing_mission_branch",
+        "expected_branch": expected_branch,
+        "remediation": f"git branch {expected_branch} {base_sha}",
+    }
+    return False, blocker_payload
+
+
 def _enforce_git_preflight(repo_root: Path, *, json_output: bool) -> None:
     """Run git preflight checks and stop early with deterministic remediation."""
     if not (repo_root / ".git").exists():
@@ -908,6 +957,16 @@ def _run_lane_based_merge(
         mission_slug=mission_slug,
         mission_branch=lanes_manifest.mission_branch,
     )
+
+    branch_ok, branch_blocker = _check_mission_branch(mission_slug, main_repo)
+    if not branch_ok:
+        assert branch_blocker is not None
+        console.print(
+            "[red]Error:[/red] Missing mission branch: "
+            f"{branch_blocker['expected_branch']}. "
+            f"Run: {branch_blocker['remediation']}"
+        )
+        raise typer.Exit(1)
 
     # -- Resolve canonical mission_id from meta.json (P2 fix: use ULID, not slug) --
     identity = resolve_mission_identity(feature_dir)
@@ -1471,6 +1530,22 @@ def merge(
             json_output=json_output,
         )
 
+        branch_ok, branch_blocker = _check_mission_branch(
+            resolved_feature,
+            get_main_repo_root(repo_root),
+        )
+        if not branch_ok:
+            assert branch_blocker is not None
+            if json_output:
+                print(json.dumps(branch_blocker))
+            else:
+                console.print(
+                    "[red]Cannot proceed: mission branch missing.[/red]\n"
+                    f"Expected branch: {branch_blocker['expected_branch']}\n"
+                    f"Remediation: {branch_blocker['remediation']}"
+                )
+            raise typer.Exit(1)
+
         # WP10/T053: dry-run preview of merge-time mission_number assignment.
         feature_dir_for_preview = (
             get_main_repo_root(repo_root) / "kitty-specs" / resolved_feature
@@ -1543,6 +1618,8 @@ __all__ = [
     "_run_lane_based_merge",
     "_is_linear_history_rejection",
     "_emit_remediation_hint",
+    "_check_mission_branch",
+    "_has_branch_ref",
     "_enforce_target_branch_sync_preflight",
     "_enforce_review_artifact_consistency",
     "_bake_mission_number_into_mission_branch",

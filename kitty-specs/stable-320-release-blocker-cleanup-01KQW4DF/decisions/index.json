@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-05-05T13:27:36.458699Z",
+      "decision_id": "01KQW556RAG1N0QF7PVSTP08P7",
+      "final_answer": "always_blocker",
+      "input_key": "missing_branch_behavior",
+      "mission_id": "01KQW4DFAWRMK2PM22CHZYBJ26",
+      "mission_slug": "stable-320-release-blocker-cleanup-01KQW4DF",
+      "options": [
+        "always_blocker",
+        "auto_create_when_valid",
+        "context_detect",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "For a fresh single-branch smoke where the expected kitty/mission-<slug> branch is absent, should merge --dry-run (A) always report ready:false with a structured blocker and remediation command the user must run manually, (B) auto-create the branch when the mission state is valid and dry-run reports that planned action, or (C) detect context and choose: blocker if in a lane-based worktree, auto-create if in a fresh single-branch smoke?",
+      "rationale": null,
+      "resolved_at": "2026-05-05T13:29:04.935164Z",
+      "resolved_by": null,
+      "slot_key": "plan.merge-preflight.missing-branch-behavior",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KQW4DFAWRMK2PM22CHZYBJ26",
+  "version": 1
+}

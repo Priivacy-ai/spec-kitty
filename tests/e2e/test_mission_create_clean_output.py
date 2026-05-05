@@ -28,6 +28,7 @@ import json
 import re
 from pathlib import Path
 from collections.abc import Iterator
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -38,13 +39,14 @@ from specify_cli.diagnostics import (
     report_once,
     reset_for_invocation,
 )
+from specify_cli.sync.diagnostics import reset_emitted_codes
 
 
 ANSI_RED_RE = re.compile(r"\x1b\[(?:1;)?31m|\[red\]|\[bold red\]", re.IGNORECASE)
 NOT_AUTH_RE = re.compile(r"Not authenticated, skipping sync")
 
 
-def _queued_background_service(tmp_path: Path):
+def _queued_background_service(tmp_path: Path) -> Any:
     from specify_cli.sync.background import BackgroundSyncService
     from specify_cli.sync.queue import OfflineQueue
 
@@ -64,8 +66,10 @@ def _queued_background_service(tmp_path: Path):
 @pytest.fixture(autouse=True)
 def _isolate_diagnostic_state() -> Iterator[None]:
     reset_for_invocation()
+    reset_emitted_codes()
     yield
     reset_for_invocation()
+    reset_emitted_codes()
 
 
 def test_create_mission_calls_mark_invocation_succeeded_after_json_write() -> None:
@@ -143,7 +147,10 @@ def test_final_sync_shutdown_diagnostic_preserves_clean_success_output(
     print(json.dumps({"result": "success", "mission_slug": "demo"}))
     mark_invocation_succeeded()
 
-    with patch.object(service, "_perform_sync", side_effect=RuntimeError("network down")):
+    with (
+        patch("specify_cli.sync.batch.time.sleep"),
+        patch.object(service, "_perform_sync", side_effect=RuntimeError("network down")),
+    ):
         service.stop()
 
     captured = capsys.readouterr()
@@ -151,11 +158,13 @@ def test_final_sync_shutdown_diagnostic_preserves_clean_success_output(
     assert "sync_diagnostic" not in captured.out
 
     assert "sync_diagnostic" in captured.err
+    assert captured.err.count("sync_diagnostic severity=warning") <= 1
     assert "severity=warning" in captured.err
-    assert "diagnostic_code=sync.final_sync_failed" in captured.err
+    assert "diagnostic_code=sync.server_auth_failure" in captured.err
     assert "fatal=false" in captured.err
     assert "sync_phase=final_sync" in captured.err
     assert "network down" in captured.err
+    assert "Connection failed" not in captured.err
     assert not ANSI_RED_RE.search(captured.err), (
         "Non-fatal final-sync diagnostics must not paint successful commands red."
     )

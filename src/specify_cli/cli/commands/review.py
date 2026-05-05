@@ -6,19 +6,19 @@ Performs four checks and writes kitty-specs/<slug>/mission-review-report.md:
 2. Dead-code scan — heuristic grep for new public symbols introduced by the
    mission diff that have no non-test callers.  Requires ``baseline_merge_commit``
    in meta.json (absent for pre-083 missions → step is skipped with a warning).
-3. BLE001 audit — flags ``# noqa: BLE001`` suppressions in ``auth/`` and
-   ``cli/commands/`` that lack inline justification text.
+3. BLE001 audit — flags scoped auth/storage ``# noqa: BLE001`` suppressions
+   that lack a specific inline safety justification.
 4. Report writer — writes ``mission-review-report.md`` with YAML frontmatter
    containing ``verdict``, ``reviewed_at``, and ``findings`` count.
 
 Verdict enum:
   pass             — all checks clean
   pass_with_notes  — informational findings only (no WP lane failures)
-  fail             — one or more WPs not in done lane
+  fail             — one or more WPs not in done lane or hard findings exist
 
 Exit codes:
   0 — pass or pass_with_notes
-  1 — fail (WPs not done or hard findings)
+  1 — fail (WPs not done, hard findings, or unjustified BLE001 suppressions)
   2 — mission not found / ambiguous handle
 
 Known false-positives in the dead-code scan
@@ -41,7 +41,9 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+from dataclasses import dataclass
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -56,6 +58,178 @@ from specify_cli.status.reducer import materialize
 from specify_cli.task_utils import TaskCliError, find_repo_root
 
 _IDENTIFIER_CHARCLASS = r"\w"
+_BLE001_NOQA_RE = re.compile(r"#\s*noqa:\s*(?P<body>[^#]*)", re.IGNORECASE)
+_BROAD_EXCEPTION_HANDLER_RE = re.compile(
+    r"^\s*except\s+"
+    r"(?:Exception(?:\s+as\s+\w+)?|\([^#\n]*\bException\b[^#\n]*\)(?:\s+as\s+\w+)?)"
+    r"\s*:"
+)
+_AUTH_STORAGE_BLE001_COMMAND_FILES = frozenset(
+    {
+        "src/specify_cli/cli/commands/auth.py",
+        "src/specify_cli/cli/commands/_auth_doctor.py",
+        "src/specify_cli/cli/commands/_auth_login.py",
+        "src/specify_cli/cli/commands/_auth_logout.py",
+        "src/specify_cli/cli/commands/_auth_status.py",
+    }
+)
+_AUTH_STORAGE_BLE001_AUTH_PREFIX = "src/specify_cli/auth/"
+_GENERIC_BLE001_REASONS = frozenset(
+    {
+        "all exceptions",
+        "ble001",
+        "blanket",
+        "broad catch",
+        "broad exception",
+        "catch all",
+        "catchall",
+        "exception",
+        "fixme",
+        "generic",
+        "ignore",
+        "ignored",
+        "noqa",
+        "suppress",
+        "suppression",
+        "temp",
+        "temporary",
+        "todo",
+    }
+)
+_BLE001_REMEDIATION = (
+    "Add a specific safety reason after '# noqa: BLE001' that names the "
+    "boundary, translation, logging, downgrade, or cleanup behavior; otherwise "
+    "narrow the exception type."
+)
+
+
+@dataclass(frozen=True)
+class Ble001SuppressionFinding:
+    """Actionable finding for a scoped auth/storage BLE001 suppression."""
+
+    file: str
+    line: int
+    suppression: str
+    reason: str
+    remediation: str = _BLE001_REMEDIATION
+
+
+def _repo_relative_path(file_path: str | Path, repo_root: Path | None = None) -> str:
+    path = Path(file_path)
+    if repo_root is not None:
+        try:
+            return path.resolve(strict=False).relative_to(
+                repo_root.resolve(strict=False)
+            ).as_posix()
+        except ValueError:
+            pass
+
+    normalized = path.as_posix().lstrip("/")
+    marker = "src/specify_cli/"
+    marker_index = normalized.find(marker)
+    if marker_index >= 0:
+        return normalized[marker_index:]
+    return normalized
+
+
+def _is_auth_storage_ble001_scoped_path(
+    file_path: str | Path,
+    *,
+    repo_root: Path | None = None,
+) -> bool:
+    repo_path = _repo_relative_path(file_path, repo_root)
+    return repo_path.startswith(
+        _AUTH_STORAGE_BLE001_AUTH_PREFIX
+    ) or repo_path in _AUTH_STORAGE_BLE001_COMMAND_FILES
+
+
+def _ble001_reason_from_line(line_text: str) -> str | None:
+    noqa_match = _BLE001_NOQA_RE.search(line_text)
+    if noqa_match is None:
+        return None
+
+    body = noqa_match.group("body")
+    ble_match = re.search(r"\bBLE001\b(?P<after>.*)$", body)
+    if ble_match is None:
+        return None
+
+    after = ble_match.group("after")
+    while True:
+        next_code = re.match(r"\s*,\s*[A-Z]{1,4}\d{3}\b(?P<rest>.*)$", after)
+        if next_code is None:
+            break
+        after = next_code.group("rest")
+
+    return re.sub(r"^\s*[-–—:]+\s*", "", after).strip()
+
+
+def _is_broad_exception_handler(line_text: str) -> bool:
+    return _BROAD_EXCEPTION_HANDLER_RE.search(line_text) is not None
+
+
+def _is_generic_ble001_reason(reason: str) -> bool:
+    normalized = re.sub(r"[\W_]+", " ", reason.casefold()).strip()
+    normalized = re.sub(r"\s+", " ", normalized)
+    return not normalized or normalized in _GENERIC_BLE001_REASONS
+
+
+def audit_auth_storage_ble001_line(
+    file_path: str | Path,
+    line_number: int,
+    line_text: str,
+    *,
+    repo_root: Path | None = None,
+) -> Ble001SuppressionFinding | None:
+    """Return a finding for an unjustified scoped auth/storage BLE001 suppression."""
+    if not _is_auth_storage_ble001_scoped_path(file_path, repo_root=repo_root):
+        return None
+
+    reason = _ble001_reason_from_line(line_text)
+    if reason is None:
+        if not _is_broad_exception_handler(line_text):
+            return None
+        reason = ""
+    elif not _is_generic_ble001_reason(reason):
+        return None
+
+    return Ble001SuppressionFinding(
+        file=str(file_path),
+        line=line_number,
+        suppression=line_text.strip(),
+        reason=reason,
+    )
+
+
+def collect_auth_storage_ble001_findings(
+    repo_root: Path,
+) -> list[Ble001SuppressionFinding]:
+    """Scan contract-scoped auth/storage files for unjustified BLE001 suppressions."""
+    candidates: list[Path] = []
+    auth_dir = repo_root / _AUTH_STORAGE_BLE001_AUTH_PREFIX
+    if auth_dir.exists():
+        candidates.extend(path for path in auth_dir.rglob("*.py") if path.is_file())
+
+    for relative_file in _AUTH_STORAGE_BLE001_COMMAND_FILES:
+        path = repo_root / relative_file
+        if path.exists():
+            candidates.append(path)
+
+    findings: list[Ble001SuppressionFinding] = []
+    for path in sorted(set(candidates)):
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            continue
+        for line_number, line_text in enumerate(lines, start=1):
+            finding = audit_auth_storage_ble001_line(
+                path,
+                line_number,
+                line_text,
+                repo_root=repo_root,
+            )
+            if finding is not None:
+                findings.append(finding)
+    return findings
 
 
 def review_mission(
@@ -248,43 +422,26 @@ def review_mission(
     # ==================================================================
     # Step 3 — BLE001 unjustified suppression audit
     # ==================================================================
-    search_dirs = [
-        repo_root / "src" / "specify_cli" / "auth",
-        repo_root / "src" / "specify_cli" / "cli" / "commands",
-    ]
-    ble001_findings: list[dict[str, str]] = []
-    for search_dir in search_dirs:
-        if not search_dir.exists():
-            continue
-        grep_result = subprocess.run(
-            ["grep", "-rn", "noqa: BLE001", str(search_dir)],
-            capture_output=True,
-            text=True,
+    ble001_findings = collect_auth_storage_ble001_findings(repo_root)
+    for finding in ble001_findings:
+        findings.append(
+            {
+                "type": "ble001_suppression",
+                "file": finding.file,
+                "line": str(finding.line),
+                "content": finding.suppression,
+                "remediation": finding.remediation,
+            }
         )
-        for raw_line in grep_result.stdout.strip().splitlines():
-            parts = raw_line.split(":", 2)
-            if len(parts) < 3:
-                continue
-            file_path, line_no, content = parts[0], parts[1], parts[2]
-            ble_match = re.search(r"noqa: BLE001(.*)$", content)
-            if ble_match:
-                after = ble_match.group(1).strip().lstrip(",").strip()
-                # Remove other rule codes (e.g. ", S110") from the tail
-                after = re.sub(r"^[A-Z0-9,\s]+", "", after).strip()
-                if not after or after in ("—", "-", "–"):
-                    ble001_findings.append(
-                        {"file": file_path, "line": line_no, "content": content.strip()}
-                    )
-                    findings.append(
-                        {"type": "ble001_suppression", "file": file_path, "line": line_no}
-                    )
 
     if ble001_findings:
         console.print(
             f"  [red]✗[/red]  BLE001 audit: {len(ble001_findings)} unjustified suppression(s)"
         )
-        for b in ble001_findings:
-            console.print(f"       {b['file']}:{b['line']}")
+        for finding in ble001_findings:
+            console.print(f"       {finding.file}:{finding.line}")
+            console.print(f"       suppression: {finding.suppression}")
+            console.print(f"       remediation: {finding.remediation}")
     else:
         console.print("  [green]✓[/green]  BLE001 audit: 0 unjustified suppressions")
 
@@ -294,7 +451,8 @@ def review_mission(
     hard_failure_count = sum(
         1
         for f in findings
-        if f["type"] in {"wp_not_done", "rejected_review_artifact"}
+        if f["type"]
+        in {"wp_not_done", "rejected_review_artifact", "ble001_suppression"}
     )
     if hard_failure_count > 0:
         verdict = "fail"
@@ -326,7 +484,9 @@ def review_mission(
                 )
             elif f["type"] == "ble001_suppression":
                 report_lines.append(
-                    f"- **ble001_suppression** `{f['file']}:{f['line']}`: no inline justification"
+                    f"- **ble001_suppression** `{f['file']}:{f['line']}`: "
+                    f"`{f.get('content', 'unknown')}`; "
+                    f"remediation=`{f.get('remediation', _BLE001_REMEDIATION)}`"
                 )
             elif f["type"] == "rejected_review_artifact":
                 report_lines.append(
@@ -366,4 +526,9 @@ def review_mission(
         raise typer.Exit(1)
 
 
-__all__ = ["review_mission"]
+__all__ = [
+    "Ble001SuppressionFinding",
+    "audit_auth_storage_ble001_line",
+    "collect_auth_storage_ble001_findings",
+    "review_mission",
+]

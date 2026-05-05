@@ -30,6 +30,7 @@ from __future__ import annotations
 import asyncio
 import dataclasses
 import logging
+import os
 import sys
 import threading
 from pathlib import Path
@@ -51,6 +52,11 @@ from .session import (
     Team,
     get_private_team_id,
     pick_default_team_id,
+)
+from .session_hot_path import (
+    SessionHotPathSummary,
+    load_session_hot_path,
+    publish_session_hot_path,
 )
 
 log = logging.getLogger(__name__)
@@ -94,6 +100,7 @@ class TokenManager:
     ) -> None:
         self._storage = storage
         self._session: StoredSession | None = None
+        self._hot_path_summary: SessionHotPathSummary | None = None
         self._refresh_lock: asyncio.Lock | None = None
         # WP02 (private-teamspace-ingress-safeguards): sync rehydrate state.
         # The threading.Lock serializes sync rehydrate callers (batch.py /
@@ -128,11 +135,20 @@ class TokenManager:
         Storage read errors are logged and the session is left unset — the
         user can still ``spec-kitty auth login`` to re-establish a session.
         """
+        summary = self._load_hot_path_summary()
+        if summary is not None:
+            self._session = None
+            self._hot_path_summary = summary
+            return
+
         try:
             self._session = self._storage.read()
+            self._hot_path_summary = None
+            self._publish_hot_path_summary_if_possible()
         except Exception as exc:  # noqa: BLE001 — never crash on stale credentials
             log.warning("Could not load session from storage: %s", exc)
             self._session = None
+            self._hot_path_summary = None
 
     def set_session(self, session: StoredSession) -> None:
         """Persist a new session (called by AuthorizationCodeFlow / DeviceCodeFlow).
@@ -146,6 +162,7 @@ class TokenManager:
         # that wakes up post-write sees a fresh-cache state.
         self._membership_negative_cache = False
         self._session = session
+        self._hot_path_summary = None
         self._storage.write(session)
 
     def clear_session(self) -> None:
@@ -155,10 +172,13 @@ class TokenManager:
         ``_auth_logout.py``) can surface the failure to the user.
         """
         self._session = None
+        self._hot_path_summary = None
         self._storage.delete()
 
     def get_current_session(self) -> StoredSession | None:
         """Return the in-memory session (for ``auth status`` and diagnostics)."""
+        if self._session is None and self._hot_path_summary is not None:
+            self._materialize_session_from_storage_sync()
         return self._session
 
     @property
@@ -171,8 +191,44 @@ class TokenManager:
         will reveal any server-side expiry via ``400 invalid_grant``.
         """
         if self._session is None:
-            return False
+            if self._hot_path_summary is not None:
+                self._materialize_session_from_storage_sync()
+            if self._session is None:
+                return False
         return not self._session.is_refresh_token_expired()
+
+    def _load_hot_path_summary(self) -> SessionHotPathSummary | None:
+        store_path = self._storage_store_path()
+        if store_path is None:
+            return None
+        return load_session_hot_path(store_path)
+
+    def _storage_store_path(self) -> Path | None:
+        store_path = getattr(self._storage, "store_path", None)
+        if not isinstance(store_path, (str, os.PathLike)):
+            return None
+        return Path(store_path)
+
+    def _materialize_session_from_storage_sync(self) -> None:
+        try:
+            self._session = self._storage.read()
+            self._publish_hot_path_summary_if_possible()
+        except Exception as exc:  # noqa: BLE001 — materialization failure downgrades to unauthenticated
+            log.warning("Could not materialize session from storage: %s", exc)
+            self._session = None
+        finally:
+            self._hot_path_summary = None
+
+    def _publish_hot_path_summary_if_possible(self) -> None:
+        if self._session is None:
+            return
+        store_path = self._storage_store_path()
+        if store_path is None:
+            return
+        try:
+            publish_session_hot_path(store_path, self._session)
+        except Exception as exc:  # noqa: BLE001 — derived hot-path publish must never invalidate durable auth state
+            log.debug("Could not publish session hot-path summary: %s", exc)
 
     # ---- token provisioning ---------------------------------------------
 
@@ -187,6 +243,8 @@ class TokenManager:
                 wait and persisted material is unusable. The caller should
                 retry once the holding process completes.
         """
+        if self._session is None:
+            self._materialize_session_from_storage_sync()
         if self._session is None:
             raise NotAuthenticatedError(
                 "No active session. Run `spec-kitty auth login` to authenticate."
@@ -329,6 +387,8 @@ class TokenManager:
             RefreshLockTimeoutError: Could not acquire the machine-wide lock
                 within the bounded wait and persisted material is unusable.
         """
+        if self._session is None and self._hot_path_summary is not None:
+            self._materialize_session_from_storage_sync()
         lock = self._get_lock()
         async with lock:
             # Double-check inside the lock: another task may have refreshed

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import contextlib
+from dataclasses import dataclass
+import enum
 import json
 import logging
 from kernel._safe_re import re
@@ -68,6 +70,27 @@ from specify_cli.task_utils import (
 logger = logging.getLogger(__name__)
 TASKS_MD_FILENAME = "tasks.md"
 UTC_SECOND_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+
+
+class TaskIdResolutionOutcome(enum.StrEnum):
+    UPDATED = "updated"
+    ALREADY_SATISFIED = "already_satisfied"
+    NOT_FOUND = "not_found"
+
+
+class TaskIdResolutionFormat(enum.StrEnum):
+    CHECKBOX = "checkbox"
+    PIPE_TABLE = "pipe_table"
+    INLINE_SUBTASKS = "inline_subtasks"
+    WP_ID = "wp_id"
+
+
+@dataclass
+class TaskIdResult:
+    id: str
+    outcome: TaskIdResolutionOutcome
+    format: TaskIdResolutionFormat | None
+    message: str
 
 
 # WP04/T022 (FR-017): normalize qualified task identifiers so that
@@ -1971,6 +1994,252 @@ def _update_pipe_table_status(line: str, status: str, header_map: dict[str, int]
     return "|" + "|".join(inner_cells) + "|"
 
 
+_INLINE_SUBTASKS_RE = re.compile(
+    r"Subtasks:\s*(?P<ids>(?:T|WP)\d+(?:\s*,\s*(?:T|WP)\d+)*)",
+    re.IGNORECASE,
+)
+
+
+def _resolve_checkbox(
+    task_id: str,
+    lines: list[str],
+    status: str,
+) -> TaskIdResult | None:
+    """Resolve and mutate checkbox rows for *task_id*."""
+    new_checkbox = "[x]" if status == "done" else "[ ]"
+    found = False
+    for i, line in enumerate(lines):
+        if re.search(rf"-\s*\[[ x]\]\s*{re.escape(task_id)}\b", line, re.IGNORECASE):
+            lines[i] = re.sub(r"-\s*\[[ x]\]", f"- {new_checkbox}", line)
+            found = True
+    if not found:
+        return None
+    return TaskIdResult(
+        id=task_id,
+        outcome=TaskIdResolutionOutcome.UPDATED,
+        format=TaskIdResolutionFormat.CHECKBOX,
+        message=f"Marked {task_id} as {status} (checkbox row updated).",
+    )
+
+
+def _resolve_pipe_table(
+    task_id: str,
+    lines: list[str],
+    status: str,
+) -> TaskIdResult | None:
+    """Resolve and mutate pipe-table rows for *task_id*."""
+    found = False
+    for i, line in enumerate(lines):
+        if _is_pipe_table_task_row(line, task_id):
+            header_map = _parse_pipe_table_header(lines, i)
+            lines[i] = _update_pipe_table_status(line, status, header_map)
+            found = True
+    if not found:
+        return None
+    return TaskIdResult(
+        id=task_id,
+        outcome=TaskIdResolutionOutcome.UPDATED,
+        format=TaskIdResolutionFormat.PIPE_TABLE,
+        message=f"Marked {task_id} as {status} (pipe-table row updated).",
+    )
+
+
+def _materialize_inline_subtask_status(
+    task_id: str,
+    tasks_content: str,
+    status: str,
+) -> tuple[str, bool]:
+    """Insert a checkbox row next to a matching inline Subtasks reference."""
+    new_checkbox = "[x]" if status == "done" else "[ ]"
+    normalized_task_id = task_id.upper()
+    lines = tasks_content.split("\n")
+
+    for line_idx, line in enumerate(lines):
+        match = _INLINE_SUBTASKS_RE.search(line)
+        if not match:
+            continue
+        ids = [value.strip().upper() for value in match.group("ids").split(",")]
+        if normalized_task_id not in ids:
+            continue
+
+        for existing_idx, existing_line in enumerate(lines):
+            if re.search(
+                rf"-\s*\[[ x]\]\s*{re.escape(task_id)}\b",
+                existing_line,
+                re.IGNORECASE,
+            ):
+                lines[existing_idx] = re.sub(
+                    r"-\s*\[[ x]\]",
+                    f"- {new_checkbox}",
+                    existing_line,
+                )
+                return "\n".join(lines), True
+
+        insert_at = line_idx + 1
+        while insert_at < len(lines) and re.match(r"\s*-\s*\[[ x]\]\s*(?:T|WP)\d+\b", lines[insert_at], re.IGNORECASE):
+            insert_at += 1
+        lines.insert(insert_at, f"- {new_checkbox} {task_id}")
+        return "\n".join(lines), True
+
+    return tasks_content, False
+
+
+def _persist_inline_subtask_status(
+    task_id: str,
+    status: str,
+    feature_dir: Path,
+    tasks_content: str | None = None,
+) -> bool:
+    """Persist an inline Subtasks match by materializing a checkbox row."""
+    tasks_path = feature_dir / TASKS_MD_FILENAME
+    if tasks_content is None:
+        if not tasks_path.exists():
+            return False
+        tasks_content = tasks_path.read_text(encoding="utf-8")
+
+    updated_content, persisted = _materialize_inline_subtask_status(task_id, tasks_content, status)
+    if not persisted:
+        return False
+    tasks_path.write_text(updated_content, encoding="utf-8")
+    return True
+
+
+def _resolve_inline_subtasks(
+    task_id: str,
+    tasks_content: str,
+    status: str,
+    feature_dir: Path,
+) -> TaskIdResult | None:
+    """
+    Search tasks_content for 'Subtasks: T001, T002' lines containing task_id.
+
+    Inline references are discovery hints only; this resolver reports updated
+    only after materializing a durable checkbox row in tasks.md.
+    """
+    normalized_task_id = task_id.upper()
+    for match in _INLINE_SUBTASKS_RE.finditer(tasks_content):
+        ids = [value.strip().upper() for value in match.group("ids").split(",")]
+        if normalized_task_id in ids:
+            persisted = _persist_inline_subtask_status(task_id, status, feature_dir, tasks_content)
+            if persisted:
+                return TaskIdResult(
+                    id=task_id,
+                    outcome=TaskIdResolutionOutcome.UPDATED,
+                    format=TaskIdResolutionFormat.INLINE_SUBTASKS,
+                    message=f"Persisted status for inline Subtasks reference {task_id} as {status}.",
+                )
+            return TaskIdResult(
+                id=task_id,
+                outcome=TaskIdResolutionOutcome.NOT_FOUND,
+                format=TaskIdResolutionFormat.INLINE_SUBTASKS,
+                message=(
+                    f"{task_id} appears only in an inline Subtasks reference. "
+                    "Inline references are not durable status storage; materialize "
+                    "a checkbox row or append a canonical status event before "
+                    "reporting updated."
+                ),
+            )
+    return None
+
+
+def _wp_id_exists(feature_dir: Path, wp_id: str) -> bool:
+    """Return True when *wp_id* has a canonical WP artifact or task mention."""
+    tasks_dir = feature_dir / "tasks"
+    if tasks_dir.exists():
+        wp_pattern = re.compile(rf"^{re.escape(wp_id)}(?:[-_.]|\.md$)", re.IGNORECASE)
+        if any(wp_pattern.match(path.name) for path in tasks_dir.glob("*.md")):
+            return True
+    tasks_path = feature_dir / TASKS_MD_FILENAME
+    if tasks_path.exists():
+        return bool(re.search(rf"\b{re.escape(wp_id)}\b", tasks_path.read_text(encoding="utf-8"), re.IGNORECASE))
+    return False
+
+
+def _resolve_wp_id(
+    wp_id: str,
+    status: str,
+    mission_slug: str | None,
+    feature_dir: Path,
+) -> TaskIdResult | None:
+    """Resolve a bare WP ID by appending a canonical status event."""
+    if not re.match(r"^WP\d+$", wp_id, re.IGNORECASE):
+        return None
+
+    normalized_wp_id = wp_id.upper()
+    if not _wp_id_exists(feature_dir, normalized_wp_id):
+        return TaskIdResult(
+            id=normalized_wp_id,
+            outcome=TaskIdResolutionOutcome.NOT_FOUND,
+            format=TaskIdResolutionFormat.WP_ID,
+            message=f"{normalized_wp_id}: no matching work package artifact found.",
+        )
+
+    to_lane = resolve_lane_alias(status)
+
+    try:
+        from specify_cli.status.lane_reader import get_wp_lane
+
+        current_lane = get_wp_lane(feature_dir, normalized_wp_id)
+        current_lane_value = getattr(current_lane, "value", current_lane)
+        if current_lane_value == to_lane:
+            return TaskIdResult(
+                id=normalized_wp_id,
+                outcome=TaskIdResolutionOutcome.ALREADY_SATISFIED,
+                format=TaskIdResolutionFormat.WP_ID,
+                message=f"{normalized_wp_id} is already in lane '{to_lane}'.",
+            )
+    except Exception:
+        current_lane_value = None
+
+    try:
+        emit_status_transition(
+            feature_dir=feature_dir,
+            mission_slug=mission_slug or feature_dir.name,
+            wp_id=normalized_wp_id,
+            to_lane=to_lane,
+            actor="agent",
+            force=True,
+            reason="mark-status WP ID resolution",
+            execution_mode="direct_repo",
+            ensure_sync_daemon=False,
+            sync_dossier=False,
+        )
+        return TaskIdResult(
+            id=normalized_wp_id,
+            outcome=TaskIdResolutionOutcome.UPDATED,
+            format=TaskIdResolutionFormat.WP_ID,
+            message=f"Emitted status transition for {normalized_wp_id} to lane '{to_lane}'.",
+        )
+    except Exception as exc:
+        return TaskIdResult(
+            id=normalized_wp_id,
+            outcome=TaskIdResolutionOutcome.NOT_FOUND,
+            format=TaskIdResolutionFormat.WP_ID,
+            message=f"{normalized_wp_id}: transition failed - {exc}",
+        )
+
+
+def _mark_status_json_payload(results: list[TaskIdResult]) -> dict[str, object]:
+    """Return the contracted mark-status --json payload."""
+    summary = {
+        "updated": sum(1 for result in results if result.outcome == TaskIdResolutionOutcome.UPDATED),
+        "already_satisfied": sum(1 for result in results if result.outcome == TaskIdResolutionOutcome.ALREADY_SATISFIED),
+        "not_found": sum(1 for result in results if result.outcome == TaskIdResolutionOutcome.NOT_FOUND),
+    }
+    return {
+        "results": [
+            {
+                "id": result.id,
+                "outcome": result.outcome.value,
+                "format": result.format.value if result.format else None,
+                "message": result.message,
+            }
+            for result in results
+        ],
+        "summary": summary,
+    }
+
+
 @app.command(name="mark-status")
 def mark_status(
     task_ids: Annotated[list[str], typer.Argument(help="Task ID(s) - space-separated (e.g., T001 T002 T003)")],
@@ -2047,44 +2316,72 @@ def mark_status(
             # Read tasks.md content
             content = tasks_md.read_text(encoding="utf-8")
             lines = content.split("\n")
-            new_checkbox = "[x]" if status == "done" else "[ ]"
 
             # Track which tasks were updated and which weren't found
-            updated_tasks = []
-            not_found_tasks = []
+            results: list[TaskIdResult] = []
+            artifact_mutated = False
 
             # Update all requested tasks in a single pass
             for task_id in task_ids:
-                task_found = False
-                for i, line in enumerate(lines):
-                    # Strategy 1: Checkbox format (canonical)
-                    if re.search(rf"-\s*\[[ x]\]\s*{re.escape(task_id)}\b", line):
-                        lines[i] = re.sub(r"-\s*\[[ x]\]", f"- {new_checkbox}", line)
-                        task_found = True
-                        continue
+                before_content = "\n".join(lines)
+                result = (
+                    _resolve_checkbox(task_id, lines, status)
+                    or _resolve_pipe_table(task_id, lines, status)
+                    or _resolve_inline_subtasks(task_id, before_content, status, feature_dir)
+                    or _resolve_wp_id(task_id, status, mission_slug, feature_dir)
+                    or TaskIdResult(
+                        id=task_id,
+                        outcome=TaskIdResolutionOutcome.NOT_FOUND,
+                        format=None,
+                        message=f"{task_id} was not found in any supported task format.",
+                    )
+                )
+                results.append(result)
 
-                    # Strategy 2: Pipe-table format (backward compatibility)
-                    if _is_pipe_table_task_row(line, task_id):
-                        header_map = _parse_pipe_table_header(lines, i)
-                        lines[i] = _update_pipe_table_status(line, status, header_map)
-                        task_found = True
+                if result.format in {
+                    TaskIdResolutionFormat.CHECKBOX,
+                    TaskIdResolutionFormat.PIPE_TABLE,
+                } and result.outcome == TaskIdResolutionOutcome.UPDATED:
+                    artifact_mutated = True
 
-                if task_found:
-                    updated_tasks.append(task_id)
-                else:
-                    not_found_tasks.append(task_id)
+                if (
+                    result.format == TaskIdResolutionFormat.INLINE_SUBTASKS
+                    and result.outcome == TaskIdResolutionOutcome.UPDATED
+                ):
+                    artifact_mutated = True
+                    lines = tasks_md.read_text(encoding="utf-8").split("\n")
+
+            updated_tasks = [
+                result.id
+                for result in results
+                if result.outcome == TaskIdResolutionOutcome.UPDATED
+            ]
+            not_found_tasks = [
+                result.id
+                for result in results
+                if result.outcome == TaskIdResolutionOutcome.NOT_FOUND
+            ]
+            resolved_tasks = [
+                result.id
+                for result in results
+                if result.outcome != TaskIdResolutionOutcome.NOT_FOUND
+            ]
 
             # Fail if no tasks were updated
-            if not updated_tasks:
-                _output_error(json_output, f"No task IDs found in tasks.md: {', '.join(not_found_tasks)}")
+            if not resolved_tasks:
+                if json_output:
+                    print(json.dumps(_mark_status_json_payload(results)))
+                else:
+                    _output_error(json_output, f"No task IDs found in tasks.md: {', '.join(not_found_tasks)}")
                 raise typer.Exit(1)
 
             # Write updated content (single write for all changes)
-            updated_content = "\n".join(lines)
-            tasks_md.write_text(updated_content, encoding="utf-8")
+            if artifact_mutated:
+                updated_content = "\n".join(lines)
+                tasks_md.write_text(updated_content, encoding="utf-8")
 
             # Auto-commit to TARGET branch (detects from feature meta.json)
-            if auto_commit:
+            if auto_commit and artifact_mutated:
                 # Extract spec number from mission_slug (e.g., "014" from "014-feature-name")
                 spec_number = mission_slug.split("-")[0] if "-" in mission_slug else mission_slug
 
@@ -2118,15 +2415,17 @@ def mark_status(
 
         # Emit HistoryAdded event for subtask status changes (T014)
         try:
-            task_list_str = ", ".join(updated_tasks)
-            emit_history_added(
-                wp_id=updated_tasks[0].replace("T", "WP")[:4] if updated_tasks else "WP00",
-                entry_type="note",
-                entry_content=f"Subtask(s) {task_list_str} marked as {status}",
-                author="user",
-            )
+            if updated_tasks:
+                task_list_str = ", ".join(updated_tasks)
+                emit_history_added(
+                    wp_id=updated_tasks[0].replace("T", "WP")[:4],
+                    entry_type="note",
+                    entry_content=f"Subtask(s) {task_list_str} marked as {status}",
+                    author="user",
+                )
         except Exception as e:
-            console.print(f"[yellow]Warning:[/yellow] Event emission failed: {e}")
+            if not json_output:
+                console.print(f"[yellow]Warning:[/yellow] Event emission failed: {e}")
 
         # Dossier sync (fire-and-forget)
         with contextlib.suppress(Exception):
@@ -2141,7 +2440,7 @@ def mark_status(
             )
 
         # Build result
-        result = {"result": "success", "updated": updated_tasks, "not_found": not_found_tasks, "status": status, "count": len(updated_tasks)}
+        result = _mark_status_json_payload(results)
 
         # Output result
         if not_found_tasks and not json_output:
@@ -2149,6 +2448,8 @@ def mark_status(
 
         if len(updated_tasks) == 1:
             success_msg = f"[green]✓[/green] Marked {updated_tasks[0]} as {status}"
+        elif not updated_tasks:
+            success_msg = f"[green]✓[/green] Requested status already satisfied for: {', '.join(resolved_tasks)}"
         else:
             success_msg = f"[green]✓[/green] Marked {len(updated_tasks)} subtasks as {status}: {', '.join(updated_tasks)}"
 

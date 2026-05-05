@@ -996,14 +996,9 @@ def now(
     elif report and not result.failed_results:
         console.print("\n[dim]No failures to report.[/dim]")
 
-    # Strict exit: fail on sync errors or unauthenticated non-empty queue
-    if strict:
-        if result.error_count > 0:
-            raise typer.Exit(1)
-        # Detect auth-missing: queue was non-empty but nothing progressed
-        if queue_size > 0 and result.synced_count == 0 and result.duplicate_count == 0 and result.error_count == 0:
-            console.print("[red]Strict mode:[/red] queue non-empty but no events processed (likely not authenticated)")
-            raise typer.Exit(1)
+    # Strict exit: fail on sync errors surfaced by the service result.
+    if strict and result.error_count > 0:
+        raise typer.Exit(1)
 
 
 @app.command()

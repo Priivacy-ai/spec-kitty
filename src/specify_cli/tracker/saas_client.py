@@ -34,6 +34,7 @@ from specify_cli.core.contract_gate import validate_outbound_payload
 _SESSION_EXPIRED_MESSAGE = (
     "Session expired. Run `spec-kitty auth login` to re-authenticate."
 )
+_UNAUTHENTICATED_CATEGORY = "unauthenticated"
 
 
 class SaaSTrackerClientError(RuntimeError):
@@ -119,8 +120,8 @@ def _current_team_slug_sync() -> str | None:
         return None
     for team in session.teams:
         if team.id == session.default_team_id:
-            return team.id
-    return session.teams[0].id
+            return cast("str", team.id)
+    return cast("str", session.teams[0].id)
 
 
 # ---------------------------------------------------------------------------
@@ -156,6 +157,16 @@ def _parse_error_envelope(response: httpx.Response) -> dict[str, Any]:
         "source": body.get("source"),
         "retry_after_seconds": body.get("retry_after_seconds"),
     }
+
+
+def _unauthenticated_error(message: str) -> SaaSTrackerClientError:
+    return SaaSTrackerClientError(
+        message,
+        error_code=_UNAUTHENTICATED_CATEGORY,
+        status_code=401,
+        details={"category": _UNAUTHENTICATED_CATEGORY},
+        user_action_required=True,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -261,13 +272,13 @@ class SaaSTrackerClient:
         """
         access_token = _fetch_access_token_sync()
         if access_token is None:
-            raise SaaSTrackerClientError(
+            raise _unauthenticated_error(
                 "No valid access token. Run `spec-kitty auth login` to authenticate."
             )
 
         team_slug = _current_team_slug_sync()
         if not team_slug:
-            raise SaaSTrackerClientError(
+            raise _unauthenticated_error(
                 "No team context available. Run `spec-kitty auth login` to authenticate."
             )
 

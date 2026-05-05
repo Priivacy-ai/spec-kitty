@@ -233,7 +233,7 @@ def _detect_persisted_drift(tm: Any, in_memory: Any) -> bool:
     """
     try:
         persisted = tm._storage.read()
-    except Exception:
+    except Exception:  # noqa: BLE001 - storage read failure makes drift check inconclusive, not fatal
         return False
     if persisted is None:
         return False
@@ -302,7 +302,7 @@ def _installed_package_version() -> str | None:
         from importlib.metadata import version
 
         return version("spec-kitty-cli")
-    except Exception:
+    except Exception:  # noqa: BLE001 - package metadata lookup failure only suppresses optional version detail
         return None
 
 
@@ -395,7 +395,7 @@ def _compute_findings(
         from specify_cli.saas.rollout import is_saas_sync_enabled
 
         rollout_enabled = bool(is_saas_sync_enabled())
-    except Exception:
+    except Exception:  # noqa: BLE001 - rollout probe failure downgrades optional daemon advisory
         rollout_enabled = False
     if rollout_enabled and daemon is None:
         findings.append(
@@ -514,12 +514,12 @@ async def _check_server_session() -> ServerSessionStatus:
                 "run `spec-kitty auth login` if this persists."
             ),
         )
-    except Exception:
+    except Exception:  # noqa: BLE001 - token acquisition failures are translated to doctor status
         return ServerSessionStatus(active=False, error="Could not obtain access token.")
 
     try:
         saas_url = get_saas_base_url()
-    except Exception:
+    except Exception:  # noqa: BLE001 - SaaS config failure is reported as inactive server status
         return ServerSessionStatus(active=False, error="SaaS URL not configured")
 
     url = f"{saas_url}/api/v1/session-status"
@@ -530,7 +530,7 @@ async def _check_server_session() -> ServerSessionStatus:
             response = await client.get(url, headers=headers)
     except httpx.RequestError as exc:
         return ServerSessionStatus(active=False, error=f"Network error: {type(exc).__name__}")
-    except Exception:
+    except Exception:  # noqa: BLE001 - unexpected server probe failures are translated to doctor status
         return ServerSessionStatus(active=False, error="Unexpected error during server check")
 
     if response.status_code == 200:
