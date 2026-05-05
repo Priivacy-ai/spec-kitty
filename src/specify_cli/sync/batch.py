@@ -4,6 +4,8 @@ Provides per-event error parsing, categorization, actionable summaries,
 and JSON failure report export.
 """
 
+from __future__ import annotations
+
 import gzip
 import json
 from contextlib import suppress
@@ -15,7 +17,10 @@ from pathlib import Path
 import requests
 
 from specify_cli.auth.http import request_with_stdlib_fallback_sync
-from specify_cli.sync._team import resolve_private_team_id_for_ingress
+from specify_cli.sync._team import (
+    CATEGORY_MISSING_PRIVATE_TEAM,
+    resolve_private_team_id_for_ingress,
+)
 from .feature_flags import is_saas_sync_enabled, saas_sync_disabled_message
 from .queue import OfflineQueue
 from specify_cli.core.contract_gate import validate_outbound_payload
@@ -28,12 +33,31 @@ from specify_cli.core.contract_gate import validate_outbound_payload
 ERROR_CATEGORIES: dict[str, list[str]] = {
     "schema_mismatch": ["invalid", "schema", "field", "missing", "type"],
     "auth_expired": ["token", "expired", "unauthorized", "401"],
-    "server_error": ["internal", "500", "timeout", "unavailable"],
+    "unauthenticated": ["not authenticated", "no valid access token"],
+    CATEGORY_MISSING_PRIVATE_TEAM: [
+        "private teamspace",
+        "private team",
+        "direct ingress",
+        CATEGORY_MISSING_PRIVATE_TEAM,
+    ],
+    "retryable_transport": [
+        "timeout",
+        "connection",
+        "network",
+        "unreachable",
+        "unavailable",
+    ],
+    "server_error": ["internal", "500", "502", "503", "504", "server error"],
 }
 
 CATEGORY_ACTIONS: dict[str, str] = {
     "schema_mismatch": "Run `spec-kitty sync diagnose` to inspect invalid events",
     "auth_expired": "Run `spec-kitty auth login` to refresh credentials",
+    "unauthenticated": "Run `spec-kitty auth login` to authenticate",
+    CATEGORY_MISSING_PRIVATE_TEAM: (
+        "Private Teamspace access is required for direct ingress"
+    ),
+    "retryable_transport": "Retry later or check network connectivity",
     "server_error": "Retry later or check server status",
     "unknown": "Inspect the failure report for details: --report <file.json>",
 }
@@ -75,6 +99,76 @@ def categorize_error(error_string: str) -> str:
         if any(kw in lower for kw in keywords):
             return category
     return "unknown"
+
+
+def _safe_response_json(response: object) -> dict:
+    """Return a response JSON dict, or an empty dict if unavailable."""
+    try:
+        body = response.json()  # type: ignore[attr-defined]
+    except (TypeError, ValueError):
+        return {}
+    return body if isinstance(body, dict) else {}
+
+
+def _body_mentions_missing_private_team(body: dict) -> bool:
+    values = [
+        body.get("category"),
+        body.get("error_code"),
+        body.get("error"),
+        body.get("message"),
+        body.get("detail"),
+    ]
+    text = " ".join(str(value) for value in values if value is not None).lower()
+    return (
+        CATEGORY_MISSING_PRIVATE_TEAM in text
+        or "private teamspace" in text
+        or ("private team" in text and "direct ingress" in text)
+    )
+
+
+def _http_error_category(status_code: int, body: dict | None = None) -> str:
+    """Map batch HTTP failures to deterministic diagnostic categories."""
+    body = body or {}
+    if status_code == 401:
+        return "auth_expired"
+    if status_code == 403:
+        if _body_mentions_missing_private_team(body):
+            return CATEGORY_MISSING_PRIVATE_TEAM
+        return "unauthorized"
+    if status_code in {408, 429}:
+        return "retryable_transport"
+    if 500 <= status_code < 600:
+        return "server_error"
+    return categorize_error(str(body)) if body else "unknown"
+
+
+def _http_error_message(status_code: int, body: dict | None = None) -> str:
+    body = body or {}
+    message = body.get("message") or body.get("detail") or body.get("error")
+    if isinstance(message, str) and message.strip():
+        return message.strip()
+    return f"HTTP {status_code}"
+
+
+def _record_all_events_failed(
+    result: BatchSyncResult,
+    events: list[dict],
+    *,
+    error: str,
+    category: str,
+) -> None:
+    result.error_messages.append(error)
+    result.error_count = len(events)
+    result.failed_ids = [e.get("event_id") for e in events]
+    for evt in events:
+        result.event_results.append(
+            BatchEventResult(
+                event_id=evt.get("event_id", "unknown"),
+                status="rejected",
+                error=error,
+                error_category=category,
+            )
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -408,8 +502,11 @@ def batch_sync(  # noqa: C901
         # of spinning indefinitely on a queue that will never drain (Scenario
         # 6 in spec.md). The message is operator-facing diagnostic only; it
         # is NOT printed to stdout because callers route it through stderr/log.
-        result.error_messages.append(
-            "skipped: no Private Teamspace available for direct ingress"
+        _record_all_events_failed(
+            result,
+            events,
+            error="skipped: no Private Teamspace available for direct ingress",
+            category=CATEGORY_MISSING_PRIVATE_TEAM,
         )
         return result
     headers["X-Team-Slug"] = team_slug
@@ -463,18 +560,13 @@ def batch_sync(  # noqa: C901
         else:
             if show_progress:
                 print(f"Batch sync failed: HTTP {response.status_code}")
-            result.error_messages.append(f"HTTP {response.status_code}")
-            result.error_count = len(events)
-            result.failed_ids = [e.get("event_id") for e in events]
-            for evt in events:
-                result.event_results.append(
-                    BatchEventResult(
-                        event_id=evt.get("event_id", "unknown"),
-                        status="rejected",
-                        error=f"HTTP {response.status_code}",
-                        error_category="server_error",
-                    )
-                )
+            response_body = _safe_response_json(response)
+            _record_all_events_failed(
+                result,
+                events,
+                error=_http_error_message(response.status_code, response_body),
+                category=_http_error_category(response.status_code, response_body),
+            )
             queue.process_batch_results(result.event_results)
 
     except requests.exceptions.Timeout:
@@ -520,34 +612,23 @@ def batch_sync(  # noqa: C901
                 return result
             if show_progress:
                 print(f"Batch sync failed: HTTP {response.status_code}")
-            result.error_messages.append(f"HTTP {response.status_code}")
-            result.error_count = len(events)
-            result.failed_ids = [e.get("event_id") for e in events]
-            for evt in events:
-                result.event_results.append(
-                    BatchEventResult(
-                        event_id=evt.get("event_id", "unknown"),
-                        status="rejected",
-                        error=f"HTTP {response.status_code}",
-                        error_category="server_error",
-                    )
-                )
+            response_body = _safe_response_json(response)
+            _record_all_events_failed(
+                result,
+                events,
+                error=_http_error_message(response.status_code, response_body),
+                category=_http_error_category(response.status_code, response_body),
+            )
             queue.process_batch_results(result.event_results)
             return result
         if show_progress:
             print("Batch sync failed: Request timeout")
-        result.error_messages.append("Request timeout")
-        result.error_count = len(events)
-        result.failed_ids = [e.get("event_id") for e in events]
-        for evt in events:
-            result.event_results.append(
-                BatchEventResult(
-                    event_id=evt.get("event_id", "unknown"),
-                    status="rejected",
-                    error="Request timeout",
-                    error_category="server_error",
-                )
-            )
+        _record_all_events_failed(
+            result,
+            events,
+            error="Request timeout",
+            category="retryable_transport",
+        )
         queue.process_batch_results(result.event_results)
 
     except requests.exceptions.ConnectionError as e:
@@ -593,34 +674,23 @@ def batch_sync(  # noqa: C901
                 return result
             if show_progress:
                 print(f"Batch sync failed: HTTP {response.status_code}")
-            result.error_messages.append(f"HTTP {response.status_code}")
-            result.error_count = len(events)
-            result.failed_ids = [e.get("event_id") for e in events]
-            for evt in events:
-                result.event_results.append(
-                    BatchEventResult(
-                        event_id=evt.get("event_id", "unknown"),
-                        status="rejected",
-                        error=f"HTTP {response.status_code}",
-                        error_category="server_error",
-                    )
-                )
+            response_body = _safe_response_json(response)
+            _record_all_events_failed(
+                result,
+                events,
+                error=_http_error_message(response.status_code, response_body),
+                category=_http_error_category(response.status_code, response_body),
+            )
             queue.process_batch_results(result.event_results)
             return result
         if show_progress:
             print(f"Batch sync failed: Connection error - {e}")
-        result.error_messages.append(f"Connection error: {e}")
-        result.error_count = len(events)
-        result.failed_ids = [e.get("event_id") for e in events]
-        for evt in events:
-            result.event_results.append(
-                BatchEventResult(
-                    event_id=evt.get("event_id", "unknown"),
-                    status="rejected",
-                    error=f"Connection error: {e}",
-                    error_category="server_error",
-                )
-            )
+        _record_all_events_failed(
+            result,
+            events,
+            error=f"Connection error: {e}",
+            category="retryable_transport",
+        )
         queue.process_batch_results(result.event_results)
 
     except Exception as e:

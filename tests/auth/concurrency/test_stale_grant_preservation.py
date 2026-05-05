@@ -50,6 +50,19 @@ from specify_cli.auth.token_manager import TokenManager
 # ---------------------------------------------------------------------------
 
 
+class _MembershipRehydrateAttempted(BaseException):
+    """Raised when stale-grant tests accidentally enter hosted membership I/O."""
+
+
+def _private_teamspace() -> Team:
+    return Team(
+        id="t-private",
+        name="Private",
+        role="owner",
+        is_private_teamspace=True,
+    )
+
+
 def _make_session(
     *,
     refresh_token: str,
@@ -107,8 +120,11 @@ class _RotateOnceFlow:
                 user_id=session.user_id,
                 email=session.email,
                 name=session.name,
-                teams=list(session.teams),
-                default_team_id=session.default_team_id,
+                # This suite validates refresh reconciliation, not membership
+                # rehydrate. Return a Private Teamspace so TokenManager's
+                # post-refresh hook remains a no-op.
+                teams=[_private_teamspace()],
+                default_team_id="t-private",
                 access_token="at_rotated_v2",
                 refresh_token="rt_rotated_v2",
                 session_id=session.session_id,
@@ -126,8 +142,8 @@ class _RotateOnceFlow:
             user_id=session.user_id,
             email=session.email,
             name=session.name,
-            teams=list(session.teams),
-            default_team_id=session.default_team_id,
+            teams=[_private_teamspace()],
+            default_team_id="t-private",
             access_token="at_rotated_v3",
             refresh_token=session.refresh_token,
             session_id=session.session_id,
@@ -176,6 +192,25 @@ def _build_token_manager(auth_store_root: Path) -> TokenManager:
     tm = TokenManager(storage)
     tm.load_from_storage_sync()
     return tm
+
+
+@pytest.fixture(autouse=True)
+def fail_on_membership_rehydrate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> list[tuple[str, str]]:
+    """Fail if this hermetic stale-grant suite attempts ``/api/v1/me``."""
+    from specify_cli.auth.http import me_fetch
+
+    calls: list[tuple[str, str]] = []
+
+    def _fail(saas_base_url: str, access_token: str) -> dict[str, object]:
+        calls.append((saas_base_url, access_token))
+        raise _MembershipRehydrateAttempted(
+            "stale-grant refresh tests must not call hosted /api/v1/me"
+        )
+
+    monkeypatch.setattr(me_fetch, "fetch_me_payload", _fail)
+    return calls
 
 
 # ---------------------------------------------------------------------------

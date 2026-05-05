@@ -141,6 +141,28 @@ class TestClassifyResponse:
         assert outcome.reason == "unauthorized"
         assert outcome.retryable is True
 
+    def test_403_missing_private_team_is_direct_ingress_category(self) -> None:
+        task = FakeTask()
+        resp = _mock_response(
+            403,
+            {
+                "category": "direct_ingress_missing_private_team",
+                "message": "Private Teamspace is required.",
+            },
+        )
+        outcome = _classify_response(task, resp)
+        assert outcome.status == UploadStatus.FAILED
+        assert outcome.reason == "direct_ingress_missing_private_team"
+        assert outcome.retryable is False
+
+    def test_403_permission_denied_is_unauthorized(self) -> None:
+        task = FakeTask()
+        resp = _mock_response(403, {"message": "Forbidden"})
+        outcome = _classify_response(task, resp)
+        assert outcome.status == UploadStatus.FAILED
+        assert outcome.reason == "unauthorized"
+        assert outcome.retryable is False
+
     def test_429_rate_limited(self) -> None:
         task = FakeTask()
         resp = _mock_response(429, {"error": "rate_limited"})

@@ -394,7 +394,7 @@ async def _run_locked(
             updated = await asyncio.wait_for(
                 refresh_flow.refresh(repersisted), timeout=max_hold_s
             )
-        except Exception:
+        except Exception:  # noqa: BLE001 - any second refresh failure becomes bounded replay retry guidance
             # Catch all failures on the second attempt: TokenRefreshError and
             # subclasses (expired, session-invalid, another replay), asyncio
             # TimeoutError, httpx network errors, and anything else.

@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any
 import requests
 
 from specify_cli.auth.http import request_with_stdlib_fallback_sync
+from specify_cli.sync._team import CATEGORY_MISSING_PRIVATE_TEAM
 from .namespace import UploadOutcome, UploadStatus
 
 if TYPE_CHECKING:
@@ -146,6 +147,22 @@ def _format_bad_request_reason(body: dict[str, Any]) -> str:
     return "unknown"
 
 
+def _body_mentions_missing_private_team(body: dict[str, Any]) -> bool:
+    values = [
+        body.get("category"),
+        body.get("error_code"),
+        body.get("error"),
+        body.get("message"),
+        body.get("detail"),
+    ]
+    text = " ".join(str(value) for value in values if value is not None).lower()
+    return (
+        CATEGORY_MISSING_PRIVATE_TEAM in text
+        or "private teamspace" in text
+        or ("private team" in text and "direct ingress" in text)
+    )
+
+
 def _classify_response(
     task: BodyUploadTask, response: Any,
 ) -> UploadOutcome:
@@ -185,6 +202,21 @@ def _classify_response(
             reason="unauthorized",
             content_hash=task.content_hash,
             retryable=True,
+        )
+
+    if status == 403:
+        body = _safe_json(response)
+        reason = (
+            CATEGORY_MISSING_PRIVATE_TEAM
+            if _body_mentions_missing_private_team(body)
+            else "unauthorized"
+        )
+        return UploadOutcome(
+            artifact_path=task.artifact_path,
+            status=UploadStatus.FAILED,
+            reason=reason,
+            content_hash=task.content_hash,
+            retryable=False,
         )
 
     if status == 404:

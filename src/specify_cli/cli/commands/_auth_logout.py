@@ -80,7 +80,7 @@ async def logout_impl(*, force: bool) -> None:
     # --force. If clear_session() raises, we report the error and exit 1.
     try:
         tm.clear_session()
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - logout must report any local credential deletion failure
         console.print(
             f"[red]✗ Local credentials could not be deleted: {type(exc).__name__}. "
             f"You may need to delete them manually.[/red]"

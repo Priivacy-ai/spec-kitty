@@ -134,7 +134,7 @@ def doctor(
             stuck_threshold=stuck_threshold,
             server=server,
         )
-    except Exception as exc:  # noqa: BLE001 — we want to surface every failure
+    except Exception as exc:  # noqa: BLE001 - doctor converts unexpected failures to exit code 2
         console.print(f"[red]Internal error during doctor: {exc}[/red]")
         raise typer.Exit(2) from exc
     raise typer.Exit(exit_code)

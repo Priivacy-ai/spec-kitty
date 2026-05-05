@@ -250,12 +250,45 @@ class TestSyncNow:
         assert service._backoff_seconds == 0.5
         assert service._consecutive_failures == 0
 
-    def test_sync_now_when_not_authenticated(self, service, mock_auth):
-        """sync_now() returns empty result when not authenticated."""
+    @patch("specify_cli.sync.background.sync_all_queued_events")
+    def test_sync_now_when_not_authenticated_classifies_queue_without_mutation(
+        self,
+        mock_sync_all,
+        service,
+        mock_auth,
+    ):
+        """sync_now() classifies queued events as unauthenticated without draining."""
+        service.queue.queue_event(
+            {
+                "event_id": "evt-unauth-001",
+                "event_type": "Test",
+                "payload": {},
+            }
+        )
+        service.queue.queue_event(
+            {
+                "event_id": "evt-unauth-002",
+                "event_type": "Test",
+                "payload": {},
+            }
+        )
         mock_auth.return_value = None
 
         result = service.sync_now()
         assert result.synced_count == 0
+        assert result.error_count == 2
+        assert result.category_counts == {"unauthenticated": 2}
+        assert [r.event_id for r in result.failed_results] == [
+            "evt-unauth-001",
+            "evt-unauth-002",
+        ]
+        assert "spec-kitty auth login" in result.error_messages[0]
+        assert service.queue.size() == 2
+        assert [event["event_id"] for event in service.queue.drain_queue()] == [
+            "evt-unauth-001",
+            "evt-unauth-002",
+        ]
+        mock_sync_all.assert_not_called()
 
     @patch("specify_cli.sync.background.sync_all_queued_events")
     def test_sync_now_handles_failure(self, mock_sync_all, service):

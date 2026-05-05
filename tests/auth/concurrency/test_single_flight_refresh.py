@@ -32,8 +32,21 @@ from specify_cli.auth.secure_storage.abstract import SecureStorage
 from specify_cli.auth.session import StoredSession, Team
 
 
+class _MembershipRehydrateAttempted(BaseException):
+    """Raised when single-flight tests accidentally enter hosted membership I/O."""
+
+
 def _now() -> datetime:
     return datetime.now(UTC)
+
+
+def _private_teamspace() -> Team:
+    return Team(
+        id="t-private",
+        name="Private",
+        role="owner",
+        is_private_teamspace=True,
+    )
 
 
 def _expired_session() -> StoredSession:
@@ -102,8 +115,11 @@ class _FakeRefreshFlow:
             user_id=session.user_id,
             email=session.email,
             name=session.name,
-            teams=list(session.teams),
-            default_team_id=session.default_team_id,
+            # This suite validates refresh single-flight behavior, not
+            # membership rehydrate. Return a Private Teamspace so the
+            # post-refresh hook remains a no-op and the test stays hermetic.
+            teams=[_private_teamspace()],
+            default_team_id="t-private",
             access_token="fresh_access_token_v2",
             refresh_token=session.refresh_token,
             session_id=session.session_id,
@@ -138,6 +154,25 @@ def install_fake_refresh_flow(monkeypatch: pytest.MonkeyPatch):
         sys.modules, "specify_cli.auth.flows.refresh", refresh_module
     )
     yield _FakeRefreshFlow
+
+
+@pytest.fixture(autouse=True)
+def fail_on_membership_rehydrate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> list[tuple[str, str]]:
+    """Fail if this hermetic single-flight suite attempts ``/api/v1/me``."""
+    from specify_cli.auth.http import me_fetch
+
+    calls: list[tuple[str, str]] = []
+
+    def _fail(saas_base_url: str, access_token: str) -> dict[str, object]:
+        calls.append((saas_base_url, access_token))
+        raise _MembershipRehydrateAttempted(
+            "single-flight refresh tests must not call hosted /api/v1/me"
+        )
+
+    monkeypatch.setattr(me_fetch, "fetch_me_payload", _fail)
+    return calls
 
 
 @pytest.fixture(autouse=True)

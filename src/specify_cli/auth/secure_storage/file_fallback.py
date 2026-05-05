@@ -28,6 +28,7 @@ from filelock import FileLock
 
 from ..errors import SecureStorageError, StorageDecryptionError
 from ..session import StoredSession
+from ..session_hot_path import invalidate_session_hot_path, publish_session_hot_path
 from .abstract import SecureStorage
 
 log = logging.getLogger(__name__)
@@ -228,6 +229,7 @@ class FileFallbackStorage(SecureStorage):
                 # Best-effort on platforms without POSIX perms (Windows).
                 log.debug("Could not chmod %s: %s", tmp, exc)
             tmp.replace(self._cred_file)
+            publish_session_hot_path(self._dir, session)
 
     def delete(self) -> None:
         self._ensure_dir()
@@ -245,6 +247,7 @@ class FileFallbackStorage(SecureStorage):
                     self._salt_file.unlink()
                 except OSError as exc:
                     log.debug("Could not delete salt file %s: %s", self._salt_file, exc)
+            invalidate_session_hot_path(self._dir)
 
 
 #: Public alias used by WindowsFileStorage and the auth-secure-storage contract.

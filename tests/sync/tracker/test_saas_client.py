@@ -176,20 +176,28 @@ class TestAuthInjection:
 
     def test_no_token_raises(self, client: SaaSTrackerClient) -> None:
         client._credential_store.get_access_token.return_value = None  # type: ignore[attr-defined]
-        with pytest.raises(SaaSTrackerClientError, match="No valid access token"):
+        with pytest.raises(SaaSTrackerClientError, match="spec-kitty auth login") as exc_info:
             client._request("GET", "/api/v1/tracker/status")
+        assert exc_info.value.error_code == "unauthenticated"
+        assert exc_info.value.status_code == 401
+        assert exc_info.value.details["category"] == "unauthenticated"
+        assert exc_info.value.user_action_required is True
 
     def test_missing_team_slug_raises_error(self, client: SaaSTrackerClient) -> None:
         """FR-015: Missing X-Team-Slug must raise, not silently omit the header."""
         client._credential_store.get_team_slug.return_value = None  # type: ignore[attr-defined]
-        with pytest.raises(SaaSTrackerClientError, match="No team context available"):
+        with pytest.raises(SaaSTrackerClientError, match="spec-kitty auth login") as exc_info:
             client._request("GET", "/api/v1/tracker/status")
+        assert exc_info.value.error_code == "unauthenticated"
+        assert exc_info.value.details["category"] == "unauthenticated"
 
     def test_empty_team_slug_raises_error(self, client: SaaSTrackerClient) -> None:
         """FR-015: Empty string team slug must also raise."""
         client._credential_store.get_team_slug.return_value = ""  # type: ignore[attr-defined]
-        with pytest.raises(SaaSTrackerClientError, match="No team context available"):
+        with pytest.raises(SaaSTrackerClientError, match="spec-kitty auth login") as exc_info:
             client._request("GET", "/api/v1/tracker/status")
+        assert exc_info.value.error_code == "unauthenticated"
+        assert exc_info.value.details["category"] == "unauthenticated"
 
 
 # ---------------------------------------------------------------------------

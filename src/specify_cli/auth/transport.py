@@ -228,7 +228,7 @@ def _force_refresh_sync() -> None:
             f"Token refresh failed: {exc}",
             error_code="refresh_token_invalid",
         ) from exc
-    except Exception as exc:  # pragma: no cover - defensive
+    except Exception as exc:  # noqa: BLE001 - sync auth wrapper translates unexpected refresh failures
         raise AuthRefreshFailed(
             f"Token refresh raised unexpected error: {exc}",
             error_code="refresh_unexpected",

@@ -1,0 +1,121 @@
+{
+  "version": 1,
+  "mission_slug": "auth-local-trust-and-multi-process-hardening-01KQW587",
+  "mission_id": "01KQW587256P0CCDN2GT9WAXNC",
+  "mission_branch": "kitty/mission-auth-local-trust-and-multi-process-hardening-01KQW587",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/sync.py",
+        "src/specify_cli/sync/_team.py",
+        "src/specify_cli/sync/batch.py",
+        "src/specify_cli/sync/body_transport.py",
+        "src/specify_cli/sync/client.py",
+        "src/specify_cli/tracker/saas_client.py",
+        "tests/cli/commands/test_sync_routes.py",
+        "tests/sync/test_batch_error_surfacing.py",
+        "tests/sync/test_body_transport.py",
+        "tests/sync/test_team_ingress_resolver.py",
+        "tests/sync/tracker/test_saas_client.py",
+        "tests/sync/tracker/test_saas_service.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02",
+        "WP03",
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/auth/flows/revoke.py",
+        "src/specify_cli/auth/http/transport.py",
+        "src/specify_cli/auth/refresh_transaction.py",
+        "src/specify_cli/auth/secure_storage/file_fallback.py",
+        "src/specify_cli/auth/session.py",
+        "src/specify_cli/auth/session_hot_path.py",
+        "src/specify_cli/auth/token_manager.py",
+        "src/specify_cli/auth/transport.py",
+        "src/specify_cli/cli/commands/_auth_doctor.py",
+        "src/specify_cli/cli/commands/_auth_login.py",
+        "src/specify_cli/cli/commands/_auth_logout.py",
+        "src/specify_cli/cli/commands/_auth_status.py",
+        "src/specify_cli/cli/commands/auth.py",
+        "src/specify_cli/cli/commands/review.py",
+        "tests/auth/concurrency/conftest.py",
+        "tests/auth/concurrency/test_machine_refresh_lock.py",
+        "tests/auth/concurrency/test_session_hot_path.py",
+        "tests/auth/secure_storage/test_file_fallback_windows_root.py",
+        "tests/auth/stress/test_file_storage_concurrent.py",
+        "tests/auth/test_refresh_flow.py",
+        "tests/auth/test_token_manager.py",
+        "tests/packaging/test_windows_no_keyring.py",
+        "tests/review/test_ble001_guardrail.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "kitty-specs/auth-local-trust-and-multi-process-hardening-01KQW587/evidence.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-05-05T13:55:33.857213+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP05"
+  ],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP02"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP03",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP03"
+      }
+    ],
+    "total_merges": 2,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 2
+    }
+  }
+}

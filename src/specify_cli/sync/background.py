@@ -26,7 +26,7 @@ from specify_cli.auth import get_token_manager
 from specify_cli.auth.errors import AuthenticationError
 from specify_cli.diagnostics import report_once
 
-from .batch import BatchSyncResult, batch_sync, sync_all_queued_events
+from .batch import BatchEventResult, BatchSyncResult, batch_sync, sync_all_queued_events
 from .config import SyncConfig
 from .diagnostics import SyncDiagnostic, emit_sync_diagnostic
 from .feature_flags import is_saas_sync_enabled, saas_sync_disabled_message
@@ -41,6 +41,9 @@ logger = logging.getLogger(__name__)
 # Maximum seconds the stop() best-effort sync may run before being
 # abandoned.  Events stay in the durable queue for the daemon to drain.
 _STOP_SYNC_TIMEOUT_SECONDS = 5
+_UNAUTHENTICATED_SYNC_ERROR = (
+    "Not authenticated: no valid access token. Run `spec-kitty auth login`."
+)
 
 
 def _emit_nonfatal_final_sync_diagnostic(
@@ -72,6 +75,39 @@ def _safe_optional_queue_size(queue_obj: object | None) -> int:
         return int(raw)
     except (TypeError, ValueError):
         return 0
+
+
+def _unauthenticated_sync_result(
+    queue: OfflineQueue,
+    *,
+    limit: int | None = None,
+) -> BatchSyncResult:
+    """Classify queued events as unauthenticated without mutating the queue."""
+    result = BatchSyncResult()
+    queue_size = _safe_optional_queue_size(queue)
+    if queue_size <= 0:
+        result.error_messages.append(_UNAUTHENTICATED_SYNC_ERROR)
+        return result
+
+    read_limit = queue_size if limit is None else min(queue_size, limit)
+    events = queue.drain_queue(limit=read_limit)
+    result.total_events = len(events)
+    result.error_count = len(events)
+    result.error_messages.append(_UNAUTHENTICATED_SYNC_ERROR)
+
+    for event in events:
+        event_id = str(event.get("event_id") or "unknown")
+        result.failed_ids.append(event_id)
+        result.event_results.append(
+            BatchEventResult(
+                event_id=event_id,
+                status="rejected",
+                error=_UNAUTHENTICATED_SYNC_ERROR,
+                error_category="unauthenticated",
+            )
+        )
+
+    return result
 
 
 def _fetch_access_token_sync() -> str | None:
@@ -312,7 +348,7 @@ class BackgroundSyncService:
             if access_token is None:
                 if report_once("sync.unauthenticated"):
                     logger.warning("Not authenticated, skipping sync")
-                return BatchSyncResult()
+                return _unauthenticated_sync_result(self.queue)
 
             try:
                 result = sync_all_queued_events(
@@ -368,7 +404,7 @@ class BackgroundSyncService:
         if access_token is None:
             if report_once("sync.unauthenticated"):
                 logger.warning("Not authenticated, skipping sync")
-            return BatchSyncResult()
+            return _unauthenticated_sync_result(self.queue, limit=1000)
 
         event_sync_succeeded = False
         try:

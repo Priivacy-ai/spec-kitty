@@ -1,0 +1,56 @@
+{
+  "event_count": 61,
+  "last_event_id": "01KQWDT5APQE6MHX90GAX4H6YF",
+  "materialized_at": "2026-05-05T15:58:51.734466+00:00",
+  "mission_number": "114",
+  "mission_slug": "auth-local-trust-and-multi-process-hardening-01KQW587",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 5,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KQWDT4V67YBAYYKC2HYWENAX",
+      "last_transition_at": "2026-05-05T15:58:51.238362+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KQWDT56XBPYE2WHFYPPBA065",
+      "last_transition_at": "2026-05-05T15:58:51.613926+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KQWDT5876MZYR8VBWMCV5Y5A",
+      "last_transition_at": "2026-05-05T15:58:51.655356+00:00"
+    },
+    "WP04": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KQWDT59FRN1PJ9SNM9TCPKEZ",
+      "last_transition_at": "2026-05-05T15:58:51.695900+00:00"
+    },
+    "WP05": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KQWDT5APQE6MHX90GAX4H6YF",
+      "last_transition_at": "2026-05-05T15:58:51.734466+00:00"
+    }
+  }
+}

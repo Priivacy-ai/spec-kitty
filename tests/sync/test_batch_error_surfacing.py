@@ -32,6 +32,7 @@ from specify_cli.sync.batch import (
     ERROR_CATEGORIES,
     CATEGORY_ACTIONS,
 )
+from specify_cli.sync._team import CATEGORY_MISSING_PRIVATE_TEAM
 from specify_cli.sync.queue import OfflineQueue
 
 
@@ -112,6 +113,11 @@ class TestCategorizeError:
         for kw in ERROR_CATEGORIES["server_error"]:
             assert categorize_error(f"Server {kw} issue") == "server_error"
 
+    def test_retryable_transport_keywords(self):
+        """Temporary transport failures stay distinct from true server failures."""
+        for kw in ERROR_CATEGORIES["retryable_transport"]:
+            assert categorize_error(f"Network {kw} issue") == "retryable_transport"
+
     def test_unknown_for_unrecognised(self):
         """Strings with no matching keywords yield 'unknown'."""
         assert categorize_error("Something completely different happened") == "unknown"
@@ -128,6 +134,7 @@ class TestCategorizeError:
         assert categorize_error("SCHEMA violation detected") == "schema_mismatch"
         assert categorize_error("TOKEN EXPIRED at midnight") == "auth_expired"
         assert categorize_error("INTERNAL server meltdown") == "server_error"
+        assert categorize_error("REQUEST TIMEOUT at midnight") == "retryable_transport"
 
     def test_first_match_wins(self):
         """When multiple categories match, first in dict order wins."""
@@ -367,6 +374,9 @@ class TestFormatSyncSummary:
         """Each known category has an action string."""
         assert "schema_mismatch" in CATEGORY_ACTIONS
         assert "auth_expired" in CATEGORY_ACTIONS
+        assert "unauthenticated" in CATEGORY_ACTIONS
+        assert CATEGORY_MISSING_PRIVATE_TEAM in CATEGORY_ACTIONS
+        assert "retryable_transport" in CATEGORY_ACTIONS
         assert "server_error" in CATEGORY_ACTIONS
         assert "unknown" in CATEGORY_ACTIONS
 
@@ -630,6 +640,33 @@ class TestBatchSyncEventResults:
         assert all(r.error_category == "auth_expired" for r in result.event_results)
 
     @patch("specify_cli.sync.batch.requests.post")
+    def test_http_403_missing_private_team_preserves_direct_ingress_category(
+        self, mock_post, small_queue
+    ):
+        """Issue #889: direct-ingress missing Private Teamspace is not server_error."""
+        mock_response = Mock()
+        mock_response.status_code = 403
+        mock_response.json.return_value = {
+            "category": CATEGORY_MISSING_PRIVATE_TEAM,
+            "message": "Private Teamspace is required for direct ingress.",
+        }
+        mock_post.return_value = mock_response
+
+        result = batch_sync(
+            queue=small_queue,
+            auth_token="token",
+            server_url="http://localhost:8000",
+            show_progress=False,
+        )
+
+        assert result.error_count == 5
+        assert len(result.event_results) == 5
+        assert {
+            r.error_category for r in result.event_results
+        } == {CATEGORY_MISSING_PRIVATE_TEAM}
+        assert "server_error" not in result.category_counts
+
+    @patch("specify_cli.sync.batch.requests.post")
     def test_http_500_populates_server_error_category(self, mock_post, small_queue):
         """HTTP 500 creates event_results with server_error category."""
         mock_response = Mock()
@@ -648,8 +685,8 @@ class TestBatchSyncEventResults:
         assert all(r.error_category == "server_error" for r in result.event_results)
 
     @patch("specify_cli.sync.batch.requests.post")
-    def test_timeout_populates_server_error_category(self, mock_post, small_queue):
-        """Request timeout creates event_results with server_error category."""
+    def test_timeout_populates_retryable_transport_category(self, mock_post, small_queue):
+        """Request timeout creates retryable_transport, not server_error."""
         import requests as req
 
         mock_post.side_effect = req.exceptions.Timeout()
@@ -662,11 +699,14 @@ class TestBatchSyncEventResults:
         )
 
         assert result.error_count == 5
-        assert all(r.error_category == "server_error" for r in result.event_results)
+        assert all(
+            r.error_category == "retryable_transport" for r in result.event_results
+        )
+        assert "server_error" not in result.category_counts
 
     @patch("specify_cli.sync.batch.requests.post")
     def test_connection_error_populates_event_results(self, mock_post, small_queue):
-        """Connection error creates event_results with server_error category."""
+        """Connection error creates retryable_transport event_results."""
         import requests as req
 
         mock_post.side_effect = req.exceptions.ConnectionError("Network unreachable")
@@ -679,7 +719,26 @@ class TestBatchSyncEventResults:
         )
 
         assert result.error_count == 5
-        assert all(r.error_category == "server_error" for r in result.event_results)
+        assert all(
+            r.error_category == "retryable_transport" for r in result.event_results
+        )
+        assert "server_error" not in result.category_counts
+
+    def test_missing_private_team_skip_has_machine_facing_category(self, small_queue):
+        """Skipped direct ingress returns the direct-ingress category for automation."""
+        with patch("specify_cli.sync.batch._current_team_slug", return_value=None):
+            result = batch_sync(
+                queue=small_queue,
+                auth_token="token",
+                server_url="http://localhost:8000",
+                show_progress=False,
+            )
+
+        assert result.error_count == 5
+        assert {
+            r.error_category for r in result.event_results
+        } == {CATEGORY_MISSING_PRIVATE_TEAM}
+        assert "server_error" not in result.category_counts
 
     @patch("specify_cli.sync.batch.requests.post")
     def test_category_counts_property(self, mock_post, small_queue):
