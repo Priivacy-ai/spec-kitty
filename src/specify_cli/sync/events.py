@@ -17,7 +17,7 @@ import json
 import urllib.parse
 import urllib.request
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from .feature_flags import is_saas_sync_enabled
 
@@ -34,7 +34,7 @@ def _resolve_repo_root() -> Path | None:
     try:
         from specify_cli.task_utils import TaskCliError, find_repo_root
 
-        return find_repo_root()
+        return cast(Path, find_repo_root())
     except TaskCliError:
         logger.debug("Non-project context; repo root unavailable for sync daemon")
         return None
@@ -120,7 +120,7 @@ def _resolve_mission_id_for_slug(repo_root: Path | None, mission_slug: str | Non
     try:
         from specify_cli.mission_metadata import resolve_mission_identity
 
-        return resolve_mission_identity(feature_dir).mission_id
+        return cast(str | None, resolve_mission_identity(feature_dir).mission_id)
     except Exception as exc:
         logger.debug("Could not resolve mission_id for %s: %s", mission_slug, exc)
         return None
@@ -333,6 +333,8 @@ def emit_mission_closed(
     total_duration: str | None = None,
     causation_id: str | None = None,
     mission_id: str | None = None,
+    mission_number: int | None = None,
+    mission_type: str = "software-dev",
 ) -> dict[str, Any] | None:
     """Emit MissionClosed event via singleton."""
     repo_root = _ensure_dashboard_sync_daemon_for_active_project()
@@ -343,6 +345,8 @@ def emit_mission_closed(
         total_duration=total_duration,
         causation_id=causation_id,
         mission_id=mission_id,
+        mission_number=mission_number,
+        mission_type=mission_type,
     )
     if event is not None:
         _publish_event_via_sync_daemon(event, repo_root)

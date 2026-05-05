@@ -17,6 +17,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+## [3.2.0rc2] - 2026-05-05
+
+3.2.0rc2 adds the TeamSpace mission-state repair and validation surface needed
+before public TeamSpace import. The repair command is available now; the
+TeamSpace dry-run path requires `spec-kitty-events>=5.0.0` once that contract
+package is published.
+
+### Added
+
+- Added deterministic `doctor mission-state --fix` repair for historical
+  `kitty-specs/` state, including Git safety checks, migration manifests, legacy
+  key cleanup, typed-row quarantine, lane normalization, and production
+  `status.json` rematerialization (#980).
+- Added `doctor mission-state --teamspace-dry-run` to synthesize canonical
+  TeamSpace envelopes in memory and validate them with the 5.0.0 event contract
+  when available (#980).
+- Documented the distributed Git repair workflow for coordinated repository
+  migration before TeamSpace launch (#980).
+
+### Changed
+
+- Aligned CLI sync emission for `WPStatusChanged` and `MissionClosed` with the
+  canonical TeamSpace event payload shape while keeping launch dry-run gated on
+  the published events contract (#980).
+
 ## [3.2.0rc1] - 2026-05-05
 
 3.2.0rc1 is the first release candidate for the 3.2.0 line. It rolls up the

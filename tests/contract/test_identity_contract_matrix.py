@@ -380,7 +380,9 @@ def test_saas_mission_closed_emits_mission_id_as_aggregate(
     )
     assert event is not None
     assert event["aggregate_id"] == ULID_CANONICAL
-    assert event["payload"]["mission_id"] == ULID_CANONICAL
+    assert "mission_id" not in event["payload"]
+    assert event["payload"]["mission_number"] == 80
+    assert event["payload"]["mission_type"] == "software-dev"
 
 
 def test_saas_mission_origin_bound_emits_mission_id_as_aggregate(

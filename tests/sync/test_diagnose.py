@@ -43,6 +43,7 @@ def _make_valid_event(**overrides) -> dict:
             "to_lane": "in_progress",
             "actor": "test-agent",
             "mission_slug": "039-test",
+            "execution_mode": "direct_repo",
         },
         "timestamp": datetime.now(UTC).isoformat(),
         "node_id": "test-node",

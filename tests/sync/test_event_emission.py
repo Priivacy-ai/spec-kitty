@@ -548,10 +548,10 @@ class TestNoDuplicateEmissions:
 
 
 class TestPolicyMetadataPassthrough:
-    """Verify policy_metadata flows from sync.events wrapper through emitter to payload."""
+    """Verify policy_metadata is kept out of the canonical TeamSpace payload."""
 
     def test_policy_metadata_included_in_payload(self, emitter: EventEmitter, temp_queue: OfflineQueue):
-        """policy_metadata passed to emit_wp_status_changed() appears in event payload."""
+        """policy_metadata is accepted for compatibility but not emitted."""
         policy = {
             "orchestrator_id": "test-orch",
             "orchestrator_version": "0.1.0",
@@ -570,10 +570,10 @@ class TestPolicyMetadataPassthrough:
             policy_metadata=policy,
         )
         assert event is not None
-        assert event["payload"]["policy_metadata"] == policy
+        assert "policy_metadata" not in event["payload"]
 
     def test_policy_metadata_none_included_in_payload(self, emitter: EventEmitter, temp_queue: OfflineQueue):
-        """policy_metadata=None is valid and included in payload."""
+        """policy_metadata=None is accepted but not emitted."""
         event = emitter.emit_wp_status_changed(
             wp_id="WP01",
             from_lane="planned",
@@ -582,10 +582,10 @@ class TestPolicyMetadataPassthrough:
             policy_metadata=None,
         )
         assert event is not None
-        assert event["payload"]["policy_metadata"] is None
+        assert "policy_metadata" not in event["payload"]
 
     def test_sync_events_wrapper_passes_policy_metadata(self, emitter: EventEmitter, temp_queue: OfflineQueue):
-        """sync.events.emit_wp_status_changed() passes policy_metadata through to emitter."""
+        """sync.events.emit_wp_status_changed() accepts policy metadata without payload drift."""
 
         policy = {"orchestrator_id": "orch-1", "orchestrator_version": "0.1.0"}
         with patch("specify_cli.sync.events.get_emitter", return_value=emitter):
@@ -600,4 +600,4 @@ class TestPolicyMetadataPassthrough:
             )
 
         assert event is not None
-        assert event["payload"]["policy_metadata"] == policy
+        assert "policy_metadata" not in event["payload"]

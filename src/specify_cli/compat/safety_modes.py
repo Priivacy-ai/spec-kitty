@@ -111,6 +111,13 @@ def _sparse_checkout_predicate(invocation: _InvocationProtocol) -> Safety:
     return Safety.SAFE
 
 
+def _mission_state_predicate(invocation: _InvocationProtocol) -> Safety:
+    """Return UNSAFE for mission-state repair, SAFE for audit/dry-run modes."""
+    if "--fix" in invocation.raw_args:
+        return Safety.UNSAFE
+    return Safety.SAFE
+
+
 # ---------------------------------------------------------------------------
 # Orchestrator API
 # ---------------------------------------------------------------------------
@@ -180,6 +187,7 @@ def register_mode_predicates() -> None:
     register_safety(("doctor", "command-files"), predicate=None)  # read-only
     register_safety(("doctor", "state-roots"), predicate=None)  # read-only
     register_safety(("doctor", "identity"), predicate=None)  # read-only
+    register_safety(("doctor", "mission-state"), predicate=_mission_state_predicate)  # mode-aware
     register_safety(("doctor", "shim-registry"), predicate=None)  # read-only
     register_safety(("doctor", "sparse-checkout"), predicate=_sparse_checkout_predicate)  # mode-aware
     # Orchestrator API — JSON parser/read-only paths safe; state transitions unsafe.
@@ -190,6 +198,7 @@ def register_mode_predicates() -> None:
 __all__ = [
     "_DASHBOARD_UNSAFE_FLAGS",
     "_DOCTOR_UNSAFE_FLAGS",
+    "_mission_state_predicate",
     "_ORCHESTRATOR_API_UNSAFE_SUBCOMMANDS",
     "_orchestrator_api_predicate",
     "_sparse_checkout_predicate",

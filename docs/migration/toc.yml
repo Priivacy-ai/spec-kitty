@@ -1,2 +1,4 @@
 - name: Migrating from 2.x / Early 3.x
   href: from-charter-2x.md
+- name: TeamSpace Mission-State Repair
+  href: teamspace-mission-state-repair.md

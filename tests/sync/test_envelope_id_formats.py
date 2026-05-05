@@ -35,7 +35,8 @@ def _make_full_event(
             "from_lane": "planned",
             "to_lane": "in_progress",
             "actor": "user",
-            "mission_slug": None,
+            "mission_slug": "039-test",
+            "execution_mode": "direct_repo",
         },
         "node_id": "test-node-id",
         "lamport_clock": 1,
@@ -164,7 +165,8 @@ class TestUuidEventsNotDropped:
                 "from_lane": "planned",
                 "to_lane": "in_progress",
                 "actor": "user",
-                "mission_slug": None,
+                "mission_slug": "039-test",
+                "execution_mode": "direct_repo",
             },
         )
         assert event is not None

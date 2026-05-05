@@ -289,7 +289,7 @@ class TestWPStatusChanged:
         assert event["payload"]["mission_slug"] == "028-sync"
 
     def test_canonical_mission_id_passes_through(self, emitter: EventEmitter, temp_queue):
-        """WPStatusChanged can carry canonical mission identity alongside the slug."""
+        """WPStatusChanged uses the WP aggregate and keeps mission_id out of payload."""
         event = emitter.emit_wp_status_changed(
             "WP01",
             "planned",
@@ -298,7 +298,8 @@ class TestWPStatusChanged:
             mission_id="01KTESTMISSIONID00000000001",
         )
         assert event is not None
-        assert event["payload"]["mission_id"] == "01KTESTMISSIONID00000000001"
+        assert event["aggregate_id"] == "WP01"
+        assert "mission_id" not in event["payload"]
 
     def test_transition_metadata_passes_through(self, emitter: EventEmitter, temp_queue):
         """WPStatusChanged carries the canonical status event metadata TeamSpace projects."""
@@ -462,10 +463,13 @@ class TestMissionClosed:
         assert event is not None
         assert event["event_type"] == "MissionClosed"
         assert event["aggregate_type"] == "Mission"
-        assert event["payload"]["total_wps"] == 7
+        assert event["payload"]["mission_slug"] == "028-sync"
+        assert event["payload"]["mission_number"] == 28
+        assert event["payload"]["mission_type"] == "software-dev"
+        assert "total_wps" not in event["payload"]
 
     def test_optional_fields(self, emitter: EventEmitter, temp_queue):
-        """completed_at and total_duration are optional."""
+        """Historical close details are intentionally omitted."""
         event = emitter.emit_mission_closed(
             "028-sync",
             7,
@@ -473,8 +477,10 @@ class TestMissionClosed:
             total_duration="6h",
         )
         assert event is not None
-        assert event["payload"]["completed_at"] == "2026-02-04T18:00:00+00:00"
-        assert event["payload"]["total_duration"] == "6h"
+        assert event["payload"]["mission_slug"] == "028-sync"
+        assert event["payload"]["mission_number"] == 28
+        assert "completed_at" not in event["payload"]
+        assert "total_duration" not in event["payload"]
 
 
 class TestHistoryAdded:
@@ -776,6 +782,8 @@ class TestConvenienceFunctions:
             total_duration=None,
             causation_id=None,
             mission_id="01KTESTMISSIONID00000000001",
+            mission_number=None,
+            mission_type="software-dev",
         )
 
     @patch("specify_cli.sync.events.get_emitter")
@@ -986,13 +994,14 @@ class TestInternalValidation:
         assert event is None
 
     def test_completed_at_non_datetime_validation(self, emitter: EventEmitter, temp_queue):
-        """Invalid completed_at datetime string fails MissionClosed validation."""
+        """MissionClosed ignores legacy completed_at before contract validation."""
         event = emitter.emit_mission_closed(
             "028-sync",
             5,
             completed_at="not-a-date",
         )
-        assert event is None
+        assert event is not None
+        assert "completed_at" not in event["payload"]
 
     def test_validation_exception_returns_none(
         self, temp_queue, temp_clock, mock_config, mock_auth

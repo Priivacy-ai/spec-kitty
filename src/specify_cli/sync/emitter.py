@@ -38,6 +38,7 @@ import ulid
 from rich.console import Console
 
 from specify_cli.core.contract_gate import validate_outbound_payload
+from specify_cli.mission_metadata import mission_number_from_slug
 from spec_kitty_events import normalize_event_id as _normalize_event_id
 
 from .clock import LamportClock
@@ -213,14 +214,18 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
         },
     },
     "WPStatusChanged": {
-        "required": {"wp_id", "from_lane", "to_lane"},
+        "required": {"mission_slug", "wp_id", "from_lane", "to_lane", "actor", "execution_mode"},
         "validators": {
             "wp_id": lambda v: isinstance(v, str) and bool(_WP_ID_PATTERN.match(v)),
             "from_lane": lambda v: v in {"planned", "claimed", "in_progress", "in_review", "for_review", "approved", "done", "blocked", "canceled"},
             "to_lane": lambda v: v in {"planned", "claimed", "in_progress", "in_review", "for_review", "approved", "done", "blocked", "canceled"},
-            "actor": lambda v: isinstance(v, str) if v is not None else True,
-            "mission_slug": lambda v: _is_nullable_string(v),
-            "policy_metadata": lambda v: v is None or isinstance(v, dict),
+            "actor": lambda v: isinstance(v, str) and len(v) >= 1,
+            "mission_slug": lambda v: isinstance(v, str) and len(v) >= 1,
+            "force": lambda v: isinstance(v, bool),
+            "reason": _is_nullable_string,
+            "review_ref": _is_nullable_string,
+            "execution_mode": lambda v: v in {"worktree", "direct_repo"},
+            "evidence": lambda v: v is None or isinstance(v, dict),
         },
     },
     "WPCreated": {
@@ -269,13 +274,11 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
         },
     },
     "MissionClosed": {
-        "required": {"mission_slug", "total_wps"},
+        "required": {"mission_slug", "mission_number", "mission_type"},
         "validators": {
             "mission_slug": lambda v: isinstance(v, str) and len(v) >= 1,
-            "total_wps": lambda v: isinstance(v, int) and v >= 0,
-            "completed_at": lambda v: _is_datetime_string(v),
-            "total_duration": lambda v: _is_nullable_string(v),
-            "mission_id": _is_nullable_string,
+            "mission_number": lambda v: isinstance(v, int) and v >= 1,
+            "mission_type": lambda v: isinstance(v, str) and len(v) >= 1,
         },
     },
     "MissionStarted": {
@@ -774,21 +777,20 @@ class EventEmitter:
                     }
                 ],
             }
+        resolved_mission_slug = mission_slug or "unknown-mission"
         payload = {
             "wp_id": wp_id,
             "from_lane": from_lane,
             "to_lane": to_lane,
             "actor": actor,
-            "mission_slug": mission_slug,
-            "policy_metadata": policy_metadata,
+            "mission_slug": resolved_mission_slug,
             "force": force,
             "reason": reason,
             "review_ref": review_ref,
-            "execution_mode": execution_mode,
+            "execution_mode": execution_mode or "direct_repo",
             "evidence": evidence_payload,
         }
-        if mission_id is not None:
-            payload["mission_id"] = mission_id
+        del mission_id, policy_metadata
         return self._emit(
             event_type="WPStatusChanged",
             aggregate_id=wp_id,
@@ -921,28 +923,30 @@ class EventEmitter:
         total_duration: str | None = None,
         causation_id: str | None = None,
         mission_id: str | None = None,
+        mission_number: int | None = None,
+        mission_type: str = "software-dev",
     ) -> dict[str, Any] | None:
         """Emit MissionClosed event (FR-012, FR-024).
 
         ``mission_id`` is the canonical aggregate identity (ULID from meta.json).
         ``aggregate_id`` is set to ``mission_id`` when provided (ADR 2026-04-09-1).
 
-        Payload always includes:
-          - ``mission_id``   — ULID primary key (when present)
-          - ``mission_slug`` — human display string (backward compat)
+        The payload follows spec-kitty-events ``MissionClosedPayload`` exactly.
+        Historical close details such as ``total_wps`` and close timestamps are
+        intentionally not emitted in the TeamSpace payload.
         """
+        del total_wps, completed_at, total_duration
+        resolved_number = mission_number if mission_number is not None else mission_number_from_slug(mission_slug)
+        if resolved_number is None:
+            resolved_number = 0
         payload: dict[str, Any] = {
             "mission_slug": mission_slug,
-            "total_wps": total_wps,
+            "mission_number": resolved_number,
+            "mission_type": mission_type,
         }
-        if completed_at is not None:
-            payload["completed_at"] = completed_at
-        if total_duration is not None:
-            payload["total_duration"] = total_duration
         # mission_id is the aggregate identity (FR-024).
         effective_aggregate_id = mission_slug
         if mission_id is not None:
-            payload["mission_id"] = mission_id
             effective_aggregate_id = mission_id
         return self._emit(
             event_type="MissionClosed",
@@ -1440,9 +1444,11 @@ class EventEmitter:
             # Resolve per-event git metadata
             git_meta = self._get_git_metadata()
 
+            event_id = _generate_ulid()
+
             # Build event dict with identity fields
             event: dict[str, Any] = {
-                "event_id": _generate_ulid(),
+                "event_id": event_id,
                 "event_type": event_type,
                 "aggregate_id": aggregate_id,
                 "aggregate_type": aggregate_type,
@@ -1452,6 +1458,7 @@ class EventEmitter:
                 "node_id": self.clock.node_id,
                 "lamport_clock": clock_value,
                 "causation_id": causation_id,
+                "correlation_id": causation_id or event_id,
                 "timestamp": datetime.now(UTC).isoformat(),
                 "team_slug": team_slug,
                 "project_uuid": str(identity.project_uuid) if identity.project_uuid else None,

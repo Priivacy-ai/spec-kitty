@@ -5,7 +5,6 @@ FR-024: Every outbound mission-lifecycle event envelope must carry
   without relying on mutable slug strings.
 
 Payload shape contract (T031):
-  - ``mission_id``     (str, ULID)   — new primary key / aggregate identity
   - ``mission_slug``   (str)         — human display; never used as identity
   - ``mission_number`` (int | None)  — numeric display; None for pre-merge missions
 
@@ -185,19 +184,20 @@ class TestEmitMissionClosedAggregateId:
         assert event is not None
         assert _ULID_RE.match(event["aggregate_id"])
 
-    def test_payload_contains_mission_id(
+    def test_payload_excludes_mission_id(
         self,
         emitter: EventEmitter,
         temp_queue: OfflineQueue,
     ) -> None:
-        """Payload includes mission_id field."""
+        """Payload excludes mission_id; the envelope aggregate_id is the join key."""
         event = emitter.emit_mission_closed(
             mission_slug=_MISSION_SLUG,
             total_wps=6,
             mission_id=_MISSION_ID,
         )
         assert event is not None
-        assert event["payload"]["mission_id"] == _MISSION_ID
+        assert event["aggregate_id"] == _MISSION_ID
+        assert "mission_id" not in event["payload"]
 
     def test_payload_contains_mission_slug(
         self,

@@ -894,10 +894,21 @@ def _print_rich_audit_report(report: object) -> None:
 
 
 @app.command(name="mission-state")
-def mission_state(
+def mission_state(  # noqa: C901
     audit: Annotated[
         bool,
         typer.Option("--audit", help="Run mission-state audit (required to proceed)"),
+    ] = False,
+    fix: Annotated[
+        bool,
+        typer.Option("--fix", help="Repair mission-state artifacts in place and write a migration manifest"),
+    ] = False,
+    teamspace_dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--teamspace-dry-run",
+            help="Synthesize canonical TeamSpace envelopes from local state and validate them",
+        ),
     ] = False,
     json_output: Annotated[
         bool,
@@ -915,13 +926,25 @@ def mission_state(
         Path | None,
         typer.Option("--fixture-dir", help="Override scan root (for testing)"),
     ] = None,
+    manifest_path: Annotated[
+        Path | None,
+        typer.Option("--manifest-path", help="Path for --fix migration manifest"),
+    ] = None,
+    allow_dirty: Annotated[
+        bool,
+        typer.Option("--allow-dirty", help="Allow --fix when relevant git paths are already dirty"),
+    ] = False,
 ) -> None:
-    """Audit mission-state shapes across kitty-specs/."""
+    """Audit, repair, or TeamSpace-validate mission-state shapes."""
     from specify_cli.audit import AuditOptions, Severity, build_report_json, run_audit
 
-    if not audit:
-        typer.echo("Use --audit to run the audit. See --help for options.")
+    selected_modes = sum(1 for selected in (audit, fix, teamspace_dry_run) if selected)
+    if selected_modes == 0:
+        typer.echo("Use --audit, --fix, or --teamspace-dry-run. See --help for options.")
         raise typer.Exit(0)
+    if selected_modes > 1:
+        typer.echo("Choose exactly one of --audit, --fix, or --teamspace-dry-run.", err=True)
+        raise typer.Exit(2)
 
     # Validate --fail-on
     fail_on_severity: Severity | None = None
@@ -945,6 +968,81 @@ def mission_state(
             console.print("[red]Error:[/red] Not in a spec-kitty project")
             raise typer.Exit(1)
         repo_root = fixture_dir.parent
+
+    if fix:
+        from specify_cli.migration.mission_state import MissionStateRepairError, repair_repo
+
+        try:
+            report = repair_repo(
+                repo_root,
+                scan_root=fixture_dir,
+                mission=mission,
+                manifest_path=manifest_path,
+                allow_dirty=allow_dirty,
+            )
+        except MissionStateRepairError as exc:
+            if json_output:
+                import json as _json
+
+                sys.stdout.write(_json.dumps({"error": "MISSION_STATE_REPAIR_FAILED", "message": str(exc)}) + "\n")
+                sys.stdout.flush()
+            else:
+                typer.echo(f"Error: {exc}", err=True)
+            raise typer.Exit(1) from exc
+
+        if json_output:
+            sys.stdout.write(report.to_json())
+            sys.stdout.flush()
+        else:
+            summary = report.to_dict()["summary"]
+            assert isinstance(summary, dict)
+            console.print(
+                "[green]Mission-state repair complete[/green] "
+                f"(updated={summary['missions_updated']}, "
+                f"unchanged={summary['missions_unchanged']}, "
+                f"errors={summary['missions_error']})."
+            )
+            console.print(f"Manifest: {report.manifest_path}")
+        if any(result.status == "error" for result in report.missions):
+            raise typer.Exit(1)
+        return
+
+    if teamspace_dry_run:
+        from specify_cli.migration.mission_state import MissionStateDryRunError, teamspace_dry_run as run_teamspace_dry_run
+
+        try:
+            dry_run_report = run_teamspace_dry_run(
+                repo_root,
+                scan_root=fixture_dir,
+                mission=mission,
+            )
+        except MissionStateDryRunError as exc:
+            if json_output:
+                import json as _json
+
+                sys.stdout.write(_json.dumps({"error": "TEAMSPACE_DRY_RUN_FAILED", "message": str(exc)}) + "\n")
+                sys.stdout.flush()
+            else:
+                typer.echo(f"Error: {exc}", err=True)
+            raise typer.Exit(1) from exc
+
+        if json_output:
+            sys.stdout.write(dry_run_report.to_json())
+            sys.stdout.flush()
+        elif dry_run_report.valid:
+            console.print(
+                "[green]TeamSpace dry-run valid[/green] "
+                f"({dry_run_report.envelope_count} envelopes, "
+                f"spec-kitty-events {dry_run_report.events_package_version})."
+            )
+        else:
+            console.print(
+                "[red]TeamSpace dry-run failed[/red] "
+                f"({len(dry_run_report.errors)} validation errors)."
+            )
+        if not dry_run_report.valid:
+            raise typer.Exit(1)
+        return
 
     from specify_cli.context.mission_resolver import AmbiguousHandleError, MissionNotFoundError
 
