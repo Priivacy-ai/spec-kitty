@@ -23,8 +23,8 @@ subtasks:
 - T009
 - T010
 - T011
-agent: claude
-shell_pid: '41970'
+agent: "codex:gpt-5:python-pedro:implementer"
+shell_pid: "41970"
 history:
 - date: '2026-05-05'
   event: created
@@ -389,3 +389,7 @@ SPEC_KITTY_ENABLE_SAAS_SYNC=1 spec-kitty agent action implement WP02 --agent cla
 2. Run `mark-status WP02 --status done --mission <slug>`; confirm event log updated.
 3. Confirm `--json` output validates against `contracts/mark-status-result.schema.json`.
 4. Confirm `summary.updated + summary.already_satisfied + summary.not_found == len(requested_ids)` always.
+
+## Activity Log
+
+- 2026-05-05T16:28:39Z – codex:gpt-5:python-pedro:implementer – shell_pid=41970 – Assigned agent via action command
