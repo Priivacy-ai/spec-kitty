@@ -301,23 +301,42 @@ def _constants_in_subtree(node: ast.AST) -> set[str]:
 def _assertion_negatively_checks_literal_absence(assertion: ast.AST, literal: str) -> bool:
     """Return True for assertions that intentionally require a removed literal to be absent."""
     if isinstance(assertion, ast.Assert):
-        for node in ast.walk(assertion.test):
-            if not isinstance(node, ast.Compare):
-                continue
-            for op, comparator in zip(node.ops, node.comparators, strict=False):
-                if not isinstance(op, ast.NotIn):
-                    continue
-                if _node_contains_literal(node.left, literal) or _node_contains_literal(
-                    comparator, literal
-                ):
-                    return True
+        return _assert_test_checks_literal_absence(assertion.test, literal)
 
     if isinstance(assertion, ast.Call):
-        func = assertion.func
-        if isinstance(func, ast.Attribute) and func.attr == "assertNotIn":
-            return any(_node_contains_literal(arg, literal) for arg in assertion.args)
+        return _assert_call_checks_literal_absence(assertion, literal)
 
     return False
+
+
+def _assert_test_checks_literal_absence(test: ast.AST, literal: str) -> bool:
+    """Return True when an ``assert`` test checks that *literal* is absent."""
+    for node in ast.walk(test):
+        if not isinstance(node, ast.Compare):
+            continue
+        if _compare_checks_literal_absence(node, literal):
+            return True
+    return False
+
+
+def _compare_checks_literal_absence(node: ast.Compare, literal: str) -> bool:
+    """Return True when a comparison uses ``not in`` with *literal*."""
+    for op, comparator in zip(node.ops, node.comparators, strict=False):
+        if not isinstance(op, ast.NotIn):
+            continue
+        if _node_contains_literal(node.left, literal) or _node_contains_literal(
+            comparator, literal
+        ):
+            return True
+    return False
+
+
+def _assert_call_checks_literal_absence(assertion: ast.Call, literal: str) -> bool:
+    """Return True when an ``assertNotIn`` call checks that *literal* is absent."""
+    func = assertion.func
+    if not isinstance(func, ast.Attribute) or func.attr != "assertNotIn":
+        return False
+    return any(_node_contains_literal(arg, literal) for arg in assertion.args)
 
 
 def _node_contains_literal(node: ast.AST, literal: str) -> bool:

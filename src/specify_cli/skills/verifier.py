@@ -24,6 +24,8 @@ from specify_cli.template import get_local_repo_root
 
 logger = logging.getLogger(__name__)
 
+SKILL_MANIFEST_FILENAME = "SKILL.md"
+
 
 @dataclass
 class VerifyResult:
@@ -133,7 +135,7 @@ def repair_skills(
                 if global_root is None:
                     raise OSError(f"No global skill root configured for agent {entry.agent_key}")
                 global_source = global_root / entry.skill_name / entry.source_file
-                if not global_source.exists() or entry.source_file == "SKILL.md":
+                if not global_source.exists() or entry.source_file == SKILL_MANIFEST_FILENAME:
                     _sync_skill_to_global_root(skill, global_root)
                 if dest.exists() or dest.is_symlink():
                     if dest.is_symlink() or dest.is_file():
@@ -241,7 +243,7 @@ def _sync_skill_to_global_root(skill: Any, global_root: Path) -> None:
         else:
             shutil.rmtree(dest_dir)
     shutil.copytree(skill.skill_dir, dest_dir)
-    skill_md = dest_dir / "SKILL.md"
+    skill_md = dest_dir / SKILL_MANIFEST_FILENAME
     if skill_md.is_file():
         content = skill_md.read_text(encoding="utf-8")
         normalized = ensure_skill_frontmatter(content, skill.name)
@@ -259,7 +261,7 @@ def _project_managed_path(project_path: Path, installed_path: str) -> Path:
 
 def _copy_skill_file(source: Path, dest: Path, skill_name: str, source_file: str) -> None:
     """Copy a managed skill file, normalizing SKILL.md frontmatter if needed."""
-    if source_file == "SKILL.md":
+    if source_file == SKILL_MANIFEST_FILENAME:
         content = source.read_text(encoding="utf-8")
         dest.write_text(ensure_skill_frontmatter(content, skill_name), encoding="utf-8")
         return
@@ -268,7 +270,7 @@ def _copy_skill_file(source: Path, dest: Path, skill_name: str, source_file: str
 
 def _expected_content_hash(source: Path, skill_name: str, source_file: str) -> str:
     """Return the hash that install/repair should produce for a source file."""
-    if source_file != "SKILL.md":
+    if source_file != SKILL_MANIFEST_FILENAME:
         return compute_content_hash(source)
     content = source.read_text(encoding="utf-8")
     normalized = ensure_skill_frontmatter(content, skill_name).encode("utf-8")
