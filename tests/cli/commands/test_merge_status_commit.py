@@ -47,6 +47,18 @@ def _init_git_repo(path: Path, branch: str = "main") -> None:
     )
 
 
+def _seed_mission_branch(repo_path: Path, mission_slug: str) -> None:
+    """Create the expected mission branch for tests that mock merge internals."""
+    if not (repo_path / ".git").exists():
+        _init_git_repo(repo_path)
+    subprocess.run(
+        ["git", "branch", f"kitty/mission-{mission_slug}"],
+        cwd=repo_path,
+        check=True,
+        capture_output=True,
+    )
+
+
 def _write_wp_file(tasks_dir: Path, wp_id: str, *, review_status: str = "approved", reviewed_by: str = "reviewer-1") -> None:
     tasks_dir.mkdir(parents=True, exist_ok=True)
     (tasks_dir / f"{wp_id}-impl.md").write_text(
@@ -88,6 +100,7 @@ class TestSafeCommitCalledAfterMarkDoneLoop:
         mission_slug = "068-test-sc"
         feature_dir = tmp_path / "kitty-specs" / mission_slug
         feature_dir.mkdir(parents=True)
+        _seed_mission_branch(tmp_path, mission_slug)
 
         manifest = MagicMock()
         manifest.target_branch = "main"
@@ -167,6 +180,7 @@ class TestSafeCommitCalledAfterMarkDoneLoop:
         mission_slug = "068-test-dossier"
         feature_dir = tmp_path / "kitty-specs" / mission_slug
         feature_dir.mkdir(parents=True)
+        _seed_mission_branch(tmp_path, mission_slug)
 
         manifest = MagicMock()
         manifest.target_branch = "main"
@@ -252,6 +266,7 @@ class TestMergeDoneTransitions:
         mission_slug = "068-test-order"
         feature_dir = tmp_path / "kitty-specs" / mission_slug
         feature_dir.mkdir(parents=True)
+        _seed_mission_branch(tmp_path, mission_slug)
 
         call_order: list[str] = []
 
@@ -371,6 +386,7 @@ class TestDoneEventsCommittedToGit:
             ["git", "-c", "commit.gpgsign=false", "commit", "-m", "initial feature"],
             cwd=tmp_path, check=True, capture_output=True,
         )
+        _seed_mission_branch(tmp_path, mission_slug)
 
         # Seed event log entries (approved state for each WP, as they would be pre-merge)
         for wp_id in wps:
@@ -472,6 +488,7 @@ class TestDoneEventsCommittedToGit:
         mission_slug = "068-mission-closed-test"
         feature_dir = tmp_path / "kitty-specs" / mission_slug
         feature_dir.mkdir(parents=True)
+        _seed_mission_branch(tmp_path, mission_slug)
         (feature_dir / "meta.json").write_text(
             json.dumps(
                 {
