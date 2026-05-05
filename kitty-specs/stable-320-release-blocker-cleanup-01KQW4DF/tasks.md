@@ -12,11 +12,11 @@
 |----|-----------|----|----------|
 | T001 | Create `src/specify_cli/sync/diagnostics.py` — `SyncDiagnosticCode` enum, `emit_sync_diagnostic()`, `classify_sync_error()` | WP01 | [P] |
 | T002 | Refactor `sync/daemon.py`: replace lock-error console output with `emit_sync_diagnostic(LOCK_UNAVAILABLE, …)` | WP01 | |
-| T003 | Refactor `sync/batch.py`: replace final-sync error output with `emit_sync_diagnostic(classified_code, …)` | WP01 | |
-| T004 | Write `tests/sync/test_final_sync_diagnostics.py` — 6 regression test cases | WP01 | |
-| T005 | Extend `tests/e2e/test_mission_create_clean_output.py` — assert JSON stdout valid + stderr ≤1 diagnostic | WP01 | |
+| T003 | Refactor `sync/batch.py`: add bounded final-sync retry/backoff, then emit one non-fatal diagnostic through `emit_sync_diagnostic(classified_code, ...)` | WP01 | |
+| T004 | Write `tests/sync/test_final_sync_diagnostics.py` — diagnostics, retry/backoff, and mixed-signal single-emission regression cases | WP01 | |
+| T005 | Extend `tests/e2e/test_mission_create_clean_output.py` — assert JSON stdout valid + stderr has at most one final-sync diagnostic | WP01 | |
 | T006 | Add `TaskIdResolutionOutcome`, `TaskIdResolutionFormat`, `TaskIdResult` types to `tasks.py` | WP02 | [P] |
-| T007 | Implement `_resolve_inline_subtasks()` — regex for `Subtasks: T001, T002` pattern | WP02 | |
+| T007 | Implement `_resolve_inline_subtasks()` — regex for `Subtasks: T001, T002` pattern with a durable persisted status update | WP02 | |
 | T008 | Implement `_resolve_wp_id()` — delegate to `emit_status_transition()` for bare WP IDs | WP02 | |
 | T009 | Update `mark_status()` to use strategy stack and collect per-ID results | WP02 | |
 | T010 | Update `--json` output to `results` + `summary` shape per `contracts/mark-status-result.schema.json` | WP02 | |
@@ -43,18 +43,19 @@
 
 **Goal**: Eliminate leakage of final-sync error messages into successful command output.
 Introduce `sync/diagnostics.py` as the sole stderr-routing authority for final-sync failures,
-deduplicate messages per invocation, and classify into 5 named categories.
+apply bounded retry/backoff before reporting a non-fatal final-sync diagnostic, deduplicate
+to at most one diagnostic line per command invocation, and classify into 5 named categories.
 
 **Included subtasks**:
 - [ ] T001 Create `src/specify_cli/sync/diagnostics.py` — `SyncDiagnosticCode` enum, `emit_sync_diagnostic()`, `classify_sync_error()` (WP01)
 - [ ] T002 Refactor `sync/daemon.py`: replace lock-error output with `emit_sync_diagnostic(LOCK_UNAVAILABLE, …)` (WP01)
-- [ ] T003 Refactor `sync/batch.py`: replace final-sync error output with `emit_sync_diagnostic(classified_code, …)` (WP01)
-- [ ] T004 Write `tests/sync/test_final_sync_diagnostics.py` — 6 regression tests (WP01)
-- [ ] T005 Extend `tests/e2e/test_mission_create_clean_output.py` — JSON stdout valid + stderr ≤1 diagnostic (WP01)
+- [ ] T003 Refactor `sync/batch.py`: add bounded retry/backoff before non-fatal diagnostic emission; replace final-sync error output with `emit_sync_diagnostic(classified_code, ...)` (WP01)
+- [ ] T004 Write `tests/sync/test_final_sync_diagnostics.py` — diagnostic, retry/backoff, and mixed-signal single-emission regression tests (WP01)
+- [ ] T005 Extend `tests/e2e/test_mission_create_clean_output.py` — JSON stdout valid + stderr at most one diagnostic (WP01)
 
-**Implementation sketch**: Create the new diagnostics module first (T001), then refactor daemon.py and batch.py call sites (T002-T003), then write tests (T004-T005). The deduplication state is module-level set; the emit function is the single write path.
+**Implementation sketch**: Create the new diagnostics module first (T001), then refactor daemon.py and batch.py call sites (T002-T003), including the FR-005 retry policy of 3 bounded attempts with 1-second backoff before the single non-fatal diagnostic is emitted. Then write tests (T004-T005). The deduplication state is process-scoped per command invocation, and the emit function is the single write path.
 
-**Success criteria**: A lifecycle command that completes successfully with SaaS sync unavailable exits 0, stdout is valid JSON (in --json mode), and stderr carries at most one `sync_diagnostic severity=warning` line.
+**Success criteria**: A lifecycle command that completes successfully with SaaS sync unavailable performs bounded final-sync retries, exits 0, stdout is valid JSON (in --json mode), and stderr carries at most one `sync_diagnostic severity=warning` line even if multiple final-sync failure signals occur during retries.
 
 **Risks**: Refactoring daemon.py and batch.py may expose other error paths that currently use the same console output — scope each change to final-sync paths only (DIRECTIVE_024: locality of change).
 
@@ -70,20 +71,22 @@ deduplicate messages per invocation, and classify into 5 named categories.
 
 **Goal**: Extend `mark_status()` with two new ID resolution strategies (inline `Subtasks:` references
 and bare WP IDs via the status event log), a per-ID result structure, and a conformant `--json` output schema.
+Every `updated` or `already_satisfied` result must correspond to durable state: a mutated tracking row
+or an appended canonical status event. Inline `Subtasks:` matches must not report success without persistence.
 
 **Included subtasks**:
 - [ ] T006 Add `TaskIdResolutionOutcome`, `TaskIdResolutionFormat`, `TaskIdResult` types to `tasks.py` (WP02)
-- [ ] T007 Implement `_resolve_inline_subtasks()` — regex for `Subtasks: T001, T002` pattern (WP02)
+- [ ] T007 Implement `_resolve_inline_subtasks()` — regex for `Subtasks: T001, T002` pattern plus durable status persistence (WP02)
 - [ ] T008 Implement `_resolve_wp_id()` — delegate to `emit_status_transition()` for bare WP IDs (WP02)
 - [ ] T009 Update `mark_status()` to use strategy stack and collect per-ID results (WP02)
 - [ ] T010 Update `--json` output to `results` + `summary` per `contracts/mark-status-result.schema.json` (WP02)
 - [ ] T011 Write 8 regression tests covering all formats + edge cases (WP02)
 
-**Implementation sketch**: Add types first (T006), implement each resolver (T007, T008), wire into the strategy stack in `mark_status()` (T009), update the JSON output shape (T010), write tests last (T011). The strategy stack executes in order: checkbox → pipe-table → inline-subtasks → wp-id; first match wins.
+**Implementation sketch**: Add types first (T006), implement each resolver (T007, T008), wire into the strategy stack in `mark_status()` (T009), update the JSON output shape (T010), write tests last (T011). The strategy stack executes in order: checkbox -> pipe-table -> inline-subtasks -> wp-id; first match wins. The inline-subtasks resolver must either update a persisted task-status surface or return `not_found`; it must not return `updated` for a read-only match.
 
-**Success criteria**: `mark-status T001` on a tasks.md with `Subtasks: T001` succeeds and returns `outcome: updated`. `mark-status WP02 --status done` emits a status transition via the event log. Unknown IDs return `not_found`. Existing checkbox/pipe-table behavior is unchanged.
+**Success criteria**: `mark-status T001` on a tasks.md with `Subtasks: T001` succeeds only when it also writes durable state for T001, then returns `outcome: updated`. `mark-status WP02 --status done` emits a status transition via the event log. Unknown IDs return `not_found`. Existing checkbox/pipe-table behavior is unchanged.
 
-**Risks**: The WP-ID strategy calls `emit_status_transition()` which may raise if the transition is invalid (e.g., WP already in terminal state). Catch and translate to `not_found` or `already_satisfied` as appropriate, not an unhandled exception.
+**Risks**: The WP-ID strategy calls `emit_status_transition()` which may raise if the transition is invalid (e.g., WP already in terminal state). Catch and translate to `not_found` or `already_satisfied` as appropriate, not an unhandled exception. Inline `Subtasks:` is a discovery surface, not a status store; require a persisted mutation before returning success.
 
 ---
 
@@ -99,7 +102,7 @@ and bare WP IDs via the status event log), a per-ID result structure, and a conf
 replacing `venv.create()` with a uv-aware helper that detects the runtime and
 either uses `uv venv` or falls back gracefully.
 
-**Note**: This WP operates in the `spec-kitty-end-to-end-testing` repository, not in `spec-kitty`.
+**Execution boundary**: This WP operates in the sibling `spec-kitty-end-to-end-testing` repository, not in `spec-kitty`. The orchestrator must run implementation from `/Users/robert/spec-kitty-dev/spec-kitty-20260505-090055-4etGRd/spec-kitty-end-to-end-testing` or from a worktree of that repository. The relative paths below are relative to that repository root.
 
 **Included subtasks**:
 - [ ] T012 Create `spec-kitty-end-to-end-testing/support/nested_env.py` with `NestedEnvResult` + `create_nested_env()` (WP03)

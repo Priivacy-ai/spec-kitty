@@ -49,6 +49,9 @@
       "wp_ids": [
         "WP03"
       ],
+      "target_repository": "spec-kitty-end-to-end-testing",
+      "target_repo_root": "/Users/robert/spec-kitty-dev/spec-kitty-20260505-090055-4etGRd/spec-kitty-end-to-end-testing",
+      "path_base": "target_repo_root",
       "write_scope": [
         "scenarios/contract_drift_caught.py",
         "support/nested_env.py",

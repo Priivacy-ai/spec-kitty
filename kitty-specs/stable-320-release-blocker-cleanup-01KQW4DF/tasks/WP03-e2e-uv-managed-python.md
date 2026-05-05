@@ -58,6 +58,8 @@ Fix GitHub issue **#975**: the `contract_drift_caught` cross-repo E2E scenario c
 **Working directory for this WP**: `spec-kitty-end-to-end-testing` repository at:
 `/Users/robert/spec-kitty-dev/spec-kitty-20260505-090055-4etGRd/spec-kitty-end-to-end-testing/`
 
+**Execution boundary**: This WP is not implemented in the `spec-kitty` checkout. All relative owned files (`support/...`, `tests/...`, `scenarios/...`) are relative to `/Users/robert/spec-kitty-dev/spec-kitty-20260505-090055-4etGRd/spec-kitty-end-to-end-testing/`. Do not create these paths under the `spec-kitty` repository.
+
 **Root cause**: `contract_drift_caught.py` line ~90:
 ```python
 venv.create(venv_dir, with_pip=True, clear=True)
@@ -314,7 +316,8 @@ def test_result_dataclass_fields(tmp_path):
 
 ```bash
 # This WP is implemented in the spec-kitty-end-to-end-testing repo.
-# The worktree will be allocated by finalize-tasks / agent action implement.
+# Run from the sibling repo root, or from a worktree of that repo.
+cd /Users/robert/spec-kitty-dev/spec-kitty-20260505-090055-4etGRd/spec-kitty-end-to-end-testing
 SPEC_KITTY_ENABLE_SAAS_SYNC=1 spec-kitty agent action implement WP03 --agent claude
 ```
 

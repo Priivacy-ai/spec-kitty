@@ -58,9 +58,10 @@ Fix GitHub issue **#952**: successful local lifecycle commands leak SaaS final-s
 
 **What you will deliver**:
 1. A new module `src/specify_cli/sync/diagnostics.py` that owns all final-sync stderr diagnostic emission — deduplicated, categorized, non-fatal.
-2. Refactored `sync/daemon.py` and `sync/batch.py` that route final-sync errors through the new module instead of writing directly to the console.
-3. Six regression tests in `tests/sync/test_final_sync_diagnostics.py`.
-4. Extended assertions in `tests/e2e/test_mission_create_clean_output.py`.
+2. Bounded final-sync retry behavior before any non-fatal diagnostic is emitted: 3 attempts, 1-second backoff, no retry spam in command output.
+3. Refactored `sync/daemon.py` and `sync/batch.py` that route final-sync errors through the new module instead of writing directly to the console.
+4. Regression tests in `tests/sync/test_final_sync_diagnostics.py` covering classification, retry/backoff, and single-emission behavior.
+5. Extended assertions in `tests/e2e/test_mission_create_clean_output.py`.
 
 ---
 
@@ -73,7 +74,7 @@ During the 3.2.0 P1 Release Confidence smoke run, lifecycle commands that comple
 
 These messages come from `sync/daemon.py` (fcntl lock acquisition timeout) and `sync/batch.py` (error categorization + formatting). They are not fatal — the local mutation succeeded — but they make the command appear to have failed.
 
-The fix is behavioral: route all non-fatal final-sync error output to stderr only, using a single, deduplicating diagnostic function. No SaaS-side changes are needed.
+The fix is behavioral: retry final sync a bounded number of times first, then route the non-fatal final-sync diagnostic to stderr only, using a single, deduplicating diagnostic function. No SaaS-side changes are needed.
 
 **Key files to understand before editing**:
 - `src/specify_cli/sync/daemon.py`: look for `DaemonStartOutcome`, `skipped_reason`, and any `console.print(...)` calls related to sync lock failure.
@@ -113,20 +114,22 @@ class SyncDiagnosticCode(str, enum.Enum):
     SERVER_AUTH_FAILURE      = "sync.server_auth_failure"
 
 
-# Deduplication: emit each code at most once per process lifetime.
-_emitted_codes: set[SyncDiagnosticCode] = set()
+# Deduplication: emit at most one final-sync diagnostic per command invocation.
+_diagnostic_emitted = False
 
 
 def emit_sync_diagnostic(code: SyncDiagnosticCode, message: str) -> None:
     """Write one structured non-fatal diagnostic to stderr.
 
-    At most one line per code is emitted per process invocation.
+    At most one final-sync diagnostic line is emitted per process invocation,
+    even when retries observe multiple failure signals.
     Matches the observed format from smoke evidence for backwards compatibility
     with tools that parse this output.
     """
-    if code in _emitted_codes:
+    global _diagnostic_emitted
+    if _diagnostic_emitted:
         return
-    _emitted_codes.add(code)
+    _diagnostic_emitted = True
     sys.stderr.write(
         f"sync_diagnostic severity=warning diagnostic_code={code.value} "
         f"fatal=false sync_phase=final_sync message={message}\n"
@@ -155,13 +158,14 @@ def classify_sync_error(error_text: str) -> SyncDiagnosticCode:
 
 def reset_emitted_codes() -> None:
     """Clear deduplication state. For testing only — do not call in production code."""
-    _emitted_codes.clear()
+    global _diagnostic_emitted
+    _diagnostic_emitted = False
 ```
 
 **Validation**:
 - `SyncDiagnosticCode` has exactly 5 members.
 - `emit_sync_diagnostic()` writes to `sys.stderr`, not `sys.stdout`.
-- Calling `emit_sync_diagnostic(LOCK_UNAVAILABLE, "...")` twice emits only one line.
+- Calling `emit_sync_diagnostic(LOCK_UNAVAILABLE, "...")` and then `emit_sync_diagnostic(AUTH_REFRESH_IN_PROGRESS, "...")` emits only one line total.
 - `mypy --strict` passes.
 
 ---
@@ -192,26 +196,32 @@ def reset_emitted_codes() -> None:
 
 ## Subtask T003 — Refactor `sync/batch.py`
 
-**Purpose**: Replace final-sync error output in `batch.py` with calls to `emit_sync_diagnostic()`.
+**Purpose**: Add bounded final-sync retry/backoff, then replace final-sync error output in `batch.py` with calls to `emit_sync_diagnostic()`.
 
 **Steps**:
 1. Read `sync/batch.py`. Locate `categorize_error()`, `format_sync_summary()`, and any `console.print(...)` or `print(...)` calls that fire when final sync fails.
 2. Import `emit_sync_diagnostic`, `classify_sync_error`, `SyncDiagnosticCode` from `specify_cli.sync.diagnostics`.
-3. In the final-sync failure code path:
+3. Implement the FR-005 retry policy before diagnostic emission:
+   - Attempt final sync up to 3 times total for transient final-sync failures.
+   - Sleep 1 second between attempts.
+   - Do not write retry-attempt messages to stdout.
+   - Preserve successful local command exit behavior when all retries fail after the local mutation already succeeded.
+4. In the final-sync failure code path after retries are exhausted:
    - Call `classify_sync_error(str(error))` to get the code.
    - Call `emit_sync_diagnostic(code, human_message)` instead of writing to the console.
-4. Ensure the existing `format_sync_summary()` and `generate_failure_report()` functions are not broken — they may be used for JSON report files or debug output that is acceptable. Only the console/stderr final-sync failure message path must go through `emit_sync_diagnostic()`.
-5. No red Rich markup should remain on the sync failure paths.
+5. Ensure the existing `format_sync_summary()` and `generate_failure_report()` functions are not broken — they may be used for JSON report files or debug output that is acceptable. Only the console/stderr final-sync failure message path must go through `emit_sync_diagnostic()`.
+6. No red Rich markup should remain on the sync failure paths.
 
 **Validation**:
 - `mypy --strict src/specify_cli/sync/batch.py` passes.
+- Tests prove 3 attempts occur with 1-second backoff before the final non-fatal diagnostic.
 - Existing batch sync tests still pass.
 
 ---
 
 ## Subtask T004 — Write `tests/sync/test_final_sync_diagnostics.py`
 
-**Purpose**: Six regression tests covering every `SyncDiagnosticCode` category plus deduplication.
+**Purpose**: Regression tests covering every `SyncDiagnosticCode` category, one-diagnostic-per-command dedupe, and bounded retry/backoff behavior.
 
 **Create** `tests/sync/test_final_sync_diagnostics.py`:
 
@@ -267,11 +277,18 @@ def test_server_auth_failure(capsys):
     assert "sync.server_auth_failure" in captured.err
 
 
-def test_deduplication_emits_once(capsys):
+def test_deduplication_emits_once_for_same_code(capsys):
     emit_sync_diagnostic(SyncDiagnosticCode.LOCK_UNAVAILABLE, "first call")
     emit_sync_diagnostic(SyncDiagnosticCode.LOCK_UNAVAILABLE, "second call")
     captured = capsys.readouterr()
     assert captured.err.count("sync.final_sync_lock_unavailable") == 1
+
+
+def test_deduplication_emits_once_across_mixed_codes(capsys):
+    emit_sync_diagnostic(SyncDiagnosticCode.LOCK_UNAVAILABLE, "lock held")
+    emit_sync_diagnostic(SyncDiagnosticCode.AUTH_REFRESH_IN_PROGRESS, "auth refresh")
+    captured = capsys.readouterr()
+    assert captured.err.count("sync_diagnostic severity=warning") == 1
 
 
 def test_classify_lock_error():
@@ -286,7 +303,8 @@ def test_classify_auth_refresh():
 ```
 
 **Validation**:
-- All 8 test functions pass (`pytest tests/sync/test_final_sync_diagnostics.py -v`).
+- Tests include all 5 diagnostic codes, same-code dedupe, mixed-code dedupe, and retry/backoff behavior.
+- All test functions pass (`pytest tests/sync/test_final_sync_diagnostics.py -v`).
 - No test writes to stdout.
 
 ---
@@ -328,9 +346,10 @@ Do not manually resolve the worktree path. The `agent action implement` command 
 
 - [ ] `src/specify_cli/sync/diagnostics.py` exists with all 5 `SyncDiagnosticCode` values, `emit_sync_diagnostic()`, `classify_sync_error()`, and `reset_emitted_codes()`.
 - [ ] `sync/daemon.py` no longer writes lock-failure text directly to the console; uses `emit_sync_diagnostic()`.
+- [ ] `sync/batch.py` implements 3 bounded final-sync attempts with 1-second backoff before non-fatal diagnostic emission.
 - [ ] `sync/batch.py` no longer writes final-sync failure text directly to the console; uses `emit_sync_diagnostic()`.
-- [ ] `tests/sync/test_final_sync_diagnostics.py` has ≥6 passing tests covering all 5 codes + deduplication.
-- [ ] `tests/e2e/test_mission_create_clean_output.py` asserts valid JSON stdout and ≤1 stderr diagnostic.
+- [ ] `tests/sync/test_final_sync_diagnostics.py` has passing tests covering all 5 codes, same-code dedupe, mixed-code dedupe, and retry/backoff behavior.
+- [ ] `tests/e2e/test_mission_create_clean_output.py` asserts valid JSON stdout and at most one stderr diagnostic.
 - [ ] `mypy --strict` passes on all modified files.
 - [ ] `pytest tests/sync/ tests/e2e/` passes.
 - [ ] No existing test in `tests/sync/` or `tests/e2e/` is broken.
@@ -349,7 +368,8 @@ Do not manually resolve the worktree path. The `agent action implement` command 
 
 Check:
 1. `emit_sync_diagnostic()` writes only to `sys.stderr` (not `sys.stdout`).
-2. Calling the same code twice in one process produces exactly one stderr line.
+2. Calling any combination of diagnostic codes in one process produces at most one stderr line.
 3. No `console.print(...)` calls with red markup remain on the lock-failure or auth-refresh code paths in `daemon.py` and `batch.py`.
 4. `classify_sync_error()` correctly maps at least the two observed smoke-evidence error strings.
-5. `mypy --strict` and `pytest` both pass.
+5. Final sync retries 3 times with 1-second backoff before emitting the non-fatal diagnostic.
+6. `mypy --strict` and `pytest` both pass.

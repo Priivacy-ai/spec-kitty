@@ -71,7 +71,7 @@ When a tasks artifact contains `Subtasks: T001, T002, T003` (no checkboxes) or t
 **Strategy stack** (new behavior, first match wins):
 1. Checkbox row (existing) — mutates tasks.md checkbox
 2. Pipe-table row (existing) — mutates tasks.md pipe-table
-3. Inline `Subtasks:` reference (new) — finds the checkbox backing the referenced ID if possible; otherwise returns `already_satisfied` if the task is done per event log
+3. Inline `Subtasks:` reference (new) — discovery only unless the resolver can also persist state through an existing tracking row, a materialized checkbox row, or a canonical status event; never return `updated` for a read-only inline match
 4. WP ID → status event log (new) — calls `emit_status_transition()` in `specify_cli.status.emit`
 
 **Reference schemas**:
@@ -115,7 +115,7 @@ class TaskIdResult:
 
 ## Subtask T007 — Implement `_resolve_inline_subtasks()`
 
-**Purpose**: Resolve a task ID by searching for `Subtasks: T001, T002, T003` inline references in the tasks artifact.
+**Purpose**: Resolve a task ID by searching for `Subtasks: T001, T002, T003` inline references in the tasks artifact, then persist status through a durable status surface before reporting success.
 
 **Add** to `tasks.py`:
 
@@ -131,28 +131,50 @@ def _resolve_inline_subtasks(
     task_id: str,
     tasks_content: str,
     status: str,
+    feature_dir: Path,
 ) -> TaskIdResult | None:
     """
     Search tasks_content for 'Subtasks: T001, T002' lines containing task_id.
-    Returns a TaskIdResult if found, None if task_id is not in any Subtasks: line.
+    Returns None if task_id is not in any Subtasks: line.
+    Inline references are discovery hints only. This resolver must not return
+    UPDATED unless it also materializes a durable status update.
     """
     for match in _INLINE_SUBTASKS_RE.finditer(tasks_content):
         ids_str = match.group("ids")
         ids = [i.strip() for i in ids_str.split(",")]
         if task_id in ids:
-            # Found in an inline reference. Mark as updated (the referenced task
-            # is logically updated even if no checkbox exists to mutate).
+            persisted = _persist_inline_subtask_status(task_id, status, feature_dir)
+            if persisted:
+                return TaskIdResult(
+                    id=task_id,
+                    outcome=TaskIdResolutionOutcome.UPDATED,
+                    format=TaskIdResolutionFormat.INLINE_SUBTASKS,
+                    message=f"Persisted status for inline Subtasks reference {task_id} as {status}.",
+                )
             return TaskIdResult(
                 id=task_id,
-                outcome=TaskIdResolutionOutcome.UPDATED,
+                outcome=TaskIdResolutionOutcome.NOT_FOUND,
                 format=TaskIdResolutionFormat.INLINE_SUBTASKS,
-                message=f"Found {task_id} in inline Subtasks reference; marked as {status}.",
+                message=(
+                    f"{task_id} appears only in an inline Subtasks reference. "
+                    "Inline references are not durable status storage; materialize "
+                    "a checkbox row or append a canonical status event before "
+                    "reporting updated."
+                ),
             )
     return None
 ```
 
+`_persist_inline_subtask_status()` is intentionally a small helper left to the implementer because it must follow the local task artifact model. Acceptable persistence choices are:
+- Update an existing checkbox or pipe-table row discovered elsewhere in `tasks.md`.
+- Materialize a checkbox row under the owning work-package section and write `tasks.md`.
+- Append a canonical task status event if the repository already has a task-level event log.
+
+If none of those surfaces can be updated, return `NOT_FOUND`; do not report `UPDATED` or `ALREADY_SATISFIED` from the inline match alone.
+
 **Validation**:
-- `_resolve_inline_subtasks("T001", "Subtasks: T001, T002, T003", "done")` returns a result with `outcome=UPDATED`.
+- `_resolve_inline_subtasks("T001", "Subtasks: T001, T002, T003", "done", feature_dir)` returns `UPDATED` only when it also writes durable state.
+- An inline-only match where no durable status surface can be updated returns `NOT_FOUND` with `format=INLINE_SUBTASKS`.
 - `_resolve_inline_subtasks("T999", "Subtasks: T001, T002", "done")` returns `None`.
 - `mypy --strict` passes.
 
@@ -243,7 +265,7 @@ for task_id in normalized_task_ids:
     result = (
         _resolve_checkbox(task_id, tasks_content, status)
         or _resolve_pipe_table(task_id, tasks_content, status)
-        or _resolve_inline_subtasks(task_id, tasks_content, status)
+        or _resolve_inline_subtasks(task_id, tasks_content, status, feature_dir)
         or _resolve_wp_id(task_id, status, mission_slug, feature_dir)
         or TaskIdResult(
             id=task_id,
@@ -255,7 +277,7 @@ for task_id in normalized_task_ids:
     results.append(result)
 ```
 
-3. After collecting all results, write the (possibly modified) `tasks_content` back to disk once if any checkbox/pipe-table was mutated.
+3. After collecting all results, write the (possibly modified) `tasks_content` back to disk once if any checkbox, pipe-table, or materialized inline-subtask row was mutated.
 4. Pass `results` to the output functions (T010).
 
 **Important**: The existing `_resolve_checkbox` and `_resolve_pipe_table` functions should be adapted to return `TaskIdResult | None` rather than mutating in-place and returning a boolean. This may require a small refactor of those functions. Keep changes minimal.
@@ -309,12 +331,12 @@ if json_output:
 
 **Test cases required**:
 
-1. `test_inline_subtasks_single` — tasks.md has `Subtasks: T001`; `mark-status T001 --status done --json` returns outcome=updated, format=inline_subtasks.
-2. `test_inline_subtasks_multiple` — tasks.md has `Subtasks: T001, T002, T003`; all three IDs are in results, all outcome=updated.
+1. `test_inline_subtasks_single` — tasks.md has `Subtasks: T001`; `mark-status T001 --status done --json` returns outcome=updated, format=inline_subtasks, and a durable status mutation exists in `tasks.md` or the canonical status event log.
+2. `test_inline_subtasks_multiple` — tasks.md has `Subtasks: T001, T002, T003`; all three IDs are in results, all outcome=updated, and each successful result has durable persisted state.
 3. `test_wp_id_mark_done` — `mark-status WP02 --status done --mission <slug> --json`; outcome=updated, format=wp_id; event log contains a done transition for WP02.
 4. `test_wp_id_already_done` — WP02 is already done; outcome=already_satisfied.
 5. `test_unknown_id_not_found` — ID `T999` absent; outcome=not_found; other IDs processed normally.
-6. `test_mixed_formats` — one checkbox T001, one inline T002, one WP03; all three in results.
+6. `test_mixed_formats` — one checkbox T001, one inline T002, one WP03; all three in results, and the inline result has a durable persisted mutation.
 7. `test_existing_checkbox_unchanged` — T001 in checkbox row; outcome=updated, format=checkbox. Behavior identical to before this WP.
 8. `test_existing_pipe_table_unchanged` — T001 in pipe-table row; outcome=updated, format=pipe_table. Behavior identical to before this WP.
 
@@ -338,7 +360,7 @@ SPEC_KITTY_ENABLE_SAAS_SYNC=1 spec-kitty agent action implement WP02 --agent cla
 ## Definition of Done
 
 - [ ] `TaskIdResolutionOutcome`, `TaskIdResolutionFormat`, `TaskIdResult` defined and typed.
-- [ ] `_resolve_inline_subtasks()` finds task IDs in `Subtasks: T001, T002` patterns.
+- [ ] `_resolve_inline_subtasks()` finds task IDs in `Subtasks: T001, T002` patterns but reports success only after persisting status through a durable surface.
 - [ ] `_resolve_wp_id()` calls `emit_status_transition()` for WP IDs; catches exceptions and returns `NOT_FOUND`.
 - [ ] `mark_status()` uses the 4-strategy stack; never fails the whole call due to one unresolvable ID.
 - [ ] `--json` output matches `contracts/mark-status-result.schema.json`.
@@ -352,13 +374,14 @@ SPEC_KITTY_ENABLE_SAAS_SYNC=1 spec-kitty agent action implement WP02 --agent cla
 
 - **Strategy ordering**: Inline `Subtasks:` must run *after* checkbox/pipe-table so that a task with both a checkbox and an inline reference resolves via checkbox (most specific). The stack order defined in T009 ensures this.
 - **WP ID delegation failures**: `emit_status_transition()` raises on invalid transitions. T008's `try/except` translates all exceptions to `NOT_FOUND` — do not let them propagate.
-- **tasks.md write-back**: Only write the file if at least one checkbox/pipe-table mutation occurred. WP-ID resolutions do not touch `tasks.md`.
+- **tasks.md write-back**: Write the file if at least one checkbox, pipe-table, or materialized inline-subtask row mutation occurred. WP-ID resolutions do not touch `tasks.md`.
+- **Inline reference ambiguity**: Inline `Subtasks:` text is not a status store. Treat it as a discovery hint and return `NOT_FOUND` if no durable mutation/event can be written.
 
 ---
 
 ## Reviewer Guidance
 
-1. Run `mark-status T001 --status done` on a fixture that has `Subtasks: T001` but no checkbox; confirm outcome=updated in JSON.
+1. Run `mark-status T001 --status done` on a fixture that has `Subtasks: T001` but no checkbox; confirm outcome=updated in JSON only when `tasks.md` or the canonical status event log records the status change.
 2. Run `mark-status WP02 --status done --mission <slug>`; confirm event log updated.
 3. Confirm `--json` output validates against `contracts/mark-status-result.schema.json`.
 4. Confirm `summary.updated + summary.already_satisfied + summary.not_found == len(requested_ids)` always.
