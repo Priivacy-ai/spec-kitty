@@ -10,11 +10,11 @@
 
 | ID | Description | WP | Parallel |
 |----|-----------|----|----------|
-| T001 | Create `src/specify_cli/sync/diagnostics.py` — `SyncDiagnosticCode` enum, `emit_sync_diagnostic()`, `classify_sync_error()` | WP01 | [P] |
-| T002 | Refactor `sync/daemon.py`: replace lock-error console output with `emit_sync_diagnostic(LOCK_UNAVAILABLE, …)` | WP01 | |
-| T003 | Refactor `sync/batch.py`: add bounded final-sync retry/backoff, then emit one non-fatal diagnostic through `emit_sync_diagnostic(classified_code, ...)` | WP01 | |
-| T004 | Write `tests/sync/test_final_sync_diagnostics.py` — diagnostics, retry/backoff, and mixed-signal single-emission regression cases | WP01 | |
-| T005 | Extend `tests/e2e/test_mission_create_clean_output.py` — assert JSON stdout valid + stderr has at most one final-sync diagnostic | WP01 | |
+| T001 | Create `src/specify_cli/sync/diagnostics.py` — `SyncDiagnosticCode` enum, `emit_sync_diagnostic()`, `classify_sync_error()` | WP01 | [P] | [D] |
+| T002 | Refactor `sync/daemon.py`: replace lock-error console output with `emit_sync_diagnostic(LOCK_UNAVAILABLE, …)` | WP01 | | [D] |
+| T003 | Refactor `sync/batch.py`: add bounded final-sync retry/backoff, then emit one non-fatal diagnostic through `emit_sync_diagnostic(classified_code, ...)` | WP01 | | [D] |
+| T004 | Write `tests/sync/test_final_sync_diagnostics.py` — diagnostics, retry/backoff, and mixed-signal single-emission regression cases | WP01 | | [D] |
+| T005 | Extend `tests/e2e/test_mission_create_clean_output.py` — assert JSON stdout valid + stderr has at most one final-sync diagnostic | WP01 | | [D] |
 | T006 | Add `TaskIdResolutionOutcome`, `TaskIdResolutionFormat`, `TaskIdResult` types to `tasks.py` | WP02 | [D] |
 | T007 | Implement `_resolve_inline_subtasks()` — regex for `Subtasks: T001, T002` pattern with a durable persisted status update | WP02 | | [D] |
 | T008 | Implement `_resolve_wp_id()` — delegate to `emit_status_transition()` for bare WP IDs | WP02 | | [D] |
@@ -47,11 +47,11 @@ apply bounded retry/backoff before reporting a non-fatal final-sync diagnostic, 
 to at most one diagnostic line per command invocation, and classify into 5 named categories.
 
 **Included subtasks**:
-- [ ] T001 Create `src/specify_cli/sync/diagnostics.py` — `SyncDiagnosticCode` enum, `emit_sync_diagnostic()`, `classify_sync_error()` (WP01)
-- [ ] T002 Refactor `sync/daemon.py`: replace lock-error output with `emit_sync_diagnostic(LOCK_UNAVAILABLE, …)` (WP01)
-- [ ] T003 Refactor `sync/batch.py`: add bounded retry/backoff before non-fatal diagnostic emission; replace final-sync error output with `emit_sync_diagnostic(classified_code, ...)` (WP01)
-- [ ] T004 Write `tests/sync/test_final_sync_diagnostics.py` — diagnostic, retry/backoff, and mixed-signal single-emission regression tests (WP01)
-- [ ] T005 Extend `tests/e2e/test_mission_create_clean_output.py` — JSON stdout valid + stderr at most one diagnostic (WP01)
+- [x] T001 Create `src/specify_cli/sync/diagnostics.py` — `SyncDiagnosticCode` enum, `emit_sync_diagnostic()`, `classify_sync_error()` (WP01)
+- [x] T002 Refactor `sync/daemon.py`: replace lock-error output with `emit_sync_diagnostic(LOCK_UNAVAILABLE, …)` (WP01)
+- [x] T003 Refactor `sync/batch.py`: add bounded retry/backoff before non-fatal diagnostic emission; replace final-sync error output with `emit_sync_diagnostic(classified_code, ...)` (WP01)
+- [x] T004 Write `tests/sync/test_final_sync_diagnostics.py` — diagnostic, retry/backoff, and mixed-signal single-emission regression tests (WP01)
+- [x] T005 Extend `tests/e2e/test_mission_create_clean_output.py` — JSON stdout valid + stderr at most one diagnostic (WP01)
 
 **Implementation sketch**: Create the new diagnostics module first (T001), then refactor daemon.py and batch.py call sites (T002-T003), including the FR-005 retry policy of 3 bounded attempts with 1-second backoff before the single non-fatal diagnostic is emitted. Then write tests (T004-T005). The deduplication state is process-scoped per command invocation, and the emit function is the single write path.
 
