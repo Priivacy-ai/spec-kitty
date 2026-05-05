@@ -173,7 +173,11 @@ def test_generate_lifecycle_json_writes_machine_facing_file(tmp_path: Path) -> N
     )
 
     derived_dir = tmp_path / ".kittify" / "derived"
-    generate_lifecycle_json(feature_dir, derived_dir)
+    generate_lifecycle_json(
+        feature_dir,
+        derived_dir,
+        now=datetime(2026, 4, 22, 12, 0, tzinfo=UTC),
+    )
 
     data = json.loads((derived_dir / "040-derived" / "lifecycle.json").read_text(encoding="utf-8"))
     assert data["mission_slug"] == "040-derived"
