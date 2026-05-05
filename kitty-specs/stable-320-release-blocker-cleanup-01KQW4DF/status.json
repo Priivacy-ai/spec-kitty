@@ -2,7 +2,7 @@
   "event_count": 33,
   "last_event_id": "01KQWJ9H3D7Y1AFFN2GQJWAVS4",
   "materialized_at": "2026-05-05T17:17:09.613819+00:00",
-  "mission_number": "",
+  "mission_number": "115",
   "mission_slug": "stable-320-release-blocker-cleanup-01KQW4DF",
   "mission_type": "software-dev",
   "summary": {
