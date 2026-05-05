@@ -24,10 +24,10 @@
 | T012 | Create `spec-kitty-end-to-end-testing/support/nested_env.py` with `NestedEnvResult` + `create_nested_env()` | WP03 | [P] |
 | T013 | Write `spec-kitty-end-to-end-testing/tests/test_nested_env_helper.py` — 4 unit tests for helper | WP03 | |
 | T014 | Update `spec-kitty-end-to-end-testing/scenarios/contract_drift_caught.py` to use `create_nested_env()` | WP03 | |
-| T015 | Add `_check_mission_branch(mission_slug, repo_root)` function to `merge.py` | WP04 | [P] |
-| T016 | Integrate `_check_mission_branch()` into `--dry-run` path (before JSON output) | WP04 | |
-| T017 | Integrate `_check_mission_branch()` into real merge path (before irreversible git operations) | WP04 | |
-| T018 | Write `tests/merge/test_merge_preflight_mission_branch.py` — 5 regression test cases | WP04 | |
+| T015 | Add `_check_mission_branch(mission_slug, repo_root)` function to `merge.py` | WP04 | [D] |
+| T016 | Integrate `_check_mission_branch()` into `--dry-run` path (before JSON output) | WP04 | | [D] |
+| T017 | Integrate `_check_mission_branch()` into real merge path (before irreversible git operations) | WP04 | | [D] |
+| T018 | Write `tests/merge/test_merge_preflight_mission_branch.py` — 5 regression test cases | WP04 | | [D] |
 
 **Total**: 18 subtasks across 4 work packages. All WPs are fully independent (no cross-WP dependencies).
 
@@ -130,10 +130,10 @@ and real merge paths so a missing `kitty/mission-<slug>` branch surfaces as a st
 `ready: false` blocker before any irreversible operation.
 
 **Included subtasks**:
-- [ ] T015 Add `_check_mission_branch(mission_slug, repo_root)` function to `merge.py` (WP04)
-- [ ] T016 Integrate `_check_mission_branch()` into `--dry-run` path (before JSON output) (WP04)
-- [ ] T017 Integrate `_check_mission_branch()` into real merge path (before irreversible operations) (WP04)
-- [ ] T018 Write `tests/merge/test_merge_preflight_mission_branch.py` — 5 regression tests (WP04)
+- [x] T015 Add `_check_mission_branch(mission_slug, repo_root)` function to `merge.py` (WP04)
+- [x] T016 Integrate `_check_mission_branch()` into `--dry-run` path (before JSON output) (WP04)
+- [x] T017 Integrate `_check_mission_branch()` into real merge path (before irreversible operations) (WP04)
+- [x] T018 Write `tests/merge/test_merge_preflight_mission_branch.py` — 5 regression tests (WP04)
 
 **Implementation sketch**: Implement the standalone helper function first (T015), reusing the existing `_has_branch_ref()` helper. Insert the check into dry-run path (T016), then real merge path (T017). The dry-run JSON output shape is defined in `contracts/merge-dry-run-blocker.schema.json`. Write tests last (T018).
 
