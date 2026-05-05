@@ -274,6 +274,10 @@ def run_final_sync_with_retries(
         last_result = result
         last_error = None
         if not _should_retry_final_sync_result(result):
+            if _is_failed_final_sync_result(result):
+                _emit_final_sync_failure_diagnostic(
+                    _final_sync_result_error_text(result)
+                )
             return result
         if attempt < FINAL_SYNC_MAX_ATTEMPTS:
             sleeper(FINAL_SYNC_RETRY_BACKOFF_SECONDS)
@@ -290,6 +294,23 @@ def run_final_sync_with_retries(
 
 def _should_retry_final_sync_result(result: BatchSyncResult) -> bool:
     """Return True for transient-looking final-sync failures."""
+    if not _is_failed_final_sync_result(result):
+        return False
+    categories = set(result.category_counts)
+    if not categories:
+        return True
+    non_retryable_categories = {
+        "auth_expired",
+        "schema_mismatch",
+        "unauthenticated",
+        "unauthorized",
+        CATEGORY_MISSING_PRIVATE_TEAM,
+    }
+    return not categories <= non_retryable_categories
+
+
+def _is_failed_final_sync_result(result: BatchSyncResult) -> bool:
+    """Return True when final sync made no progress and reported errors."""
     return result.error_count > 0 and result.success_count == 0
 
 

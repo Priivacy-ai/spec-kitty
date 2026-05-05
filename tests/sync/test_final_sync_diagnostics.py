@@ -13,6 +13,7 @@ import pytest
 from specify_cli.diagnostics import mark_invocation_succeeded, reset_for_invocation
 from specify_cli.sync.batch import (
     FINAL_SYNC_RETRY_BACKOFF_SECONDS,
+    BatchEventResult,
     BatchSyncResult,
     run_final_sync_with_retries,
 )
@@ -183,6 +184,39 @@ def test_final_sync_retry_success_suppresses_diagnostic(
     assert result.error_count == 0
     assert captured.out == ""
     assert captured.err == ""
+
+
+def test_final_sync_unauthenticated_result_does_not_retry(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    attempts = 0
+    sleeps: list[float] = []
+
+    def unauthenticated_sync() -> BatchSyncResult:
+        nonlocal attempts
+        attempts += 1
+        result = BatchSyncResult()
+        result.error_count = 1
+        result.error_messages.append("Not authenticated: no valid access token")
+        result.event_results.append(
+            BatchEventResult(
+                event_id="EVT000000000000000000000001",
+                status="rejected",
+                error="Not authenticated: no valid access token",
+                error_category="unauthenticated",
+            )
+        )
+        return result
+
+    result = run_final_sync_with_retries(unauthenticated_sync, sleep=sleeps.append)
+
+    captured = capsys.readouterr()
+    assert attempts == 1
+    assert sleeps == []
+    assert result.error_count == 1
+    assert "diagnostic_code=sync.server_auth_failure" in captured.err
+    assert captured.err.count("sync_diagnostic severity=warning") == 1
+    assert captured.out == ""
 
 
 def test_final_sync_failure_after_local_success_keeps_stdout_strict_json(
