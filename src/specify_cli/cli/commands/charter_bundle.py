@@ -278,8 +278,8 @@ def _collect_provenance_validation_errors(canonical_root: Path) -> list[str]:
                 )
                 continue
             try:
-                ProvenanceEntry(**raw)
-            except ValidationError as e:
+                ProvenanceEntry.model_validate(raw)
+            except (TypeError, ValidationError) as e:
                 sidecar_errors.append(f"{sidecar_path.name}: {e}")
 
     manifest_path = canonical_root.joinpath(*_CHARTER_DIR, "synthesis-manifest.yaml")
