@@ -252,8 +252,11 @@ def test_final_sync_failure_after_local_success_keeps_stdout_strict_json(
 def test_final_sync_auth_refresh_lock_retries_then_emits_once(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from specify_cli.auth.refresh_transaction import RefreshLockTimeoutError
+
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
 
     class RefreshLockedTokenManager:
         is_authenticated = True
