@@ -29,9 +29,10 @@ else:  # pragma: no cover - platform-specific
 if TYPE_CHECKING:
     from specify_cli.sync.config import SyncConfig
 
-import psutil
+import psutil  # type: ignore[import-untyped]
 
 from specify_cli.core.atomic import atomic_write
+from specify_cli.sync.diagnostics import SyncDiagnosticCode, emit_sync_diagnostic
 
 logger = logging.getLogger(__name__)
 
@@ -187,7 +188,7 @@ def _write_daemon_file(path: Path, url: str, port: int, token: str | None, pid: 
 def _is_process_alive(pid: int) -> bool:
     try:
         proc = psutil.Process(pid)
-        return proc.is_running()
+        return bool(proc.is_running())
     except psutil.NoSuchProcess:
         return False
     except psutil.AccessDenied:
@@ -693,6 +694,11 @@ def ensure_sync_daemon_running(
                     )
                 time.sleep(0.1)
         if not acquired:
+            emit_sync_diagnostic(
+                SyncDiagnosticCode.LOCK_UNAVAILABLE,
+                "Could not acquire sync lock within 5 s; skipping final sync. "
+                "Queued events will be drained by the daemon.",
+            )
             return DaemonStartOutcome(
                 started=False,
                 skipped_reason="start_failed: could not acquire daemon lock within 10s",

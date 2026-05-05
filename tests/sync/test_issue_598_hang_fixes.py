@@ -35,10 +35,13 @@ pytestmark = pytest.mark.fast
 @pytest.fixture(autouse=True)
 def _reset_diagnostics():
     from specify_cli.diagnostics import reset_for_invocation
+    from specify_cli.sync.diagnostics import reset_emitted_codes
 
     reset_for_invocation()
+    reset_emitted_codes()
     yield
     reset_for_invocation()
+    reset_emitted_codes()
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -405,7 +408,7 @@ class TestBackgroundStopBounded:
             svc.stop()
 
         captured = capsys.readouterr()
-        assert "diagnostic_code=sync.final_sync_timeout" in captured.err
+        assert "diagnostic_code=sync.event_loop_unavailable" in captured.err
         assert "fatal=false" in captured.err
 
     @patch("specify_cli.sync.background._fetch_access_token_sync", return_value=None)

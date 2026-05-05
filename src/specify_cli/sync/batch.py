@@ -8,8 +8,10 @@ from __future__ import annotations
 
 import gzip
 import json
+import time
 from contextlib import suppress
 from collections import Counter
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, UTC
 from pathlib import Path
@@ -23,6 +25,11 @@ from specify_cli.sync._team import (
 )
 from .feature_flags import is_saas_sync_enabled, saas_sync_disabled_message
 from .queue import OfflineQueue
+from .diagnostics import (
+    SyncDiagnosticCode,
+    classify_sync_error,
+    emit_sync_diagnostic,
+)
 from specify_cli.core.contract_gate import validate_outbound_payload
 
 
@@ -61,6 +68,9 @@ CATEGORY_ACTIONS: dict[str, str] = {
     "server_error": "Retry later or check server status",
     "unknown": "Inspect the failure report for details: --report <file.json>",
 }
+
+FINAL_SYNC_MAX_ATTEMPTS = 3
+FINAL_SYNC_RETRY_BACKOFF_SECONDS = 1.0
 
 
 def _current_team_slug() -> str | None:
@@ -205,7 +215,7 @@ class BatchSyncResult:
     list ``event_results``.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.total_events: int = 0
         self.synced_count: int = 0
         self.duplicate_count: int = 0
@@ -232,6 +242,83 @@ class BatchSyncResult:
     def category_counts(self) -> dict[str, int]:
         """Counter of error categories among rejected events."""
         return dict(Counter(r.error_category for r in self.failed_results))
+
+
+def run_final_sync_with_retries(
+    sync_operation: Callable[[], BatchSyncResult],
+    *,
+    sleep: Callable[[float], None] | None = None,
+) -> BatchSyncResult:
+    """Run final sync with bounded retry before emitting a non-fatal diagnostic.
+
+    Final sync runs after the local command already succeeded, so exhausted
+    attempts must never change the command exit behavior or write retry noise
+    to stdout. Events remain durable in the queue for later daemon drain.
+    """
+    last_result: BatchSyncResult | None = None
+    last_error: BaseException | None = None
+    sleeper = time.sleep if sleep is None else sleep
+
+    for attempt in range(1, FINAL_SYNC_MAX_ATTEMPTS + 1):
+        try:
+            result = sync_operation()
+        except Exception as exc:  # noqa: BLE001 - final sync is best effort
+            last_error = exc
+            if attempt < FINAL_SYNC_MAX_ATTEMPTS:
+                sleeper(FINAL_SYNC_RETRY_BACKOFF_SECONDS)
+                continue
+            error_text = str(exc)
+            _emit_final_sync_failure_diagnostic(error_text)
+            return _result_from_final_sync_exception(exc)
+
+        last_result = result
+        last_error = None
+        if not _should_retry_final_sync_result(result):
+            return result
+        if attempt < FINAL_SYNC_MAX_ATTEMPTS:
+            sleeper(FINAL_SYNC_RETRY_BACKOFF_SECONDS)
+
+    if last_result is not None:
+        error_text = _final_sync_result_error_text(last_result)
+        _emit_final_sync_failure_diagnostic(error_text)
+        return last_result
+    if last_error is not None:
+        _emit_final_sync_failure_diagnostic(str(last_error))
+        return _result_from_final_sync_exception(last_error)
+    return BatchSyncResult()
+
+
+def _should_retry_final_sync_result(result: BatchSyncResult) -> bool:
+    """Return True for transient-looking final-sync failures."""
+    return result.error_count > 0 and result.success_count == 0
+
+
+def _final_sync_result_error_text(result: BatchSyncResult) -> str:
+    """Return a compact diagnostic detail string for an exhausted final sync."""
+    if result.error_messages:
+        return "; ".join(result.error_messages)
+    if result.error_count:
+        return f"{result.error_count} queued event(s) failed during final sync"
+    return "final sync failed"
+
+
+def _emit_final_sync_failure_diagnostic(error_text: str) -> None:
+    """Emit the single non-fatal final-sync diagnostic for exhausted retries."""
+    code: SyncDiagnosticCode = classify_sync_error(error_text)
+    emit_sync_diagnostic(
+        code,
+        "Final sync failed after local command success. "
+        "Queued events remain durable and will be retried. "
+        f"Detail: {error_text}",
+    )
+
+
+def _result_from_final_sync_exception(exc: BaseException) -> BatchSyncResult:
+    """Represent an exhausted final-sync exception as a non-fatal batch result."""
+    result = BatchSyncResult()
+    result.error_count = 1
+    result.error_messages.append(str(exc))
+    return result
 
 
 # ---------------------------------------------------------------------------

@@ -26,9 +26,15 @@ from specify_cli.auth import get_token_manager
 from specify_cli.auth.errors import AuthenticationError
 from specify_cli.diagnostics import report_once
 
-from .batch import BatchEventResult, BatchSyncResult, batch_sync, sync_all_queued_events
+from .batch import (
+    BatchEventResult,
+    BatchSyncResult,
+    batch_sync,
+    run_final_sync_with_retries,
+    sync_all_queued_events,
+)
 from .config import SyncConfig
-from .diagnostics import SyncDiagnostic, emit_sync_diagnostic
+from .diagnostics import SyncDiagnosticCode, emit_sync_diagnostic
 from .feature_flags import is_saas_sync_enabled, saas_sync_disabled_message
 from .queue import OfflineQueue
 
@@ -47,19 +53,11 @@ _UNAUTHENTICATED_SYNC_ERROR = (
 
 
 def _emit_nonfatal_final_sync_diagnostic(
-    diagnostic_code: str,
+    diagnostic_code: SyncDiagnosticCode,
     message: str,
 ) -> None:
     """Report a final-sync problem without failing the local command result."""
-    emit_sync_diagnostic(
-        SyncDiagnostic(
-            severity="warning",
-            diagnostic_code=diagnostic_code,
-            fatal=False,
-            sync_phase="final_sync",
-            message=message,
-        )
-    )
+    emit_sync_diagnostic(diagnostic_code, message)
 
 
 def _safe_optional_queue_size(queue_obj: object | None) -> int:
@@ -229,7 +227,7 @@ class BackgroundSyncService:
             # Timer thread is stuck holding the lock; skip the final sync
             # rather than blocking shutdown.
             _emit_nonfatal_final_sync_diagnostic(
-                "sync.final_sync_lock_unavailable",
+                SyncDiagnosticCode.LOCK_UNAVAILABLE,
                 "Could not acquire sync lock within 5 s; skipping final sync. "
                 "Queued events will be drained by the daemon.",
             )
@@ -247,7 +245,7 @@ class BackgroundSyncService:
                 sync_thread.start()
             except RuntimeError as exc:
                 _emit_nonfatal_final_sync_diagnostic(
-                    "sync.final_sync_shutdown_unavailable",
+                    SyncDiagnosticCode.EVENT_LOOP_UNAVAILABLE,
                     "Could not start final sync during interpreter shutdown. "
                     f"Queued events will be drained by the daemon. Detail: {exc}",
                 )
@@ -255,7 +253,7 @@ class BackgroundSyncService:
             sync_thread.join(timeout=_STOP_SYNC_TIMEOUT_SECONDS)
             if sync_thread.is_alive():
                 _emit_nonfatal_final_sync_diagnostic(
-                    "sync.final_sync_timeout",
+                    SyncDiagnosticCode.EVENT_LOOP_UNAVAILABLE,
                     f"Final sync did not complete within {_STOP_SYNC_TIMEOUT_SECONDS}s. "
                     "Queued events will be drained by the daemon.",
                 )
@@ -263,14 +261,7 @@ class BackgroundSyncService:
 
     def _guarded_final_sync(self) -> None:
         """Run a single sync batch; swallows all exceptions."""
-        try:
-            self._perform_sync()
-        except Exception as exc:
-            _emit_nonfatal_final_sync_diagnostic(
-                "sync.final_sync_failed",
-                "Final sync failed after local command success. "
-                f"Queued events remain durable and will be retried. Detail: {exc}",
-            )
+        run_final_sync_with_retries(self._perform_sync)
 
     @property
     def last_sync(self) -> datetime | None:
