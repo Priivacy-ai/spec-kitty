@@ -7,6 +7,10 @@ reviewed_at: '2026-05-05T16:58:37Z'
 reviewer_agent: unknown
 verdict: rejected
 wp_id: WP01
+review_artifact_override_at: "2026-05-05T17:04:32Z"
+review_artifact_override_actor: "operator"
+review_artifact_override_wp_id: "WP01"
+review_artifact_override_reason: "Review passed after cycle-2 fix: verified refresh-lock contention now reaches bounded final-sync retry and emits exactly one sync.auth_refresh_in_progress diagnostic; uv run pytest tests/sync/test_final_sync_diagnostics.py tests/e2e/test_mission_create_clean_output.py tests/sync/test_issue_598_hang_fixes.py -q passed; uv run mypy --strict sync modules passed."
 ---
 
 **Issue 1**: Auth-refresh lock contention is still swallowed before final-sync retry/diagnostic handling.
