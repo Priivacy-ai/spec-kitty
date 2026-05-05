@@ -21,9 +21,9 @@
 | T009 | Update `mark_status()` to use strategy stack and collect per-ID results | WP02 | |
 | T010 | Update `--json` output to `results` + `summary` shape per `contracts/mark-status-result.schema.json` | WP02 | |
 | T011 | Write regression tests: 8 cases covering inline, WP-ID, mixed, not-found, backwards-compat formats | WP02 | |
-| T012 | Create `spec-kitty-end-to-end-testing/support/nested_env.py` with `NestedEnvResult` + `create_nested_env()` | WP03 | [P] |
-| T013 | Write `spec-kitty-end-to-end-testing/tests/test_nested_env_helper.py` — 4 unit tests for helper | WP03 | |
-| T014 | Update `spec-kitty-end-to-end-testing/scenarios/contract_drift_caught.py` to use `create_nested_env()` | WP03 | |
+| T012 | Create `spec-kitty-end-to-end-testing/support/nested_env.py` with `NestedEnvResult` + `create_nested_env()` | WP03 | [D] |
+| T013 | Write `spec-kitty-end-to-end-testing/tests/test_nested_env_helper.py` — 4 unit tests for helper | WP03 | | [D] |
+| T014 | Update `spec-kitty-end-to-end-testing/scenarios/contract_drift_caught.py` to use `create_nested_env()` | WP03 | | [D] |
 | T015 | Add `_check_mission_branch(mission_slug, repo_root)` function to `merge.py` | WP04 | [D] |
 | T016 | Integrate `_check_mission_branch()` into `--dry-run` path (before JSON output) | WP04 | | [D] |
 | T017 | Integrate `_check_mission_branch()` into real merge path (before irreversible git operations) | WP04 | | [D] |
@@ -105,9 +105,9 @@ either uses `uv venv` or falls back gracefully.
 **Execution boundary**: This WP operates in the sibling `spec-kitty-end-to-end-testing` repository, not in `spec-kitty`. The orchestrator must run implementation from `/Users/robert/spec-kitty-dev/spec-kitty-20260505-090055-4etGRd/spec-kitty-end-to-end-testing` or from a worktree of that repository. The relative paths below are relative to that repository root.
 
 **Included subtasks**:
-- [ ] T012 Create `spec-kitty-end-to-end-testing/support/nested_env.py` with `NestedEnvResult` + `create_nested_env()` (WP03)
-- [ ] T013 Write `spec-kitty-end-to-end-testing/tests/test_nested_env_helper.py` — 4 unit tests (WP03)
-- [ ] T014 Update `spec-kitty-end-to-end-testing/scenarios/contract_drift_caught.py` to use `create_nested_env()` (WP03)
+- [x] T012 Create `spec-kitty-end-to-end-testing/support/nested_env.py` with `NestedEnvResult` + `create_nested_env()` (WP03)
+- [x] T013 Write `spec-kitty-end-to-end-testing/tests/test_nested_env_helper.py` — 4 unit tests (WP03)
+- [x] T014 Update `spec-kitty-end-to-end-testing/scenarios/contract_drift_caught.py` to use `create_nested_env()` (WP03)
 
 **Implementation sketch**: Write the helper module first (T012), test it (T013), then swap it into the scenario (T014). The helper must detect uv via `shutil.which("uv")` and use `uv venv` if available; skip/xfail if neither method works.
 
