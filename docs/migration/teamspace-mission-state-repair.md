@@ -8,6 +8,30 @@ Run the audit first:
 spec-kitty doctor mission-state --audit --json
 ```
 
+For a launch/readiness gate, fail on TeamSpace blockers:
+
+```bash
+spec-kitty doctor mission-state --audit --fail-on teamspace-blocker
+```
+
+`teamspace-blocker` includes all error findings plus warning-level
+historical shapes that TeamSpace must not import as authoritative state:
+legacy keys, forbidden typed side-log keys, snapshot drift, corrupt JSONL,
+missing/invalid identity, and duplicate mission IDs. JSON reports include
+`repo_summary.teamspace_blockers` and
+`repo_summary.missions_with_teamspace_blockers`.
+
+To verify the packaged survey fixture pack used by the audit contract:
+
+```bash
+spec-kitty doctor mission-state --audit --include-fixtures --json
+```
+
+The repository also ships an opt-in GitHub Actions gate,
+`TeamSpace Mission-State Readiness`, which can be run manually from Actions.
+It runs the same audit with a selectable `--fail-on` threshold and uploads
+`mission-state-audit.json` even when the gate fails.
+
 Then repair the repository:
 
 ```bash
@@ -30,7 +54,7 @@ For teams, use this sequence:
 
 1. Ask contributors to stop editing `kitty-specs/` temporarily.
 2. Pull the target branch everywhere.
-3. Run `spec-kitty doctor mission-state --audit --json` and save the report.
+3. Run `spec-kitty doctor mission-state --audit --fail-on teamspace-blocker --json` and save the report.
 4. Run `spec-kitty doctor mission-state --fix`.
 5. Review the generated manifest and mission diffs.
 6. Run `spec-kitty doctor mission-state --teamspace-dry-run --json`.

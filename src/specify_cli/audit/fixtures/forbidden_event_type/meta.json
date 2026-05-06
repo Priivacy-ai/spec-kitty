@@ -1,0 +1,8 @@
+{
+  "friendly_name": "Forbidden event type fixture",
+  "mission_id": "01KQHRB7GCFJAX7HM4ZY52AQGR",
+  "mission_number": 3,
+  "mission_slug": "forbidden_event_type",
+  "mission_type": "software-dev",
+  "target_branch": "main"
+}

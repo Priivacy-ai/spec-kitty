@@ -46,7 +46,13 @@ from .classifiers.wp_files import classify_wp_files
 from .identity_adapter import (
     identity_state_to_findings,
 )
-from .models import AuditOptions, MissionAuditResult, MissionFinding, RepoAuditReport
+from .models import (
+    AuditOptions,
+    MissionAuditResult,
+    MissionFinding,
+    RepoAuditReport,
+    is_teamspace_blocker,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -370,15 +376,22 @@ def _build_report(mission_results: list[MissionAuditResult]) -> RepoAuditReport:
     )
 
     severity_counts: dict[str, int] = {"error": 0, "warning": 0, "info": 0}
+    teamspace_blocker_count = 0
     for r in mission_results:
         for f in r.findings:
             severity_counts[f.severity.value] += 1
+            if is_teamspace_blocker(f):
+                teamspace_blocker_count += 1
 
     repo_summary: dict[str, Any] = {
         "total_missions": len(mission_results),
         "missions_with_errors": sum(1 for r in mission_results if r.has_errors),
         "missions_with_warnings": sum(1 for r in mission_results if r.has_warnings),
+        "missions_with_teamspace_blockers": sum(
+            1 for r in mission_results if r.has_teamspace_blockers
+        ),
         "total_findings": sum(len(r.findings) for r in mission_results),
+        "teamspace_blockers": teamspace_blocker_count,
         "findings_by_severity": severity_counts,
     }
 

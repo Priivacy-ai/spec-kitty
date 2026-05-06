@@ -1,0 +1,8 @@
+{
+  "friendly_name": "Corrupt JSONL fixture",
+  "mission_id": "01KQHRC0GCFJAX7HM4ZY52AQGR",
+  "mission_number": 4,
+  "mission_slug": "corrupt_jsonl",
+  "mission_type": "software-dev",
+  "target_branch": "main"
+}

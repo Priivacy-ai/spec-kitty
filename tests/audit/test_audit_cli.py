@@ -51,6 +51,25 @@ def _make_corrupt_mission(parent: Path, slug: str = "corrupt-mission") -> Path:
     return mission_dir
 
 
+def _make_legacy_mission(parent: Path, slug: str = "legacy-mission") -> Path:
+    """Create a mission directory with a TeamSpace-blocking legacy warning."""
+    mission_dir = parent / slug
+    mission_dir.mkdir(parents=True, exist_ok=True)
+    (mission_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "feature_slug": "legacy-feature",
+                "mission_id": "01KQHRB8GCFJAX7HM4ZY52AQGR",
+                "mission_slug": slug,
+                "mission_type": "software-dev",
+                "target_branch": "main",
+            }
+        ),
+        encoding="utf-8",
+    )
+    return mission_dir
+
+
 # ---------------------------------------------------------------------------
 # Test 1: --audit flag is required
 # ---------------------------------------------------------------------------
@@ -171,6 +190,7 @@ def test_cli_invalid_fail_on_exits_2(
         ],
     )
     assert result.exit_code == 2
+    assert "teamspace-blocker" in result.output
 
 
 # ---------------------------------------------------------------------------
@@ -216,3 +236,60 @@ def test_cli_json_determinism(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     assert result1.exit_code == 0
     assert result2.exit_code == 0
     assert result1.output == result2.output
+
+
+def test_cli_fail_on_teamspace_blocker_exits_1_for_legacy_warning(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """--fail-on teamspace-blocker exits 1 for LEGACY_KEY warnings."""
+    fixture_root = tmp_path / "fixtures"
+    _make_legacy_mission(fixture_root)
+    monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: tmp_path)
+
+    result = runner.invoke(
+        app,
+        [
+            "mission-state",
+            "--audit",
+            "--fail-on",
+            "teamspace-blocker",
+            "--fixture-dir",
+            str(fixture_root),
+        ],
+    )
+    assert result.exit_code == 1, result.output
+
+
+def test_cli_include_fixtures_json(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """--include-fixtures scans the packaged survey fixture pack."""
+    monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: tmp_path)
+
+    result = runner.invoke(app, ["mission-state", "--audit", "--include-fixtures", "--json"])
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    assert data["repo_summary"]["total_missions"] >= 4
+    assert data["repo_summary"]["teamspace_blockers"] >= 3
+    assert data["shape_counters"]["LEGACY_KEY"] >= 1
+    assert data["shape_counters"]["FORBIDDEN_KEY"] >= 1
+    assert data["shape_counters"]["CORRUPT_JSONL"] >= 1
+
+
+def test_cli_include_fixtures_rejects_fixture_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """--include-fixtures and --fixture-dir are mutually exclusive."""
+    fixture_root = tmp_path / "fixtures"
+    _make_clean_mission(fixture_root)
+    monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: tmp_path)
+
+    result = runner.invoke(
+        app,
+        [
+            "mission-state",
+            "--audit",
+            "--include-fixtures",
+            "--fixture-dir",
+            str(fixture_root),
+        ],
+    )
+    assert result.exit_code == 2

@@ -35,12 +35,21 @@ package is published.
   when available (#980).
 - Documented the distributed Git repair workflow for coordinated repository
   migration before TeamSpace launch (#980).
+- Added `doctor mission-state --include-fixtures` and the packaged
+  mission-state survey fixture pack used by the TeamSpace readiness audit
+  contract (#920, #922, #929).
+- Added an opt-in `TeamSpace Mission-State Readiness` GitHub Actions workflow
+  that runs `doctor mission-state --audit --fail-on teamspace-blocker` and
+  uploads the JSON audit artifact (#920, #934).
 
 ### Changed
 
 - Aligned CLI sync emission for `WPStatusChanged` and `MissionClosed` with the
   canonical TeamSpace event payload shape while keeping launch dry-run gated on
   the published events contract (#980).
+- `doctor mission-state --audit` JSON reports now expose TeamSpace blocker
+  counts, and `--fail-on teamspace-blocker` gates import/sync readiness
+  without requiring network access (#920, #934).
 
 ## [3.2.0rc1] - 2026-05-05
 

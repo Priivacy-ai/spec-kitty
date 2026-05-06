@@ -1,0 +1,8 @@
+{
+  "friendly_name": "Clean modern fixture",
+  "mission_id": "01KQHRB8GCFJAX7HM4ZY52AQGR",
+  "mission_number": 1,
+  "mission_slug": "clean_modern",
+  "mission_type": "software-dev",
+  "target_branch": "main"
+}

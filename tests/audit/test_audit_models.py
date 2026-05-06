@@ -7,11 +7,13 @@ from pathlib import Path
 import pytest
 
 from specify_cli.audit.models import (
+    TEAMSPACE_BLOCKER_CODES,
     AuditOptions,
     MissionAuditResult,
     MissionFinding,
     RepoAuditReport,
     Severity,
+    is_teamspace_blocker,
 )
 
 
@@ -147,6 +149,30 @@ class TestMissionFinding:
         assert d["detail"] == "mission_id field absent"
 
 
+class TestTeamspaceBlockers:
+    def test_all_errors_are_teamspace_blockers(self) -> None:
+        f = MissionFinding(code="UNKNOWN", severity=Severity.ERROR, artifact_path="x")
+        assert is_teamspace_blocker(f) is True
+
+    def test_legacy_warning_is_teamspace_blocker(self) -> None:
+        f = MissionFinding(code="LEGACY_KEY", severity=Severity.WARNING, artifact_path="x")
+        assert is_teamspace_blocker(f) is True
+
+    def test_non_blocking_warning_is_not_teamspace_blocker(self) -> None:
+        f = MissionFinding(code="ACTOR_DRIFT", severity=Severity.WARNING, artifact_path="x")
+        assert is_teamspace_blocker(f) is False
+
+    def test_contract_codes_include_teamspace_import_risks(self) -> None:
+        assert {
+            "CORRUPT_JSONL",
+            "DUPLICATE_MISSION_ID",
+            "FORBIDDEN_KEY",
+            "IDENTITY_MISSING",
+            "LEGACY_KEY",
+            "SNAPSHOT_DRIFT",
+        }.issubset(TEAMSPACE_BLOCKER_CODES)
+
+
 # ---------------------------------------------------------------------------
 # T003: MissionAuditResult dataclass
 # ---------------------------------------------------------------------------
@@ -196,6 +222,18 @@ class TestMissionAuditResult:
         )
         assert r.has_warnings is True
 
+    def test_has_teamspace_blockers_true_for_legacy_warning(self) -> None:
+        r = _make_result(
+            findings=[MissionFinding(code="LEGACY_KEY", severity=Severity.WARNING, artifact_path="x")]
+        )
+        assert r.has_teamspace_blockers is True
+
+    def test_has_teamspace_blockers_false_for_non_blocking_warning(self) -> None:
+        r = _make_result(
+            findings=[MissionFinding(code="ACTOR_DRIFT", severity=Severity.WARNING, artifact_path="x")]
+        )
+        assert r.has_teamspace_blockers is False
+
     def test_finding_codes(self) -> None:
         r = _make_result(
             findings=[
@@ -214,6 +252,7 @@ class TestMissionAuditResult:
         assert "findings" in d
         assert "finding_count" in d
         assert "has_errors" in d
+        assert "has_teamspace_blockers" in d
 
     def test_to_dict_mission_dir_is_string(self) -> None:
         r = _make_result()

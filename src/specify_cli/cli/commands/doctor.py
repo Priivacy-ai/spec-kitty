@@ -889,8 +889,14 @@ def _print_rich_audit_report(report: object) -> None:
     console.print(
         f"Total missions: {summary['total_missions']} | "
         f"With errors: {summary['missions_with_errors']} | "
-        f"With warnings: {summary['missions_with_warnings']}"
+        f"With warnings: {summary['missions_with_warnings']} | "
+        f"TeamSpace blockers: {summary['teamspace_blockers']}"
     )
+
+
+def _audit_fixture_root() -> Path:
+    """Return the packaged mission-state audit fixture root."""
+    return Path(__file__).resolve().parents[2] / "audit" / "fixtures"
 
 
 @app.command(name="mission-state")
@@ -920,12 +926,25 @@ def mission_state(  # noqa: C901
     ] = None,
     fail_on: Annotated[
         str | None,
-        typer.Option("--fail-on", help="Exit 1 if any finding meets this severity (error|warning|info)"),
+        typer.Option(
+            "--fail-on",
+            help=(
+                "Exit 1 if findings meet a gate "
+                "(error|warning|info|teamspace-blocker)"
+            ),
+        ),
     ] = None,
     fixture_dir: Annotated[
         Path | None,
         typer.Option("--fixture-dir", help="Override scan root (for testing)"),
     ] = None,
+    include_fixtures: Annotated[
+        bool,
+        typer.Option(
+            "--include-fixtures",
+            help="Audit the bundled mission-state survey fixtures",
+        ),
+    ] = False,
     manifest_path: Annotated[
         Path | None,
         typer.Option("--manifest-path", help="Path for --fix migration manifest"),
@@ -937,6 +956,7 @@ def mission_state(  # noqa: C901
 ) -> None:
     """Audit, repair, or TeamSpace-validate mission-state shapes."""
     from specify_cli.audit import AuditOptions, Severity, build_report_json, run_audit
+    from specify_cli.audit.models import is_teamspace_blocker
 
     selected_modes = sum(1 for selected in (audit, fix, teamspace_dry_run) if selected)
     if selected_modes == 0:
@@ -948,13 +968,29 @@ def mission_state(  # noqa: C901
 
     # Validate --fail-on
     fail_on_severity: Severity | None = None
+    fail_on_teamspace_blocker = False
     if fail_on is not None:
-        try:
-            fail_on_severity = Severity(fail_on)
-        except ValueError:
-            valid = ", ".join(s.value for s in Severity)
-            typer.echo(f"Invalid --fail-on value: {fail_on!r}. Valid values: {valid}", err=True)
-            raise typer.Exit(2) from None
+        if fail_on == "teamspace-blocker":
+            fail_on_teamspace_blocker = True
+        else:
+            try:
+                fail_on_severity = Severity(fail_on)
+            except ValueError:
+                valid = ", ".join([*(s.value for s in Severity), "teamspace-blocker"])
+                typer.echo(
+                    f"Invalid --fail-on value: {fail_on!r}. Valid values: {valid}",
+                    err=True,
+                )
+                raise typer.Exit(2) from None
+
+    if include_fixtures:
+        if fixture_dir is not None:
+            typer.echo("Use only one of --include-fixtures or --fixture-dir.", err=True)
+            raise typer.Exit(2)
+        fixture_dir = _audit_fixture_root()
+        if not fixture_dir.is_dir():
+            typer.echo(f"Bundled audit fixtures not found: {fixture_dir}", err=True)
+            raise typer.Exit(2)
 
     # Resolve repo root
     try:
@@ -1079,6 +1115,12 @@ def mission_state(  # noqa: C901
 
     if fail_on_severity is not None and any(
         f.severity <= fail_on_severity
+        for result in report.missions
+        for f in result.findings
+    ):
+        raise typer.Exit(1)
+    if fail_on_teamspace_blocker and any(
+        is_teamspace_blocker(f)
         for result in report.missions
         for f in result.findings
     ):

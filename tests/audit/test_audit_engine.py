@@ -232,7 +232,9 @@ def test_repo_summary_counts(tmp_path: Path) -> None:
     assert summary["total_missions"] == 2
     assert summary["missions_with_errors"] == 0
     assert summary["missions_with_warnings"] == 1  # only 002-legacy has a warning
+    assert summary["missions_with_teamspace_blockers"] == 1
     assert summary["total_findings"] >= 1
+    assert summary["teamspace_blockers"] >= 1
     assert summary["findings_by_severity"]["warning"] >= 1
     assert summary["findings_by_severity"]["error"] == 0
 

@@ -16,6 +16,20 @@ from pathlib import Path
 from typing import Any
 
 
+TEAMSPACE_BLOCKER_CODES: frozenset[str] = frozenset(
+    {
+        "CORRUPT_JSON",
+        "CORRUPT_JSONL",
+        "DUPLICATE_MISSION_ID",
+        "FORBIDDEN_KEY",
+        "IDENTITY_INVALID",
+        "IDENTITY_MISSING",
+        "LEGACY_KEY",
+        "SNAPSHOT_DRIFT",
+    }
+)
+
+
 class Severity(StrEnum):
     """Audit finding severity level.
 
@@ -68,6 +82,11 @@ class MissionFinding:
         }
 
 
+def is_teamspace_blocker(finding: MissionFinding) -> bool:
+    """Return True when a finding should block TeamSpace import/sync readiness."""
+    return finding.severity == Severity.ERROR or finding.code in TEAMSPACE_BLOCKER_CODES
+
+
 @dataclass
 class MissionAuditResult:
     """Audit outcome for a single mission directory.
@@ -91,6 +110,11 @@ class MissionAuditResult:
         return any(f.severity == Severity.WARNING for f in self.findings)
 
     @property
+    def has_teamspace_blockers(self) -> bool:
+        """True if any finding blocks TeamSpace import/sync readiness."""
+        return any(is_teamspace_blocker(f) for f in self.findings)
+
+    @property
     def finding_codes(self) -> set[str]:
         """Set of all finding codes present in this result."""
         return {f.code for f in self.findings}
@@ -105,6 +129,7 @@ class MissionAuditResult:
             "finding_count": len(self.findings),
             "findings": [f.to_dict() for f in self.findings],
             "has_errors": self.has_errors,
+            "has_teamspace_blockers": self.has_teamspace_blockers,
             "mission_dir": str(self.mission_dir),
             "mission_slug": self.mission_slug,
         }
@@ -125,7 +150,9 @@ class RepoAuditReport:
         {
             "findings_by_severity": {"error": 5, "info": 3, "warning": 10},
             "missions_with_errors": 3,
+            "missions_with_teamspace_blockers": 4,
             "missions_with_warnings": 7,
+            "teamspace_blockers": 8,
             "total_findings": 18,
             "total_missions": 42,
         }

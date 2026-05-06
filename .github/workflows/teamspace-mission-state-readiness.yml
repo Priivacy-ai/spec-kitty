@@ -1,0 +1,53 @@
+name: TeamSpace Mission-State Readiness
+
+on:
+  workflow_dispatch:
+    inputs:
+      fail_on:
+        description: "Audit gate threshold"
+        required: true
+        default: "teamspace-blocker"
+        type: choice
+        options:
+          - teamspace-blocker
+          - error
+          - warning
+          - info
+
+permissions:
+  contents: read
+
+jobs:
+  mission-state-audit:
+    name: Mission-state audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Install Spec Kitty
+        run: uv sync --python "$(which python)"
+
+      - name: Audit mission state
+        run: |
+          uv run spec-kitty doctor mission-state \
+            --audit \
+            --fail-on "${{ inputs.fail_on }}" \
+            --json > mission-state-audit.json
+
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mission-state-audit
+          path: mission-state-audit.json
+          retention-days: 30

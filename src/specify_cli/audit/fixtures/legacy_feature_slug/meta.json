@@ -1,0 +1,9 @@
+{
+  "feature_slug": "legacy-feature",
+  "friendly_name": "Legacy feature slug fixture",
+  "mission_id": "01KQHRB9GCFJAX7HM4ZY52AQGR",
+  "mission_number": 2,
+  "mission_slug": "legacy_feature_slug",
+  "mission_type": "software-dev",
+  "target_branch": "main"
+}

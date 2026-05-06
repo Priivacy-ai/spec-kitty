@@ -140,6 +140,7 @@ artifacts = [
     "src/specify_cli/**/*.yaml",
     "src/specify_cli/**/*.yml",
     "src/specify_cli/**/*.json",
+    "src/specify_cli/**/*.jsonl",
     "src/charter/**/*.yaml",
     "src/charter/**/*.yml",
     "src/doctrine/**/*.md",
