@@ -1000,6 +1000,14 @@ def now(
     if strict and result.error_count > 0:
         raise typer.Exit(1)
 
+    # Preserve the strict contract for queue-backed syncs that report no
+    # progress at all. A non-empty queue combined with an all-zero result is
+    # treated as an unauthenticated/no-progress failure instead of silently
+    # succeeding.
+    if strict and queue_size > 0 and (result.synced_count + result.duplicate_count + result.error_count) == 0:
+        console.print("[red]Error:[/red] Sync made no progress; not authenticated or sync is blocked.")
+        raise typer.Exit(1)
+
 
 @app.command()
 def status(
