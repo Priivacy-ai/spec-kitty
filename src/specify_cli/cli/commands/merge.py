@@ -1530,6 +1530,22 @@ def merge(
             json_output=json_output,
         )
 
+        branch_ok, branch_blocker = _check_mission_branch(
+            resolved_feature,
+            get_main_repo_root(repo_root),
+        )
+        if not branch_ok:
+            assert branch_blocker is not None
+            if json_output:
+                print(json.dumps(branch_blocker))
+            else:
+                console.print(
+                    "[red]Cannot proceed: mission branch missing.[/red]\n"
+                    f"Expected branch: {branch_blocker['expected_branch']}\n"
+                    f"Remediation: {branch_blocker['remediation']}"
+                )
+            raise typer.Exit(1)
+
         # WP10/T053: dry-run preview of merge-time mission_number assignment.
         feature_dir_for_preview = (
             get_main_repo_root(repo_root) / "kitty-specs" / resolved_feature
