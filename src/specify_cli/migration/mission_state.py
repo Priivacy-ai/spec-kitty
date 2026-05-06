@@ -370,6 +370,18 @@ def _status_event_to_teamspace_envelope(
     project_slug: str,
     repo_slug: str | None,
 ) -> dict[str, Any]:
+    evidence = status_event.evidence.to_dict() if status_event.evidence else None
+    if evidence is not None and not evidence.get("repos"):
+        # Older done rows only recorded review evidence; the 5.0.0 TeamSpace
+        # contract requires at least one repo evidence entry.
+        evidence["repos"] = [
+            {
+                "repo": repo_slug or project_slug,
+                "branch": "historical-mission-state-repair",
+                "commit": "historical-mission-state-repair",
+            }
+        ]
+
     payload = {
         "mission_slug": status_event.mission_slug,
         "wp_id": status_event.wp_id,
@@ -380,7 +392,7 @@ def _status_event_to_teamspace_envelope(
         "reason": status_event.reason,
         "execution_mode": status_event.execution_mode,
         "review_ref": status_event.review_ref,
-        "evidence": status_event.evidence.to_dict() if status_event.evidence else None,
+        "evidence": evidence,
     }
     return {
         "event_id": status_event.event_id,

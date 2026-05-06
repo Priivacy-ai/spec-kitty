@@ -261,3 +261,61 @@ def test_teamspace_dry_run_fails_when_status_rows_still_contain_legacy_keys(tmp_
             "path": "$.nested.feature_slug",
         },
     )
+
+
+def test_teamspace_dry_run_synthesizes_repo_evidence_for_historical_done_rows(tmp_path: Path) -> None:
+    if not _has_events_5():
+        pytest.skip("TeamSpace dry-run validation requires spec-kitty-events >= 5.0.0")
+
+    repo = tmp_path
+    mission = repo / "kitty-specs" / "001-historical-done"
+    mission.mkdir(parents=True)
+    mission_id = "01KQHRB8GCFJAX7HM4ZY52AQGR"
+    _write_json(
+        mission / "meta.json",
+        {
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "friendly_name": "Historical Done",
+            "mission_id": mission_id,
+            "mission_number": 1,
+            "mission_slug": "001-historical-done",
+            "mission_type": "software-dev",
+            "slug": "001-historical-done",
+            "target_branch": "main",
+        },
+    )
+    (mission / "status.events.jsonl").write_text(
+        json.dumps(
+            {
+                "actor": "codex",
+                "at": "2026-01-01T00:00:00+00:00",
+                "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGS",
+                "execution_mode": "worktree",
+                "force": False,
+                "from_lane": "approved",
+                "mission_id": mission_id,
+                "mission_slug": "001-historical-done",
+                "policy_metadata": None,
+                "reason": None,
+                "review_ref": "review://historical",
+                "evidence": {
+                    "review": {
+                        "reviewer": "historical-reviewer",
+                        "verdict": "approved",
+                        "reference": "review://historical",
+                    }
+                },
+                "to_lane": "done",
+                "wp_id": "WP01",
+            },
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    dry_run = teamspace_dry_run(repo, mission="001-historical-done")
+
+    assert dry_run.valid
+    assert dry_run.envelope_count == 1
+    assert dry_run.errors == ()
