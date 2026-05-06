@@ -17,6 +17,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+## [3.2.0rc3] - 2026-05-06
+
+3.2.0rc3 fixes a TeamSpace dry-run compatibility gap found during the
+historical mission-state migration rehearsal.
+
+### Fixed
+
+- Synthesized minimal repo evidence for historical done rows that only
+  preserved review evidence, allowing `doctor mission-state --teamspace-dry-run`
+  to validate those rows against the `spec-kitty-events` 5.0.0 payload contract
+  (#997).
+
 ## [3.2.0rc2] - 2026-05-05
 
 3.2.0rc2 adds the TeamSpace mission-state repair and validation surface needed
