@@ -15,6 +15,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, UTC
 from pathlib import Path
+from urllib.parse import urlparse
 
 import requests
 
@@ -61,9 +62,7 @@ CATEGORY_ACTIONS: dict[str, str] = {
     "schema_mismatch": "Run `spec-kitty sync diagnose` to inspect invalid events",
     "auth_expired": "Run `spec-kitty auth login` to refresh credentials",
     "unauthenticated": "Run `spec-kitty auth login` to authenticate",
-    CATEGORY_MISSING_PRIVATE_TEAM: (
-        "Private Teamspace access is required for direct ingress"
-    ),
+    CATEGORY_MISSING_PRIVATE_TEAM: ("Private Teamspace access is required for direct ingress"),
     "retryable_transport": "Retry later or check network connectivity",
     "server_error": "Retry later or check server status",
     "unknown": "Inspect the failure report for details: --report <file.json>",
@@ -71,6 +70,7 @@ CATEGORY_ACTIONS: dict[str, str] = {
 
 FINAL_SYNC_MAX_ATTEMPTS = 3
 FINAL_SYNC_RETRY_BACKOFF_SECONDS = 1.0
+SYNC_INGRESS_LIMITS_TIMEOUT_SECONDS = 10
 
 
 def _current_team_slug() -> str | None:
@@ -90,9 +90,7 @@ def _current_team_slug() -> str | None:
     except Exception as exc:  # noqa: BLE001 — explicit "log and skip" boundary
         import logging
 
-        logging.getLogger(__name__).warning(
-            "_current_team_slug: ingress resolver raised: %s", exc
-        )
+        logging.getLogger(__name__).warning("_current_team_slug: ingress resolver raised: %s", exc)
         return None
 
 
@@ -120,6 +118,103 @@ def _safe_response_json(response: object) -> dict:
     return body if isinstance(body, dict) else {}
 
 
+def _positive_int(value: object) -> int | None:
+    try:
+        parsed = int(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed > 0 else None
+
+
+def _should_probe_advertised_limits(server_url: str) -> bool:
+    """Return True when the base URL looks like a real SaaS endpoint.
+
+    Unit tests and local development commonly pass localhost or reserved
+    ``.example`` hosts with ``requests.post`` mocked. Avoiding the health probe
+    there preserves the existing no-network test contract while still enabling
+    live SaaS clients to honor server-advertised ingress limits.
+    """
+    parsed = urlparse(server_url)
+    host = (parsed.hostname or "").lower()
+    if host in {"localhost", "127.0.0.1", "::1"}:
+        return False
+    if host.endswith(".example") or host.endswith(".example.com"):
+        return False
+    return parsed.scheme in {"https", "http"} and bool(host)
+
+
+def _extract_sync_ingress_limits(response_body: dict) -> dict[str, int]:
+    sync_ingress = response_body.get("sync_ingress")
+    if not isinstance(sync_ingress, dict):
+        return {}
+    limits = sync_ingress.get("limits")
+    if not isinstance(limits, dict):
+        return {}
+
+    extracted: dict[str, int] = {}
+    for key in (
+        "max_events_per_batch",
+        "max_decompressed_bytes_per_batch",
+        "retry_after_min_seconds",
+        "retry_after_max_seconds",
+    ):
+        value = _positive_int(limits.get(key))
+        if value is not None:
+            extracted[key] = value
+    return extracted
+
+
+def _fetch_advertised_sync_ingress_limits(
+    *,
+    server_url: str,
+    auth_token: str,
+    team_slug: str,
+) -> dict[str, int]:
+    """Fetch server-advertised sync ingress limits, failing open on errors."""
+    if not _should_probe_advertised_limits(server_url):
+        return {}
+
+    health_url = f"{server_url.rstrip('/')}/api/v1/sync/health/"
+    headers = {
+        "Authorization": f"Bearer {auth_token}",
+        "X-Team-Slug": team_slug,
+    }
+    try:
+        response = requests.get(
+            health_url,
+            headers=headers,
+            timeout=SYNC_INGRESS_LIMITS_TIMEOUT_SECONDS,
+        )
+    except requests.RequestException:
+        return {}
+    if response.status_code != 200:
+        return {}
+    return _extract_sync_ingress_limits(_safe_response_json(response))
+
+
+def _build_batch_payload(events: list[dict]) -> bytes:
+    return json.dumps({"events": events}).encode("utf-8")
+
+
+def _select_events_for_advertised_limits(
+    queue: OfflineQueue,
+    *,
+    requested_limit: int,
+    advertised_limits: dict[str, int],
+) -> tuple[list[dict], bytes]:
+    max_events = advertised_limits.get("max_events_per_batch")
+    effective_limit = min(requested_limit, max_events) if max_events else requested_limit
+    events = queue.drain_queue(limit=effective_limit)
+    payload = _build_batch_payload(events)
+
+    max_decompressed_bytes = advertised_limits.get("max_decompressed_bytes_per_batch")
+    while max_decompressed_bytes and len(events) > 1 and len(payload) > max_decompressed_bytes:
+        events = events[: max(1, len(events) // 2)]
+        payload = _build_batch_payload(events)
+
+    return events, payload
+
+
 def _body_mentions_missing_private_team(body: dict) -> bool:
     values = [
         body.get("category"),
@@ -129,11 +224,7 @@ def _body_mentions_missing_private_team(body: dict) -> bool:
         body.get("detail"),
     ]
     text = " ".join(str(value) for value in values if value is not None).lower()
-    return (
-        CATEGORY_MISSING_PRIVATE_TEAM in text
-        or "private teamspace" in text
-        or ("private team" in text and "direct ingress" in text)
-    )
+    return CATEGORY_MISSING_PRIVATE_TEAM in text or "private teamspace" in text or ("private team" in text and "direct ingress" in text)
 
 
 def _http_error_category(status_code: int, body: dict | None = None) -> str:
@@ -275,9 +366,7 @@ def run_final_sync_with_retries(
         last_error = None
         if not _should_retry_final_sync_result(result):
             if _is_failed_final_sync_result(result):
-                _emit_final_sync_failure_diagnostic(
-                    _final_sync_result_error_text(result)
-                )
+                _emit_final_sync_failure_diagnostic(_final_sync_result_error_text(result))
             return result
         if attempt < FINAL_SYNC_MAX_ATTEMPTS:
             sleeper(FINAL_SYNC_RETRY_BACKOFF_SECONDS)
@@ -328,9 +417,7 @@ def _emit_final_sync_failure_diagnostic(error_text: str) -> None:
     code: SyncDiagnosticCode = classify_sync_error(error_text)
     emit_sync_diagnostic(
         code,
-        "Final sync failed after local command success. "
-        "Queued events remain durable and will be retried. "
-        f"Detail: {error_text}",
+        f"Final sync failed after local command success. Queued events remain durable and will be retried. Detail: {error_text}",
     )
 
 
@@ -569,32 +656,11 @@ def batch_sync(  # noqa: C901
             print(message)
         return result
 
-    events = queue.drain_queue(limit=limit)
-    result.total_events = len(events)
-
-    if not events:
+    if queue.size() == 0:
         if show_progress:
             print("No events to sync")
         return result
 
-    if show_progress:
-        print(f"Syncing {len(events)} events... (0/{len(events)})")
-
-    # Validate each event envelope against upstream contract before sending
-    for evt in events:
-        with suppress(Exception):
-            validate_outbound_payload(evt, "envelope")
-
-    # Compress payload with gzip
-    payload = json.dumps({"events": events}).encode("utf-8")
-    compressed = gzip.compress(payload)
-
-    # POST to batch endpoint
-    headers = {
-        "Authorization": f"Bearer {auth_token}",
-        "Content-Encoding": "gzip",
-        "Content-Type": "application/json",
-    }
     team_slug = _current_team_slug()
     if team_slug is None:
         # FR-002/FR-004/FR-005/FR-007/NFR-002 (private-teamspace-ingress-safeguards):
@@ -610,6 +676,8 @@ def batch_sync(  # noqa: C901
         # of spinning indefinitely on a queue that will never drain (Scenario
         # 6 in spec.md). The message is operator-facing diagnostic only; it
         # is NOT printed to stdout because callers route it through stderr/log.
+        events = queue.drain_queue(limit=limit)
+        result.total_events = len(events)
         _record_all_events_failed(
             result,
             events,
@@ -617,6 +685,36 @@ def batch_sync(  # noqa: C901
             category=CATEGORY_MISSING_PRIVATE_TEAM,
         )
         return result
+
+    advertised_limits = _fetch_advertised_sync_ingress_limits(
+        server_url=server_url,
+        auth_token=auth_token,
+        team_slug=team_slug,
+    )
+    events, payload = _select_events_for_advertised_limits(
+        queue,
+        requested_limit=limit,
+        advertised_limits=advertised_limits,
+    )
+    result.total_events = len(events)
+
+    if show_progress:
+        print(f"Syncing {len(events)} events... (0/{len(events)})")
+
+    # Validate each event envelope against upstream contract before sending
+    for evt in events:
+        with suppress(Exception):
+            validate_outbound_payload(evt, "envelope")
+
+    # Compress payload with gzip
+    compressed = gzip.compress(payload)
+
+    # POST to batch endpoint
+    headers = {
+        "Authorization": f"Bearer {auth_token}",
+        "Content-Encoding": "gzip",
+        "Content-Type": "application/json",
+    }
     headers["X-Team-Slug"] = team_slug
 
     batch_url = f"{server_url.rstrip('/')}/api/v1/events/batch/"
@@ -888,10 +986,7 @@ def sync_all_queued_events(
                 if result.error_count > 0:
                     print("Stopping: No events successfully synced in this batch")
                 else:
-                    print(
-                        "Stopping: Batch skipped (no Private Teamspace; "
-                        "see structured stderr diagnostic)"
-                    )
+                    print("Stopping: Batch skipped (no Private Teamspace; see structured stderr diagnostic)")
             break
 
     if show_progress:

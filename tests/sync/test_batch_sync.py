@@ -131,9 +131,7 @@ class TestBatchSyncEmptyQueue:
 
     def test_batch_sync_empty_queue(self, temp_queue):
         """Test batch_sync with no events returns early"""
-        result = batch_sync(
-            queue=temp_queue, auth_token="test-token", server_url="http://localhost:8000", show_progress=False
-        )
+        result = batch_sync(queue=temp_queue, auth_token="test-token", server_url="http://localhost:8000", show_progress=False)
 
         assert result.total_events == 0
         assert result.synced_count == 0
@@ -170,14 +168,10 @@ class TestBatchSyncSuccess:
         # Mock successful response
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "results": [{"event_id": f"evt-{i:04d}", "status": "success"} for i in range(100)]
-        }
+        mock_response.json.return_value = {"results": [{"event_id": f"evt-{i:04d}", "status": "success"} for i in range(100)]}
         mock_post.return_value = mock_response
 
-        result = batch_sync(
-            queue=populated_queue, auth_token="test-token", server_url="http://localhost:8000", show_progress=False
-        )
+        result = batch_sync(queue=populated_queue, auth_token="test-token", server_url="http://localhost:8000", show_progress=False)
 
         assert result.total_events == 100
         assert result.synced_count == 100
@@ -190,16 +184,10 @@ class TestBatchSyncSuccess:
         # Mock response with some duplicates
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "results": [
-                {"event_id": f"evt-{i:04d}", "status": "success" if i % 2 == 0 else "duplicate"} for i in range(100)
-            ]
-        }
+        mock_response.json.return_value = {"results": [{"event_id": f"evt-{i:04d}", "status": "success" if i % 2 == 0 else "duplicate"} for i in range(100)]}
         mock_post.return_value = mock_response
 
-        result = batch_sync(
-            queue=populated_queue, auth_token="test-token", server_url="http://localhost:8000", show_progress=False
-        )
+        result = batch_sync(queue=populated_queue, auth_token="test-token", server_url="http://localhost:8000", show_progress=False)
 
         assert result.synced_count == 50  # Even indices
         assert result.duplicate_count == 50  # Odd indices
@@ -211,14 +199,10 @@ class TestBatchSyncSuccess:
         """Test batch sync sends gzip compressed data"""
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "results": [{"event_id": f"evt-{i:04d}", "status": "success"} for i in range(100)]
-        }
+        mock_response.json.return_value = {"results": [{"event_id": f"evt-{i:04d}", "status": "success"} for i in range(100)]}
         mock_post.return_value = mock_response
 
-        batch_sync(
-            queue=populated_queue, auth_token="test-token", server_url="http://localhost:8000", show_progress=False
-        )
+        batch_sync(queue=populated_queue, auth_token="test-token", server_url="http://localhost:8000", show_progress=False)
 
         # Verify request was made with gzip headers
         call_args = mock_post.call_args
@@ -233,6 +217,106 @@ class TestBatchSyncSuccess:
         assert "events" in payload
         assert len(payload["events"]) == 100
 
+    @patch("specify_cli.sync.batch.requests.get")
+    @patch("specify_cli.sync.batch.requests.post")
+    def test_batch_sync_consumes_advertised_max_events_per_batch(
+        self,
+        mock_post,
+        mock_get,
+        populated_queue,
+    ):
+        """Live SaaS limits should cap the number of events sent per request."""
+        health_response = Mock()
+        health_response.status_code = 200
+        health_response.json.return_value = {
+            "sync_ingress": {
+                "contract_version": "sync-ingress-limits.v1",
+                "limits": {
+                    "max_events_per_batch": 25,
+                    "max_decompressed_bytes_per_batch": 1_000_000,
+                    "retry_after_min_seconds": 5,
+                    "retry_after_max_seconds": 60,
+                },
+            }
+        }
+        mock_get.return_value = health_response
+
+        post_response = Mock()
+        post_response.status_code = 200
+        post_response.json.return_value = {"results": [{"event_id": f"evt-{i:04d}", "status": "success"} for i in range(25)]}
+        mock_post.return_value = post_response
+
+        result = batch_sync(
+            queue=populated_queue,
+            auth_token="token",
+            server_url="https://spec-kitty-dev.fly.dev",
+            limit=1000,
+            show_progress=False,
+        )
+
+        assert result.total_events == 25
+        call_args = mock_post.call_args
+        payload = json.loads(gzip.decompress(call_args.kwargs["data"]))
+        assert len(payload["events"]) == 25
+        assert mock_get.call_args.args[0] == "https://spec-kitty-dev.fly.dev/api/v1/sync/health/"
+
+    @patch("specify_cli.sync.batch.requests.get")
+    @patch("specify_cli.sync.batch.requests.post")
+    def test_batch_sync_shrinks_batch_to_advertised_decompressed_bytes(
+        self,
+        mock_post,
+        mock_get,
+        temp_queue,
+    ):
+        """The CLI should split oversized batches before sending to SaaS."""
+        for i in range(8):
+            temp_queue.queue_event(
+                {
+                    "event_id": f"large-evt-{i:04d}",
+                    "event_type": "WPStatusChanged",
+                    "aggregate_id": "WP01",
+                    "lamport_clock": i,
+                    "node_id": "test-node",
+                    "payload": {"body": "x" * 200},
+                }
+            )
+
+        health_response = Mock()
+        health_response.status_code = 200
+        health_response.json.return_value = {
+            "sync_ingress": {
+                "limits": {
+                    "max_events_per_batch": 8,
+                    "max_decompressed_bytes_per_batch": 900,
+                }
+            }
+        }
+        mock_get.return_value = health_response
+
+        post_response = Mock()
+        post_response.status_code = 200
+
+        def _post_response(*args, **kwargs):
+            sent = json.loads(gzip.decompress(kwargs["data"]))["events"]
+            post_response.json.return_value = {"results": [{"event_id": event["event_id"], "status": "success"} for event in sent]}
+            return post_response
+
+        mock_post.side_effect = _post_response
+
+        result = batch_sync(
+            queue=temp_queue,
+            auth_token="token",
+            server_url="https://spec-kitty-dev.fly.dev",
+            limit=8,
+            show_progress=False,
+        )
+
+        sent_payload = gzip.decompress(mock_post.call_args.kwargs["data"])
+        sent_events = json.loads(sent_payload)["events"]
+        assert 0 < len(sent_events) < 8
+        assert len(sent_payload) <= 900
+        assert result.total_events == len(sent_events)
+
     @patch("specify_cli.sync.batch.requests.post")
     def test_batch_sync_auth_header(self, mock_post, populated_queue):
         """Test batch sync sends authorization header"""
@@ -241,9 +325,7 @@ class TestBatchSyncSuccess:
         mock_response.json.return_value = {"results": []}
         mock_post.return_value = mock_response
 
-        batch_sync(
-            queue=populated_queue, auth_token="my-secret-token", server_url="http://localhost:8000", show_progress=False
-        )
+        batch_sync(queue=populated_queue, auth_token="my-secret-token", server_url="http://localhost:8000", show_progress=False)
 
         call_args = mock_post.call_args
         headers = call_args.kwargs["headers"]
@@ -362,9 +444,7 @@ class TestBatchSyncErrors:
 
         initial_size = populated_queue.size()
 
-        result = batch_sync(
-            queue=populated_queue, auth_token="invalid-token", server_url="http://localhost:8000", show_progress=False
-        )
+        result = batch_sync(queue=populated_queue, auth_token="invalid-token", server_url="http://localhost:8000", show_progress=False)
 
         assert result.error_count == 100
         assert "Authentication failed" in result.error_messages
@@ -378,9 +458,7 @@ class TestBatchSyncErrors:
         mock_response.json.return_value = {"error": "Max 1000 events per batch"}
         mock_post.return_value = mock_response
 
-        result = batch_sync(
-            queue=populated_queue, auth_token="token", server_url="http://localhost:8000", show_progress=False
-        )
+        result = batch_sync(queue=populated_queue, auth_token="token", server_url="http://localhost:8000", show_progress=False)
 
         assert result.error_count == 100
         assert "Max 1000 events per batch" in result.error_messages
@@ -392,9 +470,7 @@ class TestBatchSyncErrors:
         mock_response.status_code = 500
         mock_post.return_value = mock_response
 
-        result = batch_sync(
-            queue=populated_queue, auth_token="token", server_url="http://localhost:8000", show_progress=False
-        )
+        result = batch_sync(queue=populated_queue, auth_token="token", server_url="http://localhost:8000", show_progress=False)
 
         assert result.error_count == 100
         assert "HTTP 500" in result.error_messages[0]
@@ -406,9 +482,7 @@ class TestBatchSyncErrors:
 
         mock_post.side_effect = requests.exceptions.Timeout()
 
-        result = batch_sync(
-            queue=populated_queue, auth_token="token", server_url="http://localhost:8000", show_progress=False
-        )
+        result = batch_sync(queue=populated_queue, auth_token="token", server_url="http://localhost:8000", show_progress=False)
 
         assert result.error_count == 100
         assert "Request timeout" in result.error_messages
@@ -420,9 +494,7 @@ class TestBatchSyncErrors:
 
         mock_post.side_effect = requests.exceptions.ConnectionError("Network unreachable")
 
-        result = batch_sync(
-            queue=populated_queue, auth_token="token", server_url="http://localhost:8000", show_progress=False
-        )
+        result = batch_sync(queue=populated_queue, auth_token="token", server_url="http://localhost:8000", show_progress=False)
 
         assert result.error_count == 100
         assert "Connection error" in result.error_messages[0]
@@ -433,16 +505,11 @@ class TestBatchSyncErrors:
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
-            "results": [
-                {"event_id": f"evt-{i:04d}", "status": "success" if i < 90 else "error", "error_message": "DB error"}
-                for i in range(100)
-            ]
+            "results": [{"event_id": f"evt-{i:04d}", "status": "success" if i < 90 else "error", "error_message": "DB error"} for i in range(100)]
         }
         mock_post.return_value = mock_response
 
-        result = batch_sync(
-            queue=populated_queue, auth_token="token", server_url="http://localhost:8000", show_progress=False
-        )
+        result = batch_sync(queue=populated_queue, auth_token="token", server_url="http://localhost:8000", show_progress=False)
 
         assert result.synced_count == 90
         assert result.error_count == 10
@@ -464,14 +531,10 @@ class TestBatchSyncLimit:
 
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "results": [{"event_id": f"evt-{i:04d}", "status": "success"} for i in range(50)]
-        }
+        mock_response.json.return_value = {"results": [{"event_id": f"evt-{i:04d}", "status": "success"} for i in range(50)]}
         mock_post.return_value = mock_response
 
-        result = batch_sync(
-            queue=temp_queue, auth_token="token", server_url="http://localhost:8000", limit=50, show_progress=False
-        )
+        result = batch_sync(queue=temp_queue, auth_token="token", server_url="http://localhost:8000", limit=50, show_progress=False)
 
         assert result.total_events == 50
         assert temp_queue.size() == 150  # 150 events remain
@@ -503,9 +566,7 @@ class TestBatchSync1000Events:
         # Mock successful response for all queued events
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "results": [{"event_id": f"evt-{i:04d}", "status": "success"} for i in range(event_count)]
-        }
+        mock_response.json.return_value = {"results": [{"event_id": f"evt-{i:04d}", "status": "success"} for i in range(event_count)]}
         mock_post.return_value = mock_response
 
         result = batch_sync(
@@ -548,9 +609,7 @@ class TestSyncAllQueuedEvents:
 
             mock_resp = Mock()
             mock_resp.status_code = 200
-            mock_resp.json.return_value = {
-                "results": [{"event_id": e["event_id"], "status": "success"} for e in events]
-            }
+            mock_resp.json.return_value = {"results": [{"event_id": e["event_id"], "status": "success"} for e in events]}
             return mock_resp
 
         mock_post.side_effect = mock_response_fn
@@ -575,9 +634,7 @@ class TestSyncAllQueuedEvents:
         mock_response.status_code = 500
         mock_post.return_value = mock_response
 
-        result = sync_all_queued_events(
-            queue=populated_queue, auth_token="token", server_url="http://localhost:8000", show_progress=False
-        )
+        result = sync_all_queued_events(queue=populated_queue, auth_token="token", server_url="http://localhost:8000", show_progress=False)
 
         # Should have tried once and stopped
         assert mock_post.call_count == 1
@@ -697,12 +754,7 @@ def flush_some_events(token_manager: TokenManager, monkeypatch: pytest.MonkeyPat
         with patch("specify_cli.sync.batch.requests.post") as mock_post:
             response = Mock()
             response.status_code = 200
-            response.json.return_value = {
-                "results": [
-                    {"event_id": f"wp04-evt-{i:04d}", "status": "success"}
-                    for i in range(3)
-                ]
-            }
+            response.json.return_value = {"results": [{"event_id": f"wp04-evt-{i:04d}", "status": "success"} for i in range(3)]}
             mock_post.return_value = response
             batch_sync(
                 queue=queue,
@@ -772,10 +824,7 @@ def test_batch_skips_ingress_when_rehydrate_yields_no_private(
         mock_post = flush_some_events(token_manager_with_shared_only_session, monkeypatch)
 
     assert mock_post.call_count == 0
-    assert any(
-        "direct_ingress_missing_private_team" in record.getMessage()
-        for record in caplog.records
-    )
+    assert any("direct_ingress_missing_private_team" in record.getMessage() for record in caplog.records)
 
 
 @respx.mock
@@ -814,9 +863,7 @@ def test_batch_healthy_session_no_rehydrate(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Scenario 1 regression: session with private team => no /api/v1/me call; batch goes through."""
-    me_route = respx.get(f"{_INGRESS_SAAS_BASE_URL}/api/v1/me").mock(
-        return_value=httpx.Response(200, json={})
-    )
+    me_route = respx.get(f"{_INGRESS_SAAS_BASE_URL}/api/v1/me").mock(return_value=httpx.Response(200, json={}))
 
     mock_post = flush_some_events(token_manager_with_private_session, monkeypatch)
 
@@ -903,6 +950,4 @@ def test_sync_all_queued_events_terminates_on_no_private_team(
         # The skip-path sentinel surfaces on the result for operator-visible
         # diagnostics (also goes to stderr via the helper's structured
         # logger.warning, but operators reading the result get a hint too).
-        assert any(
-            "Private Teamspace" in m for m in result.error_messages
-        ), f"expected skip-sentinel in error_messages, got {result.error_messages!r}"
+        assert any("Private Teamspace" in m for m in result.error_messages), f"expected skip-sentinel in error_messages, got {result.error_messages!r}"
