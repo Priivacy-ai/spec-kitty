@@ -35,22 +35,10 @@ integrity_rules:
   - A registry consumer MUST treat the registry's return contract as the
     source of truth; transports never re-derive fields the registry already
     computes.
+  - "Forbidden imports enforced by the architectural test: specify_cli.dashboard.scanner and specify_cli.scanner."
+  - "Forbidden runtime patterns inside transport modules: Path(...).rglob(...) inside route function bodies; open(...) on kitty-specs/* paths inside CLI command bodies; os.walk(...) on kitty-specs/* paths inside transport modules."
 validation_criteria:
-  - The architectural test enumerated under ``referenced_tests`` passes in
-    CI for every commit that touches a transport module.
-  - The list under ``forbidden_imports`` matches the AST patterns the
-    architectural test detects; a divergence between this YAML and the test
-    is a defect.
-  - New transports added in later missions cite this directive in their
-    plan.md and pass the same architectural test.
-referenced_tests:
-  - tests/architectural/test_transport_does_not_import_scanner.py
-forbidden_imports:
-  - specify_cli.dashboard.scanner
-  - specify_cli.scanner
-forbidden_patterns:
-  - Path(...).rglob(...) inside route function bodies
-  - open(...) on kitty-specs/* paths inside CLI command bodies
-  - os.walk(...) on kitty-specs/* paths inside transport modules
-introduced_by_mission: mission-registry-and-api-boundary-doctrine-01KQPDBB
-introduced_at: "2026-05-03"
+  - "The architectural test tests/architectural/test_transport_does_not_import_scanner.py passes in CI for every commit that touches a transport module."
+  - "The forbidden-imports list above matches the AST patterns the test detects; divergence between this YAML and the test is a defect."
+  - "New transports added in later missions cite this directive in their plan.md and pass the same architectural test."
+  - "Introduced by mission mission-registry-and-api-boundary-doctrine-01KQPDBB on 2026-05-03."

@@ -109,7 +109,12 @@ class TestBackendIdentifiersPreserved:
 
     def test_dashboard_js_api_routes_preserved(self) -> None:
         content = DASHBOARD_JS.read_text()
-        assert "`/api/kanban/${currentFeature}`" in content
+        # /api/kanban was retired in mission
+        # api-surface-completion-services-aliases-async-01KQSXDA. Frontend now
+        # consumes the resource-oriented endpoints introduced by mission
+        # resource-oriented-mission-api-01KQQRF2.
+        assert "`/api/missions/${featureId}`" in content
+        assert "`/api/missions/${currentFeature}/workpackages`" in content
         assert "`/api/artifact/${currentFeature}/" in content
 
     def test_dashboard_js_cookie_key_preserved(self) -> None:

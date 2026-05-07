@@ -37,20 +37,9 @@ integrity_rules:
     compliance and the architectural test rejects them.
   - URL renames without a Deprecation header on the old path during the
     deprecation window are out of compliance.
+  - "Forbidden patterns: verb-shaped URL segment outside the documented actions carve-out (e.g. /api/<verb>/<noun> where <verb> is not a recognised HTTP method); URL rename landed without Deprecation header on the old path during the deprecation window."
 validation_criteria:
-  - The architectural test enumerated under ``referenced_tests`` passes in
-    CI; new endpoints either match the noun pattern or are registered in
-    the allowlist.
-  - The OpenAPI snapshot reflects every rename and deprecation; a missing
-    Deprecation header on a renamed path is a snapshot drift.
-  - Reviewers confirm the action-tag carve-out before merging an
-    action-shaped URL.
-referenced_tests:
-  - tests/architectural/test_url_naming_convention.py
-forbidden_patterns:
-  - Verb-shaped URL segment outside the documented "actions" carve-out
-    (e.g., /api/<verb>/<noun> where <verb> is not a recognised HTTP method)
-  - URL rename landed without Deprecation header on the old path during the
-    deprecation window
-introduced_by_mission: mission-registry-and-api-boundary-doctrine-01KQPDBB
-introduced_at: "2026-05-03"
+  - "The architectural test tests/architectural/test_url_naming_convention.py passes in CI; new endpoints either match the noun pattern or are registered in the allowlist."
+  - "The OpenAPI snapshot reflects every rename and deprecation; a missing Deprecation header on a renamed path is a snapshot drift."
+  - "Reviewers confirm the action-tag carve-out before merging an action-shaped URL."
+  - "Introduced by mission mission-registry-and-api-boundary-doctrine-01KQPDBB on 2026-05-03."
