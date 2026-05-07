@@ -87,6 +87,7 @@ FINAL_SYNC_MAX_ATTEMPTS = 3
 FINAL_SYNC_RETRY_BACKOFF_SECONDS = 1.0
 SYNC_INGRESS_LIMITS_TIMEOUT_SECONDS = 10
 DEFAULT_MAX_DECOMPRESSED_BYTES_PER_BATCH = 900_000
+DECOMPRESSED_BYTES_SAFETY_FACTOR = 0.90
 
 
 def _current_team_slug() -> str | None:
@@ -213,10 +214,11 @@ def _build_batch_payload(events: list[dict]) -> bytes:
 
 
 def _decompressed_byte_limit(advertised_limits: dict[str, int]) -> int:
-    return advertised_limits.get(
+    advertised_limit = advertised_limits.get(
         "max_decompressed_bytes_per_batch",
         DEFAULT_MAX_DECOMPRESSED_BYTES_PER_BATCH,
     )
+    return max(1, int(advertised_limit * DECOMPRESSED_BYTES_SAFETY_FACTOR))
 
 
 def _select_events_for_advertised_limits(
