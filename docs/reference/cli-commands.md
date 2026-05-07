@@ -342,7 +342,7 @@ spec-kitty sync server https://spec-kitty-dev.fly.dev
 
 **Synopsis**: `spec-kitty sync now [OPTIONS]`
 
-**Description**: Trigger immediate sync of all queued events. Drains the offline queue completely, uploading events to the server in batches of 1000 until the queue is empty or all remaining events have exceeded their retry limit.
+**Description**: Trigger immediate sync of all queued events. Drains the offline queue in bounded batches, honoring server-advertised event-count and decompressed-byte limits. If the server rejects a batch as too large, the CLI retries with a smaller batch and reports single oversized events separately. Manual runs print log-readable queued, accepted, duplicate, failed, and remaining counts as the drain progresses.
 
 **Options**:
 

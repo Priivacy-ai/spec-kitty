@@ -17,7 +17,13 @@ from specify_cli.auth.secure_storage import SecureStorage
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.auth.token_manager import TokenManager
 from specify_cli.sync.queue import OfflineQueue
-from specify_cli.sync.batch import batch_sync, sync_all_queued_events, BatchSyncResult
+from specify_cli.sync.batch import (
+    DEFAULT_MAX_DECOMPRESSED_BYTES_PER_BATCH,
+    BatchSyncResult,
+    batch_sync,
+    categorize_error,
+    sync_all_queued_events,
+)
 from specify_cli.sync.feature_flags import SAAS_SYNC_ENV_VAR
 
 pytestmark = pytest.mark.fast
@@ -316,6 +322,166 @@ class TestBatchSyncSuccess:
         assert 0 < len(sent_events) < 8
         assert len(sent_payload) <= 900
         assert result.total_events == len(sent_events)
+
+    @patch("specify_cli.sync.batch.requests.post")
+    def test_batch_sync_uses_fallback_decompressed_byte_limit(self, mock_post, temp_queue):
+        """When health limits are unavailable, the CLI should still avoid huge batches."""
+        for i in range(2):
+            temp_queue.queue_event(
+                {
+                    "event_id": f"fallback-large-{i}",
+                    "event_type": "WPStatusChanged",
+                    "aggregate_id": "WP01",
+                    "lamport_clock": i,
+                    "node_id": "test-node",
+                    "payload": {"body": "x" * (DEFAULT_MAX_DECOMPRESSED_BYTES_PER_BATCH // 2)},
+                }
+            )
+
+        post_response = Mock()
+        post_response.status_code = 200
+
+        def _post_response(*args, **kwargs):
+            sent = json.loads(gzip.decompress(kwargs["data"]))["events"]
+            post_response.json.return_value = {"results": [{"event_id": event["event_id"], "status": "success"} for event in sent]}
+            return post_response
+
+        mock_post.side_effect = _post_response
+
+        result = batch_sync(
+            queue=temp_queue,
+            auth_token="token",
+            server_url="http://localhost:8000",
+            limit=2,
+            show_progress=False,
+        )
+
+        sent_payload = gzip.decompress(mock_post.call_args.kwargs["data"])
+        assert len(sent_payload) <= DEFAULT_MAX_DECOMPRESSED_BYTES_PER_BATCH
+        assert result.synced_count == 1
+        assert temp_queue.size() == 1
+
+    @patch("specify_cli.sync.batch.requests.get")
+    @patch("specify_cli.sync.batch.requests.post")
+    def test_batch_sync_retries_smaller_batch_after_server_size_rejection(
+        self,
+        mock_post,
+        mock_get,
+        temp_queue,
+    ):
+        """Server decompressed-size rejections should shrink, retry, and avoid unknown errors."""
+        for i in range(4):
+            temp_queue.queue_event(
+                {
+                    "event_id": f"retry-large-{i}",
+                    "event_type": "WPStatusChanged",
+                    "aggregate_id": "WP01",
+                    "lamport_clock": i,
+                    "node_id": "test-node",
+                    "payload": {"body": "x" * 100},
+                }
+            )
+
+        health_response = Mock()
+        health_response.status_code = 200
+        health_response.json.return_value = {
+            "sync_ingress": {
+                "limits": {
+                    "max_events_per_batch": 4,
+                    "max_decompressed_bytes_per_batch": 100_000,
+                }
+            }
+        }
+        mock_get.return_value = health_response
+
+        rejected = Mock()
+        rejected.status_code = 413
+        rejected.json.return_value = {
+            "error": "Batch payload exceeds decompressed byte limit",
+            "error_code": "sync_batch_too_large",
+            "category": "request_too_large",
+            "limits": {
+                "max_events_per_batch": 4,
+                "max_decompressed_bytes_per_batch": 900,
+            },
+        }
+
+        accepted = Mock()
+        accepted.status_code = 200
+
+        calls = {"count": 0}
+
+        def _post_response(*args, **kwargs):
+            calls["count"] += 1
+            if calls["count"] == 1:
+                return rejected
+            sent = json.loads(gzip.decompress(kwargs["data"]))["events"]
+            accepted.json.return_value = {"results": [{"event_id": event["event_id"], "status": "success"} for event in sent]}
+            return accepted
+
+        mock_post.side_effect = _post_response
+
+        result = batch_sync(
+            queue=temp_queue,
+            auth_token="token",
+            server_url="https://spec-kitty-dev.fly.dev",
+            limit=4,
+            show_progress=False,
+        )
+
+        assert mock_post.call_count == 2
+        retried_payload = json.loads(gzip.decompress(mock_post.call_args.kwargs["data"]))
+        assert 0 < len(retried_payload["events"]) < 4
+        assert result.error_count == 0
+        assert result.synced_count == len(retried_payload["events"])
+
+    @patch("specify_cli.sync.batch.requests.get")
+    @patch("specify_cli.sync.batch.requests.post")
+    def test_batch_sync_reports_single_oversized_event_without_posting(
+        self,
+        mock_post,
+        mock_get,
+        temp_queue,
+    ):
+        """A single event that cannot fit the advertised limit is isolated in the report."""
+        temp_queue.queue_event(
+            {
+                "event_id": "too-large-one",
+                "event_type": "WPStatusChanged",
+                "aggregate_id": "WP01",
+                "lamport_clock": 1,
+                "node_id": "test-node",
+                "payload": {"body": "x" * 500},
+            }
+        )
+
+        health_response = Mock()
+        health_response.status_code = 200
+        health_response.json.return_value = {
+            "sync_ingress": {
+                "limits": {
+                    "max_events_per_batch": 10,
+                    "max_decompressed_bytes_per_batch": 100,
+                }
+            }
+        }
+        mock_get.return_value = health_response
+
+        result = batch_sync(
+            queue=temp_queue,
+            auth_token="token",
+            server_url="https://spec-kitty-dev.fly.dev",
+            limit=10,
+            show_progress=False,
+        )
+
+        mock_post.assert_not_called()
+        assert result.error_count == 1
+        assert result.failed_results[0].error_category == "oversized_event"
+        assert "unknown" not in result.category_counts
+
+    def test_oversized_batch_error_classifies_without_unknown(self):
+        assert categorize_error("Batch payload exceeds decompressed byte limit") == "oversized_batch"
 
     @patch("specify_cli.sync.batch.requests.post")
     def test_batch_sync_auth_header(self, mock_post, populated_queue):
@@ -626,6 +792,36 @@ class TestSyncAllQueuedEvents:
         assert result.synced_count == 250
         assert temp_queue.size() == 0
         assert mock_post.call_count == 3  # 100 + 100 + 50
+
+    @patch("specify_cli.sync.batch.requests.post")
+    def test_sync_all_progress_output_is_log_readable(self, mock_post, temp_queue, capsys):
+        """Manual drains should expose counts without relying on an interactive progress bar."""
+        for i in range(3):
+            temp_queue.queue_event({"event_id": f"evt-{i:04d}", "event_type": "Test", "payload": {}})
+
+        def mock_response_fn(*args, **kwargs):
+            events = json.loads(gzip.decompress(kwargs["data"]))["events"]
+            mock_resp = Mock()
+            mock_resp.status_code = 200
+            mock_resp.json.return_value = {"results": [{"event_id": e["event_id"], "status": "success"} for e in events]}
+            return mock_resp
+
+        mock_post.side_effect = mock_response_fn
+
+        sync_all_queued_events(
+            queue=temp_queue,
+            auth_token="token",
+            server_url="http://localhost:8000",
+            batch_size=2,
+            show_progress=True,
+        )
+
+        out = capsys.readouterr().out
+        assert "Initial queued events: 3" in out
+        assert "requested_batch_size=2" in out
+        assert "Sync batch: events=" in out
+        assert "Progress: accepted=" in out
+        assert "remaining=0" in out
 
     @patch("specify_cli.sync.batch.requests.post")
     def test_sync_all_stops_on_all_errors(self, mock_post, populated_queue):

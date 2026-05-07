@@ -280,14 +280,14 @@ class BackgroundSyncService:
     def is_running(self) -> bool:
         return self._running
 
-    def sync_now(self) -> BatchSyncResult:
+    def sync_now(self, *, show_progress: bool = False) -> BatchSyncResult:
         """Trigger an immediate sync, draining all queued events.
 
         Unlike the periodic timer (which syncs a single batch), this
         loops until the queue is empty or all remaining events have
         exceeded their retry limit.
         """
-        return self._perform_full_sync()
+        return self._perform_full_sync(show_progress=show_progress)
 
     # ── Internal ──────────────────────────────────────────────────
 
@@ -327,7 +327,7 @@ class BackgroundSyncService:
         with self._lock:
             return self._sync_once()
 
-    def _perform_full_sync(self) -> BatchSyncResult:
+    def _perform_full_sync(self, *, show_progress: bool = False) -> BatchSyncResult:
         """Drain the entire queue across multiple batches.
 
         Thread-safe: holds _lock for the full duration so background
@@ -355,7 +355,7 @@ class BackgroundSyncService:
                     auth_token=access_token,
                     server_url=self.config.get_server_url(),
                     batch_size=1000,
-                    show_progress=False,
+                    show_progress=show_progress,
                 )
                 # Treat auth failures as hard errors (#598)
                 if "auth_expired" in result.category_counts:

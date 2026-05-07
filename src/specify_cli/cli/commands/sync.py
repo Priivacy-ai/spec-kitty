@@ -975,7 +975,7 @@ def now(
         return
 
     console.print(f"Syncing {queue_size} queued event(s)...")
-    result = service.sync_now()
+    result = service.sync_now(show_progress=True)
 
     # Print actionable summary instead of bare counts
     summary = format_sync_summary(result)

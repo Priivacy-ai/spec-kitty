@@ -39,6 +39,19 @@ from specify_cli.core.contract_gate import validate_outbound_payload
 # ---------------------------------------------------------------------------
 
 ERROR_CATEGORIES: dict[str, list[str]] = {
+    "oversized_batch": [
+        "batch payload exceeds decompressed byte limit",
+        "sync_batch_too_large",
+        "request_too_large",
+        "payload too large",
+        "413",
+    ],
+    "oversized_event": [
+        "single event exceeds decompressed byte limit",
+        "event exceeds decompressed byte limit",
+        "oversized event",
+    ],
+    "throttled": ["rate limit", "rate_limited", "too many requests", "429", "throttle"],
     "schema_mismatch": ["invalid", "schema", "field", "missing", "type"],
     "auth_expired": ["token", "expired", "unauthorized", "401"],
     "unauthenticated": ["not authenticated", "no valid access token"],
@@ -59,6 +72,9 @@ ERROR_CATEGORIES: dict[str, list[str]] = {
 }
 
 CATEGORY_ACTIONS: dict[str, str] = {
+    "oversized_batch": "The CLI will retry with a smaller batch; upgrade if this persists",
+    "oversized_event": "Inspect or remove the oversized event from the offline queue",
+    "throttled": "Retry after the server-advertised backoff window",
     "schema_mismatch": "Run `spec-kitty sync diagnose` to inspect invalid events",
     "auth_expired": "Run `spec-kitty auth login` to refresh credentials",
     "unauthenticated": "Run `spec-kitty auth login` to authenticate",
@@ -71,6 +87,7 @@ CATEGORY_ACTIONS: dict[str, str] = {
 FINAL_SYNC_MAX_ATTEMPTS = 3
 FINAL_SYNC_RETRY_BACKOFF_SECONDS = 1.0
 SYNC_INGRESS_LIMITS_TIMEOUT_SECONDS = 10
+DEFAULT_MAX_DECOMPRESSED_BYTES_PER_BATCH = 900_000
 
 
 def _current_team_slug() -> str | None:
@@ -196,6 +213,13 @@ def _build_batch_payload(events: list[dict]) -> bytes:
     return json.dumps({"events": events}).encode("utf-8")
 
 
+def _decompressed_byte_limit(advertised_limits: dict[str, int]) -> int:
+    return advertised_limits.get(
+        "max_decompressed_bytes_per_batch",
+        DEFAULT_MAX_DECOMPRESSED_BYTES_PER_BATCH,
+    )
+
+
 def _select_events_for_advertised_limits(
     queue: OfflineQueue,
     *,
@@ -204,15 +228,79 @@ def _select_events_for_advertised_limits(
 ) -> tuple[list[dict], bytes]:
     max_events = advertised_limits.get("max_events_per_batch")
     effective_limit = min(requested_limit, max_events) if max_events else requested_limit
-    events = queue.drain_queue(limit=effective_limit)
-    payload = _build_batch_payload(events)
+    candidates = queue.drain_queue(limit=effective_limit)
+    max_decompressed_bytes = _decompressed_byte_limit(advertised_limits)
+    selected: list[dict] = []
+    payload = _build_batch_payload(selected)
 
-    max_decompressed_bytes = advertised_limits.get("max_decompressed_bytes_per_batch")
-    while max_decompressed_bytes and len(events) > 1 and len(payload) > max_decompressed_bytes:
-        events = events[: max(1, len(events) // 2)]
-        payload = _build_batch_payload(events)
+    for event in candidates:
+        candidate_events = [*selected, event]
+        candidate_payload = _build_batch_payload(candidate_events)
+        if selected and len(candidate_payload) > max_decompressed_bytes:
+            break
+        selected = candidate_events
+        payload = candidate_payload
+        if len(payload) > max_decompressed_bytes:
+            break
 
-    return events, payload
+    return selected, payload
+
+
+def _is_oversized_batch_response(status_code: int, body: dict) -> bool:
+    if status_code == 413:
+        return True
+    values = [
+        body.get("error"),
+        body.get("message"),
+        body.get("detail"),
+        body.get("error_code"),
+        body.get("category"),
+    ]
+    text = " ".join(str(value) for value in values if value is not None).lower()
+    return categorize_error(text) == "oversized_batch"
+
+
+def _retry_limits_from_response(body: dict, advertised_limits: dict[str, int]) -> dict[str, int]:
+    limits = body.get("limits")
+    if not isinstance(limits, dict):
+        return advertised_limits
+    merged = dict(advertised_limits)
+    for key in (
+        "max_events_per_batch",
+        "max_decompressed_bytes_per_batch",
+        "retry_after_min_seconds",
+        "retry_after_max_seconds",
+    ):
+        value = _positive_int(limits.get(key))
+        if value is not None:
+            merged[key] = value
+    return merged
+
+
+def _shrink_events_for_retry(events: list[dict]) -> list[dict]:
+    return events[: max(1, len(events) // 2)]
+
+
+def _single_oversized_event_result(event: dict, byte_limit: int, payload_size: int) -> BatchSyncResult:
+    result = BatchSyncResult()
+    result.total_events = 1
+    event_id = event.get("event_id", "unknown")
+    error = (
+        f"Single event exceeds decompressed byte limit "
+        f"({payload_size} bytes > {byte_limit} bytes)"
+    )
+    result.error_count = 1
+    result.failed_ids = [event_id]
+    result.error_messages.append(f"{event_id}: {error}")
+    result.event_results.append(
+        BatchEventResult(
+            event_id=event_id,
+            status="rejected",
+            error=error,
+            error_category="oversized_event",
+        )
+    )
+    return result
 
 
 def _body_mentions_missing_private_team(body: dict) -> bool:
@@ -236,7 +324,11 @@ def _http_error_category(status_code: int, body: dict | None = None) -> str:
         if _body_mentions_missing_private_team(body):
             return CATEGORY_MISSING_PRIVATE_TEAM
         return "unauthorized"
-    if status_code in {408, 429}:
+    if _is_oversized_batch_response(status_code, body):
+        return "oversized_batch"
+    if status_code == 429:
+        return "throttled"
+    if status_code == 408:
         return "retryable_transport"
     if 500 <= status_code < 600:
         return "server_error"
@@ -697,17 +789,29 @@ def batch_sync(  # noqa: C901
         advertised_limits=advertised_limits,
     )
     result.total_events = len(events)
+    byte_limit = _decompressed_byte_limit(advertised_limits)
+
+    if len(events) == 1 and len(payload) > byte_limit:
+        result = _single_oversized_event_result(events[0], byte_limit, len(payload))
+        queue.process_batch_results(result.event_results)
+        if show_progress:
+            print(format_sync_summary(result))
+        return result
 
     if show_progress:
-        print(f"Syncing {len(events)} events... (0/{len(events)})")
+        remaining_after_batch = max(queue.size() - len(events), 0)
+        print(
+            "Sync batch: "
+            f"events={len(events)} "
+            f"decompressed_bytes={len(payload)} "
+            f"limit_bytes={byte_limit} "
+            f"remaining_after_batch={remaining_after_batch}"
+        )
 
     # Validate each event envelope against upstream contract before sending
     for evt in events:
         with suppress(Exception):
             validate_outbound_payload(evt, "envelope")
-
-    # Compress payload with gzip
-    compressed = gzip.compress(payload)
 
     # POST to batch endpoint
     headers = {
@@ -720,12 +824,42 @@ def batch_sync(  # noqa: C901
     batch_url = f"{server_url.rstrip('/')}/api/v1/events/batch/"
 
     try:
-        response = requests.post(
-            batch_url,
-            data=compressed,
-            headers=headers,
-            timeout=60,
-        )
+        while True:
+            compressed = gzip.compress(payload)
+            response = requests.post(
+                batch_url,
+                data=compressed,
+                headers=headers,
+                timeout=60,
+            )
+            response_body = _safe_response_json(response)
+
+            if _is_oversized_batch_response(response.status_code, response_body):
+                advertised_limits = _retry_limits_from_response(response_body, advertised_limits)
+                byte_limit = _decompressed_byte_limit(advertised_limits)
+                if len(events) == 1:
+                    result = _single_oversized_event_result(events[0], byte_limit, len(payload))
+                    queue.process_batch_results(result.event_results)
+                    if show_progress:
+                        print(format_sync_summary(result))
+                    return result
+
+                previous_size = len(events)
+                events = _shrink_events_for_retry(events)
+                payload = _build_batch_payload(events)
+                while len(events) > 1 and len(payload) > byte_limit:
+                    events = _shrink_events_for_retry(events)
+                    payload = _build_batch_payload(events)
+                result.total_events = len(events)
+                if show_progress:
+                    print(
+                        "Retrying smaller sync batch: "
+                        f"reason=oversized_batch previous_events={previous_size} "
+                        f"next_events={len(events)} decompressed_bytes={len(payload)} "
+                        f"limit_bytes={byte_limit}"
+                    )
+                continue
+            break
 
         if response.status_code == 200:
             response_data = response.json()
@@ -757,7 +891,6 @@ def batch_sync(  # noqa: C901
             queue.process_batch_results(result.event_results)
 
         elif response.status_code == 400:
-            response_body = response.json()
             _parse_error_response(response_body, events, result)
             queue.process_batch_results(result.event_results)
             if show_progress:
@@ -766,7 +899,6 @@ def batch_sync(  # noqa: C901
         else:
             if show_progress:
                 print(f"Batch sync failed: HTTP {response.status_code}")
-            response_body = _safe_response_json(response)
             _record_all_events_failed(
                 result,
                 events,
@@ -950,11 +1082,17 @@ def sync_all_queued_events(
         return total_result
 
     batch_num = 0
+    initial_queued = queue.size()
+    if show_progress:
+        print(f"Initial queued events: {initial_queued}")
 
     while queue.size() > 0:
         batch_num += 1
         if show_progress:
-            print(f"\n--- Batch {batch_num} ---")
+            print(
+                f"\n--- Batch {batch_num} --- "
+                f"remaining={queue.size()} requested_batch_size={batch_size}"
+            )
 
         result = batch_sync(
             queue=queue,
@@ -972,6 +1110,15 @@ def sync_all_queued_events(
         total_result.failed_ids.extend(result.failed_ids)
         total_result.error_messages.extend(result.error_messages)
         total_result.event_results.extend(result.event_results)
+
+        if show_progress:
+            print(
+                "Progress: "
+                f"accepted={total_result.synced_count} "
+                f"duplicates={total_result.duplicate_count} "
+                f"failed={total_result.error_count} "
+                f"remaining={queue.size()}"
+            )
 
         # Stop if no progress made. This covers two cases:
         #   1. All events in the batch failed (error_count > 0).
@@ -991,6 +1138,7 @@ def sync_all_queued_events(
 
     if show_progress:
         print("\n=== Sync Complete ===")
+        print(f"Initial queued: {initial_queued}")
         print(format_sync_summary(total_result))
         if queue.size() > 0:
             print(f"Remaining in queue: {queue.size()} events")
