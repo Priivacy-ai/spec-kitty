@@ -320,7 +320,7 @@ class TestBatchSyncSuccess:
         sent_payload = gzip.decompress(mock_post.call_args.kwargs["data"])
         sent_events = json.loads(sent_payload)["events"]
         assert 0 < len(sent_events) < 8
-        assert len(sent_payload) <= 900
+        assert len(sent_payload) <= int(900 * 0.90)
         assert result.total_events == len(sent_events)
 
     @patch("specify_cli.sync.batch.requests.post")
