@@ -14,4 +14,44 @@
 # Baseline (2026-04-19): zero shims present at mission-615 start.
 # Every future entry must set grandfathered: false.
 
-shims: []
+shims:
+  - legacy_path: dashboard.services.registry
+    canonical_import: specify_cli.missions.registry
+    introduced_in_release: "3.2.0a11"
+    removal_target_release: "3.2.0"
+    tracker_issue: "#645"
+    grandfathered: false
+    notes: |
+      Phase B service placement remediation — inverted dependency repair
+      (epic #645). Owner mission: dashboard-services-domain-migration-01KR151P.
+      Re-exports MissionRegistry, MissionRecord, WorkPackageRecord, etc.
+  - legacy_path: dashboard.services.mission_scan
+    canonical_import: specify_cli.missions.scan_service
+    introduced_in_release: "3.2.0a11"
+    removal_target_release: "3.2.0"
+    tracker_issue: "#645"
+    grandfathered: false
+    notes: |
+      Phase B service placement remediation — inverted dependency repair
+      (epic #645). Owner mission: dashboard-services-domain-migration-01KR151P.
+      Re-exports MissionScanService and parse_kanban_path.
+  - legacy_path: dashboard.services.project_state
+    canonical_import: specify_cli.missions.project_state
+    introduced_in_release: "3.2.0a11"
+    removal_target_release: "3.2.0"
+    tracker_issue: "#645"
+    grandfathered: false
+    notes: |
+      Phase B service placement remediation — inverted dependency repair
+      (epic #645). Owner mission: dashboard-services-domain-migration-01KR151P.
+      Re-exports ProjectStateService.
+  - legacy_path: dashboard.services.sync
+    canonical_import: specify_cli.missions.sync_service
+    introduced_in_release: "3.2.0a11"
+    removal_target_release: "3.2.0"
+    tracker_issue: "#645"
+    grandfathered: false
+    notes: |
+      Phase B service placement remediation — inverted dependency repair
+      (epic #645). Owner mission: dashboard-services-domain-migration-01KR151P.
+      Re-exports SyncService, SyncTriggerResult, _build_trigger_request.

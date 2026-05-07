@@ -210,6 +210,26 @@ function switchFeature(featureId) {
     const feature = allFeatures.find(f => f.id === currentFeature);
     computeFeatureWorktreeStatus(feature);
     updateTreeInfo();
+
+    fetchMissionMeta(featureId);
+}
+
+function fetchMissionMeta(featureId) {
+    fetch(`/api/missions/${featureId}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(detail => {
+            if (!detail) return;
+            const f = allFeatures.find(f => f.id === featureId);
+            if (!f) return;
+            f.meta = {
+                purpose_tldr: detail.purpose_tldr || '',
+                purpose_context: detail.purpose_context || '',
+            };
+            if (currentFeature === featureId && currentPage === 'overview') {
+                loadOverview();
+            }
+        })
+        .catch(() => {});
 }
 
 function switchPage(pageName) {
@@ -440,12 +460,38 @@ function loadOverview() {
 }
 
 function loadKanban() {
-    fetch(`/api/kanban/${currentFeature}`)
+    fetch(`/api/missions/${currentFeature}/workpackages`)
         .then(response => response.json())
         .then(data => {
-            const lanes = data?.lanes ? data.lanes : data;
-            const weightedPct = data?.weighted_percentage ?? null;
-            renderKanban(lanes, weightedPct);
+            const emptyLanes = {
+                planned: [], doing: [], for_review: [], in_review: [],
+                approved: [], done: [], blocked: [], canceled: [],
+            };
+            if (!Array.isArray(data)) {
+                renderKanban(emptyLanes, null);
+                return;
+            }
+            data.forEach(wp => {
+                const rawLane = wp.assignment?.lane || 'planned';
+                const laneKey = rawLane === 'in_progress' ? 'doing' : rawLane;
+                const task = {
+                    id: wp.wp_id,
+                    title: wp.title,
+                    agent: wp.assignment?.agent || null,
+                    model: wp.assignment?.model || null,
+                    agent_profile: wp.assignment?.agent_profile || null,
+                    role: wp.assignment?.role || null,
+                    assignee: wp.assignment?.assignee || null,
+                    subtasks: [],
+                    lane: laneKey,
+                };
+                if (emptyLanes[laneKey]) {
+                    emptyLanes[laneKey].push(task);
+                }
+            });
+            const feature = allFeatures.find(f => f.id === currentFeature);
+            const weightedPct = feature?.kanban_stats?.weighted_percentage ?? null;
+            renderKanban(emptyLanes, weightedPct);
         })
         .catch(error => {
             document.getElementById('kanban-board').innerHTML =
@@ -591,15 +637,11 @@ function formatLaneName(lane) {
     return lane.split('_').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
 }
 
-function showPromptModal(task) {
-    const modal = document.getElementById('prompt-modal');
-    if (!modal) return;
-
+function renderPromptModalContent(task) {
     const titleEl = document.getElementById('modal-title');
     const subtitleEl = document.getElementById('modal-subtitle');
     const metaEl = document.getElementById('modal-prompt-meta');
     const contentEl = document.getElementById('modal-prompt-content');
-    const modalBody = document.getElementById('modal-body');
 
     if (titleEl) {
         titleEl.textContent = task.title || 'Work Package Prompt';
@@ -617,18 +659,23 @@ function showPromptModal(task) {
     if (metaEl) {
         const metaItems = [];
         if (task.lane) metaItems.push(`<span>Lane: ${escapeHtml(formatLaneName(task.lane))}</span>`);
-        if (task.subtasks?.length) {
+        if (task.subtasks_total) {
+            metaItems.push(`<span>${task.subtasks_done || 0}/${task.subtasks_total} subtask${task.subtasks_total !== 1 ? 's' : ''} done</span>`);
+        } else if (task.subtasks?.length) {
             metaItems.push(`<span>${task.subtasks.length} subtask${task.subtasks.length !== 1 ? 's' : ''}</span>`);
         }
         if (task.phase) metaItems.push(`<span>Phase: ${escapeHtml(task.phase)}</span>`);
+        if (task.dependencies?.length) {
+            metaItems.push(`<span>Depends on: ${task.dependencies.map(d => escapeHtml(d)).join(', ')}</span>`);
+        }
         if (task.prompt_path) metaItems.push(`<span>Source: ${escapeHtml(task.prompt_path)}</span>`);
 
         // Agent Identity section — only rendered when at least one identity field is present
         const identityBadges = [];
         if (task.agent) identityBadges.push(`<span class="badge agent">${escapeHtml(task.agent)}</span>`);
+        if (task.model) identityBadges.push(`<span class="badge model">${escapeHtml(task.model)}</span>`);
         if (task.agent_profile) identityBadges.push(`<span class="badge profile">${escapeHtml(task.agent_profile)}</span>`);
         if (task.role) identityBadges.push(`<span class="badge role">${escapeHtml(task.role)}</span>`);
-        if (task.model) identityBadges.push(`<span class="badge model">${escapeHtml(task.model)}</span>`);
 
         if (identityBadges.length > 0) {
             metaItems.push(`<span class="agent-identity-section"><span class="agent-identity-label">Agent:</span> ${identityBadges.join(' ')}</span>`);
@@ -646,10 +693,26 @@ function showPromptModal(task) {
     if (contentEl) {
         if (task.prompt_markdown) {
             contentEl.innerHTML = marked.parse(task.prompt_markdown);
+        } else if (task._loading) {
+            contentEl.innerHTML = '<div class="empty-state">Loading prompt…</div>';
         } else {
             contentEl.innerHTML = '<div class="empty-state">Prompt content unavailable.</div>';
         }
     }
+}
+
+function showPromptModal(task) {
+    const modal = document.getElementById('prompt-modal');
+    if (!modal) return;
+
+    const modalBody = document.getElementById('modal-body');
+
+    // Open immediately with the summary data we already have, then enrich
+    // from the detail endpoint. Without the fetch, the modal is missing
+    // subtasks_done/total, phase, dependencies, and prompt_markdown
+    // because /api/missions/{id}/workpackages returns the WorkPackageSummary
+    // shape only.
+    renderPromptModalContent({ ...task, _loading: true });
 
     if (modalBody) {
         modalBody.scrollTop = 0;
@@ -659,6 +722,37 @@ function showPromptModal(task) {
     modal.classList.add('show');
     modal.setAttribute('aria-hidden', 'false');
     document.body.classList.add('modal-open');
+
+    if (currentFeature && task.id) {
+        fetch(`/api/missions/${encodeURIComponent(currentFeature)}/workpackages/${encodeURIComponent(task.id)}`)
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return response.json();
+            })
+            .then(detail => {
+                const enriched = {
+                    ...task,
+                    title: detail.title || task.title,
+                    lane: detail.assignment?.lane || task.lane,
+                    agent: detail.assignment?.agent || task.agent,
+                    model: detail.assignment?.model || task.model,
+                    agent_profile: detail.assignment?.agent_profile || task.agent_profile,
+                    role: detail.assignment?.role || task.role,
+                    assignee: detail.assignment?.assignee || task.assignee,
+                    subtasks_done: detail.subtasks_done,
+                    subtasks_total: detail.subtasks_total,
+                    dependencies: detail.dependencies || [],
+                    requirement_refs: detail.requirement_refs || [],
+                    phase: detail.phase || null,
+                    prompt_path: detail.prompt_path || null,
+                    prompt_markdown: detail.prompt_markdown || null,
+                };
+                renderPromptModalContent(enriched);
+            })
+            .catch(() => {
+                renderPromptModalContent({ ...task, _loading: false });
+            });
+    }
 }
 
 function hidePromptModal() {
@@ -1281,6 +1375,8 @@ function updateFeatureList(features, activeFeatureId = null) {
         }
         loadCurrentPage();
     }
+    // Populate purpose text for the initially-selected mission.
+    if (currentFeature) fetchMissionMeta(currentFeature);
 }
 
 function updateFeatureListSilent(features) {
@@ -1309,31 +1405,64 @@ function updateFeatureListSilent(features) {
     }
 }
 
+function normalizeMissions(missions) {
+    if (!Array.isArray(missions)) return [];
+    return missions.map(m => ({
+        id: m.mission_slug,
+        name: m.friendly_name || m.mission_slug || m.mission_id,
+        display_name: m.friendly_name || m.mission_slug || m.mission_id,
+        kanban_stats: {
+            total: m.lane_counts?.total || 0,
+            done: m.lane_counts?.done || 0,
+            weighted_percentage: m.weighted_percentage ?? 0,
+            planned: m.lane_counts?.planned || 0,
+            doing: m.lane_counts?.in_progress || 0,
+            for_review: m.lane_counts?.for_review || 0,
+            in_review: m.lane_counts?.in_review || 0,
+            approved: m.lane_counts?.approved || 0,
+            blocked: m.lane_counts?.blocked || 0,
+        },
+        meta: {},
+        artifacts: {
+            spec:       { exists: true },
+            plan:       { exists: true },
+            tasks:      { exists: true },
+            kanban:     { exists: true },
+            research:   { exists: true },
+            contracts:  { exists: true },
+            checklists: { exists: true },
+            data_model: { exists: true },
+            quickstart: { exists: true },
+        },
+        _raw: m,
+    }));
+}
+
 function fetchData(isInitialLoad = false) {
     if (featureSelectActive && !isInitialLoad) {
         return;
     }
-    fetch('/api/features')
+    fetch('/api/missions')
         .then(response => {
             if (!response.ok) {
                 return response.json()
                     .catch(() => ({}))
                     .then(errorData => {
                         const detail = errorData.detail || errorData.error || response.statusText;
-                        throw new Error(`GET /api/features failed (${response.status}): ${detail}`);
+                        throw new Error(`GET /api/missions failed (${response.status}): ${detail}`);
                     });
             }
             return response.json();
         })
         .then(data => {
-            const features = normalizeFeatureList(data?.features);
-            if (!data || !Array.isArray(data.features)) {
-                console.warn('GET /api/features returned no features array; rendering an empty feature list', data);
+            const features = normalizeFeatureList(normalizeMissions(data));
+            if (!Array.isArray(data)) {
+                console.warn('GET /api/missions returned unexpected shape; rendering an empty feature list', data);
             }
 
             // Use full update on initial load, silent update on polls
             if (isInitialLoad) {
-                updateFeatureList(features, data?.active_feature_id || null);
+                updateFeatureList(features, null);
             } else {
                 updateFeatureListSilent(features);
             }
@@ -1345,15 +1474,7 @@ function fetchData(isInitialLoad = false) {
 
             document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
 
-            if (data?.project_path) {
-                projectPathDisplay = data.project_path;
-            }
-
-            if (data?.active_worktree) {
-                activeWorktreeDisplay = data.active_worktree;
-            } else {
-                activeWorktreeDisplay = '';
-            }
+            activeWorktreeDisplay = '';
 
             const currentFeatureObj = allFeatures.find(f => f.id === currentFeature);
             computeFeatureWorktreeStatus(currentFeatureObj || null);
@@ -1562,6 +1683,13 @@ function refreshDiagnostics() {
 }
 
 updateTreeInfo();
+
+// Fetch project path from health endpoint once on startup.
+fetch('/api/health')
+    .then(r => r.ok ? r.json() : null)
+    .then(h => { if (h?.project_path) { projectPathDisplay = h.project_path; updateTreeInfo(); } })
+    .catch(() => {});
+
 fetchData(true);  // Pass true for initial load
 
 // Poll every second

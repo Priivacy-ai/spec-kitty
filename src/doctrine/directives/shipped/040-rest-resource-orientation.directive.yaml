@@ -1,0 +1,56 @@
+schema_version: "1.0"
+id: DIRECTIVE_040
+title: REST Resource Orientation
+intent: >
+  Public HTTP endpoints follow resource-oriented naming: URL paths name the
+  noun (the resource) and HTTP methods carry the verb. Operations on a single
+  resource live under /api/<collection>/{id}, and nested collections live
+  under /api/<collection>/{id}/<sub-collection>. Action-shaped URLs are
+  permitted as a narrow carve-out but MUST be tagged "actions" in the OpenAPI
+  document and registered in the architectural test's allowlist; URL renames
+  follow a documented deprecation cycle.
+enforcement: required
+scope: >
+  Applies to public HTTP endpoints under src/dashboard/api/routers/ and any
+  future HTTP transport that exposes mission, work-package, or artifact data
+  to external consumers.
+procedures:
+  - Name new endpoint URLs after the resource they expose
+    (e.g., /api/missions, /api/missions/{id}/workpackages); never use a verb
+    in the path segment for resource-shaped endpoints.
+  - Express verbs through HTTP methods (GET, POST, PUT, PATCH, DELETE);
+    reserve action-shaped URLs (/api/sync/trigger, /api/shutdown) for the
+    narrow carve-out documented in this directive.
+  - Tag every action-shaped endpoint with "actions" in the OpenAPI document
+    and register it in the architectural test's allowlist; do not add a new
+    action-shaped URL silently.
+  - When renaming an endpoint, retain the previous path for one release with
+    a Deprecation HTTP header (RFC 8594) pointing at the new path; gate the
+    rename on the OpenAPI snapshot test.
+  - When adding a sub-resource, name the parent collection plus the
+    sub-collection (/api/<collection>/{id}/<sub-collection>); do not encode
+    the relationship in a query parameter.
+integrity_rules:
+  - URL path segments MUST be nouns for resource-shaped endpoints; verbs
+    appear only in HTTP methods or in the documented action carve-out.
+  - Action-shaped URLs that lack the "actions" OpenAPI tag are out of
+    compliance and the architectural test rejects them.
+  - URL renames without a Deprecation header on the old path during the
+    deprecation window are out of compliance.
+validation_criteria:
+  - The architectural test enumerated under ``referenced_tests`` passes in
+    CI; new endpoints either match the noun pattern or are registered in
+    the allowlist.
+  - The OpenAPI snapshot reflects every rename and deprecation; a missing
+    Deprecation header on a renamed path is a snapshot drift.
+  - Reviewers confirm the action-tag carve-out before merging an
+    action-shaped URL.
+referenced_tests:
+  - tests/architectural/test_url_naming_convention.py
+forbidden_patterns:
+  - Verb-shaped URL segment outside the documented "actions" carve-out
+    (e.g., /api/<verb>/<noun> where <verb> is not a recognised HTTP method)
+  - URL rename landed without Deprecation header on the old path during the
+    deprecation window
+introduced_by_mission: mission-registry-and-api-boundary-doctrine-01KQPDBB
+introduced_at: "2026-05-03"

@@ -1,0 +1,12 @@
+{
+  "created_at": "2026-05-02T19:27:39.483732+00:00",
+  "friendly_name": "frontend api fastapi openapi migration",
+  "mission_id": "01KQN2JAEV0QW705QWQRWBR12W",
+  "mission_number": null,
+  "mission_slug": "frontend-api-fastapi-openapi-migration-01KQN2JA",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances frontend api fastapi openapi migration on feature/650-dashboard-ui-ux-overhaul so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "frontend api fastapi openapi migration",
+  "slug": "frontend-api-fastapi-openapi-migration-01KQN2JA",
+  "target_branch": "feature/650-dashboard-ui-ux-overhaul"
+}

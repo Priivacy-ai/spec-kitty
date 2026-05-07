@@ -1,0 +1,63 @@
+{
+  "event_count": 42,
+  "last_event_id": "01KQN6FN71PSFTQ91E70DB1CHD",
+  "materialized_at": "2026-05-02T20:36:06.497336+00:00",
+  "mission_number": "",
+  "mission_slug": "frontend-api-fastapi-openapi-migration-01KQN2JA",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 6,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KQN4E19KZM64QXP89YJVNY5D",
+      "last_transition_at": "2026-05-02T20:00:16.179392+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KQN52ZDPAB12B52390M9PGK5",
+      "last_transition_at": "2026-05-02T20:11:42.390476+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KQN5AGBTD3CRP13GF6XXZ8CN",
+      "last_transition_at": "2026-05-02T20:15:49.114216+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KQN5VXQJ4A945PW5ZRP26NH5",
+      "last_transition_at": "2026-05-02T20:25:19.858378+00:00"
+    },
+    "WP05": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KQN69ACP9XTQBVW34ECW7RPP",
+      "last_transition_at": "2026-05-02T20:32:38.806166+00:00"
+    },
+    "WP06": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KQN6FN71PSFTQ91E70DB1CHD",
+      "last_transition_at": "2026-05-02T20:36:06.497336+00:00"
+    }
+  }
+}

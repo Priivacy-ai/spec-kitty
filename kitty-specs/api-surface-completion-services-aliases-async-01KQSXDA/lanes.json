@@ -1,0 +1,135 @@
+{
+  "version": 1,
+  "mission_slug": "api-surface-completion-services-aliases-async-01KQSXDA",
+  "mission_id": "01KQSXDASEMGGZNAX3A5FXSEPM",
+  "mission_branch": "kitty/mission-api-surface-completion-services-aliases-async-01KQSXDA",
+  "target_branch": "feature/645-api-surface-completion-mission-c",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06",
+        "WP07",
+        "WP08",
+        "WP09"
+      ],
+      "write_scope": [
+        "kitty-specs/frontend-api-fastapi-openapi-migration-01KQN2JA/issue-matrix.md",
+        "src/dashboard/README.md",
+        "src/dashboard/api/models.py",
+        "src/dashboard/api/presentation_types.py",
+        "src/dashboard/api/routers/artifacts.py",
+        "src/dashboard/api/routers/diagnostics.py",
+        "src/dashboard/api/routers/events.py",
+        "src/dashboard/api/routers/features.py",
+        "src/dashboard/api/routers/glossary.py",
+        "src/dashboard/api/routers/health.py",
+        "src/dashboard/api/routers/kanban.py",
+        "src/dashboard/api/routers/lint.py",
+        "src/dashboard/api/routers/missions.py",
+        "src/dashboard/api/routers/sync.py",
+        "src/dashboard/api_types.py",
+        "src/dashboard/file_reader.py",
+        "src/dashboard/services/mission_scan.py",
+        "src/dashboard/services/project_state.py",
+        "src/dashboard/services/registry.py",
+        "src/dashboard/static/ts/api.d.ts",
+        "src/kernel/api_types.py",
+        "src/specify_cli/charter_lint/service.py",
+        "src/specify_cli/charter_lint/types.py",
+        "src/specify_cli/dashboard/api_types.py",
+        "src/specify_cli/dashboard/handlers/glossary.py",
+        "src/specify_cli/dashboard/handlers/lint.py",
+        "src/specify_cli/glossary/service.py",
+        "src/specify_cli/glossary/types.py",
+        "src/specify_cli/missions/api_types.py",
+        "src/specify_cli/status/api_types.py",
+        "tests/architectural/test_dashboard_boundary.py",
+        "tests/specify_cli/charter_lint/test_lint_service.py",
+        "tests/specify_cli/glossary/test_glossary_service.py",
+        "tests/test_dashboard/snapshots/openapi.json",
+        "tests/test_dashboard/test_deprecation_headers.py",
+        "tests/test_dashboard/test_glossary_handler.py",
+        "tests/test_dashboard/test_lint_tile_handler.py",
+        "tests/test_dashboard/test_openapi_snapshot.py",
+        "tests/test_dashboard/test_sse_endpoint.py",
+        "tests/test_dashboard/test_typeddict_pydantic_parity.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-05-04T17:29:50.855885+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP01"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP01"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP01"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP07 depends on WP02"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP04",
+        "rule": "dependency",
+        "evidence": "WP07 depends on WP04"
+      },
+      {
+        "wp_a": "WP09",
+        "wp_b": "WP04",
+        "rule": "dependency",
+        "evidence": "WP09 depends on WP04"
+      },
+      {
+        "wp_a": "WP09",
+        "wp_b": "WP08",
+        "rule": "dependency",
+        "evidence": "WP09 depends on WP08"
+      }
+    ],
+    "total_merges": 8,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 8
+    }
+  }
+}

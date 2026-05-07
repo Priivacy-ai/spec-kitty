@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "mission_slug": "dashboard-services-domain-migration-01KR151P",
+  "mission_id": "01KR151PM9D00Z1YMP72DZBMVA",
+  "mission_branch": "kitty/mission-dashboard-services-domain-migration-01KR151P",
+  "target_branch": "feature/645-api-surface-completion-mission-c",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04"
+      ],
+      "write_scope": [
+        "architecture/2.x/adr/2026-05-07-1-dashboard-services-phase-b.md",
+        "architecture/2.x/adr/README.md",
+        "architecture/2.x/shim-registry.yaml",
+        "src/dashboard/api/app.py",
+        "src/dashboard/api/deps.py",
+        "src/dashboard/api/routers/health.py",
+        "src/dashboard/api/routers/missions.py",
+        "src/dashboard/api/routers/sync.py",
+        "src/dashboard/services/mission_scan.py",
+        "src/dashboard/services/project_state.py",
+        "src/dashboard/services/registry.py",
+        "src/dashboard/services/sync.py",
+        "src/specify_cli/cli/commands/dashboard.py",
+        "src/specify_cli/dashboard/handlers/api.py",
+        "src/specify_cli/dashboard/handlers/features.py",
+        "src/specify_cli/missions/project_state.py",
+        "src/specify_cli/missions/registry.py",
+        "src/specify_cli/missions/scan_service.py",
+        "src/specify_cli/missions/sync_service.py",
+        "tests/architectural/test_dashboard_boundary.py",
+        "tests/specify_cli/missions/test_registry_cache.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-05-07T12:43:12.349597+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP01"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP03",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP03"
+      }
+    ],
+    "total_merges": 3,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 3
+    }
+  }
+}

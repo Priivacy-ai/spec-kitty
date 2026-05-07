@@ -1,0 +1,15 @@
+{
+  "created_at": "2026-05-02T12:58:44.821474+00:00",
+  "friendly_name": "Dashboard Service Extraction",
+  "mission_id": "01KQMCA6PM8QZTQ3ZJ0RZPX708",
+  "mission_number": 111,
+  "mission_slug": "dashboard-service-extraction-01KQMCA6",
+  "mission_type": "software-dev",
+  "purpose_context": "The Spec Kitty dashboard currently embeds all business logic inside HTTP request handlers (features.py, api.py), making the layer untestable in isolation and impossible to migrate to a modern transport framework. This mission follows the established extraction pattern used for src/charter/ and src/doctrine/ to move that logic into a new top-level src/dashboard/ package, reducing src/specify_cli/dashboard/handlers/ to a thin delegation layer. It also adds the dashboard as a documented slice in the functional ownership map and hardens endpoint contracts so dashboard.js continues operating without behavioral regression. FastAPI transport migration is a deliberately sequenced follow-up mission.",
+  "purpose_tldr": "Extract dashboard business logic into a canonical src/dashboard/ package, register it in the functional ownership map, and stabilise the endpoint contracts for the existing frontend.",
+  "slug": "dashboard-service-extraction-01KQMCA6",
+  "source_description": "Issues #645 (Epic: Frontend Decoupling and Application API Platform) and #650 (Epic: UI/UX and Shared Design System). Phases 1+2 of the dashboard decoupling sequence; FastAPI migration is a sequenced follow-up.",
+  "target_branch": "feature/650-dashboard-ui-ux-overhaul",
+  "vcs": "git",
+  "vcs_locked_at": "2026-05-02T12:58:44.821474+00:00"
+}

@@ -9,7 +9,7 @@ from typing import Any
 
 from specify_cli.glossary.semantic_events import iter_semantic_conflicts
 
-from ..api_types import GlossaryHealthResponse, GlossaryTermRecord
+from specify_cli.glossary.types import GlossaryHealthResponse, GlossaryTermRecord
 from .base import DashboardHandler
 
 __all__ = ["GlossaryHandler"]

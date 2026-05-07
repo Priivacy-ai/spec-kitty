@@ -30,6 +30,14 @@ class DashboardHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(payload).encode())
 
+    def _send_text_nocache(self, status_code: int, content: str) -> None:
+        """Write a plain-text response with no-cache headers."""
+        self.send_response(status_code)
+        self.send_header('Content-type', 'text/plain')
+        self.send_header('Cache-Control', 'no-cache')
+        self.end_headers()
+        self.wfile.write(content.encode('utf-8'))
+
     def _handle_shutdown(self) -> None:
         """Validate shutdown tokens and stop the server."""
         expected_token = getattr(self, 'project_token', None)

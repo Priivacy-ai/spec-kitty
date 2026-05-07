@@ -6,7 +6,7 @@ import json
 import logging
 from pathlib import Path
 
-from ..api_types import DecayWatchTileResponse
+from specify_cli.charter_lint.types import DecayWatchTileResponse
 from .base import DashboardHandler
 
 __all__ = ["LintTileHandler"]

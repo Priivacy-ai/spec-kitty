@@ -31,11 +31,16 @@ def evaluable():
 
 @pytest.fixture(scope="session")
 def landscape():
-    """2.x C4 landscape: kernel <- doctrine <- charter <- specify_cli.
+    """2.x C4 landscape: kernel <- doctrine <- charter <- specify_cli <- dashboard.
 
     Each layer includes both the ``src.``-prefixed module path (local source)
     and the bare module name (as seen when the package is installed), so that
     imports resolved through either path are correctly attributed.
+
+    The ``dashboard`` package is the FastAPI presentation/adapter tier
+    introduced by mission resource-oriented-mission-api-01KQQRF2 (epic #645).
+    It depends on specify_cli but nothing in core may depend on it — that
+    one-way invariant is enforced by test_dashboard_boundary.py.
     """
     return (
         LayeredArchitecture()
@@ -47,4 +52,6 @@ def landscape():
         .containing_modules(["src.charter", "charter"])
         .layer("specify_cli")
         .containing_modules(["src.specify_cli", "specify_cli"])
+        .layer("dashboard")
+        .containing_modules(["src.dashboard", "dashboard"])
     )

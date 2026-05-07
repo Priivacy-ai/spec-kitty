@@ -1,0 +1,234 @@
+{
+  "mission_slug": "api-surface-completion-services-aliases-async-01KQSXDA",
+  "mission_number": "114",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "GlossaryService exists at src/specify_cli/glossary/service.py with get_health() and get_terms() methods; return types defined in src/specify_cli/glossary/types.py",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/glossary/test_glossary_service.py \u2014 all tests pass (python -m pytest tests/specify_cli/glossary/ -q)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-05-05T06:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "glossary.py router delegates to GlossaryService; route handlers \u226415 LOC; all #954 TODO markers removed",
+      "proof_type": "code_review",
+      "evidence": "src/dashboard/api/routers/glossary.py inspected: delegates to GlossaryService; no TODO(follow-up) markers remain",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-05-05T06:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "LintService exists at src/specify_cli/charter_lint/service.py with get_decay_watch_tile(); return type in types.py",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/charter_lint/test_lint_service.py \u2014 all tests pass (python -m pytest tests/specify_cli/charter_lint/ -q)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-05-05T06:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "lint.py router delegates to LintService; route handler \u226415 LOC; all #955 TODO markers removed",
+      "proof_type": "code_review",
+      "evidence": "src/dashboard/api/routers/lint.py inspected: delegates to LintService; no TODO(follow-up) markers remain",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-05-05T06:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "GlossaryService and LintService contain no imports from fastapi, starlette, or pydantic",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_dashboard_boundary.py \u2014 all architectural boundary tests pass",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-05-05T06:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Legacy BaseHTTPRequestHandler handlers not deleted; glossary.py and lint.py handlers retained",
+      "proof_type": "code_review",
+      "evidence": "src/specify_cli/dashboard/handlers/glossary.py and lint.py both exist on disk",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-05-05T06:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "GET /api/features returns HTTP 410 Gone with JSON body and removed from OpenAPI document",
+      "proof_type": "automated_test",
+      "evidence": "tests/test_dashboard/test_deprecation_headers.py \u2014 410 response verified; OpenAPI snapshot excludes /api/features",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-05-05T06:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "GET /api/kanban/{feature_id} returns HTTP 410 Gone with JSON body and removed from OpenAPI document",
+      "proof_type": "automated_test",
+      "evidence": "tests/test_dashboard/test_deprecation_headers.py \u2014 410 response verified; OpenAPI snapshot excludes /api/kanban/{feature_id}",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-05-05T06:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "GET /api/events/missions SSE endpoint exists streaming mission_status events with required payload fields",
+      "proof_type": "automated_test",
+      "evidence": "tests/test_dashboard/test_sse_endpoint.py \u2014 all 12 SSE tests pass",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-05-05T06:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "SSE endpoint sends connected event on init and keepalive comment every \u226430 seconds",
+      "proof_type": "automated_test",
+      "evidence": "tests/test_dashboard/test_sse_endpoint.py \u2014 keepalive behavior verified",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-05-05T06:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "SSE endpoint supports Last-Event-ID resumption replaying events after that ID",
+      "proof_type": "automated_test",
+      "evidence": "tests/test_dashboard/test_sse_endpoint.py \u2014 Last-Event-ID resumption tests pass",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-05-05T06:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "SSE event stream is read-only; no mutation triggered by connecting",
+      "proof_type": "code_review",
+      "evidence": "src/dashboard/api/routers/events.py reviewed: only reads status.events.jsonl files; no write operations",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-05-05T06:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "npx openapi-typescript invocation documented in src/dashboard/README.md; generates valid .d.ts",
+      "proof_type": "code_review",
+      "evidence": "src/dashboard/README.md contains codegen invocation instructions; tests/test_dashboard/snapshots/openapi.json is the input snapshot; static/ts/api.d.ts generated",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-05-05T06:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "OpenAPI snapshot test updated: retired alias paths absent, /api/events/missions present",
+      "proof_type": "automated_test",
+      "evidence": "tests/test_dashboard/test_openapi_snapshot.py \u2014 snapshot test passes with updated snapshot",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-05-05T06:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "issue-matrix.md rows for #954 and #955 updated to fixed",
+      "proof_type": "code_review",
+      "evidence": "kitty-specs/frontend-api-fastapi-openapi-migration-01KQN2JA/issue-matrix.md updated: #954 and #955 rows now show verdict=fixed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-05-05T06:30:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "GlossaryHealthResponse and GlossaryTermRecord moved to specify_cli/glossary/types.py; deleted from dashboard/api_types.py",
+      "proof_type": "automated_test",
+      "evidence": "tests/test_dashboard/test_typeddict_pydantic_parity.py \u2014 parity tests pass; tests/architectural/test_dashboard_boundary.py passes",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-05-05T06:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-017",
+      "description": "DecayWatchTileResponse moved to specify_cli/charter_lint/types.py; deleted from dashboard/api_types.py",
+      "proof_type": "automated_test",
+      "evidence": "tests/test_dashboard/test_typeddict_pydantic_parity.py \u2014 parity tests pass; architectural boundary tests pass",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-05-05T06:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-018",
+      "description": "Pydantic models in dashboard/api/models.py derive from canonical TypedDicts in domain locations",
+      "proof_type": "automated_test",
+      "evidence": "tests/test_dashboard/test_typeddict_pydantic_parity.py \u2014 all parity tests pass",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-05-05T06:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-019",
+      "description": "All TypedDicts migrated from dashboard/api_types.py to canonical domain locations; dashboard/api_types.py deleted",
+      "proof_type": "automated_test",
+      "evidence": "src/dashboard/api_types.py does not exist; tests/architectural/test_dashboard_boundary.py passes confirming no stale imports",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-05-05T06:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "NFR-005",
+      "description": "All existing dashboard tests pass unchanged after alias retirement and service extraction",
+      "proof_type": "automated_test",
+      "evidence": "python -m pytest tests/test_dashboard/ tests/specify_cli/glossary/ tests/specify_cli/charter_lint/ tests/architectural/ -q: 600 passed, 1 skipped",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-05-05T06:30:00+00:00",
+      "notes": null
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "NI-001",
+      "description": "dashboard/api_types.py must not exist (deleted as part of FR-019)",
+      "verification_method": "grep_absence",
+      "verification_command": "grep -r 'from dashboard.api_types' src/ --include='*.py'",
+      "result": "confirmed_absent",
+      "evidence": "grep found zero matches"
+    },
+    {
+      "invariant_id": "NI-002",
+      "description": "No TODO(follow-up) markers referencing #954 or #955 remain in routers",
+      "verification_method": "grep_absence",
+      "verification_command": "grep -r 'TODO(follow-up)' src/dashboard/api/routers/ --include='*.py'",
+      "result": "confirmed_absent",
+      "evidence": "grep found zero matches"
+    },
+    {
+      "invariant_id": "NI-003",
+      "description": "GlossaryService and LintService must not import from fastapi, starlette, or pydantic",
+      "verification_method": "custom_command",
+      "verification_command": "! grep -qE 'fastapi|starlette|pydantic' src/specify_cli/glossary/service.py src/specify_cli/charter_lint/service.py",
+      "result": "confirmed_absent",
+      "evidence": "Command exited 0: "
+    }
+  ]
+}

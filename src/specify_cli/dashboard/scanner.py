@@ -1,4 +1,44 @@
-"""Feature scanning helpers for the Spec Kitty dashboard."""
+"""Feature scanning helpers for the Spec Kitty dashboard.
+
+Entry-point audit (added 2026-05-03 by mission
+``mission-registry-and-api-boundary-doctrine-01KQPDBB``; see initiative
+``architecture/2.x/initiatives/2026-05-stable-application-api-surface/README.md``
+for context):
+
+| Function               | Returns                              | Cached?            | Subsumed by registry?                                                                       |
+|------------------------|--------------------------------------|--------------------|---------------------------------------------------------------------------------------------|
+| ``scan_all_features``  | ``list[dict[str, Any]]``             | No (per-call walk) | YES — ``MissionRegistry.list_missions()``                                                   |
+| ``scan_feature_kanban``| ``dict[str, list[dict[str, Any]]]``  | No                 | YES — ``WorkPackageRegistry.list_work_packages()``                                          |
+| ``build_mission_registry`` | ``dict[str, dict[str, Any]]``    | No                 | YES — ``MissionRegistry.list_missions()`` (different return shape; consumers map)           |
+| ``resolve_active_feature`` | ``dict[str, Any] | None``        | No                 | NO — stays as a façade hook for active-detection logic; currently returns ``None``          |
+| ``resolve_feature_dir``    | ``Path | None``                  | No                 | NO — used by file-serving routes; registry exposes ``feature_dir`` on ``MissionRecord``     |
+| ``format_path_for_display``| ``str | None``                   | No (pure function) | NO — pure formatting helper                                                                 |
+| ``gather_feature_paths``   | ``dict[str, Path]``              | No                 | NO — internal helper retained as the directory-walk primitive                               |
+| ``get_feature_artifacts``  | ``dict[str, dict[str, Any]]``    | No (filesystem stat)| NO — feature-artifact metadata helper                                                      |
+| ``get_workflow_status``    | ``dict[str, str]``               | No (pure function) | NO — pure status mapper over artifact map                                                   |
+| ``read_file_resilient``    | ``tuple[str | None, str | None]`` | No                | NO — generic encoding-resilient reader                                                      |
+| ``sort_missions_for_display`` | ``list[str]``                 | No (pure function) | NO — pure sort helper over a registry dict                                                  |
+
+Cache behaviour: every entry point performs fresh filesystem walks on each call.
+There is no in-process memoisation today; the registry refactor (WP02-WP07) is
+the place where caching, if any, will be introduced behind a stable interface.
+
+Downstream consumers (grep ``from specify_cli.dashboard.scanner import`` in
+``src/`` for the full set):
+
+- ``src/specify_cli/scanner.py`` (top-level re-export shim)
+- ``src/specify_cli/cli/commands/dashboard.py`` (calls ``build_mission_registry``,
+  ``sort_missions_for_display`` for the CLI dashboard mission list)
+- FastAPI dashboard handlers under ``src/specify_cli/dashboard/handlers/`` use the
+  module via the public re-exports above
+- Test suites (``tests/test_dashboard``, ``tests/integration``,
+  ``tests/architectural``, ``tests/cross_cutting``) reach into private helpers for
+  parity / regression coverage
+
+Functions tagged ``# TODO(remove with mission-registry-and-api-boundary-doctrine-01KQPDBB)``
+are scheduled for replacement by the registry; their signatures should be
+considered frozen during the mission so the registry façade can be a drop-in.
+"""
 
 from __future__ import annotations
 
@@ -370,6 +410,7 @@ def _mission_record_key(feature_dir: Path, mission_id: str | None, mission_numbe
     return f"orphan:{slug}"
 
 
+# TODO(remove with mission-registry-and-api-boundary-doctrine-01KQPDBB)
 def build_mission_registry(project_dir: Path) -> dict[str, dict[str, Any]]:
     """Return a dict keyed by ``mission_id`` (or pseudo-key) mapping to mission records.
 
@@ -590,6 +631,7 @@ def _build_kanban_stats(feature_dir: Path, artifacts: dict[str, dict[str, Any]])
     return _build_event_log_kanban_stats(feature_dir, tasks_dir)
 
 
+# TODO(remove with mission-registry-and-api-boundary-doctrine-01KQPDBB)
 def scan_all_features(project_dir: Path) -> list[dict[str, Any]]:
     """Scan all features and return metadata."""
     features: list[dict[str, Any]] = []
@@ -716,6 +758,7 @@ def _process_wp_file(
     }
 
 
+# TODO(remove with mission-registry-and-api-boundary-doctrine-01KQPDBB)
 def scan_feature_kanban(project_dir: Path, feature_id: str) -> dict[str, list[dict[str, Any]]]:
     """Scan kanban board for a specific feature.
 

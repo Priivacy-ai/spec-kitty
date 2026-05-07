@@ -39,14 +39,21 @@ def is_dashboard_accessible(port: int, timeout: float = 2.0) -> bool:
 
     Returns:
         True if dashboard responds, False otherwise
+
+    Probes the resource-oriented mission list endpoint introduced by
+    mission resource-oriented-mission-api-01KQQRF2. The legacy
+    /api/features alias was retired in mission
+    api-surface-completion-services-aliases-async-01KQSXDA (returns 410
+    Gone) and is no longer a valid liveness probe.
     """
     try:
-        with urlopen(f"http://127.0.0.1:{port}/api/features", timeout=timeout) as response:
+        with urlopen(f"http://127.0.0.1:{port}/api/missions", timeout=timeout) as response:
             if response.status != 200:
                 return False
 
             payload = json.loads(response.read().decode())
-            return isinstance(payload, dict) and isinstance(payload.get("features"), list)
+            # /api/missions returns list[MissionSummary] — a JSON array.
+            return isinstance(payload, list)
     except (URLError, OSError, Exception):
         return False
 
@@ -399,8 +406,14 @@ class TestDashboardErrorMessages:
 class TestDashboardAPIVerification:
     """Test dashboard API endpoint verification."""
 
-    def test_api_features_endpoint_returns_data(self):
-        """Verify /api/features endpoint works when dashboard running."""
+    def test_api_missions_endpoint_returns_data(self):
+        """Verify /api/missions endpoint works when dashboard running.
+
+        Replaces the legacy /api/features liveness probe. /api/features was
+        retired in mission api-surface-completion-services-aliases-async-01KQSXDA
+        and now returns 410 Gone; the resource-oriented replacement returns
+        list[MissionSummary].
+        """
         with TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)
 
@@ -433,14 +446,14 @@ class TestDashboardAPIVerification:
             try:
                 # Test API endpoint
                 if is_dashboard_accessible(test_port):
-                    with urlopen(f"http://127.0.0.1:{test_port}/api/features", timeout=3.0) as response:
+                    with urlopen(f"http://127.0.0.1:{test_port}/api/missions", timeout=3.0) as response:
                         assert response.status == 200, "API should return 200 when dashboard running"
 
                         data = json.loads(response.read().decode())
-                        assert "features" in data, f"API should return features list. Got: {data}"
+                        assert isinstance(data, list), f"API should return a list of missions. Got: {type(data).__name__}"
 
-                        # Should have features array
-                        assert len(data["features"]) >= 0, "Should return features array (may be empty)"
+                        # Should be a list (may be empty if no missions exist yet)
+                        assert len(data) >= 0
             finally:
                 kill_dashboard_process(test_port)
 
@@ -470,13 +483,12 @@ class TestDashboardAPIVerification:
 
             try:
                 if is_dashboard_accessible(test_port):
-                    with urlopen(f"http://127.0.0.1:{test_port}/api/features", timeout=3.0) as response:
+                    with urlopen(f"http://127.0.0.1:{test_port}/api/missions", timeout=3.0) as response:
                         data = json.loads(response.read().decode())
 
-                        # Should have required fields
-                        assert isinstance(data, dict), "Response should be dict"
-                        assert "features" in data, "Should have features field"
-                        assert isinstance(data["features"], list), "Features should be list"
+                        # /api/missions returns list[MissionSummary] — a JSON array.
+                        # See mission resource-oriented-mission-api-01KQQRF2.
+                        assert isinstance(data, list), "Response should be a JSON list"
             finally:
                 kill_dashboard_process(test_port)
 

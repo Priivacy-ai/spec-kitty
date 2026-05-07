@@ -40,19 +40,26 @@ def test_start_dashboard_foreground_starts_thread(monkeypatch, tmp_path):
             served["called"] = True
 
     class FakeThread:
-        def __init__(self, target, daemon):
+        def __init__(self, target, daemon=False, args=(), **_kwargs):
             self._target = target
+            self._args = args
             self.daemon = daemon
             self.started = False
 
         def start(self):
             self.started = True
-            self._target()
+            self._target(*self._args)
 
     monkeypatch.setattr(server, "HTTPServer", FakeServer)
     monkeypatch.setattr(server.threading, "Thread", FakeThread)
 
-    port, pid = server.start_dashboard(tmp_path, port=12346, background_process=False)
+    # Explicitly request the legacy transport: the default flipped to FastAPI
+    # in mission frontend-api-fastapi-openapi-migration-01KQN2JA. This test
+    # exercises the legacy BaseHTTPServer path; the FastAPI path has its own
+    # coverage in tests/test_dashboard/test_fastapi_app.py.
+    port, pid = server.start_dashboard(
+        tmp_path, port=12346, background_process=False, transport="legacy",
+    )
     assert port == 12346
     assert pid is None  # Changed from thread to pid (None for threaded mode)
     assert served.get("called")
@@ -76,7 +83,9 @@ def test_run_dashboard_server_bootstraps_global_sync_daemon(monkeypatch, tmp_pat
     monkeypatch.setattr(server, "HTTPServer", FakeServer)
     monkeypatch.setattr("specify_cli.sync.daemon.ensure_sync_daemon_running", fake_ensure_sync_daemon_running)
 
-    server.run_dashboard_server(tmp_path, 12347, None)
+    # transport="legacy": this test exercises the BaseHTTPServer path; the
+    # FastAPI path is covered separately in tests/test_dashboard/test_fastapi_app.py.
+    server.run_dashboard_server(tmp_path, 12347, None, transport="legacy")
 
     assert calls["daemon"] is True
     assert calls["intent"].value == "local_only"

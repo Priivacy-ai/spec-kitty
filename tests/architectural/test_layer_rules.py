@@ -41,7 +41,7 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 # Layer names as defined in the `landscape` fixture in conftest.py.
 # Keep this in sync with that fixture; both lists must agree.
 _DEFINED_LAYERS: frozenset[str] = frozenset(
-    ["kernel", "doctrine", "charter", "specify_cli"]
+    ["kernel", "doctrine", "charter", "specify_cli", "dashboard"]
 )
 
 

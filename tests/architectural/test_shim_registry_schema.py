@@ -33,13 +33,28 @@ class TestLiveRegistry:
             data = yaml.load(fp)
         validate_registry(data)
 
-    def test_live_registry_is_empty_baseline(self) -> None:
+    def test_live_registry_no_grandfathered_entries(self) -> None:
+        """FR-008: No new entry may set ``grandfathered: true`` after mission 615
+        landed. The post-615 registry may contain legitimate shims (e.g. the
+        Phase B dashboard-services move under
+        ``dashboard-services-domain-migration-01KR151P``), but every entry
+        must be a non-grandfathered, properly-tracked shim with a removal
+        target release.
+
+        Replaces the original ``test_live_registry_is_empty_baseline`` which
+        was a one-shot guard valid only between mission 615 landing and the
+        first legitimate Phase-B shim registration.
+        """
         from ruamel.yaml import YAML
 
         yaml = YAML(typ="safe")
         with _REGISTRY_PATH.open() as fp:
             data = yaml.load(fp)
-        assert data["shims"] == [], "Baseline registry must be empty at mission-615 start"
+        offenders = [e["legacy_path"] for e in data["shims"] if e.get("grandfathered") is True]
+        assert not offenders, (
+            "FR-008 violation: grandfathered=True is not allowed for new shim "
+            f"entries. Offenders: {offenders}"
+        )
 
 
 class TestTopLevelStructure:
