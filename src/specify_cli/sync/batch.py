@@ -44,14 +44,13 @@ ERROR_CATEGORIES: dict[str, list[str]] = {
         "sync_batch_too_large",
         "request_too_large",
         "payload too large",
-        "413",
     ],
     "oversized_event": [
         "single event exceeds decompressed byte limit",
         "event exceeds decompressed byte limit",
         "oversized event",
     ],
-    "throttled": ["rate limit", "rate_limited", "too many requests", "429", "throttle"],
+    "throttled": ["rate limit", "rate_limited", "too many requests", "throttle"],
     "schema_mismatch": ["invalid", "schema", "field", "missing", "type"],
     "auth_expired": ["token", "expired", "unauthorized", "401"],
     "unauthenticated": ["not authenticated", "no valid access token"],
@@ -74,7 +73,7 @@ ERROR_CATEGORIES: dict[str, list[str]] = {
 CATEGORY_ACTIONS: dict[str, str] = {
     "oversized_batch": "The CLI will retry with a smaller batch; upgrade if this persists",
     "oversized_event": "Inspect or remove the oversized event from the offline queue",
-    "throttled": "Retry after the server-advertised backoff window",
+    "throttled": "Retry later; server indicated rate limiting",
     "schema_mismatch": "Run `spec-kitty sync diagnose` to inspect invalid events",
     "auth_expired": "Run `spec-kitty auth login` to refresh credentials",
     "unauthenticated": "Run `spec-kitty auth login` to authenticate",
@@ -230,19 +229,25 @@ def _select_events_for_advertised_limits(
     effective_limit = min(requested_limit, max_events) if max_events else requested_limit
     candidates = queue.drain_queue(limit=effective_limit)
     max_decompressed_bytes = _decompressed_byte_limit(advertised_limits)
+
     selected: list[dict] = []
-    payload = _build_batch_payload(selected)
+    # Track accumulated payload size incrementally (O(n)) rather than
+    # re-serializing the full list on each iteration (O(n²)).
+    # Envelope overhead: len('{"events": []}') == 14 bytes; each event after the
+    # first adds a 2-byte ", " separator.
+    accumulated = 14
 
     for event in candidates:
-        candidate_events = [*selected, event]
-        candidate_payload = _build_batch_payload(candidate_events)
-        if selected and len(candidate_payload) > max_decompressed_bytes:
+        event_bytes = len(json.dumps(event).encode("utf-8"))
+        incremental = event_bytes + (2 if selected else 0)
+        if selected and accumulated + incremental > max_decompressed_bytes:
             break
-        selected = candidate_events
-        payload = candidate_payload
-        if len(payload) > max_decompressed_bytes:
+        selected.append(event)
+        accumulated += incremental
+        if accumulated > max_decompressed_bytes:
             break
 
+    payload = _build_batch_payload(selected)
     return selected, payload
 
 
@@ -286,7 +291,7 @@ def _single_oversized_event_result(event: dict, byte_limit: int, payload_size: i
     result.total_events = 1
     event_id = event.get("event_id", "unknown")
     error = (
-        f"Single event exceeds decompressed byte limit "
+        f"single event exceeds decompressed byte limit "
         f"({payload_size} bytes > {byte_limit} bytes)"
     )
     result.error_count = 1
@@ -295,11 +300,28 @@ def _single_oversized_event_result(event: dict, byte_limit: int, payload_size: i
     result.event_results.append(
         BatchEventResult(
             event_id=event_id,
-            status="rejected",
+            # failed_permanent removes the event from the queue so the drain loop
+            # can continue past it rather than stalling indefinitely.
+            status="failed_permanent",
             error=error,
             error_category="oversized_event",
         )
     )
+    return result
+
+
+def _handle_single_oversized_event(
+    event: dict,
+    byte_limit: int,
+    payload_size: int,
+    queue: OfflineQueue,
+    *,
+    show_progress: bool,
+) -> BatchSyncResult:
+    result = _single_oversized_event_result(event, byte_limit, payload_size)
+    queue.process_batch_results(result.event_results)
+    if show_progress:
+        print(format_sync_summary(result))
     return result
 
 
@@ -375,13 +397,16 @@ class BatchEventResult:
 
     Attributes:
         event_id: Unique event identifier.
-        status: One of ``"success"``, ``"duplicate"``, ``"rejected"``.
-        error: Human-readable error message (only for rejected events).
-        error_category: Categorised reason (only for rejected events).
+        status: One of ``"success"``, ``"duplicate"``, ``"rejected"``,
+            ``"failed_permanent"``. Permanent failures (e.g. oversized events
+            that can never be sent) are removed from the queue rather than
+            having their retry count bumped.
+        error: Human-readable error message (only for failed events).
+        error_category: Categorised reason (only for failed events).
     """
 
     event_id: str
-    status: str  # "success", "duplicate", "rejected"
+    status: str  # "success", "duplicate", "rejected", "failed_permanent"
     error: str | None = None
     error_category: str | None = None
 
@@ -418,8 +443,8 @@ class BatchSyncResult:
 
     @property
     def failed_results(self) -> list[BatchEventResult]:
-        """Convenience: only rejected ``BatchEventResult`` entries."""
-        return [r for r in self.event_results if r.status == "rejected"]
+        """Convenience: only failed ``BatchEventResult`` entries (rejected or permanently failed)."""
+        return [r for r in self.event_results if r.status in ("rejected", "failed_permanent")]
 
     @property
     def category_counts(self) -> dict[str, int]:
@@ -792,20 +817,18 @@ def batch_sync(  # noqa: C901
     byte_limit = _decompressed_byte_limit(advertised_limits)
 
     if len(events) == 1 and len(payload) > byte_limit:
-        result = _single_oversized_event_result(events[0], byte_limit, len(payload))
-        queue.process_batch_results(result.event_results)
-        if show_progress:
-            print(format_sync_summary(result))
-        return result
+        return _handle_single_oversized_event(
+            events[0], byte_limit, len(payload), queue, show_progress=show_progress
+        )
 
     if show_progress:
-        remaining_after_batch = max(queue.size() - len(events), 0)
+        estimated_remaining = max(queue.size() - len(events), 0)
         print(
             "Sync batch: "
             f"events={len(events)} "
             f"decompressed_bytes={len(payload)} "
             f"limit_bytes={byte_limit} "
-            f"remaining_after_batch={remaining_after_batch}"
+            f"estimated_remaining={estimated_remaining}"
         )
 
     # Validate each event envelope against upstream contract before sending
@@ -834,15 +857,14 @@ def batch_sync(  # noqa: C901
             )
             response_body = _safe_response_json(response)
 
+            result.total_events = len(events)
             if _is_oversized_batch_response(response.status_code, response_body):
                 advertised_limits = _retry_limits_from_response(response_body, advertised_limits)
                 byte_limit = _decompressed_byte_limit(advertised_limits)
                 if len(events) == 1:
-                    result = _single_oversized_event_result(events[0], byte_limit, len(payload))
-                    queue.process_batch_results(result.event_results)
-                    if show_progress:
-                        print(format_sync_summary(result))
-                    return result
+                    return _handle_single_oversized_event(
+                        events[0], byte_limit, len(payload), queue, show_progress=show_progress
+                    )
 
                 previous_size = len(events)
                 events = _shrink_events_for_retry(events)
@@ -850,7 +872,6 @@ def batch_sync(  # noqa: C901
                 while len(events) > 1 and len(payload) > byte_limit:
                     events = _shrink_events_for_retry(events)
                     payload = _build_batch_payload(events)
-                result.total_events = len(events)
                 if show_progress:
                     print(
                         "Retrying smaller sync batch: "
@@ -1128,7 +1149,16 @@ def sync_all_queued_events(
         #      sole stderr diagnostic). Without this, sync_all_queued_events
         #      would spin forever on a shared-only session because the queue
         #      never drains.
+        #
+        # Exception: permanently-failed events (e.g. oversized_event) are
+        # removed from the queue by process_batch_results, so the drain IS
+        # making progress — continue to subsequent events rather than stopping.
         if result.success_count == 0:
+            all_permanent = bool(result.event_results) and all(
+                r.status == "failed_permanent" for r in result.event_results
+            )
+            if all_permanent:
+                continue
             if show_progress:
                 if result.error_count > 0:
                     print("Stopping: No events successfully synced in this batch")

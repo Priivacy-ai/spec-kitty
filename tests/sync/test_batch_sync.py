@@ -483,6 +483,75 @@ class TestBatchSyncSuccess:
     def test_oversized_batch_error_classifies_without_unknown(self):
         assert categorize_error("Batch payload exceeds decompressed byte limit") == "oversized_batch"
 
+    @patch("specify_cli.sync.batch.requests.get")
+    @patch("specify_cli.sync.batch.requests.post")
+    def test_batch_sync_server_413_on_single_event_classifies_as_oversized_event(
+        self,
+        mock_post,
+        mock_get,
+        temp_queue,
+    ):
+        """Server-side 413 after shrinking to 1 event uses failed_permanent, not rejected."""
+        temp_queue.queue_event(
+            {
+                "event_id": "single-server-413",
+                "event_type": "WPStatusChanged",
+                "aggregate_id": "WP01",
+                "lamport_clock": 1,
+                "node_id": "test-node",
+                "payload": {"body": "x" * 50},
+            }
+        )
+
+        health_response = Mock()
+        health_response.status_code = 200
+        health_response.json.return_value = {
+            "sync_ingress": {"limits": {"max_events_per_batch": 10, "max_decompressed_bytes_per_batch": 100_000}}
+        }
+        mock_get.return_value = health_response
+
+        rejected_413 = Mock()
+        rejected_413.status_code = 413
+        rejected_413.json.return_value = {"error": "Batch payload exceeds decompressed byte limit"}
+        mock_post.return_value = rejected_413
+
+        result = batch_sync(
+            queue=temp_queue,
+            auth_token="token",
+            server_url="https://spec-kitty-dev.fly.dev",
+            limit=10,
+            show_progress=False,
+        )
+
+        assert mock_post.call_count == 1
+        assert result.error_count == 1
+        assert result.failed_results[0].error_category == "oversized_event"
+        assert result.failed_results[0].status == "failed_permanent"
+        assert temp_queue.size() == 0
+
+    @patch("specify_cli.sync.batch.requests.post")
+    def test_batch_sync_throttled_category_on_429(self, mock_post, temp_queue):
+        """HTTP 429 should classify as 'throttled', not 'retryable_transport'."""
+        temp_queue.queue_event(
+            {"event_id": "evt-429", "event_type": "WPStatusChanged", "payload": {}}
+        )
+
+        throttled = Mock()
+        throttled.status_code = 429
+        throttled.json.return_value = {"error": "Too many requests"}
+        mock_post.return_value = throttled
+
+        result = batch_sync(
+            queue=temp_queue,
+            auth_token="token",
+            server_url="http://localhost:8000",
+            limit=10,
+            show_progress=False,
+        )
+
+        assert result.category_counts.get("throttled", 0) == 1
+        assert "retryable_transport" not in result.category_counts
+
     @patch("specify_cli.sync.batch.requests.post")
     def test_batch_sync_auth_header(self, mock_post, populated_queue):
         """Test batch sync sends authorization header"""
@@ -835,6 +904,56 @@ class TestSyncAllQueuedEvents:
         # Should have tried once and stopped
         assert mock_post.call_count == 1
         assert result.error_count == 100
+
+    @patch("specify_cli.sync.batch.requests.get")
+    @patch("specify_cli.sync.batch.requests.post")
+    def test_sync_all_continues_past_oversized_event(self, mock_post, mock_get, temp_queue):
+        """An oversized event at queue head must not permanently stall subsequent events."""
+        temp_queue.queue_event(
+            {
+                "event_id": "oversized-head",
+                "event_type": "WPStatusChanged",
+                "aggregate_id": "WP01",
+                "lamport_clock": 1,
+                "node_id": "test-node",
+                "payload": {"body": "x" * 500},
+            }
+        )
+        for i in range(3):
+            temp_queue.queue_event(
+                {"event_id": f"good-{i}", "event_type": "WPStatusChanged", "payload": {}}
+            )
+
+        health_response = Mock()
+        health_response.status_code = 200
+        health_response.json.return_value = {
+            "sync_ingress": {"limits": {"max_events_per_batch": 10, "max_decompressed_bytes_per_batch": 100}}
+        }
+        mock_get.return_value = health_response
+
+        def _post_response(*args, **kwargs):
+            events = json.loads(gzip.decompress(kwargs["data"]))["events"]
+            resp = Mock()
+            resp.status_code = 200
+            resp.json.return_value = {"results": [{"event_id": e["event_id"], "status": "success"} for e in events]}
+            return resp
+
+        mock_post.side_effect = _post_response
+
+        # Use a non-localhost URL so _should_probe_advertised_limits returns True
+        # and the mocked health limits (100 bytes) take effect.
+        result = sync_all_queued_events(
+            queue=temp_queue,
+            auth_token="token",
+            server_url="https://spec-kitty-dev.fly.dev",
+            batch_size=10,
+            show_progress=False,
+        )
+
+        assert temp_queue.size() == 0
+        assert result.synced_count == 3
+        assert result.error_count == 1
+        assert result.category_counts.get("oversized_event", 0) == 1
 
 
 # ---------------------------------------------------------------------------

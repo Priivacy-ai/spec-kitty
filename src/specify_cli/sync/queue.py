@@ -845,7 +845,7 @@ class OfflineQueue:
             conn.close()
 
     def process_batch_results(self, results: list[_BatchEventResultLike]) -> None:
-        """Process batch sync results: remove synced/duplicate, bump retry for failures.
+        """Process batch sync results: remove synced/duplicate/permanent failures, bump retry for transient failures.
 
         Wraps all queue mutations in a single SQLite transaction for
         atomicity: either all changes apply or none do.
@@ -857,7 +857,9 @@ class OfflineQueue:
         synced_or_duplicate: list[str] = []
         rejected: list[str] = []
         for r in results:
-            if r.status in ("success", "duplicate"):
+            if r.status in ("success", "duplicate", "failed_permanent"):
+                # failed_permanent events (e.g. oversized events) are removed so
+                # the drain loop can continue past them without stalling.
                 synced_or_duplicate.append(r.event_id)
             elif r.status == "rejected":
                 rejected.append(r.event_id)
