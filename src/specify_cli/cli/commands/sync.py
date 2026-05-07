@@ -39,6 +39,32 @@ console = Console()
 _STATUS_ACCESS_TOKEN_LABEL = "Access token"  # noqa: S105
 _STATUS_REFRESH_TOKEN_LABEL = "Refresh token"  # noqa: S105
 _STATUS_LAST_SYNC_LABEL = "Last Sync"
+_UNAUTHENTICATED_SYNC_NOW_MESSAGE = (
+    "not authenticated: no valid access token. Run `spec-kitty auth login`."
+)
+
+
+def _sync_result_looks_unauthenticated(queue_size: int, result: object) -> bool:
+    """Detect the legacy auth-missing result shape from ``sync_now``."""
+    if queue_size <= 0:
+        return False
+
+    def _int_attr(name: str) -> int:
+        value = getattr(result, name, 0)
+        return value if isinstance(value, int) and not isinstance(value, bool) else 0
+
+    total_events = _int_attr("total_events")
+    synced_count = _int_attr("synced_count")
+    duplicate_count = _int_attr("duplicate_count")
+    error_count = _int_attr("error_count")
+    failed_results = getattr(result, "failed_results", ())
+    return (
+        total_events == 0
+        and synced_count == 0
+        and duplicate_count == 0
+        and error_count == 0
+        and len(failed_results) == 0
+    )
 
 
 def humanize_timedelta(td: timedelta) -> str:
@@ -976,6 +1002,12 @@ def now(
 
     console.print(f"Syncing {queue_size} queued event(s)...")
     result = service.sync_now()
+
+    if _sync_result_looks_unauthenticated(queue_size, result):
+        console.print(f"[yellow]{_UNAUTHENTICATED_SYNC_NOW_MESSAGE}[/yellow]")
+        if strict:
+            raise typer.Exit(1)
+        return
 
     # Print actionable summary instead of bare counts
     summary = format_sync_summary(result)

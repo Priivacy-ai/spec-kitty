@@ -584,8 +584,10 @@ def assemble_report(*, stuck_threshold_s: float = 60.0) -> DoctorReport:
     )
 
 
-def render_report(report: DoctorReport, console: Console, *, show_server_hint: bool = True) -> None:  # noqa: C901, PLR0912 — the 7-section layout is intentionally linear and section-by-section so reviewers can map each block to the contract; splitting it adds indirection without clarity.
+def render_report(report: DoctorReport, console: Console, *, show_server_hint: bool = True) -> None:  # noqa: C901, PLR0912
     """Render a :class:`DoctorReport` as the 7-section Rich layout."""
+    # The 7-section layout intentionally stays linear so reviewers can map each
+    # block to the contract without bouncing through helper indirection.
     # Section 1 — Identity.
     console.print("[bold]Identity[/bold]")
     if report.session is None:

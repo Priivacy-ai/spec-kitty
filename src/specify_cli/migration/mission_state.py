@@ -18,6 +18,7 @@ from contextlib import suppress
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
+from urllib.parse import urlsplit
 
 from packaging.version import Version
 
@@ -66,6 +67,7 @@ _UUID_HYPHEN_RE = re.compile(
     re.IGNORECASE,
 )
 _UUID_BARE_RE = re.compile(r"^[0-9a-f]{32}$", re.IGNORECASE)
+_REMOTE_URL_SCHEMES = frozenset({"http", "https"})
 
 
 class MissionStateRepairError(RuntimeError):
@@ -1010,13 +1012,18 @@ def _resolve_repo_relative(repo_root: Path, path: Path) -> Path:
     return repo_root / path
 
 
+def _is_remote_url(slug: str) -> bool:
+    """Return True when *slug* is an HTTP(S) remote URL."""
+    return urlsplit(slug).scheme in _REMOTE_URL_SCHEMES
+
+
 def _repo_slug(repo_root: Path) -> str | None:
     result = _git(repo_root, "config", "--get", "remote.origin.url", check=False)
     remote = result.stdout.strip()
     if not remote:
         return repo_root.name
     slug = remote.removesuffix(".git").rstrip("/")
-    if ":" in slug and not slug.startswith(("http://", "https://")):
+    if ":" in slug and not _is_remote_url(slug):
         slug = slug.rsplit(":", 1)[1]
     elif "/" in slug:
         parts = slug.split("/")

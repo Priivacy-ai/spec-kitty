@@ -355,25 +355,71 @@ def run_final_sync_with_retries(
             result = sync_operation()
         except Exception as exc:  # noqa: BLE001 - final sync is best effort
             last_error = exc
-            if attempt < FINAL_SYNC_MAX_ATTEMPTS:
-                sleeper(FINAL_SYNC_RETRY_BACKOFF_SECONDS)
+            maybe_result = _handle_final_sync_exception(exc, attempt, sleeper)
+            if maybe_result is None:
                 continue
-            error_text = str(exc)
-            _emit_final_sync_failure_diagnostic(error_text)
-            return _result_from_final_sync_exception(exc)
+            return maybe_result
 
         last_result = result
         last_error = None
-        if not _should_retry_final_sync_result(result):
-            if _is_failed_final_sync_result(result):
-                _emit_final_sync_failure_diagnostic(_final_sync_result_error_text(result))
-            return result
-        if attempt < FINAL_SYNC_MAX_ATTEMPTS:
-            sleeper(FINAL_SYNC_RETRY_BACKOFF_SECONDS)
+        maybe_result = _handle_final_sync_result(result, attempt, sleeper)
+        if maybe_result is not None:
+            return maybe_result
 
+    return _finalize_exhausted_final_sync(last_result, last_error)
+
+
+def _has_final_sync_retry_remaining(attempt: int) -> bool:
+    """Return True when another final-sync retry attempt is available."""
+    return attempt < FINAL_SYNC_MAX_ATTEMPTS
+
+
+def _sleep_before_final_sync_retry(
+    attempt: int,
+    sleeper: Callable[[float], None],
+) -> bool:
+    """Sleep for a retry when attempts remain and report whether we retried."""
+    if not _has_final_sync_retry_remaining(attempt):
+        return False
+    sleeper(FINAL_SYNC_RETRY_BACKOFF_SECONDS)
+    return True
+
+
+def _handle_final_sync_exception(
+    exc: BaseException,
+    attempt: int,
+    sleeper: Callable[[float], None],
+) -> BatchSyncResult | None:
+    """Retry or finalize an exception raised during final sync."""
+    if _sleep_before_final_sync_retry(attempt, sleeper):
+        return None
+    _emit_final_sync_failure_diagnostic(str(exc))
+    return _result_from_final_sync_exception(exc)
+
+
+def _handle_final_sync_result(
+    result: BatchSyncResult,
+    attempt: int,
+    sleeper: Callable[[float], None],
+) -> BatchSyncResult | None:
+    """Retry or finalize a completed final-sync result."""
+    if not _should_retry_final_sync_result(result):
+        if _is_failed_final_sync_result(result):
+            _emit_final_sync_failure_diagnostic(_final_sync_result_error_text(result))
+        return result
+    if _sleep_before_final_sync_retry(attempt, sleeper):
+        return None
+    _emit_final_sync_failure_diagnostic(_final_sync_result_error_text(result))
+    return result
+
+
+def _finalize_exhausted_final_sync(
+    last_result: BatchSyncResult | None,
+    last_error: BaseException | None,
+) -> BatchSyncResult:
+    """Return the best available exhausted final-sync outcome."""
     if last_result is not None:
-        error_text = _final_sync_result_error_text(last_result)
-        _emit_final_sync_failure_diagnostic(error_text)
+        _emit_final_sync_failure_diagnostic(_final_sync_result_error_text(last_result))
         return last_result
     if last_error is not None:
         _emit_final_sync_failure_diagnostic(str(last_error))

@@ -11,6 +11,7 @@ from packaging.version import Version
 
 from specify_cli.migration.mission_state import (
     MissionStateDryRunError,
+    _repo_slug,
     deterministic_ulid,
     repair_repo,
     teamspace_dry_run,
@@ -319,3 +320,19 @@ def test_teamspace_dry_run_synthesizes_repo_evidence_for_historical_done_rows(tm
     assert dry_run.valid
     assert dry_run.envelope_count == 1
     assert dry_run.errors == ()
+
+
+def test_repo_slug_preserves_https_remote_colon(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    class _Result:
+        def __init__(self, stdout: str) -> None:
+            self.stdout = stdout
+
+    def fake_git(repo_root: Path, *args: str, check: bool = False) -> _Result:
+        assert repo_root == tmp_path
+        assert args == ("config", "--get", "remote.origin.url")
+        assert check is False
+        return _Result("https://github.com/Priivacy-ai/spec-kitty.git\n")
+
+    monkeypatch.setattr("specify_cli.migration.mission_state._git", fake_git)
+
+    assert _repo_slug(tmp_path) == "Priivacy-ai/spec-kitty"

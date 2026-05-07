@@ -106,8 +106,10 @@ class TestCheckMissionBranch:
         with patch(
             "specify_cli.cli.commands.merge._has_branch_ref",
             return_value=False,
-        ), patch("specify_cli.cli.commands.merge.subprocess.run") as mock_run:
-            mock_run.return_value.stdout = "abc1234def5678\n"
+        ), patch(
+            "specify_cli.cli.commands.merge.run_command",
+            return_value=(0, "abc1234def5678\n", ""),
+        ):
             exists, blocker = _check_mission_branch("my-mission-01KQ", tmp_path)
 
         assert exists is False
@@ -121,49 +123,41 @@ class TestCheckMissionBranch:
 class TestMergeDryRunMissingBranch:
     """Integration tests for merge --dry-run with missing mission branch."""
 
-    def test_dry_run_json_missing_branch(
+    def test_dry_run_json_missing_branch_still_previews(
         self,
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
         capsys: pytest.CaptureFixture[str],
     ) -> None:
-        """merge --dry-run --json reports ready:false with structured blocker."""
+        """merge --dry-run --json does not require a local mission branch."""
         _prepare_dry_run(monkeypatch, tmp_path, branch_ok=False)
-        monkeypatch.setattr(
-            merge_mod,
-            "needs_number_assignment",
-            Mock(side_effect=AssertionError("lane preview should not run")),
-        )
+        monkeypatch.setattr(merge_mod, "needs_number_assignment", lambda _feature_dir: False)
 
-        with pytest.raises(typer.Exit) as exc_info:
-            _invoke_merge_dry_run(json_output=True)
+        _invoke_merge_dry_run(json_output=True)
 
-        assert exc_info.value.exit_code == 1
         payload = json.loads(capsys.readouterr().out)
-        assert payload == _blocker()
+        assert payload["mission_slug"] == MISSION_SLUG
+        assert payload["mission_branch"] == f"kitty/mission-{MISSION_SLUG}"
+        assert payload["target_branch"] == "main"
+        assert payload["would_assign_mission_number"] is None
 
-    def test_dry_run_human_missing_branch(
+    def test_dry_run_human_missing_branch_still_previews(
         self,
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
         capsys: pytest.CaptureFixture[str],
     ) -> None:
-        """merge --dry-run (no --json) shows remediation in human text."""
+        """merge --dry-run (no --json) still emits the preview payload."""
         _prepare_dry_run(monkeypatch, tmp_path, branch_ok=False)
-        monkeypatch.setattr(
-            merge_mod,
-            "needs_number_assignment",
-            Mock(side_effect=AssertionError("lane preview should not run")),
-        )
+        monkeypatch.setattr(merge_mod, "needs_number_assignment", lambda _feature_dir: False)
 
-        with pytest.raises(typer.Exit) as exc_info:
-            _invoke_merge_dry_run(json_output=False)
+        _invoke_merge_dry_run(json_output=False)
 
-        assert exc_info.value.exit_code == 1
-        output = _compact_output(capsys.readouterr().out)
-        assert "Cannot proceed: mission branch missing." in output
-        assert f"Expected branch: kitty/mission-{MISSION_SLUG}" in output
-        assert f"Remediation: git branch kitty/mission-{MISSION_SLUG} abc1234def56" in output
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["mission_slug"] == MISSION_SLUG
+        assert payload["mission_branch"] == f"kitty/mission-{MISSION_SLUG}"
+        assert payload["target_branch"] == "main"
+        assert payload["would_assign_mission_number"] is None
 
     def test_real_merge_blocked_missing_branch(
         self,

@@ -19,7 +19,6 @@ import json
 import logging
 import os
 import re
-import subprocess
 import time
 from pathlib import Path
 
@@ -545,13 +544,13 @@ def _bake_mission_number_into_mission_branch(
 
 def _has_branch_ref(repo_root: Path, ref_name: str) -> bool:
     """Return True when a local branch/ref resolves to a commit."""
-    probe = subprocess.run(
+    retcode, _stdout, _stderr = run_command(
         ["git", "rev-parse", "--verify", f"{ref_name}^{{commit}}"],
-        cwd=str(repo_root),
-        capture_output=True,
-        text=True,
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
     )
-    return probe.returncode == 0
+    return retcode == 0
 
 
 def _check_mission_branch(
@@ -568,17 +567,13 @@ def _check_mission_branch(
     if _has_branch_ref(repo_root, expected_branch):
         return True, None
 
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            cwd=str(repo_root),
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        base_sha = result.stdout.strip()[:12]
-    except subprocess.CalledProcessError:
-        base_sha = "<base-commit>"
+    retcode, stdout, _stderr = run_command(
+        ["git", "rev-parse", "HEAD"],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    base_sha = stdout.strip()[:12] if retcode == 0 else "<base-commit>"
 
     blocker_payload: MissionBranchBlocker = {
         "ready": False,
