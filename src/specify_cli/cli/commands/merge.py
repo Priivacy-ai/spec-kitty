@@ -1522,30 +1522,6 @@ def merge(
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1) from exc
 
-        _enforce_target_branch_sync_preflight(
-            get_main_repo_root(repo_root),
-            target_branch=resolved_target_branch,
-            mission_slug=resolved_feature,
-            mission_branch=lanes_manifest.mission_branch,
-            json_output=json_output,
-        )
-
-        branch_ok, branch_blocker = _check_mission_branch(
-            resolved_feature,
-            get_main_repo_root(repo_root),
-        )
-        if not branch_ok:
-            assert branch_blocker is not None
-            if json_output:
-                print(json.dumps(branch_blocker))
-            else:
-                console.print(
-                    "[red]Cannot proceed: mission branch missing.[/red]\n"
-                    f"Expected branch: {branch_blocker['expected_branch']}\n"
-                    f"Remediation: {branch_blocker['remediation']}"
-                )
-            raise typer.Exit(1)
-
         # WP10/T053: dry-run preview of merge-time mission_number assignment.
         feature_dir_for_preview = (
             get_main_repo_root(repo_root) / "kitty-specs" / resolved_feature
