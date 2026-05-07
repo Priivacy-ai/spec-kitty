@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import shutil
+import stat
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -157,6 +160,82 @@ class TestInstallSharedRootAgent:
         content = installed.read_text(encoding="utf-8")
         assert content.startswith("---\n")
         assert "name: plain-skill\n" in content
+
+    def test_reinstall_clears_windows_readonly_global_tree(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from specify_cli.skills import installer
+
+        monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path / "home"))
+        skills_root = tmp_path / "skills_src"
+        project = tmp_path / "project"
+        project.mkdir()
+
+        skill = _make_skill(skills_root, "my-skill")
+        install_skills_for_agent(project, "claude", [skill])
+
+        real_rmtree = shutil.rmtree
+
+        def windows_like_rmtree(
+            path: str | Path,
+            ignore_errors: bool = False,
+            onerror: Callable[[Callable[[str], object], str, object], object] | None = None,
+            **kwargs: object,
+        ) -> None:
+            readonly_files = [
+                file_path
+                for file_path in Path(path).rglob("*")
+                if file_path.is_file() and not file_path.stat().st_mode & stat.S_IWRITE
+            ]
+            if readonly_files and onerror is None:
+                raise PermissionError(readonly_files[0])
+            for readonly_file in readonly_files:
+                assert onerror is not None
+
+                def remove_after_chmod(path_str: str) -> None:
+                    target = Path(path_str)
+                    if not target.stat().st_mode & stat.S_IWRITE:
+                        raise PermissionError(path_str)
+                    target.unlink()
+
+                onerror(remove_after_chmod, str(readonly_file), PermissionError(str(readonly_file)))
+            real_rmtree(path, ignore_errors=ignore_errors, onerror=onerror, **kwargs)
+
+        monkeypatch.setattr(installer.shutil, "rmtree", windows_like_rmtree)
+
+        install_skills_for_agent(project, "claude", [skill])
+
+        installed = project / ".claude" / "skills" / "my-skill" / "SKILL.md"
+        assert installed.exists()
+
+    def test_reinstall_clears_windows_readonly_copied_projection(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path / "home"))
+        skills_root = tmp_path / "skills_src"
+        project = tmp_path / "project"
+        project.mkdir()
+
+        def raise_symlink_unavailable(self: Path, target: str | Path, target_is_directory: bool = False) -> None:
+            raise OSError("symlinks unavailable")
+
+        real_unlink = Path.unlink
+
+        def windows_like_unlink(self: Path, missing_ok: bool = False) -> None:
+            if self.exists() and self.is_file() and not self.stat().st_mode & stat.S_IWRITE:
+                raise PermissionError(self)
+            real_unlink(self, missing_ok=missing_ok)
+
+        monkeypatch.setattr(Path, "symlink_to", raise_symlink_unavailable)
+        monkeypatch.setattr(Path, "unlink", windows_like_unlink)
+
+        skill = _make_skill(skills_root, "my-skill")
+        install_skills_for_agent(project, "claude", [skill])
+        install_skills_for_agent(project, "claude", [skill])
+
+        installed = project / ".claude" / "skills" / "my-skill" / "SKILL.md"
+        assert installed.is_file()
+        assert not installed.is_symlink()
 
 
 class TestInstallWrapperOnlyAgentSkipped:

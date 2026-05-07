@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import shutil
+import stat
+from collections.abc import Callable
+from contextlib import suppress
 from datetime import datetime, timezone, UTC
 from pathlib import Path
 
@@ -25,6 +28,31 @@ from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
 
 DELIVERY_COPY = "copy"
 DELIVERY_SYMLINK = "symlink"
+
+
+def _make_path_writable(path: str | Path) -> None:
+    """Clear Windows ReadOnly before deleting managed files."""
+    path = Path(path)
+    with suppress(OSError):
+        path.chmod(path.stat().st_mode | stat.S_IWRITE)
+
+
+def _force_writable_and_retry(function: Callable[[str], object], path: str, _exc_info: object) -> None:
+    """shutil.rmtree onerror handler: clear readonly and retry the failed operation."""
+    _make_path_writable(path)
+    function(path)
+
+
+def _safe_unlink(path: Path) -> None:
+    try:
+        path.unlink()
+    except PermissionError:
+        _make_path_writable(path)
+        path.unlink()
+
+
+def _safe_rmtree(path: Path) -> None:
+    shutil.rmtree(path, onerror=_force_writable_and_retry)
 
 
 def _make_tree_read_only(root: Path) -> None:
@@ -50,12 +78,12 @@ def _normalize_skill_md(skill: CanonicalSkill, dest_dir: Path) -> None:
 def _sync_global_skill(skill: CanonicalSkill, target_root: Path) -> Path:
     """Install one canonical skill into the user-global root."""
     target_root.mkdir(parents=True, exist_ok=True)
-    dest_dir = target_root / skill.name
+    dest_dir: Path = target_root / str(skill.name)
     if dest_dir.exists() or dest_dir.is_symlink():
         if dest_dir.is_symlink() or dest_dir.is_file():
-            dest_dir.unlink()
+            _safe_unlink(dest_dir)
         else:
-            shutil.rmtree(dest_dir)
+            _safe_rmtree(dest_dir)
     shutil.copytree(skill.skill_dir, dest_dir)
     _normalize_skill_md(skill, dest_dir)
     _make_tree_read_only(dest_dir)
@@ -77,6 +105,7 @@ def _archive_existing_path(dest: Path, project_path: Path, backup_root: Path | N
     backup_root = _ensure_backup_root(project_path, backup_root)
     backup_path = backup_root / dest.relative_to(project_path)
     backup_path.parent.mkdir(parents=True, exist_ok=True)
+    _make_path_writable(dest)
     shutil.move(str(dest), str(backup_path))
     return backup_root
 
@@ -100,11 +129,11 @@ def _project_skill_file(
                 return DELIVERY_SYMLINK, backup_root
         except OSError:
             pass
-        dest.unlink()
+        _safe_unlink(dest)
     elif dest.exists():
         try:
             if dest.is_file() and compute_content_hash(dest) == compute_content_hash(source_file):
-                dest.unlink()
+                _safe_unlink(dest)
             else:
                 backup_root = _ensure_backup_root(project_path, backup_root)
                 if archived_paths is not None:
