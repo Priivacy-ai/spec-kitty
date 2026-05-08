@@ -145,6 +145,24 @@ def test_repair_canonicalizes_historical_meta_and_status_events(tmp_path: Path) 
     assert dry_run.events_package_version == "5.0.0"
     assert dry_run.envelope_count == 1
     assert dry_run.errors == ()
+    assert len(dry_run.row_mappings) == 1
+    mapping = dry_run.row_mappings[0].to_dict()
+    assert mapping["mission_slug"] == "042-historical-shape"
+    assert mapping["artifact_path"] == "kitty-specs/042-historical-shape/status.events.jsonl"
+    assert mapping["line_number"] == 1
+    assert mapping["source_event_id"] == "01KQHRB8GCFJAX7HM4ZY52AQGR"
+    assert mapping["synthesized_event_id"] == "01KQHRB8GCFJAX7HM4ZY52AQGR"
+    assert mapping["synthesized_event_type"] == "WPStatusChanged"
+    assert mapping["aggregate_id"] == "WP01"
+    assert isinstance(mapping["row_sha256"], str)
+    assert isinstance(mapping["envelope_sha256"], str)
+    assert {
+        warning["code"]
+        for warning in dry_run.context_warnings
+    } == {
+        "TEAMSPACE_PROJECT_CONTEXT_MISSING",
+        "TEAMSPACE_TEAM_CONTEXT_NOT_VALIDATED",
+    }
     assert dry_run.side_logs == (
         {
             "artifact_path": "kitty-specs/042-historical-shape/mission-events.jsonl",
@@ -320,6 +338,7 @@ def test_teamspace_dry_run_synthesizes_repo_evidence_for_historical_done_rows(tm
     assert dry_run.valid
     assert dry_run.envelope_count == 1
     assert dry_run.errors == ()
+    assert len(dry_run.row_mappings) == 1
 
 
 def test_repo_slug_preserves_https_remote_colon(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

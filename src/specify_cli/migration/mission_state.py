@@ -177,6 +177,34 @@ class RepairReport:
 
 
 @dataclass(frozen=True)
+class TeamspaceDryRunRowMapping:
+    """Mapping from one local status row to its synthesized TeamSpace event."""
+
+    mission_slug: str
+    artifact_path: str
+    line_number: int | None
+    source_event_id: str
+    synthesized_event_id: str
+    synthesized_event_type: str
+    aggregate_id: str
+    row_sha256: str | None
+    envelope_sha256: str
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "mission_slug": self.mission_slug,
+            "artifact_path": self.artifact_path,
+            "line_number": self.line_number,
+            "source_event_id": self.source_event_id,
+            "synthesized_event_id": self.synthesized_event_id,
+            "synthesized_event_type": self.synthesized_event_type,
+            "aggregate_id": self.aggregate_id,
+            "row_sha256": self.row_sha256,
+            "envelope_sha256": self.envelope_sha256,
+        }
+
+
+@dataclass(frozen=True)
 class TeamspaceDryRunReport:
     """Validation report for canonical envelopes synthesized from local state."""
 
@@ -185,6 +213,8 @@ class TeamspaceDryRunReport:
     envelope_count: int
     valid: bool
     errors: tuple[dict[str, object], ...]
+    row_mappings: tuple[TeamspaceDryRunRowMapping, ...] = ()
+    context_warnings: tuple[dict[str, object], ...] = ()
     side_logs: tuple[dict[str, object], ...] = ()
 
     def to_dict(self) -> dict[str, object]:
@@ -194,6 +224,8 @@ class TeamspaceDryRunReport:
             "envelope_count": self.envelope_count,
             "valid": self.valid,
             "errors": list(self.errors),
+            "row_mappings": [mapping.to_dict() for mapping in self.row_mappings],
+            "context_warnings": list(self.context_warnings),
             "side_logs": list(self.side_logs),
         }
 
@@ -281,6 +313,8 @@ def teamspace_dry_run(
     count = 0
     project_slug = repo_root.resolve().name
     repo_slug = _repo_slug(repo_root.resolve())
+    row_mappings: list[TeamspaceDryRunRowMapping] = []
+    context_warnings = _teamspace_context_warnings(repo_root.resolve(), project_uuid)
 
     from specify_cli.status.store import read_events
 
@@ -290,6 +324,7 @@ def teamspace_dry_run(
         errors.extend(raw_status_errors)
         if raw_status_errors:
             continue
+        row_locations = _status_row_locations(mission_dir)
         try:
             events = read_events(mission_dir)
         except Exception as exc:
@@ -309,6 +344,26 @@ def teamspace_dry_run(
                 lamport_clock=index,
                 project_slug=project_slug,
                 repo_slug=repo_slug,
+            )
+            row_location = row_locations.get(status_event.event_id)
+            row_mappings.append(
+                TeamspaceDryRunRowMapping(
+                    mission_slug=status_event.mission_slug,
+                    artifact_path=_repo_relpath(repo_root.resolve(), mission_dir / EVENTS_FILENAME),
+                    line_number=row_location.line_number if row_location is not None else None,
+                    source_event_id=status_event.event_id,
+                    synthesized_event_id=envelope["event_id"],
+                    synthesized_event_type=envelope["event_type"],
+                    aggregate_id=envelope["aggregate_id"],
+                    row_sha256=(
+                        hashlib.sha256(row_location.text.encode("utf-8")).hexdigest()
+                        if row_location is not None
+                        else None
+                    ),
+                    envelope_sha256=hashlib.sha256(
+                        json.dumps(envelope, sort_keys=True, separators=(",", ":")).encode("utf-8")
+                    ).hexdigest(),
+                )
             )
             try:
                 event_cls.model_validate(envelope)
@@ -346,8 +401,57 @@ def teamspace_dry_run(
         envelope_count=count,
         valid=not errors,
         errors=tuple(errors),
+        row_mappings=tuple(row_mappings),
+        context_warnings=tuple(context_warnings),
         side_logs=tuple(side_logs),
     )
+
+
+def _teamspace_context_warnings(repo_root: Path, project_uuid: uuid.UUID) -> list[dict[str, object]]:
+    warnings: list[dict[str, object]] = []
+    try:
+        from specify_cli.identity.project import load_identity
+
+        identity = load_identity(repo_root / ".kittify" / "config.yaml")
+    except Exception:
+        identity = None
+
+    if identity is None or identity.project_uuid is None:
+        warnings.append(
+            {
+                "code": "TEAMSPACE_PROJECT_CONTEXT_MISSING",
+                "message": (
+                    "No persisted project.uuid was found; dry-run used a deterministic "
+                    "offline project_uuid for schema validation only."
+                ),
+                "dry_run_project_uuid": str(project_uuid),
+            }
+        )
+
+    warnings.append(
+        {
+            "code": "TEAMSPACE_TEAM_CONTEXT_NOT_VALIDATED",
+            "message": "Team/private TeamSpace membership is not checked by offline dry-run.",
+        }
+    )
+    return warnings
+
+
+def _status_row_locations(mission_dir: Path) -> dict[str, _RawJsonlRow]:
+    status_path = mission_dir / EVENTS_FILENAME
+    if not status_path.exists():
+        return {}
+    try:
+        rows = _read_jsonl_rows(status_path)
+    except Exception:
+        return {}
+
+    locations: dict[str, _RawJsonlRow] = {}
+    for row in rows:
+        event_id = _event_id(row.data)
+        if event_id is not None:
+            locations.setdefault(event_id, row)
+    return locations
 
 
 def _load_events_contract() -> tuple[type[Any], Any, str]:
@@ -1116,6 +1220,7 @@ __all__ = [
     "MissionStateDryRunError",
     "MissionStateRepairError",
     "RepairReport",
+    "TeamspaceDryRunRowMapping",
     "TeamspaceDryRunReport",
     "deterministic_ulid",
     "repair_repo",
