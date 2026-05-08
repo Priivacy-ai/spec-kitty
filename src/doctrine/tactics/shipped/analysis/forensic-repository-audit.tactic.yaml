@@ -1,0 +1,159 @@
+schema_version: "1.0"
+id: forensic-repository-audit
+name: Forensic Repository Audit
+purpose: >
+  Extract durable, evidence-backed signals about the health of an unfamiliar
+  codebase from version control history and surface them as concrete
+  questions a maintainer must answer: where is risk concentrated, who knows
+  this code, is the project alive, does the team trust the pipeline, is
+  anything abandoned, and is complexity load-bearing? The output is not a
+  verdict but a structured inventory of hotspots, ownership, velocity, and
+  firefighting frequency that other doctrine artifacts (triage, prioritisation,
+  premortem, connascence analysis) can act on.
+steps:
+  - title: Establish audit scope and exclusion list
+    description: >
+      Before running any command, decide the time window (the recipes default
+      to one year) and assemble an exclusion list of vanity files that
+      otherwise dominate every output: lockfiles (`package-lock.json`,
+      `uv.lock`, `Gemfile.lock`, `poetry.lock`, `yarn.lock`), generated
+      bundles, vendored dependencies, snapshot fixtures, and translation
+      catalogs. Without this list the churn and bug-hotspot tables will
+      surface noise rather than signal. Record the exclusion list in the
+      audit report so the next reviewer can reproduce it.
+    examples:
+      - "Exclude: */node_modules/*, */vendor/*, *.lock, */dist/*, */__snapshots__/*, *.po, *.pot."
+  - title: Identify churn hotspots
+    description: >
+      Run the churn recipe to find files changed most often in the audit
+      window. High-churn files are the leading candidates for refactoring
+      investment because every future change pays the cost of their
+      instability. Apply the exclusion list before sorting. Capture the top
+      twenty as a table with file path and change count.
+    examples:
+      - "Recipe: git log --format=format: --name-only --since=\"1 year ago\" | sort | uniq -c | sort -nr | head -20"
+      - "Recipe with exclusions: git log --format=format: --name-only --since=\"1 year ago\" | grep -vE '(node_modules|\\.lock|dist/|__snapshots__)' | sort | uniq -c | sort -nr | head -20"
+  - title: Map contributor concentration (bus factor)
+    description: >
+      Run the bus-factor recipe to count non-merge commits per author. A
+      low number of contributors is not automatically a danger sign — it
+      may indicate a stable, mature module — but it does identify whose
+      knowledge is load-bearing. Combine with churn: a hotspot owned by a
+      single author is a knowledge-transfer priority. Record the top ten
+      contributors and call out files where one author is responsible for
+      more than seventy percent of changes.
+    examples:
+      - "Recipe: git shortlog -sn --no-merges"
+      - "Per-file ownership: git log --format='%an' -- path/to/file | sort | uniq -c | sort -nr"
+  - title: Detect bug hotspots from commit messages
+    description: >
+      Run the bug-hotspot recipe to find files most often touched by
+      fix/bug/broken commits. Files appearing here that also appear in the
+      churn table are the highest-priority refactoring candidates: they
+      are both unstable and known-defective. The recipe is a heuristic and
+      depends on commit-message hygiene; weak messages will distort the
+      result and must be flagged in the report.
+    examples:
+      - "Recipe: git log -i -E --grep=\"fix|bug|broken\" --name-only --format='' | sort | uniq -c | sort -nr | head -20"
+      - "Cross-reference: a file in the top-10 of both churn and bug hotspots is a refactor priority."
+  - title: Measure velocity over time
+    description: >
+      Run the velocity recipe to count commits per month. The shape of
+      this series answers the question 'is this project alive?' A flat or
+      decaying tail across the last three to six months suggests the
+      project is in maintenance mode or abandoned; a growing tail suggests
+      active investment. Be cautious with squash-merge repositories: the
+      monthly count understates upstream activity.
+    examples:
+      - "Recipe: git log --format='%ad' --date=format:'%Y-%m' | sort | uniq -c"
+      - "Compare against branch policy: a squash-merge repo with one commit per PR will undercount feature activity."
+  - title: Quantify firefighting frequency
+    description: >
+      Run the firefighting recipe to count revert, hotfix, emergency, and
+      rollback events. A high frequency of these events relative to overall
+      commit volume answers 'does the team trust the pipeline?'. Low trust
+      manifests as frequent reverts after merge or hotfix branches outside
+      the normal release flow. Record absolute count and the ratio to total
+      commits in the audit window.
+    examples:
+      - "Recipe: git log --oneline --since=\"1 year ago\" | grep -iE 'revert|hotfix|emergency|rollback'"
+      - "Ratio: a firefighting count above 5 percent of total commits warrants a separate pipeline-trust investigation."
+  - title: Overlay structural and complexity tooling
+    description: >
+      Git data alone does not capture complexity. Run a structural inventory
+      (`cloc` for line counts and language breakdown) and a complexity
+      probe appropriate to the primary language (`radon cc -s -a` for
+      Python; `rubycritic` and `brakeman` for Ruby; `eslint --max-warnings 0`
+      with complexity rules for JavaScript or TypeScript; `gocyclo` for Go).
+      Cross-reference complexity hotspots with churn hotspots: a file that
+      is both highly complex and highly churned is the strongest refactor
+      candidate the audit can produce.
+    examples:
+      - "cloc . --exclude-dir=node_modules,dist,vendor"
+      - "radon cc -s -a src/"
+      - "Cross-reference: top-5 complexity overlap with top-20 churn = refactor target list."
+  - title: Compile the audit report
+    description: >
+      Assemble the findings into a single report containing: the exclusion
+      list, the churn table, the bus-factor table, the bug-hotspot table,
+      the velocity series, the firefighting count and ratio, and the
+      complexity overlay. For each top-tier finding, frame it as a question
+      ('Why is this file changed every week?', 'Why does only one person
+      touch this module?') rather than a verdict. The report is an input
+      to triage, not a substitute for it.
+failure_modes:
+  - "Squash-merge distortion: repositories that squash every PR collapse multi-commit work into single events. Churn, velocity, and bug-hotspot recipes will all undercount upstream activity. Note the merge strategy in the report and adjust expectations; cross-reference with PR metadata where available."
+  - "Weak-commit-message dependency: the bug-hotspot recipe depends on the words 'fix', 'bug', or 'broken' appearing in commit messages. Repositories with poor message hygiene, machine-generated messages, or non-English messages will produce misleading results. Flag this dependency explicitly and corroborate with issue-tracker data when possible."
+  - "Vanity-file dominance: lockfiles, generated bundles, vendored dependencies, snapshot fixtures, and translation catalogs change on every release and will dominate every churn and bug-hotspot table if not excluded. The exclusion list defined in step 1 is mandatory; an audit that omits it is invalid."
+  - "No rename-following by default: `git log` does not follow renames unless `--follow` is passed, and `--follow` only works on a single path. Files that have been renamed will appear as separate entries with split histories. Mitigate by using `git log --follow -- <path>` for any file that triggers further investigation, and note in the report that the bulk recipes do not follow renames."
+  - "No complexity capture in raw git data: churn and bug counts measure how often code changes, not how hard it is to change. A simple, well-tested file may churn often without being a problem; a complex, fragile file may rarely churn because nobody dares touch it. The complexity overlay in step 7 is mandatory for this reason."
+  - "Bus factor is not knowledge: a low contributor count can mean stable ownership of a mature module, not abandonment or fragility. Treat single-author files as questions ('is this knowledge transferred?') rather than verdicts ('this is at risk'); the answer requires conversation with the team."
+  - "Out of scope: this tactic is not the brownfield-investigation skill (issue #665/#666), is not a default gate on any mission, and does not encode the full body of Adam Tornhill's behavioural code analysis methodology. It is a focused, evidence-gathering recipe set; deeper diagnosis lives in dedicated procedures and the future investigation skill."
+references:
+  - name: Legacy Codebase Triage
+    type: procedure
+    id: legacy-codebase-triage
+    when: This tactic is the evidence-gathering core of the legacy-codebase triage procedure; run it there to feed prioritisation and bucketing.
+  - name: Connascence Analysis
+    type: tactic
+    id: connascence-analysis
+    when: After hotspots are identified, use connascence analysis on the highest-priority files to classify the coupling that drives the churn.
+  - name: Premortem Risk Identification
+    type: tactic
+    id: premortem-risk-identification
+    when: Use the audit findings as input to a premortem on the planned remediation path; high-firefighting projects warrant a premortem before any large refactor is scheduled.
+  - name: Eisenhower Prioritisation
+    type: tactic
+    id: eisenhower-prioritisation
+    when: Hotspot tables, bug overlaps, and bus-factor concentrations populate the urgency-and-importance grid that drives the triage buckets.
+  - name: Efficient Local Tooling
+    type: directive
+    id: DIRECTIVE_028
+    when: The recipes rely on local `git`, `cloc`, and language-specific complexity tools; the directive governs how those tools are configured and invoked.
+  - name: Architectural Integrity Standard
+    type: directive
+    id: DIRECTIVE_001
+    when: Audit findings that surface load-bearing complexity or single-author critical modules feed back into architectural-integrity decisions and ADRs.
+notes: |
+  Provenance and underpinnings.
+
+  The five core recipes — churn hotspots, bus factor, bug hotspots, velocity
+  over time, and firefighting frequency — are taken from the practitioner-
+  oriented blog series at piechowski.io
+  (https://piechowski.io/posts/six-questions-i-ask-when-auditing-codebase/
+  and https://piechowski.io/posts/git-commands-audit-codebase/). The recipe
+  wording in the steps above matches the source verbatim; any deltas are
+  noted explicitly in the step examples (specifically: the exclusion list
+  in step 1, which the source recommends but does not bake into the
+  recipe; and the rename-following note in the failure modes).
+
+  The theoretical underpinning of mining version-control history for
+  behavioural insight comes from Adam Tornhill's body of work
+  (`Your Code as a Crime Scene`, `Software Design X-Rays`, and the
+  `code-maat` and `CodeScene` tooling). That work is acknowledged here as
+  the conceptual foundation, but it is *not* the cited recipe source —
+  Tornhill's tooling is heavier and more opinionated than the lightweight
+  git-only recipes this tactic encodes. Readers wanting to go deeper than
+  this tactic should consult Tornhill directly; readers wanting a fast,
+  durable, evidence-gathering pass on an unfamiliar repository should stop
+  here.

@@ -142,6 +142,9 @@ nodes:
 - urn: procedure:issue-triage-state-machine
   kind: procedure
   label: Issue Triage State Machine
+- urn: procedure:legacy-codebase-triage
+  kind: procedure
+  label: Legacy Codebase Triage
 - urn: procedure:migrate-project-guidance-to-spec-kitty-charter
   kind: procedure
   label: Migrate Project Guidance to Spec Kitty Charter
@@ -255,6 +258,9 @@ nodes:
 - urn: tactic:entity-value-object-classification
   kind: tactic
   label: Entity vs Value Object Classification
+- urn: tactic:forensic-repository-audit
+  kind: tactic
+  label: Forensic Repository Audit
 - urn: tactic:glossary-curation-interview
   kind: tactic
   label: Glossary Curation Interview
@@ -1429,6 +1435,54 @@ edges:
 - source: procedure:example-mapping-workshop
   target: tactic:stakeholder-alignment
   relation: requires
+# ---------------------------------------------------------------------------
+# Forensic Repository Audit (tactic) and Legacy Codebase Triage (procedure)
+# Authored by Curator Cassidy from ratified Decision Moment outcome DM-A.
+# Tactic encodes git-only audit recipes; procedure orchestrates triage
+# bucketing on top of the tactic, with optional DDD overlay.
+# ---------------------------------------------------------------------------
+- source: procedure:legacy-codebase-triage
+  target: tactic:forensic-repository-audit
+  relation: requires
+- source: procedure:legacy-codebase-triage
+  target: tactic:strategic-domain-classification
+  relation: suggests
+- source: procedure:legacy-codebase-triage
+  target: tactic:eisenhower-prioritisation
+  relation: requires
+- source: procedure:legacy-codebase-triage
+  target: tactic:connascence-analysis
+  relation: suggests
+- source: procedure:legacy-codebase-triage
+  target: tactic:premortem-risk-identification
+  relation: suggests
+- source: procedure:legacy-codebase-triage
+  target: procedure:situational-assessment
+  relation: suggests
+- source: procedure:legacy-codebase-triage
+  target: directive:DIRECTIVE_028
+  relation: requires
+- source: procedure:legacy-codebase-triage
+  target: directive:DIRECTIVE_001
+  relation: suggests
+- source: procedure:legacy-codebase-triage
+  target: directive:DIRECTIVE_003
+  relation: suggests
+- source: tactic:forensic-repository-audit
+  target: tactic:connascence-analysis
+  relation: suggests
+- source: tactic:forensic-repository-audit
+  target: tactic:premortem-risk-identification
+  relation: suggests
+- source: tactic:forensic-repository-audit
+  target: tactic:eisenhower-prioritisation
+  relation: suggests
+- source: tactic:forensic-repository-audit
+  target: directive:DIRECTIVE_028
+  relation: requires
+- source: tactic:forensic-repository-audit
+  target: directive:DIRECTIVE_001
+  relation: suggests
 - source: directive:DIRECTIVE_035
   target: tactic:occurrence-classification-workflow
   relation: requires
