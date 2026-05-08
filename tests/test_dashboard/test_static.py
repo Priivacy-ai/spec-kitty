@@ -56,7 +56,7 @@ def test_dashboard_features_polling_guards_malformed_payloads():
     source = DASHBOARD_JS.read_text(encoding="utf-8")
 
     assert "function normalizeFeatureList(features)" in source
-    assert "Array.isArray(data.features)" in source
+    assert "Array.isArray(data)" in source
     assert "response.ok" in source
 
 

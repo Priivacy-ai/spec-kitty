@@ -17,6 +17,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+## [3.2.0rc4] - 2026-05-07
+
+3.2.0rc4 closes the substantive work for epic
+[#645](https://github.com/Priivacy-ai/spec-kitty/issues/645) — Stable
+Application API Surface — across four chained missions plus post-merge
+fixes. Supersedes the merged but bug-flagged PR #970.
+
+### Added
+
+- Resource-oriented mission and work-package endpoints under
+  `/api/missions/**` with HATEOAS-LITE `_links` blocks
+  (mission `resource-oriented-mission-api-01KQQRF2`).
+- FastAPI/OpenAPI transport rooted at `src/dashboard/api/`; new
+  OpenAPI snapshot test pins the published surface (same mission).
+- `GlossaryService` and `LintService` extracted into
+  `src/specify_cli/glossary/` and `src/specify_cli/charter_lint/`
+  (mission `api-surface-completion-services-aliases-async-01KQSXDA`).
+- SSE endpoint `GET /api/events/missions` for push-based mission
+  status updates (same mission).
+- New `MissionRegistry` as the canonical reader for `kitty-specs/`,
+  with two-level cache (top-level structural key + per-mission content
+  key) and strong-reference WP-registry store
+  (missions `mission-registry-and-api-boundary-doctrine-01KQPDBB` and
+  `dashboard-services-domain-migration-01KR151P`).
+- New doctrine: `DIRECTIVE_API_DEPENDENCY_DIRECTION`,
+  `DIRECTIVE_REST_RESOURCE_ORIENTATION`, `HATEOAS-LITE` paradigm.
+- ADRs `2026-05-02-1`, `2026-05-02-2`, `2026-05-03-1`, `2026-05-03-2`,
+  `2026-05-07-1`.
+
+### Changed
+
+- Dashboard domain services moved from `src/dashboard/services/` into
+  `src/specify_cli/missions/`; `dashboard/services/` now contains thin
+  re-export shims registered in `architecture/2.x/shim-registry.yaml`
+  with `removal_release: 3.2.0`
+  (mission `dashboard-services-domain-migration-01KR151P`).
+- `WorkPackageAssignment` exposes `agent` (tool) and `model` fields;
+  compound agent strings (`tool:model:profile:role`) are decomposed at
+  the transport boundary so dashboard cards render full identity.
+- `WorkPackage` detail response now carries `phase`, `prompt_path`, and
+  `prompt_markdown` (with YAML frontmatter stripped) so the WP modal
+  has the data it needs.
+
+### Fixed
+
+- `MissionRegistry.list_missions()` no longer returns stale lane counts
+  after `status.events.jsonl` appends. Two-level cache keyed on
+  per-mission `_mission_dir_cache_key` invalidates individual records.
+  Resolves Robert Douglass' P1 review finding on PR #970.
+- `_wp_registries` switched from `WeakValueDictionary` to a strong
+  `dict[str, WorkPackageRegistry]` so per-mission instances survive
+  across requests. Resolves Robert's P2 finding on PR #970.
+- WP card detail modal in the dashboard now renders agent identity,
+  subtask totals, phase, and prompt content. Frontend fetches
+  `/api/missions/{id}/workpackages/{wp_id}` on click instead of reusing
+  summary data.
+
+### Removed
+
+- `/api/features` and `/api/kanban/{id}` legacy aliases now return
+  `410 Gone` (mission `api-surface-completion-services-aliases-async-01KQSXDA`).
+
 ## [3.2.0rc3] - 2026-05-06
 
 3.2.0rc3 fixes a TeamSpace dry-run compatibility gap found during the

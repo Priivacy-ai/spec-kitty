@@ -1,0 +1,118 @@
+{
+  "version": 1,
+  "mission_slug": "mission-registry-and-api-boundary-doctrine-01KQPDBB",
+  "mission_id": "01KQPDBBC0BP9G41751TN4TF2T",
+  "mission_branch": "kitty/mission-mission-registry-and-api-boundary-doctrine-01KQPDBB",
+  "target_branch": "feature/650-dashboard-ui-ux-overhaul",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06"
+      ],
+      "write_scope": [
+        ".gitignore",
+        "kitty-specs/mission-registry-and-api-boundary-doctrine-01KQPDBB/release-checklist.md",
+        "scripts/bench_registry_syscalls.py",
+        "src/dashboard/api/app.py",
+        "src/dashboard/api/deps.py",
+        "src/dashboard/api/models.py",
+        "src/dashboard/api/routers/features.py",
+        "src/dashboard/api/routers/kanban.py",
+        "src/dashboard/services/__init__.py",
+        "src/dashboard/services/mission_scan.py",
+        "src/dashboard/services/registry.py",
+        "src/doctrine/directives/shipped/api-dependency-direction.directive.yaml",
+        "src/doctrine/directives/shipped/rest-resource-orientation.directive.yaml",
+        "src/doctrine/paradigms/shipped/hateoas-lite.paradigm.yaml",
+        "src/specify_cli/cli/commands/dashboard.py",
+        "src/specify_cli/dashboard/scanner.py",
+        "tests/architectural/test_resource_models_have_links.py",
+        "tests/architectural/test_transport_does_not_import_scanner.py",
+        "tests/architectural/test_url_naming_convention.py",
+        "tests/test_dashboard/test_mission_registry.py",
+        "tests/test_dashboard/test_scanner_entrypoint_parity.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "architecture/2.x/05_ownership_manifest.yaml",
+        "architecture/2.x/05_ownership_map.md",
+        "architecture/2.x/adr/2026-05-03-1-dashboard-mission-registry-and-cache.md",
+        "architecture/2.x/adr/README.md",
+        "docs/migration/dashboard-fastapi-transport.md",
+        "kitty-specs/mission-registry-and-api-boundary-doctrine-01KQPDBB/spec.md",
+        "tests/test_dashboard/snapshots/openapi.json"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-05-03T13:56:19.720825+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP07"
+  ],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP01"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP02"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP02"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP04",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP04"
+      }
+    ],
+    "total_merges": 5,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 5
+    }
+  }
+}

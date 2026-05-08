@@ -17,3 +17,17 @@ Legacy links through `architecture/adrs/` are compatibility aliases.
 - `Accepted` means the decision remains current policy.
 - `Superseded` means a newer ADR replaced the decision; keep the file for history, but do not implement from it.
 - `Deprecated` means the direction is in active retirement and should not receive new work.
+
+## Index (recent)
+
+| ID | Title | Status | Mission |
+|----|-------|--------|---------|
+| 2026-05-07-1 | [Dashboard Services Move to specify_cli.missions (Phase B)](./2026-05-07-1-dashboard-services-phase-b.md) | Accepted | `dashboard-services-domain-migration-01KR151P` |
+| 2026-05-03-2 | [Resource-Oriented Mission API and HATEOAS-LITE](./2026-05-03-2-resource-oriented-mission-api.md) | Accepted | `resource-oriented-mission-api-01KQQRF2` |
+| 2026-05-03-1 | [Dashboard Mission Registry and Cache](./2026-05-03-1-dashboard-mission-registry-and-cache.md) | Accepted | `mission-registry-and-api-boundary-doctrine-01KQPDBB` |
+| 2026-05-02-2 | [FastAPI / OpenAPI Transport](./2026-05-02-2-fastapi-openapi-transport.md) | Accepted | `frontend-api-fastapi-openapi-migration-01KQN2JA` |
+| 2026-05-02-1 | [Dashboard Service Extraction](./2026-05-02-1-dashboard-service-extraction.md) | Accepted | `dashboard-service-extraction-01KQMCA6` |
+| 2026-05-01-1 | [Atomic Work Package Start Lifecycle](./2026-05-01-1-atomic-work-package-start-lifecycle.md) | Accepted | — |
+| 2026-04-27-1 | [Retrospective Gate Shared Module](./2026-04-27-1-retrospective-gate-shared-module.md) | Accepted | — |
+| 2026-04-26-3 | [E2E Hard Gate](./2026-04-26-3-e2e-hard-gate.md) | Accepted | — |
+| 2026-04-25-1 | [Shared Package Boundary Cutover](./2026-04-25-1-shared-package-boundary.md) | Accepted | `shared-package-boundary-cutover-01KQ22DS` |

@@ -162,6 +162,12 @@ def test_derive_recoverable_state_from_meta_when_event_log_missing(tmp_path: Pat
 
 
 def test_generate_lifecycle_json_writes_machine_facing_file(tmp_path: Path) -> None:
+    # Pin "now" to the event timestamp + 1 day so the classification is age-stable
+    # regardless of when the test runs. Without this, the assertion drifts to
+    # "stale" once the calendar passes MISSION_STALE_THRESHOLD_DAYS (14 days)
+    # past the hardcoded event date.
+    pinned_now = datetime(2026, 4, 22, 8, 0, 0, tzinfo=UTC)
+
     feature_dir = tmp_path / "kitty-specs" / "040-derived"
     _write_meta(feature_dir)
     _append_event(
@@ -173,11 +179,7 @@ def test_generate_lifecycle_json_writes_machine_facing_file(tmp_path: Path) -> N
     )
 
     derived_dir = tmp_path / ".kittify" / "derived"
-    generate_lifecycle_json(
-        feature_dir,
-        derived_dir,
-        now=datetime(2026, 4, 22, 12, 0, tzinfo=UTC),
-    )
+    generate_lifecycle_json(feature_dir, derived_dir, now=pinned_now)
 
     data = json.loads((derived_dir / "040-derived" / "lifecycle.json").read_text(encoding="utf-8"))
     assert data["mission_slug"] == "040-derived"

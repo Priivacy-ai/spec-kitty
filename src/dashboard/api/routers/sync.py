@@ -1,0 +1,35 @@
+"""Router: POST /api/sync/trigger.
+
+Token validation runs in ``Depends(verify_project_token)``. The handler
+body is a single service call; the HTTP status code piggybacks on the
+``Response`` parameter (a FastAPI dependency injection, not a
+hand-written ``Response(...)`` write — this pattern is allowed by the
+WP04 brief).
+"""
+from __future__ import annotations
+
+from typing import Annotated, Any
+
+from fastapi import APIRouter, Depends, FastAPI, Response
+
+from dashboard.api.deps import verify_project_token
+from dashboard.api.models import SyncTriggerResponse
+from specify_cli.missions.sync_service import SyncService
+
+__all__ = ["register"]
+
+
+def register(app: FastAPI) -> None:
+    """Mount the sync-trigger router on ``app``."""
+    router = APIRouter(tags=["sync", "actions"])
+
+    @router.post("/api/sync/trigger", response_model=SyncTriggerResponse)
+    def trigger_sync(
+        response: Response,
+        token: Annotated[str | None, Depends(verify_project_token)],
+    ) -> dict[str, Any]:
+        result = SyncService().trigger_sync(_token=token)
+        response.status_code = result.http_status
+        return result.body()
+
+    app.include_router(router)

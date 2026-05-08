@@ -251,7 +251,14 @@ def generate_lifecycle_json(
     *,
     now: datetime | None = None,
 ) -> None:
-    """Write ``lifecycle.json`` for one mission under ``.kittify/derived``."""
+    """Write ``lifecycle.json`` for one mission under ``.kittify/derived``.
+
+    The optional ``now`` parameter pins the reference time used for
+    age-based state classification (active / stale / abandoned). Production
+    callers leave it as None (uses ``datetime.now(UTC)``); tests pass a
+    fixed value to avoid time-bomb assertions where event timestamps drift
+    past stale thresholds as the calendar advances.
+    """
     lifecycle = derive_mission_lifecycle(feature_dir, now=now)
     mission_slug = lifecycle.mission_slug or feature_dir.name
     output_dir = derived_dir / mission_slug

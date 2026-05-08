@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "mission_slug": "dashboard-service-extraction-01KQMCA6",
+  "mission_id": "01KQMCA6PM8QZTQ3ZJ0RZPX708",
+  "mission_branch": "kitty/mission-dashboard-service-extraction-01KQMCA6",
+  "target_branch": "feature/650-dashboard-ui-ux-overhaul",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06"
+      ],
+      "write_scope": [
+        "src/dashboard/__init__.py",
+        "src/dashboard/api_types.py",
+        "src/dashboard/file_reader.py",
+        "src/dashboard/services/__init__.py",
+        "src/dashboard/services/mission_scan.py",
+        "src/dashboard/services/project_state.py",
+        "src/dashboard/services/sync.py",
+        "src/specify_cli/dashboard/api_types.py",
+        "src/specify_cli/dashboard/handlers/api.py",
+        "src/specify_cli/dashboard/handlers/features.py",
+        "src/specify_cli/dashboard/static/dashboard/dashboard.js",
+        "tests/architectural/test_dashboard_boundary.py",
+        "tests/architectural/test_layer_rules.py",
+        "tests/test_dashboard/test_seams.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-planning"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "architecture/2.x/05_ownership_manifest.yaml",
+        "architecture/2.x/05_ownership_map.md",
+        "architecture/2.x/adr/2026-05-02-1-dashboard-service-extraction.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-05-02T13:35:01.655137+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP01"
+  ],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP02"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP02"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP03",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP03"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP05",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP05"
+      }
+    ],
+    "total_merges": 4,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 4
+    }
+  }
+}

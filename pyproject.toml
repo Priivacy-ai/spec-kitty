@@ -1,6 +1,6 @@
 [project]
 name = "spec-kitty-cli"
-version = "3.2.0rc3"
+version = "3.2.0rc4"
 description = "Spec Kitty, a tool for Specification Driven Development (SDD) agentic projects, with kanban and git worktree isolation."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -83,6 +83,8 @@ dependencies = [
     "python-ulid>=3.0",  # ULID generation for event IDs
     "google-re2>=1.1",  # RE2 engine for linear-time regex (ReDoS prevention)
     "cryptography>=42.0",  # AES-256-GCM + scrypt KDF for encrypted auth session storage (feature 080)
+    "fastapi>=0.136.1",  # Resource-oriented dashboard API (epic #645 / mission resource-oriented-mission-api-01KQQRF2)
+    "uvicorn[standard]>=0.46.0",  # ASGI server for dashboard FastAPI app
 ]
 
 [project.urls]
@@ -128,7 +130,7 @@ build-backend = "hatchling.build"
 allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/kernel", "src/specify_cli", "src/doctrine", "src/charter"]
+packages = ["src/kernel", "src/specify_cli", "src/doctrine", "src/charter", "src/dashboard"]
 exclude = [
     "src/specify_cli/**/tests/**",
 ]

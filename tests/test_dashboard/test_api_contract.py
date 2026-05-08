@@ -81,13 +81,13 @@ def js_identifiers() -> set[str]:
 
 
 class TestFeaturesListContract:
-    """``GET /api/features`` response contract."""
+    """``GET /api/missions`` response contract (migrated from retired /api/features)."""
 
     def test_top_level_keys_referenced_in_js(self, js_identifiers: set[str]) -> None:
-        """JS accesses every required top-level key of FeaturesListResponse."""
-        expected_in_js = {"features", "active_feature_id", "project_path"}
+        """JS accesses the MissionSummary keys returned by GET /api/missions."""
+        expected_in_js = {"mission_id", "friendly_name", "lane_counts", "project_path"}
         missing = expected_in_js - js_identifiers
-        assert not missing, f"FeaturesListResponse keys not found in JS: {missing}"
+        assert not missing, f"MissionSummary keys not found in JS: {missing}"
 
     def test_top_level_keys_declared_in_typeddict(self) -> None:
         keys = _typed_dict_keys(FeaturesListResponse)
@@ -132,10 +132,10 @@ class TestFeaturesListContract:
 
 
 class TestKanbanContract:
-    """``GET /api/kanban/{id}`` response contract."""
+    """``GET /api/missions/{id}/workpackages`` contract (migrated from retired /api/kanban)."""
 
     def test_top_level_keys_in_js(self, js_identifiers: set[str]) -> None:
-        assert "lanes" in js_identifiers
+        assert "assignment" in js_identifiers
 
     def test_top_level_keys_declared(self) -> None:
         keys = _typed_dict_keys(KanbanResponse)

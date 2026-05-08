@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "mission_slug": "resource-oriented-mission-api-01KQQRF2",
+  "mission_id": "01KQQRF2ZKPQW1CT7H6BYTN5BG",
+  "mission_branch": "kitty/mission-resource-oriented-mission-api-01KQQRF2",
+  "target_branch": "feature/650-dashboard-ui-ux-overhaul",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "src/dashboard/api/app.py",
+        "src/dashboard/api/models.py",
+        "src/dashboard/api/routers/missions.py",
+        "src/dashboard/services/registry.py",
+        "tests/test_dashboard/test_missions_api.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "dashboard",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/dashboard/api/routers/artifacts.py",
+        "src/dashboard/api/routers/charter.py",
+        "src/dashboard/api/routers/diagnostics.py",
+        "src/dashboard/api/routers/dossier.py",
+        "src/dashboard/api/routers/features.py",
+        "src/dashboard/api/routers/glossary.py",
+        "src/dashboard/api/routers/health.py",
+        "src/dashboard/api/routers/kanban.py",
+        "src/dashboard/api/routers/lint.py",
+        "src/dashboard/api/routers/shutdown.py",
+        "src/dashboard/api/routers/static_mount.py",
+        "src/dashboard/api/routers/sync.py",
+        "tests/test_dashboard/test_deprecation_headers.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "architecture/2.x/05_ownership_manifest.yaml",
+        "architecture/2.x/05_ownership_map.md",
+        "architecture/2.x/adr/2026-05-03-2-resource-oriented-mission-api.md",
+        "docs/migration/dashboard-fastapi-transport.md",
+        "kitty-specs/resource-oriented-mission-api-01KQQRF2/issue-matrix.md",
+        "tests/test_dashboard/snapshots/openapi.json"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-05-03T21:27:35.394503+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP04"
+  ],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      }
+    ],
+    "total_merges": 1,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 1
+    }
+  }
+}

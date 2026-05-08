@@ -1,0 +1,146 @@
+{
+  "version": 1,
+  "mission_slug": "frontend-api-fastapi-openapi-migration-01KQN2JA",
+  "mission_id": "01KQN2JAEV0QW705QWQRWBR12W",
+  "mission_branch": "kitty/mission-frontend-api-fastapi-openapi-migration-01KQN2JA",
+  "target_branch": "feature/650-dashboard-ui-ux-overhaul",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "pyproject.toml",
+        "src/dashboard/api/__init__.py",
+        "src/dashboard/api/app.py",
+        "src/dashboard/api/deps.py",
+        "src/dashboard/api/errors.py",
+        "src/specify_cli/cli/commands/dashboard.py",
+        "src/specify_cli/dashboard/server.py",
+        "uv.lock"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "dashboard",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/dashboard/api/models.py",
+        "tests/test_dashboard/test_typeddict_pydantic_parity.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "dashboard",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/dashboard/api/routers/__init__.py",
+        "src/dashboard/api/routers/artifacts.py",
+        "src/dashboard/api/routers/charter.py",
+        "src/dashboard/api/routers/diagnostics.py",
+        "src/dashboard/api/routers/dossier.py",
+        "src/dashboard/api/routers/features.py",
+        "src/dashboard/api/routers/glossary.py",
+        "src/dashboard/api/routers/health.py",
+        "src/dashboard/api/routers/kanban.py",
+        "src/dashboard/api/routers/lint.py",
+        "src/dashboard/api/routers/shutdown.py",
+        "src/dashboard/api/routers/static_mount.py",
+        "src/dashboard/api/routers/sync.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "tests/architectural/test_dashboard_boundary.py",
+        "tests/architectural/test_fastapi_handler_purity.py",
+        "tests/test_dashboard/snapshots/openapi.json",
+        "tests/test_dashboard/test_fastapi_app.py",
+        "tests/test_dashboard/test_openapi_snapshot.py",
+        "tests/test_dashboard/test_openapi_validity.py",
+        "tests/test_dashboard/test_transport_parity.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "dashboard",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "kitty-specs/frontend-api-fastapi-openapi-migration-01KQN2JA/release-checklist.md",
+        "kitty-specs/frontend-api-fastapi-openapi-migration-01KQN2JA/spec.md",
+        "scripts/bench_dashboard_startup.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "architecture/2.x/05_ownership_manifest.yaml",
+        "architecture/2.x/05_ownership_map.md",
+        "architecture/2.x/adr/2026-05-02-2-fastapi-openapi-transport.md",
+        "docs/migration/dashboard-fastapi-transport.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-05-02T19:46:40.257120+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP01"
+  ]
+}

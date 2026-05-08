@@ -1,0 +1,14 @@
+{
+  "created_at": "2026-05-07T12:01:53.801595+00:00",
+  "friendly_name": "Dashboard Services Domain Migration (Phase B)",
+  "mission_id": "01KR151PM9D00Z1YMP72DZBMVA",
+  "mission_number": 115,
+  "mission_slug": "dashboard-services-domain-migration-01KR151P",
+  "mission_type": "software-dev",
+  "purpose_context": "Completes Phase B of the service-placement remediation (architecture/2.x/initiatives/2026-05-stable-application-api-surface/api-service-placement-assessment.md). Moves the four dashboard domain services and their registries from dashboard/services/ into specify_cli/missions/, fixes the list_missions() cache-staleness bug (Robert's P1 from PR #970), and replaces the WeakValueDictionary WP-registry store with an explicit strong-reference cache (P2). Establishes the canonical read surface required as groundwork for the domain-boundary repair epic (#992).",
+  "purpose_tldr": "Move dashboard domain services to specify_cli/missions/; fix cache bugs; set groundwork for #992",
+  "slug": "dashboard-services-domain-migration-01KR151P",
+  "target_branch": "feature/645-api-surface-completion-mission-c",
+  "vcs": "git",
+  "vcs_locked_at": "2026-05-07T15:03:11.063673+00:00"
+}

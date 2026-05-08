@@ -1,0 +1,28 @@
+{
+  "accept_commit": "fbc0b1825d407ab20e1969c62753ea2410b7d30e",
+  "acceptance_history": [
+    {
+      "accept_commit": "fbc0b1825d407ab20e1969c62753ea2410b7d30e",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-05-05T10:32:55.458993+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "c885d577e7546d8b68037de5214ad8019f98e37d"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-05-05T10:32:55.458993+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "c885d577e7546d8b68037de5214ad8019f98e37d",
+  "created_at": "2026-05-04T16:33:45.263295+00:00",
+  "friendly_name": "API Surface Completion: Domain Services, Alias Retirement, Async Transport",
+  "mission_id": "01KQSXDASEMGGZNAX3A5FXSEPM",
+  "mission_number": 114,
+  "mission_slug": "api-surface-completion-services-aliases-async-01KQSXDA",
+  "mission_type": "software-dev",
+  "purpose_context": "Closes out epic #645 by extracting glossary and lint services into their canonical domain modules, retiring deprecated API aliases, adding SSE-based async push, and wiring up the OpenAPI TypeScript codegen pipeline. Focuses on the read side of the API and domain service layer.",
+  "purpose_tldr": "Glossary/lint service extraction, alias retirement, SSE async transport, TypeScript codegen pipeline.",
+  "slug": "api-surface-completion-services-aliases-async-01KQSXDA",
+  "source_description": "Epic #645 comment 4369983868 (2026-05-04): Steps 5+6, alias retirement, Mission C (#954 + #955).",
+  "target_branch": "feature/645-api-surface-completion-mission-c",
+  "vcs": "git"
+}
