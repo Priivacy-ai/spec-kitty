@@ -121,10 +121,10 @@ radon mi -s src/specify_cli src/doctrine src/charter src/kernel | grep -E " - [B
 commit message matches `fix|bug|broken|regress|hotfix` (case-insensitive). `Bus
 factor` is the percentage of those churn commits authored by the dominant author
 (in every case below: Robert Douglass). `CC max` is the highest-rated cyclomatic
-function in the file at HEAD (radon rank in parens). DDD column is researcher-
-**tentative**.
+function in the file at HEAD (radon rank in parens). DDD column is
+**architect-ratified**.
 
-| # | File | Churn | Bug commits | SLOC | CC max | Top-author share | DDD-tentative |
+| # | File | Churn | Bug commits | SLOC | CC max | Top-author share | DDD (architect-ratified) |
 |---|------|------:|------------:|-----:|--------|------------------|----------------|
 | 1 | `src/specify_cli/__init__.py` | 119 | 25 | 224 | A | 49% (Robert; co-owned w/ Den, honjo, Bruno) | glue (CLI bootstrap) |
 | 2 | `src/specify_cli/cli/commands/agent/tasks.py` | 87 | 74 | 3746 | F (160 `finalize_tasks`) | 98% | **core** (mission orchestration) |
@@ -135,15 +135,15 @@ function in the file at HEAD (radon rank in parens). DDD column is researcher-
 | 7 | `src/specify_cli/cli/commands/init.py` | 50 | 28 | 1018 | F (94 `init`) | 96% | supporting (project bootstrap) |
 | 8 | `src/specify_cli/cli/commands/__init__.py` | 48 | 23 | 115 | A | 96% | glue (wiring) |
 | 9 | `src/specify_cli/sync/emitter.py` | 42 | 30 | 1682 | C (avg) MI=C | 93% | supporting (SaaS sync) |
-| 10 | `src/specify_cli/missions/software-dev/command-templates/specify.md` | 38 | 28 | n/a (markdown) | n/a | n/a | supporting (mission template) |
+| 10 | `src/specify_cli/missions/software-dev/command-templates/specify.md` | 38 | 28 | n/a (markdown) | n/a | n/a | **core** (SDD methodology contract) |
 | 11 | `src/specify_cli/cli/commands/sync.py` | 36 | 23 | 1462 | MI=C | 97% | supporting (sync CLI) |
-| 12 | `src/specify_cli/missions/software-dev/command-templates/tasks.md` | 33 | 27 | n/a | n/a | n/a | supporting (mission template) |
+| 12 | `src/specify_cli/missions/software-dev/command-templates/tasks.md` | 33 | 27 | n/a | n/a | n/a | **core** (SDD methodology contract) |
 | 13 | `src/specify_cli/cli/commands/dashboard.py` | 33 | 24 | 142 (renamed from `dashboard.py`) | n/a | 100% | glue (CLI shim) |
 | 14 | `src/specify_cli/glossary/middleware.py` | 36 | 19 | 689 | n/a | 100% | supporting (glossary) |
 | 15 | `src/specify_cli/dashboard/static/dashboard/dashboard.js` | 29 | 21 | n/a | n/a | n/a | supporting (UI) |
 | 16 | `src/specify_cli/dashboard/scanner.py` | 28 | 24 | 785 | n/a | 93% | supporting (dashboard scanner) |
-| 17 | `src/specify_cli/missions/software-dev/command-templates/plan.md` | 27 | 19 | n/a | n/a | n/a | supporting |
-| 18 | `src/specify_cli/missions/software-dev/command-templates/implement.md` | 27 | 21 | n/a | n/a | n/a | supporting |
+| 17 | `src/specify_cli/missions/software-dev/command-templates/plan.md` | 27 | 19 | n/a | n/a | n/a | **core** (SDD methodology contract) |
+| 18 | `src/specify_cli/missions/software-dev/command-templates/implement.md` | 27 | 21 | n/a | n/a | n/a | **core** (SDD methodology contract) |
 | 19 | `src/specify_cli/upgrade/migrations/__init__.py` | 26 | 20 | 89 | n/a | 100% | glue (migration registry) |
 | 20 | `src/specify_cli/sync/events.py` | 26 | 19 | 499 | n/a | 96% | supporting (sync envelopes) |
 | 21 | `src/specify_cli/next/runtime_bridge.py` | 26 | 25 | 2552 | F (46) MI=C | 96% | **core** (mission-next runtime bridge) |
@@ -152,7 +152,7 @@ function in the file at HEAD (radon rank in parens). DDD column is researcher-
 | 24 | `src/specify_cli/core/worktree.py` | 25 | 20 | 681 | n/a | 96% | **core** (git worktree mgmt) |
 | 25 | `src/specify_cli/glossary/__init__.py` | 24 | 13 | n/a | n/a | 100% | supporting (glossary entrypoint) |
 | 26 | `src/specify_cli/cli/commands/charter.py` | 23 | 18 | 2934 | E (38 `interview`) MI=C | 100% | supporting (charter CLI) |
-| 27 | `src/specify_cli/acceptance.py` (now `acceptance/__init__.py`) | 22 | 17 | 793 | MI=B | 100% | **core** (acceptance workflow) |
+| 27 | `src/specify_cli/acceptance.py` (now `acceptance/__init__.py`) | 22 | 17 | 793 | MI=B | 100% | supporting (acceptance workflow) |
 | 28 | `src/specify_cli/orchestrator_api/commands.py` | 21 | 17 | 1097 | n/a | 100% | **core** (external orchestration API) |
 | 29 | `src/specify_cli/agent_utils/status.py` | 21 | 15 | 570 | F (53 `_display_status_board`) | 100% | supporting (kanban renderer) |
 | 30 | `src/specify_cli/cli/commands/agent/status.py` | 20 | 14 | 886 | n/a | 100% | supporting (status CLI) |
@@ -163,8 +163,18 @@ tactic. That set is:
 `agent/tasks.py`, `agent/workflow.py`, `implement.py`, `merge.py`, `agent/feature.py`
 (deleted), `init.py`, `commands/__init__.py`, `sync/emitter.py`, `cli/commands/sync.py`.
 
-> **DDD classifications above are researcher-tentative — architect sign-off
-> required before treating as authoritative.**
+> **DDD classifications above were ratified by Architect Alphonso (Stijn
+> Dejongh) on 2026-05-08; the column may now be treated as authoritative
+> for this audit run. Revisions and rationales are listed in the
+> "DDD ratification notes (architect)" subsection below.**
+
+### DDD ratification notes (architect)
+
+- `src/specify_cli/missions/software-dev/command-templates/specify.md`: tentative=`supporting` → ratified=`core` — Mission templates encode the SDD methodology itself; they are the user-facing contract that differentiates spec-kitty from generic CLI scaffolders.
+- `src/specify_cli/missions/software-dev/command-templates/tasks.md`: tentative=`supporting` → ratified=`core` — Same rationale as `specify.md`; the WP-decomposition contract is part of spec-kitty's differentiating methodology.
+- `src/specify_cli/missions/software-dev/command-templates/plan.md`: tentative=`supporting` → ratified=`core` — Same rationale; the plan template is a load-bearing piece of the SDD pipeline contract, not a swappable doc fragment.
+- `src/specify_cli/missions/software-dev/command-templates/implement.md`: tentative=`supporting` → ratified=`core` — Same rationale; defines the lane-aware execution handshake that no off-the-shelf tool replicates.
+- `src/specify_cli/acceptance/__init__.py`: tentative=`core` → ratified=`supporting` — Acceptance gating is a common workflow-tool pattern; the differentiating state-machine logic lives in `status/emit.py` and the merge pipeline, not here.
 
 ## Temporal coupling (top 30 pairs, both files non-vanity)
 
