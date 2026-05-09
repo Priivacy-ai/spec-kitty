@@ -80,6 +80,62 @@ radon mi -s src/specify_cli src/doctrine src/charter src/kernel | grep -E " - [B
 | No complexity capture in raw git data | Mitigated via `radon` overlay (Python-only). |
 | Bus factor is a question, not a verdict | This audit treats single-author concentration as an open question. |
 
+## Scope expansion (2026-05-09)
+
+This audit was originally scoped to `src/` only. On 2026-05-09 the scope was
+broadened to `src/ + tests/ + kitty-specs/` to address the two largest blind
+spots flagged in the original "Limitations" section: (1) absence of a test-
+coverage overlay on the F-rated functions, and (2) inability to see
+`kitty-specs/<mission>/` ↔ `src/` temporal coupling.
+
+**What changed**
+
+- **Scope:** `src/` → `src/ + tests/ + kitty-specs/`
+- **Additional vanity exclusions** required by the expanded corpus:
+  `**/status.events.jsonl`, `**/status.json`, `kitty-specs/**/tasks.md`
+  (mission-state churn, not authoring), `kitty-specs/**/snapshot-latest.json`,
+  `kitty-specs/**/dossiers/**` (dossier state files). The original exclusions
+  (lockfiles, `__pycache__`, `CHANGELOG.md`, `.mypy_cache`) are retained.
+- **Window unchanged:** still 1 year for churn / hotspots, 2 years for velocity.
+- **Commit at re-run:** `81883352240c3f8e0249b78875f7fa140700418f` (HEAD on
+  `feat/caacs-doctrine` advanced since the original run; original tables below
+  reflect SHA `bc64dec6`, the broader-scope tables in this section reflect the
+  newer SHA. The 1y window means the two windows overlap by ~364 days; observed
+  shape is consistent.).
+
+**Headline impact**
+
+- **F1 (bus factor) — *worse*.** Single-author concentration rises from
+  **89.5% → 95.2%** when tests and missions are folded in. Robert Douglass
+  authored 2613 of 2744 commits across the full corpus. F1 is reaffirmed and
+  intensified.
+- **F2 (hotspot list) — *unchanged*.** The top-30 src/ files are identical;
+  the extra rows that surface in the full-corpus view are tests and mission
+  artifacts that *belong* to those same hotspots (e.g. `tests/sync/test_events.py`
+  next to `sync/emitter.py`, `kitty-specs/041-…/tasks/WP*.md` next to
+  `glossary/*`). The hotspot diagnosis is **stable under scope expansion**.
+- **New findings** (F15–F18): test-update lag on agent/* hotspots,
+  glossary middleware as an under-tested hotspot, mission/code temporal
+  coupling is **commit-level decoupled by design** (separate phases), and the
+  glossary subsystem cluster (mission 041 + `src/specify_cli/glossary/`) is the
+  second densest coupling cluster after agent/.
+
+**Executive summary (one paragraph)**
+
+Broadening the scope confirms — and somewhat sharpens — every finding from the
+src/-only run. The 95.2% bus factor is the headline change; tests and mission
+artifacts do not dilute the lone-author signal because the same author wrote
+them too. The hotspot list does not move, which is reassuring (the recipes
+are robust). The new signal worth acting on is the **test-update lag** on the
+F2 cluster: `agent/tasks.py` and `agent/workflow.py` change with their tests
+only ~30% of the time — i.e. ~70% of changes ship without test updates.
+Combined with their F-rated complexity that's a non-trivial regression risk.
+Mission ↔ code temporal coupling at the commit level is sparse (max 3
+co-changes per pair) because the SDD pipeline deliberately separates planning
+commits from implementation commits — that's not a defect, it's the design,
+but it means the mission-driven causal coupling is invisible to single-commit
+recipes and would need PR-grouping or trailer-based attribution to see clearly.
+
 ## Top findings (executive summary)
 
 1. **Project is very alive but contributor-monopolised.** 1001 commits to `src/` in
@@ -116,6 +172,8 @@ radon mi -s src/specify_cli src/doctrine src/charter src/kernel | grep -E " - [B
    Recommend deletion.
 
 ## Hotspot table (top 30, vanity-filtered)
+
+### Hotspots — src/ only (original)
 
 `Churn` = commits touching the file in the 1y window. `Bug commits` = subset whose
 commit message matches `fix|bug|broken|regress|hotfix` (case-insensitive). `Bus
@@ -176,6 +234,58 @@ tactic. That set is:
 - `src/specify_cli/missions/software-dev/command-templates/implement.md`: tentative=`supporting` → ratified=`core` — Same rationale; defines the lane-aware execution handshake that no off-the-shelf tool replicates.
 - `src/specify_cli/acceptance/__init__.py`: tentative=`core` → ratified=`supporting` — Acceptance gating is a common workflow-tool pattern; the differentiating state-machine logic lives in `status/emit.py` and the merge pipeline, not here.
 
+### Hotspots — full corpus (src/ + tests/ + kitty-specs/)
+
+Same 1y window. Same exclusions as src/-only **plus**: `**/status.events.jsonl`,
+`**/status.json`, `kitty-specs/**/tasks.md`, `kitty-specs/**/snapshot-latest.json`,
+`kitty-specs/**/dossiers/**`. `Origin` = which top-level directory the file
+lives in.
+
+| # | File | Churn | Origin | Note |
+|---|------|------:|--------|------|
+| 1 | `src/specify_cli/__init__.py` | 119 | src | unchanged from src/-only |
+| 2 | `src/specify_cli/cli/commands/agent/tasks.py` | 87 | src | F2 hotspot |
+| 3 | `src/specify_cli/cli/commands/agent/workflow.py` | 77 | src | F2 hotspot |
+| 4 | `src/specify_cli/cli/commands/implement.py` | 67 | src | F2 hotspot |
+| 5 | `src/specify_cli/cli/commands/merge.py` | 56 | src | F2 hotspot |
+| 6 | `src/specify_cli/cli/commands/agent/feature.py` | 55 | src | deleted, pre-cutover hotspot |
+| 7 | `src/specify_cli/cli/commands/init.py` | 50 | src |  |
+| 8 | `src/specify_cli/cli/commands/__init__.py` | 47 | src | wiring |
+| 9 | `src/specify_cli/sync/emitter.py` | 42 | src |  |
+| 10 | `src/specify_cli/missions/software-dev/command-templates/specify.md` | 38 | src |  |
+| 11 | `src/specify_cli/glossary/middleware.py` | 36 | src |  |
+| 12 | `src/specify_cli/cli/commands/sync.py` | 36 | src |  |
+| 13 | `src/specify_cli/missions/software-dev/command-templates/tasks.md` | 33 | src |  |
+| 14 | `src/specify_cli/dashboard.py` | 33 | src | renamed → `cli/commands/dashboard.py` |
+| 15 | `src/specify_cli/dashboard/static/dashboard/dashboard.js` | 29 | src | UI |
+| 16 | `src/specify_cli/sync/events.py` | 28 | src |  |
+| 17 | `src/specify_cli/dashboard/scanner.py` | 28 | src |  |
+| 18 | `src/specify_cli/missions/software-dev/command-templates/plan.md` | 27 | src |  |
+| 19 | `src/specify_cli/missions/software-dev/command-templates/implement.md` | 27 | src |  |
+| 20 | `kitty-specs/041-mission-glossary-semantic-integrity/tasks/WP03-term-extraction-implementation.md` | 27 | kitty-specs | **first non-src/ entry**; glossary mission |
+| 21 | `src/specify_cli/upgrade/migrations/__init__.py` | 26 | src |  |
+| 22 | `src/specify_cli/next/runtime_bridge.py` | 26 | src |  |
+| 23 | `src/specify_cli/glossary/__init__.py` | 26 | src |  |
+| 24 | `src/specify_cli/tasks_support.py` | 25 | src |  |
+| 25 | `src/specify_cli/status/emit.py` | 25 | src |  |
+| 26 | `src/specify_cli/core/worktree.py` | 25 | src |  |
+| 27 | `tests/sync/test_events.py` | 24 | tests | **first tests/ entry**; sync hotspot's test |
+| 28 | `kitty-specs/041-mission-glossary-semantic-integrity/tasks/WP11-type-safety-and-integration-tests.md` | 24 | kitty-specs | glossary mission again |
+| 29 | `src/specify_cli/cli/commands/charter.py` | 23 | src |  |
+| 30 | `src/specify_cli/acceptance.py` | 22 | src |  |
+
+**Interpretation:** the top-19 of the full-corpus table is **identical** to
+the src/-only top-19. The first non-src/ entry is rank 20: a single mission's
+WP file (mission 041, glossary semantic integrity, has 11 task files all in
+the top-100). This is mission 041 doing what missions are supposed to do —
+churning through revisions before being merged — *not* a hotspot in the
+"buggy file" sense. Rank 27 is the first `tests/` entry (`test_events.py`),
+which sits right next to its source (`sync/emitter.py` at rank 9). Conclusion:
+**the F2 hotspot list is robust under scope expansion** — broadening to the
+full corpus does not surface new structural hotspots; it surfaces (a) a
+single high-revision mission and (b) tests that already track their hot
+sources. F2 stands.
+
 ## Temporal coupling (top 30 pairs, both files non-vanity)
 
 Source: 586 multi-file `src/`-only commits in the 1y window. 239,639 unique pairs
@@ -225,6 +335,171 @@ template exist in two locations and require synchronised edits?** This is a
 candidate for connascence-of-meaning analysis (likely a stale duplicate after a
 template-resolver chain change).
 
+## Cross-cutting temporal coupling (mission ↔ src/ ↔ tests/) (2026-05-09)
+
+The src/-only run could not see two important coupling kinds: (a) mission
+spec ↔ source-file co-changes, and (b) source-file ↔ matching-test co-changes.
+Both are computed here on the full corpus.
+
+### Mission-directory ↔ src-file co-changes (top 20)
+
+For each commit, all files in `kitty-specs/<mission>/` are collapsed to a
+single token (the mission directory) and paired with each touched `src/` file.
+Counts are deliberately low because the SDD pipeline lands planning commits
+and implementation commits separately by design — a co-change here means
+both the spec and the code were touched in the same commit (e.g. a fix that
+also amended the spec, or an implementation commit that adjusted spec
+metadata).
+
+| # | Co-changes | Mission directory | Src file/dir |
+|---|-----------:|-------------------|--------------|
+| 1 | 5 | `012-documentation-mission/` | `src/specify_cli/cli/commands/` (any file) |
+| 2 | 5 | `010-workspace-per-work-package-for-parallel-development/` | `src/specify_cli/cli/commands/` |
+| 3 | 4 | `008-unified-python-cli/` | `src/specify_cli/cli/commands/` |
+| 4 | 3 | `auth-local-trust-and-multi-process-hardening-01KQW587/` | `src/specify_cli/auth/token_manager.py` |
+| 5 | 3 | `auth-local-trust-and-multi-process-hardening-01KQW587/` | `src/specify_cli/auth/session_hot_path.py` |
+| 6 | 3 | `064-complete-mission-identity-cutover/` | `src/specify_cli/missions/software-dev/` |
+| 7 | 3 | `067-runtime-recovery-and-audit-safety/` | `src/specify_cli/missions/software-dev/` |
+| 8 | 3 | `065-tasks-and-lane-stabilization/` | `src/specify_cli/missions/software-dev/` |
+| 9 | 3 | `unified-charter-bundle-chokepoint-01KP5Q2G/` | `src/specify_cli/upgrade/migrations/` |
+| 10 | 3 | `phase-3-charter-synthesizer-pipeline-01KPE222/` | `src/charter/synthesizer/synthesize_pipeline.py` |
+| 11 | 3 | `phase-3-charter-synthesizer-pipeline-01KPE222/` | `src/charter/synthesizer/errors.py` |
+| 12 | 3 | `phase-3-charter-synthesizer-pipeline-01KPE222/` | `src/charter/synthesizer/write_pipeline.py` |
+| 13 | 3 | `005-refactor-mission-system/` | `src/specify_cli/cli/commands/` |
+| 14 | 3 | `008-unified-python-cli/` | `src/specify_cli/upgrade/migrations/` |
+| 15 | 3 | `004-modular-code-refactoring/` | `src/specify_cli/cli/commands/` |
+| 16 | 3 | `025-cli-event-log-integration/` | `src/specify_cli/cli/commands/` |
+| 17 | 3 | `010-workspace-per-work-package-for-parallel-development/` | `src/specify_cli/upgrade/migrations/` |
+| 18 | 3 | `011-constitution-packaging-safety-and-redesign/` | `src/specify_cli/upgrade/migrations/` |
+| 19 | 3 | `015-first-class-jujutsu-vcs-integration/` | `src/specify_cli/cli/commands/` |
+| 20 | 3 | `010-workspace-per-work-package-for-parallel-development/` | `src/specify_cli/core/worktree.py` |
+
+**Interpretation:** the maximum is 5 co-changes/year for any
+mission ↔ src pair. That is *very* low compared with the in-`src/` pairs
+(top pair = 45 co-changes/y). This means **mission-driven causal coupling
+is invisible to commit-level recipes** — the SDD pipeline works as designed,
+landing spec edits and code edits in separate commits. To see the real
+mission ↔ code coupling we'd need PR-level grouping, branch-level
+attribution, or trailer-based association (e.g. `Mission: 041`). Treat this
+table as a sanity check (no surprising couplings) rather than a refactor
+signal.
+
+The clusters that *do* surface are revealing as **secondary structure**: the
+charter synthesizer phase-3 mission cluster (rows 10–12) shows three
+synthesizer modules co-changing with their mission spec — that's the
+expected pattern when a mission is genuinely active. The auth hardening
+mission (rows 4–5) shows the same pattern for `auth/`. Mission 010
+(workspace-per-WP) ↔ `core/worktree.py` (row 20) is the strongest *specific*
+file coupling and is also expected by design.
+
+### src-file ↔ test-file co-changes (top 20)
+
+Per-pair count of commits touching both a `src/` file and a `tests/` file:
+
+| # | Co-changes | Src file | Test file |
+|---|-----------:|----------|-----------|
+| 1 | 13 | `sync/emitter.py` | `tests/sync/test_events.py` |
+| 2 | 12 | `cli/commands/agent/feature.py` | `tests/specify_cli/test_cli/test_agent_feature.py` |
+| 3 | 12 | `glossary/extraction.py` | `tests/specify_cli/glossary/test_extraction.py` |
+| 4 | 11 | `dashboard/scanner.py` | `tests/test_dashboard/test_scanner.py` |
+| 5 | 11 | `glossary/middleware.py` | `tests/specify_cli/glossary/test_middleware.py` |
+| 6 | 9 | `glossary/scope.py` | `tests/specify_cli/glossary/test_scope.py` |
+| 7 | 8 | `sync/emitter.py` | `tests/sync/test_event_emission.py` |
+| 8 | 8 | `sync/events.py` | `tests/sync/test_event_emission.py` |
+| 9 | 8 | `sync/events.py` | `tests/sync/test_events.py` |
+| 10 | 8 | `glossary/models.py` | `tests/specify_cli/glossary/test_models.py` |
+| 11 | 7 | `sync/batch.py` | `tests/sync/test_batch_sync.py` |
+| 12 | 7 | `sync/emitter.py` | `tests/sync/conftest.py` |
+| 13 | 7 | `cli/commands/agent/tasks.py` | `tests/integration/test_task_workflow.py` |
+| 14 | 7 | `status/transitions.py` | `tests/specify_cli/status/test_transitions.py` |
+| 15 | 7 | `cli/commands/init.py` | `tests/specify_cli/test_cli/test_init_command.py` |
+| 16 | 7 | `cli/commands/agent/tasks.py` | `tests/unit/agent/test_tasks.py` |
+| 17 | 7 | `runtime/bootstrap.py` | `tests/unit/runtime/test_bootstrap.py` |
+| 18 | 7 | `glossary/events.py` | `tests/specify_cli/glossary/test_checkpoint_resume.py` |
+| 19 | 7 | `glossary/events.py` | `tests/specify_cli/glossary/test_event_emission.py` |
+| 20 | 6 | `dashboard/static/dashboard/dashboard.js` | `tests/test_dashboard/test_static.py` |
+
+**Interpretation:** the `sync/` and `glossary/` subsystems show the healthiest
+src ↔ test co-change discipline (rows 1, 3, 4, 5, 6, 8–11, 18, 19 — ten of
+the top twenty pairs are in those two subsystems). The `agent/*` cluster is
+**conspicuously absent from the top of this table** — `agent/tasks.py`'s
+strongest test pair is rank 13 with 7 co-changes, despite the file having 87
+churn commits. That's a 8% co-change rate at the strongest-pair level.
+
+### F2 hotspots: change-with-tests rate
+
+For the F2 cluster specifically — how often does a commit that touches the
+hotspot also touch a matching test?
+
+| Hotspot | Commits touching file | Also touches matching test | Rate |
+|---------|----------------------:|---------------------------:|-----:|
+| `cli/commands/agent/tasks.py` | 87 | 26 | **29.9%** |
+| `cli/commands/agent/workflow.py` | 77 | 21 | **27.3%** |
+| `cli/commands/agent/mission.py` | 19 | 6 | **31.6%** |
+
+**~70% of changes to the F2 cluster ship without a matching test update.**
+This is new evidence the src/-only run could not produce. Combined with the
+F-rated cyclomatic complexity in those files (CC=160 `finalize_tasks`,
+CC=139 `move_task`, CC=87 `status`, CC=84 `review`), this is the strongest
+empirical case for a refactor-with-test-build-out on the agent/* cluster.
+**F2's priority is upgraded** in the revised triage matrix below.
+
+## Test coverage proxy (2026-05-09)
+
+For each top-20 hotspot, the matching test file(s) were located by name and
+churn-compared. `Ratio` = test churn / src churn × 100. Heuristic flags:
+**UNTESTED** (no matching test found), **UNDER-TESTED** (ratio < 10%),
+**test-heavy** (ratio > 100%, healthy or potentially churny tests).
+
+| Source | src churn | test churn | Ratio | Flag |
+|--------|----------:|-----------:|------:|------|
+| `cli/commands/agent/tasks.py` | 87 | 19 | 21.8% | **under-tested** |
+| `cli/commands/agent/workflow.py` | 77 | 30 | 39.0% | **under-tested** |
+| `cli/commands/implement.py` | 67 | 33 | 49.3% | under-tested-ish |
+| `cli/commands/merge.py` | 56 | 44 | 78.6% | borderline |
+| `cli/commands/init.py` | 50 | 51 | 102.0% | test-heavy (good) |
+| `sync/emitter.py` | 42 | 110 | 261.9% | test-heavy (good) |
+| `glossary/middleware.py` | 36 | 5 | **13.9%** | **under-tested** |
+| `cli/commands/sync.py` | 36 | 110 | 305.6% | test-heavy (good) |
+| `dashboard/scanner.py` | 28 | 19 | 67.9% | borderline |
+| `next/runtime_bridge.py` | 26 | 50 | 192.3% | test-heavy (good) |
+| `upgrade/migrations/__init__.py` | 26 | 34 | 130.8% | test-heavy (good) |
+| `glossary/__init__.py` | 24 | 58 | 241.7% | test-heavy (good) |
+| `status/emit.py` | 25 | 31 | 124.0% | test-heavy (good) |
+| `core/worktree.py` | 25 | 28 | 112.0% | test-heavy (good) |
+| `cli/commands/charter.py` | 23 | 34 | 147.8% | test-heavy (good) |
+| `acceptance.py` | 22 | 24 | 109.1% | test-heavy (good) |
+| `orchestrator_api/commands.py` | 21 | 46 | 219.0% | test-heavy (good) |
+| `agent_utils/status.py` | 21 | 4 | **19.0%** | **under-tested** |
+| `cli/commands/agent/status.py` | 20 | 18 | 90.0% | borderline |
+| `cli/commands/accept.py` | 20 | 21 | 105.0% | test-heavy (good) |
+
+**Three files flagged as under-tested by the ratio rule:**
+1. `cli/commands/agent/tasks.py` (21.8%)
+2. `cli/commands/agent/workflow.py` (39.0%)
+3. `glossary/middleware.py` (13.9%)
+4. `agent_utils/status.py` (19.0%)
+
+The first two reinforce F2 — the agent/* cluster needs both a structural
+refactor *and* a test-build-out. The third (`glossary/middleware.py`) is a
+**new finding** (F16): the glossary subsystem looked healthy in the
+src ↔ tests pair table (multiple healthy pairs in `glossary/*`) but
+middleware specifically — the dispatch surface — is under-tested relative to
+its 36 churn commits. The fourth (`agent_utils/status.py`) is the kanban
+renderer with F-53 `_display_status_board`; under-tested at 19% ratio.
+
+**No hotspot from the top-20 is genuinely UNTESTED** (initial heuristic
+produced four false-negatives — `acceptance.py`, `orchestrator_api/commands.py`,
+`agent/status.py`, `accept.py` — that have tests under non-conventional
+names; corrected counts are shown above).
+
+**Caveat:** ratio is a *churn proxy*, not coverage. A file with low test
+churn might be tested via integration tests that evolve more slowly than
+unit tests. The methodology cannot distinguish "tests don't change because
+the source's behavior is stable on the contract surface" from "tests are
+neglected." Treat the four under-tested flags as **prompts to verify**,
+not verdicts.
+
 ## Bus factor / knowledge map
 
 **Overall (1y, src/-only commits):**
@@ -271,6 +546,52 @@ The recipes cannot answer that — only conversation with the team can. But the
 combination of (a) 89.5% concentration, (b) high churn (still active), and
 (c) high bug-fix density on those same files leans toward bus factor over
 maturity.
+
+### Bus factor — full corpus reassessment (2026-05-09)
+
+Re-running on `src/ + tests/ + kitty-specs/` with the expanded exclusion list:
+
+| Author | Commits | Share |
+|--------|--------:|------:|
+| Robert Douglass | 2613 | **95.2%** |
+| Stijn Dejongh | 58 | 2.1% |
+| Den Delimarsky 🌺 | 32 | 1.2% |
+| honjo-hiroaki-gtt | 5 | 0.2% |
+| den (work) | 5 | 0.2% |
+| Tanner | 3 | 0.1% |
+| Jerome LACUBE | 3 | 0.1% |
+| Jerome Lacube | 3 | 0.1% |
+| Bruno Borges | 3 | 0.1% |
+| 16 others | ≤2 each | <0.1% |
+
+**Total commits in window:** 2744 (vs. 1001 in src/-only). The other ~1740
+commits are tests/ and kitty-specs/ authoring — and **97.8%** of those
+non-`src/` commits are also Robert. Concentration is **not diluted** by tests
+or specs; it is intensified.
+
+**Per-hotspot (file + matching tests, full-corpus):**
+
+| Hotspot | Top-author share (file + tests) |
+|---------|-------------------------------:|
+| `agent/tasks.py` + matching tests | 97.7% (Robert; 2 Stijn) |
+| `agent/workflow.py` + matching tests | 96.1% (Robert; 2 Stijn, 1 Jerome) |
+| `implement.py` + matching tests | 97.0% (Robert; 2 Stijn) |
+| `merge.py` + matching tests | 96.4% (Robert; 2 Stijn) |
+| `sync/emitter.py` + matching tests | 93.4% (Robert; 8 Stijn) |
+
+**Verdict:** broadening the lens to "the file plus its tests plus its spec
+history" does **not** improve the bus factor for any top-15 hotspot. The
+slight uptick in Stijn's share on `sync/emitter.py` (3 → 8) is the only
+visible co-ownership pocket; everywhere else the same author wrote the
+implementation, the tests, and the mission spec. **F1 reaffirmed: bus factor
+≈ 1 across the entire codebase.**
+
+The original audit speculated that single-author concentration *might* be
+"stable mature ownership". The full-corpus view rules that out: a mature
+codebase with healthy ownership would show (a) test files maintained by
+reviewers, (b) mission specs co-authored with planners, or (c) at least
+multiple committers landing fixes on the F-rated functions. None of these
+patterns appear. F1 is now classified **bus factor**, not maturity.
 
 ## Firefighting signal
 
@@ -328,7 +649,9 @@ work (2026-04 surge). Last 30 days: 193 src/ commits. Last 90 days: 550.
 
 ## Triage matrix (Eisenhower, per procedure exit condition)
 
-The procedure asks for a four-bucket assignment of audit findings.
+The procedure asks for a four-bucket assignment of audit findings. The
+2026-05-09 scope expansion introduces new findings (F15-F18) which are
+woven into the buckets below; the original buckets are otherwise preserved.
 
 ### Important + urgent (this week)
 
@@ -341,13 +664,22 @@ The procedure asks for a four-bucket assignment of audit findings.
   `templates/task-prompt-template.md`. 15 co-edits in 1y suggests neither has
   become canonical; one of them is dead-code-by-edit-count and the audit cannot
   tell which from history alone.
+- **Test-update lag on F2 cluster (NEW, 2026-05-09).** `agent/tasks.py` and
+  `agent/workflow.py` change with their tests only ~30% of the time. Pair the
+  refactor (already in this bucket) with a test-build-out pass: every commit
+  that lands a behavior change in the F-rated functions should include a
+  matching unit test. The lone-author dynamic means there is currently nobody
+  enforcing this on review.
 
 ### Important + not urgent (this quarter)
 
 - **Refactor `cli/commands/agent/tasks.py` (3746 SLOC, F-160 `finalize_tasks`,
   F-139 `move_task`).** This is the single strongest "both unstable and
   known-defective" candidate the audit produces. A connascence-of-meaning pass
-  on the function boundaries is the natural follow-up.
+  on the function boundaries is the natural follow-up. **Priority upgraded
+  by the 2026-05-09 scope expansion**: 21.8% test-churn ratio and 29.9%
+  change-with-tests rate make this both structurally and behaviourally risky.
+  Refactor MUST include a test build-out, not just a structural decomposition.
 - **Refactor `cli/commands/agent/mission.py` (2314 SLOC, F-160 `finalize_tasks`)**
   — note `finalize_tasks` is in `mission.py`, not `tasks.py` despite the name;
   this name-vs-location mismatch is itself a coupling smell.
@@ -360,6 +692,17 @@ The procedure asks for a four-bucket assignment of audit findings.
   but is itself a hotspot (rank #21 by churn, rank #7 by SLOC). Bridge that
   needs 26 commits/year and contains an F-46 function isn't a bridge, it's a
   hub.
+- **Investigate `glossary/middleware.py` test gap (NEW, 2026-05-09).** 36
+  src commits / 5 test commits = 13.9% ratio, the worst hot-file ratio in
+  the corpus. The glossary subsystem otherwise shows healthy src ↔ test
+  co-change discipline; middleware is the outlier. Likely either (a) tested
+  via integration tests that span multiple sources (in which case ratio is
+  misleading), or (b) the dispatch surface where most behaviour change
+  happens but unit-test surfaces have lagged. Verify before refactoring.
+- **Investigate `agent_utils/status.py` test gap (NEW, 2026-05-09).** Kanban
+  renderer with F-53 `_display_status_board`, 21 src commits / 4 test commits
+  = 19.0% ratio. Same diagnosis as middleware; verify whether integration
+  tests exercise it before declaring under-tested.
 
 ### Not important + not urgent (don't worry)
 
@@ -419,14 +762,13 @@ The procedure asks for a four-bucket assignment of audit findings.
 
 ## Limitations of this run
 
-1. **Scope = `src/` only.** Per user instruction. This excludes
-   `kitty-specs/` (the project's own dogfood missions), `tests/`,
-   `architecture/`, `docs/`, and `.github/`. The biggest blind spot is
-   **temporal coupling between `kitty-specs/<feature>/` and `src/`** — the
-   project's design says feature plans live in `kitty-specs/` and drive `src/`
-   changes, so the strongest causal coupling in the codebase is the one this
-   audit cannot see.
-2. **No `tests/` overlay.** As noted in cross-cutting observation #5.
+1. **Scope (after 2026-05-09 expansion) = `src/ + tests/ + kitty-specs/`.** The
+   remaining out-of-scope dirs are `architecture/`, `docs/`, and `.github/`.
+   These are intentionally excluded (architecture docs and CI config are not
+   what this audit is for).
+2. ~~**No `tests/` overlay.**~~ *Lifted by the 2026-05-09 expansion.* See
+   "Test coverage proxy" above; ratio-based proxy now exists, but it remains
+   a churn proxy, not coverage.
 3. **`cloc` not installed.** SLOC is `wc -l` (Python files only); language
    breakdown is implicit (everything in scope is Python except a few markdown
    templates and one JS dashboard file). For a pure-Python scope this is
@@ -459,6 +801,35 @@ The procedure asks for a four-bucket assignment of audit findings.
    substitute for the brownfield-investigation skill (issues #665/#666);
    it is the evidence-gathering input to triage and connascence/premortem
    tactics, not a verdict.
+10. **Mission state-file dominance (full-corpus run).** Without the new
+    `kitty-specs/**/tasks.md`, `kitty-specs/**/snapshot-latest.json`, and
+    `kitty-specs/**/dossiers/**` exclusions, mission-state files completely
+    dominate churn (some snapshot-latest.json files have 24+ commits; some
+    tasks.md files have 100+). Two such files leaked into the first uncleaned
+    pass and were excluded in the published table. A future re-run on a fresh
+    clone should re-validate this exclusion list — new state-file conventions
+    may have been introduced.
+11. **Mission ↔ src coupling visibility (commit-level).** As discussed in the
+    cross-cutting section, the SDD pipeline deliberately separates spec edits
+    from code edits at the commit level, so commit-pair recipes only see the
+    *exception cases* (post-merge spec amendments, doc fixes during
+    implementation). The full mission ↔ code coupling would require either
+    PR-level grouping (we don't have local PR metadata) or a `Mission:`
+    trailer convention (not yet adopted). This is a methodology gap, not a
+    fix-now item.
+12. **Test-coverage proxy is a churn ratio, not coverage.** A file with
+    "test-heavy" status might still have low line/branch coverage; an
+    "under-tested" file might be exercised heavily by integration tests that
+    rarely change. The four flagged files (`agent/tasks.py`, `agent/workflow.py`,
+    `glossary/middleware.py`, `agent_utils/status.py`) are *prompts to
+    verify*, not verdicts. The recipes do not include `coverage.py` or any
+    actual coverage tool; that would be a separate audit step.
+13. **150 missions, 167 mission directories with churn.** The `kitty-specs/`
+    tree is enormous (150 directories at the time of audit). Most of these
+    are merged, archived, and quiescent; ~15-20 show recent activity. The
+    "mission ↔ src" pair counts are dwarfed by sheer mission volume; if a
+    future scope expansion narrows to "active missions only" (open WPs or
+    unmerged), the signal-to-noise should improve.
 
 ## Open follow-ups for cross-check (Phase 3)
 
@@ -485,6 +856,51 @@ by the planner:
     feature-spec ↔ source-code temporal coupling, which is invisible to the
     current run.
 
+## Scope-expansion changelog (2026-05-09)
+
+What changed in this re-run, with one-line rationale per item:
+
+- **Added** `## Scope expansion (2026-05-09)` near the top — declares the
+  expanded scope, exclusions, and headline impact (F1 worse, F2 unchanged).
+- **Added** new exclusions for kitty-specs/ state churn (`status.events.jsonl`,
+  `status.json`, `tasks.md`, `snapshot-latest.json`, `dossiers/**`) — without
+  these, mission state files dominate the churn ranking and obscure code
+  hotspots.
+- **Renamed** the original hotspot-table heading to
+  `### Hotspots — src/ only (original)` — preserves the original table
+  intact while making room for the broader view.
+- **Added** `### Hotspots — full corpus (src/ + tests/ + kitty-specs/)` —
+  shows that broadening scope adds zero new structural hotspots; mission 041
+  WP files and `tests/sync/test_events.py` are the only non-src/ entries
+  in the top 30, both of which track existing hotspots.
+- **Added** `### Bus factor — full corpus reassessment` inside the existing
+  Bus-factor section — re-runs `git shortlog` on the full corpus
+  (95.2% Robert vs 89.5% in src/-only) and per-hotspot file+tests authorship
+  (no improvement). Reclassifies F1 from "bus factor or maturity, unclear"
+  to definitively "bus factor".
+- **Added** `## Cross-cutting temporal coupling (mission ↔ src/ ↔ tests/)`
+  — three sub-tables: (a) mission ↔ src pair counts (low signal, by design),
+  (b) src ↔ tests pair counts (sync/ and glossary/ healthy, agent/ lagging),
+  (c) F2 cluster change-with-tests rate (~30%, new finding F15).
+- **Added** `## Test coverage proxy` — ratio table for top-20 hotspots,
+  flagging four under-tested files (F2 cluster + glossary middleware +
+  agent_utils status renderer).
+- **Updated** the Limitations section — removed the (now-invalid)
+  scope-only-src/ caveats; added five new caveats (10–13) about state-file
+  exclusions, mission ↔ src commit-level invisibility, churn-vs-coverage
+  proxy nature, and the size of the kitty-specs/ tree.
+- **Updated** the Triage matrix — added test-update-lag bullet to the
+  "Important + urgent" bucket; upgraded the agent/tasks.py refactor priority
+  to require a test build-out; added two glossary-middleware and
+  agent_utils/status investigation bullets to "Important + not urgent".
+- **Added this changelog** at the bottom.
+
+The original audit-metadata, methodology, top-findings, hotspot table,
+temporal-coupling table (within src/), bus-factor overall table, firefighting
+section, velocity section, cross-cutting observations, and open follow-ups
+are preserved verbatim from the 2026-05-08 run. Only the eight items listed
+above were modified or added.
+
 ---
 
 *Generated 2026-05-08 by researcher subagent following the
@@ -492,4 +908,8 @@ by the planner:
 tactic and
 [legacy-codebase-triage](../../src/doctrine/procedures/shipped/legacy-codebase-triage.procedure.yaml)
 procedure on branch `feat/caacs-doctrine` at commit
-`bc64dec6ee37dbbd6bc21a0a1aa3195f2bab1b57`. Not committed; review-only artifact.*
+`bc64dec6ee37dbbd6bc21a0a1aa3195f2bab1b57`. Scope-expansion re-run on
+2026-05-09 at commit `81883352240c3f8e0249b78875f7fa140700418f` extended the
+audit to `src/ + tests/ + kitty-specs/`; see "Scope expansion (2026-05-09)"
+near the top and the changelog at the bottom for the diff. Not committed;
+review-only artifact.*
