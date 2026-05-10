@@ -43,7 +43,7 @@ operational and cross-repo work outside this branch:
 | spec-kitty `#933` operator runbook | implemented | `docs/migration/teamspace-mission-state-repair.md`. |
 | spec-kitty `#934` CI readiness gate | closed | `.github/workflows/teamspace-mission-state-readiness.yml`. |
 | spec-kitty `#935` release sequencing | implemented on this branch | Release sequencing section added to the runbook. |
-| spec-kitty `#978` events dependency | implemented on this branch | `pyproject.toml` now requires `spec-kitty-events>=5.0.0,<6.0.0`; `uv.lock` resolves 5.0.0 from PyPI. |
+| spec-kitty `#978` events dependency | implemented on this branch | `pyproject.toml` now requires `spec-kitty-events>=5.0.0,<6.0.0`; `uv.lock` resolves 5.0.0 from PyPI; release metadata advanced to `3.2.0rc4`. |
 | spec-kitty `#979` actual repair commit | open | Not done. Audits above prove the active repositories still need coordinated repair commits. |
 | spec-kitty-events `#18`, `#19`, `#20` | closed | GitHub state is closed; local dependency now resolves `spec-kitty-events` 5.0.0. |
 | spec-kitty-tracker `#13` | closed | Existing issue comments record focused tracker verification: canonical TeamSpace/no-rollout tests passed. |
@@ -56,15 +56,19 @@ operational and cross-repo work outside this branch:
 Commands run in the clean checkout:
 
 ```bash
-uv run ruff check architecture/2.x/adr/2026-05-10-1-deterministic-historical-mission-state-repair.md docs/migration/teamspace-mission-state-repair.md pyproject.toml src/specify_cli/migration/mission_state.py src/specify_cli/sync/batch.py tests/migration/test_mission_state_repair.py tests/migration/test_teamspace_migration_rehearsal.py tests/sync/test_batch_sync.py
-SPEC_KITTY_ENABLE_SAAS_SYNC=1 uv run pytest tests/contract/test_events_envelope_matches_resolved_version.py tests/migration/test_mission_state_repair.py tests/migration/test_teamspace_migration_rehearsal.py tests/sync/test_batch_sync.py::TestHistoricalMissionStateGuard tests/release/test_check_shared_package_drift.py tests/architectural/test_pyproject_shape.py -q
+python scripts/release/validate_release.py --mode branch --tag-pattern 'v*.*.*'
+uv run ruff check architecture/2.x/adr/2026-05-10-1-deterministic-historical-mission-state-repair.md docs/migration/teamspace-mission-state-repair.md docs/migration/teamspace-mission-state-920-closeout.md src/specify_cli/migration/mission_state.py src/specify_cli/sync/batch.py tests/migration/test_mission_state_repair.py tests/migration/test_teamspace_migration_rehearsal.py tests/sync/test_batch_sync.py tests/release/test_dogfood_command_set.py tests/release/test_validate_metadata_yaml_sync.py
+SPEC_KITTY_ENABLE_SAAS_SYNC=1 uv run pytest tests/contract/test_events_envelope_matches_resolved_version.py tests/migration/test_mission_state_repair.py tests/migration/test_teamspace_migration_rehearsal.py tests/sync/test_batch_sync.py::TestHistoricalMissionStateGuard tests/release/test_check_shared_package_drift.py tests/architectural/test_pyproject_shape.py tests/release/test_dogfood_command_set.py tests/release/test_validate_metadata_yaml_sync.py -q
 uv run pytest tests/audit -q
 uv lock --check
 ```
 
 Results:
 
+- Release metadata validation passed for `3.2.0rc4` against latest tag
+  `v3.2.0rc3`.
 - Ruff passed.
-- Targeted migration/contract/sync/release/architecture suite: 26 passed.
+- Targeted migration/contract/sync/release/architecture suite: 33 passed, 5
+  skipped.
 - Audit suite: 174 passed.
 - `uv lock --check` passed.
