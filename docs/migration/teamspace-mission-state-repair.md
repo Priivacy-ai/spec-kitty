@@ -72,3 +72,31 @@ If another contributor has mission changes in flight, merge those changes first 
 - Typed side-log rows found in `status.events.jsonl` are quarantined under the migration manifest directory instead of being imported into TeamSpace.
 
 Runtime and decision side logs are launch-local evidence. The dry-run reports them with an explicit skipped disposition; they are not treated as TeamSpace status authority during the launch migration.
+
+## Cross-Repo Rehearsal
+
+The launch rehearsal for historical mission-state import is encoded in
+`tests/migration/test_teamspace_migration_rehearsal.py`. It creates two
+independent clones of the same historical fixture repository, runs repair on
+both, verifies byte-identical local migration diffs, reruns repair to prove
+idempotency, and validates that TeamSpace dry-run output is identical across
+clones. It also proves raw historical status rows are rejected by the
+`spec-kitty-events` 5.0.0 envelope model before they can reach live ingress.
+
+Run the CLI-side rehearsal with:
+
+```bash
+uv run pytest tests/migration/test_teamspace_migration_rehearsal.py -q
+```
+
+Then run the SaaS import/idempotency side from `spec-kitty-saas`:
+
+```bash
+make local-db-bootstrap
+make test-pytest ARGS='apps/sync/tests/test_cutover_contract.py apps/sync/tests/test_batch_sync.py apps/sync/tests/test_projection_pipeline.py -q'
+make local-db-down
+```
+
+Those SaaS tests validate canonical historical preflight, import
+deduplication, no persistence for rejected raw rows, and canonical mission
+identity behavior when the CLI supplies a mission ID.

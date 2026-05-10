@@ -311,8 +311,8 @@ def teamspace_dry_run(
     errors: list[dict[str, object]] = []
     side_logs: list[dict[str, object]] = []
     count = 0
-    project_slug = repo_root.resolve().name
     repo_slug = _repo_slug(repo_root.resolve())
+    project_slug = repo_slug or repo_root.resolve().name
     row_mappings: list[TeamspaceDryRunRowMapping] = []
     context_warnings = _teamspace_context_warnings(repo_root.resolve(), project_uuid)
 
