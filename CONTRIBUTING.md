@@ -192,7 +192,7 @@ unset GITHUB_TOKEN && gh run watch <run-id>
 
 # 5. Verify
 unset GITHUB_TOKEN && gh release view vX.Y.Z
-pip install spec-kitty-cli==X.Y.Z
+pipx install --force spec-kitty-cli==X.Y.Z
 ```
 
 ### Full Release (Minor/Major)
@@ -257,7 +257,7 @@ For larger releases with multiple changes:
 8. **Verify the release**
    ```bash
    unset GITHUB_TOKEN && gh release view vX.Y.Z
-   pip install spec-kitty-cli==X.Y.Z
+   pipx install --force spec-kitty-cli==X.Y.Z
    ```
 
 9. **Clean up**
@@ -298,7 +298,7 @@ Before tagging a release, ensure:
 - **Use annotated tags** — always use `git tag -a`, not `git tag`
 - **Monitor the release workflow** — watch for failures and be ready to fix issues
 - **PyPI is immutable** — once published, a version cannot be changed (only yanked)
-- **PyPI CDN caching** — `pip install --upgrade` may not find the new version immediately; use `pip install spec-kitty-cli==X.Y.Z` instead
+- **PyPI CDN caching** — `pipx upgrade` may not find the new version immediately; use `pipx install --force spec-kitty-cli==X.Y.Z` instead
 
 ### Troubleshooting Releases
 

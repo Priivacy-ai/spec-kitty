@@ -17,7 +17,7 @@ Spec Kitty provides structured slash commands that keep Claude Code focused on r
 
 ```bash
 # 1. Install both tools
-pip install spec-kitty-cli
+pipx install spec-kitty-cli
 
 # 2. Initialize your project
 spec-kitty init myproject --ai claude
@@ -434,7 +434,7 @@ claude
 **Cause**: Installed v0.10.0-0.10.8 which had bundling bug
 **Fix**:
 ```bash
-pip install --upgrade spec-kitty-cli  # Get v0.10.9+
+pipx upgrade spec-kitty-cli  # Get v0.10.9+
 cd myproject
 spec-kitty upgrade  # Auto-repairs templates
 ```

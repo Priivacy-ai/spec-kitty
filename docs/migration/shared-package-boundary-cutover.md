@@ -14,7 +14,10 @@ external PyPI dependencies, but the vendored events copy at
 
 Concretely, after this release:
 
-- `pip install spec-kitty-cli` is the only install step.
+- `spec-kitty-cli` is the only package you need to install. Prefer
+  `pipx install spec-kitty-cli` for the CLI; `python -m pip install
+  spec-kitty-cli` remains supported inside a virtual environment or another
+  intentionally managed Python environment.
 - `spec-kitty-events` and `spec-kitty-tracker` are pulled in transitively
   with compatibility ranges (`>=4.0.0,<5.0.0` and `>=0.4,<0.5`,
   respectively); exact versions live in `uv.lock`.
@@ -23,10 +26,11 @@ Concretely, after this release:
 ## Action required
 
 For most operators: nothing. Re-run
-`pip install --upgrade spec-kitty-cli` (or
-`uv tool upgrade spec-kitty-cli`) and the new release works without
-`spec-kitty-runtime`. The retired package may remain installed in your
-environment from a previous release; it is harmless and unused.
+`pipx upgrade spec-kitty-cli` (or the equivalent upgrade command for your
+installer, such as `uv tool upgrade spec-kitty-cli` or `python -m pip install
+--upgrade spec-kitty-cli` inside a virtual environment) and the new release
+works without `spec-kitty-runtime`. The retired package may remain installed in
+your environment from a previous release; it is harmless and unused.
 
 ## Optional cleanup
 

@@ -121,7 +121,8 @@ Each command template contains:
 
 ### Keeping Templates in Sync
 
-When you upgrade Spec Kitty (`pip install --upgrade spec-kitty-cli`), migrations update all agent directories:
+When you upgrade Spec Kitty (`pipx upgrade spec-kitty-cli`, or the equivalent
+command for your installer), migrations update all agent directories:
 
 ```python
 # Example migration updating all 12 agents

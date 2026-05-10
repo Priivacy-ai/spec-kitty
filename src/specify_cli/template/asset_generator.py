@@ -247,8 +247,8 @@ def _raise_template_discovery_error(commands_dir: Path) -> None:  # noqa: ARG001
         + (f" = {remote_repo}" if remote_repo else " (not configured)")
         + "\n\n"
         "To fix this, try one of these approaches:\n\n"
-        "1. Reinstall from PyPI (recommended for end users):\n"
-        "   pip install --upgrade spec-kitty-cli\n\n"
+        "1. Reinstall from PyPI with pipx (recommended for end users):\n"
+        "   pipx install --force spec-kitty-cli\n\n"
         "2. Use --template-root flag (for development):\n"
         "   spec-kitty init . --template-root=/path/to/spec-kitty\n\n"
         "3. Set environment variable (for development):\n"

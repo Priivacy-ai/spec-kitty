@@ -43,7 +43,9 @@ This updates `config.yaml` AND deletes directories consistently.
 ### Step 2: Upgrade spec-kitty
 
 ```bash
-pip install --upgrade spec-kitty-cli
+pipx upgrade spec-kitty-cli
+# or, inside an activated virtual environment:
+python -m pip install --upgrade spec-kitty-cli
 ```
 
 ### Step 3: Verify Configuration
