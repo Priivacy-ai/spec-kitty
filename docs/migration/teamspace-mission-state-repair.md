@@ -100,3 +100,26 @@ make local-db-down
 Those SaaS tests validate canonical historical preflight, import
 deduplication, no persistence for rejected raw rows, and canonical mission
 identity behavior when the CLI supplies a mission ID.
+
+## Release Sequencing
+
+Use this rollout order for public TeamSpace launch:
+
+1. Phase 0: finalize the event contracts, identity ADR, and repair manifest
+   shape. Do not enable public import while contracts are still moving.
+2. Phase 1: ship the read-only audit and run it internally with
+   `--fail-on teamspace-blocker`.
+3. Phase 2: ship deterministic local `--fix`, rehearse it across cloned
+   historical repositories, and review generated manifests.
+4. Phase 3: ship `--teamspace-dry-run` and validate against SaaS dev without
+   uploading raw historical rows.
+5. Phase 4: enable the explicit TeamSpace import/sync path only after audit
+   and dry-run pass. Keep the GitHub readiness gate opt-in for repositories
+   that want CI enforcement.
+6. Phase 5: publish public launch documentation after the internal repair
+   window and dry-run evidence are complete.
+
+No public user should be forced through an untested repo-wide rewrite. Local
+CLI workflows continue to tolerate legacy missions where safe; TeamSpace
+import remains an explicit operator step after audit, repair, manifest review,
+and dry-run pass.

@@ -165,6 +165,51 @@ class TestSaasFeatureFlag:
         mock_post.assert_not_called()
 
 
+class TestHistoricalMissionStateGuard:
+    """TeamSpace import guard for historical mission-state rows."""
+
+    @patch("specify_cli.sync.batch.requests.post")
+    def test_batch_sync_rejects_legacy_status_row_before_network(
+        self,
+        mock_post,
+        temp_queue,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setenv(SAAS_SYNC_ENV_VAR, "1")
+        temp_queue.queue_event(
+            {
+                "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGR",
+                "event_type": "WPStatusChanged",
+                "aggregate_id": "WP01",
+                "aggregate_type": "WorkPackage",
+                "schema_version": "3.0.0",
+                "build_id": "test-build",
+                "timestamp": "2026-01-01T00:00:00+00:00",
+                "node_id": "test-node",
+                "lamport_clock": 1,
+                "payload": {
+                    "feature_slug": "001-legacy",
+                    "work_package_id": "WP01",
+                },
+            }
+        )
+
+        result = batch_sync(
+            queue=temp_queue,
+            auth_token="test-token",
+            server_url="http://localhost:8000",
+            show_progress=False,
+        )
+
+        mock_post.assert_not_called()
+        assert result.total_events == 1
+        assert result.error_count == 1
+        assert result.failed_ids == ["01KQHRB8GCFJAX7HM4ZY52AQGR"]
+        assert result.event_results[0].error_category == "historical_mission_state"
+        assert "doctor mission-state --audit" in result.error_messages[0]
+        assert temp_queue.size() == 1
+
+
 class TestBatchSyncSuccess:
     """Test successful batch sync operations"""
 

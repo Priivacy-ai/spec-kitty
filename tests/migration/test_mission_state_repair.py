@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 from typing import Any, cast
 
@@ -32,6 +33,14 @@ def _write_json(path: Path, data: dict[str, object]) -> None:
 def _read_json(path: Path) -> dict[str, object]:
     data = json.loads(path.read_text(encoding="utf-8"))
     return cast(dict[str, object], data)
+
+
+def _init_git_repo(repo: Path) -> None:
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.email", "repair-test@spec-kitty.test"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "repair test"], cwd=repo, check=True)
+    subprocess.run(["git", "add", "."], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "baseline"], cwd=repo, check=True)
 
 
 def test_repair_canonicalizes_historical_meta_and_status_events(tmp_path: Path) -> None:
@@ -223,6 +232,50 @@ def test_repair_is_idempotent_after_first_canonicalization(tmp_path: Path) -> No
     assert second.missions[0].row_transformations == []
 
 
+def test_deterministic_repair_ids_follow_fork_seed_material(tmp_path: Path) -> None:
+    repo_a = tmp_path / "repo-a"
+    repo_b = tmp_path / "repo-b"
+    mission_a = repo_a / "kitty-specs" / "001-historical"
+    mission_b = repo_b / "kitty-specs" / "001-historical"
+    mission_a.mkdir(parents=True)
+    mission_b.mkdir(parents=True)
+    for mission, event_id in (
+        (mission_a, "01KQHRB8GCFJAX7HM4ZY52AQGR"),
+        (mission_b, "01KQHRB8GCFJAX7HM4ZY52AQGS"),
+    ):
+        _write_json(
+            mission / "meta.json",
+            {
+                "created_at": "2026-01-01T00:00:00+00:00",
+                "feature_number": "001",
+                "feature_slug": "001-historical",
+                "friendly_name": "Historical",
+                "mission": "software-dev",
+                "target_branch": "main",
+            },
+        )
+        (mission / "status.events.jsonl").write_text(
+            json.dumps(
+                {
+                    "actor": "codex",
+                    "at": "2026-01-01T00:00:00+00:00",
+                    "event_id": event_id,
+                    "from_lane": "planned",
+                    "to_lane": "claimed",
+                    "work_package_id": "WP01",
+                },
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+    repair_repo(repo_a)
+    repair_repo(repo_b)
+
+    assert _read_json(mission_a / "meta.json")["mission_id"] != _read_json(mission_b / "meta.json")["mission_id"]
+
+
 def test_teamspace_dry_run_fails_when_status_rows_still_contain_legacy_keys(tmp_path: Path) -> None:
     if not _has_events_5():
         pytest.skip("TeamSpace dry-run validation requires spec-kitty-events >= 5.0.0")
@@ -355,3 +408,61 @@ def test_repo_slug_preserves_https_remote_colon(monkeypatch: pytest.MonkeyPatch,
     monkeypatch.setattr("specify_cli.migration.mission_state._git", fake_git)
 
     assert _repo_slug(tmp_path) == "Priivacy-ai/spec-kitty"
+
+
+def test_repair_refuses_when_common_git_lock_is_held(tmp_path: Path) -> None:
+    repo = tmp_path
+    mission = repo / "kitty-specs" / "001-modern"
+    mission.mkdir(parents=True)
+    _write_json(
+        mission / "meta.json",
+        {
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "friendly_name": "Modern",
+            "mission_id": "01KQHRB8GCFJAX7HM4ZY52AQGR",
+            "mission_number": 1,
+            "mission_slug": "001-modern",
+            "mission_type": "software-dev",
+            "slug": "001-modern",
+            "target_branch": "main",
+        },
+    )
+    _init_git_repo(repo)
+    lock = repo / ".git" / "spec-kitty-mission-state.lock"
+    lock.write_text("held", encoding="ascii")
+
+    with pytest.raises(Exception, match="Another mission-state repair appears to be running"):
+        repair_repo(repo)
+
+
+def test_repair_checks_dirty_relevant_paths_in_linked_worktrees(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    mission = repo / "kitty-specs" / "001-modern"
+    mission.mkdir(parents=True)
+    _write_json(
+        mission / "meta.json",
+        {
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "friendly_name": "Modern",
+            "mission_id": "01KQHRB8GCFJAX7HM4ZY52AQGR",
+            "mission_number": 1,
+            "mission_slug": "001-modern",
+            "mission_type": "software-dev",
+            "slug": "001-modern",
+            "target_branch": "main",
+        },
+    )
+    _init_git_repo(repo)
+    linked = tmp_path / "linked"
+    subprocess.run(["git", "worktree", "add", "-q", "-b", "linked-branch", str(linked)], cwd=repo, check=True)
+    (linked / "kitty-specs" / "001-modern" / "meta.json").write_text(
+        json.dumps({"mission_slug": "dirty"}, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(Exception, match="dirty relevant paths"):
+        repair_repo(repo)
+
+    report = repair_repo(repo, allow_dirty=True)
+    assert report.missions[0].status == "unchanged"

@@ -88,6 +88,15 @@ FINAL_SYNC_RETRY_BACKOFF_SECONDS = 1.0
 SYNC_INGRESS_LIMITS_TIMEOUT_SECONDS = 10
 DEFAULT_MAX_DECOMPRESSED_BYTES_PER_BATCH = 900_000
 DECOMPRESSED_BYTES_SAFETY_FACTOR = 0.90
+HISTORICAL_MISSION_STATE_FORBIDDEN_KEYS = frozenset(
+    {
+        "feature_slug",
+        "feature_number",
+        "mission_key",
+        "legacy_aggregate_id",
+        "work_package_id",
+    }
+)
 
 
 def _current_team_slug() -> str | None:
@@ -211,6 +220,57 @@ def _fetch_advertised_sync_ingress_limits(
 
 def _build_batch_payload(events: list[dict]) -> bytes:
     return json.dumps({"events": events}).encode("utf-8")
+
+
+def _find_historical_mission_state_keys(value: object, *, prefix: str = "$") -> list[tuple[str, str]]:
+    findings: list[tuple[str, str]] = []
+    if isinstance(value, dict):
+        for key, child in value.items():
+            child_path = f"{prefix}.{key}"
+            if key in HISTORICAL_MISSION_STATE_FORBIDDEN_KEYS:
+                findings.append((child_path, str(key)))
+            findings.extend(_find_historical_mission_state_keys(child, prefix=child_path))
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            findings.extend(_find_historical_mission_state_keys(child, prefix=f"{prefix}[{index}]"))
+    return findings
+
+
+def _historical_mission_state_rejection(events: list[dict]) -> BatchSyncResult | None:
+    violations: list[tuple[dict, str, str]] = []
+    for event in events:
+        for path, key in _find_historical_mission_state_keys(event):
+            violations.append((event, path, key))
+
+    if not violations:
+        return None
+
+    by_event: dict[str, list[tuple[str, str]]] = {}
+    for event, path, key in violations:
+        event_id = str(event.get("event_id", "unknown"))
+        by_event.setdefault(event_id, []).append((path, key))
+
+    result = BatchSyncResult()
+    result.total_events = len(events)
+    result.error_count = len(by_event)
+    result.failed_ids = sorted(by_event)
+    message = (
+        "Historical mission-state rows cannot be sent directly to TeamSpace. "
+        "Run `spec-kitty doctor mission-state --audit --fail-on teamspace-blocker`, "
+        "then `--fix`, then `--teamspace-dry-run` before sync/import."
+    )
+    result.error_messages.append(message)
+    for event_id, event_violations in sorted(by_event.items()):
+        details = ", ".join(f"{path} ({key})" for path, key in sorted(event_violations))
+        result.event_results.append(
+            BatchEventResult(
+                event_id=event_id,
+                status="rejected",
+                error=f"{message} Forbidden historical field(s): {details}",
+                error_category="historical_mission_state",
+            )
+        )
+    return result
 
 
 def _decompressed_byte_limit(advertised_limits: dict[str, int]) -> int:
@@ -863,6 +923,12 @@ def batch_sync(  # noqa: C901
     )
     result.total_events = len(events)
     byte_limit = _decompressed_byte_limit(advertised_limits)
+
+    historical_rejection = _historical_mission_state_rejection(events)
+    if historical_rejection is not None:
+        if show_progress:
+            print(historical_rejection.error_messages[0])
+        return historical_rejection
 
     if len(events) == 1 and len(payload) > byte_limit:
         return _handle_single_oversized_event(

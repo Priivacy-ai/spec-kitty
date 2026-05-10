@@ -304,6 +304,20 @@ def teamspace_dry_run(
     """Synthesize TeamSpace envelopes from local status logs and validate them."""
     event_cls, validate_event, package_version = _load_events_contract()
     mission_dirs = _select_mission_dirs(repo_root.resolve(), scan_root=scan_root, mission=mission)
+    audit_errors = _teamspace_audit_blockers(repo_root.resolve(), scan_root=scan_root, mission_dirs=mission_dirs)
+    if audit_errors:
+        return TeamspaceDryRunReport(
+            schema_version=CANONICAL_ENVELOPE_SCHEMA_VERSION,
+            events_package_version=package_version,
+            envelope_count=0,
+            valid=False,
+            errors=tuple(audit_errors),
+            side_logs=tuple(
+                side_log
+                for mission_dir in mission_dirs
+                for side_log in _classify_side_logs(repo_root.resolve(), mission_dir)
+            ),
+        )
     project_uuid = uuid.uuid5(
         uuid.NAMESPACE_URL,
         "spec-kitty:teamspace-dry-run:" + "|".join(path.name for path in mission_dirs),
@@ -404,6 +418,50 @@ def teamspace_dry_run(
         row_mappings=tuple(row_mappings),
         context_warnings=tuple(context_warnings),
         side_logs=tuple(side_logs),
+    )
+
+
+def _teamspace_audit_blockers(
+    repo_root: Path,
+    *,
+    scan_root: Path | None,
+    mission_dirs: Sequence[Path],
+) -> list[dict[str, object]]:
+    """Return audit findings that must block TeamSpace historical import."""
+    from specify_cli.audit import AuditOptions, run_audit
+    from specify_cli.audit.models import is_teamspace_blocker
+
+    report = run_audit(AuditOptions(repo_root=repo_root, scan_root=scan_root))
+    selected_slugs = {path.name for path in mission_dirs}
+    errors: list[dict[str, object]] = []
+    for result in report.missions:
+        if result.mission_slug not in selected_slugs:
+            continue
+        for finding in result.findings:
+            if not is_teamspace_blocker(finding):
+                continue
+            errors.append(
+                {
+                    "mission_slug": result.mission_slug,
+                    "artifact_path": finding.artifact_path,
+                    "error": "MISSION_STATE_AUDIT_BLOCKER",
+                    "finding_code": finding.code,
+                    "severity": finding.severity.value,
+                    "message": finding.detail or finding.code,
+                    "remediation": (
+                        "Run `spec-kitty doctor mission-state --audit --fail-on "
+                        "teamspace-blocker`, then `--fix`, then "
+                        "`--teamspace-dry-run` before TeamSpace import/sync."
+                    ),
+                }
+            )
+    return sorted(
+        errors,
+        key=lambda item: (
+            str(item["mission_slug"]),
+            str(item["artifact_path"]),
+            str(item["finding_code"]),
+        ),
     )
 
 
