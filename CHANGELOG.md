@@ -17,6 +17,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+## [3.2.0rc4] - 2026-05-11
+
+3.2.0rc4 tightens the TeamSpace release candidate against the published
+`spec-kitty-events` 5.0.0 contract and includes the latest migration rehearsal
+diagnostics.
+
+### Changed
+
+- Tightened the CLI `spec-kitty-events` dependency to `>=5.0.0,<6.0.0` now
+  that the 5.0.0 TeamSpace canonical event contract is published to PyPI
+  (#978).
+- Included the TeamSpace dry-run row mapping diagnostics merged after rc3 so
+  migration rehearsals can trace source rows to synthesized TeamSpace envelopes
+  (#1014).
+
 ## [3.2.0rc3] - 2026-05-06
 
 3.2.0rc3 fixes a TeamSpace dry-run compatibility gap found during the

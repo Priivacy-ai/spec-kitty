@@ -1,6 +1,6 @@
 [project]
 name = "spec-kitty-cli"
-version = "3.2.0rc3"
+version = "3.2.0rc4"
 description = "Spec Kitty, a tool for Specification Driven Development (SDD) agentic projects, with kanban and git worktree isolation."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -70,9 +70,8 @@ dependencies = [
     # src/specify_cli/next/_internal_runtime/ (see WP01 of mission
     # shared-package-boundary-cutover-01KQ22DS), and absence is enforced by
     # tests/architectural/test_pyproject_shape.py.
-    # TeamSpace dry-run requires spec-kitty-events>=5.0.0 at runtime; keep
-    # this as a public bounded range until 5.0.0 is published on PyPI.
-    "spec-kitty-events>=4.0.0,<6.0.0",
+    # TeamSpace dry-run requires the canonical 5.0.0 event contract.
+    "spec-kitty-events>=5.0.0,<6.0.0",
     "spec-kitty-tracker>=0.4,<0.5",
     "websockets>=12.0",  # WebSocket client for sync protocol
     "toml>=0.10.2",  # Config file parsing
