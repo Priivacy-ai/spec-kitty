@@ -80,10 +80,10 @@ Run `gh pr view 1017 --repo Priivacy-ai/spec-kitty --json state,mergedAt` to con
 Run `spec-kitty doctor mission-state --audit --json` in each selected repo from a clean main pull. Save JSON reports as `../<repo>.before.audit.json`. Record blocker counts by code.
 
 ### Subtasks
-- [ ] T005 Pull main + baseline audit in spec-kitty (WP02)
-- [ ] T006 Pull main + baseline audit in spec-kitty-saas (WP02)
-- [ ] T007 Pull main + baseline audit in spec-kitty-events (WP02)
-- [ ] T008 Analyze audit results; record blocker counts by code (WP02)
+- [x] T005 Pull main + baseline audit in spec-kitty (WP02)
+- [x] T006 Pull main + baseline audit in spec-kitty-saas (WP02)
+- [x] T007 Pull main + baseline audit in spec-kitty-events (WP02)
+- [x] T008 Analyze audit results; record blocker counts by code (WP02)
 
 ### Implementation sketch
 For each repo: `git checkout main && git pull --ff-only origin main && SPEC_KITTY_ENABLE_SAAS_SYNC=1 spec-kitty doctor mission-state --audit --json > ../<repo>.before.audit.json`. T005-T007 are parallel-safe (different repos). T008 reads all three outputs and summarizes.
