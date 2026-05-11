@@ -45,15 +45,6 @@ opposed_by:
       onboarding inverts the priority: the existing system is the primary
       evidence, and design proposals must be grounded in what the codebase,
       its history, and its SMEs already encode.
-  - type: tactic
-    id: rewrite-from-scratch
-    reason: >
-      A from-scratch rewrite discards the embedded knowledge in the
-      existing code -- precisely the asset brownfield onboarding is trying
-      to surface and preserve. Rewrites are sometimes the right move, but
-      only after the implicit invariants have been captured; doing it
-      before knowledge transfer is preservation-by-deletion.
-
 # ---------------------------------------------------------------------------
 # Provisional notes -- iterate freely.
 # ---------------------------------------------------------------------------

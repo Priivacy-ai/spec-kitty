@@ -397,6 +397,30 @@ def test_tactic_opposed_by_refs_resolve() -> None:
     assert not unresolved, "Unresolved tactic opposed_by references:\n" + "\n".join(unresolved)
 
 
+def test_paradigm_opposed_by_refs_resolve() -> None:
+    """All opposed_by entries in shipped paradigms must point to DRG nodes."""
+    graph = _load_yaml(_DOCTRINE_ROOT / "graph.yaml")
+    node_urns = {
+        str(node.get("urn", "")).strip()
+        for node in graph.get("nodes", []) or []
+        if isinstance(node, dict)
+    }
+
+    unresolved: list[str] = []
+    for path in _multi_glob([_SHIPPED_PARADIGMS_DIR], "*.paradigm.yaml"):
+        data = _load_yaml(path)
+        source_id = str(data.get("id", "")).strip() or path.name
+        for entry in data.get("opposed_by", []) or []:
+            ref_type = str(entry.get("type", "")).strip()
+            ref_id = str(entry.get("id", "")).strip()
+            ref_urn = f"{ref_type}:{ref_id}" if ref_type and ref_id else ""
+            if ref_urn and ref_urn not in node_urns:
+                unresolved.append(
+                    f"{source_id}: opposed_by target '{ref_urn}' not found in graph.yaml"
+                )
+    assert not unresolved, "Unresolved paradigm opposed_by references:\n" + "\n".join(unresolved)
+
+
 def test_no_paradigm_carries_inline_tactic_refs() -> None:
     """Post-WP02: shipped paradigms must not carry inline ``tactic_refs``.
 
