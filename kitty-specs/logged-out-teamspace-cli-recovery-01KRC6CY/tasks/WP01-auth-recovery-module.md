@@ -9,9 +9,9 @@ requirement_refs:
 - FR-004
 - FR-005
 - FR-006
-planning_base_branch: main
-merge_target_branch: main
-branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+planning_base_branch: kitty/mission-logged-out-teamspace-cli-recovery-01KRC6CY-lane-a
+merge_target_branch: kitty/mission-logged-out-teamspace-cli-recovery-01KRC6CY-lane-a
+branch_strategy: Planning artifacts for this mission were generated on kitty/mission-logged-out-teamspace-cli-recovery-01KRC6CY-lane-a. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into kitty/mission-logged-out-teamspace-cli-recovery-01KRC6CY-lane-a unless the human explicitly redirects the landing branch.
 base_branch: kitty/mission-logged-out-teamspace-cli-recovery-01KRC6CY-lane-a
 base_commit: 1bcab2618d377cbeed66f19be907c57009cdc28b
 created_at: '2026-05-11T19:01:00.000000+00:00'
