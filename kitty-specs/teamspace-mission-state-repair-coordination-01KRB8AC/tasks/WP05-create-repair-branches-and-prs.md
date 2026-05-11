@@ -14,8 +14,8 @@ subtasks:
 - T018
 - T019
 - T020
-agent: "claude:sonnet-4-6:operator:implementer"
-shell_pid: "75611"
+agent: "claude:sonnet-4-6:operator:reviewer"
+shell_pid: "75825"
 history:
 - at: '2026-05-11T10:18:12Z'
   event: created
@@ -305,3 +305,4 @@ Verify `wp05-pr-links.md` contains:
 
 - 2026-05-11T10:37:18Z – claude:sonnet-4-6:operator:implementer – shell_pid=75611 – Started implementation via action command
 - 2026-05-11T10:39:00Z – claude:sonnet-4-6:operator:implementer – shell_pid=75611 – All 3 repair PRs raised: saas#167, events#22, runtime#20; Contract 5 satisfied for all
+- 2026-05-11T10:39:08Z – claude:sonnet-4-6:operator:reviewer – shell_pid=75825 – Started review via action command
