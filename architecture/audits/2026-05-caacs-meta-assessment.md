@@ -3,14 +3,35 @@
 > Reflective synthesis of the 2026-05 ad-hoc Code-as-a-Crime-Scene (CaaCS) run on spec-kitty.
 > Audiences: (1) stakeholders weighing adoption (DM-C, see §6); (2) participants in the #666 brownfield-investigation skill design spike.
 
-**Status:** synthesis complete; adoption decision (DM-C) pending.
+**Status:** synthesis complete; adoption decision (DM-C) pending. **See 2026-05-11 update below.**
 **Author:** Planner Priti (ad-hoc planning session, 2026-05).
 **Companion documents:**
-- `architecture/audits/2026-05-spec-kitty-caacs.md` — the audit
-- `architecture/audits/2026-05-822-crosscheck.md` — the #822 backlog crosscheck
+- `architecture/audits/2026-05-spec-kitty-caacs.md` — the audit (extended 2026-05-09 with `tests/` + `kitty-specs/` scope; extended 2026-05-11 with multi-window refactor-candidate synthesis)
+- `architecture/audits/2026-05-822-crosscheck.md` — the original #822 backlog crosscheck (2026-05-08)
 - `architecture/audits/2026-05-phase3-issue-drafts-and-triage.md` — operational follow-ups
 - `architecture/audits/2026-05-phase3-f1-knowledge-capture-plan.md` — F1 remediation plan
-**Doctrine references:** `tactic:forensic-repository-audit`, `procedure:legacy-codebase-triage` (both committed earlier on this branch).
+- `architecture/assessments/code-as-a-crime-scene-overview.md` — high-level explainer of the technique (added 2026-05-09)
+- `architecture/audits/2026-05-11-findings-vs-issues-update.md` — relating findings to #645, refreshed #822, and open bug tickets (added 2026-05-11)
+**Doctrine references:** `tactic:forensic-repository-audit` (updated 2026-05-11 with a multi-window refactor-candidate step), `procedure:legacy-codebase-triage`, and the provisional `paradigm:brownfield-onboarding` (added 2026-05-11).
+
+---
+
+> ### 2026-05-11 update — the "zero STRONG matches" headline is no longer current
+>
+> Three days after this document was first written, two STRONG matches exist between the audit findings and the open issue backlog:
+>
+> | Audit finding | Matched ticket | What changed |
+> |---|---|---|
+> | **F2** (`cli/commands/agent/*` refactor target) + the new `brownfield-onboarding` paradigm | **#992** (new epic, opened 2026-05-05) — "centralize domain invariants" | The team has filed exactly the architectural epic F2 implies |
+> | **F18** (`agent_utils/status.py` under-tested) | **#984** | One symptom (wrong-checkout reads from detached worktrees) is now filed |
+>
+> Eleven new bug tickets opened against `Priivacy-ai/spec-kitty` between 2026-05-05 and 2026-05-07 (#983–#992, #1009), most touching the F2 cluster. Release cuts `v3.2.0rc1` through `v3.2.0rc4` shipped in the same window; no stable tag yet. The 2026-05-11 multi-window refactor-candidate step surfaced two new slow-burn candidates: `orchestrator_api/commands.py` (no live issue — net-new forensic signal) and `agent_utils/status.py` (partially backed by #984 but no whole-scope ticket).
+>
+> **Implication for §6 (DM-C):** the shift from zero to two STRONG matches in three days *strengthens* — does not weaken — the adoption argument. The audit surfaced structural concerns the team independently filed within days. Where CaaCS looked first, the tracker followed. The case for CaaCS as an opt-in pre-investigation step (per §6) is empirically reinforced.
+>
+> Full detail: `architecture/audits/2026-05-11-findings-vs-issues-update.md`. A companion document reading #992 and #984 in full with proposed audit-evidence comment text lives at `architecture/audits/2026-05-11-issue-992-984-audit-comments.md`.
+>
+> The original §1 executive summary below is preserved as the time-of-writing record (2026-05-08). Read this update note as the live state.
 
 ---
 
