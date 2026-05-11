@@ -11,9 +11,10 @@ queue branch, and the batch HTTP wiring are tightly coupled. Any intermediate
 split would leave the queue lying about behavior (e.g. status added but unused,
 or queue not yet aware of new status).
 
-## Subtasks
+## WP01 — Sync rejection classification and queue retry hygiene
 
-See `tasks/WP01-failed-transient-queue-contract.md`:
+See `tasks/WP01-failed-transient-queue-contract.md` for the full prompt and
+acceptance criteria. Subtasks:
 
 - T001 — Extend `BatchEventResult` docstring with `failed_transient`.
 - T002 — `OfflineQueue.process_batch_results` no-op for `failed_transient`.
