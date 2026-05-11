@@ -9,7 +9,7 @@ requirement_refs:
 - FR-010
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Planning artifacts for this mission were generated on main; completed changes must merge back into main.
+branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T001
 - T002
@@ -17,12 +17,18 @@ subtasks:
 - T004
 - T005
 phase: Phase 1 - Determinism
-assignee: ""
-agent: ""
+assignee: ''
+agent: ''
 history:
-- timestamp: "2026-05-11T19:20:00Z"
+- timestamp: '2026-05-11T19:20:00Z'
   agent: system
   action: Prompt generated for Mission 8 (migration determinism cleanup)
+authoritative_surface: src/specify_cli/migration/rebuild_state.py
+execution_mode: code_change
+owned_files:
+- src/specify_cli/migration/rebuild_state.py
+- tests/specify_cli/migration/test_rebuild_state.py
+tags: []
 ---
 
 # Work Package Prompt: WP01 — Deterministic Legacy Rebuild Path
