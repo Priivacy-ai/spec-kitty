@@ -129,3 +129,7 @@ to break tests temporarily.
   (twice), not via `_record_all_events_failed`. Both must change.
 - Operator output: keep `print(...)` lines unchanged so user-facing diagnostic
   text doesn't change.
+
+## Activity Log
+
+- 2026-05-11T18:22:49Z – unknown – shell_pid=49962 – Moved to for_review
