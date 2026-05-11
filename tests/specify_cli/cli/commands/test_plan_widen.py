@@ -48,8 +48,20 @@ _N_QUESTIONS = len(PLAN_WIDEN_QUESTIONS)
 
 def _setup_repo(tmp_path: Path) -> Path:
     """Create a minimal repo structure with .kittify/ and a mission meta.json."""
+    import subprocess
+
+    subprocess.run(
+        ["git", "init"], cwd=tmp_path, check=True, capture_output=True
+    )
     kittify = tmp_path / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
+    (kittify / "config.yaml").write_text(
+        "version: 1\n"
+        "project:\n"
+        "  uuid: 00000000-0000-0000-0000-000000000001\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "kitty-specs").mkdir(parents=True, exist_ok=True)
     mission_dir = tmp_path / "kitty-specs" / MISSION_SLUG
     mission_dir.mkdir(parents=True, exist_ok=True)
     (mission_dir / "meta.json").write_text(
