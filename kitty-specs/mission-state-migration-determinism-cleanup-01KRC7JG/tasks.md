@@ -26,6 +26,24 @@
 
 ## Work Packages
 
-- **WP01 — Deterministic legacy rebuild path** (tasks T001..T005, depends on: none)
-- **WP02 — Secret-scrub helper + coverage** (tasks T006..T007, depends on: none — can run in parallel with WP01)
-- **WP03 — Expanded repair manifest** (tasks T008..T013, depends on: WP02 — uses the scrubber for `command_args`)
+## WP01 — Deterministic Legacy Rebuild Path
+
+**Depends on**: none
+
+Tasks T001..T005. Make `migration/rebuild_state.py` deterministic and emit a
+`DeprecationWarning` on import.
+
+## WP02 — Secret-Scrub Helper and Coverage
+
+**Depends on**: none (parallel-safe with WP01)
+
+Tasks T006..T007. Add `_scrub_secret_args()` helper in `migration/mission_state.py` and full
+unit-test coverage for redaction patterns.
+
+## WP03 — Expanded Repair Manifest
+
+**Depends on**: WP02 (uses the scrubber for `command_args`)
+
+Tasks T008..T013. Extend `RepairReport` with `cli_version`, `command_args`,
+`generated_ids`, and `policy`; preserve all existing keys; add manifest-field tests.
+
