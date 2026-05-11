@@ -8,21 +8,40 @@
     {
       "lane_id": "lane-a",
       "wp_ids": [
-        "WP01"
+        "WP01",
+        "WP02"
       ],
       "write_scope": [
-        "tests/specify_cli/cli/commands/test_plan_widen.py"
+        "tests/specify_cli/cli/commands/test_plan_widen.py",
+        "tests/specify_cli/cli/commands/test_specify_widen.py"
       ],
       "predicted_surfaces": [
         "api",
+        "artifact-rendering",
         "tests",
+        "tracker-integration",
         "workspace"
       ],
       "depends_on_lanes": [],
       "parallel_group": 0
     }
   ],
-  "computed_at": "2026-05-11T17:50:29.677374+00:00",
+  "computed_at": "2026-05-11T17:59:53.920551+00:00",
   "computed_from": "dependency_graph+ownership",
-  "planning_artifact_wps": []
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      }
+    ],
+    "total_merges": 1,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 1
+    }
+  }
 }
