@@ -43,7 +43,7 @@ operational and cross-repo work outside this branch:
 | spec-kitty `#933` operator runbook | implemented | `docs/migration/teamspace-mission-state-repair.md`. |
 | spec-kitty `#934` CI readiness gate | closed | `.github/workflows/teamspace-mission-state-readiness.yml`. |
 | spec-kitty `#935` release sequencing | implemented on this branch | Release sequencing section added to the runbook. |
-| spec-kitty `#978` events dependency | implemented on this branch | `pyproject.toml` now requires `spec-kitty-events>=5.0.0,<6.0.0`; `uv.lock` resolves 5.0.0 from PyPI; release metadata advanced to `3.2.0rc4`. |
+| spec-kitty `#978` events dependency | implemented on this branch | `pyproject.toml` now requires `spec-kitty-events>=5.0.0,<6.0.0`; `uv.lock` resolves 5.0.0 from PyPI; release metadata advanced to `3.2.0rc5`. |
 | spec-kitty `#979` actual repair commit | open | Not done. Audits above prove the active repositories still need coordinated repair commits. |
 | spec-kitty-events `#18`, `#19`, `#20` | closed | GitHub state is closed; local dependency now resolves `spec-kitty-events` 5.0.0. |
 | spec-kitty-tracker `#13` | closed | Existing issue comments record focused tracker verification: canonical TeamSpace/no-rollout tests passed. |
@@ -65,8 +65,8 @@ uv lock --check
 
 Results:
 
-- Release metadata validation passed for `3.2.0rc4` against latest tag
-  `v3.2.0rc3`.
+- Release metadata validation passed for `3.2.0rc5` against latest tag
+  `v3.2.0rc4`.
 - Ruff passed.
 - Targeted migration/contract/sync/release/architecture suite: 33 passed, 5
   skipped.
