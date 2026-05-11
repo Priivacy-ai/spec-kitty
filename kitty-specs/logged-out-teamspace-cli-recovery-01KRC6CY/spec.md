@@ -75,42 +75,15 @@ Out of scope:
 
 ## Functional Requirements
 
-- **FR-1:** A pure detector returns the connected teamspace handle (or `None`)
-  from local repo state without making network calls. It uses, in order:
-  (a) `CheckoutSyncRouting.repo_slug` / `project_slug` when sync routing is
-  defined and indicates a previously-emitted repo, (b) the most recent stored
-  session's private-teamspace name if a `~/.spec-kitty` credentials file ever
-  existed, (c) `None`. The detector is read-only.
-
-- **FR-2:** A pure interactivity probe returns False when (a)
-  `SPEC_KITTY_NON_INTERACTIVE=1` is set, or (b) `sys.stdin.isatty()` returns
-  False, or (c) `SPEC_KITTY_FORCE_INTERACTIVE=1` overrides (a)+(b) to True.
-
-- **FR-3:** `offer_login_recovery(...)` prints a Rich panel naming the
-  connected teamspace, reads one keystroke (`L`/`S`/`Q`, case-insensitive),
-  and returns a result enum (`LOGGED_IN`, `SKIPPED`, `QUIT`). On `L` it
-  invokes `_auth_login.login_impl(headless=False, force=False)` via
-  `asyncio.run`. After successful login, returns `LOGGED_IN`. On any
-  AuthenticationError during the inner login, returns `SKIPPED` and surfaces
-  the underlying error to the caller's stderr.
-
-- **FR-4:** A new shared helper `handle_unauthenticated_with_teamspace(
-  *, command_name, console)` is called from each affected sync command's
-  auth-missing branch. It:
-  - Calls FR-1; if `None`, returns sentinel `NO_TEAMSPACE` (caller falls back
-    to existing behavior).
-  - If interactive (FR-2), calls FR-3.
-  - If non-interactive, emits a one-line stable structured error to stderr:
-    `spec-kitty: logged_out_on_connected_teamspace teamspace=<slug>
-    command=<name> action=run-spec-kitty-auth-login` and returns `EXIT_4`.
-
-- **FR-5:** New exit code constant `EXIT_LOGGED_OUT_ON_CONNECTED_TEAMSPACE = 4`
-  exported from `specify_cli.auth` (or a new `specify_cli.cli.exit_codes`
-  module). Tests assert exit code is exactly 4.
-
-- **FR-6:** Backward compatibility -- when no teamspace is detected, all
-  existing strings ("Run `spec-kitty auth login`", exit code 1) remain
-  unchanged. No regressions to the unauthenticated-not-connected path.
+| ID | Description | Priority | Status |
+|----|-------------|----------|--------|
+| FR-001 | A pure detector `detect_logged_out_with_connected_teamspace(repo_root)` returns the connected teamspace handle (or None) from local repo state without making network calls. Resolution order: `CheckoutSyncRouting.repo_slug`, then `project_slug`, then the most recent stored session's private-teamspace name. Returns None when a valid current session exists or no teamspace identity can be resolved. | High | Open |
+| FR-002 | A pure interactivity probe `is_interactive()` returns False when `SPEC_KITTY_NON_INTERACTIVE=1` is set, or `sys.stdin.isatty()` returns False. `SPEC_KITTY_FORCE_INTERACTIVE=1` overrides both to True. | High | Open |
+| FR-003 | `offer_login_recovery(*, teamspace, command_name, console)` prints a Rich panel naming the connected teamspace, reads one keystroke (L/S/Q, case-insensitive), and returns RecoveryOutcome.LOGGED_IN / SKIPPED / QUIT. On L it invokes `_auth_login.login_impl(headless=False, force=False)` via `asyncio.run`. On AuthenticationError, returns SKIPPED with the error surfaced to stderr. | High | Open |
+| FR-004 | `handle_unauthenticated_with_teamspace(*, command_name, console)` is the shared facade. It calls FR-001; if None it returns NO_TEAMSPACE so callers fall back to legacy behavior. If interactive (FR-002), it calls FR-003. Otherwise it writes the structured stderr line and returns EXIT_4. | High | Open |
+| FR-005 | The non-interactive structured stderr line is a single ASCII line, stable for scripts: `spec-kitty: logged_out_on_connected_teamspace teamspace=<slug> command=<name> action=run-spec-kitty-auth-login`. Exit code is `EXIT_LOGGED_OUT_ON_CONNECTED_TEAMSPACE = 4`, exported as a module constant. | High | Open |
+| FR-006 | Backward compatibility: when no teamspace is detected (NO_TEAMSPACE), the existing legacy message "Run `spec-kitty auth login`" and exit code 1 are preserved verbatim. The unauthenticated-not-connected path emits no new strings and no new exit codes. | High | Open |
+| FR-007 | The auth-missing branches of `spec-kitty sync now`, `spec-kitty sync status --check`, `spec-kitty sync doctor`, `spec-kitty sync routes`, and `spec-kitty sync share` invoke `handle_unauthenticated_with_teamspace` before falling back to the legacy message. Each path is covered by an integration test in both interactive and non-interactive modes. | High | Open |
 
 ## Acceptance Criteria
 
