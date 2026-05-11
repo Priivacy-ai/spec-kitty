@@ -122,8 +122,10 @@ async def test_send_event_when_not_connected():
 def test_normalize_ws_url_converts_https_and_loopback_http():
     """Provisioned HTTPS URLs become WSS; loopback HTTP remains allowed for local dev."""
     assert (
-        WebSocketClient._normalize_ws_url("https://spec-kitty-dev.fly.dev/ws")
-        == "wss://spec-kitty-dev.fly.dev/ws"
+        WebSocketClient._normalize_ws_url(
+            "https://spec-kitty-dev.fly.dev/ws?project=alpha#frag"
+        )
+        == "wss://spec-kitty-dev.fly.dev/ws?project=alpha#frag"
     )
     assert (
         WebSocketClient._normalize_ws_url("http://127.0.0.1:9400/ws")
