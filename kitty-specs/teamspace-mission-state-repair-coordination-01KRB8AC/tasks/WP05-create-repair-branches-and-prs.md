@@ -14,7 +14,8 @@ subtasks:
 - T018
 - T019
 - T020
-agent: claude
+agent: "claude:sonnet-4-6:operator:implementer"
+shell_pid: "75611"
 history:
 - at: '2026-05-11T10:18:12Z'
   event: created
@@ -299,3 +300,7 @@ Verify `wp05-pr-links.md` contains:
 1. A PR URL for each repaired repo (or explicit "skipped" for runtime if zero blockers)
 2. Confirmation each PR body includes all 5 Contract 5 sections
 3. Confirmation both #979 and #920 are linked in each PR
+
+## Activity Log
+
+- 2026-05-11T10:37:18Z – claude:sonnet-4-6:operator:implementer – shell_pid=75611 – Started implementation via action command
