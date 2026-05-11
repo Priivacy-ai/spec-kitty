@@ -7,8 +7,8 @@ import argparse
 import email
 import json
 import zipfile
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Dict, Iterable, List
 
 from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet
@@ -56,7 +56,7 @@ def read_wheel_metadata(wheel_path: Path) -> email.message.Message:
     return email.message_from_string(payload)
 
 
-def load_contract(path: Path) -> Dict[str, object]:
+def load_contract(path: Path) -> dict[str, object]:
     if not path.exists():
         raise SystemExit(f"Consumer contract not found: {path}")
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -84,13 +84,71 @@ def exact_pin(requirement: Requirement) -> str | None:
     return spec.version
 
 
-def extract_requirements(requires_dist: Iterable[str]) -> Dict[str, Requirement]:
-    requirements: Dict[str, Requirement] = {}
+def exact_versions(specifier: SpecifierSet) -> list[Version]:
+    versions: list[Version] = []
+    for spec in specifier:
+        if spec.operator == "==" and not spec.version.endswith(".*"):
+            versions.append(Version(spec.version))
+    return versions
+
+
+def extract_requirements(requires_dist: Iterable[str]) -> dict[str, Requirement]:
+    requirements: dict[str, Requirement] = {}
     for raw in requires_dist:
         req = parse_requirement(raw)
         if req.name.startswith("spec-kitty-"):
             requirements[req.name] = req
     return requirements
+
+
+def validate_package_requirement(
+    package: str,
+    supported_range: str,
+    requirement: Requirement | None,
+) -> tuple[str | None, str | None]:
+    if supported_range == "vendored":
+        return f"{package}: vendored by consumer, skipped", None
+
+    if requirement is None:
+        return None, f"Candidate wheel is missing required dependency metadata for {package}"
+
+    if requirement.url or not str(requirement.specifier):
+        return (
+            None,
+            f"{package}: candidate must carry dependency version metadata, found {requirement}",
+        )
+
+    specifier = SpecifierSet(supported_range)
+    consumer_exact_versions = exact_versions(specifier)
+    if consumer_exact_versions:
+        unsupported = [
+            version
+            for version in consumer_exact_versions
+            if not requirement.specifier.contains(version, prereleases=True)
+        ]
+        if unsupported:
+            versions = ", ".join(str(version) for version in unsupported)
+            return (
+                None,
+                f"{package}: SaaS supports {versions}, but candidate metadata {requirement} does not allow it",
+            )
+        versions = ", ".join(str(version) for version in consumer_exact_versions)
+        return f"{package}: candidate allows SaaS-supported {versions}", None
+
+    pinned = exact_pin(requirement)
+    if pinned is None:
+        return (
+            None,
+            f"{package}: consumer range {supported_range} is not exact and candidate metadata {requirement} is not exact; compatibility cannot be proven",
+        )
+
+    if Version(pinned) not in specifier:
+        return (
+            None,
+            f"{package}: pinned version {pinned} is outside consumer-supported range {supported_range}",
+        )
+
+    return f"{package}: {pinned} satisfies {supported_range}", None
 
 
 def main() -> int:
@@ -110,11 +168,11 @@ def main() -> int:
     if not isinstance(families, list):
         raise SystemExit("Consumer contract missing contract_families list")
 
-    summary: List[str] = [
+    summary: list[str] = [
         f"candidate: {metadata.get('Name', args.package)}=={metadata.get('Version', 'unknown')}",
         f"consumer: {contract.get('consumer', 'unknown')}",
     ]
-    issues: List[str] = []
+    issues: list[str] = []
 
     for entry in families:
         if not isinstance(entry, dict):
@@ -124,30 +182,15 @@ def main() -> int:
         if not isinstance(package, str) or not isinstance(supported_range, str):
             raise SystemExit("Contract family entries must include package and supported_range")
 
-        requirement = requirements.get(package)
-        if supported_range == "vendored":
-            summary.append(f"{package}: vendored by consumer, skipped")
-            continue
-
-        if requirement is None:
-            issues.append(f"Candidate wheel is missing required dependency metadata for {package}")
-            continue
-
-        pinned = exact_pin(requirement)
-        if pinned is None:
-            issues.append(
-                f"{package}: candidate must carry an exact == pin, found {requirement}"
-            )
-            continue
-
-        specifier = SpecifierSet(supported_range)
-        if Version(pinned) not in specifier:
-            issues.append(
-                f"{package}: pinned version {pinned} is outside consumer-supported range {supported_range}"
-            )
-            continue
-
-        summary.append(f"{package}: {pinned} satisfies {supported_range}")
+        summary_line, issue = validate_package_requirement(
+            package,
+            supported_range,
+            requirements.get(package),
+        )
+        if summary_line is not None:
+            summary.append(summary_line)
+        if issue is not None:
+            issues.append(issue)
 
     print("Candidate Consumer Compatibility Summary")
     print("----------------------------------------")
