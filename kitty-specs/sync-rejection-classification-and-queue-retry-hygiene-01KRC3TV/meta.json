@@ -1,0 +1,12 @@
+{
+  "created_at": "2026-05-11T18:12:20.016682+00:00",
+  "friendly_name": "Sync Rejection Classification And Queue Retry Hygiene",
+  "mission_id": "01KRC3TVXE9PZG7MSA6V7KZ5V1",
+  "mission_number": null,
+  "mission_slug": "sync-rejection-classification-and-queue-retry-hygiene-01KRC3TV",
+  "mission_type": "software-dev",
+  "purpose_context": "After the private-Teamspace ingress hardening landed, the normal shared-team 403 path is fixed, but if a POST still returns 401/403 (auth_expired, unauthorized, or direct_ingress_missing_private_team) after events were drained from the queue, queue.process_batch_results() still flags those events as 'rejected' and increments retry_count. These categories represent batch-level auth/teamspace failures where no per-event mutation happened server-side, so the retry counters poison the queue and eventually exhaust the retry budget for events that were never actually rejected by content. We need to classify these batch-level categories as non-mutating (do not bump retry_count, optionally requeue) and keep operator-facing output clear. Server-error (5xx) and direct_ingress_missing_private_team must each have explicit, distinct queue behavior.",
+  "purpose_tldr": "Stop incrementing retry_count for batch-level auth/teamspace failures so private-Teamspace 403 and 401 outcomes no longer poison the offline queue.",
+  "slug": "sync-rejection-classification-and-queue-retry-hygiene-01KRC3TV",
+  "target_branch": "main"
+}
