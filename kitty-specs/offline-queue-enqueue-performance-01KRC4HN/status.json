@@ -1,13 +1,13 @@
 {
-  "event_count": 2,
-  "last_event_id": "01KRC4V1F5R0VCMHSTHJ2VT3WG",
-  "materialized_at": "2026-05-11T18:29:54.277283+00:00",
+  "event_count": 7,
+  "last_event_id": "01KRC674R94WR7CQ6VMHA2S6XS",
+  "materialized_at": "2026-05-11T18:53:59.433672+00:00",
   "mission_number": "",
   "mission_slug": "offline-queue-enqueue-performance-01KRC4HN",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 0,
-    "blocked": 1,
+    "approved": 1,
+    "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
@@ -18,11 +18,11 @@
   },
   "work_packages": {
     "WP01": {
-      "actor": "implement-command",
-      "force_count": 1,
-      "lane": "blocked",
-      "last_event_id": "01KRC4V1F5R0VCMHSTHJ2VT3WG",
-      "last_transition_at": "2026-05-11T18:29:54.277283+00:00"
+      "actor": "claude-reviewer",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KRC674R94WR7CQ6VMHA2S6XS",
+      "last_transition_at": "2026-05-11T18:53:59.433672+00:00"
     }
   }
 }
