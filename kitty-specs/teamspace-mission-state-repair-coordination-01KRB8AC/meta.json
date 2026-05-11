@@ -1,0 +1,12 @@
+{
+  "created_at": "2026-05-11T10:11:28.066782+00:00",
+  "friendly_name": "TeamSpace Mission-State History Repair Coordination",
+  "mission_id": "01KRB8AC61AXF91PXFYWV7W5AD",
+  "mission_number": null,
+  "mission_slug": "teamspace-mission-state-repair-coordination-01KRB8AC",
+  "mission_type": "software-dev",
+  "purpose_context": "Before TeamSpace public launch, every active Spec Kitty repository must have its historical mission-state data audited, deterministically repaired, and dry-run validated against the current event contract. This mission coordinates running the doctor mission-state pipeline across spec-kitty, spec-kitty-saas, and spec-kitty-events, landing a standalone repair commit per repo, and closing issue #979.",
+  "purpose_tldr": "Audit and repair historical mission-state artifacts across active repos so TeamSpace public launch can proceed with zero blockers.",
+  "slug": "teamspace-mission-state-repair-coordination-01KRB8AC",
+  "target_branch": "fix/teamspace-mission-state-closeout-guards"
+}
