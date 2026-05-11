@@ -183,9 +183,13 @@ def offer_teamspace_mission_state_migration(
     except MissionStateRepairError as exc:
         console.print(f"[red]Mission-state repair failed:[/red] {exc}")
         raise typer.Exit(1) from exc
+    except Exception as exc:  # noqa: BLE001
+        console.print(f"[red]Mission-state repair encountered an unexpected error:[/red] {exc}")
+        raise typer.Exit(1) from exc
 
     summary = report.to_dict()["summary"]
-    assert isinstance(summary, dict)
+    if not isinstance(summary, dict):
+        raise MissionStateRepairError(f"Unexpected repair report summary type: {type(summary)!r}")
     console.print(
         "[green]Mission-state repair complete[/green] "
         f"(updated={summary['missions_updated']}, "

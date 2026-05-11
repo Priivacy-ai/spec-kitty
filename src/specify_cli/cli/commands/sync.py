@@ -527,6 +527,10 @@ def opt_in(
     """Enable SaaS sync for this checkout."""
     from specify_cli.sync.routing import enable_checkout_sync
 
+    if not is_saas_sync_enabled():
+        console.print(f"[dim]{saas_sync_disabled_message()}[/dim]")
+        return
+
     enforce_teamspace_mission_state_ready(
         console=console,
         command_name="spec-kitty sync opt-in",
