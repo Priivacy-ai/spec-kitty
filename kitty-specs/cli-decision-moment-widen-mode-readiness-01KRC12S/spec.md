@@ -9,7 +9,7 @@
 
 **TL;DR:** Make CLI Decision Moment creation, Widen Mode, plan-side write-back, and local-close behavior release-ready across `charter`, `specify`, and `plan` commands.
 
-**Context:** Teamspace MVP launch is gated on Decision Moment widen-mode reliability. The plan-widen test fixtures currently fail at the new "repo must be initialized" gate (introduced by FR-032 / `assert_initialized`) before they exercise the widen path, leaving Mission 2 (SaaS Slack closure) and Mission 3 (Live E2E) without trustworthy CLI coverage. Closes Priivacy-ai/spec-kitty#757, #758.
+**Context:** Teamspace MVP launch is gated on Decision Moment widen-mode reliability. The plan-widen test fixtures currently fail at the new "repo must be initialized" gate (the assert_initialized guard introduced earlier this cycle) before they exercise the widen path, leaving Mission 2 (SaaS Slack closure) and Mission 3 (Live E2E) without trustworthy CLI coverage. Closes Priivacy-ai/spec-kitty#757, #758.
 
 ## User Scenarios & Testing
 
@@ -27,6 +27,10 @@ A developer running `spec-kitty plan` inside an initialized project who wants to
 - **Cancel:** `w → CANCEL` re-prompts the same question; final answer reaches the answers file deterministically.
 - **Block path:** `w → BLOCK` enters the blocked-prompt loop and resolves via a local answer; pending entry reflects closure.
 - **Stricter init gate:** Plan exits with `SPEC_KITTY_REPO_NOT_INITIALIZED` when run outside a Spec Kitty project. Tests for widen-mode must satisfy this gate.
+
+### Rule that must always hold (init gate)
+
+The plan/charter/tasks commands MUST refuse to side-effect when invoked outside an initialized Spec Kitty project. The test suite MUST set up the minimum initialization markers before invoking the CLI.
 
 ### Rule that must always hold
 The `plan` (and `charter`, `tasks`) Typer command MUST refuse to side-effect any filesystem when invoked outside an initialized Spec Kitty project (`<root>/.kittify/config.yaml` missing). Tests for widen-mode MUST therefore set up a minimum initialized project before invoking the CLI.
@@ -62,7 +66,7 @@ The `plan` (and `charter`, `tasks`) Typer command MUST refuse to side-effect any
 
 | ID | Description | Status |
 |----|-------------|--------|
-| C-001 | MUST NOT weaken `assert_initialized` or the FR-032 invariants in production code paths. | Pending |
+| C-001 | MUST NOT weaken `assert_initialized` or the initialized-repo invariant in production code paths. | Pending |
 | C-002 | MUST NOT modify charter-widen tests (they already pass); fixes are scoped to plan-widen fixture and any minimal production-side adjustments required for FR-003/FR-004. | Pending |
 | C-003 | Any SaaS-touching validation MUST run only under `SPEC_KITTY_ENABLE_SAAS_SYNC=1`; default test path stays local-only. | Pending |
 
@@ -82,7 +86,7 @@ The `plan` (and `charter`, `tasks`) Typer command MUST refuse to side-effect any
 
 - **`_setup_repo` (test helper):** Bootstraps a minimal Spec Kitty project on disk for widen tests.
 - **`WidenPendingStore` / `WidenPendingEntry`:** Local persistence layer for widened DMs.
-- **`assert_initialized`:** The repo-init guard introduced by FR-032 / WP07-T039.
+- **`assert_initialized`:** The repo-init guard that requires `<root>/.kittify/config.yaml` (and optionally `<root>/kitty-specs/`) before plan/charter/tasks side effects.
 
 ## Out of Scope
 
