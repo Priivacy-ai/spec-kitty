@@ -534,3 +534,197 @@ def test_repair_checks_dirty_relevant_paths_in_linked_worktrees(tmp_path: Path) 
 
     report = repair_repo(repo, allow_dirty=True)
     assert report.missions[0].status == "unchanged"
+
+
+# ---------------------------------------------------------------------------
+# Mission 8 (#930) — secret scrubber for repair manifest command_args
+# ---------------------------------------------------------------------------
+
+
+class TestScrubSecretArgs:
+    """``_scrub_secret_args`` must redact every documented secret shape so
+    the manifest ``command_args`` field never leaks credentials."""
+
+    def _scrub(self, *argv: str) -> list[str]:
+        from specify_cli.migration.mission_state import _scrub_secret_args
+
+        return _scrub_secret_args(list(argv))
+
+    def test_benign_argv_passes_through_unchanged(self) -> None:
+        argv = ["doctor", "mission-state", "--fix", "--json"]
+        assert self._scrub(*argv) == argv
+
+    def test_secret_flag_value_is_redacted_pair_form(self) -> None:
+        assert self._scrub("doctor", "--token", "abc123") == [
+            "doctor",
+            "--token",
+            "<redacted>",
+        ]
+
+    def test_secret_flag_value_is_redacted_equals_form(self) -> None:
+        assert self._scrub("doctor", "--token=abc123") == [
+            "doctor",
+            "--token=<redacted>",
+        ]
+
+    def test_api_key_flag_redacted(self) -> None:
+        assert self._scrub("--api-key", "sk-real-value") == [
+            "--api-key",
+            "<redacted>",
+        ]
+
+    def test_auth_password_secret_flags_redacted(self) -> None:
+        out = self._scrub("--auth", "u:p", "--password", "hunter2", "--secret=top")
+        assert out == ["--auth", "<redacted>", "--password", "<redacted>", "--secret=<redacted>"]
+
+    def test_authorization_header_redacted(self) -> None:
+        argv = ["curl", "-H", "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.abc.def"]
+        out = self._scrub(*argv)
+        assert "<redacted>" in out
+        # The header itself is redacted as a standalone item
+        assert "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.abc.def" not in out
+
+    def test_github_token_redacted(self) -> None:
+        token = "ghp_" + "A" * 40
+        assert self._scrub("--repo", token) == ["--repo", "<redacted>"]
+
+    def test_slack_token_redacted(self) -> None:
+        token = "xoxb-1234-5678-abcdef0123456789"
+        assert self._scrub(token) == ["<redacted>"]
+
+    def test_jwt_shape_redacted(self) -> None:
+        jwt = (
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
+            ".eyJzdWIiOiIxMjM0NTY3ODkwIn0"
+            ".SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+        )
+        assert self._scrub(jwt) == ["<redacted>"]
+
+    def test_bare_bearer_redacted(self) -> None:
+        out = self._scrub("Bearer abcdefghijklmnopqrstuvwxyz")
+        assert out == ["<redacted>"]
+
+    def test_pure_function(self) -> None:
+        """Same input list yields equal output every call (no hidden state)."""
+        argv = ["--token", "abc123", "ghp_" + "B" * 40]
+        a = self._scrub(*argv)
+        b = self._scrub(*argv)
+        assert a == b
+
+
+# ---------------------------------------------------------------------------
+# Mission 8 (#930) — expanded repair manifest fields
+# ---------------------------------------------------------------------------
+
+
+def _minimal_mission(repo: Path, slug: str = "999-mini") -> None:
+    """Create a minimal mission directory the repair_repo will accept."""
+    mission = repo / "kitty-specs" / slug
+    mission.mkdir(parents=True, exist_ok=True)
+    _write_json(
+        mission / "meta.json",
+        {
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "friendly_name": "Mini",
+            "mission_number": int(slug.split("-")[0]),
+            "mission_slug": slug,
+            "mission_type": "software-dev",
+            "slug": slug,
+            "target_branch": "main",
+        },
+    )
+    (mission / "status.events.jsonl").write_text("", encoding="utf-8")
+
+
+def test_manifest_includes_cli_version_command_args_generated_ids_policy(
+    tmp_path: Path,
+) -> None:
+    """All four Mission-8 manifest fields must be present, typed correctly,
+    and round-trip through to_json/JSON parse."""
+    repo = tmp_path
+    _minimal_mission(repo, "001-fields")
+    _init_git_repo(repo)
+
+    report = repair_repo(repo)
+
+    # In-memory shape
+    assert isinstance(report.cli_version, str)
+    assert report.cli_version  # non-empty
+    assert isinstance(report.command_args, list)
+    assert all(isinstance(item, str) for item in report.command_args)
+    assert isinstance(report.generated_ids, list)
+    assert all(isinstance(item, str) for item in report.generated_ids)
+    assert report.run_id in report.generated_ids
+    assert isinstance(report.policy, dict)
+    assert set(report.policy.keys()) == {"tracked", "optional", "ignored"}
+    for key, value in report.policy.items():
+        assert isinstance(value, list), f"policy[{key!r}] must be a list"
+        assert value == sorted(value), f"policy[{key!r}] must be sorted"
+
+    # On-disk manifest matches the in-memory report
+    manifest_files = sorted((repo / ".kittify" / "migrations" / "mission-state").glob("*.json"))
+    assert manifest_files, "manifest file must be written to disk"
+    persisted = _read_json(manifest_files[-1])
+
+    assert persisted["cli_version"] == report.cli_version
+    assert persisted["command_args"] == report.command_args
+    assert persisted["generated_ids"] == report.generated_ids
+    assert persisted["policy"] == report.policy
+
+    # Pre-existing keys still present and shaped correctly
+    for key in (
+        "schema_version",
+        "run_id",
+        "repo_head",
+        "target_missions",
+        "manifest_path",
+        "summary",
+        "missions",
+    ):
+        assert key in persisted, f"pre-existing manifest key {key!r} missing"
+    assert isinstance(persisted["summary"], dict)
+    assert isinstance(persisted["missions"], list)
+
+
+def test_manifest_command_args_are_scrubbed(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Hostile sys.argv must never make it into the manifest verbatim."""
+    repo = tmp_path
+    _minimal_mission(repo, "002-scrub")
+    _init_git_repo(repo)
+
+    hostile = [
+        "spec-kitty",
+        "doctor",
+        "mission-state",
+        "--fix",
+        "--token",
+        "supersecret",
+        "--api-key=sk-live-AAAAAAAAAAAAAAAA",
+        "ghp_" + "C" * 40,
+    ]
+    monkeypatch.setattr("sys.argv", hostile)
+
+    report = repair_repo(repo)
+
+    # No raw secret should appear anywhere in command_args
+    joined = "\n".join(report.command_args)
+    assert "supersecret" not in joined
+    assert "sk-live-AAAAAAAAAAAAAAAA" not in joined
+    assert "ghp_CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC" not in joined
+    # The scrubbed marker must be present in at least one slot
+    assert any("<redacted>" in arg for arg in report.command_args)
+    # The flag names themselves are preserved so reviewers know what was passed
+    assert "--token" in report.command_args
+    assert any(arg.startswith("--api-key") for arg in report.command_args)
+
+
+def test_manifest_top_level_keys_remain_sorted(tmp_path: Path) -> None:
+    """``to_json`` must emit top-level keys in sorted order."""
+    repo = tmp_path
+    _minimal_mission(repo, "003-sortkeys")
+    _init_git_repo(repo)
+
+    report = repair_repo(repo)
+    rendered = report.to_json()
+    parsed = json.loads(rendered)
+    assert list(parsed.keys()) == sorted(parsed.keys())
