@@ -1,0 +1,12 @@
+{
+  "created_at": "2026-05-11T17:24:14.122078+00:00",
+  "friendly_name": "CLI Decision Moment Widen Mode Readiness",
+  "mission_id": "01KRC12SN9TNDD11SPPRRJRZ1C",
+  "mission_number": null,
+  "mission_slug": "cli-decision-moment-widen-mode-readiness-01KRC12S",
+  "mission_type": "software-dev",
+  "purpose_context": "Teamspace MVP launch is gated on Decision Moment widen-mode reliability. Plan widen tests currently fail because they exit early on SPEC_KITTY_REPO_NOT_INITIALIZED; without these tests passing, we cannot validate that absent prereqs, cancel, continue/pending, block/local-answer, and deterministic write-back paths still work end-to-end across the three planning commands. This mission resolves issues #757 and #758 and unblocks Mission 2 (SaaS Slack closure) and Mission 3 (Live E2E).",
+  "purpose_tldr": "Make CLI Decision Moment creation, Widen Mode, plan-side write-back, and local-close behavior release-ready across charter/specify/plan.",
+  "slug": "cli-decision-moment-widen-mode-readiness-01KRC12S",
+  "target_branch": "main"
+}
