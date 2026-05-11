@@ -14,7 +14,8 @@ subtasks:
 - T022
 - T023
 - T024
-agent: claude
+agent: "claude:sonnet-4-6:operator:implementer"
+shell_pid: "75994"
 history:
 - at: '2026-05-11T10:18:12Z'
   event: created
@@ -290,3 +291,7 @@ Verify `wp06-closeout-evidence.md` contains:
 3. Confirmation that #979 is closed
 4. Confirmation that #920 received a progress comment but was not closed
 5. Explicit statement that Missions 2 and 3 remain pending
+
+## Activity Log
+
+- 2026-05-11T10:42:02Z – claude:sonnet-4-6:operator:implementer – shell_pid=75994 – Started implementation via action command
