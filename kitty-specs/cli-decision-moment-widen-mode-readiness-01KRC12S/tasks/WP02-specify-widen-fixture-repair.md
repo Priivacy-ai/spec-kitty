@@ -19,6 +19,7 @@ created_at: '2026-05-11T17:40:00+00:00'
 subtasks:
 - T004
 - T005
+shell_pid: '42715'
 history:
 - at: '2026-05-11T17:40:00Z'
   actor: claude
