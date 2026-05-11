@@ -25,15 +25,15 @@ for the unauthenticated-not-connected path remains byte-identical.
 
 ## Technical Context
 
-- **Language/Version**: Python 3.11+ (existing spec-kitty codebase)
-- **Primary Dependencies**: typer, rich, existing `specify_cli.auth.*` and `specify_cli.sync.routing` -- no new third-party deps
-- **Storage**: None. Detection is read-only over existing files.
-- **Testing**: pytest, typer.testing.CliRunner, unittest.mock; ~90% coverage on new module
-- **Target Platform**: Cross-platform CLI (Linux, macOS, Windows 10+)
-- **Project Type**: Single project (Spec Kitty CLI)
-- **Performance Goals**: detector returns in <50ms with no network I/O
-- **Constraints**: No new third-party deps. No changes to OAuth flow internals. No persisted state file.
-- **Scale/Scope**: ~250 LOC new code, ~400 LOC new tests, 1 operator doc page.
+**Language/Version**: Python 3.11+ (existing spec-kitty codebase)
+**Primary Dependencies**: typer, rich, existing `specify_cli.auth.*` and `specify_cli.sync.routing` -- no new third-party deps
+**Storage**: None. Detection is read-only over existing files.
+**Testing**: pytest, typer.testing.CliRunner, unittest.mock; ~90% coverage on new module
+**Target Platform**: Cross-platform CLI (Linux, macOS, Windows 10+)
+**Project Type**: Single project (Spec Kitty CLI)
+**Performance Goals**: detector returns in <50ms with no network I/O
+**Constraints**: No new third-party deps. No changes to OAuth flow internals. No persisted state file.
+**Scale/Scope**: ~250 LOC new code, ~400 LOC new tests, 1 operator doc page.
 
 ## Decisions
 
