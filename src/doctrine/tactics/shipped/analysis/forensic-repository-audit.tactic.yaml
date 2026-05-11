@@ -92,12 +92,50 @@ steps:
       - "cloc . --exclude-dir=node_modules,dist,vendor"
       - "radon cc -s -a src/"
       - "Cross-reference: top-5 complexity overlap with top-20 churn = refactor target list."
+  - title: Compile a multi-window refactor-candidate list
+    description: >
+      Step 2 produced the audit-window hotspot list (default one year);
+      step 5 quantified velocity. This step synthesises them by running
+      change-frequency analysis across two complementary time windows
+      and intersecting with the current file set (files present at
+      HEAD), so the output is a refactor-candidate list anchored in
+      what still exists rather than a history-of-everything. Run two
+      passes. The first, a full-history pass, applies no `--since`
+      filter and surfaces files with sustained multi-year churn —
+      code that has never settled. The second, a velocity-adjusted
+      recent pass, uses a window calibrated from the velocity series
+      in step 5: accelerating velocity warrants a three-to-six-month
+      window; stable velocity, six-to-twelve months; declining
+      velocity, twelve-to-twenty-four months. The window must be long
+      enough to surface persistent hotspots and short enough that
+      ancient changes do not dilute the present signal. Intersect the
+      two lists: a file in the top twenty of both is a prime refactor
+      candidate — it has churned for years and is still churning.
+      Distinguish from step 2 (audit-window hotspots, which can
+      include short-lived bursts that have not yet settled) and from
+      step 7 (the complexity intersection, which adds the
+      load-bearing question). Record the top twenty candidates with
+      full-history count, recent-window count, current SLOC, and a
+      flag for whether the file also appears in the step-2 list.
+      Files appearing in both this list and the step-2 list are
+      urgent refactor candidates; files only in this list are
+      slow-burn opportunities that warrant detailed inspection but
+      may not be week-of-action work; files only in step 2 may be
+      from a recent burst that has not yet settled into a sustained
+      pattern.
+    examples:
+      - "Full-history (no time filter): git log --format=format: --name-only | grep -vE '<exclusions>' | sort | uniq -c | sort -nr | head -40"
+      - "Filter to current files: intersect the result with `git ls-files` so paths that no longer exist at HEAD drop out — a file that has been deleted cannot be refactored."
+      - "Velocity-adjusted recent (e.g. accelerating project, four-month window): git log --since=\"4 months ago\" --format=format: --name-only | grep -vE '<exclusions>' | sort | uniq -c | sort -nr | head -40"
+      - "Window selection heuristic: accelerating velocity → 3-6 months; stable velocity → 6-12 months; declining or maintenance-mode velocity → 12-24 months. Read the step-5 monthly series before choosing rather than defaulting."
+      - "Intersection rule: a file in the top-20 of BOTH the full-history view AND the velocity-adjusted view is a prime refactor candidate and warrants a detailed inspection (read the file, review recent diffs, talk to the most-recent author)."
   - title: Compile the audit report
     description: >
       Assemble the findings into a single report containing: the exclusion
       list, the churn table, the bus-factor table, the bug-hotspot table,
-      the velocity series, the firefighting count and ratio, and the
-      complexity overlay. For each top-tier finding, frame it as a question
+      the velocity series, the firefighting count and ratio, the
+      complexity overlay, and the multi-window refactor-candidate list.
+      For each top-tier finding, frame it as a question
       ('Why is this file changed every week?', 'Why does only one person
       touch this module?') rather than a verdict. The report is an input
       to triage, not a substitute for it.
@@ -108,7 +146,8 @@ failure_modes:
   - "No rename-following by default: `git log` does not follow renames unless `--follow` is passed, and `--follow` only works on a single path. Files that have been renamed will appear as separate entries with split histories. Mitigate by using `git log --follow -- <path>` for any file that triggers further investigation, and note in the report that the bulk recipes do not follow renames."
   - "No complexity capture in raw git data: churn and bug counts measure how often code changes, not how hard it is to change. A simple, well-tested file may churn often without being a problem; a complex, fragile file may rarely churn because nobody dares touch it. The complexity overlay in step 7 is mandatory for this reason."
   - "Bus factor is not knowledge: a low contributor count can mean stable ownership of a mature module, not abandonment or fragility. Treat single-author files as questions ('is this knowledge transferred?') rather than verdicts ('this is at risk'); the answer requires conversation with the team."
-  - "Out of scope: this tactic is not the brownfield-investigation skill (issue #665/#666), is not a default gate on any mission, and does not encode the full body of Adam Tornhill's behavioural code analysis methodology. It is a focused, evidence-gathering recipe set; deeper diagnosis lives in dedicated procedures and the future investigation skill."
+  - "Full-history dominance bias: the full-history pass in the multi-window refactor-candidate step is biased toward older files, which have had more time to accumulate commits. Files added recently — even if churning intensely now — will not appear in the full-history top list regardless of current importance. The velocity-adjusted window mitigates this by surfacing currently-hot files independent of age; the full-history list alone must never be the sole input to refactor planning."
+  - "Out of scope: this tactic is a focused, evidence-gathering recipe set; deeper diagnosis lives in dedicated procedures and other investigation skills/tactics."
 references:
   - name: Legacy Codebase Triage
     type: procedure
