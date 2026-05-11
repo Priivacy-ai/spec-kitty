@@ -2,6 +2,11 @@
 work_package_id: "WP01"
 title: "Introduce failed_transient status and non-mutating queue branch"
 dependencies: []
+requirement_refs:
+  - "FR-1"
+  - "FR-2"
+  - "FR-9"
+  - "FR-10"
 planning_base_branch: "main"
 merge_target_branch: "main"
 branch_strategy: "Planning artifacts were generated on main; completed changes must merge back into main."

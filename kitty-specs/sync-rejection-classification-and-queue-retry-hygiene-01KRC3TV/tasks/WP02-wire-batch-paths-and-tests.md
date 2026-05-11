@@ -2,6 +2,13 @@
 work_package_id: "WP02"
 title: "Wire batch HTTP failure paths to failed_transient and add regression tests"
 dependencies: ["WP01"]
+requirement_refs:
+  - "FR-3"
+  - "FR-4"
+  - "FR-5"
+  - "FR-6"
+  - "FR-7"
+  - "FR-8"
 planning_base_branch: "main"
 merge_target_branch: "main"
 branch_strategy: "Planning artifacts were generated on main; completed changes must merge back into main."
