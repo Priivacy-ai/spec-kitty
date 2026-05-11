@@ -845,7 +845,23 @@ class OfflineQueue:
             conn.close()
 
     def process_batch_results(self, results: list[_BatchEventResultLike]) -> None:
-        """Process batch sync results: remove synced/duplicate/permanent failures, bump retry for transient failures.
+        """Process batch sync results by status.
+
+        Four buckets (see ``BatchEventResult`` for full semantics):
+
+        * ``success`` / ``duplicate`` / ``failed_permanent`` -> DELETE from
+          queue. ``failed_permanent`` events (e.g. oversized events) are
+          removed so the drain loop can continue past them without stalling.
+        * ``rejected`` -> UPDATE ``retry_count = retry_count + 1``. This is
+          for **per-event content rejections** returned by the server inside
+          a 200 response body, where the server actually evaluated that
+          event and refused it.
+        * ``failed_transient`` -> **no mutation**. Batch-level failures
+          (HTTP 401/403/5xx, transport timeouts, connection errors, or the
+          pre-flight "no Private Teamspace" skip) never reach individual
+          events on the server, so per-event retry attribution is wrong.
+          Leaving these rows untouched lets the daemon retry on its next
+          tick without poisoning the retry counter. Issue #889.
 
         Wraps all queue mutations in a single SQLite transaction for
         atomicity: either all changes apply or none do.
@@ -856,17 +872,21 @@ class OfflineQueue:
         """
         synced_or_duplicate: list[str] = []
         rejected: list[str] = []
+        # transient: batch-level failure, no mutation. Tracked separately
+        # for clarity even though no SQL is issued.
+        transient: list[str] = []
         for r in results:
             if r.status in ("success", "duplicate", "failed_permanent"):
-                # failed_permanent events (e.g. oversized events) are removed so
-                # the drain loop can continue past them without stalling.
                 synced_or_duplicate.append(r.event_id)
             elif r.status == "rejected":
                 rejected.append(r.event_id)
+            elif r.status == "failed_transient":
+                transient.append(r.event_id)
 
         conn = sqlite3.connect(self.db_path)
         try:
-            # Wrap both operations in a single transaction
+            # Wrap both operations in a single transaction. ``failed_transient``
+            # rows are intentionally left untouched (no DELETE, no UPDATE).
             if synced_or_duplicate:
                 placeholders = ",".join("?" * len(synced_or_duplicate))
                 conn.execute(

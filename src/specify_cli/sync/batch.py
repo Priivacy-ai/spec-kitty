@@ -433,7 +433,23 @@ def _record_all_events_failed(
     *,
     error: str,
     category: str,
+    transient: bool = False,
 ) -> None:
+    """Record a batch-wide failure across every drained event.
+
+    When ``transient`` is True, every event is recorded with
+    ``status="failed_transient"`` so ``OfflineQueue.process_batch_results``
+    leaves the underlying queue rows untouched (no DELETE, no retry_count
+    bump). This matches the semantic that the server never adjudicated
+    individual events -- a batch-level failure (auth, teamspace, transport,
+    server fault) is not attributable to any per-event content. Issue #889.
+
+    When ``transient`` is False (the default), every event is recorded with
+    ``status="rejected"`` and `process_batch_results` will increment
+    ``retry_count`` -- the existing semantics for per-event 400 content
+    rejections still routed through this helper by some callers.
+    """
+    status = "failed_transient" if transient else "rejected"
     result.error_messages.append(error)
     result.error_count = len(events)
     result.failed_ids = [e.get("event_id") for e in events]
@@ -441,7 +457,7 @@ def _record_all_events_failed(
         result.event_results.append(
             BatchEventResult(
                 event_id=evt.get("event_id", "unknown"),
-                status="rejected",
+                status=status,
                 error=error,
                 error_category=category,
             )
@@ -460,15 +476,30 @@ class BatchEventResult:
     Attributes:
         event_id: Unique event identifier.
         status: One of ``"success"``, ``"duplicate"``, ``"rejected"``,
-            ``"failed_permanent"``. Permanent failures (e.g. oversized events
-            that can never be sent) are removed from the queue rather than
-            having their retry count bumped.
+            ``"failed_permanent"``, or ``"failed_transient"``.
+
+            Queue mutation semantics (see ``OfflineQueue.process_batch_results``):
+
+            * ``success`` / ``duplicate`` / ``failed_permanent`` -- row is
+              **deleted** from the queue. Permanent failures (e.g. oversized
+              events that can never be sent) are removed so the drain loop can
+              continue past them without stalling.
+            * ``rejected`` -- per-event content rejection returned by the
+              server inside a 200 response body. ``retry_count`` is
+              **incremented**.
+            * ``failed_transient`` -- batch-level failure where the server
+              never evaluated individual events: HTTP 401/403/5xx, transport
+              timeouts/connection errors, or the pre-flight "no Private
+              Teamspace" skip. The queue row is **left untouched** (no DELETE,
+              no ``retry_count`` bump) so transient outages cannot poison the
+              retry counter. See issue Priivacy-ai/spec-kitty#889.
+
         error: Human-readable error message (only for failed events).
         error_category: Categorised reason (only for failed events).
     """
 
     event_id: str
-    status: str  # "success", "duplicate", "rejected", "failed_permanent"
+    status: str  # "success" | "duplicate" | "rejected" | "failed_permanent" | "failed_transient"
     error: str | None = None
     error_category: str | None = None
 
@@ -505,8 +536,19 @@ class BatchSyncResult:
 
     @property
     def failed_results(self) -> list[BatchEventResult]:
-        """Convenience: only failed ``BatchEventResult`` entries (rejected or permanently failed)."""
-        return [r for r in self.event_results if r.status in ("rejected", "failed_permanent")]
+        """Convenience: failed ``BatchEventResult`` entries.
+
+        Includes per-event content rejections (``rejected``), permanent
+        failures (``failed_permanent``), and batch-level transient failures
+        (``failed_transient``). All three are surfaced to operators in the
+        category summary; only ``rejected`` mutates ``retry_count`` in the
+        queue. See ``BatchEventResult`` for full semantics.
+        """
+        return [
+            r
+            for r in self.event_results
+            if r.status in ("rejected", "failed_permanent", "failed_transient")
+        ]
 
     @property
     def category_counts(self) -> dict[str, int]:
@@ -903,11 +945,15 @@ def batch_sync(  # noqa: C901
         # is NOT printed to stdout because callers route it through stderr/log.
         events = queue.drain_queue(limit=limit)
         result.total_events = len(events)
+        # Issue #889: this is a batch-level pre-flight skip -- no events
+        # were POSTed, so we MUST NOT bump retry_count. Mark transient so
+        # process_batch_results leaves the rows untouched in SQLite.
         _record_all_events_failed(
             result,
             events,
             error="skipped: no Private Teamspace available for direct ingress",
             category=CATEGORY_MISSING_PRIVATE_TEAM,
+            transient=True,
         )
         return result
 
@@ -1011,6 +1057,8 @@ def batch_sync(  # noqa: C901
         elif response.status_code == 401:
             if show_progress:
                 print("Batch sync failed: Authentication failed (401)")
+            # Issue #889: batch-level auth failure. The server never adjudicated
+            # individual events, so MUST NOT bump retry_count. Mark transient.
             result.error_messages.append("Authentication failed")
             result.error_count = len(events)
             result.failed_ids = [e.get("event_id") for e in events]
@@ -1018,7 +1066,7 @@ def batch_sync(  # noqa: C901
                 result.event_results.append(
                     BatchEventResult(
                         event_id=evt.get("event_id", "unknown"),
-                        status="rejected",
+                        status="failed_transient",
                         error="Authentication failed",
                         error_category="auth_expired",
                     )
@@ -1034,11 +1082,16 @@ def batch_sync(  # noqa: C901
         else:
             if show_progress:
                 print(f"Batch sync failed: HTTP {response.status_code}")
+            # Issue #889: 403/5xx and other non-200 HTTP statuses are batch-level
+            # failures -- events were not evaluated per-row. Mark transient so
+            # the queue does not bump retry_count for events the server never
+            # rejected on content.
             _record_all_events_failed(
                 result,
                 events,
                 error=_http_error_message(response.status_code, response_body),
                 category=_http_error_category(response.status_code, response_body),
+                transient=True,
             )
             queue.process_batch_results(result.event_results)
 
@@ -1062,6 +1115,8 @@ def batch_sync(  # noqa: C901
             if response.status_code == 401:
                 if show_progress:
                     print("Batch sync failed: Authentication failed (401)")
+                # Issue #889: batch-level auth failure (stdlib fallback path).
+                # Mark transient so retry_count is not bumped.
                 result.error_messages.append("Authentication failed")
                 result.error_count = len(events)
                 result.failed_ids = [e.get("event_id") for e in events]
@@ -1069,7 +1124,7 @@ def batch_sync(  # noqa: C901
                     result.event_results.append(
                         BatchEventResult(
                             event_id=evt.get("event_id", "unknown"),
-                            status="rejected",
+                            status="failed_transient",
                             error="Authentication failed",
                             error_category="auth_expired",
                         )
@@ -1086,21 +1141,27 @@ def batch_sync(  # noqa: C901
             if show_progress:
                 print(f"Batch sync failed: HTTP {response.status_code}")
             response_body = _safe_response_json(response)
+            # Issue #889: stdlib fallback returned a non-200 HTTP code that we
+            # haven't already handled per-event. Treat as batch-level transient.
             _record_all_events_failed(
                 result,
                 events,
                 error=_http_error_message(response.status_code, response_body),
                 category=_http_error_category(response.status_code, response_body),
+                transient=True,
             )
             queue.process_batch_results(result.event_results)
             return result
         if show_progress:
             print("Batch sync failed: Request timeout")
+        # Issue #889: timeout is a transport-level failure -- the server never
+        # saw the events. Do not bump retry_count.
         _record_all_events_failed(
             result,
             events,
             error="Request timeout",
             category="retryable_transport",
+            transient=True,
         )
         queue.process_batch_results(result.event_results)
 
@@ -1124,6 +1185,8 @@ def batch_sync(  # noqa: C901
             if response.status_code == 401:
                 if show_progress:
                     print("Batch sync failed: Authentication failed (401)")
+                # Issue #889: batch-level auth failure (ConnectionError
+                # stdlib fallback path). Do not bump retry_count.
                 result.error_messages.append("Authentication failed")
                 result.error_count = len(events)
                 result.failed_ids = [e.get("event_id") for e in events]
@@ -1131,7 +1194,7 @@ def batch_sync(  # noqa: C901
                     result.event_results.append(
                         BatchEventResult(
                             event_id=evt.get("event_id", "unknown"),
-                            status="rejected",
+                            status="failed_transient",
                             error="Authentication failed",
                             error_category="auth_expired",
                         )
@@ -1148,27 +1211,36 @@ def batch_sync(  # noqa: C901
             if show_progress:
                 print(f"Batch sync failed: HTTP {response.status_code}")
             response_body = _safe_response_json(response)
+            # Issue #889: ConnectionError stdlib fallback returned a non-200
+            # we haven't already handled. Treat as batch-level transient.
             _record_all_events_failed(
                 result,
                 events,
                 error=_http_error_message(response.status_code, response_body),
                 category=_http_error_category(response.status_code, response_body),
+                transient=True,
             )
             queue.process_batch_results(result.event_results)
             return result
         if show_progress:
             print(f"Batch sync failed: Connection error - {e}")
+        # Issue #889: connection error is a transport-level failure -- the
+        # server never saw the events. Do not bump retry_count.
         _record_all_events_failed(
             result,
             events,
             error=f"Connection error: {e}",
             category="retryable_transport",
+            transient=True,
         )
         queue.process_batch_results(result.event_results)
 
     except Exception as e:
         if show_progress:
             print(f"Batch sync failed: {e}")
+        # Issue #889: unexpected exception is a batch-level failure (no event
+        # was individually adjudicated). Treat as transient so retry_count is
+        # not bumped on rows the server never saw.
         result.error_messages.append(str(e))
         result.error_count = len(events)
         result.failed_ids = [e.get("event_id") for e in events]
@@ -1176,7 +1248,7 @@ def batch_sync(  # noqa: C901
             result.event_results.append(
                 BatchEventResult(
                     event_id=evt.get("event_id", "unknown"),
-                    status="rejected",
+                    status="failed_transient",
                     error=str(e),
                     error_category=categorize_error(str(e)),
                 )
