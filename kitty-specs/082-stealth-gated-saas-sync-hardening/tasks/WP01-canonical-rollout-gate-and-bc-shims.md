@@ -28,7 +28,7 @@ history:
   note: Generated from plan.md and data-model.md §1.
 authoritative_surface: src/specify_cli/saas/
 execution_mode: code_change
-feature_slug: 082-stealth-gated-saas-sync-hardening
+mission_slug: 082-stealth-gated-saas-sync-hardening
 owned_files:
 - src/specify_cli/saas/__init__.py
 - src/specify_cli/saas/rollout.py

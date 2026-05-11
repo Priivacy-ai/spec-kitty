@@ -35,7 +35,7 @@ history:
   note: Generated from contracts/hosted_readiness.md, contracts/background_daemon_policy.md, and plan.md.
 authoritative_surface: src/specify_cli/cli/commands/tracker.py
 execution_mode: code_change
-feature_slug: 082-stealth-gated-saas-sync-hardening
+mission_slug: 082-stealth-gated-saas-sync-hardening
 owned_files:
 - src/specify_cli/cli/commands/tracker.py
 - src/specify_cli/cli/commands/__init__.py

@@ -1,11 +1,11 @@
 {
-  "feature_number": "013",
-  "slug": "fix-and-test-dashboard",
-  "friendly_name": "Fix and Test Dashboard",
-  "mission": "software-dev",
-  "source_description": "The PR has until now ignored the dashboard. We made breaking changes to the dashboard and now it's time to fix them. This feature is to fix and test the dashboard.",
   "created_at": "2026-01-16T00:00:00Z",
-  "target_branch": "main",
-  "feature_slug": "013-fix-and-test-dashboard",
-  "mission_id": "01KN2371WPA42WS6W1G5XZHZJ9"
+  "friendly_name": "Fix and Test Dashboard",
+  "mission_id": "01KN2371WPA42WS6W1G5XZHZJ9",
+  "mission_number": 13,
+  "mission_slug": "fix-and-test-dashboard",
+  "mission_type": "software-dev",
+  "slug": "fix-and-test-dashboard",
+  "source_description": "The PR has until now ignored the dashboard. We made breaking changes to the dashboard and now it's time to fix them. This feature is to fix and test the dashboard.",
+  "target_branch": "main"
 }

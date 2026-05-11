@@ -1,9 +1,10 @@
 {
   "created_at": "2026-02-25T12:00:00+00:00",
-  "feature_number": "046",
   "friendly_name": "Doctrine Artifact Domain Models",
-  "mission": "software-dev",
   "mission_id": "01KQ47E7Z4J2Z9Z06FC5DXCERP",
+  "mission_number": 46,
+  "mission_slug": "046-doctrine-artifact-domain-models",
+  "mission_type": "software-dev",
   "slug": "046-doctrine-artifact-domain-models",
   "source_description": "",
   "target_branch": "feature/agent-profile-implementation",

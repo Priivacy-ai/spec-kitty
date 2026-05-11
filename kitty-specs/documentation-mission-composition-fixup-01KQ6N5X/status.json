@@ -2,7 +2,7 @@
   "event_count": 20,
   "last_event_id": "01KQ6Q8W3Z7KTZFES087VBJK41",
   "materialized_at": "2026-04-27T05:40:53.503702+00:00",
-  "mission_number": "",
+  "mission_number": "102",
   "mission_slug": "documentation-mission-composition-fixup-01KQ6N5X",
   "mission_type": "software-dev",
   "summary": {

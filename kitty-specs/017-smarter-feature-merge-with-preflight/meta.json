@@ -1,11 +1,11 @@
 {
-  "feature_number": "017",
-  "slug": "017-smarter-feature-merge-with-preflight",
-  "friendly_name": "Smarter Feature Merge with Pre-flight and Auto-cleanup",
-  "mission": "software-dev",
-  "source_description": "Improve the spec-kitty merge command based on post-mortem feedback from features 016 and 002. Key pain points: uncommitted changes blocking merge, sequential merge amplifying conflicts, no conflict forecast, manual cleanup required, no resume capability. Focus on git-first improvements with non-invasive status file handling.",
   "created_at": "2025-01-18T11:10:00Z",
-  "target_branch": "main",
-  "feature_slug": "017-smarter-feature-merge-with-preflight",
-  "mission_id": "01KN2371WPA42WS6W1G5XZHZJB"
+  "friendly_name": "Smarter Feature Merge with Pre-flight and Auto-cleanup",
+  "mission_id": "01KN2371WPA42WS6W1G5XZHZJB",
+  "mission_number": 17,
+  "mission_slug": "017-smarter-feature-merge-with-preflight",
+  "mission_type": "software-dev",
+  "slug": "017-smarter-feature-merge-with-preflight",
+  "source_description": "Improve the spec-kitty merge command based on post-mortem feedback from features 016 and 002. Key pain points: uncommitted changes blocking merge, sequential merge amplifying conflicts, no conflict forecast, manual cleanup required, no resume capability. Focus on git-first improvements with non-invasive status file handling.",
+  "target_branch": "main"
 }

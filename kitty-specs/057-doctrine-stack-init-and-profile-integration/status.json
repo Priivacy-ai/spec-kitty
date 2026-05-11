@@ -18,36 +18,21 @@
   },
   "work_packages": {
     "WP07": {
-      "actor": {
-        "model": "unknown",
-        "profile": "unknown",
-        "role": "unknown",
-        "tool": "user"
-      },
+      "actor": "unknown",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KMHKSFSD05YRRYNQY8NJ7V56",
       "last_transition_at": "2026-03-25T04:24:36.909762+00:00"
     },
     "WP08": {
-      "actor": {
-        "model": "unknown",
-        "profile": "unknown",
-        "role": "unknown",
-        "tool": "user"
-      },
+      "actor": "unknown",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KMHKSG9GMTDX2NZWPWH0QWJ4",
       "last_transition_at": "2026-03-25T04:24:37.424750+00:00"
     },
     "WP09": {
-      "actor": {
-        "model": "unknown",
-        "profile": "unknown",
-        "role": "unknown",
-        "tool": "merge"
-      },
+      "actor": "unknown",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KMHKAKMB13RP4SQMNGAHBR0R",

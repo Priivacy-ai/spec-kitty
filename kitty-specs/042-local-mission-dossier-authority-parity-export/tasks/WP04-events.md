@@ -14,7 +14,7 @@ subtasks:
 - T022
 authoritative_surface: src/
 execution_mode: code_change
-feature_slug: 042-local-mission-dossier-authority-parity-export
+mission_slug: 042-local-mission-dossier-authority-parity-export
 mission_id: 01KN2371WSJ7573ZG5D21WP82T
 owned_files:
 - src/spec_kitty_events/schemas/mission_dossier_artifact_indexed.schema.json

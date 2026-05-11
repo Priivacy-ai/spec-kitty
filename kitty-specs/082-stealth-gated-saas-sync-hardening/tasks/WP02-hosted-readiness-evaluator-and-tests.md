@@ -25,7 +25,7 @@ history:
   note: Generated from plan.md, data-model.md §§2–4, and contracts/hosted_readiness.md.
 authoritative_surface: src/specify_cli/saas/readiness.py
 execution_mode: code_change
-feature_slug: 082-stealth-gated-saas-sync-hardening
+mission_slug: 082-stealth-gated-saas-sync-hardening
 owned_files:
 - src/specify_cli/saas/readiness.py
 - tests/saas/conftest.py

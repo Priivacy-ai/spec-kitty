@@ -1,11 +1,11 @@
 {
-  "feature_number": "002",
-  "slug": "002-lightweight-pypi-release",
-  "friendly_name": "Lightweight PyPI Release Workflow",
-  "source_description": "ad a pypi release but leak no secrets into the git repo",
   "created_at": "2025-11-02T15:37:41Z",
-  "target_branch": "main",
-  "feature_slug": "002-lightweight-pypi-release",
-  "mission": "research",
-  "mission_id": "01KN2371WNZX28ME4MN97B67PJ"
+  "friendly_name": "Lightweight PyPI Release Workflow",
+  "mission_id": "01KN2371WNZX28ME4MN97B67PJ",
+  "mission_number": 2,
+  "mission_slug": "002-lightweight-pypi-release",
+  "mission_type": "research",
+  "slug": "002-lightweight-pypi-release",
+  "source_description": "ad a pypi release but leak no secrets into the git repo",
+  "target_branch": "main"
 }

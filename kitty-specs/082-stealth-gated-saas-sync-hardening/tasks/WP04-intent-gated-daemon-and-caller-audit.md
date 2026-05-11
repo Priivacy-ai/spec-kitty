@@ -27,7 +27,7 @@ history:
   note: Generated from data-model.md §§7–9, contracts/background_daemon_policy.md, and research R-005.
 authoritative_surface: src/specify_cli/sync/daemon.py
 execution_mode: code_change
-feature_slug: 082-stealth-gated-saas-sync-hardening
+mission_slug: 082-stealth-gated-saas-sync-hardening
 owned_files:
 - src/specify_cli/sync/daemon.py
 - src/specify_cli/sync/events.py

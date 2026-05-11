@@ -18,96 +18,56 @@
   },
   "work_packages": {
     "WP01": {
-      "actor": {
-        "model": "unknown",
-        "profile": "unknown",
-        "role": "unknown",
-        "tool": "claude-sonnet-4-6"
-      },
+      "actor": "unknown",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KK8DP1YQWYJJBTFE8HEP8577",
       "last_transition_at": "2026-03-09T04:29:01.271691+00:00"
     },
     "WP02": {
-      "actor": {
-        "model": "unknown",
-        "profile": "unknown",
-        "role": "unknown",
-        "tool": "claude-sonnet-4-6"
-      },
+      "actor": "unknown",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KK8DP2M91Y6RT094X0ZY6DSW",
       "last_transition_at": "2026-03-09T04:29:01.961246+00:00"
     },
     "WP03": {
-      "actor": {
-        "model": "unknown",
-        "profile": "unknown",
-        "role": "unknown",
-        "tool": "claude-sonnet-4-6"
-      },
+      "actor": "unknown",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KK8DP3A358W7BJCK440XQ00G",
       "last_transition_at": "2026-03-09T04:29:02.659532+00:00"
     },
     "WP04": {
-      "actor": {
-        "model": "unknown",
-        "profile": "unknown",
-        "role": "unknown",
-        "tool": "claude-sonnet-4-6"
-      },
+      "actor": "unknown",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KK8DP3ZYR17EBH86B934RF5W",
       "last_transition_at": "2026-03-09T04:29:03.358826+00:00"
     },
     "WP05": {
-      "actor": {
-        "model": "unknown",
-        "profile": "unknown",
-        "role": "unknown",
-        "tool": "claude-sonnet-4-6"
-      },
+      "actor": "unknown",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KK8DP4P0C18N62DBM3130ZH2",
       "last_transition_at": "2026-03-09T04:29:04.064161+00:00"
     },
     "WP06": {
-      "actor": {
-        "model": "unknown",
-        "profile": "unknown",
-        "role": "unknown",
-        "tool": "claude-sonnet-4-6"
-      },
+      "actor": "unknown",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KK8E5RMNMF2Q7CQAQV4NZE1D",
       "last_transition_at": "2026-03-09T04:37:36.021463+00:00"
     },
     "WP07": {
-      "actor": {
-        "model": "gpt-5",
-        "profile": "reviewer",
-        "role": "reviewer",
-        "tool": "codex"
-      },
+      "actor": "reviewer",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KK8KMAG0HR5XKA1T0CEGHYT9",
       "last_transition_at": "2026-03-09T06:12:55.936657+00:00"
     },
     "WP08": {
-      "actor": {
-        "model": "gpt-5",
-        "profile": "reviewer",
-        "role": "reviewer",
-        "tool": "codex"
-      },
+      "actor": "reviewer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KK8M0KAWD3E3PDESQPC0GEQS",

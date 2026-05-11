@@ -26,7 +26,7 @@ history:
   note: Generated from DIRECTIVE_003 (Decision Documentation Requirement) and research.md.
 authoritative_surface: architecture/
 execution_mode: code_change
-feature_slug: 082-stealth-gated-saas-sync-hardening
+mission_slug: 082-stealth-gated-saas-sync-hardening
 owned_files:
 - architecture/ADR-saas-rollout-and-readiness.md
 - architecture/README.md

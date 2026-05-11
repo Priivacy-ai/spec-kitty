@@ -1,12 +1,12 @@
 {
-  "feature_number": "039",
-  "slug": "039-cli-2x-readiness",
-  "friendly_name": "CLI 2.x Readiness Sprint",
-  "mission": "software-dev",
-  "source_description": "Deliver a fully functional local/offline + authenticated CLI workflow for spec → plan → implement → review, with correct global runtime usage and status/event emission. Fix setup-plan blocker (NameError: get_feature_mission_key), converge runtime resolution to ~/.kittify, handle 7-lane canonical status with 4-lane sync fanout, implement offline queue + replay with diagnostics, and produce handoff doc for spec-kitty-saas.",
   "created_at": "2026-02-12T10:14:00+00:00",
+  "friendly_name": "CLI 2.x Readiness Sprint",
+  "mission_id": "01KN2371WSJ7573ZG5D21WP82P",
+  "mission_number": 39,
+  "mission_slug": "039-cli-2x-readiness",
+  "mission_type": "software-dev",
+  "slug": "039-cli-2x-readiness",
+  "source_description": "Deliver a fully functional local/offline + authenticated CLI workflow for spec → plan → implement → review, with correct global runtime usage and status/event emission. Fix setup-plan blocker (NameError: get_feature_mission_key), converge runtime resolution to ~/.kittify, handle 7-lane canonical status with 4-lane sync fanout, implement offline queue + replay with diagnostics, and produce handoff doc for spec-kitty-saas.",
   "target_branch": "main",
-  "vcs": "git",
-  "feature_slug": "039-cli-2x-readiness",
-  "mission_id": "01KN2371WSJ7573ZG5D21WP82P"
+  "vcs": "git"
 }

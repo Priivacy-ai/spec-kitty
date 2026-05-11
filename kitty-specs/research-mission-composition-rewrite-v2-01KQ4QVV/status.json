@@ -2,7 +2,7 @@
   "event_count": 46,
   "last_event_id": "01KQ502FW4388H66XJNJ4H1YM3",
   "materialized_at": "2026-04-26T13:36:12.676817+00:00",
-  "mission_number": "",
+  "mission_number": "100",
   "mission_slug": "research-mission-composition-rewrite-v2-01KQ4QVV",
   "mission_type": "software-dev",
   "summary": {

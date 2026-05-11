@@ -1,0 +1,10 @@
+{
+  "created_at": "1970-01-01T00:00:00+00:00",
+  "friendly_name": "teamspace-mission-state-repair-coordination-01KRB8AC",
+  "mission_id": "53HGHCH08AQG8ZWH46Z6F65VGX",
+  "mission_number": null,
+  "mission_slug": "teamspace-mission-state-repair-coordination-01KRB8AC",
+  "mission_type": "software-dev",
+  "slug": "teamspace-mission-state-repair-coordination-01KRB8AC",
+  "target_branch": "main"
+}

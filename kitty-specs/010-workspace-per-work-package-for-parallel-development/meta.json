@@ -1,11 +1,11 @@
 {
-  "feature_number": "010",
-  "slug": "010-workspace-per-work-package-for-parallel-development",
-  "friendly_name": "Workspace-per-Work-Package for Parallel Development",
-  "mission": "software-dev",
-  "source_description": "Create a new Feature based on the work(space/tree) per WP concept.",
   "created_at": "2026-01-07T00:00:00Z",
-  "target_branch": "main",
-  "feature_slug": "010-workspace-per-work-package-for-parallel-development",
-  "mission_id": "01KN2371WNZX28ME4MN97B67PS"
+  "friendly_name": "Workspace-per-Work-Package for Parallel Development",
+  "mission_id": "01KN2371WNZX28ME4MN97B67PS",
+  "mission_number": 10,
+  "mission_slug": "010-workspace-per-work-package-for-parallel-development",
+  "mission_type": "software-dev",
+  "slug": "010-workspace-per-work-package-for-parallel-development",
+  "source_description": "Create a new Feature based on the work(space/tree) per WP concept.",
+  "target_branch": "main"
 }

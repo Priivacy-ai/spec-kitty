@@ -1,12 +1,12 @@
 {
-  "feature_number": "030",
-  "slug": "030-2x-sync-auth-docs",
-  "friendly_name": "2.x Sync & Auth Documentation",
-  "mission": "documentation",
-  "source_description": "in a documentation mission, I want to prepare the docs site for the 2.x branch and pre-write the 2.x documentation but not publish it",
   "created_at": "2026-02-05T12:15:00Z",
+  "friendly_name": "2.x Sync & Auth Documentation",
+  "mission_id": "01KN2371WRE1E2BH9WR11MAGDF",
+  "mission_number": 30,
+  "mission_slug": "030-2x-sync-auth-docs",
+  "mission_type": "documentation",
+  "slug": "030-2x-sync-auth-docs",
+  "source_description": "in a documentation mission, I want to prepare the docs site for the 2.x branch and pre-write the 2.x documentation but not publish it",
   "target_branch": "main",
-  "vcs": "git",
-  "feature_slug": "030-2x-sync-auth-docs",
-  "mission_id": "01KN2371WRE1E2BH9WR11MAGDF"
+  "vcs": "git"
 }

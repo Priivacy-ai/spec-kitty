@@ -25,7 +25,7 @@ subtasks:
 - T058
 authoritative_surface: tests/specify_cli/dossier/integration/
 execution_mode: code_change
-feature_slug: 042-local-mission-dossier-authority-parity-export
+mission_slug: 042-local-mission-dossier-authority-parity-export
 mission_id: 01KN2371WSJ7573ZG5D21WP82T
 owned_files:
 - tests/specify_cli/dossier/integration/**

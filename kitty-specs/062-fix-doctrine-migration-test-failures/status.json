@@ -18,96 +18,56 @@
   },
   "work_packages": {
     "WP01": {
-      "actor": {
-        "model": "unknown",
-        "profile": "unknown",
-        "role": "unknown",
-        "tool": "user"
-      },
+      "actor": "unknown",
       "force_count": 2,
       "lane": "approved",
       "last_event_id": "01KN7ZFYJ0NQ9H8RKZBE2XPFYZ",
       "last_transition_at": "2026-04-02T20:52:24.768281+00:00"
     },
     "WP02": {
-      "actor": {
-        "model": "unknown",
-        "profile": "unknown",
-        "role": "unknown",
-        "tool": "user"
-      },
+      "actor": "unknown",
       "force_count": 1,
       "lane": "in_progress",
       "last_event_id": "01KN8039A5785Z8MWAQFA6WZKX",
       "last_transition_at": "2026-04-02T21:02:58.373981+00:00"
     },
     "WP03": {
-      "actor": {
-        "model": "unknown",
-        "profile": "unknown",
-        "role": "unknown",
-        "tool": "finalize-tasks"
-      },
+      "actor": "unknown",
       "force_count": 1,
       "lane": "planned",
       "last_event_id": "01KN7XJS7KJ08R4PX7XT9ZG57P",
       "last_transition_at": "2026-04-02T20:19:00.467676+00:00"
     },
     "WP04": {
-      "actor": {
-        "model": "unknown",
-        "profile": "unknown",
-        "role": "unknown",
-        "tool": "finalize-tasks"
-      },
+      "actor": "unknown",
       "force_count": 1,
       "lane": "planned",
       "last_event_id": "01KN7XJS7M4TBY3A2PV46TWH6Q",
       "last_transition_at": "2026-04-02T20:19:00.468492+00:00"
     },
     "WP05": {
-      "actor": {
-        "model": "unknown",
-        "profile": "unknown",
-        "role": "unknown",
-        "tool": "finalize-tasks"
-      },
+      "actor": "unknown",
       "force_count": 1,
       "lane": "planned",
       "last_event_id": "01KN7XJS7N8ATC29H2AZTFCXDH",
       "last_transition_at": "2026-04-02T20:19:00.469279+00:00"
     },
     "WP06": {
-      "actor": {
-        "model": "unknown",
-        "profile": "unknown",
-        "role": "unknown",
-        "tool": "finalize-tasks"
-      },
+      "actor": "unknown",
       "force_count": 1,
       "lane": "planned",
       "last_event_id": "01KN7XJS7PQ8T3H0T6MP9C0HMP",
       "last_transition_at": "2026-04-02T20:19:00.470384+00:00"
     },
     "WP07": {
-      "actor": {
-        "model": "unknown",
-        "profile": "unknown",
-        "role": "unknown",
-        "tool": "finalize-tasks"
-      },
+      "actor": "unknown",
       "force_count": 1,
       "lane": "planned",
       "last_event_id": "01KN7XJS7Q2Q4TYJN170SV09M6",
       "last_transition_at": "2026-04-02T20:19:00.471402+00:00"
     },
     "WP08": {
-      "actor": {
-        "model": "unknown",
-        "profile": "unknown",
-        "role": "unknown",
-        "tool": "finalize-tasks"
-      },
+      "actor": "unknown",
       "force_count": 1,
       "lane": "planned",
       "last_event_id": "01KN7XJS7R2RC0ZDESQXWG5HZP",

@@ -2,7 +2,7 @@
   "event_count": 82,
   "last_event_id": "01KQ78GKFVS9C8JRJVTK5BPEA3",
   "materialized_at": "2026-04-27T10:42:12.603042+00:00",
-  "mission_number": "",
+  "mission_number": "103",
   "mission_slug": "cli-upgrade-nag-lazy-project-migrations-01KQ6YDN",
   "mission_type": "software-dev",
   "summary": {
