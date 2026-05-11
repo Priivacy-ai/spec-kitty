@@ -8,10 +8,12 @@ package remains read-only; this module is only reached from
 from __future__ import annotations
 
 import hashlib
+import importlib.metadata
 import json
 import os
 import re
 import subprocess
+import sys
 import uuid
 from collections.abc import Mapping, Sequence
 from contextlib import suppress
@@ -40,6 +42,129 @@ EVENTS_FILENAME = "status.events.jsonl"
 STATUS_FILENAME = "status.json"
 META_FILENAME = "meta.json"
 MANIFEST_ROOT = Path(".kittify/migrations/mission-state")
+
+# ---------------------------------------------------------------------------
+# Repair manifest file-classification policy (Mission 8, #930)
+# ---------------------------------------------------------------------------
+
+# Glob-style patterns describing which paths the repair walks and mutates.
+_POLICY_TRACKED: tuple[str, ...] = (
+    "kitty-specs/*/meta.json",
+    "kitty-specs/*/status.events.jsonl",
+    "kitty-specs/*/status.json",
+    ".kittify/migrations/mission-state/*.json",
+)
+# Patterns the repair will repair only when present (no-op when absent).
+_POLICY_OPTIONAL: tuple[str, ...] = (
+    "kitty-specs/*/status.json",
+)
+# Patterns the repair never touches.
+_POLICY_IGNORED: tuple[str, ...] = (
+    ".git/",
+    ".worktrees/",
+    "__pycache__/",
+    "*.pyc",
+)
+
+
+def _build_policy() -> dict[str, list[str]]:
+    """Return the manifest ``policy`` block with sorted, deterministic lists."""
+    return {
+        "tracked": sorted(_POLICY_TRACKED),
+        "optional": sorted(_POLICY_OPTIONAL),
+        "ignored": sorted(_POLICY_IGNORED),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Secret-scrub helper for repair manifest ``command_args`` (Mission 8, #930)
+# ---------------------------------------------------------------------------
+
+# Long-form CLI flags whose value can be a secret. The redaction logic
+# accepts either ``--flag VALUE`` (two argv slots) or ``--flag=VALUE``
+# (one argv slot).
+_SECRET_FLAG_NAMES: frozenset[str] = frozenset(
+    {
+        "--token",
+        "--auth",
+        "--password",
+        "--secret",
+        "--api-key",
+        "--bearer",
+    }
+)
+
+# Regex set used to redact standalone argv items. Each pattern matches a
+# string that is *probably* a secret on its own (i.e. without an explicit
+# ``--flag`` carrier).
+_GITHUB_TOKEN_RE = re.compile(r"^gh[pousr]_[A-Za-z0-9_]{34,}$")
+_SLACK_TOKEN_RE = re.compile(r"^xox[bpars]-[A-Za-z0-9-]+(?:-[A-Za-z0-9-]+)+$")
+_JWT_RE = re.compile(r"^[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,}$")
+_AUTH_HEADER_RE = re.compile(r"^[Aa]uthorization\s*:\s*.+$")
+_BEARER_RE = re.compile(r"^Bearer\s+\S{16,}$", re.IGNORECASE)
+
+_STANDALONE_SECRET_RES: tuple[re.Pattern[str], ...] = (
+    _GITHUB_TOKEN_RE,
+    _SLACK_TOKEN_RE,
+    _JWT_RE,
+    _AUTH_HEADER_RE,
+    _BEARER_RE,
+)
+
+_REDACTED = "<redacted>"
+
+
+def _scrub_secret_args(argv: Sequence[str]) -> list[str]:
+    """Return a copy of *argv* with secret-bearing values replaced by ``<redacted>``.
+
+    Behaviour (see Priivacy-ai/spec-kitty#930):
+
+    - For each sensitive long-form flag in ``_SECRET_FLAG_NAMES``,
+      ``--flag VALUE`` becomes ``["--flag", "<redacted>"]`` and
+      ``--flag=VALUE`` becomes ``"--flag=<redacted>"``. The flag name itself
+      is preserved so reviewers can still tell which option was passed.
+    - Standalone argv items that match any pattern in
+      ``_STANDALONE_SECRET_RES`` (GitHub tokens, Slack tokens, JWT-shaped
+      strings, ``Authorization:`` headers, bare ``Bearer …`` tokens) are
+      replaced wholesale.
+    - Everything else passes through unchanged.
+
+    The function is pure: same input list always returns an equal output
+    list, with no side effects on logging or external state.
+    """
+    result: list[str] = []
+    i = 0
+    while i < len(argv):
+        item = argv[i]
+        # --flag=VALUE form
+        if "=" in item and item.startswith("--"):
+            flag, _, _value = item.partition("=")
+            if flag in _SECRET_FLAG_NAMES:
+                result.append(f"{flag}={_REDACTED}")
+                i += 1
+                continue
+        # --flag VALUE form (consumes the next argv slot)
+        if item in _SECRET_FLAG_NAMES and i + 1 < len(argv):
+            result.append(item)
+            result.append(_REDACTED)
+            i += 2
+            continue
+        # Standalone secret-shaped item
+        if any(pattern.match(item) for pattern in _STANDALONE_SECRET_RES):
+            result.append(_REDACTED)
+            i += 1
+            continue
+        result.append(item)
+        i += 1
+    return result
+
+
+def _resolve_cli_version() -> str:
+    """Return the installed ``spec-kitty-cli`` version, or ``"unknown"``."""
+    try:
+        return importlib.metadata.version("spec-kitty-cli")
+    except importlib.metadata.PackageNotFoundError:
+        return "unknown"
 
 FORBIDDEN_LEGACY_KEYS = frozenset(
     {
@@ -146,7 +271,12 @@ class MissionRepairResult:
 
 @dataclass
 class RepairReport:
-    """Top-level repair manifest."""
+    """Top-level repair manifest.
+
+    Mission 8 (Priivacy-ai/spec-kitty#930) added the ``cli_version``,
+    ``command_args``, ``generated_ids``, and ``policy`` fields so a
+    reviewer can explain a migration commit from the manifest alone.
+    """
 
     run_id: str
     repo_head: str | None
@@ -154,6 +284,10 @@ class RepairReport:
     manifest_path: str
     missions: list[MissionRepairResult]
     schema_version: str = MIGRATION_SCHEMA_VERSION
+    cli_version: str = "unknown"
+    command_args: list[str] = field(default_factory=list)
+    generated_ids: list[str] = field(default_factory=list)
+    policy: dict[str, list[str]] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -162,6 +296,10 @@ class RepairReport:
             "repo_head": self.repo_head,
             "target_missions": list(self.target_missions),
             "manifest_path": self.manifest_path,
+            "cli_version": self.cli_version,
+            "command_args": list(self.command_args),
+            "generated_ids": list(self.generated_ids),
+            "policy": {key: list(value) for key, value in self.policy.items()},
             "summary": {
                 "missions_total": len(self.missions),
                 "missions_updated": sum(1 for m in self.missions if m.status == "updated"),
@@ -281,8 +419,25 @@ def repair_repo(
     _assert_git_safe(resolved_repo_root, relevant_paths, allow_dirty=allow_dirty)
     with _git_lock(resolved_repo_root):
         results: list[MissionRepairResult] = []
+        # Mission 8 (#930): collect every deterministic ID minted during
+        # the run so the manifest can list them all under ``generated_ids``.
+        generated_ids: list[str] = [run_id]
         for mission_dir in mission_dirs:
-            results.append(_repair_mission(resolved_repo_root, mission_dir, run_id=run_id))
+            results.append(
+                _repair_mission(
+                    resolved_repo_root,
+                    mission_dir,
+                    run_id=run_id,
+                    generated_ids=generated_ids,
+                )
+            )
+
+        # Mission 8 (#930): scrub argv before persisting it into the manifest.
+        try:
+            raw_args = list(sys.argv[1:])
+        except Exception:  # pragma: no cover - defensive
+            raw_args = []
+        command_args = _scrub_secret_args(raw_args)
 
         report = RepairReport(
             run_id=run_id,
@@ -290,6 +445,10 @@ def repair_repo(
             target_missions=[p.name for p in mission_dirs],
             manifest_path=_repo_relpath(resolved_repo_root, manifest_abs),
             missions=results,
+            cli_version=_resolve_cli_version(),
+            command_args=command_args,
+            generated_ids=sorted(set(generated_ids)),
+            policy=_build_policy(),
         )
         atomic_write(manifest_abs, report.to_json(), mkdir=True)
         return report
@@ -713,7 +872,19 @@ def _count_jsonl_rows(path: Path) -> int:
         return 0
 
 
-def _repair_mission(repo_root: Path, mission_dir: Path, *, run_id: str) -> MissionRepairResult:
+def _repair_mission(
+    repo_root: Path,
+    mission_dir: Path,
+    *,
+    run_id: str,
+    generated_ids: list[str] | None = None,
+) -> MissionRepairResult:
+    """Repair a single mission directory.
+
+    When *generated_ids* is supplied, every deterministic ULID minted
+    during the repair is appended for inclusion in the top-level manifest
+    (Mission 8, Priivacy-ai/spec-kitty#930).
+    """
     mission_slug = mission_dir.name
     mission_id: str | None = None
     file_changes: list[FileChange] = []
@@ -723,7 +894,9 @@ def _repair_mission(repo_root: Path, mission_dir: Path, *, run_id: str) -> Missi
 
     try:
         raw_rows = _read_jsonl_rows(mission_dir / EVENTS_FILENAME)
-        meta, meta_actions = _canonicalize_meta(mission_dir, raw_rows)
+        meta, meta_actions = _canonicalize_meta(
+            mission_dir, raw_rows, generated_ids=generated_ids
+        )
         mission_slug = str(meta.get("mission_slug") or mission_slug)
         mission_id = str(meta.get("mission_id") or "")
         before_meta = _file_fingerprint(mission_dir / META_FILENAME)
@@ -741,6 +914,7 @@ def _repair_mission(repo_root: Path, mission_dir: Path, *, run_id: str) -> Missi
                 raw_rows,
                 mission_slug=mission_slug,
                 mission_id=mission_id,
+                generated_ids=generated_ids,
             )
             row_changes.extend(row_transforms)
             validation_errors.extend(row_errors)
@@ -815,6 +989,8 @@ def _repair_mission(repo_root: Path, mission_dir: Path, *, run_id: str) -> Missi
 def _canonicalize_meta(
     mission_dir: Path,
     raw_rows: Sequence[_RawJsonlRow],
+    *,
+    generated_ids: list[str] | None = None,
 ) -> tuple[dict[str, Any], tuple[str, ...]]:
     loaded = load_meta(mission_dir)
     meta = dict(loaded or {})
@@ -844,7 +1020,10 @@ def _canonicalize_meta(
 
     existing_id = meta.get("mission_id")
     if not isinstance(existing_id, str) or not ULID_PATTERN.match(existing_id):
-        meta["mission_id"] = deterministic_ulid(_mission_seed(mission_dir, meta, raw_rows))
+        minted = deterministic_ulid(_mission_seed(mission_dir, meta, raw_rows))
+        meta["mission_id"] = minted
+        if generated_ids is not None:
+            generated_ids.append(minted)
         actions.append("mission_id_deterministically_backfilled")
 
     for key in sorted(META_LEGACY_ALIASES):
@@ -865,6 +1044,7 @@ def _canonicalize_status_rows(
     *,
     mission_slug: str,
     mission_id: str,
+    generated_ids: list[str] | None = None,
 ) -> tuple[list[dict[str, Any]], list[RowTransformation], list[str], list[str]]:
     canonical_rows: list[dict[str, Any]] = []
     row_changes: list[RowTransformation] = []
@@ -874,7 +1054,13 @@ def _canonicalize_status_rows(
     rel = _repo_relpath(repo_root, mission_dir / EVENTS_FILENAME)
 
     for row in rows:
-        result = _canonicalize_status_row(row.data, mission_slug=mission_slug, mission_id=mission_id, line_number=row.line_number)
+        result = _canonicalize_status_row(
+            row.data,
+            mission_slug=mission_slug,
+            mission_id=mission_id,
+            line_number=row.line_number,
+            generated_ids=generated_ids,
+        )
         old_sha = _sha256_text(row.text)
         if result.error is not None:
             errors.append(f"{rel}:{row.line_number}: {result.error}")
@@ -933,6 +1119,7 @@ def _canonicalize_status_row(  # noqa: C901
     mission_slug: str,
     mission_id: str,
     line_number: int,
+    generated_ids: list[str] | None = None,
 ) -> _CanonicalRowResult:
     if "event_type" in data or "event_name" in data:
         return _CanonicalRowResult(row=None, actions=("quarantined_non_status_event",))
@@ -953,9 +1140,12 @@ def _canonicalize_status_row(  # noqa: C901
     row["mission_slug"] = str(row.get("mission_slug") or mission_slug)
     row["mission_id"] = mission_id
     if not _valid_event_id(row.get("event_id")):
-        row["event_id"] = deterministic_ulid(
+        minted = deterministic_ulid(
             json.dumps(row, sort_keys=True, default=str) + f":line:{line_number}"
         )
+        row["event_id"] = minted
+        if generated_ids is not None:
+            generated_ids.append(minted)
         actions.append("event_id_deterministically_backfilled")
     if not row.get("at"):
         row["at"] = "1970-01-01T00:00:00+00:00"
