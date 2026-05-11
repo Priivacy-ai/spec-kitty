@@ -22,7 +22,8 @@ subtasks:
 - T010
 - T011
 - T012
-agent: claude
+agent: "claude:sonnet-4-6:operator:implementer"
+shell_pid: "74843"
 history:
 - at: '2026-05-11T10:18:12Z'
   event: created
@@ -277,3 +278,7 @@ Verify `wp03-repair-manifest-review.md` contains:
 3. Any quarantined row identifiers with explanation
 4. Idempotency confirmation for at least one repo
 5. Runtime T011 gate result (skipped or repaired)
+
+## Activity Log
+
+- 2026-05-11T10:28:51Z – claude:sonnet-4-6:operator:implementer – shell_pid=74843 – Started implementation via action command
