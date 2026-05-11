@@ -182,10 +182,10 @@ T017, T018, T019 can run in parallel after WP04 completes.
 After all repair PRs are merged, re-audit from fresh clean checkouts of each repo. Confirm zero TeamSpace blockers. Comment on #979 with the full evidence table and close it. Re-assess #920 parent epic.
 
 ### Subtasks
-- [ ] T021 Re-audit from fresh clean checkouts of all repos (WP06)
-- [ ] T022 Confirm zero TeamSpace blockers across all repos (WP06)
-- [ ] T023 Comment on #979 with evidence table and close it (WP06)
-- [ ] T024 Re-assess #920; update child issue checklist (WP06)
+- [x] T021 Re-audit from fresh clean checkouts of all repos (WP06)
+- [x] T022 Confirm zero TeamSpace blockers across all repos (WP06)
+- [x] T023 Comment on #979 with evidence table and close it (WP06)
+- [x] T024 Re-assess #920; update child issue checklist (WP06)
 
 ### Implementation sketch
 For each repo: fresh clone or `git fetch && git checkout main && git pull --ff-only`, then `SPEC_KITTY_ENABLE_SAAS_SYNC=1 spec-kitty doctor mission-state --audit --json`. Aggregate results into an evidence table. `gh issue comment 979 --repo Priivacy-ai/spec-kitty --body "..."` then `gh issue close 979 --repo Priivacy-ai/spec-kitty`. Check #920 child issue checklist and update any newly completed items.
