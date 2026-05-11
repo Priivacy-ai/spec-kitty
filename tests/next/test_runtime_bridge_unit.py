@@ -979,6 +979,106 @@ class TestAtomicTaskSteps:
         assert failures == []
 
     @pytest.mark.git_repo
+    def test_tasks_packages_guard_blocks_missing_requirement_refs(self, tmp_path: Path) -> None:
+        """WP has no requirement_refs at all → missing-refs branch."""
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        (feature_dir / "spec.md").write_text(
+            "# Spec\n\n"
+            "## Functional Requirements\n\n"
+            "| ID | Requirement | Acceptance Criteria | Status |\n"
+            "| --- | --- | --- | --- |\n"
+            "| FR-001 | First | Covered by WP01. | proposed |\n",
+            encoding="utf-8",
+        )
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(exist_ok=True)
+        (tasks_dir / "WP01.md").write_text(
+            "---\nwork_package_id: WP01\ntitle: WP01\n---\n# WP01\n",
+            encoding="utf-8",
+        )
+
+        from specify_cli.next.runtime_bridge import _check_cli_guards
+
+        failures = _check_cli_guards("tasks_packages", feature_dir)
+        assert len(failures) == 1
+        assert "missing refs for WPs: WP01" in failures[0]
+        assert "map-requirements" in failures[0]
+
+    @pytest.mark.git_repo
+    def test_tasks_packages_guard_blocks_unknown_requirement_refs(self, tmp_path: Path) -> None:
+        """WP references an FR that doesn't exist in spec.md → unknown-refs branch."""
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        (feature_dir / "spec.md").write_text(
+            "# Spec\n\n"
+            "## Functional Requirements\n\n"
+            "| ID | Requirement | Acceptance Criteria | Status |\n"
+            "| --- | --- | --- | --- |\n"
+            "| FR-001 | First | Covered by WP01. | proposed |\n",
+            encoding="utf-8",
+        )
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(exist_ok=True)
+        (tasks_dir / "WP01.md").write_text(
+            "---\nwork_package_id: WP01\ntitle: WP01\nrequirement_refs: [FR-999]\n---\n# WP01\n",
+            encoding="utf-8",
+        )
+
+        from specify_cli.next.runtime_bridge import _check_cli_guards
+
+        failures = _check_cli_guards("tasks_packages", feature_dir)
+        assert len(failures) == 1
+        assert "unknown refs: WP01: FR-999" in failures[0]
+
+    @pytest.mark.git_repo
+    def test_requirement_mapping_preflight_noop_when_no_tasks_dir(self, tmp_path: Path) -> None:
+        """Helper returns [] when tasks/ does not exist even if spec.md does."""
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        (feature_dir / "spec.md").write_text(
+            "# Spec\n\n"
+            "## Functional Requirements\n\n"
+            "| ID | Requirement | Acceptance Criteria | Status |\n"
+            "| --- | --- | --- | --- |\n"
+            "| FR-001 | First | Covered by WP01. | proposed |\n",
+            encoding="utf-8",
+        )
+
+        from specify_cli.next.runtime_bridge import _check_requirement_mapping_ready
+
+        assert _check_requirement_mapping_ready(feature_dir) == []
+
+    @pytest.mark.git_repo
+    def test_requirement_mapping_preflight_wraps_unexpected_errors(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Unexpected exceptions during preflight surface as a guard failure, not a crash."""
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        (feature_dir / "spec.md").write_text("# Spec\n", encoding="utf-8")
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(exist_ok=True)
+        (tasks_dir / "WP01.md").write_text(
+            "---\nwork_package_id: WP01\ntitle: WP01\nrequirement_refs: [FR-001]\n---\n",
+            encoding="utf-8",
+        )
+
+        def _boom(*_args: object, **_kwargs: object) -> None:
+            raise RuntimeError("simulated preflight crash")
+
+        from specify_cli import requirement_mapping as rm
+
+        monkeypatch.setattr(rm, "parse_requirement_ids_from_spec_md", _boom)
+
+        from specify_cli.next.runtime_bridge import _check_requirement_mapping_ready
+
+        failures = _check_requirement_mapping_ready(feature_dir)
+        assert len(failures) == 1
+        assert "Requirement mapping preflight failed" in failures[0]
+        assert "simulated preflight crash" in failures[0]
+
+    @pytest.mark.git_repo
     def test_tasks_finalize_guard_blocks_without_raw_dependencies(self, tmp_path: Path) -> None:
         """WP files exist but no explicit dependencies: in raw frontmatter."""
         repo_root = _scaffold_project(tmp_path)
