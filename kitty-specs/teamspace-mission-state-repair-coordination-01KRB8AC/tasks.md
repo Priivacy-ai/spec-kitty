@@ -159,10 +159,10 @@ T013, T014, T015 can run in parallel after WP03 completes.
 For each repaired repo, create a `repair/teamspace-mission-state-history` branch, commit the repair artifacts (manifest + modified kitty-specs/), and raise a PR to `main`. Each PR body must satisfy the contract in `contracts/cli-contracts.md`.
 
 ### Subtasks
-- [ ] T017 Create repair branch + PR in spec-kitty (WP05)
-- [ ] T018 Create repair branch + PR in spec-kitty-saas (WP05)
-- [ ] T019 Create repair branch + PR in spec-kitty-events (WP05)
-- [ ] T020 Verify all PRs link to #979 and #920 (WP05)
+- [x] T017 Create repair branch + PR in spec-kitty (WP05)
+- [x] T018 Create repair branch + PR in spec-kitty-saas (WP05)
+- [x] T019 Create repair branch + PR in spec-kitty-events (WP05)
+- [x] T020 Verify all PRs link to #979 and #920 (WP05)
 
 ### Implementation sketch
 For each repo: `git checkout -b repair/teamspace-mission-state-history`, `git add .kittify/migrations/mission-state/ kitty-specs/`, `git commit -m "repair: TeamSpace mission-state history — deterministic repair manifest"`, then `gh pr create --base main --title "repair: TeamSpace mission-state history (<repo>)" --body "..."`. The PR body must include before/after audit summaries, dry-run result, manifest path, and links to #979 and #920.
