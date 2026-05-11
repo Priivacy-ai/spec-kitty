@@ -1,5 +1,11 @@
 """Rebuild canonical event log from legacy artifacts.
 
+.. deprecated::
+    This module is the legacy WP13 state-rebuild path. New code should call
+    :func:`specify_cli.migration.mission_state.repair_repo`, which is the
+    canonical, deterministic mission-state repair entry point. A
+    ``DeprecationWarning`` is emitted at import time.
+
 Cross-validates ALL available sources (existing status.events.jsonl,
 status.json snapshot, frontmatter ``lane`` fields) and produces a
 reconciled, deduplicated, identity-enriched event log.
@@ -11,14 +17,26 @@ contradictions.
 For mid-flight features a full event chain is generated
 (planned → claimed → in_progress → current_lane) so the history is
 realistic rather than a single jump.
+
+Determinism
+-----------
+As of Mission 8 (Priivacy-ai/spec-kitty#926, #930) this module is
+deterministic: synthetic ``event_id`` values are derived from a sha256
+seed over stable inputs (feature slug, WP code, from-lane, to-lane, and a
+step index) rather than minted from a random ULID source, and synthetic
+timestamps are anchored to ``_MIGRATION_EPOCH`` with explicit per-step
+offsets instead of ``datetime.now()``. Two runs against the same legacy
+fixture therefore produce byte-identical ``status.events.jsonl`` output.
 """
 
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import json
 import logging
 import os
+import warnings
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -27,22 +45,66 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# ULID generation helpers (reuse same shim as backfill_identity)
+# Deprecation notice — see Mission 8 (Priivacy-ai/spec-kitty#926, #930)
 # ---------------------------------------------------------------------------
 
-try:
-    import ulid as _ulid_mod
+warnings.warn(
+    "specify_cli.migration.rebuild_state is deprecated; "
+    "use specify_cli.migration.mission_state.repair_repo for canonical, "
+    "deterministic mission-state repair.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
-    def _generate_ulid() -> str:
-        if hasattr(_ulid_mod, "new"):
-            return str(_ulid_mod.new().str)
-        return str(_ulid_mod.ULID())
 
-except ImportError:  # pragma: no cover
-    import uuid
+# ---------------------------------------------------------------------------
+# Deterministic ID generation (Mission 8)
+# ---------------------------------------------------------------------------
 
-    def _generate_ulid() -> str:
-        return uuid.uuid4().hex.upper()[:26]
+# Crockford alphabet — matches ``mission_state._CROCKFORD`` so generated
+# IDs from this legacy path are interchangeable with the canonical path.
+_CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+
+
+def _deterministic_id(*parts: str) -> str:
+    """Return a 26-char Crockford ULID derived from *parts*.
+
+    Hashes the joined parts with sha256 using ``|`` as the separator, then
+    renders the first 16 digest bytes as a 26-char Crockford-base32 string.
+    The same inputs always yield the same output, so synthetic events
+    minted by this module are reproducible across runs.
+    """
+    seed = "|".join(parts).encode("utf-8")
+    value = int.from_bytes(hashlib.sha256(seed).digest()[:16], "big")
+    chars: list[str] = []
+    for _ in range(26):
+        chars.append(_CROCKFORD[value & 31])
+        value >>= 5
+    return "".join(reversed(chars))
+
+
+# Compatibility shim retained because internal callers and tests may still
+# import the symbol. Internally we always go through ``_deterministic_id``;
+# this wrapper now returns a fixed deterministic value and warns on call.
+def _generate_ulid() -> str:  # pragma: no cover - compatibility shim
+    warnings.warn(
+        "specify_cli.migration.rebuild_state._generate_ulid is deprecated; "
+        "use _deterministic_id(...) with stable seed parts instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return _deterministic_id("legacy", "_generate_ulid")
+
+
+# ---------------------------------------------------------------------------
+# Deterministic timestamp anchor (Mission 8)
+# ---------------------------------------------------------------------------
+
+# All synthetic events emitted by this module anchor their ``at`` field at
+# this fixed epoch. The original per-step offset machinery in
+# ``_make_migration_timestamp`` still spreads chain events backwards in
+# time, but the *baseline* is no longer ``datetime.now(UTC)``.
+_MIGRATION_EPOCH = "2026-01-01T00:00:00+00:00"
 
 
 # ---------------------------------------------------------------------------
@@ -97,11 +159,16 @@ def _resolve_alias(lane: str) -> str:
 
 
 def _make_migration_timestamp(base_ts: str, offset_seconds: int = 0) -> str:
-    """Construct an ISO 8601 UTC timestamp, optionally offset from *base_ts*."""
+    """Construct an ISO 8601 UTC timestamp, optionally offset from *base_ts*.
+
+    Mission 8: when *base_ts* is unparseable we fall back to
+    ``_MIGRATION_EPOCH`` instead of ``datetime.now(UTC)`` so the legacy
+    rebuild path stays deterministic for any caller.
+    """
     try:
         dt = datetime.fromisoformat(base_ts.replace("Z", "+00:00"))
     except (ValueError, AttributeError):
-        dt = datetime.now(UTC)
+        dt = datetime.fromisoformat(_MIGRATION_EPOCH)
     if offset_seconds:
         from datetime import timedelta
         dt = dt - timedelta(seconds=offset_seconds)
@@ -307,7 +374,14 @@ def _build_chain(
         offset = (len(path) - 2 - i) * step_seconds
         ts = _make_migration_timestamp(migration_timestamp, offset_seconds=offset)
         evt: dict[str, Any] = {
-            "event_id": _generate_ulid(),
+            "event_id": _deterministic_id(
+                feature_slug,
+                wp_code,
+                from_lane,
+                to_lane,
+                "chain",
+                str(i),
+            ),
             "mission_slug": feature_slug,
             "wp_id": wp_code,
             "from_lane": from_lane,
@@ -325,6 +399,66 @@ def _build_chain(
         events.append(evt)
 
     return events
+
+
+# ---------------------------------------------------------------------------
+# Deterministic per-fixture timestamp derivation (Mission 8)
+# ---------------------------------------------------------------------------
+
+
+def _derive_migration_timestamp(feature_dir: Path) -> str:
+    """Return a deterministic ISO-8601 timestamp for synthetic events.
+
+    Prefers, in order, the latest ``at`` timestamp present in
+    ``status.events.jsonl``, the ``materialized_at`` and per-WP
+    ``last_transition_at`` values in ``status.json``, and the
+    ``created_at`` field in ``meta.json``. Falls back to
+    ``_MIGRATION_EPOCH`` only when none of those produce a usable
+    timestamp. The result is a pure function of *feature_dir* contents,
+    so two rebuild runs over the same fixture produce identical
+    timestamps (Mission 8).
+    """
+    candidates: list[str] = []
+    for evt in _read_existing_events(feature_dir):
+        ts = evt.get("at")
+        if isinstance(ts, str) and ts:
+            candidates.append(ts)
+    status = _read_status_json(feature_dir)
+    if status:
+        ts = status.get("materialized_at")
+        if isinstance(ts, str) and ts:
+            candidates.append(ts)
+        for wp_state in (status.get("work_packages") or {}).values():
+            if isinstance(wp_state, dict):
+                ts = wp_state.get("last_transition_at")
+                if isinstance(ts, str) and ts:
+                    candidates.append(ts)
+    meta_path = feature_dir / "meta.json"
+    if meta_path.exists():
+        try:
+            with meta_path.open("r", encoding="utf-8") as fh:
+                meta = json.load(fh)
+            if isinstance(meta, dict):
+                ts = meta.get("created_at")
+                if isinstance(ts, str) and ts:
+                    candidates.append(ts)
+        except (OSError, json.JSONDecodeError) as exc:  # pragma: no cover
+            logger.debug("Cannot read meta.json in %s: %s", feature_dir, exc)
+    if not candidates:
+        return _MIGRATION_EPOCH
+    # Sort lexicographically — ISO-8601 timestamps sort correctly that way.
+    latest = max(candidates)
+    # Bump by one second so synthetic corrective events are strictly later
+    # than any real event we observed.
+    try:
+        dt = datetime.fromisoformat(latest.replace("Z", "+00:00"))
+    except (ValueError, AttributeError):
+        return _MIGRATION_EPOCH
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+    from datetime import timedelta
+
+    return (dt + timedelta(seconds=1)).isoformat()
 
 
 # ---------------------------------------------------------------------------
@@ -354,7 +488,11 @@ def rebuild_event_log(  # noqa: C901
         :class:`RebuildResult` with counts and warnings for the feature.
     """
     result = RebuildResult(feature_slug=feature_slug)
-    migration_ts = datetime.now(UTC).isoformat()
+    # Mission 8: derive ``migration_ts`` from the latest stable timestamp
+    # present in the legacy fixture rather than ``datetime.now(UTC)``. Two
+    # runs over the same input therefore produce byte-identical synthetic
+    # events. The fallback is the fixed ``_MIGRATION_EPOCH`` constant.
+    migration_ts = _derive_migration_timestamp(feature_dir)
 
     # ------------------------------------------------------------------
     # Step 1: Read all sources
@@ -500,7 +638,13 @@ def rebuild_event_log(  # noqa: C901
 
             work_package_id = wp_id_map.get(wp_code, "")
             corrective_evt: dict[str, Any] = {
-                "event_id": _generate_ulid(),
+                "event_id": _deterministic_id(
+                    feature_slug,
+                    wp_code,
+                    log_lane or "",
+                    auth_lane,
+                    "corrective",
+                ),
                 "mission_slug": feature_slug,
                 "wp_id": wp_code,
                 "from_lane": log_lane,

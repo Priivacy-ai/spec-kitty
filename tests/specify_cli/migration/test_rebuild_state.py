@@ -550,3 +550,90 @@ class TestBuildChain:
         )
         for evt in chain:
             assert evt.get("work_package_id") == "WPIDULIDWPIDULIDWPIDULID00"
+
+
+# ---------------------------------------------------------------------------
+# Mission 8: determinism guarantees for the legacy rebuild path
+# ---------------------------------------------------------------------------
+
+
+class TestRebuildIsDeterministic:
+    """Two runs of rebuild_event_log over identical inputs must produce
+    byte-identical status.events.jsonl output. Locked in by
+    Priivacy-ai/spec-kitty#926.
+    """
+
+    def _build_fixture(self, base: Path, slug: str) -> Path:
+        feature_dir = _make_feature(
+            base,
+            slug,
+            wps=[
+                {"name": "WP01", "lane": "in_progress"},
+                {"name": "WP02", "lane": "done"},
+            ],
+        )
+        _write_status_json(
+            feature_dir,
+            slug,
+            {"WP01": "in_progress", "WP02": "done"},
+        )
+        return feature_dir
+
+    def test_two_runs_produce_byte_identical_events(self, tmp_path: Path) -> None:
+        slug = "042-determinism"
+        dir_a = self._build_fixture(tmp_path / "run-a", slug)
+        dir_b = self._build_fixture(tmp_path / "run-b", slug)
+
+        wp_id_map = {"WP01": "ULIDWP01000000000000000001", "WP02": "ULIDWP02000000000000000002"}
+        result_a = rebuild_event_log(dir_a, slug, wp_id_map)
+        result_b = rebuild_event_log(dir_b, slug, wp_id_map)
+
+        assert not result_a.errors, result_a.errors
+        assert not result_b.errors, result_b.errors
+
+        bytes_a = (dir_a / "status.events.jsonl").read_bytes()
+        bytes_b = (dir_b / "status.events.jsonl").read_bytes()
+        assert bytes_a == bytes_b, (
+            "Two rebuild runs over identical inputs must produce byte-identical "
+            "status.events.jsonl output (Priivacy-ai/spec-kitty#926)."
+        )
+
+    def test_synthetic_event_ids_are_seeded(self, tmp_path: Path) -> None:
+        """Synthetic chain event_ids must come from _deterministic_id, not a
+        random source — i.e. the same seed parts give the same id every time.
+        """
+        from specify_cli.migration.rebuild_state import _deterministic_id
+
+        a = _deterministic_id("slug", "WP01", "planned", "claimed", "chain", "0")
+        b = _deterministic_id("slug", "WP01", "planned", "claimed", "chain", "0")
+        c = _deterministic_id("slug", "WP01", "planned", "claimed", "chain", "1")
+        assert a == b
+        assert a != c
+        assert len(a) == 26
+        # Every character must be in the Crockford alphabet
+        assert set(a) <= set("0123456789ABCDEFGHJKMNPQRSTVWXYZ")
+
+
+class TestRebuildStateEmitsDeprecationWarning:
+    """The legacy rebuild_state module must announce itself as deprecated so
+    callers migrate to specify_cli.migration.mission_state.repair_repo
+    (Priivacy-ai/spec-kitty#930).
+    """
+
+    def test_importing_module_warns(self) -> None:
+        import importlib
+        import warnings
+
+        import specify_cli.migration.rebuild_state as legacy_mod
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            importlib.reload(legacy_mod)
+
+        deprecation_warnings = [w for w in caught if issubclass(w.category, DeprecationWarning)]
+        assert deprecation_warnings, (
+            "Importing specify_cli.migration.rebuild_state must emit a "
+            "DeprecationWarning pointing at mission_state.repair_repo."
+        )
+        messages = " ".join(str(w.message) for w in deprecation_warnings)
+        assert "mission_state.repair_repo" in messages
