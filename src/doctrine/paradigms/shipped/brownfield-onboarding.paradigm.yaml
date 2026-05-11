@@ -1,0 +1,79 @@
+schema_version: "1.0"
+id: brownfield-onboarding
+name: Brownfield Onboarding
+summary: >
+  DRAFT / PROVISIONAL (2026-05-08). Approach a mature, in-use codebase as a
+  teacher rather than a problem. Legacy code is the durable record of
+  constraints, edge cases, and prior decisions the team has already paid for;
+  it deserves epistemic humility before it deserves restructuring. Brownfield
+  onboarding treats investigation as a precondition to non-trivial change:
+  forensic methods (git-history mining, hotspot and change-coupling analysis
+  via tactic:forensic-repository-audit) surface "what" and "where";
+  qualitative methods (SME interviews, decision archaeology) answer "why";
+  structural overlays (DDD strategic classification, deep-module analysis)
+  give the findings a vocabulary the team can act on. None of these methods
+  alone is sufficient. The durable artifact of the engagement is not a
+  refactor plan but a hierarchical reference bundle -- system overview,
+  subsystem maps, click paths, terminology aliases, design paradigms inferred
+  from the code -- that lowers bus-factor risk before code shape is touched.
+  Knowledge transfer is load-bearing: the DM-D principle ("document and
+  transfer first, then refactor") protects the implicit invariants that
+  restructure would otherwise erase. Respect for prior decisions and
+  willingness to change are held in tension on purpose: refusing to remove
+  what you do not yet understand is Chesterton's-fence discipline; refusing
+  to change because change is hard is preservation by inertia. The paradigm
+  walks the line between them by gating structural moves on captured
+  understanding, not on courage or on caution alone.
+
+directive_refs:
+  - DIRECTIVE_001
+  - DIRECTIVE_003
+
+opposed_by:
+  - type: paradigm
+    id: big-ball-of-mud
+    reason: >
+      A Big Ball of Mud is the failure mode brownfield onboarding is built
+      to interrupt. Where Big Ball of Mud lets coupling and concepts leak
+      without investigation, brownfield onboarding insists that the leaks
+      be mapped and named before they are either preserved or removed.
+  - type: paradigm
+    id: big-upfront-design
+    reason: >
+      Big Upfront Design assumes the right structure can be derived from
+      first principles before contact with the existing system. Brownfield
+      onboarding inverts the priority: the existing system is the primary
+      evidence, and design proposals must be grounded in what the codebase,
+      its history, and its SMEs already encode.
+  - type: tactic
+    id: rewrite-from-scratch
+    reason: >
+      A from-scratch rewrite discards the embedded knowledge in the
+      existing code -- precisely the asset brownfield onboarding is trying
+      to surface and preserve. Rewrites are sometimes the right move, but
+      only after the implicit invariants have been captured; doing it
+      before knowledge transfer is preservation-by-deletion.
+
+# ---------------------------------------------------------------------------
+# Provisional notes -- iterate freely.
+# ---------------------------------------------------------------------------
+# - This paradigm is DRAFT as of 2026-05-08. It codifies the worldview that
+#   emerged from the 2026-05 CaaCS engagement on spec-kitty itself
+#   (architecture/audits/2026-05-spec-kitty-caacs.md and the meta-assessment
+#   companion). It is deliberately authored before issues #665 (hierarchical
+#   reference bundles as a skill) and #666 (SME-interview tactic) ship, so
+#   that the worldview anchors those artifacts rather than trailing them.
+# - [provisional: candidate for refinement] The DM-D ordering ("document and
+#   transfer first, then refactor") is stated as a principle here. Whether
+#   it should escalate to a directive is left open for the next curation
+#   pass; promotion would obligate every mission on a mature codebase to
+#   gate refactor work on a captured knowledge artifact, which is a strong
+#   claim and deserves explicit ratification.
+# - [provisional: candidate for refinement] Bus factor is treated as a
+#   first-class risk surface here. The empirical basis is the 2026-05
+#   spec-kitty CaaCS run; a broader evidence base from other brownfield
+#   engagements would strengthen or qualify the claim.
+# - Cross-links into the doctrine graph are declared in src/doctrine/graph.yaml
+#   alongside this file. The motivating tactic is forensic-repository-audit
+#   and the motivating procedure is legacy-codebase-triage; the structural
+#   overlays are domain-driven-design and deep-module-design.

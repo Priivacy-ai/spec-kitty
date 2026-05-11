@@ -107,6 +107,9 @@ nodes:
   kind: paradigm
 - urn: paradigm:big-upfront-design
   kind: paradigm
+- urn: paradigm:brownfield-onboarding
+  kind: paradigm
+  label: Brownfield Onboarding
 - urn: paradigm:c4-incremental-detail-modeling
   kind: paradigm
   label: C4 Incremental Detail Modeling
@@ -975,6 +978,28 @@ edges:
   reason: "A single all-in-one architecture diagram conflates audiences and abstraction
     levels, producing a poster that nobody can review in a reasonable time. C4 explicitly
     separates concerns into distinct levels.\n"
+- source: paradigm:brownfield-onboarding
+  target: directive:DIRECTIVE_001
+  relation: requires
+- source: paradigm:brownfield-onboarding
+  target: directive:DIRECTIVE_003
+  relation: requires
+- source: paradigm:brownfield-onboarding
+  target: tactic:forensic-repository-audit
+  relation: suggests
+  when: Use when starting investigation of a mature codebase to surface hotspots, change coupling, and ownership signals before proposing structural change.
+- source: paradigm:brownfield-onboarding
+  target: procedure:legacy-codebase-triage
+  relation: suggests
+  when: Use to bucket findings from forensic and qualitative investigation into action categories before any non-trivial restructure.
+- source: paradigm:brownfield-onboarding
+  target: paradigm:domain-driven-design
+  relation: suggests
+  when: Apply strategic DDD (Bounded Contexts, Context Mapping) as the structural overlay for interpreting forensic findings on a mature codebase.
+- source: paradigm:brownfield-onboarding
+  target: paradigm:deep-module-design
+  relation: suggests
+  when: Use deep-module heuristics to read complexity findings -- distinguishing shallow interfaces in need of deepening from genuinely necessary depth.
 - source: paradigm:deep-module-design
   target: directive:DIRECTIVE_001
   relation: requires
