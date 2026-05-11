@@ -15,7 +15,8 @@ subtasks:
 - T006
 - T007
 - T008
-agent: claude
+agent: "claude:sonnet-4-6:operator:implementer"
+shell_pid: "74550"
 history:
 - at: '2026-05-11T10:18:12Z'
   event: created
@@ -244,3 +245,7 @@ Verify `wp02-audit-results.md` contains:
 2. The runtime inclusion gate result (include or skip)
 3. No unexplained unexpected_errors
 4. The list of repos that will receive WP03 repair
+
+## Activity Log
+
+- 2026-05-11T10:26:32Z – claude:sonnet-4-6:operator:implementer – shell_pid=74550 – Started implementation via action command
