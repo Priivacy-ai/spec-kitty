@@ -16,6 +16,9 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-sync-rejection-classification-and-queue-retry-hygiene-01KRC3TV
+base_commit: fba3be0b97e4958ee65857fcb072ced8978da961
+created_at: '2026-05-11T18:16:12.209739+00:00'
 subtasks:
 - T001
 - T002
@@ -26,6 +29,7 @@ subtasks:
 phase: Phase 1 - Implementation
 assignee: ''
 agent: ''
+shell_pid: '49962'
 history:
 - timestamp: '2026-05-11T18:15:00Z'
   agent: claude
