@@ -56,10 +56,10 @@
 Confirm the exact repos, branches, and prerequisites before running any repair commands. Document the runtime inclusion decision for spec-kitty-runtime. Establish the contributor freeze window.
 
 ### Subtasks
-- [ ] T001 Confirm target branches (main) for each repo (WP01)
-- [ ] T002 Verify PR #1017 is merged (gate check) (WP01)
-- [ ] T003 Coordinate contributor freeze on kitty-specs/ paths (WP01)
-- [ ] T004 Document spec-kitty-runtime inclusion decision (WP01)
+- [x] T001 Confirm target branches (main) for each repo (WP01)
+- [x] T002 Verify PR #1017 is merged (gate check) (WP01)
+- [x] T003 Coordinate contributor freeze on kitty-specs/ paths (WP01)
+- [x] T004 Document spec-kitty-runtime inclusion decision (WP01)
 
 ### Implementation sketch
 Run `gh pr view 1017 --repo Priivacy-ai/spec-kitty --json state,mergedAt` to confirm the gate. Pull main in each repo and verify branch is clean. Document the freeze request as a comment on #979.
