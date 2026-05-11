@@ -30,7 +30,7 @@ history:
 - timestamp: '2026-05-11T18:15:00Z'
   agent: claude
   action: Prompt generated for Mission 5
-authoritative_surface: src/specify_cli/sync/batch.py and src/specify_cli/sync/queue.py — batch HTTP failure classification and OfflineQueue.process_batch_results retry-count semantics
+authoritative_surface: src/specify_cli/sync/
 execution_mode: code_change
 owned_files:
 - src/specify_cli/sync/batch.py
