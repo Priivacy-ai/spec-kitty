@@ -22,6 +22,7 @@ subtasks:
 phase: Phase 1 - Implementation
 assignee: ''
 agent: ''
+shell_pid: '68506'
 history:
 - timestamp: '2026-05-11T19:01:00Z'
   agent: claude
@@ -142,3 +143,7 @@ the new helper yet (WP02 wires it in).
 - Module has no top-level imports of `readchar`, `TokenManager`, or
   `_auth_login` (all lazy) so importing it does not trigger network /
   filesystem side-effects in unrelated tests.
+
+## Activity Log
+
+- 2026-05-11T19:07:08Z – unknown – shell_pid=68506 – Approved: 19/19 unit tests pass, ruff clean, FRs 001-006 covered
