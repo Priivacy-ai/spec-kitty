@@ -2,6 +2,7 @@ import hashlib
 import json
 import sqlite3
 import sys
+import threading
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, UTC
 from pathlib import Path
@@ -462,6 +463,67 @@ class OfflineQueue:
 
         self._init_db()
 
+        # Mission 6 (issue #352): cached in-process row count.
+        # ``None`` means "uninitialized"; the next caller that needs the cap
+        # value calls ``_ensure_row_count()`` which lazily loads via a single
+        # ``SELECT COUNT(*) FROM queue``. After that, every mutation path on
+        # this instance keeps the counter coherent with disk so the hot
+        # ``queue_event()`` path no longer pays a full table scan per insert.
+        #
+        # The counter is guarded by ``_row_count_lock`` so callers from
+        # multiple threads (see ``TestConcurrentEmission`` in
+        # ``tests/sync/test_edge_cases.py``) cannot race the lazy load or the
+        # post-commit increment / decrement.
+        self._row_count: int | None = None
+        self._row_count_lock = threading.Lock()
+
+    # ------------------------------------------------------------------
+    # Mission 6 (issue #352): in-process row-count cache helpers.
+    # ------------------------------------------------------------------
+
+    def _load_row_count(self) -> int:
+        """Initialize the cached counter from disk and return it.
+
+        Performs exactly one ``SELECT COUNT(*) FROM queue`` against the
+        SQLite database, then caches the result on ``self._row_count``.
+
+        Callers MUST hold ``self._row_count_lock`` or call this only at
+        construction time when no other thread can observe the queue.
+        """
+        conn = sqlite3.connect(self.db_path)
+        try:
+            row = conn.execute("SELECT COUNT(*) FROM queue").fetchone()
+        finally:
+            conn.close()
+        count = int(row[0]) if row is not None else 0
+        self._row_count = count
+        return count
+
+    def _ensure_row_count(self) -> int:
+        """Return the cached counter, loading lazily on first access.
+
+        Callers that are about to mutate ``self._row_count`` MUST already
+        hold ``self._row_count_lock``. Pure read callers (e.g. ``size()``)
+        also acquire the lock to avoid reading a partially-updated value
+        from another thread.
+        """
+        if self._row_count is None:
+            return self._load_row_count()
+        return self._row_count
+
+    def _size_from_disk(self) -> int:
+        """Read the row count directly from SQLite (no cache).
+
+        Reserved for tests and the invariant check; production hot paths
+        MUST go through :meth:`_ensure_row_count` instead.
+        """
+        conn = sqlite3.connect(self.db_path)
+        try:
+            row = conn.execute("SELECT COUNT(*) FROM queue").fetchone()
+        finally:
+            conn.close()
+        return int(row[0]) if row is not None else 0
+
     def _init_db(self) -> None:
         """Initialize database schema with indexes."""
         conn = sqlite3.connect(self.db_path)
@@ -538,28 +600,53 @@ class OfflineQueue:
         if c_key is not None and self._try_coalesce(event, c_key):
             return
 
-        conn = sqlite3.connect(self.db_path)
-        try:
-            cursor = conn.execute("SELECT COUNT(*) FROM queue")
-            count_row = cursor.fetchone()
-            current_size = int(count_row[0]) if count_row else 0
+        # Mission 6: cap check goes through the cached counter, not a per-event
+        # SELECT COUNT(*) full table scan. Hold the counter lock for the
+        # entire read-modify-write so concurrent callers cannot race the
+        # cap check.
+        with self._row_count_lock:
+            current_size = self._ensure_row_count()
             if current_size >= effective_cap:
                 raise OfflineQueueFull(cap=effective_cap, current=current_size)
 
-            conn.execute(
-                "INSERT OR REPLACE INTO queue (event_id, event_type, data, timestamp, coalesce_key) "
-                "VALUES (?, ?, ?, ?, ?)",
-                (
-                    str(event["event_id"]),
-                    str(event["event_type"]),
-                    json.dumps(event),
-                    int(datetime.now().timestamp()),
-                    c_key,
-                ),
-            )
-            conn.commit()
-        finally:
-            conn.close()
+            inserted_new_row = False
+            conn = sqlite3.connect(self.db_path)
+            try:
+                # See ``queue_event`` for the rationale behind the
+                # INSERT-OR-IGNORE + conditional-UPDATE split.
+                cursor = conn.execute(
+                    "INSERT OR IGNORE INTO queue (event_id, event_type, data, timestamp, coalesce_key) "
+                    "VALUES (?, ?, ?, ?, ?)",
+                    (
+                        str(event["event_id"]),
+                        str(event["event_type"]),
+                        json.dumps(event),
+                        int(datetime.now().timestamp()),
+                        c_key,
+                    ),
+                )
+                inserted_new_row = cursor.rowcount == 1
+                if not inserted_new_row:
+                    conn.execute(
+                        "UPDATE queue SET event_type = ?, data = ?, timestamp = ?, coalesce_key = ? "
+                        "WHERE event_id = ?",
+                        (
+                            str(event["event_type"]),
+                            json.dumps(event),
+                            int(datetime.now().timestamp()),
+                            c_key,
+                            str(event["event_id"]),
+                        ),
+                    )
+                conn.commit()
+            finally:
+                conn.close()
+
+            # Cache update only after successful commit; an exception above
+            # leaves ``self._row_count`` untouched, which is correct (the
+            # INSERT did not happen).
+            if inserted_new_row:
+                self._row_count = current_size + 1
 
     def drain_to_file(self, path: Path) -> int:
         """Drain every queued event to *path* as JSONL and clear the queue.
@@ -609,7 +696,8 @@ class OfflineQueue:
                 count += 1
 
         # Clearing the queue MUST happen after the file write succeeds
-        # so a crash mid-drain does not lose evidence.
+        # so a crash mid-drain does not lose evidence. Mission 6: clear()
+        # also zeros the cached counter, so no extra bookkeeping is needed.
         self.clear()
         return count
 
@@ -638,60 +726,98 @@ class OfflineQueue:
             if coalesced:
                 return True
 
-        conn = sqlite3.connect(self.db_path)
-        try:
-            cursor = conn.execute("SELECT COUNT(*) FROM queue")
-            count_row = cursor.fetchone()
-            current_size = int(count_row[0]) if count_row else 0
-            if current_size >= self._max_queue_size:
-                # FIFO eviction: delete the oldest events to make room
-                overflow = current_size - self._max_queue_size + 1
-                conn.execute(
-                    "DELETE FROM queue WHERE id IN ("
-                    "  SELECT id FROM queue ORDER BY timestamp ASC, id ASC LIMIT ?"
-                    ")",
-                    (overflow,),
-                )
-                print(
-                    f"Offline queue at capacity ({self._max_queue_size:,} events). "
-                    f"Evicted {overflow:,} oldest event(s) to make room.\n"
-                    f"  Check auth and connectivity: spec-kitty sync status --check\n"
-                    f"  Drain the queue manually:    spec-kitty sync now",
-                    file=sys.stderr,
-                )
+        # Mission 6 (issue #352): use the cached row count so the hot path
+        # does not pay a full ``SELECT COUNT(*) FROM queue`` table scan per
+        # non-coalesced event. Hold the counter lock for the entire
+        # read-modify-write so two concurrent emitters cannot race the cap
+        # check or the cache update (see ``TestConcurrentEmission`` in
+        # ``tests/sync/test_edge_cases.py``).
+        with self._row_count_lock:
+            evicted = 0
+            inserted_new_row = False
+            current_size = self._ensure_row_count()
+            conn = sqlite3.connect(self.db_path)
+            try:
+                if current_size >= self._max_queue_size:
+                    # FIFO eviction: delete the oldest events to make room
+                    overflow = current_size - self._max_queue_size + 1
+                    conn.execute(
+                        "DELETE FROM queue WHERE id IN ("
+                        "  SELECT id FROM queue ORDER BY timestamp ASC, id ASC LIMIT ?"
+                        ")",
+                        (overflow,),
+                    )
+                    evicted = overflow
+                    print(
+                        f"Offline queue at capacity ({self._max_queue_size:,} events). "
+                        f"Evicted {overflow:,} oldest event(s) to make room.\n"
+                        f"  Check auth and connectivity: spec-kitty sync status --check\n"
+                        f"  Drain the queue manually:    spec-kitty sync now",
+                        file=sys.stderr,
+                    )
 
-            conn.execute(
-                "INSERT OR REPLACE INTO queue (event_id, event_type, data, timestamp, coalesce_key) "
-                "VALUES (?, ?, ?, ?, ?)",
-                (
-                    str(event["event_id"]),
-                    str(event["event_type"]),
-                    json.dumps(event),
-                    int(datetime.now().timestamp()),
-                    c_key,
-                ),
-            )
-            conn.commit()
-            return True
-        except Exception as e:
-            # FR-009/NFR-003: sync side-effect failures during a `--json` agent
-            # command (mission create / task update / status read) MUST NOT
-            # leak to stdout. Route through stderr-routed logger instead of
-            # print() so json.loads(stdout) stays parseable when a queue
-            # insert fails (e.g., transient SQLite contention).
-            import logging
+                # Mission 6: split the historical ``INSERT OR REPLACE`` into
+                # ``INSERT OR IGNORE`` + conditional ``UPDATE`` so the cached
+                # counter can tell apart a new row (rowcount == 1) from a
+                # duplicate event_id update (rowcount == 0). The net effect on
+                # disk is identical to the old single-statement form.
+                cursor = conn.execute(
+                    "INSERT OR IGNORE INTO queue (event_id, event_type, data, timestamp, coalesce_key) "
+                    "VALUES (?, ?, ?, ?, ?)",
+                    (
+                        str(event["event_id"]),
+                        str(event["event_type"]),
+                        json.dumps(event),
+                        int(datetime.now().timestamp()),
+                        c_key,
+                    ),
+                )
+                inserted_new_row = cursor.rowcount == 1
+                if not inserted_new_row:
+                    conn.execute(
+                        "UPDATE queue SET event_type = ?, data = ?, timestamp = ?, coalesce_key = ? "
+                        "WHERE event_id = ?",
+                        (
+                            str(event["event_type"]),
+                            json.dumps(event),
+                            int(datetime.now().timestamp()),
+                            c_key,
+                            str(event["event_id"]),
+                        ),
+                    )
+                conn.commit()
+                # Cache update only after the commit succeeds. ``evicted`` rows
+                # were removed; a brand-new row contributes +1, an
+                # event_id-replacement contributes 0.
+                self._row_count = current_size - evicted + (1 if inserted_new_row else 0)
+                return True
+            except Exception as e:
+                # FR-009/NFR-003: sync side-effect failures during a `--json`
+                # agent command (mission create / task update / status read)
+                # MUST NOT leak to stdout. Route through stderr-routed logger
+                # instead of print() so json.loads(stdout) stays parseable
+                # when a queue insert fails (e.g., transient SQLite
+                # contention).
+                import logging
 
-            logging.getLogger(__name__).warning(
-                "Failed to queue event: %s", e
-            )
-            return False
-        finally:
-            conn.close()
+                logging.getLogger(__name__).warning(
+                    "Failed to queue event: %s", e
+                )
+                # Do NOT mutate ``self._row_count`` here: the commit above
+                # either ran (in which case we already updated the cache and
+                # returned True) or did not run (in which case the cache must
+                # stay as it was).
+                return False
+            finally:
+                conn.close()
 
     def _try_coalesce(self, event: dict[str, Any], c_key: str) -> bool:
         """Update an existing row with the same coalesce key, if one exists.
 
         Returns True if a row was updated (coalesced), False otherwise.
+
+        Coalescing is an in-place row update; it does NOT change the cached
+        row count (``self._row_count``) and intentionally does not touch it.
         """
         conn = sqlite3.connect(self.db_path)
         try:
@@ -757,13 +883,21 @@ class OfflineQueue:
         conn = sqlite3.connect(self.db_path)
         try:
             placeholders = ",".join("?" * len(event_ids))
-            conn.execute(
+            cursor = conn.execute(
                 f"DELETE FROM queue WHERE event_id IN ({placeholders})",  # noqa: S608 - placeholders are count-derived only
                 event_ids,
             )
+            deleted = cursor.rowcount if cursor.rowcount is not None and cursor.rowcount >= 0 else 0
             conn.commit()
         finally:
             conn.close()
+
+        # Mission 6: only decrement the cache when initialized; otherwise the
+        # next ``_ensure_row_count`` call will re-read from disk anyway.
+        if deleted > 0:
+            with self._row_count_lock:
+                if self._row_count is not None:
+                    self._row_count = max(0, self._row_count - deleted)
 
     def increment_retry(self, event_ids: list[str]) -> None:
         """
@@ -790,18 +924,18 @@ class OfflineQueue:
         """
         Get current queue size.
 
+        Reads directly from disk and refreshes the cached counter. We do not
+        serve ``size()`` from the in-process cache because other processes
+        (or other ``OfflineQueue`` instances pointing at the same DB) may
+        have mutated the queue, and ``size()`` is not on the hot enqueue
+        path — the per-call cost of one ``SELECT COUNT(*)`` is acceptable
+        here.
+
         Returns:
             Number of events in queue
         """
-        conn = sqlite3.connect(self.db_path)
-        try:
-            cursor = conn.execute("SELECT COUNT(*) FROM queue")
-            row = cursor.fetchone()
-            if row is None:
-                return 0
-            return int(row[0])
-        finally:
-            conn.close()
+        with self._row_count_lock:
+            return self._load_row_count()
 
     def clear(self) -> None:
         """Remove all events from queue"""
@@ -811,6 +945,9 @@ class OfflineQueue:
             conn.commit()
         finally:
             conn.close()
+        # Mission 6: queue is empty regardless of prior cache state.
+        with self._row_count_lock:
+            self._row_count = 0
 
     def remove_project_events(self, project_uuid: str) -> int:
         """Remove queued events that belong to one project UUID."""
@@ -818,6 +955,7 @@ class OfflineQueue:
             return 0
 
         matching_ids: list[str] = []
+        removed = 0
         conn = sqlite3.connect(self.db_path)
         try:
             cursor = conn.execute("SELECT event_id, data FROM queue")
@@ -840,9 +978,15 @@ class OfflineQueue:
                 matching_ids,
             )
             conn.commit()
-            return len(matching_ids)
+            removed = len(matching_ids)
         finally:
             conn.close()
+        # Mission 6: decrement the cache by exactly the removed count.
+        if removed > 0:
+            with self._row_count_lock:
+                if self._row_count is not None:
+                    self._row_count = max(0, self._row_count - removed)
+        return removed
 
     def process_batch_results(self, results: list[_BatchEventResultLike]) -> None:
         """Process batch sync results by status.
@@ -884,15 +1028,17 @@ class OfflineQueue:
                 transient.append(r.event_id)
 
         conn = sqlite3.connect(self.db_path)
+        deleted = 0
         try:
             # Wrap both operations in a single transaction. ``failed_transient``
             # rows are intentionally left untouched (no DELETE, no UPDATE).
             if synced_or_duplicate:
                 placeholders = ",".join("?" * len(synced_or_duplicate))
-                conn.execute(
+                cursor = conn.execute(
                     f"DELETE FROM queue WHERE event_id IN ({placeholders})",  # noqa: S608 - placeholders are count-derived only
                     synced_or_duplicate,
                 )
+                deleted = cursor.rowcount if cursor.rowcount is not None and cursor.rowcount >= 0 else 0
             if rejected:
                 placeholders = ",".join("?" * len(rejected))
                 conn.execute(
@@ -905,6 +1051,13 @@ class OfflineQueue:
             raise
         finally:
             conn.close()
+
+        # Mission 6: decrement by the exact rowcount of the DELETE (rejected
+        # rows only bump retry_count, so they don't change the queue size).
+        if deleted > 0:
+            with self._row_count_lock:
+                if self._row_count is not None:
+                    self._row_count = max(0, self._row_count - deleted)
 
     def get_events_by_retry_count(self, max_retries: int = 5) -> list[dict[str, Any]]:
         """
@@ -940,14 +1093,16 @@ class OfflineQueue:
         - retry_distribution: counts bucketed as '0 retries', '1-3 retries', '4+ retries'
         - top_event_types: top 5 event types by count, descending
         """
+        # Mission 6: use the cached counter to short-circuit the empty-queue
+        # path; for the populated path we still issue the aggregate queries
+        # below because they cannot be served by the simple counter.
+        with self._row_count_lock:
+            total_queued = self._ensure_row_count()
+        if total_queued == 0:
+            return QueueStats(max_queue_size=self._max_queue_size)
+
         conn = sqlite3.connect(self.db_path)
         try:
-            # Total queued
-            total_queued_row = conn.execute("SELECT COUNT(*) FROM queue").fetchone()
-            total_queued = int(total_queued_row[0]) if total_queued_row is not None else 0
-
-            if total_queued == 0:
-                return QueueStats(max_queue_size=self._max_queue_size)
 
             # Total retried (retry_count > 0)
             total_retried_row = conn.execute("SELECT COUNT(*) FROM queue WHERE retry_count > 0").fetchone()

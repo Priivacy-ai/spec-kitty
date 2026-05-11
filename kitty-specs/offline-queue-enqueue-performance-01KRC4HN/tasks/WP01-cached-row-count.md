@@ -28,6 +28,7 @@ subtasks:
 phase: Phase 1 - Implementation
 assignee: ''
 agent: ''
+shell_pid: '54295'
 history:
 - timestamp: '2026-05-11T18:30:00Z'
   agent: claude
