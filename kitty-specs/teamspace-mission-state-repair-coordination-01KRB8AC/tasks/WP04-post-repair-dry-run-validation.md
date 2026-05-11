@@ -11,7 +11,7 @@ requirement_refs:
 - NFR-003
 planning_base_branch: fix/teamspace-mission-state-closeout-guards
 merge_target_branch: fix/teamspace-mission-state-closeout-guards
-branch_strategy: Post-repair audit and dry-run JSON files written to workspace root. Evidence committed to fix/teamspace-mission-state-closeout-guards in spec-kitty. T013/T014/T015 are parallel-safe after WP03 completes.
+branch_strategy: Planning artifacts for this mission were generated on fix/teamspace-mission-state-closeout-guards. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/teamspace-mission-state-closeout-guards unless the human explicitly redirects the landing branch.
 subtasks:
 - T013
 - T014

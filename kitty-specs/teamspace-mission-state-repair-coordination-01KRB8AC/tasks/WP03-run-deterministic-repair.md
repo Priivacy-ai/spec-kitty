@@ -16,7 +16,7 @@ requirement_refs:
 - NFR-002
 planning_base_branch: fix/teamspace-mission-state-closeout-guards
 merge_target_branch: fix/teamspace-mission-state-closeout-guards
-branch_strategy: Repair commands modify kitty-specs/ in each target repo and write manifests to .kittify/migrations/mission-state/. Repair runs serially (not in parallel) to avoid concurrent repair locks.
+branch_strategy: Planning artifacts for this mission were generated on fix/teamspace-mission-state-closeout-guards. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/teamspace-mission-state-closeout-guards unless the human explicitly redirects the landing branch.
 subtasks:
 - T009
 - T010

@@ -8,7 +8,7 @@ requirement_refs:
 - FR-016
 planning_base_branch: fix/teamspace-mission-state-closeout-guards
 merge_target_branch: fix/teamspace-mission-state-closeout-guards
-branch_strategy: All repair PRs must be merged before this WP begins. Re-audit runs from fresh clean checkouts. Final evidence committed to fix/teamspace-mission-state-closeout-guards in spec-kitty.
+branch_strategy: Planning artifacts for this mission were generated on fix/teamspace-mission-state-closeout-guards. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/teamspace-mission-state-closeout-guards unless the human explicitly redirects the landing branch.
 subtasks:
 - T021
 - T022

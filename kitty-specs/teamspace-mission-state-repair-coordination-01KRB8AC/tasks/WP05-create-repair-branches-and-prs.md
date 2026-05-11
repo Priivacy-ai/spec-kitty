@@ -8,7 +8,7 @@ requirement_refs:
 - FR-014
 planning_base_branch: fix/teamspace-mission-state-closeout-guards
 merge_target_branch: fix/teamspace-mission-state-closeout-guards
-branch_strategy: Each target repo gets a repair/teamspace-mission-state-history branch targeting main. PRs are raised in each target repo. T017/T018/T019 are parallel-safe (different repos).
+branch_strategy: Planning artifacts for this mission were generated on fix/teamspace-mission-state-closeout-guards. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/teamspace-mission-state-closeout-guards unless the human explicitly redirects the landing branch.
 subtasks:
 - T017
 - T018

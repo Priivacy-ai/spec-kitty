@@ -9,7 +9,7 @@ requirement_refs:
 - NFR-001
 planning_base_branch: fix/teamspace-mission-state-closeout-guards
 merge_target_branch: fix/teamspace-mission-state-closeout-guards
-branch_strategy: Evidence files written to workspace root (one level above each repo). No source changes. Artifacts committed to fix/teamspace-mission-state-closeout-guards in spec-kitty.
+branch_strategy: Planning artifacts for this mission were generated on fix/teamspace-mission-state-closeout-guards. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/teamspace-mission-state-closeout-guards unless the human explicitly redirects the landing branch.
 subtasks:
 - T005
 - T006

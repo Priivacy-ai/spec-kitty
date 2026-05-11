@@ -7,7 +7,7 @@ requirement_refs:
 - FR-001
 planning_base_branch: fix/teamspace-mission-state-closeout-guards
 merge_target_branch: fix/teamspace-mission-state-closeout-guards
-branch_strategy: All planning artifacts committed to fix/teamspace-mission-state-closeout-guards in the spec-kitty repo. No source code changes. Operational steps run against spec-kitty, spec-kitty-saas, and spec-kitty-events.
+branch_strategy: Planning artifacts for this mission were generated on fix/teamspace-mission-state-closeout-guards. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/teamspace-mission-state-closeout-guards unless the human explicitly redirects the landing branch.
 subtasks:
 - T001
 - T002

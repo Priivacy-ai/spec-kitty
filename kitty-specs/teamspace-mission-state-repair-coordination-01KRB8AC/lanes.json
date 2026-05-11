@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "mission_slug": "teamspace-mission-state-repair-coordination-01KRB8AC",
+  "mission_id": "01KRB8AC61AXF91PXFYWV7W5AD",
+  "mission_branch": "kitty/mission-teamspace-mission-state-repair-coordination-01KRB8AC",
+  "target_branch": "fix/teamspace-mission-state-closeout-guards",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06"
+      ],
+      "write_scope": [
+        "kitty-specs/teamspace-mission-state-repair-coordination-01KRB8AC/checklists/wp01-gate-check.md",
+        "kitty-specs/teamspace-mission-state-repair-coordination-01KRB8AC/checklists/wp02-audit-results.md",
+        "kitty-specs/teamspace-mission-state-repair-coordination-01KRB8AC/checklists/wp03-repair-manifest-review.md",
+        "kitty-specs/teamspace-mission-state-repair-coordination-01KRB8AC/checklists/wp04-dry-run-results.md",
+        "kitty-specs/teamspace-mission-state-repair-coordination-01KRB8AC/checklists/wp05-pr-links.md",
+        "kitty-specs/teamspace-mission-state-repair-coordination-01KRB8AC/checklists/wp06-closeout-evidence.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-05-11T10:23:55.789206+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP01",
+    "WP02",
+    "WP03",
+    "WP04",
+    "WP05",
+    "WP06"
+  ]
+}
