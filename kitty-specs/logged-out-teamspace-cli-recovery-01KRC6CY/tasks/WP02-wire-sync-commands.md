@@ -125,3 +125,4 @@ operator note that documents the structured stderr line and exit code 4.
 - 2026-05-11T19:07:14Z – unknown – claiming for implementation
 - 2026-05-11T19:07:16Z – unknown – starting work
 - 2026-05-11T19:15:46Z – unknown – WP02 done: 6/6 new integration tests pass, full sync test suite 1509/1509 (excl. pre-existing daemon/orphan failures), ruff clean, docs added
+- 2026-05-11T19:15:52Z – unknown – Approved: WP02 surface integrates the recovery helper into 5 sync command paths; 6/6 integration tests + 19/19 unit tests pass; ruff clean; legacy NO_TEAMSPACE path byte-identical; operator doc added
