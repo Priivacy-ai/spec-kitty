@@ -760,7 +760,235 @@ woven into the buckets below; the original buckets are otherwise preserved.
    is a different beast than one with CC=160 and no tests. The CaaCS recipes
    cannot tell them apart.
 
-## Limitations of this run
+## Multi-window refactor-candidate synthesis (2026-05-11)
+
+This section executes the new tactic step
+([`forensic-repository-audit`](../../src/doctrine/tactics/shipped/analysis/forensic-repository-audit.tactic.yaml),
+"Compile a multi-window refactor-candidate list") that was added to the
+tactic after the 2026-05-09 re-run. The recipe runs two passes — full
+history and a velocity-adjusted recent window — over the
+`src/ + tests/ + kitty-specs/` scope, filters to files present at HEAD via
+`git ls-files`, and intersects the two top-30 lists to produce a refactor
+candidate list anchored in code that still exists.
+
+Commit at run time: `f1cd634d5cc106dee805140f365c0dbc6822d430` (branch
+`feat/caacs-doctrine`). Exclusion list is the same one used in the
+"Scope expansion (2026-05-09)" re-run: lockfiles, `__pycache__`,
+`CHANGELOG.md`, `.mypy_cache`, `status.events.jsonl`, `status.json`,
+`kitty-specs/**/tasks.md`, `kitty-specs/**/snapshot-latest.json`,
+`kitty-specs/**/dossiers/**`.
+
+### Window selection rationale
+
+The velocity series in `## Velocity trend` above shows monthly src/
+commits going `2 → 54 → 47 → 70 → 45 → 185 → 288 → 71 → 210 → 29`
+from 2025-08 through 2026-05 (partial). The most recent four full
+months (2026-01 through 2026-04) sum to **754 commits**, against
+**218** for the prior four months (2025-09 through 2025-12) — a
+**3.5×** quarter-over-quarter acceleration. Last-30-day count is 193,
+last-90-day count is 550 (per the existing audit). By the tactic's
+heuristic ("accelerating velocity → 3-6 month window"), spec-kitty is
+unambiguously in the accelerating regime; **a four-month window** is
+selected — short enough to filter out the pre-2026-Q1 lull, long
+enough to capture both the 2026-02 surge (288 commits) and the
+2026-04 surge (210 commits) so neither single-month spike dominates.
+
+**Repository-age caveat (worth noting up front):** the first commit
+touching `src/`, `tests/`, or `kitty-specs/` is dated 2025-08-22 —
+the repository is only ~8.5 months old at audit time. The
+"full-history" pass therefore covers a window that is only slightly
+larger than the existing one-year step-2 window, and the
+multi-year-churn signal the tactic is designed to surface
+(*sustained* hotspots that have *never* settled) cannot exist in
+this codebase yet. The full-history pass here behaves more like an
+"all-time" pass than a true multi-year baseline. Interpretation
+adjusts accordingly.
+
+### Full-history pass (top 30, files present at HEAD)
+
+`git log --format=format: --name-only -- src/ tests/ kitty-specs/`
+with the exclusion list above, filtered by `git ls-files`. SLOC
+column is `wc -l` of the file at HEAD; for markdown templates this
+counts every line including blanks (the tactic uses SLOC as a rough
+size proxy, not a strict logical-line count, and `cloc` is not
+installed in this environment).
+
+| # | Path | Full-history count | SLOC |
+|---|------|------:|------:|
+| 1 | `src/specify_cli/__init__.py` | 119 | 224 |
+| 2 | `src/specify_cli/cli/commands/agent/tasks.py` | 87 | 3746 |
+| 3 | `src/specify_cli/cli/commands/agent/workflow.py` | 77 | 1895 |
+| 4 | `src/specify_cli/cli/commands/implement.py` | 67 | 718 |
+| 5 | `src/specify_cli/cli/commands/merge.py` | 56 | 1599 |
+| 6 | `src/specify_cli/cli/commands/init.py` | 50 | 1018 |
+| 7 | `src/specify_cli/cli/commands/__init__.py` | 47 | 115 |
+| 8 | `src/specify_cli/sync/emitter.py` | 42 | 1682 |
+| 9 | `src/specify_cli/missions/software-dev/command-templates/specify.md` | 38 | 635 |
+| 10 | `src/specify_cli/glossary/middleware.py` | 36 | 689 |
+| 11 | `src/specify_cli/cli/commands/sync.py` | 36 | 1462 |
+| 12 | `src/specify_cli/missions/software-dev/command-templates/tasks.md` | 33 | 674 |
+| 13 | `src/specify_cli/dashboard/static/dashboard/dashboard.js` | 29 | 1568 |
+| 14 | `src/specify_cli/sync/events.py` | 28 | 499 |
+| 15 | `src/specify_cli/dashboard/scanner.py` | 28 | 785 |
+| 16 | `src/specify_cli/missions/software-dev/command-templates/plan.md` | 27 | 359 |
+| 17 | `src/specify_cli/missions/software-dev/command-templates/implement.md` | 27 | 257 |
+| 18 | `kitty-specs/041-mission-glossary-semantic-integrity/tasks/WP03-term-extraction-implementation.md` | 27 | 255 |
+| 19 | `src/specify_cli/upgrade/migrations/__init__.py` | 26 | 89 |
+| 20 | `src/specify_cli/next/runtime_bridge.py` | 26 | 2552 |
+| 21 | `src/specify_cli/glossary/__init__.py` | 26 | 204 |
+| 22 | `src/specify_cli/tasks_support.py` | 25 | 31 |
+| 23 | `src/specify_cli/status/emit.py` | 25 | 656 |
+| 24 | `src/specify_cli/core/worktree.py` | 25 | 681 |
+| 25 | `tests/sync/test_events.py` | 24 | 1211 |
+| 26 | `kitty-specs/041-mission-glossary-semantic-integrity/tasks/WP11-type-safety-and-integration-tests.md` | 24 | 925 |
+| 27 | `src/specify_cli/cli/commands/charter.py` | 23 | 2934 |
+| 28 | `src/specify_cli/orchestrator_api/commands.py` | 21 | 1097 |
+| 29 | `src/specify_cli/agent_utils/status.py` | 21 | 570 |
+| 30 | `tests/conftest.py` | 20 | 822 |
+
+Inline note: `tests/conftest.py` (rank 30) is the only newcomer relative
+to the full-corpus step-2 table; it ranks 30 here because the step-2
+top-30 cut absorbed the deleted-and-renamed entries (`feature.py`,
+`dashboard.py`, `acceptance.py`) that have been removed from HEAD by
+this pass's `git ls-files` filter.
+
+### Velocity-adjusted pass (top 30, `--since="4 months ago"`)
+
+Same recipe, same exclusions, same HEAD filter, `--since="4 months ago"`.
+
+| # | Path | 4m count | SLOC |
+|---|------|------:|------:|
+| 1 | `src/specify_cli/cli/commands/agent/tasks.py` | 85 | 3746 |
+| 2 | `src/specify_cli/cli/commands/agent/workflow.py` | 76 | 1895 |
+| 3 | `src/specify_cli/cli/commands/implement.py` | 67 | 718 |
+| 4 | `src/specify_cli/cli/commands/merge.py` | 54 | 1599 |
+| 5 | `src/specify_cli/sync/emitter.py` | 42 | 1682 |
+| 6 | `src/specify_cli/cli/commands/init.py` | 42 | 1018 |
+| 7 | `src/specify_cli/missions/software-dev/command-templates/specify.md` | 38 | 635 |
+| 8 | `src/specify_cli/glossary/middleware.py` | 36 | 689 |
+| 9 | `src/specify_cli/cli/commands/sync.py` | 36 | 1462 |
+| 10 | `src/specify_cli/cli/commands/__init__.py` | 35 | 115 |
+| 11 | `src/specify_cli/missions/software-dev/command-templates/tasks.md` | 33 | 674 |
+| 12 | `src/specify_cli/sync/events.py` | 28 | 499 |
+| 13 | `src/specify_cli/missions/software-dev/command-templates/plan.md` | 27 | 359 |
+| 14 | `src/specify_cli/missions/software-dev/command-templates/implement.md` | 27 | 257 |
+| 15 | `kitty-specs/041-mission-glossary-semantic-integrity/tasks/WP03-term-extraction-implementation.md` | 27 | 255 |
+| 16 | `src/specify_cli/next/runtime_bridge.py` | 26 | 2552 |
+| 17 | `src/specify_cli/glossary/__init__.py` | 26 | 204 |
+| 18 | `src/specify_cli/status/emit.py` | 25 | 656 |
+| 19 | `tests/sync/test_events.py` | 24 | 1211 |
+| 20 | `kitty-specs/041-mission-glossary-semantic-integrity/tasks/WP11-type-safety-and-integration-tests.md` | 24 | 925 |
+| 21 | `src/specify_cli/dashboard/scanner.py` | 23 | 785 |
+| 22 | `src/specify_cli/core/worktree.py` | 23 | 681 |
+| 23 | `src/specify_cli/cli/commands/charter.py` | 23 | 2934 |
+| 24 | `src/specify_cli/orchestrator_api/commands.py` | 21 | 1097 |
+| 25 | `src/specify_cli/dashboard/static/dashboard/dashboard.js` | 21 | 1568 |
+| 26 | `src/specify_cli/agent_utils/status.py` | 21 | 570 |
+| 27 | `src/specify_cli/sync/__init__.py` | 20 | 190 |
+| 28 | `src/specify_cli/status/models.py` | 20 | 422 |
+| 29 | `src/specify_cli/status/__init__.py` | 20 | 169 |
+| 30 | `src/specify_cli/missions/software-dev/command-templates/review.md` | 20 | 194 |
+
+### Intersection (inner-join on path)
+
+Files in **both** top-30 lists. Tag rule (verbatim from the tactic):
+both-in-this-AND-in-step-2 → **urgent**; in-this-but-not-step-2 →
+**slow-burn**; in-step-2-but-not-here → **unsettled burst**
+(handled below).
+
+| F# | R# | Path | SLOC | In step-2 (1y full-corpus) | Tag |
+|---:|---:|------|-----:|:--------------------------:|-----|
+| 2 | 1 | `src/specify_cli/cli/commands/agent/tasks.py` | 3746 | ✓ | **urgent** |
+| 3 | 2 | `src/specify_cli/cli/commands/agent/workflow.py` | 1895 | ✓ | **urgent** |
+| 4 | 3 | `src/specify_cli/cli/commands/implement.py` | 718 | ✓ | **urgent** |
+| 5 | 4 | `src/specify_cli/cli/commands/merge.py` | 1599 | ✓ | **urgent** |
+| 6 | 6 | `src/specify_cli/cli/commands/init.py` | 1018 | ✓ | **urgent** |
+| 7 | 10 | `src/specify_cli/cli/commands/__init__.py` | 115 | ✓ | **urgent** |
+| 8 | 5 | `src/specify_cli/sync/emitter.py` | 1682 | ✓ | **urgent** |
+| 9 | 7 | `src/specify_cli/missions/software-dev/command-templates/specify.md` | 635 | ✓ | **urgent** |
+| 10 | 8 | `src/specify_cli/glossary/middleware.py` | 689 | ✓ | **urgent** |
+| 11 | 9 | `src/specify_cli/cli/commands/sync.py` | 1462 | ✓ | **urgent** |
+| 12 | 11 | `src/specify_cli/missions/software-dev/command-templates/tasks.md` | 674 | ✓ | **urgent** |
+| 13 | 25 | `src/specify_cli/dashboard/static/dashboard/dashboard.js` | 1568 | ✓ | **urgent** |
+| 14 | 12 | `src/specify_cli/sync/events.py` | 499 | ✓ | **urgent** |
+| 15 | 21 | `src/specify_cli/dashboard/scanner.py` | 785 | ✓ | **urgent** |
+| 16 | 13 | `src/specify_cli/missions/software-dev/command-templates/plan.md` | 359 | ✓ | **urgent** |
+| 17 | 14 | `src/specify_cli/missions/software-dev/command-templates/implement.md` | 257 | ✓ | **urgent** |
+| 18 | 15 | `kitty-specs/041-mission-glossary-semantic-integrity/tasks/WP03-term-extraction-implementation.md` | 255 | ✓ | **urgent** |
+| 20 | 16 | `src/specify_cli/next/runtime_bridge.py` | 2552 | ✓ | **urgent** |
+| 21 | 17 | `src/specify_cli/glossary/__init__.py` | 204 | ✓ | **urgent** |
+| 23 | 18 | `src/specify_cli/status/emit.py` | 656 | ✓ | **urgent** |
+| 24 | 22 | `src/specify_cli/core/worktree.py` | 681 | ✓ | **urgent** |
+| 25 | 19 | `tests/sync/test_events.py` | 1211 | ✓ | **urgent** |
+| 26 | 20 | `kitty-specs/041-mission-glossary-semantic-integrity/tasks/WP11-type-safety-and-integration-tests.md` | 925 | ✓ | **urgent** |
+| 27 | 23 | `src/specify_cli/cli/commands/charter.py` | 2934 | ✓ | **urgent** |
+| 28 | 24 | `src/specify_cli/orchestrator_api/commands.py` | 1097 | — | **slow-burn** |
+| 29 | 26 | `src/specify_cli/agent_utils/status.py` | 570 | — | **slow-burn** |
+
+**Unsettled-burst residual (step-2 entries that did NOT make this
+intersection):**
+
+- `src/specify_cli/__init__.py` (step-2 #1) — 132 commits all-time but
+  only 13 in the recent four months. **Settled**: the 2.x cutover
+  churn here is mostly done.
+- `src/specify_cli/cli/commands/agent/feature.py` — **deleted at HEAD**
+  (`7428880c4`, mission-id cutover). Drops out by HEAD filter; not a
+  refactor target.
+- `src/specify_cli/dashboard.py` — **renamed** to
+  `cli/commands/dashboard.py`. Drops out by HEAD filter; not a
+  refactor target. The renamed file `cli/commands/dashboard.py` did
+  not accumulate enough commits post-rename to enter either top-30.
+- `src/specify_cli/acceptance.py` — **renamed** to
+  `acceptance/__init__.py`. Drops out by HEAD filter; not a refactor
+  target.
+- `src/specify_cli/tasks_support.py` — 25 commits all-time, 17 in the
+  recent window, but only 31 SLOC: it is a thin re-export shim. Real
+  but unimportant.
+- `src/specify_cli/upgrade/migrations/__init__.py` — 26 commits
+  all-time, 13 recent, 89 SLOC: the migration registry. Real but
+  small; churn-by-registration not churn-by-design.
+
+None of the unsettled-burst residual is a "recent spike that hasn't
+settled". All five either (a) have legitimately cooled (`__init__.py`,
+`tasks_support.py`, `migrations/__init__.py`) or (b) have been
+deleted/renamed and so dropped by the HEAD filter. The
+**unsettled-burst category is empty for spec-kitty** under this
+window choice — every hotspot the step-2 1y view surfaced is either
+still hot in the four-month window or has been resolved (cut, merged,
+or renamed).
+
+### Interpretation
+
+The multi-window synthesis adds **two new signals** relative to the
+existing audit. First, it **confirms F2** (the `cli/commands/agent/*`
++ `merge.py` + `sync/emitter.py` + `next/runtime_bridge.py` refactor
+cluster): the top-five urgent candidates are exactly the F2 cluster
+the existing audit named, and they hold rank in both windows (F#2-5
+and R#1-4). Twenty-four of the twenty-six intersection files are
+already known step-2 hotspots, so the audit's existing refactor
+priority list is **stable and re-confirmed** rather than displaced.
+Second, it surfaces **two genuinely new slow-burn candidates not in
+the step-2 top-30**: `orchestrator_api/commands.py` (1097 SLOC, F#28
+/ R#24) and `agent_utils/status.py` (570 SLOC, F#29 / R#26). Both
+fell just outside the step-2 cut (which stopped at rank 30 =
+`acceptance.py` with 22 commits / `agent_utils/status.py` was 21 in
+the src/-only table but absent from the full-corpus 30) — the
+multi-window view promotes them into the inspect-this-quarter bucket.
+`orchestrator_api/commands.py` already appears in the open
+follow-ups list as item 5's neighbour, but `agent_utils/status.py`
+(the kanban renderer with an F-53 `_display_status_board` function)
+is **newly elevated** to detailed-inspection status by this pass.
+
+The unsettled-burst category is empty: every step-2 entry that
+dropped out of this intersection did so for a settled reason (cooled
+churn, deletion, or rename) rather than a "recent burst that may not
+sustain". This is partly a consequence of the repository's youth —
+there has not been enough wall time for any 1y hotspot to settle
+into history — but it also means the existing F2 verdict is not
+threatened by hidden short-lived bursts. The list is what it claims
+to be.
+
+
 
 1. **Scope (after 2026-05-09 expansion) = `src/ + tests/ + kitty-specs/`.** The
    remaining out-of-scope dirs are `architecture/`, `docs/`, and `.github/`.
@@ -894,6 +1122,14 @@ What changed in this re-run, with one-line rationale per item:
   to require a test build-out; added two glossary-middleware and
   agent_utils/status investigation bullets to "Important + not urgent".
 - **Added this changelog** at the bottom.
+- **Added (2026-05-11)** `## Multi-window refactor-candidate synthesis (2026-05-11)`
+  between the cross-cutting observations and the limitations sections —
+  executes the new "Compile a multi-window refactor-candidate list" step
+  added to the `forensic-repository-audit` tactic; uses a four-month
+  velocity-adjusted window (accelerating regime per the existing velocity
+  series), confirms F2, surfaces `orchestrator_api/commands.py` and
+  `agent_utils/status.py` as new slow-burn candidates, and reports an
+  empty unsettled-burst category.
 
 The original audit-metadata, methodology, top-findings, hotspot table,
 temporal-coupling table (within src/), bus-factor overall table, firefighting
