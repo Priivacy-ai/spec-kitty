@@ -1,0 +1,12 @@
+{
+  "created_at": "2026-05-11T19:17:39.978946+00:00",
+  "friendly_name": "Mission-State Migration Determinism Cleanup",
+  "mission_id": "01KRC7JG0A5AAJWES96G8YRNAZ",
+  "mission_number": null,
+  "mission_slug": "mission-state-migration-determinism-cleanup-01KRC7JG",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances Mission-State Migration Determinism Cleanup on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Harden public migration paths: make rebuild_state deterministic/deprecated, expand manifest fields, scrub secrets.",
+  "slug": "mission-state-migration-determinism-cleanup-01KRC7JG",
+  "target_branch": "main"
+}
