@@ -58,33 +58,15 @@ roughly the cost of one `INSERT` + commit and no count scan.
 
 ## Functional Requirements
 
-- **FR-001** `queue_event()` MUST NOT execute `SELECT COUNT(*) FROM queue` on
-  the steady-state non-coalesced path. The cap check MUST consult an
-  in-process cached row count.
-- **FR-002** `append()` MUST NOT execute `SELECT COUNT(*) FROM queue` on the
-  steady-state non-coalesced path. The strict-cap check MUST consult the same
-  cached row count.
-- **FR-003** The cached row count MUST initialize lazily from a single
-  `SELECT COUNT(*) FROM queue` on first use (or on `__init__` after schema
-  ensure), so the queue's external behavior matches today's after restart.
-- **FR-004** Every mutation path that adds rows MUST increment the cache.
-  Every path that removes rows MUST decrement the cache by the exact number
-  of rows removed. Coalescing (which replaces an existing row in-place) MUST
-  NOT change the cache.
-- **FR-005** FIFO eviction behavior in `queue_event()` MUST be preserved: when
-  the cap is reached, the oldest rows are deleted to make room and the
-  warning message is still emitted. The cache MUST reflect the post-eviction
-  size.
-- **FR-006** Dossier event coalescing semantics (rows with the same
-  `coalesce_key` are updated in place, not duplicated) MUST be preserved.
-- **FR-007** Strict-append `OfflineQueueFull` behavior MUST be preserved:
-  the queue MUST raise when adding an event would exceed the strict cap.
-- **FR-008** Retry / batch / drain / clear / remove behavior MUST be
-  preserved, including the cache staying coherent with the on-disk row count
-  after every operation.
-- **FR-009** `size()` MUST return the cached count when it is initialized;
-  the on-disk truth MUST still be reachable via a private fallback that
-  re-reads from SQLite (used for invariant checks and tests).
+- **FR-001**: `queue_event()` MUST NOT execute `SELECT COUNT(*) FROM queue` on the steady-state non-coalesced path. The cap check MUST consult an in-process cached row count.
+- **FR-002**: `append()` MUST NOT execute `SELECT COUNT(*) FROM queue` on the steady-state non-coalesced path. The strict-cap check MUST consult the same cached row count.
+- **FR-003**: The cached row count MUST initialize lazily from a single `SELECT COUNT(*) FROM queue` on first use (or on `__init__` after schema ensure), so the queue's external behavior matches today's after restart.
+- **FR-004**: Every mutation path that adds rows MUST increment the cache. Every path that removes rows MUST decrement the cache by the exact number of rows removed. Coalescing (which replaces an existing row in-place) MUST NOT change the cache.
+- **FR-005**: FIFO eviction behavior in `queue_event()` MUST be preserved: when the cap is reached, the oldest rows are deleted to make room and the warning message is still emitted. The cache MUST reflect the post-eviction size.
+- **FR-006**: Dossier event coalescing semantics (rows with the same `coalesce_key` are updated in place, not duplicated) MUST be preserved.
+- **FR-007**: Strict-append `OfflineQueueFull` behavior MUST be preserved: the queue MUST raise when adding an event would exceed the strict cap.
+- **FR-008**: Retry / batch / drain / clear / remove behavior MUST be preserved, including the cache staying coherent with the on-disk row count after every operation.
+- **FR-009**: `size()` MUST return the cached count when it is initialized; the on-disk truth MUST still be reachable via a private fallback that re-reads from SQLite (used for invariant checks and tests).
 
 ## Non-Functional Requirements
 
