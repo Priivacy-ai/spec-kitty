@@ -132,10 +132,10 @@ For each repo (sequentially, to avoid concurrent repair locks): `SPEC_KITTY_ENAB
 Run post-repair audit and TeamSpace dry-run in each repo. Assert `missions_with_teamspace_blockers == 0` and `envelope_validation_errors == []`. Verify runtime side logs are reported as skipped, not as status transitions.
 
 ### Subtasks
-- [ ] T013 Post-repair audit + dry-run in spec-kitty (WP04)
-- [ ] T014 Post-repair audit + dry-run in spec-kitty-saas (WP04)
-- [ ] T015 Post-repair audit + dry-run in spec-kitty-events (WP04)
-- [ ] T016 Verify side logs skipped, not transitions, in dry-run output (WP04)
+- [x] T013 Post-repair audit + dry-run in spec-kitty (WP04)
+- [x] T014 Post-repair audit + dry-run in spec-kitty-saas (WP04)
+- [x] T015 Post-repair audit + dry-run in spec-kitty-events (WP04)
+- [x] T016 Verify side logs skipped, not transitions, in dry-run output (WP04)
 
 ### Implementation sketch
 For each repo: `SPEC_KITTY_ENABLE_SAAS_SYNC=1 spec-kitty doctor mission-state --audit --json > ../<repo>.after.audit.json` then `SPEC_KITTY_ENABLE_SAAS_SYNC=1 spec-kitty doctor mission-state --teamspace-dry-run --json > ../<repo>.dry-run.json`. Assert gates programmatically with Python one-liners.
