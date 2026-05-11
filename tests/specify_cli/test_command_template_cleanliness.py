@@ -353,6 +353,24 @@ def test_tasks_template_finalize_tasks_has_mission() -> None:
     )
 
 
+def test_tasks_template_finalization_is_preflight_first() -> None:
+    """tasks.md must instruct agents to validate before mutating finalization."""
+    content = _template_content("tasks")
+    validate_index = content.index("finalize-tasks --validate-only --mission")
+    mutate_index = content.index("finalize-tasks --mission <mission-slug> --json")
+    assert validate_index < mutate_index
+    assert "do **not** run the mutating finalization command" in content
+
+
+def test_tasks_finalize_template_is_preflight_first() -> None:
+    """tasks-finalize.md must not hand agents the mutating command first."""
+    content = _template_content("tasks-finalize")
+    validate_index = content.index("finalize-tasks --validate-only --mission")
+    mutate_index = content.index("finalize-tasks --mission <mission-slug> --json")
+    assert validate_index < mutate_index
+    assert "do **not** run finalization" in content
+
+
 def test_tasks_template_map_requirements_has_mission() -> None:
     """tasks.md map-requirements examples must include --mission (T030)."""
     content = _template_content("tasks")

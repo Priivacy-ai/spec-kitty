@@ -375,6 +375,8 @@ def _check_cli_guards(step_id: str, feature_dir: Path) -> list[str]:  # noqa: C9
         tasks_dir = feature_dir / "tasks"
         if not tasks_dir.is_dir() or not list(tasks_dir.glob(TASKS_GLOB)):
             failures.append(MISSING_TASK_FILES_MESSAGE)
+        else:
+            failures.extend(_check_requirement_mapping_ready(feature_dir))
 
     elif step_id == "tasks_finalize":
         tasks_dir = feature_dir / "tasks"
@@ -398,6 +400,88 @@ def _check_cli_guards(step_id: str, feature_dir: Path) -> list[str]:  # noqa: C9
         failures.append("Not all work packages are approved or done")
 
     return failures
+
+
+def _check_requirement_mapping_ready(feature_dir: Path) -> list[str]:
+    """Validate requirement coverage before issuing the finalize-tasks prompt.
+
+    This intentionally mirrors ``agent mission finalize-tasks`` requirement
+    source precedence: WP frontmatter is primary, and ``tasks.md`` is only a
+    legacy fallback when no ``wps.yaml`` manifest is present.
+    """
+    spec_md = feature_dir / SPEC_ARTIFACT
+    if not spec_md.exists():
+        return []
+
+    tasks_dir = feature_dir / "tasks"
+    if not tasks_dir.is_dir():
+        return []
+
+    try:
+        from specify_cli.core.wps_manifest import load_wps_manifest
+        from specify_cli.requirement_mapping import (
+            parse_requirement_ids_from_spec_md,
+            read_all_wp_requirement_refs,
+        )
+
+        spec_ids = parse_requirement_ids_from_spec_md(spec_md.read_text(encoding="utf-8"))
+        all_spec_requirement_ids = set(spec_ids["all"])
+        functional_requirement_ids = set(spec_ids["functional"])
+
+        wps_manifest = load_wps_manifest(feature_dir)
+        wp_requirement_refs = read_all_wp_requirement_refs(tasks_dir)
+
+        if wps_manifest is None:
+            tasks_md = feature_dir / TASKS_ARTIFACT
+            if tasks_md.exists():
+                from specify_cli.cli.commands.agent.mission import _parse_requirement_refs_from_tasks_md
+
+                tasks_md_refs = _parse_requirement_refs_from_tasks_md(tasks_md.read_text(encoding="utf-8"))
+                for wp_id, refs in tasks_md_refs.items():
+                    if refs and not wp_requirement_refs.get(wp_id):
+                        wp_requirement_refs[wp_id] = refs
+    except Exception as exc:
+        return [f"Requirement mapping preflight failed: {exc}"]
+
+    wp_ids = sorted(wp_file.stem.split("-", 1)[0] for wp_file in tasks_dir.glob(TASKS_GLOB))
+    missing_requirement_refs_wps: list[str] = []
+    unknown_requirement_refs: dict[str, list[str]] = {}
+    mapped_requirement_ids: set[str] = set()
+
+    for wp_id in wp_ids:
+        refs = wp_requirement_refs.get(wp_id, [])
+        if not refs:
+            missing_requirement_refs_wps.append(wp_id)
+            continue
+
+        unknown_refs = sorted(ref for ref in refs if ref not in all_spec_requirement_ids)
+        if unknown_refs:
+            unknown_requirement_refs[wp_id] = unknown_refs
+        else:
+            mapped_requirement_ids.update(refs)
+
+    unmapped_functional_requirements = sorted(functional_requirement_ids - mapped_requirement_ids)
+    if not (missing_requirement_refs_wps or unknown_requirement_refs or unmapped_functional_requirements):
+        return []
+
+    details: list[str] = []
+    if missing_requirement_refs_wps:
+        details.append(f"missing refs for WPs: {', '.join(missing_requirement_refs_wps)}")
+    if unknown_requirement_refs:
+        unknown_parts = [
+            f"{wp_id}: {', '.join(refs)}"
+            for wp_id, refs in sorted(unknown_requirement_refs.items())
+        ]
+        details.append(f"unknown refs: {'; '.join(unknown_parts)}")
+    if unmapped_functional_requirements:
+        details.append(f"unmapped FRs: {', '.join(unmapped_functional_requirements)}")
+
+    return [
+        "Requirement mapping incomplete before finalize-tasks: "
+        + "; ".join(details)
+        + ". Run `spec-kitty agent tasks map-requirements --batch ... --mission "
+        + f"{feature_dir.name} --json` or update WP requirement_refs before finalizing."
+    ]
 
 
 def _has_raw_dependencies_field(wp_file: Path) -> bool:
@@ -817,12 +901,15 @@ def _check_composed_action_guard(  # noqa: C901
         elif legacy_step_id == "tasks_packages":
             # After tasks_packages: tasks.md AND >=1 WP file. Dependencies
             # are not yet expected — finalize-tasks adds them in the next
-            # substep.
+            # substep. Requirement mapping must already be complete so the
+            # next surfaced prompt does not blindly run finalize-tasks.
             if not (feature_dir / TASKS_ARTIFACT).exists():
                 failures.append(MISSING_ARTIFACT_MESSAGE.format(name=TASKS_ARTIFACT))
             tasks_dir = feature_dir / "tasks"
             if not tasks_dir.is_dir() or not list(tasks_dir.glob("WP*.md")):
                 failures.append("Required: at least one tasks/WP*.md file")
+            else:
+                failures.extend(_check_requirement_mapping_ready(feature_dir))
         else:
             # legacy_step_id == "tasks_finalize" OR composition-only
             # (legacy_step_id is None): demand the full terminal state.
@@ -834,6 +921,7 @@ def _check_composed_action_guard(  # noqa: C901
             if not tasks_dir.is_dir() or not list(tasks_dir.glob("WP*.md")):
                 failures.append("Required: at least one tasks/WP*.md file")
             else:
+                failures.extend(_check_requirement_mapping_ready(feature_dir))
                 for wp_file in sorted(tasks_dir.glob("WP*.md")):
                     if not _has_raw_dependencies_field(wp_file):
                         failures.append(

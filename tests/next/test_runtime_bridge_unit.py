@@ -848,6 +848,129 @@ class TestAtomicTaskSteps:
         assert len(failures) == 0
 
     @pytest.mark.git_repo
+    def test_tasks_packages_guard_blocks_unmapped_functional_requirements(self, tmp_path: Path) -> None:
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        (feature_dir / "spec.md").write_text(
+            "# Spec\n\n"
+            "## Functional Requirements\n\n"
+            "| ID | Requirement | Acceptance Criteria | Status |\n"
+            "| --- | --- | --- | --- |\n"
+            "| FR-001 | First | Covered by WP01. | proposed |\n"
+            "| FR-002 | Second | Must be mapped before finalization. | proposed |\n",
+            encoding="utf-8",
+        )
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(exist_ok=True)
+        (tasks_dir / "WP01.md").write_text(
+            "---\n"
+            "work_package_id: WP01\n"
+            "title: WP01\n"
+            "requirement_refs:\n"
+            "  - FR-001\n"
+            "---\n"
+            "# WP01\n",
+            encoding="utf-8",
+        )
+
+        from specify_cli.next.runtime_bridge import _check_cli_guards
+
+        failures = _check_cli_guards("tasks_packages", feature_dir)
+        assert len(failures) == 1
+        assert "Requirement mapping incomplete" in failures[0]
+        assert "unmapped FRs: FR-002" in failures[0]
+        assert "map-requirements" in failures[0]
+
+    @pytest.mark.git_repo
+    def test_composed_tasks_packages_guard_blocks_unmapped_functional_requirements(self, tmp_path: Path) -> None:
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        (feature_dir / "spec.md").write_text(
+            "# Spec\n\n"
+            "## Functional Requirements\n\n"
+            "| ID | Requirement | Acceptance Criteria | Status |\n"
+            "| --- | --- | --- | --- |\n"
+            "| FR-001 | First | Covered by WP01. | proposed |\n"
+            "| FR-002 | Second | Must be mapped before finalization. | proposed |\n",
+            encoding="utf-8",
+        )
+        (feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(exist_ok=True)
+        (tasks_dir / "WP01.md").write_text(
+            "---\nwork_package_id: WP01\ntitle: WP01\nrequirement_refs: [FR-001]\n---\n# WP01\n",
+            encoding="utf-8",
+        )
+
+        from specify_cli.next.runtime_bridge import _check_composed_action_guard
+
+        failures = _check_composed_action_guard(
+            "tasks",
+            feature_dir,
+            legacy_step_id="tasks_packages",
+        )
+        assert len(failures) == 1
+        assert "Requirement mapping incomplete" in failures[0]
+        assert "unmapped FRs: FR-002" in failures[0]
+
+    @pytest.mark.git_repo
+    def test_tasks_packages_guard_passes_when_functional_requirements_are_mapped(self, tmp_path: Path) -> None:
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        (feature_dir / "spec.md").write_text(
+            "# Spec\n\n"
+            "## Functional Requirements\n\n"
+            "| ID | Requirement | Acceptance Criteria | Status |\n"
+            "| --- | --- | --- | --- |\n"
+            "| FR-001 | First | Covered by WP01. | proposed |\n"
+            "| FR-002 | Second | Covered by WP02. | proposed |\n",
+            encoding="utf-8",
+        )
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(exist_ok=True)
+        (tasks_dir / "WP01.md").write_text(
+            "---\nwork_package_id: WP01\ntitle: WP01\nrequirement_refs: [FR-001]\n---\n# WP01\n",
+            encoding="utf-8",
+        )
+        (tasks_dir / "WP02.md").write_text(
+            "---\nwork_package_id: WP02\ntitle: WP02\nrequirement_refs: [FR-002]\n---\n# WP02\n",
+            encoding="utf-8",
+        )
+
+        from specify_cli.next.runtime_bridge import _check_cli_guards
+
+        failures = _check_cli_guards("tasks_packages", feature_dir)
+        assert failures == []
+
+    @pytest.mark.git_repo
+    def test_tasks_packages_guard_uses_legacy_tasks_md_refs_without_wps_yaml(self, tmp_path: Path) -> None:
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        (feature_dir / "spec.md").write_text(
+            "# Spec\n\n"
+            "## Functional Requirements\n\n"
+            "| ID | Requirement | Acceptance Criteria | Status |\n"
+            "| --- | --- | --- | --- |\n"
+            "| FR-001 | First | Covered by WP01. | proposed |\n",
+            encoding="utf-8",
+        )
+        (feature_dir / "tasks.md").write_text(
+            "## Work Package WP01\n\n**Requirement Refs**: FR-001\n",
+            encoding="utf-8",
+        )
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(exist_ok=True)
+        (tasks_dir / "WP01.md").write_text(
+            "---\nwork_package_id: WP01\ntitle: WP01\n---\n# WP01\n",
+            encoding="utf-8",
+        )
+
+        from specify_cli.next.runtime_bridge import _check_cli_guards
+
+        failures = _check_cli_guards("tasks_packages", feature_dir)
+        assert failures == []
+
+    @pytest.mark.git_repo
     def test_tasks_finalize_guard_blocks_without_raw_dependencies(self, tmp_path: Path) -> None:
         """WP files exist but no explicit dependencies: in raw frontmatter."""
         repo_root = _scaffold_project(tmp_path)

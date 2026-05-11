@@ -204,15 +204,29 @@ Prompts do not rediscover feature context. Commands do.
    - Run `spec-kitty agent mission finalize-tasks --validate-only --mission <mission-slug> --json` to check ownership before committing.
 
 8. **Finalize tasks with dependency parsing and commit**:
-   After generating all WP prompt files, run the finalization command to:
+   After generating all WP prompt files, run validate-only first to prove the
+   finalization requirements are met:
    - Parse dependencies from tasks.md
-   - Update WP frontmatter with dependencies field
+   - Preview WP frontmatter updates without writing files
    - Validate dependencies (check for cycles, invalid references)
-   - Commit all tasks to target branch
+   - Validate requirement coverage before any commit
 
-   **CRITICAL**: Run this command from repo root:
+   **CRITICAL**: Run this preflight command from repo root:
    ```bash
-   spec-kitty agent mission finalize-tasks --json --mission <mission-slug>
+   spec-kitty agent mission finalize-tasks --validate-only --mission <mission-slug> --json
+   ```
+
+   If the JSON output contains `"error": "Requirement mapping validation failed"`,
+   do **not** run the mutating finalization command. Report
+   `missing_requirement_refs_wps`, `unknown_requirement_refs`, and
+   `unmapped_functional_requirements`, then fix mappings with
+   `spec-kitty agent tasks map-requirements --mission <mission-slug> --json` or
+   by updating WP `requirement_refs`.
+
+   Only after validate-only exits successfully, run the mutating command from
+   repo root:
+   ```bash
+   spec-kitty agent mission finalize-tasks --mission <mission-slug> --json
    ```
 
    This step is MANDATORY. Without it:

@@ -26,27 +26,46 @@ $ARGUMENTS
 
 ## Steps
 
-### 1. Run Finalization Command
+### 1. Run Validate-Only Preflight
 
-**CRITICAL**: Run this command from repo root:
+**CRITICAL**: Run this preflight command from repo root before any mutating
+finalization:
 
 ```bash
-spec-kitty agent mission finalize-tasks --json
+spec-kitty agent mission finalize-tasks --validate-only --mission <mission-slug> --json
 ```
 
 This command will:
 
 - Parse dependencies from tasks.md
 - Parse `Requirement Refs` from tasks.md
-- Update WP frontmatter with `dependencies` and `requirement_refs` fields
+- Preview WP frontmatter updates without writing files
 - Validate dependencies (check for cycles, invalid references)
 - Validate requirement mapping:
   - Every WP has at least one requirement reference
   - Referenced requirement IDs exist in spec.md
   - Every FR-### in spec.md is mapped to at least one WP
-- Commit all tasks to target branch
 
-### 2. Check Output
+If the JSON output contains `"error": "Requirement mapping validation failed"`,
+do **not** run finalization. Report the blocking fields
+(`missing_requirement_refs_wps`, `unknown_requirement_refs`, and
+`unmapped_functional_requirements`), then fix mappings with
+`spec-kitty agent tasks map-requirements --mission <mission-slug> --json` or by
+updating WP `requirement_refs`.
+
+### 2. Run Finalization Command
+
+Only after validate-only exits successfully, run the mutating finalization
+command from repo root:
+
+```bash
+spec-kitty agent mission finalize-tasks --mission <mission-slug> --json
+```
+
+This command will update WP frontmatter, compute lanes, and commit all tasks to
+the target branch.
+
+### 3. Check Output
 
 The JSON output includes:
 
@@ -57,7 +76,7 @@ The JSON output includes:
 - `"requirement_refs_parsed"` — requirement reference mapping found
 - Validation details when checks fail (`missing_requirement_refs_wps`, `unknown_requirement_refs`, `unmapped_functional_requirements`)
 
-### 3. Verify
+### 4. Verify
 
 **IMPORTANT — DO NOT COMMIT AGAIN AFTER THIS COMMAND**:
 
@@ -66,7 +85,7 @@ The JSON output includes:
 - Other dirty files shown by `git status` (templates, config) are UNRELATED
 - Verify using the `commit_hash` from JSON output, not by running `git add/commit` again
 
-### 4. Report
+### 5. Report
 
 Provide a concise outcome summary:
 
