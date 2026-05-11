@@ -484,6 +484,46 @@ def test_upgrade_no_migrations_json_includes_auto_commit_fields(
     assert data["warnings"] == []
 
 
+def test_upgrade_no_migrations_surfaces_teamspace_mission_state_prompt(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    """A normal upgrade run checks TeamSpace mission-state readiness even when up to date."""
+    project_path = _setup_upgrade_project(tmp_path)
+    monkeypatch.setattr(Path, "cwd", lambda: project_path)
+    monkeypatch.setattr(upgrade_cmd, "_git_status_paths", lambda _rp: set())
+    monkeypatch.setattr(upgrade_cmd, "show_banner", lambda: None)
+
+    calls: list[dict[str, object]] = []
+
+    def _fake_offer(project_path: Path, **kwargs):
+        kwargs["project_path"] = project_path
+        calls.append(kwargs)
+        return True, False
+
+    monkeypatch.setattr(
+        upgrade_cmd,
+        "offer_teamspace_mission_state_migration",
+        _fake_offer,
+    )
+
+    upgrade_cmd.upgrade(
+        dry_run=False,
+        force=True,
+        target="1.0.0a1",
+        json_output=False,
+        verbose=False,
+        no_worktrees=True,
+        cli=False,
+        project=False,
+    )
+
+    assert len(calls) == 1
+    assert calls[0]["project_path"] == project_path
+    assert calls[0]["dry_run"] is False
+    assert calls[0]["assume_yes"] is True
+
+
 def test_upgrade_dry_run_skips_auto_commit(
     tmp_path: Path,
     monkeypatch,

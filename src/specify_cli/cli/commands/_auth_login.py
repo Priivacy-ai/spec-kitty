@@ -31,6 +31,9 @@ from specify_cli.auth import (
     get_token_manager,
 )
 from specify_cli.auth.config import get_saas_base_url
+from specify_cli.cli.commands._teamspace_mission_state_gate import (
+    enforce_teamspace_mission_state_ready,
+)
 
 if TYPE_CHECKING:
     from specify_cli.auth.session import StorageBackend, StoredSession
@@ -49,6 +52,11 @@ async def login_impl(*, headless: bool, force: bool) -> None:
         force: When True, re-authenticates even if a session is already
             present. Defaults to False.
     """
+    enforce_teamspace_mission_state_ready(
+        console=console,
+        command_name="spec-kitty auth login",
+    )
+
     try:
         saas_url = get_saas_base_url()
     except ConfigurationError as exc:

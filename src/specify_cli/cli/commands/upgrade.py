@@ -49,6 +49,9 @@ from rich.panel import Panel
 from rich.table import Table
 
 from specify_cli.cli.helpers import console, show_banner
+from specify_cli.cli.commands._teamspace_mission_state_gate import (
+    offer_teamspace_mission_state_migration,
+)
 from specify_cli.git.commit_helpers import safe_commit
 
 
@@ -394,7 +397,7 @@ def upgrade(  # noqa: C901
         raise typer.Exit(2)
 
     # T034 — --yes aliases --force (both remain functional)
-    confirm = yes or force
+    confirm = (yes is True) or (force is True)
 
     # T035 — --cli mode: project-agnostic CLI guidance
     if cli:
@@ -525,6 +528,14 @@ def upgrade(  # noqa: C901
             metadata.last_upgraded_at = datetime.now()
             metadata.save(kittify_dir)
 
+        if not json_output:
+            offer_teamspace_mission_state_migration(
+                project_path,
+                console=console,
+                dry_run=dry_run,
+                assume_yes=confirm,
+            )
+
         if not dry_run:
             auto_committed, auto_commit_paths, auto_commit_warning = _auto_commit_upgrade_changes(
                 project_path=project_path,
@@ -607,6 +618,13 @@ def upgrade(  # noqa: C901
     auto_commit_paths_list: list[str] = []
     auto_commit_warning: str | None = None
     manual_review_paths = _collect_manual_review_paths(result.migration_results)
+    if result.success and not json_output:
+        offer_teamspace_mission_state_migration(
+            project_path,
+            console=console,
+            dry_run=dry_run,
+            assume_yes=confirm,
+        )
     if result.success and not dry_run:
         if manual_review_paths:
             auto_commit_warning = "Skipped auto-commit because the upgrade preserved customized files that require manual review."

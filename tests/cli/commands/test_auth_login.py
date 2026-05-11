@@ -24,6 +24,7 @@ import re
 from unittest.mock import AsyncMock, patch
 
 import pytest
+import typer
 from typer.testing import CliRunner
 
 from specify_cli.auth import reset_token_manager
@@ -43,6 +44,10 @@ def _reset_tm(monkeypatch):
     missing-config path delete the env var explicitly.
     """
     monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://saas.test")
+    monkeypatch.setattr(
+        "specify_cli.cli.commands._auth_login.enforce_teamspace_mission_state_ready",
+        lambda **_kwargs: None,
+    )
     reset_token_manager()
     yield
     reset_token_manager()
@@ -103,6 +108,18 @@ class TestAuthLoginHelp:
 
 
 class TestAuthLoginDispatch:
+    def test_blocks_login_when_teamspace_mission_state_migration_pending(self):
+        with patch(
+            "specify_cli.cli.commands._auth_login.enforce_teamspace_mission_state_ready",
+            side_effect=typer.Exit(1),
+        ) as mock_gate, patch(
+            "specify_cli.cli.commands._auth_login.get_saas_base_url"
+        ) as mock_config:
+            result = runner.invoke(app, ["login"])
+
+        assert result.exit_code == 1
+        mock_gate.assert_called_once()
+        mock_config.assert_not_called()
 
     def test_default_dispatches_to_browser_flow(self):
         async def _noop(*args, **kwargs):

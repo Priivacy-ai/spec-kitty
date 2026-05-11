@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, UTC
 from unittest.mock import Mock, patch
 
 import pytest
+import typer
 from typer.testing import CliRunner
 
 from specify_cli.auth.session import StoredSession, Team
@@ -15,6 +16,15 @@ from specify_cli.sync.batch import BatchEventResult, BatchSyncResult
 
 runner = CliRunner()
 pytestmark = pytest.mark.fast
+
+
+@pytest.fixture(autouse=True)
+def _disable_teamspace_mission_state_gate(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        sync_module,
+        "enforce_teamspace_mission_state_ready",
+        lambda **_kwargs: None,
+    )
 
 
 def _session() -> StoredSession:
@@ -129,6 +139,27 @@ def test_share_command_retries_after_materializing_private_source(monkeypatch: p
     mock_materialize.assert_called_once_with()
     assert "Share request recorded" in result.stdout
     assert "Waiting for a team admin" in result.stdout
+
+
+def test_share_command_blocks_when_teamspace_mission_state_migration_pending(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request_share = Mock()
+    monkeypatch.setattr(sync_module, "is_saas_sync_enabled", lambda: True)
+    monkeypatch.setattr(
+        sync_module,
+        "enforce_teamspace_mission_state_ready",
+        Mock(side_effect=typer.Exit(1)),
+    )
+    monkeypatch.setattr(
+        "specify_cli.sync.sharing_client.request_repository_share_sync",
+        request_share,
+    )
+
+    result = runner.invoke(sync_module.app, ["share", "product-team"])
+
+    assert result.exit_code == 1
+    request_share.assert_not_called()
 
 
 def test_opt_out_command_reports_purged_counts(monkeypatch: pytest.MonkeyPatch) -> None:

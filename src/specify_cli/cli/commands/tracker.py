@@ -17,6 +17,9 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from specify_cli.cli.commands._teamspace_mission_state_gate import (
+    enforce_teamspace_mission_state_ready,
+)
 from specify_cli.tracker.config import (
     LOCAL_PROVIDERS,
     REMOVED_PROVIDERS,
@@ -125,6 +128,11 @@ def _check_readiness(
             repo_root = require_repo_root()
         except Exception:
             repo_root = Path.cwd()
+
+    enforce_teamspace_mission_state_ready(
+        console=Console(),
+        command_name="spec-kitty tracker",
+    )
 
     feature_slug = _resolve_active_feature_slug(repo_root)
     result = evaluate_readiness(

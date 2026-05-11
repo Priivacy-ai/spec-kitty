@@ -19,6 +19,9 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from specify_cli.cli.commands._teamspace_mission_state_gate import (
+    enforce_teamspace_mission_state_ready,
+)
 from specify_cli.core.vcs import (
     ChangeInfo,
     ConflictInfo,
@@ -275,6 +278,11 @@ def routes() -> None:
         console.print()
         return
 
+    enforce_teamspace_mission_state_ready(
+        console=console,
+        command_name="spec-kitty sync routes",
+    )
+
     try:
         shares = list_repository_shares_sync(source_project_uuid=routing.project_uuid)
     except RepositorySharingClientError as exc:
@@ -320,6 +328,11 @@ def share(
     if not is_saas_sync_enabled():
         console.print(f"[red]{saas_sync_disabled_message()}[/red]")
         raise typer.Exit(1)
+
+    enforce_teamspace_mission_state_ready(
+        console=console,
+        command_name="spec-kitty sync share",
+    )
 
     routing = _require_active_checkout()
     _require_authenticated_session()
@@ -388,6 +401,11 @@ def unshare(
     if not is_saas_sync_enabled():
         console.print(f"[red]{saas_sync_disabled_message()}[/red]")
         raise typer.Exit(1)
+
+    enforce_teamspace_mission_state_ready(
+        console=console,
+        command_name="spec-kitty sync unshare",
+    )
 
     routing = _require_active_checkout()
     _require_authenticated_session()
@@ -508,6 +526,11 @@ def opt_in(
 ) -> None:
     """Enable SaaS sync for this checkout."""
     from specify_cli.sync.routing import enable_checkout_sync
+
+    enforce_teamspace_mission_state_ready(
+        console=console,
+        command_name="spec-kitty sync opt-in",
+    )
 
     routing = _require_active_checkout()
     refreshed = enable_checkout_sync(
@@ -992,6 +1015,11 @@ def now(
         console.print(f"[yellow]{saas_sync_disabled_message()}[/yellow]")
         console.print(f"[dim]Set {SAAS_SYNC_ENV_VAR}=1 to enable upload.[/dim]")
         return
+
+    enforce_teamspace_mission_state_ready(
+        console=console,
+        command_name="spec-kitty sync now",
+    )
 
     service = get_sync_service()
     queue_size = service.queue.size()
