@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -50,6 +51,14 @@ def _setup_repo(tmp_path: Path) -> Path:
     """Create a minimal repo structure with .kittify/ and a mission meta.json."""
     kittify = tmp_path / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "init", "--quiet"], cwd=tmp_path, check=True)
+    (kittify / "config.yaml").write_text(
+        "version: 1\n"
+        "project:\n"
+        "  uuid: 00000000-0000-0000-0000-000000000002\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "kitty-specs").mkdir(parents=True, exist_ok=True)
     mission_dir = tmp_path / "kitty-specs" / MISSION_SLUG
     mission_dir.mkdir(parents=True, exist_ok=True)
     (mission_dir / "meta.json").write_text(
