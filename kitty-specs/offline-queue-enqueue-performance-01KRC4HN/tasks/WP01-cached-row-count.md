@@ -12,9 +12,9 @@ requirement_refs:
 - FR-007
 - FR-008
 - FR-009
-planning_base_branch: main
-merge_target_branch: main
-branch_strategy: Planning artifacts for this mission were generated on the kitty/mission-offline-queue-enqueue-performance-01KRC4HN-lane-a lane branch. During /spec-kitty.implement this WP may branch further, but completed changes must land back on this lane branch and ultimately into main.
+planning_base_branch: kitty/mission-offline-queue-enqueue-performance-01KRC4HN-lane-a
+merge_target_branch: kitty/mission-offline-queue-enqueue-performance-01KRC4HN-lane-a
+branch_strategy: Planning artifacts for this mission were generated on kitty/mission-offline-queue-enqueue-performance-01KRC4HN-lane-a. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into kitty/mission-offline-queue-enqueue-performance-01KRC4HN-lane-a unless the human explicitly redirects the landing branch.
 base_branch: kitty/mission-offline-queue-enqueue-performance-01KRC4HN-lane-a
 base_commit: 82daa49ba7ef083e57bc287435bbe3fe500e3e4f
 created_at: '2026-05-11T18:30:00.000000+00:00'
@@ -28,7 +28,6 @@ subtasks:
 phase: Phase 1 - Implementation
 assignee: ''
 agent: ''
-shell_pid: ''
 history:
 - timestamp: '2026-05-11T18:30:00Z'
   agent: claude
