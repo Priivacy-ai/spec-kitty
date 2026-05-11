@@ -17,6 +17,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+## [3.2.0rc6] - 2026-05-11
+
+3.2.0rc6 includes the post-rc5 TeamSpace migration enforcement and dry-run
+compatibility fixes needed before publishing the next TeamSpace-ready CLI
+candidate.
+
+### Changed
+
+- Surface pending TeamSpace mission-state migration during `spec-kitty upgrade`
+  and require a clean migration before hosted TeamSpace connection flows.
+- Allow the release compatibility gate to prove SaaS-supported dependency
+  versions when the candidate CLI declares a compatible range instead of an
+  exact pin.
+
+### Fixed
+
+- Render user-friendly TeamSpace migration gate failures when mission-state
+  repair raises unexpected payload or filesystem errors.
+- Preserve SaaS-disabled sync opt-in behavior while still enforcing
+  mission-state readiness for hosted sync paths.
+- Synthesize historical approval evidence during TeamSpace dry-run conversion
+  so approved/done mission-state rows can validate against the canonical event
+  contract.
+
 ## [3.2.0rc5] - 2026-05-11
 
 3.2.0rc5 closes the remaining CLI-side TeamSpace migration readiness gaps found
