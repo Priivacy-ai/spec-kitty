@@ -394,6 +394,74 @@ def test_teamspace_dry_run_synthesizes_repo_evidence_for_historical_done_rows(tm
     assert len(dry_run.row_mappings) == 1
 
 
+def test_teamspace_dry_run_synthesizes_missing_historical_approval_evidence(tmp_path: Path) -> None:
+    if not _has_events_5():
+        pytest.skip("TeamSpace dry-run validation requires spec-kitty-events >= 5.0.0")
+
+    repo = tmp_path
+    mission = repo / "kitty-specs" / "001-historical-approval"
+    mission.mkdir(parents=True)
+    mission_id = "01KQHRB8GCFJAX7HM4ZY52AQGR"
+    _write_json(
+        mission / "meta.json",
+        {
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "friendly_name": "Historical Approval",
+            "mission_id": mission_id,
+            "mission_number": 1,
+            "mission_slug": "001-historical-approval",
+            "mission_type": "software-dev",
+            "slug": "001-historical-approval",
+            "target_branch": "main",
+        },
+    )
+    rows = [
+        {
+            "actor": "codex",
+            "at": "2026-01-01T00:00:00+00:00",
+            "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGS",
+            "execution_mode": "worktree",
+            "force": False,
+            "from_lane": "for_review",
+            "mission_id": mission_id,
+            "mission_slug": "001-historical-approval",
+            "policy_metadata": None,
+            "reason": None,
+            "review_ref": None,
+            "evidence": None,
+            "to_lane": "approved",
+            "wp_id": "WP01",
+        },
+        {
+            "actor": "codex",
+            "at": "2026-01-01T00:00:01+00:00",
+            "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGT",
+            "execution_mode": "worktree",
+            "force": False,
+            "from_lane": "approved",
+            "mission_id": mission_id,
+            "mission_slug": "001-historical-approval",
+            "policy_metadata": None,
+            "reason": None,
+            "review_ref": "review://historical",
+            "evidence": None,
+            "to_lane": "done",
+            "wp_id": "WP01",
+        },
+    ]
+    (mission / "status.events.jsonl").write_text(
+        "".join(json.dumps(row, sort_keys=True) + "\n" for row in rows),
+        encoding="utf-8",
+    )
+
+    dry_run = teamspace_dry_run(repo, mission="001-historical-approval")
+
+    assert dry_run.valid
+    assert dry_run.envelope_count == 2
+    assert dry_run.errors == ()
+    assert len(dry_run.row_mappings) == 2
+
+
 def test_repo_slug_preserves_https_remote_colon(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     class _Result:
         def __init__(self, stdout: str) -> None:

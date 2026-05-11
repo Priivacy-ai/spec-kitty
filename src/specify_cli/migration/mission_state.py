@@ -535,16 +535,13 @@ def _status_event_to_teamspace_envelope(
     repo_slug: str | None,
 ) -> dict[str, Any]:
     evidence = status_event.evidence.to_dict() if status_event.evidence else None
-    if evidence is not None and not evidence.get("repos"):
-        # Older done rows only recorded review evidence; the 5.0.0 TeamSpace
-        # contract requires at least one repo evidence entry.
-        evidence["repos"] = [
-            {
-                "repo": repo_slug or project_slug,
-                "branch": "historical-mission-state-repair",
-                "commit": "historical-mission-state-repair",
-            }
-        ]
+    if str(status_event.to_lane) in {"approved", "done"}:
+        evidence = _historical_teamspace_evidence(
+            status_event,
+            evidence=evidence,
+            project_slug=project_slug,
+            repo_slug=repo_slug,
+        )
 
     payload = {
         "mission_slug": status_event.mission_slug,
@@ -577,6 +574,40 @@ def _status_event_to_teamspace_envelope(
         ),
         "schema_version": CANONICAL_ENVELOPE_SCHEMA_VERSION,
     }
+
+
+def _historical_teamspace_evidence(
+    status_event: StatusEvent,
+    *,
+    evidence: dict[str, Any] | None,
+    project_slug: str,
+    repo_slug: str | None,
+) -> dict[str, Any]:
+    """Return deterministic evidence for historical approval/done rows.
+
+    Older local status rows may have no evidence at all, or may have review
+    evidence without repo evidence. The TeamSpace 5.0.0 event contract requires
+    evidence for both approved and done transitions, including at least one repo
+    entry, so dry-run/import synthesis fills only the missing historical facts.
+    """
+    resolved = dict(evidence or {})
+    if not resolved.get("review"):
+        resolved["review"] = {
+            "reviewer": status_event.actor or "historical-mission-state-repair",
+            "verdict": "approved",
+            "reference": status_event.review_ref
+            or f"historical-mission-state-repair:{status_event.mission_slug}:{status_event.wp_id}:{status_event.event_id}",
+        }
+    if not resolved.get("repos"):
+        resolved["repos"] = [
+            {
+                "repo": repo_slug or project_slug,
+                "branch": "historical-mission-state-repair",
+                "commit": "historical-mission-state-repair",
+            }
+        ]
+    resolved.setdefault("verification", [])
+    return resolved
 
 
 def _scan_raw_status_rows(repo_root: Path, mission_dir: Path) -> list[dict[str, object]]:
