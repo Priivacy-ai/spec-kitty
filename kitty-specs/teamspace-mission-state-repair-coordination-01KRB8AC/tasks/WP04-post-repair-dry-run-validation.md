@@ -17,7 +17,8 @@ subtasks:
 - T014
 - T015
 - T016
-agent: claude
+agent: "claude:sonnet-4-6:operator:implementer"
+shell_pid: "75209"
 history:
 - at: '2026-05-11T10:18:12Z'
   event: created
@@ -267,3 +268,7 @@ Verify `wp04-dry-run-results.md` contains:
 2. `envelope_validation_errors == []` for all repos
 3. `side_logs_skipped` value for runtime (confirming PR #19 is active)
 4. Explicit "ALL PASS" or "FAILURES DETECTED" conclusion
+
+## Activity Log
+
+- 2026-05-11T10:31:49Z – claude:sonnet-4-6:operator:implementer – shell_pid=75209 – Started implementation via action command
