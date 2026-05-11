@@ -107,10 +107,10 @@ T005, T006, T007 can run in parallel (separate repo directories).
 Run `spec-kitty doctor mission-state --fix` in each selected repo. Review the generated manifest for each repo. Verify quarantine lists are explicit.
 
 ### Subtasks
-- [ ] T009 Run --fix in spec-kitty; review manifest (WP03)
-- [ ] T010 Run --fix in spec-kitty-saas; review manifest (WP03)
-- [ ] T011 Run --fix in spec-kitty-events; review manifest (WP03)
-- [ ] T012 Verify quarantine lists are explicit and reviewable (WP03)
+- [x] T009 Run --fix in spec-kitty; review manifest (WP03)
+- [x] T010 Run --fix in spec-kitty-saas; review manifest (WP03)
+- [x] T011 Run --fix in spec-kitty-events; review manifest (WP03)
+- [x] T012 Verify quarantine lists are explicit and reviewable (WP03)
 
 ### Implementation sketch
 For each repo (sequentially, to avoid concurrent repair locks): `SPEC_KITTY_ENABLE_SAAS_SYNC=1 spec-kitty doctor mission-state --fix`. Then: read `.kittify/migrations/mission-state/<manifest>` and confirm it contains `repo_head`, `checksums`, `row_transformations`, `quarantine_count`, `validation_results`.
