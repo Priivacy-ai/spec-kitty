@@ -14,7 +14,7 @@ import random
 from contextlib import suppress
 from collections.abc import Callable
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import ParseResult, urlparse
 
 import websockets
 from websockets import ConnectionClosed
@@ -35,6 +35,8 @@ from specify_cli.sync.feature_flags import (
 from specify_cli.sync.project_identity import ProjectIdentity
 
 logger = logging.getLogger(__name__)
+
+_LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 
 
 class ConnectionStatus:
@@ -262,27 +264,36 @@ class WebSocketClient:
     @staticmethod
     def _normalize_ws_url(ws_url: str) -> str:
         """Convert provisioned HTTP(S) URLs to WS(S), rejecting insecure remote hosts."""
-        if ws_url.startswith("wss://"):
+        parsed = urlparse(ws_url)
+        scheme = parsed.scheme.lower()
+
+        if scheme == "wss":
             return ws_url
-        if ws_url.startswith("ws://"):
-            host = (urlparse(ws_url).hostname or "").lower()
-            if host not in {"127.0.0.1", "localhost", "::1"}:
+        if scheme == "ws":
+            if not WebSocketClient._is_loopback_host(parsed):
                 raise AuthenticationError(
                     "Refusing insecure WebSocket provisioning URL outside loopback."
                 )
             return ws_url
-        if ws_url.startswith("https://"):
-            return "wss://" + ws_url[len("https://") :]
-        if ws_url.startswith("http://"):
-            host = (urlparse(ws_url).hostname or "").lower()
-            if host not in {"127.0.0.1", "localhost", "::1"}:
+        if scheme == "https":
+            return WebSocketClient._replace_scheme(parsed, "wss")
+        if scheme == "http":
+            if not WebSocketClient._is_loopback_host(parsed):
                 raise AuthenticationError(
                     "Refusing insecure WebSocket provisioning URL outside loopback."
                 )
-            return "ws://" + ws_url[len("http://") :]
+            return WebSocketClient._replace_scheme(parsed, "ws")
         raise AuthenticationError(
             f"Unsupported WebSocket provisioning URL scheme: {ws_url!r}"
         )
+
+    @staticmethod
+    def _is_loopback_host(parsed: ParseResult) -> bool:
+        return (parsed.hostname or "").lower() in _LOOPBACK_HOSTS
+
+    @staticmethod
+    def _replace_scheme(parsed: ParseResult, scheme: str) -> str:
+        return parsed._replace(scheme=scheme).geturl()
 
     def get_reconnect_delay(self, attempt: int) -> float:
         """
