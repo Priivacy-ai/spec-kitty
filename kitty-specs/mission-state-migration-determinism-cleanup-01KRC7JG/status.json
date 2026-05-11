@@ -1,0 +1,35 @@
+{
+  "event_count": 2,
+  "last_event_id": "01KRC818NC4AES8R7M60EGYZ81",
+  "materialized_at": "2026-05-11T19:25:43.980873+00:00",
+  "mission_number": "",
+  "mission_slug": "mission-state-migration-determinism-cleanup-01KRC7JG",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 2
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KRC818H5A3B8TV73XG0STRK6",
+      "last_transition_at": "2026-05-11T19:25:43.845867+00:00"
+    },
+    "WP02": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KRC818NC4AES8R7M60EGYZ81",
+      "last_transition_at": "2026-05-11T19:25:43.980873+00:00"
+    }
+  }
+}
