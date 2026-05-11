@@ -13,7 +13,8 @@ subtasks:
 - T002
 - T003
 - T004
-agent: claude
+agent: "claude:sonnet-4-6:operator:implementer"
+shell_pid: "74309"
 history:
 - at: '2026-05-11T10:18:12Z'
   event: created
@@ -199,3 +200,7 @@ Verify `wp01-gate-check.md` contains:
 2. PR #1017 gate section with `state: MERGED` and a real `mergedAt` timestamp
 3. Freeze comment URL or confirmation
 4. Runtime inclusion decision with criterion
+
+## Activity Log
+
+- 2026-05-11T10:25:01Z – claude:sonnet-4-6:operator:implementer – shell_pid=74309 – Started implementation via action command

@@ -1,7 +1,7 @@
 {
-  "event_count": 6,
-  "last_event_id": "01KRB916B40QZKMJEW8SCTZ169",
-  "materialized_at": "2026-05-11T10:23:55.749002+00:00",
+  "event_count": 8,
+  "last_event_id": "01KRB935XYRMSBS95EBJRR9AG1",
+  "materialized_at": "2026-05-11T10:25:00.862352+00:00",
   "mission_number": "",
   "mission_slug": "teamspace-mission-state-repair-coordination-01KRB8AC",
   "mission_type": "software-dev",
@@ -12,17 +12,17 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 6
+    "planned": 5
   },
   "work_packages": {
     "WP01": {
-      "actor": "finalize-tasks",
+      "actor": "claude:sonnet-4-6:operator:implementer",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KRB915Z6YS2DRSCTXHYQH9Z9",
-      "last_transition_at": "2026-05-11T10:23:55.366894+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KRB935XYRMSBS95EBJRR9AG1",
+      "last_transition_at": "2026-05-11T10:25:00.862352+00:00"
     },
     "WP02": {
       "actor": "finalize-tasks",
