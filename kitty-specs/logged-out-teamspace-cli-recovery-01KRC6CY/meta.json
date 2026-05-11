@@ -1,0 +1,12 @@
+{
+  "created_at": "2026-05-11T18:57:09.369207+00:00",
+  "friendly_name": "Logged-Out Teamspace CLI Recovery",
+  "mission_id": "01KRC6CY7QHWPB7K8K8DB8JRTH",
+  "mission_number": null,
+  "mission_slug": "logged-out-teamspace-cli-recovery-01KRC6CY",
+  "mission_type": "software-dev",
+  "purpose_context": "GitHub issue #829. The CLI currently prints 'Run spec-kitty auth login' in sync/check failure paths but never offers interactive recovery and never references the connected teamspace. Goal: detect when a repo is connected to a Teamspace but credentials are missing/expired, offer interactive login when stdin is a TTY (and SPEC_KITTY_NON_INTERACTIVE!=1), and emit a deterministic structured error otherwise so CI scripts can detect and route the case. Covers sync now / sync status --check / sync doctor / sync routes / sync share.",
+  "purpose_tldr": "Add interactive login recovery and prior-Teamspace detection to the spec-kitty CLI so logged-out sessions on a teamspace-connected repo can re-auth or scriptably fail with structured guidance.",
+  "slug": "logged-out-teamspace-cli-recovery-01KRC6CY",
+  "target_branch": "main"
+}
