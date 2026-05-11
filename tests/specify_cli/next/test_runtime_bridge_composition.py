@@ -67,17 +67,30 @@ def _local_only_sync_emitter(monkeypatch: pytest.MonkeyPatch) -> None:
 # ---------------------------------------------------------------------------
 
 
+_DEFAULT_SPEC_MD = (
+    "# Spec\n\n"
+    "## Functional Requirements\n\n"
+    "| ID | Requirement | Acceptance Criteria | Status |\n"
+    "| --- | --- | --- | --- |\n"
+    "| FR-001 | First | Covered by WP01. | proposed |\n"
+)
+
+
 def _write_wp_file(
     tasks_dir: Path,
     wp_id: str,
     *,
     with_dependencies: bool = True,
+    requirement_refs: list[str] | None = ("FR-001",),
 ) -> Path:
     """Write a minimal WP*.md file with optional 'dependencies:' frontmatter."""
     wp_file = tasks_dir / f"{wp_id}-test.md"
     deps_line = "dependencies: []\n" if with_dependencies else ""
+    refs_line = ""
+    if requirement_refs:
+        refs_line = f"requirement_refs: [{', '.join(requirement_refs)}]\n"
     wp_file.write_text(
-        f"---\nwork_package_id: {wp_id}\ntitle: Test\n{deps_line}---\nbody\n",
+        f"---\nwork_package_id: {wp_id}\ntitle: Test\n{deps_line}{refs_line}---\nbody\n",
         encoding="utf-8",
     )
     return wp_file
@@ -96,7 +109,7 @@ def feature_dir_with_full_tasks(tmp_path: Path) -> Path:
     """Feature dir with spec.md, plan.md, tasks.md, and one valid WP*.md."""
     fd = tmp_path / "kitty-specs" / "test-feature"
     fd.mkdir(parents=True)
-    (fd / "spec.md").write_text("# spec", encoding="utf-8")
+    (fd / "spec.md").write_text(_DEFAULT_SPEC_MD, encoding="utf-8")
     (fd / "plan.md").write_text("# plan", encoding="utf-8")
     (fd / "tasks.md").write_text("# tasks", encoding="utf-8")
     tasks = fd / "tasks"
@@ -886,7 +899,7 @@ def composed_software_dev_project(tmp_path: Path):
     repo_root, feature_dir, mission_slug = _scaffold_software_dev_project(tmp_path)
     # Lay down the artifacts every composed action's guard wants present so a
     # success path actually reaches the advancement helper.
-    (feature_dir / "spec.md").write_text("# spec", encoding="utf-8")
+    (feature_dir / "spec.md").write_text(_DEFAULT_SPEC_MD, encoding="utf-8")
     (feature_dir / "plan.md").write_text("# plan", encoding="utf-8")
     (feature_dir / "tasks.md").write_text("# tasks", encoding="utf-8")
     tasks = feature_dir / "tasks"

@@ -664,14 +664,22 @@ class TestFullLoop:
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
 
         # Create required artifacts so CLI guards pass
-        (feature_dir / "spec.md").write_text("# Spec\n", encoding="utf-8")
+        (feature_dir / "spec.md").write_text(
+            "# Spec\n\n"
+            "## Functional Requirements\n\n"
+            "| ID | Requirement | Acceptance Criteria | Status |\n"
+            "| --- | --- | --- | --- |\n"
+            "| FR-001 | First | Covered by WP01. | proposed |\n",
+            encoding="utf-8",
+        )
         (feature_dir / "plan.md").write_text("# Plan\n", encoding="utf-8")
         (feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
         # Create WP files with explicit dependencies for tasks_finalize guard
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(exist_ok=True)
         (tasks_dir / "WP01.md").write_text(
-            "---\nwork_package_id: WP01\nlane: done\ndependencies: []\ntitle: WP01\n---\n# WP01\n",
+            "---\nwork_package_id: WP01\nlane: done\ndependencies: []\n"
+            "requirement_refs: [FR-001]\ntitle: WP01\n---\n# WP01\n",
             encoding="utf-8",
         )
         # Seed event log so runtime bridge reads WP01 as done

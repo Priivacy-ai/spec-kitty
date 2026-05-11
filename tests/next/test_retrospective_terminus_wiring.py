@@ -266,13 +266,21 @@ def _scaffold_opt_in_project(tmp_path: Path) -> tuple[Path, Path]:
     )
 
     # CLI guard artifacts
-    (feature_dir / "spec.md").write_text("# Spec\n", encoding="utf-8")
+    (feature_dir / "spec.md").write_text(
+        "# Spec\n\n"
+        "## Functional Requirements\n\n"
+        "| ID | Requirement | Acceptance Criteria | Status |\n"
+        "| --- | --- | --- | --- |\n"
+        "| FR-001 | First | Covered by WP01. | proposed |\n",
+        encoding="utf-8",
+    )
     (feature_dir / "plan.md").write_text("# Plan\n", encoding="utf-8")
     (feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir()
     (tasks_dir / "WP01.md").write_text(
-        "---\nwork_package_id: WP01\nlane: done\ndependencies: []\ntitle: WP01\n---\n# WP01\n",
+        "---\nwork_package_id: WP01\nlane: done\ndependencies: []\n"
+        "requirement_refs: [FR-001]\ntitle: WP01\n---\n# WP01\n",
         encoding="utf-8",
     )
     _seed_wp_lane(feature_dir, "WP01", "done")
