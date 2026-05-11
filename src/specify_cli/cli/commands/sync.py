@@ -19,6 +19,11 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from specify_cli.cli.commands._auth_recovery import (
+    EXIT_LOGGED_OUT_ON_CONNECTED_TEAMSPACE,
+    RecoveryOutcome,
+    handle_unauthenticated_with_teamspace,
+)
 from specify_cli.cli.commands._teamspace_mission_state_gate import (
     enforce_teamspace_mission_state_ready,
 )
@@ -188,14 +193,39 @@ def _require_active_checkout():
     return routing
 
 
-def _require_authenticated_session():
+def _require_authenticated_session(command_name: str | None = None):
+    """Return the active session or exit with appropriate recovery semantics.
+
+    When ``command_name`` is provided and no session exists, this routes through
+    ``handle_unauthenticated_with_teamspace`` so connected-teamspace repos get
+    interactive recovery (TTY) or a structured stderr line + exit 4 (CI). When
+    no teamspace is detected, behavior is byte-identical to the legacy path:
+    the legacy red error is printed and the command exits with code 1.
+    """
     from specify_cli.auth import get_token_manager
 
     session = get_token_manager().get_current_session()
-    if session is None:
-        console.print("[red]Error:[/red] Not authenticated. Run `spec-kitty auth login`.")
-        raise typer.Exit(1)
-    return session
+    if session is not None:
+        return session
+
+    if command_name is not None:
+        outcome = handle_unauthenticated_with_teamspace(
+            command_name=command_name,
+            console=console,
+        )
+        if outcome is RecoveryOutcome.EXIT_4:
+            raise typer.Exit(EXIT_LOGGED_OUT_ON_CONNECTED_TEAMSPACE)
+        if outcome is RecoveryOutcome.LOGGED_IN:
+            # Re-resolve after a successful login.
+            session = get_token_manager().get_current_session()
+            if session is not None:
+                return session
+        # NO_TEAMSPACE / SKIPPED / QUIT all fall through to the legacy
+        # exit-1 path below so existing CI and operator expectations are
+        # preserved verbatim.
+
+    console.print("[red]Error:[/red] Not authenticated. Run `spec-kitty auth login`.")
+    raise typer.Exit(1)
 
 
 def _private_team_name(session) -> str | None:
@@ -260,7 +290,7 @@ def routes() -> None:
     table.add_row("Future Repo Default", repo_default)
 
     try:
-        session = _require_authenticated_session()
+        session = _require_authenticated_session(command_name="sync routes")
     except typer.Exit:
         console.print(table)
         console.print()
@@ -335,7 +365,7 @@ def share(
     )
 
     routing = _require_active_checkout()
-    _require_authenticated_session()
+    _require_authenticated_session(command_name="sync share")
 
     if routing.project_uuid is None:
         console.print("[red]Error:[/red] Current checkout has no project UUID.")
@@ -408,7 +438,7 @@ def unshare(
     )
 
     routing = _require_active_checkout()
-    _require_authenticated_session()
+    _require_authenticated_session(command_name="sync unshare")
 
     if routing.project_uuid is None:
         console.print("[red]Error:[/red] Current checkout has no project UUID.")
@@ -483,7 +513,7 @@ def opt_out(
         return
 
     try:
-        _require_authenticated_session()
+        _require_authenticated_session(command_name="sync opt-out")
         shares = list_repository_shares_sync(source_project_uuid=routing.project_uuid)
     except (RepositorySharingClientError, typer.Exit) as exc:
         console.print(f"[yellow]Could not inspect remote share state:[/yellow] {exc}")
@@ -1036,6 +1066,22 @@ def now(
     result = service.sync_now(show_progress=True)
 
     if _sync_result_looks_unauthenticated(queue_size, result):
+        # Teamspace-aware recovery: TTY operators get an interactive prompt,
+        # CI gets a structured stderr line + exit code 4. When no teamspace is
+        # detected (NO_TEAMSPACE), behavior is byte-identical to the legacy
+        # path below.
+        outcome = handle_unauthenticated_with_teamspace(
+            command_name="sync now",
+            console=console,
+        )
+        if outcome is RecoveryOutcome.EXIT_4:
+            raise typer.Exit(EXIT_LOGGED_OUT_ON_CONNECTED_TEAMSPACE)
+        if outcome is RecoveryOutcome.LOGGED_IN:
+            console.print(
+                "[green]Logged in.[/green] Re-run "
+                "[bold]spec-kitty sync now[/bold] to continue."
+            )
+            return
         console.print(f"[yellow]{_UNAUTHENTICATED_SYNC_NOW_MESSAGE}[/yellow]")
         if strict:
             raise typer.Exit(1)
@@ -1172,12 +1218,24 @@ def status(
     table.add_row("Server URL", server_url)
     table.add_row("Config File", str(config.config_file))
 
-    # Optionally test connection if --check flag is provided
-    if check_connection:
+    # Optionally test connection if --check flag is provided.
+    # Guard against the function being invoked directly in tests (without Typer
+    # parsing), where ``check_connection`` would be a ``typer.OptionInfo``
+    # instance rather than a real bool. We only treat ``True`` as opt-in.
+    auth_recovery_pending = False
+    if check_connection is True:
         connection_status, connection_note = _check_server_connection(server_url)
         table.add_row("Ping", connection_status)
         if connection_note:
             table.add_row("", f"[dim]{connection_note}[/dim]")
+        # If the connection probe surfaced an auth-missing / expired state,
+        # remember to offer teamspace-aware recovery once the table is rendered
+        # (issue #829, Mission 7).
+        auth_recovery_pending = (
+            "Not authenticated" in connection_status
+            or "Session expired" in connection_status
+            or "Authentication failed" in connection_status
+        )
 
     console.print(table)
     console.print()
@@ -1194,6 +1252,14 @@ def status(
     if not check_connection:
         console.print("[dim]Use 'spec-kitty sync status --check' to test connectivity.[/dim]")
         console.print()
+
+    if auth_recovery_pending:
+        outcome = handle_unauthenticated_with_teamspace(
+            command_name="sync status",
+            console=console,
+        )
+        if outcome is RecoveryOutcome.EXIT_4:
+            raise typer.Exit(EXIT_LOGGED_OUT_ON_CONNECTED_TEAMSPACE)
 
 
 @app.command()
@@ -1489,6 +1555,23 @@ def doctor() -> None:  # noqa: C901
     else:
         console.print("[bold green]No issues detected. Sync is healthy.[/bold green]")
         console.print()
+
+    # --- 6. Teamspace-aware recovery (issue #829, Mission 7) ---
+    # If we surfaced an auth-missing or token-expired issue AND the repo was
+    # previously connected to a teamspace, offer interactive recovery (TTY) or
+    # emit a structured stderr line + exit 4 (CI). When no teamspace is
+    # detected, behavior is byte-identical to the existing doctor output.
+    auth_missing = (
+        session is None
+        or any("auth login" in issue or "expired" in issue for issue in issues)
+    )
+    if auth_missing:
+        outcome = handle_unauthenticated_with_teamspace(
+            command_name="sync doctor",
+            console=console,
+        )
+        if outcome is RecoveryOutcome.EXIT_4:
+            raise typer.Exit(EXIT_LOGGED_OUT_ON_CONNECTED_TEAMSPACE)
 
 
 __all__ = ["app"]
