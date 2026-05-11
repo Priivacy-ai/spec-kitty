@@ -119,3 +119,7 @@ operator note that documents the structured stderr line and exit code 4.
 - `ruff check src/specify_cli/cli/commands/sync.py
   tests/sync/test_sync_logged_out_recovery.py
   docs/recovery/logged-out-teamspace.md` is clean.
+
+## Activity Log
+
+- 2026-05-11T19:07:14Z – unknown – claiming for implementation
