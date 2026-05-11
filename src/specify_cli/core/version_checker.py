@@ -215,7 +215,11 @@ Your project is NEWER than your CLI.
 This project was created or upgraded with a newer version
 of spec-kitty-cli. Please upgrade your CLI:
 
-  pip install --upgrade spec-kitty-cli
+  pipx upgrade spec-kitty-cli
+
+Or use the upgrade command for your install method, such as
+`uv tool upgrade spec-kitty-cli` or `python -m pip install --upgrade
+spec-kitty-cli` inside an activated virtual environment.
 
 After upgrading, run:
 

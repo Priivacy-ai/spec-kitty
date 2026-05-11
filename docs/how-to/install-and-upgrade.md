@@ -15,6 +15,38 @@ Spec Kitty never silently upgrades itself and never touches projects you are not
 
 ---
 
+## Install the CLI
+
+For new installations, prefer `pipx`:
+
+```bash
+pipx install spec-kitty-cli
+pipx ensurepath
+spec-kitty --version
+```
+
+`pipx` keeps the CLI in its own virtual environment while exposing the
+`spec-kitty` command on your PATH. This avoids the PEP 668
+`externally-managed-environment` failure that direct `pip install` commands can
+hit on Ubuntu 24.04, Debian 12, Fedora, and other distro-managed Python
+installations.
+
+Other supported install methods:
+
+```bash
+uv tool install spec-kitty-cli
+```
+
+```bash
+# Inside an activated virtual environment or managed CI Python image
+python -m pip install spec-kitty-cli
+```
+
+Use `pip` when you are intentionally managing the Python environment yourself.
+Do not use `--break-system-packages` as a normal Spec Kitty install path.
+
+---
+
 ## Upgrade the CLI
 
 Run from anywhere:
@@ -27,7 +59,7 @@ Spec Kitty detects your install method and prints the right command:
 
 | Install method | Upgrade command |
 |---|---|
-| pipx | `pipx upgrade spec-kitty-cli` |
+| pipx (preferred) | `pipx upgrade spec-kitty-cli` |
 | pip (user) | `pip install --upgrade --user spec-kitty-cli` |
 | pip (venv/system) | `pip install --upgrade spec-kitty-cli` |
 | Homebrew | `brew upgrade spec-kitty` |

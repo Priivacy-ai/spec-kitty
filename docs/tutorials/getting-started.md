@@ -9,14 +9,26 @@ In this tutorial, you'll install Spec Kitty and create your first feature specif
 
 ## Step 1: Install Spec Kitty
 
-Choose one install method:
+Install the CLI with `pipx`:
 
 ```bash
-pip install spec-kitty-cli
+pipx install spec-kitty-cli
 ```
+
+`pipx` is preferred for command-line tools because it creates an isolated
+virtual environment for Spec Kitty and avoids the
+`externally-managed-environment` errors that modern Linux distributions can
+raise for direct `pip install` commands.
+
+Other supported install methods:
 
 ```bash
 uv tool install spec-kitty-cli
+```
+
+```bash
+# Inside an activated virtual environment
+python -m pip install spec-kitty-cli
 ```
 
 Verify the CLI is available:
@@ -89,7 +101,8 @@ ls .worktrees
 
 ## Troubleshooting
 
-- **`spec-kitty: command not found`**: Reopen your shell or reinstall via `pipx` or `uv`. Then rerun `spec-kitty --version`.
+- **`spec-kitty: command not found`**: Reopen your shell, run `pipx ensurepath` if you installed with `pipx`, or reinstall via `pipx` or `uv`. Then rerun `spec-kitty --version`.
+- **`pip install` fails with `externally-managed-environment`**: Use `pipx install spec-kitty-cli`, or create and activate a virtual environment before using `python -m pip install spec-kitty-cli`.
 - **No `/spec-kitty.specify` command available**: Re-run `spec-kitty init . --ai <your-agent>` from the project root, then verify the setup with `spec-kitty verify-setup --diagnostics`.
 - **`WAITING_FOR_DISCOVERY_INPUT`**: The command is paused for your answers; provide the requested details and continue.
 

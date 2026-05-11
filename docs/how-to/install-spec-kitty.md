@@ -8,9 +8,10 @@
 
 - **Linux/macOS** (or Windows; PowerShell scripts now supported without WSL)
 - AI coding agent: [Claude Code](https://www.anthropic.com/claude-code), [GitHub Copilot](https://code.visualstudio.com/), or [Gemini CLI](https://github.com/google-gemini/gemini-cli)
-- [uv](https://docs.astral.sh/uv/) for package management
 - [Python 3.11+](https://www.python.org/downloads/)
 - [Git](https://git-scm.com/downloads)
+- [pipx](https://pipx.pypa.io/stable/installation/) for the recommended CLI install path
+- Optional: [uv](https://docs.astral.sh/uv/) if your team standardizes on uv-managed tools
 
 ## Installation
 
@@ -18,9 +19,28 @@
 
 #### From PyPI (Recommended - Stable Releases)
 
-**Using pip:**
+**Using pipx (preferred):**
 ```bash
-pip install spec-kitty-cli
+pipx install spec-kitty-cli
+```
+
+`pipx` installs Spec Kitty as an application in an isolated virtual environment
+and places the `spec-kitty` command on your PATH. This is the safest default on
+modern Python installations because many Linux distributions now block direct
+system-wide `pip install` commands with PEP 668
+`externally-managed-environment` errors.
+
+If this is your first `pipx` install, make sure its binary directory is on your
+PATH:
+
+```bash
+pipx ensurepath
+```
+
+Then open a new shell and verify:
+
+```bash
+spec-kitty --version
 ```
 
 **Using uv:**
@@ -28,11 +48,23 @@ pip install spec-kitty-cli
 uv tool install spec-kitty-cli
 ```
 
+**Using pip in an activated virtual environment or managed CI Python image:**
+```bash
+python -m pip install spec-kitty-cli
+```
+
+Use `pip` when you are already inside a project-specific virtual environment,
+CI image, or other Python environment you intentionally manage. Avoid direct
+system-wide `pip install spec-kitty-cli` on distro-managed Python installs.
+
 #### From GitHub (Latest Development)
 
-**Using pip:**
+Use the GitHub install path when you need the latest unreleased code from
+`main`.
+
+**Using pipx (preferred):**
 ```bash
-pip install git+https://github.com/Priivacy-ai/spec-kitty.git
+pipx install git+https://github.com/Priivacy-ai/spec-kitty.git
 ```
 
 **Using uv:**
@@ -40,11 +72,16 @@ pip install git+https://github.com/Priivacy-ai/spec-kitty.git
 uv tool install spec-kitty-cli --from git+https://github.com/Priivacy-ai/spec-kitty.git
 ```
 
+**Using pip in an activated virtual environment or managed CI Python image:**
+```bash
+python -m pip install git+https://github.com/Priivacy-ai/spec-kitty.git
+```
+
 ### Initialize a New Project
 
 After installation, initialize a new project:
 
-**If installed globally:**
+**If installed with pipx, uv, or an active virtual environment:**
 ```bash
 spec-kitty init <PROJECT_NAME>
 ```
@@ -123,6 +160,25 @@ After initialization, you should see the following commands available in your AI
 Run `spec-kitty dashboard --open` if you want the live dashboard immediately after setup.
 
 ## Troubleshooting
+
+### `pip install` fails with `externally-managed-environment`
+
+On Ubuntu 24.04, Debian 12, Fedora, and other modern distributions, Python may
+refuse direct system-wide `pip install spec-kitty-cli` commands because the OS
+owns the system Python environment. Install the CLI with `pipx` instead:
+
+```bash
+pipx install spec-kitty-cli
+pipx ensurepath
+```
+
+If you must use `pip`, create and activate a virtual environment first:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install spec-kitty-cli
+```
 
 ### Git Credential Manager on Linux
 

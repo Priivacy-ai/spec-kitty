@@ -43,9 +43,19 @@ It is probably overkill for one-off edits, tiny scripts, or teams that do not us
 Install the CLI:
 
 ```bash
-pip install spec-kitty-cli
-# or
+pipx install spec-kitty-cli
+```
+
+`pipx` is the preferred installer for the CLI because it keeps Spec Kitty in its
+own virtual environment and avoids the `externally-managed-environment` errors
+common on modern Linux distributions.
+
+Other supported install methods:
+
+```bash
 uv tool install spec-kitty-cli
+# or, inside an activated virtual environment
+python -m pip install spec-kitty-cli
 ```
 
 Create or initialize a project:

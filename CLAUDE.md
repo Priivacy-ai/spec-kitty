@@ -308,7 +308,7 @@ gh run watch <run_id>
 
 # 5. Verify:
 gh release view vX.Y.Z
-pip install --upgrade spec-kitty-cli && spec-kitty --version
+pipx install --force spec-kitty-cli==X.Y.Z && spec-kitty --version
 ```
 
 Full docs: [CONTRIBUTING.md](CONTRIBUTING.md#release-process)

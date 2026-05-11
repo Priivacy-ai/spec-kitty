@@ -179,7 +179,8 @@ def check_compatibility(
             message=(
                 f"Project schema version {project_version} is newer than this CLI "
                 f"supports ({cli_version}). "
-                "Upgrade your CLI: `pip install --upgrade spec-kitty-cli`"
+                "Upgrade your CLI: `pipx upgrade spec-kitty-cli` or use the "
+                "upgrade command for your installer."
             ),
             exit_code=1,
         )

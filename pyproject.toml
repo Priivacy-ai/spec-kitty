@@ -70,8 +70,7 @@ dependencies = [
     # src/specify_cli/next/_internal_runtime/ (see WP01 of mission
     # shared-package-boundary-cutover-01KQ22DS), and absence is enforced by
     # tests/architectural/test_pyproject_shape.py.
-    # TeamSpace dry-run and historical mission-state import readiness require
-    # the canonical 5.x event contract.
+    # TeamSpace dry-run requires the canonical 5.0.0 event contract.
     "spec-kitty-events>=5.0.0,<6.0.0",
     "spec-kitty-tracker>=0.4,<0.5",
     "websockets>=12.0",  # WebSocket client for sync protocol

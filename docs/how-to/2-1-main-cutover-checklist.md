@@ -88,7 +88,8 @@ Do these steps in GitHub settings/UI during the freeze window.
 
 - [ ] Verify GitHub release `v2.1.0` exists.
 - [ ] Verify PyPI shows `2.1.0` as the latest version.
-- [ ] Verify `pip install spec-kitty-cli` installs `2.1.0`.
+- [ ] Verify `pipx install spec-kitty-cli` installs `2.1.0`; optionally verify
+      `python -m pip install spec-kitty-cli` inside a virtual environment.
 - [ ] Smoke-test `spec-kitty --version` and `spec-kitty init` from the PyPI install.
 - [ ] Verify upgrade behavior on a representative existing project.
 

@@ -13,20 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-### Fixed
-
-### Removed
-
-## [3.2.0rc4] - 2026-05-10
-
-3.2.0rc4 closes the remaining CLI-side migration readiness gaps found while
-rechecking the TeamSpace mission-state migration parent issue.
-
-### Changed
-
-- Require `spec-kitty-events>=5.0.0` now that the 5.0.0 contract package is
-  published, and lock the release candidate against the PyPI package.
-- Document the deterministic historical mission-state repair contract and the
+- Documented the deterministic historical mission-state repair contract and
   safe release sequencing used before any repository-wide repair is required.
 
 ### Fixed
@@ -36,6 +23,23 @@ rechecking the TeamSpace mission-state migration parent issue.
   readiness audit.
 - Reject historical mission-state sync batches with legacy status fields before
   network submission, preserving the local queue and returning remediation.
+
+### Removed
+
+## [3.2.0rc4] - 2026-05-11
+
+3.2.0rc4 tightens the TeamSpace release candidate against the published
+`spec-kitty-events` 5.0.0 contract and includes the latest migration rehearsal
+diagnostics.
+
+### Changed
+
+- Tightened the CLI `spec-kitty-events` dependency to `>=5.0.0,<6.0.0` now
+  that the 5.0.0 TeamSpace canonical event contract is published to PyPI
+  (#978).
+- Included the TeamSpace dry-run row mapping diagnostics merged after rc3 so
+  migration rehearsals can trace source rows to synthesized TeamSpace envelopes
+  (#1014).
 
 ## [3.2.0rc3] - 2026-05-06
 

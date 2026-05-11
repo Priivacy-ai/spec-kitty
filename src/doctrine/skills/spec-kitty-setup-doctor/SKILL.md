@@ -63,7 +63,8 @@ spec-kitty verify-setup
 If `spec-kitty` is not installed:
 
 ```bash
-pip install spec-kitty-cli
+pipx install spec-kitty-cli
+pipx ensurepath
 spec-kitty --version
 ```
 
