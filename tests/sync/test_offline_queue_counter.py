@@ -298,6 +298,96 @@ def persistent_db_path() -> Iterator[Path]:
         yield Path(tmpdir) / "counter_persistent.db"
 
 
+class TestMultiInstanceCapEnforcement:
+    """PR #1029 review fix: the cached row count is a per-instance value, but
+    two ``OfflineQueue`` instances can target the same SQLite file. When a
+    sibling instance inserts behind our back, the cache underestimates the
+    persisted depth — the cap-check on the hot path must reconcile against
+    disk before deciding to evict or refuse, otherwise the persisted queue
+    can grow past ``max_queue_size``.
+
+    Reviewer's repro: two instances, ``max_queue_size=2``, drove the queue
+    to a persisted depth of 3. After the fix the persisted depth stays
+    bounded by the cap.
+    """
+
+    def test_queue_event_cap_holds_across_two_instances(
+        self, persistent_db_path: Path
+    ) -> None:
+        cap = 2
+        q1 = OfflineQueue(persistent_db_path, max_queue_size=cap)
+        q2 = OfflineQueue(persistent_db_path, max_queue_size=cap)
+
+        # q1 fills to cap-1; q2's cache is still uninitialized.
+        assert q1.queue_event(_evt("a-1")) is True
+        assert q1._row_count == 1
+        assert q2._row_count is None
+
+        # q2 inserts one event. Its cache lazy-loads and sees 1, so the
+        # naive cached path would happily accept a second insert without
+        # reconciling — that is the bug.
+        assert q2.queue_event(_evt("b-1")) is True
+        # Persisted depth must equal the cap; the cache reconciles when
+        # ``current_size + 1 > cap``.
+        assert q1._size_from_disk() == cap
+
+        # Force one more insert through each instance; persisted depth
+        # must still be bounded by the cap (FIFO eviction kicks in).
+        assert q1.queue_event(_evt("a-2")) is True
+        assert q1._size_from_disk() == cap
+        assert q2.queue_event(_evt("b-2")) is True
+        assert q2._size_from_disk() == cap
+
+    def test_queue_event_cap_holds_when_sibling_fills_to_cap_minus_one(
+        self, persistent_db_path: Path
+    ) -> None:
+        # Exact scenario from the reviewer: persisted queue size grew to 3
+        # under ``max_queue_size=2`` because the cached counter on the
+        # second instance pointed at the same DB never reconciled.
+        cap = 2
+        q1 = OfflineQueue(persistent_db_path, max_queue_size=cap)
+        q2 = OfflineQueue(persistent_db_path, max_queue_size=cap)
+
+        # Fill to cap-1 via q1.
+        assert q1.queue_event(_evt("a-1")) is True
+
+        # q2 inserts one event. Without the fix, q2's lazy-load saw 0 and
+        # the cap check would have happily accepted three rows. With the
+        # fix, q2's cap check reconciles against disk when the projected
+        # post-insert depth would breach the cap.
+        assert q2.queue_event(_evt("b-1")) is True
+
+        # Another insert via q2 must trigger eviction, not unbounded growth.
+        assert q2.queue_event(_evt("b-2")) is True
+
+        # The reviewer's symptom: persisted depth > cap. The fix bounds it.
+        assert q1._size_from_disk() <= cap
+        assert q2._size_from_disk() <= cap
+
+    def test_strict_append_cap_holds_across_two_instances(
+        self, persistent_db_path: Path
+    ) -> None:
+        # Same multi-instance hazard for the strict-cap append surface:
+        # the second instance must reconcile when about to cross the cap,
+        # so it raises ``OfflineQueueFull`` instead of silently exceeding.
+        cap = 2
+        q1 = OfflineQueue(persistent_db_path, max_queue_size=10_000)
+        q2 = OfflineQueue(persistent_db_path, max_queue_size=10_000)
+
+        q1.append(_evt("a-1"), cap=cap)
+        q1.append(_evt("a-2"), cap=cap)
+        # q1's cache reports cap; q2's cache is uninitialized.
+        assert q1._row_count == cap
+        assert q2._row_count is None
+
+        # q2 must observe the persisted depth and raise.
+        with pytest.raises(OfflineQueueFull):
+            q2.append(_evt("b-1"), cap=cap)
+
+        # Persisted depth still at cap, not above.
+        assert q2._size_from_disk() == cap
+
+
 class TestNoCountScansOnHotPath:
     """White-box guarantee: ``queue_event`` and ``append`` never *execute*
     ``SELECT COUNT(*) FROM queue`` on the steady-state non-coalesced path.

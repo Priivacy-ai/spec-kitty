@@ -606,6 +606,16 @@ class OfflineQueue:
         # cap check.
         with self._row_count_lock:
             current_size = self._ensure_row_count()
+            # Mission 6 fix (PR #1029 review): the cache is a per-instance
+            # value, but two ``OfflineQueue`` instances can target the same
+            # SQLite file. A sibling instance's insert is invisible to this
+            # cache, so when the projected post-insert depth approaches or
+            # breaches the cap we MUST reconcile against disk before deciding
+            # whether to raise. The hot far-from-cap path
+            # (``cached + 1 < cap``) is unaffected; only callers near the cap
+            # pay the extra ``SELECT COUNT(*)``.
+            if current_size + 1 >= effective_cap:
+                current_size = self._load_row_count()
             if current_size >= effective_cap:
                 raise OfflineQueueFull(cap=effective_cap, current=current_size)
 
@@ -736,6 +746,16 @@ class OfflineQueue:
             evicted = 0
             inserted_new_row = False
             current_size = self._ensure_row_count()
+            # Mission 6 fix (PR #1029 review): a sibling ``OfflineQueue``
+            # instance pointed at the same SQLite file can insert behind our
+            # back, leaving the cached counter low. When the projected
+            # post-insert depth approaches or exceeds the cap, reconcile
+            # against disk so the FIFO eviction path correctly bounds the
+            # queue. The hot far-from-cap path (``cached + 1 < cap``) is
+            # unaffected; only callers near the cap pay the extra
+            # ``SELECT COUNT(*)``.
+            if current_size + 1 >= self._max_queue_size:
+                current_size = self._load_row_count()
             conn = sqlite3.connect(self.db_path)
             try:
                 if current_size >= self._max_queue_size:
