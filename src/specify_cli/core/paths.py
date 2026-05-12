@@ -240,6 +240,138 @@ def get_main_repo_root(current_path: Path) -> Path:
     return current_path.resolve()
 
 
+class StatusReadUnsupported(RuntimeError):
+    """Raised when a status command does not support detached-worktree invocation.
+
+    Commands that require comparison across worktrees (or that have an explicit
+    constraint against detached-worktree reads) should call
+    ``assert_worktree_supported()`` at their entry point.  The error message
+    names the command and describes the constraint so the operator can act.
+    """
+
+
+def _is_detached_worktree(start: Path | None = None) -> bool:
+    """Return True when the current working directory is inside a git worktree.
+
+    A git worktree has a ``.git`` *file* (not directory) whose content starts
+    with ``gitdir:`` and points to ``<main>/.git/worktrees/<name>`` — the
+    canonical .git/worktrees topology.  Submodules and separate-git-dir clones
+    also produce a ``.git`` file, but they do *not* use the worktrees topology,
+    so this function correctly excludes them.
+
+    Args:
+        start: Starting directory (defaults to ``Path.cwd()``).
+
+    Returns:
+        True when running inside a worktree, False otherwise.
+    """
+    cwd = (start or Path.cwd()).resolve()
+    for ancestor in [cwd, *cwd.parents]:
+        git_marker = ancestor / ".git"
+        if git_marker.is_file():
+            try:
+                content = git_marker.read_text(encoding="utf-8", errors="replace").strip()
+                if content.startswith("gitdir:"):
+                    gitdir = Path(content.split(":", 1)[1].strip())
+                    if _is_worktree_gitdir(gitdir):
+                        return True
+            except (OSError, ValueError):
+                pass
+            # Found a .git file but couldn't confirm worktree topology
+            return False
+        if git_marker.is_dir():
+            # Main repo .git directory — not a worktree
+            return False
+    return False
+
+
+def get_status_read_root(start: Path | None = None) -> Path:
+    """Resolve the root for read-only status commands.
+
+    Prefers the *current worktree root* over the primary checkout so that
+    ``spec-kitty agent tasks status`` invoked from a detached worktree reads
+    THAT worktree's ``status.events.jsonl``, not the primary checkout's
+    potentially-divergent state.  This is the fix for #984.
+
+    Algorithm:
+      1. Walk ancestors from ``start`` (or ``Path.cwd()``).
+      2. If a ``.git`` *file* with a worktrees-topology ``gitdir:`` pointer is
+         found, return that ancestor — it is the worktree root.
+      3. If a ``.git`` *directory* is found, return that ancestor — it is the
+         main repo root.
+      4. Fall back to ``get_main_repo_root(start or Path.cwd())`` for the rare
+         case where no ``.git`` marker is found in the tree.
+
+    Use this for READ paths only.  For write paths (commits, file mutations,
+    canonical serialization), continue to use ``get_main_repo_root()``.
+
+    Args:
+        start: Starting directory (defaults to ``Path.cwd()``).
+
+    Returns:
+        Current worktree root when called from a worktree; main repo root
+        otherwise.
+
+    Examples:
+        >>> # From main repo
+        >>> get_status_read_root(Path("/repo"))
+        PosixPath('/repo')
+
+        >>> # From worktree — returns the *worktree* root, not the main repo
+        >>> get_status_read_root(Path("/repo/.worktrees/feature-001"))
+        PosixPath('/repo/.worktrees/feature-001')
+    """
+    cwd = (start or Path.cwd()).resolve()
+    # Walk up until we find a .git file (worktree) OR a .git directory (main).
+    for ancestor in [cwd, *cwd.parents]:
+        git_marker = ancestor / ".git"
+        if git_marker.is_file():
+            # .git is a file: check if this is a true worktree (not a submodule
+            # or separate-git-dir clone).  Only return the worktree root for the
+            # canonical worktrees topology (.git/worktrees/<name>).
+            try:
+                content = git_marker.read_text(encoding="utf-8", errors="replace").strip()
+                if content.startswith("gitdir:"):
+                    gitdir = Path(content.split(":", 1)[1].strip())
+                    if _is_worktree_gitdir(gitdir):
+                        # This ancestor is the worktree root — read events from here.
+                        return ancestor
+            except (OSError, ValueError):
+                pass
+            # .git file present but not a recognised worktree pointer — break and
+            # fall through to the main-repo resolver.
+            break
+        if git_marker.is_dir():
+            # .git is a directory: this is the main repo root.
+            return ancestor
+    # Fallback: defer to existing main-repo resolver (very rare path).
+    return get_main_repo_root(cwd)
+
+
+def assert_worktree_supported(command_name: str, start: Path | None = None) -> None:
+    """Raise with a clear diagnostic when the current context is a detached
+    worktree and the command does not support that context.
+
+    As of WP05 this helper exists but is NOT called by any active command — all
+    read-only status commands work correctly from both worktrees and the main
+    checkout after the ``get_status_read_root()`` routing fix.  This function is
+    available for future commands that genuinely cannot serve from a detached
+    worktree (e.g., cross-worktree comparison commands).
+
+    Args:
+        command_name: Human-readable name of the subcommand (used in the error).
+        start: Starting directory override (defaults to ``Path.cwd()``).
+
+    Raises:
+        StatusReadUnsupported: When invoked from a detached worktree.
+    """
+    if _is_detached_worktree(start):
+        raise StatusReadUnsupported(
+            f"command '{command_name}' does not support detached-worktree invocation. "
+            f"Run from the primary checkout or document the constraint."
+        )
+
+
 def get_feature_target_branch(repo_root: Path, mission_slug: str) -> str:
     """Get target branch for a feature by reading meta.json directly.
 
@@ -348,6 +480,9 @@ __all__ = [
     "resolve_with_context",
     "check_broken_symlink",
     "get_main_repo_root",
+    "get_status_read_root",
+    "StatusReadUnsupported",
+    "assert_worktree_supported",
     "get_feature_target_branch",
     "require_explicit_feature",
 ]

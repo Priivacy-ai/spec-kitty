@@ -58,8 +58,8 @@ Commands run in the clean checkout:
 ```bash
 python scripts/release/validate_release.py --mode branch --tag-pattern 'v*.*.*'
 uv run ruff check architecture/2.x/adr/2026-05-10-1-deterministic-historical-mission-state-repair.md docs/migration/teamspace-mission-state-repair.md docs/migration/teamspace-mission-state-920-closeout.md src/specify_cli/migration/mission_state.py src/specify_cli/sync/batch.py tests/migration/test_mission_state_repair.py tests/migration/test_teamspace_migration_rehearsal.py tests/sync/test_batch_sync.py tests/release/test_dogfood_command_set.py tests/release/test_validate_metadata_yaml_sync.py
-SPEC_KITTY_ENABLE_SAAS_SYNC=1 uv run pytest tests/contract/test_events_envelope_matches_resolved_version.py tests/migration/test_mission_state_repair.py tests/migration/test_teamspace_migration_rehearsal.py tests/sync/test_batch_sync.py::TestHistoricalMissionStateGuard tests/release/test_check_shared_package_drift.py tests/architectural/test_pyproject_shape.py tests/release/test_dogfood_command_set.py tests/release/test_validate_metadata_yaml_sync.py -q
-uv run pytest tests/audit -q
+SPEC_KITTY_ENABLE_SAAS_SYNC=1 uv run python -m pytest tests/contract/test_events_envelope_matches_resolved_version.py tests/migration/test_mission_state_repair.py tests/migration/test_teamspace_migration_rehearsal.py tests/sync/test_batch_sync.py::TestHistoricalMissionStateGuard tests/release/test_check_shared_package_drift.py tests/architectural/test_pyproject_shape.py tests/release/test_dogfood_command_set.py tests/release/test_validate_metadata_yaml_sync.py -q
+uv run python -m pytest tests/audit -q
 uv lock --check
 ```
 

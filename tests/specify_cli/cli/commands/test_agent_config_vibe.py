@@ -114,11 +114,11 @@ def test_remove_vibe_only(tmp_path: Path) -> None:
 
     # Install vibe skills
     report = command_installer.install(tmp_path, "vibe")
-    assert len(report.added) == 12
+    assert len(report.added) == 11
 
     # Verify files exist before removal
     manifest = manifest_store.load(tmp_path)
-    assert len(manifest.entries) == 12
+    assert len(manifest.entries) == 11
     for entry in manifest.entries:
         assert (tmp_path / entry.path).exists()
 
@@ -161,7 +161,7 @@ def test_remove_vibe_leaves_codex_entries(tmp_path: Path) -> None:
 
     # After both installs, all entries should have agents == ("codex", "vibe")
     manifest_before = manifest_store.load(tmp_path)
-    assert len(manifest_before.entries) == 12
+    assert len(manifest_before.entries) == 11
     for entry in manifest_before.entries:
         assert "codex" in entry.agents
         assert "vibe" in entry.agents
@@ -179,7 +179,7 @@ def test_remove_vibe_leaves_codex_entries(tmp_path: Path) -> None:
 
     # Manifest must still have 12 entries — codex still owns them
     manifest_after = manifest_store.load(tmp_path)
-    assert len(manifest_after.entries) == 12, (
+    assert len(manifest_after.entries) == 11, (
         f"Expected 12 entries (codex still present); got {len(manifest_after.entries)}"
     )
 

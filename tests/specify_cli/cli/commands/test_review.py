@@ -291,6 +291,13 @@ def test_review_passes_with_notes_when_dead_code_scan_finds_symbol(
     from types import SimpleNamespace
 
     def _fake_run(cmd, cwd=None, capture_output=False, text=False):  # type: ignore[no-untyped-def]
+        # WP01 hermetic-gate preflight: pytest-availability probe. The
+        # production path is `assert_pytest_available()` in
+        # `specify_cli.cli.commands._test_env_check`, but the monkeypatch
+        # below targets `subprocess.run` globally, so this branch must
+        # accept the probe shape and report success.
+        if len(cmd) == 3 and cmd[1:] == ["-c", "import pytest"]:
+            return SimpleNamespace(stdout="", stderr="", returncode=0)
         if cmd[:2] == ["git", "diff"]:
             return SimpleNamespace(
                 stdout="+++ b/src/pkg/example.py\n+def PublicSymbol():\n",

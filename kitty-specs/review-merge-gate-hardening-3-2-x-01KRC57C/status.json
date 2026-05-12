@@ -1,0 +1,77 @@
+{
+  "event_count": 56,
+  "last_event_id": "01KRE7ST3644ZE3N4Y7EC9ASM5",
+  "materialized_at": "2026-05-12T14:00:08.550899+00:00",
+  "mission_number": "116",
+  "mission_slug": "review-merge-gate-hardening-3-2-x-01KRC57C",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 8,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KRE7ST17J1MTE33VBJTM6QEP",
+      "last_transition_at": "2026-05-12T14:00:08.487953+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KRE7SSZXHRBWXT113B2NH3ZR",
+      "last_transition_at": "2026-05-12T14:00:08.445806+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KRE7ST1P09NZ91WDGE89KD0Z",
+      "last_transition_at": "2026-05-12T14:00:08.502242+00:00"
+    },
+    "WP04": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KRE7ST22A1A420KR2HJWHVW5",
+      "last_transition_at": "2026-05-12T14:00:08.514317+00:00"
+    },
+    "WP05": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KRE7ST2EHT3S9KSY1G1D7K08",
+      "last_transition_at": "2026-05-12T14:00:08.526690+00:00"
+    },
+    "WP06": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KRE7ST2VAH6YQPMPPTZ6V8CY",
+      "last_transition_at": "2026-05-12T14:00:08.539111+00:00"
+    },
+    "WP07": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KRE7ST0W0P7D3P5YCP7B2CTD",
+      "last_transition_at": "2026-05-12T14:00:08.476472+00:00"
+    },
+    "WP08": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KRE7ST3644ZE3N4Y7EC9ASM5",
+      "last_transition_at": "2026-05-12T14:00:08.550899+00:00"
+    }
+  }
+}

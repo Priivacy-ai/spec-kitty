@@ -25,6 +25,7 @@ from specify_cli.cli.commands.agent.tasks import (
 )
 from specify_cli.status.store import append_event
 from specify_cli.status.models import StatusEvent, Lane
+from tests.mocked_env import setup_mocked_env
 
 pytestmark = pytest.mark.fast
 
@@ -568,18 +569,10 @@ class TestTasksStatusReviewWarnings:
     """`spec-kitty agent tasks status` surfaces review artifact problems."""
 
     def _invoke_status(self, tmp_path: Path, mission_slug: str):
-        with (
-            patch("specify_cli.cli.commands.agent.tasks.locate_project_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.agent.tasks._find_mission_slug", return_value=mission_slug),
-            patch(
-                "specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out",
-                return_value=(tmp_path, "main"),
-            ),
-            patch(
-                "specify_cli.cli.commands.agent.tasks.resolve_workspace_for_wp",
-                side_effect=FileNotFoundError,
-            ),
-            patch("specify_cli.cli.commands.agent.tasks.get_auto_commit_default", return_value=False),
+        with setup_mocked_env(
+            tmp_path,
+            mission_slug=mission_slug,
+            workspace_resolution=FileNotFoundError,
         ):
             return runner.invoke(app, ["status", "--mission", mission_slug])
 

@@ -320,79 +320,64 @@ def _assert_merged_wps_reached_done(
         raise typer.Exit(1)
 
 
-def _bake_mission_number_into_mission_branch(
+def _already_baked(merge_state: "MergeState | None") -> bool:
+    """Resume short-circuit predicate (T026 / FR-012).
+
+    Returns True when a prior merge run successfully baked the mission_number
+    and persisted the flag to state.json. Caller may skip the assignment
+    step entirely with no I/O.
+    """
+    return merge_state is not None and merge_state.mission_number_baked
+
+
+def _mark_mission_number_baked(
+    merge_state: "MergeState | None",
+    main_repo: Path,
+) -> None:
+    """Persist ``mission_number_baked = True`` so a subsequent resume short-
+    circuits via :func:`_already_baked` (T025 / FR-011)."""
+    if merge_state is None:
+        return
+    merge_state.mission_number_baked = True
+    from specify_cli.merge.state import save_state as _save_state
+    _save_state(merge_state, main_repo)
+
+
+def _is_git_repo(path: Path) -> bool:
+    """Return True when *path* is inside a git working tree."""
+    import subprocess as _subprocess
+    probe = _subprocess.run(
+        ["git", "rev-parse", "--is-inside-work-tree"],
+        cwd=str(path),
+        capture_output=True,
+        text=True,
+    )
+    return probe.returncode == 0 and probe.stdout.strip() == "true"
+
+
+def _is_assigned_mission_number(value: object) -> bool:
+    """Return True when *value* is a real integer mission_number (not bool/None)."""
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _compute_next_mission_number_or_none(
     main_repo: Path,
     mission_slug: str,
-    mission_branch: str,
     target_branch: str,
-    *,
-    dry_run: bool = False,
 ) -> int | None:
-    """Assign and persist a dense integer ``mission_number`` for a pre-merge mission.
-
-    Implements WP10 / FR-044 / T053:
-
-    1. Scan the target branch's ``kitty-specs/`` view for the next available
-       integer (``max + 1``, or ``1`` if empty).
-    2. Check the mission branch's ``meta.json`` — if it already has an integer
-       ``mission_number`` that matches the freshly-computed value or is already
-       present on the target branch, this is a no-op (idempotent on retry).
-    3. In dry-run mode, log the value but do not write or commit.
-    4. Otherwise, create a detached worktree at the mission branch tip, update
-       ``meta.json`` in place, commit the change, and fast-forward the mission
-       branch ref so the integer lands in the eventual mission→target merge.
-
-    The caller MUST hold the global merge lock
-    (``acquire_merge_lock("__global_merge__", ...)``) for the duration.
-
-    **Retry safety**: The assignment always re-derives from the target branch
-    tip.  If a prior run assigned a number from a stale target and the push
-    failed, re-running after ``git fetch`` will see the updated target and
-    compute the correct next value — the stale number in the mission branch's
-    ``meta.json`` is overwritten.
+    """Step 1: derive the next mission_number from the *target* branch.
 
     Returns:
-        The assigned integer if a new number was written; ``None`` if the
-        target branch's ``meta.json`` already has the number or in dry-run mode.
+        The next integer (``max + 1``, or ``1`` if empty), or ``None`` when
+        the target branch already carries an integer for this mission (the
+        no-op signal — the assignment already happened on a prior merge).
     """
     import json as _json
     import subprocess as _subprocess
     import tempfile as _tempfile
 
-    def _is_git_repo(path: Path) -> bool:
-        probe = _subprocess.run(
-            ["git", "rev-parse", "--is-inside-work-tree"],
-            cwd=str(path),
-            capture_output=True,
-            text=True,
-        )
-        return probe.returncode == 0 and probe.stdout.strip() == "true"
-
-    def _has_branch_ref(path: Path, ref_name: str) -> bool:
-        probe = _subprocess.run(
-            ["git", "rev-parse", "--verify", f"{ref_name}^{{commit}}"],
-            cwd=str(path),
-            capture_output=True,
-            text=True,
-        )
-        return probe.returncode == 0
-
-    if not _is_git_repo(main_repo):
-        logger.warning(
-            "Skipping mission_number bake for %s: %s is not a git repository",
-            mission_slug,
-            main_repo,
-        )
-        return None
-
-    # -- Step 1: Check the TARGET branch's meta.json for this mission.
-    # If the target already has an integer mission_number for this mission,
-    # it was assigned in a prior successful merge — true no-op.
-    # We do NOT check the mission branch's copy, because a stale assignment
-    # from a failed push must be re-derivable on retry.
     tmp_dir = _tempfile.mkdtemp(prefix="kitty-numassign-")
     tmp_path = Path(tmp_dir)
-    next_number: int
     try:
         result = _subprocess.run(
             ["git", "worktree", "add", "--detach", str(tmp_path), target_branch],
@@ -405,27 +390,27 @@ def _bake_mission_number_into_mission_branch(
                 "Could not create scan worktree for mission_number assignment: %s",
                 result.stderr.strip(),
             )
-            # Fall back to scanning main_repo's working tree.  Best effort.
+            # Fall back to scanning main_repo's working tree. Best effort.
             scan_root = main_repo
             scan_specs = main_repo / "kitty-specs"
         else:
             scan_root = tmp_path
             scan_specs = tmp_path / "kitty-specs"
 
-        # Check if the target branch already has this mission with a number
         target_meta_path = scan_specs / mission_slug / "meta.json"
         if target_meta_path.exists():
             target_meta = _json.loads(target_meta_path.read_text(encoding="utf-8"))
-            existing_on_target = target_meta.get("mission_number") if isinstance(target_meta, dict) else None
-            if isinstance(existing_on_target, int) and not isinstance(existing_on_target, bool):
+            existing_on_target = (
+                target_meta.get("mission_number") if isinstance(target_meta, dict) else None
+            )
+            if _is_assigned_mission_number(existing_on_target):
                 logger.debug(
                     "Mission %s already has mission_number=%d on target branch %s; no-op",
                     mission_slug, existing_on_target, target_branch,
                 )
                 return None
 
-        # Compute next number from the target branch's kitty-specs/ view
-        next_number = assign_next_mission_number(scan_root, scan_specs)
+        return assign_next_mission_number(scan_root, scan_specs)
     finally:
         _subprocess.run(
             ["git", "worktree", "remove", str(tmp_path), "--force"],
@@ -433,25 +418,38 @@ def _bake_mission_number_into_mission_branch(
             capture_output=True,
         )
 
-    if dry_run:
-        console.print(
-            f"[cyan]would assign[/cyan] mission_number={next_number} to mission {mission_slug}"
-        )
-        return None
 
-    # -- Step 2: Write the integer into meta.json on the mission branch.
-    # Always write (overwrite a stale value from a prior failed attempt).
+def _write_mission_number_to_branch(
+    main_repo: Path,
+    mission_branch: str,
+    mission_slug: str,
+    next_number: int,
+    merge_state: "MergeState | None",
+) -> bool:
+    """Step 2: write the integer into meta.json on the mission branch, commit,
+    and fast-forward the branch ref.
+
+    Returns:
+        True when a fresh write + commit was applied; False when nothing was
+        written because (a) the branch is missing, (b) the worktree could not
+        be created, (c) meta.json is missing or malformed, or (d) the value
+        was already equal (idempotency hit — still persists the baked flag).
+    """
+    import json as _json
+    import subprocess as _subprocess
+    import tempfile as _tempfile
+
+    if not _has_branch_ref(main_repo, mission_branch):
+        logger.warning(
+            "Skipping mission_number bake for %s: branch %s does not exist",
+            mission_slug,
+            mission_branch,
+        )
+        return False
+
     mission_tmp_dir = _tempfile.mkdtemp(prefix="kitty-numwrite-")
     mission_tmp_path = Path(mission_tmp_dir)
     try:
-        if not _has_branch_ref(main_repo, mission_branch):
-            logger.warning(
-                "Skipping mission_number bake for %s: branch %s does not exist",
-                mission_slug,
-                mission_branch,
-            )
-            return None
-
         result = _subprocess.run(
             ["git", "worktree", "add", "--detach", str(mission_tmp_path), mission_branch],
             cwd=str(main_repo),
@@ -465,7 +463,7 @@ def _bake_mission_number_into_mission_branch(
                 mission_branch,
                 result.stderr.strip(),
             )
-            return None
+            return False
 
         meta_path = mission_tmp_path / "kitty-specs" / mission_slug / "meta.json"
         if not meta_path.exists():
@@ -474,24 +472,37 @@ def _bake_mission_number_into_mission_branch(
                 mission_branch,
                 mission_slug,
             )
-            return None
+            return False
 
-        # Read, mutate, write preserving sort_keys + 2-space indent + trailing newline.
         meta_data = _json.loads(meta_path.read_text(encoding="utf-8"))
         if not isinstance(meta_data, dict):
             logger.warning(
                 "meta.json for %s is not a JSON object; cannot bake mission_number",
                 mission_slug,
             )
-            return None
+            return False
+
+        # T025 / FR-010 — idempotency check INSIDE the merge-state lock.
+        existing_on_mission = meta_data.get("mission_number")
+        if (
+            _is_assigned_mission_number(existing_on_mission)
+            and existing_on_mission == next_number
+        ):
+            logger.info(
+                "mission_number=%d already present on mission branch %s for %s; skipping write (idempotency check)",
+                next_number,
+                mission_branch,
+                mission_slug,
+            )
+            _mark_mission_number_baked(merge_state, main_repo)
+            return False
 
         meta_data["mission_number"] = next_number
         # Route all meta.json mutations through the canonical writer API.
-        # Use validate=False to preserve merge-time tolerance for legacy/partial
-        # mission metadata while still enforcing atomic writes + standard format.
+        # validate=False preserves merge-time tolerance for legacy/partial mission
+        # metadata while still enforcing atomic writes + standard format.
         write_meta(meta_path.parent, meta_data, validate=False)
 
-        # Stage and commit the change on the mission branch.
         rel_meta = meta_path.relative_to(mission_tmp_path)
         _subprocess.run(
             ["git", "add", str(rel_meta)],
@@ -501,20 +512,12 @@ def _bake_mission_number_into_mission_branch(
         )
         commit_msg = f"chore({mission_slug}): assign mission_number={next_number}"
         _subprocess.run(
-            [
-                "git",
-                "-c",
-                "commit.gpgsign=false",
-                "commit",
-                "-m",
-                commit_msg,
-            ],
+            ["git", "-c", "commit.gpgsign=false", "commit", "-m", commit_msg],
             cwd=str(mission_tmp_path),
             capture_output=True,
             check=True,
         )
 
-        # Get the new commit and fast-forward the mission branch ref.
         new_sha = _subprocess.run(
             ["git", "rev-parse", "HEAD"],
             cwd=str(mission_tmp_path),
@@ -528,6 +531,7 @@ def _bake_mission_number_into_mission_branch(
             capture_output=True,
             check=True,
         )
+        return True
     finally:
         _subprocess.run(
             ["git", "worktree", "remove", str(mission_tmp_path), "--force"],
@@ -535,10 +539,91 @@ def _bake_mission_number_into_mission_branch(
             capture_output=True,
         )
 
+
+def _bake_mission_number_into_mission_branch(
+    main_repo: Path,
+    mission_slug: str,
+    mission_branch: str,
+    target_branch: str,
+    *,
+    dry_run: bool = False,
+    merge_state: "MergeState | None" = None,
+) -> int | None:
+    """Assign and persist a dense integer ``mission_number`` for a pre-merge mission.
+
+    Implements WP10 / FR-044 / T053 plus WP04 (FR-010 / FR-011 / FR-012):
+
+    1. T026 / FR-012 — Resume short-circuit (:func:`_already_baked`): if a
+       prior run completed the assignment and persisted the flag, return
+       immediately with no I/O.
+    2. Step 1 (:func:`_compute_next_mission_number_or_none`): scan the
+       *target* branch for the next available integer (``max + 1``). If the
+       target already carries an integer for this mission, return ``None`` —
+       the assignment landed in a prior successful merge.
+    3. Dry-run short-circuit: log the value but do not write or commit.
+    4. Step 2 (:func:`_write_mission_number_to_branch`): create a detached
+       worktree at the mission-branch tip, update ``meta.json``, commit, and
+       fast-forward the mission branch ref. The idempotency check inside
+       Step 2 short-circuits with no write when the mission branch already
+       carries exactly the computed value (T025 / FR-010).
+    5. On a successful write, mark the baked flag for future resume calls.
+
+    The caller MUST hold the global merge lock
+    (``acquire_merge_lock("__global_merge__", ...)``) for the duration.
+
+    NOTE: ``mission_number_baked`` is set after a successful idempotency hit
+    OR a successful write. Operators who manually edit ``meta.json`` after a
+    partial merge are responsible for clearing the flag (or running
+    ``spec-kitty merge --abort``).
+
+    **Retry safety**: the assignment always re-derives from the target tip.
+    If a prior run assigned a number from a stale target and the push failed,
+    re-running after ``git fetch`` sees the updated target and computes the
+    correct next value — the stale number in the mission branch's
+    ``meta.json`` is overwritten.
+
+    Returns:
+        The assigned integer if a fresh number was written; ``None`` when
+        the target branch already had one, when dry-run is set, when the
+        idempotency check matched, or when any precondition (missing branch,
+        missing meta.json, malformed JSON, git failure) caused a skip.
+    """
+    if _already_baked(merge_state):
+        logger.debug(
+            "mission_number_baked=True for %s; skipping assignment step (resume short-circuit)",
+            mission_slug,
+        )
+        return None
+
+    if not _is_git_repo(main_repo):
+        logger.warning(
+            "Skipping mission_number bake for %s: %s is not a git repository",
+            mission_slug,
+            main_repo,
+        )
+        return None
+
+    next_number = _compute_next_mission_number_or_none(main_repo, mission_slug, target_branch)
+    if next_number is None:
+        return None
+
+    if dry_run:
+        console.print(
+            f"[cyan]would assign[/cyan] mission_number={next_number} to mission {mission_slug}"
+        )
+        return None
+
+    if not _write_mission_number_to_branch(
+        main_repo, mission_branch, mission_slug, next_number, merge_state
+    ):
+        return None
+
     console.print(
         f"[green]Assigned[/green] mission_number={next_number} to mission {mission_slug}"
     )
     logger.info("Assigned mission_number=%d to mission %s", next_number, mission_slug)
+    _mark_mission_number_baked(merge_state, main_repo)
+
     return next_number
 
 
@@ -1090,12 +1175,15 @@ def _run_lane_based_merge_locked(
     # Inside the global merge lock (acquire_merge_lock("__global_merge__"))
     # which serializes ALL merge operations — same-mission and cross-mission.
     # This guarantees the max+1 scan sees the most recent target state.
+    # WP04/FR-010/FR-011/FR-012: pass merge_state so the idempotency check
+    # (T025) and resume short-circuit (T026) can persist/read the baked flag.
     _bake_mission_number_into_mission_branch(
         main_repo=main_repo,
         mission_slug=mission_slug,
         mission_branch=lanes_manifest.mission_branch,
         target_branch=lanes_manifest.target_branch,
         dry_run=False,
+        merge_state=state,
     )
 
     # -- Mission-to-target merge (T010: honor strategy for this step only) --

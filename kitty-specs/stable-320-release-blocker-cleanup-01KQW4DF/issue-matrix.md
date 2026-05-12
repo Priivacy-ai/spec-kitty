@@ -1,6 +1,7 @@
 # Issue Matrix: stable-320-release-blocker-cleanup-01KQW4DF
 
-| Issue | Scope | Verdict | Evidence ref |
+<!-- normalized 2026-05-12: header case folded; aliases resolved by WP03 -->
+| issue | scope | verdict | evidence_ref |
 |-------|-------|----------|--------------|
 | #952 | Successful local lifecycle commands leaked non-fatal SaaS final-sync diagnostics into command output. | fixed | WP01; `src/specify_cli/sync/diagnostics.py`; `tests/sync/test_final_sync_diagnostics.py`; CI `fast-tests-sync` and `integration-tests-sync` passed on PR #981. |
 | #783 | `spec-kitty agent tasks mark-status` did not resolve task IDs outside checkbox rows. | fixed | WP02; `src/specify_cli/cli/commands/agent/tasks.py`; `tests/specify_cli/cli/commands/agent/test_tasks_mark_status.py`; CI `fast-tests-status` passed on PR #981. |

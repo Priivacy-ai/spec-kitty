@@ -20,6 +20,7 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.agent.tasks import app
 from specify_cli.status.store import append_event
 from specify_cli.status.models import StatusEvent, Lane
+from tests.mocked_env import setup_mocked_env
 
 pytestmark = pytest.mark.fast
 
@@ -752,22 +753,12 @@ class TestTypedFrontmatterMigration:
 class TestStatusCanonicalStaleFields:
     """status --json and human output use canonical nested stale state."""
 
-    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
-    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     def test_status_json_includes_nested_stale_and_legacy_fields_for_planning_artifact(
         self,
-        mock_slug: MagicMock,
-        mock_root: MagicMock,
-        mock_branch: MagicMock,
         tmp_path: Path,
     ):
         mission_slug = "077-status-json"
         feature_dir = _build_planning_artifact_wp(tmp_path, mission_slug, "WP03")
-
-        mock_root.return_value = tmp_path
-        mock_slug.return_value = mission_slug
-        mock_branch.return_value = (tmp_path, "main")
 
         append_event(
             feature_dir,
@@ -784,7 +775,8 @@ class TestStatusCanonicalStaleFields:
             ),
         )
 
-        result = runner.invoke(app, ["status", "--mission", mission_slug, "--json"])
+        with setup_mocked_env(tmp_path, mission_slug=mission_slug):
+            result = runner.invoke(app, ["status", "--mission", mission_slug, "--json"])
         assert result.exit_code == 0, f"CLI error: {result.output}"
 
         data = json.loads(result.output)
@@ -799,22 +791,12 @@ class TestStatusCanonicalStaleFields:
         assert wp["minutes_since_commit"] is None
         assert wp["worktree_exists"] is False
 
-    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
-    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     def test_status_human_output_shows_repo_root_planning_stale_label(
         self,
-        mock_slug: MagicMock,
-        mock_root: MagicMock,
-        mock_branch: MagicMock,
         tmp_path: Path,
     ):
         mission_slug = "077-status-human"
         feature_dir = _build_planning_artifact_wp(tmp_path, mission_slug, "WP03")
-
-        mock_root.return_value = tmp_path
-        mock_slug.return_value = mission_slug
-        mock_branch.return_value = (tmp_path, "main")
 
         append_event(
             feature_dir,
@@ -831,28 +813,20 @@ class TestStatusCanonicalStaleFields:
             ),
         )
 
-        result = runner.invoke(app, ["status", "--mission", mission_slug])
+        with setup_mocked_env(tmp_path, mission_slug=mission_slug):
+            result = runner.invoke(app, ["status", "--mission", mission_slug])
         assert result.exit_code == 0, f"CLI error: {result.output}"
         assert "stale: n/a (repo-root planning work)" in result.output
 
-    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
-    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     def test_status_json_falls_back_only_for_missing_lanes(
         self,
-        mock_slug: MagicMock,
-        mock_root: MagicMock,
-        mock_branch: MagicMock,
         tmp_path: Path,
     ):
         mission_slug = "077-status-missing-lanes"
-        feature_dir = _build_wp_file(tmp_path, mission_slug, "WP01")
+        _build_wp_file(tmp_path, mission_slug, "WP01")
 
-        mock_root.return_value = tmp_path
-        mock_slug.return_value = mission_slug
-        mock_branch.return_value = (tmp_path, "main")
-
-        result = runner.invoke(app, ["status", "--mission", mission_slug, "--json"])
+        with setup_mocked_env(tmp_path, mission_slug=mission_slug):
+            result = runner.invoke(app, ["status", "--mission", mission_slug, "--json"])
         assert result.exit_code == 0, f"CLI error: {result.output}"
 
         data = json.loads(result.output)
@@ -860,14 +834,8 @@ class TestStatusCanonicalStaleFields:
         assert wp["execution_mode"] == "code_change"
         assert wp["workspace_kind"] == "unknown"
 
-    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
-    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     def test_status_json_defaults_legacy_execution_mode_to_code_change(
         self,
-        mock_slug: MagicMock,
-        mock_root: MagicMock,
-        mock_branch: MagicMock,
         tmp_path: Path,
     ):
         """Per FR-019, legacy WPs without execution_mode and without strong body
@@ -884,11 +852,8 @@ class TestStatusCanonicalStaleFields:
             encoding="utf-8",
         )
 
-        mock_root.return_value = tmp_path
-        mock_slug.return_value = mission_slug
-        mock_branch.return_value = (tmp_path, "main")
-
-        result = runner.invoke(app, ["status", "--mission", mission_slug, "--json"])
+        with setup_mocked_env(tmp_path, mission_slug=mission_slug):
+            result = runner.invoke(app, ["status", "--mission", mission_slug, "--json"])
         assert result.exit_code == 0, result.output
         payload = json.loads(result.output)
         wp = payload["work_packages"][0]

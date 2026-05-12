@@ -12,6 +12,8 @@ from unittest.mock import patch
 
 import click
 import pytest
+
+from tests.mocked_env import setup_mocked_env
 import typer
 from rich.console import Console
 from typer.testing import CliRunner
@@ -569,11 +571,7 @@ def test_next_step_dual_flag_conflict_fails(
 def test_agent_tasks_status_canonical_selector_succeeds(tmp_path: Path) -> None:
     repo_root = _build_task_repo(tmp_path)
 
-    with (
-        patch("specify_cli.cli.commands.agent.tasks.locate_project_root", return_value=repo_root),
-        patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out", return_value=(repo_root, "main")),
-        patch("specify_cli.cli.commands.agent.tasks.get_auto_commit_default", return_value=True),
-    ):
+    with setup_mocked_env(repo_root, auto_commit_default=True):
         result = runner.invoke(tasks_app, ["status", "--mission", "077-demo-mission", "--json"])
 
     assert result.exit_code == 0, result.output
@@ -588,11 +586,7 @@ def test_agent_tasks_status_alias_selector_succeeds_with_warning(
 ) -> None:
     repo_root = _build_task_repo(tmp_path)
 
-    with (
-        patch("specify_cli.cli.commands.agent.tasks.locate_project_root", return_value=repo_root),
-        patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out", return_value=(repo_root, "main")),
-        patch("specify_cli.cli.commands.agent.tasks.get_auto_commit_default", return_value=True),
-    ):
+    with setup_mocked_env(repo_root, auto_commit_default=True):
         result = runner.invoke(tasks_app, ["status", "--feature", "077-demo-mission", "--json"])
 
     assert result.exit_code == 0, result.output
@@ -602,10 +596,7 @@ def test_agent_tasks_status_alias_selector_succeeds_with_warning(
 def test_agent_tasks_status_dual_flag_conflict_fails(tmp_path: Path) -> None:
     repo_root = _build_task_repo(tmp_path)
 
-    with (
-        patch("specify_cli.cli.commands.agent.tasks.locate_project_root", return_value=repo_root),
-        patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out", return_value=(repo_root, "main")),
-    ):
+    with setup_mocked_env(repo_root):
         result = runner.invoke(tasks_app, ["status", "--mission", "077-a", "--feature", "077-b", "--json"])
 
     assert result.exit_code != 0

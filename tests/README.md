@@ -291,3 +291,20 @@ There is no requirement to make legacy tests pass on 2.x. They encode the
 
 The structural design is recorded in:
 `architecture/2.x/adr/2026-03-15-1-vertical-slice-test-organisation.md`
+
+---
+
+## Pytest venv fixture
+
+The shared `.pytest_cache/spec-kitty-test-venv` is created once and reused
+across all pytest invocations. To prevent races between parallel test
+processes (e.g., the mission-review gates run contract + architectural
+suites concurrently), creation is wrapped in a file lock at
+`.pytest_cache/spec-kitty-test-venv.lock`.
+
+If you see a "Timed out acquiring lock" error and no test process is
+running, the lock file is stale (likely from a killed pytest process).
+Remove it: `rm .pytest_cache/spec-kitty-test-venv.lock`.
+
+See WP02 of the `review-merge-gate-hardening-3-2-x-01KRC57C` mission for
+the original fix.

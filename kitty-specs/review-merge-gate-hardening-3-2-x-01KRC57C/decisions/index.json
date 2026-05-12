@@ -1,0 +1,101 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-05-12T10:35:38.669470Z",
+      "decision_id": "01KRDW3BSDPKG1NF9Z2YGN5DP2",
+      "final_answer": "plan_all_with_markers \u2014 plan all 8 WPs now; [NEEDS CLARIFICATION] markers on the 2 contested areas (WP03 Q2 issue-matrix validator strictness, WP06 Q1 charset-normalizer direct-dep promotion); HiC will resolve these as part of the planning interview.",
+      "input_key": "blocked_wps_planning_strategy",
+      "mission_id": "01KRC57CNW5JCVBRV8RAQ2ARXZ",
+      "mission_slug": "review-merge-gate-hardening-3-2-x-01KRC57C",
+      "options": [
+        "plan_all_with_markers",
+        "plan_unblocked_only",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Plan all 8 WPs now with [NEEDS CLARIFICATION] markers on the 2 still-pending HiC sub-questions, or plan only the 5 fully-unblocked WPs (WP01/02/04/05/07) and re-run /spec-kitty.plan after HiC resolves the remaining items?",
+      "rationale": null,
+      "resolved_at": "2026-05-12T10:36:35.840701Z",
+      "resolved_by": null,
+      "slot_key": "plan.sequencing.blocked-wps",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-05-12T10:36:43.818918Z",
+      "decision_id": "01KRDW5BDACZD48BYMJTY7XB0X",
+      "final_answer": "strict_header_additive_tolerant_loose_body \u2014 Header must contain canonical 4 columns 'Issue | Scope | Verdict | Evidence ref' in that order; additional columns may be appended freely; renames/reorders/removals hard-fail with diagnostic MISSION_REVIEW_ISSUE_MATRIX_SCHEMA_DRIFT; body cells stay free-form Markdown.",
+      "input_key": "issue_matrix_validator_mode",
+      "mission_id": "01KRC57CNW5JCVBRV8RAQ2ARXZ",
+      "mission_slug": "review-merge-gate-hardening-3-2-x-01KRC57C",
+      "options": [
+        "strict_header_additive_tolerant_loose_body",
+        "strict_throughout",
+        "loose_warn_only",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "issue-matrix.md validator strictness: real-world drift exists today (4-col vs 5-col tables; 'Evidence ref' vs 'evidence_ref' capitalization; narrative-before-table vs table-first). What's the validator's contract?",
+      "rationale": null,
+      "resolved_at": "2026-05-12T10:40:18.840105Z",
+      "resolved_by": null,
+      "slot_key": "plan.wp03.issue-matrix-validator-strictness",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-05-12T10:40:30.044539Z",
+      "decision_id": "01KRDWC8AWKGD9TCW40BRYRXE1",
+      "final_answer": "promote_to_direct_dep \u2014 Add charset-normalizer to pyproject.toml [project.dependencies] with pin '>=3.4,<4'. Already a transitive dep at 3.4.7 via requests; zero net new install surface. Direct-dep declaration makes the version contract intentional and immune to upstream-requests detector drift.",
+      "input_key": "charset_normalizer_dep_promotion",
+      "mission_id": "01KRC57CNW5JCVBRV8RAQ2ARXZ",
+      "mission_slug": "review-merge-gate-hardening-3-2-x-01KRC57C",
+      "options": [
+        "promote_to_direct_dep",
+        "stick_with_transitive",
+        "hand_roll_detector",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "charset-normalizer is already a transitive dep via requests (locked at 3.4.7). MIT, no sub-deps, no known CVEs, pure-Python with optional mypyc fast-path. Approach for WP06?",
+      "rationale": null,
+      "resolved_at": "2026-05-12T10:41:10.304695Z",
+      "resolved_by": null,
+      "slot_key": "plan.wp06.charset-normalizer-dep",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-05-12T10:41:22.700842Z",
+      "decision_id": "01KRDWDVRCRYKHFXNKAKZRPAEK",
+      "final_answer": "python_enum_per_subsystem \u2014 Each subsystem defines its own StrEnum for diagnostic codes: src/specify_cli/cli/commands/review/_diagnostics.py for MissionReviewDiagnostic; src/charter/_diagnostics.py for CharterEncodingDiagnostic. Type-safe, mypy-checkable, no central registry needed.",
+      "input_key": "diagnostic_code_registry_form",
+      "mission_id": "01KRC57CNW5JCVBRV8RAQ2ARXZ",
+      "mission_slug": "review-merge-gate-hardening-3-2-x-01KRC57C",
+      "options": [
+        "python_enum_per_subsystem",
+        "central_yaml_registry",
+        "inline_string_constants",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "FR-009 + NFR-001 require JSON-stable diagnostic codes (MISSION_REVIEW_*, CHARTER_ENCODING_*) consumed by the #992 Phase 0 cross-surface harness. Where do these live as the single source of truth?",
+      "rationale": null,
+      "resolved_at": "2026-05-12T10:42:19.325627Z",
+      "resolved_by": null,
+      "slot_key": "plan.cross-cutting.diagnostic-code-registry",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KRC57CNW5JCVBRV8RAQ2ARXZ",
+  "version": 1
+}

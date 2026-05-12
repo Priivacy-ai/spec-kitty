@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -47,21 +48,31 @@ _N_QUESTIONS = len(PLAN_WIDEN_QUESTIONS)
 
 
 def _setup_repo(tmp_path: Path) -> Path:
-    """Create a minimal repo structure with .kittify/ and a mission meta.json."""
-    import subprocess
+    """Create a minimal initialized repo: .git, .kittify/config.yaml, kitty-specs/.
 
+    The `plan` command's `_enforce_initialized` chain calls
+    `assert_initialized(...)` which:
+      1. Resolves the canonical root by walking up looking for `.git`.
+      2. Requires `<root>/.kittify/config.yaml` to exist.
+      3. Requires `<root>/kitty-specs/` to exist.
+
+    Without these markers, the command fails with SPEC_KITTY_REPO_NOT_INITIALIZED
+    before reaching the patched `locate_project_root`.
+    """
+    # 1. Real git init so the canonical-root walker stops at tmp_path.
     subprocess.run(
-        ["git", "init"], cwd=tmp_path, check=True, capture_output=True
+        ["git", "init", "-q"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
     )
+
+    # 2. .kittify/config.yaml — minimal but present.
     kittify = tmp_path / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
-    (kittify / "config.yaml").write_text(
-        "version: 1\n"
-        "project:\n"
-        "  uuid: 00000000-0000-0000-0000-000000000001\n",
-        encoding="utf-8",
-    )
-    (tmp_path / "kitty-specs").mkdir(parents=True, exist_ok=True)
+    (kittify / "config.yaml").write_text("agents:\n  available: [claude]\n", encoding="utf-8")
+
+    # 3. kitty-specs/<mission>/meta.json — the mission this test operates on.
     mission_dir = tmp_path / "kitty-specs" / MISSION_SLUG
     mission_dir.mkdir(parents=True, exist_ok=True)
     (mission_dir / "meta.json").write_text(

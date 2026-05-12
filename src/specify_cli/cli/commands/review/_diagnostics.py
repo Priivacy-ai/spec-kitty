@@ -1,0 +1,33 @@
+"""Mission-review diagnostic codes (T017).
+
+JSON-stable StrEnum for all diagnostic codes emitted by ``spec-kitty review``.
+Per-code remediation guidance is documented in the sibling file:
+
+    See: src/specify_cli/cli/commands/review/ERROR_CODES.md
+"""
+
+from __future__ import annotations
+
+from enum import StrEnum
+
+
+class MissionReviewDiagnostic(StrEnum):
+    """JSON-stable diagnostic codes emitted by ``spec-kitty review``.
+
+    Per-code remediation guidance is documented in
+    src/specify_cli/cli/commands/review/ERROR_CODES.md
+    """
+
+    MODE_MISMATCH = "MISSION_REVIEW_MODE_MISMATCH"
+    ISSUE_MATRIX_MISSING = "MISSION_REVIEW_ISSUE_MATRIX_MISSING"
+    ISSUE_MATRIX_SCHEMA_DRIFT = "MISSION_REVIEW_ISSUE_MATRIX_SCHEMA_DRIFT"
+    ISSUE_MATRIX_VERDICT_UNKNOWN = "MISSION_REVIEW_ISSUE_MATRIX_VERDICT_UNKNOWN"
+    ISSUE_MATRIX_MULTI_TABLE = "MISSION_REVIEW_ISSUE_MATRIX_MULTI_TABLE"
+    ISSUE_MATRIX_EVIDENCE_REF_EMPTY = "MISSION_REVIEW_ISSUE_MATRIX_EVIDENCE_REF_EMPTY"
+    ISSUE_MATRIX_DEFERRED_WITHOUT_HANDLE = "MISSION_REVIEW_ISSUE_MATRIX_DEFERRED_WITHOUT_HANDLE"
+    GATE_RECORD_MISSING = "MISSION_REVIEW_GATE_RECORD_MISSING"
+    MISSION_EXCEPTION_INVALID = "MISSION_REVIEW_MISSION_EXCEPTION_INVALID"
+    TEST_EXTRA_MISSING = "MISSION_REVIEW_TEST_EXTRA_MISSING"
+
+
+__all__ = ["MissionReviewDiagnostic"]

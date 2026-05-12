@@ -28,7 +28,8 @@ Verdict semantics:
 
 ## Matrix
 
-| repo | issue | theme | verdict | wp_id | evidence_ref |
+<!-- normalized 2026-05-12: header case folded; aliases resolved by WP03 -->
+| repo | issue | scope | verdict | wp | evidence_ref |
 |------|-------|-------|---------|-------|--------------|
 | Priivacy-ai/spec-kitty | #785 | Merge / worktree / lane safety | verified-already-fixed | WP01 | commit `0465c04b`; tests/merge/test_lane_planning_artifacts_merge.py |
 | Priivacy-ai/spec-kitty | #416 | Merge / worktree / lane safety | verified-already-fixed | WP01 | commit `0465c04b`; tests/merge/test_resume_idempotent.py |

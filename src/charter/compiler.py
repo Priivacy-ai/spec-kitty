@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 from ruamel.yaml import YAML
 
 from charter._doctrine_paths import resolve_project_root
+from charter._io import load_charter_file
 from charter.catalog import DoctrineCatalog, load_doctrine_catalog, resolve_doctrine_root
 from charter.interview import (
     CharterInterview,
@@ -588,11 +589,31 @@ def _index_yaml_assets(directory: Path, pattern: str) -> dict[str, dict[str, obj
     return index
 
 
-def _load_yaml_asset(path: Path) -> dict[str, object]:
+def _load_yaml_asset(path: Path, *, unsafe: bool = False) -> dict[str, object]:
+    """Load a YAML asset through the charter encoding chokepoint.
+
+    Propagates :class:`CharterEncodingError` (a
+    :class:`kernel.errors.KittyInternalConsistencyError`) to callers so the
+    operator sees the actual failure mode rather than a silent empty parse.
+    Truly-unrelated YAML errors (malformed structure on a successfully-decoded
+    file) still degrade to an empty dict — that is the pre-existing resilience
+    contract and is exercised by the regression test.
+
+    Args:
+        path: filesystem path of the YAML asset.
+        unsafe: forwarded to :func:`load_charter_file`; when True an ambiguous
+            encoding is bypassed using the highest-confidence decode candidate
+            and ``bypass_used=True`` is recorded in provenance.
+    """
     yaml = YAML(typ="safe")
+    text = load_charter_file(path, unsafe=unsafe).text
     try:
-        data = yaml.load(path.read_text(encoding="utf-8")) or {}
-    except Exception:
+        data = yaml.load(text) or {}
+    except Exception:  # noqa: BLE001 — YAML parse failures degrade to empty
+        # Pre-existing resilience contract: a syntactically-broken YAML file
+        # whose encoding decoded cleanly produces an empty asset rather than
+        # halting the whole compile. Encoding errors are NOT caught here —
+        # they raise above in load_charter_file().
         data = {}
 
     if not isinstance(data, dict):

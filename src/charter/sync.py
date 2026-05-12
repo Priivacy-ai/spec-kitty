@@ -14,6 +14,7 @@ from pathlib import Path
 
 from ruamel.yaml import YAML
 
+from charter._io import load_charter_file
 from charter.bundle import CANONICAL_MANIFEST
 from charter.extractor import Extractor, write_extraction_result
 from charter.hasher import is_stale
@@ -128,6 +129,7 @@ def sync(
     charter_path: Path,
     output_dir: Path | None = None,
     force: bool = False,
+    unsafe: bool = False,
 ) -> SyncResult:
     """Sync charter.md to structured YAML config files.
 
@@ -135,6 +137,11 @@ def sync(
         charter_path: Path to charter.md
         output_dir: Directory for YAML output (default: same as charter_path.parent)
         force: If True, extract even if not stale
+        unsafe: when True, bypass CHARTER_ENCODING_AMBIGUOUS by accepting the
+            highest-confidence decode candidate and logging bypass_used=True in
+            provenance.  Use only when you have inspected the file and accept
+            the operational risk; the bypass is recorded in
+            ``.encoding-provenance.jsonl``.
 
     Returns:
         SyncResult with status and file paths
@@ -147,8 +154,8 @@ def sync(
     metadata_path = output_dir / _METADATA_FILENAME
 
     try:
-        # Read charter content once
-        content = charter_path.read_text("utf-8")
+        # Read charter content once — route through encoding chokepoint (FR-016)
+        content = load_charter_file(charter_path, unsafe=unsafe).text
 
         # Check staleness using the content (eliminates TOCTOU race)
         stale, _, _ = is_stale(None, metadata_path, content=content)

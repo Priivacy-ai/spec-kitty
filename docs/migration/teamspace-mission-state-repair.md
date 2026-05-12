@@ -86,7 +86,7 @@ clones. It also proves raw historical status rows are rejected by the
 Run the CLI-side rehearsal with:
 
 ```bash
-uv run pytest tests/migration/test_teamspace_migration_rehearsal.py -q
+uv run python -m pytest tests/migration/test_teamspace_migration_rehearsal.py -q
 ```
 
 Then run the SaaS import/idempotency side from `spec-kitty-saas`:

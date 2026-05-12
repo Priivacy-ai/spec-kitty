@@ -18,7 +18,8 @@ Verdict legend (per `spec-kitty-mission-review` Gate 4 schema):
 
 ## Matrix
 
-| Issue | Title | WP | FR(s) | NFR(s) | SC | Verdict | Verifying tests |
+<!-- normalized 2026-05-12: header case folded; aliases resolved by WP03 -->
+| issue | title | wp | fr | nfr | sc | verdict | Verifying tests |
 |-------|-------|----|-------|--------|----|---------|-----------------|
 | #840 | `spec-kitty init` must stamp `schema_version` and `schema_capabilities` | WP01 | FR-001, FR-002 | NFR-008 | SC-001 | `fixed` | `tests/integration/test_init_schema_stamp.py`; `tests/e2e/test_charter_epic_golden_path.py` |
 | #842 | `--json` commands must emit strict JSON regardless of SaaS state | WP02 | FR-003, FR-004 | NFR-001 | SC-002 | `fixed` | `tests/integration/test_json_envelope_strict.py` (4 SaaS states × covered commands) |

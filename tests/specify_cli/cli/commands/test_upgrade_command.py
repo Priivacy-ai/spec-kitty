@@ -456,7 +456,13 @@ def test_project_not_initialized_project_flag_errors(tmp_path: Path) -> None:
 
 
 def test_project_not_initialized_planner_state(tmp_path: Path) -> None:
-    """No project: planner reports NO_PROJECT state."""
+    """No project: planner reports NO_PROJECT state.
+
+    Patches ``locate_project_root`` to return ``None`` so the test is
+    independent of the developer's ``~/.kittify`` directory (which would
+    otherwise cause the resolver's upward walk to find an unrelated
+    ``.kittify`` and return UNINITIALIZED instead of NO_PROJECT).
+    """
     from specify_cli.compat.planner import plan as compat_plan
 
     old_cwd = os.getcwd()
@@ -471,7 +477,11 @@ def test_project_not_initialized_planner_state(tmp_path: Path) -> None:
             env_ci=False,
             stdout_is_tty=True,
         )
-        result_plan = compat_plan(inv)
+        with patch(
+            "specify_cli.core.project_resolver.locate_project_root",
+            return_value=None,
+        ):
+            result_plan = compat_plan(inv)
         assert result_plan.project_status.state == ProjectState.NO_PROJECT
         # --cli is always exit 0 regardless of project state
         # (planner exit_code is 0 for ALLOW/ALLOW_WITH_NAG)
@@ -716,8 +726,17 @@ def test_cli_outside_project_no_error_message(tmp_path: Path) -> None:
 
 
 def test_cli_no_project_json_valid(tmp_path: Path) -> None:
-    """--cli --json outside a project: valid JSON contract, exit 0."""
-    result = _invoke_upgrade(["--cli", "--json"], cwd=tmp_path)
+    """--cli --json outside a project: valid JSON contract, exit 0.
+
+    Patches ``locate_project_root`` to return ``None`` so the test is
+    independent of the developer's ``~/.kittify`` directory (see
+    ``test_project_not_initialized_planner_state`` for the same workaround).
+    """
+    with patch(
+        "specify_cli.core.project_resolver.locate_project_root",
+        return_value=None,
+    ):
+        result = _invoke_upgrade(["--cli", "--json"], cwd=tmp_path)
     assert result.exit_code == 0, f"Exit {result.exit_code}; output: {result.output}"
     payload = json.loads(result.output)
     _validate_json_contract(payload)

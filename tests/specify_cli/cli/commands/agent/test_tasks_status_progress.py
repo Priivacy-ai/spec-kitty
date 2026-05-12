@@ -6,7 +6,6 @@ import json
 import textwrap
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
@@ -14,6 +13,7 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.agent.tasks import app
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
+from tests.mocked_env import setup_mocked_env
 
 pytestmark = pytest.mark.fast
 
@@ -71,12 +71,7 @@ def _create_project(tmp_path: Path, mission_slug: str, lanes: dict[str, str]) ->
 
 def _invoke_status(tmp_path: Path, mission_slug: str, *args: str) -> object:
     workspace = SimpleNamespace(execution_mode="code_change", resolution_kind="lane_workspace")
-    with (
-        patch("specify_cli.cli.commands.agent.tasks.locate_project_root", return_value=tmp_path),
-        patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out", return_value=(tmp_path, "main")),
-        patch("specify_cli.cli.commands.agent.tasks.resolve_workspace_for_wp", return_value=workspace),
-        patch("specify_cli.cli.commands.agent.tasks.get_auto_commit_default", return_value=False),
-    ):
+    with setup_mocked_env(tmp_path, workspace_resolution=workspace):
         return runner.invoke(app, ["status", "--mission", mission_slug, *args])
 
 

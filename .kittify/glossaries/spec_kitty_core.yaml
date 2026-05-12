@@ -347,3 +347,56 @@ terms:
     definition: Abbreviation for work package
     confidence: 1.0
     status: active
+
+  # --- WP03: mission-review mode contract entries ---
+
+  - surface: lightweight mode
+    definition: "`spec-kitty review` invocation that performs consistency checks but is explicitly NOT a release gate. Skips dead-code and BLE001 audits; reports state with that limitation."
+    confidence: 0.95
+    status: active
+
+  - surface: post-merge mode
+    definition: "`spec-kitty review` invocation that enforces the full mission-review release-gate contract; requires `issue-matrix.md`, Gate 1-4 records, and `mission-exception.md` when applicable."
+    confidence: 0.95
+    status: active
+
+  - surface: mode mismatch
+    definition: Diagnostic class fired when an operator explicitly requests `--mode post-merge` against a mission whose `baseline_merge_commit` is absent.
+    confidence: 0.95
+    status: active
+
+  - surface: issue-matrix schema drift
+    definition: Diagnostic class fired when an `issue-matrix.md` file uses columns outside the canonical mandatory + named-optional vocabulary.
+    confidence: 0.95
+    status: active
+
+  # --- WP06 delegated entries (authored by WP03) ---
+
+  - surface: encoding chokepoint
+    definition: The single ingestion boundary at which charter content's source encoding is detected and recorded as provenance before downstream consumers see it.
+    confidence: 0.95
+    status: active
+
+  - surface: encoding provenance
+    definition: The persisted audit trail (JSONL) of every encoding decision the chokepoint made, including detected encoding, confidence, normalization action, and bypass usage.
+    confidence: 0.95
+    status: active
+
+  - surface: unsafe bypass
+    definition: An operator-chosen override of the encoding chokepoint's hard-fail behavior; uses the highest-confidence decode candidate and records `bypass_used: true` in provenance.
+    confidence: 0.95
+    status: active
+
+  # --- WP07 delegated entry (authored by WP03) ---
+
+  - surface: review.py package
+    definition: The post-WP07 layout of `src/specify_cli/cli/commands/review/` as a package of sibling files; was a single file pre-WP07.
+    confidence: 0.9
+    status: active
+
+  # --- WP08 delegated entry (authored by WP03) ---
+
+  - surface: charter-content migration
+    definition: The WP08 scan + normalize-or-fail-loud flow that brings existing missions' charter content into compliance with the WP06 chokepoint contract.
+    confidence: 0.95
+    status: active

@@ -5,12 +5,16 @@ Subcommands:
 - ``spec-kitty migrate`` — Migrate project .kittify/ to centralized model.
 - ``spec-kitty migrate backfill-identity`` — Write ULID ``mission_id`` into
   any ``meta.json`` that lacks one.  Idempotent and non-destructive.
+- ``spec-kitty migrate charter-encoding`` — Scan charter content for non-UTF-8
+  encodings; normalize-or-fail-loud. Implements FR-026, FR-027, NFR-006.
 
 Usage examples::
 
     spec-kitty migrate --dry-run
     spec-kitty migrate backfill-identity --dry-run --json
     spec-kitty migrate backfill-identity --mission 083-foo-bar
+    spec-kitty migrate charter-encoding --dry-run
+    spec-kitty migrate charter-encoding --yes --json
 """
 
 from __future__ import annotations
@@ -290,6 +294,90 @@ def backfill_identity(
 
     if errored:
         raise typer.Exit(1)
+
+
+@app.command(name="charter-encoding")
+def charter_encoding(
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            help=(
+                "Show what would change without writing any files.  "
+                "Returns exit 0 unless ambiguous files are found."
+            ),
+        ),
+    ] = False,
+    yes: Annotated[
+        bool,
+        typer.Option(
+            "--yes",
+            "-y",
+            help=(
+                "Apply normalizations without prompting.  "
+                "Exits non-zero if any file is ambiguous (CI-safe).  "
+                "Do NOT pass --yes to silently bypass ambiguous files — "
+                "manual repair is required for those."
+            ),
+        ),
+    ] = False,
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Emit a JSON-stable summary report on stdout."),
+    ] = False,
+    project_root: Annotated[
+        Path,
+        typer.Option(
+            "--project-root",
+            help="Root of the Spec Kitty project (default: current working directory).",
+            metavar="DIR",
+        ),
+    ] = Path("."),
+) -> None:
+    """Scan charter content for non-UTF-8 encodings; normalize-or-fail-loud.
+
+    Walks every existing mission's charter content
+    (``kitty-specs/*/charter/*.{yaml,md,txt}``) and the global charter store
+    (``.kittify/charter/*.{yaml,md,txt}``), detects the encoding of each file
+    via the WP06 chokepoint, and either:
+
+    \\b
+    * **skips** the file (already pure UTF-8; idempotency pre-check passes)
+    * **normalizes** the file to UTF-8 in-place with a provenance record
+    * **surfaces** the file as ambiguous (exits non-zero; manual repair required)
+
+    This migration is **idempotent** (NFR-006): running it twice on an
+    already-normalized corpus is a near-instant no-op — no new provenance
+    records are written for already-UTF-8 files.
+
+    Implements FR-026, FR-027, NFR-006.
+
+    Exit codes:
+
+    - ``0`` — corpus is fully UTF-8 compliant (all files already-UTF-8 or
+      successfully normalized)
+    - ``1`` — one or more files are ambiguous (manual repair required)
+
+    Examples:
+
+        spec-kitty migrate charter-encoding --dry-run
+
+        spec-kitty migrate charter-encoding --yes --json
+
+        spec-kitty migrate charter-encoding
+    """
+    from specify_cli.cli.commands.migrate.charter_encoding import (  # noqa: PLC0415
+        run_charter_encoding_migration,
+    )
+
+    exit_code = run_charter_encoding_migration(
+        project_root=project_root.resolve(),
+        dry_run=dry_run,
+        yes=yes,
+        json_output=json_output,
+    )
+    if exit_code != 0:
+        raise typer.Exit(exit_code)
 
 
 @app.command(name="normalize-lifecycle")

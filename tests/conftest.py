@@ -10,11 +10,26 @@ from collections.abc import Callable, Iterator
 
 import pytest
 import yaml
+from filelock import FileLock, Timeout
 
 from tests.branch_contract import IS_2X_BRANCH
 from tests.mutmut_env import prepare_mutants_environment_from_cwd
 from tests.test_isolation_helpers import get_installed_version
 from tests.utils import REPO_ROOT, run, write_wp
+
+# ---------------------------------------------------------------------------
+# Concurrency-safe test-venv creation (FR-003, FR-004)
+# A shared venv at .pytest_cache/spec-kitty-test-venv is created once and
+# reused across all pytest invocations.  When contract + architectural gates
+# run in parallel both processes may observe the venv as missing at the same
+# instant and race to create it.  A file lock serializes the create-or-validate
+# phase so only one process builds the venv; the second acquires the lock,
+# finds a valid venv, and skips creation entirely.
+# ---------------------------------------------------------------------------
+
+_VENV_CACHE_PATH = Path(".pytest_cache/spec-kitty-test-venv")
+_VENV_LOCK_PATH = Path(".pytest_cache/spec-kitty-test-venv.lock")
+_LOCK_TIMEOUT_S = 60.0
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -146,6 +161,52 @@ def _venv_has_required_runtime(venv_dir: Path) -> bool:
     return result.returncode == 0
 
 
+def _venv_is_valid(venv_dir: Path, source_version: str) -> bool:
+    """Return True when the venv exists, has a working Python, and matches source_version.
+
+    This idempotency check is evaluated *inside* the file-lock zone so that the
+    second concurrent process to acquire the lock skips re-creation when the first
+    already produced a valid venv.
+    """
+    marker = venv_dir / "VERSION"
+    if not venv_dir.exists():
+        return False
+    if not marker.exists():
+        return False
+    if marker.read_text(encoding="utf-8").strip() != source_version:
+        return False
+    return _venv_has_required_runtime(venv_dir)
+
+
+def _ensure_test_venv(project_root: Path, source_version: str) -> Path:
+    """Create or reuse the shared test venv, serialised across concurrent pytest processes.
+
+    Uses a file lock at ``_VENV_LOCK_PATH`` (relative to *project_root*) so that
+    parallel pytest invocations (e.g., contract + architectural gates) cannot race
+    and observe a half-created venv.  The lock timeout is ``_LOCK_TIMEOUT_S``
+    seconds; if the lock cannot be acquired, an operator-actionable RuntimeError is
+    raised that names the lock file and explains how to remove it.
+
+    Implements FR-003 and FR-004.
+    """
+    venv_path = project_root / _VENV_CACHE_PATH
+    lock_path = project_root / _VENV_LOCK_PATH
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with FileLock(str(lock_path), timeout=_LOCK_TIMEOUT_S):
+            if not _venv_is_valid(venv_path, source_version):
+                shutil.rmtree(venv_path, ignore_errors=True)
+                _create_test_venv(venv_path, source_version)
+                (venv_path / "VERSION").write_text(source_version, encoding="utf-8")
+    except Timeout:
+        raise RuntimeError(
+            f"Timed out acquiring {lock_path} after {_LOCK_TIMEOUT_S}s. "
+            f"If no test process is currently running, remove the lock file: "
+            f"rm {lock_path}"
+        ) from None
+    return venv_path
+
+
 def _venv_site_packages(venv_dir: Path) -> Path:
     python = _venv_python(venv_dir)
     result = subprocess.run(
@@ -217,27 +278,16 @@ def _create_test_venv(venv_dir: Path, source_version: str) -> None:
 
 @pytest.fixture(scope="session", autouse=True)
 def test_venv() -> Path:
-    """Create and cache a test venv for isolated CLI execution."""
-    venv_dir = REPO_ROOT / ".pytest_cache" / "spec-kitty-test-venv"
-    venv_marker = venv_dir / "VERSION"
+    """Create and cache a test venv for isolated CLI execution.
 
+    Delegates to ``_ensure_test_venv`` which serialises venv creation across
+    concurrent pytest processes using a file lock (FR-003, FR-004).
+    Single-process runs behave identically to pre-WP02.
+    """
     with open(REPO_ROOT / "pyproject.toml", "rb") as f:
         source_version = tomllib.load(f)["project"]["version"]
 
-    rebuild = False
-    if (
-        not venv_dir.exists()
-        or not venv_marker.exists()
-        or venv_marker.read_text(encoding="utf-8").strip() != source_version
-        or not _venv_has_required_runtime(venv_dir)
-    ):
-        rebuild = True
-
-    if rebuild:
-        shutil.rmtree(venv_dir, ignore_errors=True)
-        _create_test_venv(venv_dir, source_version)
-        venv_marker.write_text(source_version, encoding="utf-8")
-
+    venv_dir = _ensure_test_venv(REPO_ROOT, source_version)
     os.environ["SPEC_KITTY_TEST_VENV"] = str(venv_dir)
     return venv_dir
 

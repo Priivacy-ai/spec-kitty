@@ -34,6 +34,7 @@ from specify_cli.core.dependency_graph import build_dependency_graph, get_depend
 from specify_cli.lanes.persistence import MissingLanesError
 from specify_cli.core.paths import locate_project_root, get_main_repo_root, is_worktree_context
 from specify_cli.core.paths import get_feature_target_branch
+from specify_cli.core.paths import get_status_read_root
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.mission import get_mission_type
 from specify_cli.git import safe_commit
@@ -445,6 +446,8 @@ def _ensure_target_branch_checked_out(
     """
     from specify_cli.core.git_ops import get_current_branch, resolve_target_branch
 
+    # Write path: keep main-repo-root resolution so canonical serialization
+    # pins to the primary checkout regardless of where the operator stands.
     main_repo_root = get_main_repo_root(repo_root)
 
     # Check for detached HEAD using robust branch detection
@@ -513,6 +516,11 @@ def _find_mission_slug(
 
     raw_handle = selector.canonical_value
     if repo_root is not None:
+        # Write path: keep main-repo-root resolution so canonical serialization
+        # pins to the primary checkout regardless of where the operator stands.
+        # Note: repo_root from locate_project_root() already resolves to the main
+        # checkout; get_main_repo_root() here guards against caller passing a
+        # worktree path directly.
         legacy_dir = get_main_repo_root(repo_root) / "kitty-specs" / raw_handle
         if legacy_dir.exists():
             return raw_handle
@@ -671,7 +679,8 @@ def _check_unchecked_subtasks(repo_root: Path, mission_slug: str, wp_id: str, _f
     Raises:
         typer.Exit: If unchecked tasks found and force=False
     """
-    # Use planning repo root to resolve kitty-specs/ (main branch is authoritative)
+    # Write path: keep main-repo-root resolution so canonical serialization
+    # pins to the primary checkout regardless of where the operator stands.
     main_repo_root = get_main_repo_root(repo_root)
     feature_dir = main_repo_root / "kitty-specs" / mission_slug
     tasks_md = feature_dir / TASKS_MD_FILENAME
@@ -725,7 +734,8 @@ def _check_dependent_warnings(repo_root: Path, mission_slug: str, wp_id: str, ta
     if json_mode:
         return
 
-    # Use planning repo root to resolve kitty-specs/ (main branch is authoritative)
+    # Write path: keep main-repo-root resolution so canonical serialization
+    # pins to the primary checkout regardless of where the operator stands.
     main_repo_root = get_main_repo_root(repo_root)
     feature_dir = main_repo_root / "kitty-specs" / mission_slug
 
@@ -925,6 +935,8 @@ def _validate_ready_for_review(
         return True, []
 
     guidance: list[str] = []
+    # Write path: keep main-repo-root resolution so canonical serialization
+    # pins to the primary checkout regardless of where the operator stands.
     main_repo_root = get_main_repo_root(repo_root)
     feature_dir = main_repo_root / "kitty-specs" / mission_slug
 
@@ -3266,10 +3278,19 @@ def status(
         mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
 
         # Ensure we operate on the target branch for this feature
+        # Write path: keep main-repo-root resolution so canonical serialization
+        # pins to the primary checkout regardless of where the operator stands.
         main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
 
-        # Locate mission directory
-        feature_dir = main_repo_root / "kitty-specs" / mission_slug
+        # Read-only path: use worktree-aware resolution so detached-worktree
+        # verification (#984) reads the current worktree's events, not the
+        # primary checkout's potentially-divergent state.
+        status_read_root = get_status_read_root(cwd)
+
+        # Locate mission directory from the worktree-aware root for event reading.
+        # workspace resolution (resolve_workspace_for_wp) still uses main_repo_root
+        # so it always resolves against the canonical planning data.
+        feature_dir = status_read_root / "kitty-specs" / mission_slug
 
         if not feature_dir.exists():
             console.print(f"[red]Error:[/red] Mission directory not found: {feature_dir}")

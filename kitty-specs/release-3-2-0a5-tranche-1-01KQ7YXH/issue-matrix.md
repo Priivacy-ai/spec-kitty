@@ -7,7 +7,8 @@
 
 This file is the FR-037 closing-evidence matrix for the 10 GitHub issues in scope. Each row documents the verdict and the evidence that closes it. Allowed verdicts: `fixed` · `verified-already-fixed` · `deferred-with-followup`.
 
-| Issue | FR | WP | Verdict | evidence_ref |
+<!-- normalized 2026-05-12: header case folded; aliases resolved by WP03 -->
+| issue | fr | wp | verdict | evidence_ref |
 |-------|----|----|---------|--------------|
 | [#705](https://github.com/Priivacy-ai/spec-kitty/issues/705) | FR-002 | WP01 | `fixed` | `src/specify_cli/upgrade/runner.py:125-126` and `:173-174` (call-order swap + `# Why:` comments at `:119-124` and `:169-172`); regression: `tests/cross_cutting/versioning/test_upgrade_version_update.py::test_upgrade_persists_schema_version`; e2e: `tests/e2e/test_upgrade_post_state.py::test_upgrade_then_branch_context_does_not_gate` |
 | [#735](https://github.com/Priivacy-ai/spec-kitty/issues/735) | FR-008 | WP06 | `fixed` | `src/specify_cli/cli/commands/agent/mission.py:727` (`mark_invocation_succeeded()` after final JSON write); atexit consumers: `src/specify_cli/sync/background.py:172`, `src/specify_cli/sync/runtime.py:322-336`; e2e: `tests/e2e/test_mission_create_clean_output.py` |

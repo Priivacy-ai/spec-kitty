@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-05-11T18:36:38.973222+00:00",
+  "friendly_name": "Review/Merge Gate Hardening (3.2.x)",
+  "mission_id": "01KRC57CNW5JCVBRV8RAQ2ARXZ",
+  "mission_number": 116,
+  "mission_slug": "review-merge-gate-hardening-3-2-x-01KRC57C",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Residual 3.2.x stabilization scope after epic #822's original tranche landed. Consolidates the remaining P1 bugs without active PRs (#985 mission-review report contract, #987 hermetic gate invocation, #986 pytest-venv concurrency, #983 merge-number idempotency, #984 detached-worktree status read) and a single-chokepoint slice of #644 encoding hygiene. WP07 (#391 structural extraction) deferred per ADR 2026-05-11-1.",
+  "purpose_tldr": "Close the residual 3.2.x P1 release blockers in the review and merge gate apparatus, plus a narrowed encoding chokepoint from #644.",
+  "slug": "review-merge-gate-hardening-3-2-x-01KRC57C",
+  "target_branch": "fix/3.2.x-review-merge-gate-hardening",
+  "vcs": "git",
+  "vcs_locked_at": "2026-05-12T13:13:19.026129+00:00",
+  "baseline_merge_commit": "9ec050a7201ba5cc9fd8dd789a114280749779dd"
+}

@@ -79,6 +79,7 @@ class MergeState:
     workspace_path: str | None = None  # Absolute path to merge workspace
     started_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     updated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    mission_number_baked: bool = False  # WP04 — set True once mission_number is committed
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""
@@ -86,8 +87,16 @@ class MergeState:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> MergeState:
-        """Create from dict (loaded JSON)."""
-        return cls(**data)
+        """Create from dict (loaded JSON).
+
+        Backward-compatible: older state files that predate the
+        ``mission_number_baked`` field (added in WP04) load with the safe
+        default of ``False`` so that resume correctly re-enters the
+        idempotency check rather than blindly skipping it.
+        """
+        known_fields = {f.name for f in cls.__dataclass_fields__.values()}  # type: ignore[attr-defined]
+        filtered = {k: v for k, v in data.items() if k in known_fields}
+        return cls(**filtered)
 
     @property
     def remaining_wps(self) -> list[str]:

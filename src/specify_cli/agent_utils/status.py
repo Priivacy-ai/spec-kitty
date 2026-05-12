@@ -16,7 +16,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from specify_cli.core.paths import locate_project_root, get_main_repo_root
+from specify_cli.core.paths import locate_project_root, get_main_repo_root, get_status_read_root
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.progress import PROGRESS_SEMANTICS, compute_done_percentage, compute_weighted_progress
@@ -106,8 +106,10 @@ def show_kanban_status(mission_slug: str | None = None) -> dict:
             console.print(f"[red]Error:[/red] {msg}")
             return {"error": msg}
 
-        # Get main repo root for correct path resolution
-        main_repo_root = get_main_repo_root(repo_root)
+        # Read-only path: use worktree-aware resolution so detached-worktree
+        # verification (#984) reads the current worktree's events, not the
+        # primary checkout's potentially-divergent state.
+        main_repo_root = get_status_read_root()
 
         # Locate feature directory
         feature_dir = main_repo_root / "kitty-specs" / mission_slug

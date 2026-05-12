@@ -65,6 +65,8 @@ pyproject.local.toml
 .kittify/workspaces/
 .kittify/merge-state.json
 .kittify/.migration-backup/
+.kittify/encoding-provenance/
+.kittify/migrations/mission-state/
 kitty-specs/**/.kittify/config.yaml
 kitty-specs/**/.kittify/dossiers/
 

@@ -10,6 +10,7 @@ from typing import cast
 
 from ruamel.yaml import YAML
 
+from charter._io import load_charter_file
 from charter.catalog import DoctrineCatalog, load_doctrine_catalog
 from charter.resolver import DEFAULT_TOOL_REGISTRY
 
@@ -273,15 +274,36 @@ def default_interview(
     )
 
 
-def read_interview_answers(path: Path) -> CharterInterview | None:
-    """Read interview answers from YAML, returning None when missing/invalid."""
+def read_interview_answers(path: Path, *, unsafe: bool = False) -> CharterInterview | None:
+    """Read interview answers from YAML, returning None when missing/invalid.
+
+    Encoding-consistency failures (:class:`CharterEncodingError`, a subclass
+    of :class:`kernel.errors.KittyInternalConsistencyError`) propagate to the
+    caller so the operator sees the diagnostic with remediation guidance.
+    Other failure modes (missing file, malformed YAML structure on a
+    successfully-decoded file, wrong top-level type) continue to degrade to
+    ``None`` per the pre-existing contract.
+
+    Args:
+        path: filesystem path to the interview YAML file.
+        unsafe: when True, bypass CHARTER_ENCODING_AMBIGUOUS by accepting the
+            highest-confidence decode candidate and logging bypass_used=True in
+            provenance.  Use only when you have inspected the file and accept
+            the operational risk; the bypass is recorded in
+            ``.encoding-provenance.jsonl``.
+    """
     if not path.exists():
         return None
 
     yaml = YAML(typ="safe")
+    text = load_charter_file(path, unsafe=unsafe).text
     try:
-        data = yaml.load(path.read_text(encoding="utf-8")) or {}
-    except Exception:
+        data = yaml.load(text) or {}
+    except Exception:  # noqa: BLE001 — YAML parse failures degrade to None
+        # Pre-existing resilience contract: a syntactically-broken YAML file
+        # whose encoding decoded cleanly is treated as "no usable answers"
+        # rather than halting the interview command. Encoding errors are NOT
+        # caught here — they raise above in load_charter_file().
         return None
 
     if not isinstance(data, dict):
