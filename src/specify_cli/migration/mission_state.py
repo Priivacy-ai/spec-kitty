@@ -82,7 +82,11 @@ def _build_policy() -> dict[str, list[str]]:
 
 # Long-form CLI flags whose value can be a secret. The redaction logic
 # accepts either ``--flag VALUE`` (two argv slots) or ``--flag=VALUE``
-# (one argv slot).
+# (one argv slot). Matching is case-insensitive (compare via .lower()).
+#
+# NOTE: ``--client-id`` is intentionally NOT in this set. Client IDs are
+# public identifiers (OAuth2 spec treats them as non-secret); the
+# corresponding ``--client-secret`` belongs here instead.
 _SECRET_FLAG_NAMES: frozenset[str] = frozenset(
     {
         "--token",
@@ -91,6 +95,16 @@ _SECRET_FLAG_NAMES: frozenset[str] = frozenset(
         "--secret",
         "--api-key",
         "--bearer",
+        # Expanded coverage (PR #1031 follow-up): real-world secret-flag
+        # shapes that the original WP02 helper missed.
+        "--access-token",
+        "--refresh-token",
+        "--id-token",
+        "--client-secret",
+        "--private-key",
+        "--ssh-key",
+        "--aws-secret-access-key",
+        "--gh-token",
     }
 )
 
@@ -102,6 +116,15 @@ _SLACK_TOKEN_RE = re.compile(r"^xox[bpars]-[A-Za-z0-9-]+(?:-[A-Za-z0-9-]+)+$")
 _JWT_RE = re.compile(r"^[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,}$")
 _AUTH_HEADER_RE = re.compile(r"^[Aa]uthorization\s*:\s*.+$")
 _BEARER_RE = re.compile(r"^Bearer\s+\S{16,}$", re.IGNORECASE)
+
+# Env-var-style argv item: ``NAME=VALUE`` where NAME is an UPPER_SNAKE
+# identifier ending in a sensitive suffix (TOKEN / SECRET / KEY /
+# PASSWORD / PASSPHRASE). Matches e.g. ``SPEC_KITTY_TOKEN=foo``,
+# ``GITHUB_TOKEN=bar``, ``OPENAI_API_KEY=...``. The name is preserved
+# so reviewers know what was passed; only the value is redacted.
+_ENV_VAR_SECRET_RE = re.compile(
+    r"^(?P<name>[A-Z][A-Z0-9_]*(?:TOKEN|SECRET|KEY|PASSWORD|PASSPHRASE))=(?P<value>.+)$"
+)
 
 _STANDALONE_SECRET_RES: tuple[re.Pattern[str], ...] = (
     _GITHUB_TOKEN_RE,
@@ -117,12 +140,17 @@ _REDACTED = "<redacted>"
 def _scrub_secret_args(argv: Sequence[str]) -> list[str]:
     """Return a copy of *argv* with secret-bearing values replaced by ``<redacted>``.
 
-    Behaviour (see Priivacy-ai/spec-kitty#930):
+    Behaviour (see Priivacy-ai/spec-kitty#930 and the PR #1031 follow-up):
 
-    - For each sensitive long-form flag in ``_SECRET_FLAG_NAMES``,
-      ``--flag VALUE`` becomes ``["--flag", "<redacted>"]`` and
-      ``--flag=VALUE`` becomes ``"--flag=<redacted>"``. The flag name itself
-      is preserved so reviewers can still tell which option was passed.
+    - For each sensitive long-form flag in ``_SECRET_FLAG_NAMES`` (matched
+      case-insensitively), ``--flag VALUE`` becomes
+      ``["--flag", "<redacted>"]`` and ``--flag=VALUE`` becomes
+      ``"--flag=<redacted>"``. The flag name itself is preserved (in its
+      original casing) so reviewers can still tell which option was passed.
+    - Env-var-style argv items shaped like ``NAME=VALUE`` where NAME is an
+      UPPER_SNAKE identifier ending in TOKEN / SECRET / KEY / PASSWORD /
+      PASSPHRASE become ``"NAME=<redacted>"``. Non-secret env-style items
+      like ``GITHUB_USERNAME=robert`` pass through unchanged.
     - Standalone argv items that match any pattern in
       ``_STANDALONE_SECRET_RES`` (GitHub tokens, Slack tokens, JWT-shaped
       strings, ``Authorization:`` headers, bare ``Bearer …`` tokens) are
@@ -136,18 +164,28 @@ def _scrub_secret_args(argv: Sequence[str]) -> list[str]:
     i = 0
     while i < len(argv):
         item = argv[i]
-        # --flag=VALUE form
+        # --flag=VALUE form (case-insensitive flag match)
         if "=" in item and item.startswith("--"):
             flag, _, _value = item.partition("=")
-            if flag in _SECRET_FLAG_NAMES:
+            if flag.lower() in _SECRET_FLAG_NAMES:
                 result.append(f"{flag}={_REDACTED}")
                 i += 1
                 continue
         # --flag VALUE form (consumes the next argv slot)
-        if item in _SECRET_FLAG_NAMES and i + 1 < len(argv):
+        if (
+            item.startswith("--")
+            and item.lower() in _SECRET_FLAG_NAMES
+            and i + 1 < len(argv)
+        ):
             result.append(item)
             result.append(_REDACTED)
             i += 2
+            continue
+        # Env-var-style ``NAME=VALUE`` with secret-shaped NAME
+        env_match = _ENV_VAR_SECRET_RE.match(item)
+        if env_match is not None:
+            result.append(f"{env_match.group('name')}={_REDACTED}")
+            i += 1
             continue
         # Standalone secret-shaped item
         if any(pattern.match(item) for pattern in _STANDALONE_SECRET_RES):

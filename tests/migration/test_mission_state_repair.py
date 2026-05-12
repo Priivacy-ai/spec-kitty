@@ -611,6 +611,114 @@ class TestScrubSecretArgs:
         b = self._scrub(*argv)
         assert a == b
 
+    # ---------------------------------------------------------------------
+    # PR #1031 follow-up: broadened flag set + env-var-style argv items.
+    # Each test below covers a real-world pattern that the original WP02
+    # helper missed.
+    # ---------------------------------------------------------------------
+
+    def test_access_token_flag_pair_form_redacted(self) -> None:
+        assert self._scrub("--access-token", "sk-abc123") == [
+            "--access-token",
+            "<redacted>",
+        ]
+
+    def test_refresh_token_flag_equals_form_redacted(self) -> None:
+        assert self._scrub("--refresh-token=xyz") == ["--refresh-token=<redacted>"]
+
+    def test_id_token_flag_redacted(self) -> None:
+        assert self._scrub("--id-token", "oidc-jwt-value") == [
+            "--id-token",
+            "<redacted>",
+        ]
+
+    def test_client_secret_flag_redacted(self) -> None:
+        assert self._scrub("--client-secret", "shh") == [
+            "--client-secret",
+            "<redacted>",
+        ]
+
+    def test_client_id_flag_passes_through(self) -> None:
+        """``--client-id`` is a public OAuth identifier, not a secret."""
+        assert self._scrub("--client-id", "public-client-123") == [
+            "--client-id",
+            "public-client-123",
+        ]
+
+    def test_private_key_flag_redacted(self) -> None:
+        assert self._scrub("--private-key", "-----BEGIN----") == [
+            "--private-key",
+            "<redacted>",
+        ]
+
+    def test_ssh_key_flag_redacted(self) -> None:
+        assert self._scrub("--ssh-key=/path/to/id_rsa") == ["--ssh-key=<redacted>"]
+
+    def test_aws_secret_access_key_flag_redacted(self) -> None:
+        assert self._scrub("--aws-secret-access-key", "AKIA...") == [
+            "--aws-secret-access-key",
+            "<redacted>",
+        ]
+
+    def test_gh_token_flag_redacted(self) -> None:
+        assert self._scrub("--gh-token", "ghp_xyz") == ["--gh-token", "<redacted>"]
+
+    def test_flag_match_is_case_insensitive_pair_form(self) -> None:
+        """Mixed-case secret flags must also be redacted; casing preserved."""
+        assert self._scrub("--Access-Token", "sk-abc123") == [
+            "--Access-Token",
+            "<redacted>",
+        ]
+
+    def test_flag_match_is_case_insensitive_equals_form(self) -> None:
+        assert self._scrub("--TOKEN=abc") == ["--TOKEN=<redacted>"]
+
+    def test_env_var_style_token_redacted(self) -> None:
+        assert self._scrub("SPEC_KITTY_TOKEN=foo") == ["SPEC_KITTY_TOKEN=<redacted>"]
+
+    def test_env_var_style_github_token_redacted(self) -> None:
+        assert self._scrub("GITHUB_TOKEN=bar") == ["GITHUB_TOKEN=<redacted>"]
+
+    def test_env_var_style_api_key_redacted(self) -> None:
+        assert self._scrub("OPENAI_API_KEY=sk-live-zzz") == [
+            "OPENAI_API_KEY=<redacted>",
+        ]
+
+    def test_env_var_style_secret_redacted(self) -> None:
+        assert self._scrub("DJANGO_SECRET=shh") == ["DJANGO_SECRET=<redacted>"]
+
+    def test_env_var_style_password_redacted(self) -> None:
+        assert self._scrub("DB_PASSWORD=hunter2") == ["DB_PASSWORD=<redacted>"]
+
+    def test_env_var_style_passphrase_redacted(self) -> None:
+        assert self._scrub("GPG_PASSPHRASE=open-sesame") == [
+            "GPG_PASSPHRASE=<redacted>",
+        ]
+
+    def test_env_var_style_non_secret_passes_through(self) -> None:
+        """Control case: env-style items that don't end in a sensitive
+        suffix must NOT be redacted. ``GITHUB_USERNAME`` is public."""
+        assert self._scrub("GITHUB_USERNAME=robert") == ["GITHUB_USERNAME=robert"]
+
+    def test_combined_real_world_argv(self) -> None:
+        """End-to-end check from the PR #1031 acceptance criterion."""
+        out = self._scrub(
+            "--access-token",
+            "sk-abc123",
+            "--refresh-token=xyz",
+            "SPEC_KITTY_TOKEN=foo",
+            "GITHUB_TOKEN=bar",
+            "GITHUB_USERNAME=robert",
+        )
+        assert out == [
+            "--access-token",
+            "<redacted>",
+            "--refresh-token=<redacted>",
+            "SPEC_KITTY_TOKEN=<redacted>",
+            "GITHUB_TOKEN=<redacted>",
+            "GITHUB_USERNAME=robert",
+        ]
+
 
 # ---------------------------------------------------------------------------
 # Mission 8 (#930) — expanded repair manifest fields
