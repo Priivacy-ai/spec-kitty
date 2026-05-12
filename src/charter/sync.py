@@ -183,7 +183,7 @@ def sync(
         )
 
     except Exception as e:
-        logger.error(f"Sync failed: {e}")
+        logger.exception("Sync failed: %s", e)
         return SyncResult(
             synced=False,
             stale_before=False,

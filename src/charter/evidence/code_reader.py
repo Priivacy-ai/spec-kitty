@@ -205,9 +205,9 @@ class CodeReadingCollector:
                 indicator_files.add(filename)
 
                 # Count TS vs JS files for disambiguation
-                if filename.endswith(".ts") or filename.endswith(".tsx"):
+                if filename.endswith((".ts", ".tsx")):
                     ts_files += 1
-                elif filename.endswith(".js") or filename.endswith(".jsx") or filename.endswith(".mjs"):
+                elif filename.endswith((".js", ".jsx", ".mjs")):
                     js_files += 1
 
                 # Bucket into source vs test

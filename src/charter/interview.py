@@ -76,7 +76,7 @@ def validate_local_support_declarations(
             )
             continue
         # Reject paths that look like directories (trailing slash)
-        if path.endswith("/") or path.endswith("\\"):
+        if path.endswith(("/", "\\")):
             errors.append(
                 f"local_supporting_files path '{path}' looks like a directory; "
                 "explicit file paths only."
