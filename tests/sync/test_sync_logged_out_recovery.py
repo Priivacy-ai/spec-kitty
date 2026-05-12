@@ -208,3 +208,66 @@ class TestSyncDoctorRecovery:
         assert result.exit_code == 0
         assert "logged_out_on_connected_teamspace" not in result.stderr
         assert "spec-kitty auth login" in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# sync routes  --  non-zero exits from recovery must propagate
+# ---------------------------------------------------------------------------
+
+
+def _mock_routes_logged_out(monkeypatch):
+    """Wire `sync routes` so the unauthenticated branch is reached."""
+    from specify_cli.sync import feature_flags as ff
+
+    monkeypatch.setattr(ff, "is_saas_sync_enabled", lambda: True)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands._teamspace_mission_state_gate.enforce_teamspace_mission_state_ready",
+        lambda *a, **k: None,
+    )
+    monkeypatch.setattr(
+        "specify_cli.sync.routing.resolve_checkout_sync_routing",
+        lambda start=None: type(
+            "Routing",
+            (),
+            {
+                "repo_slug": "acme/spec-kitty",
+                "project_uuid": "11111111-1111-1111-1111-111111111111",
+                "project_slug": "spec-kitty-local",
+                "build_id": "build-123",
+                "effective_sync_enabled": True,
+                "local_sync_enabled": None,
+                "repo_default_sync_enabled": False,
+            },
+        )(),
+    )
+    fake_tm = MagicMock()
+    fake_tm.get_current_session.return_value = None
+    monkeypatch.setattr(
+        "specify_cli.auth.get_token_manager",
+        lambda: fake_tm,
+    )
+
+
+class TestSyncRoutesRecovery:
+    def test_sync_routes_propagates_exit_4_from_recovery(self, monkeypatch):
+        """Regression: `routes` must not swallow Exit(4) from auth recovery.
+
+        Previously the bare `except typer.Exit:` in `routes()` caught every
+        Exit, including the structured recovery exit code 4, and silently
+        returned 0. Non-interactive CI users saw success when they should
+        have seen the documented exit 4 + structured stderr.
+        """
+        _mock_routes_logged_out(monkeypatch)
+        monkeypatch.setattr(
+            recovery,
+            "detect_logged_out_with_connected_teamspace",
+            lambda: "acme-eng",
+        )
+        monkeypatch.setattr(recovery, "is_interactive", lambda: False)
+        result = runner.invoke(app, ["routes"])
+        assert result.exit_code == 4
+        assert (
+            "spec-kitty: logged_out_on_connected_teamspace "
+            "teamspace=acme-eng command=sync routes "
+            "action=run-spec-kitty-auth-login"
+        ) in result.stderr

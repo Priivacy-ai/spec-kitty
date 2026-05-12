@@ -291,7 +291,9 @@ def routes() -> None:
 
     try:
         session = _require_authenticated_session(command_name="sync routes")
-    except typer.Exit:
+    except typer.Exit as exc:
+        if exc.exit_code != 0:
+            raise
         console.print(table)
         console.print()
         return
