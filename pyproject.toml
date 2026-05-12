@@ -1,6 +1,6 @@
 [project]
 name = "spec-kitty-cli"
-version = "3.2.0rc6"
+version = "3.2.0rc7"
 description = "Spec Kitty, a tool for Specification Driven Development (SDD) agentic projects, with kanban and git worktree isolation."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -52,6 +52,7 @@ dependencies = [
     "typer>=0.24.1",
     "rich>=14.3.3",
     "pygments>=2.20.0",  # CVE-2026-4539 fix; transitive dep of rich, pinned explicitly
+    "charset-normalizer>=3.4,<4",  # encoding detection for charter chokepoint (FR-016; was transitive via requests)
     "httpx[socks]>=0.28.1",
     "platformdirs>=4.9.2",
     "readchar>=4.2.1",

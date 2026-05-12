@@ -17,6 +17,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+## [3.2.0rc7] - 2026-05-12
+
+3.2.0rc7 lands the `review-merge-gate-hardening-3-2-x-01KRC57C` mission
+covering the remaining 3.2.x P1 release blockers plus a narrowed slice of the
+charter encoding chokepoint, with post-merge remediation, SonarCloud
+new-code gate cleanup, and CI portability fixes folded in.
+
+### Added
+
+- New canonical `KittyInternalConsistencyError` base under
+  `src/kernel/errors.py`, with `CharterEncodingError` now inheriting from it
+  so any UI/CLI/TUI surface can render structured remediation uniformly.
+- Reusable SonarCloud branch-review snippet at
+  `work/snippets/sonarcloud_branch_review.sh` (qualitygates/project_status +
+  measures/component_tree + issues/search via REST API).
+- Architectural decision record
+  `architecture/adrs/2026-05-11-1-defer-391-structural-extraction-from-3-2-x.md`
+  deferring still-open `#391` sub-tickets (`#612` / `#613` / `#614`) from
+  3.2.x scope, on top of the shared-package-boundary cutover precedent.
+
+### Changed
+
+- Refactored `_bake_mission_number_into_mission_branch` in
+  `src/specify_cli/cli/commands/merge.py` from cognitive complexity 22 down
+  to a flat coordinator backed by six named predicate / effect helpers, with
+  no behavior change.
+- Narrowed broad `except` clauses in `src/charter/_io.py`,
+  `src/charter/compiler.py`, and `src/charter/interview.py` so charter
+  encoding errors propagate to the canonical handler instead of being
+  swallowed.
+- Wired `assert_pytest_available()` into the production review preflight in
+  `src/specify_cli/cli/commands/review/__init__.py`.
+
+### Fixed
+
+- Pre-merge mission-review remediation of findings `D1`, `D2`, `D3`, `S1`,
+  and `S2` against the canonical issue matrix at
+  `kitty-specs/review-merge-gate-hardening-3-2-x-01KRC57C/issue-matrix.md`.
+- Repaired 18 pre-existing test failures by extracting a shared
+  `setup_mocked_env()` context manager to `tests/mocked_env.py` and rewiring
+  the affected sites onto it.
+- CI portability: `tests/integration/test_pytest_venv_concurrency.py` now
+  invokes pytest through `sys.executable` instead of relying on a bare `uv`
+  on `$PATH`, which is not guaranteed inside slow-test CI shards.
+- Cleared the SonarCloud new-code coverage gate for the branch by adding 26
+  focused coverage tests under `tests/kernel/`, `tests/charter/`, and
+  `tests/core/test_paths_coverage_supplements.py`.
+- Repaired dead links to the deleted `kitty-specs/_drafts/` directory in the
+  3.2.x deferral ADR and the mission spec after the pre-PR cleanup pass.
+
 ## [3.2.0rc6] - 2026-05-11
 
 3.2.0rc6 includes the post-rc5 TeamSpace migration enforcement and dry-run
