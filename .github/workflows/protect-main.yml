@@ -37,6 +37,9 @@ jobs:
           fetch-depth: 2
 
       - name: Verify commit came from PR
+        env:
+          HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          HEAD_COMMITTER_NAME: ${{ github.event.head_commit.committer.name }}
         run: |
           # Skip check for repository initialization (first commit)
           if [[ "${{ github.event.before }}" == "0000000000000000000000000000000000000000" ]]; then
@@ -45,8 +48,8 @@ jobs:
           fi
 
           # Get commit message and metadata
-          COMMIT_MSG="${{ github.event.head_commit.message }}"
-          COMMITTER="${{ github.event.head_commit.committer.name }}"
+          COMMIT_MSG="$HEAD_COMMIT_MESSAGE"
+          COMMITTER="$HEAD_COMMITTER_NAME"
 
           echo "Commit message: $COMMIT_MSG"
           echo "Committer: $COMMITTER"
