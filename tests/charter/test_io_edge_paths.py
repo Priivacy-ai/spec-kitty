@@ -20,12 +20,15 @@ tests do not reach:
 
 from __future__ import annotations
 
+import json
+from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
 
 from charter._diagnostics import CharterEncodingDiagnostic
-from charter._io import CharterEncodingError, load_charter_bytes, load_charter_file
+from charter import _io
+from charter._io import CharterContent, CharterEncodingError, load_charter_bytes, load_charter_file
 from kernel.errors import KittyInternalConsistencyError
 
 
@@ -81,6 +84,32 @@ def test_load_charter_file_recognizes_utf8_bom(tmp_path: Path) -> None:
     assert "﻿" not in content.text
 
 
+@pytest.mark.parametrize(
+    ("bom", "encoding", "expected_encoding"),
+    [
+        (b"\xff\xfe", "utf-16-le", "utf-16-le"),
+        (b"\xfe\xff", "utf-16-be", "utf-16-be"),
+    ],
+)
+def test_load_charter_file_recognizes_utf16_bom_without_leaking_marker(
+    tmp_path: Path,
+    bom: bytes,
+    encoding: str,
+    expected_encoding: str,
+) -> None:
+    """UTF-16 BOM branches strip the marker byte sequence before decoding."""
+    target = tmp_path / "utf16.yaml"
+    target.write_bytes(bom + "name: hello\nvalue: 1\n".encode(encoding))
+
+    content = load_charter_file(target)
+
+    assert content.source_encoding == expected_encoding
+    assert content.confidence == 1.0
+    assert content.normalization_applied is True
+    assert content.text == "name: hello\nvalue: 1\n"
+    assert "\ufeff" not in content.text
+
+
 # ---------------------------------------------------------------------------
 # CharterEncodingError attribute contract
 # ---------------------------------------------------------------------------
@@ -126,3 +155,83 @@ def test_ambiguous_diagnostic_body_names_file_and_remediation(
     assert "Detected candidates" in body or "candidates" in body.lower()
     # At least one remediation pointer.
     assert "Remediation" in body or "--unsafe" in body or "iconv" in body
+
+
+@dataclass
+class _FakeCharsetCandidate:
+    encoding: str
+    chaos: float
+    text: str = "decoded text"
+
+    def __str__(self) -> str:
+        return self.text
+
+
+class _FakeCharsetResults(list[_FakeCharsetCandidate]):
+    def best(self) -> _FakeCharsetCandidate | None:
+        return self[0] if self else None
+
+
+def test_ambiguous_diagnostic_body_lists_detector_candidates(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Candidate rows include encoding names and derived confidence values."""
+    candidates = _FakeCharsetResults(
+        [
+            _FakeCharsetCandidate("cp1252", 0.42),
+            _FakeCharsetCandidate("iso8859_1", 0.33),
+        ]
+    )
+    monkeypatch.setattr("charset_normalizer.from_bytes", lambda _data: candidates)
+
+    body = _io._build_ambiguous_body(b"\x80", source_path=None)
+
+    assert "<inline bytes>" in body
+    assert "cp1252 (confidence 0.58)" in body
+    assert "iso8859_1 (confidence 0.67)" in body
+
+
+def test_generate_ulid_uses_new_api() -> None:
+    """The normal python-ulid path returns the string value from ulid.new().str."""
+    assert isinstance(_io._generate_ulid(), str)
+    assert _io._generate_ulid()
+
+
+def test_write_provenance_failure_is_non_fatal(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A filesystem failure while writing provenance logs a warning only."""
+    blocker = tmp_path / "blocker"
+    blocker.write_text("not a directory", encoding="utf-8")
+    monkeypatch.setattr(
+        _io,
+        "_route_provenance_path",
+        lambda _source_path: blocker / ".encoding-provenance.jsonl",
+    )
+    content = CharterContent(
+        text="name: hello\n",
+        source_encoding="utf-8",
+        confidence=1.0,
+        source_path=tmp_path / "charter.yaml",
+        normalization_applied=False,
+    )
+
+    _io._write_provenance(content, bypass_used=False)
+
+    assert "Failed to write encoding provenance" in caplog.text
+
+
+def test_resolve_mission_id_reads_meta_json(tmp_path: Path) -> None:
+    """Per-mission provenance records include the mission_id from meta.json."""
+    mission = tmp_path / "kitty-specs" / "mission-a"
+    mission.mkdir(parents=True)
+    (mission / "meta.json").write_text(json.dumps({"mission_id": "MISSION-123"}), encoding="utf-8")
+
+    assert _io._resolve_mission_id(mission / "charter.yaml") == "MISSION-123"
+
+
+def test_resolve_mission_id_handles_bare_kitty_specs_path() -> None:
+    """A path that ends at kitty-specs has no mission segment to inspect."""
+    assert _io._resolve_mission_id(Path("kitty-specs")) is None

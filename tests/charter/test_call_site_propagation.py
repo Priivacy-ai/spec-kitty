@@ -113,6 +113,16 @@ def test_interview_read_returns_none_for_missing_file(tmp_path: Path) -> None:
     assert read_interview_answers(missing) is None
 
 
+def test_interview_read_returns_none_for_malformed_utf8_yaml(tmp_path: Path) -> None:
+    """Malformed but decodable YAML preserves the legacy None-return contract."""
+    from charter.interview import read_interview_answers
+
+    malformed = tmp_path / "malformed-interview.yaml"
+    malformed.write_text("responses: [unclosed\n", encoding="utf-8")
+
+    assert read_interview_answers(malformed) is None
+
+
 def test_unsafe_bypass_propagates_through_compiler(tmp_path: Path) -> None:
     """When the operator opts into ``--unsafe`` semantics, the chokepoint
     does NOT raise — the compiler call site must support this propagation.

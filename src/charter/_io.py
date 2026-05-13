@@ -17,11 +17,12 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import ulid as _ulid_mod
 from charset_normalizer import from_bytes
+from kernel.errors import KittyInternalConsistencyError
 
 from ._diagnostics import CharterEncodingDiagnostic
 
@@ -58,10 +59,6 @@ class CharterContent:
     confidence: float
     source_path: Path | None
     normalization_applied: bool
-
-
-from kernel.errors import KittyInternalConsistencyError
-
 
 class CharterEncodingError(KittyInternalConsistencyError):
     """Raised when encoding detection fails and unsafe=False.
@@ -170,7 +167,7 @@ def _load_inner(
         return content
     if data.startswith(b"\xff\xfe"):
         # UTF-16-LE BOM
-        text = data.decode("utf-16-le")
+        text = data[2:].decode("utf-16-le")
         content = CharterContent(
             text=text,
             source_encoding="utf-16-le",
@@ -182,7 +179,7 @@ def _load_inner(
         return content
     if data.startswith(b"\xfe\xff"):
         # UTF-16-BE BOM
-        text = data.decode("utf-16-be")
+        text = data[2:].decode("utf-16-be")
         content = CharterContent(
             text=text,
             source_encoding="utf-16-be",
@@ -227,21 +224,14 @@ def _load_inner(
 
         # Confidence below threshold and unsafe=False: fall through to fail.
 
-    # Step 4: Fail (or unsafe bypass with cp1252 fallback).
+    # Step 4: Fail (or unsafe bypass with cp1252 fallback when no detector
+    # candidate exists). If a best candidate exists under unsafe=True, Step 3
+    # already returned it.
     if unsafe:
-        # Use best candidate if available, else cp1252 fallback.
-        if best is not None:
-            text = str(best)
-            encoding = best.encoding
-            confidence = 1.0 - best.chaos
-        else:
-            text = data.decode("cp1252", errors="replace")
-            encoding = "cp1252"
-            confidence = 0.0
         content = CharterContent(
-            text=text,
-            source_encoding=encoding,
-            confidence=confidence,
+            text=data.decode("cp1252", errors="replace"),
+            source_encoding="cp1252",
+            confidence=0.0,
             source_path=source_path,
             normalization_applied=True,
         )
@@ -322,7 +312,7 @@ def _build_provenance_record(
     mission_id = _resolve_mission_id(content.source_path)
     return {
         "event_id": _generate_ulid(),
-        "at": datetime.now(tz=timezone.utc).isoformat(),
+        "at": datetime.now(tz=UTC).isoformat(),
         "file_path": file_path_str,
         "source_encoding": content.source_encoding,
         "confidence": content.confidence,
