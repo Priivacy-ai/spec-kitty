@@ -461,10 +461,27 @@ class TestSyncNowExitCodes:
         assert res.exit_code == 1
         write_mock.assert_called_once()
 
-    def test_strict_exits_1_on_auth_missing(self):
-        """Strict exits 1 when queue non-empty but all-zero result (auth missing)."""
+    def test_strict_exits_1_on_auth_missing(self, monkeypatch):
+        """Strict exits 1 when queue non-empty but all-zero result (auth missing).
+
+        M7 (``handle_unauthenticated_with_teamspace``) split this contract in
+        two: only the ``NO_TEAMSPACE`` outcome still falls through to the
+        legacy ``exit 1`` path. To pin that legacy path here, we patch the
+        detector so it reports no connected teamspace -- the
+        ``EXIT_4`` branch is pinned by
+        ``test_strict_exits_4_when_teamspace_connected_and_auth_missing``
+        below.
+        """
+        from specify_cli.cli.commands import _auth_recovery as recovery
+
         result = self._make_result(synced=0, duplicate=0, errors=0)
         svc = self._make_service(queue_size=5, result=result)
+
+        monkeypatch.setattr(
+            recovery,
+            "detect_logged_out_with_connected_teamspace",
+            lambda: None,
+        )
 
         runner = CliRunner()
         with (
@@ -474,3 +491,38 @@ class TestSyncNowExitCodes:
             res = runner.invoke(sync_app, ["now"])
         assert res.exit_code == 1
         assert "not authenticated" in res.output
+
+    def test_strict_exits_4_when_teamspace_connected_and_auth_missing(self, monkeypatch):
+        """M7: connected teamspace + non-interactive => structured stderr, exit 4.
+
+        Mirrors :class:`tests.sync.test_sync_logged_out_recovery.TestSyncNowRecovery`
+        ``test_non_interactive_with_teamspace_exits_4`` from the seam this
+        suite owns. When the detector reports a connected teamspace and the
+        session is non-interactive, ``handle_unauthenticated_with_teamspace``
+        emits a structured stderr line and returns ``EXIT_4`` instead of
+        falling through to the legacy ``exit 1`` path.
+        """
+        from specify_cli.cli.commands import _auth_recovery as recovery
+
+        result = self._make_result(synced=0, duplicate=0, errors=0)
+        svc = self._make_service(queue_size=5, result=result)
+
+        monkeypatch.setattr(
+            recovery,
+            "detect_logged_out_with_connected_teamspace",
+            lambda: "acme-eng",
+        )
+        monkeypatch.setattr(recovery, "is_interactive", lambda: False)
+
+        runner = CliRunner()
+        with (
+            patch("specify_cli.sync.background.get_sync_service", return_value=svc),
+            patch("specify_cli.sync.batch.format_sync_summary", return_value="summary"),
+        ):
+            res = runner.invoke(sync_app, ["now"])
+        assert res.exit_code == 4
+        assert (
+            "spec-kitty: logged_out_on_connected_teamspace "
+            "teamspace=acme-eng command=sync now "
+            "action=run-spec-kitty-auth-login"
+        ) in res.stderr
