@@ -112,9 +112,7 @@ _SECRET_FLAG_NAMES: frozenset[str] = frozenset(
 # string that is *probably* a secret on its own (i.e. without an explicit
 # ``--flag`` carrier).
 _GITHUB_TOKEN_RE = re.compile(r"^gh[pousr]_[A-Za-z0-9_]{34,}$")
-_SLACK_TOKEN_RE = re.compile(r"^xox[bpars]-[A-Za-z0-9-]+(?:-[A-Za-z0-9-]+)+$")
 _JWT_RE = re.compile(r"^[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,}$")
-_AUTH_HEADER_RE = re.compile(r"^[Aa]uthorization\s*:\s*.+$")
 _BEARER_RE = re.compile(r"^Bearer\s+\S{16,}$", re.IGNORECASE)
 
 # Env-var-style argv item: ``NAME=VALUE`` where NAME is an UPPER_SNAKE
@@ -126,15 +124,39 @@ _ENV_VAR_SECRET_RE = re.compile(
     r"^(?P<name>[A-Z][A-Z0-9_]*(?:TOKEN|SECRET|KEY|PASSWORD|PASSPHRASE))=(?P<value>.+)$"
 )
 
-_STANDALONE_SECRET_RES: tuple[re.Pattern[str], ...] = (
-    _GITHUB_TOKEN_RE,
-    _SLACK_TOKEN_RE,
-    _JWT_RE,
-    _AUTH_HEADER_RE,
-    _BEARER_RE,
-)
-
 _REDACTED = "<redacted>"
+
+
+def _looks_like_slack_token(value: str) -> bool:
+    """Return True for Slack token shapes without regex backtracking risk."""
+    prefixes = ("xoxb-", "xoxp-", "xoxa-", "xoxr-", "xoxs-")
+    if not value.startswith(prefixes):
+        return False
+    parts = value.split("-")
+    if len(parts) < 3 or any(not part for part in parts):
+        return False
+    return all(all(ch.isalnum() for ch in part) for part in parts)
+
+
+def _looks_like_authorization_header(value: str) -> bool:
+    """Return True for ``Authorization: <value>`` headers in argv."""
+    name, sep, remainder = value.partition(":")
+    return (
+        sep == ":"
+        and name.strip().lower() == "authorization"
+        and bool(remainder.strip())
+    )
+
+
+def _is_standalone_secret_item(value: str) -> bool:
+    """Return True when *value* matches any standalone secret shape."""
+    return (
+        _GITHUB_TOKEN_RE.match(value) is not None
+        or _looks_like_slack_token(value)
+        or _JWT_RE.match(value) is not None
+        or _looks_like_authorization_header(value)
+        or _BEARER_RE.match(value) is not None
+    )
 
 
 def _scrub_secret_args(argv: Sequence[str]) -> list[str]:
@@ -188,7 +210,7 @@ def _scrub_secret_args(argv: Sequence[str]) -> list[str]:
             i += 1
             continue
         # Standalone secret-shaped item
-        if any(pattern.match(item) for pattern in _STANDALONE_SECRET_RES):
+        if _is_standalone_secret_item(item):
             result.append(_REDACTED)
             i += 1
             continue
