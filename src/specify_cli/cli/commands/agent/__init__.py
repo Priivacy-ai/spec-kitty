@@ -4,6 +4,7 @@ import typer
 from typing_extensions import Annotated
 
 from . import config, mission, tasks, context, release, workflow, status, tests
+from specify_cli.cli.commands import profiles_cmd
 from specify_cli.cli.commands.agent_retrospect import app as retrospect_app
 from specify_cli.cli.commands.decision import decision_app
 
@@ -25,6 +26,12 @@ app.add_typer(status.app, name="status")
 app.add_typer(tests.app, name="tests")
 app.add_typer(decision_app, name="decision")
 app.add_typer(retrospect_app, name="retrospect", help="Retrospective synthesis commands")
+app.add_typer(
+    profiles_cmd.app,
+    name="profile",
+    help="Compatibility alias for listing agent profiles",
+    hidden=True,
+)
 
 
 @app.command(name="check-prerequisites", hidden=True)

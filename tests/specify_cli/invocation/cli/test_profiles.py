@@ -54,6 +54,8 @@ class TestProfilesListJsonOutput:
         assert len(profiles) >= 1
         for p in profiles:
             assert "profile_id" in p
+            assert "identifier" in p
+            assert p["identifier"] == p["profile_id"]
             assert "name" in p
             assert "role" in p
             assert "action_domains" in p
@@ -122,3 +124,15 @@ class TestProfilesHelp:
         result = runner.invoke(cli_app, ["profiles", "--help"])
         assert result.exit_code == 0
         assert "profiles" in result.output.lower()
+
+
+class TestAgentProfileCompatibilityAlias:
+    def test_agent_profile_list_json_routes_to_profiles_list(self, tmp_path: Path) -> None:
+        project = _setup_project(tmp_path)
+        with patch("specify_cli.cli.commands.profiles_cmd.find_repo_root", return_value=project):
+            result = runner.invoke(cli_app, ["agent", "profile", "list", "--json"])
+        assert result.exit_code == 0, result.output
+        profiles = json.loads(result.output)
+        profile_ids = [p["profile_id"] for p in profiles]
+        assert "implementer-fixture" in profile_ids
+        assert all(p["identifier"] == p["profile_id"] for p in profiles)

@@ -57,6 +57,7 @@ def list_profiles(
         descriptors.append(
             {
                 "profile_id": p.profile_id,
+                "identifier": p.profile_id,
                 "name": p.name,  # AgentProfile.name (not friendly_name — that field does not exist)
                 "role": str(p.role),
                 "action_domains": sorted({*canonical_verbs, *collab_verbs, *domain_kws}),
