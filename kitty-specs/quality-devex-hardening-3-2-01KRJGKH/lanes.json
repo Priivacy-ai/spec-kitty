@@ -1,0 +1,167 @@
+{
+  "version": 1,
+  "mission_slug": "quality-devex-hardening-3-2-01KRJGKH",
+  "mission_id": "01KRJGKH4DJCSF277K9QV3WBE7",
+  "mission_branch": "kitty/mission-quality-devex-hardening-3-2-01KRJGKH",
+  "target_branch": "fix/quality-check-updates",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06",
+        "WP07",
+        "WP08",
+        "WP09"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-quality.yml",
+        "architecture/2.x/04_implementation_mapping/code-patterns.md",
+        "architecture/2.x/adr/2026-05-14-1-stale-lane-auto-rebase-classifier-policy.md",
+        "kitty-specs/quality-devex-hardening-3-2-01KRJGKH/glossary-fragments/WP01.md",
+        "kitty-specs/quality-devex-hardening-3-2-01KRJGKH/glossary-fragments/WP02.md",
+        "kitty-specs/quality-devex-hardening-3-2-01KRJGKH/glossary-fragments/WP03.md",
+        "kitty-specs/quality-devex-hardening-3-2-01KRJGKH/glossary-fragments/WP04.md",
+        "kitty-specs/quality-devex-hardening-3-2-01KRJGKH/glossary-fragments/WP05.md",
+        "kitty-specs/quality-devex-hardening-3-2-01KRJGKH/glossary-fragments/WP06.md",
+        "kitty-specs/quality-devex-hardening-3-2-01KRJGKH/glossary-fragments/WP07.md",
+        "kitty-specs/quality-devex-hardening-3-2-01KRJGKH/glossary-fragments/WP08.md",
+        "kitty-specs/quality-devex-hardening-3-2-01KRJGKH/glossary-fragments/WP09.md",
+        "kitty-specs/quality-devex-hardening-3-2-01KRJGKH/sonar-hotspot-rationales.md",
+        "pyproject.toml",
+        "src/kernel/_safe_re.py",
+        "src/specify_cli/auth/**",
+        "src/specify_cli/cli/commands/agent_retrospect.py",
+        "src/specify_cli/cli/commands/doctor.py",
+        "src/specify_cli/cli/commands/review/**",
+        "src/specify_cli/core/upgrade_notifier.py",
+        "src/specify_cli/core/upgrade_probe.py",
+        "src/specify_cli/core/version_checker.py",
+        "src/specify_cli/lanes/auto_rebase.py",
+        "src/specify_cli/lanes/merge.py",
+        "src/specify_cli/merge/conflict_classifier.py",
+        "src/specify_cli/merge/conflict_resolver.py",
+        "src/specify_cli/migration/canonicalization.py",
+        "src/specify_cli/migration/mission_state.py",
+        "src/specify_cli/migration/rebuild_state.py",
+        "src/specify_cli/next/_internal_runtime/**",
+        "src/specify_cli/release/changelog.py",
+        "src/specify_cli/status/reducer.py",
+        "src/specify_cli/sync/**",
+        "src/specify_cli/task_metadata_validation.py",
+        "tests/_factories/charters/**",
+        "tests/cli/commands/test_agent_config_coverage.py",
+        "tests/cli/commands/test_charter_bundle_coverage.py",
+        "tests/cli/commands/test_charter_io.py",
+        "tests/cli/commands/test_charter_orchestration.py",
+        "tests/cli/commands/test_charter_rendering.py",
+        "tests/cli/commands/test_doctor_mission_state.py",
+        "tests/core/test_file_lock_behavior.py",
+        "tests/core/test_upgrade_probe_and_notifier.py",
+        "tests/integration/lanes/test_auto_rebase_additive.py",
+        "tests/integration/merge/test_conflict_classifier.py",
+        "tests/integration/migration/test_canonicalization_pipeline.py",
+        "tests/integration/test_internal_runtime_engine.py",
+        "tests/regressions/test_changelog_regex_redos.py",
+        "tests/regressions/test_doctor_missionrepairresult_findings.py",
+        "tests/unit/migration/test_canonicalization_rules.py",
+        "tests/upgrade/test_m_0_8_0_symlink_windows.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP10"
+      ],
+      "write_scope": [
+        ".kittify/glossaries/spec_kitty_core.yaml",
+        "CHANGELOG.md",
+        "kitty-specs/quality-devex-hardening-3-2-01KRJGKH/glossary-fragments/WP10.md",
+        "kitty-specs/quality-devex-hardening-3-2-01KRJGKH/mission-review.md",
+        "kitty-specs/quality-devex-hardening-3-2-01KRJGKH/nfr-001-smoke-recipe.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-05-14T08:17:36.072947+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP10"
+  ],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP01"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP01"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP01"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP01"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP04",
+        "rule": "dependency",
+        "evidence": "WP07 depends on WP04"
+      },
+      {
+        "wp_a": "WP08",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP08 depends on WP01"
+      },
+      {
+        "wp_a": "WP09",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP09 depends on WP01"
+      }
+    ],
+    "total_merges": 8,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 8
+    }
+  }
+}

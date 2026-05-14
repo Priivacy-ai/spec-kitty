@@ -1,0 +1,14 @@
+{
+  "created_at": "2026-05-14T05:50:57.677771+00:00",
+  "friendly_name": "Quality and DevEx Hardening 3.2",
+  "mission_id": "01KRJGKH4DJCSF277K9QV3WBE7",
+  "mission_number": 117,
+  "mission_slug": "quality-devex-hardening-3-2-01KRJGKH",
+  "mission_type": "software-dev",
+  "purpose_context": "Stabilize 3.2.x by resolving epic #822's release-hygiene, DevEx, and quality-gate tickets in a single mission. Refactoring of egregious cognitive-complexity offenders is in scope when the pre-mission audit classifies them as structural debt or pipeline-shape, applying the chain-of-responsibility-rule-pipeline tactic. Tests are behavior-driven per function-over-form-testing; characterization tests precede every refactor on migration, sync, charter, or auth code paths. Coverage rises as a consequence of behavior tests, not as the goal.",
+  "purpose_tldr": "Remediate the six tickets aggregated under epic #822 — Sonar gate debt, strict mypy baseline, Windows symlink test, stale-lane auto-rebase, no-upgrade UX, and structural cognitive-complexity debt — for a stable 3.2 release.",
+  "slug": "quality-devex-hardening-3-2-01KRJGKH",
+  "target_branch": "fix/quality-check-updates",
+  "vcs": "git",
+  "vcs_locked_at": "2026-05-14T08:23:36.910389+00:00"
+}
