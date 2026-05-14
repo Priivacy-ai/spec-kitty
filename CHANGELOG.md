@@ -119,6 +119,14 @@ Sonar restoration (#825) is the only remaining operator-action gate.
   `kitty-specs/quality-devex-hardening-3-2-01KRJGKH/mission-review.md`
   citing every doctrine tactic applied per WP and linking the
   code-patterns catalog (NFR-006 / FR-012).
+- **Post-merge audit report** at
+  `kitty-specs/quality-devex-hardening-3-2-01KRJGKH/post-merge-review.md` —
+  independent adversarial review confirming PASS WITH NOTES (no code
+  defects; release-readiness gated on three operator-action items:
+  Sonar hotspot rationale application, NFR-001 smoke execution, and the
+  push-time Sonar workflow flip). Documents FR coverage matrix, drift
+  findings, silent-failure scan, and security notes. All four
+  post-merge stale-assertion findings classified as false alarms.
 - **NFR-001 release-stability smoke recipe** at
   `kitty-specs/quality-devex-hardening-3-2-01KRJGKH/nfr-001-smoke-recipe.md`
   for operator execution post-merge.
