@@ -157,7 +157,7 @@ def _read_one_keystroke() -> str:
     Returns at most one character.
     """
     try:
-        import readchar  # type: ignore[import-not-found]
+        import readchar
     except Exception:  # pragma: no cover - tested via fallback path
         readchar = None  # type: ignore[assignment]
 
@@ -226,7 +226,7 @@ def offer_login_recovery(
         try:
             from specify_cli.auth.errors import AuthenticationError  # lazy
         except Exception:  # pragma: no cover - defensive
-            AuthenticationError = Exception  # type: ignore[assignment]
+            AuthenticationError = Exception  # type: ignore[assignment, misc]  # fallback when auth module is unavailable
 
         try:
             asyncio.run(login_impl(headless=False, force=False))

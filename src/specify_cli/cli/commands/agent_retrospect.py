@@ -22,7 +22,7 @@ from rich.console import Console
 from rich.table import Table
 from typing_extensions import Annotated
 
-from specify_cli.context.mission_resolver import AmbiguousHandleError, MissionNotFoundError, resolve_mission
+from specify_cli.context.mission_resolver import AmbiguousHandleError, MissionNotFoundError, ResolvedMission, resolve_mission
 from specify_cli.core.paths import locate_project_root
 from specify_cli.doctrine_synthesizer import (
     SynthesisResult,
@@ -51,7 +51,7 @@ _console = Console()
 _err_console = Console(stderr=True)
 
 
-def resolve_mission_handle(handle: str, repo_root: Path, *, json_mode: bool = False):
+def resolve_mission_handle(handle: str, repo_root: Path, *, json_mode: bool = False) -> ResolvedMission:
     """Resolve a mission handle for this command without pre-rendering JSON errors."""
     del json_mode
     return resolve_mission(handle, repo_root)

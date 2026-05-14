@@ -10,7 +10,7 @@ See kitty-specs/private-teamspace-ingress-safeguards-01KQH03Y/contracts/api.md Â
 from __future__ import annotations
 
 import logging
-from typing import Final, cast
+from typing import Final
 
 from specify_cli.auth.session import require_private_team_id
 from specify_cli.auth.token_manager import TokenManager
@@ -47,7 +47,7 @@ def resolve_private_team_id_for_ingress(
     """
     session = token_manager.get_current_session()
     team_id: str | None = (
-        cast("str | None", require_private_team_id(session))
+        require_private_team_id(session)
         if session is not None
         else None
     )
@@ -59,7 +59,7 @@ def resolve_private_team_id_for_ingress(
         token_manager.rehydrate_membership_if_needed()  # SYNC, no await
         session = token_manager.get_current_session()
         team_id = (
-            cast("str | None", require_private_team_id(session))
+            require_private_team_id(session)
             if session is not None
             else None
         )

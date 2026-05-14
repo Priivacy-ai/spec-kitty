@@ -94,7 +94,7 @@ class MergeState:
         default of ``False`` so that resume correctly re-enters the
         idempotency check rather than blindly skipping it.
         """
-        known_fields = {f.name for f in cls.__dataclass_fields__.values()}  # type: ignore[attr-defined]
+        known_fields = {f.name for f in cls.__dataclass_fields__.values()}
         filtered = {k: v for k, v in data.items() if k in known_fields}
         return cls(**filtered)
 

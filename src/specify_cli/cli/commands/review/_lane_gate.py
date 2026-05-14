@@ -7,6 +7,7 @@ No behaviour change.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import cast
 
 from rich.console import Console
 
@@ -70,7 +71,7 @@ def check_wp_lanes(
             console.print(
                 f"       violated_invariant: {diagnostic['violated_invariant']}"
             )
-            for line in diagnostic["remediation"]:
+            for line in cast(list[str], diagnostic["remediation"]):
                 console.print(f"       remediation: {line}")
             findings.append(
                 {
@@ -84,7 +85,7 @@ def check_wp_lanes(
                     ),
                     "violated_invariant": str(diagnostic["violated_invariant"]),
                     "remediation": "; ".join(
-                        str(line) for line in diagnostic["remediation"]
+                        str(line) for line in cast(list[str], diagnostic["remediation"])
                     ),
                     "latest_review_cycle_verdict": str(
                         diagnostic["latest_review_cycle_verdict"]

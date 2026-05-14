@@ -323,6 +323,19 @@ module = [
 ]
 ignore_errors = true
 
+[dependency-groups]
+dev = [
+    # Type stubs for dev tooling (mypy --strict gate).
+    # These mirror the entries in [project.optional-dependencies] lint so that
+    # `uv run --with mypy mypy --strict ...` resolves them from the default
+    # environment without requiring `--extra lint`.
+    "types-jsonschema>=4.0.0",
+    "types-psutil>=5.9.0",
+    "types-PyYAML>=6.0",
+    "types-requests>=2.33.0",
+    "types-toml>=0.10.0",
+]
+
 [tool.mutmut]
 paths_to_mutate = [
     "src/",

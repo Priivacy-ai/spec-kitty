@@ -312,6 +312,7 @@ def validate_issue_matrix(path: Path) -> IssueMatrixValidationResult:
 
         # Rule: verdict in allow-list
         verdict_normalized = raw_verdict.strip().lower()
+        verdict: IssueMatrixVerdict | None
         try:
             verdict = IssueMatrixVerdict(verdict_normalized)
         except ValueError:
@@ -320,7 +321,7 @@ def validate_issue_matrix(path: Path) -> IssueMatrixValidationResult:
                 f"Row for issue '{issue}': verdict '{raw_verdict}' is not in the "
                 f"allowed set: {[v.value for v in IssueMatrixVerdict]}",
             )
-            verdict = None  # type: ignore[assignment]
+            verdict = None
 
         # Rule: deferred-with-followup must contain follow-up handle
         if verdict is IssueMatrixVerdict.DEFERRED_WITH_FOLLOWUP:

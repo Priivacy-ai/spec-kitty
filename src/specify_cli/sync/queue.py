@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, UTC
 from pathlib import Path
 from typing import Any, Protocol
 
-import toml  # type: ignore[import-untyped]
+import toml
 
 
 class _BatchEventResultLike(Protocol):

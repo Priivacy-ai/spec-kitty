@@ -17,7 +17,7 @@ import json
 import urllib.parse
 import urllib.request
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from .feature_flags import is_saas_sync_enabled
 
@@ -34,7 +34,7 @@ def _resolve_repo_root() -> Path | None:
     try:
         from specify_cli.task_utils import TaskCliError, find_repo_root
 
-        return cast(Path, find_repo_root())
+        return find_repo_root()
     except TaskCliError:
         logger.debug("Non-project context; repo root unavailable for sync daemon")
         return None
@@ -120,7 +120,7 @@ def _resolve_mission_id_for_slug(repo_root: Path | None, mission_slug: str | Non
     try:
         from specify_cli.mission_metadata import resolve_mission_identity
 
-        return cast(str | None, resolve_mission_identity(feature_dir).mission_id)
+        return resolve_mission_identity(feature_dir).mission_id
     except Exception as exc:
         logger.debug("Could not resolve mission_id for %s: %s", mission_slug, exc)
         return None

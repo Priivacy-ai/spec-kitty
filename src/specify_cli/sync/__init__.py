@@ -176,15 +176,16 @@ with _contextlib.suppress(ImportError):
         event_type: str,
         aggregate_id: str,
         aggregate_type: str,
-        payload: dict,
-    ) -> dict:
+        payload: dict[str, object],
+    ) -> dict[str, object]:
         from specify_cli.sync.events import get_emitter
 
-        return get_emitter()._emit(
+        result = get_emitter()._emit(
             event_type=event_type,
             aggregate_id=aggregate_id,
             aggregate_type=aggregate_type,
             payload=payload,
         )
+        return result if result is not None else {}
 
     register_dossier_emitter(_dossier_emit_via_sync)

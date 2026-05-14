@@ -15,7 +15,7 @@ import json
 import os
 from datetime import datetime, UTC
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from specify_cli.mission_metadata import resolve_mission_identity
 
@@ -214,15 +214,16 @@ def _reduce_retrospective(raw_events: list[dict[str, Any]]) -> RetrospectiveSnap
                 mode = None
 
     # Determine status
+    retro_status: Literal["completed", "skipped", "failed", "pending"]
     if terminal_events:
         latest_terminal = terminal_events[-1]
         terminal_name: str = str(latest_terminal.get("event_name", ""))
         if terminal_name == "retrospective.completed":
-            status: str = "completed"
+            retro_status = "completed"
         elif terminal_name == "retrospective.skipped":
-            status = "skipped"
+            retro_status = "skipped"
         else:
-            status = "failed"
+            retro_status = "failed"
 
         # Extract record_path from terminal payload
         record_path: str | None = None
@@ -232,7 +233,7 @@ def _reduce_retrospective(raw_events: list[dict[str, Any]]) -> RetrospectiveSnap
             record_path = str(rp)
     else:
         # Non-terminal retro events present (requested/started)
-        status = "pending"
+        retro_status = "pending"
         record_path = None
 
     # Proposal counts
@@ -248,7 +249,7 @@ def _reduce_retrospective(raw_events: list[dict[str, Any]]) -> RetrospectiveSnap
     proposals_pending = max(0, proposals_total - proposals_applied - proposals_rejected)
 
     return RetrospectiveSnapshot(
-        status=status,
+        status=retro_status,
         mode=mode,
         record_path=record_path,
         proposals_total=proposals_total,

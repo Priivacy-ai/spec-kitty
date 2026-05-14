@@ -48,7 +48,7 @@ __all__ = ["re", "is_re2_active"]
 
 # ── RE2 import (hard dependency — fails loudly if google-re2 not installed) ──
 
-import re2 as _re2_mod  # noqa: E402
+import re2 as _re2_mod  # type: ignore[import-untyped]  # noqa: E402  # see research.md §1; upstream stubs pending
 
 # ── Inline-flag prefix map ───────────────────────────────────────────────────
 # RE2 does not expose re.MULTILINE / re.DOTALL etc. as integer constants.

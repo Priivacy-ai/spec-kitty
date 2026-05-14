@@ -2124,6 +2124,15 @@ test = [
     { name = "respx" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "types-jsonschema" },
+    { name = "types-psutil" },
+    { name = "types-pyyaml" },
+    { name = "types-requests" },
+    { name = "types-toml" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "bandit", marker = "extra == 'lint'", specifier = ">=1.7.0" },
@@ -2172,6 +2181,15 @@ requires-dist = [
     { name = "websockets", specifier = ">=12.0" },
 ]
 provides-extras = ["test", "lint"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "types-jsonschema", specifier = ">=4.0.0" },
+    { name = "types-psutil", specifier = ">=5.9.0" },
+    { name = "types-pyyaml", specifier = ">=6.0" },
+    { name = "types-requests", specifier = ">=2.33.0" },
+    { name = "types-toml", specifier = ">=0.10.0" },
+]
 
 [[package]]
 name = "spec-kitty-events"
