@@ -48,9 +48,10 @@ Three flavors are in use, distinguished by what each rule produces:
 - Validator (class-based): `src/specify_cli/charter_lint/checks/*` —
   `OrphanChecker`, `StalenessChecker`, `ContradictionChecker`,
   `ReferenceIntegrityChecker`, each with `run(drg, scope) -> list[LintFinding]`.
-- Transformer: `src/specify_cli/migration/mission_state.py::_canonicalize_status_row`
-  (motivating example; planned to be lifted onto an explicit
-  `CanonicalRule` Protocol in `src/specify_cli/migration/canonicalization.py`).
+- Transformer: `src/specify_cli/migration/canonicalization.py::CanonicalRule`
+  (Protocol + `apply_rules` runner). Consumed by
+  `src/specify_cli/migration/mission_state.py::_canonicalize_status_row` and
+  `src/specify_cli/migration/rebuild_state.py`.
 - Scorer: `src/doctrine/agent_profiles/repository.py::_score_profile` —
   DDR-011 weighted-signal profile matching.
 

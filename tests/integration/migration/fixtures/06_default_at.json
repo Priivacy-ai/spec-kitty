@@ -1,0 +1,40 @@
+{
+  "description": "Rule 6: missing 'at' field defaulted to epoch",
+  "input": {
+    "data": {
+      "mission_slug": "test-mission",
+      "wp_id": "WP01",
+      "to_lane": "done",
+      "from_lane": "planned",
+      "event_id": "01KJ5V38J914TCB4CZF1N0S7WX",
+      "actor": "migration",
+      "force": true,
+      "execution_mode": "direct_repo"
+    },
+    "mission_slug": "test-mission",
+    "mission_id": "TESTMISSIONID12345678901234",
+    "line_number": 6,
+    "generated_ids": null
+  },
+  "expected": {
+    "row": {
+      "event_id": "01KJ5V38J914TCB4CZF1N0S7WX",
+      "mission_slug": "test-mission",
+      "wp_id": "WP01",
+      "from_lane": "planned",
+      "to_lane": "done",
+      "at": "1970-01-01T00:00:00+00:00",
+      "actor": "migration",
+      "force": true,
+      "execution_mode": "direct_repo",
+      "reason": null,
+      "review_ref": null,
+      "evidence": null,
+      "policy_metadata": null,
+      "mission_id": "TESTMISSIONID12345678901234"
+    },
+    "actions": ["at_defaulted"],
+    "error": null,
+    "generated_ids_after": null
+  }
+}

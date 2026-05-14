@@ -1,0 +1,41 @@
+{
+  "description": "Rule 10: from_lane alias 'doing' normalized to 'in_progress'",
+  "input": {
+    "data": {
+      "mission_slug": "test-mission",
+      "wp_id": "WP01",
+      "to_lane": "in_progress",
+      "from_lane": "doing",
+      "at": "2025-01-01T00:00:00+00:00",
+      "event_id": "01KJ5V38J914TCB4CZF1N0S7WX",
+      "actor": "migration",
+      "force": true,
+      "execution_mode": "direct_repo"
+    },
+    "mission_slug": "test-mission",
+    "mission_id": "TESTMISSIONID12345678901234",
+    "line_number": 10,
+    "generated_ids": null
+  },
+  "expected": {
+    "row": {
+      "event_id": "01KJ5V38J914TCB4CZF1N0S7WX",
+      "mission_slug": "test-mission",
+      "wp_id": "WP01",
+      "from_lane": "in_progress",
+      "to_lane": "in_progress",
+      "at": "2025-01-01T00:00:00+00:00",
+      "actor": "migration",
+      "force": true,
+      "execution_mode": "direct_repo",
+      "reason": null,
+      "review_ref": null,
+      "evidence": null,
+      "policy_metadata": null,
+      "mission_id": "TESTMISSIONID12345678901234"
+    },
+    "actions": ["lane_alias:from_lane:doing->in_progress"],
+    "error": null,
+    "generated_ids_after": null
+  }
+}

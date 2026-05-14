@@ -1,0 +1,42 @@
+{
+  "description": "Rule 3: forbidden legacy key stripped — feature_number removed",
+  "input": {
+    "data": {
+      "mission_slug": "test-mission",
+      "wp_id": "WP01",
+      "to_lane": "done",
+      "at": "2025-01-01T00:00:00+00:00",
+      "from_lane": "planned",
+      "event_id": "01KJ5V38J914TCB4CZF1N0S7WX",
+      "actor": "migration",
+      "force": true,
+      "execution_mode": "direct_repo",
+      "feature_number": 42
+    },
+    "mission_slug": "test-mission",
+    "mission_id": "TESTMISSIONID12345678901234",
+    "line_number": 4,
+    "generated_ids": null
+  },
+  "expected": {
+    "row": {
+      "event_id": "01KJ5V38J914TCB4CZF1N0S7WX",
+      "mission_slug": "test-mission",
+      "wp_id": "WP01",
+      "from_lane": "planned",
+      "to_lane": "done",
+      "at": "2025-01-01T00:00:00+00:00",
+      "actor": "migration",
+      "force": true,
+      "execution_mode": "direct_repo",
+      "reason": null,
+      "review_ref": null,
+      "evidence": null,
+      "policy_metadata": null,
+      "mission_id": "TESTMISSIONID12345678901234"
+    },
+    "actions": ["removed_key:feature_number"],
+    "error": null,
+    "generated_ids_after": null
+  }
+}

@@ -40,7 +40,14 @@ import warnings
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
+
+from specify_cli.migration.canonicalization import (
+    CanonicalRule,
+    CanonicalStepResult,
+    MigrationContext,
+    apply_rules,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -406,6 +413,104 @@ def _build_chain(
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Per-rule pure functions for _derive_migration_timestamp
+# State type: tuple[Path, list[str]] — (feature_dir, candidates)
+# Tactic: chain-of-responsibility-rule-pipeline (Transformer flavor),
+#         refactoring-extract-first-order-concept
+# ---------------------------------------------------------------------------
+
+# Type alias for the state used by the timestamp-source pipeline.
+_TimestampState = tuple[Path, list[str]]
+
+
+def _rule_collect_event_timestamps(
+    state: _TimestampState, ctx: MigrationContext
+) -> CanonicalStepResult[_TimestampState]:
+    """Source 1: collect 'at' timestamps from status.events.jsonl."""
+    feature_dir, candidates = state
+    new_candidates = list(candidates)
+    for evt in _read_existing_events(feature_dir):
+        ts = evt.get("at")
+        if isinstance(ts, str) and ts:
+            new_candidates.append(ts)
+    if new_candidates == candidates:
+        return CanonicalStepResult.passthrough(state)
+    return CanonicalStepResult(state=(feature_dir, new_candidates), actions=())
+
+
+def _rule_collect_materialized_at(
+    state: _TimestampState, ctx: MigrationContext
+) -> CanonicalStepResult[_TimestampState]:
+    """Source 2: collect 'materialized_at' from status.json."""
+    feature_dir, candidates = state
+    new_candidates = list(candidates)
+    status = _read_status_json(feature_dir)
+    if status:
+        ts = status.get("materialized_at")
+        if isinstance(ts, str) and ts:
+            new_candidates.append(ts)
+    if new_candidates == candidates:
+        return CanonicalStepResult.passthrough(state)
+    return CanonicalStepResult(state=(feature_dir, new_candidates), actions=())
+
+
+def _rule_collect_wp_last_transition(
+    state: _TimestampState, ctx: MigrationContext
+) -> CanonicalStepResult[_TimestampState]:
+    """Source 3: collect WP 'last_transition_at' values from status.json work_packages."""
+    feature_dir, candidates = state
+    new_candidates = list(candidates)
+    status = _read_status_json(feature_dir)
+    if status:
+        for wp_state in (status.get("work_packages") or {}).values():
+            if isinstance(wp_state, dict):
+                ts = wp_state.get("last_transition_at")
+                if isinstance(ts, str) and ts:
+                    new_candidates.append(ts)
+    if new_candidates == candidates:
+        return CanonicalStepResult.passthrough(state)
+    return CanonicalStepResult(state=(feature_dir, new_candidates), actions=())
+
+
+def _rule_collect_meta_created_at(
+    state: _TimestampState, ctx: MigrationContext
+) -> CanonicalStepResult[_TimestampState]:
+    """Source 4: collect 'created_at' from meta.json."""
+    feature_dir, candidates = state
+    meta_path = feature_dir / "meta.json"
+    if not meta_path.exists():
+        return CanonicalStepResult.passthrough(state)
+    new_candidates = list(candidates)
+    try:
+        with meta_path.open("r", encoding="utf-8") as fh:
+            meta = json.load(fh)
+        if isinstance(meta, dict):
+            ts = meta.get("created_at")
+            if isinstance(ts, str) and ts:
+                new_candidates.append(ts)
+    except (OSError, json.JSONDecodeError) as exc:  # pragma: no cover
+        logger.debug("Cannot read meta.json in %s: %s", feature_dir, exc)
+    if new_candidates == candidates:
+        return CanonicalStepResult.passthrough(state)
+    return CanonicalStepResult(state=(feature_dir, new_candidates), actions=())
+
+
+# Ordered source-collection rule tuple.
+# Tactics: chain-of-responsibility-rule-pipeline (Transformer flavor)
+# cast: each function matches CanonicalRule[_TimestampState] by structural subtyping;
+# mypy cannot infer Protocol compliance from bare callables in a tuple literal.
+_TIMESTAMP_SOURCE_RULES: tuple[CanonicalRule[_TimestampState], ...] = cast(
+    "tuple[CanonicalRule[_TimestampState], ...]",
+    (
+        _rule_collect_event_timestamps,
+        _rule_collect_materialized_at,
+        _rule_collect_wp_last_transition,
+        _rule_collect_meta_created_at,
+    ),
+)
+
+
 def _derive_migration_timestamp(feature_dir: Path) -> str:
     """Return a deterministic ISO-8601 timestamp for synthetic events.
 
@@ -417,33 +522,15 @@ def _derive_migration_timestamp(feature_dir: Path) -> str:
     timestamp. The result is a pure function of *feature_dir* contents,
     so two rebuild runs over the same fixture produce identical
     timestamps (Mission 8).
+
+    Delegates to :data:`_TIMESTAMP_SOURCE_RULES` via :func:`apply_rules`
+    (Transformer-flavor rule pipeline, ``chain-of-responsibility-rule-pipeline``).
     """
-    candidates: list[str] = []
-    for evt in _read_existing_events(feature_dir):
-        ts = evt.get("at")
-        if isinstance(ts, str) and ts:
-            candidates.append(ts)
-    status = _read_status_json(feature_dir)
-    if status:
-        ts = status.get("materialized_at")
-        if isinstance(ts, str) and ts:
-            candidates.append(ts)
-        for wp_state in (status.get("work_packages") or {}).values():
-            if isinstance(wp_state, dict):
-                ts = wp_state.get("last_transition_at")
-                if isinstance(ts, str) and ts:
-                    candidates.append(ts)
-    meta_path = feature_dir / "meta.json"
-    if meta_path.exists():
-        try:
-            with meta_path.open("r", encoding="utf-8") as fh:
-                meta = json.load(fh)
-            if isinstance(meta, dict):
-                ts = meta.get("created_at")
-                if isinstance(ts, str) and ts:
-                    candidates.append(ts)
-        except (OSError, json.JSONDecodeError) as exc:  # pragma: no cover
-            logger.debug("Cannot read meta.json in %s: %s", feature_dir, exc)
+    from datetime import timedelta
+
+    ctx = MigrationContext(mission_slug="", mission_id="", line_number=0)
+    result = apply_rules(_TIMESTAMP_SOURCE_RULES, (feature_dir, []), ctx)
+    candidates: list[str] = result.state[1] if result.state is not None else []
     if not candidates:
         return _MIGRATION_EPOCH
     # Sort lexicographically — ISO-8601 timestamps sort correctly that way.
@@ -456,8 +543,6 @@ def _derive_migration_timestamp(feature_dir: Path) -> str:
         return _MIGRATION_EPOCH
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=UTC)
-    from datetime import timedelta
-
     return (dt + timedelta(seconds=1)).isoformat()
 
 

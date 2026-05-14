@@ -19,7 +19,7 @@ from collections.abc import Mapping, Sequence
 from contextlib import suppress
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 from urllib.parse import urlsplit
 
 from packaging.version import Version
@@ -30,6 +30,13 @@ from specify_cli.mission_metadata import (
     mission_number_from_slug,
     validate_meta,
     write_meta,
+)
+from specify_cli.migration.canonicalization import (
+    CanonicalPipelineResult,
+    CanonicalRule,
+    CanonicalStepResult,
+    MigrationContext,
+    apply_rules,
 )
 from specify_cli.status.models import ULID_PATTERN, Lane, StatusEvent
 from specify_cli.status.reducer import materialize_snapshot, materialize_to_json
@@ -443,6 +450,17 @@ class _CanonicalRowResult:
     row: dict[str, Any] | None
     actions: tuple[str, ...]
     error: str | None = None
+
+    @classmethod
+    def from_pipeline(
+        cls, result: "CanonicalPipelineResult[dict[str, Any]]"
+    ) -> "_CanonicalRowResult":
+        """Adapt a generic pipeline result to the existing _CanonicalRowResult shape."""
+        return cls(
+            row=result.state if result.error is None else None,
+            actions=result.actions,
+            error=result.error,
+        )
 
 
 def deterministic_ulid(seed: bytes | str) -> str:
@@ -1173,7 +1191,224 @@ def _canonicalize_status_rows(
     return sorted_rows, row_changes, quarantine_lines, errors
 
 
-def _canonicalize_status_row(  # noqa: C901
+# ---------------------------------------------------------------------------
+# Per-rule pure functions for _canonicalize_status_row
+# Tactics: chain-of-responsibility-rule-pipeline (Transformer flavor),
+#          refactoring-extract-first-order-concept
+# ---------------------------------------------------------------------------
+
+# Type alias for the row state used by all rules below.
+_Row = dict[str, Any]
+
+
+def _rule_reject_non_status_event(
+    row: _Row, ctx: MigrationContext
+) -> CanonicalStepResult[_Row]:
+    """Rule 1: quarantine rows that carry event_type or event_name (not status events)."""
+    if "event_type" in row or "event_name" in row:
+        return CanonicalStepResult(
+            state=row,
+            actions=("quarantined_non_status_event",),
+            error="quarantined_non_status_event",
+        )
+    return CanonicalStepResult.passthrough(row)
+
+
+def _rule_apply_aliases(
+    row: _Row, ctx: MigrationContext
+) -> CanonicalStepResult[_Row]:
+    """Rule 2: rename legacy STATUS_ROW_ALIASES keys to their canonical names."""
+    new_row = dict(row)
+    new_actions: list[str] = []
+    for old, new in STATUS_ROW_ALIASES.items():
+        if old in new_row:
+            if new not in new_row or not new_row.get(new):
+                new_row[new] = new_row[old]
+            new_row.pop(old, None)
+            new_actions.append(f"renamed_key:{old}->{new}")
+    if not new_actions:
+        return CanonicalStepResult.passthrough(row)
+    return CanonicalStepResult(state=new_row, actions=tuple(new_actions))
+
+
+def _rule_strip_legacy_keys(
+    row: _Row, ctx: MigrationContext
+) -> CanonicalStepResult[_Row]:
+    """Rule 3: remove FORBIDDEN_LEGACY_KEYS (except feature_slug, handled by aliases)."""
+    new_row = dict(row)
+    new_actions: list[str] = []
+    for key in sorted(FORBIDDEN_LEGACY_KEYS - {"feature_slug"}):
+        if key in new_row:
+            new_row.pop(key, None)
+            new_actions.append(f"removed_key:{key}")
+    if not new_actions:
+        return CanonicalStepResult.passthrough(row)
+    return CanonicalStepResult(state=new_row, actions=tuple(new_actions))
+
+
+def _rule_stamp_identity(
+    row: _Row, ctx: MigrationContext
+) -> CanonicalStepResult[_Row]:
+    """Rule 4: stamp mission_slug and mission_id onto the row."""
+    new_row = dict(row)
+    new_row["mission_slug"] = str(new_row.get("mission_slug") or ctx.mission_slug)
+    new_row["mission_id"] = ctx.mission_id
+    return CanonicalStepResult(state=new_row, actions=())
+
+
+def _rule_mint_event_id(
+    row: _Row, ctx: MigrationContext
+) -> CanonicalStepResult[_Row]:
+    """Rule 5: mint a deterministic event_id when missing or invalid."""
+    if _valid_event_id(row.get("event_id")):
+        return CanonicalStepResult.passthrough(row)
+    new_row = dict(row)
+    minted = deterministic_ulid(
+        json.dumps(new_row, sort_keys=True, default=str) + f":line:{ctx.line_number}"
+    )
+    new_row["event_id"] = minted
+    if ctx.generated_ids is not None:
+        ctx.generated_ids.append(minted)
+    return CanonicalStepResult(
+        state=new_row,
+        actions=("event_id_deterministically_backfilled",),
+    )
+
+
+def _rule_default_at(
+    row: _Row, ctx: MigrationContext
+) -> CanonicalStepResult[_Row]:
+    """Rule 6: default 'at' to the UNIX epoch when missing or empty."""
+    if row.get("at"):
+        return CanonicalStepResult.passthrough(row)
+    new_row = dict(row)
+    new_row["at"] = "1970-01-01T00:00:00+00:00"
+    return CanonicalStepResult(state=new_row, actions=("at_defaulted",))
+
+
+def _rule_default_from_lane(
+    row: _Row, ctx: MigrationContext
+) -> CanonicalStepResult[_Row]:
+    """Rule 7: default 'from_lane' to 'planned' when absent (None)."""
+    if row.get("from_lane") is not None:
+        return CanonicalStepResult.passthrough(row)
+    new_row = dict(row)
+    new_row["from_lane"] = "planned"
+    return CanonicalStepResult(state=new_row, actions=("from_lane_defaulted",))
+
+
+def _rule_require_to_lane(
+    row: _Row, ctx: MigrationContext
+) -> CanonicalStepResult[_Row]:
+    """Rule 8: short-circuit with error when 'to_lane' is missing."""
+    if row.get("to_lane"):
+        return CanonicalStepResult.passthrough(row)
+    return CanonicalStepResult(state=row, actions=(), error="missing required to_lane")
+
+
+def _rule_require_wp_id(
+    row: _Row, ctx: MigrationContext
+) -> CanonicalStepResult[_Row]:
+    """Rule 9: short-circuit with error when 'wp_id' is missing."""
+    if row.get("wp_id"):
+        return CanonicalStepResult.passthrough(row)
+    return CanonicalStepResult(state=row, actions=(), error="missing required wp_id")
+
+
+def _rule_normalize_lanes(
+    row: _Row, ctx: MigrationContext
+) -> CanonicalStepResult[_Row]:
+    """Rule 10: normalize and validate lane values; also normalizes actor, force, execution_mode, builds canonical shape.
+
+    Applies LANE_ALIASES and validates both from_lane and to_lane against VALID_LANES.
+    Then normalizes the actor field, defaults force and execution_mode, and
+    builds the final canonical row dict, which is validated via StatusEvent.from_dict.
+    """
+    new_row = dict(row)
+    new_actions: list[str] = []
+
+    for key in ("from_lane", "to_lane"):
+        lane = str(new_row[key])
+        normalized = LANE_ALIASES.get(lane, lane)
+        if normalized not in VALID_LANES:
+            return CanonicalStepResult(
+                state=new_row, actions=tuple(new_actions), error=f"unknown {key} {lane!r}"
+            )
+        if normalized != lane:
+            new_actions.append(f"lane_alias:{key}:{lane}->{normalized}")
+            new_row[key] = normalized
+
+    actor = new_row.get("actor")
+    if isinstance(actor, Mapping):
+        metadata = dict(new_row.get("policy_metadata") or {})
+        metadata.setdefault("migration_original_actor", actor)
+        new_row["policy_metadata"] = metadata
+        new_row["actor"] = _actor_label(actor)
+        new_actions.append("actor_dict_labelled")
+    elif not isinstance(actor, str) or not actor.strip():
+        new_row["actor"] = "migration"
+        new_actions.append("actor_defaulted")
+    else:
+        normalized_actor = _normalize_actor(actor)
+        if normalized_actor != actor:
+            new_row["actor"] = normalized_actor
+            new_actions.append("actor_normalized")
+
+    if "force" not in new_row:
+        new_row["force"] = False
+        new_actions.append("force_defaulted")
+    if new_row.get("execution_mode") not in VALID_EXECUTION_MODES:
+        new_row["execution_mode"] = "direct_repo"
+        new_actions.append("execution_mode_defaulted")
+
+    canonical: _Row = {
+        "event_id": str(new_row["event_id"]),
+        "mission_slug": str(new_row["mission_slug"]),
+        "wp_id": str(new_row.get("wp_id") or ""),
+        "from_lane": str(new_row["from_lane"]),
+        "to_lane": str(new_row["to_lane"]),
+        "at": str(new_row["at"]),
+        "actor": str(new_row["actor"]),
+        "force": bool(new_row["force"]),
+        "execution_mode": str(new_row["execution_mode"]),
+        "reason": new_row.get("reason"),
+        "review_ref": new_row.get("review_ref"),
+        "evidence": new_row.get("evidence"),
+        "policy_metadata": new_row.get("policy_metadata"),
+        "mission_id": ctx.mission_id,
+    }
+    try:
+        StatusEvent.from_dict(canonical)
+    except Exception as exc:
+        return CanonicalStepResult(
+            state=new_row, actions=tuple(new_actions), error=str(exc)
+        )
+    return CanonicalStepResult(state=canonical, actions=tuple(new_actions))
+
+
+# Ordered rule tuple — order is part of the contract.
+# Tactics: chain-of-responsibility-rule-pipeline (Transformer flavor)
+# See: contracts/canonicalization-rule-pipeline.md
+# cast: each function matches CanonicalRule[_Row] by structural subtyping;
+# mypy cannot infer Protocol compliance from bare callables in a tuple literal.
+_CANONICAL_STATUS_ROW_RULES: tuple[CanonicalRule[_Row], ...] = cast(
+    "tuple[CanonicalRule[_Row], ...]",
+    (
+        _rule_reject_non_status_event,
+        _rule_apply_aliases,
+        _rule_strip_legacy_keys,
+        _rule_stamp_identity,
+        _rule_mint_event_id,
+        _rule_default_at,
+        _rule_default_from_lane,
+        _rule_require_to_lane,
+        _rule_require_wp_id,
+        _rule_normalize_lanes,
+    ),
+)
+
+
+def _canonicalize_status_row(
     data: Mapping[str, Any],
     *,
     mission_slug: str,
@@ -1181,100 +1416,30 @@ def _canonicalize_status_row(  # noqa: C901
     line_number: int,
     generated_ids: list[str] | None = None,
 ) -> _CanonicalRowResult:
-    if "event_type" in data or "event_name" in data:
-        return _CanonicalRowResult(row=None, actions=("quarantined_non_status_event",))
+    """Canonicalize a single status-event row via the typed rule pipeline.
 
-    row = dict(data)
-    actions: list[str] = []
-    for old, new in STATUS_ROW_ALIASES.items():
-        if old in row:
-            if new not in row or not row.get(new):
-                row[new] = row[old]
-            row.pop(old, None)
-            actions.append(f"renamed_key:{old}->{new}")
-    for key in sorted(FORBIDDEN_LEGACY_KEYS - {"feature_slug"}):
-        if key in row:
-            row.pop(key, None)
-            actions.append(f"removed_key:{key}")
+    Delegates to :func:`apply_rules` with :data:`_CANONICAL_STATUS_ROW_RULES`.
+    The pipeline is a Transformer-flavor chain: each rule checks applicability,
+    optionally transforms the state, and returns a :class:`CanonicalStepResult`.
+    Short-circuits on the first error.
 
-    row["mission_slug"] = str(row.get("mission_slug") or mission_slug)
-    row["mission_id"] = mission_id
-    if not _valid_event_id(row.get("event_id")):
-        minted = deterministic_ulid(
-            json.dumps(row, sort_keys=True, default=str) + f":line:{line_number}"
-        )
-        row["event_id"] = minted
-        if generated_ids is not None:
-            generated_ids.append(minted)
-        actions.append("event_id_deterministically_backfilled")
-    if not row.get("at"):
-        row["at"] = "1970-01-01T00:00:00+00:00"
-        actions.append("at_defaulted")
-    if row.get("from_lane") is None:
-        row["from_lane"] = "planned"
-        actions.append("from_lane_defaulted")
-    if not row.get("to_lane"):
-        return _CanonicalRowResult(row=None, actions=tuple(actions), error="missing required to_lane")
-    if not row.get("wp_id"):
-        return _CanonicalRowResult(row=None, actions=tuple(actions), error="missing required wp_id")
-
-    for key in ("from_lane", "to_lane"):
-        lane = str(row[key])
-        normalized = LANE_ALIASES.get(lane, lane)
-        if normalized not in VALID_LANES:
-            return _CanonicalRowResult(
-                row=None,
-                actions=tuple(actions),
-                error=f"unknown {key} {lane!r}",
-            )
-        if normalized != lane:
-            actions.append(f"lane_alias:{key}:{lane}->{normalized}")
-            row[key] = normalized
-
-    actor = row.get("actor")
-    if isinstance(actor, Mapping):
-        metadata = dict(row.get("policy_metadata") or {})
-        metadata.setdefault("migration_original_actor", actor)
-        row["policy_metadata"] = metadata
-        row["actor"] = _actor_label(actor)
-        actions.append("actor_dict_labelled")
-    elif not isinstance(actor, str) or not actor.strip():
-        row["actor"] = "migration"
-        actions.append("actor_defaulted")
-    else:
-        normalized_actor = _normalize_actor(actor)
-        if normalized_actor != actor:
-            row["actor"] = normalized_actor
-            actions.append("actor_normalized")
-
-    if "force" not in row:
-        row["force"] = False
-        actions.append("force_defaulted")
-    if row.get("execution_mode") not in VALID_EXECUTION_MODES:
-        row["execution_mode"] = "direct_repo"
-        actions.append("execution_mode_defaulted")
-
-    canonical = {
-        "event_id": str(row["event_id"]),
-        "mission_slug": str(row["mission_slug"]),
-        "wp_id": str(row.get("wp_id") or ""),
-        "from_lane": str(row["from_lane"]),
-        "to_lane": str(row["to_lane"]),
-        "at": str(row["at"]),
-        "actor": str(row["actor"]),
-        "force": bool(row["force"]),
-        "execution_mode": str(row["execution_mode"]),
-        "reason": row.get("reason"),
-        "review_ref": row.get("review_ref"),
-        "evidence": row.get("evidence"),
-        "policy_metadata": row.get("policy_metadata"),
-        "mission_id": mission_id,
-    }
-    try:
-        StatusEvent.from_dict(canonical)
-    except Exception as exc:
-        return _CanonicalRowResult(row=None, actions=tuple(actions), error=str(exc))
-    return _CanonicalRowResult(row=canonical, actions=tuple(actions))
+    The special quarantine case (non-status events) is handled by
+    ``_rule_reject_non_status_event`` which returns an error; the caller in
+    ``_canonicalize_status_rows`` already treats ``error is not None`` as a
+    quarantine signal for that specific error message.
+    """
+    ctx = MigrationContext(
+        mission_slug=mission_slug,
+        mission_id=mission_id,
+        line_number=line_number,
+        generated_ids=generated_ids,
+    )
+    result = apply_rules(_CANONICAL_STATUS_ROW_RULES, dict(data), ctx)
+    # Special case: quarantined_non_status_event is surfaced as row=None with no error
+    # (the caller _canonicalize_status_rows checks result.row is None, not result.error)
+    if result.error == "quarantined_non_status_event":
+        return _CanonicalRowResult(row=None, actions=result.actions, error=None)
+    return _CanonicalRowResult.from_pipeline(result)
 
 
 def _select_mission_dirs(repo_root: Path, *, scan_root: Path | None, mission: str | None) -> list[Path]:
