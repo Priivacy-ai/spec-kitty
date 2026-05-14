@@ -108,14 +108,37 @@ def merge_lane_to_mission(
     # Stale-lane check.
     stale = check_lane_staleness(lane, branch, mission_branch, repo_root)
     if stale.is_stale:
-        return LaneMergeResult(
-            success=False, lane_id=lane_id, merged_into=mission_branch,
-            errors=[
-                f"Lane {lane_id} is stale: overlapping files {stale.stale_files}. "
-                f"{stale.remediation}"
-            ],
-            stale_check=stale,
+        # Delegate to the auto-rebase classifier+orchestrator before halting.
+        # ADR: architecture/2.x/adr/2026-05-14-1-stale-lane-auto-rebase-classifier-policy.md
+        # When the lane worktree exists, attempt to auto-resolve additive
+        # conflicts. If auto-rebase succeeds, the lane is no longer stale and
+        # we continue. If it fails (or no worktree exists yet), preserve the
+        # existing actionable halt message.
+        worktree_path = (
+            repo_root / ".worktrees" / f"{mission_slug}-{lane.lane_id}"
         )
+        if worktree_path.exists():
+            from specify_cli.lanes.auto_rebase import attempt_auto_rebase
+
+            report = attempt_auto_rebase(
+                lane, branch, mission_branch, repo_root, worktree_path
+            )
+            if report.succeeded:
+                # Auto-rebase landed a merge commit on the lane branch; the
+                # lane is no longer stale. Fall through to the outer merge.
+                stale = check_lane_staleness(
+                    lane, branch, mission_branch, repo_root
+                )
+
+        if stale.is_stale:
+            return LaneMergeResult(
+                success=False, lane_id=lane_id, merged_into=mission_branch,
+                errors=[
+                    f"Lane {lane_id} is stale: overlapping files {stale.stale_files}. "
+                    f"{stale.remediation}"
+                ],
+                stale_check=stale,
+            )
 
     # Merge lane branch into mission branch.
     # We checkout the mission branch in a temporary worktree, merge, then clean up.
