@@ -222,6 +222,12 @@ ignore = [
 "src/specify_cli/cli/commands/agent/config.py" = ["B904"]
 "src/specify_cli/cli/commands/agent/status.py" = ["B904"]
 "src/specify_cli/cli/commands/agent/workflow.py" = ["B904"]
+# F822 false positives: these acceptance-support shims populate their namespace
+# at runtime via ``globals().update(_load_acceptance_api())``; the names in
+# ``__all__`` are real but resolved dynamically and not visible to static
+# analysis. The runtime guarantee is enforced by _load_acceptance_api itself.
+"scripts/tasks/acceptance_support.py" = ["F822"]
+".kittify/overrides/scripts/tasks/acceptance_support.py" = ["F822"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 15  # Match SonarCloud S3776 threshold

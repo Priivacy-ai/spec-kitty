@@ -416,7 +416,7 @@ def rollback_command(args: argparse.Namespace) -> None:
         )
 
     previous_lane_canonical = str(wp_events[0].from_lane) if len(wp_events) == 1 else str(wp_events[-2].to_lane)
-    reverse_aliases: Dict[str, str] = {"in_progress": "doing"}
+    reverse_aliases: dict[str, str] = {"in_progress": "doing"}
     previous_lane = ensure_lane(reverse_aliases.get(previous_lane_canonical, previous_lane_canonical))
     current_event = wp_events[-1]
     note = args.note or f"Rolled back to {previous_lane}"
