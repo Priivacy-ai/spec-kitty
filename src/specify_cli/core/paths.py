@@ -25,6 +25,23 @@ def _is_worktree_gitdir(gitdir: Path) -> bool:
     return gitdir.parent.name == "worktrees" and gitdir.parent.parent.name.endswith(".git")
 
 
+def _read_worktree_gitdir(git_marker: Path) -> Path | None:
+    """Return the pointed gitdir when ``git_marker`` is a real worktree pointer."""
+    try:
+        content = git_marker.read_text(encoding="utf-8", errors="replace").strip()
+    except OSError:
+        return None
+
+    if not content.startswith("gitdir:"):
+        return None
+
+    gitdir = Path(content.split(":", 1)[1].strip())
+    if not _is_worktree_gitdir(gitdir):
+        return None
+
+    return gitdir
+
+
 def locate_project_root(start: Path | None = None) -> Path | None:
     """
     Locate the MAIN spec-kitty project root directory, even from within worktrees.
@@ -269,16 +286,7 @@ def _is_detached_worktree(start: Path | None = None) -> bool:
     for ancestor in [cwd, *cwd.parents]:
         git_marker = ancestor / ".git"
         if git_marker.is_file():
-            try:
-                content = git_marker.read_text(encoding="utf-8", errors="replace").strip()
-                if content.startswith("gitdir:"):
-                    gitdir = Path(content.split(":", 1)[1].strip())
-                    if _is_worktree_gitdir(gitdir):
-                        return True
-            except (OSError, ValueError):
-                pass
-            # Found a .git file but couldn't confirm worktree topology
-            return False
+            return _read_worktree_gitdir(git_marker) is not None
         if git_marker.is_dir():
             # Main repo .git directory — not a worktree
             return False
@@ -326,18 +334,9 @@ def get_status_read_root(start: Path | None = None) -> Path:
     for ancestor in [cwd, *cwd.parents]:
         git_marker = ancestor / ".git"
         if git_marker.is_file():
-            # .git is a file: check if this is a true worktree (not a submodule
-            # or separate-git-dir clone).  Only return the worktree root for the
-            # canonical worktrees topology (.git/worktrees/<name>).
-            try:
-                content = git_marker.read_text(encoding="utf-8", errors="replace").strip()
-                if content.startswith("gitdir:"):
-                    gitdir = Path(content.split(":", 1)[1].strip())
-                    if _is_worktree_gitdir(gitdir):
-                        # This ancestor is the worktree root — read events from here.
-                        return ancestor
-            except (OSError, ValueError):
-                pass
+            if _read_worktree_gitdir(git_marker) is not None:
+                # This ancestor is the worktree root — read events from here.
+                return ancestor
             # .git file present but not a recognised worktree pointer — break and
             # fall through to the main-repo resolver.
             break
