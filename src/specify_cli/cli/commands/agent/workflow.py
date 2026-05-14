@@ -448,41 +448,23 @@ def _find_first_planned_wp(repo_root: Path, mission_slug: str) -> str | None:
 
     Returns:
         WP ID of first planned task, or None if not found
+
+    Implementation note (issue #988, FR-003): this function delegates to the
+    shared, side-effect-free :func:`specify_cli.next.discovery.preview_claimable_wp`
+    so that ``next --json`` and ``agent action implement`` cannot drift in
+    their candidate-selection logic. Do not reintroduce a parallel
+    implementation here.
     """
+    from specify_cli.next.discovery import preview_claimable_wp
+
     cwd = Path.cwd().resolve()
     tasks_dir = _resolve_tasks_dir(cwd, mission_slug, repo_root)
 
     if not tasks_dir.exists():
         return None
 
-    # Find all WP files
-    wp_files = sorted(tasks_dir.glob("WP*.md"))
-
-    # Load lanes from canonical event log (lane is event-log-only)
     feature_dir = tasks_dir.parent
-    try:
-        from specify_cli.status.store import read_events as _fp_read_events
-        from specify_cli.status.reducer import reduce as _fp_reduce
-
-        _fp_events = _fp_read_events(feature_dir)
-        _fp_snapshot = _fp_reduce(_fp_events) if _fp_events else None
-        _fp_lanes: dict = {}
-        if _fp_snapshot:
-            for _fp_wp_id, _fp_state in _fp_snapshot.work_packages.items():
-                _fp_lanes[_fp_wp_id] = Lane(_fp_state.get("lane", Lane.PLANNED))
-    except Exception:
-        _fp_lanes = {}
-
-    for wp_file in wp_files:
-        content = wp_file.read_text(encoding="utf-8-sig")
-        frontmatter, _, _ = split_frontmatter(content)
-        wp_id = extract_scalar(frontmatter, "work_package_id")
-        if wp_id:
-            lane = _fp_lanes.get(wp_id, Lane.PLANNED)
-            if lane == Lane.PLANNED:
-                return wp_id
-
-    return None
+    return preview_claimable_wp(feature_dir).wp_id
 
 
 @app.command(name="implement")

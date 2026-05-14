@@ -118,6 +118,51 @@ def test_preview_claimable_wp_handles_missing_tasks_dir(tmp_path: Path) -> None:
     assert preview.candidates == ()
 
 
+def test_preview_claimable_wp_distinguishes_terminal_from_active(
+    tmp_path: Path,
+) -> None:
+    """All-done missions return ``no_planned_wps``, not ``all_wps_in_progress``.
+
+    Spec correctness: the latter token implies "wait for the active WP to
+    finish"; the former implies "this mission is essentially complete from
+    the implement-loop's perspective". Conflating the two would mislead
+    operators.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    feature_dir, _ = _scaffold(repo, {"WP01": Lane.DONE, "WP02": Lane.APPROVED})
+
+    preview = preview_claimable_wp(feature_dir)
+
+    assert preview.wp_id is None
+    assert preview.selection_reason == "no_planned_wps"
+    assert preview.candidates == ("WP01", "WP02")
+
+
+def test_preview_claimable_wp_uses_frontmatter_id_not_filename(
+    tmp_path: Path,
+) -> None:
+    """WP id source is YAML ``work_package_id``, matching ``_find_first_planned_wp`` (FR-003)."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    feature_dir, _ = _scaffold(repo, {"WP01": Lane.PLANNED})
+
+    # Rename the file to a slug-suffixed form (``WP01-foo.md``) and bake a
+    # mismatched filename stem to prove the helper reads frontmatter, not filename.
+    tasks_dir = feature_dir / "tasks"
+    original = tasks_dir / "WP01.md"
+    renamed = tasks_dir / "WP01-some-slug.md"
+    original.rename(renamed)
+
+    preview = preview_claimable_wp(feature_dir)
+
+    # Discovery must still pick WP01 because the frontmatter says
+    # ``work_package_id: WP01``, regardless of the slug-suffixed filename.
+    assert preview.wp_id == "WP01"
+    assert preview.selection_reason is None
+    assert preview.candidates == ("WP01",)
+
+
 def test_next_json_payload_serializes_claimable_wp_id(tmp_path: Path) -> None:
     """``next --json`` mission_state=implement now serializes the claimable wp_id.
 
