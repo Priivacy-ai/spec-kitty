@@ -50,6 +50,8 @@ from .request import SynthesisRequest, SynthesisTarget
 from .synthesize_pipeline import ProvenanceEntry, _get_synthesizer_version, canonical_yaml
 from .topic_resolver import ResolvedTopic, resolve as resolve_topic
 
+_KITTIFY_DIRNAME = ".kittify"
+
 
 # ---------------------------------------------------------------------------
 # Manifest-rewrite helper (T029 option-b: owned here, not in write_pipeline)
@@ -136,8 +138,10 @@ def _rewrite_manifest(
         yaml_bytes = canonical_yaml(body)
         content_hash = hashlib.sha256(yaml_bytes).hexdigest()
 
-        rel_content = f".kittify/doctrine/{doctrine_kind_subdir(kind)}/{filename}"
-        rel_prov = f".kittify/charter/provenance/{kind}-{slug}.yaml"
+        rel_content = (
+            f"{_KITTIFY_DIRNAME}/doctrine/{doctrine_kind_subdir(kind)}/{filename}"
+        )
+        rel_prov = f"{_KITTIFY_DIRNAME}/charter/provenance/{kind}-{slug}.yaml"
 
         new_entries_by_key[(kind, slug)] = ManifestArtifactEntry(
             kind=kind,
@@ -443,7 +447,7 @@ def run(
             spec_kitty_version=_SPEC_KITTY_VERSION,
             shipped_drg=shipped_drg,
         )
-        existing_graph_path = _repo_root / ".kittify" / "doctrine" / "graph.yaml"
+        existing_graph_path = _repo_root / _KITTIFY_DIRNAME / "doctrine" / "graph.yaml"
         project_graph = updated_overlay
         if existing_graph_path.exists():
             project_graph = _merge_project_overlay(
@@ -473,7 +477,7 @@ def run(
 
     guard = _PathGuard(
         repo_root=_repo_root,
-        extra_allowed_prefixes=(_repo_root / ".kittify",),
+        extra_allowed_prefixes=(_repo_root / _KITTIFY_DIRNAME,),
     )
     _dump_manifest(new_manifest, manifest_path, guard)
 
@@ -505,7 +509,7 @@ def _load_project_artifacts_from_provenance(
     """
     from .provenance import load_yaml as load_provenance  # noqa: PLC0415
 
-    prov_dir = repo_root / ".kittify" / "charter" / "provenance"
+    prov_dir = repo_root / _KITTIFY_DIRNAME / "charter" / "provenance"
     if not prov_dir.exists():
         return []
 
@@ -540,7 +544,7 @@ def _load_merged_drg(
     """
     from ruamel.yaml import YAML  # noqa: PLC0415
 
-    project_graph_path = repo_root / ".kittify" / "doctrine" / "graph.yaml"
+    project_graph_path = repo_root / _KITTIFY_DIRNAME / "doctrine" / "graph.yaml"
     if not project_graph_path.exists():
         return request.drg_snapshot
 

@@ -18,7 +18,7 @@ import re
 from dataclasses import dataclass
 
 _STACK_ID_RE = re.compile(r"^[a-z][a-z0-9+]*$")
-_SNAPSHOT_ID_RE = re.compile(r"^[a-z][a-z0-9-]+-v[0-9]+\.[0-9]+\.[0-9]+$")
+_SNAPSHOT_ID_RE = re.compile(r"^[a-z][a-z0-9-]+-v\d+\.\d+\.\d+$")
 
 
 @dataclass(frozen=True)
