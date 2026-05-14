@@ -86,8 +86,20 @@ CATEGORY_ACTIONS: dict[str, str] = {
 FINAL_SYNC_MAX_ATTEMPTS = 3
 FINAL_SYNC_RETRY_BACKOFF_SECONDS = 1.0
 SYNC_INGRESS_LIMITS_TIMEOUT_SECONDS = 10
-DEFAULT_MAX_DECOMPRESSED_BYTES_PER_BATCH = 900_000
+# Default per-request decompressed byte budget. Kept well below the 1 MiB
+# server cap (`apps.sync.limits.SYNC_INGRESS_MAX_DECOMPRESSED_BYTES`) so the
+# first POST attempt comfortably fits common edge/proxy limits and large
+# queues degrade gracefully into more, smaller requests rather than relying on
+# the HTTP 413 retry-with-shrink fallback (see issue
+# https://github.com/Priivacy-ai/spec-kitty/issues/1045).
+DEFAULT_MAX_DECOMPRESSED_BYTES_PER_BATCH = 262_144
 DECOMPRESSED_BYTES_SAFETY_FACTOR = 0.90
+# Hard ceiling applied to *any* per-request byte budget regardless of what the
+# server advertises via `/api/v1/sync/health/`. The advertised cap is honored
+# as an upper bound, but the CLI never sends requests larger than this ceiling
+# so that real-world edge proxies, intermediate gateways, and decompression
+# safety margins are respected.
+MAX_DECOMPRESSED_BYTES_PER_BATCH_CEILING = 524_288
 HISTORICAL_MISSION_STATE_FORBIDDEN_KEYS = frozenset(
     {
         "feature_slug",
@@ -278,7 +290,12 @@ def _decompressed_byte_limit(advertised_limits: dict[str, int]) -> int:
         "max_decompressed_bytes_per_batch",
         DEFAULT_MAX_DECOMPRESSED_BYTES_PER_BATCH,
     )
-    return max(1, int(advertised_limit * DECOMPRESSED_BYTES_SAFETY_FACTOR))
+    # Apply the safety margin, then clamp to the CLI's per-request ceiling so
+    # an over-generous server advertisement cannot push us into edge-proxy
+    # 413 territory. See issue
+    # https://github.com/Priivacy-ai/spec-kitty/issues/1045.
+    after_safety = int(advertised_limit * DECOMPRESSED_BYTES_SAFETY_FACTOR)
+    return max(1, min(after_safety, MAX_DECOMPRESSED_BYTES_PER_BATCH_CEILING))
 
 
 def _select_events_for_advertised_limits(

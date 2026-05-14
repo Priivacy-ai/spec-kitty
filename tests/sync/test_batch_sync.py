@@ -19,6 +19,7 @@ from specify_cli.auth.token_manager import TokenManager
 from specify_cli.sync.queue import OfflineQueue
 from specify_cli.sync.batch import (
     DEFAULT_MAX_DECOMPRESSED_BYTES_PER_BATCH,
+    MAX_DECOMPRESSED_BYTES_PER_BATCH_CEILING,
     BatchSyncResult,
     batch_sync,
     categorize_error,
@@ -367,6 +368,80 @@ class TestBatchSyncSuccess:
         assert 0 < len(sent_events) < 8
         assert len(sent_payload) <= int(900 * 0.90)
         assert result.total_events == len(sent_events)
+
+    @patch("specify_cli.sync.batch.requests.get")
+    @patch("specify_cli.sync.batch.requests.post")
+    def test_batch_sync_caps_advertised_limit_to_cli_ceiling(
+        self,
+        mock_post,
+        mock_get,
+        temp_queue,
+    ):
+        """An over-generous advertised cap must be clamped by the CLI ceiling.
+
+        Issue https://github.com/Priivacy-ai/spec-kitty/issues/1045: even when
+        the server advertises a 1 MiB decompressed budget, real edge proxies
+        and middlebox limits make sending requests that large unreliable. The
+        CLI must clamp to ``MAX_DECOMPRESSED_BYTES_PER_BATCH_CEILING`` so
+        successive POSTs stay safely small.
+        """
+        for i in range(64):
+            temp_queue.queue_event(
+                {
+                    "event_id": f"ceiling-evt-{i:04d}",
+                    "event_type": "WPStatusChanged",
+                    "aggregate_id": "WP01",
+                    "lamport_clock": i,
+                    "node_id": "test-node",
+                    "payload": {"body": "x" * 16_000},
+                }
+            )
+
+        health_response = Mock()
+        health_response.status_code = 200
+        health_response.json.return_value = {
+            "sync_ingress": {
+                "limits": {
+                    "max_events_per_batch": 1000,
+                    # 1 MiB advertised cap. Without clamping the CLI would
+                    # send roughly 943 KB per request and overshoot real edge
+                    # proxy limits.
+                    "max_decompressed_bytes_per_batch": 1_048_576,
+                }
+            }
+        }
+        mock_get.return_value = health_response
+
+        post_response = Mock()
+        post_response.status_code = 200
+
+        def _post_response(*args, **kwargs):
+            sent = json.loads(gzip.decompress(kwargs["data"]))["events"]
+            post_response.json.return_value = {
+                "results": [
+                    {"event_id": event["event_id"], "status": "success"}
+                    for event in sent
+                ]
+            }
+            return post_response
+
+        mock_post.side_effect = _post_response
+
+        result = batch_sync(
+            queue=temp_queue,
+            auth_token="token",
+            server_url="https://spec-kitty-dev.fly.dev",
+            limit=1000,
+            show_progress=False,
+        )
+
+        sent_payload = gzip.decompress(mock_post.call_args.kwargs["data"])
+        assert len(sent_payload) <= MAX_DECOMPRESSED_BYTES_PER_BATCH_CEILING
+        # At ~16 KB per event, no single batch can carry all 64 events under
+        # the ceiling, so the queue must retain leftovers for a subsequent
+        # batch round-trip.
+        assert result.total_events < 64
+        assert temp_queue.size() > 0
 
     @patch("specify_cli.sync.batch.requests.post")
     def test_batch_sync_uses_fallback_decompressed_byte_limit(self, mock_post, temp_queue):
