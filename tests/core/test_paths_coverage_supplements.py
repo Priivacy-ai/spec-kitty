@@ -26,7 +26,6 @@ from specify_cli.core.paths import (
     StatusReadUnsupported,
     _is_detached_worktree,
     assert_worktree_supported,
-    get_main_repo_root,
     get_status_read_root,
 )
 
