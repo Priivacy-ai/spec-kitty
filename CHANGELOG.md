@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0rc8] - Unreleased
+
 The `quality-devex-hardening-3-2-01KRJGKH` mission closes six epic-#822
 tickets and lands the doctrine tactics, canonical-terminology glossary,
 and code-patterns catalog that underpin the 3.2.0 stable release. Push-time
