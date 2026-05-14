@@ -14,6 +14,8 @@ import tempfile
 from pathlib import Path
 
 import pytest
+import jsonschema
+from spec_kitty_events.schemas import load_schema
 
 pytestmark = pytest.mark.fast
 
@@ -66,6 +68,19 @@ class TestCoalesceKey:
         key = _coalesce_key(event)
         assert key == "MissionDossierArtifactIndexed|proj-1|010-my-feature|manifest.json"
 
+    def test_legacy_artifact_indexed_key_still_scopes_by_project(self):
+        event = {
+            "event_type": "MissionDossierArtifactIndexed",
+            "project_uuid": "proj-legacy",
+            "payload": {
+                "mission_slug": "010-my-feature",
+                "artifact_key": "input.spec",
+                "relative_path": "spec.md",
+            },
+        }
+        key = _coalesce_key(event)
+        assert key == "MissionDossierArtifactIndexed|proj-legacy|010-my-feature|spec.md"
+
     def test_snapshot_computed_key(self):
         event = {
             "event_type": "MissionDossierSnapshotComputed",
@@ -102,6 +117,23 @@ class TestCoalesceKey:
         temp_queue.queue_event(event1)
         temp_queue.queue_event(event2)
         assert temp_queue.size() == 2  # different projects, not coalesced
+
+    def test_legacy_different_projects_not_coalesced(self, temp_queue: OfflineQueue):
+        event1 = {
+            "event_id": "evt-001",
+            "event_type": "MissionDossierArtifactIndexed",
+            "project_uuid": "proj-A",
+            "payload": {"mission_slug": "010-feat", "artifact_key": "readme.md"},
+        }
+        event2 = {
+            "event_id": "evt-002",
+            "event_type": "MissionDossierArtifactIndexed",
+            "project_uuid": "proj-B",
+            "payload": {"mission_slug": "010-feat", "artifact_key": "readme.md"},
+        }
+        temp_queue.queue_event(event1)
+        temp_queue.queue_event(event2)
+        assert temp_queue.size() == 2
 
 
 class TestEventCoalescing:
@@ -211,6 +243,67 @@ class TestEventCoalescing:
         events = temp_queue.drain_queue()
         assert events[0]["event_id"] == "snap-9"
         assert events[0]["payload"]["snapshot_id"] == "snap-9"
+
+
+class TestLegacyDossierQueueMigration:
+    def test_drain_migrates_legacy_artifact_indexed_payload(self, temp_queue: OfflineQueue):
+        legacy_event = {
+            "event_id": "legacy-idx",
+            "event_type": "MissionDossierArtifactIndexed",
+            "payload": {
+                "mission_slug": "010-feat",
+                "artifact_key": "input.spec",
+                "artifact_class": "input",
+                "relative_path": "spec.md",
+                "content_hash_sha256": "a" * 64,
+                "size_bytes": 12,
+                "required_status": "required",
+                "namespace": {
+                    "project_uuid": "proj-1",
+                    "mission_slug": "010-feat",
+                    "target_branch": "main",
+                    "mission_type": "software-dev",
+                    "manifest_version": "1",
+                },
+            },
+        }
+
+        assert temp_queue.queue_event(legacy_event) is True
+        drained = temp_queue.drain_queue()
+
+        payload = drained[0]["payload"]
+        jsonschema.validate(payload, load_schema("mission_dossier_artifact_indexed_payload"))
+        assert payload["artifact_id"]["path"] == "spec.md"
+        assert payload["content_ref"]["hash"] == "a" * 64
+        assert payload["context_diagnostics"]["artifact_key"] == "input.spec"
+        assert "artifact_key" not in payload
+        assert "content_hash_sha256" not in payload
+
+    def test_remove_project_events_uses_nested_namespace(self, temp_queue: OfflineQueue):
+        temp_queue.queue_event(
+            {
+                "event_id": "a-1",
+                "event_type": "MissionDossierArtifactIndexed",
+                "payload": {
+                    "namespace": {"project_uuid": "proj-a", "mission_slug": "010-feat"},
+                    "artifact_id": {"path": "spec.md"},
+                },
+            }
+        )
+        temp_queue.queue_event(
+            {
+                "event_id": "b-1",
+                "event_type": "MissionDossierArtifactIndexed",
+                "payload": {
+                    "namespace": {"project_uuid": "proj-b", "mission_slug": "010-feat"},
+                    "artifact_id": {"path": "spec.md"},
+                },
+            }
+        )
+
+        assert temp_queue.remove_project_events("proj-a") == 1
+        remaining = temp_queue.drain_queue()
+        assert [event["event_id"] for event in remaining] == ["b-1"]
 
 
 # ---------------------------------------------------------------------------

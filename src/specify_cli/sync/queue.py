@@ -69,6 +69,14 @@ COALESCEABLE_EVENT_TYPES: dict[str, list[str]] = {
     ],
 }
 
+LEGACY_COALESCE_FIELD_FALLBACKS: dict[tuple[str, str], list[str]] = {
+    ("MissionDossierArtifactIndexed", "namespace.project_uuid"): ["project_uuid"],
+    ("MissionDossierArtifactIndexed", "namespace.mission_slug"): ["mission_slug"],
+    ("MissionDossierArtifactIndexed", "artifact_id.path"): ["relative_path", "artifact_key"],
+    ("MissionDossierSnapshotComputed", "namespace.project_uuid"): ["project_uuid"],
+    ("MissionDossierSnapshotComputed", "namespace.mission_slug"): ["mission_slug"],
+}
+
 
 def _resolve_dotted(container: Any, path: str) -> Any:
     """Walk a dotted field path inside a nested dict, returning ``None`` on miss."""
@@ -80,6 +88,162 @@ def _resolve_dotted(container: Any, path: str) -> Any:
         if current is None:
             return None
     return current
+
+
+def _resolve_event_or_payload(event: dict[str, Any], payload: dict[str, Any], path: str) -> Any:
+    """Resolve a field path against the event envelope, then its payload."""
+    value = _resolve_dotted(event, path)
+    if value is not None:
+        return value
+    return _resolve_dotted(payload, path)
+
+
+def _normalize_legacy_artifact_class(value: Any) -> str:
+    if value == "other":
+        return "runtime"
+    if isinstance(value, str) and value:
+        return value
+    return "runtime"
+
+
+def _string_context(values: dict[str, Any]) -> dict[str, str]:
+    return {key: str(value) for key, value in values.items() if value is not None}
+
+
+def _legacy_namespace(event: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any] | None:
+    namespace = payload.get("namespace") or event.get("namespace")
+    if isinstance(namespace, dict):
+        return namespace
+    return None
+
+
+def _legacy_content_ref(payload: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "algorithm": "sha256",
+        "hash": str(payload.get("content_hash_sha256", "")),
+        "size_bytes": int(payload.get("size_bytes") or 0),
+    }
+
+
+def _migrate_legacy_dossier_payload(event: dict[str, Any]) -> dict[str, Any]:
+    """Return *event* with legacy flat dossier payloads upgraded if possible.
+
+    Operators can have old MissionDossier* events in SQLite after upgrading.
+    Those rows were emitted before spec-kitty-events 5.0.0 made the
+    namespaced envelope mandatory; transforming them during drain keeps the
+    queue from repeatedly submitting events the server will reject with
+    ``Additional properties are not allowed``.
+    """
+    payload = event.get("payload")
+    if not isinstance(payload, dict):
+        return event
+
+    event_type = str(event.get("event_type", ""))
+    namespace = _legacy_namespace(event, payload)
+    if namespace is None:
+        return event
+
+    migrated_payload: dict[str, Any] | None = None
+    if event_type == "MissionDossierArtifactIndexed" and "artifact_id" not in payload:
+        relative_path = str(payload.get("relative_path") or payload.get("artifact_key") or "")
+        migrated_payload = {
+            "namespace": namespace,
+            "artifact_id": {
+                "mission_type": str(namespace.get("mission_type") or "software-dev"),
+                "path": relative_path,
+                "artifact_class": _normalize_legacy_artifact_class(payload.get("artifact_class")),
+                "wp_id": payload.get("wp_id"),
+            },
+            "content_ref": _legacy_content_ref(payload),
+            "indexed_at": str(payload.get("indexed_at") or event.get("timestamp") or datetime.now(UTC).isoformat()),
+            "step_id": payload.get("step_id"),
+            "context_diagnostics": _string_context(
+                {
+                    "artifact_key": payload.get("artifact_key"),
+                    "required_status": payload.get("required_status"),
+                }
+            ),
+        }
+    elif event_type == "MissionDossierArtifactMissing" and "expected_identity" not in payload:
+        expected_path = str(payload.get("expected_path_pattern") or payload.get("artifact_key") or "")
+        migrated_payload = {
+            "namespace": namespace,
+            "expected_identity": {
+                "mission_type": str(namespace.get("mission_type") or "software-dev"),
+                "path": expected_path,
+                "artifact_class": _normalize_legacy_artifact_class(payload.get("artifact_class")),
+            },
+            "manifest_step": str(payload.get("step_id") or "default"),
+            "checked_at": str(payload.get("checked_at") or event.get("timestamp") or datetime.now(UTC).isoformat()),
+            "remediation_hint": payload.get("reason_detail"),
+            "context_diagnostics": _string_context(
+                {
+                    "artifact_key": payload.get("artifact_key"),
+                    "reason_code": payload.get("reason_code"),
+                    "reason_detail": payload.get("reason_detail"),
+                    "blocking": payload.get("blocking"),
+                }
+            ),
+        }
+    elif event_type == "MissionDossierSnapshotComputed" and "snapshot_hash" not in payload:
+        counts = payload.get("artifact_counts") if isinstance(payload.get("artifact_counts"), dict) else {}
+        migrated_payload = {
+            "namespace": namespace,
+            "snapshot_hash": str(payload.get("parity_hash_sha256") or ""),
+            "artifact_count": int(counts.get("total") or 0),
+            "anomaly_count": int(counts.get("required_missing") or 0),
+            "computed_at": str(payload.get("computed_at") or event.get("timestamp") or datetime.now(UTC).isoformat()),
+            "algorithm": "sha256",
+            "context_diagnostics": _string_context(
+                {
+                    "snapshot_id": payload.get("snapshot_id"),
+                    "completeness_status": payload.get("completeness_status"),
+                    "required": counts.get("required"),
+                    "required_present": counts.get("required_present"),
+                    "optional": counts.get("optional"),
+                    "optional_present": counts.get("optional_present"),
+                }
+            ),
+        }
+    elif event_type == "MissionDossierParityDriftDetected" and "expected_hash" not in payload:
+        changed_paths = [
+            str(path)
+            for path in (payload.get("missing_in_local") or []) + (payload.get("missing_in_baseline") or [])
+        ]
+        migrated_payload = {
+            "namespace": namespace,
+            "expected_hash": str(payload.get("baseline_parity_hash") or ""),
+            "actual_hash": str(payload.get("local_parity_hash") or ""),
+            "drift_kind": str(payload.get("drift_kind") or "anomaly_introduced"),
+            "detected_at": str(payload.get("detected_at") or event.get("timestamp") or datetime.now(UTC).isoformat()),
+            "artifact_ids_changed": [
+                {
+                    "mission_type": str(namespace.get("mission_type") or "software-dev"),
+                    "path": path,
+                    "artifact_class": "evidence",
+                }
+                for path in changed_paths
+            ],
+            "context_diagnostics": _string_context(
+                {
+                    "severity": payload.get("severity"),
+                    "missing_in_local": ",".join(str(path) for path in payload.get("missing_in_local") or []),
+                    "missing_in_baseline": ",".join(str(path) for path in payload.get("missing_in_baseline") or []),
+                }
+            ),
+        }
+
+    if migrated_payload is None:
+        return event
+
+    cleaned_payload = {
+        key: value
+        for key, value in migrated_payload.items()
+        if value is not None and value != {} and value != []
+    }
+    migrated = dict(event)
+    migrated["payload"] = cleaned_payload
+    return migrated
 
 
 def _coalesce_key(event: dict[str, Any]) -> str | None:
@@ -98,9 +262,12 @@ def _coalesce_key(event: dict[str, Any]) -> str | None:
     payload = event.get("payload") or {}
     parts = [event_type]
     for field_name in key_fields:
-        value = _resolve_dotted(event, field_name)
+        value = _resolve_event_or_payload(event, payload, field_name)
         if value is None:
-            value = _resolve_dotted(payload, field_name)
+            for fallback in LEGACY_COALESCE_FIELD_FALLBACKS.get((event_type, field_name), []):
+                value = _resolve_event_or_payload(event, payload, fallback)
+                if value is not None:
+                    break
         if value is None:
             value = ""
         parts.append(str(value))
@@ -914,7 +1081,7 @@ class OfflineQueue:
             events: list[dict[str, Any]] = []
             for row in cursor:
                 _, data = row
-                events.append(json.loads(data))
+                events.append(_migrate_legacy_dossier_payload(json.loads(data)))
             return events
         finally:
             conn.close()
@@ -1014,7 +1181,11 @@ class OfflineQueue:
                 except (TypeError, ValueError):
                     continue
                 payload = event.get("payload") or {}
-                event_project_uuid = event.get("project_uuid") or payload.get("project_uuid")
+                event_project_uuid = (
+                    _resolve_event_or_payload(event, payload, "namespace.project_uuid")
+                    or event.get("project_uuid")
+                    or payload.get("project_uuid")
+                )
                 if str(event_project_uuid or "") == project_uuid:
                     matching_ids.append(str(event_id))
 
