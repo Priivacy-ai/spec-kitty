@@ -118,3 +118,44 @@ def review_artifact_conflict_diagnostic(
         "latest_review_cycle_verdict": finding.verdict,
         "review_cycle_number": finding.cycle_number,
     }
+
+
+@dataclass(frozen=True)
+class ReviewArtifactPreflightResult:
+    """Structured result of the review-artifact consistency preflight.
+
+    Shared by both the real-merge gate (raises on failure) and the
+    ``merge --dry-run`` preview surface (renders diagnostics and exits non-zero).
+    """
+
+    findings: tuple[RejectedReviewArtifactFinding, ...]
+
+    @property
+    def passed(self) -> bool:
+        return not self.findings
+
+    def diagnostics(
+        self,
+        *,
+        repo_root: Path | None = None,
+    ) -> list[dict[str, object]]:
+        """Return the stable diagnostic payloads, one per finding."""
+        return [
+            review_artifact_conflict_diagnostic(finding, repo_root=repo_root)
+            for finding in self.findings
+        ]
+
+
+def run_review_artifact_consistency_preflight(
+    feature_dir: Path,
+    *,
+    wp_ids: list[str] | None = None,
+) -> ReviewArtifactPreflightResult:
+    """Run the review-artifact consistency gate and wrap the result.
+
+    This is the single implementation path shared by ``merge`` and
+    ``merge --dry-run`` so the two surfaces cannot drift. Callers that need
+    rendering can call ``ReviewArtifactPreflightResult.diagnostics()``.
+    """
+    findings = find_rejected_review_artifact_conflicts(feature_dir, wp_ids)
+    return ReviewArtifactPreflightResult(findings=tuple(findings))

@@ -2069,7 +2069,7 @@ def decide_next_via_runtime(  # noqa: C901
     )
 
 
-def query_current_state(
+def query_current_state(  # noqa: C901
     agent: str | None,
     mission_slug: str,
     repo_root: Path,
@@ -2150,6 +2150,7 @@ def query_current_state(
 
         finalized_override = _finalized_task_board_override_step(feature_dir, progress)
         if finalized_override is not None:
+            override_wp_id: str | None = None
             if finalized_override == "done":
                 mission_state = "done"
                 preview_step = None
@@ -2162,6 +2163,20 @@ def query_current_state(
                 mission_state = finalized_override
                 preview_step = finalized_override
                 reason = None
+                # Issue #988: when the finalized override resolves to
+                # "implement", the JSON payload must serialize the concrete
+                # WP that `agent action implement` would auto-claim. This
+                # call is read-only — it mirrors the candidate selection
+                # in `_find_first_planned_wp` without mutating state.
+                if finalized_override == "implement":
+                    from specify_cli.next.discovery import preview_claimable_wp
+
+                    preview = preview_claimable_wp(feature_dir)
+                    override_wp_id = preview.wp_id
+                    if preview.wp_id is None and preview.selection_reason is not None:
+                        # Surface why selection is suppressed so consumers
+                        # can distinguish "nothing to do" from "all claimed".
+                        reason = preview.selection_reason
             return Decision(
                 kind=DecisionKind.query,
                 agent=agent,
@@ -2174,6 +2189,7 @@ def query_current_state(
                 progress=progress,
                 run_id=emitted_run_id,
                 preview_step=preview_step,
+                wp_id=override_wp_id,
             )
 
         if not snapshot.completed_steps and not snapshot.pending_decisions and not snapshot.decisions:

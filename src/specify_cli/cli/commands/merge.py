@@ -59,10 +59,11 @@ from specify_cli.merge.state import (
 from specify_cli.mission_metadata import resolve_mission_identity, write_meta
 from specify_cli.merge.workspace import _worktree_removal_delay, cleanup_merge_workspace, get_merge_runtime_dir
 from specify_cli.post_merge.review_artifact_consistency import (
+    REJECTED_REVIEW_ARTIFACT_CONFLICT,
     REJECTED_REVIEW_ARTIFACT_REMEDIATION,
-    find_rejected_review_artifact_conflicts,
     format_review_artifact_conflict,
     review_artifact_conflict_diagnostic,
+    run_review_artifact_consistency_preflight,
 )
 from specify_cli.post_merge.stale_assertions import StaleAssertionReport, run_check
 from specify_cli.sync import emit_diff_summary_recorded, emit_mission_closed
@@ -935,9 +936,10 @@ def _enforce_review_artifact_consistency(
     wp_ids: list[str],
 ) -> None:
     """Block terminal signoff when the latest review artifact is rejected."""
-    findings = find_rejected_review_artifact_conflicts(feature_dir, wp_ids)
-    if not findings:
+    preflight = run_review_artifact_consistency_preflight(feature_dir, wp_ids=wp_ids)
+    if preflight.passed:
         return
+    findings = list(preflight.findings)
 
     console.print(
         "[red]Error:[/red] Review artifact consistency gate failed. "
@@ -1605,10 +1607,62 @@ def merge(
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1) from exc
 
-        # WP10/T053: dry-run preview of merge-time mission_number assignment.
         feature_dir_for_preview = (
             get_main_repo_root(repo_root) / "kitty-specs" / resolved_feature
         )
+
+        # FR-007/FR-008/FR-009: Run the same review-artifact consistency gate
+        # that real merge runs (issue #991). When a rejected review-cycle
+        # artifact still sits on an approved/done WP, real merge exits with
+        # REJECTED_REVIEW_ARTIFACT_CONFLICT — dry-run must surface the same
+        # blocker in both human and JSON output, so operators can trust the
+        # preview as a readiness signal.
+        dry_run_all_wp_ids: list[str] = [
+            wp for lane in lanes_manifest.lanes for wp in lane.wp_ids
+        ]
+        review_artifact_preflight = run_review_artifact_consistency_preflight(
+            feature_dir_for_preview,
+            wp_ids=dry_run_all_wp_ids,
+        )
+        if not review_artifact_preflight.passed:
+            main_repo_for_diag = get_main_repo_root(repo_root)
+            diagnostics = review_artifact_preflight.diagnostics(
+                repo_root=main_repo_for_diag,
+            )
+            if json_output:
+                print(
+                    json.dumps(
+                        {
+                            "spec_kitty_version": SPEC_KITTY_VERSION,
+                            "mission_slug": resolved_feature,
+                            "target_branch": resolved_target_branch,
+                            "blocked": True,
+                            "blockers": diagnostics,
+                            "diagnostic_code": REJECTED_REVIEW_ARTIFACT_CONFLICT,
+                        }
+                    )
+                )
+            else:
+                console.print(
+                    "[red]Error:[/red] Review artifact consistency gate failed. "
+                    "Approved/done work packages cannot have a latest rejected review artifact."
+                )
+                for finding in review_artifact_preflight.findings:
+                    console.print(
+                        f"  - {format_review_artifact_conflict(finding, repo_root=main_repo_for_diag)}"
+                    )
+                    console.print(
+                        f"    diagnostic_code: {REJECTED_REVIEW_ARTIFACT_CONFLICT}"
+                    )
+                    console.print(
+                        f"    branch_or_work_package: {finding.wp_id}"
+                    )
+                    for line in REJECTED_REVIEW_ARTIFACT_REMEDIATION:
+                        console.print(f"    remediation: {line}")
+                console.print(f"  Mission: {resolved_feature}")
+            raise typer.Exit(1)
+
+        # WP10/T053: dry-run preview of merge-time mission_number assignment.
         would_assign_number: int | None = None
         if needs_number_assignment(feature_dir_for_preview):
             try:

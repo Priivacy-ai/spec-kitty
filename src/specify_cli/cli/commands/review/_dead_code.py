@@ -1,7 +1,6 @@
 """Gate 2: Dead-code scan.
 
 Extracted verbatim from src/specify_cli/cli/commands/review.py (WP07).
-No behaviour change.
 """
 
 from __future__ import annotations
@@ -12,6 +11,8 @@ from pathlib import Path
 
 from rich.console import Console
 
+from ._diagnostics import MissionReviewDiagnostic
+
 _IDENTIFIER_CHARCLASS = r"\w"
 
 
@@ -20,15 +21,50 @@ def scan_dead_code(
     repo_root: Path,
     console: Console,
     findings: list[dict[str, str]],
+    *,
+    mission_id: str | None = None,
+    mission_slug: str | None = None,
 ) -> None:
     """Step 2 — Dead-code scan.
 
     Appends findings to the provided list and prints to console.
+
+    Issue #989: when ``baseline_merge_commit`` is missing on a **modern**
+    mission (one whose ``meta.json`` has ``mission_id`` set, the canonical
+    ULID introduced by mission 083), this gate now fails with
+    ``LIGHTWEIGHT_REVIEW_MISSING_BASELINE``. Genuinely legacy missions
+    (no ``mission_id``) retain the historical skip-pass behavior but are
+    tagged with ``LEGACY_MISSION_DEAD_CODE_SKIP`` so the path is greppable
+    and the skip cannot be confused with a clean pass.
     """
     if not baseline_merge_commit:
+        if mission_id:
+            # Modern mission with no baseline → fail-hard (FR-004, FR-005).
+            remediation = (
+                "Run `spec-kitty merge` to bake baseline_merge_commit into meta.json, "
+                "or rerun review with `--mode post-merge` after merge."
+            )
+            console.print(
+                f"  [red]✗[/red]  Dead-code scan: missing baseline_merge_commit "
+                f"({MissionReviewDiagnostic.LIGHTWEIGHT_REVIEW_MISSING_BASELINE})"
+            )
+            console.print(f"       remediation: {remediation}")
+            findings.append(
+                {
+                    "type": "dead_code_baseline_missing",
+                    "diagnostic_code": str(
+                        MissionReviewDiagnostic.LIGHTWEIGHT_REVIEW_MISSING_BASELINE
+                    ),
+                    "mission_id": mission_id,
+                    "mission_slug": mission_slug or "",
+                    "remediation": remediation,
+                }
+            )
+            return
+        # Legacy mission (no mission_id) — preserve skip-pass but tag it (FR-006).
         console.print(
-            "  [yellow]⚠[/yellow]  Dead-code scan skipped: no baseline_merge_commit in meta.json"
-            " (pre-083 mission)"
+            f"  [yellow]⚠[/yellow]  Dead-code scan skipped: no baseline_merge_commit in meta.json"
+            f" (legacy / pre-083 mission, {MissionReviewDiagnostic.LEGACY_MISSION_DEAD_CODE_SKIP})"
         )
         return
 

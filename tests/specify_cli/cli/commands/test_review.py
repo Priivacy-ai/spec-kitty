@@ -106,10 +106,16 @@ def _setup_fixture(
 
 
 def test_review_passes_when_all_done(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Exit 0 and verdict: pass when all WPs are done, no dead-code scan (no baseline)."""
+    """Exit 0 and verdict: pass when all WPs are done and a baseline_merge_commit is present.
+
+    Modern missions (with ``mission_id`` set) now require ``baseline_merge_commit``
+    for lightweight review (issue #989). Provide one so the dead-code gate has a
+    diff baseline; with no real git diff under ``tmp_path`` the scan finds nothing.
+    """
     repo_root, feature_dir = _setup_fixture(
         tmp_path,
         {"WP01": "done", "WP02": "done"},
+        baseline_merge_commit="0000000000000000000000000000000000000000",
     )
 
     # Patch find_repo_root to return our tmp repo
@@ -129,7 +135,7 @@ def test_review_passes_when_all_done(tmp_path: Path, monkeypatch: pytest.MonkeyP
 
     runner = CliRunner()
     app = _build_cli_app()
-    result = runner.invoke(app, ["--mission", _MISSION_SLUG])
+    result = runner.invoke(app, ["--mission", _MISSION_SLUG, "--mode", "lightweight"])
 
     assert result.exit_code == 0, result.output
 
