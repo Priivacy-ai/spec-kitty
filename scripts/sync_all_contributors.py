@@ -11,7 +11,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Iterable
+from collections.abc import Iterable
 
 
 DEFAULT_DENY_REGEX = r"(?:^|[-_])(claude|codex)(?:$|[-_])"

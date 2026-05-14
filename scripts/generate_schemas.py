@@ -473,8 +473,8 @@ def _generate_import_candidate_schema() -> dict:
     import importlib
 
     mod = importlib.import_module("doctrine.import_candidates.models")
-    legacy_cls = getattr(mod, "LegacyImportCandidate")
-    curation_cls = getattr(mod, "CurationImportCandidate")
+    legacy_cls = mod.LegacyImportCandidate
+    curation_cls = mod.CurationImportCandidate
 
     # Generate each variant
     legacy_raw = legacy_cls.model_json_schema()

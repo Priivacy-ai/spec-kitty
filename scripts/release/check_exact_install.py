@@ -12,7 +12,7 @@ import sys
 import tempfile
 import zipfile
 from pathlib import Path
-from typing import Sequence
+from collections.abc import Sequence
 
 
 def parse_args() -> argparse.Namespace:

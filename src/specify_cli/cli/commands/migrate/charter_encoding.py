@@ -21,10 +21,8 @@ Interactive mode (default):   prompt before each non-UTF-8 file.
 from __future__ import annotations
 
 import json
-import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Annotated
 
 import typer
 from rich.console import Console

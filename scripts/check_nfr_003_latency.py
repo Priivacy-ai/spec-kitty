@@ -140,7 +140,7 @@ def main(argv: list[str] | None = None) -> int:
     median = statistics.median(times)
     delta_pct = (median - pre_median) / pre_median * 100.0
 
-    print(f"NFR-003 latency gate report")
+    print("NFR-003 latency gate report")
     print(f"  pre_cutover_median: {pre_median:.3f}s ({pre_median * 1000:.0f}ms)")
     print(
         f"  post_cutover_median: {median:.3f}s ({median * 1000:.0f}ms)  "

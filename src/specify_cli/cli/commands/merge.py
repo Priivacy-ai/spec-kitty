@@ -320,7 +320,7 @@ def _assert_merged_wps_reached_done(
         raise typer.Exit(1)
 
 
-def _already_baked(merge_state: "MergeState | None") -> bool:
+def _already_baked(merge_state: MergeState | None) -> bool:
     """Resume short-circuit predicate (T026 / FR-012).
 
     Returns True when a prior merge run successfully baked the mission_number
@@ -331,7 +331,7 @@ def _already_baked(merge_state: "MergeState | None") -> bool:
 
 
 def _mark_mission_number_baked(
-    merge_state: "MergeState | None",
+    merge_state: MergeState | None,
     main_repo: Path,
 ) -> None:
     """Persist ``mission_number_baked = True`` so a subsequent resume short-
@@ -424,7 +424,7 @@ def _write_mission_number_to_branch(
     mission_branch: str,
     mission_slug: str,
     next_number: int,
-    merge_state: "MergeState | None",
+    merge_state: MergeState | None,
 ) -> bool:
     """Step 2: write the integer into meta.json on the mission branch, commit,
     and fast-forward the branch ref.
@@ -547,7 +547,7 @@ def _bake_mission_number_into_mission_branch(
     target_branch: str,
     *,
     dry_run: bool = False,
-    merge_state: "MergeState | None" = None,
+    merge_state: MergeState | None = None,
 ) -> int | None:
     """Assign and persist a dense integer ``mission_number`` for a pre-merge mission.
 

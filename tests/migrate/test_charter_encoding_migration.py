@@ -17,7 +17,6 @@ import re
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.migrate_cmd import app as migrate_app

@@ -21,9 +21,10 @@ Key decisions locked here (see plan.md §Key Decisions):
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Mapping, Protocol, Sequence, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
+from collections.abc import Mapping, Sequence
 
 
 # -- Inputs / Outputs -----------------------------------------------------

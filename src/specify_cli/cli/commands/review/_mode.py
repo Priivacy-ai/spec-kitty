@@ -16,7 +16,6 @@ See: src/specify_cli/cli/commands/review/ERROR_CODES.md
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Literal
 
 from specify_cli.cli.commands.review._diagnostics import MissionReviewDiagnostic
 

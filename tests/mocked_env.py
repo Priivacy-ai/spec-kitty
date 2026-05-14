@@ -52,7 +52,8 @@ from __future__ import annotations
 
 from contextlib import ExitStack, contextmanager
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
+from collections.abc import Iterator
 from unittest.mock import patch
 
 

@@ -16,7 +16,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from specify_cli.core.paths import locate_project_root, get_main_repo_root, get_status_read_root
+from specify_cli.core.paths import locate_project_root, get_status_read_root
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.progress import PROGRESS_SEMANTICS, compute_done_percentage, compute_weighted_progress

@@ -630,7 +630,7 @@ def sparse_checkout(
     raise typer.Exit(0 if rep.overall_success and not any_failure else 1)
 
 
-def _print_overdue_details(report: "ShimRegistryReport", console: Console) -> None:
+def _print_overdue_details(report: ShimRegistryReport, console: Console) -> None:
     console.print()
     console.print("[bold red]Overdue shims must be resolved before release:[/bold red]")
     for e in report.entries:
@@ -966,7 +966,7 @@ def _resolve_audit_root(
     repo_root: Path | None,
     fixture_dir: Path | None,
     include_fixtures: bool,
-) -> "tuple[Path, Path | None]":
+) -> tuple[Path, Path | None]:
     """Resolve the effective (repo_root, fixture_dir) pair.
 
     Handles --include-fixtures / --fixture-dir interplay and project-root

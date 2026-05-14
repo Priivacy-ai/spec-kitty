@@ -48,7 +48,7 @@ def review_mission(
         typer.Option("--mission", help="Mission handle (id, mid8, or slug)."),
     ] = "",
     mode: Annotated[
-        Optional[str],
+        str | None,
         typer.Option(
             "--mode",
             help=(
