@@ -64,6 +64,25 @@ def _mock_unauth_sync_now(monkeypatch):
 
 
 class TestSyncNowRecovery:
+    @pytest.fixture(autouse=True)
+    def _stub_teamspace_gate(self, monkeypatch):
+        """Bypass the M7 ``enforce_teamspace_mission_state_ready`` gate.
+
+        Same rationale as ``TestSyncNowExitCodes._stub_teamspace_gate`` in
+        ``tests/agent/cli/commands/test_sync.py``: spec-kitty's own
+        ``.kittify/`` contains TeamSpace blockers in the test environment,
+        which raises ``typer.Exit(1)`` before the recovery contract can be
+        evaluated. These tests assert on the recovery layer specifically,
+        so the gate is stubbed at the call-site in ``sync.py``.
+        """
+        import specify_cli.cli.commands.sync as sync_mod
+
+        monkeypatch.setattr(
+            sync_mod,
+            "enforce_teamspace_mission_state_ready",
+            lambda **kwargs: None,
+        )
+
     def test_non_interactive_with_teamspace_exits_4(self, monkeypatch):
         _mock_unauth_sync_now(monkeypatch)
         monkeypatch.setattr(
