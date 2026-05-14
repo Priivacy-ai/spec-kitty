@@ -1,24 +1,29 @@
-"""Tests for mission dossier event types and emission.
+"""Tests for mission dossier event types and emission (namespaced envelope).
 
-Tests cover:
-- All 4 event payload schemas (Pydantic validation)
-- Event emitters routing through sync infrastructure
-- Conditional event emission (missing only if blocking, drift only if different)
-- Envelope metadata auto-population (event_id, timestamp, etc.)
-- Offline queue integration (events enqueued, not sent to SaaS during local scan)
-- Payload validation (reject invalid data with ValueError)
+These tests pin the wire shape produced by the four dossier event emitters
+against the canonical ``spec_kitty_events>=5.0.0`` server schemas. The
+legacy flat envelope (``mission_slug, artifact_key, content_hash_sha256, …``)
+was rejected by the deployed SaaS with ``Additional properties are not
+allowed``; the migration is tracked under
+Priivacy-ai/spec-kitty#1047 and the launch evidence lives in
+Priivacy-ai/spec-kitty-end-to-end-testing#37.
 """
 
 from __future__ import annotations
 
+import json
 import logging
-from unittest.mock import patch
+from typing import Any
 
+import jsonschema
 import pytest
 from pydantic import ValidationError
+from spec_kitty_events.schemas import load_schema
 
 from specify_cli.dossier.events import (
-    ArtifactCountsPayload,
+    ArtifactIdentity,
+    ContentHashRef,
+    LocalNamespaceTuple,
     MissionDossierArtifactIndexedPayload,
     MissionDossierArtifactMissingPayload,
     MissionDossierParityDriftDetectedPayload,
@@ -29,351 +34,111 @@ from specify_cli.dossier.events import (
     emit_snapshot_computed,
 )
 
+pytestmark = pytest.mark.fast
 
-class TestMissionDossierArtifactIndexedPayload:
-    """Tests for MissionDossierArtifactIndexedPayload schema."""
 
-    def test_valid_payload_with_all_fields(self):
-        """Valid payload with all fields should construct without error."""
-        payload = MissionDossierArtifactIndexedPayload(
-            mission_slug="042-feature",
-            artifact_key="input.spec.main",
-            artifact_class="input",
-            relative_path="spec.md",
-            content_hash_sha256="a" * 64,
-            size_bytes=1024,
-            wp_id="WP01",
+# ── Schema helpers ─────────────────────────────────────────────────────
+
+
+def _server_schema(name: str) -> dict[str, Any]:
+    return load_schema(name)
+
+
+def _assert_valid(payload: dict[str, Any], schema_name: str) -> None:
+    jsonschema.validate(payload, _server_schema(schema_name))
+
+
+@pytest.fixture
+def namespace() -> LocalNamespaceTuple:
+    return LocalNamespaceTuple(
+        project_uuid="11111111-2222-3333-4444-555555555555",
+        mission_slug="042-feature",
+        target_branch="main",
+        mission_type="software-dev",
+        manifest_version="1.0.0",
+    )
+
+
+@pytest.fixture
+def captured_emissions(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
+    captured: list[dict[str, Any]] = []
+
+    def _fake(event_type: str, aggregate_id: str, aggregate_type: str, payload: dict[str, Any]) -> dict[str, Any]:
+        captured.append(
+            {
+                "event_type": event_type,
+                "aggregate_id": aggregate_id,
+                "aggregate_type": aggregate_type,
+                "payload": payload,
+            }
+        )
+        return {"ok": True, "event_id": f"fake-{len(captured)}"}
+
+    monkeypatch.setattr("specify_cli.dossier.events.fire_dossier_event", _fake)
+    return captured
+
+
+# ── Sub-object models ──────────────────────────────────────────────────
+
+
+class TestLocalNamespaceTuple:
+    def test_valid(self) -> None:
+        LocalNamespaceTuple(
+            project_uuid="p", mission_slug="m", target_branch="main",
+            mission_type="software-dev", manifest_version="1.0.0",
+        )
+
+    def test_rejects_extra(self) -> None:
+        with pytest.raises(ValidationError):
+            LocalNamespaceTuple(  # type: ignore[call-arg]
+                project_uuid="p", mission_slug="m", target_branch="main",
+                mission_type="software-dev", manifest_version="1.0.0",
+                bogus="x",
+            )
+
+    def test_step_id_optional(self) -> None:
+        ns = LocalNamespaceTuple(
+            project_uuid="p", mission_slug="m", target_branch="main",
+            mission_type="software-dev", manifest_version="1.0.0",
             step_id="planning",
-            required_status="required",
         )
-        assert payload.mission_slug == "042-feature"
-        assert payload.artifact_key == "input.spec.main"
-        assert payload.artifact_class == "input"
-        assert payload.required_status == "required"
+        assert ns.step_id == "planning"
 
-    def test_valid_payload_with_minimal_fields(self):
-        """Valid payload with only required fields should construct."""
-        payload = MissionDossierArtifactIndexedPayload(
-            mission_slug="042-feature",
-            artifact_key="input.spec.main",
-            artifact_class="input",
-            relative_path="spec.md",
-            content_hash_sha256="a" * 64,
-            size_bytes=1024,
-            required_status="optional",
-        )
-        assert payload.wp_id is None
-        assert payload.step_id is None
 
-    def test_invalid_hash_format(self):
-        """Invalid SHA256 hash format should raise ValueError."""
-        with pytest.raises(ValidationError) as exc_info:
-            MissionDossierArtifactIndexedPayload(
-                mission_slug="042-feature",
-                artifact_key="input.spec.main",
-                artifact_class="input",
-                relative_path="spec.md",
-                content_hash_sha256="invalid_hash",
-                size_bytes=1024,
-                required_status="required",
-            )
-        assert "Invalid SHA256 hash" in str(exc_info.value)
+class TestArtifactIdentity:
+    def test_valid(self) -> None:
+        ArtifactIdentity(mission_type="software-dev", path="spec.md", artifact_class="input")
 
-    def test_invalid_artifact_class(self):
-        """Invalid artifact_class should raise ValueError."""
-        with pytest.raises(ValidationError) as exc_info:
-            MissionDossierArtifactIndexedPayload(
-                mission_slug="042-feature",
-                artifact_key="input.spec.main",
-                artifact_class="invalid_class",
-                relative_path="spec.md",
-                content_hash_sha256="a" * 64,
-                size_bytes=1024,
-                required_status="required",
-            )
-        assert "Invalid artifact_class" in str(exc_info.value)
-
-    def test_invalid_required_status(self):
-        """Invalid required_status should raise ValueError."""
-        with pytest.raises(ValidationError) as exc_info:
-            MissionDossierArtifactIndexedPayload(
-                mission_slug="042-feature",
-                artifact_key="input.spec.main",
-                artifact_class="input",
-                relative_path="spec.md",
-                content_hash_sha256="a" * 64,
-                size_bytes=1024,
-                required_status="invalid_status",
-            )
-        assert "Invalid required_status" in str(exc_info.value)
-
-    def test_missing_required_field(self):
-        """Missing required field should raise ValidationError."""
+    def test_rejects_unknown_class(self) -> None:
         with pytest.raises(ValidationError):
-            MissionDossierArtifactIndexedPayload(
-                mission_slug="042-feature",
-                artifact_key="input.spec.main",
-                artifact_class="input",
-                relative_path="spec.md",
-                # Missing content_hash_sha256
-                size_bytes=1024,
-                required_status="required",
-            )
+            ArtifactIdentity(mission_type="software-dev", path="spec.md", artifact_class="bogus")
 
-
-class TestMissionDossierArtifactMissingPayload:
-    """Tests for MissionDossierArtifactMissingPayload schema."""
-
-    def test_valid_payload(self):
-        """Valid payload should construct without error."""
-        payload = MissionDossierArtifactMissingPayload(
-            mission_slug="042-feature",
-            artifact_key="output.tasks.per_wp",
-            artifact_class="output",
-            expected_path_pattern="tasks/*.md",
-            reason_code="not_found",
-            reason_detail="No tasks directory found",
-            blocking=True,
-        )
-        assert payload.mission_slug == "042-feature"
-        assert payload.reason_code == "not_found"
-        assert payload.blocking is True
-
-    def test_valid_payload_without_detail(self):
-        """Valid payload without reason_detail should construct."""
-        payload = MissionDossierArtifactMissingPayload(
-            mission_slug="042-feature",
-            artifact_key="output.tasks.per_wp",
-            artifact_class="output",
-            expected_path_pattern="tasks/*.md",
-            reason_code="not_found",
-            blocking=True,
-        )
-        assert payload.reason_detail is None
-
-    def test_invalid_reason_code(self):
-        """Invalid reason_code should raise ValueError."""
-        with pytest.raises(ValidationError) as exc_info:
-            MissionDossierArtifactMissingPayload(
-                mission_slug="042-feature",
-                artifact_key="output.tasks.per_wp",
-                artifact_class="output",
-                expected_path_pattern="tasks/*.md",
-                reason_code="invalid_reason",
-                blocking=True,
-            )
-        assert "Invalid reason_code" in str(exc_info.value)
-
-    def test_all_valid_reason_codes(self):
-        """All valid reason codes should construct successfully."""
-        for reason_code in ["not_found", "unreadable", "invalid_format", "deleted_after_scan"]:
-            payload = MissionDossierArtifactMissingPayload(
-                mission_slug="042-feature",
-                artifact_key="output.tasks.per_wp",
-                artifact_class="output",
-                expected_path_pattern="tasks/*.md",
-                reason_code=reason_code,
-                blocking=True,
-            )
-            assert payload.reason_code == reason_code
-
-
-class TestArtifactCountsPayload:
-    """Tests for ArtifactCountsPayload schema."""
-
-    def test_valid_counts(self):
-        """Valid artifact counts should construct without error."""
-        counts = ArtifactCountsPayload(
-            total=10,
-            required=7,
-            required_present=6,
-            required_missing=1,
-            optional=3,
-            optional_present=3,
-        )
-        assert counts.total == 10
-        assert counts.required_present == 6
-
-    def test_zero_counts(self):
-        """Zero counts should be valid."""
-        counts = ArtifactCountsPayload(
-            total=0,
-            required=0,
-            required_present=0,
-            required_missing=0,
-            optional=0,
-            optional_present=0,
-        )
-        assert counts.total == 0
-
-    def test_negative_count_invalid(self):
-        """Negative counts should raise ValidationError."""
+    def test_rejects_other_class(self) -> None:
+        # The new server schema dropped the legacy ``other`` enum value.
         with pytest.raises(ValidationError):
-            ArtifactCountsPayload(
-                total=-1,
-                required=0,
-                required_present=0,
-                required_missing=0,
-                optional=0,
-                optional_present=0,
-            )
+            ArtifactIdentity(mission_type="software-dev", path="spec.md", artifact_class="other")
 
 
-class TestMissionDossierSnapshotComputedPayload:
-    """Tests for MissionDossierSnapshotComputedPayload schema."""
+class TestContentHashRef:
+    def test_valid(self) -> None:
+        ContentHashRef(algorithm="sha256", hash="a" * 64, size_bytes=10)
 
-    def test_valid_payload(self):
-        """Valid payload should construct without error."""
-        payload = MissionDossierSnapshotComputedPayload(
-            mission_slug="042-feature",
-            parity_hash_sha256="a" * 64,
-            artifact_counts=ArtifactCountsPayload(
-                total=10,
-                required=7,
-                required_present=6,
-                required_missing=1,
-                optional=3,
-                optional_present=3,
-            ),
-            completeness_status="incomplete",
-            snapshot_id="snap-001",
-        )
-        assert payload.mission_slug == "042-feature"
-        assert payload.completeness_status == "incomplete"
+    def test_lowercases_hash(self) -> None:
+        ref = ContentHashRef(algorithm="sha256", hash="A" * 64)
+        assert ref.hash == "a" * 64
 
-    def test_invalid_parity_hash(self):
-        """Invalid parity hash should raise ValueError."""
-        with pytest.raises(ValidationError) as exc_info:
-            MissionDossierSnapshotComputedPayload(
-                mission_slug="042-feature",
-                parity_hash_sha256="invalid_hash",
-                artifact_counts=ArtifactCountsPayload(
-                    total=10,
-                    required=7,
-                    required_present=6,
-                    required_missing=1,
-                    optional=3,
-                    optional_present=3,
-                ),
-                completeness_status="complete",
-                snapshot_id="snap-001",
-            )
-        assert "Invalid SHA256 hash" in str(exc_info.value)
-
-    def test_invalid_completeness_status(self):
-        """Invalid completeness_status should raise ValueError."""
-        with pytest.raises(ValidationError) as exc_info:
-            MissionDossierSnapshotComputedPayload(
-                mission_slug="042-feature",
-                parity_hash_sha256="a" * 64,
-                artifact_counts=ArtifactCountsPayload(
-                    total=10,
-                    required=7,
-                    required_present=6,
-                    required_missing=1,
-                    optional=3,
-                    optional_present=3,
-                ),
-                completeness_status="invalid_status",
-                snapshot_id="snap-001",
-            )
-        assert "Invalid completeness_status" in str(exc_info.value)
-
-    def test_all_valid_completeness_statuses(self):
-        """All valid completeness statuses should construct successfully."""
-        for status in ["complete", "incomplete", "unknown"]:
-            payload = MissionDossierSnapshotComputedPayload(
-                mission_slug="042-feature",
-                parity_hash_sha256="a" * 64,
-                artifact_counts=ArtifactCountsPayload(
-                    total=10,
-                    required=7,
-                    required_present=6,
-                    required_missing=1,
-                    optional=3,
-                    optional_present=3,
-                ),
-                completeness_status=status,
-                snapshot_id="snap-001",
-            )
-            assert payload.completeness_status == status
+    def test_rejects_unknown_algorithm(self) -> None:
+        with pytest.raises(ValidationError):
+            ContentHashRef(algorithm="crc32", hash="abc")
 
 
-class TestMissionDossierParityDriftDetectedPayload:
-    """Tests for MissionDossierParityDriftDetectedPayload schema."""
-
-    def test_valid_payload_with_drift(self):
-        """Valid payload with drift should construct without error."""
-        payload = MissionDossierParityDriftDetectedPayload(
-            mission_slug="042-feature",
-            local_parity_hash="a" * 64,
-            baseline_parity_hash="b" * 64,
-            missing_in_local=["artifact1", "artifact2"],
-            missing_in_baseline=["artifact3"],
-            severity="warning",
-        )
-        assert payload.mission_slug == "042-feature"
-        assert payload.severity == "warning"
-        assert len(payload.missing_in_local) == 2
-
-    def test_valid_payload_without_missing_lists(self):
-        """Valid payload with empty missing lists should construct."""
-        payload = MissionDossierParityDriftDetectedPayload(
-            mission_slug="042-feature",
-            local_parity_hash="a" * 64,
-            baseline_parity_hash="b" * 64,
-            severity="error",
-        )
-        assert payload.missing_in_local == []
-        assert payload.missing_in_baseline == []
-
-    def test_invalid_local_hash(self):
-        """Invalid local hash should raise ValueError."""
-        with pytest.raises(ValidationError) as exc_info:
-            MissionDossierParityDriftDetectedPayload(
-                mission_slug="042-feature",
-                local_parity_hash="invalid_hash",
-                baseline_parity_hash="b" * 64,
-                severity="warning",
-            )
-        assert "Invalid SHA256 hash" in str(exc_info.value)
-
-    def test_invalid_severity(self):
-        """Invalid severity should raise ValueError."""
-        with pytest.raises(ValidationError) as exc_info:
-            MissionDossierParityDriftDetectedPayload(
-                mission_slug="042-feature",
-                local_parity_hash="a" * 64,
-                baseline_parity_hash="b" * 64,
-                severity="invalid_severity",
-            )
-        assert "Invalid severity" in str(exc_info.value)
-
-    def test_all_valid_severities(self):
-        """All valid severities should construct successfully."""
-        for severity in ["info", "warning", "error"]:
-            payload = MissionDossierParityDriftDetectedPayload(
-                mission_slug="042-feature",
-                local_parity_hash="a" * 64,
-                baseline_parity_hash="b" * 64,
-                severity=severity,
-            )
-            assert payload.severity == severity
+# ── End-to-end emitter behavior + schema parity ────────────────────────
 
 
 class TestEmitArtifactIndexed:
-    """Tests for emit_artifact_indexed emitter function."""
-
-    @patch("specify_cli.dossier.events.fire_dossier_event")
-    def test_emit_artifact_indexed_success(self, mock_fire):
-        """emit_artifact_indexed should emit event to sync infrastructure."""
-        mock_event = {
-            "event_id": "event-001",
-            "event_type": "MissionDossierArtifactIndexed",
-            "timestamp": "2026-02-21T12:00:00+00:00",
-        }
-        mock_fire.return_value = mock_event
-
+    def test_emits_namespaced_envelope(
+        self, captured_emissions: list[dict[str, Any]], namespace: LocalNamespaceTuple
+    ) -> None:
         result = emit_artifact_indexed(
             mission_slug="042-feature",
             artifact_key="input.spec.main",
@@ -384,273 +149,240 @@ class TestEmitArtifactIndexed:
             wp_id="WP01",
             step_id="planning",
             required_status="required",
+            namespace=namespace,
         )
+        assert result is not None
+        assert len(captured_emissions) == 1
+        evt = captured_emissions[0]
+        assert evt["event_type"] == "MissionDossierArtifactIndexed"
+        assert evt["aggregate_type"] == "MissionDossier"
+        assert evt["aggregate_id"] == "042-feature:spec.md"
 
-        assert result == mock_event
-        mock_fire.assert_called_once()
-        call_args = mock_fire.call_args
-        assert call_args[1]["event_type"] == "MissionDossierArtifactIndexed"
-        assert call_args[1]["aggregate_type"] == "MissionDossier"
+        payload = evt["payload"]
+        assert set(payload.keys()).issubset(
+            {"namespace", "artifact_id", "content_ref", "indexed_at",
+             "provenance", "step_id", "context_diagnostics", "supersedes"}
+        )
+        assert payload["namespace"]["mission_slug"] == "042-feature"
+        assert payload["namespace"]["mission_type"] == "software-dev"
+        assert payload["artifact_id"] == {
+            "mission_type": "software-dev",
+            "path": "spec.md",
+            "artifact_class": "input",
+            "wp_id": "WP01",
+        }
+        assert payload["content_ref"] == {
+            "algorithm": "sha256",
+            "hash": "a" * 64,
+            "size_bytes": 1024,
+        }
+        assert payload["step_id"] == "planning"
+        assert payload["context_diagnostics"]["artifact_key"] == "input.spec.main"
+        assert payload["context_diagnostics"]["required_status"] == "required"
 
-    def test_emit_artifact_indexed_invalid_payload(self, caplog):
-        """emit_artifact_indexed should reject invalid payload with error log."""
-        result = emit_artifact_indexed(
+        _assert_valid(payload, "mission_dossier_artifact_indexed_payload")
+
+    def test_legacy_other_class_maps_to_runtime(
+        self, captured_emissions: list[dict[str, Any]], namespace: LocalNamespaceTuple
+    ) -> None:
+        emit_artifact_indexed(
+            mission_slug="042-feature",
+            artifact_key="legacy.other",
+            artifact_class="other",
+            relative_path="legacy.md",
+            content_hash_sha256="a" * 64,
+            size_bytes=1,
+            namespace=namespace,
+        )
+        payload = captured_emissions[0]["payload"]
+        assert payload["artifact_id"]["artifact_class"] == "runtime"
+        _assert_valid(payload, "mission_dossier_artifact_indexed_payload")
+
+    def test_accepts_dict_namespace(
+        self, captured_emissions: list[dict[str, Any]], namespace: LocalNamespaceTuple
+    ) -> None:
+        ns_dict = namespace.model_dump(exclude_none=True)
+        emit_artifact_indexed(
             mission_slug="042-feature",
             artifact_key="input.spec.main",
-            artifact_class="invalid_class",  # Invalid
+            artifact_class="input",
             relative_path="spec.md",
             content_hash_sha256="a" * 64,
-            size_bytes=1024,
-            required_status="required",
+            size_bytes=1,
+            namespace=ns_dict,
         )
+        assert captured_emissions
+        _assert_valid(captured_emissions[0]["payload"], "mission_dossier_artifact_indexed_payload")
 
-        assert result is None
-        assert "Payload validation failed" in caplog.text
-
-    @patch("specify_cli.dossier.events.fire_dossier_event")
-    def test_emit_artifact_indexed_with_minimal_fields(self, mock_fire):
-        """emit_artifact_indexed should work with minimal fields."""
-        mock_event = {"event_id": "event-001", "event_type": "MissionDossierArtifactIndexed"}
-        mock_fire.return_value = mock_event
-
+    def test_missing_namespace_refuses_to_emit(
+        self, captured_emissions: list[dict[str, Any]], caplog: pytest.LogCaptureFixture
+    ) -> None:
+        caplog.set_level(logging.ERROR, logger="specify_cli.dossier.events")
         result = emit_artifact_indexed(
             mission_slug="042-feature",
             artifact_key="input.spec.main",
             artifact_class="input",
             relative_path="spec.md",
             content_hash_sha256="a" * 64,
-            size_bytes=1024,
-            required_status="optional",
+            size_bytes=1,
+            namespace=None,
+        )
+        assert result is None
+        assert not captured_emissions
+        assert any(
+            "MissionDossierArtifactIndexed" in record.message
+            for record in caplog.records
         )
 
-        assert result == mock_event
+    def test_invalid_artifact_class_returns_none(
+        self, captured_emissions: list[dict[str, Any]], namespace: LocalNamespaceTuple
+    ) -> None:
+        result = emit_artifact_indexed(
+            mission_slug="042-feature",
+            artifact_key="x",
+            artifact_class="bogus",
+            relative_path="x.md",
+            content_hash_sha256="a" * 64,
+            size_bytes=1,
+            namespace=namespace,
+        )
+        assert result is None
+        assert not captured_emissions
 
 
 class TestEmitArtifactMissing:
-    """Tests for emit_artifact_missing emitter function."""
-
-    @patch("specify_cli.dossier.events.fire_dossier_event")
-    def test_emit_artifact_missing_blocking_true(self, mock_fire):
-        """emit_artifact_missing should emit event when blocking=True."""
-        mock_event = {
-            "event_id": "event-002",
-            "event_type": "MissionDossierArtifactMissing",
-        }
-        mock_fire.return_value = mock_event
-
-        result = emit_artifact_missing(
+    def test_blocking_emits_namespaced_envelope(
+        self, captured_emissions: list[dict[str, Any]], namespace: LocalNamespaceTuple
+    ) -> None:
+        emit_artifact_missing(
             mission_slug="042-feature",
-            artifact_key="output.tasks.per_wp",
+            artifact_key="output.dossier.indexed",
             artifact_class="output",
-            expected_path_pattern="tasks/*.md",
+            expected_path_pattern="dossier.json",
             reason_code="not_found",
+            reason_detail="never produced by the indexer",
             blocking=True,
+            namespace=namespace,
+            manifest_step="indexing",
         )
+        assert captured_emissions
+        payload = captured_emissions[0]["payload"]
+        _assert_valid(payload, "mission_dossier_artifact_missing_payload")
+        assert payload["expected_identity"]["path"] == "dossier.json"
+        assert payload["manifest_step"] == "indexing"
+        assert payload["context_diagnostics"]["reason_code"] == "not_found"
+        assert payload["context_diagnostics"]["reason_detail"] == "never produced by the indexer"
 
-        assert result == mock_event
-        mock_fire.assert_called_once()
-
-    def test_emit_artifact_missing_blocking_false(self, caplog):
-        """emit_artifact_missing should skip event when blocking=False."""
-        with caplog.at_level(logging.DEBUG):
-            result = emit_artifact_missing(
-                mission_slug="042-feature",
-                artifact_key="output.tasks.per_wp",
-                artifact_class="output",
-                expected_path_pattern="tasks/*.md",
-                reason_code="not_found",
-                blocking=False,
-            )
-
-        assert result is None
-        assert "Skipping optional artifact missing event" in caplog.text
-
-    def test_emit_artifact_missing_invalid_payload(self, caplog):
-        """emit_artifact_missing should reject invalid payload."""
+    def test_non_blocking_skips(
+        self, captured_emissions: list[dict[str, Any]], namespace: LocalNamespaceTuple
+    ) -> None:
         result = emit_artifact_missing(
             mission_slug="042-feature",
-            artifact_key="output.tasks.per_wp",
-            artifact_class="invalid_class",  # Invalid
-            expected_path_pattern="tasks/*.md",
+            artifact_key="optional.body",
+            artifact_class="output",
+            expected_path_pattern="body.md",
             reason_code="not_found",
-            blocking=True,
+            blocking=False,
+            namespace=namespace,
         )
-
         assert result is None
-        assert "Payload validation failed" in caplog.text
+        assert not captured_emissions
 
 
 class TestEmitSnapshotComputed:
-    """Tests for emit_snapshot_computed emitter function."""
-
-    @patch("specify_cli.dossier.events.fire_dossier_event")
-    def test_emit_snapshot_computed_complete(self, mock_fire):
-        """emit_snapshot_computed should emit event with complete status."""
-        mock_event = {
-            "event_id": "event-003",
-            "event_type": "MissionDossierSnapshotComputed",
-        }
-        mock_fire.return_value = mock_event
-
-        result = emit_snapshot_computed(
+    def test_emits_namespaced_envelope(
+        self, captured_emissions: list[dict[str, Any]], namespace: LocalNamespaceTuple
+    ) -> None:
+        emit_snapshot_computed(
             mission_slug="042-feature",
-            parity_hash_sha256="a" * 64,
+            parity_hash_sha256="b" * 64,
             total_artifacts=10,
-            required_artifacts=7,
-            required_present=7,
+            required_artifacts=5,
+            required_present=5,
             required_missing=0,
-            optional_artifacts=3,
-            optional_present=3,
+            optional_artifacts=5,
+            optional_present=4,
             completeness_status="complete",
-            snapshot_id="snap-001",
+            snapshot_id="snap-01",
+            namespace=namespace,
         )
-
-        assert result == mock_event
-        mock_fire.assert_called_once()
-
-    @patch("specify_cli.dossier.events.fire_dossier_event")
-    def test_emit_snapshot_computed_incomplete(self, mock_fire):
-        """emit_snapshot_computed should emit event with incomplete status."""
-        mock_event = {
-            "event_id": "event-003",
-            "event_type": "MissionDossierSnapshotComputed",
-        }
-        mock_fire.return_value = mock_event
-
-        result = emit_snapshot_computed(
-            mission_slug="042-feature",
-            parity_hash_sha256="a" * 64,
-            total_artifacts=10,
-            required_artifacts=7,
-            required_present=6,
-            required_missing=1,
-            optional_artifacts=3,
-            optional_present=3,
-            completeness_status="incomplete",
-            snapshot_id="snap-001",
-        )
-
-        assert result == mock_event
-
-    def test_emit_snapshot_computed_invalid_payload(self, caplog):
-        """emit_snapshot_computed should reject invalid payload."""
-        result = emit_snapshot_computed(
-            mission_slug="042-feature",
-            parity_hash_sha256="invalid_hash",  # Invalid
-            total_artifacts=10,
-            required_artifacts=7,
-            required_present=7,
-            required_missing=0,
-            optional_artifacts=3,
-            optional_present=3,
-            completeness_status="complete",
-            snapshot_id="snap-001",
-        )
-
-        assert result is None
-        assert "Payload validation failed" in caplog.text
+        assert captured_emissions
+        payload = captured_emissions[0]["payload"]
+        _assert_valid(payload, "mission_dossier_snapshot_computed_payload")
+        assert payload["snapshot_hash"] == "b" * 64
+        assert payload["artifact_count"] == 10
+        assert payload["anomaly_count"] == 0
+        assert payload["context_diagnostics"]["snapshot_id"] == "snap-01"
+        assert payload["context_diagnostics"]["completeness_status"] == "complete"
 
 
 class TestEmitParityDriftDetected:
-    """Tests for emit_parity_drift_detected emitter function."""
-
-    @patch("specify_cli.dossier.events.fire_dossier_event")
-    def test_emit_parity_drift_detected_with_drift(self, mock_fire):
-        """emit_parity_drift_detected should emit event when hashes differ."""
-        mock_event = {
-            "event_id": "event-004",
-            "event_type": "MissionDossierParityDriftDetected",
-        }
-        mock_fire.return_value = mock_event
-
-        result = emit_parity_drift_detected(
+    def test_emits_when_hashes_differ(
+        self, captured_emissions: list[dict[str, Any]], namespace: LocalNamespaceTuple
+    ) -> None:
+        emit_parity_drift_detected(
             mission_slug="042-feature",
-            local_parity_hash="a" * 64,
-            baseline_parity_hash="b" * 64,  # Different hash
-            missing_in_local=["artifact1"],
-            missing_in_baseline=["artifact2"],
+            local_parity_hash="c" * 64,
+            baseline_parity_hash="d" * 64,
+            missing_in_local=["foo.md"],
+            missing_in_baseline=["bar.md"],
             severity="warning",
+            namespace=namespace,
         )
+        assert captured_emissions
+        payload = captured_emissions[0]["payload"]
+        _assert_valid(payload, "mission_dossier_parity_drift_detected_payload")
+        assert payload["actual_hash"] == "c" * 64
+        assert payload["expected_hash"] == "d" * 64
+        assert payload["drift_kind"] == "anomaly_introduced"
+        paths = {item["path"] for item in payload["artifact_ids_changed"]}
+        assert paths == {"foo.md", "bar.md"}
+        assert payload["context_diagnostics"]["severity"] == "warning"
 
-        assert result == mock_event
-        mock_fire.assert_called_once()
-
-    def test_emit_parity_drift_detected_no_drift(self, caplog):
-        """emit_parity_drift_detected should skip event when hashes match."""
-        with caplog.at_level(logging.DEBUG):
-            result = emit_parity_drift_detected(
-                mission_slug="042-feature",
-                local_parity_hash="a" * 64,
-                baseline_parity_hash="a" * 64,  # Same hash - no drift
-                severity="info",
-            )
-
-        assert result is None
-        assert "No parity drift detected" in caplog.text
-
-    def test_emit_parity_drift_detected_invalid_payload(self, caplog):
-        """emit_parity_drift_detected should reject invalid payload."""
+    def test_identical_hashes_skip(
+        self, captured_emissions: list[dict[str, Any]], namespace: LocalNamespaceTuple
+    ) -> None:
         result = emit_parity_drift_detected(
             mission_slug="042-feature",
-            local_parity_hash="invalid_hash",  # Invalid
-            baseline_parity_hash="b" * 64,
+            local_parity_hash="c" * 64,
+            baseline_parity_hash="c" * 64,
             severity="warning",
+            namespace=namespace,
         )
-
         assert result is None
-        assert "Payload validation failed" in caplog.text
-
-    @patch("specify_cli.dossier.events.fire_dossier_event")
-    def test_emit_parity_drift_detected_error_severity(self, mock_fire):
-        """emit_parity_drift_detected should emit with error severity."""
-        mock_event = {"event_id": "event-004", "event_type": "MissionDossierParityDriftDetected"}
-        mock_fire.return_value = mock_event
-
-        result = emit_parity_drift_detected(
-            mission_slug="042-feature",
-            local_parity_hash="a" * 64,
-            baseline_parity_hash="b" * 64,
-            severity="error",
-        )
-
-        assert result == mock_event
+        assert not captured_emissions
 
 
-class TestEventEnvelopeMetadata:
-    """Tests for event envelope metadata auto-population."""
+# ── Wire-payload Pydantic models reject extras (parity with server) ────
 
-    @patch("specify_cli.dossier.events.fire_dossier_event")
-    def test_emitter_calls_with_correct_aggregate_type(self, mock_fire):
-        """All dossier events should use 'MissionDossier' aggregate_type."""
-        mock_fire.return_value = {}
 
+class TestWirePayloadModelsRejectExtras:
+    @pytest.mark.parametrize(
+        "model_cls",
+        [
+            MissionDossierArtifactIndexedPayload,
+            MissionDossierArtifactMissingPayload,
+            MissionDossierSnapshotComputedPayload,
+            MissionDossierParityDriftDetectedPayload,
+        ],
+    )
+    def test_extras_rejected(self, model_cls: type) -> None:
+        with pytest.raises(ValidationError):
+            model_cls(bogus="x")  # type: ignore[call-arg]
+
+
+class TestPayloadJsonRoundTrip:
+    def test_indexed_payload_is_json_serializable(
+        self, captured_emissions: list[dict[str, Any]], namespace: LocalNamespaceTuple
+    ) -> None:
         emit_artifact_indexed(
             mission_slug="042-feature",
             artifact_key="input.spec.main",
             artifact_class="input",
             relative_path="spec.md",
             content_hash_sha256="a" * 64,
-            size_bytes=1024,
-            required_status="required",
+            size_bytes=1,
+            namespace=namespace,
         )
-
-        call_kwargs = mock_fire.call_args[1]
-        assert call_kwargs["aggregate_type"] == "MissionDossier"
-
-    @patch("specify_cli.dossier.events.fire_dossier_event")
-    def test_emitter_constructs_aggregate_id(self, mock_fire):
-        """Events should construct aggregate_id from mission_slug and key."""
-        mock_fire.return_value = {}
-
-        emit_artifact_indexed(
-            mission_slug="042-feature",
-            artifact_key="input.spec.main",
-            artifact_class="input",
-            relative_path="spec.md",
-            content_hash_sha256="a" * 64,
-            size_bytes=1024,
-            required_status="required",
-        )
-
-        call_kwargs = mock_fire.call_args[1]
-        assert call_kwargs["aggregate_id"] == "042-feature:input.spec.main"
+        payload = captured_emissions[0]["payload"]
+        json.dumps(payload)

@@ -19,6 +19,14 @@ from specify_cli.dossier.events import emit_artifact_indexed
 
 VALID_HASH = "a" * 64
 
+NAMESPACE_DICT = {
+    "project_uuid": "proj-1",
+    "mission_slug": "042-feat",
+    "target_branch": "main",
+    "mission_type": "software-dev",
+    "manifest_version": "1",
+}
+
 
 @pytest.fixture(autouse=True)
 def _isolate_registration() -> None:
@@ -120,6 +128,7 @@ class TestEmitArtifactIndexedThroughAdapter:
             content_hash_sha256=VALID_HASH,
             size_bytes=100,
             required_status="optional",
+            namespace=NAMESPACE_DICT,
         )
         assert result is None  # silent drop is correct behavior
 
@@ -140,6 +149,7 @@ class TestEmitArtifactIndexedThroughAdapter:
             content_hash_sha256=VALID_HASH,
             size_bytes=100,
             required_status="required",
+            namespace=NAMESPACE_DICT,
         )
 
         assert result is not None
@@ -147,8 +157,14 @@ class TestEmitArtifactIndexedThroughAdapter:
         assert len(captured) == 1
         call = captured[0]
         assert call["event_type"] == "MissionDossierArtifactIndexed"
-        assert call["aggregate_id"] == "042-feat:input.spec"
+        # New aggregate_id pins (mission_slug, path) — the legacy
+        # artifact_key has moved to context_diagnostics on the wire.
+        assert call["aggregate_id"] == "042-feat:spec.md"
         assert call["aggregate_type"] == "MissionDossier"
         payload = call["payload"]
-        assert payload["mission_slug"] == "042-feat"
-        assert payload["artifact_key"] == "input.spec"
+        # Namespaced envelope (spec-kitty-events >= 5.0.0):
+        assert payload["namespace"]["mission_slug"] == "042-feat"
+        assert payload["artifact_id"]["path"] == "spec.md"
+        assert payload["artifact_id"]["artifact_class"] == "input"
+        assert payload["content_ref"]["hash"] == VALID_HASH
+        assert payload["context_diagnostics"]["artifact_key"] == "input.spec"

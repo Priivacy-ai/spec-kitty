@@ -53,10 +53,15 @@ class TestCoalesceKey:
         assert _coalesce_key(event) is None
 
     def test_artifact_indexed_key(self):
+        # Namespaced envelope (spec-kitty-events >= 5.0.0): project_uuid and
+        # mission_slug live inside ``namespace``; the unique path moved from
+        # ``artifact_key`` to ``artifact_id.path``.
         event = {
             "event_type": "MissionDossierArtifactIndexed",
-            "project_uuid": "proj-1",
-            "payload": {"mission_slug": "010-my-feature", "artifact_key": "manifest.json"},
+            "payload": {
+                "namespace": {"project_uuid": "proj-1", "mission_slug": "010-my-feature"},
+                "artifact_id": {"path": "manifest.json"},
+            },
         }
         key = _coalesce_key(event)
         assert key == "MissionDossierArtifactIndexed|proj-1|010-my-feature|manifest.json"
@@ -64,8 +69,9 @@ class TestCoalesceKey:
     def test_snapshot_computed_key(self):
         event = {
             "event_type": "MissionDossierSnapshotComputed",
-            "project_uuid": "proj-1",
-            "payload": {"mission_slug": "010-my-feature", "snapshot_id": "snap-001"},
+            "payload": {
+                "namespace": {"project_uuid": "proj-1", "mission_slug": "010-my-feature"},
+            },
         }
         key = _coalesce_key(event)
         assert key == "MissionDossierSnapshotComputed|proj-1|010-my-feature"
@@ -76,18 +82,22 @@ class TestCoalesceKey:
         assert key == "MissionDossierArtifactIndexed|||"
 
     def test_different_projects_not_coalesced(self, temp_queue: OfflineQueue):
-        """Events from different project_uuids must not coalesce."""
+        """Events from different namespace.project_uuids must not coalesce."""
         event1 = {
             "event_id": "evt-001",
             "event_type": "MissionDossierArtifactIndexed",
-            "project_uuid": "proj-A",
-            "payload": {"mission_slug": "010-feat", "artifact_key": "readme.md"},
+            "payload": {
+                "namespace": {"project_uuid": "proj-A", "mission_slug": "010-feat"},
+                "artifact_id": {"path": "readme.md"},
+            },
         }
         event2 = {
             "event_id": "evt-002",
             "event_type": "MissionDossierArtifactIndexed",
-            "project_uuid": "proj-B",
-            "payload": {"mission_slug": "010-feat", "artifact_key": "readme.md"},
+            "payload": {
+                "namespace": {"project_uuid": "proj-B", "mission_slug": "010-feat"},
+                "artifact_id": {"path": "readme.md"},
+            },
         }
         temp_queue.queue_event(event1)
         temp_queue.queue_event(event2)
@@ -99,24 +109,23 @@ class TestEventCoalescing:
 
     def test_coalescing_updates_existing_row(self, temp_queue: OfflineQueue):
         """Second event with same coalesce key replaces first, keeping queue size at 1."""
+        base_ns = {"project_uuid": "proj-1", "mission_slug": "010-feat"}
         event1 = {
             "event_id": "evt-001",
             "event_type": "MissionDossierArtifactIndexed",
-            "project_uuid": "proj-1",
             "payload": {
-                "mission_slug": "010-feat",
-                "artifact_key": "readme.md",
-                "content_hash_sha256": "aaa",
+                "namespace": base_ns,
+                "artifact_id": {"path": "readme.md"},
+                "content_ref": {"algorithm": "sha256", "hash": "a" * 64},
             },
         }
         event2 = {
             "event_id": "evt-002",
             "event_type": "MissionDossierArtifactIndexed",
-            "project_uuid": "proj-1",
             "payload": {
-                "mission_slug": "010-feat",
-                "artifact_key": "readme.md",
-                "content_hash_sha256": "bbb",
+                "namespace": base_ns,
+                "artifact_id": {"path": "readme.md"},
+                "content_ref": {"algorithm": "sha256", "hash": "b" * 64},
             },
         }
 
@@ -129,18 +138,25 @@ class TestEventCoalescing:
         events = temp_queue.drain_queue()
         assert len(events) == 1
         assert events[0]["event_id"] == "evt-002"
-        assert events[0]["payload"]["content_hash_sha256"] == "bbb"
+        assert events[0]["payload"]["content_ref"]["hash"] == "b" * 64
 
     def test_different_artifact_keys_not_coalesced(self, temp_queue: OfflineQueue):
+        base_ns = {"project_uuid": "proj-1", "mission_slug": "010-feat"}
         event1 = {
             "event_id": "evt-001",
             "event_type": "MissionDossierArtifactIndexed",
-            "payload": {"mission_slug": "010-feat", "artifact_key": "a.md"},
+            "payload": {
+                "namespace": base_ns,
+                "artifact_id": {"path": "a.md"},
+            },
         }
         event2 = {
             "event_id": "evt-002",
             "event_type": "MissionDossierArtifactIndexed",
-            "payload": {"mission_slug": "010-feat", "artifact_key": "b.md"},
+            "payload": {
+                "namespace": base_ns,
+                "artifact_id": {"path": "b.md"},
+            },
         }
 
         temp_queue.queue_event(event1)

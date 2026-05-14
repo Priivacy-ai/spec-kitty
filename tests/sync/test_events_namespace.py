@@ -50,10 +50,11 @@ class TestArtifactIndexedNamespace:
         assert len(payload["namespace"]) == 5
 
     @patch("specify_cli.dossier.events.fire_dossier_event")
-    def test_omits_namespace_when_not_provided(self, mock_fire: MagicMock) -> None:
-        mock_fire.return_value = {"event_type": "test"}
-
-        emit_artifact_indexed(
+    def test_refuses_to_emit_without_namespace(self, mock_fire: MagicMock) -> None:
+        # spec-kitty-events >= 5.0.0: ``namespace`` is required by the
+        # server schema. The emitter must refuse to fire rather than
+        # produce a payload the SaaS will reject.
+        result = emit_artifact_indexed(
             mission_slug="047-feat",
             artifact_key="input.spec",
             artifact_class="input",
@@ -61,10 +62,8 @@ class TestArtifactIndexedNamespace:
             content_hash_sha256=VALID_HASH,
             size_bytes=100,
         )
-
-        call_kwargs = mock_fire.call_args
-        payload = call_kwargs.kwargs["payload"]
-        assert "namespace" not in payload
+        assert result is None
+        mock_fire.assert_not_called()
 
 
 class TestArtifactMissingNamespace:
@@ -89,10 +88,8 @@ class TestArtifactMissingNamespace:
         assert payload["namespace"] == ns
 
     @patch("specify_cli.dossier.events.fire_dossier_event")
-    def test_omits_namespace_when_not_provided(self, mock_fire: MagicMock) -> None:
-        mock_fire.return_value = {"event_type": "test"}
-
-        emit_artifact_missing(
+    def test_refuses_to_emit_without_namespace(self, mock_fire: MagicMock) -> None:
+        result = emit_artifact_missing(
             mission_slug="047-feat",
             artifact_key="input.spec",
             artifact_class="input",
@@ -100,10 +97,8 @@ class TestArtifactMissingNamespace:
             reason_code="not_found",
             blocking=True,
         )
-
-        call_kwargs = mock_fire.call_args
-        payload = call_kwargs.kwargs["payload"]
-        assert "namespace" not in payload
+        assert result is None
+        mock_fire.assert_not_called()
 
 
 class TestSnapshotComputedNamespace:

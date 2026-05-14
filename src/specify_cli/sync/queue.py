@@ -47,14 +47,39 @@ class OfflineQueueFull(RuntimeError):
 # arrives and an equivalent event (same type + coalesce key) already exists in
 # the queue, the existing row is updated in-place rather than inserting a new
 # row.  This prevents high-volume instrumentation from flooding the queue.
+#
+# Field paths use dotted notation when the field lives inside a sub-object
+# (e.g. ``namespace.project_uuid``). The resolver looks at the top-level
+# event envelope first, then at the nested payload, walking the dotted path
+# at each location.
 COALESCEABLE_EVENT_TYPES: dict[str, list[str]] = {
-    # project_uuid scopes the key so events from different repos/branches
-    # sharing the same mission_slug+artifact_key never collide.
-    "MissionDossierArtifactIndexed": ["project_uuid", "mission_slug", "artifact_key"],
-    # Snapshot IDs are regenerated on each scan, so coalesce by project+feature
-    # to keep only the latest snapshot queued for a given dossier.
-    "MissionDossierSnapshotComputed": ["project_uuid", "mission_slug"],
+    # namespace.project_uuid scopes the key so events from different repos/
+    # branches sharing the same mission_slug+path never collide.
+    "MissionDossierArtifactIndexed": [
+        "namespace.project_uuid",
+        "namespace.mission_slug",
+        "artifact_id.path",
+    ],
+    # Snapshot hashes are regenerated on each scan, so coalesce by
+    # project+mission to keep only the latest snapshot queued for a given
+    # dossier.
+    "MissionDossierSnapshotComputed": [
+        "namespace.project_uuid",
+        "namespace.mission_slug",
+    ],
 }
+
+
+def _resolve_dotted(container: Any, path: str) -> Any:
+    """Walk a dotted field path inside a nested dict, returning ``None`` on miss."""
+    current = container
+    for segment in path.split("."):
+        if not isinstance(current, dict):
+            return None
+        current = current.get(segment)
+        if current is None:
+            return None
+    return current
 
 
 def _coalesce_key(event: dict[str, Any]) -> str | None:
@@ -62,7 +87,9 @@ def _coalesce_key(event: dict[str, Any]) -> str | None:
 
     The key is built from the event_type and the fields listed in
     COALESCEABLE_EVENT_TYPES. Fields may live either on the top-level event
-    envelope (for example ``project_uuid``) or inside ``payload``.
+    envelope (for example ``project_uuid``) or inside ``payload``. Dotted
+    paths (e.g. ``namespace.project_uuid``) navigate sub-objects in either
+    location.
     """
     event_type = str(event.get("event_type", ""))
     key_fields = COALESCEABLE_EVENT_TYPES.get(event_type)
@@ -71,9 +98,11 @@ def _coalesce_key(event: dict[str, Any]) -> str | None:
     payload = event.get("payload") or {}
     parts = [event_type]
     for field_name in key_fields:
-        value = event.get(field_name)
+        value = _resolve_dotted(event, field_name)
         if value is None:
-            value = payload.get(field_name, "")
+            value = _resolve_dotted(payload, field_name)
+        if value is None:
+            value = ""
         parts.append(str(value))
     return "|".join(parts)
 

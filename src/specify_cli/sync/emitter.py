@@ -146,6 +146,10 @@ def _is_nullable_string(value: Any) -> bool:
     return value is None or (isinstance(value, str))
 
 
+def _is_dict(value: Any) -> bool:
+    return isinstance(value, dict)
+
+
 def _is_actor_payload(value: Any) -> bool:
     if not isinstance(value, dict):
         return False
@@ -455,52 +459,59 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
             "resolution_type": lambda v: v in {"completed", "skipped", "merged"},
         },
     },
-    # WP04: Dossier events
+    # Dossier events — namespaced envelope (spec-kitty-events >= 5.0.0).
+    # The canonical sub-object shapes live in specify_cli/dossier/events.py
+    # (LocalNamespaceTuple, ArtifactIdentity, ContentHashRef). See
+    # Priivacy-ai/spec-kitty#1047 for the migration from the legacy flat
+    # envelope.
     "MissionDossierArtifactIndexed": {
-        "required": {"mission_slug", "artifact_key", "artifact_class", "relative_path", "content_hash_sha256", "size_bytes", "required_status"},
+        "required": {"namespace", "artifact_id", "content_ref", "indexed_at"},
         "validators": {
-            "mission_slug": lambda v: isinstance(v, str) and len(v) >= 1,
-            "artifact_key": lambda v: isinstance(v, str) and len(v) >= 1,
-            "artifact_class": lambda v: v in {"input", "workflow", "output", "evidence", "policy", "runtime", "other"},
-            "relative_path": lambda v: isinstance(v, str) and len(v) >= 1,
-            "content_hash_sha256": lambda v: isinstance(v, str) and bool(re.match(r"^[a-f0-9]{64}$", v)),
-            "size_bytes": lambda v: isinstance(v, int) and v >= 0,
-            "wp_id": _is_nullable_string,
+            "namespace": _is_dict,
+            "artifact_id": _is_dict,
+            "content_ref": _is_dict,
+            "indexed_at": lambda v: isinstance(v, str) and len(v) >= 1,
+            "provenance": lambda v: v is None or isinstance(v, dict),
             "step_id": _is_nullable_string,
-            "required_status": lambda v: v in {"required", "optional"},
+            "context_diagnostics": lambda v: v is None or isinstance(v, dict),
+            "supersedes": lambda v: v is None or isinstance(v, dict),
         },
     },
     "MissionDossierArtifactMissing": {
-        "required": {"mission_slug", "artifact_key", "artifact_class", "expected_path_pattern", "reason_code", "blocking"},
+        "required": {"namespace", "expected_identity", "manifest_step", "checked_at"},
         "validators": {
-            "mission_slug": lambda v: isinstance(v, str) and len(v) >= 1,
-            "artifact_key": lambda v: isinstance(v, str) and len(v) >= 1,
-            "artifact_class": lambda v: v in {"input", "workflow", "output", "evidence", "policy", "runtime", "other"},
-            "expected_path_pattern": lambda v: isinstance(v, str) and len(v) >= 1,
-            "reason_code": lambda v: v in {"not_found", "unreadable", "invalid_format", "deleted_after_scan"},
-            "reason_detail": _is_nullable_string,
-            "blocking": lambda v: isinstance(v, bool),
+            "namespace": _is_dict,
+            "expected_identity": _is_dict,
+            "manifest_step": lambda v: isinstance(v, str) and len(v) >= 1,
+            "checked_at": lambda v: isinstance(v, str) and len(v) >= 1,
+            "last_known_ref": lambda v: v is None or isinstance(v, dict),
+            "remediation_hint": _is_nullable_string,
+            "context_diagnostics": lambda v: v is None or isinstance(v, dict),
         },
     },
     "MissionDossierSnapshotComputed": {
-        "required": {"mission_slug", "parity_hash_sha256", "artifact_counts", "completeness_status", "snapshot_id"},
+        "required": {"namespace", "snapshot_hash", "artifact_count", "anomaly_count", "computed_at"},
         "validators": {
-            "mission_slug": lambda v: isinstance(v, str) and len(v) >= 1,
-            "parity_hash_sha256": lambda v: isinstance(v, str) and bool(re.match(r"^[a-f0-9]{64}$", v)),
-            "artifact_counts": lambda v: isinstance(v, dict),
-            "completeness_status": lambda v: v in {"complete", "incomplete", "unknown"},
-            "snapshot_id": lambda v: isinstance(v, str) and len(v) >= 1,
+            "namespace": _is_dict,
+            "snapshot_hash": lambda v: isinstance(v, str) and bool(re.match(r"^[a-f0-9]{64}$", v)),
+            "artifact_count": lambda v: isinstance(v, int) and v >= 0,
+            "anomaly_count": lambda v: isinstance(v, int) and v >= 0,
+            "computed_at": lambda v: isinstance(v, str) and len(v) >= 1,
+            "algorithm": _is_nullable_string,
+            "context_diagnostics": lambda v: v is None or isinstance(v, dict),
         },
     },
     "MissionDossierParityDriftDetected": {
-        "required": {"mission_slug", "local_parity_hash", "baseline_parity_hash", "severity"},
+        "required": {"namespace", "expected_hash", "actual_hash", "drift_kind", "detected_at"},
         "validators": {
-            "mission_slug": lambda v: isinstance(v, str) and len(v) >= 1,
-            "local_parity_hash": lambda v: isinstance(v, str) and bool(re.match(r"^[a-f0-9]{64}$", v)),
-            "baseline_parity_hash": lambda v: isinstance(v, str) and bool(re.match(r"^[a-f0-9]{64}$", v)),
-            "missing_in_local": lambda v: isinstance(v, list),
-            "missing_in_baseline": lambda v: isinstance(v, list),
-            "severity": lambda v: v in {"info", "warning", "error"},
+            "namespace": _is_dict,
+            "expected_hash": lambda v: isinstance(v, str) and bool(re.match(r"^[a-f0-9]{64}$", v)),
+            "actual_hash": lambda v: isinstance(v, str) and bool(re.match(r"^[a-f0-9]{64}$", v)),
+            "drift_kind": lambda v: isinstance(v, str) and len(v) >= 1,
+            "detected_at": lambda v: isinstance(v, str) and len(v) >= 1,
+            "artifact_ids_changed": lambda v: v is None or (isinstance(v, list) and all(isinstance(item, dict) for item in v)),
+            "rebuild_hint": _is_nullable_string,
+            "context_diagnostics": lambda v: v is None or isinstance(v, dict),
         },
     },
     "MissionOriginBound": {
