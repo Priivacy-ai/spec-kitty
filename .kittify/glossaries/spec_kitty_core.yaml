@@ -33,6 +33,29 @@ terms:
     confidence: 0.95
     status: active
 
+  - surface: catastrophic backtracking
+    definition: |
+      A regular-expression engine failure mode in which a vulnerable pattern combined with
+      adversarial input drives matching time into exponential or polynomial complexity.
+      Backtracking engines (Python `re`, JavaScript, Java, .NET) attempt every possible
+      partition of the input when a match fails; patterns with nested or consecutive
+      non-possessive repetitions can produce O(2^N) or O(N^c) retry storms. The
+      `secure-regex-catastrophic-backtracking` tactic at
+      `src/doctrine/tactics/shipped/secure-regex-catastrophic-backtracking.tactic.yaml`
+      codifies the four dangerous-shape patterns, the rewrite ladder (bound quantifier →
+      refactor nested → possessive/atomic group → negated char class), and the escape
+      hatches (drop the regex, re2, multi-pass, bounded-input cap). Every fix requires a
+      wall-clock regression test asserting linear runtime on an adversarial input
+      (default budget: ≤100 ms for 100 000 chars), per FR-008. Synonym "ReDoS"
+      (Regular-expression Denial of Service) is acceptable only as a parenthetical.
+    confidence: 0.95
+    status: active
+    see_also:
+      - tactic: secure-regex-catastrophic-backtracking
+        path: src/doctrine/tactics/shipped/secure-regex-catastrophic-backtracking.tactic.yaml
+      - fr: FR-008
+        description: Wall-clock regression test requirement for every regex change
+
   - surface: change mode
     definition: "A mission-level metadata flag (change_mode: bulk_edit) that activates the bulk-edit guardrail workflow, requiring an occurrence map before any work package may be approved."
     confidence: 0.95
@@ -40,6 +63,15 @@ terms:
 
   - surface: charter
     definition: "A governance document synthesizing a project's purpose, constraints, team norms, and doctrine into a durable reference artifact. Produced by the charter interview workflow."
+    confidence: 0.95
+    status: active
+
+  - surface: characterization test
+    definition: |
+      A test that captures the observable behavior of existing code as fixture-driven assertions,
+      written before any refactor of that code. The refactor must leave the characterization test
+      green. See the `tdd-red-green-refactor` tactic. Distinguished from snapshot tests (overloaded
+      term) and regression tests (too broad).
     confidence: 0.95
     status: active
 
@@ -62,6 +94,19 @@ terms:
     definition: A local CLI artifact representing a choice point in an interview flow (charter, specify, or plan) where the mission owner or a delegated agent must provide input before the flow can continue.
     confidence: 0.75
     status: draft
+
+  - surface: deliberate linearity
+    definition: |
+      A function whose body is intentionally kept long-and-linear (rather than extracted into
+      named helpers) for traceability against a documented contract, code-review map, or
+      output-section sequence. Deliberate linearity functions are NOT refactor candidates
+      regardless of Sonar S3776 score. Identified by an explicit code comment justifying the
+      structure and/or a published output-section contract that reviewers verify line-by-line.
+      Refactoring a deliberately linear function without updating its contract is a regression
+      in traceability. Canonical example: `src/specify_cli/cli/commands/_auth_doctor.py::render_report`
+      (CC 53; intentional 7-section layout). Distinct from structural debt.
+    confidence: 0.95
+    status: active
 
   - surface: diff compliance gate
     definition: The review-time check that validates a work package diff against its occurrence map. Blocks approval if uncategorized or improperly changed occurrences are found.
@@ -203,6 +248,17 @@ terms:
     confidence: 1.0
     status: active
 
+  - surface: pipeline-shape
+    definition: |
+      A classification label applied to a function whose body is a sequence of independent
+      decisions over a shared input. Pipeline-shape functions are the principal refactor target
+      for the `chain-of-responsibility-rule-pipeline` tactic. The shape marker is "3+ independent
+      decisions over a common input" — not "function is long". Distinct from deliberate linearity,
+      where the sequential structure is intentional and documented. See
+      `architecture/2.x/04_implementation_mapping/code-patterns.md` entry 1.
+    confidence: 0.9
+    status: active
+
   - surface: planning repository
     definition: "DEPRECATED alias for 'repository root checkout'. Do not use — agents interpret this as a separate repository. Use 'repository root checkout' instead."
     confidence: 1.0
@@ -273,6 +329,19 @@ terms:
     confidence: 1.0
     status: active
 
+  - surface: rule pipeline
+    definition: |
+      A pipeline of small pure functions, each checking applicability, optionally executing its
+      narrow piece of work, and returning a result threaded to the next function. Three flavors are
+      recognized in this codebase: Validator (accumulating `list[Finding]`), Transformer (chained
+      `(state, actions, error?)`), Scorer (weighted `float`). The Transformer flavor is implemented
+      in `src/specify_cli/migration/canonicalization.py::CanonicalRule` and consumed by
+      `mission_state.py::_canonicalize_status_row` and `rebuild_state.py`. See the
+      `chain-of-responsibility-rule-pipeline` tactic and the code-patterns catalog at
+      `architecture/2.x/04_implementation_mapping/code-patterns.md` entry 1.
+    confidence: 0.95
+    status: active
+
   - surface: scope
     definition: Bounded semantic scope (mission_local, team_domain, audience_domain, spec_kitty_core)
     confidence: 1.0
@@ -293,6 +362,20 @@ terms:
     confidence: 0.95
     status: active
 
+  - surface: Sonar quality gate
+    definition: |
+      The SonarCloud project-level pass/fail evaluation for `Priivacy-ai_spec-kitty` on the
+      new-code window. Aggregates six conditions (reliability rating, security rating,
+      maintainability rating, new coverage, new duplicated lines density, new security hotspots
+      reviewed). Reports `OK` or `ERROR` per condition plus a top-level status. Pulled via the
+      public REST API at `https://sonarcloud.io/api/qualitygates/project_status`; the helper
+      `work/snippets/sonarcloud_branch_review.sh` formats this for terminal use. Thresholds (as
+      of 2026-05-14): new_reliability_rating GT 1 (A), new_security_rating GT 1 (A),
+      new_maintainability_rating GT 1 (A), new_coverage LT 80%, new_duplicated_lines_density
+      GT 3%, new_security_hotspots_reviewed LT 100%.
+    confidence: 0.95
+    status: active
+
   - surface: step contract
     definition: A formal specification of what a mission step must accomplish, including its inputs, outputs, and success criteria. The reviewer uses the step contract to validate work package completion.
     confidence: 0.75
@@ -301,6 +384,21 @@ terms:
   - surface: strictness
     definition: Glossary enforcement mode (off, medium, max)
     confidence: 1.0
+    status: active
+
+  - surface: structural debt
+    definition: |
+      A function whose cognitive complexity has accumulated beyond reviewable bounds AND whose
+      responsibilities are independently dispatching concerns with no shared state between branches.
+      A structural debt function is a refactor candidate per the `refactoring-extract-first-order-concept`
+      and `refactoring-extract-class-by-responsibility-split` tactics. Distinguished from deliberate
+      linearity by the *absence* of a documented design intent and by the presence of independent
+      dispatch arms or triplicated patterns. Canonical example: `doctor.py::mission_state` at CC 57
+      (three independent dispatch arms — `--audit`, `--fix`, `--teamspace-dry-run` — sharing no state
+      after option parsing, plus triplicated JSON-vs-pretty emit logic). WP06 of mission
+      `quality-devex-hardening-3-2-01KRJGKH` extracted it to a CC 3 thin orchestrator plus per-mode
+      runners.
+    confidence: 0.9
     status: active
 
   - surface: styleguide
@@ -383,7 +481,7 @@ terms:
     status: active
 
   - surface: unsafe bypass
-    definition: An operator-chosen override of the encoding chokepoint's hard-fail behavior; uses the highest-confidence decode candidate and records `bypass_used: true` in provenance.
+    definition: "An operator-chosen override of the encoding chokepoint's hard-fail behavior; uses the highest-confidence decode candidate and records `bypass_used: true` in provenance."
     confidence: 0.95
     status: active
 

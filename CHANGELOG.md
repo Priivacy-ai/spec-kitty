@@ -9,11 +9,135 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+The `quality-devex-hardening-3-2-01KRJGKH` mission closes six epic-#822
+tickets and lands the doctrine tactics, canonical-terminology glossary,
+and code-patterns catalog that underpin the 3.2.0 stable release. Push-time
+Sonar restoration (#825) is the only remaining operator-action gate.
+
 ### Added
+
+- **Stale-lane auto-rebase with conflict classification** (#771). New
+  `specify_cli.merge.conflict_classifier` rule pipeline (Validator-flavor;
+  5 conflict shapes — pyproject deps union, `__init__.py` import-block
+  union, urls.py URL list union, `uv.lock` regenerate, default manual)
+  and `specify_cli.lanes.auto_rebase` orchestrator. `spec-kitty merge`
+  now attempts `git merge <mission-branch>` inside a stale lane worktree
+  before halting, auto-resolves additive-only conflicts via a union-merge
+  driver, regenerates `uv.lock` under a global file lock, runs
+  `ruff --fix --select I001` on touched `__init__.py` files, and reports
+  auto-resolved vs manual lanes. Semantic conflicts still halt with the
+  current actionable error. ADR
+  `architecture/2.x/adr/2026-05-14-1-stale-lane-auto-rebase-classifier-policy.md`
+  documents the fail-safe-default policy.
+- **No-upgrade UX notification** (#740). New `core/upgrade_probe.py`
+  (PyPI probe + 2 s timeout-bounded channel classification:
+  ALREADY_CURRENT / AHEAD_OF_PYPI / NO_UPGRADE_PATH / UNKNOWN) and
+  `core/upgrade_notifier.py` (cache-aware emitter). Distinguishes
+  "already on the latest supported version" from "build/channel with no
+  upgrade path"; never blocks the CLI on network failure; rate-limited
+  to once per 24 h with `SPEC_KITTY_NO_UPGRADE_CHECK=1` opt-out; reuses
+  `should_check_version()` rather than introducing a parallel gate.
+  Cache-warm budget < 100 ms.
+- **`secure-regex-catastrophic-backtracking` doctrine tactic** codifying
+  the four dangerous regex shapes, the rewrite ladder, and the escape
+  hatches. Every regex change now requires a wall-clock regression test
+  asserting linear runtime on adversarial input (default budget: < 100 ms
+  for 100 000 chars) per FR-008.
+- **`chain-of-responsibility-rule-pipeline` doctrine tactic** with three
+  flavors (Validator / Transformer / Scorer) and the typed
+  `CanonicalRule` Protocol at
+  `src/specify_cli/migration/canonicalization.py` as the canonical
+  Transformer-flavor implementation.
+- **Core code-patterns catalog** at
+  `architecture/2.x/04_implementation_mapping/code-patterns.md` listing
+  the recurring shapes used across the codebase (Rule-Based Pipeline,
+  Append-Only Event Log + Reducer, etc.) with doctrine cross-references.
+- **Canonical-terminology glossary entries** for `characterization test`,
+  `pipeline-shape`, `rule pipeline`, `catastrophic backtracking`,
+  `structural debt`, `deliberate linearity`, and `Sonar quality gate`
+  in `.kittify/glossaries/spec_kitty_core.yaml`, each cross-referencing
+  the doctrine tactic or architectural document that codifies it
+  (FR-013).
+- **Targeted symlink-fallback test** for the
+  `m_0_8_0_worktree_agents_symlink` migration's `OSError -> shutil.copy2`
+  fallback (#629). Runs on every CI pass via `monkeypatch`, not gated
+  by `windows_ci`. Covers both happy-fallback and dual-failure arms.
+- **Behavior-driven coverage tests** for `cli/commands/charter.py`,
+  `cli/commands/charter_bundle.py`, `cli/commands/agent/config.py`,
+  `next/_internal_runtime/engine.py`, and `core/file_lock.py`
+  (Bucket A/B/C split; `CliRunner` + `tmp_path` real I/O; no
+  `mock.patch` on Path methods) per the `function-over-form-testing`
+  tactic (#595 workstream A).
+- **Wall-clock regression guard** at
+  `tests/regressions/test_changelog_regex_redos.py` (20 tests; < 100 ms
+  on 100 000-line adversarial input) against future re-introduction of
+  the three Sonar-flagged patterns in `release/changelog.py` (pre-fixed
+  in PR #592) (#595 workstream B / FR-008).
+- **`dev` dependency-group type stubs** (`types-jsonschema`,
+  `types-psutil`, `types-PyYAML`, `types-requests`, `types-toml`) in
+  `[dependency-groups] dev` so `uv run --with mypy mypy --strict`
+  resolves stubs from the default env.
 
 ### Changed
 
+- **mypy strict baseline** is now green for `src/specify_cli`,
+  `src/charter`, `src/doctrine` per decision moment
+  `DM-01KRJHT7QD7XQMY33Y5TDTQ80V` (option A — fix the existing target;
+  #971). Includes `doctor.py::_print_overdue_details` annotation fix
+  (typed `ShimRegistryReport` under `TYPE_CHECKING`) and
+  `_resolve_fail_on` return-type tightening to
+  `tuple[Severity | None, bool]`.
+- **`_canonicalize_status_row` and `rebuild_state.py`** refactored onto
+  the typed `CanonicalRule` Protocol with characterization-test coverage
+  preceding the refactor commits (NFR-003 / `tdd-red-green-refactor`).
+- **`doctor.py::mission_state`** refactored from cognitive complexity 57
+  to a CC 3 thin orchestrator plus per-mode runners
+  (`_validate_modes`, `_resolve_fail_on`, `_resolve_audit_root`,
+  `_emit_mission_state`, `_run_audit_mode`, `_run_mission_repair`,
+  `_run_teamspace_dry_run_mode`), with 17 characterization tests
+  guarding behavior across all three dispatch arms (`--audit`, `--fix`,
+  `--teamspace-dry-run`) (#595 workstream C).
+- **`review.py` split into `cli/commands/review/` package** with sibling
+  files for cleaner ownership boundaries.
+
 ### Fixed
+
+- **`doctor.py:1092` `MissionRepairResult.findings` real-branch bug**:
+  `report` variable was dual-typed as `RepairReport` /
+  `RepoAuditReport` across mutually exclusive branches; runtime correct
+  but typing broken. Now closes mypy strict on `doctor.py`.
+- **Pre-existing YAML scanner error** in
+  `.kittify/glossaries/spec_kitty_core.yaml` line 484: the `unsafe bypass`
+  definition contained an unquoted backtick-wrapped `bypass_used: true`
+  literal that `yaml.safe_load` interpreted as a nested mapping. The
+  definition value is now double-quoted; semantic content unchanged.
+  File now parses cleanly under `yaml.safe_load` and `ruamel.yaml`.
+
+### Documentation
+
+- **Mission-review report** at
+  `kitty-specs/quality-devex-hardening-3-2-01KRJGKH/mission-review.md`
+  citing every doctrine tactic applied per WP and linking the
+  code-patterns catalog (NFR-006 / FR-012).
+- **NFR-001 release-stability smoke recipe** at
+  `kitty-specs/quality-devex-hardening-3-2-01KRJGKH/nfr-001-smoke-recipe.md`
+  for operator execution post-merge.
+- **SonarCloud hotspot rationales** at
+  `kitty-specs/quality-devex-hardening-3-2-01KRJGKH/sonar-hotspot-rationales.md`
+  documenting the 4 encrypt-data hotspots for operator application in the
+  Sonar UI before push-time CI restoration (#825).
+- **ADR `2026-05-14-1-stale-lane-auto-rebase-classifier-policy`** for #771.
+
+### Deferred
+
+- **Push-time SonarCloud restoration** (#825 / FR-004): gated on the
+  operator applying the four hotspot rationales in the Sonar UI and the
+  Sonar quality gate flipping to `OK` (at audit time: ERROR —
+  `new_coverage` 58.9% vs threshold 80%; `new_security_hotspots_reviewed`
+  0% vs threshold 100%). The
+  `.github/workflows/ci-quality.yml::sonarcloud` conditional remains on
+  `schedule || workflow_dispatch` until gate is OK. See
+  `kitty-specs/quality-devex-hardening-3-2-01KRJGKH/sonar-pre-flip-verification.txt`.
 
 ### Removed
 
