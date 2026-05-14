@@ -409,8 +409,28 @@ class TestSyncNowExitCodes:
         assert "saas sync is not enabled" in res.output.lower()
         get_service.assert_not_called()
 
-    def test_strict_exits_0_on_success(self):
-        """Strict mode exits 0 when all events sync successfully."""
+    def test_strict_exits_0_on_success(self, monkeypatch):
+        """Strict mode exits 0 when all events sync successfully.
+
+        M7's ``enforce_teamspace_mission_state_ready`` gate runs an audit
+        against the local project root. In the test environment the spec-kitty
+        checkout's own ``.kittify/`` is visible to the gate, which may surface
+        TeamSpace blockers and raise ``typer.Exit(1)`` before the sync result
+        can be evaluated. Patch the gate to a no-op at the call-site in
+        ``sync.py`` to isolate the success-path contract.
+
+        Mirrors the pattern introduced for ``test_strict_exits_1_on_auth_missing``
+        in PR #1035 (commit bfcaf2043), which patches ``_auth_recovery`` at the
+        import-site in ``sync.py``.
+        """
+        import specify_cli.cli.commands.sync as sync_mod
+
+        monkeypatch.setattr(
+            sync_mod,
+            "enforce_teamspace_mission_state_ready",
+            lambda **kwargs: None,
+        )
+
         result = self._make_result(synced=3)
         svc = self._make_service(queue_size=3, result=result)
 
