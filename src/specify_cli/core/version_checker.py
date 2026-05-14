@@ -254,11 +254,50 @@ def should_check_version(command_name: str) -> bool:
     return command_name not in skip_commands
 
 
+def maybe_emit_no_upgrade_notice(command_name: str) -> bool:
+    """Reuse ``should_check_version`` to gate the WP09 no-upgrade notifier.
+
+    This helper is the only sanctioned bridge between the existing version-check
+    gate and the new no-upgrade UX. It deliberately reuses ``should_check_version``
+    so that there is **no parallel gate** to maintain.
+
+    Args:
+        command_name: Name of the command being executed (same input as
+            :func:`should_check_version`).
+
+    Returns:
+        ``True`` if a notice was emitted, ``False`` otherwise. The return value
+        is informational; callers do not need to act on it.
+
+    Notes:
+        - This function never raises. The notifier itself swallows all
+          exceptions, and the call below is additionally guarded by
+          ``try/except`` for defence-in-depth.
+        - Uses the existing ``should_check_version`` gate; does not introduce
+          a parallel decision point.
+    """
+    try:
+        if not should_check_version(command_name):
+            return False
+
+        # Deferred import to keep this module light and to avoid pulling httpx
+        # into hot import paths for commands that skip the check.
+        from specify_cli.core.upgrade_notifier import (
+            maybe_emit_upgrade_notice,
+        )
+
+        cli_version = get_cli_version()
+        return maybe_emit_upgrade_notice(cli_version)
+    except Exception:  # noqa: BLE001 — notifier must never block the CLI
+        return False
+
+
 __all__ = [
     "get_cli_version",
     "get_project_version",
     "compare_versions",
     "format_version_error",
     "should_check_version",
+    "maybe_emit_no_upgrade_notice",
     "MismatchType",
 ]

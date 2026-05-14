@@ -274,6 +274,21 @@ def callback(ctx: typer.Context) -> None:
     # WP08: render upgrade nag through planner if needed.
     _render_nag_if_needed(ctx)
 
+    # WP09 (FR-007): emit "no upgrade available" notice when warranted.
+    # Reuses should_check_version() — no parallel gate. The notifier itself
+    # is fully exception-safe; the extra try/except here is defence in depth.
+    try:
+        command_name = ctx.invoked_subcommand or "help"
+        # Suppress when the user has asked for quiet/json/help/version output:
+        # the existing nag-suppression heuristic is the right gate.
+        if not _should_suppress_nag():
+            from specify_cli.core.version_checker import (  # noqa: PLC0415 — deferred import
+                maybe_emit_no_upgrade_notice,
+            )
+            maybe_emit_no_upgrade_notice(command_name)
+    except Exception:  # noqa: BLE001 — notifier must never block the CLI
+        pass
+
 
 def get_project_root_or_exit(start: Path | None = None) -> Path:
     """Return the project root or exit when .kittify cannot be located."""

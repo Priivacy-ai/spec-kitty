@@ -79,7 +79,10 @@ def version_callback(value: bool) -> None:
 
 app = typer.Typer(
     name="spec-kitty",
-    help="Setup tool for Spec Kitty spec-driven development projects",
+    help=(
+        "Setup tool for Spec Kitty spec-driven development projects.\n\n"
+        "Set SPEC_KITTY_NO_UPGRADE_CHECK=1 to disable the upgrade-check notice."
+    ),
     add_completion=False,
     invoke_without_command=True,
     cls=BannerGroup,
