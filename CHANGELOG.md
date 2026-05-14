@@ -17,6 +17,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+## [3.2.0rc8] - 2026-05-14
+
+3.2.0rc8 rolls up the post-rc7 TeamSpace launch fixes and compatibility
+cleanup needed before the final 3.2.0 cut. It includes defensive sync batching
+for real edge-proxy limits, the Mission Dossier event-envelope migration for
+`spec-kitty-events>=5.0.0`, and the small compatibility/quality fixes that
+landed after rc7.
+
+### Changed
+
+- Reduced the CLI's default sync batch decompressed byte budget to 256 KiB and
+  added a 512 KiB hard ceiling for over-generous server-advertised limits, so
+  large TeamSpace queue drains split into safe requests instead of relying on
+  HTTP 413 retry shrinkage.
+- Migrated all four Mission Dossier event emitters to the namespaced envelope
+  required by `spec-kitty-events>=5.0.0`, including `namespace`,
+  `artifact_id`/`expected_identity`, content refs, and schema-compatible
+  diagnostics.
+- Preserved legacy queued Mission Dossier events by migrating flat queued
+  payloads on drain when namespace data is available, and kept queue coalescing
+  scoped correctly across both legacy and namespaced payload shapes.
+
+### Fixed
+
+- Restored agent profile list compatibility after the rc7 candidate.
+- Reduced SonarCloud noise in path helper and charter synthesizer code without
+  changing runtime behavior.
+- Fixed the deployed-dev TeamSpace sync canary failure where a 1200-event
+  backlog could cascade into 1000 HTTP 413 failures.
+- Fixed SaaS ingestion rejection of CLI-emitted Mission Dossier artifact events
+  caused by the old flat payload shape being rejected with
+  `Additional properties are not allowed`.
+
 ## [3.2.0rc7] - 2026-05-12
 
 3.2.0rc7 lands the `review-merge-gate-hardening-3-2-x-01KRC57C` mission
