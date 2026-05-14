@@ -28,7 +28,7 @@ jobs:
           cache: 'pip'
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v8
+        uses: astral-sh/setup-uv@v8.1.0
 
       - name: Setup SSH for private repository access
         # Purpose: spec-kitty depends on private spec-kitty-events library.
@@ -307,7 +307,7 @@ jobs:
           cache: 'pip'
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v8
+        uses: astral-sh/setup-uv@v8.1.0
 
       - name: Setup SSH for private repository access
         run: |

@@ -2197,7 +2197,7 @@ jobs:
       - name: Set up uv
         # v8+ runs on Node 24 natively, so the FORCE_JAVASCRIPT_ACTIONS_TO_NODE24
         # workaround that v6 needed is no longer required.
-        uses: astral-sh/setup-uv@v8
+        uses: astral-sh/setup-uv@v8.1.0
 
       - name: "[ENFORCED] Assert uv.lock is up-to-date with pyproject.toml"
         run: |

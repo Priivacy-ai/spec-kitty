@@ -32,7 +32,7 @@ jobs:
           cache: "pip"
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v8
+        uses: astral-sh/setup-uv@v8.1.0
 
       - name: Install Spec Kitty
         run: uv sync --python "$(which python)"
