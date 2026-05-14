@@ -41,6 +41,9 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+import pytest
+
+pytestmark = pytest.mark.fast
 
 from specify_cli.migration.mission_state import _canonicalize_status_row
 from specify_cli.migration.rebuild_state import _derive_migration_timestamp

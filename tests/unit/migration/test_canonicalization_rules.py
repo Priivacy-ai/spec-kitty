@@ -25,6 +25,8 @@ from typing import Any
 
 import pytest
 
+pytestmark = pytest.mark.fast
+
 from specify_cli.migration.canonicalization import CanonicalStepResult, MigrationContext
 from specify_cli.migration.mission_state import (
     _rule_apply_aliases,

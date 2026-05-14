@@ -14,6 +14,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.fast
+
 from specify_cli.merge.conflict_classifier import (
     RULE_ID_INIT_IMPORTS,
     RULE_ID_PYPROJECT_DEPS,
