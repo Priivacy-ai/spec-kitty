@@ -1315,29 +1315,23 @@ def _rule_require_wp_id(
     return CanonicalStepResult(state=row, actions=(), error="missing required wp_id")
 
 
-def _rule_normalize_lanes(
-    row: _Row, ctx: MigrationContext
-) -> CanonicalStepResult[_Row]:
-    """Rule 10: normalize and validate lane values; also normalizes actor, force, execution_mode, builds canonical shape.
-
-    Applies LANE_ALIASES and validates both from_lane and to_lane against VALID_LANES.
-    Then normalizes the actor field, defaults force and execution_mode, and
-    builds the final canonical row dict, which is validated via StatusEvent.from_dict.
-    """
-    new_row = dict(row)
-    new_actions: list[str] = []
-
+def _normalize_lane_keys(
+    new_row: _Row, new_actions: list[str]
+) -> str | None:
+    """Apply LANE_ALIASES to from_lane/to_lane. Returns error message or None."""
     for key in ("from_lane", "to_lane"):
         lane = str(new_row[key])
         normalized = LANE_ALIASES.get(lane, lane)
         if normalized not in VALID_LANES:
-            return CanonicalStepResult(
-                state=new_row, actions=tuple(new_actions), error=f"unknown {key} {lane!r}"
-            )
+            return f"unknown {key} {lane!r}"
         if normalized != lane:
             new_actions.append(f"lane_alias:{key}:{lane}->{normalized}")
             new_row[key] = normalized
+    return None
 
+
+def _normalize_actor_field(new_row: _Row, new_actions: list[str]) -> None:
+    """Normalize the actor field in-place, recording any action taken."""
     actor = new_row.get("actor")
     if isinstance(actor, Mapping):
         metadata = dict(new_row.get("policy_metadata") or {})
@@ -1345,15 +1339,19 @@ def _rule_normalize_lanes(
         new_row["policy_metadata"] = metadata
         new_row["actor"] = _actor_label(actor)
         new_actions.append("actor_dict_labelled")
-    elif not isinstance(actor, str) or not actor.strip():
+        return
+    if not isinstance(actor, str) or not actor.strip():
         new_row["actor"] = "migration"
         new_actions.append("actor_defaulted")
-    else:
-        normalized_actor = _normalize_actor(actor)
-        if normalized_actor != actor:
-            new_row["actor"] = normalized_actor
-            new_actions.append("actor_normalized")
+        return
+    normalized_actor = _normalize_actor(actor)
+    if normalized_actor != actor:
+        new_row["actor"] = normalized_actor
+        new_actions.append("actor_normalized")
 
+
+def _default_force_and_mode(new_row: _Row, new_actions: list[str]) -> None:
+    """Apply default values for force and execution_mode in-place."""
     if "force" not in new_row:
         new_row["force"] = False
         new_actions.append("force_defaulted")
@@ -1361,7 +1359,10 @@ def _rule_normalize_lanes(
         new_row["execution_mode"] = "direct_repo"
         new_actions.append("execution_mode_defaulted")
 
-    canonical: _Row = {
+
+def _build_canonical_row(new_row: _Row, mission_id: str) -> _Row:
+    """Build the canonical shape from a normalized row."""
+    return {
         "event_id": str(new_row["event_id"]),
         "mission_slug": str(new_row["mission_slug"]),
         "wp_id": str(new_row.get("wp_id") or ""),
@@ -1375,8 +1376,32 @@ def _rule_normalize_lanes(
         "review_ref": new_row.get("review_ref"),
         "evidence": new_row.get("evidence"),
         "policy_metadata": new_row.get("policy_metadata"),
-        "mission_id": ctx.mission_id,
+        "mission_id": mission_id,
     }
+
+
+def _rule_normalize_lanes(
+    row: _Row, ctx: MigrationContext
+) -> CanonicalStepResult[_Row]:
+    """Rule 10: normalize and validate lane values; also normalizes actor, force, execution_mode, builds canonical shape.
+
+    Applies LANE_ALIASES and validates both from_lane and to_lane against VALID_LANES.
+    Then normalizes the actor field, defaults force and execution_mode, and
+    builds the final canonical row dict, which is validated via StatusEvent.from_dict.
+    """
+    new_row = dict(row)
+    new_actions: list[str] = []
+
+    lane_error = _normalize_lane_keys(new_row, new_actions)
+    if lane_error is not None:
+        return CanonicalStepResult(
+            state=new_row, actions=tuple(new_actions), error=lane_error
+        )
+
+    _normalize_actor_field(new_row, new_actions)
+    _default_force_and_mode(new_row, new_actions)
+
+    canonical = _build_canonical_row(new_row, ctx.mission_id)
     try:
         StatusEvent.from_dict(canonical)
     except Exception as exc:

@@ -263,13 +263,17 @@ def r_pyproject_deps_union(
 # ---------------------------------------------------------------------------
 
 
+# Common identifier-list pattern (target after ``import`` or ``from x import``).
+# Allows dots for dotted module imports; the trailing ``\s*$`` anchors the line.
+_IDENT_LIST = r"[A-Za-z_][\w.,\s]*"
+
 _RE_IMPORT_TARGET = re.compile(
-    r"""
+    rf"""
     ^\s*
     (?:
-        from\s+\S+\s+import\s+(?P<from_target>[A-Za-z_][\w,\s]*)
+        from\s+\S+\s+import\s+(?P<from_target>{_IDENT_LIST})
         |
-        import\s+(?P<imp_target>[A-Za-z_][\w.,\s]*)
+        import\s+(?P<imp_target>{_IDENT_LIST})
     )
     \s*$
     """,
@@ -308,6 +312,26 @@ def _extract_module(raw: str) -> str | None:
     return None
 
 
+def _detect_import_rename(
+    ours_entries: list[tuple[str, str]],
+    theirs_entries: list[tuple[str, str]],
+) -> str | None:
+    """Return the module name modified on both sides, or None."""
+    ours_by_mod: dict[str, str] = {}
+    for _key, raw in ours_entries:
+        mod = _extract_module(raw)
+        if mod is not None:
+            ours_by_mod.setdefault(mod, raw.strip())
+    for _key, raw in theirs_entries:
+        mod = _extract_module(raw)
+        if mod is None:
+            continue
+        other = ours_by_mod.get(mod)
+        if other is not None and other != raw.strip():
+            return mod
+    return None
+
+
 def r_init_imports_union(
     file_path: Path, hunk_text: str
 ) -> ConflictClassification | None:
@@ -325,31 +349,19 @@ def r_init_imports_union(
         if ours_entries is None or theirs_entries is None:
             return None
 
-        # Detect rename: same source module appears on both sides with
-        # different raw lines → semantic conflict, Manual.
-        ours_by_mod: dict[str, str] = {}
-        for _key, raw in ours_entries:
-            mod = _extract_module(raw)
-            if mod is not None:
-                ours_by_mod.setdefault(mod, raw.strip())
-        for _key, raw in theirs_entries:
-            mod = _extract_module(raw)
-            if mod is None:
-                continue
-            other = ours_by_mod.get(mod)
-            if other is not None and other != raw.strip():
-                return ConflictClassification(
-                    file_path=file_path,
-                    hunk_text=hunk_text,
-                    resolution=Manual(
-                        reason=(
-                            f"{RULE_ID_INIT_IMPORTS}: import statement modified "
-                            f"for module '{mod}' — semantic conflict"
-                        )
-                    ),
-                )
+        renamed_mod = _detect_import_rename(ours_entries, theirs_entries)
+        if renamed_mod is not None:
+            return ConflictClassification(
+                file_path=file_path,
+                hunk_text=hunk_text,
+                resolution=Manual(
+                    reason=(
+                        f"{RULE_ID_INIT_IMPORTS}: import statement modified "
+                        f"for module '{renamed_mod}' — semantic conflict"
+                    )
+                ),
+            )
 
-        # Union, dedup by canonical key.
         merged: dict[str, str] = {}
         for key, raw in ours_entries:
             merged.setdefault(key, raw)
@@ -401,21 +413,43 @@ def _parse_url_entries(block: str) -> list[tuple[str, str]] | None:
     return parsed
 
 
+def _is_urls_list_eligible(file_path: Path, hunk_text: str) -> bool:
+    """Eligibility predicate for the URL-list-union rule."""
+    if file_path.name == "urls.py":
+        return True
+    return bool(re.search(
+        r"^\s*(?:_?URLS?|URL_PATTERNS)\s*[:=]?\s*[A-Za-z\[]",
+        hunk_text,
+        re.MULTILINE,
+    ))
+
+
+def _find_url_entry_conflict(
+    ours_entries: list[tuple[str, str]],
+    theirs_entries: list[tuple[str, str]],
+) -> str | None:
+    """Return a key modified on both sides, or None."""
+    ours_by_key = {key: line.strip() for key, line in ours_entries}
+    theirs_by_key = {key: line.strip() for key, line in theirs_entries}
+    for key in ours_by_key.keys() & theirs_by_key.keys():
+        if ours_by_key[key] != theirs_by_key[key]:
+            return key
+    return None
+
+
+def _leading_indent_of(block: str) -> str:
+    for raw in block.splitlines():
+        if raw.strip():
+            return raw[: len(raw) - len(raw.lstrip())]
+    return ""
+
+
 def r_urls_list_union(
     file_path: Path, hunk_text: str
 ) -> ConflictClassification | None:
     """Match additive merges on URL-list constants."""
     try:
-        # Eligible: file named urls.py OR a region clearly bounded by an
-        # _URLS / URL_PATTERNS list opener appearing in the hunk context.
-        eligible = file_path.name == "urls.py"
-        if not eligible and re.search(
-            r"^\s*(?:_?URLS?|URL_PATTERNS)\s*[:=]?\s*[A-Za-z\[]",
-            hunk_text,
-            re.MULTILINE,
-        ):
-            eligible = True
-        if not eligible:
+        if not _is_urls_list_eligible(file_path, hunk_text):
             return None
 
         split = _split_conflict_region(hunk_text)
@@ -428,22 +462,18 @@ def r_urls_list_union(
         if ours_entries is None or theirs_entries is None:
             return None
 
-        # Same-entry modification check: if a key appears on both sides with
-        # different raw content (ignoring trailing comma drift), Manual.
-        ours_by_key = {key: line.strip() for key, line in ours_entries}
-        theirs_by_key = {key: line.strip() for key, line in theirs_entries}
-        for key in ours_by_key.keys() & theirs_by_key.keys():
-            if ours_by_key[key] != theirs_by_key[key]:
-                return ConflictClassification(
-                    file_path=file_path,
-                    hunk_text=hunk_text,
-                    resolution=Manual(
-                        reason=(
-                            f"{RULE_ID_URLS_LIST}: same entry '{key}' modified "
-                            f"on both sides — semantic conflict"
-                        )
-                    ),
-                )
+        conflict_key = _find_url_entry_conflict(ours_entries, theirs_entries)
+        if conflict_key is not None:
+            return ConflictClassification(
+                file_path=file_path,
+                hunk_text=hunk_text,
+                resolution=Manual(
+                    reason=(
+                        f"{RULE_ID_URLS_LIST}: same entry '{conflict_key}' modified "
+                        f"on both sides — semantic conflict"
+                    )
+                ),
+            )
 
         merged: dict[str, str] = {}
         for key, line in ours_entries:
@@ -457,12 +487,7 @@ def r_urls_list_union(
             else list(merged.items())
         )
 
-        leading_indent = ""
-        for raw in ours.splitlines():
-            if raw.strip():
-                leading_indent = raw[: len(raw) - len(raw.lstrip())]
-                break
-
+        leading_indent = _leading_indent_of(ours)
         merged_lines = [leading_indent + line.lstrip() for _, line in ordered]
         merged_text = "\n".join(merged_lines) + "\n"
 

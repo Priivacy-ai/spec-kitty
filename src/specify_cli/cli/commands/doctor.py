@@ -963,7 +963,6 @@ def _resolve_fail_on(fail_on: str | None) -> tuple[Severity | None, bool]:
 
 
 def _resolve_audit_root(
-    repo_root: Path | None,
     fixture_dir: Path | None,
     include_fixtures: bool,
 ) -> tuple[Path, Path | None]:
@@ -1228,7 +1227,7 @@ def mission_state(  # noqa: C901
     """Audit, repair, or TeamSpace-validate mission-state shapes."""
     mode = _validate_modes(audit, fix, teamspace_dry_run)
     fail_on_severity, fail_on_teamspace_blocker = _resolve_fail_on(fail_on)
-    resolved_root, resolved_fixture_dir = _resolve_audit_root(None, fixture_dir, include_fixtures)
+    resolved_root, resolved_fixture_dir = _resolve_audit_root(fixture_dir, include_fixtures)
 
     if mode == _MissionStateMode.FIX:
         _run_mission_repair(resolved_root, resolved_fixture_dir, mission, manifest_path, allow_dirty, json_output)

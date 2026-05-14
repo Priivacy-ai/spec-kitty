@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from specify_cli.lanes.branch_naming import lane_branch_name
-from specify_cli.lanes.models import LanesManifest
+from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import read_lanes_json
 from specify_cli.lanes.stale_check import StaleCheckResult, check_lane_staleness
 from specify_cli.merge.config import MergeStrategy
@@ -50,6 +50,44 @@ class MissionMergeResult:
     errors: list[str] = field(default_factory=list)
 
 
+def _resolve_lane_manifest(
+    repo_root: Path,
+    mission_slug: str,
+    lanes_manifest: LanesManifest | None,
+) -> LanesManifest | None:
+    """Return the provided manifest or load it from disk."""
+    if lanes_manifest is not None:
+        return lanes_manifest
+    feature_dir = repo_root / "kitty-specs" / mission_slug
+    return read_lanes_json(feature_dir)
+
+
+def _try_auto_rebase_if_stale(
+    stale: StaleCheckResult,
+    lane: ExecutionLane,
+    branch: str,
+    mission_branch: str,
+    mission_slug: str,
+    repo_root: Path,
+) -> StaleCheckResult:
+    """If the lane is stale and a worktree exists, attempt auto-rebase and recheck."""
+    if not stale.is_stale:
+        return stale
+    worktree_path = (
+        repo_root / ".worktrees" / f"{mission_slug}-{lane.lane_id}"
+    )
+    if not worktree_path.exists():
+        return stale
+    from specify_cli.lanes.auto_rebase import attempt_auto_rebase
+
+    report = attempt_auto_rebase(
+        lane, branch, mission_branch, repo_root, worktree_path
+    )
+    if report.succeeded:
+        return check_lane_staleness(lane, branch, mission_branch, repo_root)
+    return stale
+
+
 def merge_lane_to_mission(
     repo_root: Path,
     mission_slug: str,
@@ -70,21 +108,17 @@ def merge_lane_to_mission(
     Returns:
         LaneMergeResult with success/error status.
     """
+    lanes_manifest = _resolve_lane_manifest(repo_root, mission_slug, lanes_manifest)
     if lanes_manifest is None:
-        feature_dir = repo_root / "kitty-specs" / mission_slug
-        lanes_manifest = read_lanes_json(feature_dir)
-        if lanes_manifest is None:
-            return LaneMergeResult(
-                success=False, lane_id=lane_id, merged_into="",
-                errors=["No lanes.json found for this feature"],
-            )
+        return LaneMergeResult(
+            success=False, lane_id=lane_id, merged_into="",
+            errors=["No lanes.json found for this feature"],
+        )
 
-    # Find the lane.
-    lane = None
-    for candidate in lanes_manifest.lanes:
-        if candidate.lane_id == lane_id:
-            lane = candidate
-            break
+    lane = next(
+        (c for c in lanes_manifest.lanes if c.lane_id == lane_id),
+        None,
+    )
     if lane is None:
         return LaneMergeResult(
             success=False, lane_id=lane_id, merged_into="",
@@ -98,50 +132,26 @@ def merge_lane_to_mission(
     )
     mission_branch = lanes_manifest.mission_branch
 
-    # Verify the lane branch exists.
     if not _branch_exists(repo_root, branch):
         return LaneMergeResult(
             success=False, lane_id=lane_id, merged_into=mission_branch,
             errors=[f"Lane branch {branch} does not exist"],
         )
 
-    # Stale-lane check.
     stale = check_lane_staleness(lane, branch, mission_branch, repo_root)
+    stale = _try_auto_rebase_if_stale(
+        stale, lane, branch, mission_branch, mission_slug, repo_root,
+    )
     if stale.is_stale:
-        # Delegate to the auto-rebase classifier+orchestrator before halting.
-        # ADR: architecture/2.x/adr/2026-05-14-1-stale-lane-auto-rebase-classifier-policy.md
-        # When the lane worktree exists, attempt to auto-resolve additive
-        # conflicts. If auto-rebase succeeds, the lane is no longer stale and
-        # we continue. If it fails (or no worktree exists yet), preserve the
-        # existing actionable halt message.
-        worktree_path = (
-            repo_root / ".worktrees" / f"{mission_slug}-{lane.lane_id}"
+        return LaneMergeResult(
+            success=False, lane_id=lane_id, merged_into=mission_branch,
+            errors=[
+                f"Lane {lane_id} is stale: overlapping files {stale.stale_files}. "
+                f"{stale.remediation}"
+            ],
+            stale_check=stale,
         )
-        if worktree_path.exists():
-            from specify_cli.lanes.auto_rebase import attempt_auto_rebase
 
-            report = attempt_auto_rebase(
-                lane, branch, mission_branch, repo_root, worktree_path
-            )
-            if report.succeeded:
-                # Auto-rebase landed a merge commit on the lane branch; the
-                # lane is no longer stale. Fall through to the outer merge.
-                stale = check_lane_staleness(
-                    lane, branch, mission_branch, repo_root
-                )
-
-        if stale.is_stale:
-            return LaneMergeResult(
-                success=False, lane_id=lane_id, merged_into=mission_branch,
-                errors=[
-                    f"Lane {lane_id} is stale: overlapping files {stale.stale_files}. "
-                    f"{stale.remediation}"
-                ],
-                stale_check=stale,
-            )
-
-    # Merge lane branch into mission branch.
-    # We checkout the mission branch in a temporary worktree, merge, then clean up.
     try:
         _merge_branch_into(repo_root, branch, mission_branch)
     except RuntimeError as e:

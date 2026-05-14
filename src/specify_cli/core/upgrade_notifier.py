@@ -57,6 +57,10 @@ TTL_UNKNOWN_SECONDS = 60 * 60
 # ---------------------------------------------------------------------------
 
 
+_CACHE_FILENAME = "upgrade-check.json"
+_CACHE_PARENT = "spec-kitty"
+
+
 def _default_cache_path() -> Path:
     """Resolve the cache file location per platform conventions.
 
@@ -68,14 +72,14 @@ def _default_cache_path() -> Path:
     if os.name == "nt":
         base = os.environ.get("LOCALAPPDATA")
         if base:
-            return Path(base) / "spec-kitty" / "upgrade-check.json"
+            return Path(base) / _CACHE_PARENT / _CACHE_FILENAME
         # Fallback: user home (Windows without LOCALAPPDATA is unusual but possible)
-        return Path.home() / "AppData" / "Local" / "spec-kitty" / "upgrade-check.json"
+        return Path.home() / "AppData" / "Local" / _CACHE_PARENT / _CACHE_FILENAME
 
     xdg = os.environ.get("XDG_CACHE_HOME")
     if xdg:
-        return Path(xdg) / "spec-kitty" / "upgrade-check.json"
-    return Path.home() / ".cache" / "spec-kitty" / "upgrade-check.json"
+        return Path(xdg) / _CACHE_PARENT / _CACHE_FILENAME
+    return Path.home() / ".cache" / _CACHE_PARENT / _CACHE_FILENAME
 
 
 # ---------------------------------------------------------------------------
