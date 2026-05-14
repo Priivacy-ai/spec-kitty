@@ -384,6 +384,17 @@ refactoring priorities.
 
 ---
 
+## Core Code Patterns
+
+The companion document [code-patterns.md](code-patterns.md) catalogs the
+recurring code patterns applied across the codebase: rule-based pipelines
+(chain-of-responsibility), append-only event log + reducer, two-source
+doctrine repository, preflight validation with structured results, and the
+pure-function finding shape. Each entry links to its doctrine tactic and
+points at canonical implementations in the tree. Reach for it when picking
+up an unfamiliar module — the patterns it documents are the codebase's
+expected shapes.
+
 ## Traceability
 
 - System Landscape: `../00_landscape/README.md`
@@ -391,5 +402,6 @@ refactoring priorities.
 - System Context: `../01_context/README.md`
 - Container View: `../02_containers/README.md`
 - Component View: `../03_components/README.md`
+- Code Patterns Catalog: [code-patterns.md](code-patterns.md)
 - Doctrine Stack Domain Model: `../03_components/README.md#doctrine-stack-domain-model`
 - Doctrine governance ADR: `../adr/2026-02-23-1-doctrine-artifact-governance-model.md`

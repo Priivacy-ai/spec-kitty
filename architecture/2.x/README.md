@@ -32,9 +32,10 @@ This removes README indirection while preserving clear expansion space.
 4. [C4 Containers](02_containers/README.md)
 5. [Runtime/Execution Domain Detail](02_containers/runtime-execution-domain.md)
 6. [C4 Components](03_components/README.md)
-7. [Audience Personas](../audience/README.md)
-8. [2.x ADR Index](adr/README.md)
-9. [2.x User Journeys](user_journey/README.md)
+7. [Implementation Mapping](04_implementation_mapping/README.md) and the [Core Code Patterns Catalog](04_implementation_mapping/code-patterns.md)
+8. [Audience Personas](../audience/README.md)
+9. [2.x ADR Index](adr/README.md)
+10. [2.x User Journeys](user_journey/README.md)
 
 ---
 
