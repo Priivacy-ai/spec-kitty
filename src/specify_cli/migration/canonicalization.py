@@ -40,7 +40,8 @@ Usage::
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Generic, Protocol, Sequence, TypeVar
+from typing import Generic, Protocol, TypeVar
+from collections.abc import Sequence
 
 __all__ = [
     "CanonicalPipelineResult",
@@ -88,7 +89,7 @@ class CanonicalStepResult(Generic[State]):
     error: str | None = None
 
     @classmethod
-    def passthrough(cls, state: State) -> "CanonicalStepResult[State]":
+    def passthrough(cls, state: State) -> CanonicalStepResult[State]:
         """Return a no-op result: rule did not apply."""
         return cls(state=state, actions=(), error=None)
 

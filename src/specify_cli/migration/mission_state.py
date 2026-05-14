@@ -453,8 +453,8 @@ class _CanonicalRowResult:
 
     @classmethod
     def from_pipeline(
-        cls, result: "CanonicalPipelineResult[dict[str, Any]]"
-    ) -> "_CanonicalRowResult":
+        cls, result: CanonicalPipelineResult[dict[str, Any]]
+    ) -> _CanonicalRowResult:
         """Adapt a generic pipeline result to the existing _CanonicalRowResult shape."""
         return cls(
             row=result.state if result.error is None else None,
@@ -1202,7 +1202,7 @@ _Row = dict[str, Any]
 
 
 def _rule_reject_non_status_event(
-    row: _Row, ctx: MigrationContext
+    row: _Row, _ctx: MigrationContext
 ) -> CanonicalStepResult[_Row]:
     """Rule 1: quarantine rows that carry event_type or event_name (not status events)."""
     if "event_type" in row or "event_name" in row:
@@ -1215,7 +1215,7 @@ def _rule_reject_non_status_event(
 
 
 def _rule_apply_aliases(
-    row: _Row, ctx: MigrationContext
+    row: _Row, _ctx: MigrationContext
 ) -> CanonicalStepResult[_Row]:
     """Rule 2: rename legacy STATUS_ROW_ALIASES keys to their canonical names."""
     new_row = dict(row)
@@ -1232,7 +1232,7 @@ def _rule_apply_aliases(
 
 
 def _rule_strip_legacy_keys(
-    row: _Row, ctx: MigrationContext
+    row: _Row, _ctx: MigrationContext
 ) -> CanonicalStepResult[_Row]:
     """Rule 3: remove FORBIDDEN_LEGACY_KEYS (except feature_slug, handled by aliases)."""
     new_row = dict(row)
@@ -1276,7 +1276,7 @@ def _rule_mint_event_id(
 
 
 def _rule_default_at(
-    row: _Row, ctx: MigrationContext
+    row: _Row, _ctx: MigrationContext
 ) -> CanonicalStepResult[_Row]:
     """Rule 6: default 'at' to the UNIX epoch when missing or empty."""
     if row.get("at"):
@@ -1287,7 +1287,7 @@ def _rule_default_at(
 
 
 def _rule_default_from_lane(
-    row: _Row, ctx: MigrationContext
+    row: _Row, _ctx: MigrationContext
 ) -> CanonicalStepResult[_Row]:
     """Rule 7: default 'from_lane' to 'planned' when absent (None)."""
     if row.get("from_lane") is not None:
@@ -1298,7 +1298,7 @@ def _rule_default_from_lane(
 
 
 def _rule_require_to_lane(
-    row: _Row, ctx: MigrationContext
+    row: _Row, _ctx: MigrationContext
 ) -> CanonicalStepResult[_Row]:
     """Rule 8: short-circuit with error when 'to_lane' is missing."""
     if row.get("to_lane"):
@@ -1307,7 +1307,7 @@ def _rule_require_to_lane(
 
 
 def _rule_require_wp_id(
-    row: _Row, ctx: MigrationContext
+    row: _Row, _ctx: MigrationContext
 ) -> CanonicalStepResult[_Row]:
     """Rule 9: short-circuit with error when 'wp_id' is missing."""
     if row.get("wp_id"):

@@ -28,10 +28,8 @@ from __future__ import annotations
 
 import inspect
 from pathlib import Path
-from typing import get_type_hints
 from unittest.mock import MagicMock
 
-import pytest
 
 from specify_cli.compat.doctor import ShimRegistryReport, ShimStatusEntry
 from specify_cli.cli.commands.doctor import _print_overdue_details

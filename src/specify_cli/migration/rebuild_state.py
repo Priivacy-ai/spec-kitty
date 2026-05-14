@@ -425,7 +425,7 @@ _TimestampState = tuple[Path, list[str]]
 
 
 def _rule_collect_event_timestamps(
-    state: _TimestampState, ctx: MigrationContext
+    state: _TimestampState, _ctx: MigrationContext
 ) -> CanonicalStepResult[_TimestampState]:
     """Source 1: collect 'at' timestamps from status.events.jsonl."""
     feature_dir, candidates = state
@@ -440,7 +440,7 @@ def _rule_collect_event_timestamps(
 
 
 def _rule_collect_materialized_at(
-    state: _TimestampState, ctx: MigrationContext
+    state: _TimestampState, _ctx: MigrationContext
 ) -> CanonicalStepResult[_TimestampState]:
     """Source 2: collect 'materialized_at' from status.json."""
     feature_dir, candidates = state
@@ -456,7 +456,7 @@ def _rule_collect_materialized_at(
 
 
 def _rule_collect_wp_last_transition(
-    state: _TimestampState, ctx: MigrationContext
+    state: _TimestampState, _ctx: MigrationContext
 ) -> CanonicalStepResult[_TimestampState]:
     """Source 3: collect WP 'last_transition_at' values from status.json work_packages."""
     feature_dir, candidates = state
@@ -474,7 +474,7 @@ def _rule_collect_wp_last_transition(
 
 
 def _rule_collect_meta_created_at(
-    state: _TimestampState, ctx: MigrationContext
+    state: _TimestampState, _ctx: MigrationContext
 ) -> CanonicalStepResult[_TimestampState]:
     """Source 4: collect 'created_at' from meta.json."""
     feature_dir, candidates = state

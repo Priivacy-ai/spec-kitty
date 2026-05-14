@@ -122,8 +122,8 @@ def test_status_renders_unavailable_when_charter_not_found(tmp_path: Path) -> No
     fake_synthesis: dict[str, Any] = {
         "generation_state": "not_started",
         "generated_inputs": {"path": ".kittify/charter/generated", "exists": False, "counts": {"directive": 0, "tactic": 0, "styleguide": 0}, "total": 0},
-        "manifest": {"state": "missing", "path": ".kittify/charter/synthesis-manifest.yaml", "exists": False, "artifact_count": 0, "live_artifact_count": 0, "live_provenance_count": 0, "run_id": None, "created_at": None, "adapter_id": None, "adapter_version": None, "missing_provenance_paths": [], "error": None},
-        "provenance": {"path": ".kittify/charter/provenance", "count": 0, "parsed_count": 0, "manifest_artifact_count": 0, "missing_for_manifest_count": 0, "missing_for_manifest": [], "corpus_snapshot_ids": [], "adapters": [], "warnings": [], "entries": []},
+        "manifest": {"state": "missing", "path": ".kittify/charter/synthesis-manifest.yaml", "exists": False, "artifact_count": 0, "live_artifact_count": 0, "live_provenance_count": 0, "run_id": None, "created_at": None, "adapter_id": None, "adapter_version": None, "missing_provenance_paths": [], "error": None},  # noqa: E501
+        "provenance": {"path": ".kittify/charter/provenance", "count": 0, "parsed_count": 0, "manifest_artifact_count": 0, "missing_for_manifest_count": 0, "missing_for_manifest": [], "corpus_snapshot_ids": [], "adapters": [], "warnings": [], "entries": []},  # noqa: E501
         "evidence": {"warnings": [], "code": None, "configured_urls": [], "configured_url_count": 0, "corpus_snapshot_id": None, "corpus_entry_count": 0},
     }
 
@@ -157,8 +157,8 @@ def test_status_renders_stale_when_charter_is_stale(tmp_path: Path) -> None:
     fake_synthesis: dict[str, Any] = {
         "generation_state": "not_started",
         "generated_inputs": {"path": ".kittify/charter/generated", "exists": False, "counts": {"directive": 0, "tactic": 0, "styleguide": 0}, "total": 0},
-        "manifest": {"state": "missing", "path": ".kittify/charter/synthesis-manifest.yaml", "exists": False, "artifact_count": 0, "live_artifact_count": 0, "live_provenance_count": 0, "run_id": None, "created_at": None, "adapter_id": None, "adapter_version": None, "missing_provenance_paths": [], "error": None},
-        "provenance": {"path": ".kittify/charter/provenance", "count": 0, "parsed_count": 0, "manifest_artifact_count": 0, "missing_for_manifest_count": 0, "missing_for_manifest": [], "corpus_snapshot_ids": [], "adapters": [], "warnings": [], "entries": []},
+        "manifest": {"state": "missing", "path": ".kittify/charter/synthesis-manifest.yaml", "exists": False, "artifact_count": 0, "live_artifact_count": 0, "live_provenance_count": 0, "run_id": None, "created_at": None, "adapter_id": None, "adapter_version": None, "missing_provenance_paths": [], "error": None},  # noqa: E501
+        "provenance": {"path": ".kittify/charter/provenance", "count": 0, "parsed_count": 0, "manifest_artifact_count": 0, "missing_for_manifest_count": 0, "missing_for_manifest": [], "corpus_snapshot_ids": [], "adapters": [], "warnings": [], "entries": []},  # noqa: E501
         "evidence": {"warnings": [], "code": None, "configured_urls": [], "configured_url_count": 0, "corpus_snapshot_id": None, "corpus_entry_count": 0},
     }
 
@@ -195,8 +195,8 @@ def test_status_renders_synced_when_charter_is_current(tmp_path: Path) -> None:
     fake_synthesis: dict[str, Any] = {
         "generation_state": "not_started",
         "generated_inputs": {"path": ".kittify/charter/generated", "exists": False, "counts": {"directive": 0, "tactic": 0, "styleguide": 0}, "total": 0},
-        "manifest": {"state": "missing", "path": ".kittify/charter/synthesis-manifest.yaml", "exists": False, "artifact_count": 0, "live_artifact_count": 0, "live_provenance_count": 0, "run_id": None, "created_at": None, "adapter_id": None, "adapter_version": None, "missing_provenance_paths": [], "error": None},
-        "provenance": {"path": ".kittify/charter/provenance", "count": 0, "parsed_count": 0, "manifest_artifact_count": 0, "missing_for_manifest_count": 0, "missing_for_manifest": [], "corpus_snapshot_ids": [], "adapters": [], "warnings": [], "entries": []},
+        "manifest": {"state": "missing", "path": ".kittify/charter/synthesis-manifest.yaml", "exists": False, "artifact_count": 0, "live_artifact_count": 0, "live_provenance_count": 0, "run_id": None, "created_at": None, "adapter_id": None, "adapter_version": None, "missing_provenance_paths": [], "error": None},  # noqa: E501
+        "provenance": {"path": ".kittify/charter/provenance", "count": 0, "parsed_count": 0, "manifest_artifact_count": 0, "missing_for_manifest_count": 0, "missing_for_manifest": [], "corpus_snapshot_ids": [], "adapters": [], "warnings": [], "entries": []},  # noqa: E501
         "evidence": {"warnings": [], "code": None, "configured_urls": [], "configured_url_count": 0, "corpus_snapshot_id": None, "corpus_entry_count": 0},
     }
 

@@ -16,7 +16,6 @@ import asyncio
 import json
 import multiprocessing
 import os
-import sys
 import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -226,13 +225,12 @@ async def test_stale_lock_is_adopted_without_timeout(tmp_path: Path) -> None:
 
 def _worker_acquire_and_flag(lock_path: str, flag_path: str, sleep_s: float) -> None:
     """Worker process: acquire lock, write flag file, hold briefly, release."""
-    import asyncio
 
     async def _run() -> None:
         async with MachineFileLock(Path(lock_path), acquire_timeout_s=10.0):
-            Path(flag_path).write_text("held", encoding="utf-8")
+            Path(flag_path).write_text("held", encoding="utf-8")  # noqa: ASYNC240
             await asyncio.sleep(sleep_s)
-            Path(flag_path).write_text("released", encoding="utf-8")
+            Path(flag_path).write_text("released", encoding="utf-8")  # noqa: ASYNC240
 
     asyncio.run(_run())
 

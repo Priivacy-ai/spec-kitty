@@ -17,7 +17,6 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.config import (
-    _agent_location,
     _display_path,
     _remove_project_agent_surface,
     app,
@@ -184,7 +183,7 @@ class TestRemoveCommand:
 
         patches = _patch_repo_and_config(tmp_path, config)
         with patches[0], patches[1], \
-             patch("specify_cli.cli.commands.agent.config.save_agent_config") as mock_save:
+             patch("specify_cli.cli.commands.agent.config.save_agent_config"):
             result = runner.invoke(app, ["remove", "claude"])
 
         # Should exit 0 even if directory didn't exist (removed from config is the key behavior)

@@ -19,7 +19,6 @@ from specify_cli.cli.commands.charter_bundle import (
     _classify_paths,
     _classify_gitignore,
     _enumerate_out_of_scope_files,
-    _is_git_tracked,
     _read_gitignore_lines,
     _render_human,
     app,
@@ -217,7 +216,7 @@ class TestValidateCLI:
         """Arrange: all validation checks pass;
         Act: invoke bundle validate;
         Assert: exit code 0."""
-        from charter.bundle import BundleValidationResult, CharterBundleManifest, CANONICAL_MANIFEST
+        from charter.bundle import BundleValidationResult
 
         mock_synth = MagicMock(spec=BundleValidationResult)
         mock_synth.synthesis_state_present = False
