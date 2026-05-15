@@ -26,7 +26,8 @@ subtasks:
 - T019
 - T020
 - T021
-agent: claude
+agent: "claude:opus-4-7:python-pedro:implementer"
+shell_pid: "572399"
 history:
 - date: '2026-05-15'
   event: created
@@ -324,3 +325,7 @@ artifact_counts:
 2. Confirm atomic write: simulate a `fetch()` failure midway through and verify `local_path`
    is unchanged.
 3. Confirm `SPEC_KITTY_ORG_TOKEN` is not logged or written anywhere (security).
+
+## Activity Log
+
+- 2026-05-15T13:31:54Z – claude:opus-4-7:python-pedro:implementer – shell_pid=572399 – Started implementation via action command
