@@ -306,10 +306,10 @@ governance elements with source attribution. Advisory lint for charter policy de
 also added here.
 
 **Included subtasks**:
-- [ ] T042 Implement `OrgCharterPolicy` model + `apply_org_charter_pre_fill()` + `load_org_charter_policies()`
-- [ ] T043 Charter interview pre-fill injection in `interview.py` (non-destructive; no `charter.py` changes)
+- [x] T042 Implement `OrgCharterPolicy` model + `apply_org_charter_pre_fill()` + `load_org_charter_policies()`
+- [x] T043 Charter interview pre-fill injection in `interview.py` (non-destructive; no `charter.py` changes)
 - [x] T046 Add org charter governance elements to `charter context --json` with source attribution
-- [ ] T050 Unit tests for `OrgCharterPolicy` model, load/merge, interview pre-fill, context inclusion
+- [x] T050 Unit tests for `OrgCharterPolicy` model, load/merge, interview pre-fill, context inclusion
 
 **Parallel opportunities**: T043 and T050 can proceed in parallel after T042. T046 is in WP07 and requires this WP to be merged first (WP07 must execute after WP09 for T046).
 
