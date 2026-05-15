@@ -18,8 +18,8 @@ subtasks:
 - T003
 - T004
 - T005
-agent: codex
-shell_pid: '503166'
+agent: "codex:gpt-4o:python-pedro:implementer"
+shell_pid: "503166"
 history:
 - date: '2026-05-15'
   event: created
@@ -254,3 +254,7 @@ Check that:
 2. All synthesizer sites check directory existence (not file existence) before calling.
 3. The `org_root: Path | None = None` parameter is present on `load_validated_graph()` but
    has no effect yet (will be used in WP03).
+
+## Activity Log
+
+- 2026-05-15T12:53:53Z – codex:gpt-4o:python-pedro:implementer – shell_pid=503166 – Assigned agent via action command
