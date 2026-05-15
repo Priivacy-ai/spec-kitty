@@ -1,7 +1,9 @@
 ---
 work_package_id: WP04
 title: OrgDoctrineSource Protocol and Implementations
-dependencies: []
+dependencies:
+- WP01
+- WP03
 requirement_refs:
 - C-001
 - C-002
@@ -14,7 +16,7 @@ requirement_refs:
 - NFR-001
 planning_base_branch: feat/org-doctrine-layer
 merge_target_branch: feat/org-doctrine-layer
-branch_strategy: All planning and implementation targets feat/org-doctrine-layer. Worktree branch allocated by finalize-tasks lane computation. This WP is independent of WP01-WP03 and can run in parallel.
+branch_strategy: Planning artifacts for this mission were generated on feat/org-doctrine-layer. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/org-doctrine-layer unless the human explicitly redirects the landing branch.
 subtasks:
 - T016
 - T017
