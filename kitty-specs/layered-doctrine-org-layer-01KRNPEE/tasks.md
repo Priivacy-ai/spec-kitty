@@ -219,14 +219,14 @@ detection, `--conflicts-out` option). Fill in the CLI implementations in `doctri
 `pack validate` and `pack assemble` subcommands.
 
 **Included subtasks**:
-- [ ] T027 Implement `pack_validator.py` — `validate_pack(pack_dir) -> ValidationResult`
-- [ ] T028 Implement `pack_assembler.py` — `assemble_pack(inputs, output_dir) -> AssemblyResult`
-- [ ] T029 Fill in `pack validate` subcommand implementation
-- [ ] T030 Fill in `pack assemble` subcommand implementation
-- [ ] T031 Unit tests for `pack_validator.py`
-- [ ] T032 Unit tests for `pack_assembler.py`
-- [ ] T044 Extend `pack_validator.py` to validate `org-charter.yaml` schema when present
-- [ ] T045 Extend `pack_assembler.py` to merge `org-charter.yaml` across input packs
+- [x] T027 Implement `pack_validator.py` — `validate_pack(pack_dir) -> ValidationResult`
+- [x] T028 Implement `pack_assembler.py` — `assemble_pack(inputs, output_dir) -> AssemblyResult`
+- [x] T029 Fill in `pack validate` subcommand implementation
+- [x] T030 Fill in `pack assemble` subcommand implementation
+- [x] T031 Unit tests for `pack_validator.py`
+- [x] T032 Unit tests for `pack_assembler.py`
+- [x] T044 Extend `pack_validator.py` to validate `org-charter.yaml` schema when present
+- [x] T045 Extend `pack_assembler.py` to merge `org-charter.yaml` across input packs
 
 **Parallel opportunities**: T031 and T032 can proceed alongside T029-T030 after T027-T028.
 
