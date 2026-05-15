@@ -347,3 +347,4 @@ show a "not yet implemented" message until WP06 fills in `pack_validator.py` and
 ## Activity Log
 
 - 2026-05-15T13:49:04Z – claude:opus-4-7:python-pedro:implementer – shell_pid=597832 – Started implementation via action command
+- 2026-05-15T13:58:20Z – claude:opus-4-7:python-pedro:implementer – shell_pid=597832 – DoctrineOrgConfig + spec-kitty doctrine CLI; charter generate now passes org_roots to DoctrineService
