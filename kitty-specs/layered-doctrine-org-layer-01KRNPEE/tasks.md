@@ -192,11 +192,11 @@ implement the `spec-kitty doctrine` command group with `fetch`, `pack validate` 
 `pack assemble` stub.
 
 **Included subtasks**:
-- [ ] T022 Implement `DoctrineOrgConfig` + `load/save_doctrine_org_config()`
-- [ ] T023 Wire `DoctrineOrgConfig.local_path` into `DoctrineService` factory sites
-- [ ] T024 Implement `doctrine` command group + `fetch` subcommand
-- [ ] T025 Add `pack validate` and `pack assemble` CLI stubs to `doctrine.py`
-- [ ] T026 Integration tests for config and `doctrine fetch`
+- [x] T022 Implement `DoctrineOrgConfig` + `load/save_doctrine_org_config()`
+- [x] T023 Wire `DoctrineOrgConfig.local_path` into `DoctrineService` factory sites
+- [x] T024 Implement `doctrine` command group + `fetch` subcommand
+- [x] T025 Add `pack validate` and `pack assemble` CLI stubs to `doctrine.py`
+- [x] T026 Integration tests for config and `doctrine fetch`
 
 **Parallel opportunities**: T025 and T026 can proceed after T024.
 
