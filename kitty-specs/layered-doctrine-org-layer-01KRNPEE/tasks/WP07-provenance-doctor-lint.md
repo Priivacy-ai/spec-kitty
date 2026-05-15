@@ -24,7 +24,7 @@ subtasks:
 - T046
 - T047
 - T048
-agent: codex
+agent: claude
 history:
 - date: '2026-05-15'
   event: created
@@ -78,7 +78,7 @@ This WP adds `doctor doctrine` to the same group.
 
 - **Planning/base branch**: `feat/org-doctrine-layer`
 - **Merge target**: `feat/org-doctrine-layer`
-- **Implement command**: `spec-kitty agent action implement WP07 --agent codex`
+- **Implement command**: `spec-kitty agent action implement WP07 --agent claude:sonnet-4-6`
 
 ---
 

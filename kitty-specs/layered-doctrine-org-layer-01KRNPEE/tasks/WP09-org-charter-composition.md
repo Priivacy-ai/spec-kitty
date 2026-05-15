@@ -18,7 +18,7 @@ subtasks:
 - T042
 - T043
 - T050
-agent: codex
+agent: claude
 history:
 - date: '2026-05-15'
   event: created
@@ -105,7 +105,7 @@ before the interactive prompts, so they appear as pre-selected but modifiable.
 
 - **Planning/base branch**: `feat/org-doctrine-layer`
 - **Merge target**: `feat/org-doctrine-layer`
-- **Implement command**: `spec-kitty agent action implement WP09 --agent codex`
+- **Implement command**: `spec-kitty agent action implement WP09 --agent claude:sonnet-4-6`
 
 ---
 

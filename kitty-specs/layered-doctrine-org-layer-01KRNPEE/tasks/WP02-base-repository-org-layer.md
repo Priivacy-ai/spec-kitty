@@ -20,7 +20,7 @@ subtasks:
 - T008
 - T009
 - T010
-agent: "codex:gpt-4o:reviewer-renata:reviewer"
+agent: "claude:sonnet-4-6:reviewer-renata:reviewer"
 shell_pid: "540801"
 history:
 - date: '2026-05-15'
@@ -83,7 +83,7 @@ artifacts introduced by org or project layers are full-replace (no merge needed)
 
 - **Planning/base branch**: `feat/org-doctrine-layer`
 - **Merge target**: `feat/org-doctrine-layer`
-- **Implement command**: `spec-kitty agent action implement WP02 --agent codex`
+- **Implement command**: `spec-kitty agent action implement WP02 --agent claude:sonnet-4-6`
 
 ---
 

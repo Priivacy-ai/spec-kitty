@@ -26,7 +26,7 @@ subtasks:
 - T019
 - T020
 - T021
-agent: codex
+agent: claude
 history:
 - date: '2026-05-15'
   event: created
@@ -90,7 +90,7 @@ See `contracts/org-doctrine-source-api-contract.md` for the HTTP API protocol th
 
 - **Planning/base branch**: `feat/org-doctrine-layer`
 - **Merge target**: `feat/org-doctrine-layer`
-- **Implement command**: `spec-kitty agent action implement WP04 --agent codex`
+- **Implement command**: `spec-kitty agent action implement WP04 --agent claude:sonnet-4-6`
 
 ---
 

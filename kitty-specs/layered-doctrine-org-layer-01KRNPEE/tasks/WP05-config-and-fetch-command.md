@@ -27,7 +27,7 @@ subtasks:
 - T024
 - T025
 - T026
-agent: codex
+agent: claude
 history:
 - date: '2026-05-15'
   event: created
@@ -77,7 +77,7 @@ See `contracts/config-schema.yaml` for the normative config schema.
 
 - **Planning/base branch**: `feat/org-doctrine-layer`
 - **Merge target**: `feat/org-doctrine-layer`
-- **Implement command**: `spec-kitty agent action implement WP05 --agent codex`
+- **Implement command**: `spec-kitty agent action implement WP05 --agent claude:sonnet-4-6`
 
 ---
 

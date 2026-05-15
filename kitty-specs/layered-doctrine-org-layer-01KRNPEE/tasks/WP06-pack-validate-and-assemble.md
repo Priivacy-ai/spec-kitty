@@ -22,7 +22,7 @@ subtasks:
 - T032
 - T044
 - T045
-agent: codex
+agent: claude
 history:
 - date: '2026-05-15'
   event: created
@@ -74,7 +74,7 @@ available, or with a minimal shipped-only graph if no repo root is detected.
 
 - **Planning/base branch**: `feat/org-doctrine-layer`
 - **Merge target**: `feat/org-doctrine-layer`
-- **Implement command**: `spec-kitty agent action implement WP06 --agent codex`
+- **Implement command**: `spec-kitty agent action implement WP06 --agent claude:sonnet-4-6`
 
 ---
 
