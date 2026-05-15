@@ -13,7 +13,7 @@ requirement_refs:
 - FR-029
 planning_base_branch: feat/org-doctrine-layer
 merge_target_branch: feat/org-doctrine-layer
-branch_strategy: All planning and implementation targets feat/org-doctrine-layer. Worktree branch allocated by finalize-tasks lane computation.
+branch_strategy: Planning artifacts for this mission were generated on feat/org-doctrine-layer. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/org-doctrine-layer unless the human explicitly redirects the landing branch.
 subtasks:
 - T042
 - T043

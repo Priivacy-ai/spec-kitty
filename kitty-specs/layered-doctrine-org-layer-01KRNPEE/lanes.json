@@ -15,7 +15,8 @@
         "WP05",
         "WP06",
         "WP07",
-        "WP08"
+        "WP08",
+        "WP09"
       ],
       "write_scope": [
         "docs/explanation/org-doctrine-layer.md",
@@ -25,6 +26,7 @@
         "src/charter/_drg_helpers.py",
         "src/charter/compiler.py",
         "src/charter/context.py",
+        "src/charter/interview.py",
         "src/charter/reference_resolver.py",
         "src/charter/synthesizer/project_drg.py",
         "src/charter/synthesizer/resynthesize_pipeline.py",
@@ -47,6 +49,7 @@
         "src/specify_cli/cli/commands/doctrine.py",
         "src/specify_cli/doctrine/__init__.py",
         "src/specify_cli/doctrine/config.py",
+        "src/specify_cli/doctrine/org_charter.py",
         "src/specify_cli/doctrine/pack_assembler.py",
         "src/specify_cli/doctrine/pack_validator.py",
         "src/specify_cli/doctrine/snapshot.py",
@@ -60,6 +63,7 @@
         "tests/doctrine/test_service_org_layer.py",
         "tests/specify_cli/doctrine/__init__.py",
         "tests/specify_cli/doctrine/test_config.py",
+        "tests/specify_cli/doctrine/test_org_charter.py",
         "tests/specify_cli/doctrine/test_pack_assembler.py",
         "tests/specify_cli/doctrine/test_pack_validator.py",
         "tests/specify_cli/doctrine/test_snapshot.py",
@@ -77,7 +81,7 @@
       "parallel_group": 0
     }
   ],
-  "computed_at": "2026-05-15T12:10:33.936345+00:00",
+  "computed_at": "2026-05-15T12:39:39.000100+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": [],
   "collapse_report": {
@@ -123,12 +127,18 @@
         "wp_b": "WP06",
         "rule": "dependency",
         "evidence": "WP08 depends on WP06"
+      },
+      {
+        "wp_a": "WP09",
+        "wp_b": "WP05",
+        "rule": "dependency",
+        "evidence": "WP09 depends on WP05"
       }
     ],
-    "total_merges": 7,
+    "total_merges": 8,
     "independent_wps_collapsed": 0,
     "by_rule": {
-      "dependency": 7
+      "dependency": 8
     }
   }
 }

@@ -3,7 +3,7 @@
 **Mission**: `layered-doctrine-org-layer-01KRNPEE`  
 **Branch**: `feat/org-doctrine-layer` → `feat/org-doctrine-layer`  
 **Spec**: [spec.md](spec.md) | **Plan**: [plan.md](plan.md)  
-**Total WPs**: 8 | **Total subtasks**: 41
+**Total WPs**: 9 | **Total subtasks**: 50
 
 ---
 
@@ -48,10 +48,19 @@
 | T035 | Add `spec-kitty doctor doctrine` subcommand to `doctor.py` | WP07 | [P] |
 | T036 | Add `OrgOverridesShippedCheck` advisory to `charter lint` in `charter.py` | WP07 | [P] |
 | T037 | Integration tests: provenance in JSON, doctor listing, lint advisory | WP07 | [P] |
-| T038 | Write `docs/how-to/create-an-org-doctrine-pack.md` (pack authoring guide) | WP08 | |
+| T038 | Write `docs/how-to/create-an-org-doctrine-pack.md` (pack authoring guide, incl. org-charter.yaml) | WP08 | |
 | T039 | Write `docs/migration/doctrine-local-overlay-to-org-layer.md` (migration guide) | WP08 | [P] |
-| T040 | Write `docs/explanation/org-doctrine-layer.md` (three-layer model explanation) | WP08 | [P] |
+| T040 | Write `docs/explanation/org-doctrine-layer.md` (three-layer model + charter composition) | WP08 | [P] |
 | T041 | Update `docs/toc.yml` and verify cross-references from existing doctrine docs | WP08 | |
+| T042 | Implement `OrgCharterPolicy` Pydantic model + `load_org_charter_policies(repo_root)` | WP09 | |
+| T043 | Charter interview pre-fill: load org charter policies; pre-fill `interview_defaults`; pre-select `required_directives` | WP09 | |
+| T044 | Extend `pack_validator.py` to validate `org-charter.yaml` schema when present | WP06 | [P] |
+| T045 | Extend `pack_assembler.py` to merge `org-charter.yaml` files across input packs | WP06 | [P] |
+| T046 | Add org charter governance elements to `charter context --json` with source attribution | WP09 | |
+| T047 | Add `OrgCharterDeviationCheck` advisory to `charter lint` (policy field deviations) | WP07 | [P] |
+| T048 | Extend `doctor doctrine` per-pack listing with org-charter.yaml policy counts | WP07 | [P] |
+| T049 | Add `org-charter.yaml` section to pack authoring guide and explanation doc | WP08 | [P] |
+| T050 | Unit tests for `OrgCharterPolicy` model, load/merge, interview pre-fill, charter context inclusion | WP09 | [P] |
 
 ---
 
@@ -213,6 +222,8 @@ detection, `--conflicts-out` option). Fill in the CLI implementations in `doctri
 - [ ] T030 Fill in `pack assemble` subcommand implementation
 - [ ] T031 Unit tests for `pack_validator.py`
 - [ ] T032 Unit tests for `pack_assembler.py`
+- [ ] T044 Extend `pack_validator.py` to validate `org-charter.yaml` schema when present
+- [ ] T045 Extend `pack_assembler.py` to merge `org-charter.yaml` across input packs
 
 **Parallel opportunities**: T031 and T032 can proceed alongside T029-T030 after T027-T028.
 
@@ -236,9 +247,11 @@ inline DRG loading through `_drg_helpers.load_validated_graph()`.
 **Included subtasks**:
 - [ ] T033 Add `"source"` field to `charter context --json` output
 - [ ] T034 Route `context.py` DRG loading through `load_validated_graph()`
-- [ ] T035 Add `spec-kitty doctor doctrine` subcommand
-- [ ] T036 Add `OrgOverridesShippedCheck` advisory to `charter lint`
+- [ ] T035 Add `spec-kitty doctor doctrine` subcommand (built-in + org packs + project)
+- [ ] T036 Add `OrgOverridesBuiltinCheck` advisory to `charter lint`
 - [ ] T037 Integration tests for provenance, doctor, lint advisory
+- [ ] T047 Add `OrgCharterDeviationCheck` advisory to `charter lint`
+- [ ] T048 Extend `doctor doctrine` per-pack listing with org-charter.yaml policy counts
 
 **Parallel opportunities**: T034, T035, and T036 are independent of each other after setup.
 T037 requires all three to be complete.
@@ -266,9 +279,37 @@ resolution model. Update `toc.yml`.
 - [ ] T039 Write `docs/migration/doctrine-local-overlay-to-org-layer.md`
 - [ ] T040 Write `docs/explanation/org-doctrine-layer.md`
 - [ ] T041 Update `docs/toc.yml` and verify cross-references
+- [ ] T049 Add `org-charter.yaml` authoring section to pack authoring guide and explanation doc
 
-**Parallel opportunities**: T038, T039, and T040 are independent. T041 requires all three.
+**Parallel opportunities**: T038, T039, and T040 are independent. T049 can run alongside T040. T041 requires all of T038–T040 and T049.
 
 **Risks**: Migration guide must be accurate about which paths are deprecated and what the
 correct current-state paths are; verify against WP05 and WP07 implementation before finalizing.
 The explanation doc must match the final behavior (especially provenance output format from WP07).
+
+---
+
+### WP09 — Org Charter Composition
+
+**Priority**: P2  
+**Estimated prompt size**: ~360 lines  
+**Dependencies**: WP05, WP07  
+**Enabled by**: FR-025, FR-026, FR-027, FR-028, FR-029
+
+**Goal**: Implement `OrgCharterPolicy` model and `load_org_charter_policies()` so the charter
+interview pre-fills from org charter defaults and `charter context` includes org charter
+governance elements with source attribution. Advisory lint for charter policy deviations is
+also added here.
+
+**Included subtasks**:
+- [ ] T042 Implement `OrgCharterPolicy` Pydantic model + `load_org_charter_policies(repo_root)`
+- [ ] T043 Charter interview pre-fill: pre-fill `interview_defaults`; pre-select `required_directives`
+- [ ] T046 Add org charter governance elements to `charter context --json` with source attribution
+- [ ] T050 Unit tests for `OrgCharterPolicy` model, load/merge, interview pre-fill, context inclusion
+
+**Parallel opportunities**: T043 and T046 can proceed in parallel after T042. T050 runs alongside both.
+
+**Risks**: The charter interview (`charter.py` + `charter/interview.py`) is a complex
+interactive flow; pre-fill must not silently overwrite answers a user has already given.
+Charter context output shape must be backward-compatible — new org charter fields are additive
+in the JSON output, never replacing existing fields.
