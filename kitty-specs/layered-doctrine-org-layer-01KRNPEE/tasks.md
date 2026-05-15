@@ -248,14 +248,14 @@ subcommand. Add `OrgOverridesShippedCheck` advisory to `charter lint`. Route `co
 inline DRG loading through `_drg_helpers.load_validated_graph()`.
 
 **Included subtasks**:
-- [ ] T033 Add `"source"` field to `charter context --json` output
-- [ ] T034 Route `context.py` DRG loading through `load_validated_graph()`
-- [ ] T035 Add `spec-kitty doctor doctrine` subcommand (built-in + org packs + project; git-version support)
-- [ ] T036 Add `OrgOverridesBuiltinCheck` advisory to `charter lint`
-- [ ] T037 Integration tests for provenance, doctor, lint advisory
-- [ ] T046 Add org charter governance elements to `charter context --json`
-- [ ] T047 Add `OrgCharterDeviationCheck` advisory to `charter lint`
-- [ ] T048 Extend `doctor doctrine` per-pack listing with org-charter.yaml policy counts
+- [x] T033 Add `"source"` field to `charter context --json` output
+- [x] T034 Route `context.py` DRG loading through `load_validated_graph()`
+- [x] T035 Add `spec-kitty doctor doctrine` subcommand (built-in + org packs + project; git-version support)
+- [x] T036 Add `OrgOverridesBuiltinCheck` advisory to `charter lint`
+- [x] T037 Integration tests for provenance, doctor, lint advisory
+- [x] T046 Add org charter governance elements to `charter context --json`
+- [x] T047 Add `OrgCharterDeviationCheck` advisory to `charter lint`
+- [x] T048 Extend `doctor doctrine` per-pack listing with org-charter.yaml policy counts
 
 **Parallel opportunities**: T034, T035, and T036 are independent of each other after setup.
 T037 requires all three to be complete.
@@ -308,7 +308,7 @@ also added here.
 **Included subtasks**:
 - [ ] T042 Implement `OrgCharterPolicy` model + `apply_org_charter_pre_fill()` + `load_org_charter_policies()`
 - [ ] T043 Charter interview pre-fill injection in `interview.py` (non-destructive; no `charter.py` changes)
-- [ ] T046 Add org charter governance elements to `charter context --json` with source attribution
+- [x] T046 Add org charter governance elements to `charter context --json` with source attribution
 - [ ] T050 Unit tests for `OrgCharterPolicy` model, load/merge, interview pre-fill, context inclusion
 
 **Parallel opportunities**: T043 and T050 can proceed in parallel after T042. T046 is in WP07 and requires this WP to be merged first (WP07 must execute after WP09 for T046).
