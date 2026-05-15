@@ -105,11 +105,11 @@ each resolved artifact carries a source layer tag. All 8 repository subclasses a
 to accept and forward the `org_dir` parameter.
 
 **Included subtasks**:
-- [ ] T006 Add `org_dir: Path | None` to `BaseDoctrineRepository.__init__`
-- [ ] T007 Add `_apply_org_overrides()` with provenance tagging
-- [ ] T008 Update `_load()` to invoke org override step
-- [ ] T009 Update all 8 repository subclasses to pass `org_dir`
-- [ ] T010 Unit tests for three-layer merge
+- [x] T006 Add `org_dir: Path | None` to `BaseDoctrineRepository.__init__`
+- [x] T007 Add `_apply_org_overrides()` with provenance tagging
+- [x] T008 Update `_load()` to invoke org override step
+- [x] T009 Update all 8 repository subclasses to pass `org_dir`
+- [x] T010 Unit tests for three-layer merge
 
 **Parallel opportunities**: T010 can start alongside T009 once T007-T008 are done.
 
