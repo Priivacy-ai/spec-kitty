@@ -163,12 +163,12 @@ config loading is in place).
 write pattern and `pack-manifest.yaml` generation.
 
 **Included subtasks**:
-- [ ] T016 Define `OrgDoctrineSource` Protocol and `FetchResult` dataclass
-- [ ] T017 Implement `GitSource`
-- [ ] T018 Implement `HttpsBundleSource`
-- [ ] T019 Implement `ApiSource`
-- [ ] T020 Implement `snapshot.py` atomic write + `pack-manifest.yaml`
-- [ ] T021 Unit tests for all source types and snapshot atomicity
+- [x] T016 Define `OrgDoctrineSource` Protocol and `FetchResult` dataclass
+- [x] T017 Implement `GitSource`
+- [x] T018 Implement `HttpsBundleSource`
+- [x] T019 Implement `ApiSource`
+- [x] T020 Implement `snapshot.py` atomic write + `pack-manifest.yaml`
+- [x] T021 Unit tests for all source types and snapshot atomicity
 
 **Parallel opportunities**: T017, T018, T019 are fully parallel after T016. T021 is parallel
 with all three implementations.
