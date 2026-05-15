@@ -308,7 +308,7 @@ also added here.
 - [ ] T046 Add org charter governance elements to `charter context --json` with source attribution
 - [ ] T050 Unit tests for `OrgCharterPolicy` model, load/merge, interview pre-fill, context inclusion
 
-**Parallel opportunities**: T043 and T050 can proceed in parallel after T042. T046 is in WP07 and depends on WP09 being merged first.
+**Parallel opportunities**: T043 and T050 can proceed in parallel after T042. T046 is in WP07 and requires this WP to be merged first (WP07 must execute after WP09 for T046).
 
 **Risks**: The charter interview (`charter.py` + `charter/interview.py`) is a complex
 interactive flow; pre-fill must not silently overwrite answers a user has already given.
