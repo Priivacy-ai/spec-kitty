@@ -285,3 +285,4 @@ def load_validated_graph(repo_root: Path, org_root: Path | None = None) -> DRGGr
 - 2026-05-15T13:12:37Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=547333 – Started implementation via action command
 - 2026-05-15T13:27:50Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=547333 – Three-layer DRG merge in DoctrineService + load_validated_graph; charter._drg_helpers._resolve_org_root kept inert to respect layered-architecture invariant (specify_cli resolves org_root and passes explicitly). 16 new tests pass.
 - 2026-05-15T13:28:49Z – codex:gpt-4o:reviewer-renata:reviewer – shell_pid=567019 – Started review via action command
+- 2026-05-15T13:31:27Z – codex:gpt-4o:reviewer-renata:reviewer – shell_pid=567019 – Review passed: three-layer DRG merge wired through DoctrineService; 16 new tests + 1604 doctrine tests pass; charter boundary preserved via inert _resolve_org_root stub
