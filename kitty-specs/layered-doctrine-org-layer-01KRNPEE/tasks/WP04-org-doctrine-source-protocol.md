@@ -329,3 +329,4 @@ artifact_counts:
 ## Activity Log
 
 - 2026-05-15T13:31:54Z – claude:opus-4-7:python-pedro:implementer – shell_pid=572399 – Started implementation via action command
+- 2026-05-15T13:44:12Z – claude:opus-4-7:python-pedro:implementer – shell_pid=572399 – OrgDoctrineSource protocol + GitSource/HttpsBundleSource/ApiSource + atomic snapshot helper. 27 contract tests pass, ruff clean, layer rules pass.
