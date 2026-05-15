@@ -24,7 +24,7 @@
 
 - [ ] Python 3.11+ with `spec-kitty-cli` v2.0.2 installed (`pip install spec-kitty-cli`)
 - [ ] Git configured with SSH access to Priivacy-ai org
-- [ ] `SPEC_KITTY_ENABLE_SAAS_SYNC=1` environment variable set
+- [ ] Hosted auth/sync available by default; do not rely on `SPEC_KITTY_ENABLE_SAAS_SYNC`
 - [ ] `spec-kitty auth login` completed successfully
 - [ ] Local test repository initialized with `spec-kitty init`
 - [ ] Browser with DevTools available (Chrome/Firefox)

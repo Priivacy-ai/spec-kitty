@@ -463,10 +463,9 @@ def _run_charter_flow(project: Path, run_cli: RunCli) -> None:
       project using the default adapter, without hand-seeding
       `.kittify/doctrine/`.
 
-    All subcommands run with `SPEC_KITTY_ENABLE_SAAS_SYNC=1` because the
-    `run_cli` fixture inherits the test environment which sets
+    The `run_cli` fixture inherits the test environment which sets
     `SPEC_KITTY_TEST_MODE=1`; SaaS-touching paths are still exercised
-    end-to-end where applicable (see C-003).
+    end-to-end where applicable.
     """
     # FR-004 Step 1: charter interview (the "setup" phase — non-interactive
     # via --profile minimal --defaults). No public `charter setup`

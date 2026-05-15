@@ -15,10 +15,10 @@ the exception type in ``details["error"]``.
 from __future__ import annotations
 
 import urllib.request
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
-from typing import Mapping
 
 
 # ---------------------------------------------------------------------------
@@ -26,7 +26,7 @@ from typing import Mapping
 # ---------------------------------------------------------------------------
 
 
-class ReadinessState(str, Enum):
+class ReadinessState(StrEnum):
     """Discrete readiness states in check order.
 
     The evaluator checks states in *declaration order* — cheapest and most
@@ -73,10 +73,6 @@ class ReadinessResult:
 # string literals so tests can assert them byte-for-byte.
 
 _WORDING: dict[ReadinessState, tuple[str, str]] = {
-    ReadinessState.ROLLOUT_DISABLED: (
-        "Hosted SaaS sync is not enabled on this machine.",
-        "Set `SPEC_KITTY_ENABLE_SAAS_SYNC=1` to opt in.",
-    ),
     ReadinessState.MISSING_AUTH: (
         "No SaaS authentication token is present.",
         "Run `spec-kitty auth login`.",
@@ -121,7 +117,7 @@ def _build_result(state: ReadinessState, **fmt_kwargs: str) -> ReadinessResult:
 
 
 def _probe_rollout() -> bool:
-    """Return True iff SaaS sync is enabled via the environment variable."""
+    """Return True; SaaS sync is no longer environment-gated."""
     from specify_cli.saas.rollout import is_saas_sync_enabled  # avoid circular at module level
 
     try:
@@ -226,12 +222,11 @@ def evaluate_readiness(
 
     Check order (short-circuits on first failure):
 
-    1. Rollout gate (``SPEC_KITTY_ENABLE_SAAS_SYNC``)
-    2. Auth (``TokenManager.is_authenticated``)
-    3. Host config (``SPEC_KITTY_SAAS_URL`` via ``get_saas_base_url()``)
-    4. Reachability — only when ``probe_reachability=True``
-    5. Mission binding — only when ``require_mission_binding=True``
-    6. ``READY``
+    1. Auth (``TokenManager.is_authenticated``)
+    2. Host config (``SPEC_KITTY_SAAS_URL`` via ``get_saas_base_url()``)
+    3. Reachability — only when ``probe_reachability=True``
+    4. Mission binding — only when ``require_mission_binding=True``
+    5. ``READY``
 
     Args:
         repo_root: Absolute path to the repository root; used to locate auth,
@@ -249,24 +244,23 @@ def evaluate_readiness(
         A frozen :class:`ReadinessResult`.
     """
     try:
-        # Step 1: rollout gate
-        if not _probe_rollout():
-            return _build_result(ReadinessState.ROLLOUT_DISABLED)
+        # Historical rollout gate is intentionally ignored in release builds.
+        _probe_rollout()
 
-        # Step 2: auth
+        # Step 1: auth
         if not _probe_auth(repo_root):
             return _build_result(ReadinessState.MISSING_AUTH)
 
-        # Step 3: host config — also captures server_url for later steps
+        # Step 2: host config — also captures server_url for later steps
         server_url = _probe_host_config()
         if server_url is None:
             return _build_result(ReadinessState.MISSING_HOST_CONFIG)
 
-        # Step 4: reachability (optional)
+        # Step 3: reachability (optional)
         if probe_reachability and not _probe_reachability(server_url):
             return _build_result(ReadinessState.HOST_UNREACHABLE, server_url=server_url)
 
-        # Step 5: mission binding (optional)
+        # Step 4: mission binding (optional)
         if require_mission_binding and not _probe_mission_binding(repo_root):
             return _build_result(
                 ReadinessState.MISSING_MISSION_BINDING,

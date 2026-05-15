@@ -95,7 +95,7 @@ class WebSocketClient:
         """Establish WebSocket connection with authentication.
 
         Flow:
-        1. Gate on the SaaS-sync feature flag.
+        1. Check the compatibility SaaS-sync rollout shim.
         2. Fetch a fresh ws_token + ws_url via ``provision_ws_token`` (which
            single-flight-refreshes the access token if needed).
         3. Open the WS upgrade at ``ws_url?token=<ws_token>``.

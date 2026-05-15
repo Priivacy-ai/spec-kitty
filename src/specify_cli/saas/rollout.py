@@ -1,39 +1,37 @@
-"""Canonical rollout gate for hosted SaaS sync.
+"""Compatibility surface for hosted SaaS sync rollout.
 
 Stability contract: ``contracts/saas_rollout.md``.
 
-This module is the single source of truth for the ``SPEC_KITTY_ENABLE_SAAS_SYNC``
-environment-variable check.  Both ``specify_cli.tracker.feature_flags`` and
-``specify_cli.sync.feature_flags`` are thin re-export shims that delegate here.
+Hosted SaaS sync is release-ready and no longer hidden behind
+``SPEC_KITTY_ENABLE_SAAS_SYNC``.  The symbols in this module remain for
+backwards-compatible imports from tracker/sync code and older tests, but the
+environment variable is intentionally ignored.
 """
 
 from __future__ import annotations
 
-import os
-
 SAAS_SYNC_ENV_VAR = "SPEC_KITTY_ENABLE_SAAS_SYNC"
-_TRUTHY_VALUES = frozenset({"1", "true", "yes", "on"})
 
 _DISABLED_MESSAGE = (
-    "Hosted SaaS sync is not enabled on this machine. "
-    "Set `SPEC_KITTY_ENABLE_SAAS_SYNC=1` to opt in."
+    "Hosted SaaS sync is enabled by default. "
+    "Use `spec-kitty sync opt-out` to disable uploads for this checkout."
 )
 
 
 def is_saas_sync_enabled() -> bool:
-    """Return True iff SaaS sync is explicitly enabled via the environment.
+    """Return whether hosted SaaS sync is available in this release channel.
 
-    Truthy values (case-insensitive, after strip): ``1``, ``true``, ``yes``, ``on``.
-    Everything else — including an unset or empty variable — returns ``False``.
+    The answer is always ``True``.  Per-checkout and per-repository opt-out
+    still lives in ``specify_cli.sync.routing`` / ``SyncConfig`` and is the
+    supported way to stop uploads.
     """
-    raw = os.environ.get(SAAS_SYNC_ENV_VAR, "")
-    return raw.strip().casefold() in _TRUTHY_VALUES
+    return True
 
 
 def saas_sync_disabled_message() -> str:
-    """Return the stable, byte-wise-frozen message shown when SaaS sync is off.
+    """Return the compatibility message for stale disabled-gate callers.
 
-    Wording is asserted byte-for-byte by tests; do not change without updating
-    ``contracts/saas_rollout.md`` and bumping the contract version.
+    New code should not branch on this message; SaaS sync is no longer
+    feature-flagged off by environment.
     """
     return _DISABLED_MESSAGE

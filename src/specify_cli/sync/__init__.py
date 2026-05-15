@@ -12,8 +12,8 @@ Heavy dependencies (requests, websockets) are lazily imported via __getattr__
 so that lightweight imports like ``from specify_cli.sync.events import ...``
 do not pull in optional packages.
 
-SaaS connectivity is feature-flagged and disabled by default. Set
-``SPEC_KITTY_ENABLE_SAAS_SYNC=1`` to enable auth/network sync flows.
+SaaS connectivity is enabled in the release channel. Use
+``spec-kitty sync opt-out`` for checkout/repository-level upload opt-out.
 
 As of mission 080 (browser-mediated OAuth) the legacy
 ``specify_cli.sync.auth`` module has been removed entirely. All callers

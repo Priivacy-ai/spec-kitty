@@ -64,8 +64,9 @@ def _ensure_dashboard_sync_daemon(repo_root: Path | None, *, ensure_daemon: bool
         if outcome.started:
             pass  # Daemon is up; continue.
         elif outcome.skipped_reason == "rollout_disabled":
-            # Unreachable: the is_saas_sync_enabled() check at line 45 already
-            # bailed before we get here. Present only as a defensive branch.
+            # Unreachable in release builds because the canonical rollout
+            # function always enables hosted sync. Kept for defensive handling
+            # when tests monkeypatch the compatibility shim.
             pass
         elif outcome.skipped_reason == "policy_manual":
             logger.debug("Background sync in manual mode; skipping daemon auto-start")

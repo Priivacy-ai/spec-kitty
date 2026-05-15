@@ -160,11 +160,11 @@ def list_cmd() -> None:
         raise typer.Exit(1) from exc
 
 
-def _detect_current_feature(project_root: Path) -> str | None:
+def _detect_current_feature(_project_root: Path) -> str | None:
     """Return None — no auto-detection (requires explicit --mission).
 
     Args:
-        project_root: Project root path (unused)
+        _project_root: Project root path (unused)
 
     Returns:
         Always None; caller must provide --mission explicitly.
@@ -308,15 +308,10 @@ def create_cmd(
     Example:
         spec-kitty mission create --from-ticket linear:PRI-42
     """
-    from specify_cli.sync.feature_flags import is_saas_sync_enabled, saas_sync_disabled_message
     from specify_cli.tracker.config import load_tracker_config, require_repo_root
     from specify_cli.tracker.saas_client import SaaSTrackerClientError
     from specify_cli.tracker.service import TrackerService, TrackerServiceError
     from specify_cli.tracker.ticket_context import write_pending_origin, write_ticket_context
-
-    if not is_saas_sync_enabled():
-        typer.secho(saas_sync_disabled_message(), err=True, fg=typer.colors.RED)
-        raise typer.Exit(1)
 
     # Parse provider:KEY
     if ":" not in from_ticket:

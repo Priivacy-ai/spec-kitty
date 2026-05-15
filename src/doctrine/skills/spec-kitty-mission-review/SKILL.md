@@ -520,7 +520,7 @@ in Step 9 unless the operator-exception path documented below is used.
 
 ```bash
 cd <spec-kitty-repo>
-SPEC_KITTY_ENABLE_SAAS_SYNC=1 <test-runner> tests/contract/ -v
+<test-runner> tests/contract/ -v
 ```
 
 Non-zero exit ⇒ **HARD FAIL**. There is no exception path for contract
@@ -545,7 +545,7 @@ Record the result under `## Gate Results — Architectural`.
 
 ```bash
 cd <spec-kitty-end-to-end-testing-repo>
-SPEC_KITTY_ENABLE_SAAS_SYNC=1 <test-runner> scenarios/ -v
+<test-runner> scenarios/ -v
 ```
 
 Non-zero exit ⇒ **HARD FAIL** unless an operator-exception artifact
@@ -653,7 +653,7 @@ must be able to understand each finding from the report alone.
 ## Gate Results
 
 ### Gate 1 — Contract tests
-- Command: `SPEC_KITTY_ENABLE_SAAS_SYNC=1 <test-runner> tests/contract/ -v`
+- Command: `<test-runner> tests/contract/ -v`
 - Exit code: <0 | non-zero>
 - Result: PASS | FAIL
 - Notes: <failing test names if any>
@@ -665,7 +665,7 @@ must be able to understand each finding from the report alone.
 - Notes: ...
 
 ### Gate 3 — Cross-repo E2E
-- Command: `SPEC_KITTY_ENABLE_SAAS_SYNC=1 <test-runner> spec-kitty-end-to-end-testing/scenarios/ -v`
+- Command: `<test-runner> spec-kitty-end-to-end-testing/scenarios/ -v`
 - Exit code: <0 | non-zero>
 - Result: PASS | FAIL | EXCEPTION (with link to `kitty-specs/<slug>/mission-exception.md`)
 - Notes: <failing scenarios; if EXCEPTION, quote the operator narrative>
