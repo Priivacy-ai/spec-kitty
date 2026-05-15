@@ -166,7 +166,7 @@ overrides a built-in artifact, giving the team visibility without blocking the w
 | ID | Requirement | Threshold | Status |
 |---|---|---|---|
 | NFR-001 | `doctrine fetch` completes for a typical org pack (up to 200 artifacts, 50 graph nodes) within an acceptable interactive wait time. For git sources, subsequent fetches (pull) are faster than initial clones. | Under 30 seconds per pack on a standard broadband connection | Proposed |
-| NFR-002 | Doctrine resolution (reading the local snapshot) adds no perceptible overhead to `charter context` response time compared to the current two-layer baseline. | Under 50 ms added latency for packs up to 200 artifacts | Proposed |
+| NFR-002 | Doctrine resolution (reading local pack directories) adds no perceptible overhead to `charter context` response time compared to the current two-layer baseline. The threshold applies to the total resolved artifact set across all configured org packs combined, not per individual pack. | Under 50 ms added latency when total org-layer artifacts across all configured packs ≤ 200 and configured pack count ≤ 10 | Proposed |
 | NFR-003 | `pack validate` completes for a pack of up to 200 artifacts without undue wait. | Under 5 seconds | Proposed |
 | NFR-004 | Invalid or corrupt artifacts in the org pack are skipped individually with a warning. A single bad artifact does not prevent the remaining artifacts from loading. | Zero fatal failures caused by individual artifact schema violations | Proposed |
 | NFR-005 | The introduction of the org layer does not break any existing shipped-layer or project-layer test. All prior test scenarios continue to pass unchanged. | 100% of existing tests pass | Proposed |

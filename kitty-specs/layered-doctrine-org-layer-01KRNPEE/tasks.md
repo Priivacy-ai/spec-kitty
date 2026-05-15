@@ -46,17 +46,17 @@
 | T033 | Add provenance `"source"` field to `charter context --json` output (`context.py`) | WP07 | |
 | T034 | Route `context.py` DRG loading through `_drg_helpers.load_validated_graph()` | WP07 | [P] |
 | T035 | Add `spec-kitty doctor doctrine` subcommand to `doctor.py` | WP07 | [P] |
-| T036 | Add `OrgOverridesShippedCheck` advisory to `charter lint` in `charter.py` | WP07 | [P] |
+| T036 | Add `OrgOverridesBuiltinCheck` advisory to `charter lint` in `charter.py` | WP07 | [P] |
 | T037 | Integration tests: provenance in JSON, doctor listing, lint advisory | WP07 | [P] |
 | T038 | Write `docs/how-to/create-an-org-doctrine-pack.md` (pack authoring guide, incl. org-charter.yaml) | WP08 | |
 | T039 | Write `docs/migration/doctrine-local-overlay-to-org-layer.md` (migration guide) | WP08 | [P] |
 | T040 | Write `docs/explanation/org-doctrine-layer.md` (three-layer model + charter composition) | WP08 | [P] |
 | T041 | Update `docs/toc.yml` and verify cross-references from existing doctrine docs | WP08 | |
-| T042 | Implement `OrgCharterPolicy` Pydantic model + `load_org_charter_policies(repo_root)` | WP09 | |
-| T043 | Charter interview pre-fill: load org charter policies; pre-fill `interview_defaults`; pre-select `required_directives` | WP09 | |
+| T042 | Implement `OrgCharterPolicy` model + `apply_org_charter_pre_fill()` + `load_org_charter_policies()` | WP09 | |
+| T043 | Charter interview pre-fill injection in `interview.py` (non-destructive; no `charter.py` changes needed) | WP09 | |
 | T044 | Extend `pack_validator.py` to validate `org-charter.yaml` schema when present | WP06 | [P] |
 | T045 | Extend `pack_assembler.py` to merge `org-charter.yaml` files across input packs | WP06 | [P] |
-| T046 | Add org charter governance elements to `charter context --json` with source attribution | WP09 | |
+| T046 | Add org charter governance elements to `charter context --json` with source attribution | WP07 | [P] |
 | T047 | Add `OrgCharterDeviationCheck` advisory to `charter lint` (policy field deviations) | WP07 | [P] |
 | T048 | Extend `doctor doctrine` per-pack listing with org-charter.yaml policy counts | WP07 | [P] |
 | T049 | Add `org-charter.yaml` section to pack authoring guide and explanation doc | WP08 | [P] |
@@ -247,9 +247,10 @@ inline DRG loading through `_drg_helpers.load_validated_graph()`.
 **Included subtasks**:
 - [ ] T033 Add `"source"` field to `charter context --json` output
 - [ ] T034 Route `context.py` DRG loading through `load_validated_graph()`
-- [ ] T035 Add `spec-kitty doctor doctrine` subcommand (built-in + org packs + project)
+- [ ] T035 Add `spec-kitty doctor doctrine` subcommand (built-in + org packs + project; git-version support)
 - [ ] T036 Add `OrgOverridesBuiltinCheck` advisory to `charter lint`
 - [ ] T037 Integration tests for provenance, doctor, lint advisory
+- [ ] T046 Add org charter governance elements to `charter context --json`
 - [ ] T047 Add `OrgCharterDeviationCheck` advisory to `charter lint`
 - [ ] T048 Extend `doctor doctrine` per-pack listing with org-charter.yaml policy counts
 
@@ -302,12 +303,12 @@ governance elements with source attribution. Advisory lint for charter policy de
 also added here.
 
 **Included subtasks**:
-- [ ] T042 Implement `OrgCharterPolicy` Pydantic model + `load_org_charter_policies(repo_root)`
-- [ ] T043 Charter interview pre-fill: pre-fill `interview_defaults`; pre-select `required_directives`
+- [ ] T042 Implement `OrgCharterPolicy` model + `apply_org_charter_pre_fill()` + `load_org_charter_policies()`
+- [ ] T043 Charter interview pre-fill injection in `interview.py` (non-destructive; no `charter.py` changes)
 - [ ] T046 Add org charter governance elements to `charter context --json` with source attribution
 - [ ] T050 Unit tests for `OrgCharterPolicy` model, load/merge, interview pre-fill, context inclusion
 
-**Parallel opportunities**: T043 and T046 can proceed in parallel after T042. T050 runs alongside both.
+**Parallel opportunities**: T043 and T050 can proceed in parallel after T042. T046 is in WP07 and depends on WP09 being merged first.
 
 **Risks**: The charter interview (`charter.py` + `charter/interview.py`) is a complex
 interactive flow; pre-fill must not silently overwrite answers a user has already given.

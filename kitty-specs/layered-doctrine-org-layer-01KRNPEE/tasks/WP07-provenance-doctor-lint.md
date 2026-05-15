@@ -21,6 +21,7 @@ subtasks:
 - T035
 - T036
 - T037
+- T046
 - T047
 - T048
 agent: codex
@@ -53,7 +54,7 @@ Surface the org-layer in three operator-facing surfaces:
 1. **`charter context --json`**: add `"source"` field to every artifact entry.
 2. **`spec-kitty doctor doctrine`**: new subcommand listing org-layer artifacts and
    snapshot metadata.
-3. **`charter lint`**: new advisory check for org artifacts that override shipped artifacts.
+3. **`charter lint`**: new advisory check for org artifacts that override built-in artifacts.
 
 Also route `context.py`'s inline DRG loading through `_drg_helpers.load_validated_graph()`
 (removing the last set of inline `load_graph` calls in the charter context path).
@@ -109,13 +110,13 @@ The JSON output gains one new field per artifact:
 {
   "directives": [
     {"id": "sec-001", "source": "org", "title": "..."},
-    {"id": "DIR-001", "source": "shipped", "title": "..."}
+    {"id": "DIR-001", "source": "builtin", "title": "..."}
   ]
 }
 ```
 
 If `get_provenance()` returns `None` (artifact not found in provenance index), default to
-`"shipped"` (safest fallback — means "we don't know, assume shipped").
+`"builtin"` (safest fallback — means "we don't know, assume builtin").
 
 **Non-JSON output**: unchanged. Source attribution is JSON-only.
 
@@ -185,12 +186,27 @@ def doctrine_check(
             console.print("Run: spec-kitty doctrine fetch")
         return
 
-    # Read pack-manifest.yaml
-    manifest_path = snapshot_path / "pack-manifest.yaml"
-    manifest = {}
-    if manifest_path.exists():
-        yaml = ruamel.yaml.YAML()
-        manifest = yaml.load(manifest_path) or {}
+    # Resolve version: git describe for git packs, pack-manifest.yaml for non-git packs
+    is_git_pack = (snapshot_path / ".git").exists()
+    pack_version = "unknown"
+    fetched_at = "unknown"
+
+    if is_git_pack:
+        import subprocess as _sp
+        try:
+            pack_version = _sp.check_output(
+                ["git", "-C", str(snapshot_path), "describe", "--tags", "--always"],
+                stderr=_sp.DEVNULL, text=True,
+            ).strip()
+        except (_sp.CalledProcessError, FileNotFoundError):
+            pack_version = "git (version unavailable)"
+    else:
+        manifest_path = snapshot_path / "pack-manifest.yaml"
+        if manifest_path.exists():
+            yaml = ruamel.yaml.YAML()
+            manifest = yaml.load(manifest_path) or {}
+            pack_version = manifest.get("pack_version", "unknown")
+            fetched_at = manifest.get("fetched_at", "unknown")
 
     # Count artifacts
     artifact_types = ["directives", "tactics", "styleguides", "toolguides",
@@ -199,21 +215,23 @@ def doctrine_check(
     for atype in artifact_types:
         adir = snapshot_path / atype
         if adir.exists():
-            counts[atype] = len(list(adir.glob(f"*.yaml")))
+            counts[atype] = len(list(adir.glob("*.yaml")))
 
     if json_output:
         print(json.dumps({
             "org_configured": True,
             "snapshot_present": True,
             "local_path": str(snapshot_path),
-            "pack_version": manifest.get("pack_version"),
-            "fetched_at": manifest.get("fetched_at"),
+            "is_git_pack": is_git_pack,
+            "pack_version": pack_version,
+            "fetched_at": fetched_at if not is_git_pack else None,
             "artifact_counts": counts,
         }, indent=2))
     else:
         console.print(f"[green]Org doctrine snapshot:[/green] {snapshot_path}")
-        console.print(f"Version: {manifest.get('pack_version', 'unknown')}")
-        console.print(f"Fetched: {manifest.get('fetched_at', 'unknown')}")
+        console.print(f"Version: {pack_version}")
+        if not is_git_pack:
+            console.print(f"Fetched: {fetched_at}")
         table = Table(title="Artifact Counts")
         table.add_column("Type")
         table.add_column("Count", justify="right")
@@ -225,15 +243,15 @@ def doctrine_check(
 
 ---
 
-## Subtask T036 — Add `OrgOverridesShippedCheck` to `charter lint`
+## Subtask T036 — Add `OrgOverridesBuiltinCheck` to `charter lint`
 
 **File**: `src/specify_cli/cli/commands/charter.py`
 
 Locate the `charter lint` command and its check registry. Add a new check:
 
 ```python
-def _check_org_overrides_shipped(repo_root: Path) -> list[LintIssue]:
-    """Advisory: org layer overrides a shipped artifact."""
+def _check_org_overrides_builtin(repo_root: Path) -> list[LintIssue]:
+    """Advisory: org layer overrides a built-in artifact."""
     from specify_cli.doctrine.config import load_doctrine_org_config
     from specify_cli.doctrine.service import _build_doctrine_service  # or equivalent factory
 
@@ -249,12 +267,12 @@ def _check_org_overrides_shipped(repo_root: Path) -> list[LintIssue]:
             item_id = item.id
             prov = repo.get_provenance(item_id)
             if prov == "org":
-                # Check if the same ID exists in shipped
-                shipped_repo = _build_shipped_only_service()
-                if getattr(shipped_repo, atype).get(item_id) is not None:
+                # Check if the same ID exists in built-in
+                builtin_repo = _build_builtin_only_service()
+                if getattr(builtin_repo, atype).get(item_id) is not None:
                     issues.append(LintIssue(
                         severity="ADVISORY",
-                        message=f"org layer overrides shipped artifact '{item_id}' ({atype})",
+                        message=f"org layer overrides built-in artifact '{item_id}' ({atype})",
                     ))
     return issues
 ```
@@ -273,7 +291,7 @@ in `charter.py`. Read the file before implementing and adapt accordingly.
 **File**: `tests/specify_cli/test_provenance_integration.py`
 
 Uses `tmp_path` as a fake project root. Sets up:
-- A shipped doctrine directory with directive `DIR-001`
+- A built-in doctrine directory with directive `DIR-001`
 - An org snapshot with directive `DIR-001` (override) and `ORG-001` (new)
 - A `pack-manifest.yaml` in the org snapshot
 
@@ -281,12 +299,69 @@ Uses `tmp_path` as a fake project root. Sets up:
 
 | Test | Command | Expected |
 |---|---|---|
-| `test_context_json_source_shipped` | `charter context --json --action specify` | `DIR-001` has `"source": "org"` (since org overrides shipped) |
+| `test_context_json_source_builtin` | `charter context --json --action specify` | `DIR-001` has `"source": "org"` (since org overrides built-in) |
 | `test_context_json_source_new_org` | Same | `ORG-001` has `"source": "org"` |
 | `test_doctor_doctrine_with_snapshot` | `spec-kitty doctor doctrine --json` | Returns `snapshot_present: true`, artifact counts |
 | `test_doctor_doctrine_no_snapshot` | Same, no snapshot | `snapshot_present: false` |
-| `test_lint_advisory_org_overrides_shipped` | `charter lint` | Advisory line mentions `DIR-001` |
+| `test_lint_advisory_org_overrides_builtin` | `charter lint` | Advisory line mentions `DIR-001` |
 | `test_lint_no_advisory_when_no_org` | `charter lint`, no org config | No advisory lines |
+
+---
+
+## Subtask T046 — Org charter elements in `charter context --json`
+
+**File**: `src/charter/context.py` (owned by this WP)
+
+Add an `"org_charter"` top-level key to the `charter context --json` output after the
+existing artifact fields. This key is additive — existing fields are unchanged.
+
+```json
+{
+  "directives": [...],
+  "org_charter": {
+    "present": true,
+    "packs": [
+      {
+        "pack_name": "security",
+        "governance_policies": [
+          {"field": "human_in_command", "value": true, "enforcement": "advisory", "source": "org"}
+        ],
+        "required_directives": ["sec-001-threat-modelling"]
+      }
+    ]
+  }
+}
+```
+
+If no org packs are configured or none have `org-charter.yaml`: `"org_charter": {"present": false}`.
+
+**Implementation** (depends on WP09's `load_org_charter_policies` and `load_pack_registry`
+being available — ensure WP09 merges before this subtask is finalized):
+
+```python
+from specify_cli.doctrine.org_charter import load_org_charter_policy
+from specify_cli.doctrine.config import load_pack_registry
+
+registry = load_pack_registry(repo_root)
+org_charter_packs = []
+for pack in registry.packs:
+    policy = load_org_charter_policy(pack.local_path)
+    if policy:
+        org_charter_packs.append({
+            "pack_name": pack.name,
+            "governance_policies": [
+                {**p.model_dump(), "source": "org"}
+                for p in policy.governance_policies
+            ],
+            "required_directives": policy.required_directives,
+        })
+
+org_charter_block = {
+    "present": bool(org_charter_packs),
+    "packs": org_charter_packs,
+}
+# Merge into the existing JSON output dict
+```
 
 ---
 
@@ -367,8 +442,9 @@ JSON output: add `"org_charter"` key to each pack entry in the JSON response.
 ## Definition of Done
 
 - [ ] `charter context --json` includes `"source": "builtin"|"org"|"project"` for every artifact
+- [ ] `charter context --json` includes `"org_charter"` key (additive; does not break existing consumers)
 - [ ] `context.py` DRG load routed through `load_validated_graph()`; no inline `load_graph` calls
-- [ ] `spec-kitty doctor doctrine` shows all packs (built-in, org, project) with per-pack org-charter status
+- [ ] `spec-kitty doctor doctrine` shows each configured pack with version (`git describe` for git packs, manifest version for others), artifact counts, and org-charter policy counts
 - [ ] `charter lint` registers `OrgOverridesBuiltinCheck` and `OrgCharterDeviationCheck` (both advisory)
 - [ ] All tests in `test_provenance_integration.py` pass
 - [ ] `spec-kitty doctor doctrine --json` exit 0 in all cases (diagnostic, not error)
@@ -379,7 +455,7 @@ JSON output: add `"org_charter"` key to each pack entry in the JSON response.
   and adapt to the actual registry/check interface.
 - Building a "shipped-only" service inside the lint check for comparison requires knowing
   `DoctrineService` factory convention. Prefer comparing against `_provenance` dict
-  (artifact is `"shipped"` in a two-layer-only service run) rather than instantiating a
+  (artifact is `"builtin"` in a two-layer-only service run) rather than instantiating a
   second service.
 
 ## Reviewer Guidance

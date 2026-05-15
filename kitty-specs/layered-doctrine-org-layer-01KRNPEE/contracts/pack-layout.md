@@ -46,8 +46,11 @@ validate` command enforces this contract.
 ├── mission_step_contracts/     [optional]
 │   └── *.contract.yaml
 │
-└── drg/                        [optional]
-    └── *.graph.yaml            [DRG graph extension fragments]
+├── drg/                        [optional]
+│   └── *.graph.yaml            [DRG graph extension fragments]
+│
+└── org-charter.yaml            [optional] [org governance policy: interview defaults,
+                                            required directives, advisory policies]
 ```
 
 ---
@@ -58,8 +61,11 @@ validate` command enforces this contract.
 
 1. The `<pack-root>` directory MUST be readable as a filesystem directory.
 2. All artifact subdirectories are OPTIONAL. A valid pack may contain any non-empty subset.
-3. An entirely empty pack (no artifact files, no DRG extensions) is valid but produces no
-   governance effect.
+3. `org-charter.yaml` is OPTIONAL at the pack root. Packs without it contribute only doctrine
+   artifacts; their governance policy is treated as empty (no interview defaults, no required
+   directives, no advisory policies).
+4. An entirely empty pack (no artifact files, no DRG extensions, no `org-charter.yaml`) is
+   valid but produces no governance effect.
 
 ### Artifact files
 
@@ -81,11 +87,25 @@ validate` command enforces this contract.
 9. Multiple fragment files in `drg/` are merged in alphabetical filename order. Fragment
    authors SHOULD name files to make ordering explicit (e.g., `010-security.graph.yaml`).
 
+### org-charter.yaml
+
+10. `org-charter.yaml` is OPTIONAL. Its absence is not a validation error.
+11. When present, `org-charter.yaml` MUST conform to the `OrgCharterPolicy` schema
+    (`schema_version`, `interview_defaults`, `required_directives`, `governance_policies`).
+    Schema violations are a validation error.
+12. `enforcement` values other than `"advisory"` are accepted with an advisory warning
+    (future values may be added; unknown values SHOULD NOT fail validation).
+13. `required_directives` entries that reference artifact IDs not present in the pack's own
+    `directives/` directory are not an error — the directive may exist in another configured
+    pack or in the built-in set. Unresolvable IDs produce an advisory warning at runtime.
+
 ### pack-manifest.yaml
 
-10. `pack-manifest.yaml` is written by `doctrine fetch` and `doctrine pack assemble`.
-    Pack authors MUST NOT create or modify this file manually.
-11. The absence of `pack-manifest.yaml` is not a validation error for `pack validate`
+14. `pack-manifest.yaml` is written by `doctrine fetch` (for non-git sources) and
+    `doctrine pack assemble`. Pack authors MUST NOT create or modify this file manually.
+15. For git-managed packs, `pack-manifest.yaml` is not written. Version information is
+    read from `git describe --tags --always` on the local clone at display time.
+16. The absence of `pack-manifest.yaml` is not a validation error for `pack validate`
     (authors run validate before the manifest is written).
 
 ---
