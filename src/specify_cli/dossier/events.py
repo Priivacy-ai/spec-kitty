@@ -488,41 +488,25 @@ def emit_snapshot_computed(
     mission_slug: str,
     parity_hash_sha256: str,
     total_artifacts: int,
+    required_artifacts: int,
+    required_present: int,
     required_missing: int,
-    *args: object,
+    optional_artifacts: int,
+    optional_present: int,
+    completeness_status: str,
+    snapshot_id: str,
     namespace: LocalNamespaceTuple | dict[str, Any] | None = None,
+    *,
+    mission_type: str | None = None,  # noqa: ARG001 — pulled from namespace
     computed_at: str | None = None,
     anomaly_count: int | None = None,
     context_diagnostics: dict[str, str] | None = None,
-    **kwargs: Any,
 ) -> dict[str, Any] | None:
     """Emit ``MissionDossierSnapshotComputed`` in the namespaced envelope.
 
     The legacy ``artifact_counts`` breakdown is folded into
     ``context_diagnostics`` so downstream consumers can still recover it.
     """
-    legacy = _consume_legacy_values(
-        args,
-        kwargs,
-        names=(
-            "required_artifacts",
-            "required_present",
-            "optional_artifacts",
-            "optional_present",
-            "completeness_status",
-            "snapshot_id",
-            "mission_type",
-        ),
-        defaults={
-            "required_artifacts": 0,
-            "required_present": 0,
-            "optional_artifacts": 0,
-            "optional_present": 0,
-            "completeness_status": "unknown",
-            "snapshot_id": "",
-            "mission_type": None,
-        },
-    )
     ns = _coerce_namespace(namespace, mission_slug=mission_slug)
     if ns is None:
         _missing_namespace_log("MissionDossierSnapshotComputed")
@@ -530,12 +514,12 @@ def emit_snapshot_computed(
 
     try:
         diagnostics = _snapshot_legacy_diagnostics(
-            snapshot_id=str(legacy["snapshot_id"]),
-            completeness_status=str(legacy["completeness_status"]),
-            required_artifacts=int(legacy["required_artifacts"]),
-            required_present=int(legacy["required_present"]),
-            optional_artifacts=int(legacy["optional_artifacts"]),
-            optional_present=int(legacy["optional_present"]),
+            snapshot_id=snapshot_id,
+            completeness_status=completeness_status,
+            required_artifacts=required_artifacts,
+            required_present=required_present,
+            optional_artifacts=optional_artifacts,
+            optional_present=optional_present,
             context_diagnostics=context_diagnostics,
         )
         payload = MissionDossierSnapshotComputedPayload(
@@ -553,7 +537,7 @@ def emit_snapshot_computed(
 
     return fire_dossier_event(
         event_type="MissionDossierSnapshotComputed",
-        aggregate_id=f"{ns.mission_slug}:{legacy['snapshot_id']}",
+        aggregate_id=f"{ns.mission_slug}:{snapshot_id}",
         aggregate_type="MissionDossier",
         payload=payload.model_dump(exclude_none=True),
     )

@@ -315,6 +315,35 @@ class TestEmitSnapshotComputed:
         assert payload["context_diagnostics"]["snapshot_id"] == "snap-01"
         assert payload["context_diagnostics"]["completeness_status"] == "complete"
 
+    def test_preserves_legacy_positional_order(
+        self, captured_emissions: list[dict[str, Any]], namespace: LocalNamespaceTuple
+    ) -> None:
+        emit_snapshot_computed(
+            "042-feature",
+            "b" * 64,
+            10,
+            6,
+            4,
+            2,
+            4,
+            3,
+            "incomplete",
+            "snap-positional",
+            namespace,
+        )
+
+        payload = captured_emissions[0]["payload"]
+        assert payload["artifact_count"] == 10
+        assert payload["anomaly_count"] == 2
+        assert payload["context_diagnostics"] == {
+            "snapshot_id": "snap-positional",
+            "completeness_status": "incomplete",
+            "required_artifacts": "6",
+            "required_present": "4",
+            "optional_artifacts": "4",
+            "optional_present": "3",
+        }
+
 
 class TestEmitParityDriftDetected:
     def test_emits_when_hashes_differ(
