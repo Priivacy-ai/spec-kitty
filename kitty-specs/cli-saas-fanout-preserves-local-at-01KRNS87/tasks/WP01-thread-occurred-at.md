@@ -30,8 +30,8 @@ subtasks:
 - T007
 phase: Phase 1
 assignee: ''
-agent: claude
-shell_pid: '54513'
+agent: "claude:opus-4-7:implementer-ivan:implementer"
+shell_pid: "54513"
 history:
 - timestamp: '2026-05-15T12:30:00Z'
   lane: planned
@@ -87,3 +87,4 @@ tags: []
 
 ## Activity Log
 - 2026-05-15T12:30:00Z – system – lane=planned – Prompt created
+- 2026-05-15T12:22:18Z – claude:opus-4-7:implementer-ivan:implementer – shell_pid=54513 – Assigned agent via action command
