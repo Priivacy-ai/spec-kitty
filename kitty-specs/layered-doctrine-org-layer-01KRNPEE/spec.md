@@ -153,6 +153,11 @@ overrides a built-in artifact, giving the team visibility without blocking the w
 | FR-022 | A `pack assemble` output (a merged distributable pack directory) may be published as a git-managed repository and subsequently configured and consumed as a git source by developers. The distributable is not a special artifact type — any directory conforming to the pack layout, when hosted in a git repository, can be declared as a git-source pack. | Proposed |
 | FR-023 | Projects that do not declare a `doctrine.org.packs` block in their `.kittify/config.yaml` experience no change in behavior. The org-layer feature has zero effect on existing kittified projects that have not opted in. Existing two-layer resolution (built-in + project) continues to work exactly as before this mission. | Proposed |
 | FR-024 | `spec-kitty doctor doctrine` presents an overview of all active doctrine packs in a unified listing: the spec-kitty built-in pack, all configured org packs (by name), and the project-local pack (`.kittify/doctrine/`). This gives operators a single command to see the complete active doctrine stack across all layers. | Proposed |
+| FR-025 | The charter supports a tiered composition model parallel to the doctrine layer. An org pack may include an `org-charter.yaml` file declaring org-wide governance policy: interview default answers, required directive selections, and advisory governance policies. The composition order is: spec-kitty built-in charter defaults → org charter(s) in pack declaration order → project charter. | Proposed |
+| FR-026 | `spec-kitty charter interview` incorporates org charter policy from all configured org packs. Interview questions are pre-filled with `interview_defaults` declared in each `org-charter.yaml` (merged in pack precedence order). Directive IDs listed in `required_directives` are pre-selected. The user may inspect and modify pre-filled values during the interactive interview. | Proposed |
+| FR-027 | `charter context --action <action>` includes org charter governance elements in the rendered context, with source attribution indicating whether each policy element originates from the spec-kitty built-in defaults, a named org charter pack, or the project charter. | Proposed |
+| FR-028 | `charter lint` emits advisory warnings (non-blocking) when the project charter deviates from a governance policy declared in an org charter. Advisory enforcement is the only enforcement model in this mission; no hard errors or workflow blocks are produced for org charter policy deviations. | Proposed |
+| FR-029 | `spec-kitty doctor doctrine` includes per-pack org charter status: whether `org-charter.yaml` is present, how many `interview_defaults`, `required_directives`, and `governance_policies` it declares. | Proposed |
 
 ---
 
@@ -197,6 +202,7 @@ overrides a built-in artifact, giving the team visibility without blocking the w
 | **DoctrineLayers** | The ordered resolution stack: shipped, org (one or more packs merged in declaration order), project. Each layer is one or more root directories or absent. |
 | **DoctrineArtifact** | Any governance artifact (directive, tactic, styleguide, toolguide, paradigm, procedure, agent profile, mission step contract) loadable from any layer. |
 | **SourceAttribution** | The layer tag (`shipped`, `org`, `project`) carried by a resolved artifact in context and doctor output. |
+| **OrgCharterPolicy** | The structured governance policy declared in an org pack's `org-charter.yaml`: interview defaults, required directive selections, and advisory governance constraints. Parallels the doctrine artifact set within a pack. |
 | **GraphExtension** | A set of additive DRG nodes and edges contributed by the org layer or a graph fragment file. |
 | **GraphFragment** | A domain-scoped partial DRG file loaded as part of a multi-file graph. Fragments are merged before layer merging. |
 
@@ -204,7 +210,7 @@ overrides a built-in artifact, giving the team visibility without blocking the w
 
 ## Assumptions
 
-- The org pack directory layout mirrors the shipped layout (`directives/`, `tactics/`, `agent_profiles/`, etc.) with an optional `drg/` fragment directory for DRG additions.
+- The org pack directory layout mirrors the shipped layout (`directives/`, `tactics/`, `agent_profiles/`, etc.) with an optional `drg/` fragment directory for DRG additions, and an optional `org-charter.yaml` for org governance policy.
 - `doctrine fetch` is an explicit operator action invoked by a human or a machine provisioning script; there is no background auto-update or daemon.
 - For git-managed packs, the local clone directory contains a `.git/` subdirectory. Resolution reads the working tree directly; it does not shell out to git at resolution time.
 - The HTTP API source contract is specified and published as part of this mission. Implementors of custom API sources must satisfy that contract.
@@ -212,7 +218,9 @@ overrides a built-in artifact, giving the team visibility without blocking the w
 - A `pack assemble` distributable is itself a valid pack layout; it may be pushed to a git repository and subsequently consumed as a git-source pack by any number of developers. The tooling treats it identically to a hand-authored git-managed pack.
 - Projects that have no `doctrine.org.packs` entry in `.kittify/config.yaml`, or that are on machines where no packs have been fetched, continue to operate with two-layer resolution (shipped + project) exactly as today.
 - The version pin for git sources is a tag name or full commit SHA; branch names are accepted but discouraged for reproducibility. `git describe --tags --always` is the canonical version display.
-- Precedence within the org layer follows declaration order in `packs`: the last declared pack has the highest precedence within the org layer (overrides earlier packs on ID collision). An advisory warning is emitted when two org packs declare the same artifact ID.
+- Precedence within the org layer follows declaration order in `packs`: the last declared pack has the highest precedence within the org layer (overrides earlier packs on artifact ID collision, and on `org-charter.yaml` `interview_defaults` key collision). An advisory warning is emitted when two org packs declare the same artifact ID.
+- Org charter enforcement is advisory-only in this mission. The `mandatory` enforcement tier is deferred to a future mission where the UX for hard policy blocking can be designed deliberately.
+- `pack assemble` merges `org-charter.yaml` files from input packs: `interview_defaults` are deep-merged (later pack wins on key collision); `required_directives` are unioned; `governance_policies` are concatenated with deduplication.
 
 ---
 
@@ -227,5 +235,6 @@ overrides a built-in artifact, giving the team visibility without blocking the w
 7. `doctrine fetch` completes successfully against git (clone-or-pull), HTTPS bundle, and API sources.
 8. For git-managed packs, the installed version is always readable via `git describe` on the local clone without any additional spec-kitty tooling.
 9. A `pack assemble` distributable, when pushed to a git repository, can be consumed as a git-source pack with no additional configuration — it is indistinguishable from a hand-authored pack repository.
-10. `pack validate` reliably detects and reports all schema violations and DRG edge consistency failures in a candidate pack before publication.
-11. All existing shipped-layer and project-layer tests continue to pass unchanged after the org-layer changes are merged.
+10. `pack validate` reliably detects and reports all schema violations, DRG edge consistency failures, and `org-charter.yaml` schema errors in a candidate pack before publication.
+11. `charter interview` pre-fills answers from org charter policy; a project starting from scratch on a machine with org packs configured immediately gets org-mandated defaults without manual selection.
+12. All existing shipped-layer and project-layer tests continue to pass unchanged after the org-layer changes are merged.
