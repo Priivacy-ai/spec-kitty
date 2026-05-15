@@ -17,6 +17,9 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-cli-saas-fanout-preserves-local-at-01KRNS87
+base_commit: 7ed001bb8c43d2b1140811e03d8aa35ecee0ffdd
+created_at: '2026-05-15T12:22:16.583833+00:00'
 subtasks:
 - T001
 - T002
@@ -28,6 +31,7 @@ subtasks:
 phase: Phase 1
 assignee: ''
 agent: claude
+shell_pid: '54513'
 history:
 - timestamp: '2026-05-15T12:30:00Z'
   lane: planned

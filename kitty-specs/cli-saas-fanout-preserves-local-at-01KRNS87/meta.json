@@ -8,5 +8,7 @@
   "purpose_context": "After mission #188 the SaaS side persists Event.occurred_at from the wire envelope's timestamp. But the CLI's _saas_fan_out() and emit_wp_status_changed() mint a fresh timestamp at sync-emission time instead of threading the local StatusEvent.at value, so even non-historical events look like 'just now'. This mission threads the local at through the fan-out and makes sync emitter accept an explicit occurrence timestamp; fresh timestamps are minted ONLY for events created at emission time.",
   "purpose_tldr": "Thread StatusEvent.at through SaaS fan-out so the canonical wire timestamp matches the local lane-transition time, not the sync-emission clock.",
   "slug": "cli-saas-fanout-preserves-local-at-01KRNS87",
-  "target_branch": "main"
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-05-15T12:22:15.555923+00:00"
 }
