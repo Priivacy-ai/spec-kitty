@@ -2074,6 +2074,61 @@ def finalize_tasks(
                         )
             return
 
+        # Local canonical WPCreated + TasksCompleted persistence must precede
+        # bootstrap_canonical_state so replay consumers see WPCreated before
+        # the first WPStatusChanged event for each WP.
+        try:
+            from specify_cli.status.lifecycle_events import (
+                emit_artifact_phase,
+                emit_wp_created_local,
+                TASKS_COMPLETED,
+            )
+
+            for wp in work_packages:
+                _wp_id = str(wp["id"])
+                _wp_title = str(wp.get("title") or _wp_id)
+                _depends_on = list(cast(list[str], wp.get("dependencies") or []))
+                _wp_path: str | None = None
+                try:
+                    _candidate = next(
+                        iter(sorted((feature_dir / "tasks").glob(f"{_wp_id}*.md"))),
+                        None,
+                    )
+                    if _candidate is not None:
+                        _wp_path = str(_candidate.relative_to(repo_root))
+                except Exception:  # noqa: BLE001
+                    _wp_path = None
+                emit_wp_created_local(
+                    feature_dir,
+                    mission_slug=mission_slug,
+                    wp_id=_wp_id,
+                    wp_title=_wp_title,
+                    wp_path=_wp_path,
+                    depends_on=_depends_on,
+                    actor="spec-kitty agent mission finalize-tasks",
+                )
+
+            _tasks_artifact = feature_dir / "tasks.md"
+            _tasks_artifact_rel: str | None = None
+            if _tasks_artifact.exists():
+                try:
+                    _tasks_artifact_rel = str(_tasks_artifact.relative_to(repo_root))
+                except ValueError:
+                    _tasks_artifact_rel = str(_tasks_artifact)
+            emit_artifact_phase(
+                feature_dir,
+                event_type=TASKS_COMPLETED,
+                mission_slug=mission_slug,
+                actor="spec-kitty agent mission finalize-tasks",
+                artifact_path=_tasks_artifact_rel or "tasks.md",
+                wp_count=len(work_packages),
+            )
+        except Exception as _local_wp_exc:  # noqa: BLE001
+            console.print(
+                f"[yellow]Warning:[/yellow] Local canonical WPCreated/TasksCompleted "
+                f"persistence failed: {_local_wp_exc}"
+            )
+
         # Bootstrap canonical status state for all WPs
         bootstrap_result = bootstrap_canonical_state(
             feature_dir,
@@ -2226,61 +2281,6 @@ def finalize_tasks(
             else:
                 console.print(f"[red]Error:[/red] {e}")
             raise typer.Exit(1) from None
-
-        # Local canonical WPCreated + TasksCompleted persistence — must
-        # land before any SaaS fan-out so dashboards see the full WP
-        # roster even if the SaaS leg is offline (issue #1068).
-        try:
-            from specify_cli.status.lifecycle_events import (
-                emit_artifact_phase,
-                emit_wp_created_local,
-                TASKS_COMPLETED,
-            )
-
-            for wp in work_packages:
-                _wp_id = str(wp["id"])
-                _wp_title = str(wp.get("title") or _wp_id)
-                _depends_on = list(cast(list[str], wp.get("dependencies") or []))
-                _wp_path: str | None = None
-                try:
-                    _candidate = next(
-                        iter(sorted((feature_dir / "tasks").glob(f"{_wp_id}*.md"))),
-                        None,
-                    )
-                    if _candidate is not None:
-                        _wp_path = str(_candidate.relative_to(repo_root))
-                except Exception:  # noqa: BLE001
-                    _wp_path = None
-                emit_wp_created_local(
-                    feature_dir,
-                    mission_slug=mission_slug,
-                    wp_id=_wp_id,
-                    wp_title=_wp_title,
-                    wp_path=_wp_path,
-                    depends_on=_depends_on,
-                    actor="spec-kitty agent mission finalize-tasks",
-                )
-
-            _tasks_artifact = feature_dir / "tasks.md"
-            _tasks_artifact_rel: str | None = None
-            if _tasks_artifact.exists():
-                try:
-                    _tasks_artifact_rel = str(_tasks_artifact.relative_to(repo_root))
-                except ValueError:
-                    _tasks_artifact_rel = str(_tasks_artifact)
-            emit_artifact_phase(
-                feature_dir,
-                event_type=TASKS_COMPLETED,
-                mission_slug=mission_slug,
-                actor="spec-kitty agent mission finalize-tasks",
-                artifact_path=_tasks_artifact_rel or "tasks.md",
-                wp_count=len(work_packages),
-            )
-        except Exception as _local_wp_exc:  # noqa: BLE001
-            console.print(
-                f"[yellow]Warning:[/yellow] Local canonical WPCreated/TasksCompleted "
-                f"persistence failed: {_local_wp_exc}"
-            )
 
         # Emit WPCreated events to SaaS (non-blocking)
         # MissionCreated is emitted earlier during mission create

@@ -486,12 +486,10 @@ def has_non_bootstrap_status_history(feature_dir: Path) -> bool:
         # the absence of the field — see status.store).
         if not isinstance(obj, dict):
             continue
-        if obj.get("event_type") in LIFECYCLE_EVENT_TYPES:
-            # Lifecycle events count as real history.
-            return True
         if "event_type" in obj:
-            # Other event-typed entries (decision moment, retrospective)
-            # do not prove WP progression; ignore.
+            # Lifecycle and other event-typed entries prove that the stream
+            # exists, but they do not prove a WP advanced beyond bootstrap
+            # planned state. The merge guard needs real status transitions.
             continue
         to_lane = obj.get("to_lane")
         from_lane = obj.get("from_lane")

@@ -283,7 +283,7 @@ def test_has_non_bootstrap_status_history_true_for_real_transition(
     assert has_non_bootstrap_status_history(feature_dir) is True
 
 
-def test_has_non_bootstrap_status_history_true_when_lifecycle_event_present(
+def test_has_non_bootstrap_status_history_false_when_lifecycle_event_present_without_real_transition(
     feature_dir: Path,
 ) -> None:
     emit_mission_created_local(
@@ -293,7 +293,34 @@ def test_has_non_bootstrap_status_history_true_when_lifecycle_event_present(
         mission_number=None,
         target_branch="main",
     )
-    assert has_non_bootstrap_status_history(feature_dir) is True
+    assert has_non_bootstrap_status_history(feature_dir) is False
+
+
+def test_has_non_bootstrap_status_history_false_for_lifecycle_plus_bootstrap(
+    feature_dir: Path,
+) -> None:
+    emit_mission_created_local(
+        feature_dir,
+        mission_slug="demo-mission",
+        mission_id=None,
+        mission_number=None,
+        target_branch="main",
+    )
+    _write_jsonl(
+        mission_event_log_path(feature_dir),
+        [
+            *read_lifecycle_events(mission_event_log_path(feature_dir)),
+            {
+                "event_id": "01H1",
+                "wp_id": "WP01",
+                "from_lane": "planned",
+                "to_lane": "planned",
+                "force": True,
+                "actor": "finalize-tasks",
+            },
+        ],
+    )
+    assert has_non_bootstrap_status_history(feature_dir) is False
 
 
 def test_has_non_bootstrap_status_history_false_when_log_absent(

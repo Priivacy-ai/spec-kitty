@@ -85,6 +85,46 @@ def test_gate_allows_real_lane_transition(tmp_path: Path) -> None:
     )
 
 
+def test_gate_blocks_lifecycle_events_plus_bootstrap_only_status(tmp_path: Path) -> None:
+    feature_dir = tmp_path / "kitty-specs" / "demo-mission"
+    feature_dir.mkdir(parents=True)
+    log = feature_dir / "status.events.jsonl"
+    _write_jsonl(
+        log,
+        [
+            {
+                "event_id": "lifecycle-1",
+                "event_type": "WPCreated",
+                "aggregate_id": "WP01",
+                "aggregate_type": "WorkPackage",
+                "payload": {
+                    "mission_slug": "demo-mission",
+                    "wp_id": "WP01",
+                    "wp_title": "Demo",
+                    "depends_on": [],
+                    "actor": "finalize-tasks",
+                },
+            },
+            {
+                "event_id": "status-1",
+                "wp_id": "WP01",
+                "from_lane": "planned",
+                "to_lane": "planned",
+                "force": True,
+                "actor": "finalize-tasks",
+                "mission_slug": "demo-mission",
+            },
+        ],
+    )
+
+    with pytest.raises(typer.Exit):
+        _enforce_canonical_status_history(
+            feature_dir=feature_dir,
+            mission_slug="demo-mission",
+            wp_ids=["WP01"],
+        )
+
+
 def test_gate_skips_when_no_wp_ids(tmp_path: Path) -> None:
     feature_dir = tmp_path / "kitty-specs" / "empty-mission"
     feature_dir.mkdir(parents=True)
