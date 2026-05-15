@@ -284,6 +284,13 @@ class SyncRuntime:
 
         Called by get_emitter() after creating the EventEmitter instance.
         If WebSocket is already connected, wires it to the emitter.
+
+        Auto-emits ``BuildRegistered`` for the active checkout when the
+        project identity is complete. ``repo_slug`` is intentionally not
+        a precondition (issue #1074): fresh / local-only / detached
+        projects without a git remote still get a build-level
+        registration event, so SaaS can materialize the project even
+        before a remote is configured.
         """
         self.emitter = emitter
         identity = self._attached_project_identity()
@@ -296,7 +303,6 @@ class SyncRuntime:
             not self._build_registered
             and identity is not None
             and getattr(identity, "is_complete", False) is True
-            and self._attached_repo_slug() is not None
         ):
             event = emitter.emit_build_registered()
             if event is not None:

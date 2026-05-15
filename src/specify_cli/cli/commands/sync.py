@@ -104,6 +104,14 @@ def humanize_timedelta(td: timedelta) -> str:
     return f"{seconds}s"
 
 
+_DRAIN_BLOCKED_HELP = {
+    "ready": "Ready to drain.",
+    "sync_disabled": "SaaS sync disabled for this checkout — run `spec-kitty sync opt-in`.",
+    "no_auth": "Not authenticated — run `spec-kitty auth login`.",
+    "no_team": "No Private Teamspace available — refresh membership in dashboard.",
+}
+
+
 def format_queue_health(stats: QueueStats, target_console: Console) -> None:
     """Render queue health metrics as Rich panels/tables.
 
@@ -111,6 +119,7 @@ def format_queue_health(stats: QueueStats, target_console: Console) -> None:
     - Summary panel with queue depth, retried count, and oldest event age
     - Retry distribution table (bucketed)
     - Top event types table (up to 5)
+    - Drain-blocker breakdown (issue #1075) — only when non-empty.
 
     Args:
         stats: Aggregate queue statistics from OfflineQueue.get_queue_stats()
@@ -129,6 +138,17 @@ def format_queue_health(stats: QueueStats, target_console: Console) -> None:
         age_str = humanize_timedelta(stats.oldest_event_age)
         summary_lines.append(f"[bold]Oldest Event:[/bold] {age_str} ago")
 
+    # Highlight drain readiness right next to the depth so operators see
+    # ready-vs-blocked at a glance (issue #1075).
+    if stats.drain_blocked_counts:
+        ready = stats.drain_blocked_counts.get("ready", 0)
+        blocked = stats.total_queued - ready
+        ready_color = "green" if blocked == 0 else "yellow"
+        summary_lines.append(
+            f"[bold]Drain Ready:[/bold] [{ready_color}]{ready:,} ready[/{ready_color}]"
+            f" / [yellow]{blocked:,} blocked[/yellow]"
+        )
+
     target_console.print(
         Panel(
             "\n".join(summary_lines),
@@ -137,6 +157,27 @@ def format_queue_health(stats: QueueStats, target_console: Console) -> None:
             expand=False,
         )
     )
+
+    # --- Drain blocker breakdown ---
+    blocked_only = {k: v for k, v in stats.drain_blocked_counts.items() if k != "ready" and v > 0}
+    if blocked_only:
+        block_table = Table(
+            title="Drain Blockers",
+            show_header=True,
+            header_style="bold",
+            show_lines=False,
+            expand=False,
+        )
+        block_table.add_column("Reason", style="yellow")
+        block_table.add_column("Count", justify="right")
+        block_table.add_column("Remediation", style="dim")
+        for reason, count in sorted(blocked_only.items(), key=lambda kv: -kv[1]):
+            block_table.add_row(
+                reason,
+                str(count),
+                _DRAIN_BLOCKED_HELP.get(reason, ""),
+            )
+        target_console.print(block_table)
 
     # --- Retry distribution ---
     if stats.retry_distribution:

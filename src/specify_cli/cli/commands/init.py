@@ -55,6 +55,48 @@ _logger = logging.getLogger(__name__)
 _EVENT_LOG_GITATTRIBUTES_ENTRY = "kitty-specs/**/status.events.jsonl merge=spec-kitty-event-log"
 
 
+def _emit_project_init_event(project_path: Path) -> None:
+    """Append a project-init lifecycle event to the durable outbox.
+
+    Issue #1073: ``spec-kitty init`` must register a Teamspace-visible
+    project through the durable outbox after identity exists, regardless
+    of authentication or sync state. We accomplish this by materializing
+    the project identity (which mints ``build_id``, ``project_uuid``,
+    ``project_slug``, ``node_id`` in ``.kittify/config.yaml``) and then
+    asking the emitter to publish ``BuildRegistered`` — which now queues
+    locally even when offline or unauthenticated (issue #1072).
+
+    The function is intentionally best-effort: any failure (filesystem,
+    emitter, etc.) becomes a single ``[dim]Note: ...[/dim]`` line and
+    init does not fail. The local-first contract means a future
+    ``spec-kitty next`` / ``spec-kitty agent`` invocation will emit
+    its own events into the same outbox, so a missed init signal is
+    recoverable.
+    """
+    try:
+        from specify_cli.identity.project import ensure_identity
+
+        ensure_identity(project_path)
+    except Exception as exc:
+        _logger.debug("Could not ensure project identity for init event: %s", exc)
+        return
+
+    # Reset the emitter singleton so it re-resolves project identity for
+    # the freshly initialized checkout. Without this, an emitter cached
+    # from an earlier invocation in the same process would still point
+    # at the previous repo root.
+    try:
+        from specify_cli.sync.events import get_emitter, reset_emitter
+
+        reset_emitter()
+        emitter = get_emitter()
+        event = emitter.emit_build_registered()
+        if event is None:
+            _logger.debug("emit_build_registered returned None during init")
+    except Exception as exc:
+        _logger.debug("Could not emit project-init event: %s", exc)
+
+
 def _has_global_runtime() -> bool:
     """Check whether the global runtime has populated missions.
 
@@ -999,6 +1041,14 @@ def init(  # noqa: C901
     except Exception as e:
         # Don't fail init if agent config creation fails
         _console.print(f"[dim]Note: Could not save agent config: {e}[/dim]")
+
+    # Emit the project-init lifecycle event into the durable outbox so
+    # the SaaS side can materialize the project even when init runs
+    # offline / unauthenticated / without a git remote (issue #1073).
+    try:
+        _emit_project_init_event(project_path)
+    except Exception as e:
+        _console.print(f"[dim]Note: Could not emit project-init event: {e}[/dim]")
 
     # Clean up temporary directories used during init.
     # In full-copy mode: .kittify/templates/ holds the copied base templates.
