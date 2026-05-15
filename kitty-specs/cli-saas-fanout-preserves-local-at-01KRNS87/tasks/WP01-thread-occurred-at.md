@@ -88,3 +88,4 @@ tags: []
 ## Activity Log
 - 2026-05-15T12:30:00Z – system – lane=planned – Prompt created
 - 2026-05-15T12:22:18Z – claude:opus-4-7:implementer-ivan:implementer – shell_pid=54513 – Assigned agent via action command
+- 2026-05-15T12:35:39Z – claude:opus-4-7:implementer-ivan:implementer – shell_pid=54513 – All 7 subtasks done. 5 new tests + 2 existing mock assertions updated for the occurred_at kwarg. Sync + status tests: 80 passed in touched files. Pre-existing orphan_sweep and origin_integration failures are unrelated to this mission (verified on main).
