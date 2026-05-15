@@ -1,7 +1,7 @@
 {
-  "event_count": 35,
-  "last_event_id": "01KRNZ277T98EERBM5MFCBNQMD",
-  "materialized_at": "2026-05-15T14:01:22.426134+00:00",
+  "event_count": 37,
+  "last_event_id": "01KRNZ2YGKHQVY0PHHRGK32N99",
+  "materialized_at": "2026-05-15T14:01:46.259461+00:00",
   "mission_number": "",
   "mission_slug": "layered-doctrine-org-layer-01KRNPEE",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 5
+    "planned": 4
   },
   "work_packages": {
     "WP01": {
@@ -53,11 +53,11 @@
       "last_transition_at": "2026-05-15T14:01:22.426134+00:00"
     },
     "WP06": {
-      "actor": "finalize-tasks",
+      "actor": "claude:opus-4-7:python-pedro:implementer",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KRNRQ4TZX5EKBS66TQXA513G",
-      "last_transition_at": "2026-05-15T12:10:28.063826+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KRNZ2YGKHQVY0PHHRGK32N99",
+      "last_transition_at": "2026-05-15T14:01:46.259461+00:00"
     },
     "WP07": {
       "actor": "finalize-tasks",
