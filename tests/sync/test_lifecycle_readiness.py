@@ -322,7 +322,9 @@ def test_init_emits_project_init_event_offline(tmp_path: Path, monkeypatch):
     project_path = tmp_path / "fresh-project"
     project_path.mkdir()
     (project_path / ".kittify").mkdir()
-    monkeypatch.chdir(project_path)
+    outside_path = tmp_path / "outside"
+    outside_path.mkdir()
+    monkeypatch.chdir(outside_path)
 
     # Materialize identity directly (bypasses the full Typer harness; the
     # init command writes identity then calls the same helper). This keeps
@@ -339,3 +341,4 @@ def test_init_emits_project_init_event_offline(tmp_path: Path, monkeypatch):
     build_event = next(e for e in events if e["event_type"] == "BuildRegistered")
     assert build_event.get("drain_blocked_reason") in {"no_auth", "no_team"}
     assert build_event["payload"]["build_id"]
+    assert build_event["payload"]["project_uuid"]

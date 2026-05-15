@@ -89,10 +89,16 @@ def _emit_project_init_event(project_path: Path) -> None:
         from specify_cli.sync.events import get_emitter, reset_emitter
 
         reset_emitter()
-        emitter = get_emitter()
-        event = emitter.emit_build_registered()
-        if event is None:
-            _logger.debug("emit_build_registered returned None during init")
+        previous_cwd = Path.cwd()
+        try:
+            os.chdir(project_path)
+            emitter = get_emitter()
+            event = emitter.emit_build_registered()
+            if event is None:
+                _logger.debug("emit_build_registered returned None during init")
+        finally:
+            os.chdir(previous_cwd)
+            reset_emitter()
     except Exception as exc:
         _logger.debug("Could not emit project-init event: %s", exc)
 
