@@ -13,8 +13,8 @@ subtasks:
 - T051
 - T052
 - T053
-agent: "claude:opus-4-7:python-pedro:implementer"
-shell_pid: "663493"
+agent: "codex:gpt-4o:reviewer-renata:reviewer"
+shell_pid: "694504"
 history:
 - date: '2026-05-15'
   event: created
@@ -219,3 +219,4 @@ spec-kitty agent tasks move-task WP10 --to for_review --mission layered-doctrine
 
 - 2026-05-15T14:33:34Z – claude:opus-4-7:python-pedro:implementer – shell_pid=663493 – Started implementation via action command
 - 2026-05-15T14:50:41Z – claude:opus-4-7:python-pedro:implementer – shell_pid=663493 – Renamed all 8 src/doctrine/<artifact>/shipped/ dirs to built-in/ via git mv (196 file renames, balanced 289+/289- diff). Updated DoctrineService._shipped_dir() and all 8 repository._default_shipped_dir() paths. Cascaded path-literal updates across YAML data (guide_path, references arrays in toolguides/styleguides), neutrality allowlist, charter catalog/compiler, pack_validator, agent/tasks _get_hic_marker, mission-runtime comments, extractor.py, and ~40 test files. Integration check: DoctrineService loads 17 directives, 92 tactics, 8 styleguides, 10 toolguides, 8 paradigms, 13 procedures, 14 agent profiles, 16 mission step contracts from built-in/. All doctrine/charter/architectural/specify_cli tests pass except pre-existing neutrality lint failure on secure-regex tactic (b134bac5).
+- 2026-05-15T14:51:17Z – codex:gpt-4o:reviewer-renata:reviewer – shell_pid=694504 – Started review via action command
