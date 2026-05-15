@@ -935,6 +935,8 @@ class TestSaasFanOut:
         with patch("specify_cli.sync.events.emit_wp_status_changed", mock_emit):
             _saas_fan_out(event, "034-test-feature", None)
 
+        # ``occurred_at`` is the canonical local lane-transition time threaded
+        # through _saas_fan_out (mission cli-saas-fanout-preserves-local-at-01KRNS87).
         mock_emit.assert_called_once_with(
             wp_id="WP01",
             from_lane="claimed",
@@ -949,6 +951,7 @@ class TestSaasFanOut:
             review_ref=None,
             execution_mode="worktree",
             evidence=None,
+            occurred_at=event.at,
             ensure_daemon=True,
         )
 

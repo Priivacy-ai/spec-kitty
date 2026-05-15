@@ -75,22 +75,26 @@ class TestCanonicalFanOut:
         with patch("specify_cli.sync.events.emit_wp_status_changed", mock_emit):
             _saas_fan_out(event, "039-test-feature", None)
 
-        mock_emit.assert_called_once_with(
-            wp_id="WP01",
-            from_lane=str(from_lane),
-            to_lane=str(to_lane),
-            actor="test-actor",
-            mission_slug="039-test-feature",
-            mission_id=None,
-            causation_id="01HXYZ0000000000000000TEST",
-            policy_metadata=None,
-            force=False,
-            reason=None,
-            review_ref=None,
-            execution_mode="worktree",
-            evidence=None,
-            ensure_daemon=True,
-        )
+        # ``occurred_at`` is the canonical local lane-transition time threaded
+        # through _saas_fan_out (mission cli-saas-fanout-preserves-local-at-01KRNS87).
+        call_kwargs = mock_emit.call_args.kwargs
+        assert call_kwargs == {
+            "wp_id": "WP01",
+            "from_lane": str(from_lane),
+            "to_lane": str(to_lane),
+            "actor": "test-actor",
+            "mission_slug": "039-test-feature",
+            "mission_id": None,
+            "causation_id": "01HXYZ0000000000000000TEST",
+            "policy_metadata": None,
+            "force": False,
+            "reason": None,
+            "review_ref": None,
+            "execution_mode": "worktree",
+            "evidence": None,
+            "occurred_at": event.at,
+            "ensure_daemon": True,
+        }
 
     def test_planned_to_claimed_now_emits(self) -> None:
         """planned->claimed is no longer a no-op (was collapsed to planned->planned)."""
