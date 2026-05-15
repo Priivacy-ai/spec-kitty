@@ -20,7 +20,8 @@ subtasks:
 - T039
 - T040
 - T041
-agent: claude
+agent: "claude:opus-4-7:python-pedro:implementer"
+shell_pid: "715492"
 history:
 - date: '2026-05-15'
   event: created
@@ -309,3 +310,7 @@ Verify all document links resolve (no 404s). Fix any broken references.
    (removing the config falls back gracefully without breaking the project).
 3. Confirm the explanation doc's FAQ is accurate for Mission A scope (e.g., "multiple org
    layers: not in this release").
+
+## Activity Log
+
+- 2026-05-15T15:04:20Z – claude:opus-4-7:python-pedro:implementer – shell_pid=715492 – Started implementation via action command
