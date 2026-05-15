@@ -18,7 +18,7 @@ subtasks:
 - T003
 - T004
 - T005
-agent: "codex:gpt-4o:reviewer-renata:reviewer"
+agent: "claude:sonnet-4-6:reviewer-renata:reviewer"
 shell_pid: "523020"
 history:
 - date: '2026-05-15'
@@ -91,7 +91,7 @@ This WP fixes the fragmentation by:
 - **Planning/base branch**: `feat/org-doctrine-layer`
 - **Merge target**: `feat/org-doctrine-layer`
 - **Worktree**: allocated by `finalize-tasks`; check `lanes.json` for your lane
-- **Implement command**: `spec-kitty agent action implement WP01 --agent codex`
+- **Implement command**: `spec-kitty agent action implement WP01 --agent claude:sonnet-4-6`
 
 ---
 

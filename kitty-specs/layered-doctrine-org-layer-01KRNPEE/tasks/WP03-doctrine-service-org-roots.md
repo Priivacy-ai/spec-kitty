@@ -19,7 +19,7 @@ subtasks:
 - T013
 - T014
 - T015
-agent: codex
+agent: claude
 history:
 - date: '2026-05-15'
   event: created
@@ -88,7 +88,7 @@ This WP adds `_org_dir()` and threads it through every property.
 
 - **Planning/base branch**: `feat/org-doctrine-layer`
 - **Merge target**: `feat/org-doctrine-layer`
-- **Implement command**: `spec-kitty agent action implement WP03 --agent codex`
+- **Implement command**: `spec-kitty agent action implement WP03 --agent claude:sonnet-4-6`
 
 ---
 
