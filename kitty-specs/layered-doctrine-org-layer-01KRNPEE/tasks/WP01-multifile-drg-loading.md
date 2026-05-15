@@ -258,3 +258,4 @@ Check that:
 ## Activity Log
 
 - 2026-05-15T12:53:53Z – codex:gpt-4o:python-pedro:implementer – shell_pid=503166 – Assigned agent via action command
+- 2026-05-15T12:59:28Z – codex:gpt-4o:python-pedro:implementer – shell_pid=503166 – load_graph_or_dir implemented; all graph.yaml call sites updated in synthesizer; 8 new tests passing; all 65 DRG tests pass
