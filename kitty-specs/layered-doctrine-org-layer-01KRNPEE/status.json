@@ -1,19 +1,19 @@
 {
-  "event_count": 39,
-  "last_event_id": "01KRNZQ0C4PJ0DGPNPPNDQ9C50",
-  "materialized_at": "2026-05-15T14:12:43.524198+00:00",
+  "event_count": 40,
+  "last_event_id": "01KRNZSP66WQDBZHAJQ50JRHBB",
+  "materialized_at": "2026-05-15T14:14:11.398594+00:00",
   "mission_number": "",
   "mission_slug": "layered-doctrine-org-layer-01KRNPEE",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 5,
+    "approved": 6,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 4
   },
   "work_packages": {
@@ -53,11 +53,11 @@
       "last_transition_at": "2026-05-15T14:01:22.426134+00:00"
     },
     "WP06": {
-      "actor": "codex:gpt-4o:reviewer-renata:reviewer",
+      "actor": "user",
       "force_count": 1,
-      "lane": "in_review",
-      "last_event_id": "01KRNZQ0C4PJ0DGPNPPNDQ9C50",
-      "last_transition_at": "2026-05-15T14:12:43.524198+00:00"
+      "lane": "approved",
+      "last_event_id": "01KRNZSP66WQDBZHAJQ50JRHBB",
+      "last_transition_at": "2026-05-15T14:14:11.398594+00:00"
     },
     "WP07": {
       "actor": "finalize-tasks",
