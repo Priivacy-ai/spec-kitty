@@ -13,7 +13,8 @@ subtasks:
 - T051
 - T052
 - T053
-agent: claude
+agent: "claude:opus-4-7:python-pedro:implementer"
+shell_pid: "663493"
 history:
 - date: '2026-05-15'
   event: created
@@ -213,3 +214,7 @@ spec-kitty agent tasks move-task WP10 --to for_review --mission layered-doctrine
 1. Confirm `git log --stat HEAD` shows directory renames, not deletes+adds.
 2. Run the spot-check to confirm `DoctrineService` resolves artifacts from the renamed dirs.
 3. Confirm no `shipped/` directory remains anywhere under `src/doctrine/`.
+
+## Activity Log
+
+- 2026-05-15T14:33:34Z – claude:opus-4-7:python-pedro:implementer – shell_pid=663493 – Started implementation via action command
