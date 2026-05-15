@@ -137,11 +137,11 @@ Update `compiler.py` and `reference_resolver.py` to use `load_graph_or_dir` for 
 inline DRG loading (removing the duplicated shipped-graph-only loads).
 
 **Included subtasks**:
-- [ ] T011 Add `org_roots: list[Path]` to `DoctrineService.__init__` and `_org_dir()` helper
-- [ ] T012 Pass `org_dir` through all 8 repository factories
-- [ ] T013 Update `compiler.py` and `reference_resolver.py` to use `load_graph_or_dir`
-- [ ] T014 Add `_resolve_org_root(repo_root) -> Path | None` to `_drg_helpers.py`
-- [ ] T015 Unit tests for `DoctrineService` with `org_roots`
+- [x] T011 Add `org_roots: list[Path]` to `DoctrineService.__init__` and `_org_dir()` helper
+- [x] T012 Pass `org_dir` through all 8 repository factories
+- [x] T013 Update `compiler.py` and `reference_resolver.py` to use `load_graph_or_dir`
+- [x] T014 Add `_resolve_org_root(repo_root) -> Path | None` to `_drg_helpers.py`
+- [x] T015 Unit tests for `DoctrineService` with `org_roots`
 
 **Parallel opportunities**: T013 and T015 can proceed after T011.
 
