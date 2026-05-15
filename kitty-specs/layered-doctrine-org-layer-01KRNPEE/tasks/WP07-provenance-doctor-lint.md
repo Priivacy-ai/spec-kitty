@@ -24,7 +24,8 @@ subtasks:
 - T046
 - T047
 - T048
-agent: claude
+agent: "claude:opus-4-7:python-pedro:implementer"
+shell_pid: "634691"
 history:
 - date: '2026-05-15'
   event: created
@@ -463,3 +464,7 @@ JSON output: add `"org_charter"` key to each pack entry in the JSON response.
 1. Confirm `"source"` field appears in JSON output for ALL artifact types (not just directives).
 2. Confirm `doctor doctrine` exit code is always 0 (it's a diagnostic, not a gating check).
 3. Confirm lint advisory does NOT appear when org layer is absent or empty.
+
+## Activity Log
+
+- 2026-05-15T14:14:32Z – claude:opus-4-7:python-pedro:implementer – shell_pid=634691 – Started implementation via action command
