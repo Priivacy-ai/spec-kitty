@@ -20,8 +20,8 @@ subtasks:
 - T039
 - T040
 - T041
-agent: "claude:opus-4-7:python-pedro:implementer"
-shell_pid: "732840"
+agent: "codex:gpt-4o:reviewer-renata:reviewer"
+shell_pid: "733727"
 history:
 - date: '2026-05-15'
   event: created
@@ -319,3 +319,4 @@ Verify all document links resolve (no 404s). Fix any broken references.
 - 2026-05-15T15:17:03Z – codex:gpt-4o:reviewer-renata:reviewer – shell_pid=726713 – Moved to planned
 - 2026-05-15T15:17:31Z – claude:opus-4-7:python-pedro:implementer – shell_pid=732840 – Started implementation via action command
 - 2026-05-15T15:17:55Z – claude:opus-4-7:python-pedro:implementer – shell_pid=732840 – Cycle 2: fixed built-in→builtin provenance tag literal in two doc locations (explanation table cell + how-to source-field description); prose mentions of 'built-in layer' unchanged
+- 2026-05-15T15:18:00Z – codex:gpt-4o:reviewer-renata:reviewer – shell_pid=733727 – Started review via action command
