@@ -358,3 +358,4 @@ If no input packs had `org-charter.yaml`, omit the file from the output (don't w
 ## Activity Log
 
 - 2026-05-15T14:01:46Z – claude:opus-4-7:python-pedro:implementer – shell_pid=618227 – Started implementation via action command
+- 2026-05-15T14:11:58Z – claude:opus-4-7:python-pedro:implementer – shell_pid=618227 – Implemented pack_validator (per-artifact schema, duplicate IDs, DRG edge/kind checks, shipped-collision advisories, optional org-charter validation with graceful WP09 fallback) and pack_assembler (artifact/DRG conflict detection, --force last-pack-wins, --conflicts-out JSON, post-assembly validation, org-charter merge). Wired both into spec-kitty doctrine pack {validate,assemble} CLI (removed NotImplementedError stubs). 23 new tests + updated WP05 stub tests; all 72 doctrine tests + architectural layer rules pass. Ruff clean.
