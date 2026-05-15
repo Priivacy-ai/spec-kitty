@@ -129,6 +129,7 @@ _FEATURE_SLUG_PATTERN = re.compile(
     r"^(?:\d{3}-[a-z0-9-]+|[a-z0-9]+(?:-[a-z0-9]+)*-[0-9A-HJKMNP-TV-Z]{8})$"
 )
 _FEATURE_NUMBER_PATTERN = re.compile(r"^\d{3}$")
+_SHA256_HEX_RE = re.compile(r"^[a-f0-9]{64}$")
 
 
 def _is_datetime_string(value: Any) -> bool:
@@ -164,6 +165,10 @@ def _is_actor_payload(value: Any) -> bool:
 
 def _is_non_negative_number(value: Any) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool) and value >= 0
+
+
+def _is_sha256_hex(value: Any) -> bool:
+    return isinstance(value, str) and bool(_SHA256_HEX_RE.match(value))
 
 
 def _default_mission_display_name(mission_slug: str) -> str:
@@ -493,7 +498,7 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
         "required": {"namespace", "snapshot_hash", "artifact_count", "anomaly_count", "computed_at"},
         "validators": {
             "namespace": _is_dict,
-            "snapshot_hash": lambda v: isinstance(v, str) and bool(re.match(r"^[a-f0-9]{64}$", v)),
+            "snapshot_hash": _is_sha256_hex,
             "artifact_count": lambda v: isinstance(v, int) and v >= 0,
             "anomaly_count": lambda v: isinstance(v, int) and v >= 0,
             "computed_at": lambda v: isinstance(v, str) and len(v) >= 1,
@@ -505,8 +510,8 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
         "required": {"namespace", "expected_hash", "actual_hash", "drift_kind", "detected_at"},
         "validators": {
             "namespace": _is_dict,
-            "expected_hash": lambda v: isinstance(v, str) and bool(re.match(r"^[a-f0-9]{64}$", v)),
-            "actual_hash": lambda v: isinstance(v, str) and bool(re.match(r"^[a-f0-9]{64}$", v)),
+            "expected_hash": _is_sha256_hex,
+            "actual_hash": _is_sha256_hex,
             "drift_kind": lambda v: isinstance(v, str) and len(v) >= 1,
             "detected_at": lambda v: isinstance(v, str) and len(v) >= 1,
             "artifact_ids_changed": lambda v: v is None or (isinstance(v, list) and all(isinstance(item, dict) for item in v)),

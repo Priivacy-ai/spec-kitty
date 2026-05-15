@@ -74,6 +74,53 @@ class ClaimablePreview:
     candidates: tuple[str, ...]
 
 
+def _read_candidate_wp_ids(tasks_dir: Path) -> list[str]:
+    candidates: list[str] = []
+    for wp_file in sorted(tasks_dir.glob("WP*.md")):
+        try:
+            content = wp_file.read_text(encoding="utf-8-sig")
+        except OSError:
+            continue
+        frontmatter, _, _ = split_frontmatter(content)
+        wp_id = extract_scalar(frontmatter, "work_package_id")
+        if wp_id:
+            candidates.append(wp_id)
+    return candidates
+
+
+def _load_wp_lanes(feature_dir: Path) -> dict[str, Lane]:
+    try:
+        events = _read_events(feature_dir)
+        if not events:
+            return {}
+        snapshot = _reduce_events(events)
+    except Exception:  # noqa: BLE001 — discovery is best-effort; on read failure default to PLANNED
+        return {}
+    return {
+        wp_id: Lane(state.get("lane", Lane.PLANNED))
+        for wp_id, state in snapshot.work_packages.items()
+    }
+
+
+def _preview_from_candidates(candidates: list[str], wp_lanes: dict[str, Lane]) -> ClaimablePreview:
+    has_active_candidate = False
+    for wp_id in candidates:
+        lane = wp_lanes.get(wp_id, Lane.PLANNED)
+        if lane == Lane.PLANNED:
+            return ClaimablePreview(
+                wp_id=wp_id,
+                selection_reason=None,
+                candidates=tuple(candidates),
+            )
+        if lane in _ACTIVE_NON_PLANNED_LANES:
+            has_active_candidate = True
+    return ClaimablePreview(
+        wp_id=None,
+        selection_reason="all_wps_in_progress" if has_active_candidate else "no_planned_wps",
+        candidates=tuple(candidates),
+    )
+
+
 def preview_claimable_wp(feature_dir: Path) -> ClaimablePreview:
     """Return the WP that ``agent action implement`` would auto-claim, if any.
 
@@ -99,17 +146,7 @@ def preview_claimable_wp(feature_dir: Path) -> ClaimablePreview:
             candidates=(),
         )
 
-    candidates: list[str] = []
-    for wp_file in sorted(tasks_dir.glob("WP*.md")):
-        try:
-            content = wp_file.read_text(encoding="utf-8-sig")
-        except OSError:
-            continue
-        frontmatter, _, _ = split_frontmatter(content)
-        wp_id = extract_scalar(frontmatter, "work_package_id")
-        if wp_id:
-            candidates.append(wp_id)
-
+    candidates = _read_candidate_wp_ids(tasks_dir)
     if not candidates:
         return ClaimablePreview(
             wp_id=None,
@@ -118,33 +155,4 @@ def preview_claimable_wp(feature_dir: Path) -> ClaimablePreview:
         )
 
     # Read lanes from the canonical status event log (lane is event-log-only).
-    wp_lanes: dict[str, Lane] = {}
-    try:
-        events = _read_events(feature_dir)
-        if events:
-            snapshot = _reduce_events(events)
-            for wp_id, state in snapshot.work_packages.items():
-                wp_lanes[wp_id] = Lane(state.get("lane", Lane.PLANNED))
-    except Exception:  # noqa: BLE001 — discovery is best-effort; on read failure default to PLANNED
-        wp_lanes = {}
-
-    has_active_candidate = False
-    for wp_id in candidates:
-        lane = wp_lanes.get(wp_id, Lane.PLANNED)
-        if lane == Lane.PLANNED:
-            return ClaimablePreview(
-                wp_id=wp_id,
-                selection_reason=None,
-                candidates=tuple(candidates),
-            )
-        if lane in _ACTIVE_NON_PLANNED_LANES:
-            has_active_candidate = True
-
-    # No planned candidate found. Distinguish "everything terminal/blocked"
-    # from "at least one still active" so consumers can tell stalled missions
-    # apart from missions waiting on review/handoff.
-    return ClaimablePreview(
-        wp_id=None,
-        selection_reason="all_wps_in_progress" if has_active_candidate else "no_planned_wps",
-        candidates=tuple(candidates),
-    )
+    return _preview_from_candidates(candidates, _load_wp_lanes(feature_dir))

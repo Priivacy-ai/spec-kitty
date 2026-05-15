@@ -2068,6 +2068,140 @@ def decide_next_via_runtime(  # noqa: C901
         origin,
     )
 
+def _build_finalized_override_query_decision(
+    *,
+    agent: str | None,
+    mission_slug: str,
+    mission_type: str,
+    now: str,
+    progress: dict | None,
+    emitted_run_id: str | None,
+    feature_dir: Path,
+    finalized_override: str,
+) -> Decision:
+    override_wp_id: str | None = None
+    if finalized_override == "done":
+        mission_state = "done"
+        preview_step = None
+        reason = "All work packages are done"
+    elif finalized_override.startswith("blocked:"):
+        mission_state = "blocked"
+        preview_step = None
+        reason = finalized_override.split(":", 1)[1].replace("_", " ")
+    else:
+        mission_state = finalized_override
+        preview_step = finalized_override
+        reason = None
+        if finalized_override == "implement":
+            from specify_cli.next.discovery import preview_claimable_wp
+
+            preview = preview_claimable_wp(feature_dir)
+            override_wp_id = preview.wp_id
+            if preview.wp_id is None and preview.selection_reason is not None:
+                reason = preview.selection_reason
+    return Decision(
+        kind=DecisionKind.query,
+        agent=agent,
+        mission_slug=mission_slug,
+        mission=mission_type,
+        mission_state=mission_state,
+        timestamp=now,
+        is_query=True,
+        reason=reason,
+        progress=progress,
+        run_id=emitted_run_id,
+        preview_step=preview_step,
+        wp_id=override_wp_id,
+    )
+
+
+def _build_initial_query_decision(
+    *,
+    runtime_decision: Any,
+    agent: str | None,
+    mission_slug: str,
+    mission_type: str,
+    now: str,
+    progress: dict | None,
+    emitted_run_id: str | None,
+) -> Decision:
+    return Decision(
+        kind=DecisionKind.query,
+        agent=agent,
+        mission_slug=mission_slug,
+        mission=mission_type,
+        mission_state="not_started",
+        timestamp=now,
+        is_query=True,
+        reason=None,
+        progress=progress,
+        run_id=emitted_run_id,
+        preview_step=runtime_decision.step_id,
+    )
+
+
+def _build_decision_required_query(
+    *,
+    runtime_decision: Any,
+    snapshot: Any,
+    agent: str | None,
+    mission_slug: str,
+    mission_type: str,
+    now: str,
+    progress: dict | None,
+    emitted_run_id: str | None,
+) -> Decision:
+    return Decision(
+        kind=DecisionKind.query,
+        agent=agent,
+        mission_slug=mission_slug,
+        mission=mission_type,
+        mission_state=snapshot.issued_step_id or runtime_decision.step_id or "unknown",
+        timestamp=now,
+        is_query=True,
+        reason=None,
+        progress=progress,
+        run_id=emitted_run_id,
+        step_id=snapshot.issued_step_id or runtime_decision.step_id,
+        decision_id=runtime_decision.decision_id,
+        input_key=runtime_decision.input_key,
+        question=runtime_decision.question,
+        options=runtime_decision.options,
+    )
+
+
+def _build_runtime_query_decision(
+    *,
+    runtime_decision: Any,
+    snapshot: Any,
+    agent: str | None,
+    mission_slug: str,
+    mission_type: str,
+    now: str,
+    progress: dict | None,
+    emitted_run_id: str | None,
+) -> Decision:
+    mission_state = runtime_decision.step_id or "unknown"
+    blocked_reason: str | None = None
+    if runtime_decision.kind == "terminal":
+        mission_state = "done"
+    elif runtime_decision.kind == "blocked":
+        mission_state = snapshot.issued_step_id or runtime_decision.step_id or "blocked"
+        blocked_reason = snapshot.blocked_reason or getattr(runtime_decision, "reason", None)
+    return Decision(
+        kind=DecisionKind.query,
+        agent=agent,
+        mission_slug=mission_slug,
+        mission=mission_type,
+        mission_state=mission_state,
+        timestamp=now,
+        is_query=True,
+        reason=blocked_reason,
+        progress=progress,
+        run_id=emitted_run_id,
+        step_id=snapshot.issued_step_id or runtime_decision.step_id,
+    )
+
 
 def query_current_state(  # noqa: C901
     agent: str | None,
@@ -2150,104 +2284,51 @@ def query_current_state(  # noqa: C901
 
         finalized_override = _finalized_task_board_override_step(feature_dir, progress)
         if finalized_override is not None:
-            override_wp_id: str | None = None
-            if finalized_override == "done":
-                mission_state = "done"
-                preview_step = None
-                reason = "All work packages are done"
-            elif finalized_override.startswith("blocked:"):
-                mission_state = "blocked"
-                preview_step = None
-                reason = finalized_override.split(":", 1)[1].replace("_", " ")
-            else:
-                mission_state = finalized_override
-                preview_step = finalized_override
-                reason = None
-                # Issue #988: when the finalized override resolves to
-                # "implement", the JSON payload must serialize the concrete
-                # WP that `agent action implement` would auto-claim. This
-                # call is read-only — it mirrors the candidate selection
-                # in `_find_first_planned_wp` without mutating state.
-                if finalized_override == "implement":
-                    from specify_cli.next.discovery import preview_claimable_wp
-
-                    preview = preview_claimable_wp(feature_dir)
-                    override_wp_id = preview.wp_id
-                    if preview.wp_id is None and preview.selection_reason is not None:
-                        # Surface why selection is suppressed so consumers
-                        # can distinguish "nothing to do" from "all claimed".
-                        reason = preview.selection_reason
-            return Decision(
-                kind=DecisionKind.query,
+            return _build_finalized_override_query_decision(
                 agent=agent,
                 mission_slug=mission_slug,
-                mission=mission_type,
-                mission_state=mission_state,
-                timestamp=now,
-                is_query=True,
-                reason=reason,
+                mission_type=mission_type,
+                now=now,
                 progress=progress,
-                run_id=emitted_run_id,
-                preview_step=preview_step,
-                wp_id=override_wp_id,
+                emitted_run_id=emitted_run_id,
+                feature_dir=feature_dir,
+                finalized_override=finalized_override,
             )
 
         if not snapshot.completed_steps and not snapshot.pending_decisions and not snapshot.decisions:
             if runtime_decision.kind in {"step", "decision_required"} and runtime_decision.step_id:
-                return Decision(
-                    kind=DecisionKind.query,
+                return _build_initial_query_decision(
+                    runtime_decision=runtime_decision,
                     agent=agent,
                     mission_slug=mission_slug,
-                    mission=mission_type,
-                    mission_state="not_started",
-                    timestamp=now,
-                    is_query=True,
-                    reason=None,
+                    mission_type=mission_type,
+                    now=now,
                     progress=progress,
-                    run_id=emitted_run_id,
-                    preview_step=runtime_decision.step_id,
+                    emitted_run_id=emitted_run_id,
                 )
             raise QueryModeValidationError(f"Mission '{mission_type}' has no issuable first step for run '{mission_slug}'")
 
         if runtime_decision.kind == DecisionKind.decision_required:
-            return Decision(
-                kind=DecisionKind.query,
+            return _build_decision_required_query(
+                runtime_decision=runtime_decision,
+                snapshot=snapshot,
                 agent=agent,
                 mission_slug=mission_slug,
-                mission=mission_type,
-                mission_state=snapshot.issued_step_id or runtime_decision.step_id or "unknown",
-                timestamp=now,
-                is_query=True,
-                reason=None,
+                mission_type=mission_type,
+                now=now,
                 progress=progress,
-                run_id=emitted_run_id,
-                step_id=snapshot.issued_step_id or runtime_decision.step_id,
-                decision_id=runtime_decision.decision_id,
-                input_key=runtime_decision.input_key,
-                question=runtime_decision.question,
-                options=runtime_decision.options,
+                emitted_run_id=emitted_run_id,
             )
 
-        mission_state = runtime_decision.step_id or "unknown"
-        blocked_reason: str | None = None
-        if runtime_decision.kind == "terminal":
-            mission_state = "done"
-        elif runtime_decision.kind == "blocked":
-            mission_state = snapshot.issued_step_id or runtime_decision.step_id or "blocked"
-            blocked_reason = snapshot.blocked_reason or getattr(runtime_decision, "reason", None)
-
-        return Decision(
-            kind=DecisionKind.query,
+        return _build_runtime_query_decision(
+            runtime_decision=runtime_decision,
+            snapshot=snapshot,
             agent=agent,
             mission_slug=mission_slug,
-            mission=mission_type,
-            mission_state=mission_state,
-            timestamp=now,
-            is_query=True,
-            reason=blocked_reason,
+            mission_type=mission_type,
+            now=now,
             progress=progress,
-            run_id=emitted_run_id,
-            step_id=snapshot.issued_step_id or runtime_decision.step_id,
+            emitted_run_id=emitted_run_id,
         )
     finally:
         if ephemeral_run_store is not None:

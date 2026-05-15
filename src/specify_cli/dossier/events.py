@@ -35,7 +35,7 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
@@ -210,7 +210,7 @@ class MissionDossierParityDriftDetectedPayload(BaseModel):
 
 
 def _iso_utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _coerce_namespace(
@@ -286,6 +286,47 @@ def _missing_namespace_log(event_type: str) -> None:
     )
 
 
+def _consume_legacy_values(
+    args: tuple[object, ...],
+    kwargs: dict[str, object],
+    *,
+    names: tuple[str, ...],
+    defaults: dict[str, object],
+) -> dict[str, object]:
+    if len(args) > len(names):
+        raise TypeError(f"Expected at most {len(names)} legacy positional arguments, got {len(args)}")
+    values = dict(defaults)
+    for name, value in zip(names, args, strict=False):
+        values[name] = value
+    for name in names[len(args):]:
+        if name in kwargs:
+            values[name] = kwargs.pop(name)
+    if kwargs:
+        unexpected = ", ".join(sorted(kwargs))
+        raise TypeError(f"Unexpected keyword argument(s): {unexpected}")
+    return values
+
+
+def _snapshot_legacy_diagnostics(
+    *,
+    snapshot_id: str,
+    completeness_status: str,
+    required_artifacts: int,
+    required_present: int,
+    optional_artifacts: int,
+    optional_present: int,
+    context_diagnostics: dict[str, str] | None,
+) -> dict[str, str]:
+    diagnostics = dict(context_diagnostics or {})
+    diagnostics.setdefault("snapshot_id", snapshot_id)
+    diagnostics.setdefault("completeness_status", completeness_status)
+    diagnostics.setdefault("required_artifacts", str(required_artifacts))
+    diagnostics.setdefault("required_present", str(required_present))
+    diagnostics.setdefault("optional_artifacts", str(optional_artifacts))
+    diagnostics.setdefault("optional_present", str(optional_present))
+    return diagnostics
+
+
 # ── Event emitters ─────────────────────────────────────────────────────
 
 
@@ -296,15 +337,13 @@ def emit_artifact_indexed(
     relative_path: str,
     content_hash_sha256: str,
     size_bytes: int,
-    wp_id: str | None = None,
-    step_id: str | None = None,
-    required_status: str = "optional",  # legacy arg; passed through context_diagnostics
+    *args: object,
     namespace: LocalNamespaceTuple | dict[str, Any] | None = None,
-    *,
     mission_type: str | None = None,
     indexed_at: str | None = None,
     context_diagnostics: dict[str, str] | None = None,
     provenance: dict[str, Any] | None = None,
+    **kwargs: Any,
 ) -> dict[str, Any] | None:
     """Emit ``MissionDossierArtifactIndexed`` in the namespaced envelope.
 
@@ -316,6 +355,15 @@ def emit_artifact_indexed(
     Returns the enqueued event dict on success, or ``None`` if validation or
     routing fails.
     """
+    legacy = _consume_legacy_values(
+        args,
+        kwargs,
+        names=("wp_id", "step_id", "required_status"),
+        defaults={"wp_id": None, "step_id": None, "required_status": "optional"},
+    )
+    wp_id = legacy["wp_id"]
+    step_id = legacy["step_id"]
+    required_status = legacy["required_status"]
     ns = _coerce_namespace(namespace, mission_slug=mission_slug, step_id=step_id)
     if ns is None:
         _missing_namespace_log("MissionDossierArtifactIndexed")
@@ -349,7 +397,7 @@ def emit_artifact_indexed(
             provenance=provenance,
         )
     except (TypeError, ValueError) as exc:
-        logger.error("Payload validation failed for MissionDossierArtifactIndexed: %s", exc)
+        logger.exception("Payload validation failed for MissionDossierArtifactIndexed: %s", exc)
         return None
 
     return fire_dossier_event(
@@ -366,21 +414,28 @@ def emit_artifact_missing(
     artifact_class: str,
     expected_path_pattern: str,
     reason_code: str,
-    reason_detail: str | None = None,
-    blocking: bool = True,
+    *args: object,
     namespace: LocalNamespaceTuple | dict[str, Any] | None = None,
-    *,
     mission_type: str | None = None,
     manifest_step: str | None = None,
     checked_at: str | None = None,
     last_known_content_hash_sha256: str | None = None,
     last_known_size_bytes: int | None = None,
     context_diagnostics: dict[str, str] | None = None,
+    **kwargs: Any,
 ) -> dict[str, Any] | None:
     """Emit ``MissionDossierArtifactMissing`` in the namespaced envelope.
 
     The event fires only when ``blocking=True`` (legacy convention).
     """
+    legacy = _consume_legacy_values(
+        args,
+        kwargs,
+        names=("reason_detail", "blocking"),
+        defaults={"reason_detail": None, "blocking": True},
+    )
+    reason_detail = legacy["reason_detail"]
+    blocking = bool(legacy["blocking"])
     if not blocking:
         logger.debug("Skipping non-blocking missing-artifact event for %s", artifact_key)
         return None
@@ -418,7 +473,7 @@ def emit_artifact_missing(
             context_diagnostics=diagnostics or None,
         )
     except (TypeError, ValueError) as exc:
-        logger.error("Payload validation failed for MissionDossierArtifactMissing: %s", exc)
+        logger.exception("Payload validation failed for MissionDossierArtifactMissing: %s", exc)
         return None
 
     return fire_dossier_event(
@@ -433,34 +488,56 @@ def emit_snapshot_computed(
     mission_slug: str,
     parity_hash_sha256: str,
     total_artifacts: int,
-    required_artifacts: int,  # noqa: ARG001 — preserved for caller compatibility
-    required_present: int,  # noqa: ARG001
     required_missing: int,
-    optional_artifacts: int,  # noqa: ARG001
-    optional_present: int,  # noqa: ARG001
-    completeness_status: str,
-    snapshot_id: str,
+    *args: object,
     namespace: LocalNamespaceTuple | dict[str, Any] | None = None,
-    *,
-    mission_type: str | None = None,  # noqa: ARG001 — pulled from namespace
     computed_at: str | None = None,
     anomaly_count: int | None = None,
     context_diagnostics: dict[str, str] | None = None,
+    **kwargs: Any,
 ) -> dict[str, Any] | None:
     """Emit ``MissionDossierSnapshotComputed`` in the namespaced envelope.
 
     The legacy ``artifact_counts`` breakdown is folded into
     ``context_diagnostics`` so downstream consumers can still recover it.
     """
+    legacy = _consume_legacy_values(
+        args,
+        kwargs,
+        names=(
+            "required_artifacts",
+            "required_present",
+            "optional_artifacts",
+            "optional_present",
+            "completeness_status",
+            "snapshot_id",
+            "mission_type",
+        ),
+        defaults={
+            "required_artifacts": 0,
+            "required_present": 0,
+            "optional_artifacts": 0,
+            "optional_present": 0,
+            "completeness_status": "unknown",
+            "snapshot_id": "",
+            "mission_type": None,
+        },
+    )
     ns = _coerce_namespace(namespace, mission_slug=mission_slug)
     if ns is None:
         _missing_namespace_log("MissionDossierSnapshotComputed")
         return None
 
     try:
-        diagnostics = dict(context_diagnostics or {})
-        diagnostics.setdefault("snapshot_id", snapshot_id)
-        diagnostics.setdefault("completeness_status", completeness_status)
+        diagnostics = _snapshot_legacy_diagnostics(
+            snapshot_id=str(legacy["snapshot_id"]),
+            completeness_status=str(legacy["completeness_status"]),
+            required_artifacts=int(legacy["required_artifacts"]),
+            required_present=int(legacy["required_present"]),
+            optional_artifacts=int(legacy["optional_artifacts"]),
+            optional_present=int(legacy["optional_present"]),
+            context_diagnostics=context_diagnostics,
+        )
         payload = MissionDossierSnapshotComputedPayload(
             namespace=ns,
             snapshot_hash=parity_hash_sha256,
@@ -471,12 +548,12 @@ def emit_snapshot_computed(
             context_diagnostics=diagnostics or None,
         )
     except (TypeError, ValueError) as exc:
-        logger.error("Payload validation failed for MissionDossierSnapshotComputed: %s", exc)
+        logger.exception("Payload validation failed for MissionDossierSnapshotComputed: %s", exc)
         return None
 
     return fire_dossier_event(
         event_type="MissionDossierSnapshotComputed",
-        aggregate_id=f"{ns.mission_slug}:{snapshot_id}",
+        aggregate_id=f"{ns.mission_slug}:{legacy['snapshot_id']}",
         aggregate_type="MissionDossier",
         payload=payload.model_dump(exclude_none=True),
     )
@@ -544,7 +621,7 @@ def emit_parity_drift_detected(
             context_diagnostics=diagnostics or None,
         )
     except (TypeError, ValueError) as exc:
-        logger.error("Payload validation failed for MissionDossierParityDriftDetected: %s", exc)
+        logger.exception("Payload validation failed for MissionDossierParityDriftDetected: %s", exc)
         return None
 
     return fire_dossier_event(
