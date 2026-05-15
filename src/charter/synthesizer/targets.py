@@ -181,7 +181,7 @@ def _validate_source_urns(
 
 
 def build_targets(
-    _interview_snapshot: dict[str, Any],
+    interview_snapshot: dict[str, Any],
     mappings: list[tuple[str, dict[str, Any]]],
     drg_snapshot: dict[str, Any],
 ) -> list[SynthesisTarget]:
@@ -189,7 +189,7 @@ def build_targets(
 
     Parameters
     ----------
-    _interview_snapshot:
+    interview_snapshot:
         Frozen interview answers, kept for call-site symmetry with the
         synthesis pipeline. Resolution has already occurred in
         ``interview_mapping.resolve_sections()``.
@@ -210,6 +210,7 @@ def build_targets(
         If any source URN referenced by the answer context does not exist in
         ``drg_snapshot``. Synthesis fails closed before any adapter call (EC-2).
     """
+    _ = interview_snapshot
     targets: list[SynthesisTarget] = []
     # Track directive count to assign PROJECT_NNN IDs (1-based, globally across run).
     directive_index = 0
