@@ -13,10 +13,12 @@ doctrine packs, each hosted in its own git repository (or HTTPS/API source). Dev
 packs via `doctrine fetch`, which maintains a persistent git clone for git sources. Resolution
 reads from local pack paths; no network calls occur at resolution time.
 
-The technical work divides into three groups: (1) infrastructure changes to the doctrine loader
+The technical work divides into four groups: (1) infrastructure changes to the doctrine loader
 and `DoctrineService` that make multi-pack three-layer resolution possible; (2) fetch tooling
 (clone-or-pull for git, atomic write for non-git), pack authoring commands, and the `--pack`
-selective-fetch flag; and (3) observability, provenance surfacing, and user-facing documentation.
+selective-fetch flag; (3) observability, provenance surfacing, and user-facing documentation;
+and (4) tiered charter composition — `OrgCharterPolicy` model, charter interview pre-fill from
+org charter, and advisory lint for charter policy deviations.
 
 Precedence within the org layer follows pack declaration order (later packs override earlier
 ones). The project layer overrides all org packs. Resolution reads only from local files.
@@ -120,14 +122,15 @@ src/
     │   │   ├── https_source.py    ← NEW: HttpsBundleSource (atomic write)
     │   │   └── api_source.py      ← NEW: ApiSource (per-type GET; atomic write)
     │   ├── snapshot.py            ← NEW: atomic write for non-git sources; version helpers
-    │   ├── pack_validator.py      ← NEW: pack validate logic
-    │   └── pack_assembler.py      ← NEW: pack assemble logic
+    │   ├── pack_validator.py      ← NEW: pack validate logic (incl. org-charter.yaml)
+    │   ├── pack_assembler.py      ← NEW: pack assemble logic (incl. org-charter.yaml merge)
+    │   └── org_charter.py         ← NEW: OrgCharterPolicy model; load_org_charter_policies()
     │
     └── cli/commands/
         ├── doctrine.py            ← NEW: `spec-kitty doctrine` command group
         │                              (fetch [--pack <name>], pack validate, pack assemble)
         ├── doctor.py              ← MODIFY: add org-layer listing subcommand/section
-        └── charter.py             ← MODIFY: wire lint advisory for org-overrides-shipped
+        └── charter.py             ← MODIFY: lint advisory for org-overrides-built-in + org-charter deviations
 
 tests/
 ├── specify_cli/
@@ -136,7 +139,8 @@ tests/
 │       ├── test_sources.py
 │       ├── test_snapshot.py
 │       ├── test_pack_validator.py
-│       └── test_pack_assembler.py
+│       ├── test_pack_assembler.py
+│       └── test_org_charter.py
 └── doctrine/
     ├── test_base_org_layer.py     ← NEW: three-layer merge unit tests
     ├── test_service_org_layer.py  ← NEW: DoctrineService org_roots tests
@@ -162,10 +166,11 @@ docs/
 | WP04 | OrgDoctrineSource protocol + implementations | `specify_cli/doctrine/sources/` (GitSource: clone-or-pull; HTTPS/API: atomic write) | WP03 |
 | WP05 | Config model + `doctrine fetch` command | `specify_cli/doctrine/config.py` (PackRegistry), `snapshot.py`, `doctrine.py` (`fetch [--pack]`) | WP04 |
 | WP06 | `doctrine pack validate` + `doctrine pack assemble` | `specify_cli/doctrine/pack_validator.py`, `pack_assembler.py` | WP05 |
-| WP07 | Provenance, `doctor`, `charter lint` | `charter/context.py`, `cli/commands/doctor.py`, `cli/commands/charter.py` | WP03 |
-| WP08 | User guidance documentation | `docs/how-to/create-an-org-doctrine-pack.md`, `docs/migration/doctrine-local-overlay-to-org-layer.md` | WP06, WP07 |
+| WP07 | Provenance, `doctor doctrine`, `charter lint` | `charter/context.py`, `cli/commands/doctor.py`, `cli/commands/charter.py` | WP03 |
+| WP08 | User guidance documentation | `docs/how-to/`, `docs/migration/`, `docs/explanation/` | WP06, WP07 |
+| WP09 | Org charter composition | `specify_cli/doctrine/org_charter.py`, `charter/interview.py`, `cli/commands/charter.py` | WP05, WP07 |
 
-WP01–WP03 form the infrastructure chain (must be sequential). WP04–WP06 are the operator surface chain. WP07 can start after WP03. WP08 requires WP06 and WP07 to be complete.
+WP01–WP03 form the infrastructure chain (must be sequential). WP04–WP06 are the operator surface chain. WP07 can start after WP03. WP09 depends on WP05 (for config/pack loading) and WP07 (for charter context + lint surfaces). WP08 requires WP06, WP07, and WP09 to be complete.
 
 ---
 
