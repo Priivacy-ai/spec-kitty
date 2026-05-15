@@ -86,7 +86,18 @@ Each implementation exposes a single method:
 def fetch(self, target_dir: Path) -> FetchResult: ...
 ```
 
-`FetchResult` is a dataclass: `{ ok: bool, artifacts_written: int, errors: list[str] }`.
+`FetchResult` is a dataclass: `{ ok: bool, artifacts_written: int, pack_version: str | None, errors: list[str] }`.
+
+**`GitSource` is a persistent clone manager, not a one-shot copier.** On first fetch, it
+runs `git clone <url> <target_dir>`, preserving `.git/`. On subsequent fetches it runs
+`git -C <target_dir> fetch --tags` followed by `git reset --hard <ref>` (deterministic
+regardless of local changes). Version is read from `git describe --tags --always`. This
+means `target_dir` IS the working repository — `pack-manifest.yaml` is not written for
+git sources; git metadata serves that purpose.
+
+**`HttpsBundleSource` and `ApiSource`** write atomically to `target_dir` (temp dir →
+validate → rename). They are not git repositories; `pack-manifest.yaml` is written after
+the rename succeeds.
 
 **Authentication** uses system-native mechanisms only — no spec-kitty-managed credential
 storage in this mission:
@@ -105,6 +116,8 @@ delegate to git for VCS operations.
 - **Python ABC over Protocol**: Protocol is preferred because implementations don't need to
   inherit from a base class — any object with a matching `fetch()` signature works. Easier
   for third-party source implementations.
+- **Shallow clone + copy (discard .git)**: Rejected — discarding `.git` loses governance
+  history and makes `git describe` unavailable. The working tree IS the value for git packs.
 - **Credential storage in `.kittify/config.yaml`**: Rejected — credentials should not be in
   a config file that may be committed. Environment variables are the correct surface.
 
@@ -113,28 +126,47 @@ delegate to git for VCS operations.
 ## 4. Config schema for `doctrine.org`
 
 ### Decision
-Extend `.kittify/config.yaml` with an optional `doctrine` top-level key:
+Extend `.kittify/config.yaml` with an optional `doctrine.org.packs` list. Each entry is a
+named pack with its own source and local path:
 
 ```yaml
 doctrine:
   org:
-    source_type: git            # "git" | "https" | "api"
-    url: "git@example.com:org/doctrine.git"
-    ref: "v1.0.0"               # optional; default branch if omitted
-    local_path: "~/.kittify/org/acme-corp/"   # where snapshot is written/read
+    packs:
+      - name: security
+        local_path: "~/.kittify/org/security/"
+        source_type: git
+        url: "git@example.com:security/doctrine.git"
+        ref: "v2.1.0"           # optional; HEAD of default branch if omitted
+      - name: architecture
+        local_path: "~/.kittify/org/architecture/"
+        source_type: git
+        url: "git@example.com:architecture/doctrine.git"
+      - name: compliance
+        local_path: "~/.kittify/org/compliance/"
+        source_type: api
+        url: "https://governance.example.com/compliance/v1"
 ```
 
-`local_path` is the only field required for resolution. The `source_type`, `url`, and `ref`
-fields are required only for `doctrine fetch`. Projects can be configured with just a
-`local_path` pointing to a snapshot that IT provisioned, without exposing the source URL.
+`local_path` is the only field required for resolution. `source_type` + `url` are required
+only for `doctrine fetch`. A machine where IT pre-clones the repositories needs only the
+`local_path` entries; the source fields may be omitted.
 
-The `DoctrineOrgConfig` Pydantic model validates this structure. Path expansion (`~`) is
-resolved at load time.
+**Backward compat**: a single `doctrine.org.local_path` (no `packs` list) is accepted and
+treated as a single anonymous pack for forward compatibility with any existing config.
+
+**Declaration order = precedence**: later packs in the list have higher precedence within
+the org layer. An advisory warning is emitted when two packs define the same artifact ID.
+
+The `OrgPackConfig` Pydantic model validates each entry. `PackRegistry` is the list model.
+Path expansion (`~`) is resolved at load time for `local_path`.
 
 ### Rationale
-- Minimal required config for the zero-network-at-resolution use case
-- Decouples "where the snapshot lives" from "how it was fetched" — IT can manage the
-  snapshot through any mechanism and projects just need the local path
+- Multi-pack support without a single point of coordination: each team manages their
+  repository independently; the config lists them all in precedence order.
+- Backward-compatible: existing single-`local_path` configs keep working.
+- Decouples "where the pack lives locally" from "how it is fetched" — consistent for both
+  git clones (managed by `GitSource`) and non-git snapshots.
 
 ---
 
