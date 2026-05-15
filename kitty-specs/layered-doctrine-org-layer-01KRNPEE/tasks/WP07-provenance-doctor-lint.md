@@ -8,6 +8,9 @@ requirement_refs:
 - FR-015
 - FR-016
 - FR-017
+- FR-024
+- FR-028
+- FR-029
 - NFR-002
 planning_base_branch: feat/org-doctrine-layer
 merge_target_branch: feat/org-doctrine-layer
@@ -18,6 +21,8 @@ subtasks:
 - T035
 - T036
 - T037
+- T047
+- T048
 agent: codex
 history:
 - date: '2026-05-15'
@@ -285,12 +290,86 @@ Uses `tmp_path` as a fake project root. Sets up:
 
 ---
 
+## Subtask T047 — `OrgCharterDeviationCheck` advisory in `charter lint`
+
+**File**: `src/specify_cli/cli/commands/charter.py`
+
+Add a second new lint check alongside the `OrgOverridesBuiltinCheck` from T036:
+
+```python
+def _check_org_charter_deviations(repo_root: Path) -> list[LintIssue]:
+    """Advisory: project charter deviates from an org charter governance policy."""
+    from specify_cli.doctrine.org_charter import load_org_charter_policies
+    from specify_cli.doctrine.config import load_doctrine_org_config
+
+    config = load_doctrine_org_config(repo_root)
+    if config is None:
+        return []
+    org_policy = load_org_charter_policies(repo_root)
+    if not org_policy.governance_policies:
+        return []
+
+    # Load the project charter answers or charter.md and extract governed fields
+    project_values = _load_project_charter_fields(repo_root)
+    issues = []
+    for policy in org_policy.governance_policies:
+        project_val = project_values.get(policy.field)
+        if project_val is not None and str(project_val) != str(policy.value):
+            issues.append(LintIssue(
+                severity="ADVISORY",
+                message=(
+                    f"project charter field '{policy.field}' = {project_val!r}; "
+                    f"org charter recommends {policy.value!r}"
+                ),
+            ))
+    return issues
+```
+
+`_load_project_charter_fields()` reads `.kittify/charter/interview/answers.yaml` (the
+interview output) and returns a dict of field → value. Read only fields that org charter
+policies reference — don't load the full charter for this check.
+
+---
+
+## Subtask T048 — Org charter status in `doctor doctrine` per-pack listing
+
+**File**: `src/specify_cli/cli/commands/doctor.py`
+
+Extend the per-pack listing in `doctor doctrine` to include org charter status:
+
+```python
+# For each pack in the registry:
+charter_path = pack.local_path / "org-charter.yaml"
+if charter_path.exists():
+    policy = load_org_charter_policy(pack.local_path)
+    charter_info = {
+        "present": True,
+        "interview_defaults_count": len(policy.interview_defaults),
+        "required_directives_count": len(policy.required_directives),
+        "governance_policies_count": len(policy.governance_policies),
+    }
+else:
+    charter_info = {"present": False}
+```
+
+Human output:
+```
+Pack: security  (git v2.1.0, 12 directives, 4 tactics)
+  org-charter.yaml: 3 interview defaults, 2 required directives, 2 governance policies
+Pack: architecture  (git v1.0.0, 8 directives)
+  org-charter.yaml: not present
+```
+
+JSON output: add `"org_charter"` key to each pack entry in the JSON response.
+
+---
+
 ## Definition of Done
 
-- [ ] `charter context --json` includes `"source"` field for every directive, tactic, etc.
+- [ ] `charter context --json` includes `"source": "builtin"|"org"|"project"` for every artifact
 - [ ] `context.py` DRG load routed through `load_validated_graph()`; no inline `load_graph` calls
-- [ ] `spec-kitty doctor doctrine` registered and produces correct output (human + JSON)
-- [ ] `charter lint` advisory check registered; advisory in output when org overrides shipped
+- [ ] `spec-kitty doctor doctrine` shows all packs (built-in, org, project) with per-pack org-charter status
+- [ ] `charter lint` registers `OrgOverridesBuiltinCheck` and `OrgCharterDeviationCheck` (both advisory)
 - [ ] All tests in `test_provenance_integration.py` pass
 - [ ] `spec-kitty doctor doctrine --json` exit 0 in all cases (diagnostic, not error)
 
