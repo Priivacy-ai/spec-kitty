@@ -27,7 +27,8 @@ subtasks:
 - T024
 - T025
 - T026
-agent: claude
+agent: "claude:opus-4-7:python-pedro:implementer"
+shell_pid: "597832"
 history:
 - date: '2026-05-15'
   event: created
@@ -342,3 +343,7 @@ show a "not yet implemented" message until WP06 fills in `pack_validator.py` and
 2. Confirm the CLI stubs exit gracefully with a message when the implementation module is
    missing (WP06 not yet merged).
 3. Verify `_build_source()` error on unknown `source_type` is user-friendly.
+
+## Activity Log
+
+- 2026-05-15T13:49:04Z – claude:opus-4-7:python-pedro:implementer – shell_pid=597832 – Started implementation via action command
