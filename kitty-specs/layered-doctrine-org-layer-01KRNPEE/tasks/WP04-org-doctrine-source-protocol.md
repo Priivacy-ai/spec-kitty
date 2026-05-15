@@ -137,20 +137,31 @@ class GitSource:
     def fetch(self, target_dir: Path) -> FetchResult: ...
 ```
 
+**`GitSource` is a persistent clone manager, not a one-shot copier.** The `.git/` directory
+is preserved; `target_dir` IS the working repository. The atomic write pattern in
+`snapshot.py` does NOT apply to git sources — git provides its own consistency.
+
 **Implementation steps**:
-1. Run `git clone --depth=1 <url> <tmp_dir>` via `subprocess.run()`. If `ref` is set,
-   use `git clone --depth=1 --branch <ref> <url> <tmp_dir>`.
-2. On success: copy the cloned contents to `target_dir` (via `shutil.copytree()`).
-3. Remove the `.git` directory from `target_dir`.
-4. Return `FetchResult(ok=True, artifacts_written=count_yaml_files(target_dir), ...)`.
-5. On `subprocess` non-zero exit: return `FetchResult(ok=False, ..., errors=[stderr])`.
 
-**Authentication**: `GitSource` relies on the system git credential helper and SSH agent.
-If `GIT_TOKEN` env var is set and URL is HTTPS, inject via
-`url.replace("https://", f"https://oauth2:{token}@")` before cloning.
+*First install* (`target_dir` does not contain `.git/`):
+1. Run `git clone <url> <target_dir>` via `subprocess.run()`.
+2. If `ref` is set: run `git -C <target_dir> checkout <ref>`.
+3. On non-zero exit: remove `target_dir` if partially created; return `FetchResult(ok=False, errors=[stderr])`.
 
-**Pack version**: extracted from the git output (`git rev-parse HEAD` after clone) or from
-the `ref` parameter if it's a tag.
+*Subsequent update* (`(target_dir / ".git").exists()`):
+1. Run `git -C <target_dir> fetch --tags origin`.
+2. Run `git -C <target_dir> reset --hard <ref>` if `ref` set, else `git reset --hard origin/HEAD`.
+3. On non-zero exit: do NOT modify `target_dir`; return `FetchResult(ok=False, errors=[stderr])`. The existing clone remains usable.
+
+**Authentication**: SSH keys and git credential helpers via the system git config. If
+`GIT_TOKEN` env var is set and the URL is HTTPS, inject via
+`url.replace("https://", f"https://oauth2:{token}@")` before the git call.
+
+**Pack version**: `git -C <target_dir> describe --tags --always` after a successful clone
+or reset. This is the canonical version string — no separate `pack-manifest.yaml` is written
+for git sources.
+
+**`artifacts_written`**: count of `*.yaml` files under `target_dir` (excluding `.git/`).
 
 ---
 
@@ -212,9 +223,12 @@ class ApiSource:
 
 **File**: `src/specify_cli/doctrine/snapshot.py`
 
-Two responsibilities:
+Two responsibilities (for non-git sources only — `GitSource` manages its own target_dir):
 1. **Atomic write**: write to a temp dir, validate, rename to `local_path`.
 2. **Pack manifest**: write `pack-manifest.yaml` to `local_path` after atomic rename.
+
+`GitSource` does NOT use `write_snapshot`. It manages `target_dir` directly via git
+subprocess calls (see T017). `snapshot.py` is used by `HttpsBundleSource` and `ApiSource`.
 
 ```python
 def write_snapshot(
@@ -262,9 +276,12 @@ artifact_counts:
 
 | Test | Approach | Expected |
 |---|---|---|
-| `test_git_source_success` | Mock `subprocess.run` returning 0 exit; create files in tmp_dir | `FetchResult.ok=True`, files in target_dir |
-| `test_git_source_failure` | Mock `subprocess.run` returning non-0 | `FetchResult.ok=False`, error in `errors` |
+| `test_git_source_first_install` | `target_dir` has no `.git/`; mock `git clone` success | `FetchResult.ok=True`; `target_dir/.git/` present |
+| `test_git_source_update` | `target_dir` has `.git/`; mock `git fetch + reset` success | `FetchResult.ok=True`; runs fetch+reset not clone |
+| `test_git_source_failure_first_install` | Mock `git clone` non-0 exit | `FetchResult.ok=False`; `target_dir` cleaned up |
+| `test_git_source_failure_update` | Mock `git fetch` non-0 exit | `FetchResult.ok=False`; existing clone unchanged |
 | `test_git_source_token_injected` | Set `GIT_TOKEN` env var; HTTPS URL | URL transformed before subprocess call |
+| `test_git_source_version_from_describe` | Mock `git describe` output | `FetchResult.pack_version` matches describe output |
 | `test_https_source_tar_gz` | Mock `requests.get`; provide tar.gz fixture | Files extracted to target_dir |
 | `test_https_source_401` | Mock 401 response | `FetchResult.ok=False` with auth error |
 | `test_https_source_429_retry` | Mock 429 then 200 | Retries once and succeeds |

@@ -17,7 +17,6 @@ branch_strategy: Planning artifacts for this mission were generated on feat/org-
 subtasks:
 - T042
 - T043
-- T046
 - T050
 agent: codex
 history:
@@ -155,81 +154,81 @@ def load_org_charter_policies(repo_root: Path) -> OrgCharterPolicy:
 
 ## Subtask T043 — Charter interview pre-fill
 
-**Files**: `src/charter/interview.py` (modify), `src/specify_cli/cli/commands/charter.py` (minor wiring)
+**Files**: `src/charter/interview.py` (modify), `src/specify_cli/doctrine/org_charter.py` (add helper)
 
 **Purpose**: Before the interactive interview starts, inject org charter defaults into the
 interview answers so they appear pre-filled but remain modifiable.
 
-**In `charter.py`'s `interview()` function**, after `repo_root` is resolved but before the
-interactive prompts begin:
+**Important**: `src/specify_cli/cli/commands/charter.py` is owned by WP07. Do NOT modify it
+in this WP. All pre-fill logic lives in `interview.py` and `org_charter.py` (both WP09-owned).
+The wiring from `charter.py` into `interview.py` is an existing call — `interview.py` gains
+a new early-return hook that `charter.py` does not need to know about.
+
+**Add to `org_charter.py`** — a self-contained pre-fill function:
 
 ```python
-from specify_cli.doctrine.org_charter import load_org_charter_policies
+def apply_org_charter_pre_fill(repo_root: Path) -> list[str]:
+    """Non-destructively pre-fill interview answers from configured org charter policies.
 
-org_policy = load_org_charter_policies(repo_root)
-if org_policy.interview_defaults or org_policy.required_directives:
-    # Pre-fill interview answers file with org defaults
-    _apply_org_charter_pre_fill(repo_root, org_policy)
+    Returns a list of human-readable messages describing what was pre-filled.
+    Returns empty list if no org packs are configured or none have org-charter.yaml.
+    """
+    from specify_cli.doctrine.config import load_pack_registry
+    registry = load_pack_registry(repo_root)
+    if not registry.packs:
+        return []
+
+    merged_policy = load_org_charter_policies(repo_root)
+    if not merged_policy.interview_defaults and not merged_policy.required_directives:
+        return []
+
+    answers_path = repo_root / ".kittify" / "charter" / "interview" / "answers.yaml"
+    yaml = YAML()
+    existing: dict = {}
+    if answers_path.exists():
+        existing = yaml.load(answers_path) or {}
+
+    messages = []
+    prefilled = 0
+    for key, value in merged_policy.interview_defaults.items():
+        if key not in existing:
+            existing[key] = value
+            prefilled += 1
+
+    existing_directives: list = existing.get("selected_directives", [])
+    new_required = [d for d in merged_policy.required_directives if d not in existing_directives]
+    if new_required:
+        existing["selected_directives"] = existing_directives + new_required
+        messages.append(f"Pre-selected {len(new_required)} directives from org charter required_directives.")
+
+    if prefilled:
+        messages.append(f"Pre-filled {prefilled} interview defaults from org charter.")
+
+    if messages:
+        answers_path.parent.mkdir(parents=True, exist_ok=True)
+        yaml.dump(existing, answers_path)
+
+    return messages
 ```
 
-**`_apply_org_charter_pre_fill(repo_root, policy)`** (new helper, in `charter.py`):
-1. Load existing `answers.yaml` if it exists (or start empty).
-2. For each key in `policy.interview_defaults`: if the key is NOT already set in `answers.yaml`,
-   set it to the org default. (Do not overwrite an answer the user has already given.)
-3. For `policy.required_directives`: union into the existing `selected_directives` list.
-4. Write back to `answers.yaml`.
+**Modify `interview.py`**: at the start of the interview flow (before presenting any question
+to the user), call `apply_org_charter_pre_fill(repo_root)` and print any returned messages:
 
-**Important**: this is a non-destructive pre-fill. If `answers.yaml` already has a value for
-a key, the org default does NOT overwrite it. This ensures running `charter interview` a
-second time (to update answers) does not silently revert project-specific choices.
+```python
+from specify_cli.doctrine.org_charter import apply_org_charter_pre_fill
 
-**Human output**: if any pre-fills were applied, print a summary before the interactive
-prompts begin:
-```
-[org charter] Pre-filled 3 interview defaults from 'security' pack.
-[org charter] Pre-selected 2 directives from 'security' pack required_directives.
+pre_fill_messages = apply_org_charter_pre_fill(repo_root)
+for msg in pre_fill_messages:
+    console.print(f"[dim][org charter] {msg}[/dim]")
 ```
 
----
+Locate the correct injection point in `interview.py` — it should be after `repo_root` is
+resolved but before the first question is presented. The pre-fill is a pure YAML side-effect;
+it does not change the interactive flow.
 
-## Subtask T046 — Org charter elements in `charter context --json`
-
-**File**: `src/charter/context.py` (owned by WP07 — coordinate with WP07 implementer)
-
-**Note**: `context.py` is owned by WP07. This subtask adds org charter data to the context
-JSON output. Implement as a separate helper that WP07 wires into `context.py`, or implement
-directly if WP07 is already merged.
-
-Add an `"org_charter"` key to the `charter context --json` output:
-
-```json
-{
-  "org_charter": {
-    "present": true,
-    "packs": [
-      {
-        "pack_name": "security",
-        "governance_policies": [
-          {"field": "human_in_command", "value": true, "enforcement": "advisory"}
-        ],
-        "required_directives": ["sec-001-threat-modelling"]
-      }
-    ]
-  }
-}
-```
-
-If no org packs are configured or none have `org-charter.yaml`, `"org_charter": {"present": false}`.
-
-Source attribution: `"source": "org"` on each governance policy entry.
-
-**Implementation**:
-1. Call `load_org_charter_policies(repo_root)` to get the merged policy.
-2. Also call `load_doctrine_org_config(repo_root)` to get per-pack names for attribution.
-3. Serialise per pack (not just the merged result) so operators can see which pack contributes which policy.
-
-The existing JSON output structure must not change — `"org_charter"` is a new top-level key,
-additive only.
+**Non-destructive invariant**: if `answers.yaml` already has a value for a key, the org
+default does NOT overwrite it. Running `charter interview` a second time on a project with
+existing answers must not silently revert project-specific choices to org defaults.
 
 ---
 
@@ -256,19 +255,20 @@ additive only.
 ## Definition of Done
 
 - [ ] `OrgCharterPolicy` model validates `schema_version`, `interview_defaults`, `required_directives`, `governance_policies`
+- [ ] `apply_org_charter_pre_fill()` in `org_charter.py` is self-contained; does not modify `charter.py`
 - [ ] `load_org_charter_policies()` correctly merges N packs in declaration order
-- [ ] `charter interview` prints pre-fill summary and applies defaults non-destructively
-- [ ] `charter context --json` includes `"org_charter"` key (present/absent + per-pack detail)
+- [ ] `charter interview` prints pre-fill summary (from `interview.py` injection point) and applies defaults non-destructively
 - [ ] All tests in `test_org_charter.py` pass
-- [ ] Projects without `doctrine.org.packs` config: `load_org_charter_policies()` returns empty policy; `charter interview` behaves identically to today
+- [ ] Projects without `doctrine.org.packs` config: `apply_org_charter_pre_fill()` is a no-op; `charter interview` behaves identically to today
 
 ## Risks
 
 - The pre-fill writes to `answers.yaml` before the interactive session. If `charter interview` is
   interrupted midway, the pre-fill is already written. This is acceptable — re-running the interview
   should be idempotent. Test the re-run case explicitly.
-- `context.py` is owned by WP07; coordinate to avoid merge conflicts on the `"org_charter"` key
-  addition. WP09 should merge after WP07.
+- `interview.py` is a complex interactive module; find the correct injection point (before the first
+  presented question, after `repo_root` is resolved) and test that the pre-fill message appears in
+  the expected position in the output.
 
 ## Reviewer Guidance
 
