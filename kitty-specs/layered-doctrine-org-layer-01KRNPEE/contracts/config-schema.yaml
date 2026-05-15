@@ -1,17 +1,17 @@
 # Contract: .kittify/config.yaml — doctrine.org block schema
-# Version: 1.0
+# Version: 1.1
 # Mission: layered-doctrine-org-layer-01KRNPEE
+# Updated: 2026-05-15 — multi-pack support; git-as-clone model
 #
 # This file describes the valid shape of the doctrine.org configuration block.
 # Migrations that write config.yaml must conform to this schema.
 
 $schema: "https://json-schema.org/draft/2020-12/schema"
-title: "DoctrineOrgConfig"
+title: "DoctrineOrgBlock"
 description: >
-  Optional configuration block for the organisation-layer doctrine source and
-  local snapshot location. The 'local_path' field is the only field required
-  for resolution. The 'source_type', 'url', and 'ref' fields are required only
-  if the operator wishes to use 'spec-kitty doctrine fetch'.
+  Optional configuration block for org-layer doctrine sources. Supports a list of
+  named packs (preferred) or a single legacy local_path (backward compat).
+  Projects without this block are completely unaffected by the org-layer feature.
 
 type: object
 properties:
@@ -20,58 +20,135 @@ properties:
     properties:
       org:
         type: object
-        required:
-          - local_path
-        properties:
-          local_path:
-            type: string
-            description: >
-              Filesystem path to the validated local snapshot directory.
-              Tilde (~) is expanded to the current user's home directory.
-            examples:
-              - "~/.kittify/org/acme-corp/"
-              - "/opt/company/doctrine/org/"
-          source_type:
-            type: string
-            enum: ["git", "https", "api"]
-            description: >
-              The type of remote source used by 'doctrine fetch'. Optional;
-              omit if the snapshot is provisioned externally (e.g., by IT).
-          url:
-            type: string
-            description: >
-              Remote URL for the doctrine source. Required if source_type is set.
-              For 'git': SSH or HTTPS git remote URL.
-              For 'https': URL to a tarball or zip bundle.
-              For 'api': Base URL of the HTTP API server.
-            examples:
-              - "git@internal.example.com:platform/org-doctrine.git"
-              - "https://releases.example.com/doctrine/bundle-v1.2.0.tar.gz"
-              - "https://governance.internal.example.com/doctrine/v1"
-          ref:
-            type: string
-            description: >
-              Optional version pin. For 'git': a tag name or full commit SHA.
-              For 'https': included in URL or tarball filename convention (advisory).
-              For 'api': passed as a query parameter 'ref' if set.
-              If omitted, 'doctrine fetch' pulls the default branch / latest version.
-            examples:
-              - "v1.2.0"
-              - "abc123def456"
-        additionalProperties: false
-    additionalProperties: true  # other top-level doctrine keys may exist in future
+        oneOf:
+          # --- Form A: multi-pack list (preferred) ---
+          - required: [packs]
+            properties:
+              packs:
+                type: array
+                description: >
+                  Ordered list of org doctrine packs. Declaration order determines
+                  intra-org-layer precedence: the last entry has the highest precedence.
+                items:
+                  type: object
+                  required: [name, local_path]
+                  properties:
+                    name:
+                      type: string
+                      description: >
+                        Unique name for this pack. Used by --pack flag and displayed
+                        in 'spec-kitty doctor doctrine' output.
+                      examples:
+                        - "security"
+                        - "architecture"
+                        - "org-distributable"
+                    local_path:
+                      type: string
+                      description: >
+                        Filesystem path to the local pack directory. For git sources,
+                        this is the working tree of the git clone (.git/ present).
+                        For non-git sources, this is the snapshot directory.
+                        Tilde (~) is expanded to the current user's home directory.
+                      examples:
+                        - "~/.kittify/org/security/"
+                        - "/opt/company/doctrine/compliance/"
+                    source_type:
+                      type: string
+                      enum: ["git", "https", "api"]
+                      description: >
+                        The type of remote source used by 'doctrine fetch'. Optional;
+                        omit if the pack is provisioned externally (e.g., by IT or
+                        a pre-cloned git repository).
+                    url:
+                      type: string
+                      description: >
+                        Remote URL for the doctrine source. Required if source_type
+                        is set.
+                        For 'git': SSH or HTTPS git remote URL.
+                        For 'https': URL to a tarball or zip bundle.
+                        For 'api': Base URL of the HTTP API server.
+                      examples:
+                        - "git@internal.example.com:security/security-doctrine.git"
+                        - "https://releases.example.com/doctrine/bundle-v1.2.0.tar.gz"
+                        - "https://governance.internal.example.com/doctrine/v1"
+                    ref:
+                      type: string
+                      description: >
+                        Optional version pin.
+                        For 'git': a tag name or full commit SHA. Branch names are
+                        accepted but discouraged for reproducibility. If omitted,
+                        HEAD of the default branch is used.
+                        For 'https': advisory (tarball URL typically encodes version).
+                        For 'api': passed as query parameter 'ref' if set.
+                      examples:
+                        - "v2.1.0"
+                        - "abc123def456"
+                  additionalProperties: false
+                minItems: 1
 
-# Minimal valid config (resolution-only, no fetch configuration):
+          # --- Form B: single legacy local_path (backward compat) ---
+          - required: [local_path]
+            properties:
+              local_path:
+                type: string
+                description: >
+                  Legacy single-pack form. Treated as one anonymous pack with no name.
+                  Prefer Form A (packs list) for new configurations.
+              source_type:
+                type: string
+                enum: ["git", "https", "api"]
+              url:
+                type: string
+              ref:
+                type: string
+            additionalProperties: false
+
+    additionalProperties: true  # other top-level doctrine keys may exist
+
+# --- Examples ---
+
+# Multi-pack (preferred):
+#
+#   doctrine:
+#     org:
+#       packs:
+#         - name: security
+#           local_path: "~/.kittify/org/security/"
+#           source_type: git
+#           url: "git@example.com:security/doctrine.git"
+#           ref: "v2.1.0"
+#         - name: architecture
+#           local_path: "~/.kittify/org/architecture/"
+#           source_type: git
+#           url: "git@example.com:architecture/doctrine.git"
+#         - name: compliance
+#           local_path: "~/.kittify/org/compliance/"
+#           source_type: api
+#           url: "https://governance.example.com/compliance/v1"
+
+# IT-provisioned clones (no fetch config needed):
+#
+#   doctrine:
+#     org:
+#       packs:
+#         - name: security
+#           local_path: "~/.kittify/org/security/"
+#         - name: architecture
+#           local_path: "~/.kittify/org/architecture/"
+
+# Assembled distributable as a git repository (single pack):
+#
+#   doctrine:
+#     org:
+#       packs:
+#         - name: org-distributable
+#           local_path: "~/.kittify/org/distributable/"
+#           source_type: git
+#           url: "git@example.com:platform/org-doctrine-distributable.git"
+#           ref: "stable"
+
+# Legacy single-pack (backward compat; treated as one anonymous pack):
 #
 #   doctrine:
 #     org:
 #       local_path: "~/.kittify/org/acme-corp/"
-#
-# Full config (with fetch configuration):
-#
-#   doctrine:
-#     org:
-#       local_path: "~/.kittify/org/acme-corp/"
-#       source_type: git
-#       url: "git@internal.example.com:platform/org-doctrine-distributable.git"
-#       ref: "v1.2.0"

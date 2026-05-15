@@ -8,17 +8,18 @@
 ## Summary
 
 Extend spec-kitty's doctrine resolution stack from two layers (shipped + project) to three
-(shipped + org + project). The org layer is a versioned doctrine pack — a validated local
-snapshot of an organisation's governance artifacts — installed once per developer machine and
-inherited by all projects automatically.
+(shipped + org + project). The org layer is composed of one or more independently versioned
+doctrine packs, each hosted in its own git repository (or HTTPS/API source). Developers install
+packs via `doctrine fetch`, which maintains a persistent git clone for git sources. Resolution
+reads from local pack paths; no network calls occur at resolution time.
 
 The technical work divides into three groups: (1) infrastructure changes to the doctrine loader
-and `DoctrineService` that make three-layer resolution possible; (2) fetch tooling and pack
-authoring commands for operators and doctrine maintainers; and (3) observability, provenance
-surfacing, and user-facing documentation.
+and `DoctrineService` that make multi-pack three-layer resolution possible; (2) fetch tooling
+(clone-or-pull for git, atomic write for non-git), pack authoring commands, and the `--pack`
+selective-fetch flag; and (3) observability, provenance surfacing, and user-facing documentation.
 
-Precedence is `shipped < org < project`. ID collisions are resolved by full-replace (higher
-layer wins entirely). Resolution reads only from local files — no runtime remote calls.
+Precedence within the org layer follows pack declaration order (later packs override earlier
+ones). The project layer overrides all org packs. Resolution reads only from local files.
 
 ---
 
@@ -28,8 +29,9 @@ layer wins entirely). Resolution reads only from local files — no runtime remo
 **Primary Dependencies**: ruamel.yaml (YAML parsing), Pydantic v2 (schema validation), typer
 (CLI), rich (console output), requests (HTTPS bundle source), subprocess (git source — no
 additional library)  
-**Storage**: Filesystem only — `~/.kittify/org/<pack>/` for global snapshot; per-project
-config in `.kittify/config.yaml` under a `doctrine.org` block  
+**Storage**: Filesystem only — one directory per pack under `~/.kittify/org/<pack-name>/`
+(git clone for git sources; plain directory for non-git sources); per-project config in
+`.kittify/config.yaml` under `doctrine.org.packs` (ordered list)  
 **Testing**: pytest; unit tests for each changed module; integration tests for full three-layer
 resolution chain and each fetch source type; property tests (hypothesis) for merge-semantics
 invariants  
@@ -110,20 +112,20 @@ src/
 └── specify_cli/
     ├── doctrine/                  ← NEW package
     │   ├── __init__.py
-    │   ├── config.py              ← NEW: DoctrineOrgConfig model; load/save from .kittify/config.yaml
+    │   ├── config.py              ← NEW: OrgPackConfig + PackRegistry; load/save from .kittify/config.yaml
     │   ├── sources/               ← NEW: OrgDoctrineSource protocol + implementations
     │   │   ├── __init__.py
-    │   │   ├── protocol.py        ← NEW: OrgDoctrineSource ABC
-    │   │   ├── git_source.py      ← NEW: GitSource
-    │   │   ├── https_source.py    ← NEW: HttpsBundleSource
-    │   │   └── api_source.py      ← NEW: ApiSource
-    │   ├── snapshot.py            ← NEW: write/read/validate local snapshot
+    │   │   ├── protocol.py        ← NEW: OrgDoctrineSource Protocol + FetchResult
+    │   │   ├── git_source.py      ← NEW: GitSource (clone-or-pull; persistent .git/)
+    │   │   ├── https_source.py    ← NEW: HttpsBundleSource (atomic write)
+    │   │   └── api_source.py      ← NEW: ApiSource (per-type GET; atomic write)
+    │   ├── snapshot.py            ← NEW: atomic write for non-git sources; version helpers
     │   ├── pack_validator.py      ← NEW: pack validate logic
     │   └── pack_assembler.py      ← NEW: pack assemble logic
     │
     └── cli/commands/
         ├── doctrine.py            ← NEW: `spec-kitty doctrine` command group
-        │                              (fetch, pack validate, pack assemble)
+        │                              (fetch [--pack <name>], pack validate, pack assemble)
         ├── doctor.py              ← MODIFY: add org-layer listing subcommand/section
         └── charter.py             ← MODIFY: wire lint advisory for org-overrides-shipped
 
@@ -157,8 +159,8 @@ docs/
 | WP01 | Multi-file DRG loading | `doctrine/drg/loader.py`; all `graph.yaml` call sites | — |
 | WP02 | BaseDoctrineRepository org layer | `doctrine/base.py`; all 8 repository subclasses | WP01 |
 | WP03 | DoctrineService org roots | `doctrine/service.py`; `charter/_drg_helpers.py` | WP02 |
-| WP04 | OrgDoctrineSource protocol + implementations | `specify_cli/doctrine/sources/` | WP03 |
-| WP05 | Config model + `doctrine fetch` command | `specify_cli/doctrine/config.py`, `doctrine/snapshot.py`, `specify_cli/cli/commands/doctrine.py` | WP04 |
+| WP04 | OrgDoctrineSource protocol + implementations | `specify_cli/doctrine/sources/` (GitSource: clone-or-pull; HTTPS/API: atomic write) | WP03 |
+| WP05 | Config model + `doctrine fetch` command | `specify_cli/doctrine/config.py` (PackRegistry), `snapshot.py`, `doctrine.py` (`fetch [--pack]`) | WP04 |
 | WP06 | `doctrine pack validate` + `doctrine pack assemble` | `specify_cli/doctrine/pack_validator.py`, `pack_assembler.py` | WP05 |
 | WP07 | Provenance, `doctor`, `charter lint` | `charter/context.py`, `cli/commands/doctor.py`, `cli/commands/charter.py` | WP03 |
 | WP08 | User guidance documentation | `docs/how-to/create-an-org-doctrine-pack.md`, `docs/migration/doctrine-local-overlay-to-org-layer.md` | WP06, WP07 |

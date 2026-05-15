@@ -8,49 +8,78 @@
 
 ### DoctrineLayers (enum)
 
-| Value | Description | Root location |
-|---|---|---|
-| `shipped` | Bundled with the CLI; read-only | `site-packages/doctrine/` (resolved via `resolve_doctrine_root()`) |
-| `org` | Installed per developer machine; operator-managed | `config.doctrine.org.local_path` |
-| `project` | Per-project local overrides; developer-managed | `.kittify/doctrine/` |
+| Value | Display name | Description | Root location |
+|---|---|---|---|
+| `builtin` | spec-kitty built-in | Bundled with the CLI; read-only | `site-packages/doctrine/` (resolved via `resolve_doctrine_root()`) |
+| `org` | org / `<pack-name>` | Installed per developer machine; operator-managed; one or more named packs | `local_path` per pack in `doctrine.org.packs` |
+| `project` | project | Per-project local overrides; developer-managed | `.kittify/doctrine/` |
 
-**Merge precedence**: `shipped < org < project`. Higher layer fully replaces lower layer on
-artifact ID collision. No field-level merging across layers.
+**Merge precedence**: `builtin < org (packs in declaration order) < project`. Higher layer
+fully replaces lower layer on artifact ID collision. No field-level merging across layers.
 
-**Fallback**: if org layer is absent (unconfigured or snapshot missing), resolution falls
-back silently to shipped + project. A `spec-kitty doctor doctrine` diagnostic is surfaced
-but no error is raised in normal operation.
+**Fallback**: if no org packs are configured or no local paths exist on disk, resolution
+falls back silently to builtin + project. A `spec-kitty doctor doctrine` diagnostic is
+surfaced but no error is raised in normal operation. Projects with no `doctrine.org.packs`
+config are completely unaffected by this feature.
 
 ---
 
-## 2. DoctrineOrgConfig (config model)
+## 2. Config Models
 
-Pydantic model serialised to/from `.kittify/config.yaml` under the `doctrine.org` key.
+### OrgPackConfig
+
+Pydantic model for a single named pack entry.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `local_path` | `Path` | **Yes** | Path to the local snapshot directory. `~` is expanded. |
-| `source_type` | `Literal["git", "https", "api"] \| None` | No | Source type for `doctrine fetch`. Absent on machines where IT provisions the snapshot directly. |
+| `name` | `str` | **Yes** | Unique name for this pack (used by `--pack` flag and `doctor doctrine` display). |
+| `local_path` | `Path` | **Yes** | Path to the local clone (git) or snapshot directory (non-git). `~` is expanded. |
+| `source_type` | `Literal["git", "https", "api"] \| None` | No | Source type for `doctrine fetch`. Omit when pack is IT-provisioned. |
 | `url` | `str \| None` | No | Remote URL; required if `source_type` is set. |
-| `ref` | `str \| None` | No | Version pin (git tag/SHA, tarball filename, API version). If absent, fetch pulls latest. |
+| `ref` | `str \| None` | No | Version pin (git tag/SHA, tarball filename, API version). Defaults to HEAD/latest. |
 
-**Config.yaml shape** (under existing top-level keys):
+### PackRegistry
+
+Ordered list of `OrgPackConfig`. Declaration order = precedence (later = higher). Maps to
+`.kittify/config.yaml` under `doctrine.org.packs`.
+
+**Multi-pack config example**:
+
+```yaml
+doctrine:
+  org:
+    packs:
+      - name: security
+        local_path: "~/.kittify/org/security/"
+        source_type: git
+        url: "git@example.com:security/doctrine.git"
+        ref: "v2.1.0"
+      - name: architecture
+        local_path: "~/.kittify/org/architecture/"
+        source_type: git
+        url: "git@example.com:architecture/doctrine.git"
+      - name: compliance
+        local_path: "~/.kittify/org/compliance/"
+        source_type: api
+        url: "https://governance.example.com/compliance/v1"
+```
+
+**IT-provisioned clone (no fetch config)**:
+
+```yaml
+doctrine:
+  org:
+    packs:
+      - name: org-doctrine
+        local_path: "/opt/company/org-doctrine/"
+```
+
+**Backward-compat single-`local_path` form** (treated as one anonymous pack):
 
 ```yaml
 doctrine:
   org:
     local_path: "~/.kittify/org/acme-corp/"
-    source_type: git
-    url: "git@internal.example.com:platform/org-doctrine-distributable.git"
-    ref: "v1.2.0"
-```
-
-`local_path` only (IT-provisioned snapshot, no fetch config):
-
-```yaml
-doctrine:
-  org:
-    local_path: "/opt/company/org-doctrine/"
 ```
 
 ---
@@ -167,14 +196,20 @@ Property tests (hypothesis) will verify these invariants against randomly genera
 
 ## 7. Provenance Tracking Model
 
-Each repository maintains a parallel `_provenance: dict[str, DoctrineLayers]` keyed by
-artifact ID. This dict is populated during `_load()`:
+Each repository maintains a parallel `_provenance: dict[str, str]` keyed by artifact ID.
+Values use the machine-readable layer tag. This dict is populated during `_load()`:
 
-- Shipped artifacts → `DoctrineLayers.shipped`
-- Org overrides or new org artifacts → `DoctrineLayers.org`
-- Project overrides or new project artifacts → `DoctrineLayers.project`
+- Built-in artifacts → `"builtin"`
+- Org overrides or new org artifacts → `"org"` (all packs share the `"org"` tag in context
+  output; `doctor doctrine` shows which pack via the pack name separately)
+- Project overrides or new project artifacts → `"project"`
 
-`DoctrineService` exposes a `get_provenance(artifact_type: str, artifact_id: str) -> DoctrineLayers | None` method for callers that need source attribution (context serialisation, doctor, lint).
+`DoctrineService` exposes a `get_provenance(artifact_type: str, artifact_id: str) -> str | None`
+method for callers that need source attribution (context serialisation, doctor, lint).
+
+The `charter context --json` `"source"` field uses these machine-readable values: `"builtin"`,
+`"org"`, `"project"`. The human display in `doctor doctrine` maps `"builtin"` to
+`"spec-kitty built-in"` and org artifacts to `"org / <pack-name>"`.
 
 ---
 
