@@ -18,7 +18,8 @@ subtasks:
 - T042
 - T043
 - T050
-agent: claude
+agent: "claude:opus-4-7:python-pedro:implementer"
+shell_pid: "699380"
 history:
 - date: '2026-05-15'
   event: created
@@ -278,3 +279,7 @@ existing answers must not silently revert project-specific choices to org defaul
    (not `None`, not an error) — this is the zero-effect backward-compat guarantee.
 3. Confirm the `"org_charter"` JSON key is additive — existing `charter context --json`
    consumers see no breaking change.
+
+## Activity Log
+
+- 2026-05-15T14:54:52Z – claude:opus-4-7:python-pedro:implementer – shell_pid=699380 – Started implementation via action command
