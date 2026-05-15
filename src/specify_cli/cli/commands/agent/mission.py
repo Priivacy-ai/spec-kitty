@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 from kernel._safe_re import re
 import shutil
@@ -55,6 +56,8 @@ from specify_cli.status.bootstrap import bootstrap_canonical_state
 from specify_cli.sync.events import emit_wp_created, get_emitter
 from specify_cli.workspace.context import resolve_feature_worktree
 from specify_cli.merge.config import MergeStrategy
+
+logger = logging.getLogger(__name__)
 
 app = typer.Typer(name="mission", help="Mission lifecycle commands for AI agents", no_args_is_help=True)
 
@@ -1012,6 +1015,33 @@ def setup_plan(
                 with package_template.open("rb") as src, open(plan_file, "wb") as dst:
                     shutil.copyfileobj(src, dst)
 
+        # Local canonical lifecycle: once setup-plan accepts spec.md as
+        # committed + substantive, record SpecifyCompleted and PlanStarted
+        # before performing any further work. This is the canonical handoff
+        # marker for the spec→plan transition (issue #1067).
+        try:
+            from specify_cli.status.lifecycle_events import (
+                emit_artifact_phase,
+                SPECIFY_COMPLETED,
+                PLAN_STARTED,
+            )
+
+            emit_artifact_phase(
+                feature_dir,
+                event_type=SPECIFY_COMPLETED,
+                mission_slug=mission_slug,
+                actor="spec-kitty agent mission setup-plan",
+                artifact_path=str(spec_file.relative_to(repo_root)),
+            )
+            emit_artifact_phase(
+                feature_dir,
+                event_type=PLAN_STARTED,
+                mission_slug=mission_slug,
+                actor="spec-kitty agent mission setup-plan",
+            )
+        except Exception as _phase_exc:  # noqa: BLE001
+            logger.debug("Lifecycle phase emission skipped: %s", _phase_exc)
+
         # Issue #846 exit gate: only commit plan.md when its Technical Context
         # has been populated with real (non-placeholder) values. A bare
         # template stays untracked so the dashboard / workflow JSON does not
@@ -1020,6 +1050,21 @@ def setup_plan(
         plan_blocked_reason: str | None = None
         if plan_is_substantive:
             _commit_to_branch(plan_file, mission_slug, "plan", repo_root, target_branch, json_output)
+            try:
+                from specify_cli.status.lifecycle_events import (
+                    emit_artifact_phase,
+                    PLAN_COMPLETED,
+                )
+
+                emit_artifact_phase(
+                    feature_dir,
+                    event_type=PLAN_COMPLETED,
+                    mission_slug=mission_slug,
+                    actor="spec-kitty agent mission setup-plan",
+                    artifact_path=str(plan_file.relative_to(repo_root)),
+                )
+            except Exception as _plan_exc:  # noqa: BLE001
+                logger.debug("PlanCompleted emission skipped: %s", _plan_exc)
         else:
             plan_blocked_reason = (
                 "plan.md content is not substantive yet; populate Technical Context with real "
@@ -1931,6 +1976,26 @@ def finalize_tasks(
         else:
             console.print("[yellow]Warning:[/yellow] meta.json missing; skipping MissionCreated emission")
 
+        # Local canonical TasksStarted (idempotent on mission_slug).
+        # Recorded once finalize-tasks decides the mission has a usable WP
+        # set; the matching TasksCompleted is emitted after commit.
+        if not validate_only:
+            try:
+                from specify_cli.status.lifecycle_events import (
+                    emit_artifact_phase,
+                    TASKS_STARTED,
+                )
+
+                emit_artifact_phase(
+                    feature_dir,
+                    event_type=TASKS_STARTED,
+                    mission_slug=mission_slug,
+                    actor="spec-kitty agent mission finalize-tasks",
+                    wp_count=len(work_packages),
+                )
+            except Exception as _tasks_started_exc:  # noqa: BLE001
+                logger.debug("TasksStarted emission skipped: %s", _tasks_started_exc)
+
         # Commit tasks.md and WP files to target branch
         commit_created = False
         commit_hash = None
@@ -2162,7 +2227,62 @@ def finalize_tasks(
                 console.print(f"[red]Error:[/red] {e}")
             raise typer.Exit(1) from None
 
-        # Emit WPCreated events (non-blocking)
+        # Local canonical WPCreated + TasksCompleted persistence — must
+        # land before any SaaS fan-out so dashboards see the full WP
+        # roster even if the SaaS leg is offline (issue #1068).
+        try:
+            from specify_cli.status.lifecycle_events import (
+                emit_artifact_phase,
+                emit_wp_created_local,
+                TASKS_COMPLETED,
+            )
+
+            for wp in work_packages:
+                _wp_id = str(wp["id"])
+                _wp_title = str(wp.get("title") or _wp_id)
+                _depends_on = list(cast(list[str], wp.get("dependencies") or []))
+                _wp_path: str | None = None
+                try:
+                    _candidate = next(
+                        iter(sorted((feature_dir / "tasks").glob(f"{_wp_id}*.md"))),
+                        None,
+                    )
+                    if _candidate is not None:
+                        _wp_path = str(_candidate.relative_to(repo_root))
+                except Exception:  # noqa: BLE001
+                    _wp_path = None
+                emit_wp_created_local(
+                    feature_dir,
+                    mission_slug=mission_slug,
+                    wp_id=_wp_id,
+                    wp_title=_wp_title,
+                    wp_path=_wp_path,
+                    depends_on=_depends_on,
+                    actor="spec-kitty agent mission finalize-tasks",
+                )
+
+            _tasks_artifact = feature_dir / "tasks.md"
+            _tasks_artifact_rel: str | None = None
+            if _tasks_artifact.exists():
+                try:
+                    _tasks_artifact_rel = str(_tasks_artifact.relative_to(repo_root))
+                except ValueError:
+                    _tasks_artifact_rel = str(_tasks_artifact)
+            emit_artifact_phase(
+                feature_dir,
+                event_type=TASKS_COMPLETED,
+                mission_slug=mission_slug,
+                actor="spec-kitty agent mission finalize-tasks",
+                artifact_path=_tasks_artifact_rel or "tasks.md",
+                wp_count=len(work_packages),
+            )
+        except Exception as _local_wp_exc:  # noqa: BLE001
+            console.print(
+                f"[yellow]Warning:[/yellow] Local canonical WPCreated/TasksCompleted "
+                f"persistence failed: {_local_wp_exc}"
+            )
+
+        # Emit WPCreated events to SaaS (non-blocking)
         # MissionCreated is emitted earlier during mission create
         causation_id = get_emitter().generate_causation_id()
 

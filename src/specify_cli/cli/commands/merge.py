@@ -928,6 +928,49 @@ def _enforce_target_branch_sync_preflight(
     raise typer.Exit(1)
 
 
+def _enforce_canonical_status_history(
+    *,
+    feature_dir: Path,
+    mission_slug: str,
+    wp_ids: list[str],
+) -> None:
+    """Refuse to merge missions whose canonical status log is bootstrap-only.
+
+    A bootstrap-only log is a ``status.events.jsonl`` that contains
+    nothing but forced ``planned -> planned`` entries emitted by
+    ``finalize-tasks``. When the mission carries work packages that
+    must have advanced past planned for merge to make sense, the log
+    is an unreliable source of truth and downstream replay (TeamSpace
+    rebuild, dashboard refresh) will reset every WP to planned. We
+    fail loudly with a remediation hint rather than ship in that
+    state. See https://github.com/Priivacy-ai/spec-kitty/issues/1069.
+    """
+    from specify_cli.status.lifecycle_events import has_non_bootstrap_status_history
+
+    if not wp_ids:
+        return
+
+    if has_non_bootstrap_status_history(feature_dir):
+        return
+
+    log_path = feature_dir / "status.events.jsonl"
+    console.print(
+        "[red]Error:[/red] Canonical status history is bootstrap-only — the local "
+        "event log cannot prove that WPs advanced past planned, so a merge would "
+        "ship a mission whose downstream replay would regress every WP."
+    )
+    console.print(f"  Mission: {mission_slug}")
+    console.print(f"  Event log: {log_path}")
+    console.print(f"  Work packages requiring history: {', '.join(wp_ids)}")
+    console.print(
+        "  Remediation: re-run the per-WP `spec-kitty agent action review` and "
+        "`spec-kitty agent action implement` flows so the canonical event log "
+        "captures the real lane transitions before merging, or run the "
+        "repair/replay tooling for this mission."
+    )
+    raise typer.Exit(1)
+
+
 def _enforce_review_artifact_consistency(
     *,
     repo_root: Path,
@@ -1138,6 +1181,19 @@ def _run_lane_based_merge_locked(
 
     _enforce_review_artifact_consistency(
         repo_root=main_repo,
+        feature_dir=feature_dir,
+        mission_slug=mission_slug,
+        wp_ids=all_wp_ids,
+    )
+
+    # -- Bootstrap-only canonical history guard (issue #1069) --
+    # Refuse to merge missions whose status.events.jsonl contains
+    # nothing but forced bootstrap planned→planned events when the
+    # mission has work packages that should have advanced. This
+    # prevents shipping a mission whose canonical history will
+    # collapse downstream consumers (e.g. TeamSpace replay) back to
+    # planned even though the merged commit reflects approved work.
+    _enforce_canonical_status_history(
         feature_dir=feature_dir,
         mission_slug=mission_slug,
         wp_ids=all_wp_ids,

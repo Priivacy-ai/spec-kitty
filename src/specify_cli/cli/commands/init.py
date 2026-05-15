@@ -740,6 +740,26 @@ def init(  # noqa: C901
             # Git management is the user's responsibility. Running init inside
             # an existing repo leaves the repo untouched.
 
+            # Persist a local canonical ProjectInitialized event before any
+            # SaaS fan-out so local dashboards and TeamSpace import always
+            # see a complete project history (issue #1067).
+            try:
+                from specify_cli.identity.project import ensure_identity
+                from specify_cli.status.lifecycle_events import emit_project_initialized
+                from specify_cli import __version__ as _sk_runtime_version
+
+                _identity = ensure_identity(project_path)
+                if _identity.project_uuid is not None:
+                    emit_project_initialized(
+                        project_path,
+                        project_uuid=str(_identity.project_uuid),
+                        project_slug=_identity.project_slug,
+                        actor="spec-kitty init",
+                        runtime_version=_sk_runtime_version or None,
+                    )
+            except Exception as _proj_init_exc:  # noqa: BLE001
+                _logger.debug("ProjectInitialized event emission skipped: %s", _proj_init_exc)
+
             tracker.complete("final", "project ready")
         except typer.Exit:
             raise
