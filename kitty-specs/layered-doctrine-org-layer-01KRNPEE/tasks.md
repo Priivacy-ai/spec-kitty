@@ -3,7 +3,7 @@
 **Mission**: `layered-doctrine-org-layer-01KRNPEE`  
 **Branch**: `feat/org-doctrine-layer` → `feat/org-doctrine-layer`  
 **Spec**: [spec.md](spec.md) | **Plan**: [plan.md](plan.md)  
-**Total WPs**: 9 | **Total subtasks**: 50
+**Total WPs**: 10 | **Total subtasks**: 53
 
 ---
 
@@ -61,6 +61,9 @@
 | T048 | Extend `doctor doctrine` per-pack listing with org-charter.yaml policy counts | WP07 | [P] |
 | T049 | Add `org-charter.yaml` section to pack authoring guide and explanation doc | WP08 | [P] |
 | T050 | Unit tests for `OrgCharterPolicy` model, load/merge, interview pre-fill, charter context inclusion | WP09 | [P] |
+| T051 | Rename all `shipped/` subdirectories to `built-in/` via `git mv` | WP10 | |
+| T052 | Update `DoctrineService._shipped_dir()` to return `artifact / "built-in"` | WP10 | |
+| T053 | Update docstrings and test fixtures referencing `shipped/` directory path | WP10 | [P] |
 
 ---
 
@@ -314,3 +317,27 @@ also added here.
 interactive flow; pre-fill must not silently overwrite answers a user has already given.
 Charter context output shape must be backward-compatible — new org charter fields are additive
 in the JSON output, never replacing existing fields.
+
+---
+
+### WP10 — Rename shipped doctrine directories to built-in
+
+**Priority**: P0 (terminology alignment)
+**Estimated prompt size**: ~200 lines
+**Dependencies**: WP03
+**Enables**: WP08 (documentation will reference correct directory names)
+
+**Goal**: Rename all 8 `src/doctrine/*/shipped/` directories to `src/doctrine/*/built-in/`
+and update `DoctrineService._shipped_dir()` to construct the `built-in/` path. Completes
+the terminology alignment with the spec's "spec-kitty built-in" terminology and the
+`"builtin"` provenance tag introduced in WP02.
+
+**Included subtasks**:
+- [ ] T051 Rename all `shipped/` subdirectories to `built-in/` via `git mv`
+- [ ] T052 Update `DoctrineService._shipped_dir()` to return `artifact / "built-in"`
+- [ ] T053 Update docstrings and test fixtures referencing `shipped/` directory path
+
+**Parallel opportunities**: T053 can start alongside T052 once T051 is committed.
+
+**Risks**: Test fixtures that hardcode `"shipped"` as a directory name must be updated.
+Verify `git mv` produces renames not deletes+adds in git history.

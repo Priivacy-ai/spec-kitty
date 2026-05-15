@@ -16,7 +16,8 @@
         "WP06",
         "WP07",
         "WP08",
-        "WP09"
+        "WP09",
+        "WP10"
       ],
       "write_scope": [
         "docs/explanation/org-doctrine-layer.md",
@@ -32,17 +33,25 @@
         "src/charter/synthesizer/resynthesize_pipeline.py",
         "src/charter/synthesizer/validation_gate.py",
         "src/charter/synthesizer/write_pipeline.py",
+        "src/doctrine/agent_profiles/built-in/**",
         "src/doctrine/agent_profiles/repository.py",
         "src/doctrine/base.py",
+        "src/doctrine/directives/built-in/**",
         "src/doctrine/directives/repository.py",
         "src/doctrine/drg/__init__.py",
         "src/doctrine/drg/loader.py",
+        "src/doctrine/mission_step_contracts/built-in/**",
         "src/doctrine/mission_step_contracts/repository.py",
+        "src/doctrine/paradigms/built-in/**",
         "src/doctrine/paradigms/repository.py",
+        "src/doctrine/procedures/built-in/**",
         "src/doctrine/procedures/repository.py",
         "src/doctrine/service.py",
+        "src/doctrine/styleguides/built-in/**",
         "src/doctrine/styleguides/repository.py",
+        "src/doctrine/tactics/built-in/**",
         "src/doctrine/tactics/repository.py",
+        "src/doctrine/toolguides/built-in/**",
         "src/doctrine/toolguides/repository.py",
         "src/specify_cli/cli/commands/charter.py",
         "src/specify_cli/cli/commands/doctor.py",
@@ -81,7 +90,7 @@
       "parallel_group": 0
     }
   ],
-  "computed_at": "2026-05-15T12:52:13.004140+00:00",
+  "computed_at": "2026-05-15T13:16:12.265552+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": [],
   "collapse_report": {
@@ -133,12 +142,18 @@
         "wp_b": "WP05",
         "rule": "dependency",
         "evidence": "WP09 depends on WP05"
+      },
+      {
+        "wp_a": "WP10",
+        "wp_b": "WP03",
+        "rule": "dependency",
+        "evidence": "WP10 depends on WP03"
       }
     ],
-    "total_merges": 8,
+    "total_merges": 9,
     "independent_wps_collapsed": 0,
     "by_rule": {
-      "dependency": 8
+      "dependency": 9
     }
   }
 }
