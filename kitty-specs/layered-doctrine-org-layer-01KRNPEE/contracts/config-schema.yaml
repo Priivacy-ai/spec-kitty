@@ -1,0 +1,77 @@
+# Contract: .kittify/config.yaml — doctrine.org block schema
+# Version: 1.0
+# Mission: layered-doctrine-org-layer-01KRNPEE
+#
+# This file describes the valid shape of the doctrine.org configuration block.
+# Migrations that write config.yaml must conform to this schema.
+
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: "DoctrineOrgConfig"
+description: >
+  Optional configuration block for the organisation-layer doctrine source and
+  local snapshot location. The 'local_path' field is the only field required
+  for resolution. The 'source_type', 'url', and 'ref' fields are required only
+  if the operator wishes to use 'spec-kitty doctrine fetch'.
+
+type: object
+properties:
+  doctrine:
+    type: object
+    properties:
+      org:
+        type: object
+        required:
+          - local_path
+        properties:
+          local_path:
+            type: string
+            description: >
+              Filesystem path to the validated local snapshot directory.
+              Tilde (~) is expanded to the current user's home directory.
+            examples:
+              - "~/.kittify/org/acme-corp/"
+              - "/opt/company/doctrine/org/"
+          source_type:
+            type: string
+            enum: ["git", "https", "api"]
+            description: >
+              The type of remote source used by 'doctrine fetch'. Optional;
+              omit if the snapshot is provisioned externally (e.g., by IT).
+          url:
+            type: string
+            description: >
+              Remote URL for the doctrine source. Required if source_type is set.
+              For 'git': SSH or HTTPS git remote URL.
+              For 'https': URL to a tarball or zip bundle.
+              For 'api': Base URL of the HTTP API server.
+            examples:
+              - "git@internal.example.com:platform/org-doctrine.git"
+              - "https://releases.example.com/doctrine/bundle-v1.2.0.tar.gz"
+              - "https://governance.internal.example.com/doctrine/v1"
+          ref:
+            type: string
+            description: >
+              Optional version pin. For 'git': a tag name or full commit SHA.
+              For 'https': included in URL or tarball filename convention (advisory).
+              For 'api': passed as a query parameter 'ref' if set.
+              If omitted, 'doctrine fetch' pulls the default branch / latest version.
+            examples:
+              - "v1.2.0"
+              - "abc123def456"
+        additionalProperties: false
+    additionalProperties: true  # other top-level doctrine keys may exist in future
+
+# Minimal valid config (resolution-only, no fetch configuration):
+#
+#   doctrine:
+#     org:
+#       local_path: "~/.kittify/org/acme-corp/"
+#
+# Full config (with fetch configuration):
+#
+#   doctrine:
+#     org:
+#       local_path: "~/.kittify/org/acme-corp/"
+#       source_type: git
+#       url: "git@internal.example.com:platform/org-doctrine-distributable.git"
+#       ref: "v1.2.0"
