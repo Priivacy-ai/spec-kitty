@@ -333,9 +333,9 @@ the terminology alignment with the spec's "spec-kitty built-in" terminology and 
 `"builtin"` provenance tag introduced in WP02.
 
 **Included subtasks**:
-- [ ] T051 Rename all `shipped/` subdirectories to `built-in/` via `git mv`
-- [ ] T052 Update `DoctrineService._shipped_dir()` to return `artifact / "built-in"`
-- [ ] T053 Update docstrings and test fixtures referencing `shipped/` directory path
+- [x] T051 Rename all `shipped/` subdirectories to `built-in/` via `git mv`
+- [x] T052 Update `DoctrineService._shipped_dir()` to return `artifact / "built-in"`
+- [x] T053 Update docstrings and test fixtures referencing `shipped/` directory path
 
 **Parallel opportunities**: T053 can start alongside T052 once T051 is committed.
 
