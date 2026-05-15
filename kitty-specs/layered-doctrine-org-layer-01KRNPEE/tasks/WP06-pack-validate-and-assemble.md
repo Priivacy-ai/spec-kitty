@@ -7,6 +7,7 @@ requirement_refs:
 - C-007
 - FR-012
 - FR-013
+- FR-025
 - NFR-003
 planning_base_branch: feat/org-doctrine-layer
 merge_target_branch: feat/org-doctrine-layer
@@ -18,6 +19,8 @@ subtasks:
 - T030
 - T031
 - T032
+- T044
+- T045
 agent: codex
 history:
 - date: '2026-05-15'
@@ -284,10 +287,53 @@ Build minimal pack fixtures in `tmp_path`:
 
 ---
 
+## Subtask T044 — Extend `pack_validator.py` for `org-charter.yaml`
+
+**File**: `src/specify_cli/doctrine/pack_validator.py`
+
+Add validation of the optional `org-charter.yaml` file when present in the pack root:
+
+1. If `pack_dir / "org-charter.yaml"` exists, load and validate it against `OrgCharterPolicy`
+   (import from `specify_cli.doctrine.org_charter`).
+2. Schema violations → error with `artifact_type="org-charter"`.
+3. Unknown `enforcement` values other than `"advisory"` → advisory warning (future values
+   may be valid; don't hard-error on them).
+4. `required_directives` entries that reference artifact IDs not present in the pack's own
+   `directives/` nor in the shipped set → advisory warning (cross-pack reference is valid but
+   worth surfacing).
+
+`pack-manifest.yaml` check: if present, note whether `org_charter_present: true/false` in the manifest (written by fetch; `pack validate` just reads it if present).
+
+---
+
+## Subtask T045 — Extend `pack_assembler.py` for `org-charter.yaml`
+
+**File**: `src/specify_cli/doctrine/pack_assembler.py`
+
+During assembly, collect `org-charter.yaml` from each input pack and merge them:
+
+```python
+def _merge_org_charters(input_packs: list[Path]) -> OrgCharterPolicy | None:
+    """Merge org-charter.yaml from all input packs in order. Returns None if none present."""
+    ...
+```
+
+Merge semantics (matches `load_org_charter_policies()`):
+- `interview_defaults`: dict update (last pack wins on key collision)
+- `required_directives`: union, deduplicated, order preserved
+- `governance_policies`: concatenated, deduplicated by `(field, value)`
+
+Write the merged policy to `output_dir / "org-charter.yaml"` if any input pack had one.
+If no input packs had `org-charter.yaml`, omit the file from the output (don't write an empty policy).
+
+---
+
 ## Definition of Done
 
 - [ ] `validate_pack()` detects all error categories from `contracts/pack-layout.md`
-- [ ] `assemble_pack()` blocks on conflict unless `force=True`
+- [ ] `validate_pack()` validates `org-charter.yaml` schema when present
+- [ ] `assemble_pack()` blocks on artifact conflict unless `force=True`
+- [ ] `assemble_pack()` merges `org-charter.yaml` from input packs into output
 - [ ] Both rendering helpers produce human-readable and JSON output
 - [ ] All tests in `test_pack_validator.py` and `test_pack_assembler.py` pass
 - [ ] `spec-kitty doctrine pack validate <path>` exits 0 on valid pack, 1 on errors
