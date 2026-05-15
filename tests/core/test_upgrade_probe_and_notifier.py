@@ -65,7 +65,7 @@ def _capture_console() -> tuple[Console, StringIO]:
 
 
 class TestProbeChannelClassification:
-    """The four-channel matrix from contracts/upgrade-probe-and-notifier.md."""
+    """The channel matrix from contracts/upgrade-probe-and-notifier.md."""
 
     @respx.mock
     def test_already_current_when_installed_equals_latest(self) -> None:
@@ -101,6 +101,17 @@ class TestProbeChannelClassification:
 
         assert result.channel == UpgradeChannel.NO_UPGRADE_PATH
         assert result.latest_pypi_version == "3.2.0"
+
+    @respx.mock
+    def test_upgrade_available_when_installed_is_older_published_release(self) -> None:
+        respx.get(PYPI_JSON_URL).mock(
+            return_value=httpx.Response(200, json=_make_pypi_payload("3.2.1", ["3.2.0", "3.2.1"]))
+        )
+
+        result = probe_pypi("3.2.0")
+
+        assert result.channel == UpgradeChannel.UPGRADE_AVAILABLE
+        assert result.latest_pypi_version == "3.2.1"
 
     @respx.mock
     def test_unknown_on_http_500(self) -> None:
@@ -291,6 +302,23 @@ class TestNoticeContent:
         assert emitted is False
         assert buf.getvalue() == ""
 
+    @respx.mock
+    def test_upgrade_available_emits_no_no_upgrade_notice(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.delenv(OPT_OUT_ENV_VAR, raising=False)
+        respx.get(PYPI_JSON_URL).mock(
+            return_value=httpx.Response(200, json=_make_pypi_payload("3.2.1", ["3.2.0", "3.2.1"]))
+        )
+        console, buf = _capture_console()
+
+        emitted = maybe_emit_upgrade_notice(
+            "3.2.0", console=console, cache_path=tmp_path / "c.json"
+        )
+
+        assert emitted is False
+        assert buf.getvalue() == ""
+
 
 # ---------------------------------------------------------------------------
 # maybe_emit_upgrade_notice: cache behavior
@@ -405,11 +433,9 @@ class TestCache:
         cache_path = tmp_path / "c.json"
         t0 = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
 
-        # First call as 3.2.0 (ahead_of_pypi not applicable here; installed in
-        # releases but older than latest → suppressed-ALREADY_CURRENT per
-        # the classifier's "upgrade-available" fallthrough; we don't assert
-        # on the channel here, only that the cache is rebuilt when installed
-        # version changes).
+        # First call as 3.2.0 (installed in releases but older than latest).
+        # The no-upgrade notifier stays silent and caches the probe result;
+        # the existing upgrade nag owns the actual upgrade-available message.
         respx.get(PYPI_JSON_URL).mock(
             return_value=httpx.Response(200, json=_make_pypi_payload("3.2.1", ["3.2.0", "3.2.1"]))
         )

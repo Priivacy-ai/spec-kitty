@@ -47,6 +47,7 @@ The probe:
 | `installed_version` parses as a PEP 440 version AND equals `info.version` | `ALREADY_CURRENT` |
 | `installed_version` parses AND is **greater than** `info.version` per PEP 440 ordering | `AHEAD_OF_PYPI` |
 | `installed_version` parses AND is **not present** in `releases` keys | `NO_UPGRADE_PATH` |
+| `installed_version` parses AND is present in `releases` keys but older than `info.version` | `UPGRADE_AVAILABLE` |
 | Probe failed (timeout / HTTP error / parse error / malformed response) | `UNKNOWN` |
 
 ## Cache contract
@@ -129,6 +130,7 @@ def maybe_emit_upgrade_notice(
 - `ALREADY_CURRENT`: `[dim]spec-kitty-cli {version} — you are on the latest supported version.[/dim]`
 - `AHEAD_OF_PYPI`: `[dim]spec-kitty-cli {version} — build is ahead of the latest PyPI release ({latest}). No upgrade required.[/dim]`
 - `NO_UPGRADE_PATH`: `[dim]spec-kitty-cli {version} — installed from a non-PyPI build/channel. No PyPI upgrade path is available.[/dim]`
+- `UPGRADE_AVAILABLE`: no no-upgrade notice. The existing upgrade nag owns the actionable upgrade prompt.
 - `UNKNOWN`: no notice. (The user is not blocked by inability to probe.)
 
 ## Performance contract (NFR-004)

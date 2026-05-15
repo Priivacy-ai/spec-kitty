@@ -195,6 +195,8 @@ _NOTICE_TEMPLATES: dict[UpgradeChannel, str] = {
         "[dim]spec-kitty-cli {version} — installed from a non-PyPI build/channel. "
         "No PyPI upgrade path is available.[/dim]"
     ),
+    # UPGRADE_AVAILABLE intentionally emits no no-upgrade notice; the existing
+    # upgrade nag owns that user-facing path.
     # UNKNOWN intentionally emits no notice (contract: "do not block on inability to probe").
 }
 

@@ -1,9 +1,8 @@
-"""PyPI upgrade probe with four-channel classification.
+"""PyPI upgrade probe with no-upgrade classification.
 
 This module is the network-touching half of the "no-upgrade available" UX
 introduced for FR-007 / WP09. It performs a single, timeout-bounded GET against
-PyPI's JSON metadata endpoint and classifies the installed CLI version into one
-of four channels.
+PyPI's JSON metadata endpoint and classifies the installed CLI version.
 
 The probe applies the **secure-design-checklist** tactic
 (`src/doctrine/tactics/shipped/secure-design-checklist.tactic.yaml`) to the new
@@ -54,6 +53,9 @@ class UpgradeChannel(StrEnum):
 
     NO_UPGRADE_PATH = "no_upgrade_path"
     """Installed version not present in PyPI ``releases`` (non-PyPI build)."""
+
+    UPGRADE_AVAILABLE = "upgrade_available"
+    """Installed version is older than PyPI ``info.version``; existing nag owns it."""
 
     UNKNOWN = "unknown"
     """Probe failed: timeout, HTTP error, parse error, or malformed response."""
@@ -209,15 +211,10 @@ def _classify(
     if installed not in releases:
         return UpgradeChannel.NO_UPGRADE_PATH
 
-    # Installed version is in releases but is older than latest — there IS an
-    # upgrade path. This is the "upgrade available" case which the notifier
-    # does not own (the existing nag handles it). Return ALREADY_CURRENT as
-    # the safe no-op: the notifier suppresses ALREADY_CURRENT, so no notice
-    # is emitted, and the existing nag pipeline handles the upgrade prompt.
-    #
-    # Practically: only NO_UPGRADE_PATH / AHEAD_OF_PYPI / ALREADY_CURRENT can
-    # surface a notice from this module.
-    return UpgradeChannel.ALREADY_CURRENT
+    # Installed version is in releases but is older than latest. There IS an
+    # upgrade path, so the no-upgrade notifier must stay silent and let the
+    # existing upgrade nag render the actionable prompt.
+    return UpgradeChannel.UPGRADE_AVAILABLE
 
 
 __all__ = [

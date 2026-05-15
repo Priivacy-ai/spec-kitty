@@ -174,6 +174,7 @@ class UpgradeChannel(StrEnum):
     ALREADY_CURRENT = "already_current"
     AHEAD_OF_PYPI = "ahead_of_pypi"
     NO_UPGRADE_PATH = "no_upgrade_path"
+    UPGRADE_AVAILABLE = "upgrade_available"
     UNKNOWN = "unknown"
 ```
 
@@ -184,6 +185,7 @@ class UpgradeChannel(StrEnum):
 | HTTP 200, installed version equals latest PyPI release | `ALREADY_CURRENT` |
 | HTTP 200, installed version > latest PyPI release (e.g. RC / dev build) | `AHEAD_OF_PYPI` |
 | HTTP 200, installed version not in PyPI `releases` table | `NO_UPGRADE_PATH` |
+| HTTP 200, installed version is in PyPI `releases` table but older than latest | `UPGRADE_AVAILABLE` |
 | HTTP error, network failure, or timeout | `UNKNOWN` (with `error` populated) |
 
 ### Cache schema
@@ -205,7 +207,7 @@ class UpgradeChannel(StrEnum):
 
 **TTL rules**:
 
-- Successful probe (`channel ∈ {ALREADY_CURRENT, AHEAD_OF_PYPI, NO_UPGRADE_PATH}`): `ttl_seconds=86400` (24 h).
+- Successful probe (`channel ∈ {ALREADY_CURRENT, AHEAD_OF_PYPI, NO_UPGRADE_PATH, UPGRADE_AVAILABLE}`): `ttl_seconds=86400` (24 h).
 - Failed probe (`channel == UNKNOWN`): `ttl_seconds=3600` (1 h). Shorter retry window prevents users from being stuck without notices during a transient PyPI outage.
 
 **Invariants**:
@@ -245,6 +247,7 @@ def maybe_emit_upgrade_notice(
 
 - Probe failures are swallowed silently (`channel = UNKNOWN`, no exception bubbling).
 - No notice when `channel == ALREADY_CURRENT` AND the previous cache entry was also `ALREADY_CURRENT` within the TTL window (suppress identical repeats, AC #4).
+- No notice when `channel == UPGRADE_AVAILABLE`; the existing upgrade nag owns that path.
 - Cold-cache budget: up to 300 ms allowed once per 24 h (NFR-004 carve-out).
 
 ---
