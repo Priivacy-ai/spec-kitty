@@ -51,6 +51,8 @@ TOOL_LABELS = [
     ("opencode", "opencode"),
     ("codex", "Codex CLI"),
     ("vibe", "Mistral Vibe"),
+    ("pi", "Pi"),
+    ("letta", "Letta Code"),
     ("auggie", "Auggie CLI"),
     ("q", "Amazon Q Developer CLI (legacy)"),
     ("kiro-cli", "Kiro CLI"),

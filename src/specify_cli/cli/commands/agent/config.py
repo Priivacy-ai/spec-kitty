@@ -36,7 +36,7 @@ KEY_TO_AGENT_DIR = {
     for agent_dir, subdir in CompleteLaneMigration.AGENT_DIRS
     if agent_dir in AGENT_DIR_TO_KEY
 }
-SKILL_ONLY_AGENTS = {"codex", "vibe"}
+SKILL_ONLY_AGENTS = {"codex", "vibe", "pi", "letta"}
 GLOBAL_COMMAND_AGENTS = frozenset(AGENT_COMMAND_CONFIG)
 VALID_AGENTS = set(AGENT_DIR_TO_KEY.values()) | SKILL_ONLY_AGENTS
 
@@ -123,7 +123,7 @@ def _load_config_or_exit(repo_root: Path) -> AgentConfig:
 
 
 def _register_skill_agent(repo_root: Path, config: AgentConfig, agent_key: str) -> tuple[bool, str | None]:
-    """Install command skills for Codex/Vibe and update config."""
+    """Install command skills for skill-only agents and update config."""
     from specify_cli.skills import command_installer  # noqa: PLC0415
     from specify_cli.skills.vibe_config import ensure_project_skill_path  # noqa: PLC0415
 
@@ -308,7 +308,7 @@ def add_agents(
     config = _load_config_or_exit(repo_root)
 
     # Validate agent keys — command-layer agents come from AGENT_DIR_TO_KEY;
-    # skill-only agents (codex, vibe) have their own installer path.
+    # skill-only agents have their own installer path.
     invalid = [a for a in agents if a not in VALID_AGENTS]
     if invalid:
         console.print(f"[red]Error:[/red] Invalid agent keys: {', '.join(invalid)}")
@@ -385,7 +385,7 @@ def remove_agents(
     config = _load_config_or_exit(repo_root)
 
     # Validate agent keys — command-layer agents come from AGENT_DIR_TO_KEY;
-    # skill-only agents (codex, vibe) have their own installer path.
+    # skill-only agents have their own installer path.
     invalid = [a for a in agents if a not in VALID_AGENTS]
     if invalid:
         console.print(f"[red]Error:[/red] Invalid agent keys: {', '.join(invalid)}")
@@ -397,7 +397,7 @@ def remove_agents(
     errors = []
 
     for agent_key in agents:
-        if agent_key in ("codex", "vibe"):
+        if agent_key in SKILL_ONLY_AGENTS:
             from specify_cli.skills import command_installer
             try:
                 report = command_installer.remove(repo_root, agent_key)

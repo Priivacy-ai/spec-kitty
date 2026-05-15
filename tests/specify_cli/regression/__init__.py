@@ -8,9 +8,9 @@ The twelve non-migrated agents are the keys of ``AGENT_COMMAND_CONFIG``:
 claude, gemini, copilot, cursor, qwen, opencode, windsurf, kilocode,
 auggie, roo, q, antigravity.
 
-Codex and Vibe are excluded because mission 083 deliberately migrated
-them from the command-file pipeline to the Agent Skills pipeline
-(``.agents/skills/``).  Their snapshots live under
+Command-skill agents such as Codex, Vibe, Pi, and Letta are excluded
+because they use the Agent Skills pipeline (``.agents/skills/``) instead
+of per-agent command files.  Representative renderer snapshots live under
 ``tests/specify_cli/skills/__snapshots__/``.
 
 Baseline capture

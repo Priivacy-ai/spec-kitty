@@ -51,7 +51,7 @@ Check that skill roots, wrapper roots, manifest, and generated artifacts are pre
 - Wrapper root (slash-command directory) exists for the active agent
 - The relevant manifest exists and is valid JSON:
   `.kittify/skills-manifest.json` for legacy canonical skills and/or
-  `.kittify/command-skills-manifest.json` for Codex/Vibe command skills
+  `.kittify/command-skills-manifest.json` for command-skill agents
 - Skill files listed in the manifest are present on disk
 
 **Commands:**

@@ -3,15 +3,15 @@
 Post-mission-review correction: `_sync_agent_commands` is the global command-
 layer sync path (writes to ``~/.claude/commands/``, ``~/.gemini/commands/``,
 etc.). It is called in a loop over ``AGENT_COMMAND_CONFIG``, which no longer
-contains ``codex`` or ``vibe``. Command-skill installation for codex/vibe is
+contains command-skill agents. Command-skill installation for those agents is
 therefore driven from ``init`` and ``agent config add``, NOT from this
 function. These tests verify that:
 
-- ``_sync_agent_commands`` does not try to handle codex/vibe (it is the
+- ``_sync_agent_commands`` does not try to handle command-skill agents (it is the
   wrong call site for them).
 - ``claude`` (and by extension every other command-layer agent) still
   reaches the legacy render-commands path here.
-- ``codex`` and ``vibe`` are absent from ``AGENT_COMMAND_CONFIG`` so the
+- command-skill agents are absent from ``AGENT_COMMAND_CONFIG`` so the
   caller loop never sees them.
 """
 
@@ -33,14 +33,14 @@ from specify_cli.runtime.agent_commands import _sync_agent_commands, get_global_
 # ---------------------------------------------------------------------------
 
 
-def test_codex_and_vibe_absent_from_command_config() -> None:
+def test_command_skill_agents_absent_from_command_config() -> None:
     """The loop in ``ensure_runtime`` iterates ``AGENT_COMMAND_CONFIG``.
 
-    Codex and Vibe must not appear there or the legacy command-file renderer
+    Command-skill agents must not appear there or the legacy command-file renderer
     would write their files into ``~/.claude/commands/``-style directories.
     """
-    assert "codex" not in AGENT_COMMAND_CONFIG
-    assert "vibe" not in AGENT_COMMAND_CONFIG
+    for agent_key in ("codex", "vibe", "pi", "letta"):
+        assert agent_key not in AGENT_COMMAND_CONFIG
 
 
 def test_sync_does_not_invoke_skill_installer(tmp_path: Path) -> None:

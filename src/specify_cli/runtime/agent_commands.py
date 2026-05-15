@@ -124,7 +124,8 @@ def _sync_agent_commands(agent_key: str, templates_dir: Path, script_type: str) 
     * Stale ``spec-kitty.*`` files no longer in the canonical set are removed.
     * All written files are set read-only (``chmod mode & ~0o222``).
 
-    ``codex`` and ``vibe`` are not handled here. Their command installation
+    Command-skill agents such as ``codex``, ``vibe``, ``pi``, and ``letta`` are
+    not handled here. Their command installation
     is driven by ``init`` and ``spec-kitty agent config add`` through
     :mod:`specify_cli.skills.command_installer`, which writes project-local
     skill packages under ``.agents/skills/``.

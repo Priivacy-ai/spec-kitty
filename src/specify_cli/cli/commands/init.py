@@ -685,9 +685,10 @@ def init(  # noqa: C901
                     if agent_skill_class == SKILL_CLASS_WRAPPER:
                         # WRAPPER agents have no installable root.
                         tracker.complete(f"{agent_key}-skills", "skipped (wrapper)")
-                    elif agent_key in ("codex", "vibe"):
-                        # Codex and Vibe receive Spec Kitty's slash commands as
-                        # Agent Skills packages rendered into .agents/skills/.
+                    elif agent_key in ("codex", "vibe", "pi", "letta"):
+                        # Command-skill agents receive Spec Kitty's slash
+                        # commands as Agent Skills packages rendered into
+                        # .agents/skills/.
                         from specify_cli.skills import command_installer  # noqa: PLC0415
                         from specify_cli.skills.vibe_config import ensure_project_skill_path  # noqa: PLC0415
 
@@ -773,6 +774,8 @@ def init(  # noqa: C901
         "roo": ".roo/",
         "q": ".amazonq/",
         "kiro": ".kiro/",
+        "pi": ".pi/",
+        "letta": ".letta/",
     }
 
     notice_entries = []
@@ -866,6 +869,42 @@ def init(  # noqa: C901
         )
         _console.print()
         _console.print(vibe_panel)
+
+    if "pi" in selected_agents:
+        pi_steps_lines = [
+            "1. Install Pi if you haven't already:",
+            "     [cyan]curl -fsSL https://pi.dev/install.sh | sh[/cyan]",
+            "2. Launch Pi in this project:",
+            "     [cyan]pi[/cyan]",
+            "3. Invoke your first Spec Kitty command skill:",
+            "     [cyan]/skill:spec-kitty.specify <describe what you want to build>[/cyan]",
+        ]
+        pi_panel = Panel(
+            "\n".join(pi_steps_lines),
+            title="Next Steps for Pi",
+            border_style="cyan",
+            padding=(1, 2),
+        )
+        _console.print()
+        _console.print(pi_panel)
+
+    if "letta" in selected_agents:
+        letta_steps_lines = [
+            "1. Install Letta Code if you haven't already:",
+            "     [cyan]npm install -g @letta-ai/letta-code[/cyan]",
+            "2. Launch Letta Code in this project:",
+            "     [cyan]letta[/cyan]",
+            "3. Ask Letta Code to use the Spec Kitty specify skill:",
+            "     [cyan]Use spec-kitty.specify to specify <describe what you want to build>[/cyan]",
+        ]
+        letta_panel = Panel(
+            "\n".join(letta_steps_lines),
+            title="Next Steps for Letta Code",
+            border_style="cyan",
+            padding=(1, 2),
+        )
+        _console.print()
+        _console.print(letta_panel)
 
     enhancement_lines = [
         "Optional commands that you can use for your specs [bright_black](improve quality & confidence)[/bright_black]",

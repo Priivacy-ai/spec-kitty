@@ -2,7 +2,7 @@
 
 Spec Kitty currently exposes **13 slash-command agent surfaces**. This page documents the agents that get user-global command directories such as `~/.claude/commands/` or `~/.opencode/command/`.
 
-Related assistant integrations such as Codex CLI and Vibe use shared skill roots rather than slash-command directories, so they are intentionally out of scope for this specific table.
+Related assistant integrations such as Codex CLI, Vibe, Pi, and Letta Code use shared skill roots rather than slash-command directories, so they are intentionally out of scope for this specific table.
 
 ---
 
@@ -289,14 +289,14 @@ spec-kitty init my-project --ai kiro
 You can initialize a project with multiple agents:
 
 ```bash
-# Initialize with Claude and Codex
-spec-kitty init my-project --ai claude,codex
+# Initialize with Claude and Pi
+spec-kitty init my-project --ai claude,pi
 
 # Initialize with all agents
-spec-kitty init my-project --ai claude,copilot,gemini,cursor,qwen,opencode,windsurf,codex,kilocode,augment,roo,q
+spec-kitty init my-project --ai claude,copilot,gemini,cursor,qwen,opencode,windsurf,codex,kilocode,auggie,roo,q,kiro,antigravity,vibe,pi,letta
 ```
 
-This registers all specified agents, allowing team members to use their preferred tool. Slash-command files are installed in user-global agent roots at CLI startup.
+This registers all specified agents, allowing team members to use their preferred tool. Slash-command files are installed in user-global agent roots at CLI startup; Codex, Vibe, Pi, and Letta command skills are installed project-locally under `.agents/skills/`.
 
 ---
 

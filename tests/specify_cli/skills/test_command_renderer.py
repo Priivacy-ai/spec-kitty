@@ -1,6 +1,6 @@
 """Tests for the command-skill renderer (WP02 — T011).
 
-Snapshot tests cover all canonical command templates × 2 agents (codex, vibe).
+Snapshot tests cover all canonical command templates × representative agents.
 Snapshots are committed under ``tests/specify_cli/skills/__snapshots__/<agent>/``.
 
 Regenerating snapshots
@@ -51,6 +51,7 @@ SNAPSHOTS_DIR = Path(__file__).parent / "__snapshots__"
 
 # Fixed version string used for all snapshot renders so the output is stable.
 _TEST_VERSION = "3.0.0"
+SNAPSHOT_AGENTS: tuple[str, ...] = ("codex", "vibe")
 
 # Whether to update snapshots instead of asserting against them.
 _UPDATE = os.environ.get("PYTEST_UPDATE_SNAPSHOTS", "0") not in ("", "0", "false", "False")
@@ -98,9 +99,9 @@ def _render_and_compare(template_path: Path, agent_key: str) -> None:
 
 
 @pytest.mark.parametrize("template_path", _all_templates(), ids=lambda p: p.stem)
-@pytest.mark.parametrize("agent_key", SUPPORTED_AGENTS)
+@pytest.mark.parametrize("agent_key", SNAPSHOT_AGENTS)
 def test_snapshot(template_path: Path, agent_key: str) -> None:
-    """All canonical templates × 2 agents must match their committed snapshots."""
+    """Representative agent renders must match their committed snapshots."""
     _render_and_compare(template_path, agent_key)
 
 

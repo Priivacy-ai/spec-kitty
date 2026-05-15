@@ -294,7 +294,7 @@ def test_schema_validation_missing_content_hash(tmp_path: Path) -> None:
 
 
 def test_schema_validation_invalid_agent_enum(tmp_path: Path) -> None:
-    """An agent key not in {codex, vibe} fails validation."""
+    """An unsupported agent key fails validation."""
     _write_raw(
         tmp_path,
         {

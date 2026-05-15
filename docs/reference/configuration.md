@@ -270,7 +270,7 @@ VCS Backend: git
 
 ## Agent Configuration
 
-Spec Kitty supports AI agents across different platforms. Agent configuration is stored in `.kittify/config.yaml` and can be managed via CLI commands. Slash-command agents use user-global command roots; Codex and Vibe use project-local command skills under `.agents/skills/`.
+Spec Kitty supports AI agents across different platforms. Agent configuration is stored in `.kittify/config.yaml` and can be managed via CLI commands. Slash-command agents use user-global command roots; Codex, Vibe, Pi, and Letta Code use project-local command skills under `.agents/skills/`.
 
 ### Supported Agents
 
@@ -284,6 +284,8 @@ Spec Kitty supports AI agents across different platforms. Agent configuration is
 | `opencode` | `~/.opencode/command/` | OpenCode |
 | `windsurf` | `~/.windsurf/workflows/` | Windsurf |
 | `codex` | `.agents/skills/spec-kitty.<command>/` | Codex CLI |
+| `pi` | `.agents/skills/spec-kitty.<command>/` | Pi |
+| `letta` | `.agents/skills/spec-kitty.<command>/` | Letta Code |
 | `kilocode` | `~/.kilocode/workflows/` | Kilocode |
 | `auggie` | `~/.augment/commands/` | Augment Code |
 | `roo` | `~/.roo/commands/` | Roo Cline |
@@ -311,7 +313,7 @@ Starting in spec-kitty 0.12.0, agent configuration follows a config-driven model
 **Key principles**:
 - Active agents are derived from `config.yaml`
 - Slash-command files are installed globally at CLI startup
-- Codex and Vibe command skills are project-local under `.agents/skills/`
+- Codex, Vibe, Pi, and Letta command skills are project-local under `.agents/skills/`
 - Migrations respect `config.yaml` - only process configured agents
 - Use `spec-kitty agent config` commands to manage agents (not manual editing)
 
@@ -360,7 +362,7 @@ spec-kitty agent config add claude codex
 
 This command:
 1. Registers slash-command agents against their global command roots
-2. Installs project-local command skills for Codex and Vibe
+2. Installs project-local command skills for Codex, Vibe, Pi, and Letta
 3. Updates `config.yaml` to include new agents
 
 #### Remove Agents

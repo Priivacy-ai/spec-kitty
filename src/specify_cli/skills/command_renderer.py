@@ -1,8 +1,9 @@
-"""Command-Skill Renderer for Codex and Vibe.
+"""Command-Skill Renderer for shared-root command-skill agents.
 
 Turns a ``command-templates/<command>.md`` source file into a
 :class:`RenderedSkill` (YAML frontmatter + markdown body) that can be written
-as a ``SKILL.md`` file for OpenAI Codex or Mistral Vibe.
+as a ``SKILL.md`` file for command-skill agents such as Codex, Vibe, Pi,
+and Letta Code.
 
 Three invariants are enforced by this module:
 
@@ -14,7 +15,7 @@ Three invariants are enforced by this module:
    contains the literal token ``$ARGUMENTS``.  Any occurrence that survives the
    User-Input block rewrite raises :class:`SkillRenderError`.
 
-3. **Single body for both agents** — Codex and Vibe receive identical skill
+3. **Single body for every agent** — supported agents receive identical skill
    bodies.  The only per-agent variation permitted is in frontmatter, and even
    that is currently identical for the initial release.
 """
@@ -25,7 +26,7 @@ import hashlib
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 from specify_cli.skills._user_input_block import rewrite as _rewrite_user_input
 
@@ -33,7 +34,7 @@ from specify_cli.skills._user_input_block import rewrite as _rewrite_user_input
 # Constants
 # ---------------------------------------------------------------------------
 
-SUPPORTED_AGENTS: tuple[str, ...] = ("codex", "vibe")
+SUPPORTED_AGENTS: tuple[str, ...] = ("codex", "vibe", "pi", "letta")
 
 # Matches the YAML frontmatter block at the very start of a template file
 # (delimited by ``---`` lines).  Handles both ``---\nkey: value\n---`` and
@@ -103,7 +104,7 @@ class RenderedSkill:
     source_hash:
         SHA-256 hex digest of the raw source template bytes at render time.
     agent_key:
-        The agent this rendering was produced for (``"codex"`` or ``"vibe"``).
+        The agent this rendering was produced for.
     spec_kitty_version:
         The CLI version string passed to :func:`render`.
     """
@@ -113,7 +114,7 @@ class RenderedSkill:
     body: str
     source_template: Path
     source_hash: str
-    agent_key: Literal["codex", "vibe"]
+    agent_key: str
     spec_kitty_version: str
 
     def to_skill_md(self) -> str:
@@ -396,7 +397,7 @@ def render(
     template_path:
         Absolute path to a ``command-templates/<command>.md`` source file.
     agent_key:
-        Must be one of :data:`SUPPORTED_AGENTS` (``"codex"`` or ``"vibe"``).
+        Must be one of :data:`SUPPORTED_AGENTS`.
     spec_kitty_version:
         The current CLI version string, stored on the returned record for
         auditability.

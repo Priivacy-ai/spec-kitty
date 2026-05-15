@@ -120,7 +120,7 @@ Continue with [Your First Feature](your-first-feature.md) for the complete workf
 
 - [CLI Commands](../reference/cli-commands.md) - Full command reference
 - [Slash Commands](../reference/slash-commands.md) - AI agent slash commands
-- [Supported Agents](../reference/supported-agents.md) - The 13 slash-command agents supported by the CLI
+- [Supported Agents](../reference/supported-agents.md) - Slash-command agents supported by the CLI
 
 ### Learn More
 

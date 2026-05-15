@@ -1,10 +1,11 @@
 """Registry invariant tests for WP04 (T022).
 
 Asserts that after the WP04 edits:
-- ``vibe`` is present in AI_CHOICES, AGENT_TOOL_REQUIREMENTS, AGENT_SKILL_CONFIG.
+- ``vibe``, ``pi``, and ``letta`` are present in AI_CHOICES,
+  AGENT_TOOL_REQUIREMENTS, AGENT_SKILL_CONFIG.
 - ``codex`` is NOT in AGENT_COMMAND_CONFIG.
-- ``vibe`` is NOT in AGENT_COMMAND_CONFIG.
-- Both codex and vibe have class SKILL_CLASS_SHARED with .agents/skills/ as root.
+- ``vibe``, ``pi``, and ``letta`` are NOT in AGENT_COMMAND_CONFIG.
+- Command-skill agents have class SKILL_CLASS_SHARED with .agents/skills/ as root.
 - The twelve non-migrated command-layer agents are still present in AGENT_COMMAND_CONFIG.
 """
 
@@ -29,6 +30,11 @@ def test_vibe_in_ai_choices() -> None:
     assert AI_CHOICES["vibe"] == "Mistral Vibe"
 
 
+def test_pi_and_letta_in_ai_choices() -> None:
+    assert AI_CHOICES["pi"] == "Pi"
+    assert AI_CHOICES["letta"] == "Letta Code"
+
+
 # ---------------------------------------------------------------------------
 # AGENT_TOOL_REQUIREMENTS
 # ---------------------------------------------------------------------------
@@ -37,6 +43,11 @@ def test_vibe_in_ai_choices() -> None:
 def test_vibe_tool_requirement() -> None:
     assert "vibe" in AGENT_TOOL_REQUIREMENTS
     assert AGENT_TOOL_REQUIREMENTS["vibe"][0] == "vibe"
+
+
+def test_pi_and_letta_tool_requirements() -> None:
+    assert AGENT_TOOL_REQUIREMENTS["pi"][0] == "pi"
+    assert AGENT_TOOL_REQUIREMENTS["letta"][0] == "letta"
 
 
 # ---------------------------------------------------------------------------
@@ -50,6 +61,11 @@ def test_codex_not_in_command_config() -> None:
 
 def test_vibe_not_in_command_config() -> None:
     assert "vibe" not in AGENT_COMMAND_CONFIG
+
+
+def test_pi_and_letta_not_in_command_config() -> None:
+    assert "pi" not in AGENT_COMMAND_CONFIG
+    assert "letta" not in AGENT_COMMAND_CONFIG
 
 
 def test_twelve_agents_still_in_command_config() -> None:
@@ -77,8 +93,8 @@ def test_twelve_agents_still_in_command_config() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_codex_and_vibe_are_shared_skill_roots() -> None:
-    for key in ("codex", "vibe"):
+def test_command_skill_agents_are_shared_skill_roots() -> None:
+    for key in ("codex", "vibe", "pi", "letta"):
         assert key in AGENT_SKILL_CONFIG, f"{key!r} missing from AGENT_SKILL_CONFIG"
         entry = AGENT_SKILL_CONFIG[key]
         assert entry["class"] == SKILL_CLASS_SHARED, (

@@ -7,7 +7,7 @@ This is Spec Kitty's authoritative record of how each supported host surface tea
 **Schema and parity rubric**: see [kitty-specs/phase-4-closeout-host-surfaces-and-trail-01KPWA5X/contracts/host-surface-inventory.md](../kitty-specs/phase-4-closeout-host-surfaces-and-trail-01KPWA5X/contracts/host-surface-inventory.md).
 
 **Canonical skill packs referenced by `guidance_style=pointer` rows**:
-- [`.agents/skills/spec-kitty.advise/SKILL.md`](../.agents/skills/spec-kitty.advise/SKILL.md) — Codex CLI, Vibe.
+- [`.agents/skills/spec-kitty.advise/SKILL.md`](../.agents/skills/spec-kitty.advise/SKILL.md) — Codex CLI, Vibe, Pi, Letta Code.
 - [`src/doctrine/skills/spec-kitty-runtime-next/SKILL.md`](../src/doctrine/skills/spec-kitty-runtime-next/SKILL.md) — Claude Code.
 
 ---
@@ -29,3 +29,5 @@ This is Spec Kitty's authoritative record of how each supported host surface tea
 | agent | .agent/workflows/ | slash_command | yes | yes | yes | pointer | at_parity | Pointer at `.agent/workflows/spec-kitty-standalone.md` redirects to canonical `.agents/skills/spec-kitty.advise/SKILL.md`. Shipped by WP04 (T018). |
 | codex | .agents/skills/ | agent_skill | yes | yes | yes | inline | at_parity | Priority slice 3.2.0a5 shipped `.agents/skills/spec-kitty.advise/SKILL.md` with all three parity sections: "Discover profiles", "Get governance context (advise/ask/do)", "Governance context injection", and "Close the record". Codex CLI reads the `.agents/skills/` tree directly. Manifest at `.kittify/command-skills-manifest.json` records the installed package (agents: [codex]). |
 | vibe | .agents/skills/ | agent_skill | yes | yes | yes | inline | partial | The canonical skill pack at `.agents/skills/spec-kitty.advise/SKILL.md` is at parity (same content as codex). However, `.vibe/config.toml` is absent from this project — Vibe cannot load the skill pack without a `skill_paths` entry pointing at `.agents/skills/`. WP04 owned_files did not include `.vibe/config.toml`; the config.toml was not shipped. Remaining gap: add `.vibe/config.toml` with `skill_paths = [".agents/skills"]` to wire up Vibe's access to the existing skill pack. |
+| pi | .agents/skills/ | agent_skill | yes | yes | yes | inline | at_parity | Pi discovers project `.agents/skills/` directly, so the canonical Spec Kitty command-skill packages provide the same governance guidance used by Codex. Manifest at `.kittify/command-skills-manifest.json` records installed packages with agents including `pi`. |
+| letta | .agents/skills/ | agent_skill | yes | yes | yes | inline | at_parity | Letta Code prefers project `.agents/skills/`, so the canonical Spec Kitty command-skill packages provide the same governance guidance used by Codex. Manifest at `.kittify/command-skills-manifest.json` records installed packages with agents including `letta`. |

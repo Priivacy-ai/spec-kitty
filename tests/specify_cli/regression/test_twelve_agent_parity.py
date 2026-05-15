@@ -5,7 +5,7 @@ committed baseline under ``_twelve_agent_baseline/`` for every agent in
 ``AGENT_COMMAND_CONFIG`` (the twelve agents whose command-delivery mechanism
 was not changed by mission 083-agent-skills-codex-vibe).
 
-Codex and Vibe are intentionally excluded — they were migrated to the Agent
+Codex, Vibe, Pi, and Letta are intentionally excluded — they use the Agent
 Skills pipeline (``tests/specify_cli/skills/__snapshots__/`` covers them).
 
 Baseline note
@@ -51,7 +51,7 @@ TEMPLATES_DIR = (
 BASELINE_DIR = Path(__file__).parent / "_twelve_agent_baseline"
 
 # Agents covered by this regression suite — all keys in AGENT_COMMAND_CONFIG.
-# Codex and Vibe are absent: they use the Agent Skills pipeline.
+# Command-skill agents are absent: they use the Agent Skills pipeline.
 NON_MIGRATED_AGENTS: tuple[str, ...] = tuple(AGENT_COMMAND_CONFIG.keys())
 
 # Canonical command templates to test (one .md source file per command).
@@ -152,11 +152,11 @@ def test_command_output_unchanged(agent: str, command: str) -> None:
 
 
 def test_non_migrated_agents_count() -> None:
-    """Exactly 13 agents are in AGENT_COMMAND_CONFIG (codex and vibe are migrated to skills).
+    """Exactly 13 agents are in AGENT_COMMAND_CONFIG.
 
     Count rose from 12 to 13 when PR #626 registered Kiro as a first-class slash-command
-    agent alongside the 12 existing non-migrated agents. Codex and Vibe remain absent
-    (they use the Agent Skills pipeline — see AGENT_SKILL_CONFIG).
+    agent alongside the 12 existing non-migrated agents. Command-skill agents remain
+    absent (they use the Agent Skills pipeline — see AGENT_SKILL_CONFIG).
     """
     assert len(NON_MIGRATED_AGENTS) == 13, (
         f"Expected 13 non-migrated agents, got {len(NON_MIGRATED_AGENTS)}: "
@@ -179,6 +179,12 @@ def test_vibe_not_in_agent_command_config() -> None:
         "vibe was found in AGENT_COMMAND_CONFIG. "
         "Vibe uses the Agent Skills pipeline, not the command-file pipeline."
     )
+
+
+def test_pi_and_letta_not_in_agent_command_config() -> None:
+    """pi and letta must NOT be in AGENT_COMMAND_CONFIG."""
+    assert "pi" not in AGENT_COMMAND_CONFIG
+    assert "letta" not in AGENT_COMMAND_CONFIG
 
 
 @pytest.mark.parametrize("agent", NON_MIGRATED_AGENTS)
@@ -215,7 +221,7 @@ def test_agent_outputs_contain_arg_placeholder(agent: str) -> None:
 
     Verifies that $ARGUMENTS or {{args}} is present in at least one rendered
     command for the agent (the skill-renderer transformation must NOT have
-    been applied to these agents — that transformation is codex/vibe only).
+    been applied to these agents — that transformation is command-skill only).
     """
     config = AGENT_COMMAND_CONFIG[agent]
     expected_placeholder = config["arg_format"]

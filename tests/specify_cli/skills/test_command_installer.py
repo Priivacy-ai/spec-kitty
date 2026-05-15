@@ -122,6 +122,18 @@ class TestHappyPathInstall:
                 f"Entry {entry.path!r} has unexpected agents {entry.agents!r}"
             )
 
+    @pytest.mark.parametrize("agent_key", ["pi", "letta"])
+    def test_new_command_skill_agents_install_manifest_entries(
+        self, repo: Path, agent_key: str
+    ) -> None:
+        report = install(repo, agent_key)
+
+        assert len(report.added) == len(CANONICAL_COMMANDS)
+        manifest = manifest_store.load(repo)
+        assert len(manifest.entries) == len(CANONICAL_COMMANDS)
+        for entry in manifest.entries:
+            assert entry.agents == (agent_key,)
+
     def test_manifest_entries_have_correct_paths(self, repo: Path) -> None:
         install(repo, "vibe")
 
@@ -624,9 +636,8 @@ class TestVerifyOrphans:
 
 
 class TestConstants:
-    def test_supported_agents_contains_codex_and_vibe(self) -> None:
-        assert "codex" in SUPPORTED_AGENTS
-        assert "vibe" in SUPPORTED_AGENTS
+    def test_supported_agents_contains_command_skill_agents(self) -> None:
+        assert set(SUPPORTED_AGENTS) == {"codex", "vibe", "pi", "letta"}
 
     def test_canonical_commands_count(self) -> None:
         # Was 12 before 3.2.0a5; checklist retired (FR-003 / FR-004 / #815).

@@ -619,7 +619,7 @@ Manage project AI agent configuration (add, remove, list agents).
 spec-kitty agent config [OPTIONS] COMMAND [ARGS]...
 ```
 
-**Description**: The `config` subcommand provides tools for managing which AI agents are active in your project. Agent configuration is stored in `.kittify/config.yaml`; slash-command agents use user-global command roots, while Codex and Vibe use project-local command skills under `.agents/skills/`.
+**Description**: The `config` subcommand provides tools for managing which AI agents are active in your project. Agent configuration is stored in `.kittify/config.yaml`; slash-command agents use user-global command roots, while Codex, Vibe, Pi, and Letta use project-local command skills under `.agents/skills/`.
 
 **Subcommands**:
 
@@ -692,11 +692,11 @@ spec-kitty agent config add <agent1> [agent2] [agent3] ...
 
 **Description**:
 
-Adds specified agents to your project by registering slash-command agents against their global command roots, installing Codex/Vibe command skills where applicable, and updating `.kittify/config.yaml`.
+Adds specified agents to your project by registering slash-command agents against their global command roots, installing command skills where applicable, and updating `.kittify/config.yaml`.
 
 **Arguments**:
 
-- `<agents>`: Space-separated list of agent keys to add. Valid keys: `claude`, `codex`, `gemini`, `cursor`, `qwen`, `opencode`, `windsurf`, `kilocode`, `roo`, `copilot`, `auggie`, `q`.
+- `<agents>`: Space-separated list of agent keys to add. Valid keys: `claude`, `codex`, `gemini`, `cursor`, `qwen`, `opencode`, `windsurf`, `kilocode`, `roo`, `copilot`, `auggie`, `q`, `kiro`, `vibe`, `pi`, `letta`.
 
 **Options**: None
 
@@ -709,7 +709,7 @@ Adds specified agents to your project by registering slash-command agents agains
 **Side Effects**:
 
 - Uses the global command root for slash-command agents (e.g., `~/.claude/commands/`)
-- Creates project-local command skills for Codex and Vibe
+- Creates project-local command skills for Codex, Vibe, Pi, and Letta
 - Adds agent key to `.kittify/config.yaml` under `agents.available`
 
 **Examples**:
@@ -742,7 +742,8 @@ Error: Invalid agent keys: cluade
 
 Valid agent keys:
   claude, codex, gemini, cursor, qwen, opencode,
-  windsurf, kilocode, roo, copilot, auggie, q
+  windsurf, kilocode, roo, copilot, auggie, q, kiro,
+  antigravity, vibe, pi, letta
 ```
 
 #### spec-kitty agent config remove

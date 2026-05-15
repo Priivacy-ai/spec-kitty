@@ -13,11 +13,11 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 PARITY_DOC = REPO_ROOT / "docs/host-surface-parity.md"
 
 # Pulled from src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py::AGENT_DIRS
-# plus the 2 Agent Skills surfaces (codex, vibe).
+# plus Agent Skills surfaces.
 EXPECTED_SURFACES = frozenset({
     "claude", "copilot", "gemini", "cursor", "qwen",
     "opencode", "windsurf", "kilocode", "auggie", "roo",
-    "q", "kiro", "agent", "codex", "vibe",
+    "q", "kiro", "agent", "codex", "vibe", "pi", "letta",
 })
 
 VALID_PARITY_STATUS = {"at_parity", "partial", "missing"}

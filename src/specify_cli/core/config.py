@@ -18,6 +18,8 @@ AI_CHOICES = {
     "kiro": "Kiro CLI (formerly Amazon Q Developer CLI)",
     "antigravity": "Google Antigravity",
     "vibe": "Mistral Vibe",
+    "pi": "Pi",
+    "letta": "Letta Code",
 }
 
 MISSION_CHOICES = {
@@ -37,6 +39,8 @@ AGENT_TOOL_REQUIREMENTS: dict[str, tuple[str, str]] = {
     "q": ("q", "https://aws.amazon.com/developer/learning/q-developer-cli/"),
     "vibe": ("vibe", "https://github.com/mistralai/mistral-vibe"),
     "kiro": ("kiro-cli", "https://kiro.dev/docs/cli/"),
+    "pi": ("pi", "https://pi.dev/docs/latest"),
+    "letta": ("letta", "https://docs.letta.com/letta-code/cli/"),
 }
 
 SCRIPT_TYPE_CHOICES = {"sh": "POSIX Shell (bash/zsh)", "ps": "PowerShell"}
@@ -77,6 +81,8 @@ AGENT_SKILL_CONFIG: dict[str, dict[str, str | list[str] | None]] = {
     "windsurf":     {"class": SKILL_CLASS_SHARED,  "skill_roots": [".agents/skills/", ".windsurf/skills/"]},
     "codex":        {"class": SKILL_CLASS_SHARED,  "skill_roots": [".agents/skills/"]},
     "vibe":         {"class": SKILL_CLASS_SHARED,  "skill_roots": [".agents/skills/"]},
+    "pi":           {"class": SKILL_CLASS_SHARED,  "skill_roots": [".agents/skills/", ".pi/skills/"]},
+    "letta":        {"class": SKILL_CLASS_SHARED,  "skill_roots": [".agents/skills/"]},
     "kilocode":     {"class": SKILL_CLASS_NATIVE,  "skill_roots": [".kilocode/skills/"]},
     "auggie":       {"class": SKILL_CLASS_SHARED,  "skill_roots": [".agents/skills/", ".augment/skills/"]},
     "roo":          {"class": SKILL_CLASS_SHARED,  "skill_roots": [".agents/skills/", ".roo/skills/"]},

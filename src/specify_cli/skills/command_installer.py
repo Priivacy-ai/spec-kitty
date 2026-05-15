@@ -1,7 +1,8 @@
-"""Command-Skill Installer for Codex and Vibe.
+"""Command-Skill Installer for shared-root command-skill agents.
 
-This module owns all mutations under ``.agents/skills/`` for the Codex and Vibe
-agents.  It wraps :mod:`specify_cli.skills.manifest_store` (WP01) and
+This module owns all mutations under ``.agents/skills/`` for agents that consume
+Spec Kitty slash commands as Agent Skills.  It wraps
+:mod:`specify_cli.skills.manifest_store` (WP01) and
 :mod:`specify_cli.skills.command_renderer` (WP02) to provide three public
 operations:
 
@@ -39,7 +40,7 @@ from specify_cli.skills import command_renderer
 # Constants
 # ---------------------------------------------------------------------------
 
-SUPPORTED_AGENTS: tuple[str, ...] = ("codex", "vibe")
+SUPPORTED_AGENTS: tuple[str, ...] = ("codex", "vibe", "pi", "letta")
 
 #: The canonical command templates that exist in the current codebase.
 #: Matches the files under
@@ -255,7 +256,7 @@ def install(repo_root: Path, agent_key: str) -> InstallReport:
         Absolute path to the project root (the directory that contains
         ``.kittify/`` and ``.agents/``).
     agent_key:
-        One of :data:`SUPPORTED_AGENTS` (``"codex"`` or ``"vibe"``).
+        One of :data:`SUPPORTED_AGENTS`.
 
     Returns
     -------
@@ -367,7 +368,7 @@ def remove(repo_root: Path, agent_key: str) -> RemoveReport:
     repo_root:
         Absolute path to the project root.
     agent_key:
-        The agent to remove (``"codex"`` or ``"vibe"``).
+        The supported command-skill agent to remove.
 
     Returns
     -------
