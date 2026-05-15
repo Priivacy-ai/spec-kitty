@@ -7,6 +7,7 @@ requirement_refs:
 - C-007
 - FR-012
 - FR-013
+- FR-022
 - FR-025
 - NFR-003
 planning_base_branch: feat/org-doctrine-layer
