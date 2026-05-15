@@ -20,7 +20,8 @@ subtasks:
 - T008
 - T009
 - T010
-agent: codex
+agent: "codex:gpt-4o:python-pedro:implementer"
+shell_pid: "528784"
 history:
 - date: '2026-05-15'
   event: created
@@ -302,3 +303,7 @@ temp-path fixtures to set up shipped/org/project directories with YAML files.
    project-override, project-new.
 2. Verify `get_provenance()` returns `None` for unknown IDs (not raises `KeyError`).
 3. Confirm the three-layer invariants from `data-model.md` §6 are covered by tests.
+
+## Activity Log
+
+- 2026-05-15T13:02:13Z – codex:gpt-4o:python-pedro:implementer – shell_pid=528784 – Started implementation via action command
