@@ -24,6 +24,11 @@ from specify_cli.merge.conflict_classifier import (
     Auto,
     ConflictClassification,
     Manual,
+    _extract_module,
+    _parse_dep_lines,
+    _parse_import_lines,
+    _parse_url_entries,
+    _split_conflict_region,
     classify,
     r_default_manual,
     r_init_imports_union,
@@ -41,6 +46,20 @@ from specify_cli.merge.conflict_classifier import (
 
 def _hunk(ours: str, theirs: str) -> str:
     return f"<<<<<<< HEAD\n{ours}=======\n{theirs}>>>>>>> mission\n"
+
+
+class TestConflictRegionParsing:
+    def test_returns_none_when_no_conflict_header(self) -> None:
+        assert _split_conflict_region("plain text\n=======\ntheirs\n") is None
+
+    def test_returns_none_when_separator_or_theirs_marker_missing(self) -> None:
+        assert _split_conflict_region("<<<<<<< HEAD\nours only\n") is None
+
+    def test_diff3_base_section_is_dropped(self) -> None:
+        split = _split_conflict_region(
+            "<<<<<<< HEAD\nours\n||||||| base\nbase\n=======\ntheirs\n>>>>>>> branch\n"
+        )
+        assert split == ("ours\n", "theirs\n")
 
 
 class TestPyprojectDepsUnion:
@@ -81,6 +100,17 @@ class TestPyprojectDepsUnion:
         )
         assert cls is None
 
+    def test_returns_none_when_conflict_region_is_malformed(self) -> None:
+        cls = r_pyproject_deps_union(Path("pyproject.toml"), "<<<<<<< HEAD\n")
+        assert cls is None
+
+    def test_dep_parser_skips_comments_and_normalizes_commas(self) -> None:
+        parsed = _parse_dep_lines('  # comment\n  "httpx>=0.27"\n\n')
+        assert parsed == [("httpx", '  "httpx>=0.27",')]
+
+    def test_dep_parser_rejects_quoted_non_dependency_line(self) -> None:
+        assert _parse_dep_lines('  "!!!"\n') is None
+
 
 # ---------------------------------------------------------------------------
 # R-INIT-IMPORTS-UNION
@@ -119,6 +149,27 @@ class TestInitImportsUnion:
             _hunk("from .a import b\n", "from .c import d\n"),
         )
         assert cls is None
+
+    def test_returns_none_for_malformed_conflict_region(self) -> None:
+        cls = r_init_imports_union(Path("pkg/__init__.py"), "<<<<<<< HEAD\n")
+        assert cls is None
+
+    def test_returns_none_for_non_import_lines(self) -> None:
+        cls = r_init_imports_union(
+            Path("pkg/__init__.py"),
+            _hunk("from .a import A\n", "value = 1\n"),
+        )
+        assert cls is None
+
+    def test_import_parser_skips_comments_and_rejects_non_imports(self) -> None:
+        assert _parse_import_lines("# comment\n\nfrom .a import A\n") == [
+            ("from .a import a", "from .a import A")
+        ]
+        assert _parse_import_lines("not an import\n") is None
+
+    def test_extract_module_handles_import_and_non_import_lines(self) -> None:
+        assert _extract_module("import package.submodule, other") == "package.submodule"
+        assert _extract_module("value = 1") is None
 
 
 # ---------------------------------------------------------------------------
@@ -164,6 +215,24 @@ class TestUrlsListUnion:
             _hunk('    "x",\n', '    "y",\n'),
         )
         assert cls is None
+
+    def test_returns_none_for_malformed_conflict_region(self) -> None:
+        cls = r_urls_list_union(Path("app/urls.py"), "<<<<<<< HEAD\n")
+        assert cls is None
+
+    def test_returns_none_for_non_string_entries(self) -> None:
+        cls = r_urls_list_union(Path("app/urls.py"), _hunk("path('x')\n", '"y",\n'))
+        assert cls is None
+
+    def test_url_parser_skips_comments_and_normalizes_commas(self) -> None:
+        parsed = _parse_url_entries('    # comment\n    "alpha/"\n\n')
+        assert parsed == [("alpha/", '    "alpha/",')]
+
+    def test_url_rule_uses_empty_indent_when_ours_has_only_blank_lines(self) -> None:
+        cls = r_urls_list_union(Path("app/urls.py"), _hunk("\n", '"alpha/"\n'))
+        assert cls is not None
+        assert isinstance(cls.resolution, Auto)
+        assert cls.resolution.merged_text == '"alpha/",\n'
 
 
 # ---------------------------------------------------------------------------
@@ -268,6 +337,14 @@ class TestValidateResolution:
         assert isinstance(out.resolution, Manual)
         assert "post-merge validation failed" in out.resolution.reason
 
+    def test_manual_classification_skips_validation(self) -> None:
+        cls = ConflictClassification(
+            file_path=Path("pkg/__init__.py"),
+            hunk_text="",
+            resolution=Manual(reason="already manual"),
+        )
+        assert validate_resolution(cls, "def broken(:\n  pass") is cls
+
     def test_uvlock_sentinel_skips_validation(self) -> None:
         cls = ConflictClassification(
             file_path=Path("uv.lock"),
@@ -306,3 +383,15 @@ class TestFailSafeOnException:
         assert cls is not None
         assert isinstance(cls.resolution, Manual)
         assert "rule raised" in cls.resolution.reason
+
+    def test_dispatcher_exception_falls_back_to_manual(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The public dispatcher also converts unexpected rule exceptions to Manual."""
+        from specify_cli.merge import conflict_classifier as cc
+
+        def _boom(_path: Path, _hunk: str) -> None:
+            raise RuntimeError("dispatcher failure")
+
+        monkeypatch.setattr(cc, "RULES", (_boom,))
+        cls = cc.classify(Path("anything.py"), "<<<<<<< HEAD\n")
+        assert isinstance(cls.resolution, Manual)
+        assert "dispatcher caught" in cls.resolution.reason
