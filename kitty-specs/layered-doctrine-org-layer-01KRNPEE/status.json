@@ -1,7 +1,7 @@
 {
-  "event_count": 16,
-  "last_event_id": "01KRNVNX4D0SZK5B5RQQQZX2K6",
-  "materialized_at": "2026-05-15T13:02:13.133117+00:00",
+  "event_count": 17,
+  "last_event_id": "01KRNW1Q2Y44HXJ37AB03411WV",
+  "materialized_at": "2026-05-15T13:08:40.158743+00:00",
   "mission_number": "",
   "mission_slug": "layered-doctrine-org-layer-01KRNPEE",
   "mission_type": "software-dev",
@@ -11,8 +11,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 1,
+    "for_review": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 7
   },
@@ -25,11 +25,11 @@
       "last_transition_at": "2026-05-15T13:01:41.817033+00:00"
     },
     "WP02": {
-      "actor": "codex:gpt-4o:python-pedro:implementer",
+      "actor": "user",
       "force_count": 1,
-      "lane": "in_progress",
-      "last_event_id": "01KRNVNX4D0SZK5B5RQQQZX2K6",
-      "last_transition_at": "2026-05-15T13:02:13.133117+00:00"
+      "lane": "for_review",
+      "last_event_id": "01KRNW1Q2Y44HXJ37AB03411WV",
+      "last_transition_at": "2026-05-15T13:08:40.158743+00:00"
     },
     "WP03": {
       "actor": "finalize-tasks",
