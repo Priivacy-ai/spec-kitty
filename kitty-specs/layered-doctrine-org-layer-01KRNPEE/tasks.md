@@ -79,11 +79,11 @@ After this WP, any DRG directory can contain either a single `graph.yaml` or mul
 `*.graph.yaml` fragment files, and all existing tests pass unchanged.
 
 **Included subtasks**:
-- [ ] T001 Add `load_graph_or_dir(path)` to `doctrine/drg/loader.py`
-- [ ] T002 Export `load_graph_or_dir` from `doctrine/drg/__init__.py`
-- [ ] T003 Update `_drg_helpers.load_validated_graph()` to use `load_graph_or_dir`
-- [ ] T004 Update all hardcoded `graph.yaml` call sites in charter synthesizer pipeline
-- [ ] T005 Unit tests for `load_graph_or_dir`
+- [x] T001 Add `load_graph_or_dir(path)` to `doctrine/drg/loader.py`
+- [x] T002 Export `load_graph_or_dir` from `doctrine/drg/__init__.py`
+- [x] T003 Update `_drg_helpers.load_validated_graph()` to use `load_graph_or_dir`
+- [x] T004 Update all hardcoded `graph.yaml` call sites in charter synthesizer pipeline
+- [x] T005 Unit tests for `load_graph_or_dir`
 
 **Parallel opportunities**: T002 and T005 can start after T001. T004 is independent of T003.
 
