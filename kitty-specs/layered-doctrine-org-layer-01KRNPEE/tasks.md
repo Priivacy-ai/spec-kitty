@@ -279,10 +279,10 @@ local overlays or deprecated constitution-era paths), and an explanation of the 
 resolution model. Update `toc.yml`.
 
 **Included subtasks**:
-- [ ] T038 Write `docs/how-to/create-an-org-doctrine-pack.md`
-- [ ] T039 Write `docs/migration/doctrine-local-overlay-to-org-layer.md`
-- [ ] T040 Write `docs/explanation/org-doctrine-layer.md`
-- [ ] T041 Update `docs/toc.yml` and verify cross-references
+- [x] T038 Write `docs/how-to/create-an-org-doctrine-pack.md`
+- [x] T039 Write `docs/migration/doctrine-local-overlay-to-org-layer.md`
+- [x] T040 Write `docs/explanation/org-doctrine-layer.md`
+- [x] T041 Update `docs/toc.yml` and verify cross-references
 - [ ] T049 Add `org-charter.yaml` authoring section to pack authoring guide and explanation doc
 
 **Parallel opportunities**: T038, T039, and T040 are independent. T049 can run alongside T040. T041 requires all of T038–T040 and T049.
