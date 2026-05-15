@@ -20,8 +20,8 @@ subtasks:
 - T039
 - T040
 - T041
-agent: "claude:opus-4-7:python-pedro:implementer"
-shell_pid: "715492"
+agent: "codex:gpt-4o:reviewer-renata:reviewer"
+shell_pid: "726713"
 history:
 - date: '2026-05-15'
   event: created
@@ -315,3 +315,4 @@ Verify all document links resolve (no 404s). Fix any broken references.
 
 - 2026-05-15T15:04:20Z – claude:opus-4-7:python-pedro:implementer – shell_pid=715492 – Started implementation via action command
 - 2026-05-15T15:12:32Z – claude:opus-4-7:python-pedro:implementer – shell_pid=715492 – Three user-facing docs (explanation/how-to/migration) + toc updates + org-charter.yaml authoring sections in how-to Step 3 and explanation 'Org charter composition'. All CLI commands verified against WP05/WP06/WP07 --help output. All cross-references validated. YAML parses cleanly.
+- 2026-05-15T15:13:09Z – codex:gpt-4o:reviewer-renata:reviewer – shell_pid=726713 – Started review via action command
