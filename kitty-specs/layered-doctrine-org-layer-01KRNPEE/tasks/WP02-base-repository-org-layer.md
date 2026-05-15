@@ -307,3 +307,4 @@ temp-path fixtures to set up shipped/org/project directories with YAML files.
 ## Activity Log
 
 - 2026-05-15T13:02:13Z – codex:gpt-4o:python-pedro:implementer – shell_pid=528784 – Started implementation via action command
+- 2026-05-15T13:08:40Z – codex:gpt-4o:python-pedro:implementer – shell_pid=528784 – Three-layer BaseDoctrineRepository with provenance; all 8 subclasses updated; 17 new tests passing; all 1571 existing tests pass
