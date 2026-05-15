@@ -213,10 +213,17 @@ def emit_wp_status_changed(
     review_ref: str | None = None,
     execution_mode: str | None = None,
     evidence: dict[str, Any] | None = None,
+    occurred_at: str | None = None,
     *,
     ensure_daemon: bool = True,
 ) -> dict[str, Any] | None:
-    """Emit WPStatusChanged event via singleton."""
+    """Emit WPStatusChanged event via singleton.
+
+    ``occurred_at`` is the producer occurrence time (e.g. ``StatusEvent.at``)
+    and is threaded into the wire envelope's ``timestamp`` field so SaaS
+    persists the local lane-transition moment rather than the sync-emission
+    clock (Rule R-T-01 in spec-kitty-events).
+    """
     repo_root = _ensure_dashboard_sync_daemon_for_active_project(ensure_daemon=ensure_daemon)
     resolved_mission_id = mission_id or _resolve_mission_id_for_slug(repo_root, mission_slug)
     event = get_emitter().emit_wp_status_changed(
@@ -233,6 +240,7 @@ def emit_wp_status_changed(
         review_ref=review_ref,
         execution_mode=execution_mode,
         evidence=evidence,
+        occurred_at=occurred_at,
     )
     if event is not None:
         _publish_event_via_sync_daemon(event, repo_root)
@@ -325,7 +333,6 @@ def emit_mission_created(
     return event
 
 
-
 def emit_mission_closed(
     mission_slug: str,
     total_wps: int,
@@ -352,7 +359,6 @@ def emit_mission_closed(
         _publish_event_via_sync_daemon(event, repo_root)
         _request_dashboard_sync(repo_root)
     return event
-
 
 
 def emit_history_added(
