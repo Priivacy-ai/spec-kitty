@@ -698,6 +698,7 @@ class TestConvenienceFunctions:
             review_ref=None,
             execution_mode=None,
             evidence=None,
+            occurred_at=None,
         )
 
     @patch("specify_cli.sync.events.get_emitter")
