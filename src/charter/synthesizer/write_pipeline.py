@@ -212,7 +212,7 @@ def _compute_content_hash(yaml_bytes: bytes) -> str:
 
 
 def _is_generic_scoped(
-    target_kind: str,  # noqa: ARG001 — reserved for future kind-level rules
+    _target_kind: str,
     target_slug: str,
     evidence: EvidenceBundle | None,
 ) -> bool:
