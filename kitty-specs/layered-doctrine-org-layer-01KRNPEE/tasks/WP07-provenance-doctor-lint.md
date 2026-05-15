@@ -468,3 +468,4 @@ JSON output: add `"org_charter"` key to each pack entry in the JSON response.
 ## Activity Log
 
 - 2026-05-15T14:14:32Z – claude:opus-4-7:python-pedro:implementer – shell_pid=634691 – Started implementation via action command
+- 2026-05-15T14:29:46Z – claude:opus-4-7:python-pedro:implementer – shell_pid=634691 – WP07 complete: provenance source field in charter context --json, doctor doctrine subcommand with per-pack version + counts + org-charter status, two advisory lint checkers (OrgOverridesBuiltin + OrgCharterDeviation), routed context.py DRG through load_validated_graph helper. 9/9 integration tests + 8/8 architectural layer tests pass.
