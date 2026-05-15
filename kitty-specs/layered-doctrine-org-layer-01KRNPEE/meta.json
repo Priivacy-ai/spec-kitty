@@ -8,5 +8,7 @@
   "purpose_context": "Spec-kitty currently resolves doctrine from two layers: shipped defaults and project-local overrides. Organisations adopting spec-kitty across multiple teams need a stable, versioned, per-machine governance layer that all their projects inherit automatically — without per-project bootstrap or CLI forks. This mission adds that third layer: the org layer. It covers the DoctrineService extension, multi-file DRG loading, a fetch command supporting git, HTTPS bundle, and API sources, a pack authoring surface (validate and assemble), and provenance tracking throughout the charter context surface.",
   "purpose_tldr": "Add an organisation-level doctrine layer to spec-kitty so teams can distribute proprietary governance artifacts across all their projects without forking the CLI.",
   "slug": "layered-doctrine-org-layer-01KRNPEE",
-  "target_branch": "feat/org-doctrine-layer"
+  "target_branch": "feat/org-doctrine-layer",
+  "vcs": "git",
+  "vcs_locked_at": "2026-05-15T12:53:52.177354+00:00"
 }

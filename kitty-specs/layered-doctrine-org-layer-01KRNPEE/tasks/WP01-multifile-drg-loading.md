@@ -9,6 +9,9 @@ requirement_refs:
 planning_base_branch: feat/org-doctrine-layer
 merge_target_branch: feat/org-doctrine-layer
 branch_strategy: Planning artifacts for this mission were generated on feat/org-doctrine-layer. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/org-doctrine-layer unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-layered-doctrine-org-layer-01KRNPEE
+base_commit: a81e15f01c4754be50d6e99e594b3389a391ac94
+created_at: '2026-05-15T12:53:52.736632+00:00'
 subtasks:
 - T001
 - T002
@@ -16,6 +19,7 @@ subtasks:
 - T004
 - T005
 agent: codex
+shell_pid: '503166'
 history:
 - date: '2026-05-15'
   event: created
