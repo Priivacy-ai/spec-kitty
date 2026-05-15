@@ -107,9 +107,9 @@ class TestNFR008CrossReference:
             "per the NFR-008 cross-reference contract."
         )
 
-    def test_ten_members(self) -> None:
-        """Exactly 10 diagnostic codes defined (per data-model.md §1)."""
-        assert len(list(MissionReviewDiagnostic)) == 10, (
-            f"Expected 10 MissionReviewDiagnostic members, "
+    def test_member_count(self) -> None:
+        """Exactly 12 diagnostic codes defined (10 original + 2 added by issue #989)."""
+        assert len(list(MissionReviewDiagnostic)) == 12, (
+            f"Expected 12 MissionReviewDiagnostic members, "
             f"got {len(list(MissionReviewDiagnostic))}: {list(MissionReviewDiagnostic)}"
         )

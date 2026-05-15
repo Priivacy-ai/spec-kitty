@@ -150,6 +150,86 @@ def _section_is_nonempty(snapshot: dict[str, Any], section_label: str) -> bool:
     return bool(_section_answer(snapshot, section_label))
 
 
+def _append_table_driven_results(
+    results: list[tuple[str, dict[str, Any]]],
+    interview_snapshot: dict[str, Any],
+) -> None:
+    """Append the standard fixed-cardinality section mappings."""
+    for mapping in INTERVIEW_MAPPINGS:
+        label = mapping.section_label
+        answer = _section_answer(interview_snapshot, label)
+
+        if mapping.requires_nonempty and not answer:
+            continue
+
+        results.append(
+            (
+                label,
+                {
+                    "answer": answer,
+                    "kinds": list(mapping.kinds),
+                    "source_section": label,
+                },
+            )
+        )
+
+
+def _iter_clean_strings(raw_values: object) -> tuple[str, ...]:
+    """Return stripped non-empty strings from a scalar or sequence input."""
+    if isinstance(raw_values, str):
+        cleaned = raw_values.strip()
+        return (cleaned,) if cleaned else ()
+    if isinstance(raw_values, (list, tuple)):
+        return tuple(
+            item.strip()
+            for item in raw_values
+            if isinstance(item, str) and item.strip()
+        )
+    return ()
+
+
+def _append_selected_directives(
+    results: list[tuple[str, dict[str, Any]]],
+    interview_snapshot: dict[str, Any],
+) -> None:
+    """Append one tactic entry per selected directive."""
+    for directive_id in _iter_clean_strings(
+        interview_snapshot.get("selected_directives", [])
+    ):
+        results.append(
+            (
+                "selected_directives",
+                {
+                    "answer": directive_id,
+                    "kinds": ["tactic"],
+                    "source_section": "selected_directives",
+                    "source_urns": (f"directive:{directive_id}",),
+                    "directive_id": directive_id,
+                },
+            )
+        )
+
+
+def _append_language_scope_results(
+    results: list[tuple[str, dict[str, Any]]],
+    interview_snapshot: dict[str, Any],
+) -> None:
+    """Append one styleguide entry per declared language."""
+    for language in _iter_clean_strings(interview_snapshot.get("language_scope", [])):
+        normalized_language = language.lower()
+        results.append(
+            (
+                "language_scope",
+                {
+                    "answer": normalized_language,
+                    "kinds": ["styleguide"],
+                    "source_section": "language_scope",
+                    "language": normalized_language,
+                },
+            )
+        )
+
+
 def resolve_sections(
     interview_snapshot: dict[str, Any],
     *,
@@ -186,77 +266,8 @@ def resolve_sections(
 
     results: list[tuple[str, dict[str, Any]]] = []
 
-    # --- Standard table-driven sections ---
-    for mapping in INTERVIEW_MAPPINGS:
-        label = mapping.section_label
-        answer = _section_answer(interview_snapshot, label)
-
-        if mapping.requires_nonempty and not answer:
-            continue  # gate: skip when answer is blank
-
-        results.append(
-            (
-                label,
-                {
-                    "answer": answer,
-                    "kinds": list(mapping.kinds),
-                    "source_section": label,
-                },
-            )
-        )
-
-    # --- Expanded section: selected_directives ---
-    # Each selected directive slug drives a tactic: "how-we-apply-<directive-id>"
-    raw_directives = interview_snapshot.get("selected_directives", [])
-    if isinstance(raw_directives, (list, tuple)):
-        for item in raw_directives:
-            if not isinstance(item, str) or not item.strip():
-                continue
-            directive_id = item.strip()
-            results.append(
-                (
-                    "selected_directives",
-                    {
-                        "answer": directive_id,
-                        "kinds": ["tactic"],
-                        "source_section": "selected_directives",
-                        "source_urns": (f"directive:{directive_id}",),
-                        "directive_id": directive_id,
-                    },
-                )
-            )
-
-    # --- Expanded section: language_scope ---
-    # Each listed language drives a styleguide: "<lang>-style-guide"
-    raw_languages = interview_snapshot.get("language_scope", [])
-    if isinstance(raw_languages, (list, tuple)):
-        for item in raw_languages:
-            if not isinstance(item, str) or not item.strip():
-                continue
-            lang = item.strip().lower()
-            results.append(
-                (
-                    "language_scope",
-                    {
-                        "answer": lang,
-                        "kinds": ["styleguide"],
-                        "source_section": "language_scope",
-                        "language": lang,
-                    },
-                )
-            )
-    elif isinstance(raw_languages, str) and raw_languages.strip():
-        lang = raw_languages.strip().lower()
-        results.append(
-            (
-                "language_scope",
-                {
-                    "answer": lang,
-                    "kinds": ["styleguide"],
-                    "source_section": "language_scope",
-                    "language": lang,
-                },
-            )
-        )
+    _append_table_driven_results(results, interview_snapshot)
+    _append_selected_directives(results, interview_snapshot)
+    _append_language_scope_results(results, interview_snapshot)
 
     return results

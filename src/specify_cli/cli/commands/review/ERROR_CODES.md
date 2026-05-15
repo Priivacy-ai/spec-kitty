@@ -214,3 +214,43 @@ MISSION_REVIEW_MISSION_EXCEPTION_INVALID: mission-exception.md is present but mi
 ```text
 MISSION_REVIEW_TEST_EXTRA_MISSING: pytest is not importable from the active Python interpreter. Run `uv sync --extra test` to install the test extra, then retry.
 ```
+
+---
+
+## LIGHTWEIGHT_REVIEW_MISSING_BASELINE
+
+**Code**: `LIGHTWEIGHT_REVIEW_MISSING_BASELINE`
+
+**When it fires**: `spec-kitty review --mode lightweight` is run against a modern mission (one whose `meta.json` has a populated `mission_id` — the ULID introduced by mission 083) whose `baseline_merge_commit` is still `null`. Without a baseline commit the dead-code scan cannot compute a diff, so the gate now fails-hard instead of silently passing. See issue [#989](https://github.com/Priivacy-ai/spec-kitty/issues/989).
+
+**JSON stability**: this code string is stable across minor releases; consumers may match it as an opaque identifier.
+
+**Remediation**:
+1. Run `spec-kitty merge` to bake `baseline_merge_commit` into `meta.json`, then re-run `spec-kitty review --mode lightweight`.
+2. Or, if the mission is already merged, run `spec-kitty review --mode post-merge` instead.
+
+**Body example**:
+
+```text
+LIGHTWEIGHT_REVIEW_MISSING_BASELINE: dead-code scan cannot run without baseline_merge_commit on a modern mission. Run `spec-kitty merge` to bake one, or use `--mode post-merge` after merge.
+```
+
+---
+
+## LEGACY_MISSION_DEAD_CODE_SKIP
+
+**Code**: `LEGACY_MISSION_DEAD_CODE_SKIP`
+
+**When it fires**: `spec-kitty review --mode lightweight` is run against a genuinely legacy mission (one whose `meta.json` has no `mission_id` field — i.e., predates the mission 083 canonical-identity migration) whose `baseline_merge_commit` is still `null`. The dead-code scan is skipped, but the verdict is tagged with this code so the skip is greppable and cannot be confused with a clean post-083 scan.
+
+**JSON stability**: this code string is stable across minor releases; consumers may match it as an opaque identifier.
+
+**Remediation**:
+1. Run `spec-kitty migrate backfill-identity` to bring the legacy mission onto the canonical identity schema, then re-run review.
+2. Or, accept the skipped scan as historical and continue.
+
+**Body example**:
+
+```text
+LEGACY_MISSION_DEAD_CODE_SKIP: dead-code scan skipped on a pre-083 mission. Run `spec-kitty migrate backfill-identity` to bring the mission onto the canonical identity schema.
+```

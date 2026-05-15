@@ -466,7 +466,7 @@ def run(
 
     # Fallback: return the first result if the primary target was not produced
     # from the interview (direct target call).
-    first_body, first_prov = results[0]
+    _, first_prov = results[0]
     first_target = all_targets[0]
     return SynthesisResult(
         target_kind=first_target.kind,

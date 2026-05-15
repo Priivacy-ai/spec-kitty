@@ -188,7 +188,16 @@ def review_mission(
     # Step 2 — Dead-code scan (Gate 2)
     # ==================================================================
     dead_code_findings_before = len(findings)
-    scan_dead_code(baseline_merge_commit, repo_root, console, findings)
+    _mission_id_raw = meta.get("mission_id")
+    _mission_id: str | None = str(_mission_id_raw) if _mission_id_raw else None
+    scan_dead_code(
+        baseline_merge_commit,
+        repo_root,
+        console,
+        findings,
+        mission_id=_mission_id,
+        mission_slug=mission_slug,
+    )
     gate2_result: str = "fail" if len(findings) > dead_code_findings_before else "pass"
     gates_recorded.append(
         GateRecord(

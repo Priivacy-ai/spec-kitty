@@ -25,6 +25,8 @@ DEFAULT_MAX_QUEUE_SIZE = 100_000
 # ``OfflineQueueFull`` for the caller to translate into a recoverable
 # CLI experience (drain to overflow file, re-queue).
 DEFAULT_STRICT_CAP_SIZE = 10_000
+NAMESPACE_PROJECT_UUID = "namespace.project_uuid"
+NAMESPACE_MISSION_SLUG = "namespace.mission_slug"
 
 
 class OfflineQueueFull(RuntimeError):
@@ -47,14 +49,245 @@ class OfflineQueueFull(RuntimeError):
 # arrives and an equivalent event (same type + coalesce key) already exists in
 # the queue, the existing row is updated in-place rather than inserting a new
 # row.  This prevents high-volume instrumentation from flooding the queue.
+#
+# Field paths use dotted notation when the field lives inside a sub-object
+# (e.g. ``namespace.project_uuid``). The resolver looks at the top-level
+# event envelope first, then at the nested payload, walking the dotted path
+# at each location.
 COALESCEABLE_EVENT_TYPES: dict[str, list[str]] = {
-    # project_uuid scopes the key so events from different repos/branches
-    # sharing the same mission_slug+artifact_key never collide.
-    "MissionDossierArtifactIndexed": ["project_uuid", "mission_slug", "artifact_key"],
-    # Snapshot IDs are regenerated on each scan, so coalesce by project+feature
-    # to keep only the latest snapshot queued for a given dossier.
-    "MissionDossierSnapshotComputed": ["project_uuid", "mission_slug"],
+    # namespace.project_uuid scopes the key so events from different repos/
+    # branches sharing the same mission_slug+path never collide.
+    "MissionDossierArtifactIndexed": [
+        NAMESPACE_PROJECT_UUID,
+        NAMESPACE_MISSION_SLUG,
+        "artifact_id.path",
+    ],
+    # Snapshot hashes are regenerated on each scan, so coalesce by
+    # project+mission to keep only the latest snapshot queued for a given
+    # dossier.
+    "MissionDossierSnapshotComputed": [
+        NAMESPACE_PROJECT_UUID,
+        NAMESPACE_MISSION_SLUG,
+    ],
 }
+
+LEGACY_COALESCE_FIELD_FALLBACKS: dict[tuple[str, str], list[str]] = {
+    ("MissionDossierArtifactIndexed", NAMESPACE_PROJECT_UUID): ["project_uuid"],
+    ("MissionDossierArtifactIndexed", NAMESPACE_MISSION_SLUG): ["mission_slug"],
+    ("MissionDossierArtifactIndexed", "artifact_id.path"): ["relative_path", "artifact_key"],
+    ("MissionDossierSnapshotComputed", NAMESPACE_PROJECT_UUID): ["project_uuid"],
+    ("MissionDossierSnapshotComputed", NAMESPACE_MISSION_SLUG): ["mission_slug"],
+}
+
+
+def _resolve_dotted(container: Any, path: str) -> Any:
+    """Walk a dotted field path inside a nested dict, returning ``None`` on miss."""
+    current = container
+    for segment in path.split("."):
+        if not isinstance(current, dict):
+            return None
+        current = current.get(segment)
+        if current is None:
+            return None
+    return current
+
+
+def _resolve_event_or_payload(event: dict[str, Any], payload: dict[str, Any], path: str) -> Any:
+    """Resolve a field path against the event envelope, then its payload."""
+    value = _resolve_dotted(event, path)
+    if value is not None:
+        return value
+    return _resolve_dotted(payload, path)
+
+
+def _normalize_legacy_artifact_class(value: Any) -> str:
+    if value == "other":
+        return "runtime"
+    if isinstance(value, str) and value:
+        return value
+    return "runtime"
+
+
+def _string_context(values: dict[str, Any]) -> dict[str, str]:
+    return {key: str(value) for key, value in values.items() if value is not None}
+
+
+def _legacy_namespace(event: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any] | None:
+    namespace = payload.get("namespace") or event.get("namespace")
+    if isinstance(namespace, dict):
+        return namespace
+    return None
+
+
+def _legacy_content_ref(payload: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "algorithm": "sha256",
+        "hash": str(payload.get("content_hash_sha256", "")),
+        "size_bytes": int(payload.get("size_bytes") or 0),
+    }
+
+
+def _build_legacy_artifact_indexed_payload(
+    event: dict[str, Any],
+    payload: dict[str, Any],
+    namespace: dict[str, Any],
+) -> dict[str, Any] | None:
+    if "artifact_id" in payload:
+        return None
+    relative_path = str(payload.get("relative_path") or payload.get("artifact_key") or "")
+    return {
+        "namespace": namespace,
+        "artifact_id": {
+            "mission_type": str(namespace.get("mission_type") or "software-dev"),
+            "path": relative_path,
+            "artifact_class": _normalize_legacy_artifact_class(payload.get("artifact_class")),
+            "wp_id": payload.get("wp_id"),
+        },
+        "content_ref": _legacy_content_ref(payload),
+        "indexed_at": str(payload.get("indexed_at") or event.get("timestamp") or datetime.now(UTC).isoformat()),
+        "step_id": payload.get("step_id"),
+        "context_diagnostics": _string_context(
+            {
+                "artifact_key": payload.get("artifact_key"),
+                "required_status": payload.get("required_status"),
+            }
+        ),
+    }
+
+
+def _build_legacy_artifact_missing_payload(
+    event: dict[str, Any],
+    payload: dict[str, Any],
+    namespace: dict[str, Any],
+) -> dict[str, Any] | None:
+    if "expected_identity" in payload:
+        return None
+    expected_path = str(payload.get("expected_path_pattern") or payload.get("artifact_key") or "")
+    return {
+        "namespace": namespace,
+        "expected_identity": {
+            "mission_type": str(namespace.get("mission_type") or "software-dev"),
+            "path": expected_path,
+            "artifact_class": _normalize_legacy_artifact_class(payload.get("artifact_class")),
+        },
+        "manifest_step": str(payload.get("step_id") or "default"),
+        "checked_at": str(payload.get("checked_at") or event.get("timestamp") or datetime.now(UTC).isoformat()),
+        "remediation_hint": payload.get("reason_detail"),
+        "context_diagnostics": _string_context(
+            {
+                "artifact_key": payload.get("artifact_key"),
+                "reason_code": payload.get("reason_code"),
+                "reason_detail": payload.get("reason_detail"),
+                "blocking": payload.get("blocking"),
+            }
+        ),
+    }
+
+
+def _build_legacy_snapshot_payload(
+    event: dict[str, Any],
+    payload: dict[str, Any],
+    namespace: dict[str, Any],
+) -> dict[str, Any] | None:
+    if "snapshot_hash" in payload:
+        return None
+    counts: dict[str, Any] = {}
+    raw_counts = payload.get("artifact_counts")
+    if isinstance(raw_counts, dict):
+        counts = raw_counts
+    return {
+        "namespace": namespace,
+        "snapshot_hash": str(payload.get("parity_hash_sha256") or ""),
+        "artifact_count": int(counts.get("total") or 0),
+        "anomaly_count": int(counts.get("required_missing") or 0),
+        "computed_at": str(payload.get("computed_at") or event.get("timestamp") or datetime.now(UTC).isoformat()),
+        "algorithm": "sha256",
+        "context_diagnostics": _string_context(
+            {
+                "snapshot_id": payload.get("snapshot_id"),
+                "completeness_status": payload.get("completeness_status"),
+                "required": counts.get("required"),
+                "required_present": counts.get("required_present"),
+                "optional": counts.get("optional"),
+                "optional_present": counts.get("optional_present"),
+            }
+        ),
+    }
+
+
+def _build_legacy_parity_drift_payload(
+    event: dict[str, Any],
+    payload: dict[str, Any],
+    namespace: dict[str, Any],
+) -> dict[str, Any] | None:
+    if "expected_hash" in payload:
+        return None
+    changed_paths = [
+        str(path)
+        for path in (payload.get("missing_in_local") or []) + (payload.get("missing_in_baseline") or [])
+    ]
+    return {
+        "namespace": namespace,
+        "expected_hash": str(payload.get("baseline_parity_hash") or ""),
+        "actual_hash": str(payload.get("local_parity_hash") or ""),
+        "drift_kind": str(payload.get("drift_kind") or "anomaly_introduced"),
+        "detected_at": str(payload.get("detected_at") or event.get("timestamp") or datetime.now(UTC).isoformat()),
+        "artifact_ids_changed": [
+            {
+                "mission_type": str(namespace.get("mission_type") or "software-dev"),
+                "path": path,
+                "artifact_class": "evidence",
+            }
+            for path in changed_paths
+        ],
+        "context_diagnostics": _string_context(
+            {
+                "severity": payload.get("severity"),
+                "missing_in_local": ",".join(str(path) for path in payload.get("missing_in_local") or []),
+                "missing_in_baseline": ",".join(str(path) for path in payload.get("missing_in_baseline") or []),
+            }
+        ),
+    }
+
+
+def _migrate_legacy_dossier_payload(event: dict[str, Any]) -> dict[str, Any]:
+    """Return *event* with legacy flat dossier payloads upgraded if possible.
+
+    Operators can have old MissionDossier* events in SQLite after upgrading.
+    Those rows were emitted before spec-kitty-events 5.0.0 made the
+    namespaced envelope mandatory; transforming them during drain keeps the
+    queue from repeatedly submitting events the server will reject with
+    ``Additional properties are not allowed``.
+    """
+    payload = event.get("payload")
+    if not isinstance(payload, dict):
+        return event
+
+    event_type = str(event.get("event_type", ""))
+    namespace = _legacy_namespace(event, payload)
+    if namespace is None:
+        return event
+
+    builders: dict[str, Any] = {
+        "MissionDossierArtifactIndexed": _build_legacy_artifact_indexed_payload,
+        "MissionDossierArtifactMissing": _build_legacy_artifact_missing_payload,
+        "MissionDossierSnapshotComputed": _build_legacy_snapshot_payload,
+        "MissionDossierParityDriftDetected": _build_legacy_parity_drift_payload,
+    }
+    builder = builders.get(event_type)
+    migrated_payload = None if builder is None else builder(event, payload, namespace)
+
+    if migrated_payload is None:
+        return event
+
+    cleaned_payload = {
+        key: value
+        for key, value in migrated_payload.items()
+        if value is not None and value != {} and value != []
+    }
+    migrated = dict(event)
+    migrated["payload"] = cleaned_payload
+    return migrated
 
 
 def _coalesce_key(event: dict[str, Any]) -> str | None:
@@ -62,7 +295,9 @@ def _coalesce_key(event: dict[str, Any]) -> str | None:
 
     The key is built from the event_type and the fields listed in
     COALESCEABLE_EVENT_TYPES. Fields may live either on the top-level event
-    envelope (for example ``project_uuid``) or inside ``payload``.
+    envelope (for example ``project_uuid``) or inside ``payload``. Dotted
+    paths (e.g. ``namespace.project_uuid``) navigate sub-objects in either
+    location.
     """
     event_type = str(event.get("event_type", ""))
     key_fields = COALESCEABLE_EVENT_TYPES.get(event_type)
@@ -71,9 +306,14 @@ def _coalesce_key(event: dict[str, Any]) -> str | None:
     payload = event.get("payload") or {}
     parts = [event_type]
     for field_name in key_fields:
-        value = event.get(field_name)
+        value = _resolve_event_or_payload(event, payload, field_name)
         if value is None:
-            value = payload.get(field_name, "")
+            for fallback in LEGACY_COALESCE_FIELD_FALLBACKS.get((event_type, field_name), []):
+                value = _resolve_event_or_payload(event, payload, fallback)
+                if value is not None:
+                    break
+        if value is None:
+            value = ""
         parts.append(str(value))
     return "|".join(parts)
 
@@ -885,7 +1125,7 @@ class OfflineQueue:
             events: list[dict[str, Any]] = []
             for row in cursor:
                 _, data = row
-                events.append(json.loads(data))
+                events.append(_migrate_legacy_dossier_payload(json.loads(data)))
             return events
         finally:
             conn.close()
@@ -985,7 +1225,11 @@ class OfflineQueue:
                 except (TypeError, ValueError):
                     continue
                 payload = event.get("payload") or {}
-                event_project_uuid = event.get("project_uuid") or payload.get("project_uuid")
+                event_project_uuid = (
+                    _resolve_event_or_payload(event, payload, "namespace.project_uuid")
+                    or event.get("project_uuid")
+                    or payload.get("project_uuid")
+                )
                 if str(event_project_uuid or "") == project_uuid:
                     matching_ids.append(str(event_id))
 

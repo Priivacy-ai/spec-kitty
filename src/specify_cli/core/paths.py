@@ -8,6 +8,8 @@ from pathlib import Path
 
 from .constants import KITTIFY_DIR, WORKTREES_DIR
 
+_GITDIR_PREFIX = "gitdir:"
+
 
 def _is_worktree_gitdir(gitdir: Path) -> bool:
     """Check if a gitdir path has the .git/worktrees/<name> topology.
@@ -32,7 +34,7 @@ def _read_worktree_gitdir(git_marker: Path) -> Path | None:
     except OSError:
         return None
 
-    if not content.startswith("gitdir:"):
+    if not content.startswith(_GITDIR_PREFIX):
         return None
 
     gitdir = Path(content.split(":", 1)[1].strip())
@@ -89,7 +91,7 @@ def locate_project_root(start: Path | None = None) -> Path | None:
             # pointer when it has the .git/worktrees/<name> topology.
             try:
                 content = git_path.read_text(encoding="utf-8", errors="replace").strip()
-                if content.startswith("gitdir:"):
+                if content.startswith(_GITDIR_PREFIX):
                     gitdir = Path(content.split(":", 1)[1].strip())
                     if _is_worktree_gitdir(gitdir):
                         # Navigate: .git/worktrees/name -> .git -> main repo root
@@ -153,7 +155,7 @@ def is_worktree_context(path: Path) -> bool:
         if git_path.is_file():
             try:
                 content = git_path.read_text(encoding="utf-8", errors="replace").strip()
-                if content.startswith("gitdir:"):
+                if content.startswith(_GITDIR_PREFIX):
                     gitdir = Path(content.split(":", 1)[1].strip())
                     if _is_worktree_gitdir(gitdir):
                         return True
@@ -241,7 +243,7 @@ def get_main_repo_root(current_path: Path) -> Path:
     if git_file.is_file():
         try:
             git_content = git_file.read_text(encoding="utf-8", errors="replace").strip()
-            if git_content.startswith("gitdir:"):
+            if git_content.startswith(_GITDIR_PREFIX):
                 gitdir_str = git_content.split(":", 1)[1].strip()
                 # Validate the gitdir path is not empty (bug discovered via mutation testing)
                 if gitdir_str:
