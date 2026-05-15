@@ -1,7 +1,7 @@
 {
-  "event_count": 21,
-  "last_event_id": "01KRNW8YV53HKKJ1GCH96C886N",
-  "materialized_at": "2026-05-15T13:12:37.477565+00:00",
+  "event_count": 22,
+  "last_event_id": "01KRNWFGJCEVKDVSRE1WFQKBS6",
+  "materialized_at": "2026-05-15T13:16:12.236588+00:00",
   "mission_number": "",
   "mission_slug": "layered-doctrine-org-layer-01KRNPEE",
   "mission_type": "software-dev",
@@ -14,7 +14,7 @@
     "for_review": 0,
     "in_progress": 1,
     "in_review": 0,
-    "planned": 6
+    "planned": 7
   },
   "work_packages": {
     "WP01": {
@@ -79,6 +79,13 @@
       "lane": "planned",
       "last_event_id": "01KRNTCJPWKWNDZX513CWZM81J",
       "last_transition_at": "2026-05-15T12:39:38.972891+00:00"
+    },
+    "WP10": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KRNWFGJCEVKDVSRE1WFQKBS6",
+      "last_transition_at": "2026-05-15T13:16:12.236588+00:00"
     }
   }
 }
