@@ -421,6 +421,40 @@ body {
     transition: width 0.3s ease;
 }
 
+/* Compact Kanban stats strip */
+#kanban-status.status-summary {
+    grid-template-columns: repeat(6, minmax(120px, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+#kanban-status .status-card {
+    padding: 10px 12px;
+}
+
+#kanban-status .status-label {
+    font-size: 0.72em;
+    margin-bottom: 4px;
+    letter-spacing: 0.35px;
+}
+
+#kanban-status .status-value {
+    font-size: 1.6em;
+}
+
+#kanban-status .status-detail {
+    font-size: 0.75em;
+    margin-top: 3px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#kanban-status .progress-bar {
+    height: 4px;
+    margin-top: 5px;
+}
+
 /* Kanban board styles */
 .kanban-board {
     display: grid;
@@ -685,6 +719,10 @@ body.modal-open {
 }
 
 @media (max-width: 1400px) {
+    #kanban-status.status-summary {
+        grid-template-columns: repeat(3, minmax(120px, 1fr));
+    }
+
     .kanban-board {
         grid-template-columns: repeat(2, 1fr);
     }
@@ -1372,6 +1410,10 @@ body.modal-open {
     }
     .kanban-board {
         grid-template-columns: 1fr;
+    }
+
+    #kanban-status.status-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .dossier-modal .modal-content {
