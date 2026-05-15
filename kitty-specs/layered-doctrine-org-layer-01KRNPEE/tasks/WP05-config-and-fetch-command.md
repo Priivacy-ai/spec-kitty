@@ -16,6 +16,7 @@ requirement_refs:
 - FR-011
 - FR-012
 - FR-013
+- FR-020
 - NFR-006
 planning_base_branch: feat/org-doctrine-layer
 merge_target_branch: feat/org-doctrine-layer
