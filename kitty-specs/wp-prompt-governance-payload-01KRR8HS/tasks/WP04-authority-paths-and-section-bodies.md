@@ -54,6 +54,22 @@ ATDD tests turned green by this WP:
 
 ---
 
+## Module organisation note
+
+To keep ownership boundaries clean between WP03, WP04, and WP05 (all of which extend
+`src/charter/context.py`), the helpers introduced here MUST live in a new submodule
+`src/charter/context_renderers/`:
+
+- `src/charter/context_renderers/authority_paths.py` — `_render_authority_paths` (T014)
+- `src/charter/context_renderers/section_bodies.py` — `_render_critical_section_bodies` (T015)
+
+`src/charter/context.py` imports from this submodule. The wiring change to
+`_render_bootstrap_text` in T016 is a small edit to `context.py` (a few lines: import +
+call); this is intentionally narrow so it does not cross the WP03 / WP05 ownership
+slices.
+
+---
+
 ## Context
 
 The bootstrap and compact renderers in `src/charter/context.py` already emit several
