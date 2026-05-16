@@ -25,6 +25,7 @@ from specify_cli.merge.conflict_classifier import (
     ConflictClassification,
     Manual,
     _extract_module,
+    _is_urls_list_eligible,
     _parse_dep_lines,
     _parse_import_lines,
     _parse_url_entries,
@@ -215,6 +216,12 @@ class TestUrlsListUnion:
             _hunk('    "x",\n', '    "y",\n'),
         )
         assert cls is None
+
+    def test_accepts_non_urls_py_url_constant_without_regex_backtracking(self) -> None:
+        assert _is_urls_list_eligible(
+            Path("src/config.py"),
+            'URL_PATTERNS = [\n<<<<<<< HEAD\n    "alpha/",\n=======\n    "beta/",\n>>>>>>> mission\n',
+        )
 
     def test_returns_none_for_malformed_conflict_region(self) -> None:
         cls = r_urls_list_union(Path("app/urls.py"), "<<<<<<< HEAD\n")
