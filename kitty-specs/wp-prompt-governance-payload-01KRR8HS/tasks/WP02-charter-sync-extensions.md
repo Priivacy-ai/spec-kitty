@@ -17,7 +17,7 @@ subtasks:
 - T006
 - T007
 - T008
-agent: claude
+agent: "claude:opus-4-7:python-pedro:implementer"
 agent_profile: python-pedro
 authoritative_surface: src/charter/extractor.py
 execution_mode: code_change
@@ -29,6 +29,7 @@ owned_files:
 role: implementer
 history: []
 tags: []
+shell_pid: "1095915"
 ---
 
 ## Objective
@@ -228,3 +229,7 @@ Check that:
    import from `specify_cli`.
 6. Backward-compat path: load an existing `.kittify/charter/charter.md` (e.g. spec-kitty's
    own pre-mission charter copy) and confirm sync still succeeds end-to-end.
+
+## Activity Log
+
+- 2026-05-16T12:00:39Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1095915 – Started implementation via action command
