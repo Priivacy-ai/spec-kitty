@@ -17,7 +17,7 @@ subtasks:
 - T006
 - T007
 - T008
-agent: "claude:opus-4-7:python-pedro:implementer"
+agent: "codex:gpt-4o:reviewer-renata:reviewer"
 agent_profile: python-pedro
 authoritative_surface: src/charter/extractor.py
 execution_mode: code_change
@@ -29,7 +29,7 @@ owned_files:
 role: implementer
 history: []
 tags: []
-shell_pid: "1095915"
+shell_pid: "1113868"
 ---
 
 ## Objective
@@ -234,3 +234,4 @@ Check that:
 
 - 2026-05-16T12:00:39Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1095915 – Started implementation via action command
 - 2026-05-16T12:17:50Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1095915 – WP02 complete — _detect_catalog_references helper + Directive.references population (FR-006), fenced-YAML resolver-input block extraction for template_set/available_tools/authority_paths (FR-007/FR-008), Code Review Checklist now classified as a directive section to surface DIRECTIVE_032 citations, NFR-005 byte-on-disk preserved via emit_yaml prune of empty optional fields. New tests: tests/charter/test_sync_references.py (10), tests/charter/test_sync_authority_paths.py (7). ATDD TestCharterDirectiveNamespaceCrossLink::test_charter_sync_emits_cross_link_when_body_cites_catalog_id is GREEN. Layer rules 8/8 PASS. Pre-existing tests/charter/ 789/790 (1 unrelated neutrality-lint failure on pytest term in secure-regex tactic).
+- 2026-05-16T12:18:33Z – codex:gpt-4o:reviewer-renata:reviewer – shell_pid=1113868 – Started review via action command
