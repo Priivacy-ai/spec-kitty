@@ -16,8 +16,8 @@ subtasks:
 - T001
 - T002
 - T003
-agent: "claude:opus-4-7:python-pedro:implementer"
-shell_pid: "1083623"
+agent: "codex:gpt-4o:reviewer-renata:reviewer"
+shell_pid: "1091724"
 history: []
 agent_profile: python-pedro
 authoritative_surface: src/charter/schemas.py
@@ -171,3 +171,4 @@ Check that:
 
 - 2026-05-16T11:50:29Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1083623 – Assigned agent via action command
 - 2026-05-16T11:56:37Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1083623 – Schema extensions complete: Directive.references and DoctrineSelectionConfig.authority_paths added with default-empty lists; 9/9 new tests pass, layer rules 8/8 still green, ruff+mypy clean, NFR-005 preserved.
+- 2026-05-16T11:57:08Z – codex:gpt-4o:reviewer-renata:reviewer – shell_pid=1091724 – Started review via action command
