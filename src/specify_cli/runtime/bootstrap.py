@@ -28,10 +28,33 @@ logger = logging.getLogger(__name__)
 
 
 def _get_cli_version() -> str:
-    """Return the current CLI version string."""
-    from specify_cli import __version__
+    """Return the current CLI version string.
 
-    return __version__
+    Defensive: when the package's ``__version__`` is missing or ``None``
+    (e.g. during partial installs, broken editable layouts, or import
+    cycles during bootstrap), fall back to ``"0.0.0-dev"`` rather than
+    crashing the entire CLI with a ``TypeError`` on later
+    ``write_text`` / string-compare paths (issue #1070).
+    """
+    fallback = "0.0.0-dev"
+    try:
+        from specify_cli import __version__ as _version  # type: ignore[attr-defined]
+    except Exception:  # noqa: BLE001
+        logger.warning(
+            "Could not import specify_cli.__version__ during runtime bootstrap; "
+            "falling back to %s",
+            fallback,
+        )
+        return fallback
+    if not isinstance(_version, str) or not _version:
+        logger.warning(
+            "specify_cli.__version__ resolved to %r during runtime bootstrap; "
+            "falling back to %s",
+            _version,
+            fallback,
+        )
+        return fallback
+    return _version
 
 
 def _lock_exclusive(fd: IO[str]) -> None:

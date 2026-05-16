@@ -398,8 +398,39 @@ def create_mission_core(
             _commit_feature_file(meta_file, mission_slug_formatted, "meta", resolved_root)
 
     # ------------------------------------------------------------------
-    # 8. Event emission (fire-and-forget)
+    # 8. Event emission
+    #
+    # Local canonical persistence MUST happen before any SaaS fan-out so
+    # downstream dashboards and TeamSpace can replay a mission's full
+    # history even when SaaS sync is offline (issue #1067).
     # ------------------------------------------------------------------
+    try:
+        from specify_cli.identity.project import load_identity
+        from specify_cli.status.lifecycle_events import emit_mission_created_local
+
+        _identity = load_identity(resolved_root / ".kittify" / "config.yaml")
+        emit_mission_created_local(
+            feature_dir,
+            mission_slug=mission_slug_formatted,
+            mission_id=meta.get("mission_id"),
+            mission_number=None,
+            target_branch=planning_branch,
+            actor="spec-kitty mission create",
+            project_uuid=str(_identity.project_uuid) if _identity.project_uuid else None,
+            project_slug=_identity.project_slug,
+            friendly_name=normalized_friendly_name,
+            purpose_tldr=normalized_purpose_tldr,
+            purpose_context=normalized_purpose_context,
+            created_at=str(meta["created_at"]) if meta.get("created_at") else None,
+        )
+    except Exception as _local_evt_exc:  # noqa: BLE001
+        logger.warning(
+            "Local canonical MissionCreated persistence failed for %s: %s",
+            mission_slug_formatted,
+            _local_evt_exc,
+        )
+
+    # Best-effort SaaS fan-out (occurs after local persistence above).
     with contextlib.suppress(Exception):
         emit_mission_created(
             mission_slug=mission_slug_formatted,
