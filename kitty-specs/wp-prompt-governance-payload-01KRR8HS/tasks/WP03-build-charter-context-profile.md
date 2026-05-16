@@ -16,7 +16,7 @@ subtasks:
 - T011
 - T012
 - T013
-agent: claude
+agent: "claude:opus-4-7:python-pedro:implementer"
 agent_profile: python-pedro
 authoritative_surface: src/charter/context.py
 execution_mode: code_change
@@ -26,6 +26,7 @@ owned_files:
 role: implementer
 history: []
 tags: []
+shell_pid: "1117321"
 ---
 
 ## Objective
@@ -220,3 +221,7 @@ Check that:
 5. Each rendered entry follows the verbatim-OR-(fetch+when-doing) shape required by
    `_contains_either_body_or_fetch_with_conditional` in
    `tests/specify_cli/next/test_wp_prompt_governance_contract.py:215-238`.
+
+## Activity Log
+
+- 2026-05-16T12:21:19Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1117321 – Started implementation via action command
