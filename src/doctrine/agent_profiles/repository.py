@@ -194,7 +194,7 @@ class AgentProfileRepository:
         self,
         shipped_dir: Path | None = None,
         *,
-        org_dir: Path | None = None,
+        org_dirs: list[Path] | None = None,
         project_dir: Path | None = None,
         active_languages: list[str] | tuple[str, ...] | None = None,
     ):
@@ -202,14 +202,16 @@ class AgentProfileRepository:
 
         Args:
             shipped_dir: Directory containing shipped profiles (defaults to package data)
-            org_dir: Directory containing org-level profile overrides (optional)
+            org_dirs: Ordered list of org-level profile directories. Each pack
+                overlays the previous in declaration order; later packs override
+                earlier ones for the same profile-id (FR-006, C-004).
             project_dir: Directory containing project-specific profiles (optional)
             active_languages: Language filter; None means no filtering
         """
         self._profiles: dict[str, AgentProfile] = {}
         self._provenance: dict[str, str] = {}
         self._shipped_dir = shipped_dir or self._default_shipped_dir()
-        self._org_dir = org_dir
+        self._org_dirs: list[Path] = list(org_dirs) if org_dirs else []
         self._project_dir = project_dir
         self._active_languages = None if active_languages is None else normalize_languages(active_languages)
         self._hierarchy_index: dict[str, list[str]] | None = None
@@ -253,49 +255,12 @@ class AgentProfileRepository:
 
         # Start with shipped profiles; tag all as 'builtin'
         self._profiles = shipped_profiles.copy()
-        self._provenance = {pid: "builtin" for pid in self._profiles}
+        self._provenance = dict.fromkeys(self._profiles, "builtin")
 
-        # Load and merge org profiles
-        if self._org_dir and self._org_dir.exists():
-            for yaml_file in self._org_dir.glob("*.agent.yaml"):
-                try:
-                    data = yaml.load(yaml_file)
-                    if data is None:
-                        continue
-                    reject_agent_profile_inline_refs(
-                        data, file_path=str(yaml_file)
-                    )
-
-                    profile_id = data.get("profile-id") or data.get("profile_id")
-                    if not profile_id:
-                        warnings.warn(
-                            f"Skipping org profile {yaml_file.name}: no profile-id",
-                            UserWarning,
-                            stacklevel=2,
-                        )
-                        continue
-
-                    # Check if this is an override or new profile
-                    if profile_id in shipped_profiles:
-                        # Merge with shipped profile
-                        merged = self._merge_profiles(shipped_profiles[profile_id], data)
-                        if not applies_to_languages_match(merged.applies_to_languages, self._active_languages):
-                            continue
-                        self._profiles[profile_id] = merged
-                        self._provenance[profile_id] = "org"
-                    else:
-                        # New org-only profile
-                        profile = AgentProfile.model_validate(data)
-                        if not applies_to_languages_match(profile.applies_to_languages, self._active_languages):
-                            continue
-                        self._profiles[profile.profile_id] = profile
-                        self._provenance[profile.profile_id] = "org"
-                except (YAMLError, ValidationError, OSError) as e:
-                    warnings.warn(
-                        f"Skipping invalid org profile {yaml_file.name}: {e}",
-                        UserWarning,
-                        stacklevel=2,
-                    )
+        # Load and merge org profiles from each configured pack in declaration order;
+        # later packs override earlier ones (FR-006, C-004).
+        for org_dir in self._org_dirs:
+            self._load_org_profiles_from_dir(yaml, org_dir, shipped_profiles)
 
         # Load and merge project profiles
         if self._project_dir and self._project_dir.exists():
@@ -338,6 +303,56 @@ class AgentProfileRepository:
                         UserWarning,
                         stacklevel=2,
                     )
+
+    def _load_org_profiles_from_dir(
+        self,
+        yaml: YAML,
+        org_dir: Path,
+        shipped_profiles: dict[str, AgentProfile],
+    ) -> None:
+        """Load profiles from one org pack directory; merge or add into self._profiles.
+
+        Existence check is done here so the caller can iterate ``self._org_dirs``
+        unconditionally. Each artifact loaded from this dir is tagged with
+        provenance ``"org"``; subsequent packs (later in declaration order) may
+        override the same profile-id via the caller's loop.
+        """
+        if not org_dir.exists():
+            return
+        for yaml_file in org_dir.glob("*.agent.yaml"):
+            try:
+                data = yaml.load(yaml_file)
+                if data is None:
+                    continue
+                reject_agent_profile_inline_refs(data, file_path=str(yaml_file))
+
+                profile_id = data.get("profile-id") or data.get("profile_id")
+                if not profile_id:
+                    warnings.warn(
+                        f"Skipping org profile {yaml_file.name}: no profile-id",
+                        UserWarning,
+                        stacklevel=2,
+                    )
+                    continue
+
+                if profile_id in shipped_profiles:
+                    merged = self._merge_profiles(shipped_profiles[profile_id], data)
+                    if not applies_to_languages_match(merged.applies_to_languages, self._active_languages):
+                        continue
+                    self._profiles[profile_id] = merged
+                    self._provenance[profile_id] = "org"
+                else:
+                    profile = AgentProfile.model_validate(data)
+                    if not applies_to_languages_match(profile.applies_to_languages, self._active_languages):
+                        continue
+                    self._profiles[profile.profile_id] = profile
+                    self._provenance[profile.profile_id] = "org"
+            except (YAMLError, ValidationError, OSError) as e:
+                warnings.warn(
+                    f"Skipping invalid org profile {yaml_file.name}: {e}",
+                    UserWarning,
+                    stacklevel=2,
+                )
 
     def _merge_profiles(self, shipped: AgentProfile, project_data: dict[str, Any]) -> AgentProfile:
         """Merge project data into shipped profile at field level.
