@@ -950,6 +950,21 @@ def interview(  # noqa: C901
 
         interview_data = default_interview(mission=resolved_mission_type, profile=normalized_profile)
 
+        # ------------------------------------------------------------------
+        # FR-026 — Pre-fill interview from org charter packs (non-destructive).
+        # Missing answers receive the org default so the interactive prompt
+        # surfaces it; existing answers are preserved. Required directives are
+        # pre-selected. Failure here is non-fatal (org packs are optional).
+        # ------------------------------------------------------------------
+        try:
+            from specify_cli.doctrine.org_charter import apply_org_charter_to_interview
+
+            org_prefill_messages = apply_org_charter_to_interview(interview_data, repo_root)
+            for msg in org_prefill_messages:
+                console.print(f"[cyan]Org charter:[/cyan] {msg}")
+        except Exception as exc:  # noqa: BLE001 — org-charter is best-effort, never blocks interview
+            console.print(f"[yellow]Org charter pre-fill skipped:[/yellow] {exc}")
+
         # Resolve actor for Decision Moment events (non-fatal fallback)
         actor = _resolve_actor()
 
