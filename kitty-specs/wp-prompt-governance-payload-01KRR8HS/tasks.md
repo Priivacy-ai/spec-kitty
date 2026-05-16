@@ -80,11 +80,11 @@ The 14 currently-passing tests MUST remain green throughout (no regression).
 | T011 | Add `_render_profile_directives(profile, service)` renderer | WP03 | | [D] |
 | T012 | Add `_render_profile_tactics(profile, service)` renderer | WP03 | [D] |
 | T013 | Unit tests in `tests/charter/test_context_profile.py` (known profile, unknown profile graceful skip, empty references) | WP03 | [D] |
-| T014 | Add `_render_authority_paths(repo_root, doctrine_selection)` helper (defaults + charter-declared) | WP04 | |
-| T015 | Add `_render_critical_section_bodies(charter_content, action)` helper (slice headings) | WP04 | |
-| T016 | Wire both renderers into `_render_bootstrap_text` and the compact-context surface | WP04 | |
-| T017 | Unit tests in `tests/charter/test_context_authority_paths.py` (default present/absent, additive declarations, missing dirs silent) | WP04 | [P] |
-| T018 | Unit tests in `tests/charter/test_context_section_bodies.py` (Terminology Canon, Regression Vigilance, Code Review Checklist surface) | WP04 | [P] |
+| T014 | Add `_render_authority_paths(repo_root, doctrine_selection)` helper (defaults + charter-declared) | WP04 | | [D] |
+| T015 | Add `_render_critical_section_bodies(charter_content, action)` helper (slice headings) | WP04 | | [D] |
+| T016 | Wire both renderers into `_render_bootstrap_text` and the compact-context surface | WP04 | | [D] |
+| T017 | Unit tests in `tests/charter/test_context_authority_paths.py` (default present/absent, additive declarations, missing dirs silent) | WP04 | [D] |
+| T018 | Unit tests in `tests/charter/test_context_section_bodies.py` (Terminology Canon, Regression Vigilance, Code Review Checklist surface) | WP04 | [D] |
 | T019 | Implement `_apply_token_budget(text, budget=32_000)` substitution mechanism | WP05 | |
 | T020 | Implement the fetch + when-doing stanza formatter (`directive:`, `tactic:`, `section:` selectors) | WP05 | |
 | T021 | Measure baseline against `layered-doctrine-org-layer-01KRNPEE` WP01–WP10 prompts (C-004); record in WP notes | WP05 | |
