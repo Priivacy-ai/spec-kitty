@@ -950,10 +950,13 @@ def _enforce_canonical_status_history(
     if not wp_ids:
         return
 
+    log_path = feature_dir / "status.events.jsonl"
+    if not log_path.exists():
+        return
+
     if has_non_bootstrap_status_history(feature_dir):
         return
 
-    log_path = feature_dir / "status.events.jsonl"
     console.print(
         "[red]Error:[/red] Canonical status history is bootstrap-only — the local "
         "event log cannot prove that WPs advanced past planned, so a merge would "
