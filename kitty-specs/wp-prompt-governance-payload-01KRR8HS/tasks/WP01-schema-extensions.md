@@ -9,11 +9,16 @@ requirement_refs:
 planning_base_branch: feat/org-doctrine-layer
 merge_target_branch: feat/org-doctrine-layer
 branch_strategy: Planning artifacts for this mission were generated on feat/org-doctrine-layer. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/org-doctrine-layer unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-wp-prompt-governance-payload-01KRR8HS
+base_commit: 3d1b1e7103382aa79a8961783ecea07cf342d6fe
+created_at: '2026-05-16T11:50:28.893125+00:00'
 subtasks:
 - T001
 - T002
 - T003
 agent: claude
+shell_pid: '1083623'
+history: []
 agent_profile: python-pedro
 authoritative_surface: src/charter/schemas.py
 execution_mode: code_change
@@ -21,7 +26,6 @@ owned_files:
 - src/charter/schemas.py
 - tests/charter/test_schemas_additive_fields.py
 role: implementer
-history: []
 tags: []
 ---
 
