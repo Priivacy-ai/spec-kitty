@@ -423,7 +423,9 @@ def _is_urls_list_eligible(file_path: Path, hunk_text: str) -> bool:
             continue
 
         name, sep, value = stripped.partition("=")
-        if not sep:
+        if sep:
+            name = name.split(":", 1)[0]
+        else:
             name, sep, value = stripped.partition(":")
         if not sep:
             continue

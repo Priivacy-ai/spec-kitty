@@ -223,6 +223,12 @@ class TestUrlsListUnion:
             'URL_PATTERNS = [\n<<<<<<< HEAD\n    "alpha/",\n=======\n    "beta/",\n>>>>>>> mission\n',
         )
 
+    def test_accepts_type_annotated_non_urls_py_url_constant(self) -> None:
+        assert _is_urls_list_eligible(
+            Path("src/config.py"),
+            'URL_PATTERNS: list[URLPattern] = [\n<<<<<<< HEAD\n    "alpha/",\n=======\n    "beta/",\n>>>>>>> mission\n',
+        )
+
     def test_returns_none_for_malformed_conflict_region(self) -> None:
         cls = r_urls_list_union(Path("app/urls.py"), "<<<<<<< HEAD\n")
         assert cls is None
