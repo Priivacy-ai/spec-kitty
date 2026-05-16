@@ -19,7 +19,7 @@ subtasks:
 - T026
 - T027
 - T028
-agent: "claude:opus-4-7:python-pedro:implementer"
+agent: "codex:gpt-4o:reviewer-renata:reviewer"
 agent_profile: python-pedro
 authoritative_surface: src/specify_cli/next/prompt_builder.py
 execution_mode: code_change
@@ -31,7 +31,7 @@ owned_files:
 role: implementer
 history: []
 tags: []
-shell_pid: "1177058"
+shell_pid: "1191563"
 ---
 
 ## Objective
@@ -270,3 +270,4 @@ Check that:
 
 - 2026-05-16T13:14:06Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1177058 – Started implementation via action command
 - 2026-05-16T13:27:16Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1177058 – WP06 complete: WP frontmatter agent_profile is now wired through _build_wp_prompt -> _governance_context(profile=) -> build_charter_context(profile=), so profile-cited DIRECTIVE_NNN and tactic references reach the agent prompt. Both implement.md and review.md gained a ## Governance Payload Contract section enumerating guaranteed bodies/citations/authority pointers/fetch commands (the review template additionally cites DIRECTIVE_032 per contract). New architectural test test_template_governance_payload_contract.py pins template-promise <-> resolver-reality consistency for both templates. ATDD suite: 21 pass / 2 fail; the 2 remaining failures are the WP07 charter declarations (template_set + available_tools in the project charter), not WP06 targets. Layer rules 8/8 green, ruff clean, no regression in tests/charter/.
+- 2026-05-16T13:27:47Z – codex:gpt-4o:reviewer-renata:reviewer – shell_pid=1191563 – Started review via action command
