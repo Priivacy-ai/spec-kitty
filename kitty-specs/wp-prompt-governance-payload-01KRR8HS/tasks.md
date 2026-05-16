@@ -67,9 +67,9 @@ The 14 currently-passing tests MUST remain green throughout (no regression).
 
 | ID | Description | WP | Parallel |
 |---|---|---|---|
-| T001 | Add `references: list[str] = []` to `charter.schemas.Directive` | WP01 | |
-| T002 | Add `authority_paths: list[str] = []` to `charter.schemas.DoctrineSelectionConfig` | WP01 | [P] |
-| T003 | Schema round-trip + backward-compat tests for the two new fields | WP01 | [P] |
+| T001 | Add `references: list[str] = []` to `charter.schemas.Directive` | WP01 | | [D] |
+| T002 | Add `authority_paths: list[str] = []` to `charter.schemas.DoctrineSelectionConfig` | WP01 | [D] |
+| T003 | Schema round-trip + backward-compat tests for the two new fields | WP01 | [D] |
 | T004 | Add `DIRECTIVE_\d{3}` / tactic-id detection regex helper in `charter.extractor` | WP02 | |
 | T005 | Extend `Extractor._extract_directives` to populate `Directive.references` from detected citations | WP02 | |
 | T006 | Extend `Extractor._merge_doctrine_selection` to read `authority_paths:` from fenced YAML blocks | WP02 | [P] |
