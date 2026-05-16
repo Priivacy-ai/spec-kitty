@@ -389,3 +389,160 @@ class TestOrgDirNotExists:
 
         assert repo.get("DIRECTIVE_001") is not None
         assert repo.get_provenance("DIRECTIVE_001") == "builtin"
+
+
+class TestDoctrineLayerCollisionWarning:
+    """Collision warnings surface higher-layer override of lower-layer artifacts (MEDIUM-1)."""
+
+    def test_org_shadows_builtin_emits_warning(self, tmp_path: Path) -> None:
+        from doctrine.base import DoctrineLayerCollisionWarning
+
+        shipped = tmp_path / "built-in"
+        org = tmp_path / "org"
+
+        _write_directive(
+            shipped,
+            "001.directive.yaml",
+            _directive_data("DIRECTIVE_001", title="Shipped"),
+        )
+        _write_directive(
+            org,
+            "001.directive.yaml",
+            _directive_data("DIRECTIVE_001", title="Org"),
+        )
+
+        with pytest.warns(DoctrineLayerCollisionWarning) as record:
+            DirectiveRepository(shipped_dir=shipped, org_dirs=[org])
+
+        messages = [str(w.message) for w in record]
+        # Exactly one collision warning, with the expected payload.
+        collision_msgs = [m for m in messages if "DIRECTIVE_001" in m]
+        assert len(collision_msgs) == 1, collision_msgs
+        msg = collision_msgs[0]
+        assert "org" in msg
+        assert "builtin" in msg
+        assert "shadowed" in msg
+        # title was replaced; other fields inherited
+        assert "field" in msg
+
+    def test_project_shadows_org_emits_warning(self, tmp_path: Path) -> None:
+        from doctrine.base import DoctrineLayerCollisionWarning
+
+        shipped = tmp_path / "built-in"
+        org = tmp_path / "org"
+        project = tmp_path / "project"
+
+        _write_directive(
+            shipped,
+            "001.directive.yaml",
+            _directive_data("DIRECTIVE_001", title="Shipped"),
+        )
+        _write_directive(
+            org,
+            "001.directive.yaml",
+            _directive_data("DIRECTIVE_001", title="Org"),
+        )
+        _write_directive(
+            project,
+            "001.directive.yaml",
+            _directive_data("DIRECTIVE_001", title="Project"),
+        )
+
+        with pytest.warns(DoctrineLayerCollisionWarning) as record:
+            DirectiveRepository(
+                shipped_dir=shipped, org_dirs=[org], project_dir=project
+            )
+
+        messages = [str(w.message) for w in record]
+        # We expect both org-over-shipped and project-over-org collisions surfaced.
+        assert any("project" in m and "org" in m for m in messages)
+        assert any("org" in m and "builtin" in m for m in messages)
+
+    def test_project_shadows_builtin_when_no_org(self, tmp_path: Path) -> None:
+        from doctrine.base import DoctrineLayerCollisionWarning
+
+        shipped = tmp_path / "built-in"
+        project = tmp_path / "project"
+
+        _write_directive(
+            shipped,
+            "001.directive.yaml",
+            _directive_data("DIRECTIVE_001", title="Shipped"),
+        )
+        _write_directive(
+            project,
+            "001.directive.yaml",
+            _directive_data("DIRECTIVE_001", title="Project"),
+        )
+
+        with pytest.warns(DoctrineLayerCollisionWarning) as record:
+            DirectiveRepository(shipped_dir=shipped, project_dir=project)
+
+        messages = [str(w.message) for w in record]
+        assert any("project" in m and "builtin" in m for m in messages)
+
+    def test_no_warning_when_no_collision(self, tmp_path: Path) -> None:
+        from doctrine.base import DoctrineLayerCollisionWarning
+
+        shipped = tmp_path / "built-in"
+        org = tmp_path / "org"
+
+        _write_directive(
+            shipped,
+            "001.directive.yaml",
+            _directive_data("DIRECTIVE_001", title="Shipped"),
+        )
+        _write_directive(
+            org,
+            "002.directive.yaml",
+            _directive_data("DIRECTIVE_002", title="Org-only new"),
+        )
+
+        # New org artifact is not a collision; no warning expected.
+        with warnings_capture() as captured:
+            DirectiveRepository(shipped_dir=shipped, org_dirs=[org])
+
+        collision_msgs = [
+            str(w.message)
+            for w in captured
+            if isinstance(w.message, DoctrineLayerCollisionWarning)
+        ]
+        assert collision_msgs == []
+
+    def test_collision_warning_reports_field_count(self, tmp_path: Path) -> None:
+        """The warning message includes how many fields were replaced and inherited."""
+        from doctrine.base import DoctrineLayerCollisionWarning
+
+        shipped = tmp_path / "built-in"
+        org = tmp_path / "org"
+
+        shipped_data = _directive_data("DIRECTIVE_001", title="Shipped Title")
+        shipped_data["scope"] = "Original scope."
+        _write_directive(shipped, "001.directive.yaml", shipped_data)
+
+        # Org overrides only title (1 field), inherits scope (1 field).
+        _write_directive(
+            org,
+            "001.directive.yaml",
+            _directive_data("DIRECTIVE_001", title="Org Title"),
+        )
+
+        with pytest.warns(DoctrineLayerCollisionWarning) as record:
+            DirectiveRepository(shipped_dir=shipped, org_dirs=[org])
+
+        msg = next(str(w.message) for w in record if "DIRECTIVE_001" in str(w.message))
+        # Format includes both counts
+        assert "replaced" in msg
+        assert "inherited" in msg
+
+
+import warnings as _stdlib_warnings
+from contextlib import contextmanager
+
+
+@contextmanager
+def warnings_capture():
+    """Capture all warnings emitted within the block, regardless of filter state."""
+    with _stdlib_warnings.catch_warnings(record=True) as captured:
+        _stdlib_warnings.simplefilter("always")
+        yield captured

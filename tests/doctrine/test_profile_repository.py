@@ -142,6 +142,50 @@ class TestAgentProfileRepositoryZero:
         repo = AgentProfileRepository(shipped_dir=Path("/nonexistent"), project_dir=None)
         assert repo.list_all() == []
 
+
+class TestAgentProfileCollisionWarning:
+    """Profile shadowing emits a DoctrineLayerCollisionWarning (MEDIUM-1)."""
+
+    def test_project_override_of_shipped_profile_warns(
+        self, shipped_profiles_dir: Path, project_profiles_dir: Path
+    ) -> None:
+        """The shipped+project fixtures define python-pedro twice; this must warn."""
+        from doctrine.base import DoctrineLayerCollisionWarning
+
+        with pytest.warns(DoctrineLayerCollisionWarning) as record:
+            AgentProfileRepository(
+                shipped_dir=shipped_profiles_dir,
+                project_dir=project_profiles_dir,
+            )
+
+        msgs = [str(w.message) for w in record]
+        pedro_msgs = [m for m in msgs if "python-pedro" in m]
+        assert pedro_msgs, msgs
+        assert any("project" in m and "builtin" in m for m in pedro_msgs)
+        assert any("agent_profile" in m for m in pedro_msgs)
+
+    def test_no_warning_for_distinct_project_profile(
+        self, shipped_profiles_dir: Path, project_profiles_dir: Path
+    ) -> None:
+        """custom-reviewer exists only in project — no collision, no warning for it."""
+        from doctrine.base import DoctrineLayerCollisionWarning
+        import warnings as _w
+
+        with _w.catch_warnings(record=True) as captured:
+            _w.simplefilter("always")
+            AgentProfileRepository(
+                shipped_dir=shipped_profiles_dir,
+                project_dir=project_profiles_dir,
+            )
+
+        msgs = [
+            str(w.message)
+            for w in captured
+            if isinstance(w.message, DoctrineLayerCollisionWarning)
+        ]
+        # custom-reviewer must NOT appear in any collision message.
+        assert not any("custom-reviewer" in m for m in msgs), msgs
+
     def test_get_nonexistent_profile_returns_none(self, shipped_profiles_dir: Path):
         """Getting nonexistent profile returns None."""
         repo = AgentProfileRepository(shipped_dir=shipped_profiles_dir, project_dir=None)

@@ -103,6 +103,57 @@ an org artifact for legitimate exceptions. When a project artifact has the same 
 a higher layer (org or built-in), `spec-kitty charter lint` surfaces an advisory so
 the team can confirm the override is intentional.
 
+#### Field-level merge, not artifact-level full replace
+
+When a higher layer declares an artifact ID that already exists in a lower layer,
+the higher layer **takes ownership** of the resolved artifact: its `provenance`
+becomes that layer. But the merge is **field-level**, not artifact-level full
+replace:
+
+- Fields **present** in the higher layer's YAML replace same-named fields in
+  the lower layer.
+- Fields **absent** from the higher layer fall through to the lower layer's value.
+
+So an org override file that contains only `id`, `title`, and `enforcement`
+inherits everything else (intent, scope, examples, …) from the built-in
+definition. This keeps override YAML short and focused on what actually
+changes. The trade-off is that operators must understand which fields are
+inherited and which are overridden.
+
+#### Collision warnings (`DoctrineLayerCollisionWarning`)
+
+Because field-merge is silent by default, the resolver emits a
+`DoctrineLayerCollisionWarning` whenever a higher layer shadows a lower-layer
+artifact. The warning text records the artifact ID, the higher and lower
+layers, and how many fields were replaced vs inherited:
+
+```
+Doctrine override: directive DIRECTIVE_018 from project shadowed builtin
+(3 field(s) replaced; 9 field(s) inherited).
+```
+
+These warnings are categorized as `DoctrineLayerCollisionWarning` (a
+`UserWarning` subclass), so operators who maintain heavy overrides can
+filter them via standard Python `warnings` machinery if desired.
+
+#### Auditing collisions via `spec-kitty doctor doctrine`
+
+To audit the full set of override collisions across the resolved doctrine
+surface without parsing warning streams, run:
+
+```bash
+spec-kitty doctor doctrine
+```
+
+The output includes a `Collisions` section that lists every shadowed
+artifact (kind, ID, higher layer, lower layer, field counts), or reports
+`none — every artifact resolves from a single layer.` when no overrides
+are in play. The same data is available as a `collisions` array under
+`--json`.
+
+See [ADR 2026-05-16-1](../../architecture/2.x/adr/2026-05-16-1-doctrine-layer-merge-semantics.md)
+for the rationale behind this design.
+
 ---
 
 ## DRG composition

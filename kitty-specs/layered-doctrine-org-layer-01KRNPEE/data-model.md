@@ -15,7 +15,13 @@
 | `project` | project | Per-project local overrides; developer-managed | `.kittify/doctrine/` |
 
 **Merge precedence**: `builtin < org (packs in declaration order) < project`. Higher layer
-fully replaces lower layer on artifact ID collision. No field-level merging across layers.
+takes ownership of the resolved artifact on ID collision; its `provenance` becomes that
+layer. **Field-level merge applies**: fields present in the higher layer's YAML replace
+same-named fields in the lower layer; fields absent from the higher layer fall through.
+No two artifacts with the same ID coexist across layers — the higher layer's identity wins.
+The resolver emits a `DoctrineLayerCollisionWarning` each time a higher layer shadows a
+lower-layer artifact, with the artifact ID, source and target layers, and the count of
+replaced fields. See ADR `architecture/2.x/adr/2026-05-16-1-doctrine-layer-merge-semantics.md`.
 
 **Fallback**: if no org packs are configured or no local paths exist on disk, resolution
 falls back silently to builtin + project. A `spec-kitty doctor doctrine` diagnostic is

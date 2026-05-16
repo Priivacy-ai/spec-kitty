@@ -288,6 +288,11 @@ class AgentProfileRepository:
                         merged = self._merge_profiles(shipped_profiles[profile_id], data)
                         if not applies_to_languages_match(merged.applies_to_languages, self._active_languages):
                             continue
+                        self._record_profile_collision_if_present(
+                            profile_id=profile_id,
+                            higher_layer="project",
+                            higher_data=data,
+                        )
                         self._profiles[profile_id] = merged
                         self._provenance[profile_id] = "project"
                     else:
@@ -295,6 +300,11 @@ class AgentProfileRepository:
                         profile = AgentProfile.model_validate(data)
                         if not applies_to_languages_match(profile.applies_to_languages, self._active_languages):
                             continue
+                        self._record_profile_collision_if_present(
+                            profile_id=profile.profile_id,
+                            higher_layer="project",
+                            higher_data=data,
+                        )
                         self._profiles[profile.profile_id] = profile
                         self._provenance[profile.profile_id] = "project"
                 except (YAMLError, ValidationError, OSError) as e:
@@ -339,12 +349,22 @@ class AgentProfileRepository:
                     merged = self._merge_profiles(shipped_profiles[profile_id], data)
                     if not applies_to_languages_match(merged.applies_to_languages, self._active_languages):
                         continue
+                    self._record_profile_collision_if_present(
+                        profile_id=profile_id,
+                        higher_layer="org",
+                        higher_data=data,
+                    )
                     self._profiles[profile_id] = merged
                     self._provenance[profile_id] = "org"
                 else:
                     profile = AgentProfile.model_validate(data)
                     if not applies_to_languages_match(profile.applies_to_languages, self._active_languages):
                         continue
+                    self._record_profile_collision_if_present(
+                        profile_id=profile.profile_id,
+                        higher_layer="org",
+                        higher_data=data,
+                    )
                     self._profiles[profile.profile_id] = profile
                     self._provenance[profile.profile_id] = "org"
             except (YAMLError, ValidationError, OSError) as e:
@@ -353,6 +373,33 @@ class AgentProfileRepository:
                     UserWarning,
                     stacklevel=2,
                 )
+
+    def _record_profile_collision_if_present(
+        self,
+        *,
+        profile_id: str,
+        higher_layer: str,
+        higher_data: dict[str, Any],
+    ) -> None:
+        """Emit a DoctrineLayerCollisionWarning iff ``profile_id`` is already loaded.
+
+        Called at write time so the lower-layer dump is still available for
+        field-count accounting (FR-003 wording per ADR 2026-05-16-1).
+        """
+        from doctrine.base import _emit_collision_warning
+
+        if profile_id not in self._profiles:
+            return
+        existing = self._profiles[profile_id]
+        lower_layer = self._provenance.get(profile_id, "unknown")
+        _emit_collision_warning(
+            kind="agent_profile",
+            item_id=profile_id,
+            higher_layer=higher_layer,
+            lower_layer=lower_layer,
+            higher_data=higher_data,
+            lower_dump=existing.model_dump(),
+        )
 
     def _merge_profiles(self, shipped: AgentProfile, project_data: dict[str, Any]) -> AgentProfile:
         """Merge project data into shipped profile at field level.
