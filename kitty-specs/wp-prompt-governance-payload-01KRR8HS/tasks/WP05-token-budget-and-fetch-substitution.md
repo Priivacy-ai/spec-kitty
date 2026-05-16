@@ -41,6 +41,19 @@ pre-mission baseline) is asserted against, run against
 
 ---
 
+## Module organisation note
+
+To keep ownership boundaries clean between WP03, WP04, and WP05, the helpers introduced
+here MUST live in `src/charter/context_renderers/`:
+
+- `src/charter/context_renderers/token_budget.py` — `_apply_token_budget` (T019)
+- `src/charter/context_renderers/fetch_stanza.py` — `_fetch_stanza` (T020)
+
+`src/charter/context.py` imports from this submodule. WP03 + WP04 renderers refactor
+their inline stanza construction to call `_fetch_stanza` from the new submodule.
+
+---
+
 ## Context
 
 WP03 + WP04 inline a lot of new content into `CharterContextResult.text`: profile-cited
