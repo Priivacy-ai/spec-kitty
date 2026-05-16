@@ -1519,8 +1519,18 @@ def doctrine_check(
             entry["org_charter"] = _summarize_org_charter(snapshot_path)
         pack_entries.append(entry)
 
+    # Detect override collisions across the full resolved doctrine surface
+    # (FR-003 wording + ADR 2026-05-16-1). We instantiate a DoctrineService
+    # rooted at the configured packs and trigger lazy loading of every repo,
+    # capturing DoctrineLayerCollisionWarning emissions.
+    collision_summaries = _collect_doctrine_collisions(repo_root)
+
     if json_output:
-        payload = {"org_configured": True, "packs": pack_entries}
+        payload = {
+            "org_configured": True,
+            "packs": pack_entries,
+            "collisions": collision_summaries,
+        }
         console.print_json(json.dumps(payload, indent=2, default=str))
         raise typer.Exit(0)
 
@@ -1529,5 +1539,91 @@ def doctrine_check(
     )
     for idx, entry in enumerate(pack_entries):
         _render_doctrine_pack(entry, idx)
+
+    if collision_summaries:
+        console.print(
+            f"\n[bold]Collisions[/bold] — {len(collision_summaries)} override(s) detected\n"
+        )
+        for collision in collision_summaries:
+            console.print(
+                f"  • [yellow]{collision['kind']}[/yellow] "
+                f"{collision['item_id']}: "
+                f"{collision['higher_layer']} shadowed {collision['lower_layer']} "
+                f"({collision['replaced']} replaced, {collision['inherited']} inherited)"
+            )
+    else:
+        console.print(
+            "\n[dim]Collisions:[/dim] none — every artifact resolves from a single layer."
+        )
     console.print()
     raise typer.Exit(0)
+
+
+def _collect_doctrine_collisions(repo_root: Path) -> list[dict[str, object]]:
+    """Run the doctrine resolver and collect any layer-collision warnings.
+
+    Returns a list of structured collision descriptors (kind, item_id,
+    higher_layer, lower_layer, replaced, inherited) for surfacing via
+    ``doctor doctrine`` (FR-003 wording per ADR 2026-05-16-1).
+    """
+    import re
+    import warnings as _warnings
+
+    from doctrine.base import DoctrineLayerCollisionWarning
+    from doctrine.service import DoctrineService
+    from specify_cli.doctrine.config import resolve_org_roots
+
+    org_roots = resolve_org_roots(repo_root)
+    project_doctrine = repo_root / ".kittify" / "doctrine"
+    project_root = project_doctrine if project_doctrine.exists() else None
+
+    service = DoctrineService(
+        org_roots=list(org_roots),
+        project_root=project_root,
+    )
+
+    # Touch every repository so each one runs through its loader and emits
+    # any collision warnings.
+    accessors = (
+        "directives",
+        "tactics",
+        "styleguides",
+        "toolguides",
+        "paradigms",
+        "procedures",
+        "mission_step_contracts",
+        "agent_profiles",
+    )
+
+    collisions: list[dict[str, object]] = []
+    pattern = re.compile(
+        r"Doctrine override: (?P<kind>\S+) (?P<item_id>\S+) "
+        r"from (?P<higher>\S+) shadowed (?P<lower>\S+) "
+        r"\((?P<replaced>\d+) field\(s\) replaced; "
+        r"(?P<inherited>\d+) field\(s\) inherited\)\."
+    )
+
+    with _warnings.catch_warnings(record=True) as captured:
+        _warnings.simplefilter("always")
+        for name in accessors:
+            try:
+                getattr(service, name)
+            except Exception:  # noqa: BLE001, S112 — doctor must not fail on a single repo's load error
+                continue
+    for w in captured:
+        if not isinstance(w.message, DoctrineLayerCollisionWarning):
+            continue
+        m = pattern.match(str(w.message))
+        if not m:
+            continue
+        collisions.append(
+            {
+                "kind": m.group("kind"),
+                "item_id": m.group("item_id"),
+                "higher_layer": m.group("higher"),
+                "lower_layer": m.group("lower"),
+                "replaced": int(m.group("replaced")),
+                "inherited": int(m.group("inherited")),
+            }
+        )
+    return collisions
