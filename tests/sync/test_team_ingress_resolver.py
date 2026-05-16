@@ -305,23 +305,25 @@ def test_emitter_ingress_skipped_on_no_private_team(
 
 
 @respx.mock
-def test_emitter_emit_drops_event_when_no_private_team(
+def test_emitter_emit_queues_event_when_no_private_team_no_remote_ingress(
     token_manager_with_shared_only_session: TokenManager,
     monkeypatch: pytest.MonkeyPatch,
     tmp_path,
 ) -> None:
-    """Full emitter _emit() path: skips emission instead of falling back to "local".
+    """Local durability holds, ingress safety holds (issue #1072 / FR-002).
 
-    FR-002/FR-007 (private-teamspace-ingress-safeguards): when the strict
-    shared resolver returns ``None``, ``EventEmitter._emit()`` MUST drop the
-    event entirely rather than emit envelope metadata with ``team_slug ==
-    "local"``. This drives the real emitter path (via ``emit_wp_status_changed``)
-    and asserts:
+    When the strict resolver returns ``None``:
 
-    1. The public emit method returns ``None`` (event not produced).
-    2. No event is appended to the durable ``OfflineQueue`` for the missing
-       Private Teamspace.
-    3. No event is routed via the WebSocket client.
+    1. The public emit method now RETURNS the event (it is locally durable),
+       with ``team_slug = None`` and ``drain_blocked_reason in {"no_team",
+       "no_auth"}`` so the drain side knows not to ship it remotely.
+    2. The event IS appended to the durable ``OfflineQueue`` — it would
+       otherwise be lost if auth/team conditions never resolve in this
+       process.
+    3. Ingress safety: the WebSocket client is NOT used (blocked events
+       skip opportunistic publish). The batch drain path also re-resolves
+       the team on every tick and skips POSTing while the resolver still
+       returns ``None`` (see ``tests/sync/test_batch_*`` for that surface).
     """
     from unittest.mock import MagicMock
 
@@ -359,18 +361,19 @@ def test_emitter_emit_drops_event_when_no_private_team(
     config = MagicMock()
     ws_client = MagicMock()
     ws_client.send_event = MagicMock()
+    ws_client.connected = True  # ensure the WS short-circuit is checked
 
     emitter = EventEmitter(clock=clock, config=config, queue=queue, ws_client=ws_client)
 
-    # Drive the full _emit() path via the public emission API.
     event = emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
 
-    # 1. Public emit returns None — event not produced.
-    assert event is None
+    # 1. Locally durable: event is produced and queued for later drain.
+    assert event is not None
+    assert event["team_slug"] is None
+    assert event["drain_blocked_reason"] in {"no_team", "no_auth"}
 
-    # 2. Nothing was queued. In particular: no envelope with team_slug=="local"
-    #    or any other shared/fallback value.
-    assert queue.size() == 0
+    # 2. Persisted on disk.
+    assert queue.size() == 1
 
-    # 3. Nothing was routed to the websocket client either.
+    # 3. Ingress safety: no opportunistic WS publish for a blocked event.
     ws_client.send_event.assert_not_called()

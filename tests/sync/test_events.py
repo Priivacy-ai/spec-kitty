@@ -124,17 +124,23 @@ class TestEventEnvelope:
         assert event is not None
         assert event["team_slug"] == "test-team"
 
-    def test_team_slug_unresolvable_skips_emission(
+    def test_team_slug_unresolvable_queues_event_locally(
         self, temp_queue, temp_clock, mock_config, monkeypatch
     ):
-        """Emitter skips event emission when no Private Teamspace is available.
+        """Emitter queues events durably even when no Private Teamspace exists.
 
-        FR-002/FR-007 (private-teamspace-ingress-safeguards): when the strict
-        shared resolver cannot return a Private Teamspace id, the emitter must
-        NOT fall back to ``"local"`` or any other shared team value — it must
-        drop the event entirely so no ingress-bound metadata carries a
-        non-private team. Supersedes the prior SC-010 ``defaults to 'local'``
-        behavior.
+        FR-1 / issue #1072 of the teamspace-local-first-outbox mission: local
+        durability is unconditional. When the strict ingress resolver returns
+        ``None``, the emitter MUST still produce the event and append it to
+        the durable offline queue — but with ``team_slug = None`` and
+        ``drain_blocked_reason = "no_team"`` so the drain side knows not to
+        ship it remotely.
+
+        Ingress safety from FR-002/FR-007 of the private-teamspace-ingress
+        mission is preserved by the drain layer (see batch.py): the
+        ``_current_team_slug`` resolver is re-evaluated on every drain tick
+        and the ingress POST is skipped while the team is still missing.
+        Replaces the legacy "drop event entirely" behavior.
         """
 
         def _boom():
@@ -148,7 +154,10 @@ class TestEventEnvelope:
             ws_client=None,
         )
         event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
-        assert event is None
+        assert event is not None
+        assert event["team_slug"] is None
+        assert event["drain_blocked_reason"] in {"no_auth", "no_team"}
+        assert temp_queue.size() == 1
 
     def test_causation_id_included_when_provided(self, emitter: EventEmitter, temp_queue):
         """causation_id passed through to event envelope."""
