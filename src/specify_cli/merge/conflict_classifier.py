@@ -417,11 +417,19 @@ def _is_urls_list_eligible(file_path: Path, hunk_text: str) -> bool:
     """Eligibility predicate for the URL-list-union rule."""
     if file_path.name == "urls.py":
         return True
-    return bool(re.search(
-        r"^\s*(?:_?URLS?|URL_PATTERNS)\s*[:=]?\s*[A-Za-z\[]",
-        hunk_text,
-        re.MULTILINE,
-    ))
+    return any(_looks_like_urls_assignment(line) for line in hunk_text.splitlines())
+
+
+def _looks_like_urls_assignment(line: str) -> bool:
+    stripped = line.lstrip()
+    for prefix in ("URL_PATTERNS", "_URLS", "URLS", "_URL", "URL"):
+        if not stripped.startswith(prefix):
+            continue
+        remainder = stripped[len(prefix):].lstrip()
+        if remainder.startswith((":", "=")):
+            remainder = remainder[1:].lstrip()
+        return bool(remainder) and (remainder[0].isalpha() or remainder[0] == "[")
+    return False
 
 
 def _find_url_entry_conflict(
