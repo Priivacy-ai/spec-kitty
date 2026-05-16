@@ -89,12 +89,12 @@ The 14 currently-passing tests MUST remain green throughout (no regression).
 | T020 | Implement the fetch + when-doing stanza formatter (`directive:`, `tactic:`, `section:` selectors) | WP05 | | [D] |
 | T021 | Measure baseline against `layered-doctrine-org-layer-01KRNPEE` WP01–WP10 prompts (C-004); record in WP notes | WP05 | | [D] |
 | T022 | Unit tests in `tests/charter/test_context_token_budget.py` (under budget unchanged, longest-first substitution, severely over → all substituted, warning emitted) | WP05 | [D] |
-| T023 | In `_build_wp_prompt` extract `wp_meta.agent_profile` and pass to `_governance_context` | WP06 | |
-| T024 | In `_governance_context` forward `profile=` to `build_charter_context` | WP06 | |
-| T025 | Add `## Governance Payload Contract` section to `src/specify_cli/missions/software-dev/command-templates/implement.md` (four-block schema) | WP06 | |
-| T026 | Add `## Governance Payload Contract` section to `src/specify_cli/missions/software-dev/command-templates/review.md` (reviewer-oriented variant) | WP06 | [P] |
-| T027 | Add architectural test `tests/architectural/test_template_governance_payload_contract.py` (template promise ↔ resolver reality) | WP06 | [P] |
-| T028 | Run full ATDD suite; confirm 23/23 pass | WP06 | |
+| T023 | In `_build_wp_prompt` extract `wp_meta.agent_profile` and pass to `_governance_context` | WP06 | | [D] |
+| T024 | In `_governance_context` forward `profile=` to `build_charter_context` | WP06 | | [D] |
+| T025 | Add `## Governance Payload Contract` section to `src/specify_cli/missions/software-dev/command-templates/implement.md` (four-block schema) | WP06 | | [D] |
+| T026 | Add `## Governance Payload Contract` section to `src/specify_cli/missions/software-dev/command-templates/review.md` (reviewer-oriented variant) | WP06 | [D] |
+| T027 | Add architectural test `tests/architectural/test_template_governance_payload_contract.py` (template promise ↔ resolver reality) | WP06 | [D] |
+| T028 | Run full ATDD suite; confirm 23/23 pass | WP06 | | [D] |
 | T029 | Add `## Charter Resolution Hints` fenced YAML block to `.kittify/charter/charter.md` declaring `template_set: software-dev-default` | WP07 | |
 | T030 | Extend the same block with `available_tools: [git, spec-kitty, pytest, mypy, ruff]` and `authority_paths: [glossary/contexts/, architecture/2.x/adr/]` | WP07 | |
 | T031 | Run `spec-kitty charter sync`; verify no `Template set not selected in charter; fallback ... applied` diagnostic | WP07 | |
