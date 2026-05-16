@@ -95,9 +95,9 @@ The 14 currently-passing tests MUST remain green throughout (no regression).
 | T026 | Add `## Governance Payload Contract` section to `src/specify_cli/missions/software-dev/command-templates/review.md` (reviewer-oriented variant) | WP06 | [D] |
 | T027 | Add architectural test `tests/architectural/test_template_governance_payload_contract.py` (template promise ↔ resolver reality) | WP06 | [D] |
 | T028 | Run full ATDD suite; confirm 23/23 pass | WP06 | | [D] |
-| T029 | Add `## Charter Resolution Hints` fenced YAML block to `.kittify/charter/charter.md` declaring `template_set: software-dev-default` | WP07 | |
-| T030 | Extend the same block with `available_tools: [git, spec-kitty, pytest, mypy, ruff]` and `authority_paths: [glossary/contexts/, architecture/2.x/adr/]` | WP07 | |
-| T031 | Run `spec-kitty charter sync`; verify no `Template set not selected in charter; fallback ... applied` diagnostic | WP07 | |
+| T029 | Add `## Charter Resolution Hints` fenced YAML block to `.kittify/charter/charter.md` declaring `template_set: software-dev-default` | WP07 | | [D] |
+| T030 | Extend the same block with `available_tools: [git, spec-kitty, pytest, mypy, ruff]` and `authority_paths: [glossary/contexts/, architecture/2.x/adr/]` | WP07 | | [D] |
+| T031 | Run `spec-kitty charter sync`; verify no `Template set not selected in charter; fallback ... applied` diagnostic | WP07 | | [D] |
 
 ---
 
