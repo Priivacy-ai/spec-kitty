@@ -20,6 +20,7 @@ from specify_cli.doctrine.org_charter import (
     GovernancePolicy,
     OrgCharterPolicy,
     apply_org_charter_pre_fill,
+    apply_org_charter_to_interview,
     load_org_charter_policies,
     load_org_charter_policy,
 )
@@ -383,6 +384,161 @@ class TestApplyOrgCharterPreFill:
         loaded = yaml.load(answers_path.read_text(encoding="utf-8"))
         assert loaded["human_in_command"] is True
         assert "sec-001" in loaded["selected_directives"]
+
+
+# ---------------------------------------------------------------------------
+# In-memory interview pre-fill (FR-026)
+# ---------------------------------------------------------------------------
+
+
+class _FakeInterview:
+    """Minimal stand-in for CharterInterview with the two mutable surfaces used by the pre-fill helper."""
+
+    def __init__(
+        self,
+        answers: dict[str, str] | None = None,
+        selected_directives: list[str] | None = None,
+    ) -> None:
+        self.answers: dict[str, str] = dict(answers or {})
+        self.selected_directives: list[str] = list(selected_directives or [])
+
+
+class TestApplyOrgCharterToInterview:
+    """In-memory pre-fill mutates the dataclass non-destructively (FR-026)."""
+
+    def test_no_packs_returns_empty_messages_and_does_not_mutate(self, tmp_path: Path) -> None:
+        interview = _FakeInterview(answers={"existing": "keep"})
+        messages = apply_org_charter_to_interview(interview, tmp_path)
+        assert messages == []
+        assert interview.answers == {"existing": "keep"}
+        assert interview.selected_directives == []
+
+    def test_no_charter_in_packs_returns_empty(self, tmp_path: Path) -> None:
+        pack = tmp_path / "packs" / "no-charter"
+        pack.mkdir(parents=True)
+        _write_kittify_config(tmp_path, [{"name": "no-charter", "local_path": str(pack)}])
+
+        interview = _FakeInterview()
+        messages = apply_org_charter_to_interview(interview, tmp_path)
+        assert messages == []
+
+    def test_fills_missing_answers_and_adds_required_directives(self, tmp_path: Path) -> None:
+        pack = tmp_path / "packs" / "security"
+        _write_org_charter(
+            pack,
+            """
+            interview_defaults:
+              human_in_command: true
+              autonomous_mode: disallowed
+            required_directives:
+              - sec-001
+              - sec-002
+            """,
+        )
+        _write_kittify_config(tmp_path, [{"name": "security", "local_path": str(pack)}])
+
+        interview = _FakeInterview()
+        messages = apply_org_charter_to_interview(interview, tmp_path)
+
+        assert interview.answers["human_in_command"] == "True"
+        assert interview.answers["autonomous_mode"] == "disallowed"
+        assert interview.selected_directives == ["sec-001", "sec-002"]
+        assert any("Pre-filled 2 interview default" in m for m in messages)
+        assert any("Pre-selected 2 directive" in m for m in messages)
+
+    def test_existing_answers_are_preserved(self, tmp_path: Path) -> None:
+        """An answer already set by the user is never overwritten by org defaults."""
+        pack = tmp_path / "packs" / "security"
+        _write_org_charter(
+            pack,
+            """
+            interview_defaults:
+              human_in_command: false
+              autonomous_mode: disallowed
+            """,
+        )
+        _write_kittify_config(tmp_path, [{"name": "security", "local_path": str(pack)}])
+
+        interview = _FakeInterview(answers={"human_in_command": "True"})
+        messages = apply_org_charter_to_interview(interview, tmp_path)
+
+        # User's "True" survives; only the missing key was added.
+        assert interview.answers["human_in_command"] == "True"
+        assert interview.answers["autonomous_mode"] == "disallowed"
+        assert any("Pre-filled 1 interview default" in m for m in messages)
+
+    def test_existing_required_directives_not_duplicated(self, tmp_path: Path) -> None:
+        pack = tmp_path / "packs" / "security"
+        _write_org_charter(
+            pack,
+            """
+            required_directives:
+              - sec-001
+              - sec-002
+            """,
+        )
+        _write_kittify_config(tmp_path, [{"name": "security", "local_path": str(pack)}])
+
+        interview = _FakeInterview(selected_directives=["sec-001", "DIRECTIVE_010"])
+        messages = apply_org_charter_to_interview(interview, tmp_path)
+
+        # sec-001 already present, only sec-002 is appended; order preserved.
+        assert interview.selected_directives == ["sec-001", "DIRECTIVE_010", "sec-002"]
+        assert any("Pre-selected 1 directive" in m for m in messages)
+
+    def test_multi_pack_declaration_order_wins(self, tmp_path: Path) -> None:
+        """When two packs declare the same key, the later pack's value wins (FR-006)."""
+        pack_a = tmp_path / "packs" / "a"
+        pack_b = tmp_path / "packs" / "b"
+        _write_org_charter(
+            pack_a,
+            """
+            interview_defaults:
+              autonomous_mode: pack-a-value
+            """,
+        )
+        _write_org_charter(
+            pack_b,
+            """
+            interview_defaults:
+              autonomous_mode: pack-b-value
+            """,
+        )
+        _write_kittify_config(
+            tmp_path,
+            [
+                {"name": "a", "local_path": str(pack_a)},
+                {"name": "b", "local_path": str(pack_b)},
+            ],
+        )
+
+        interview = _FakeInterview()
+        messages = apply_org_charter_to_interview(interview, tmp_path)
+
+        assert interview.answers["autonomous_mode"] == "pack-b-value"
+        assert messages
+
+    def test_idempotent_second_run_is_noop(self, tmp_path: Path) -> None:
+        pack = tmp_path / "packs" / "security"
+        _write_org_charter(
+            pack,
+            """
+            interview_defaults:
+              human_in_command: true
+            required_directives:
+              - sec-001
+            """,
+        )
+        _write_kittify_config(tmp_path, [{"name": "security", "local_path": str(pack)}])
+
+        interview = _FakeInterview()
+        first = apply_org_charter_to_interview(interview, tmp_path)
+        second = apply_org_charter_to_interview(interview, tmp_path)
+
+        assert first
+        assert second == []
+        assert interview.answers == {"human_in_command": "True"}
+        assert interview.selected_directives == ["sec-001"]
 
 
 # ---------------------------------------------------------------------------

@@ -25,7 +25,9 @@ Public API
 - :class:`OrgCharterPolicy` — top-level schema for ``org-charter.yaml``
 - :func:`load_org_charter_policy` — load policy from a single pack root
 - :func:`load_org_charter_policies` — load and merge across all packs
-- :func:`apply_org_charter_pre_fill` — pre-fill interview answers
+- :func:`apply_org_charter_pre_fill` — pre-fill interview answers on disk
+- :func:`apply_org_charter_to_interview` — pre-fill an in-memory
+  ``CharterInterview`` before the interactive prompt loop (FR-026)
 """
 
 from __future__ import annotations
@@ -220,6 +222,64 @@ def apply_org_charter_pre_fill(repo_root: Path) -> list[str]:
         interview_defaults=dict(merged_policy.interview_defaults),
         required_directives=list(merged_policy.required_directives),
     )
+
+
+def apply_org_charter_to_interview(
+    interview_data: Any,
+    repo_root: Path,
+) -> list[str]:
+    """Pre-fill an in-memory ``CharterInterview`` with org charter defaults.
+
+    Mutates ``interview_data.answers`` and ``interview_data.selected_directives``
+    in place (the dataclass is frozen for attribute rebinding, but the dict
+    and list values are mutable). Behaviour is non-destructive:
+
+    * Sets a key in ``interview_data.answers`` only when it is missing,
+      so the interactive prompt then shows the org default as its starting
+      value and the operator can confirm or override it (FR-026).
+    * Appends entries from ``required_directives`` to
+      ``interview_data.selected_directives`` only when not already present.
+
+    Returns a list of human-readable messages describing what was applied.
+    Returns ``[]`` when no org packs are configured, none ship an
+    ``org-charter.yaml``, or the merged policy contributes nothing.
+    """
+    from specify_cli.doctrine.config import load_pack_registry
+
+    registry = load_pack_registry(repo_root)
+    if not registry.packs:
+        return []
+
+    merged_policy = load_org_charter_policies(repo_root)
+    if not merged_policy.interview_defaults and not merged_policy.required_directives:
+        return []
+
+    messages: list[str] = []
+
+    prefilled = 0
+    for key, value in merged_policy.interview_defaults.items():
+        if key not in interview_data.answers:
+            interview_data.answers[key] = str(value)
+            prefilled += 1
+
+    new_required = [
+        d
+        for d in merged_policy.required_directives
+        if d not in interview_data.selected_directives
+    ]
+    if new_required:
+        interview_data.selected_directives.extend(new_required)
+        messages.append(
+            f"Pre-selected {len(new_required)} directive(s) from org charter "
+            "required_directives."
+        )
+
+    if prefilled:
+        messages.append(
+            f"Pre-filled {prefilled} interview default(s) from org charter."
+        )
+
+    return messages
 
 
 # ---------------------------------------------------------------------------
