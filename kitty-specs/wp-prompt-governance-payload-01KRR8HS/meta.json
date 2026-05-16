@@ -8,5 +8,7 @@
   "purpose_context": "This mission advances WP-prompt governance payload completeness on feat/org-doctrine-layer so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "WP-prompt governance payload completeness",
   "slug": "wp-prompt-governance-payload-01KRR8HS",
-  "target_branch": "feat/org-doctrine-layer"
+  "target_branch": "feat/org-doctrine-layer",
+  "vcs": "git",
+  "vcs_locked_at": "2026-05-16T11:50:28.369611+00:00"
 }

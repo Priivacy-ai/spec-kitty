@@ -1,7 +1,7 @@
 {
-  "event_count": 7,
-  "last_event_id": "01KRR9WB7F045WKWQP3NF0QS4K",
-  "materialized_at": "2026-05-16T11:48:53.103268+00:00",
+  "event_count": 9,
+  "last_event_id": "01KRR9Z8S4V20HR7575W08G8DY",
+  "materialized_at": "2026-05-16T11:50:28.900172+00:00",
   "mission_number": "",
   "mission_slug": "wp-prompt-governance-payload-01KRR8HS",
   "mission_type": "software-dev",
@@ -12,17 +12,17 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 7
+    "planned": 6
   },
   "work_packages": {
     "WP01": {
-      "actor": "finalize-tasks",
+      "actor": "claude:opus-4-7:python-pedro:implementer",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KRR9WB5W2NWYKRZ17N3DCS89",
-      "last_transition_at": "2026-05-16T11:48:53.052336+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KRR9Z8S4V20HR7575W08G8DY",
+      "last_transition_at": "2026-05-16T11:50:28.900172+00:00"
     },
     "WP02": {
       "actor": "finalize-tasks",
