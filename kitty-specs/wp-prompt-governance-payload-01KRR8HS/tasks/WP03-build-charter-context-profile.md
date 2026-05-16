@@ -16,7 +16,7 @@ subtasks:
 - T011
 - T012
 - T013
-agent: "claude:opus-4-7:python-pedro:implementer"
+agent: "codex:gpt-4o:reviewer-renata:reviewer"
 agent_profile: python-pedro
 authoritative_surface: src/charter/context.py
 execution_mode: code_change
@@ -26,7 +26,7 @@ owned_files:
 role: implementer
 history: []
 tags: []
-shell_pid: "1117321"
+shell_pid: "1135895"
 ---
 
 ## Objective
@@ -226,3 +226,4 @@ Check that:
 
 - 2026-05-16T12:21:19Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1117321 – Started implementation via action command
 - 2026-05-16T12:36:14Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1117321 – WP03 (python-pedro): build_charter_context(profile=) is now load-bearing. Replaced _ = profile at src/charter/context.py:92 with AgentProfileRepository-backed resolution; added _load_agent_profile, _render_profile_directives, _render_profile_tactics helpers. Both bootstrap and compact render paths now surface Profile-Cited Directives (<id>): and Profile-Cited Tactics (<id>): sections, each entry either inline body or fetch+when-doing stanza. New tests: tests/charter/test_context_profile.py (12 pass). ATDD target test_implement_action_context_includes_profile_directive_references_when_profile_known green. Architecture layer rules: 8/8 green. ruff + mypy clean on touched files.
+- 2026-05-16T12:36:48Z – codex:gpt-4o:reviewer-renata:reviewer – shell_pid=1135895 – Started review via action command
