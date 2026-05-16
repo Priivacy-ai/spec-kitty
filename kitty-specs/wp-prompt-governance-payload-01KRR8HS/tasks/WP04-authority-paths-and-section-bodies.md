@@ -268,3 +268,4 @@ Check that:
 ## Activity Log
 
 - 2026-05-16T12:39:05Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1138959 – Started implementation via action command
+- 2026-05-16T12:54:15Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1138959 – Ready for review: context_renderers/ submodule with render_authority_paths (FR-003) and render_critical_section_bodies (FR-001) wired into bootstrap + compact paths in src/charter/context.py. 3 ATDD tests + 1 bonus turned GREEN, 11 unit tests added, 8/8 layer rules pass, ruff clean, mypy unchanged from baseline.
