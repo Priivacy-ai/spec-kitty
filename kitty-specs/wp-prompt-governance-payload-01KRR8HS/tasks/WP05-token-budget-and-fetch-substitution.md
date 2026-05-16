@@ -14,7 +14,7 @@ subtasks:
 - T020
 - T021
 - T022
-agent: "claude:opus-4-7:python-pedro:implementer"
+agent: "codex:gpt-4o:reviewer-renata:reviewer"
 agent_profile: python-pedro
 authoritative_surface: src/charter/context_renderers/
 execution_mode: code_change
@@ -26,7 +26,7 @@ owned_files:
 role: implementer
 history: []
 tags: []
-shell_pid: "1157057"
+shell_pid: "1172905"
 ---
 
 ## Objective
@@ -255,3 +255,4 @@ Check that:
 
 - 2026-05-16T12:57:11Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1157057 – Started implementation via action command
 - 2026-05-16T13:10:44Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1157057 – Implemented apply_token_budget + fetch_stanza helpers under src/charter/context_renderers/; wired into _render_bootstrap_text and _render_compact_governance via _enforce_token_budget. Added 16 unit tests (all green). C-004 baseline measured against layered-doctrine-org-layer-01KRNPEE: max prompt 24,128 chars (implement) / 30,970 chars (review) — all 10 WPs under 32k NFR-001 cap. ATDD 19/4 preserved; layer rules 8/8; ruff/mypy clean on new code.
+- 2026-05-16T13:11:24Z – codex:gpt-4o:reviewer-renata:reviewer – shell_pid=1172905 – Started review via action command
