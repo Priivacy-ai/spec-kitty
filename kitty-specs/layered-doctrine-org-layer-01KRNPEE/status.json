@@ -1,16 +1,16 @@
 {
-  "event_count": 72,
-  "last_event_id": "01KRQGR3H2MXK95EPQH1HDTY1B",
-  "materialized_at": "2026-05-16T04:29:39.746249+00:00",
+  "event_count": 73,
+  "last_event_id": "01KRQGR4ZREXBHHRJE0MS7CKNS",
+  "materialized_at": "2026-05-16T04:29:41.240803+00:00",
   "mission_number": "118",
   "mission_slug": "layered-doctrine-org-layer-01KRNPEE",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 3,
+    "approved": 2,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 7,
+    "done": 8,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
@@ -68,10 +68,10 @@
     },
     "WP08": {
       "actor": "user",
-      "force_count": 1,
-      "lane": "approved",
-      "last_event_id": "01KRP3GZ12YQ9SQ97TRZF953WR",
-      "last_transition_at": "2026-05-15T15:19:19.842266+00:00"
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KRQGR4ZREXBHHRJE0MS7CKNS",
+      "last_transition_at": "2026-05-16T04:29:41.240803+00:00"
     },
     "WP09": {
       "actor": "user",

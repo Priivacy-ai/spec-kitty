@@ -321,3 +321,4 @@ Verify all document links resolve (no 404s). Fix any broken references.
 - 2026-05-15T15:17:55Z – claude:opus-4-7:python-pedro:implementer – shell_pid=732840 – Cycle 2: fixed built-in→builtin provenance tag literal in two doc locations (explanation table cell + how-to source-field description); prose mentions of 'built-in layer' unchanged
 - 2026-05-15T15:18:00Z – codex:gpt-4o:reviewer-renata:reviewer – shell_pid=733727 – Started review via action command
 - 2026-05-15T15:19:19Z – codex:gpt-4o:reviewer-renata:reviewer – shell_pid=733727 – Cycle 2 review: built-in→builtin fix verified; prose mentions of 'built-in layer' preserved correctly.
+- 2026-05-16T04:29:41Z – codex:gpt-4o:reviewer-renata:reviewer – shell_pid=733727 – Done override: Mission merged via squash commit 9c2c26a0 to feat/org-doctrine-layer
