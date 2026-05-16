@@ -417,27 +417,28 @@ def _is_urls_list_eligible(file_path: Path, hunk_text: str) -> bool:
     """Eligibility predicate for the URL-list-union rule."""
     if file_path.name == "urls.py":
         return True
-    for raw in hunk_text.splitlines():
-        stripped = raw.strip()
-        if not stripped or stripped.startswith("#"):
-            continue
+    return any(_looks_like_urls_assignment(line) for line in hunk_text.splitlines())
 
-        name, sep, value = stripped.partition("=")
-        if sep:
-            name = name.split(":", 1)[0]
-        else:
-            name, sep, value = stripped.partition(":")
-        if not sep:
-            continue
 
-        candidate = name.strip()
-        if candidate not in {"URLS", "_URLS", "URL", "_URL", "URL_PATTERNS"}:
-            continue
+def _looks_like_urls_assignment(line: str) -> bool:
+    stripped = line.strip()
+    if not stripped or stripped.startswith("#"):
+        return False
 
+    name, sep, value = stripped.partition("=")
+    if sep:
+        name = name.split(":", 1)[0]
+    else:
+        name, sep, value = stripped.partition(":")
+    if not sep:
+        return False
+
+    candidate = name.strip()
+    for prefix in ("URL_PATTERNS", "_URLS", "URLS", "_URL", "URL"):
+        if candidate != prefix:
+            continue
         value = value.lstrip()
-        if value and (value[0].isalpha() or value[0] == "["):
-            return True
-
+        return bool(value) and (value[0].isalpha() or value[0] == "[")
     return False
 
 

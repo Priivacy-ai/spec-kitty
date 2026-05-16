@@ -767,15 +767,14 @@ class EventEmitter:
         to_lane: str,
         actor: str = "user",
         mission_slug: str | None = None,
-        mission_id: str | None = None,
         causation_id: str | None = None,
-        policy_metadata: dict | None = None,
         force: bool = False,
         reason: str | None = None,
         review_ref: str | None = None,
         execution_mode: str | None = None,
         evidence: dict[str, Any] | None = None,
         occurred_at: str | None = None,
+        **legacy_kwargs: Any,
     ) -> dict[str, Any] | None:
         """Emit WPStatusChanged event (FR-008).
 
@@ -784,6 +783,14 @@ class EventEmitter:
         envelope's ``timestamp`` will equal this value; otherwise the emitter
         mints a fresh ``datetime.now(UTC).isoformat()``.
         """
+        unexpected_kwargs = sorted(
+            set(legacy_kwargs) - {"mission_id", "policy_metadata"}
+        )
+        if unexpected_kwargs:
+            unexpected = ", ".join(unexpected_kwargs)
+            raise TypeError(
+                f"emit_wp_status_changed() got unexpected keyword argument(s): {unexpected}"
+            )
         evidence_payload = evidence
         if evidence_payload is not None and not evidence_payload.get("repos"):
             git_meta = self._get_git_metadata()
@@ -810,7 +817,6 @@ class EventEmitter:
             "execution_mode": execution_mode or "direct_repo",
             "evidence": evidence_payload,
         }
-        del mission_id, policy_metadata
         return self._emit(
             event_type="WPStatusChanged",
             aggregate_id=wp_id,

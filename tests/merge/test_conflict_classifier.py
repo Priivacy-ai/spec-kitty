@@ -25,6 +25,7 @@ from specify_cli.merge.conflict_classifier import (
     ConflictClassification,
     Manual,
     _extract_module,
+    _looks_like_urls_assignment,
     _is_urls_list_eligible,
     _parse_dep_lines,
     _parse_import_lines,
@@ -216,6 +217,10 @@ class TestUrlsListUnion:
             _hunk('    "x",\n', '    "y",\n'),
         )
         assert cls is None
+
+    def test_url_assignment_marker_helper_accepts_non_urls_files(self) -> None:
+        assert _looks_like_urls_assignment('URL_PATTERNS = ["alpha/"]')
+        assert _looks_like_urls_assignment(" _URLS: router.urls")
 
     def test_accepts_non_urls_py_url_constant_without_regex_backtracking(self) -> None:
         assert _is_urls_list_eligible(

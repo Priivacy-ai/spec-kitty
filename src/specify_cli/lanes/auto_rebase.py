@@ -408,7 +408,7 @@ def _finalize_auto_rebase(
 
 def attempt_auto_rebase(
     lane: ExecutionLane,
-    branch: str,  # noqa: ARG001 — kept for API symmetry with check_lane_staleness  # NOSONAR(python:S1172)
+    branch: str,
     mission_branch: str,
     repo_root: Path,
     worktree_path: Path,
@@ -443,7 +443,7 @@ def attempt_auto_rebase(
     if not conflicted:
         return _abort_with_failure(
             worktree_path, lane.lane_id, [],
-            f"git merge failed without conflicts: "
+            f"git merge failed without conflicts on {branch}: "
             f"{(merge_result.stderr or merge_result.stdout).strip()}",
         )
 
