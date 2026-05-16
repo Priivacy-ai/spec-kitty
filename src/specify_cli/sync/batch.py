@@ -25,6 +25,7 @@ from specify_cli.sync._team import (
     resolve_private_team_id_for_ingress,
 )
 from .feature_flags import is_saas_sync_enabled, saas_sync_disabled_message
+from .routing import is_sync_enabled_for_checkout
 from .queue import OfflineQueue
 from .diagnostics import (
     SyncDiagnosticCode,
@@ -328,6 +329,33 @@ def _select_events_for_advertised_limits(
 
     payload = _build_batch_payload(selected)
     return selected, payload
+
+
+def _is_checkout_sync_enabled_for_batch() -> bool:
+    """Return whether the current checkout is allowed to drain SaaS events."""
+    try:
+        return is_sync_enabled_for_checkout()
+    except Exception:
+        return False
+
+
+def _prepare_events_for_ingress(events: list[dict], *, team_slug: str) -> list[dict]:
+    """Return ingress-ready copies of queued events.
+
+    ``drain_blocked_reason`` is an outbox diagnostic captured at emit time.
+    The batch drain re-resolves the live preconditions before calling this
+    helper, so stale blockers must not be forwarded to SaaS once auth/team/
+    checkout routing have recovered. The queue rows are left untouched until
+    the server acknowledges the batch.
+    """
+    prepared: list[dict] = []
+    for event in events:
+        next_event = dict(event)
+        if not next_event.get("team_slug"):
+            next_event["team_slug"] = team_slug
+        next_event.pop("drain_blocked_reason", None)
+        prepared.append(next_event)
+    return prepared
 
 
 def _is_oversized_batch_response(status_code: int, body: dict) -> bool:
@@ -985,6 +1013,20 @@ def batch_sync(  # noqa: C901
         advertised_limits=advertised_limits,
     )
     result.total_events = len(events)
+    if not _is_checkout_sync_enabled_for_batch():
+        # Checkout-level routing is still opted out. Leave rows untouched so
+        # a future opt-in can replay them; no network request is made.
+        _record_all_events_failed(
+            result,
+            events,
+            error="skipped: SaaS sync disabled for current checkout",
+            category="sync_disabled",
+            transient=True,
+        )
+        return result
+
+    events = _prepare_events_for_ingress(events, team_slug=team_slug)
+    payload = _build_batch_payload(events)
     byte_limit = _decompressed_byte_limit(advertised_limits)
 
     historical_rejection = _historical_mission_state_rejection(events)

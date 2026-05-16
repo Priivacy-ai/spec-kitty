@@ -421,14 +421,24 @@ def _is_urls_list_eligible(file_path: Path, hunk_text: str) -> bool:
 
 
 def _looks_like_urls_assignment(line: str) -> bool:
-    stripped = line.lstrip()
+    stripped = line.strip()
+    if not stripped or stripped.startswith("#"):
+        return False
+
+    name, sep, value = stripped.partition("=")
+    if sep:
+        name = name.split(":", 1)[0]
+    else:
+        name, sep, value = stripped.partition(":")
+    if not sep:
+        return False
+
+    candidate = name.strip()
     for prefix in ("URL_PATTERNS", "_URLS", "URLS", "_URL", "URL"):
-        if not stripped.startswith(prefix):
+        if candidate != prefix:
             continue
-        remainder = stripped[len(prefix):].lstrip()
-        if remainder.startswith((":", "=")):
-            remainder = remainder[1:].lstrip()
-        return bool(remainder) and (remainder[0].isalpha() or remainder[0] == "[")
+        value = value.lstrip()
+        return bool(value) and (value[0].isalpha() or value[0] == "[")
     return False
 
 

@@ -178,14 +178,18 @@ def _default_mission_purpose_context(display_name: str, target_branch: str) -> s
 
 _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
     "BuildRegistered": {
-        "required": {"build_id", "repo_slug"},
+        # Local-first registration (issue #1074): build_id + project_uuid scope
+        # are sufficient. repo_slug is optional enrichment for git-backed
+        # checkouts; fresh / detached / local-only projects MUST still
+        # register so the SaaS side can materialize them once auth resolves.
+        "required": {"build_id"},
         "validators": {
             "build_id": lambda v: isinstance(v, str) and len(v) >= 1,
             "node_id": _is_nullable_string,
             "project_uuid": _is_nullable_string,
             "project_slug": _is_nullable_string,
             "project_name": _is_nullable_string,
-            "repo_slug": lambda v: isinstance(v, str) and len(v) >= 1,
+            "repo_slug": _is_nullable_string,
             "branch": _is_nullable_string,
             "head_commit": _is_nullable_string,
             "developer_name": _is_nullable_string,
@@ -194,14 +198,15 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
         },
     },
     "BuildHeartbeat": {
-        "required": {"build_id", "repo_slug"},
+        # See BuildRegistered note above; repo_slug is enrichment only.
+        "required": {"build_id"},
         "validators": {
             "build_id": lambda v: isinstance(v, str) and len(v) >= 1,
             "node_id": _is_nullable_string,
             "project_uuid": _is_nullable_string,
             "project_slug": _is_nullable_string,
             "project_name": _is_nullable_string,
-            "repo_slug": lambda v: isinstance(v, str) and len(v) >= 1,
+            "repo_slug": _is_nullable_string,
             "branch": _is_nullable_string,
             "head_commit": _is_nullable_string,
             "developer_name": _is_nullable_string,
@@ -1418,6 +1423,51 @@ class EventEmitter:
 
     # ── Internal dispatch ─────────────────────────────────────────
 
+    # Drain blocked reason taxonomy — see issue #1072.
+    #
+    # ``None``            event is ready to drain to SaaS.
+    # ``"sync_disabled"`` SaaS sync is opted out for this checkout
+    #                     (feature flag off or local override).
+    # ``"no_auth"``       no authenticated session; drain cannot ship.
+    # ``"no_team"``       authenticated but the strict Private Teamspace
+    #                     resolver returned None (ingress safety).
+    #
+    # The flag is captured at emit time as a diagnostic. The drain loop
+    # re-resolves on every tick, so a previously-blocked event becomes
+    # eligible once the underlying condition clears (login, opt-in,
+    # private team materialized). Ingress safety is preserved: ``no_team``
+    # events are never shipped via direct ingress because the drain side
+    # re-checks the resolver and skips the batch when it still returns
+    # None.
+    DRAIN_BLOCKED_REASONS = frozenset({"sync_disabled", "no_auth", "no_team"})
+
+    def _classify_drain_blocked_reason(self, team_slug: str | None) -> str | None:
+        """Return a drain-blocked reason for the current emission context.
+
+        Order matters: the most coarse-grained gate (sync feature flag)
+        wins so operators see "the checkout is opted out" rather than a
+        downstream symptom like "no_team".
+        """
+        try:
+            if not is_sync_enabled_for_checkout():
+                return "sync_disabled"
+        except Exception:
+            # Routing config errors should not destroy event durability;
+            # treat as drain-blocked so the operator can re-evaluate
+            # later via ``sync status --check``.
+            return "sync_disabled"
+
+        try:
+            if not self._is_authenticated():
+                return "no_auth"
+        except Exception:
+            return "no_auth"
+
+        if team_slug is None:
+            return "no_team"
+
+        return None
+
     def _emit(
         self,
         event_type: str,
@@ -1435,16 +1485,18 @@ class EventEmitter:
         envelope ``timestamp`` field. Callers that already have a local
         lane-transition time (e.g. ``StatusEvent.at``) MUST pass it here so
         the wire envelope preserves that value. When ``occurred_at`` is
-        ``None``, the emitter mints ``datetime.now(UTC).isoformat()`` — the
+        ``None``, the emitter mints ``datetime.now(UTC).isoformat()`` - the
         right behavior for events created at emission time (build heartbeat,
         dossier emission, etc.).
+
+        Local durability is unconditional (issue #1072): the on-disk outbox
+        is appended before any auth / sync / team / network gate can drop the
+        event. Remote drain eligibility is captured in ``drain_blocked_reason``
+        on the envelope; the drain loop re-evaluates each tick and only ships
+        events whose blockers have cleared.
         """
         try:
-            if not is_sync_enabled_for_checkout():
-                logger.debug("Sync disabled for current checkout; dropping %s", event_type)
-                return None
-
-            # Tick clock for causal ordering
+            # Tick clock for causal ordering — local fact, always recorded.
             clock_value = self.clock.tick()
             logger.debug(
                 "Emitting %s event with Lamport clock: %d",
@@ -1452,29 +1504,20 @@ class EventEmitter:
                 clock_value,
             )
 
-            # Resolve identity and team_slug
+            # Resolve identity, team_slug (may be None), and git metadata.
+            # team_slug=None is now a valid "pending routing" state; the
+            # strict resolver still warns via its structured logger so
+            # operators see the ingress-safety boundary.
             identity = self._get_identity()
             team_slug = self._get_team_slug()
-            if team_slug is None:
-                # FR-002/FR-007 (private-teamspace-ingress-safeguards):
-                # The strict shared resolver returned None, meaning no Private
-                # Teamspace is available for direct ingress. The helper has
-                # already emitted the structured warning. Drop the event
-                # rather than fall back to a shared/"local" team — emitter
-                # team-identity metadata for ingress MUST come from the
-                # strict resolver only.
-                logger.debug(
-                    "Skipping %s emission: no Private Teamspace available for ingress",
-                    event_type,
-                )
-                return None
-
-            # Resolve per-event git metadata
             git_meta = self._get_git_metadata()
+
+            # Classify the drain blocker (None means ready to ship).
+            drain_blocked_reason = self._classify_drain_blocked_reason(team_slug)
 
             event_id = _generate_ulid()
 
-            # Build event dict with identity fields
+            # Build event dict with identity fields.
             event: dict[str, Any] = {
                 "event_id": event_id,
                 "event_type": event_type,
@@ -1495,28 +1538,36 @@ class EventEmitter:
                 "git_branch": git_meta.git_branch,
                 "head_commit_sha": git_meta.head_commit_sha,
                 "repo_slug": git_meta.repo_slug,
+                # Local-first diagnostic (issue #1072). Drain logic uses
+                # this for diagnostics + counting; eligibility is decided
+                # at drain time by re-resolving the underlying conditions.
+                "drain_blocked_reason": drain_blocked_reason,
             }
             if envelope_fields:
                 event.update(envelope_fields)
 
-            # Validate event structure and payload
+            # Validate event structure and payload. Validation tolerates
+            # team_slug=None for pending-routing events (issue #1072).
             if not self._validate_event(event):
                 return None
 
-            # Contract gate: validate envelope against upstream contract
+            # Contract gate: validate envelope against upstream contract.
+            # The upstream contract does not require team_slug at envelope
+            # level, so pending-routing events pass without modification.
             try:
                 validate_outbound_payload(event, "envelope")
             except Exception as gate_err:
                 _console.print(f"[yellow]Warning: Envelope contract gate failed: {gate_err}[/yellow]")
                 return None
 
+            # Local outbox is the durable surface; always append before
+            # making remote routing decisions.
             # Check project_uuid: if missing, queue only (no WebSocket send)
             if not event.get("project_uuid"):
                 _console.print("[yellow]Warning: Event missing project_uuid; queued locally only[/yellow]")
                 self.queue.queue_event(event)
                 return event
 
-            # Route: WebSocket if connected and authenticated, else queue
             self._route_event(event)
             return event
 
@@ -1570,9 +1621,13 @@ class EventEmitter:
             }
             EventModel(**model_data)
 
-            # 2. Validate fields the library model doesn't cover
-            if not event.get("team_slug"):
-                _console.print("[yellow]Warning: Event missing team_slug[/yellow]")
+            # 2. Validate fields the library model doesn't cover.
+            # team_slug=None is a valid "pending routing" state for
+            # locally-durable events (issue #1072). Reject only when the
+            # value is present but malformed (non-string).
+            team_slug_value = event.get("team_slug")
+            if team_slug_value is not None and not isinstance(team_slug_value, str):
+                _console.print("[yellow]Warning: Event team_slug has non-string value[/yellow]")
                 return False
 
             if event.get("aggregate_type") not in VALID_AGGREGATE_TYPES:
@@ -1644,10 +1699,25 @@ class EventEmitter:
     def _route_event(self, event: dict[str, Any]) -> bool:
         """Route event to WebSocket or offline queue.
 
+        Local queue is the durable outbox and is always appended first
+        (issue #1072). WebSocket publish is opportunistic and only
+        attempted when the event is drain-eligible:
+
+        - ``drain_blocked_reason`` is None (ready to ship), AND
+        - WebSocket client is connected, AND
+        - session is authenticated.
+
         Returns True if event was sent/queued successfully.
         """
         try:
             queued = self.queue.queue_event(event)
+
+            # Drain-blocked events stay in the durable outbox; the drain
+            # loop re-evaluates conditions on each tick. Skipping the WS
+            # publish here preserves ingress safety (no_team events are
+            # never shipped opportunistically over WebSocket).
+            if event.get("drain_blocked_reason") is not None:
+                return queued
 
             # Check if authenticated (via TokenManager)
             try:

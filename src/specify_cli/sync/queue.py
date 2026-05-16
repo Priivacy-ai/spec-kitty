@@ -342,6 +342,11 @@ class QueueStats:
 
     Used by ``sync status`` to display queue health information
     including depth, age, retry distribution, and top event types.
+
+    ``drain_blocked_counts`` (issue #1072 / #1075) breaks the queue depth
+    down by ``drain_blocked_reason``: events ready to ship are counted under
+    ``"ready"``, blocked events under ``"sync_disabled"`` / ``"no_auth"`` /
+    ``"no_team"``. Empty when the queue is empty.
     """
 
     total_queued: int = 0
@@ -350,6 +355,7 @@ class QueueStats:
     oldest_event_age: timedelta | None = None
     retry_distribution: dict[str, int] = field(default_factory=dict)
     top_event_types: list[tuple[str, int]] = field(default_factory=list)
+    drain_blocked_counts: dict[str, int] = field(default_factory=dict)
 
 
 def _spec_kitty_dir() -> Path:
@@ -1346,6 +1352,38 @@ class OfflineQueue:
         finally:
             conn.close()
 
+    def get_drain_blocked_counts(self) -> dict[str, int]:
+        """Return queued-event counts grouped by ``drain_blocked_reason``.
+
+        Issue #1072 / #1075: events are now appended to the durable outbox
+        regardless of auth, sync, or team-resolution state. Each event
+        carries a ``drain_blocked_reason`` diagnostic (``None`` means
+        ready to drain). ``sync status`` uses this aggregate to tell the
+        operator WHY the queue is stuck rather than just reporting depth.
+
+        Returned keys are the union of ``None`` (rendered as ``"ready"``)
+        and the values in :data:`EventEmitter.DRAIN_BLOCKED_REASONS`.
+        Keys with zero count are omitted. Events that pre-date this
+        feature (no ``drain_blocked_reason`` field) are counted as
+        ``"ready"`` because the original emit-time code path only queued
+        when remote drain was eligible.
+        """
+        counts: dict[str, int] = {}
+        conn = sqlite3.connect(self.db_path)
+        try:
+            cursor = conn.execute("SELECT data FROM queue")
+            for (raw,) in cursor:
+                try:
+                    event = json.loads(raw)
+                except (TypeError, ValueError):
+                    continue
+                reason = event.get("drain_blocked_reason")
+                bucket = reason if isinstance(reason, str) and reason else "ready"
+                counts[bucket] = counts.get(bucket, 0) + 1
+        finally:
+            conn.close()
+        return counts
+
     def get_queue_stats(self) -> QueueStats:
         """
         Compute aggregate statistics about the queue.
@@ -1416,6 +1454,7 @@ class OfflineQueue:
                 oldest_event_age=oldest_event_age,
                 retry_distribution=retry_distribution,
                 top_event_types=top_event_types,
+                drain_blocked_counts=self.get_drain_blocked_counts(),
             )
         finally:
             conn.close()

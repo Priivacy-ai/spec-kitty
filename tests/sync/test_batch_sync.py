@@ -231,6 +231,101 @@ class TestBatchSyncSuccess:
         assert populated_queue.size() == 0  # Queue should be empty
 
     @patch("specify_cli.sync.batch.requests.post")
+    def test_batch_sync_rehydrates_stale_drain_blockers_before_post(
+        self,
+        mock_post,
+        temp_queue,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Previously blocked local-first events become ingress-ready at drain time."""
+        monkeypatch.setenv(SAAS_SYNC_ENV_VAR, "1")
+        event_id = "01KQHRB8GCFJAX7HM4ZY52AQGW"
+        temp_queue.queue_event(
+            {
+                "event_id": event_id,
+                "event_type": "BuildRegistered",
+                "aggregate_id": "build-1",
+                "aggregate_type": "Build",
+                "schema_version": "3.0.0",
+                "build_id": "build-1",
+                "timestamp": "2026-01-01T00:00:00+00:00",
+                "node_id": "node-1",
+                "lamport_clock": 1,
+                "team_slug": None,
+                "project_uuid": "1ab1511d-bea2-47c2-b1e2-bec8547ce55b",
+                "project_slug": "fresh-project",
+                "drain_blocked_reason": "no_team",
+                "payload": {
+                    "build_id": "build-1",
+                    "project_uuid": "1ab1511d-bea2-47c2-b1e2-bec8547ce55b",
+                    "project_slug": "fresh-project",
+                    "repo_slug": None,
+                },
+            }
+        )
+
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"results": [{"event_id": event_id, "status": "success"}]}
+        mock_post.return_value = mock_response
+
+        result = batch_sync(
+            queue=temp_queue,
+            auth_token="test-token",
+            server_url="http://localhost:8000",
+            show_progress=False,
+        )
+
+        assert result.synced_count == 1
+        payload = json.loads(gzip.decompress(mock_post.call_args.kwargs["data"]).decode("utf-8"))
+        posted_event = payload["events"][0]
+        assert posted_event["team_slug"] == "default-private-team"
+        assert "drain_blocked_reason" not in posted_event
+        assert temp_queue.size() == 0
+
+    @patch("specify_cli.sync.batch.requests.post")
+    def test_batch_sync_leaves_rows_untouched_when_checkout_still_disabled(
+        self,
+        mock_post,
+        temp_queue,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setenv(SAAS_SYNC_ENV_VAR, "1")
+        monkeypatch.setattr("specify_cli.sync.batch.is_sync_enabled_for_checkout", lambda: False)
+        event_id = "01KQHRB8GCFJAX7HM4ZY52AQGX"
+        temp_queue.queue_event(
+            {
+                "event_id": event_id,
+                "event_type": "BuildRegistered",
+                "aggregate_id": "build-1",
+                "aggregate_type": "Build",
+                "schema_version": "3.0.0",
+                "build_id": "build-1",
+                "timestamp": "2026-01-01T00:00:00+00:00",
+                "node_id": "node-1",
+                "lamport_clock": 1,
+                "team_slug": "default-private-team",
+                "project_uuid": "1ab1511d-bea2-47c2-b1e2-bec8547ce55b",
+                "project_slug": "fresh-project",
+                "drain_blocked_reason": "sync_disabled",
+                "payload": {"build_id": "build-1"},
+            }
+        )
+
+        result = batch_sync(
+            queue=temp_queue,
+            auth_token="test-token",
+            server_url="http://localhost:8000",
+            show_progress=False,
+        )
+
+        assert result.total_events == 1
+        assert result.error_count == 1
+        assert result.event_results[0].status == "failed_transient"
+        assert temp_queue.size() == 1
+        mock_post.assert_not_called()
+
+    @patch("specify_cli.sync.batch.requests.post")
     def test_batch_sync_with_duplicates(self, mock_post, populated_queue):
         """Test batch sync handles duplicate events"""
         # Mock response with some duplicates
@@ -1025,9 +1120,13 @@ class TestSyncAllQueuedEvents:
         assert mock_post.call_count == 1
         assert result.error_count == 100
 
+    @patch("specify_cli.sync.batch._is_checkout_sync_enabled_for_batch", return_value=True)
+    @patch("specify_cli.sync.batch._current_team_slug", return_value="default-private-team")
     @patch("specify_cli.sync.batch.requests.get")
     @patch("specify_cli.sync.batch.requests.post")
-    def test_sync_all_continues_past_oversized_event(self, mock_post, mock_get, temp_queue):
+    def test_sync_all_continues_past_oversized_event(
+        self, mock_post, mock_get, _mock_team_slug, _mock_checkout_enabled, temp_queue
+    ):
         """An oversized event at queue head must not permanently stall subsequent events."""
         temp_queue.queue_event(
             {
@@ -1047,7 +1146,7 @@ class TestSyncAllQueuedEvents:
         health_response = Mock()
         health_response.status_code = 200
         health_response.json.return_value = {
-            "sync_ingress": {"limits": {"max_events_per_batch": 10, "max_decompressed_bytes_per_batch": 100}}
+            "sync_ingress": {"limits": {"max_events_per_batch": 10, "max_decompressed_bytes_per_batch": 400}}
         }
         mock_get.return_value = health_response
 

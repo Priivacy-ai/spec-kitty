@@ -830,3 +830,141 @@ def stop_sync_daemon(timeout: float = 5.0) -> tuple[bool, str]:
             pass
     DAEMON_STATE_FILE.unlink(missing_ok=True)
     return True, "Sync daemon stopped."
+
+
+# ---------------------------------------------------------------------------
+# Singleton diagnostics (issue #1071)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class OrphanDaemonInfo:
+    """A live ``run_sync_daemon`` process not represented by the state file."""
+
+    pid: int
+    cmdline: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class DaemonSingletonReport:
+    """Snapshot of all live ``run_sync_daemon`` processes on the host.
+
+    Use :func:`scan_sync_daemons` to capture this; use
+    :func:`cleanup_orphan_sync_daemons` to terminate orphans. The
+    singleton invariant is: at most one live daemon process matches
+    the canonical state file's PID; everything else is an orphan that
+    leaks ports/sockets and should be reaped.
+    """
+
+    state_pid: int | None
+    state_file_present: bool
+    orphan_processes: tuple[OrphanDaemonInfo, ...]
+
+    @property
+    def orphan_count(self) -> int:
+        return len(self.orphan_processes)
+
+    @property
+    def is_singleton(self) -> bool:
+        return self.orphan_count == 0
+
+
+def _iter_sync_daemon_processes() -> list[psutil.Process]:
+    """Yield live processes whose cmdline references ``run_sync_daemon``."""
+    matches: list[psutil.Process] = []
+    for proc in psutil.process_iter(attrs=["pid", "cmdline"]):
+        try:
+            cmdline = proc.info.get("cmdline") or []
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+        if not cmdline:
+            continue
+        if any("run_sync_daemon" in str(part) for part in cmdline):
+            matches.append(proc)
+    return matches
+
+
+def scan_sync_daemons() -> DaemonSingletonReport:
+    """Inspect the host for live sync-daemon processes.
+
+    Returns a structured report whose ``orphan_processes`` enumerate
+    every live ``run_sync_daemon`` process that is *not* the one
+    recorded in ``DAEMON_STATE_FILE``. The state-file PID, when
+    present and live, is treated as the canonical singleton and is
+    excluded from the orphan list.
+    """
+    state_pid: int | None = None
+    state_present = DAEMON_STATE_FILE.exists()
+    if state_present:
+        try:
+            _, _, _, state_pid = _parse_daemon_file(DAEMON_STATE_FILE)
+        except Exception:  # noqa: BLE001
+            state_pid = None
+
+    orphans: list[OrphanDaemonInfo] = []
+    for proc in _iter_sync_daemon_processes():
+        try:
+            pid = int(proc.pid)
+            cmdline_seq = proc.info.get("cmdline") or []
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+        if state_pid is not None and pid == state_pid:
+            continue
+        orphans.append(
+            OrphanDaemonInfo(
+                pid=pid,
+                cmdline=tuple(str(part) for part in cmdline_seq),
+            )
+        )
+
+    return DaemonSingletonReport(
+        state_pid=state_pid,
+        state_file_present=state_present,
+        orphan_processes=tuple(orphans),
+    )
+
+
+def cleanup_orphan_sync_daemons(
+    *,
+    dry_run: bool = False,
+    timeout: float = 1.0,
+) -> tuple[DaemonSingletonReport, list[int]]:
+    """Terminate orphan sync-daemon processes; return report and PIDs killed.
+
+    Args:
+        dry_run: When True, report the orphans without terminating
+            anything. Useful for diagnostics and tests.
+        timeout: Seconds to wait for graceful termination per orphan
+            before falling back to ``kill()``.
+
+    Returns:
+        A tuple of ``(report, killed_pids)`` where ``report`` is the
+        pre-cleanup snapshot and ``killed_pids`` is the list of PIDs
+        that received a kill signal. When ``dry_run`` is True the list
+        is always empty.
+    """
+    report = scan_sync_daemons()
+    killed: list[int] = []
+    if dry_run:
+        return report, killed
+
+    for orphan in report.orphan_processes:
+        try:
+            proc = psutil.Process(orphan.pid)
+        except psutil.NoSuchProcess:
+            continue
+        try:
+            proc.terminate()
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+        try:
+            proc.wait(timeout=timeout)
+        except psutil.TimeoutExpired:
+            try:
+                proc.kill()
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+        except psutil.NoSuchProcess:
+            pass
+        killed.append(orphan.pid)
+    return report, killed

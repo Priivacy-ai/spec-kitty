@@ -26,6 +26,7 @@ from specify_cli.merge.conflict_classifier import (
     Manual,
     _extract_module,
     _looks_like_urls_assignment,
+    _is_urls_list_eligible,
     _parse_dep_lines,
     _parse_import_lines,
     _parse_url_entries,
@@ -220,6 +221,18 @@ class TestUrlsListUnion:
     def test_url_assignment_marker_helper_accepts_non_urls_files(self) -> None:
         assert _looks_like_urls_assignment('URL_PATTERNS = ["alpha/"]')
         assert _looks_like_urls_assignment(" _URLS: router.urls")
+
+    def test_accepts_non_urls_py_url_constant_without_regex_backtracking(self) -> None:
+        assert _is_urls_list_eligible(
+            Path("src/config.py"),
+            'URL_PATTERNS = [\n<<<<<<< HEAD\n    "alpha/",\n=======\n    "beta/",\n>>>>>>> mission\n',
+        )
+
+    def test_accepts_type_annotated_non_urls_py_url_constant(self) -> None:
+        assert _is_urls_list_eligible(
+            Path("src/config.py"),
+            'URL_PATTERNS: list[URLPattern] = [\n<<<<<<< HEAD\n    "alpha/",\n=======\n    "beta/",\n>>>>>>> mission\n',
+        )
 
     def test_returns_none_for_malformed_conflict_region(self) -> None:
         cls = r_urls_list_union(Path("app/urls.py"), "<<<<<<< HEAD\n")

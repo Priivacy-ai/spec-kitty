@@ -454,19 +454,25 @@ class TestMissingIdentityQueuesOnly:
         # Event has None project_uuid
         assert event.get("project_uuid") is None
 
-    def test_missing_identity_warning_shown(
-        self, emitter_without_identity: EventEmitter, temp_queue: OfflineQueue, capsys
+    def test_missing_identity_does_not_block_local_durability(
+        self, emitter_without_identity: EventEmitter, temp_queue: OfflineQueue
     ):
-        """Warning is logged when identity is missing."""
-        emitter_without_identity.emit_wp_status_changed(
+        """Missing ``project_uuid`` still produces a locally-durable event.
+
+        Issue #1072: the local outbox is the durable surface. Events emitted
+        without a resolved project identity must still land in the offline
+        queue (with ``project_uuid = None``) so a later command in the same
+        process can re-resolve identity, drain, or replay.
+        """
+        event = emitter_without_identity.emit_wp_status_changed(
             wp_id="WP01",
             from_lane="planned",
             to_lane="in_progress",
         )
 
-        # Capture stderr (Rich console output goes to stderr)
-        captured = capsys.readouterr()
-        assert "missing project_uuid" in captured.err or "queued locally only" in captured.err
+        assert event is not None
+        assert event.get("project_uuid") is None
+        assert temp_queue.size() == 1
 
     def test_multiple_events_without_identity_all_queued(
         self, emitter_without_identity: EventEmitter, temp_queue: OfflineQueue
