@@ -217,11 +217,12 @@ def apply_org_charter_pre_fill(repo_root: Path) -> list[str]:
     # The pure data helper lives in the charter layer.
     from charter.interview import apply_org_charter_pre_fill_to_answers
 
-    return apply_org_charter_pre_fill_to_answers(
+    result: list[str] = apply_org_charter_pre_fill_to_answers(
         answers_path=answers_path,
         interview_defaults=dict(merged_policy.interview_defaults),
         required_directives=list(merged_policy.required_directives),
     )
+    return result
 
 
 def apply_org_charter_to_interview(

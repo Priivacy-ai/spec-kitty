@@ -2062,7 +2062,7 @@ def _run_synthesis_dry_run(
     validation_callback = _build_synthesis_validation_callback(request)
 
     with StagingDir.create(repo_root, request.run_id) as staging_dir:
-        staged_artifacts = stage_and_validate(
+        staged_artifacts: list[str] = stage_and_validate(
             request,
             staging_dir,
             results,

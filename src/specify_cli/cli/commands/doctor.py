@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import enum as _enum
 import json
 import os
 import sys
@@ -908,8 +909,6 @@ def _audit_fixture_root() -> Path:
 # mission_state helpers — extracted per refactoring-extract-first-order-concept
 # ---------------------------------------------------------------------------
 
-import enum as _enum
-
 
 class _MissionStateMode(_enum.Enum):
     """Dispatch mode for the mission-state command."""
@@ -1081,16 +1080,19 @@ def _run_teamspace_dry_run_mode(
         raise typer.Exit(1) from exc
 
     def _pretty_dry_run(r: object) -> None:
-        if dry_run_report.valid:
+        # The runtime contract for pretty_renderer types the report as ``object`` so the
+        # same callable shape works for the repair and dry-run reports; attribute access
+        # below is structurally valid on the concrete TeamSpaceDryRunReport type.
+        if r.valid:  # type: ignore[attr-defined]
             console.print(
                 "[green]TeamSpace dry-run valid[/green] "
-                f"({dry_run_report.envelope_count} envelopes, "
-                f"spec-kitty-events {dry_run_report.events_package_version})."
+                f"({r.envelope_count} envelopes, "  # type: ignore[attr-defined]
+                f"spec-kitty-events {r.events_package_version})."
             )
         else:
             console.print(
                 "[red]TeamSpace dry-run failed[/red] "
-                f"({len(dry_run_report.errors)} validation errors)."
+                f"({len(r.errors)} validation errors)."  # type: ignore[attr-defined]
             )
 
     _emit_mission_state(dry_run_report, json_output=json_output, pretty_renderer=_pretty_dry_run)
@@ -1399,9 +1401,7 @@ def _summarize_org_charter(snapshot_path: Path) -> dict[str, object]:
         return {"present": False}
 
     try:
-        from specify_cli.doctrine.org_charter import (  # type: ignore[attr-defined]
-            load_org_charter_policy,
-        )
+        from specify_cli.doctrine.org_charter import load_org_charter_policy
     except ImportError:
         # Module not yet shipped — surface presence without policy details.
         return {"present": True, "module_available": False}
