@@ -293,6 +293,19 @@ class TestLoadMissionId:
 class TestEmitStatusTransition:
     """Tests for the main emit orchestration function."""
 
+    def test_transition_request_rejects_mixed_legacy_args(self, feature_dir: Path):
+        """TransitionRequest calls must not also pass legacy arguments."""
+        request = TransitionRequest(
+            feature_dir=feature_dir,
+            mission_slug="034-test-feature",
+            wp_id="WP01",
+            to_lane="claimed",
+            actor="claude-opus",
+        )
+
+        with pytest.raises(TypeError, match="either a TransitionRequest or legacy transition arguments"):
+            emit_status_transition(request, wp_id="WP02")
+
     def test_happy_path_planned_to_claimed(self, feature_dir: Path):
         """Basic transition from planned to claimed persists and returns event."""
         event = emit_status_transition(TransitionRequest(
@@ -935,6 +948,8 @@ class TestSaasFanOut:
         with patch("specify_cli.sync.events.emit_wp_status_changed", mock_emit):
             _saas_fan_out(event, "034-test-feature", None)
 
+        # ``occurred_at`` is the canonical local lane-transition time threaded
+        # through _saas_fan_out (mission cli-saas-fanout-preserves-local-at-01KRNS87).
         mock_emit.assert_called_once_with(
             wp_id="WP01",
             from_lane="claimed",
@@ -949,6 +964,7 @@ class TestSaasFanOut:
             review_ref=None,
             execution_mode="worktree",
             evidence=None,
+            occurred_at=event.at,
             ensure_daemon=True,
         )
 
