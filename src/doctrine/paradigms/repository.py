@@ -20,12 +20,12 @@ class ParadigmRepository(BaseDoctrineRepository[Paradigm]):
         self,
         shipped_dir: Path | None = None,
         *,
-        org_dir: Path | None = None,
+        org_dirs: list[Path] | None = None,
         project_dir: Path | None = None,
     ) -> None:
         super().__init__(
             shipped_dir=shipped_dir or self._default_shipped_dir(),
-            org_dir=org_dir,
+            org_dirs=org_dirs,
             project_dir=project_dir,
         )
 

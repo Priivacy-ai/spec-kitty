@@ -57,12 +57,12 @@ class BaseDoctrineRepository(ABC, Generic[T]):
         self,
         shipped_dir: Path,
         *,
-        org_dir: Path | None = None,
+        org_dirs: list[Path] | None = None,
         project_dir: Path | None = None,
         active_languages: list[str] | tuple[str, ...] | None = None,
     ) -> None:
         self._shipped_dir = shipped_dir
-        self._org_dir = org_dir
+        self._org_dirs: list[Path] = list(org_dirs) if org_dirs else []
         self._project_dir = project_dir
         self._active_languages = None if active_languages is None else normalize_languages(active_languages)
         self._items: dict[str, T] = {}
@@ -147,39 +147,45 @@ class BaseDoctrineRepository(ABC, Generic[T]):
         return shipped
 
     def _apply_org_overrides(self, yaml_parser: YAML, shipped: dict[str, T]) -> None:
-        """Merge or add org-dir items into self._items; tag provenance as 'org'."""
-        if not (self._org_dir and self._org_dir.exists()):
-            return
-        for yaml_file in self._project_scan(self._org_dir):
-            try:
-                data = yaml_parser.load(yaml_file)
-                if data is None:
-                    continue
-                self._pre_validate(data, yaml_file)
-                item_id = data.get("id")
-                if not item_id:
+        """Merge or add items from each configured org dir into self._items.
+
+        Iterates ``self._org_dirs`` in declaration order; later packs override
+        earlier ones for the same artifact ID (FR-006, C-004). Each artifact
+        sourced from any org pack is tagged with provenance ``"org"``.
+        """
+        for org_dir in self._org_dirs:
+            if not org_dir.exists():
+                continue
+            for yaml_file in self._project_scan(org_dir):
+                try:
+                    data = yaml_parser.load(yaml_file)
+                    if data is None:
+                        continue
+                    self._pre_validate(data, yaml_file)
+                    item_id = data.get("id")
+                    if not item_id:
+                        warnings.warn(
+                            f"Skipping org {self._kind} {yaml_file.name}: no id",
+                            UserWarning,
+                            stacklevel=3,
+                        )
+                        continue
+                    if item_id in shipped:
+                        merged = self._merge(shipped[item_id], data)
+                        if self._include_item(merged):
+                            self._items[item_id] = merged
+                            self._provenance[item_id] = "org"
+                    else:
+                        obj = self._schema.model_validate(data)
+                        if self._include_item(obj):
+                            self._items[self._key(obj)] = obj
+                            self._provenance[self._key(obj)] = "org"
+                except (YAMLError, ValidationError, OSError) as exc:
                     warnings.warn(
-                        f"Skipping org {self._kind} {yaml_file.name}: no id",
+                        f"Skipping invalid org {self._kind} {yaml_file.name}: {exc}",
                         UserWarning,
                         stacklevel=3,
                     )
-                    continue
-                if item_id in shipped:
-                    merged = self._merge(shipped[item_id], data)
-                    if self._include_item(merged):
-                        self._items[item_id] = merged
-                        self._provenance[item_id] = "org"
-                else:
-                    obj = self._schema.model_validate(data)
-                    if self._include_item(obj):
-                        self._items[self._key(obj)] = obj
-                        self._provenance[self._key(obj)] = "org"
-            except (YAMLError, ValidationError, OSError) as exc:
-                warnings.warn(
-                    f"Skipping invalid org {self._kind} {yaml_file.name}: {exc}",
-                    UserWarning,
-                    stacklevel=3,
-                )
 
     def _apply_project_overrides(self, yaml_parser: YAML, shipped: dict[str, T]) -> None:
         """Merge or add project-dir items into self._items; tag provenance as 'project'."""
@@ -222,7 +228,7 @@ class BaseDoctrineRepository(ABC, Generic[T]):
         shipped = self._load_shipped_items(yaml_parser)
         self._items = shipped.copy()
         # Tag all shipped items as 'builtin'
-        self._provenance = {k: "builtin" for k in self._items}
+        self._provenance = dict.fromkeys(self._items, "builtin")
         # Org layer overrides shipped
         self._apply_org_overrides(yaml_parser, shipped)
         # Project layer overrides shipped + org

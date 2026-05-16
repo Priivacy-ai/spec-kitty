@@ -53,23 +53,26 @@ def _directive_yaml(
 
 
 class TestNoOrgRoot:
-    """When org_roots is empty, _org_dir returns None for all artifact types."""
+    """When org_roots is empty, _org_dirs returns [] for all artifact types."""
 
-    def test_org_dir_returns_none_when_org_roots_empty(self) -> None:
+    def test_org_dirs_empty_when_org_roots_empty(self) -> None:
         service = DoctrineService(org_roots=[])
-        assert service._org_dir("directives") is None
-        assert service._org_dir("tactics") is None
-        assert service._org_dir("styleguides") is None
-        assert service._org_dir("toolguides") is None
-        assert service._org_dir("paradigms") is None
-        assert service._org_dir("procedures") is None
-        assert service._org_dir("mission_step_contracts") is None
-        assert service._org_dir("agent_profiles") is None
+        for artifact in (
+            "directives",
+            "tactics",
+            "styleguides",
+            "toolguides",
+            "paradigms",
+            "procedures",
+            "mission_step_contracts",
+            "agent_profiles",
+        ):
+            assert service._org_dirs(artifact) == []
 
-    def test_org_dir_returns_none_when_org_roots_not_provided(self) -> None:
+    def test_org_dirs_empty_when_org_roots_not_provided(self) -> None:
         """Default (None passed for org_roots) is equivalent to empty list."""
         service = DoctrineService()
-        assert service._org_dir("directives") is None
+        assert service._org_dirs("directives") == []
         assert service._org_roots == []
 
     def test_repositories_load_without_error_when_no_org_root(self, tmp_path: Path) -> None:
@@ -85,15 +88,15 @@ class TestNoOrgRoot:
 
 
 class TestSingleOrgRoot:
-    """When one org root is configured, _org_dir points into that root."""
+    """When one org root is configured, _org_dirs points into that root."""
 
-    def test_org_dir_returns_correct_path(self, tmp_path: Path) -> None:
+    def test_org_dirs_returns_correct_path(self, tmp_path: Path) -> None:
         org_root = tmp_path / "org"
         service = DoctrineService(org_roots=[org_root])
 
-        assert service._org_dir("directives") == org_root / "directives"
-        assert service._org_dir("tactics") == org_root / "tactics"
-        assert service._org_dir("agent_profiles") == org_root / "agent_profiles"
+        assert service._org_dirs("directives") == [org_root / "directives"]
+        assert service._org_dirs("tactics") == [org_root / "tactics"]
+        assert service._org_dirs("agent_profiles") == [org_root / "agent_profiles"]
 
     def test_org_roots_internal_list(self, tmp_path: Path) -> None:
         """org_roots stores the provided paths verbatim."""
@@ -101,13 +104,23 @@ class TestSingleOrgRoot:
         service = DoctrineService(org_roots=[org_root])
         assert service._org_roots == [org_root]
 
-    def test_only_first_org_root_used(self, tmp_path: Path) -> None:
-        """Only the first entry in org_roots is used by _org_dir (future-proof)."""
+    def test_all_org_roots_returned_in_declaration_order(self, tmp_path: Path) -> None:
+        """_org_dirs returns every configured org root in declaration order (FR-006, C-004)."""
         first = tmp_path / "org-first"
         second = tmp_path / "org-second"
-        service = DoctrineService(org_roots=[first, second])
+        third = tmp_path / "org-third"
+        service = DoctrineService(org_roots=[first, second, third])
 
-        assert service._org_dir("directives") == first / "directives"
+        assert service._org_dirs("directives") == [
+            first / "directives",
+            second / "directives",
+            third / "directives",
+        ]
+
+    def test_org_dirs_empty_when_no_org_roots(self) -> None:
+        """_org_dirs returns an empty list when no org roots are configured."""
+        service = DoctrineService()
+        assert service._org_dirs("directives") == []
 
 
 class TestOrgRootMissingOnDisk:
@@ -118,8 +131,8 @@ class TestOrgRootMissingOnDisk:
         assert not nonexistent.exists()
 
         service = DoctrineService(org_roots=[nonexistent])
-        # _org_dir still returns the path (existence check is repo's responsibility)
-        assert service._org_dir("directives") == nonexistent / "directives"
+        # _org_dirs still returns the path (existence check is repo's responsibility)
+        assert service._org_dirs("directives") == [nonexistent / "directives"]
 
     def test_repository_loads_without_error_for_nonexistent_org_dir(self, tmp_path: Path) -> None:
         """DirectiveRepository handles a non-existent org_dir gracefully."""
@@ -305,3 +318,148 @@ class TestDeterminism:
         ids_default = {d.id for d in svc_default.directives.list_all()}
 
         assert ids_explicit == ids_default
+
+
+class TestMultiplePackPrecedence:
+    """Multiple org packs merge in declaration order; later packs override earlier (FR-006, C-004, Scenario 2)."""
+
+    def test_later_pack_overrides_earlier_for_same_id(self, tmp_path: Path) -> None:
+        """When two org packs declare the same directive ID, the later pack wins."""
+        shipped_root = tmp_path / "shipped-root"
+        pack_a = tmp_path / "pack-a"
+        pack_b = tmp_path / "pack-b"
+
+        _write_yaml(
+            shipped_root / "directives" / "built-in" / "001.directive.yaml",
+            _directive_yaml("DIRECTIVE_001", title="Shipped"),
+        )
+        _write_yaml(
+            pack_a / "directives" / "001.directive.yaml",
+            _directive_yaml("DIRECTIVE_001", title="Pack A"),
+        )
+        _write_yaml(
+            pack_b / "directives" / "001.directive.yaml",
+            _directive_yaml("DIRECTIVE_001", title="Pack B"),
+        )
+
+        service = DoctrineService(shipped_root=shipped_root, org_roots=[pack_a, pack_b])
+
+        directive = service.directives.get("DIRECTIVE_001")
+        assert directive is not None
+        assert directive.title == "Pack B"
+        assert service.directives.get_provenance("DIRECTIVE_001") == "org"
+
+    def test_distinct_artifacts_from_each_pack_all_visible(self, tmp_path: Path) -> None:
+        """Distinct artifacts from each org pack are unioned into the resolved set."""
+        shipped_root = tmp_path / "shipped-root"
+        pack_security = tmp_path / "pack-security"
+        pack_compliance = tmp_path / "pack-compliance"
+
+        _write_yaml(
+            shipped_root / "directives" / "built-in" / "001.directive.yaml",
+            _directive_yaml("DIRECTIVE_001", title="Shipped"),
+        )
+        _write_yaml(
+            pack_security / "directives" / "sec.directive.yaml",
+            _directive_yaml("DIRECTIVE_SEC", title="Security"),
+        )
+        _write_yaml(
+            pack_compliance / "directives" / "comp.directive.yaml",
+            _directive_yaml("DIRECTIVE_COMP", title="Compliance"),
+        )
+
+        service = DoctrineService(
+            shipped_root=shipped_root,
+            org_roots=[pack_security, pack_compliance],
+        )
+
+        ids = {d.id for d in service.directives.list_all()}
+        assert ids == {"DIRECTIVE_001", "DIRECTIVE_SEC", "DIRECTIVE_COMP"}
+        assert service.directives.get_provenance("DIRECTIVE_SEC") == "org"
+        assert service.directives.get_provenance("DIRECTIVE_COMP") == "org"
+        assert service.directives.get_provenance("DIRECTIVE_001") == "builtin"
+
+    def test_three_pack_chain_last_wins(self, tmp_path: Path) -> None:
+        """With three packs declaring the same ID, the third pack wins (declaration order = precedence)."""
+        shipped_root = tmp_path / "shipped-root"
+        pack1 = tmp_path / "pack1"
+        pack2 = tmp_path / "pack2"
+        pack3 = tmp_path / "pack3"
+
+        _write_yaml(
+            shipped_root / "directives" / "built-in" / "001.directive.yaml",
+            _directive_yaml("DIRECTIVE_001", title="Shipped"),
+        )
+        for pack, label in [(pack1, "First"), (pack2, "Second"), (pack3, "Third")]:
+            _write_yaml(
+                pack / "directives" / "001.directive.yaml",
+                _directive_yaml("DIRECTIVE_001", title=label),
+            )
+
+        service = DoctrineService(
+            shipped_root=shipped_root,
+            org_roots=[pack1, pack2, pack3],
+        )
+
+        directive = service.directives.get("DIRECTIVE_001")
+        assert directive is not None
+        assert directive.title == "Third"
+
+    def test_project_layer_still_overrides_all_org_packs(self, tmp_path: Path) -> None:
+        """The project layer keeps full-replace precedence over every org pack."""
+        shipped_root = tmp_path / "shipped-root"
+        pack_a = tmp_path / "pack-a"
+        pack_b = tmp_path / "pack-b"
+        project_root = tmp_path / "project-root"
+
+        _write_yaml(
+            shipped_root / "directives" / "built-in" / "001.directive.yaml",
+            _directive_yaml("DIRECTIVE_001", title="Shipped"),
+        )
+        _write_yaml(
+            pack_a / "directives" / "001.directive.yaml",
+            _directive_yaml("DIRECTIVE_001", title="Pack A"),
+        )
+        _write_yaml(
+            pack_b / "directives" / "001.directive.yaml",
+            _directive_yaml("DIRECTIVE_001", title="Pack B"),
+        )
+        _write_yaml(
+            project_root / "directives" / "001.directive.yaml",
+            _directive_yaml("DIRECTIVE_001", title="Project"),
+        )
+
+        service = DoctrineService(
+            shipped_root=shipped_root,
+            org_roots=[pack_a, pack_b],
+            project_root=project_root,
+        )
+
+        directive = service.directives.get("DIRECTIVE_001")
+        assert directive is not None
+        assert directive.title == "Project"
+        assert service.directives.get_provenance("DIRECTIVE_001") == "project"
+
+    def test_missing_pack_on_disk_does_not_break_others(self, tmp_path: Path) -> None:
+        """A non-existent pack path is silently skipped; remaining packs still resolve."""
+        shipped_root = tmp_path / "shipped-root"
+        pack_real = tmp_path / "pack-real"
+        pack_missing = tmp_path / "no-such-pack"
+
+        _write_yaml(
+            shipped_root / "directives" / "built-in" / "001.directive.yaml",
+            _directive_yaml("DIRECTIVE_001", title="Shipped"),
+        )
+        _write_yaml(
+            pack_real / "directives" / "real.directive.yaml",
+            _directive_yaml("DIRECTIVE_REAL", title="Real"),
+        )
+
+        service = DoctrineService(
+            shipped_root=shipped_root,
+            org_roots=[pack_missing, pack_real],
+        )
+
+        ids = {d.id for d in service.directives.list_all()}
+        assert ids == {"DIRECTIVE_001", "DIRECTIVE_REAL"}
+        assert service.directives.get_provenance("DIRECTIVE_REAL") == "org"

@@ -42,23 +42,22 @@ class DoctrineService:
             return None
         return self._project_root / artifact
 
-    def _org_dir(self, artifact: str) -> Path | None:
-        """Return the org-layer directory for *artifact*, or ``None`` if no org root is configured.
+    def _org_dirs(self, artifact: str) -> list[Path]:
+        """Return per-pack org-layer directories for *artifact* in declaration order.
 
-        Only the first configured org root is used; the list representation is
-        future-proof for multi-org hierarchies without exposing that in the public
-        config API.
+        Each configured org root contributes one directory: ``<org_root>/<artifact>``.
+        Repositories iterate this list in order, so later packs override earlier ones
+        for the same artifact ID (FR-006, C-004). Non-existent directories are
+        retained in the returned list; existence checks happen at load time.
         """
-        if not self._org_roots:
-            return None
-        return self._org_roots[0] / artifact
+        return [root / artifact for root in self._org_roots]
 
     @property
     def directives(self) -> DirectiveRepository:
         if "directives" not in self._cache:
             self._cache["directives"] = DirectiveRepository(
                 shipped_dir=self._shipped_dir("directives"),
-                org_dir=self._org_dir("directives"),
+                org_dirs=self._org_dirs("directives"),
                 project_dir=self._project_dir("directives"),
             )
         return cast(DirectiveRepository, self._cache["directives"])
@@ -68,7 +67,7 @@ class DoctrineService:
         if "tactics" not in self._cache:
             self._cache["tactics"] = TacticRepository(
                 shipped_dir=self._shipped_dir("tactics"),
-                org_dir=self._org_dir("tactics"),
+                org_dirs=self._org_dirs("tactics"),
                 project_dir=self._project_dir("tactics"),
                 active_languages=self._active_languages,
             )
@@ -79,7 +78,7 @@ class DoctrineService:
         if "styleguides" not in self._cache:
             self._cache["styleguides"] = StyleguideRepository(
                 shipped_dir=self._shipped_dir("styleguides"),
-                org_dir=self._org_dir("styleguides"),
+                org_dirs=self._org_dirs("styleguides"),
                 project_dir=self._project_dir("styleguides"),
                 active_languages=self._active_languages,
             )
@@ -90,7 +89,7 @@ class DoctrineService:
         if "toolguides" not in self._cache:
             self._cache["toolguides"] = ToolguideRepository(
                 shipped_dir=self._shipped_dir("toolguides"),
-                org_dir=self._org_dir("toolguides"),
+                org_dirs=self._org_dirs("toolguides"),
                 project_dir=self._project_dir("toolguides"),
                 active_languages=self._active_languages,
             )
@@ -101,7 +100,7 @@ class DoctrineService:
         if "paradigms" not in self._cache:
             self._cache["paradigms"] = ParadigmRepository(
                 shipped_dir=self._shipped_dir("paradigms"),
-                org_dir=self._org_dir("paradigms"),
+                org_dirs=self._org_dirs("paradigms"),
                 project_dir=self._project_dir("paradigms"),
             )
         return cast(ParadigmRepository, self._cache["paradigms"])
@@ -111,7 +110,7 @@ class DoctrineService:
         if "procedures" not in self._cache:
             self._cache["procedures"] = ProcedureRepository(
                 shipped_dir=self._shipped_dir("procedures"),
-                org_dir=self._org_dir("procedures"),
+                org_dirs=self._org_dirs("procedures"),
                 project_dir=self._project_dir("procedures"),
                 active_languages=self._active_languages,
             )
@@ -122,7 +121,7 @@ class DoctrineService:
         if "mission_step_contracts" not in self._cache:
             self._cache["mission_step_contracts"] = MissionStepContractRepository(
                 shipped_dir=self._shipped_dir("mission_step_contracts"),
-                org_dir=self._org_dir("mission_step_contracts"),
+                org_dirs=self._org_dirs("mission_step_contracts"),
                 project_dir=self._project_dir("mission_step_contracts"),
             )
         return cast(MissionStepContractRepository, self._cache["mission_step_contracts"])
@@ -132,7 +131,7 @@ class DoctrineService:
         if "agent_profiles" not in self._cache:
             self._cache["agent_profiles"] = AgentProfileRepository(
                 shipped_dir=self._shipped_dir("agent_profiles"),
-                org_dir=self._org_dir("agent_profiles"),
+                org_dirs=self._org_dirs("agent_profiles"),
                 project_dir=self._project_dir("agent_profiles"),
                 active_languages=self._active_languages,
             )
