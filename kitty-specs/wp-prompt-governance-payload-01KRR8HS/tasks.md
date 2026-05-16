@@ -70,11 +70,11 @@ The 14 currently-passing tests MUST remain green throughout (no regression).
 | T001 | Add `references: list[str] = []` to `charter.schemas.Directive` | WP01 | | [D] |
 | T002 | Add `authority_paths: list[str] = []` to `charter.schemas.DoctrineSelectionConfig` | WP01 | [D] |
 | T003 | Schema round-trip + backward-compat tests for the two new fields | WP01 | [D] |
-| T004 | Add `DIRECTIVE_\d{3}` / tactic-id detection regex helper in `charter.extractor` | WP02 | |
-| T005 | Extend `Extractor._extract_directives` to populate `Directive.references` from detected citations | WP02 | |
-| T006 | Extend `Extractor._merge_doctrine_selection` to read `authority_paths:` from fenced YAML blocks | WP02 | [P] |
-| T007 | Extend the same site to persist `template_set:` and `available_tools:` from the YAML block (FR-007) | WP02 | [P] |
-| T008 | Unit tests in `tests/charter/test_sync_references.py` (citation detection, authority_paths/template_set extraction, no-citation no-error) | WP02 | [P] |
+| T004 | Add `DIRECTIVE_\d{3}` / tactic-id detection regex helper in `charter.extractor` | WP02 | | [D] |
+| T005 | Extend `Extractor._extract_directives` to populate `Directive.references` from detected citations | WP02 | | [D] |
+| T006 | Extend `Extractor._merge_doctrine_selection` to read `authority_paths:` from fenced YAML blocks | WP02 | [D] |
+| T007 | Extend the same site to persist `template_set:` and `available_tools:` from the YAML block (FR-007) | WP02 | [D] |
+| T008 | Unit tests in `tests/charter/test_sync_references.py` (citation detection, authority_paths/template_set extraction, no-citation no-error) | WP02 | [D] |
 | T009 | Replace `_ = profile` at `src/charter/context.py:92` with a real profile lookup helper | WP03 | |
 | T010 | Add `_load_agent_profile(profile_id)` helper in `charter.context` delegating to `doctrine.agent_profiles.AgentProfileRepository` | WP03 | |
 | T011 | Add `_render_profile_directives(profile, service)` renderer | WP03 | |
