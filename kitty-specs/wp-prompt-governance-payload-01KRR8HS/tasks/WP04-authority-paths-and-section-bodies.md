@@ -17,7 +17,7 @@ subtasks:
 - T016
 - T017
 - T018
-agent: claude
+agent: "claude:opus-4-7:python-pedro:implementer"
 agent_profile: python-pedro
 authoritative_surface: src/charter/context_renderers/
 execution_mode: code_change
@@ -29,6 +29,7 @@ owned_files:
 role: implementer
 history: []
 tags: []
+shell_pid: "1138959"
 ---
 
 ## Objective
@@ -263,3 +264,7 @@ Check that:
 5. The dedup logic in `_render_authority_paths` is order-preserving (defaults first,
    charter-declared paths appended in declaration order).
 6. The compact-context surface (if invoked) is wired identically to the bootstrap surface.
+
+## Activity Log
+
+- 2026-05-16T12:39:05Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1138959 – Started implementation via action command
