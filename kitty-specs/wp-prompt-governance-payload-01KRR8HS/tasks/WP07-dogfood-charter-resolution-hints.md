@@ -15,7 +15,7 @@ subtasks:
 - T029
 - T030
 - T031
-agent: "claude:opus-4-7:curator-carla:curator"
+agent: "codex:gpt-4o:reviewer-renata:reviewer"
 agent_profile: curator-carla
 authoritative_surface: .kittify/charter/charter.md
 execution_mode: code_change
@@ -24,7 +24,7 @@ owned_files:
 role: curator
 history: []
 tags: []
-shell_pid: "1195624"
+shell_pid: "1202525"
 ---
 
 ## Objective
@@ -200,3 +200,4 @@ Check that:
 
 - 2026-05-16T13:30:55Z – claude:opus-4-7:curator-carla:curator – shell_pid=1195624 – Started implementation via action command
 - 2026-05-16T13:35:38Z – claude:opus-4-7:curator-carla:curator – shell_pid=1195624 – Charter Resolution Hints section added to .kittify/charter/charter.md with template_set, available_tools, authority_paths. ATDD suite 23/0 passed. Runtime charter context diagnostic will clear post-merge (chokepoint anchors on main-checkout per FR-010).
+- 2026-05-16T13:36:02Z – codex:gpt-4o:reviewer-renata:reviewer – shell_pid=1202525 – Started review via action command
