@@ -1120,9 +1120,13 @@ class TestSyncAllQueuedEvents:
         assert mock_post.call_count == 1
         assert result.error_count == 100
 
+    @patch("specify_cli.sync.batch._is_checkout_sync_enabled_for_batch", return_value=True)
+    @patch("specify_cli.sync.batch._current_team_slug", return_value="default-private-team")
     @patch("specify_cli.sync.batch.requests.get")
     @patch("specify_cli.sync.batch.requests.post")
-    def test_sync_all_continues_past_oversized_event(self, mock_post, mock_get, temp_queue):
+    def test_sync_all_continues_past_oversized_event(
+        self, mock_post, mock_get, _mock_team_slug, _mock_checkout_enabled, temp_queue
+    ):
         """An oversized event at queue head must not permanently stall subsequent events."""
         temp_queue.queue_event(
             {
@@ -1142,7 +1146,7 @@ class TestSyncAllQueuedEvents:
         health_response = Mock()
         health_response.status_code = 200
         health_response.json.return_value = {
-            "sync_ingress": {"limits": {"max_events_per_batch": 10, "max_decompressed_bytes_per_batch": 100}}
+            "sync_ingress": {"limits": {"max_events_per_batch": 10, "max_decompressed_bytes_per_batch": 400}}
         }
         mock_get.return_value = health_response
 
