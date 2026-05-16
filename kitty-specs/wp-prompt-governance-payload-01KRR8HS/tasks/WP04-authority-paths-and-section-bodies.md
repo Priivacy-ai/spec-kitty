@@ -17,7 +17,7 @@ subtasks:
 - T016
 - T017
 - T018
-agent: "claude:opus-4-7:python-pedro:implementer"
+agent: "codex:gpt-4o:reviewer-renata:reviewer"
 agent_profile: python-pedro
 authoritative_surface: src/charter/context_renderers/
 execution_mode: code_change
@@ -29,7 +29,7 @@ owned_files:
 role: implementer
 history: []
 tags: []
-shell_pid: "1138959"
+shell_pid: "1153285"
 ---
 
 ## Objective
@@ -269,3 +269,4 @@ Check that:
 
 - 2026-05-16T12:39:05Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1138959 – Started implementation via action command
 - 2026-05-16T12:54:15Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1138959 – Ready for review: context_renderers/ submodule with render_authority_paths (FR-003) and render_critical_section_bodies (FR-001) wired into bootstrap + compact paths in src/charter/context.py. 3 ATDD tests + 1 bonus turned GREEN, 11 unit tests added, 8/8 layer rules pass, ruff clean, mypy unchanged from baseline.
+- 2026-05-16T12:54:48Z – codex:gpt-4o:reviewer-renata:reviewer – shell_pid=1153285 – Started review via action command
