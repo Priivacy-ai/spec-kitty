@@ -7,6 +7,7 @@ Defines the output schema for:
 """
 
 from pathlib import Path
+from typing import Any
 
 from pydantic import BaseModel, Field
 from ruamel.yaml import YAML
@@ -64,6 +65,12 @@ class DoctrineSelectionConfig(BaseModel):
     selected_tactics: list[str] = Field(default_factory=list)
     available_tools: list[str] = Field(default_factory=list)
     template_set: str | None = None
+    authority_paths: list[str] = Field(default_factory=list)
+    """Repository-relative directories surfaced as authority pointers
+    (e.g. ``glossary/contexts/``). Populated by WP02 (charter sync) from the
+    charter's fenced YAML block; consumed by WP04 renderer when building the
+    ``Project authority paths:`` section. Default empty preserves backwards
+    compatibility (NFR-005): existing YAML without this key parses unchanged."""
 
 
 class GovernanceConfig(BaseModel):
@@ -91,6 +98,13 @@ class Directive(BaseModel):
     title: str
     description: str = ""
     severity: str = "warn"
+    references: list[str] = Field(default_factory=list)
+    """Catalog IDs (e.g. ``["DIRECTIVE_032"]`` or tactic-id slugs) cross-linked
+    from the body of a charter-extracted directive. Populated by WP02 (charter
+    sync) from cited catalog IDs detected in the directive body; consumed by
+    WP03/WP04 resolver/renderer via ``DoctrineService``. Default empty preserves
+    backwards compatibility (NFR-005): existing YAML without this key parses
+    unchanged."""
 
 
 class DirectivesConfig(BaseModel):
@@ -119,6 +133,38 @@ class ExtractionMetadata(BaseModel):
     bundle_schema_version: int | None = None
 
 
+# WP02: keys that are NEW additions in this mission and MUST be omitted
+# from emitted YAML when their value is empty, so existing serialized
+# fixtures and user charters stay byte-identical pre-/post-mission
+# (NFR-005). Anchored centrally so future "additive optional" fields can
+# join the same allow-list without touching the writer logic.
+_OPTIONAL_EMPTY_OMIT_KEYS: frozenset[str] = frozenset({
+    "references",       # Directive.references (cross-link list)
+    "authority_paths",  # DoctrineSelectionConfig.authority_paths
+})
+
+
+def _prune_optional_empties(node: Any) -> Any:
+    """Recursively drop optional list fields whose value is empty.
+
+    Walks dicts/lists and removes entries whose key is in
+    :data:`_OPTIONAL_EMPTY_OMIT_KEYS` AND whose value is an empty list.
+    Leaves all other keys untouched so existing required defaults (e.g.
+    empty strings, zero ints) remain serialized for downstream consumers
+    that rely on them.
+    """
+    if isinstance(node, dict):
+        pruned: dict[str, Any] = {}
+        for key, value in node.items():
+            if key in _OPTIONAL_EMPTY_OMIT_KEYS and isinstance(value, list) and not value:
+                continue
+            pruned[key] = _prune_optional_empties(value)
+        return pruned
+    if isinstance(node, list):
+        return [_prune_optional_empties(item) for item in node]
+    return node
+
+
 def emit_yaml(model: BaseModel, path: Path) -> None:
     """Write a Pydantic model to a YAML file with header comment.
 
@@ -135,8 +181,10 @@ def emit_yaml(model: BaseModel, path: Path) -> None:
     yaml.preserve_quotes = True
     yaml.width = 4096  # Prevent line wrapping
 
-    # Convert model to dict using Pydantic v2 API
-    data = model.model_dump(mode="json")
+    # Convert model to dict using Pydantic v2 API, then prune optional empty
+    # additive fields so the on-disk bytes stay backward compatible
+    # (NFR-005).
+    data = _prune_optional_empties(model.model_dump(mode="json"))
 
     # Write with header comment
     with open(path, "w", encoding="utf-8") as f:

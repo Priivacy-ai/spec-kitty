@@ -47,6 +47,58 @@ package prompt and review context. Do **not** separately call
 `spec-kitty charter context` or go hunting for alternate prompt files unless
 the command output tells you to.
 
+## Governance Payload Contract
+
+The prompt above is guaranteed to carry the following surfaces. Trust the
+prompt; do not consult external governance sources unless explicitly cited by
+a fetch command + when-doing rule in the prompt.
+
+**Guaranteed bodies** (verbatim in the prompt when under the token budget; the
+resolver substitutes a `spec-kitty charter context --include section:<slug>`
+fetch + when-doing stanza only when the budget would otherwise be exceeded):
+
+- **Terminology Canon** — from `.kittify/charter/charter.md` — governs the
+  identifiers and term usage you assess in the diff.
+- **Code Review Checklist** — from `.kittify/charter/charter.md` — your
+  primary gate set when judging the WP.
+- **Regression Vigilance** — from `.kittify/charter/charter.md` — the
+  project's explicit drift guard; apply when the diff renames or introduces
+  identifier-bearing terms.
+- Any additional action-critical sections the mission declares are appended
+  automatically.
+
+**Guaranteed citations** (catalog IDs always present in the prompt when the
+WP frontmatter selects a reviewer `agent_profile`):
+
+- Every `DIRECTIVE_NNN` declared in the loaded reviewer profile's
+  `directive-references` list (for example, `reviewer-renata` cites
+  `DIRECTIVE_032` — Conceptual Alignment).
+- Every tactic-id declared in the loaded reviewer profile's
+  `tactic-references` list (for example, `reviewer-renata` cites the
+  `language-driven-design` tactic).
+
+When you assess a WP that renames identifiers or terms, the prompt cites
+DIRECTIVE_032 (Conceptual Alignment) by ID; consult its rule body inline or
+via the paired fetch command and apply.
+
+**Guaranteed authority pointers** (path + when-doing conditional):
+
+- `glossary/contexts/` — canonical terminology. Consult when the diff
+  introduces or renames a domain term.
+- `architecture/2.x/adr/` — architectural intent. Consult when the diff
+  changes a structural boundary (package layout, public API surface,
+  dependency edges).
+- Any additional paths declared in the charter's `authority_paths:` block are
+  emitted alongside these defaults.
+
+**Fetch commands** (the prompt may substitute these for bodies that exceed the
+token budget; whenever a fetch command appears, the accompanying
+"When you <verb>, run this and apply" line specifies the trigger):
+
+- `spec-kitty charter context --include directive:DIRECTIVE_NNN`
+- `spec-kitty charter context --include tactic:<id>`
+- `spec-kitty charter context --include section:<slug>`
+
 ### 2. Load Work Package Prompt
 
 Read the WP prompt file from `feature_dir/tasks/WPxx-slug.md`.
