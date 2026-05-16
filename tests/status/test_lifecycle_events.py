@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pytest
 
+import specify_cli.status.lifecycle_events as lifecycle
 from specify_cli.status.lifecycle_events import (
     LIFECYCLE_EVENT_TYPES,
     MISSION_CREATED,
@@ -166,6 +167,22 @@ def test_artifact_phase_rejects_unknown_event_type(feature_dir: Path) -> None:
         )
 
 
+def test_artifact_phase_records_optional_metadata(feature_dir: Path) -> None:
+    emit_artifact_phase(
+        feature_dir,
+        event_type=TASKS_COMPLETED,
+        mission_slug="demo-mission",
+        mission_number=7,
+        summary="Created three work packages",
+        wp_count=3,
+    )
+
+    payload = read_lifecycle_events(mission_event_log_path(feature_dir))[0]["payload"]
+    assert payload["mission_number"] == 7
+    assert payload["summary"] == "Created three work packages"
+    assert payload["wp_count"] == 3
+
+
 # ---------------------------------------------------------------------------
 # WPCreated
 # ---------------------------------------------------------------------------
@@ -208,6 +225,21 @@ def test_wp_created_full_roster_writes_one_event_per_wp(feature_dir: Path) -> No
         if e["event_type"] == WP_CREATED
     ]
     assert sorted(e["aggregate_id"] for e in entries) == ["WP01", "WP02", "WP03"]
+
+
+def test_wp_created_records_optional_metadata(feature_dir: Path) -> None:
+    emit_wp_created_local(
+        feature_dir,
+        mission_slug="demo-mission",
+        mission_number=7,
+        wp_id="WP09",
+        wp_title="Document replay recovery",
+        wp_path="kitty-specs/demo-mission/tasks/WP09.md",
+    )
+
+    payload = read_lifecycle_events(mission_event_log_path(feature_dir))[0]["payload"]
+    assert payload["mission_number"] == 7
+    assert payload["wp_path"] == "kitty-specs/demo-mission/tasks/WP09.md"
 
 
 # ---------------------------------------------------------------------------
@@ -329,6 +361,44 @@ def test_has_non_bootstrap_status_history_false_when_log_absent(
     assert has_non_bootstrap_status_history(tmp_path / "absent") is False
 
 
+def test_has_non_bootstrap_status_history_tolerates_noise_and_detects_planned_repair(
+    feature_dir: Path,
+) -> None:
+    log = mission_event_log_path(feature_dir)
+    log.write_text(
+        "\n"
+        "not-json\n"
+        "[\"not\", \"an\", \"event\"]\n"
+        + json.dumps(
+            {
+                "event_id": "01H3",
+                "wp_id": "WP01",
+                "from_lane": "approved",
+                "to_lane": "planned",
+                "force": False,
+                "actor": "repair",
+            },
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    assert has_non_bootstrap_status_history(feature_dir) is True
+
+
+def test_has_non_bootstrap_status_history_false_when_log_read_fails(
+    feature_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    mission_event_log_path(feature_dir).write_text("{}", encoding="utf-8")
+
+    def _raise(*args, **kwargs):  # noqa: ANN002, ANN003
+        raise OSError("boom")
+
+    monkeypatch.setattr(Path, "read_text", _raise)
+    assert has_non_bootstrap_status_history(feature_dir) is False
+
+
 # ---------------------------------------------------------------------------
 # Sanity checks on the public surface
 # ---------------------------------------------------------------------------
@@ -365,4 +435,66 @@ def test_has_lifecycle_event_matches_dedup_keys(feature_dir: Path) -> None:
     )
     assert not has_lifecycle_event(
         log, event_type=WP_CREATED, dedup_keys={"mission_slug": "demo-mission", "wp_id": "WP99"}
+    )
+
+
+def test_read_lifecycle_events_tolerates_unreadable_and_malformed_logs(
+    feature_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    log = mission_event_log_path(feature_dir)
+    log.write_text(
+        "\n"
+        "not-json\n"
+        + json.dumps({"event_type": WP_CREATED, "payload": {"wp_id": "WP01"}})
+        + "\n",
+        encoding="utf-8",
+    )
+    assert len(read_lifecycle_events(log)) == 1
+
+    def _raise(*args, **kwargs):  # noqa: ANN002, ANN003
+        raise OSError("boom")
+
+    monkeypatch.setattr(Path, "read_text", _raise)
+    assert read_lifecycle_events(log) == []
+
+
+def test_has_lifecycle_event_ignores_non_mapping_payload(feature_dir: Path) -> None:
+    log = mission_event_log_path(feature_dir)
+    _write_jsonl(log, [{"event_type": WP_CREATED, "payload": ["not", "a", "mapping"]}])
+
+    assert not has_lifecycle_event(
+        log, event_type=WP_CREATED, dedup_keys={"mission_slug": "demo-mission"}
+    )
+
+
+def test_append_lifecycle_event_rejects_unknown_type(feature_dir: Path) -> None:
+    assert (
+        append_lifecycle_event(
+            mission_event_log_path(feature_dir),
+            "NotARealLifecycleEvent",
+            {},
+            aggregate_id="x",
+            aggregate_type="Unknown",
+        )
+        is None
+    )
+
+
+def test_append_lifecycle_event_returns_none_when_write_fails(
+    feature_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def _raise(path: Path, line: str) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(lifecycle, "_atomic_append", _raise)
+
+    assert (
+        append_lifecycle_event(
+            mission_event_log_path(feature_dir),
+            WP_CREATED,
+            {"mission_slug": "demo-mission", "wp_id": "WP01"},
+            aggregate_id="WP01",
+            aggregate_type="WorkPackage",
+        )
+        is None
     )
