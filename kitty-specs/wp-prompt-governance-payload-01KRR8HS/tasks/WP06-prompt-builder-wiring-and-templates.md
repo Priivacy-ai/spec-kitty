@@ -19,7 +19,7 @@ subtasks:
 - T026
 - T027
 - T028
-agent: claude
+agent: "claude:opus-4-7:python-pedro:implementer"
 agent_profile: python-pedro
 authoritative_surface: src/specify_cli/next/prompt_builder.py
 execution_mode: code_change
@@ -31,6 +31,7 @@ owned_files:
 role: implementer
 history: []
 tags: []
+shell_pid: "1177058"
 ---
 
 ## Objective
@@ -264,3 +265,7 @@ Check that:
    in the resolver output, not the reverse.
 7. Final pytest run: `pytest tests/specify_cli/next/test_wp_prompt_governance_contract.py`
    reports `23 passed, 0 failed`. Paste the summary line into the activity log.
+
+## Activity Log
+
+- 2026-05-16T13:14:06Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1177058 – Started implementation via action command
