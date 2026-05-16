@@ -123,7 +123,7 @@ def test_all_research_contracts_load(action: str) -> None:
 
     assert contract is not None, (
         f"Missing shipped contract for research/{action}; expected a file at "
-        f"src/doctrine/mission_step_contracts/shipped/research-{action}.step-contract.yaml"
+        f"src/doctrine/mission_step_contracts/built-in/research-{action}.step-contract.yaml"
     )
     assert contract.mission == "research"
     assert contract.action == action

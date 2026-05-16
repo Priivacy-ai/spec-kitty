@@ -28,7 +28,7 @@ class TestMissionStepContractRepository:
         assert repo.get("nonexistent") is None
 
     def test_malformed_yaml_skipped_with_warning(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
         bad_file = shipped / "bad.step-contract.yaml"
         bad_file.write_text("not: valid: yaml: [")
@@ -63,7 +63,7 @@ class TestMissionStepContractRepository:
             repo.save(contract)
 
     def test_field_level_merge_with_project_override(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
         project = tmp_path / "project"
         project.mkdir()
@@ -131,7 +131,7 @@ class TestMissionStepContractRepositoryLookup:
     """Tests for the by_action lookup method."""
 
     def test_get_by_action_and_mission(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
 
         yaml = YAML()

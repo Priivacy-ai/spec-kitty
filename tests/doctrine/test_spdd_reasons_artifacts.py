@@ -38,7 +38,7 @@ def test_paradigm_loads_with_required_shape(service: DoctrineService) -> None:
     shipped_path = (
         SHIPPED_ROOT
         / "paradigms"
-        / "shipped"
+        / "built-in"
         / "structured-prompt-driven-development.paradigm.yaml"
     )
     assert shipped_path.is_file(), f"paradigm must live in shipped/: {shipped_path}"
@@ -57,7 +57,7 @@ def test_tactic_loads_with_required_shape(
     for step in tactic.steps:
         assert getattr(step, "title", None), f"every step in {tactic_id} requires a title"
 
-    shipped_path = SHIPPED_ROOT / "tactics" / "shipped" / f"{tactic_id}.tactic.yaml"
+    shipped_path = SHIPPED_ROOT / "tactics" / "built-in" / f"{tactic_id}.tactic.yaml"
     assert shipped_path.is_file(), f"tactic must live in shipped/: {shipped_path}"
 
 
@@ -73,7 +73,7 @@ def test_styleguide_loads_with_required_shape(service: DoctrineService) -> None:
     shipped_path = (
         SHIPPED_ROOT
         / "styleguides"
-        / "shipped"
+        / "built-in"
         / "reasons-canvas-writing.styleguide.yaml"
     )
     assert shipped_path.is_file(), f"styleguide must live in shipped/: {shipped_path}"
@@ -100,7 +100,7 @@ def test_directive_038_lenient_adherence_with_four_allowances(
     shipped_path = (
         SHIPPED_ROOT
         / "directives"
-        / "shipped"
+        / "built-in"
         / "038-structured-prompt-boundary.directive.yaml"
     )
     assert shipped_path.is_file(), f"directive must live in shipped/: {shipped_path}"

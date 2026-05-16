@@ -21,10 +21,10 @@ pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 DOCTRINE_ROOT = DOCTRINE_SOURCE_ROOT
 SCHEMA_PATH = DOCTRINE_ROOT / "schemas" / "procedure.schema.yaml"
 
-_SCAN_SUBDIRS = ("shipped", "_proposed")
+_SCAN_SUBDIRS = ("built-in", "_proposed")
 _PROCEDURE_DIRS = [DOCTRINE_ROOT / "procedures" / subdir for subdir in _SCAN_SUBDIRS]
 # Cross-reference checks only apply to shipped artifacts.
-_SHIPPED_PROCEDURE_DIRS = [DOCTRINE_ROOT / "procedures" / "shipped"]
+_SHIPPED_PROCEDURE_DIRS = [DOCTRINE_ROOT / "procedures" / "built-in"]
 _TEMPLATES_DIR = DOCTRINE_ROOT / "templates"
 
 
@@ -45,7 +45,7 @@ def _load_yaml(path: Path) -> dict[str, Any]:
 
 
 def _shipped_ids(artifact_type: str, pattern: str) -> set[str]:
-    base = DOCTRINE_ROOT / artifact_type / "shipped"
+    base = DOCTRINE_ROOT / artifact_type / "built-in"
     ids: set[str] = set()
     if not base.exists():
         return ids

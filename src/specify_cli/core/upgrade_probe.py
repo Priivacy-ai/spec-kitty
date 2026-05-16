@@ -5,7 +5,7 @@ introduced for FR-007 / WP09. It performs a single, timeout-bounded GET against
 PyPI's JSON metadata endpoint and classifies the installed CLI version.
 
 The probe applies the **secure-design-checklist** tactic
-(`src/doctrine/tactics/shipped/secure-design-checklist.tactic.yaml`) to the new
+(`src/doctrine/tactics/built-in/secure-design-checklist.tactic.yaml`) to the new
 external surface. Specifically:
 
 - **Least Privilege**: a single GET against a public endpoint, no auth, no PII.

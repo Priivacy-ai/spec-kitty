@@ -2,7 +2,7 @@ schema_version: "1.0"
 id: efficient-local-tooling
 tool: local-tooling
 title: Efficient Local Tooling
-guide_path: src/doctrine/toolguides/shipped/EFFICIENT_LOCAL_TOOLING.md
+guide_path: src/doctrine/toolguides/built-in/EFFICIENT_LOCAL_TOOLING.md
 summary: Operation-oriented guidance for using efficient local tools during repository work.
 commands:
   - rg

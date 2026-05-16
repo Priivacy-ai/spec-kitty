@@ -1321,3 +1321,213 @@ def mission_state(  # noqa: C901
         _run_teamspace_dry_run_mode(resolved_root, resolved_fixture_dir, mission, json_output)
         return
     _run_audit_mode(resolved_root, resolved_fixture_dir, mission, fail_on_severity, fail_on_teamspace_blocker, json_output)
+
+
+# ---------------------------------------------------------------------------
+# WP07 T035 + T048: `spec-kitty doctor doctrine` — org-layer snapshot health.
+# ---------------------------------------------------------------------------
+
+
+_ORG_ARTIFACT_DIRS: tuple[str, ...] = (
+    "directives",
+    "tactics",
+    "styleguides",
+    "toolguides",
+    "paradigms",
+    "procedures",
+    "agent_profiles",
+    "mission_step_contracts",
+)
+
+
+def _resolve_pack_version(snapshot_path: Path) -> tuple[str, str | None, bool]:
+    """Return ``(pack_version, fetched_at, is_git_pack)`` for an org snapshot.
+
+    For git-managed snapshots, ``pack_version`` is the ``git describe --tags
+    --always`` output; ``fetched_at`` is ``None``.  For non-git snapshots, the
+    version + timestamp are read from ``pack-manifest.yaml`` when present.
+    Falls back to ``"unknown"`` if neither source yields a value.
+    """
+    import subprocess as _sp
+
+    is_git_pack = (snapshot_path / ".git").exists()
+    if is_git_pack:
+        try:
+            version = _sp.check_output(
+                ["git", "-C", str(snapshot_path), "describe", "--tags", "--always"],
+                stderr=_sp.DEVNULL,
+                text=True,
+            ).strip()
+            return version or "git (version unavailable)", None, True
+        except (_sp.CalledProcessError, FileNotFoundError, OSError):
+            return "git (version unavailable)", None, True
+
+    manifest_path = snapshot_path / "pack-manifest.yaml"
+    if manifest_path.exists():
+        try:
+            from ruamel.yaml import YAML
+
+            yaml = YAML(typ="safe")
+            data = yaml.load(manifest_path.read_text(encoding="utf-8")) or {}
+        except Exception:  # noqa: BLE001
+            return "unknown", None, False
+        if isinstance(data, dict):
+            version = str(data.get("pack_version") or "unknown")
+            fetched_at = data.get("fetched_at")
+            return version, str(fetched_at) if fetched_at else None, False
+    return "unknown", None, False
+
+
+def _count_pack_artifacts(snapshot_path: Path) -> dict[str, int]:
+    """Return per-artifact YAML counts for an org snapshot directory."""
+    counts: dict[str, int] = {}
+    for artifact_type in _ORG_ARTIFACT_DIRS:
+        adir = snapshot_path / artifact_type
+        if adir.exists():
+            counts[artifact_type] = len(list(adir.glob("*.yaml")))
+    return counts
+
+
+def _summarize_org_charter(snapshot_path: Path) -> dict[str, object]:
+    """Inspect ``org-charter.yaml`` in *snapshot_path* and return a JSON-able summary.
+
+    Gracefully degrades when the optional
+    ``specify_cli.doctrine.org_charter`` module is not yet shipped (WP09).
+    """
+    charter_path = snapshot_path / "org-charter.yaml"
+    if not charter_path.exists():
+        return {"present": False}
+
+    try:
+        from specify_cli.doctrine.org_charter import (  # type: ignore[attr-defined]
+            load_org_charter_policy,
+        )
+    except ImportError:
+        # Module not yet shipped — surface presence without policy details.
+        return {"present": True, "module_available": False}
+
+    try:
+        policy = load_org_charter_policy(snapshot_path)
+    except Exception:  # noqa: BLE001
+        return {"present": True, "module_available": True, "load_error": True}
+    if policy is None:
+        return {"present": False}
+
+    return {
+        "present": True,
+        "module_available": True,
+        "interview_defaults_count": len(getattr(policy, "interview_defaults", {}) or {}),
+        "required_directives_count": len(getattr(policy, "required_directives", []) or []),
+        "governance_policies_count": len(getattr(policy, "governance_policies", []) or []),
+    }
+
+
+def _render_doctrine_pack(pack_entry: dict[str, object], pack_index: int) -> None:
+    """Render one pack entry to the Rich console (human output for ``doctor doctrine``)."""
+    name = pack_entry.get("name") or f"pack#{pack_index}"
+    local_path = pack_entry.get("local_path")
+    if not pack_entry.get("snapshot_present"):
+        console.print(
+            f"[yellow]Pack:[/yellow] {name}  (snapshot missing at {local_path})"
+        )
+        return
+
+    version = pack_entry.get("pack_version", "unknown")
+    is_git = pack_entry.get("is_git_pack", False)
+    counts = pack_entry.get("artifact_counts") or {}
+    summary_parts = [f"git {version}" if is_git else f"v{version}"]
+    if isinstance(counts, dict):
+        for artifact_type, count in counts.items():
+            summary_parts.append(f"{count} {artifact_type}")
+    console.print(f"[green]Pack:[/green] {name}  ({', '.join(summary_parts)})")
+
+    charter = pack_entry.get("org_charter") or {}
+    if isinstance(charter, dict) and charter.get("present"):
+        if charter.get("module_available", True):
+            counts_msg = (
+                f"{charter.get('interview_defaults_count', 0)} interview defaults, "
+                f"{charter.get('required_directives_count', 0)} required directives, "
+                f"{charter.get('governance_policies_count', 0)} governance policies"
+            )
+            console.print(f"  org-charter.yaml: {counts_msg}")
+        else:
+            console.print(
+                "  org-charter.yaml: present (policy module not yet shipped)"
+            )
+    else:
+        console.print("  org-charter.yaml: [dim]not present[/dim]")
+
+
+@app.command(name="doctrine")
+def doctrine_check(
+    json_output: Annotated[
+        bool, typer.Option("--json", help="Machine-readable JSON output")
+    ] = False,
+) -> None:
+    """Check org doctrine snapshot status and list installed pack artifacts.
+
+    Exit code is always 0 — this surface is a diagnostic, not a gate.  It
+    enumerates each configured org pack (from ``.kittify/config.yaml``), prints
+    its on-disk version (``git describe`` for git-managed packs, otherwise the
+    ``pack-manifest.yaml`` ``pack_version``), per-artifact YAML counts, and
+    ``org-charter.yaml`` policy status when present.
+
+    Examples:
+        spec-kitty doctor doctrine
+        spec-kitty doctor doctrine --json
+    """
+    from specify_cli.doctrine.config import load_pack_registry
+
+    try:
+        repo_root = locate_project_root()
+    except Exception as exc:
+        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(1) from exc
+    if repo_root is None:
+        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(1)
+
+    registry = load_pack_registry(repo_root)
+
+    if not registry.packs:
+        if json_output:
+            console.print_json(json.dumps({"org_configured": False, "packs": []}))
+        else:
+            console.print("[yellow]No org doctrine configured.[/yellow]")
+            console.print(
+                "Add a 'doctrine.org' block to .kittify/config.yaml to register a pack."
+            )
+        raise typer.Exit(0)
+
+    pack_entries: list[dict[str, object]] = []
+    for pack in registry.packs:
+        snapshot_path = pack.local_path
+        entry: dict[str, object] = {
+            "name": pack.name,
+            "local_path": str(snapshot_path),
+            "source_type": pack.source_type,
+            "url": pack.url,
+            "ref": pack.ref,
+            "snapshot_present": snapshot_path.exists(),
+        }
+        if snapshot_path.exists():
+            version, fetched_at, is_git = _resolve_pack_version(snapshot_path)
+            entry["pack_version"] = version
+            entry["fetched_at"] = fetched_at
+            entry["is_git_pack"] = is_git
+            entry["artifact_counts"] = _count_pack_artifacts(snapshot_path)
+            entry["org_charter"] = _summarize_org_charter(snapshot_path)
+        pack_entries.append(entry)
+
+    if json_output:
+        payload = {"org_configured": True, "packs": pack_entries}
+        console.print_json(json.dumps(payload, indent=2, default=str))
+        raise typer.Exit(0)
+
+    console.print(
+        f"\n[bold]Org Doctrine[/bold] — {len(pack_entries)} pack(s) configured\n"
+    )
+    for idx, entry in enumerate(pack_entries):
+        _render_doctrine_pack(entry, idx)
+    console.print()
+    raise typer.Exit(0)

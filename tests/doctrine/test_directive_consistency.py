@@ -20,20 +20,20 @@ pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 _DOCTRINE_ROOT = DOCTRINE_SOURCE_ROOT
 
-PROFILES_DIR = _DOCTRINE_ROOT / "agent_profiles" / "shipped"
+PROFILES_DIR = _DOCTRINE_ROOT / "agent_profiles" / "built-in"
 DIRECTIVE_SCHEMA = _DOCTRINE_ROOT / "schemas" / "directive.schema.yaml"
 
 # Scan both shipped and _proposed for each artifact type
-_DIRECTIVES_DIRS = [_DOCTRINE_ROOT / "directives" / d for d in ("shipped", "_proposed")]
-_TACTICS_DIRS = [_DOCTRINE_ROOT / "tactics" / d for d in ("shipped", "_proposed")]
-_PARADIGMS_DIRS = [_DOCTRINE_ROOT / "paradigms" / d for d in ("shipped", "_proposed")]
-_STYLEGUIDES_DIRS = [_DOCTRINE_ROOT / "styleguides" / d for d in ("shipped", "_proposed")]
-_TOOLGUIDES_DIRS = [_DOCTRINE_ROOT / "toolguides" / d for d in ("shipped", "_proposed")]
-_PROCEDURES_DIRS = [_DOCTRINE_ROOT / "procedures" / d for d in ("shipped", "_proposed")]
+_DIRECTIVES_DIRS = [_DOCTRINE_ROOT / "directives" / d for d in ("built-in", "_proposed")]
+_TACTICS_DIRS = [_DOCTRINE_ROOT / "tactics" / d for d in ("built-in", "_proposed")]
+_PARADIGMS_DIRS = [_DOCTRINE_ROOT / "paradigms" / d for d in ("built-in", "_proposed")]
+_STYLEGUIDES_DIRS = [_DOCTRINE_ROOT / "styleguides" / d for d in ("built-in", "_proposed")]
+_TOOLGUIDES_DIRS = [_DOCTRINE_ROOT / "toolguides" / d for d in ("built-in", "_proposed")]
+_PROCEDURES_DIRS = [_DOCTRINE_ROOT / "procedures" / d for d in ("built-in", "_proposed")]
 _TEMPLATES_DIR = _DOCTRINE_ROOT / "templates"
-_SHIPPED_DIRECTIVES_DIR = _DOCTRINE_ROOT / "directives" / "shipped"
-_SHIPPED_TACTICS_DIR = _DOCTRINE_ROOT / "tactics" / "shipped"
-_SHIPPED_PARADIGMS_DIR = _DOCTRINE_ROOT / "paradigms" / "shipped"
+_SHIPPED_DIRECTIVES_DIR = _DOCTRINE_ROOT / "directives" / "built-in"
+_SHIPPED_TACTICS_DIR = _DOCTRINE_ROOT / "tactics" / "built-in"
+_SHIPPED_PARADIGMS_DIR = _DOCTRINE_ROOT / "paradigms" / "built-in"
 
 
 def _multi_glob(dirs: list[Path], pattern: str) -> list[Path]:

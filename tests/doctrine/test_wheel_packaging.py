@@ -52,10 +52,10 @@ def test_wheel_contains_doctrine_package_data(wheel_path: Path) -> None:
 
     required_prefixes = [
         "doctrine/agent_profiles/profile.py",
-        "doctrine/agent_profiles/shipped/implementer-ivan.agent.yaml",
+        "doctrine/agent_profiles/built-in/implementer-ivan.agent.yaml",
         "doctrine/schemas/agent-profile.schema.yaml",
         "doctrine/schemas/directive.schema.yaml",
-        "doctrine/directives/shipped/003-decision-documentation-requirement.directive.yaml",
+        "doctrine/directives/built-in/003-decision-documentation-requirement.directive.yaml",
     ]
     missing = [path for path in required_prefixes if path not in names]
     assert not missing, f"Missing doctrine wheel assets: {missing}"

@@ -1192,6 +1192,35 @@ def interview(  # noqa: C901
         raise typer.Exit(code=1) from e
 
 
+def _build_doctrine_service_with_org_layer(repo_root: Path) -> Any:
+    """Return a ``DoctrineService`` rooted at shipped doctrine + project + configured org packs.
+
+    The org-layer roots are resolved from ``.kittify/config.yaml`` via
+    :func:`specify_cli.doctrine.config.resolve_org_roots`.  Packs missing from
+    disk are silently dropped (a fresh checkout that has not yet run
+    ``spec-kitty doctrine fetch`` must not fail charter generation).
+
+    Architectural note: this helper lives in ``specify_cli`` because it
+    depends on the ``specify_cli.doctrine.config`` reader, which the
+    ``charter`` layer is forbidden from importing.
+    """
+    from charter._doctrine_paths import resolve_project_root
+    from charter.catalog import resolve_doctrine_root
+    from doctrine.service import DoctrineService
+
+    from specify_cli.doctrine.config import resolve_org_roots
+
+    doctrine_root = resolve_doctrine_root()
+    project_root = resolve_project_root(repo_root) if repo_root is not None else None
+    org_roots = [p for p in resolve_org_roots(repo_root) if p.exists()]
+
+    return DoctrineService(
+        shipped_root=doctrine_root,
+        project_root=project_root,
+        org_roots=org_roots,
+    )
+
+
 def _is_inside_git_worktree(repo_root: Path) -> bool:
     """Return True iff ``repo_root`` is inside a git working tree.
 
@@ -1353,6 +1382,7 @@ def generate(
             interview=interview_data,
             template_set=template_set,
             repo_root=repo_root,
+            doctrine_service=_build_doctrine_service_with_org_layer(repo_root),
         )
         bundle_result = write_compiled_charter(charter_dir, compiled, force=force)
         if interview_source == "defaults":
@@ -1443,13 +1473,42 @@ def context(
     json_output: bool = typer.Option(False, "--json", help="Output JSON"),
 ) -> None:
     """Render charter context for a specific workflow action."""
-    from charter.context import BOOTSTRAP_ACTIONS, build_charter_context
+    from charter.context import (
+        BOOTSTRAP_ACTIONS,
+        build_charter_context,
+        build_charter_context_json,
+    )
+
+    from specify_cli.doctrine.config import resolve_org_roots
+    from specify_cli.doctrine.org_charter_loader import load_org_charter_json_block
 
     try:
         repo_root = find_repo_root()
-        result = build_charter_context(repo_root, action=action, mark_loaded=mark_loaded)
+        # WP07 T034: resolve the configured org doctrine snapshot in the
+        # specify_cli layer and pass it as data into the charter layer.
+        # ``charter`` must not import ``specify_cli`` (ADR 2026-03-27-1).
+        org_roots = [p for p in resolve_org_roots(repo_root) if p.exists()]
+        org_root = org_roots[0] if org_roots else None
+        result = build_charter_context(
+            repo_root,
+            action=action,
+            mark_loaded=mark_loaded,
+            org_root=org_root,
+        )
 
         if json_output:
+            # WP07 T033 + T046: structured JSON payload includes per-artifact
+            # provenance and the additive ``org_charter`` block.  The block
+            # is loaded in the specify_cli layer (where ``org_charter_loader``
+            # may import the optional WP09 module) and passed as data into the
+            # charter layer.
+            org_charter_block = load_org_charter_json_block(org_roots)
+            structured = build_charter_context_json(
+                repo_root,
+                action=action,
+                org_root=org_root,
+                org_charter_block=org_charter_block,
+            )
             print(
                 json.dumps(
                     {
@@ -1461,6 +1520,13 @@ def context(
                         "references_count": result.references_count,
                         "context": result.text,
                         "text": result.text,
+                        "directives": structured.get("directives", []),
+                        "tactics": structured.get("tactics", []),
+                        "styleguides": structured.get("styleguides", []),
+                        "toolguides": structured.get("toolguides", []),
+                        "org_charter": structured.get(
+                            "org_charter", {"present": False, "packs": []}
+                        ),
                     },
                     indent=2,
                 )

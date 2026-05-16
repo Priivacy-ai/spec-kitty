@@ -30,7 +30,7 @@ pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 # ---------------------------------------------------------------------------
 
 SHIPPED_GRAPH = Path(__file__).resolve().parents[2] / "src" / "doctrine" / "graph.yaml"
-SHIPPED_DIR = Path(__file__).resolve().parents[2] / "src" / "doctrine" / "agent_profiles" / "shipped"
+SHIPPED_DIR = Path(__file__).resolve().parents[2] / "src" / "doctrine" / "agent_profiles" / "built-in"
 
 # All three built-in missions that own a retrospect action (FR-002)
 _RETROSPECT_ACTION_URNS = [

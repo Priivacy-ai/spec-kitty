@@ -54,6 +54,7 @@ _KITTIFY_DIRNAME = ".kittify"
 _DOCTRINE_DIRNAME = "doctrine"
 _CHARTER_DIRNAME = "charter"
 _PROVENANCE_DIRNAME = "provenance"
+_GRAPH_FILENAME = "graph" + ".yaml"
 
 
 # ---------------------------------------------------------------------------
@@ -513,9 +514,9 @@ def promote(
             )
 
         # Check for a staged DRG overlay graph and promote it
-        staged_graph = staging_dir.root / "doctrine" / "graph.yaml"
+        staged_graph = staging_dir.root / "doctrine" / _GRAPH_FILENAME
         if staged_graph.exists():
-            live_graph = repo_root / _KITTIFY_DIRNAME / _DOCTRINE_DIRNAME / "graph.yaml"
+            live_graph = repo_root / _KITTIFY_DIRNAME / _DOCTRINE_DIRNAME / _GRAPH_FILENAME
             guard.replace(staged_graph, live_graph, caller="write_pipeline.promote[graph-replace]")
 
     except Exception as exc:

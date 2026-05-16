@@ -2,7 +2,7 @@ schema_version: "1.0"
 id: python-mutation-tools
 tool: mutmut
 title: Python Mutation Testing with mutmut
-guide_path: src/doctrine/toolguides/shipped/PYTHON_MUTATION_TOOLS.md
+guide_path: src/doctrine/toolguides/built-in/PYTHON_MUTATION_TOOLS.md
 applies_to_languages:
   - python
 summary: >

@@ -20,11 +20,14 @@ class ToolguideRepository(BaseDoctrineRepository[Toolguide]):
     def __init__(
         self,
         shipped_dir: Path | None = None,
+        *,
+        org_dir: Path | None = None,
         project_dir: Path | None = None,
         active_languages: list[str] | tuple[str, ...] | None = None,
     ) -> None:
         super().__init__(
             shipped_dir=shipped_dir or self._default_shipped_dir(),
+            org_dir=org_dir,
             project_dir=project_dir,
             active_languages=active_languages,
         )
@@ -34,10 +37,10 @@ class ToolguideRepository(BaseDoctrineRepository[Toolguide]):
         try:
             resource = files("doctrine.toolguides")
             if hasattr(resource, "joinpath"):
-                return Path(str(resource.joinpath("shipped")))
-            return Path(str(resource)) / "shipped"
+                return Path(str(resource.joinpath("built-in")))
+            return Path(str(resource)) / "built-in"
         except (ModuleNotFoundError, TypeError):
-            return Path(__file__).parent / "shipped"
+            return Path(__file__).parent / "built-in"
 
     @property
     def _schema(self) -> type[Toolguide]:

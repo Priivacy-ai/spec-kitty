@@ -2,7 +2,7 @@
   "created_at": "2026-05-15T11:30:45.578098+00:00",
   "friendly_name": "Layered Doctrine Resolution — Org Layer",
   "mission_id": "01KRNPEE69Q0T540T7PRWSZ6CB",
-  "mission_number": null,
+  "mission_number": 118,
   "mission_slug": "layered-doctrine-org-layer-01KRNPEE",
   "mission_type": "software-dev",
   "purpose_context": "Spec-kitty currently resolves doctrine from two layers: shipped defaults and project-local overrides. Organisations adopting spec-kitty across multiple teams need a stable, versioned, per-machine governance layer that all their projects inherit automatically — without per-project bootstrap or CLI forks. This mission adds that third layer: the org layer. It covers the DoctrineService extension, multi-file DRG loading, a fetch command supporting git, HTTPS bundle, and API sources, a pack authoring surface (validate and assemble), and provenance tracking throughout the charter context surface.",

@@ -5,14 +5,14 @@ Public API:
     from doctrine.drg import (
         NodeKind, Relation,
         DRGNode, DRGEdge, DRGGraph,
-        load_graph, merge_layers, DRGLoadError,
+        load_graph, load_graph_or_dir, merge_layers, DRGLoadError,
         validate_graph, assert_valid, DRGValidationError,
     )
 """
 
 from __future__ import annotations
 
-from doctrine.drg.loader import DRGLoadError, load_graph, merge_layers
+from doctrine.drg.loader import DRGLoadError, load_graph, load_graph_or_dir, merge_layers
 from doctrine.drg.models import (
     DRGEdge,
     DRGGraph,
@@ -30,6 +30,7 @@ __all__ = [
     "DRGEdge",
     "DRGGraph",
     "load_graph",
+    "load_graph_or_dir",
     "merge_layers",
     "DRGLoadError",
     "validate_graph",

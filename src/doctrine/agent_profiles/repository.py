@@ -193,17 +193,23 @@ class AgentProfileRepository:
     def __init__(
         self,
         shipped_dir: Path | None = None,
+        *,
+        org_dir: Path | None = None,
         project_dir: Path | None = None,
         active_languages: list[str] | tuple[str, ...] | None = None,
     ):
-        """Initialize repository with shipped and/or project directories.
+        """Initialize repository with shipped, org, and/or project directories.
 
         Args:
             shipped_dir: Directory containing shipped profiles (defaults to package data)
+            org_dir: Directory containing org-level profile overrides (optional)
             project_dir: Directory containing project-specific profiles (optional)
+            active_languages: Language filter; None means no filtering
         """
         self._profiles: dict[str, AgentProfile] = {}
+        self._provenance: dict[str, str] = {}
         self._shipped_dir = shipped_dir or self._default_shipped_dir()
+        self._org_dir = org_dir
         self._project_dir = project_dir
         self._active_languages = None if active_languages is None else normalize_languages(active_languages)
         self._hierarchy_index: dict[str, list[str]] | None = None
@@ -215,13 +221,13 @@ class AgentProfileRepository:
         try:
             resource = files("doctrine.agent_profiles")
             if hasattr(resource, "joinpath"):
-                return Path(str(resource.joinpath("shipped")))
-            return Path(str(resource)) / "shipped"
+                return Path(str(resource.joinpath("built-in")))
+            return Path(str(resource)) / "built-in"
         except (ModuleNotFoundError, TypeError):
-            return Path(__file__).parent / "shipped"
+            return Path(__file__).parent / "built-in"
 
     def _load(self) -> None:
-        """Load profiles from shipped and project directories."""
+        """Load profiles from shipped, org, and project directories."""
         yaml = YAML(typ="safe")
         shipped_profiles: dict[str, AgentProfile] = {}
 
@@ -245,8 +251,51 @@ class AgentProfileRepository:
                         stacklevel=2,
                     )
 
-        # Start with shipped profiles
+        # Start with shipped profiles; tag all as 'builtin'
         self._profiles = shipped_profiles.copy()
+        self._provenance = {pid: "builtin" for pid in self._profiles}
+
+        # Load and merge org profiles
+        if self._org_dir and self._org_dir.exists():
+            for yaml_file in self._org_dir.glob("*.agent.yaml"):
+                try:
+                    data = yaml.load(yaml_file)
+                    if data is None:
+                        continue
+                    reject_agent_profile_inline_refs(
+                        data, file_path=str(yaml_file)
+                    )
+
+                    profile_id = data.get("profile-id") or data.get("profile_id")
+                    if not profile_id:
+                        warnings.warn(
+                            f"Skipping org profile {yaml_file.name}: no profile-id",
+                            UserWarning,
+                            stacklevel=2,
+                        )
+                        continue
+
+                    # Check if this is an override or new profile
+                    if profile_id in shipped_profiles:
+                        # Merge with shipped profile
+                        merged = self._merge_profiles(shipped_profiles[profile_id], data)
+                        if not applies_to_languages_match(merged.applies_to_languages, self._active_languages):
+                            continue
+                        self._profiles[profile_id] = merged
+                        self._provenance[profile_id] = "org"
+                    else:
+                        # New org-only profile
+                        profile = AgentProfile.model_validate(data)
+                        if not applies_to_languages_match(profile.applies_to_languages, self._active_languages):
+                            continue
+                        self._profiles[profile.profile_id] = profile
+                        self._provenance[profile.profile_id] = "org"
+                except (YAMLError, ValidationError, OSError) as e:
+                    warnings.warn(
+                        f"Skipping invalid org profile {yaml_file.name}: {e}",
+                        UserWarning,
+                        stacklevel=2,
+                    )
 
         # Load and merge project profiles
         if self._project_dir and self._project_dir.exists():
@@ -275,12 +324,14 @@ class AgentProfileRepository:
                         if not applies_to_languages_match(merged.applies_to_languages, self._active_languages):
                             continue
                         self._profiles[profile_id] = merged
+                        self._provenance[profile_id] = "project"
                     else:
                         # New project-only profile
                         profile = AgentProfile.model_validate(data)
                         if not applies_to_languages_match(profile.applies_to_languages, self._active_languages):
                             continue
                         self._profiles[profile.profile_id] = profile
+                        self._provenance[profile.profile_id] = "project"
                 except (YAMLError, ValidationError, OSError) as e:
                     warnings.warn(
                         f"Skipping invalid project profile {yaml_file.name}: {e}",
@@ -327,6 +378,14 @@ class AgentProfileRepository:
     def get(self, profile_id: str) -> AgentProfile | None:
         """Get profile by ID or None if not found."""
         return self._profiles.get(profile_id)
+
+    def get_provenance(self, profile_id: str) -> str | None:
+        """Return the source layer for the given profile ID.
+
+        Returns one of ``"builtin"``, ``"org"``, or ``"project"``, or
+        ``None`` if the profile is not loaded.
+        """
+        return self._provenance.get(profile_id)
 
     def find_by_role(self, role: Role | str) -> list[AgentProfile]:
         """Find all profiles that list the given role (primary or secondary position).

@@ -5,7 +5,7 @@ from pathlib import Path
 
 from charter._drg_helpers import load_validated_graph
 from charter.catalog import resolve_doctrine_root
-from doctrine.drg.loader import load_graph, merge_layers
+from doctrine.drg.loader import load_graph_or_dir
 from doctrine.drg.models import DRGGraph, Relation
 from doctrine.drg.query import ResolveTransitiveRefsResult, resolve_transitive_refs
 from doctrine.drg.validator import assert_valid
@@ -35,11 +35,9 @@ def resolve_references_transitively(
                 resolved_graph = load_validated_graph(repo_root)
             else:
                 doctrine_root = resolve_doctrine_root()
-                graph_path = doctrine_root / "graph.yaml"
-                if not graph_path.exists():
+                if not doctrine_root.exists():
                     return ResolveTransitiveRefsResult(directives=sorted(directive_ids))
-                shipped = load_graph(graph_path)
-                resolved_graph = merge_layers(shipped, None)
+                resolved_graph = load_graph_or_dir(doctrine_root)
                 assert_valid(resolved_graph)
         except FileNotFoundError:
             return ResolveTransitiveRefsResult(directives=sorted(directive_ids))

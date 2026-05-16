@@ -6,7 +6,7 @@ Supplements ``tests/core/test_file_lock.py`` with:
 - corrupt-lock-file recovery (read_lock_record returns None)
 - contention via multiprocessing (marked slow; serialization invariant)
 
-Tactic: function-over-form-testing (src/doctrine/tactics/shipped/testing/).
+Tactic: function-over-form-testing (src/doctrine/tactics/built-in/testing/).
 Structure: AAA (Arrange / Act / Assert).
 """
 

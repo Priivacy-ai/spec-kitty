@@ -36,7 +36,7 @@ _SHIPPED: Path = (
     / "src"
     / "doctrine"
     / "mission_step_contracts"
-    / "shipped"
+    / "built-in"
 )
 
 _ALLOWED_TOP_LEVEL_KEYS: frozenset[str] = frozenset(

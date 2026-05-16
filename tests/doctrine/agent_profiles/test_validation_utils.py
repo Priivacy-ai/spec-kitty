@@ -52,7 +52,7 @@ class TestIsAgentProfileFile:
         assert is_agent_profile_file(Path("profile.agent.json")) is False
 
     def test_agent_yaml_in_subdirectory_returns_true(self):
-        assert is_agent_profile_file(Path("shipped/python-pedro.agent.yaml")) is True
+        assert is_agent_profile_file(Path("built-in/python-pedro.agent.yaml")) is True
 
 
 # ── validate_agent_profile_yaml ────────────────────────────────────────────

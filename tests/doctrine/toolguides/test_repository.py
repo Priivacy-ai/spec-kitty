@@ -35,7 +35,7 @@ class TestToolguideRepository:
         assert toolguides[0].id == "test-toolguide"
 
     def test_malformed_yaml_skipped_with_warning(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
         bad_file = shipped / "bad.toolguide.yaml"
         bad_file.write_text("not: valid: yaml: [")
@@ -71,7 +71,7 @@ class TestToolguideRepository:
             repo.save(toolguide)
 
     def test_field_level_merge_with_project_override(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
         project = tmp_path / "project"
         project.mkdir()
@@ -84,7 +84,7 @@ class TestToolguideRepository:
             "id": "merge-test",
             "tool": "bash",
             "title": "Base Title",
-            "guide_path": "src/doctrine/toolguides/shipped/POWERSHELL_SYNTAX.md",
+            "guide_path": "src/doctrine/toolguides/built-in/POWERSHELL_SYNTAX.md",
             "summary": "Base summary",
         }
         override = {
@@ -92,7 +92,7 @@ class TestToolguideRepository:
             "id": "merge-test",
             "tool": "powershell",
             "title": "Overridden Title",
-            "guide_path": "src/doctrine/toolguides/shipped/POWERSHELL_SYNTAX.md",
+            "guide_path": "src/doctrine/toolguides/built-in/POWERSHELL_SYNTAX.md",
             "summary": "Overridden summary",
             "commands": ["spec-kitty"],
         }
@@ -112,7 +112,7 @@ class TestToolguideRepository:
     def test_filters_language_scoped_toolguides_when_active_languages_do_not_match(
         self, tmp_path: Path
     ) -> None:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
 
         yaml = YAML()
@@ -125,7 +125,7 @@ class TestToolguideRepository:
                     "id": "python-toolguide",
                     "tool": "pytest",
                     "title": "Python Toolguide",
-                    "guide_path": "src/doctrine/toolguides/shipped/python.md",
+                    "guide_path": "src/doctrine/toolguides/built-in/python.md",
                     "summary": "Python checks",
                     "applies_to_languages": ["python"],
                 },
@@ -138,7 +138,7 @@ class TestToolguideRepository:
                     "id": "generic-toolguide",
                     "tool": "git",
                     "title": "Generic Toolguide",
-                    "guide_path": "src/doctrine/toolguides/shipped/generic.md",
+                    "guide_path": "src/doctrine/toolguides/built-in/generic.md",
                     "summary": "Generic checks",
                 },
                 handle,
@@ -153,7 +153,7 @@ class TestToolguideRepository:
     def test_skips_project_toolguides_when_language_scope_does_not_match(
         self, tmp_path: Path
     ) -> None:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
         project = tmp_path / "project"
         project.mkdir()
@@ -168,7 +168,7 @@ class TestToolguideRepository:
                     "id": "merge-test",
                     "tool": "bash",
                     "title": "Base Title",
-                    "guide_path": "src/doctrine/toolguides/shipped/base.md",
+                    "guide_path": "src/doctrine/toolguides/built-in/base.md",
                     "summary": "Base summary",
                 },
                 handle,
@@ -180,7 +180,7 @@ class TestToolguideRepository:
                     "id": "merge-test",
                     "tool": "pytest",
                     "title": "Python Override",
-                    "guide_path": "src/doctrine/toolguides/shipped/python.md",
+                    "guide_path": "src/doctrine/toolguides/built-in/python.md",
                     "summary": "Python summary",
                     "applies_to_languages": ["python"],
                 },
@@ -193,7 +193,7 @@ class TestToolguideRepository:
                     "id": "python-only",
                     "tool": "pytest",
                     "title": "Python Only",
-                    "guide_path": "src/doctrine/toolguides/shipped/python.md",
+                    "guide_path": "src/doctrine/toolguides/built-in/python.md",
                     "summary": "Python summary",
                     "applies_to_languages": ["python"],
                 },
