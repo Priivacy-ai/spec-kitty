@@ -15,7 +15,7 @@ subtasks:
 - T029
 - T030
 - T031
-agent: claude
+agent: "claude:opus-4-7:curator-carla:curator"
 agent_profile: curator-carla
 authoritative_surface: .kittify/charter/charter.md
 execution_mode: code_change
@@ -24,6 +24,7 @@ owned_files:
 role: curator
 history: []
 tags: []
+shell_pid: "1195624"
 ---
 
 ## Objective
@@ -194,3 +195,7 @@ Check that:
 6. The two ATDD tests in `TestProjectCharterDeclaresResolverInputs` both pass.
 7. The charter edit is the ONLY change in this WP — no source code under `src/` is
    modified.
+
+## Activity Log
+
+- 2026-05-16T13:30:55Z – claude:opus-4-7:curator-carla:curator – shell_pid=1195624 – Started implementation via action command
