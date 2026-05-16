@@ -14,7 +14,7 @@ subtasks:
 - T020
 - T021
 - T022
-agent: claude
+agent: "claude:opus-4-7:python-pedro:implementer"
 agent_profile: python-pedro
 authoritative_surface: src/charter/context_renderers/
 execution_mode: code_change
@@ -26,6 +26,7 @@ owned_files:
 role: implementer
 history: []
 tags: []
+shell_pid: "1157057"
 ---
 
 ## Objective
@@ -249,3 +250,7 @@ Check that:
    per-WP character counts and wall-clock times — not just an aggregate.
 6. NFR-001 and NFR-002 numbers in the activity log are reproducible by running
    `scripts/measure-wp-prompt.py` again.
+
+## Activity Log
+
+- 2026-05-16T12:57:11Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1157057 – Started implementation via action command
