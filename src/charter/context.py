@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from dataclasses import dataclass
 from datetime import datetime, UTC
@@ -12,9 +13,22 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from charter._doctrine_paths import resolve_project_root
+from charter.context_renderers import (
+    BUDGET_DEFAULT,
+    RenderedSection,
+    render_authority_paths,
+    render_critical_section_bodies,
+)
+from charter.context_renderers.fetch_stanza import (
+    fetch_stanza_lines as _shared_fetch_stanza_lines,
+)
 from charter.language_scope import infer_repo_languages
+from charter.schemas import DoctrineSelectionConfig
+from doctrine.agent_profiles import AgentProfile, AgentProfileRepository
 from doctrine.spdd_reasons import append_spdd_reasons_guidance, is_spdd_reasons_active
 from kernel.atomic import atomic_write
+
+_LOGGER = logging.getLogger(__name__)
 
 
 BOOTSTRAP_ACTIONS: frozenset[str] = frozenset({"specify", "plan", "implement", "review"})
@@ -89,7 +103,7 @@ def build_charter_context(
         and pass it explicitly (preserving the kernel <- doctrine <- charter <-
         specify_cli dependency direction).
     """
-    _ = profile
+    profile_record = _load_agent_profile(profile) if profile else None
 
     from charter.sync import ensure_charter_bundle_fresh
 
@@ -106,7 +120,7 @@ def build_charter_context(
             action=normalized,
             mode="compact",
             first_load=False,
-            text=_render_compact_governance(repo_root),
+            text=_render_compact_governance(repo_root, profile=profile_record, action=normalized),
             references_count=0,
             depth=effective_depth,
         )
@@ -135,7 +149,7 @@ def build_charter_context(
             action=normalized,
             mode="compact",
             first_load=state_bundle.first_load,
-            text=_render_compact_governance(repo_root),
+            text=_render_compact_governance(repo_root, profile=profile_record, action=normalized),
             references_count=0,
             depth=state_bundle.effective_depth,
         )
@@ -149,6 +163,7 @@ def build_charter_context(
     charter_content = charter_path.read_text(encoding="utf-8")
     summary = _extract_policy_summary(charter_content)
     references = _load_references(references_path)
+    doctrine_selection = _load_doctrine_selection(repo_root)
     text = _render_bootstrap_text(
         charter_path=charter_path,
         action=normalized,
@@ -156,6 +171,10 @@ def build_charter_context(
         doctrine_bundle=doctrine_bundle,
         references=references,
         effective_depth=state_bundle.effective_depth,
+        profile=profile_record,
+        repo_root=repo_root,
+        doctrine_selection=doctrine_selection,
+        charter_content=charter_content,
     )
 
     if mark_loaded and state_bundle.first_load:
@@ -237,6 +256,26 @@ def _classify_artifact_urns(
     return directive_ids, tactic_ids, styleguide_ids, toolguide_ids
 
 
+def _load_doctrine_selection(repo_root: Path) -> DoctrineSelectionConfig:
+    """Return the charter's :class:`DoctrineSelectionConfig` for *repo_root*.
+
+    Best-effort lookup: any failure (missing governance.yaml, parse
+    error, unexpected exception) collapses to a default-constructed
+    :class:`DoctrineSelectionConfig`.  This keeps the resolver hot path
+    resilient (NFR-005) so a malformed governance file never crashes
+    prompt rendering — the authority-paths block will simply lack
+    charter-declared entries.
+    """
+
+    from charter.sync import load_governance_config
+
+    try:
+        governance = load_governance_config(repo_root)
+    except Exception:  # noqa: BLE001 — best-effort governance load
+        return DoctrineSelectionConfig()
+    return governance.doctrine
+
+
 def _load_action_doctrine_bundle(
     *,
     repo_root: Path,
@@ -299,6 +338,10 @@ def _render_bootstrap_text(
     doctrine_bundle: _ActionDoctrineBundle,
     references: list[dict[str, str]],
     effective_depth: int,
+    profile: AgentProfile | None = None,
+    repo_root: Path | None = None,
+    doctrine_selection: DoctrineSelectionConfig | None = None,
+    charter_content: str = "",
 ) -> str:
     """Render the full bootstrap charter context text."""
 
@@ -315,6 +358,29 @@ def _render_bootstrap_text(
             lines.append(f"  - {item}")
     else:
         lines.append(NO_POLICY_SUMMARY_MESSAGE)
+
+    # WP04 (FR-003) — authority paths block, sliced between Policy Summary
+    # and the action-critical bodies so the resolved-context anchor order
+    # documented in data-model.md §3 holds.
+    authority_block = ""
+    if repo_root is not None and doctrine_selection is not None:
+        authority_block = render_authority_paths(repo_root, doctrine_selection)
+    if authority_block:
+        lines.append("")
+        lines.append(authority_block)
+
+    # WP04 (FR-001) — action-critical charter section bodies.  When a
+    # heading is absent from the charter the renderer emits a fetch
+    # stanza, so the executing agent has a recovery path either way.
+    section_block = render_critical_section_bodies(charter_content, action)
+    if section_block:
+        lines.append("")
+        lines.append(section_block)
+
+    profile_block = _render_profile_sections(profile, service)
+    if profile_block:
+        lines.append("")
+        lines.append(profile_block)
 
     lines.append("")
     lines.append(f"Action Doctrine ({action}):")
@@ -341,7 +407,121 @@ def _render_bootstrap_text(
             lines.append(f"  - {ref_id}: {title} ({local_path})")
     else:
         lines.append(MISSING_REFERENCES_MESSAGE)
-    return "\n".join(lines)
+    text = "\n".join(lines)
+
+    # WP05 (NFR-001) — token budget enforcement.  When the bootstrap
+    # render fits inside the budget the text passes through unchanged;
+    # otherwise the longest substitutable section bodies are swapped
+    # for fetch + when-doing stanzas until the budget holds.  Authority
+    # paths and core doctrine stay inline (substitutable=False).
+    return _enforce_token_budget(
+        text,
+        action=action,
+        profile_block=profile_block,
+        section_block=section_block,
+    )
+
+
+def _enforce_token_budget(
+    text: str,
+    *,
+    action: str,
+    profile_block: str,
+    section_block: str,
+    budget: int = BUDGET_DEFAULT,
+) -> str:
+    """Apply the NFR-001 token budget to *text* (WP05).
+
+    When ``len(text) <= budget`` the text is returned unchanged.  Over
+    budget, the largest substitutable governance block is swapped for
+    the canonical fetch + when-doing stanza, and the substitution loop
+    iterates over the remaining blocks (longest first) until the budget
+    holds or no swap candidates remain.
+
+    Substitution preference (in order of preferred swap):
+      1. action-critical section bodies (`section_block`) — largest
+      2. profile-cited directives + tactics (`profile_block`)
+
+    Authority paths and core action-doctrine sections stay inline (they
+    are small + critical to the prompt's actionable surface, per
+    WP05 NFR-001 spec).
+    """
+
+    if len(text) <= budget:
+        return text
+
+    # Decompose the rendered ``text`` into a fixed-section model and run
+    # the substitution loop.  We do this by replacing whole blocks in
+    # the original text rather than re-joining, so the surrounding
+    # structure (Charter Context header, Policy Summary, Action
+    # Doctrine, References) stays byte-identical.
+    candidates: list[RenderedSection] = []
+    if section_block:
+        candidates.append(
+            RenderedSection(
+                section_id="action-critical-sections",
+                header="",
+                body=section_block,
+                selector=f"section:critical-{action}",
+                when_doing_clause=(
+                    "need to consult the action-critical charter sections"
+                ),
+                substitutable=True,
+                indent="  ",
+            )
+        )
+    if profile_block:
+        candidates.append(
+            RenderedSection(
+                section_id="profile-cited-sections",
+                header="",
+                body=profile_block,
+                selector="section:profile-citations",
+                when_doing_clause=(
+                    "need to consult the profile-cited directives and tactics"
+                ),
+                substitutable=True,
+                indent="  ",
+            )
+        )
+
+    if not candidates:
+        # Nothing safe to substitute — return the original text so we
+        # don't silently drop content.  The caller (the WP prompt
+        # builder) sees over-budget text rather than missing content;
+        # operators will spot the regression via the measurement script.
+        return text
+
+    # Sort longest first, ties broken on section_id for determinism.
+    candidates.sort(key=lambda sec: (-len(sec.body), sec.section_id))
+
+    current_text = text
+    swapped_ids: list[str] = []
+    for section in candidates:
+        if len(current_text) <= budget:
+            break
+        stanza = "\n".join(
+            _shared_fetch_stanza_lines(
+                section.selector,
+                section.when_doing_clause,
+                indent=section.indent,
+            )
+        )
+        # Replace only the first occurrence — the block is rendered
+        # exactly once in the bootstrap text.
+        new_text = current_text.replace(section.body, stanza, 1)
+        if new_text == current_text:
+            # Defensive: block not found (renderer drift).  Skip it.
+            continue
+        current_text = new_text
+        swapped_ids.append(section.section_id)
+
+    if swapped_ids:
+        from charter.context_renderers.token_budget import warning_line
+
+        current_text = f"{current_text}\n\n{warning_line(len(swapped_ids), budget)}"
+
+    return current_text
 
 
 def _extend_named_artifact_lines(
@@ -652,11 +832,283 @@ def _render_bootstrap(charter_path: Path, summary: list[str], references: list[d
     return "\n".join(lines)
 
 
+# ---------------------------------------------------------------------------
+# Profile-driven rendering (WP03 — FR-002 / FR-004)
+# ---------------------------------------------------------------------------
+
+
+_PROFILE_DIRECTIVES_HEADER_TPL = "Profile-Cited Directives ({profile_id}):"
+_PROFILE_TACTICS_HEADER_TPL = "Profile-Cited Tactics ({profile_id}):"
+_PROFILE_INLINE_BODY_LIMIT_CHARS = 2_400
+
+
+# Shared, repository-cached store. ``AgentProfileRepository()`` reads YAML
+# at construction; we cache the default instance so per-call cost in the
+# resolver is a dict lookup (NFR-002 budget).
+_DEFAULT_AGENT_PROFILE_REPO: AgentProfileRepository | None = None
+
+
+def _default_agent_profile_repository() -> AgentProfileRepository:
+    """Return a process-wide cached :class:`AgentProfileRepository`.
+
+    The repository is constructed lazily on first call and reused for the
+    lifetime of the interpreter. Tests that need a clean repository can
+    reset the cache via :func:`_reset_agent_profile_cache`.
+    """
+    global _DEFAULT_AGENT_PROFILE_REPO
+    if _DEFAULT_AGENT_PROFILE_REPO is None:
+        _DEFAULT_AGENT_PROFILE_REPO = AgentProfileRepository()
+    return _DEFAULT_AGENT_PROFILE_REPO
+
+
+def _reset_agent_profile_cache() -> None:
+    """Clear the cached default :class:`AgentProfileRepository` (test hook)."""
+    global _DEFAULT_AGENT_PROFILE_REPO
+    _DEFAULT_AGENT_PROFILE_REPO = None
+
+
+def _load_agent_profile(profile_id: str) -> AgentProfile | None:
+    """Resolve *profile_id* via the doctrine layer. Returns ``None`` on miss.
+
+    Errors are intentionally swallowed: this helper is on the prompt-build
+    hot path and must never raise into the resolver. A diagnostic is logged
+    at WARNING level so operators can audit unknown profile IDs without the
+    prompt collapsing.
+    """
+    try:
+        record = _default_agent_profile_repository().get(profile_id)
+    except Exception:  # noqa: BLE001 — best-effort lookup
+        _LOGGER.warning(
+            "Profile '%s' lookup failed; profile-cited sections will be omitted.",
+            profile_id,
+        )
+        return None
+    if record is None:
+        _LOGGER.warning(
+            "Profile '%s' not found; profile-cited sections omitted.",
+            profile_id,
+        )
+    return record
+
+
+def _format_profile_directive_code(raw: object) -> str:
+    """Normalise a directive-ref code to the canonical ``DIRECTIVE_NNN`` form.
+
+    Profile YAML stores codes as bare numerals (``"010"``) or already in
+    ``DIRECTIVE_NNN`` form. The catalog lookup needs the canonical form.
+    """
+    text = str(raw).strip()
+    if re.match(r"^DIRECTIVE_\d+$", text):
+        return text
+    match = re.match(r"^(\d+)$", text)
+    if match:
+        return f"DIRECTIVE_{match.group(1).zfill(3)}"
+    return text
+
+
+def _format_inline_directive_body(directive: object) -> list[str]:
+    """Render the verbatim body of a directive as indented lines."""
+    body_lines: list[str] = []
+    intent = getattr(directive, "intent", None)
+    if isinstance(intent, str) and intent.strip():
+        body_lines.append(f"    Intent: {intent.strip()}")
+    scope = getattr(directive, "scope", None)
+    if isinstance(scope, str) and scope.strip():
+        body_lines.append(f"    Scope: {scope.strip()}")
+    for label, attr in (
+        ("Procedures", "procedures"),
+        ("Integrity rules", "integrity_rules"),
+        ("Validation criteria", "validation_criteria"),
+    ):
+        items = getattr(directive, attr, None)
+        if isinstance(items, list) and items:
+            body_lines.append(f"    {label}:")
+            for item in items:
+                body_lines.append(f"      - {item}")
+    return body_lines
+
+
+def _budget_estimate(lines: list[str]) -> int:
+    """Total character cost of *lines* including newlines."""
+    return sum(len(line) + 1 for line in lines)
+
+
+def _render_fetch_stanza(
+    *,
+    selector: str,
+    when_clause: str,
+) -> list[str]:
+    """Render the canonical fetch + when-doing stanza for a single entry.
+
+    WP05 T020: this is a thin wrapper around the shared
+    :func:`charter.context_renderers.fetch_stanza.fetch_stanza_lines`
+    helper so every renderer (WP03 profile-cited, WP04 section bodies,
+    WP05 budget substitution) emits identical bytes.  The four-space
+    indent is preserved here to match the existing profile-cited
+    rendering shape.
+    """
+    return _shared_fetch_stanza_lines(selector, when_clause, indent="    ")
+
+
+def _render_profile_directives(
+    profile: AgentProfile,
+    service: object,
+) -> list[str]:
+    """Render the ``Profile-Cited Directives (<profile-id>):`` section as a list of lines.
+
+    Returns an empty list when the profile has no ``directive_references``
+    so the caller can filter out the header. Each entry is either the
+    verbatim body (when under the per-entry budget) OR the
+    fetch + when-doing stanza pinned by the ATDD contract.
+    """
+    refs = list(profile.directive_references)
+    if not refs:
+        return []
+
+    header = _PROFILE_DIRECTIVES_HEADER_TPL.format(profile_id=profile.profile_id)
+    lines: list[str] = [header]
+    repo = getattr(service, "directives", None)
+
+    for ref in refs:
+        code = _format_profile_directive_code(getattr(ref, "code", ""))
+        title = getattr(ref, "name", "") or ""
+        rationale = getattr(ref, "rationale", "") or ""
+        header_line = f"  - {code}: {title}"
+        if rationale:
+            header_line = f"{header_line} — {rationale}"
+        lines.append(header_line)
+
+        directive = None
+        if repo is not None:
+            try:
+                directive = repo.get(code)
+            except Exception:  # noqa: BLE001 — best-effort catalog lookup
+                directive = None
+
+        if directive is None:
+            lines.append("    (catalog entry not found; verify profile references)")
+            _LOGGER.warning(
+                "Profile '%s' cites directive '%s' but the catalog does not "
+                "carry it; rendered as fetch-only.",
+                profile.profile_id,
+                code,
+            )
+            continue
+
+        body_lines = _format_inline_directive_body(directive)
+        if body_lines and _budget_estimate(body_lines) <= _PROFILE_INLINE_BODY_LIMIT_CHARS:
+            lines.extend(body_lines)
+        else:
+            lines.extend(
+                _render_fetch_stanza(
+                    selector=f"directive:{code}",
+                    when_clause="are about to apply a code change",
+                )
+            )
+
+    return lines
+
+
+def _render_profile_tactics(
+    profile: AgentProfile,
+    service: object,
+) -> list[str]:
+    """Render the ``Profile-Cited Tactics (<profile-id>):`` section as a list of lines.
+
+    Returns an empty list when the profile has no ``tactic_references``.
+    The fetch stanza uses ``--include tactic:<id>``. Tactics do not carry
+    a ``when:`` field today; the conditional falls back to "apply a code
+    change" so the prompt remains actionable.
+    """
+    refs = list(profile.tactic_references)
+    if not refs:
+        return []
+
+    header = _PROFILE_TACTICS_HEADER_TPL.format(profile_id=profile.profile_id)
+    lines: list[str] = [header]
+    repo = getattr(service, "tactics", None)
+
+    for ref in refs:
+        tactic_id = str(getattr(ref, "id", "")).strip()
+        rationale = getattr(ref, "rationale", "") or ""
+        header_line = f"  - {tactic_id}"
+        if rationale:
+            header_line = f"{header_line}: {rationale}"
+        lines.append(header_line)
+
+        tactic = None
+        if repo is not None:
+            try:
+                tactic = repo.get(tactic_id)
+            except Exception:  # noqa: BLE001 — best-effort catalog lookup
+                tactic = None
+
+        if tactic is None:
+            lines.append("    (catalog entry not found; verify profile references)")
+            _LOGGER.warning(
+                "Profile '%s' cites tactic '%s' but the catalog does not "
+                "carry it; rendered as fetch-only.",
+                profile.profile_id,
+                tactic_id,
+            )
+            continue
+
+        body_lines: list[str] = []
+        name = getattr(tactic, "name", None)
+        if isinstance(name, str) and name:
+            body_lines.append(f"    Name: {name}")
+        purpose = getattr(tactic, "purpose", None)
+        if isinstance(purpose, str) and purpose.strip():
+            body_lines.append(f"    Purpose: {purpose.strip()}")
+        steps = getattr(tactic, "steps", None)
+        if isinstance(steps, list) and steps:
+            body_lines.append("    Steps:")
+            for step in steps:
+                step_title = getattr(step, "title", str(step))
+                body_lines.append(f"      - {step_title}")
+
+        if body_lines and _budget_estimate(body_lines) <= _PROFILE_INLINE_BODY_LIMIT_CHARS:
+            lines.extend(body_lines)
+        else:
+            lines.extend(
+                _render_fetch_stanza(
+                    selector=f"tactic:{tactic_id}",
+                    when_clause="are about to apply a code change",
+                )
+            )
+
+    return lines
+
+
+def _render_profile_sections(
+    profile: AgentProfile | None,
+    service: object,
+) -> str:
+    """Render the combined profile-cited directive + tactic sections.
+
+    Returns an empty string when *profile* is ``None`` or when neither
+    section has any entries — callers can then skip the leading blank
+    line without emitting a stray section header.
+    """
+    if profile is None:
+        return ""
+    directive_lines = _render_profile_directives(profile, service)
+    tactic_lines = _render_profile_tactics(profile, service)
+    blocks: list[str] = []
+    if directive_lines:
+        blocks.append("\n".join(directive_lines))
+    if tactic_lines:
+        blocks.append("\n".join(tactic_lines))
+    return "\n\n".join(blocks)
+
+
 def _render_compact_governance(
     repo_root: Path,
     *,
     directive_ids: list[str] | None = None,
     tactic_ids: list[str] | None = None,
+    profile: AgentProfile | None = None,
+    action: str | None = None,
 ) -> str:
     """Render the compact governance block (FR-034).
 
@@ -666,6 +1118,13 @@ def _render_compact_governance(
     bootstrap-side lists that the caller has already resolved; when
     omitted the compact view falls back to the resolver's directive
     canon.
+
+    When *profile* is provided (an :class:`AgentProfile` already resolved
+    via :func:`_load_agent_profile`), the profile's
+    ``directive_references`` and ``tactic_references`` are appended to
+    the compact block as two additional sections (``Profile-Cited
+    Directives`` / ``Profile-Cited Tactics``) so the WP06 wiring path
+    can drive prompt-time governance even in compact mode.
     """
     from charter.compact import render_compact_view
 
@@ -674,7 +1133,61 @@ def _render_compact_governance(
         directive_ids=directive_ids or (),
         tactic_ids=tactic_ids or (),
     )
-    return view.text
+    text: str = str(view.text)
+
+    # WP04 — the compact render path must carry the same authority-paths
+    # and action-critical-section blocks as the bootstrap path so the
+    # prompt-governance contract holds in both modes (R-3 mitigation).
+    augmented_blocks: list[str] = []
+    doctrine_selection = _load_doctrine_selection(repo_root)
+    authority_block = render_authority_paths(repo_root, doctrine_selection)
+    if authority_block:
+        augmented_blocks.append(authority_block)
+
+    if action:
+        charter_path = repo_root / KITTIFY_DIRNAME / "charter" / "charter.md"
+        if charter_path.exists():
+            try:
+                charter_content = charter_path.read_text(encoding="utf-8")
+            except OSError:
+                charter_content = ""
+            section_block = render_critical_section_bodies(charter_content, action)
+            if section_block:
+                augmented_blocks.append(section_block)
+
+    profile_block_str = ""
+    if profile is not None:
+        # Build a lightweight DoctrineService for the compact path. The
+        # service constructor is cheap (catalog directories are mmaped
+        # lazily) and the resulting sections compose with the compact
+        # block without altering the existing ID/anchor surface.
+        service = _build_doctrine_service(repo_root)
+        profile_block_str = _render_profile_sections(profile, service)
+        if profile_block_str:
+            augmented_blocks.append(profile_block_str)
+
+    if not augmented_blocks:
+        return text
+    combined = text + "\n\n" + "\n\n".join(augmented_blocks)
+
+    # WP05 (NFR-001) — compact view shares the budget cap with the
+    # bootstrap path so prompts driven through the compact rail (e.g.
+    # via the WP06 wiring) honour the same NFR-001 contract.
+    section_block_str = ""
+    if action:
+        charter_path = repo_root / KITTIFY_DIRNAME / "charter" / "charter.md"
+        if charter_path.exists():
+            try:
+                charter_content = charter_path.read_text(encoding="utf-8")
+            except OSError:
+                charter_content = ""
+            section_block_str = render_critical_section_bodies(charter_content, action or "")
+    return _enforce_token_budget(
+        combined,
+        action=action or "",
+        profile_block=profile_block_str,
+        section_block=section_block_str,
+    )
 
 
 def _extract_policy_summary(content: str) -> list[str]:

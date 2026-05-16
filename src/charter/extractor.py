@@ -7,10 +7,13 @@ Maps parsed charter sections to validated Pydantic models:
 """
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+from kernel._safe_re import re
 
 from charter.hasher import hash_content
 from doctrine.versioning import CURRENT_BUNDLE_SCHEMA_VERSION
@@ -48,7 +51,93 @@ SECTION_MAPPING: dict[str, tuple[str, str]] = {
     "directive": ("directives", "directives"),
     "constraint": ("directives", "directives"),
     "rule": ("directives", "directives"),
+    # WP02: "Code Review Checklist" sections produce directive entries so the
+    # body of each bullet item can be scanned for catalog citations
+    # (FR-006). Keyed on the compound "code review" rather than the bare
+    # "checklist" to avoid accidentally classifying unrelated sections
+    # (e.g. "Deployment Checklist") as directives.
+    "code review": ("directives", "directives"),
 }
+
+
+# WP02: regex helpers for catalog-citation detection inside directive bodies.
+# Per contract `contracts/charter-sync-cross-link.md`:
+#   - Every ``DIRECTIVE_NNN`` match is lifted into ``Directive.references``
+#     (no further filter applied — every match counts).
+#   - Every kebab-case slug is lifted ONLY when ``tactic_registry(slug)`` is
+#     truthy, i.e. the slug names a real ``DoctrineService.tactics`` entry.
+#     This prevents false positives on incidental kebab-case words
+#     (e.g. ``pre-commit-hooks`` is not a tactic; ``language-driven-design`` is).
+_DIRECTIVE_CITATION_RE = re.compile(r"\bDIRECTIVE_(\d{3})\b")
+_TACTIC_SLUG_RE = re.compile(r"\b([a-z][a-z0-9]*(?:-[a-z0-9]+){1,4})\b")
+
+
+# WP02: bullet-list pattern used as a fallback inside directive sections that
+# carry `-` bullets rather than `1. ` numbered items (e.g. "Code Review
+# Checklist"). Extraction of bullet items is gated on the section being
+# classified as a directive section AND the section not already exposing
+# numbered items.
+_BULLET_ITEM_RE = re.compile(r"^[ \t]*-[ \t]+(.+(?:\n[ \t]+.+)*)", re.MULTILINE)
+
+
+def _detect_catalog_references(
+    body: str,
+    *,
+    tactic_registry: Callable[[str], bool],
+) -> list[str]:
+    """Return catalog IDs cited inside *body*.
+
+    The detector implements the contract documented in
+    ``contracts/charter-sync-cross-link.md``:
+
+    - Every ``DIRECTIVE_NNN`` match becomes the literal string
+      ``"DIRECTIVE_NNN"``.
+    - Every kebab-case slug for which ``tactic_registry(slug)`` returns True
+      is added as that slug.
+    - Duplicates are removed; **order is first-seen** so diffs stay
+      deterministic.
+
+    ``tactic_registry`` is injected by the caller (``charter.sync.sync``)
+    rather than constructed here — the extractor stays decoupled from
+    ``DoctrineService`` construction. If the caller cannot build a
+    registry (e.g. the shipped catalog is unavailable), it MUST pass a
+    callable that always returns False; the directive detector still
+    runs as a result.
+    """
+    if not body:
+        return []
+
+    seen: dict[str, None] = {}
+
+    # Find DIRECTIVE_NNN and tactic-slug citations in document order, so that
+    # references stay deterministic regardless of which kind appears first.
+    matches: list[tuple[int, str]] = []
+
+    for match in _DIRECTIVE_CITATION_RE.finditer(body):
+        digits = match.group(1)
+        matches.append((match.start(), f"DIRECTIVE_{digits}"))
+
+    for match in _TACTIC_SLUG_RE.finditer(body):
+        slug = match.group(1)
+        # Membership-gate: only consider a slug a tactic when the registry
+        # confirms it. The empty default callable returns False, which makes
+        # this loop a no-op when the caller had no DoctrineService.
+        try:
+            is_tactic = bool(tactic_registry(slug))
+        except Exception:  # noqa: BLE001 - defensive: registry failures must
+            # never break charter sync. The contract says we silently emit no
+            # tactic references when the registry cannot answer.
+            is_tactic = False
+        if is_tactic:
+            matches.append((match.start(), slug))
+
+    matches.sort(key=lambda pair: pair[0])
+
+    for _pos, ref in matches:
+        if ref not in seen:
+            seen[ref] = None
+
+    return list(seen.keys())
 
 
 @dataclass
@@ -63,13 +152,27 @@ class ExtractionResult:
 class Extractor:
     """Extract structured configuration from parsed charter sections."""
 
-    def __init__(self, parser: CharterParser | None = None):
+    def __init__(
+        self,
+        parser: CharterParser | None = None,
+        *,
+        tactic_registry: Callable[[str], bool] | None = None,
+    ):
         """Initialize extractor with optional parser.
 
         Args:
-            parser: CharterParser instance (creates default if None)
+            parser: CharterParser instance (creates default if None).
+            tactic_registry: Optional predicate that returns True when its
+                input names a real ``DoctrineService.tactics`` entry. Used
+                by :func:`_detect_catalog_references` to filter out
+                false-positive kebab-case slugs (R-5 in the WP02 plan). The
+                default callable always returns False — that is the
+                contract-safe fallback when no doctrine service is
+                available (see ``contracts/charter-sync-cross-link.md``
+                §3, "DoctrineService cannot be constructed").
         """
         self.parser = parser or CharterParser()
+        self._tactic_registry: Callable[[str], bool] = tactic_registry or (lambda _slug: False)
 
     def extract(self, content: str) -> ExtractionResult:
         """Full extraction pipeline: parse → map → validate → return.
@@ -196,7 +299,22 @@ class Extractor:
             branch_strategy.rules = numbered_items
 
     def _merge_doctrine_selection(self, section: CharterSection, doctrine: DoctrineSelectionConfig) -> None:
-        """Merge doctrine selection hints from a section into doctrine config."""
+        """Merge doctrine selection hints from a section into doctrine config.
+
+        WP02 extends the original selection-table reader so that fenced
+        YAML blocks carrying top-level keys ``template_set``,
+        ``available_tools``, and ``authority_paths`` are also recognised.
+
+        For fenced YAML blocks the resolver-input keys
+        (``template_set`` / ``available_tools`` / ``authority_paths``)
+        are stripped from the row-shaped dict before
+        :meth:`_apply_selection_row` runs, so the existing replacement
+        semantics for those keys do not overwrite values previously
+        merged from selection tables. The stripped keys are then handled
+        by :meth:`_apply_resolver_input_block`, which is additive
+        (merge + dedup, preserving order) — exactly the contract
+        documented in the WP02 task spec under T007.
+        """
         tables = section.structured_data.get("tables", [])
         yaml_blocks = section.structured_data.get("yaml_blocks", [])
 
@@ -204,8 +322,115 @@ class Extractor:
             self._apply_selection_row(row, doctrine)
 
         for block in yaml_blocks:
-            if isinstance(block, dict):
-                self._apply_selection_row(block, doctrine)
+            if not isinstance(block, dict):
+                continue
+            # Strip resolver-input keys so they are NOT replayed through
+            # the row-style replacement path (which would clobber prior
+            # selection-table values).
+            resolver_keys = {"template_set", "available_tools", "authority_paths"}
+            row_only = {k: v for k, v in block.items() if k not in resolver_keys}
+            if row_only:
+                self._apply_selection_row(row_only, doctrine)
+            # Then merge top-level resolver-input declarations: these
+            # are the WP02 additions (FR-007, FR-008).
+            self._apply_resolver_input_block(block, doctrine)
+
+    def _apply_resolver_input_block(
+        self,
+        block: dict[str, Any],
+        doctrine: DoctrineSelectionConfig,
+    ) -> None:
+        """Apply top-level resolver-input keys from a fenced YAML block.
+
+        Recognised top-level keys:
+
+        - ``template_set`` (scalar): when present, **overrides** any value
+          already set on ``doctrine.template_set``. The fenced YAML block
+          is the more explicit declaration; an info-level diagnostic is
+          emitted when an override occurs.
+        - ``available_tools`` (list): merged into the existing list,
+          preserving order and deduplicating.
+        - ``authority_paths`` (list): merged into the existing list,
+          preserving order and deduplicating. Non-string entries are
+          rejected with a clear ``ValueError`` (matches the existing
+          ``_apply_selection_row`` strictness).
+        """
+        if not isinstance(block, dict):
+            return
+
+        self._apply_template_set_override(block, doctrine)
+        doctrine.available_tools = self._merge_string_list(
+            existing=doctrine.available_tools,
+            new=block.get("available_tools"),
+            field_name="available_tools",
+        )
+        doctrine.authority_paths = self._merge_string_list(
+            existing=doctrine.authority_paths,
+            new=block.get("authority_paths"),
+            field_name="authority_paths",
+        )
+
+    def _apply_template_set_override(
+        self,
+        block: dict[str, Any],
+        doctrine: DoctrineSelectionConfig,
+    ) -> None:
+        """Apply a fenced-YAML ``template_set:`` override.
+
+        The fenced YAML block is the more explicit declaration and wins
+        on conflict with a selection-table value; an info-level
+        diagnostic is emitted when an override occurs (T007 in the WP02
+        task spec).
+        """
+        new_template = block.get("template_set")
+        if not isinstance(new_template, str):
+            return
+        cleaned = new_template.strip()
+        if not cleaned:
+            return
+        existing = doctrine.template_set
+        if existing and existing != cleaned:
+            logger.info(
+                "charter: fenced YAML block overrides selection-table template_set "
+                "(%s -> %s)",
+                existing,
+                cleaned,
+            )
+        doctrine.template_set = cleaned
+
+    @staticmethod
+    def _merge_string_list(
+        *,
+        existing: list[str],
+        new: Any,
+        field_name: str,
+    ) -> list[str]:
+        """Merge a new list of strings into *existing* with dedup, preserving order.
+
+        Returns ``existing`` unchanged when *new* is not a list. Raises
+        ``ValueError`` with a charter-anchored message when any entry is
+        not a string (matches the strictness of
+        :meth:`_apply_selection_row` for sibling fields).
+        """
+        if not isinstance(new, list):
+            return existing
+        cleaned: list[str] = []
+        for entry in new:
+            if not isinstance(entry, str):
+                raise ValueError(
+                    f"charter fenced YAML: {field_name} entry must be a string, "
+                    f"got {type(entry).__name__} ({entry!r})"
+                )
+            value = entry.strip()
+            if value:
+                cleaned.append(value)
+        merged: list[str] = list(existing)
+        seen: set[str] = set(merged)
+        for value in cleaned:
+            if value not in seen:
+                merged.append(value)
+                seen.add(value)
+        return merged
 
     def _apply_selection_row(self, row: dict[str, Any], doctrine: DoctrineSelectionConfig) -> None:
         """Apply one table/yaml row that may contain doctrine selection keys."""
@@ -261,13 +486,25 @@ class Extractor:
         return None
 
     def _extract_directives(self, sections: list[CharterSection]) -> DirectivesConfig:
-        """Extract numbered directives from classified sections.
+        """Extract directives from classified sections.
 
         Args:
             sections: Parsed charter sections
 
         Returns:
-            DirectivesConfig with auto-generated DIR-XXX IDs
+            DirectivesConfig with auto-generated DIR-XXX IDs.
+
+        WP02 changes:
+
+        - Each extracted directive body is scanned via
+          :func:`_detect_catalog_references` and any detected catalog IDs
+          or known tactic slugs are lifted into ``Directive.references``.
+        - When a directive-classified section carries no numbered items but
+          does carry bullet items (the ``- item`` shape used by Code Review
+          Checklist–style sections), the bullet items become directives.
+          Numbered items take precedence; bullets are only consulted as a
+          fallback so existing charters with both shapes still emit one
+          directive per numbered line.
         """
         directives_list: list[Directive] = []
         directive_counter = 1
@@ -283,20 +520,53 @@ class Extractor:
             if schema_name != "directives":
                 continue
 
-            # Extract numbered items
-            numbered_items = section.structured_data.get("numbered_items", [])
-            for item_text in numbered_items:
+            items: list[str] = list(section.structured_data.get("numbered_items", []))
+            if not items:
+                # Fallback: bullet items inside a directive-classified section.
+                items = self._extract_bullet_items(section.content)
+
+            for item_text in items:
+                # Detect cross-link catalog citations inside the body so the
+                # downstream resolver can surface the catalog body on demand
+                # (FR-006). The registry callable is injected at __init__
+                # time so this method stays decoupled from DoctrineService.
+                references = _detect_catalog_references(
+                    item_text,
+                    tactic_registry=self._tactic_registry,
+                )
                 directive_id = f"DIR-{directive_counter:03d}"
                 directive = Directive(
                     id=directive_id,
                     title=item_text[:50],  # First 50 chars as title
                     description=item_text,
                     severity="warn",
+                    references=references,
                 )
                 directives_list.append(directive)
                 directive_counter += 1
 
         return DirectivesConfig(directives=directives_list)
+
+    @staticmethod
+    def _extract_bullet_items(content: str) -> list[str]:
+        """Extract ``- item`` bullet items from raw section content.
+
+        Used as a fallback inside directive-classified sections that carry
+        bullet lists instead of numbered lists (e.g. Code Review
+        Checklist). Each bullet's text becomes one directive entry.
+        Multi-line bullet continuations (a single bullet whose body wraps
+        onto an indented next line) are joined with a single space so the
+        emitted directive description stays one-line per item.
+        """
+        items: list[str] = []
+        for match in _BULLET_ITEM_RE.finditer(content):
+            raw = match.group(1)
+            # Join indented continuation lines with a single space; collapse
+            # internal whitespace to keep the description compact.
+            joined = " ".join(part.strip() for part in raw.splitlines() if part.strip())
+            if joined:
+                items.append(joined)
+        return items
 
     def _build_metadata(self, content: str, sections: list[CharterSection]) -> ExtractionMetadata:
         """Build extraction metadata with provenance info.

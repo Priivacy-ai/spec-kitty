@@ -125,6 +125,10 @@ def _build_wp_prompt(
         wp_meta, _ = read_wp_frontmatter(wp_files[0])
     subtask_ids = [str(item) for item in (wp_meta.subtasks if wp_meta is not None else []) if isinstance(item, str)]
     subtask_cmd = " ".join(subtask_ids) if subtask_ids else "<subtask-ids>"
+    # WP06 (FR-004) — forward the WP frontmatter ``agent_profile`` to the
+    # governance resolver so the profile's directive_references and
+    # tactic_references are rendered into the prompt the agent will read.
+    agent_profile_id = wp_meta.agent_profile if wp_meta is not None else None
 
     # Read WP file content
     wp_content = _read_wp_content(feature_dir, wp_id)
@@ -144,7 +148,7 @@ def _build_wp_prompt(
     else:
         lines.append("Workspace contract: repository root planning workspace")
     lines.append("")
-    lines.append(_governance_context(repo_root, action=action))
+    lines.append(_governance_context(repo_root, action=action, profile=agent_profile_id))
     lines.append("")
 
     # WP isolation rules
@@ -262,15 +266,32 @@ def _mission_context_header(mission_slug: str, feature_dir: Path, agent: str) ->
     return "\n".join(lines)
 
 
-def _governance_context(repo_root: Path, action: str | None = None) -> str:
+def _governance_context(
+    repo_root: Path,
+    action: str | None = None,
+    *,
+    profile: str | None = None,
+) -> str:
     """Render governance context for prompt preamble.
 
     For bootstrap actions, charter context is injected on first load.
     Falls back to compact governance rendering if charter artifacts are missing.
+
+    When *profile* is supplied (typically the WP frontmatter
+    ``agent_profile`` field forwarded by :func:`_build_wp_prompt`), it is
+    passed through to :func:`build_charter_context` so the resolver
+    renders the profile's directive- and tactic-references into the
+    prompt the agent will read.  ``profile=None`` preserves the prior
+    byte-identical output (NFR-005 contract from WP03).
     """
     if action:
         try:
-            context = build_charter_context(repo_root, action=action, mark_loaded=True)
+            context = build_charter_context(
+                repo_root,
+                action=action,
+                mark_loaded=True,
+                profile=profile,
+            )
             if context.mode != "missing":
                 return context.text
         except Exception:

@@ -1,0 +1,122 @@
+"""WP04 unit tests — ``render_critical_section_bodies`` (FR-001).
+
+These tests exercise the pure renderer in
+``charter.context_renderers.section_bodies`` against the five-row table
+in the WP04 task spec (subtask T018).  They pin:
+
+* verbatim section bodies surface when the heading is present;
+* missing sections degrade to the fetch + when-doing stanza (no crash);
+* action-specific section sets are honoured;
+* unknown actions yield no block (empty string).
+"""
+
+from __future__ import annotations
+
+import textwrap
+
+import pytest
+
+from charter.context_renderers import (
+    CRITICAL_SECTION_WHEN_CLAUSES,
+    critical_section_header,
+    render_critical_section_bodies,
+)
+
+pytestmark = pytest.mark.fast
+
+
+_CHARTER_WITH_ALL_SECTIONS = textwrap.dedent(
+    """\
+    # Project Charter
+
+    ## Purpose
+
+    Minimal fixture for section-body rendering tests.
+
+    ## Terminology Canon
+
+    - The canonical term for a unit of governed work is **Mission**.
+    - ``feature`` is forbidden in canonical, operator, and user-facing language.
+
+    ## Regression Vigilance (2026-04-06)
+
+    When renaming an identifier-bearing term, the reviewer MUST grep the
+    diff for the old term and MUST consult ``glossary/contexts/`` before
+    approving.
+
+    ## Code Review Checklist
+
+    - The WP diff respects the agent profile's directive-references.
+    - Terminology in code and docs aligns with the project glossary.
+    """
+)
+
+_CHARTER_WITHOUT_REGRESSION_VIGILANCE = textwrap.dedent(
+    """\
+    # Project Charter
+
+    ## Terminology Canon
+
+    - canonical term is **Mission**.
+
+    ## Code Review Checklist
+
+    - check terminology alignment.
+    """
+)
+
+
+class TestVerbatimBodies:
+    """Existing headings render their body verbatim under a ``### <heading>`` line."""
+
+    def test_terminology_canon_body_surfaces_verbatim_when_present(self) -> None:
+        result = render_critical_section_bodies(
+            _CHARTER_WITH_ALL_SECTIONS, action="implement"
+        )
+        assert critical_section_header("implement") in result
+        assert "### Terminology Canon" in result
+        # The literal body text must survive intact (whitespace + bullets).
+        assert (
+            "The canonical term for a unit of governed work is **Mission**"
+            in result
+        )
+
+
+class TestMissingSectionFetchStanza:
+    """Missing headings degrade to the fetch + when-doing stanza."""
+
+    def test_missing_section_emits_fetch_stanza(self) -> None:
+        result = render_critical_section_bodies(
+            _CHARTER_WITHOUT_REGRESSION_VIGILANCE, action="implement"
+        )
+        # The selector slug matches the kebab-cased heading.
+        assert "section:regression-vigilance" in result
+        # The when-doing clause is exactly the contract phrase.
+        when_clause = CRITICAL_SECTION_WHEN_CLAUSES["Regression Vigilance"]
+        assert f"When you {when_clause}" in result
+        # No crash means the rest of the block still rendered too.
+        assert critical_section_header("implement") in result
+
+
+class TestActionSectionSets:
+    """The set of critical sections is action-scoped."""
+
+    def test_action_implement_uses_implement_section_set(self) -> None:
+        result = render_critical_section_bodies(
+            _CHARTER_WITH_ALL_SECTIONS, action="implement"
+        )
+        for heading in ("Terminology Canon", "Code Review Checklist", "Regression Vigilance"):
+            assert f"### {heading}" in result
+
+    def test_action_review_uses_review_section_set(self) -> None:
+        result = render_critical_section_bodies(
+            _CHARTER_WITH_ALL_SECTIONS, action="review"
+        )
+        for heading in ("Terminology Canon", "Code Review Checklist", "Regression Vigilance"):
+            assert f"### {heading}" in result
+
+    def test_unknown_action_emits_no_section(self) -> None:
+        result = render_critical_section_bodies(
+            _CHARTER_WITH_ALL_SECTIONS, action="unknown-action"
+        )
+        assert result == ""

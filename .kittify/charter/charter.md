@@ -276,3 +276,20 @@ The `--feature` → `--mission` rename has been a persistent source of regressio
 - Every PR that adds a command example in templates or docstrings MUST use `--mission`.
 - Code reviewers MUST grep for `--feature` in new/changed lines and reject any non-alias usage.
 - The upstream contract at `src/specify_cli/core/upstream_contract.json` lists `--feature` as a **forbidden CLI flag** for new code. This is authoritative.
+
+---
+
+## Charter Resolution Hints
+
+These declarations are read by `spec-kitty charter sync` (per FR-007 / FR-008 of mission
+`wp-prompt-governance-payload-01KRR8HS`). They drive the action-scoped governance
+resolver so that `spec-kitty charter context --action <name>` does not need to fall
+back to runtime defaults. Keep this block up to date as the project adopts new
+template sets, tools, or authority directories.
+
+```yaml
+template_set: software-dev-default
+available_tools: [git, spec-kitty, pytest, mypy, ruff]
+authority_paths: [glossary/contexts/, architecture/2.x/adr/]
+```
+
