@@ -85,10 +85,10 @@ The 14 currently-passing tests MUST remain green throughout (no regression).
 | T016 | Wire both renderers into `_render_bootstrap_text` and the compact-context surface | WP04 | | [D] |
 | T017 | Unit tests in `tests/charter/test_context_authority_paths.py` (default present/absent, additive declarations, missing dirs silent) | WP04 | [D] |
 | T018 | Unit tests in `tests/charter/test_context_section_bodies.py` (Terminology Canon, Regression Vigilance, Code Review Checklist surface) | WP04 | [D] |
-| T019 | Implement `_apply_token_budget(text, budget=32_000)` substitution mechanism | WP05 | |
-| T020 | Implement the fetch + when-doing stanza formatter (`directive:`, `tactic:`, `section:` selectors) | WP05 | |
-| T021 | Measure baseline against `layered-doctrine-org-layer-01KRNPEE` WP01–WP10 prompts (C-004); record in WP notes | WP05 | |
-| T022 | Unit tests in `tests/charter/test_context_token_budget.py` (under budget unchanged, longest-first substitution, severely over → all substituted, warning emitted) | WP05 | [P] |
+| T019 | Implement `_apply_token_budget(text, budget=32_000)` substitution mechanism | WP05 | | [D] |
+| T020 | Implement the fetch + when-doing stanza formatter (`directive:`, `tactic:`, `section:` selectors) | WP05 | | [D] |
+| T021 | Measure baseline against `layered-doctrine-org-layer-01KRNPEE` WP01–WP10 prompts (C-004); record in WP notes | WP05 | | [D] |
+| T022 | Unit tests in `tests/charter/test_context_token_budget.py` (under budget unchanged, longest-first substitution, severely over → all substituted, warning emitted) | WP05 | [D] |
 | T023 | In `_build_wp_prompt` extract `wp_meta.agent_profile` and pass to `_governance_context` | WP06 | |
 | T024 | In `_governance_context` forward `profile=` to `build_charter_context` | WP06 | |
 | T025 | Add `## Governance Payload Contract` section to `src/specify_cli/missions/software-dev/command-templates/implement.md` (four-block schema) | WP06 | |
