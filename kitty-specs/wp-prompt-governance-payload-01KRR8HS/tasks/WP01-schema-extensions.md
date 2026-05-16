@@ -16,8 +16,8 @@ subtasks:
 - T001
 - T002
 - T003
-agent: claude
-shell_pid: '1083623'
+agent: "claude:opus-4-7:python-pedro:implementer"
+shell_pid: "1083623"
 history: []
 agent_profile: python-pedro
 authoritative_surface: src/charter/schemas.py
@@ -166,3 +166,7 @@ Check that:
    modification.
 5. Architectural layer tests still pass — no new `specify_cli` import has crept into
    `charter/`.
+
+## Activity Log
+
+- 2026-05-16T11:50:29Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1083623 – Assigned agent via action command
