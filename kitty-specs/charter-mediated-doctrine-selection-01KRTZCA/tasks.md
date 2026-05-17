@@ -52,13 +52,13 @@
 | T038 | Migrate `src/specify_cli/runtime/resolver.py` to `from charter.resolution import ...`; remove from allowlist | WP07 | [D] |
 | T039 | Migrate `src/specify_cli/cli/commands/charter.py`, `charter_bundle.py`, and `upgrade/migrations/m_3_2_6_charter_bundle_v2.py` to `from charter.versioning import ...`; remove from allowlist (or document as ≤ 2 exceptions per C-004) | WP07 | [D] |
 | T040 | Promote `SchemaUtilities` to `src/kernel/schema_utils.py`; migrate `bulk_edit/occurrence_map.py`; remove from allowlist | WP07 | [D] |
-| T041 | Add `MissionTypeProfile` Pydantic model + `load_profile` + `resolve_governance` in `src/charter/mission_type_profiles.py` | WP08 | |
-| T042 | Ship `src/doctrine/missions/software-dev/governance-profile.yaml` mirroring today's `software-dev-default` selections | WP08 | [P] |
-| T043 | Ship `src/doctrine/missions/documentation/governance-profile.yaml` with documentation-flavoured defaults | WP08 | [P] |
-| T044 | Ship `src/doctrine/missions/research/governance-profile.yaml` with minimal defaults | WP08 | [P] |
-| T045 | Ship `src/doctrine/missions/plan/governance-profile.yaml` with minimal defaults | WP08 | [P] |
-| T046 | Wire `resolve_governance` into the mission-context pipeline (read meta.json mission_type; union with project + org) | WP08 | |
-| T047 | Hard-fail on unknown mission_type with no project override; message names the unknown value | WP08 | |
+| T041 | Add `MissionTypeProfile` Pydantic model + `load_profile` + `resolve_governance` in `src/charter/mission_type_profiles.py` | WP08 | | [D] |
+| T042 | Ship `src/doctrine/missions/software-dev/governance-profile.yaml` mirroring today's `software-dev-default` selections | WP08 | [D] |
+| T043 | Ship `src/doctrine/missions/documentation/governance-profile.yaml` with documentation-flavoured defaults | WP08 | [D] |
+| T044 | Ship `src/doctrine/missions/research/governance-profile.yaml` with minimal defaults | WP08 | [D] |
+| T045 | Ship `src/doctrine/missions/plan/governance-profile.yaml` with minimal defaults | WP08 | [D] |
+| T046 | Wire `resolve_governance` into the mission-context pipeline (read meta.json mission_type; union with project + org) | WP08 | | [D] |
+| T047 | Hard-fail on unknown mission_type with no project override; message names the unknown value | WP08 | | [D] |
 | T048 | Add `spec-kitty doctrine new <kind> <name>` CLI command + `--pack <path>` flag in `src/specify_cli/cli/commands/doctrine.py` | WP09 | |
 | T049 | Add `spec-kitty doctrine validate <path>` CLI command for project-layer validation | WP09 | [P] |
 | T050 | Extend `spec-kitty doctor doctrine` with a "Selections" section listing per-kind active artifacts + resolved pack source | WP09 | [P] |
