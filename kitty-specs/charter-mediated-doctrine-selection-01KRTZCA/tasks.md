@@ -11,14 +11,14 @@
 
 | ID | Description | WP | Parallel |
 |---|---|---|---|
-| T001 | Extend `DoctrineSelectionConfig` with 5 new `selected_<kind>` fields | WP01 | |
+| T001 | Extend `DoctrineSelectionConfig` with 5 new `selected_<kind>` fields | WP01 | | [D] |
 | T002 | Extend `OrgCharterPolicy` with 7 new `required_<kind>` fields + `activations` field | WP01 | [P] |
-| T003 | Add `ActivationEntry`, `ALLOWED_MISSION_TYPES`, `ALLOWED_ACTIONS`, `resolve_for_context` in `src/charter/activations.py` | WP01 | [P] |
-| T004 | Extend `_OPTIONAL_EMPTY_OMIT_KEYS` in `src/charter/schemas.py` with 5 new keys for NFR-005 byte-stability | WP01 | |
-| T005 | Unit tests for new schema fields (round-trip empty, round-trip populated, parity) | WP01 | [P] |
+| T003 | Add `ActivationEntry`, `ALLOWED_MISSION_TYPES`, `ALLOWED_ACTIONS`, `resolve_for_context` in `src/charter/activations.py` | WP01 | [D] |
+| T004 | Extend `_OPTIONAL_EMPTY_OMIT_KEYS` in `src/charter/schemas.py` with 5 new keys for NFR-005 byte-stability | WP01 | | [D] |
+| T005 | Unit tests for new schema fields (round-trip empty, round-trip populated, parity) | WP01 | [D] |
 | T006 | Extend `charter.extractor._apply_selection_row` to read the 5 new `selected_<kind>` fields | WP02 | |
 | T007 | Add `_apply_activations_block` handler reading top-level `activations:` from charter.md fenced YAML | WP02 | |
-| T008 | Add `activations` field to `GovernanceConfig` (sibling of `doctrine`); round-trip through `governance.yaml` | WP02 | |
+| T008 | Add `activations` field to `GovernanceConfig` (sibling of `doctrine`); round-trip through `governance.yaml` | WP02 | | [D] |
 | T009 | Unit tests for extractor: round-trip selected_styleguides; round-trip activations block; mixed-fields fixture | WP02 | [P] |
 | T010 | Create `src/charter/profiles.py` re-exporting `AgentProfile`, `AgentProfileRepository`, `Role`, `DEFAULT_ROLE_CAPABILITIES` | WP03 | [D] |
 | T011 | Create `src/charter/mission_steps.py` re-exporting `MissionStep`, `MissionStepContract`, `MissionStepContractRepository` | WP03 | [D] |
