@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0rc11] - 2026-05-17
+
+Closes the planning#16 backward-transition follow-up across the CLI release
+surface:
+
+- `spec-kitty backwards --note ...` now preserves the canonical
+  `backward rewind:` transition-reason prefix when callers supply a note,
+  keeping emitted `WPStatusChanged` events accepted by the shared contract and
+  SaaS ingestion.
+- The resolved lockfile moves to `spec-kitty-events==5.1.0`, which ships the
+  review-rejection replay conformance fixture used to verify forced backward
+  transition handling.
+
 ## [3.2.0rc10] - 2026-05-17
 
 Rolls forward `3.2.0rc9` (never tagged) and adds the Teamspace MVP

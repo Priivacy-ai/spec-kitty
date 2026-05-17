@@ -2069,7 +2069,7 @@ wheels = [
 
 [[package]]
 name = "spec-kitty-cli"
-version = "3.2.0rc10"
+version = "3.2.0rc11"
 source = { editable = "." }
 dependencies = [
     { name = "charset-normalizer" },
@@ -2193,15 +2193,15 @@ dev = [
 
 [[package]]
 name = "spec-kitty-events"
-version = "5.0.0"
+version = "5.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "python-ulid" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/27/94/5255be6380fbe3f0ae942934f3af6b4ba2dca363edf15c1bbd7e0d79252e/spec_kitty_events-5.0.0.tar.gz", hash = "sha256:2970dec90efb2f0bbaf76a8abb9a03c053c78fddf5f2bcec3f930684d419091d", size = 223463, upload-time = "2026-05-10T05:44:16.783Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1e/1c/bec4f6d9fb57b27665dc5226ed3d409e55b55d1243f5c4aecf742f77afa7/spec_kitty_events-5.1.0.tar.gz", hash = "sha256:561953d6bebec26c8a8748655a49bf5f65561daf3ee8dec4fa68d7485cf77802", size = 238863, upload-time = "2026-05-17T19:29:51.372Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/15/e9/adf00f4347565c653b2d8ef912e22aa64788ba020b62d026b523c1c90a2d/spec_kitty_events-5.0.0-py3-none-any.whl", hash = "sha256:c36d890e482d8f5fb710625cafc40a82393ef8eb4a54e3c27b2be708f7447786", size = 330666, upload-time = "2026-05-10T05:44:15.327Z" },
+    { url = "https://files.pythonhosted.org/packages/b6/2a/29aee56a9a81b54acdc69434e16ab5a26a3503c5c32b6cbf6106f58ef9f7/spec_kitty_events-5.1.0-py3-none-any.whl", hash = "sha256:9da5e6c6516a88e20eb6cf3b260f0bd5bb83f1f58a76290e3eea9eddf5f673d3", size = 353862, upload-time = "2026-05-17T19:29:49.109Z" },
 ]
 
 [[package]]
