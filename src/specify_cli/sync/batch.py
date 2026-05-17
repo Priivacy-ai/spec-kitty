@@ -177,7 +177,7 @@ def _should_probe_advertised_limits(server_url: str) -> bool:
     host = (parsed.hostname or "").lower()
     if host in {"localhost", "127.0.0.1", "::1"}:
         return False
-    if host.endswith(".example") or host.endswith(".example.com"):
+    if host.endswith((".example", ".example.com")):
         return False
     return parsed.scheme in {"https", "http"} and bool(host)
 
@@ -1368,14 +1368,7 @@ def sync_all_queued_events(
             show_progress=show_progress,
         )
 
-        total_result.total_events += result.total_events
-        total_result.synced_count += result.synced_count
-        total_result.duplicate_count += result.duplicate_count
-        total_result.error_count += result.error_count
-        total_result.synced_ids.extend(result.synced_ids)
-        total_result.failed_ids.extend(result.failed_ids)
-        total_result.error_messages.extend(result.error_messages)
-        total_result.event_results.extend(result.event_results)
+        _merge_batch_sync_result(total_result, result)
 
         if show_progress:
             print(
@@ -1398,17 +1391,7 @@ def sync_all_queued_events(
         # Exception: permanently-failed events (e.g. oversized_event) are
         # removed from the queue by process_batch_results, so the drain IS
         # making progress — continue to subsequent events rather than stopping.
-        if result.success_count == 0:
-            all_permanent = bool(result.event_results) and all(
-                r.status == "failed_permanent" for r in result.event_results
-            )
-            if all_permanent:
-                continue
-            if show_progress:
-                if result.error_count > 0:
-                    print("Stopping: No events successfully synced in this batch")
-                else:
-                    print("Stopping: Batch skipped (no Private Teamspace; see structured stderr diagnostic)")
+        if _should_stop_sync_loop(result, show_progress):
             break
 
     if show_progress:
@@ -1419,3 +1402,34 @@ def sync_all_queued_events(
             print(f"Remaining in queue: {queue.size()} events")
 
     return total_result
+
+
+def _merge_batch_sync_result(total_result: BatchSyncResult, batch_result: BatchSyncResult) -> None:
+    """Accumulate a single batch result into the running total."""
+    total_result.total_events += batch_result.total_events
+    total_result.synced_count += batch_result.synced_count
+    total_result.duplicate_count += batch_result.duplicate_count
+    total_result.error_count += batch_result.error_count
+    total_result.synced_ids.extend(batch_result.synced_ids)
+    total_result.failed_ids.extend(batch_result.failed_ids)
+    total_result.error_messages.extend(batch_result.error_messages)
+    total_result.event_results.extend(batch_result.event_results)
+
+
+def _should_stop_sync_loop(result: BatchSyncResult, show_progress: bool) -> bool:
+    """Return True when the replay loop should stop after this batch."""
+    if result.success_count > 0:
+        return False
+
+    all_permanent = bool(result.event_results) and all(
+        event_result.status == "failed_permanent" for event_result in result.event_results
+    )
+    if all_permanent:
+        return False
+
+    if show_progress:
+        if result.error_count > 0:
+            print("Stopping: No events successfully synced in this batch")
+        else:
+            print("Stopping: Batch skipped (no Private Teamspace; see structured stderr diagnostic)")
+    return True
