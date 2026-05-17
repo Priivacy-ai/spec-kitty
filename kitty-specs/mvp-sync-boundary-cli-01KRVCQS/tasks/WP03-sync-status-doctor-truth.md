@@ -134,3 +134,4 @@ Planning base: `main`. Final merge target: `main`.
 ## Activity Log
 
 - 2026-05-17T17:11:16Z – claude:opus-4-7:python-pedro:implementer – shell_pid=70501 – Started implementation via action command
+- 2026-05-17T17:22:26Z – claude:opus-4-7:python-pedro:implementer – shell_pid=70501 – Ready for review: sync status + doctor truthfulness + 4 scenarios
