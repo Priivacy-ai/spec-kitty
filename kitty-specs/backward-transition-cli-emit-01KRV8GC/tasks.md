@@ -27,8 +27,8 @@ Small mission. Two WPs.
 **Independent test**: After this WP and before WP02, running the existing `tests/specify_cli/cli/commands/agent/test_tasks.py` suite produces zero regressions; the new code is exercised by WP02 tests landing in the same lane.
 
 **Included subtasks**:
-- [ ] T001 Add `_is_backward_transition(current_lane, target_lane) -> bool` helper. Place adjacent to `_lane_targets_for_emit` (line 1714). Use the same `FORWARD_ORDER` literal as the existing closure. Apply `resolve_lane_alias()` to both inputs. Return False if either resolved lane is outside the forward set or if target index is >= current index.
-- [ ] T002 Insert the auto-promote block AFTER the existing `if not emit_reason: emit_reason = ...` block (i.e., after line ~1712). Logic per `contracts/auto-promote-backward-emit.md` "Decision Procedure":
+- [x] T001 Add `_is_backward_transition(current_lane, target_lane) -> bool` helper. Place adjacent to `_lane_targets_for_emit` (line 1714). Use the same `FORWARD_ORDER` literal as the existing closure. Apply `resolve_lane_alias()` to both inputs. Return False if either resolved lane is outside the forward set or if target index is >= current index.
+- [x] T002 Insert the auto-promote block AFTER the existing `if not emit_reason: emit_reason = ...` block (i.e., after line ~1712). Logic per `contracts/auto-promote-backward-emit.md` "Decision Procedure":
   - If `force` is truthy → return (existing path preserved).
   - If NOT `_is_backward_transition(old_lane, canonical_lane)` → return (forward / terminal / equal preserved).
   - Else: set `emit_force = True`. If `emit_reason is None or emit_reason.startswith("move-task: ")`, rewrite to `f"backward rewind: {old_lane} -> {canonical_lane}"` and append `f": {review_feedback_pointer}"` when the pointer is non-None and not the literal `"force-override"`.
