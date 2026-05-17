@@ -108,6 +108,9 @@ Release workflow sequence:
 
 ```bash
 # 1) prepare version + changelog
+git checkout main
+git pull origin main
+git checkout -b release/3.1.0a0
 vim pyproject.toml   # version = "3.1.0a0" for prerelease, "3.1.0" for stable
 vim CHANGELOG.md     # add ## [3.1.0a0] - YYYY-MM-DD (or final ## [3.1.0])
 
@@ -126,15 +129,31 @@ twine check dist/*
 # 3) clean build artifacts
 rm -rf dist/ build/
 
-# 4a) prerelease publish from main
+# 4) commit, push, and merge the release metadata through a PR
+git add pyproject.toml CHANGELOG.md
+git commit -m "chore(release): prepare 3.1.0a0"
+git push origin release/3.1.0a0
+gh pr create --base main --title "Release 3.1.0a0" --fill
+
+# 5a) prerelease publish from updated main
+git checkout main
+git pull origin main
 git tag v3.1.0a0 -m "Release 3.1.0a0"
 git push origin v3.1.0a0
 
-# 4b) stable publish from main
+# 5b) stable publish from updated main
 #     Edit pyproject.toml to "3.1.0" and rename the changelog heading to [3.1.0]
 git tag v3.1.0 -m "Release 3.1.0"
 git push origin v3.1.0
 ```
+
+Treat publish success and branch health as separate evidence. The tag-time
+publish workflow proves PyPI/GitHub release publication; release summaries
+should only call `main` green after the required branch checks on the same
+commit have also passed. If SaaS consumes a shared-package bump after the CLI
+candidate commit, rerun the shared-package drift workflow or the local drift
+command against the updated SaaS `main` before recording release-health
+evidence.
 
 ## Troubleshooting
 

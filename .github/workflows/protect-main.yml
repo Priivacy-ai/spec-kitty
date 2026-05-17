@@ -85,6 +85,25 @@ jobs:
             exit 0
           fi
 
+          # Release commits are allowed only when the pushed commit is already
+          # tagged with the matching release tag. This keeps release publication
+          # explicit while preventing untagged version/changelog commits from
+          # bypassing the normal PR or mission merge paths.
+          if [[ "$COMMIT_MSG" =~ ^Release\ spec-kitty\ ([0-9]+\.[0-9]+\.[0-9]+((a|b|rc)[0-9]+)?)$ ]]; then
+            RELEASE_VERSION="${BASH_REMATCH[1]}"
+            RELEASE_TAG="v${RELEASE_VERSION}"
+            git fetch --force --depth=1 origin "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}" || true
+
+            if git tag --points-at HEAD | grep -Fxq "$RELEASE_TAG"; then
+              echo "✅ Commit is a tagged spec-kitty release commit (${RELEASE_TAG})"
+              exit 0
+            fi
+
+            echo "::error::Release commit message found, but HEAD is not tagged with ${RELEASE_TAG}."
+            echo "::error::Release commits must be pushed with their matching annotated tag."
+            exit 1
+          fi
+
           # If we get here, this appears to be a direct push
           echo "::error::❌ Direct push to main branch detected!"
           echo "::error::"
@@ -101,7 +120,7 @@ jobs:
           echo "::error::   - Enable 'Require pull request reviews before merging'"
           echo "::error::   - Enable 'Require status checks to pass before merging'"
           echo "::error::"
-          echo "::error::📖 See: docs/releases/readiness-checklist.md for the complete workflow"
+          echo "::error::📖 See: RELEASE_CHECKLIST.md for the complete workflow"
 
           # Add to job summary
           {
@@ -141,7 +160,7 @@ jobs:
             echo ""
             echo "## Reference"
             echo ""
-            echo "📖 [Release Readiness Checklist](https://github.com/${{ github.repository }}/blob/main/docs/releases/readiness-checklist.md)"
+            echo "📖 [Release Checklist](https://github.com/${{ github.repository }}/blob/main/RELEASE_CHECKLIST.md)"
           } >> $GITHUB_STEP_SUMMARY
 
           exit 1

@@ -206,6 +206,8 @@ jobs:
             echo "- Package builds successfully" >> $GITHUB_STEP_SUMMARY
             echo "- Shared-package drift check passes" >> $GITHUB_STEP_SUMMARY
             echo "- Candidate wheel installs via plain pip" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "This report covers release-readiness checks for this workflow only. Do not summarize a release as green until the required branch checks on the same commit are also green." >> $GITHUB_STEP_SUMMARY
           elif [[ "${{ github.event_name }}" == "pull_request" && "${{ steps.metadata_changes.outputs.release_metadata }}" != "true" ]]; then
             echo "✅ **Release workflow checks passed**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -216,6 +218,8 @@ jobs:
             echo "- Package builds successfully" >> $GITHUB_STEP_SUMMARY
             echo "- Shared-package drift check passes" >> $GITHUB_STEP_SUMMARY
             echo "- Candidate wheel installs via plain pip" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "This report covers release-workflow checks only. Do not summarize a release as green until the required branch checks on the same commit are also green." >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ **Readiness checks failed**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY

@@ -57,6 +57,9 @@ Use this checklist for releases from `main`.
     --saas-pyproject ../spec-kitty-saas/pyproject.toml \
     --runtime-pyproject /path/to/spec-kitty-runtime/pyproject.toml
   ```
+- [ ] If a SaaS consumer pin lands after the CLI candidate commit, rerun the
+  shared-package drift workflow or the local drift command against the updated
+  SaaS `main` before recording branch-health evidence.
 - [ ] Verify the built wheel installs cleanly with plain `pip`:
   ```bash
   python scripts/release/check_exact_install.py --package spec-kitty-cli
@@ -120,7 +123,12 @@ gh pr create --base main --title "Release X.Y.Z" --fill
 ### 4. Wait for CI and Review
 
 - [ ] `Release Readiness Check` passes.
-- [ ] `CI Quality` passes or has explicitly accepted non-blocking failures.
+- [ ] `CI Quality` passes or has explicitly accepted non-blocking failures with
+  issue links.
+- [ ] `Check Shared Package Drift` passes against the current SaaS consumer
+  pins.
+- [ ] `Protect Main Branch` is expected to pass for the eventual merge or
+  tagged release commit path.
 - [ ] Maintainer approval is recorded.
 - [ ] Any release-note or install-doc feedback is resolved.
 
@@ -167,6 +175,15 @@ package first, verify it is installable from PyPI, and only then tag the CLI.
   - publishes to PyPI
   - creates the GitHub release
 - [ ] If this is a prerelease, confirm GitHub marks the release as `Pre-release`.
+- [ ] Verify the publishing workflow result separately from branch health.
+  A successful PyPI/GitHub release proves publication only; it does not prove
+  that `main` is green.
+- [ ] Verify all required checks on the released commit are green, or record
+  every failing check with an issue link before using the release as launch-gate
+  evidence:
+  ```bash
+  gh run list --commit "$(git rev-parse HEAD)" --limit 20
+  ```
 - [ ] Verify the GitHub release payload:
   ```bash
   gh release view vX.Y.Z
