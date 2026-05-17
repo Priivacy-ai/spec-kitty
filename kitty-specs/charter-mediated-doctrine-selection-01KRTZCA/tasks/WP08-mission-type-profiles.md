@@ -18,7 +18,7 @@ subtasks:
 - T045
 - T046
 - T047
-agent: "claude:opus-4-7:python-pedro:implementer"
+agent: "claude:opus-4-7:reviewer-renata:reviewer"
 agent_profile: python-pedro
 authoritative_surface: src/charter/mission_type_profiles.py
 execution_mode: code_change
@@ -32,7 +32,7 @@ owned_files:
 role: implementer
 history: []
 tags: []
-shell_pid: "1770351"
+shell_pid: "1774534"
 ---
 
 ## Do This First: Load Agent Profile
@@ -300,3 +300,4 @@ Pinned by `test_resolve_governance_hard_fails_for_unknown_mission_type`.
 
 - 2026-05-17T18:12:35Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1770351 – Started implementation via action command
 - 2026-05-17T18:20:47Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1770351 – 4 governance-profile.yaml files + charter.mission_type_profiles loader + 14/14 mission-type profile resolution tests green; UnknownMissionTypeError hard-fail on unknown mission_type; 23/23 wp_prompt_governance contract regression green; layer rule clean (no specify_cli imports)
+- 2026-05-17T18:21:59Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=1774534 – Started review via action command
