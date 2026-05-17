@@ -42,15 +42,15 @@
 | T029 | Extend `DoctrineLayerCollisionWarning` emission to cover styleguides, toolguides, paradigms, procedures, mission_step_contracts (FR-014) | WP06 | |
 | T030 | Implement strict missing-pack policy (FR-015): hard-fail with named-pack-and-path error when `local_path` does not exist | WP06 | |
 | T031 | Unit tests: org charter union for each kind; collision warning for each kind; missing-pack hard-fail | WP06 | [P] |
-| T032 | Migrate `src/specify_cli/invocation/registry.py` to `from charter.profiles import ...`; remove from allowlist | WP07 | |
-| T033 | Migrate `src/specify_cli/invocation/router.py` to `from charter.profiles import ...`; remove from allowlist | WP07 | [P] |
-| T034 | Migrate `src/specify_cli/mission_loader/registry.py` and `mission_loader/contract_synthesis.py` to `from charter.mission_steps import ...`; remove both from allowlist | WP07 | [P] |
-| T035 | Migrate `src/specify_cli/mission_step_contracts/executor.py` to `from charter.mission_steps import ...` + `from charter.drg import ...`; remove from allowlist | WP07 | [P] |
-| T036 | Migrate `src/specify_cli/calibration/walker.py` and `glossary/drg_builder.py` to `from charter.drg import ...`; remove both from allowlist | WP07 | [P] |
-| T037 | Migrate `src/specify_cli/missions/__init__.py` to `from charter.primitives import ...`; remove from allowlist | WP07 | [P] |
-| T038 | Migrate `src/specify_cli/runtime/resolver.py` to `from charter.resolution import ...`; remove from allowlist | WP07 | [P] |
-| T039 | Migrate `src/specify_cli/cli/commands/charter.py`, `charter_bundle.py`, and `upgrade/migrations/m_3_2_6_charter_bundle_v2.py` to `from charter.versioning import ...`; remove from allowlist (or document as ≤ 2 exceptions per C-004) | WP07 | [P] |
-| T040 | Promote `SchemaUtilities` to `src/kernel/schema_utils.py`; migrate `bulk_edit/occurrence_map.py`; remove from allowlist | WP07 | [P] |
+| T032 | Migrate `src/specify_cli/invocation/registry.py` to `from charter.profiles import ...`; remove from allowlist | WP07 | | [D] |
+| T033 | Migrate `src/specify_cli/invocation/router.py` to `from charter.profiles import ...`; remove from allowlist | WP07 | [D] |
+| T034 | Migrate `src/specify_cli/mission_loader/registry.py` and `mission_loader/contract_synthesis.py` to `from charter.mission_steps import ...`; remove both from allowlist | WP07 | [D] |
+| T035 | Migrate `src/specify_cli/mission_step_contracts/executor.py` to `from charter.mission_steps import ...` + `from charter.drg import ...`; remove from allowlist | WP07 | [D] |
+| T036 | Migrate `src/specify_cli/calibration/walker.py` and `glossary/drg_builder.py` to `from charter.drg import ...`; remove both from allowlist | WP07 | [D] |
+| T037 | Migrate `src/specify_cli/missions/__init__.py` to `from charter.primitives import ...`; remove from allowlist | WP07 | [D] |
+| T038 | Migrate `src/specify_cli/runtime/resolver.py` to `from charter.resolution import ...`; remove from allowlist | WP07 | [D] |
+| T039 | Migrate `src/specify_cli/cli/commands/charter.py`, `charter_bundle.py`, and `upgrade/migrations/m_3_2_6_charter_bundle_v2.py` to `from charter.versioning import ...`; remove from allowlist (or document as ≤ 2 exceptions per C-004) | WP07 | [D] |
+| T040 | Promote `SchemaUtilities` to `src/kernel/schema_utils.py`; migrate `bulk_edit/occurrence_map.py`; remove from allowlist | WP07 | [D] |
 | T041 | Add `MissionTypeProfile` Pydantic model + `load_profile` + `resolve_governance` in `src/charter/mission_type_profiles.py` | WP08 | |
 | T042 | Ship `src/doctrine/missions/software-dev/governance-profile.yaml` mirroring today's `software-dev-default` selections | WP08 | [P] |
 | T043 | Ship `src/doctrine/missions/documentation/governance-profile.yaml` with documentation-flavoured defaults | WP08 | [P] |
