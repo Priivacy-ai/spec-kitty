@@ -222,3 +222,4 @@ Update `docs/explanation/org-doctrine-layer.md` (or equivalent) to call out the 
 - 2026-05-17T17:41:57Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1736199 – Started implementation via action command
 - 2026-05-17T18:03:00Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1736199 – OrgCharterPolicy extended (8 required_<kind> fields); 5 org-pack ATDD tests green; selection_completeness 3/3 green; missing-pack now hard-fails per FR-015
 - 2026-05-17T18:03:40Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=1759901 – Started review via action command
+- 2026-05-17T18:08:26Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=1759901 – Moved to planned
