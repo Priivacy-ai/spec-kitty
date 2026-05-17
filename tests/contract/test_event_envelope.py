@@ -9,9 +9,12 @@ Run: python -m pytest tests/contract/test_event_envelope.py -v
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
+
+
+pytestmark = [pytest.mark.contract]
 
 
 def _make_emitter(team_slug: str = "test-team") -> MagicMock:
