@@ -159,3 +159,4 @@ Coverage:
 ## Activity Log
 
 - 2026-05-17T16:52:36Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1677156 – Started implementation via action command
+- 2026-05-17T17:09:35Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1677156 – 5 selected_<kind> renderers integrated; activation hook stubbed for WP05; case-1 project-styleguide ATDD green
