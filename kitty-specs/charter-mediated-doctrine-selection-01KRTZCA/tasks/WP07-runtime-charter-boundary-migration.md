@@ -22,7 +22,7 @@ subtasks:
 - T038
 - T039
 - T040
-agent: claude
+agent: "claude:opus-4-7:python-pedro:implementer"
 agent_profile: python-pedro
 authoritative_surface: src/specify_cli/invocation/registry.py
 execution_mode: code_change
@@ -45,6 +45,7 @@ owned_files:
 role: implementer
 history: []
 tags: []
+shell_pid: "1641835"
 ---
 
 ## Do This First: Load Agent Profile
@@ -196,3 +197,7 @@ Remove `bulk_edit/occurrence_map.py` from allowlist.
 - Verify no commit introduces a NEW `from doctrine.*` import in a runtime file.
 - Verify the final allowlist count is ≤ 2 (C-004); any exceptions are documented with a one-line rationale.
 - Spot-check that facade re-exports preserve object identity (the architectural test from WP03 enforces this).
+
+## Activity Log
+
+- 2026-05-17T16:36:26Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1641835 – Started implementation via action command
