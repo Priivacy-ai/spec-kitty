@@ -228,3 +228,4 @@ A reviewer should:
 - 2026-05-17T15:36:19Z – claude:opus:python-pedro:implementer – shell_pid=3059 – Assigned agent via action command
 - 2026-05-17T15:41:24Z – claude:opus:python-pedro:implementer – shell_pid=3059 – Backward detector + auto-promote block landed; existing tests pass; smoke OK
 - 2026-05-17T15:42:03Z – claude:opus:reviewer-renata:reviewer – shell_pid=4206 – Started review via action command
+- 2026-05-17T15:43:51Z – claude:opus:reviewer-renata:reviewer – shell_pid=4206 – Review passed: backward detector + auto-promote block landed correctly; _FORWARD_ORDER extracted DRY; only tasks.py touched; no new imports; existing tests + ruff + mypy clean; helper smoke 9/9.
