@@ -67,6 +67,8 @@ The boundary allowlist MUST shrink from 13 entries to ≤ 2 documented exception
 
 The 13-file baseline was captured at commit `bd95f1f5`. The audit at `docs/development/runtime-charter-doctrine-boundary.md` Appendix lists exactly which doctrine surface each file consumes. WP03 shipped the matching facades.
 
+**Scope clarification (resolves analysis-report finding I2):** scope is **13 baseline-allowlist files** that migrate from direct `doctrine.*` imports to `charter.*` facade imports, **plus** 1 new module `src/kernel/schema_utils.py` that lands as part of the SchemaUtilities promotion (T040). Total: **14 paths touched, but the boundary-allowlist ratchet counts only the 13** migrating runtime files. The new kernel module is not a runtime caller of `doctrine.*` — it is the promotion target — so it never enters the allowlist.
+
 See:
 - [plan.md §1.3, §2.9](../plan.md)
 - [data-model.md §8](../data-model.md)

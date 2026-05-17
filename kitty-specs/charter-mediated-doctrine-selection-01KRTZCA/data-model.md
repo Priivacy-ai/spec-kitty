@@ -143,18 +143,7 @@ Two closed sets pinned by `test_activation_registry_schema.py`:
 
 ### `ALLOWED_ACTIONS`
 
-```
-{
-  # Mission-type verbs
-  "specify", "plan", "tasks", "implement", "review", "merge", "accept",
-  # Charter-loop verbs
-  "charter.interview", "charter.generate", "charter.context",
-}
-```
-
-10 values total. **Note**: this is the activation-context vocabulary; the **Trigger Registry** (§7 below) is a strict superset that also includes the 4 fine-grained agent-action tokens (`write_comment`, `write_docstring`, `rename_identifier`, `add_dependency`).
-
-Two-vocabulary design rationale: `ALLOWED_ACTIONS` is what a charter operator writes in an `activations:` block; `_REGISTERED_TRIGGERS` is what an artifact author may declare in a `triggers:` block. The two diverge by design — the fine-grained tokens are artifact-driven and never appear in charter-side activation contexts.
+See [data-model.md §7](#7-trigger-registry-fr-009--canonical-definition) for the canonical 10-token frozenset, the `_REGISTERED_TRIGGERS = _ALLOWED_ACTIONS ∪ {fine-grained tokens}` union formula, and the mandatory runtime re-export contract. Do not restate the vocabulary here.
 
 ---
 
@@ -193,31 +182,64 @@ activations: []                    # optional, list[ActivationEntry]
 
 ---
 
-## 7. Trigger Registry (FR-009)
+## 7. Trigger Registry (FR-009) — CANONICAL DEFINITION
 
-Location: `tests/architectural/test_trigger_registry_coverage.py::_REGISTERED_TRIGGERS` (the canonical home is in the test file per the test's contract; runtime consumers reference it indirectly via the test as the architectural gate).
+This section is the **single source of truth** for both the operator-side activation vocabulary and the artifact-side trigger vocabulary. Every other planning document (plan.md §2.10, §5 of this file, contracts/activation-registry.md, WP05) MUST reference this section instead of restating the vocabulary or the union formula.
+
+### Canonical home and runtime re-export
+
+Both vocabularies are defined as **`frozenset[str]` constants** in `tests/architectural/test_trigger_registry_coverage.py` (the canonical home — purely declarative, no runtime semantics, lives next to the architectural gates that pin them):
+
+- `_ALLOWED_ACTIONS` — **10 tokens** — the closed vocabulary for `activation_context.action` in operator-authored `activations:` blocks. Used by the charter sync validator and by the activation-registry resolver.
+- `_REGISTERED_TRIGGERS` — **15 tokens** — the closed vocabulary for the `triggers:` field on rendered artifact stanzas. It is a strict superset of `_ALLOWED_ACTIONS` per the formula below.
 
 ```python
-_REGISTERED_TRIGGERS: frozenset[str] = frozenset({
+# tests/architectural/test_trigger_registry_coverage.py
+_ALLOWED_ACTIONS: frozenset[str] = frozenset({
     # Mission-type verbs
     "specify", "plan", "tasks", "implement", "review", "merge", "accept",
     # Charter-loop verbs
     "charter.interview", "charter.generate", "charter.context",
-    # Fine-grained tokens (initial set)
+})
+
+# Union formula (the ONLY place this formula appears):
+_REGISTERED_TRIGGERS: frozenset[str] = _ALLOWED_ACTIONS | frozenset({
     "write_comment", "write_docstring", "rename_identifier", "add_dependency",
 })
 ```
 
-**Invariants:**
+In set notation: `_REGISTERED_TRIGGERS = _ALLOWED_ACTIONS  ∪  {write_comment, write_docstring, rename_identifier, add_dependency}`.
 
-- MUST be a `frozenset` (pinned by `test_registered_triggers_constant_is_a_frozenset_for_immutability`).
-- Every `triggers:` value declared in a shipped doctrine artifact (`src/doctrine/**/*.yaml`) MUST be a member (pinned by `test_every_declared_trigger_is_in_the_registered_set`).
+### MANDATORY runtime re-export
 
-**Mutation rule:** adding a new trigger token is a deliberate amend that requires:
+`src/charter/activations.py` **MUST** re-export both sets as `ALLOWED_ACTIONS` and `REGISTERED_TRIGGERS` for runtime consumers (resolvers, prompt builders, validators). The re-export is **non-optional** — it removes the prior ambiguity where the runtime might copy/paste a divergent literal.
 
-1. Adding the token to `_REGISTERED_TRIGGERS` in this file.
+```python
+# src/charter/activations.py
+from tests.architectural.test_trigger_registry_coverage import (
+    _ALLOWED_ACTIONS as ALLOWED_ACTIONS,
+    _REGISTERED_TRIGGERS as REGISTERED_TRIGGERS,
+)
+# (or equivalent symbol relocation; the runtime contract is that the two pairs
+# are byte-identical frozensets at import time.)
+```
+
+A new architectural cross-check test `test_trigger_registry_runtime_export_in_sync` lives in the same `tests/architectural/test_trigger_registry_coverage.py` file and asserts byte-identical equality between the canonical frozensets and the runtime re-exports. This makes any copy/paste drift fail CI immediately.
+
+### Invariants
+
+- Both constants MUST be a `frozenset` (pinned by `test_registered_triggers_constant_is_a_frozenset_for_immutability`).
+- Every `triggers:` value declared in a shipped doctrine artifact (`src/doctrine/**/*.yaml`) MUST be a member of `_REGISTERED_TRIGGERS` (pinned by `test_every_declared_trigger_is_in_the_registered_set`).
+- `charter.activations.ALLOWED_ACTIONS == _ALLOWED_ACTIONS` and `charter.activations.REGISTERED_TRIGGERS == _REGISTERED_TRIGGERS` (pinned by `test_trigger_registry_runtime_export_in_sync`).
+
+### Mutation rule
+
+Adding a new trigger token is a deliberate amend that requires:
+
+1. Adding the token to the appropriate canonical frozenset in `tests/architectural/test_trigger_registry_coverage.py` (`_ALLOWED_ACTIONS` for operator-authorable verbs, otherwise extend the fine-grained suffix in `_REGISTERED_TRIGGERS`).
 2. Teaching the prompt builder to emit a fetch stanza when the token appears in an `activations:` entry or artifact `triggers:` block.
 3. Adding a follow-up artifact that declares the new trigger (otherwise the entry is dead).
+4. Running the cross-check test to confirm the runtime re-exports still match.
 
 ---
 

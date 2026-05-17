@@ -133,11 +133,4 @@ When `mission_type` is wildcard, the stanza reads "When you `<action>`, run `...
 
 ## Note on Trigger Registry vs Activation Vocabulary
 
-`charter.activations.ALLOWED_ACTIONS` (10 entries) and `tests/architectural/test_trigger_registry_coverage.py::_REGISTERED_TRIGGERS` (15 entries) are **two different sets** with a deliberate overlap.
-
-- **`ALLOWED_ACTIONS`** is what an operator may write in an `activations:` block.
-- **`_REGISTERED_TRIGGERS`** is what an artifact author may declare in a `triggers:` block (and what the prompt builder emits as action labels).
-
-`_REGISTERED_TRIGGERS = ALLOWED_ACTIONS ∪ {write_comment, write_docstring, rename_identifier, add_dependency}`.
-
-The four fine-grained tokens are artifact-driven (e.g. a styleguide declares `triggers: [write_comment]` to surface a fetch stanza when the agent is about to write a comment). They are intentionally NOT in `ALLOWED_ACTIONS` because operators schedule activations at the mission-step level, not the per-line-of-code level.
+See [data-model.md §7](../data-model.md#7-trigger-registry-fr-009--canonical-definition) for the canonical two-vocabulary definition, the union formula, the mandatory `src/charter/activations.py` runtime re-export, and the cross-check architectural test that pins them together.

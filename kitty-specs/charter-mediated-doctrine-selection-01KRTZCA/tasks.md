@@ -157,7 +157,7 @@ Extend `apply_org_charter_to_interview` for all 7 new `required_<kind>` fields. 
 **Dependencies**: WP03
 **Enables**: nothing further
 
-Migrate the 13 runtime files in the boundary allowlist to import from charter facades. Promote `SchemaUtilities` to `kernel/`.
+Migrate the 13 runtime files in the boundary allowlist to import from charter facades. Promote `SchemaUtilities` to `kernel/`. Scope: **13 migrate + 1 new = 14 paths touched**, but the boundary-allowlist ratchet still counts only the 13.
 
 **ATDD turns green:**
 - `tests/architectural/test_runtime_charter_doctrine_boundary.py` — allowlist drops from 13 to ≤ 2
