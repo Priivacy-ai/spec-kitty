@@ -15,7 +15,7 @@ subtasks:
 - T024
 - T024a
 - T025
-agent: "claude:opus-4-7:python-pedro:implementer"
+agent: "claude:opus-4-7:reviewer-renata:reviewer"
 agent_profile: python-pedro
 authoritative_surface: src/charter/_activation_render.py
 execution_mode: code_change
@@ -27,7 +27,7 @@ owned_files:
 role: implementer
 history: []
 tags: []
-shell_pid: "1708946"
+shell_pid: "1729018"
 ---
 
 ## Do This First: Load Agent Profile
@@ -242,3 +242,4 @@ Coverage:
 
 - 2026-05-17T17:15:25Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1708946 – Started implementation via action command
 - 2026-05-17T17:35:55Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1708946 – Activation render body filled; runtime re-export ratcheted by cross-check test; case-1 trigger stanza ATDD green
+- 2026-05-17T17:36:44Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=1729018 – Started review via action command
