@@ -1,14 +1,13 @@
 """Shared pytest fixtures for ``tests/saas/`` — readiness evaluator test layers.
 
-Provides dual-mode rollout fixtures and auth/config/binding factory fixtures
+Provides legacy rollout-env fixtures and auth/config/binding factory fixtures
 consumed by both ``test_readiness_unit.py`` (stubbed probes) and
 ``test_readiness_integration.py`` (real evaluator).
 
 Design notes
 ------------
-- ``rollout_disabled`` uses ``monkeypatch.delenv(..., raising=False)`` so it
-  safely overrides the global autouse ``_enable_saas_sync_feature_flag`` that
-  sets ``SPEC_KITTY_ENABLE_SAAS_SYNC=1`` in ``tests/conftest.py:57-60``.
+- ``rollout_disabled`` and ``rollout_enabled`` now exercise compatibility
+  behavior only; the release channel ignores ``SPEC_KITTY_ENABLE_SAAS_SYNC``.
 - Auth fixtures monkey-patch ``specify_cli.auth.get_token_manager`` so the
   probe target ``get_token_manager().is_authenticated`` is fully controlled.
   Monkeypatch target: ``specify_cli.auth.get_token_manager``.
@@ -23,28 +22,28 @@ from __future__ import annotations
 
 import http.server
 import threading
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 from unittest.mock import MagicMock
 
 import pytest
 
 
 # ---------------------------------------------------------------------------
-# Rollout gate fixtures
+# Legacy rollout env fixtures
 # ---------------------------------------------------------------------------
 
 
 @pytest.fixture()
 def rollout_disabled(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
-    """Override the global autouse flag — rollout is OFF for this test."""
+    """Unset the retired rollout env var for compatibility tests."""
     monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
     yield
 
 
 @pytest.fixture()
 def rollout_enabled(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
-    """Ensure the rollout flag is ON for this test (idempotent with autouse)."""
+    """Set the retired rollout env var for compatibility tests."""
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     yield
 

@@ -46,7 +46,7 @@ least these scenarios. Future missions add more on top.
 |------|-------------|----------------|
 | `dependent_wp_planning_lane.py` | FR-001, FR-005, FR-038 | A mission with sequential dependent WPs plus a planning-lane WP merges with no silent omission of approved commits. |
 | `uninitialized_repo_fail_loud.py` | FR-032, FR-039 | `spec-kitty specify`/`plan`/`tasks` in a non-Spec-Kitty directory exit non-zero with `SPEC_KITTY_REPO_NOT_INITIALIZED` and write zero files into a sibling initialized repo. |
-| `saas_sync_enabled.py` | FR-040 | A full mission run with `SPEC_KITTY_ENABLE_SAAS_SYNC=1` against a configured dev SaaS endpoint produces sync emits at the endpoint, OR records a structured "endpoint unreachable" outcome that triggers the operator-exception path. |
+| `saas_sync_enabled.py` | FR-040 | A full mission run against a configured dev SaaS endpoint produces sync emits at the endpoint, OR records a structured "endpoint unreachable" outcome that triggers the operator-exception path. |
 | `contract_drift_caught.py` | FR-041 | Staging a fake `spec-kitty-events` candidate that drops a required envelope field causes `pytest tests/contract/` to exit non-zero with a missing-field diagnostic. |
 
 ## How to run the gate
@@ -54,8 +54,6 @@ least these scenarios. Future missions add more on top.
 From the spec-kitty repo:
 
 ```bash
-export SPEC_KITTY_ENABLE_SAAS_SYNC=1
-
 # 0. TeamSpace mission-state gate
 spec-kitty doctor mission-state --audit --fail-on teamspace-blocker
 
@@ -106,8 +104,7 @@ infra, not code."]
 ## Reproduction command
 
 ```bash
-SPEC_KITTY_ENABLE_SAAS_SYNC=1 \
-  pytest spec-kitty-end-to-end-testing/scenarios/saas_sync_enabled.py -v
+pytest spec-kitty-end-to-end-testing/scenarios/saas_sync_enabled.py -v
 ```
 
 ## Follow-up

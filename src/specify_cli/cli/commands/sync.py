@@ -36,11 +36,6 @@ from specify_cli.core.vcs import (
 )
 
 from specify_cli.sync.queue import QueueStats
-from specify_cli.sync.feature_flags import (
-    SAAS_SYNC_ENV_VAR,
-    is_saas_sync_enabled,
-    saas_sync_disabled_message,
-)
 
 console = Console()
 
@@ -362,11 +357,6 @@ def routes() -> None:
     console.print(table)
     console.print()
 
-    if not is_saas_sync_enabled():
-        console.print(f"[yellow]{saas_sync_disabled_message()}[/yellow]")
-        console.print()
-        return
-
     enforce_teamspace_mission_state_ready(
         console=console,
         command_name="spec-kitty sync routes",
@@ -413,10 +403,6 @@ def share(
         RepositorySharingClientError,
         request_repository_share_sync,
     )
-
-    if not is_saas_sync_enabled():
-        console.print(f"[red]{saas_sync_disabled_message()}[/red]")
-        raise typer.Exit(1)
 
     enforce_teamspace_mission_state_ready(
         console=console,
@@ -486,10 +472,6 @@ def unshare(
         RepositorySharingClientError,
         leave_repository_share_sync,
     )
-
-    if not is_saas_sync_enabled():
-        console.print(f"[red]{saas_sync_disabled_message()}[/red]")
-        raise typer.Exit(1)
 
     enforce_teamspace_mission_state_ready(
         console=console,
@@ -565,12 +547,6 @@ def opt_out(
     if not delete_private_data or not routing.project_uuid:
         return
 
-    if not is_saas_sync_enabled():
-        console.print(
-            "[yellow]Skipping private-data deletion because SaaS sync is disabled in this shell.[/yellow]"
-        )
-        return
-
     try:
         _require_authenticated_session(command_name="sync opt-out")
         shares = list_repository_shares_sync(source_project_uuid=routing.project_uuid)
@@ -615,10 +591,6 @@ def opt_in(
 ) -> None:
     """Enable SaaS sync for this checkout."""
     from specify_cli.sync.routing import enable_checkout_sync
-
-    if not is_saas_sync_enabled():
-        console.print(f"[dim]{saas_sync_disabled_message()}[/dim]")
-        return
 
     enforce_teamspace_mission_state_ready(
         console=console,
@@ -925,12 +897,6 @@ def _check_server_connection(server_url: str) -> tuple[str, str]:
     Returns:
         Tuple of (rich-formatted status string, detail message).
     """
-    if not is_saas_sync_enabled():
-        return (
-            "[dim]Disabled[/dim]",
-            saas_sync_disabled_message(),
-        )
-
     import asyncio
 
     from specify_cli.auth import get_token_manager
@@ -1104,11 +1070,6 @@ def now(
     from specify_cli.sync.background import get_sync_service
     from specify_cli.sync.batch import format_sync_summary, write_failure_report
 
-    if not is_saas_sync_enabled():
-        console.print(f"[yellow]{saas_sync_disabled_message()}[/yellow]")
-        console.print(f"[dim]Set {SAAS_SYNC_ENV_VAR}=1 to enable upload.[/dim]")
-        return
-
     enforce_teamspace_mission_state_ready(
         console=console,
         command_name="spec-kitty sync now",
@@ -1217,7 +1178,6 @@ def status(
     # Load configuration
     config = SyncConfig()
     server_url = config.get_server_url()
-    saas_enabled = is_saas_sync_enabled()
     queue = OfflineQueue()
     tm = get_token_manager()
     daemon_status = get_sync_daemon_status()
@@ -1232,11 +1192,7 @@ def status(
     queue_color = "green" if queue_size == 0 else "yellow"
     table.add_row("Queue", f"[{queue_color}]{queue_size} event(s)[/{queue_color}]")
 
-    # Feature flag
-    if saas_enabled:
-        table.add_row("SaaS Sync", "[green]Enabled[/green]")
-    else:
-        table.add_row("SaaS Sync", f"[yellow]Disabled[/yellow] ({SAAS_SYNC_ENV_VAR}=1)")
+    table.add_row("SaaS Sync", "[green]Enabled[/green]")
 
     # Daemon / transport status
     daemon_text = "[green]Running[/green]" if daemon_status.healthy else "[dim]Stopped[/dim]"
@@ -1266,11 +1222,8 @@ def status(
         table.add_row("Failures", f"[yellow]{daemon_status.consecutive_failures} consecutive[/yellow]")
 
     # Auth status
-    if saas_enabled:
-        auth_ok = tm.is_authenticated
-        auth_text = "[green]Authenticated[/green]" if auth_ok else "[yellow]Not authenticated[/yellow]"
-    else:
-        auth_text = "[dim]Disabled by feature flag[/dim]"
+    auth_ok = tm.is_authenticated
+    auth_text = "[green]Authenticated[/green]" if auth_ok else "[yellow]Not authenticated[/yellow]"
     table.add_row("Auth", auth_text)
 
     # Server URL

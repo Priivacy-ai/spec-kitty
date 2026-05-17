@@ -72,13 +72,12 @@ spec-kitty merge
 
 ### SPEC_KITTY_ENABLE_SAAS_SYNC
 
-Opt in to hosted auth, tracker, and sync flows.
+Deprecated compatibility variable. Hosted auth, tracker, and sync flows are enabled by default.
 
-**Purpose**: Enables the SaaS-backed readiness path. Leave it unset for fully local CLI workflows.
+**Purpose**: Retained so old shells and scripts do not break. Its value is ignored in the release channel. Use `spec-kitty sync opt-out` to disable uploads for a checkout/repository.
 
 **Example**:
 ```bash
-export SPEC_KITTY_ENABLE_SAAS_SYNC=1
 spec-kitty auth login
 ```
 
@@ -183,7 +182,7 @@ The codebase also contains test and harness overrides such as `SPEC_KITTY_TEST_M
 | `SPECIFY_TEMPLATE_REPO` | Use a custom remote template repo | `org/templates` |
 | `SPEC_KITTY_NON_INTERACTIVE` | Disable prompts | `1` |
 | `SPEC_KITTY_WORKTREE_REMOVAL_DELAY` | Delay worktree cleanup | `10` |
-| `SPEC_KITTY_ENABLE_SAAS_SYNC` | Opt in to hosted sync/auth flows | `1` |
+| `SPEC_KITTY_ENABLE_SAAS_SYNC` | Deprecated; hosted sync/auth is enabled by default | `0` |
 | `SPEC_KITTY_SAAS_URL` | Override hosted base URL | `https://spec-kitty-dev.fly.dev` |
 | `SPEC_KITTY_SIMPLE_HELP` | Use simpler help output | `1` |
 | `SPEC_KITTY_NO_BANNER` | Suppress startup banner | `1` |

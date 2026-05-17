@@ -12,8 +12,7 @@ Test inventory
 - Exception conversion: ``_probe_auth`` raising → ``HOST_UNREACHABLE``, no raise.
 - ``probe_reachability=False`` → reachability probe never called.
 - ``require_mission_binding=False`` → binding probe never called.
-- Parametrize over ``rollout_disabled`` / ``rollout_enabled`` modes for the
-  ``ROLLOUT_DISABLED`` path.
+- Rollout probe compatibility is ignored; auth is the first launch blocker.
 """
 
 from __future__ import annotations
@@ -46,31 +45,11 @@ def _stub_all_pass(monkeypatch: pytest.MonkeyPatch, *, server_url: str = "http:/
     )
 
 
-# ---------------------------------------------------------------------------
-# State: ROLLOUT_DISABLED
-# ---------------------------------------------------------------------------
-
-_ROLLOUT_DISABLED_MESSAGE = "Hosted SaaS sync is not enabled on this machine."
-_ROLLOUT_DISABLED_NEXT_ACTION = "Set `SPEC_KITTY_ENABLE_SAAS_SYNC=1` to opt in."
-
-
-@pytest.mark.parametrize(
-    "fixture_name",
-    ["rollout_disabled", "rollout_enabled"],
-    ids=["rollout_disabled", "rollout_enabled"],
-)
-def test_rollout_disabled_state(
-    fixture_name: str,
-    request: pytest.FixtureRequest,
+def test_rollout_probe_failure_is_ignored(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """ROLLOUT_DISABLED is returned iff the rollout probe fails."""
-    # Load the named rollout fixture
-    request.getfixturevalue(fixture_name)
-
-    rollout_value = fixture_name == "rollout_enabled"
-    monkeypatch.setattr("specify_cli.saas.readiness._probe_rollout", lambda: rollout_value)
-    # Stub remaining probes as passing so the only variable is rollout.
+    """The historical rollout probe no longer blocks hosted readiness."""
+    monkeypatch.setattr("specify_cli.saas.readiness._probe_rollout", lambda: False)
     monkeypatch.setattr("specify_cli.saas.readiness._probe_auth", lambda *_: True)
     monkeypatch.setattr("specify_cli.saas.readiness._probe_host_config", lambda: "http://x")
     monkeypatch.setattr(
@@ -82,15 +61,8 @@ def test_rollout_disabled_state(
 
     result = evaluate_readiness(repo_root=_REPO)
 
-    if fixture_name == "rollout_disabled":
-        assert result.state is ReadinessState.ROLLOUT_DISABLED
-        # Byte-wise wording assertions
-        assert result.message == _ROLLOUT_DISABLED_MESSAGE
-        assert result.next_action == _ROLLOUT_DISABLED_NEXT_ACTION
-        assert not result.is_ready
-    else:
-        assert result.state is ReadinessState.READY
-        assert result.is_ready
+    assert result.state is ReadinessState.READY
+    assert result.is_ready
 
 
 # ---------------------------------------------------------------------------
@@ -259,16 +231,16 @@ def test_ordering_auth_beats_host_config(
     assert result.state is ReadinessState.MISSING_AUTH
 
 
-def test_ordering_rollout_beats_auth(
+def test_ordering_auth_beats_rollout_probe(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """When rollout is disabled AND auth fails, ROLLOUT_DISABLED wins (earliest)."""
+    """When rollout probe and auth fail, MISSING_AUTH wins."""
     monkeypatch.setattr("specify_cli.saas.readiness._probe_rollout", lambda: False)
     monkeypatch.setattr("specify_cli.saas.readiness._probe_auth", lambda *_: False)
 
     result = evaluate_readiness(repo_root=_REPO)
 
-    assert result.state is ReadinessState.ROLLOUT_DISABLED
+    assert result.state is ReadinessState.MISSING_AUTH
 
 
 # ---------------------------------------------------------------------------
@@ -351,7 +323,7 @@ def test_is_ready_property(
     result = evaluate_readiness(repo_root=_REPO)
     assert result.is_ready
 
-    monkeypatch.setattr("specify_cli.saas.readiness._probe_rollout", lambda: False)
+    monkeypatch.setattr("specify_cli.saas.readiness._probe_auth", lambda *_: False)
     bad_result = evaluate_readiness(repo_root=_REPO)
     assert not bad_result.is_ready
 

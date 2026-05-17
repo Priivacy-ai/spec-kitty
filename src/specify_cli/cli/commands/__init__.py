@@ -54,17 +54,12 @@ def register_commands(app: typer.Typer) -> None:
     from . import research as research_module
     from . import review as review_module
     from . import sync as sync_module
+    from . import tracker as tracker_module
     from . import upgrade as upgrade_module
     from . import validate_encoding as validate_encoding_module
     from . import validate_tasks as validate_tasks_module
     from . import verify as verify_module
     from specify_cli import orchestrator_api as orchestrator_api_module
-    from specify_cli.saas.rollout import is_saas_sync_enabled
-
-    if is_saas_sync_enabled():
-        from . import tracker as tracker_module
-    else:  # pragma: no cover - deterministic environment gate
-        tracker_module = None
 
     app.command()(accept_module.accept)
     app.add_typer(agent_module.app, name="agent")
@@ -92,11 +87,10 @@ def register_commands(app: typer.Typer) -> None:
     app.command()(research_module.research)
     app.command(name="review")(review_module.review_mission)
     app.add_typer(sync_module.app, name="sync", help="Synchronization commands")
-    if tracker_module is not None:
-        app.add_typer(tracker_module.app, name="tracker", help="Task tracker commands")
-        app.command(name="issue-search", help="Search tracker issues via the hosted read path")(
-            tracker_module.issue_search_command
-        )
+    app.add_typer(tracker_module.app, name="tracker", help="Task tracker commands")
+    app.command(name="issue-search", help="Search tracker issues via the hosted read path")(
+        tracker_module.issue_search_command
+    )
     app.command()(upgrade_module.upgrade)
     app.command(name="validate-encoding")(validate_encoding_module.validate_encoding)
     app.command(name="validate-tasks")(validate_tasks_module.validate_tasks)

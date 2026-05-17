@@ -117,7 +117,7 @@ class APIHandler(DashboardHandler):
             )
             if not outcome.started:
                 reason = outcome.skipped_reason or "unknown"
-                if reason in {"rollout_disabled", "policy_manual"}:
+                if reason == "policy_manual":
                     logger.info("Sync daemon not started: %s", reason)
                     self._send_json(202, {"status": "skipped", "manual_mode": True, "reason": reason})
                     return

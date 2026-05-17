@@ -32,7 +32,6 @@ from specify_cli.identity.project import ensure_identity
 from specify_cli.tracker.discovery import BindResult, ResolutionResult
 from specify_cli.tracker.factory import normalize_provider
 from specify_cli.saas.readiness import evaluate_readiness
-from specify_cli.saas.rollout import is_saas_sync_enabled, saas_sync_disabled_message
 from specify_cli.sync.config import BackgroundDaemonPolicy, SyncConfig
 from specify_cli.tracker.service import TrackerService, TrackerServiceError, parse_kv_pairs
 
@@ -194,8 +193,7 @@ def _check_sync_readiness(*, is_sync_run: bool = False) -> None:
     the SaaS surface at all: no auth token, no ``SPEC_KITTY_SAAS_URL``, no
     reachability probe, no background daemon.  Their direct connectors handle
     connectivity errors on their own.  For those bindings this helper is a
-    no-op — the rollout gate is already enforced by :func:`tracker_callback`
-    and the binding itself is the proof that setup is complete.
+    no-op — the local binding itself is the proof that setup is complete.
 
     SaaS-backed (or unknown/unconfigured) bindings get the full readiness
     chain plus the manual-mode daemon-policy check.
@@ -247,17 +245,11 @@ def _run_or_exit(fn):  # type: ignore[no-untyped-def]
 
 @app.callback()
 def tracker_callback() -> None:
-    """Defense-in-depth rollout gate for tracker commands.
+    """Tracker command group callback.
 
-    The conditional registration in cli/commands/__init__.py already hides
-    this group entirely when the flag is off.  This callback is a
-    defense-in-depth check in case the env-var state drifts between import
-    time and invocation time.  Per-command readiness checks handle all
-    prerequisite validation beyond the rollout gate.
+    Hosted tracker surfaces are available in the release channel.  Per-command
+    readiness checks handle auth, host configuration, and binding validation.
     """
-    if not is_saas_sync_enabled():
-        typer.secho(saas_sync_disabled_message(), fg=typer.colors.RED, err=True)
-        raise typer.Exit(1)
 
 
 def issue_search_command(
@@ -266,10 +258,6 @@ def issue_search_command(
     as_json: bool = typer.Option(False, "--json", help="Render tickets as a JSON array"),
 ) -> None:
     """Search external tracker issues via the hosted read path."""
-    if not is_saas_sync_enabled():
-        typer.secho(saas_sync_disabled_message(), fg=typer.colors.RED, err=True)
-        raise typer.Exit(1)
-
     _check_readiness(require_mission_binding=False, probe_reachability=False)
 
     def _run() -> None:
@@ -299,10 +287,7 @@ def providers_command(
     Local providers use direct connectors with locally stored credentials.
 
     This command is purely informational and prints the hard-coded provider
-    categories.  It does **not** consult hosted readiness — the rollout gate
-    itself is enforced by ``tracker_callback`` (and by the conditional
-    registration in ``cli/commands/__init__.py``), which is all the gating
-    this static output needs.
+    categories.  It does **not** consult hosted readiness.
     """
 
     def _run() -> None:

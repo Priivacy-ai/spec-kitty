@@ -54,7 +54,6 @@ def _session() -> StoredSession:
 def test_routes_command_renders_share_state(monkeypatch: pytest.MonkeyPatch) -> None:
     fake_tm = Mock()
     fake_tm.get_current_session.return_value = _session()
-    monkeypatch.setattr(sync_module, "is_saas_sync_enabled", lambda: True)
     monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: fake_tm)
     monkeypatch.setattr(
         "specify_cli.sync.routing.resolve_checkout_sync_routing",
@@ -96,7 +95,6 @@ def test_routes_command_renders_share_state(monkeypatch: pytest.MonkeyPatch) -> 
 def test_share_command_retries_after_materializing_private_source(monkeypatch: pytest.MonkeyPatch) -> None:
     fake_tm = Mock()
     fake_tm.get_current_session.return_value = _session()
-    monkeypatch.setattr(sync_module, "is_saas_sync_enabled", lambda: True)
     monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: fake_tm)
     monkeypatch.setattr(
         "specify_cli.sync.routing.resolve_checkout_sync_routing",
@@ -145,7 +143,6 @@ def test_share_command_blocks_when_teamspace_mission_state_migration_pending(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     request_share = Mock()
-    monkeypatch.setattr(sync_module, "is_saas_sync_enabled", lambda: True)
     monkeypatch.setattr(
         sync_module,
         "enforce_teamspace_mission_state_ready",
@@ -199,7 +196,6 @@ def test_opt_out_command_reports_purged_counts(monkeypatch: pytest.MonkeyPatch) 
 def test_unshare_command_stops_sharing_for_one_team(monkeypatch: pytest.MonkeyPatch) -> None:
     fake_tm = Mock()
     fake_tm.get_current_session.return_value = _session()
-    monkeypatch.setattr(sync_module, "is_saas_sync_enabled", lambda: True)
     monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: fake_tm)
     monkeypatch.setattr(
         "specify_cli.sync.routing.resolve_checkout_sync_routing",
@@ -229,7 +225,6 @@ def test_unshare_command_stops_sharing_for_one_team(monkeypatch: pytest.MonkeyPa
 def test_opt_out_command_can_delete_private_remote_data(monkeypatch: pytest.MonkeyPatch) -> None:
     fake_tm = Mock()
     fake_tm.get_current_session.return_value = _session()
-    monkeypatch.setattr(sync_module, "is_saas_sync_enabled", lambda: True)
     monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: fake_tm)
     monkeypatch.setattr(
         "specify_cli.sync.routing.resolve_checkout_sync_routing",
@@ -298,7 +293,6 @@ def test_now_logged_out_nonempty_queue_reports_unauthenticated_failures(
     service.queue.size.return_value = 3
     service.sync_now.return_value = unauthenticated_result
 
-    monkeypatch.setattr(sync_module, "is_saas_sync_enabled", lambda: True)
     monkeypatch.setattr(
         "specify_cli.sync.background.get_sync_service",
         lambda: service,

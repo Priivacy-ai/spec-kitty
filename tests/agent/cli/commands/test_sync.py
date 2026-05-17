@@ -419,17 +419,18 @@ class TestSyncNowExitCodes:
             res = runner.invoke(sync_app, ["now"])
         assert res.exit_code == 1
 
-    def test_now_returns_0_when_saas_feature_disabled(self, monkeypatch):
-        """sync now should no-op safely when SaaS flag is disabled."""
+    def test_now_ignores_legacy_saas_feature_flag(self, monkeypatch):
+        """sync now uses normal queue handling when the old env var is unset."""
         monkeypatch.delenv(SAAS_SYNC_ENV_VAR, raising=False)
+        svc = self._make_service(queue_size=0, result=self._make_result())
 
         runner = CliRunner()
-        with patch("specify_cli.sync.background.get_sync_service") as get_service:
+        with patch("specify_cli.sync.background.get_sync_service", return_value=svc) as get_service:
             res = runner.invoke(sync_app, ["now"])
 
         assert res.exit_code == 0
-        assert "saas sync is not enabled" in res.output.lower()
-        get_service.assert_not_called()
+        assert "Queue is empty" in res.output
+        get_service.assert_called_once()
 
     def test_strict_exits_0_on_success(self, monkeypatch):
         """Strict mode exits 0 when all events sync successfully.

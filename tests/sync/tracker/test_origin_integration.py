@@ -704,7 +704,10 @@ class TestOfflineEventQueuing:
             ws_client=None,  # No WebSocket = offline mode
         )
 
-        with patch("specify_cli.sync.events.get_emitter", return_value=emitter):
+        with (
+            patch("specify_cli.sync.events.get_emitter", return_value=emitter),
+            patch.object(EventEmitter, "_current_team_slug", return_value="private-team"),
+        ):
             bind_mission_origin(
                 feature_dir_with_meta,
                 candidate,

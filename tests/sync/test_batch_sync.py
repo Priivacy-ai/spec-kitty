@@ -145,13 +145,18 @@ class TestBatchSyncEmptyQueue:
 
 
 class TestSaasFeatureFlag:
-    """Feature-flag behavior for SaaS upload."""
+    """Compatibility behavior for the retired SaaS upload feature flag."""
 
     @patch("specify_cli.sync.batch.requests.post")
-    def test_batch_sync_skips_network_when_disabled(self, mock_post, populated_queue, monkeypatch):
-        """No HTTP upload should occur when SaaS sync feature is disabled."""
+    def test_batch_sync_ignores_legacy_disabled_env(self, mock_post, populated_queue, monkeypatch):
+        """HTTP upload still occurs when the retired env var is unset."""
         monkeypatch.delenv(SAAS_SYNC_ENV_VAR, raising=False)
-        initial_size = populated_queue.size()
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "results": [{"event_id": f"evt-{i:04d}", "status": "success"} for i in range(100)]
+        }
+        mock_post.return_value = mock_response
 
         result = batch_sync(
             queue=populated_queue,
@@ -160,10 +165,11 @@ class TestSaasFeatureFlag:
             show_progress=False,
         )
 
-        assert populated_queue.size() == initial_size
-        assert result.total_events == 0
-        assert any("not enabled" in msg.lower() for msg in result.error_messages)
-        mock_post.assert_not_called()
+        assert populated_queue.size() == 0
+        assert result.total_events == 100
+        assert result.synced_count == 100
+        assert result.error_messages == []
+        mock_post.assert_called_once()
 
 
 class TestHistoricalMissionStateGuard:

@@ -76,14 +76,16 @@ def _mock_response_for_probe(
     return MagicMock(side_effect=_request)
 
 
-def test_check_server_connection_reports_disabled_when_flag_off(monkeypatch):
-    """Flag-off mode should skip connectivity probing entirely."""
+def test_check_server_connection_ignores_legacy_disabled_env(monkeypatch):
+    """Retired flag-off mode still follows normal auth probing."""
     monkeypatch.delenv(SAAS_SYNC_ENV_VAR, raising=False)
+    fake_tm = _fake_token_manager(authenticated=False)
 
-    status, note = _check_server_connection(SERVER_URL)
+    with patch("specify_cli.auth.get_token_manager", return_value=fake_tm):
+        status, note = _check_server_connection(SERVER_URL)
 
-    assert "Disabled" in status
-    assert "not enabled" in note.lower()
+    assert "Not authenticated" in status
+    assert "spec-kitty auth login" in note
 
 
 class TestCheckServerConnectionNoCredentials:

@@ -387,9 +387,8 @@ def _compute_findings(
             )
 
     # F-005 — daemon expected but not running (informational).
-    # We surface this only when rollout is enabled. The rollout module imports
-    # are deferred so a missing/disabled SaaS surface never breaks the doctor
-    # report.
+    # The rollout module import is deferred so a missing SaaS surface never
+    # breaks the doctor report.
     rollout_enabled = False
     try:
         from specify_cli.saas.rollout import is_saas_sync_enabled

@@ -8,8 +8,9 @@ Covers:
 
 from __future__ import annotations
 
+from collections.abc import Generator
+from dataclasses import FrozenInstanceError
 from pathlib import Path
-from typing import Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -19,8 +20,8 @@ from specify_cli.sync.config import BackgroundDaemonPolicy, SyncConfig
 from specify_cli.sync.daemon import DaemonIntent, DaemonStartOutcome, ensure_sync_daemon_running
 
 # ---------------------------------------------------------------------------
-# Rollout fixtures (local copies — tests/saas/conftest.py is out of scope
-# for the tests/sync/ package boundary without cross-package import gymnastics)
+# Legacy rollout-env fixtures.  The env var is now ignored, but these remain
+# useful for asserting that release behavior is independent from old shells.
 # ---------------------------------------------------------------------------
 
 
@@ -57,15 +58,31 @@ def _config(policy: BackgroundDaemonPolicy) -> SyncConfig:
 class TestDecisionMatrix:
     """One test per row in the decision matrix from contracts/background_daemon_policy.md."""
 
-    # Row 1: rollout disabled → skipped_reason="rollout_disabled" regardless of intent/policy
-    def test_row1_rollout_disabled(self, rollout_disabled: None) -> None:
-        outcome = ensure_sync_daemon_running(
-            intent=DaemonIntent.REMOTE_REQUIRED,
-            config=_config(BackgroundDaemonPolicy.AUTO),
-        )
-        assert outcome.started is False
-        assert outcome.skipped_reason == "rollout_disabled"
-        assert outcome.pid is None
+    # Row 1: legacy rollout env unset no longer blocks REMOTE_REQUIRED + AUTO.
+    def test_row1_legacy_rollout_disabled_env_ignored(self, rollout_disabled: None, tmp_path: Path) -> None:
+        fake_pid = 99998
+        fake_url = "http://127.0.0.1:9401"
+        fake_port = 9401
+        fake_state_file = tmp_path / "sync-daemon"
+        fake_state_file.write_text(f"{fake_url}\n{fake_port}\ntok\n{fake_pid}\n", encoding="utf-8")
+
+        with (
+            patch(
+                "specify_cli.sync.daemon._ensure_sync_daemon_running_locked",
+                return_value=(fake_url, fake_port, True),
+            ),
+            patch("specify_cli.sync.daemon.DAEMON_STATE_FILE", fake_state_file),
+            patch("specify_cli.sync.daemon.DAEMON_LOCK_FILE", tmp_path / "sync-daemon.lock"),
+            patch("specify_cli.sync.daemon.SPEC_KITTY_DIR", tmp_path),
+        ):
+            outcome = ensure_sync_daemon_running(
+                intent=DaemonIntent.REMOTE_REQUIRED,
+                config=_config(BackgroundDaemonPolicy.AUTO),
+            )
+
+        assert outcome.started is True
+        assert outcome.skipped_reason is None
+        assert outcome.pid == fake_pid
 
     # Row 2: rollout on + LOCAL_ONLY → skipped_reason="intent_local_only"
     def test_row2_local_only_intent(self, rollout_enabled: None) -> None:
@@ -160,7 +177,7 @@ class TestIntentMandatory:
 class TestDaemonStartOutcome:
     def test_is_frozen(self) -> None:
         outcome = DaemonStartOutcome(started=False, skipped_reason="rollout_disabled", pid=None)
-        with pytest.raises(Exception):  # frozen dataclass raises on setattr
+        with pytest.raises(FrozenInstanceError):
             outcome.started = True  # type: ignore[misc]
 
     def test_importable(self) -> None:

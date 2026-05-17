@@ -640,7 +640,7 @@ def ensure_sync_daemon_running(
     The ``intent`` parameter is keyword-only and mandatory.
 
     Decision matrix (first match wins):
-    1. Rollout disabled → skipped_reason="rollout_disabled"
+    1. Compatibility rollout shim disabled → skipped_reason="rollout_disabled"
     2. intent == LOCAL_ONLY → skipped_reason="intent_local_only"
     3. policy == MANUAL → skipped_reason="policy_manual"
     4. Otherwise → delegate to inner start logic (AUTO policy + REMOTE_REQUIRED intent)
@@ -655,7 +655,7 @@ def ensure_sync_daemon_running(
         config = _SyncConfig()
     policy = config.get_background_daemon()
 
-    # Row 1: rollout disabled
+    # Row 1: compatibility shim disabled (not expected in release builds)
     if not is_saas_sync_enabled():
         return DaemonStartOutcome(started=False, skipped_reason="rollout_disabled", pid=None)
 
@@ -667,7 +667,7 @@ def ensure_sync_daemon_running(
     if policy == BackgroundDaemonPolicy.MANUAL:
         return DaemonStartOutcome(started=False, skipped_reason="policy_manual", pid=None)
 
-    # Row 4 & 5: AUTO + REMOTE_REQUIRED — attempt to start
+    # Row 4: AUTO + REMOTE_REQUIRED — attempt to start
     _daemon_root().mkdir(parents=True, exist_ok=True)
 
     lock_fd = open(DAEMON_LOCK_FILE, "w")  # noqa: SIM115

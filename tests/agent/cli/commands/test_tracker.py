@@ -59,16 +59,17 @@ def _build_root_app(*, enabled: bool, monkeypatch) -> typer.Typer:
 
 
 # ---------------------------------------------------------------------------
-# Feature flag gating tests (pre-existing)
+# Release-enabled registration tests
 # ---------------------------------------------------------------------------
 
 
-def test_tracker_not_registered_when_flag_disabled(monkeypatch) -> None:
-    """Tracker sub-command absent from help when SAAS_SYNC flag is off."""
+def test_tracker_registered_when_legacy_flag_unset(monkeypatch) -> None:
+    """Tracker sub-command appears even when the legacy env var is unset."""
     app = _build_root_app(enabled=False, monkeypatch=monkeypatch)
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
-    assert "tracker" not in result.output
+    assert "tracker" in result.output
+    assert "issue-search" in result.output
 
 
 def test_tracker_registered_when_flag_enabled(monkeypatch) -> None:
@@ -80,15 +81,15 @@ def test_tracker_registered_when_flag_enabled(monkeypatch) -> None:
     assert "issue-search" in result.output
 
 
-def test_tracker_direct_invocation_fails_when_flag_disabled(monkeypatch) -> None:
-    """Direct tracker invocation exits with code 1 and a flag-disabled message."""
+def test_tracker_direct_invocation_works_when_legacy_flag_unset(monkeypatch) -> None:
+    """Direct tracker invocation ignores the old rollout env var."""
     monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
 
     from specify_cli.cli.commands import tracker as tracker_module
 
     result = runner.invoke(tracker_module.app, ["providers"])
-    assert result.exit_code == 1
-    assert "Hosted SaaS sync is not enabled" in result.output
+    assert result.exit_code == 0
+    assert "Supported providers" in result.output
 
 
 # ---------------------------------------------------------------------------
@@ -97,7 +98,7 @@ def test_tracker_direct_invocation_fails_when_flag_disabled(monkeypatch) -> None
 
 
 def _make_app(monkeypatch) -> typer.Typer:
-    """Return the tracker app with the feature flag enabled."""
+    """Return the tracker app."""
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     from specify_cli.cli.commands import tracker as tracker_module
 
@@ -891,12 +892,12 @@ def test_list_tickets_dispatches(mock_service_fn, monkeypatch) -> None:
 
 
 @pytest.mark.no_readiness_stub
-def test_tracker_hidden_when_rollout_disabled_root_app(monkeypatch) -> None:
-    """Tracker sub-command absent from root app help when rollout is off."""
+def test_tracker_visible_when_legacy_rollout_unset_root_app(monkeypatch) -> None:
+    """Tracker sub-command appears from the root app when legacy env is unset."""
     app = _build_root_app(enabled=False, monkeypatch=monkeypatch)
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
-    assert "tracker" not in result.output
+    assert "tracker" in result.output
 
 
 @pytest.mark.no_readiness_stub
@@ -913,11 +914,8 @@ def test_providers_ignores_hosted_readiness(monkeypatch) -> None:
     """`tracker providers` is static informational output.
 
     It must run successfully even when hosted readiness would otherwise
-    fail (e.g. no auth token, no SaaS host config).  The rollout gate is
-    still enforced by the conditional registration in
-    ``cli/commands/__init__.py`` and by the defense-in-depth check in
-    ``tracker_callback()``, but the per-command readiness chain is
-    deliberately NOT consulted for this command.
+    fail (e.g. no auth token, no SaaS host config).  The per-command readiness
+    chain is deliberately NOT consulted for this command.
     """
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     from specify_cli.cli.commands import tracker as tracker_module
@@ -945,22 +943,14 @@ def test_providers_ignores_hosted_readiness(monkeypatch) -> None:
 
 
 @pytest.mark.no_readiness_stub
-def test_providers_still_blocked_when_rollout_disabled(monkeypatch) -> None:
-    """When the rollout gate is off, `tracker providers` is unreachable.
-
-    The command group is hidden at registration time in
-    ``cli/commands/__init__.py``; this test exercises the defense-in-depth
-    guard in ``tracker_callback`` by invoking the tracker app object
-    directly with the env var unset.  This verifies that removing the
-    per-command readiness call did not accidentally open a hole in the
-    rollout gate itself.
-    """
+def test_providers_works_when_legacy_rollout_unset(monkeypatch) -> None:
+    """The legacy rollout env var no longer blocks `tracker providers`."""
     monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
     from specify_cli.cli.commands import tracker as tracker_module
 
     result = runner.invoke(tracker_module.app, ["providers"])
-    assert result.exit_code == 1
-    assert "not enabled" in result.output.lower()
+    assert result.exit_code == 0
+    assert "Supported providers" in result.output
 
 
 @pytest.mark.no_readiness_stub

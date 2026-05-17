@@ -7,7 +7,6 @@ Extended by WP05 of feature 082-stealth-gated-saas-sync-hardening (readiness-awa
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -346,8 +345,8 @@ def test_discover_readiness_failure(state, expected_message, monkeypatch, tmp_pa
 
 
 @pytest.mark.no_readiness_stub
-def test_discover_readiness_rollout_disabled(monkeypatch) -> None:
-    """discover is invisible (not registered) when rollout flag is off."""
+def test_discover_readiness_legacy_rollout_env_unset(monkeypatch) -> None:
+    """Tracker remains registered when the retired rollout env var is unset."""
     monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
 
     import importlib
@@ -359,7 +358,7 @@ def test_discover_readiness_rollout_disabled(monkeypatch) -> None:
 
     result = runner.invoke(root, ["--help"])
     assert result.exit_code == 0
-    assert "discover" not in result.output or "tracker" not in result.output
+    assert "tracker" in result.output
 
 
 @pytest.mark.no_readiness_stub
