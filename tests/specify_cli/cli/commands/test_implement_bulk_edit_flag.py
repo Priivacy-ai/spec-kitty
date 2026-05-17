@@ -14,6 +14,10 @@ from specify_cli.cli.commands.agent.workflow import app as agent_action_app
 from specify_cli.cli.commands.implement import implement as implement_fn
 
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 def test_implement_declares_acknowledge_flag() -> None:
     """The ``--acknowledge-not-bulk-edit`` option must be declared on the
     implement command. If a refactor removes or renames it, users who have

@@ -17,6 +17,8 @@ from charter.bundle import (
 )
 
 
+pytestmark = [pytest.mark.unit]
+
 def test_schema_version_is_1_0_0() -> None:
     assert SCHEMA_VERSION == "1.0.0"
     assert CANONICAL_MANIFEST.schema_version == "1.0.0"

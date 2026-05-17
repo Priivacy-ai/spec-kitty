@@ -18,6 +18,8 @@ from typer.testing import CliRunner
 from specify_cli.orchestrator_api.commands import app
 from specify_cli.orchestrator_api.envelope import CONTRACT_VERSION
 
+pytestmark = [pytest.mark.contract]
+
 runner = CliRunner()
 
 

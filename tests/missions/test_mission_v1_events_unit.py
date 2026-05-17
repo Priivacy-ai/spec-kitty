@@ -35,6 +35,8 @@ from specify_cli.mission_v1.events import (
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 class TestEmitEvent:
     """Tests for the emit_event function."""
 

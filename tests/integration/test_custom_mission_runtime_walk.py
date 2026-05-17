@@ -54,6 +54,8 @@ from specify_cli.next.decision import Decision, DecisionKind
 from specify_cli.next.runtime_bridge import _dispatch_via_composition
 
 
+pytestmark = [pytest.mark.integration]
+
 _FIXTURES_ROOT = Path(__file__).resolve().parent.parent / "fixtures" / "missions"
 
 

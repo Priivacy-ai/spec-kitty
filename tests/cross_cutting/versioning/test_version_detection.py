@@ -21,6 +21,8 @@ from packaging.version import InvalidVersion, Version
 from tests.test_isolation_helpers import get_installed_version, get_venv_python
 
 
+pytestmark = [pytest.mark.integration]
+
 def run_venv_python(code: str) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env.pop("PYTHONPATH", None)

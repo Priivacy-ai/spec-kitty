@@ -20,6 +20,8 @@ from specify_cli.auth.errors import DeviceFlowDenied, DeviceFlowExpired
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.integration]
+
 class TestFormatUserCode:
     """Tests for the :func:`format_user_code` helper."""
 

@@ -38,6 +38,10 @@ from typer.main import get_command
 from specify_cli import app as _typer_app
 
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 cli: click.Group = get_command(_typer_app)  # type: ignore[assignment]
 
 # Repository root: this file lives at

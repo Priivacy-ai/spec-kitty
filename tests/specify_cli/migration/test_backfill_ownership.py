@@ -20,6 +20,10 @@ from specify_cli.migration.backfill_ownership import backfill_ownership
 # ---------------------------------------------------------------------------
 
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 def _make_wp(tasks_dir: Path, wp_name: str, body: str) -> Path:
     """Write a WP markdown file with the given body."""
     tasks_dir.mkdir(parents=True, exist_ok=True)

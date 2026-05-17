@@ -20,6 +20,8 @@ from specify_cli.auth.transport import (
 )
 
 
+pytestmark = [pytest.mark.integration]
+
 @pytest.fixture(autouse=True)
 def _reset_dedup() -> None:
     """Each test starts with a fresh dedup window."""

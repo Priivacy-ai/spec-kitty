@@ -17,6 +17,8 @@ import pytest
 from specify_cli.release.payload import ReleasePrepPayload, build_release_prep_payload
 
 
+pytestmark = [pytest.mark.integration]
+
 def _write_pyproject(tmp_path: Path, version: str = "3.1.0a7") -> None:
     (tmp_path / "pyproject.toml").write_text(
         dedent(

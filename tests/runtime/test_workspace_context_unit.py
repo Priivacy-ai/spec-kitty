@@ -27,6 +27,8 @@ from specify_cli.workspace.context import (
 )
 
 
+pytestmark = [pytest.mark.unit]
+
 @pytest.fixture
 def kittify_project(tmp_path: Path) -> Path:
     (tmp_path / ".kittify" / "workspaces").mkdir(parents=True, exist_ok=True)

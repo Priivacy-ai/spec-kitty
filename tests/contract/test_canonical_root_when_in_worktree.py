@@ -28,6 +28,8 @@ from specify_cli.workspace.root_resolver import (
 )
 
 
+pytestmark = [pytest.mark.contract]
+
 def _git(cwd: Path, *args: str) -> str:
     result = subprocess.run(
         ["git", *args],

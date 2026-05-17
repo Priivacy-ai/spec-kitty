@@ -20,6 +20,8 @@ from specify_cli.tracker.config import (
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 def test_project_slug_roundtrip(tmp_path: object) -> None:
     """SaaS binding: project_slug survives save + load cycle."""
     from pathlib import Path

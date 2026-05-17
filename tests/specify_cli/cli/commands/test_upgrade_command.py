@@ -41,6 +41,8 @@ from specify_cli.compat.provider import FakeLatestVersionProvider
 # Contract path (relative to repo root)
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.unit]
+
 _WORKTREE_ROOT = Path(__file__).parent.parent.parent.parent.parent  # repo root
 _CONTRACT_PATH = (
     _WORKTREE_ROOT.parent.parent.parent  # spec-kitty main repo root

@@ -15,6 +15,8 @@ from specify_cli.invocation.writer import InvocationWriter, normalise_ref
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 def test_normalise_ref_in_checkout(tmp_path: Path) -> None:
     """A path inside repo_root is returned as a POSIX-style repo-relative string."""
     inside = tmp_path / "subdir" / "file.txt"

@@ -24,6 +24,9 @@ from specify_cli.calibration.walker import (
 # ---------------------------------------------------------------------------
 
 # Repo root is three levels above tests/calibration/ in the worktree.
+
+pytestmark = [pytest.mark.integration]
+
 _REPO_ROOT = Path(__file__).parent.parent.parent
 
 

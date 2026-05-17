@@ -43,6 +43,8 @@ from specify_cli.cli.commands._auth_status import (
 from specify_cli.cli.commands.auth import app
 
 
+pytestmark = [pytest.mark.integration]
+
 runner = CliRunner()
 
 

@@ -5,6 +5,10 @@ from specify_cli.policy.config import RiskPolicyConfig
 from specify_cli.policy.risk_scorer import compute_risk_report
 
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 def _lane(lane_id, wp_ids, write_scope, parallel_group=0):
     return ExecutionLane(
         lane_id=lane_id,

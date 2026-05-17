@@ -6,6 +6,8 @@ import pytest
 from specify_cli.invocation.modes import ModeOfWork, derive_mode
 
 
+pytestmark = [pytest.mark.unit]
+
 @pytest.mark.parametrize(
     ("entry_command", "expected"),
     [

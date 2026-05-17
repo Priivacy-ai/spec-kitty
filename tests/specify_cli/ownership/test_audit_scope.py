@@ -32,6 +32,8 @@ from specify_cli.ownership.validation import (
 )
 
 
+pytestmark = [pytest.mark.unit]
+
 def _manifest(
     mode: ExecutionMode = ExecutionMode.CODE_CHANGE,
     owned: tuple[str, ...] = ("src/foo/**",),

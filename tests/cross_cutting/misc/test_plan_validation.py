@@ -14,6 +14,8 @@ from specify_cli.plan_validation import (
 )
 
 
+pytestmark = [pytest.mark.integration]
+
 def test_detect_unfilled_plan_with_template():
     """Test detection of unfilled plan with template markers."""
     with TemporaryDirectory() as tmpdir:

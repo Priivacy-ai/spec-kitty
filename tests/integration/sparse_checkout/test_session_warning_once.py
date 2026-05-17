@@ -22,6 +22,8 @@ from specify_cli.git.sparse_checkout import (
 )
 
 
+pytestmark = [pytest.mark.integration]
+
 @pytest.fixture(autouse=True)
 def _reset_state() -> None:
     _reset_session_warning_state()

@@ -24,6 +24,8 @@ from specify_cli.sync.daemon import DaemonIntent, DaemonStartOutcome, ensure_syn
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 @pytest.fixture()
 def rollout_disabled(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
     """Override the global autouse flag — rollout is OFF for this test."""

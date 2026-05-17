@@ -39,6 +39,8 @@ from specify_cli.tracker.saas_client import SaaSTrackerClientError
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 def _make_candidate(
     *,
     key: str = "WEB-123",

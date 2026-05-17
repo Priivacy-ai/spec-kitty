@@ -22,6 +22,10 @@ from specify_cli.git.sparse_checkout import scan_repo
 from specify_cli.git.sparse_checkout_remediation import remediate
 
 
+import pytest
+
+pytestmark = [pytest.mark.integration]
+
 def _run(cmd: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         cmd,

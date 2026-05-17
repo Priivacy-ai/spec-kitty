@@ -25,6 +25,8 @@ from specify_cli.migration.gate import _build_command_path, check_schema_version
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.integration]
+
 class TestBuildCommandPath:
     def test_nested_command_with_flag(self) -> None:
         """Nested command path stops at first flag; argv agrees with invoked_subcommand."""

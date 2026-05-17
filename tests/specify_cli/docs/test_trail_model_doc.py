@@ -1,6 +1,10 @@
 """WP08 — docs/trail-model.md subsection presence regression tests."""
 from pathlib import Path
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
 TRAIL = REPO_ROOT / "docs/trail-model.md"
 CHANGELOG = REPO_ROOT / "CHANGELOG.md"

@@ -30,6 +30,10 @@ from spec_kitty_events.decision_moment import OriginSurface
 # ---------------------------------------------------------------------------
 
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 MISSION_SLUG = "test-mission-01KPWT8PXXX"
 MISSION_ID = "01KPWT8PNY8683QX3WBW6VXYM7"
 ACTOR = "test-actor"

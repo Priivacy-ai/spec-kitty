@@ -26,6 +26,8 @@ from specify_cli.next.prompt_builder import (
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 @pytest.fixture
 def feature_dir(tmp_path: Path) -> Path:
     fd = tmp_path / "kitty-specs" / "042-test-feature"

@@ -32,6 +32,8 @@ from specify_cli.retrospective.gate import is_completion_allowed
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.integration]
+
 @pytest.mark.integration
 def test_silent_skip_blocked_in_autonomous_mode(
     tmp_path: Path,

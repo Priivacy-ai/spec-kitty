@@ -30,6 +30,8 @@ from charter.compact import (
 )
 
 
+pytestmark = [pytest.mark.contract]
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = REPO_ROOT / "tests" / "fixtures" / "charters"
 

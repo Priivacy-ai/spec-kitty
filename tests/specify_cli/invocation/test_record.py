@@ -20,6 +20,8 @@ from specify_cli.invocation.record import (
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 def _make_started(**overrides: object) -> InvocationRecord:
     defaults: dict[str, object] = {
         "event": "started",

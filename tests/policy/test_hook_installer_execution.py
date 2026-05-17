@@ -19,6 +19,8 @@ import pytest
 from specify_cli.policy.hook_installer import install
 
 
+pytestmark = [pytest.mark.unit]
+
 def _init_git(repo: Path) -> None:
     """Initialize a bare git repo with user config for committing."""
     subprocess.run(["git", "init", "--quiet"], cwd=repo, check=True)

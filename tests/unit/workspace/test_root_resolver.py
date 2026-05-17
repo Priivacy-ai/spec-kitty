@@ -25,6 +25,8 @@ from specify_cli.workspace.root_resolver import (
 )
 
 
+pytestmark = [pytest.mark.unit]
+
 @pytest.fixture(autouse=True)
 def _clear_cache():
     """Ensure the module-level cache is empty for each test."""

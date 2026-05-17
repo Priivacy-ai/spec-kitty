@@ -44,6 +44,8 @@ from specify_cli.core.upgrade_probe import (
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 def _make_pypi_payload(latest: str, releases: list[str]) -> dict:
     """Build a minimal PyPI JSON metadata payload."""
     return {

@@ -31,6 +31,8 @@ from specify_cli.migration.backfill_identity import backfill_repo
 # Helpers / fixtures
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.integration]
+
 _ULID_EXISTING = "01KNXQS9ATWWFXS3K5ZJ9E5008"
 
 

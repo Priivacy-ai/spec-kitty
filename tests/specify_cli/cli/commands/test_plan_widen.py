@@ -36,6 +36,10 @@ from specify_cli.widen.state import WidenPendingStore
 # Test app / helpers
 # ---------------------------------------------------------------------------
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 _app = typer.Typer()
 _app.command()(plan)
 

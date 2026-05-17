@@ -29,6 +29,8 @@ from charter.context_renderers.fetch_stanza import (
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 def _make_section(
     section_id: str,
     body: str,

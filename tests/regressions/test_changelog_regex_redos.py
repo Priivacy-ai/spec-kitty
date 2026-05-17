@@ -81,6 +81,8 @@ from specify_cli.release.changelog import (
 #     `re.sub(r"^#+\s*", "", line)`.
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.unit]
+
 _BUDGET_SECONDS = 0.1  # 100 ms — FR-008 default budget
 
 

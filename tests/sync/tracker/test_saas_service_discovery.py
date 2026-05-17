@@ -30,6 +30,8 @@ from specify_cli.tracker.service import TrackerServiceError
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 @pytest.fixture()
 def repo_root(tmp_path: Path) -> Path:
     """Create a minimal .kittify directory so config save/load works."""

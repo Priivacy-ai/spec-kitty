@@ -20,6 +20,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = [pytest.mark.contract]
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 CLI_COMMAND_GLOBS = ("src/specify_cli/cli/commands/**/*.py",)

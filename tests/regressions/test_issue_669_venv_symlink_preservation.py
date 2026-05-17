@@ -21,6 +21,8 @@ from pathlib import Path
 import pytest
 
 
+pytestmark = [pytest.mark.unit]
+
 @pytest.mark.skipif(
     sys.platform == "win32",
     reason="os.symlink requires admin/dev mode on Windows; bug is POSIX-surfaced",

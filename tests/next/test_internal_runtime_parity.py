@@ -20,6 +20,8 @@ from types import ModuleType
 
 import pytest
 
+pytestmark = [pytest.mark.unit]
+
 FIXTURE_DIR = Path(__file__).resolve().parents[1] / "fixtures" / "runtime_parity"
 
 

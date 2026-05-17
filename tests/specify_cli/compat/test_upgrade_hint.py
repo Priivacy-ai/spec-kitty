@@ -18,6 +18,8 @@ from specify_cli.compat.upgrade_hint import UpgradeHint, build_upgrade_hint
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 class TestInvariant:
     @pytest.mark.parametrize("method", list(InstallMethod))
     def test_every_method_produces_valid_hint(self, method: InstallMethod) -> None:

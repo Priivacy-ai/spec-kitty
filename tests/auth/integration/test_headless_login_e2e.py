@@ -30,6 +30,8 @@ from specify_cli.cli.commands.auth import app
 from .conftest import FakeSecureStorage
 
 
+pytestmark = [pytest.mark.integration]
+
 runner = CliRunner()
 
 

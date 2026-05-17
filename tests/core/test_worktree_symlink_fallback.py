@@ -24,6 +24,8 @@ from pathlib import Path
 import pytest
 
 
+pytestmark = [pytest.mark.unit]
+
 def _init_repo_with_kittify(repo: Path) -> None:
     """Initialise a minimal git repo with .kittify/memory and AGENTS.md."""
     subprocess.run(["git", "init", "--quiet"], cwd=repo, check=True)

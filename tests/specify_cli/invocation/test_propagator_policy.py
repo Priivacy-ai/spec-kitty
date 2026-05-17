@@ -25,6 +25,8 @@ from specify_cli.sync.routing import CheckoutSyncRouting
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 def _make_routing(*, effective_sync_enabled: bool, repo_root: Path) -> CheckoutSyncRouting:
     return CheckoutSyncRouting(
         repo_root=repo_root,

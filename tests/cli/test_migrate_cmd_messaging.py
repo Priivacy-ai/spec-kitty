@@ -20,6 +20,8 @@ import pytest
 from typer.testing import CliRunner
 
 
+pytestmark = [pytest.mark.integration]
+
 @pytest.mark.windows_ci
 def test_migrate_windows_moved_output(tmp_path, monkeypatch):
     """Happy-path: legacy tree moved — output contains the migration banner."""

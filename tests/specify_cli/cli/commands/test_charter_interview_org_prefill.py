@@ -20,6 +20,8 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.charter import app as charter_app
 
 
+pytestmark = [pytest.mark.unit]
+
 runner = CliRunner()
 
 

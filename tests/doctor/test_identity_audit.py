@@ -34,6 +34,8 @@ from specify_cli.status.identity_audit import (
 # Fixtures / helpers
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.integration]
+
 _ULID_A = "01KNXQS9ATWWFXS3K5ZJ9E5008"
 _ULID_B = "01KNS7C9AZP1MPCFZWM25KV6TM"
 _ULID_C = "01KNS7RB1V9R3VSYD910HCAMTR"

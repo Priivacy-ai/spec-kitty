@@ -22,6 +22,8 @@ from specify_cli.tracker.local_service import LocalTrackerService, LocalTrackerS
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 @pytest.fixture()
 def repo(tmp_path: Path) -> Path:
     """Create a minimal repo root with .kittify directory."""

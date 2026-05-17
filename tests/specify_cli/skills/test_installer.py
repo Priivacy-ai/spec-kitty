@@ -18,6 +18,8 @@ from specify_cli.skills.manifest import ManagedFileEntry, compute_content_hash
 from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
 
 
+pytestmark = [pytest.mark.unit]
+
 def _make_skill(
     root: Path,
     name: str,

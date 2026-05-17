@@ -35,6 +35,8 @@ from specify_cli.auth.websocket import (
 )
 
 
+pytestmark = [pytest.mark.integration]
+
 def _make_session(access_remaining_seconds: int = 3600) -> StoredSession:
     """Build a StoredSession whose access token expires in N seconds.
 

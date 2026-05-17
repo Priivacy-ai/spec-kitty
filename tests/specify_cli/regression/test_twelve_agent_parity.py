@@ -39,6 +39,8 @@ from specify_cli.template.asset_generator import render_command_template
 # Constants
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.unit]
+
 TEMPLATES_DIR = (
     Path(__file__).parent.parent.parent.parent
     / "src"

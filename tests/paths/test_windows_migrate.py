@@ -27,6 +27,8 @@ from specify_cli.paths.windows_migrate import migrate_windows_state
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 def _setup_win32_env(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

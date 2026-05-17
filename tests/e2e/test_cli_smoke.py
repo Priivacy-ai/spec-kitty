@@ -21,6 +21,8 @@ from pathlib import Path
 import pytest
 
 
+pytestmark = [pytest.mark.e2e]
+
 SUBSTANTIVE_SPEC = """# E2E Smoke Spec
 
 ## Functional Requirements

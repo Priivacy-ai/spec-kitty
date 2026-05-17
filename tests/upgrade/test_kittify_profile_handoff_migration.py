@@ -16,6 +16,10 @@ from specify_cli.upgrade.migrations.m_3_2_4_kittify_profile_handoff import (
 # Helpers
 # ---------------------------------------------------------------------------
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 _IMPLEMENT_WITHOUT_HANDOFF = """\
 ---
 title: /spec-kitty.implement

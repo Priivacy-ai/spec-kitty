@@ -4,6 +4,10 @@ from unittest.mock import patch
 import re
 
 
+import pytest
+
+pytestmark = [pytest.mark.integration]
+
 def test_version_fallback_chain():
     """Test version detection tries importlib.metadata then pyproject.toml."""
     from specify_cli.version_utils import get_version

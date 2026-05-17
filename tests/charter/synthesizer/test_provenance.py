@@ -27,6 +27,8 @@ from charter.synthesizer.synthesize_pipeline import canonical_yaml
 # Shared v2 fields dict for convenience
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.unit]
+
 VALID_V2_FIELDS: dict = {
     "schema_version": "2",
     "artifact_urn": "tactic:how-we-apply-directive-003",

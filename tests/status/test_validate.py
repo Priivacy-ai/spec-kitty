@@ -1,7 +1,5 @@
 """Tests for the status validation engine.
 
-pytestmark = pytest.mark.fast
-
 Covers: validate_event_schema, validate_transition_legality,
 validate_done_evidence, validate_materialization_drift,
 validate_derived_views, and ValidationResult.
@@ -22,6 +20,9 @@ from specify_cli.status.validate import (
     validate_materialization_drift,
     validate_transition_legality,
 )
+
+
+pytestmark = [pytest.mark.fast]
 
 
 # ---------------------------------------------------------------------------

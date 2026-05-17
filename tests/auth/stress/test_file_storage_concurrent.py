@@ -34,6 +34,10 @@ from specify_cli.auth.secure_storage.file_fallback import FileFallbackStorage
 from specify_cli.auth.session import StoredSession, Team
 
 
+import pytest
+
+pytestmark = [pytest.mark.integration]
+
 class _FastFileFallbackStorage(FileFallbackStorage):
     """Production backend with reduced scrypt cost for fast stress tests.
 

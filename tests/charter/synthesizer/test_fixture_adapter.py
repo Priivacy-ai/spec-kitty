@@ -30,6 +30,8 @@ from charter.synthesizer.request import (
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 def _make_request(
     *,
     run_id: str = "01AAAAAAAAAAAAAAAAAAAAAAAAA",

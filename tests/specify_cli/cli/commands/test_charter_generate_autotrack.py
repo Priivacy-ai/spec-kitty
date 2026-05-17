@@ -22,6 +22,8 @@ from specify_cli.cli.commands.charter import app as charter_app
 from specify_cli.cli.commands.charter_bundle import app as charter_bundle_app
 
 
+pytestmark = [pytest.mark.unit]
+
 runner = CliRunner()
 
 

@@ -21,6 +21,8 @@ from typer.testing import CliRunner
 
 from specify_cli.retrospective.cli import app
 
+pytestmark = [pytest.mark.unit]
+
 RUNNER = CliRunner()
 
 MISSION_ID_A = "01KQ6YEGT4YBZ3GZF7X680KQAA"

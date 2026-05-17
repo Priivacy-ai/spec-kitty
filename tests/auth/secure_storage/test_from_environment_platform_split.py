@@ -7,6 +7,10 @@ import sys
 from pathlib import Path
 
 
+import pytest
+
+pytestmark = [pytest.mark.integration]
+
 def _snapshot_modules(*prefixes: str) -> dict[str, object]:
     """Return a copy of sys.modules for all keys matching any prefix."""
     return {k: v for k, v in sys.modules.items() if any(k.startswith(p) for p in prefixes)}

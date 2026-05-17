@@ -39,6 +39,8 @@ from specify_cli.next._internal_runtime.retrospective_hook import (
 # Shared constants
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.unit]
+
 _MISSION_ID = "01KQ6YEGT4YBZ3GZF7X680KQ3V"  # 26-char ULID (test fixture)
 
 # ULID event ids — monotonically increasing for tiebreak correctness.

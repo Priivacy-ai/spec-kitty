@@ -34,6 +34,8 @@ from specify_cli.auth.flows.authorization_code import AuthorizationCodeFlow
 # Fixtures / helpers
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.integration]
+
 _FUTURE_ISO = "2099-01-01T00:00:00+00:00"
 
 

@@ -31,6 +31,9 @@ from specify_cli.migration.gate import check_schema_version
 # ``invoked_subcommand=None`` only happens when the user typed just
 # ``spec-kitty`` with no args, which shows help (intercepted by typer's
 # eager option handler before the gate runs).
+
+pytestmark = [pytest.mark.integration]
+
 _SAFE_COMMANDS: list[tuple[str, str]] = [
     # (invoked_subcommand, human_label)
     ("upgrade", "upgrade"),

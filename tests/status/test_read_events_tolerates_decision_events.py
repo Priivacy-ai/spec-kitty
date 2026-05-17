@@ -28,6 +28,8 @@ import pytest
 from specify_cli.status.store import StoreError, read_events
 
 
+pytestmark = [pytest.mark.unit]
+
 def _write_events_jsonl(feature_dir: Path, events: list[dict[str, Any]]) -> None:
     feature_dir.mkdir(parents=True, exist_ok=True)
     events_path = feature_dir / "status.events.jsonl"

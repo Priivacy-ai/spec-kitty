@@ -25,6 +25,10 @@ from specify_cli.auth.session import (
 )
 
 
+import pytest
+
+pytestmark = [pytest.mark.integration]
+
 def _now() -> datetime:
     return datetime.now(UTC)
 

@@ -12,6 +12,10 @@ from pathlib import Path
 from specify_cli.next.runtime_bridge import _resolve_runtime_template_in_root
 
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 def test_documentation_runtime_sidecar_wins_over_legacy_mission_yaml() -> None:
     """The package-level loader resolves mission-runtime.yaml for mission_type='documentation'."""
     package_root = Path(__file__).resolve().parents[2] / "src" / "specify_cli" / "missions"

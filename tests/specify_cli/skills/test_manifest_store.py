@@ -36,6 +36,8 @@ from specify_cli.skills.manifest_store import (
 # Helpers
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.unit]
+
 _VALID_PATH_1 = ".agents/skills/spec-kitty.specify/SKILL.md"
 _VALID_PATH_2 = ".agents/skills/spec-kitty.plan/SKILL.md"
 _VALID_PATH_3 = ".agents/skills/spec-kitty.tasks/SKILL.md"

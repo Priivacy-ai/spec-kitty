@@ -23,6 +23,8 @@ import pytest
 # Locate project root and report path
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.integration]
+
 _THIS_FILE = Path(__file__).resolve()
 # tests/release/ -> tests/ -> project root
 _PROJECT_ROOT = _THIS_FILE.parent.parent.parent

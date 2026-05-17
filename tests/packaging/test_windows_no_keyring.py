@@ -6,6 +6,10 @@ from pathlib import Path
 import tomllib
 
 
+import pytest
+
+pytestmark = [pytest.mark.integration]
+
 def test_keyring_not_declared_in_project_dependencies():
     pyproject = Path(__file__).resolve().parents[2] / "pyproject.toml"
     data = tomllib.loads(pyproject.read_text(encoding="utf-8"))

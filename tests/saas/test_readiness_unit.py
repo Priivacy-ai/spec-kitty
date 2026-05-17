@@ -30,6 +30,8 @@ from specify_cli.saas.readiness import ReadinessState, evaluate_readiness
 # Helpers
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.integration]
+
 _REPO = Path("/fake/repo")  # never accessed in unit tests — probes are stubbed
 
 

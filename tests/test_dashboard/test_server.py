@@ -4,6 +4,10 @@ from types import SimpleNamespace
 from specify_cli.dashboard import server
 
 
+import pytest
+
+pytestmark = [pytest.mark.integration]
+
 def test_find_free_port_returns_available_port():
     port = server.find_free_port(start_port=15000, max_attempts=50)
     assert isinstance(port, int)

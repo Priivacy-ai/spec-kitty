@@ -32,6 +32,9 @@ from specify_cli.doctrine.sources.protocol import FetchResult
 # ----------------------------------------------------------------------
 # Helpers
 # ----------------------------------------------------------------------
+
+pytestmark = [pytest.mark.unit]
+
 def _write_config(repo_root: Path, body: str) -> Path:
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True, exist_ok=True)

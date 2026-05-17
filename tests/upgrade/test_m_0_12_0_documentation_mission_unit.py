@@ -13,6 +13,8 @@ from specify_cli.upgrade.migrations.m_0_12_0_documentation_mission import (
 )
 
 
+pytestmark = [pytest.mark.unit]
+
 @pytest.fixture
 def migration() -> InstallDocumentationMission:
     """Create migration instance."""

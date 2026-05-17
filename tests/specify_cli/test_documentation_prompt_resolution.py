@@ -22,6 +22,8 @@ import pytest
 
 from specify_cli.runtime.resolver import resolve_command
 
+pytestmark = [pytest.mark.unit]
+
 _DOC_STEPS = ("discover", "audit", "design", "generate", "validate", "publish", "accept")
 
 

@@ -24,6 +24,9 @@ from specify_cli.lanes.persistence import write_lanes_json
 # Legacy missions may still lack mission_id. The resolver now falls back to the
 # explicit mission directory name so context-bound commands stay deterministic
 # while the backfill/audit surfaces close out remaining legacy metadata.
+
+pytestmark = [pytest.mark.unit]
+
 _DEFAULT_TEST_MISSION_ID = "01HVXYZTESTMISSION000000000"
 
 

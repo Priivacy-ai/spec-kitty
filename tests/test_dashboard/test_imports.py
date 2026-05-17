@@ -1,6 +1,10 @@
 import importlib
 
 
+import pytest
+
+pytestmark = [pytest.mark.integration]
+
 def test_dashboard_public_api_imports():
     module = importlib.import_module("specify_cli.dashboard")
     for attr in (

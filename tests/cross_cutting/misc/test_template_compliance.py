@@ -5,6 +5,8 @@ import pytest
 import re
 
 
+pytestmark = [pytest.mark.integration]
+
 def find_mission_templates() -> list[Path]:
     """Find all command template files in missions."""
     spec_kitty_root = Path(__file__).parent.parent.parent.parent

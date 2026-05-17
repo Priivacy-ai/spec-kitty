@@ -23,6 +23,8 @@ from specify_cli.status.store import EVENTS_FILENAME, read_events
 # Helpers
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.unit]
+
 def _write_wp_file(tasks_dir: Path, wp_id: str, title: str = "Test WP") -> Path:
     """Create a minimal WP markdown file with valid frontmatter."""
     wp_file = tasks_dir / f"{wp_id}.md"

@@ -26,6 +26,8 @@ from typing import Any
 import pytest
 
 
+pytestmark = [pytest.mark.integration]
+
 @pytest.fixture(autouse=True)
 def _reset_registry() -> Any:
     """Ensure each test starts with an empty shadow.

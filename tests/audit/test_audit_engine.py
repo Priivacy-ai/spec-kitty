@@ -29,6 +29,9 @@ from specify_cli.audit.serializer import build_report_json
 # ---------------------------------------------------------------------------
 
 # A set of distinct valid ULIDs (26 chars, Crockford Base32: 0-9 A-H J-N P-T V-Z)
+
+pytestmark = [pytest.mark.integration]
+
 _ULID_A = "01KQHRB8GCFJAX7HM4ZY52AQGR"
 _ULID_B = "01KQHRB9GCFJAX7HM4ZY52AQGR"
 _ULID_C = "01KQHRB7GCFJAX7HM4ZY52AQGR"

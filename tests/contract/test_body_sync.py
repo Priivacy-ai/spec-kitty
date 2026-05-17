@@ -14,6 +14,8 @@ from specify_cli.sync.body_queue import BodyUploadTask
 from specify_cli.sync.body_transport import _build_request_body
 
 
+pytestmark = [pytest.mark.contract]
+
 def _make_body_upload_task() -> BodyUploadTask:
     """Construct a BodyUploadTask with canonical test data."""
     return BodyUploadTask(

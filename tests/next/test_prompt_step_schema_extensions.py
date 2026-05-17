@@ -13,6 +13,8 @@ import pytest
 from specify_cli.next._internal_runtime.schema import PromptStep
 
 
+pytestmark = [pytest.mark.unit]
+
 def test_default_fields_are_none() -> None:
     step = PromptStep(id="x", title="X")
     assert step.agent_profile is None

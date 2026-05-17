@@ -43,6 +43,8 @@ from specify_cli.sync.routing import CheckoutSyncRouting
 # Shared helpers / fixtures
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.unit]
+
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "profiles"
 
 _COMPACT_CTX = MagicMock()

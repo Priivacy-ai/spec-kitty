@@ -7,6 +7,10 @@ from pathlib import Path
 
 
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 class TestGetDeliverablesPath:
     """Tests for get_deliverables_path function."""
 
