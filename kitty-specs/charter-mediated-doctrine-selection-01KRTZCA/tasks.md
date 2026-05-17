@@ -27,13 +27,13 @@
 | T014 | Create `src/charter/resolution.py` re-exporting `ResolutionResult`, `ResolutionTier` | WP03 | [D] |
 | T015 | Create `src/charter/versioning.py` re-exporting `check_bundle_compatibility`, `get_bundle_schema_version` | WP03 | [D] |
 | T016 | Add `tests/architectural/test_charter_facades_reexport_doctrine.py` asserting each facade re-exports the named doctrine symbols | WP03 | [D] |
-| T017 | Add `_render_selected_styleguides` helper in `src/charter/context.py` | WP04 | |
-| T018 | Add `_render_selected_toolguides`, `_render_selected_procedures`, `_render_selected_agent_profiles`, `_render_selected_mission_step_contracts` helpers | WP04 | |
-| T019 | Wire all 5 new render helpers into `build_charter_context` after existing directive/tactic renderers | WP04 | |
-| T020 | Carry provenance metadata (`source: org` / pack name) through new renderers for org-distributed artifacts | WP04 | |
-| T021 | Unit tests: each new renderer emits ID + body (or fetch + when-doing under overflow); provenance line present for org artifacts | WP04 | [P] |
+| T017 | Add `_render_selected_styleguides` helper in `src/charter/context.py` | WP04 | | [D] |
+| T018 | Add `_render_selected_toolguides`, `_render_selected_procedures`, `_render_selected_agent_profiles`, `_render_selected_mission_step_contracts` helpers | WP04 | | [D] |
+| T019 | Wire all 5 new render helpers into `build_charter_context` after existing directive/tactic renderers | WP04 | | [D] |
+| T020 | Carry provenance metadata (`source: org` / pack name) through new renderers for org-distributed artifacts | WP04 | | [D] |
+| T021 | Unit tests: each new renderer emits ID + body (or fetch + when-doing under overflow); provenance line present for org artifacts | WP04 | [D] |
 | T022 | Add `_render_activation_stanza` helper in `src/charter/context.py` producing the "When you `<action>` in a `<mission_type>` mission, run ..." line | WP05 | |
-| T023 | Wire activation resolver call (`charter.activations.resolve_for_context`) into `build_charter_context` and render matching entries | WP05 | |
+| T023 | Wire activation resolver call (`charter.activations.resolve_for_context`) into `build_charter_context` and render matching entries | WP05 | | [D] |
 | T024 | Populate `tests/architectural/test_trigger_registry_coverage.py::_REGISTERED_TRIGGERS` with the 15-token frozenset per plan §2.10 | WP05 | [P] |
 | T025 | Unit tests: activation stanza emitted on context match; wildcard match works; multiple matches concatenate in declaration order | WP05 | [P] |
 | T026 | Extend `apply_org_charter_to_interview` in `src/specify_cli/doctrine/org_charter.py` to union every `required_<kind>` (7 new) into `interview_data.selected_<kind>` | WP06 | |
