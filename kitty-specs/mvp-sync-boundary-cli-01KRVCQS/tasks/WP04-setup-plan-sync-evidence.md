@@ -23,7 +23,8 @@ subtasks:
 - T019
 - T020
 phase: Phase 2 - Setup-plan
-agent: claude
+agent: "claude:opus-4-7:python-pedro:implementer"
+shell_pid: "78254"
 history:
 - timestamp: '2026-05-17T16:42:00Z'
   lane: planned
@@ -142,3 +143,7 @@ Planning base: `main`. Final merge target: `main`. This WP lands last in the mis
 - Confirm: setup-plan writes to scoped DB only when authenticated.
 - Confirm: AST regression test catches `_legacy_queue_db_path` calls anywhere in the audited setup-plan modules.
 - Run the full suite locally: green.
+
+## Activity Log
+
+- 2026-05-17T17:26:23Z – claude:opus-4-7:python-pedro:implementer – shell_pid=78254 – Started implementation via action command
