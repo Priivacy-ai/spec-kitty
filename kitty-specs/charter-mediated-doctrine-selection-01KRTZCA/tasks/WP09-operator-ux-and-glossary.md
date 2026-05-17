@@ -222,3 +222,4 @@ Add a section calling out the FR-015 policy change:
 ## Activity Log
 
 - 2026-05-17T18:38:00Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1790218 – Started implementation via action command
+- 2026-05-17T18:58:21Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1790218 – Operator UX (doctrine new/validate + doctor doctrine Selections snapshot-tested) + 10 glossary entries promoted to canonical. Mission B closing WP.
