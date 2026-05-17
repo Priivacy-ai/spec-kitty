@@ -20,13 +20,13 @@
 | T007 | Add `_apply_activations_block` handler reading top-level `activations:` from charter.md fenced YAML | WP02 | |
 | T008 | Add `activations` field to `GovernanceConfig` (sibling of `doctrine`); round-trip through `governance.yaml` | WP02 | |
 | T009 | Unit tests for extractor: round-trip selected_styleguides; round-trip activations block; mixed-fields fixture | WP02 | [P] |
-| T010 | Create `src/charter/profiles.py` re-exporting `AgentProfile`, `AgentProfileRepository`, `Role`, `DEFAULT_ROLE_CAPABILITIES` | WP03 | [P] |
-| T011 | Create `src/charter/mission_steps.py` re-exporting `MissionStep`, `MissionStepContract`, `MissionStepContractRepository` | WP03 | [P] |
-| T012 | Create `src/charter/drg.py` re-exporting DRG types + functions (`DRGEdge`, `DRGGraph`, `DRGNode`, `Relation`, `NodeKind`, `load_graph`, `merge_layers`, `resolve_context`, `ResolvedContext`) | WP03 | [P] |
-| T013 | Create `src/charter/primitives.py` re-exporting `PrimitiveExecutionContext`, `execute_with_glossary` | WP03 | [P] |
-| T014 | Create `src/charter/resolution.py` re-exporting `ResolutionResult`, `ResolutionTier` | WP03 | [P] |
-| T015 | Create `src/charter/versioning.py` re-exporting `check_bundle_compatibility`, `get_bundle_schema_version` | WP03 | [P] |
-| T016 | Add `tests/architectural/test_charter_facades_reexport_doctrine.py` asserting each facade re-exports the named doctrine symbols | WP03 | [P] |
+| T010 | Create `src/charter/profiles.py` re-exporting `AgentProfile`, `AgentProfileRepository`, `Role`, `DEFAULT_ROLE_CAPABILITIES` | WP03 | [D] |
+| T011 | Create `src/charter/mission_steps.py` re-exporting `MissionStep`, `MissionStepContract`, `MissionStepContractRepository` | WP03 | [D] |
+| T012 | Create `src/charter/drg.py` re-exporting DRG types + functions (`DRGEdge`, `DRGGraph`, `DRGNode`, `Relation`, `NodeKind`, `load_graph`, `merge_layers`, `resolve_context`, `ResolvedContext`) | WP03 | [D] |
+| T013 | Create `src/charter/primitives.py` re-exporting `PrimitiveExecutionContext`, `execute_with_glossary` | WP03 | [D] |
+| T014 | Create `src/charter/resolution.py` re-exporting `ResolutionResult`, `ResolutionTier` | WP03 | [D] |
+| T015 | Create `src/charter/versioning.py` re-exporting `check_bundle_compatibility`, `get_bundle_schema_version` | WP03 | [D] |
+| T016 | Add `tests/architectural/test_charter_facades_reexport_doctrine.py` asserting each facade re-exports the named doctrine symbols | WP03 | [D] |
 | T017 | Add `_render_selected_styleguides` helper in `src/charter/context.py` | WP04 | |
 | T018 | Add `_render_selected_toolguides`, `_render_selected_procedures`, `_render_selected_agent_profiles`, `_render_selected_mission_step_contracts` helpers | WP04 | |
 | T019 | Wire all 5 new render helpers into `build_charter_context` after existing directive/tactic renderers | WP04 | |
