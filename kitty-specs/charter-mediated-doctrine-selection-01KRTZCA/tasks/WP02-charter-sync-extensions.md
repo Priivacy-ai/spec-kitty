@@ -194,3 +194,4 @@ Fixtures and assertions:
 - 2026-05-17T16:38:10Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1645548 – Started implementation via action command
 - 2026-05-17T16:47:25Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1645548 – Sync extensions: 5 selected_<kind> fields + activations block round-trip; case-1 lifecycle test green; layer rule intact
 - 2026-05-17T16:48:00Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=1666985 – Started review via action command
+- 2026-05-17T16:52:03Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=1666985 – Review passed: 5 selected_<kind> parity + activations block round-trip + validation. case_1_selected_styleguides_field_round_trips ATDD green. extractor.py confirmed as correct source location (no separate sync.py). 18 new unit tests, all green.
