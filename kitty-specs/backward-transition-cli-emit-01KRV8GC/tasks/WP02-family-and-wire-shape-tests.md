@@ -262,3 +262,4 @@ uv run mypy --strict src/specify_cli/cli/commands/agent/tasks.py
 ## Activity Log
 
 - 2026-05-17T15:44:41Z – claude:opus:python-pedro:implementer – shell_pid=4812 – Started implementation via action command
+- 2026-05-17T16:16:13Z – claude:opus:python-pedro:implementer – shell_pid=4812 – Tests + gates landed; Mission 1 fixture match verified via CLI invariants (upstream fixture not yet published, skipped gracefully); all charter gates green
