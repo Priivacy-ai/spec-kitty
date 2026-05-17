@@ -409,6 +409,45 @@ class TestBackwardEmitFeedbackRef:
         assert mission_slug in emitted.reason
         assert "review-cycle-" in emitted.reason
 
+    def test_backward_emit_note_is_preserved_after_canonical_prefix(
+        self, tmp_path: Path
+    ) -> None:
+        """A user note must not replace the required backward-rewind audit text."""
+        mission_slug = "test-mission-note-preserved"
+        wp_id = "WP05"
+        feature_dir, _wp_file = _build_feature_in_lane(
+            tmp_path, mission_slug=mission_slug, wp_id=wp_id, lane="approved"
+        )
+        feedback = _write_feedback_file(tmp_path)
+        note = "Reviewer requested a simpler implementation."
+
+        result = _invoke_move(
+            tmp_path=tmp_path,
+            mission_slug=mission_slug,
+            args=[
+                "move-task",
+                wp_id,
+                "--to",
+                "planned",
+                "--mission",
+                mission_slug,
+                "--review-feedback-file",
+                str(feedback),
+                "--note",
+                note,
+                "--no-auto-commit",
+            ],
+        )
+
+        assert result.exit_code == 0, f"backward emit with note failed:\n{result.output}"
+
+        emitted = _read_latest_events_for_wp(feature_dir, wp_id)[-1]
+        assert emitted.force is True
+        assert emitted.reason is not None
+        assert emitted.reason.startswith("backward rewind: approved -> planned")
+        assert ": review-cycle://" in emitted.reason
+        assert emitted.reason.endswith(note)
+
 
 # ---------------------------------------------------------------------------
 # T004 — FR-009 wire-shape regression against Mission 1's fixture

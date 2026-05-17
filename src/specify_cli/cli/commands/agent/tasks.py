@@ -1750,11 +1750,13 @@ def move_task(
         # See: kitty-specs/backward-transition-cli-emit-01KRV8GC/contracts/auto-promote-backward-emit.md
         if not force and _is_backward_transition(old_lane, canonical_lane):
             emit_force = True
-            if emit_reason is None or emit_reason.startswith("move-task: "):
-                reason_parts = [f"backward rewind: {old_lane} -> {canonical_lane}"]
-                if review_feedback_pointer and review_feedback_pointer != "force-override":
-                    reason_parts.append(review_feedback_pointer)
-                emit_reason = ": ".join(reason_parts)
+            original_reason = None if emit_reason is None or emit_reason.startswith("move-task: ") else emit_reason
+            reason_parts = [f"backward rewind: {old_lane} -> {canonical_lane}"]
+            if review_feedback_pointer and review_feedback_pointer != "force-override":
+                reason_parts.append(review_feedback_pointer)
+            if original_reason:
+                reason_parts.append(original_reason)
+            emit_reason = ": ".join(reason_parts)
 
         def _lane_targets_for_emit(current_lane: str, requested_lane: str) -> list[str]:
             current = resolve_lane_alias(current_lane)
