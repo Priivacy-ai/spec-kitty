@@ -34,6 +34,7 @@ Use policy docs to answer "what should this mean?" and runtime artifacts to answ
 | Practices & Principles | Working agreements for low-friction, high-signal delivery. | `glossary/contexts/practices-principles.md` |
 | Configuration & Project Structure | Project-local structure and configuration artifacts. | `glossary/contexts/configuration-project-structure.md` |
 | Technology Foundations | General technology terms (API, CLI, YAML, etc.) for reader accessibility. | `glossary/contexts/technology-foundations.md` |
+| Testing Taxonomy | Canonical categories for tests in `tests/` — every pytest marker declared in `pytest.ini` with a usable description for choosing the right tag. | `glossary/contexts/testing-taxonomy.md` |
 
 ## Reference Notes
 
