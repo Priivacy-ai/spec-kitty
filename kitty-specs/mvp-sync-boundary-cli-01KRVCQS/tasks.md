@@ -32,11 +32,11 @@ Total subtasks: 20.
 | T009 | Add foreground-side helper `check_daemon_owner_match()` returning a tuple `(is_coherent, mismatched_fields)`. Add a thin call-site shim used by any sync action that talks to the daemon | WP02 | [D] |
 | T010 | Add orphan-detection helper that identifies owner records whose PID is not alive OR whose executable path no longer exists | WP02 | [D] |
 | T011 | Tests: `tests/sync/test_daemon_owner_record.py` covering FR-005..FR-007, FR-010, C-002 (no real-process kills; use controlled subprocesses or fake metadata) | WP02 | [D] |
-| T012 | Extend `sync status` to include the FR-008 fields (foreground identity, daemon owner identity, mismatch diagnostics, orphan count, legacy DB row counts) | WP03 |
-| T013 | Implement `sync status --check` exit-code logic per FR-009 (a/b/c) | WP03 |
-| T014 | Add `doctor` listing of orphan daemons with a retirement command (FR-010) | WP03 |
-| T015 | Add FR-013 "setup-plan stranded" tag when status detects setup-plan body uploads in legacy | WP03 |
-| T016 | Tests: `tests/sync/test_sync_status_boundary_check.py` covering stale daemon version, legacy body-upload backlog, daemon queue mismatch, healthy state | WP03 |
+| T012 | Extend `sync status` to include the FR-008 fields (foreground identity, daemon owner identity, mismatch diagnostics, orphan count, legacy DB row counts) | WP03 | [D] |
+| T013 | Implement `sync status --check` exit-code logic per FR-009 (a/b/c) | WP03 | [D] |
+| T014 | Add `doctor` listing of orphan daemons with a retirement command (FR-010) | WP03 | [D] |
+| T015 | Add FR-013 "setup-plan stranded" tag when status detects setup-plan body uploads in legacy | WP03 | [D] |
+| T016 | Tests: `tests/sync/test_sync_status_boundary_check.py` covering stale daemon version, legacy body-upload backlog, daemon queue mismatch, healthy state | WP03 | [D] |
 | T017 | Audit setup-plan code path; confirm every body-upload-emitting and event-emitting call uses `default_queue_db_path()` (no direct legacy path) | WP04 |
 | T018 | Add FR-011 refuse-loudly behaviour: with `SPEC_KITTY_ENABLE_SAAS_SYNC=1` and unauthenticated foreground, setup-plan exits non-zero with a specific diagnostic and writes nothing | WP04 |
 | T019 | Add cross-cutting regression test (`tests/runtime/test_setup_plan_sync_evidence.py`) that authenticates a tmp HOME and asserts setup-plan rows land in scoped DB, NOT legacy. Second test asserts the FR-011 refuse-loudly behaviour | WP04 |
