@@ -191,7 +191,7 @@ This section is the **single source of truth** for both the operator-side activa
 Both vocabularies are defined as **`frozenset[str]` constants** in `tests/architectural/test_trigger_registry_coverage.py` (the canonical home — purely declarative, no runtime semantics, lives next to the architectural gates that pin them):
 
 - `_ALLOWED_ACTIONS` — **10 tokens** — the closed vocabulary for `activation_context.action` in operator-authored `activations:` blocks. Used by the charter sync validator and by the activation-registry resolver.
-- `_REGISTERED_TRIGGERS` — **15 tokens** — the closed vocabulary for the `triggers:` field on rendered artifact stanzas. It is a strict superset of `_ALLOWED_ACTIONS` per the formula below.
+- `_REGISTERED_TRIGGERS` — **14 tokens** (10 from `_ALLOWED_ACTIONS` + 4 fine-grained) — the closed vocabulary for the `triggers:` field on rendered artifact stanzas. It is a strict superset of `_ALLOWED_ACTIONS` per the formula below.
 
 ```python
 # tests/architectural/test_trigger_registry_coverage.py
