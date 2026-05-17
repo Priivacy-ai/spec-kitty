@@ -20,7 +20,7 @@ subtasks:
 - T029
 - T030
 - T031
-agent: claude
+agent: "claude:opus-4-7:python-pedro:implementer"
 agent_profile: python-pedro
 authoritative_surface: src/specify_cli/doctrine/org_charter.py
 execution_mode: code_change
@@ -35,6 +35,7 @@ owned_files:
 role: implementer
 history: []
 tags: []
+shell_pid: "1736199"
 ---
 
 ## Do This First: Load Agent Profile
@@ -215,3 +216,7 @@ Update `docs/explanation/org-doctrine-layer.md` (or equivalent) to call out the 
 - Verify `PackNotFoundError` message names BOTH the pack name AND the path.
 - Verify the collision warning message format change doesn't break Mission A's existing assertions (run the Mission A test suite as a check).
 - Verify the user-doc update lands in this WP (C-006).
+
+## Activity Log
+
+- 2026-05-17T17:41:57Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1736199 – Started implementation via action command

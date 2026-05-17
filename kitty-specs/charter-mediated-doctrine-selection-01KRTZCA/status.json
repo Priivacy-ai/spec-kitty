@@ -1,7 +1,7 @@
 {
-  "event_count": 39,
-  "last_event_id": "01KRVGE3Z7PC75NPRXAEXR0YHT",
-  "materialized_at": "2026-05-17T17:41:10.247760+00:00",
+  "event_count": 41,
+  "last_event_id": "01KRVGFHXTKV8F1BX3K8G973EB",
+  "materialized_at": "2026-05-17T17:41:57.305969+00:00",
   "mission_number": "",
   "mission_slug": "charter-mediated-doctrine-selection-01KRTZCA",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 3
+    "planned": 2
   },
   "work_packages": {
     "WP01": {
@@ -53,11 +53,11 @@
       "last_transition_at": "2026-05-17T17:41:10.247760+00:00"
     },
     "WP06": {
-      "actor": "finalize-tasks",
+      "actor": "claude:opus-4-7:python-pedro:implementer",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KRV0S570H2AMKJY54X3X5FZ0",
-      "last_transition_at": "2026-05-17T13:07:34.752551+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KRVGFHXTKV8F1BX3K8G973EB",
+      "last_transition_at": "2026-05-17T17:41:57.305969+00:00"
     },
     "WP07": {
       "actor": "user",
