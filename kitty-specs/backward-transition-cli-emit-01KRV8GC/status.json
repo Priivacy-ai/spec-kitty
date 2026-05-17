@@ -1,16 +1,16 @@
 {
-  "event_count": 12,
-  "last_event_id": "01KRVBX1ZENGCW73S3CTTAJV3P",
-  "materialized_at": "2026-05-17T16:21:56.847000+00:00",
-  "mission_number": "",
+  "event_count": 14,
+  "last_event_id": "01KRVC1YR9H15BR4EHS3HP944G",
+  "materialized_at": "2026-05-17T16:24:37.385731+00:00",
+  "mission_number": "118",
   "mission_slug": "backward-transition-cli-emit-01KRV8GC",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 2,
+    "approved": 0,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 0,
+    "done": 2,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
@@ -18,18 +18,18 @@
   },
   "work_packages": {
     "WP01": {
-      "actor": "user",
+      "actor": "merge",
       "force_count": 2,
-      "lane": "approved",
-      "last_event_id": "01KRV9Q97CRH8TNGP7QM06BEBF",
-      "last_transition_at": "2026-05-17T15:43:50.508038+00:00"
+      "lane": "done",
+      "last_event_id": "01KRVC1YG6XZHZEHXT5E5TAJA9",
+      "last_transition_at": "2026-05-17T16:24:37.126463+00:00"
     },
     "WP02": {
-      "actor": "user",
+      "actor": "merge",
       "force_count": 2,
-      "lane": "approved",
-      "last_event_id": "01KRVBX1ZENGCW73S3CTTAJV3P",
-      "last_transition_at": "2026-05-17T16:21:56.847000+00:00"
+      "lane": "done",
+      "last_event_id": "01KRVC1YR9H15BR4EHS3HP944G",
+      "last_transition_at": "2026-05-17T16:24:37.385731+00:00"
     }
   }
 }
