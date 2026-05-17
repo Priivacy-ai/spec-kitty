@@ -45,6 +45,8 @@ from specify_cli.migration.gate import check_schema_version
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.integration]
+
 def _inv(
     command_path: tuple[str, ...] = ("dashboard",),
     raw_args: tuple[str, ...] = (),

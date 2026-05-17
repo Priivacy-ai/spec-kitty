@@ -20,6 +20,8 @@ from specify_cli.doctrine.pack_assembler import (
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 def _make_pack(
     root: Path,
     name: str,

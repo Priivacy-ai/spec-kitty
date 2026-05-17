@@ -19,6 +19,10 @@ from typer.testing import CliRunner
 from specify_cli import app
 
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 def test_doctrine_curate_is_unknown_command() -> None:
     runner = CliRunner()
     result = runner.invoke(app, ["doctrine", "curate"])

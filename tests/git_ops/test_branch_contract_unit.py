@@ -5,6 +5,10 @@ from __future__ import annotations
 from tests.branch_contract import _is_2x_context
 
 
+import pytest
+
+pytestmark = [pytest.mark.git_repo]
+
 def test_is_2x_context_matches_literal_2x_branch() -> None:
     assert _is_2x_context("2.x")
 

@@ -40,6 +40,8 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.agent import app as agent_app
 
 
+pytestmark = [pytest.mark.e2e]
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 

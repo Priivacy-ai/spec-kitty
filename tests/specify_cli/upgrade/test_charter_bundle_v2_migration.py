@@ -19,6 +19,10 @@ from specify_cli.upgrade.migrations.m_3_2_6_charter_bundle_v2 import (
 # Helpers
 # ---------------------------------------------------------------------------
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 _yaml = YAML()
 _yaml.default_flow_style = False
 _yaml.explicit_start = False

@@ -28,6 +28,9 @@ import pytest
 # ---------------------------------------------------------------------------
 
 # All 9 prompt-driven command templates
+
+pytestmark = [pytest.mark.unit]
+
 PROMPT_DRIVEN: list[str] = [
     "specify",
     "plan",

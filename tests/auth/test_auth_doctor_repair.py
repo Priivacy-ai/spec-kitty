@@ -25,6 +25,8 @@ from specify_cli.sync.daemon import SyncDaemonStatus
 from specify_cli.sync.orphan_sweep import OrphanDaemon, SweepReport
 
 
+pytestmark = [pytest.mark.integration]
+
 def _make_session() -> StoredSession:
     now = datetime.now(UTC)
     return StoredSession(

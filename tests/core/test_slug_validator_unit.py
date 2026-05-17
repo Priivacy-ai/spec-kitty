@@ -10,6 +10,8 @@ from ulid import ULID
 from specify_cli.core.mission_creation import KEBAB_CASE_PATTERN, MissionCreationError
 
 
+pytestmark = [pytest.mark.unit]
+
 class TestKebabCasePattern:
     """Test the KEBAB_CASE_PATTERN regex directly."""
 

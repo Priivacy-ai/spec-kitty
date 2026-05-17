@@ -43,6 +43,10 @@ from pathlib import Path
 # Configuration
 # ---------------------------------------------------------------------------
 
+import pytest
+
+pytestmark = [pytest.mark.architectural]
+
 _SRC_ROOT = Path(__file__).parent.parent.parent / "src" / "specify_cli"
 
 # Patterns that indicate prompt-builder context filtering (C-011 violations)

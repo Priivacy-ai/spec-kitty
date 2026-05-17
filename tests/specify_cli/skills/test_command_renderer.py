@@ -38,6 +38,8 @@ from specify_cli.skills.command_renderer import (
 # Test constants
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.unit]
+
 TEMPLATES_DIR = (
     Path(__file__).parent.parent.parent.parent
     / "src"

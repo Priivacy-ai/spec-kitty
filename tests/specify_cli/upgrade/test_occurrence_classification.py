@@ -21,6 +21,8 @@ from specify_cli.upgrade.skill_update import (
 # Fixtures
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.unit]
+
 IMPLEMENT_TEMPLATE_PATH = (
     Path(__file__).resolve().parents[3]
     / "src"

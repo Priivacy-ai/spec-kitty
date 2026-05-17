@@ -31,6 +31,8 @@ from pathlib import Path
 import pytest
 
 
+pytestmark = [pytest.mark.unit]
+
 _MISSION_SLUG = "windows-compatibility-hardening-01KP5R6K"
 # Synthetic ULID-style mission_id (26 uppercase alphanum chars)
 _MISSION_ID = "01KP5R6KAAAAAAAAAAAAAAAA26"

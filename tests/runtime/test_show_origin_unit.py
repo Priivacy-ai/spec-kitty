@@ -21,6 +21,10 @@ from specify_cli.runtime.show_origin import (
 # Helpers
 # ---------------------------------------------------------------------------
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 def _create_file(path: Path, content: str = "placeholder") -> Path:
     """Create a file (and any missing parent dirs), return its path."""
     path.parent.mkdir(parents=True, exist_ok=True)

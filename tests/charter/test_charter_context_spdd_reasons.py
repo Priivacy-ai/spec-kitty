@@ -24,6 +24,8 @@ from doctrine.spdd_reasons import (
 )
 
 
+pytestmark = [pytest.mark.unit]
+
 ACTIONS = ("specify", "plan", "tasks", "implement", "review")
 
 

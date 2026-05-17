@@ -9,6 +9,8 @@ import pytest
 from specify_cli.intake_sources import HARNESS_PLAN_SOURCES, scan_for_plans
 
 
+pytestmark = [pytest.mark.unit]
+
 class TestHarnessPlanSources:
     def test_list_is_defined(self):
         assert isinstance(HARNESS_PLAN_SOURCES, list)

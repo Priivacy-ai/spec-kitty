@@ -17,6 +17,8 @@ from specify_cli.context.store import (
 )
 
 
+pytestmark = [pytest.mark.unit]
+
 def _make_context(**overrides: object) -> MissionContext:
     defaults: dict[str, object] = {
         "token": "ctx-01TESTSTORAGE00000000000AA",

@@ -30,6 +30,10 @@ from specify_cli.audit.classifiers.wp_files import classify_wp_files
 # Fixture root
 # ---------------------------------------------------------------------------
 
+import pytest
+
+pytestmark = [pytest.mark.integration]
+
 FX = Path(__file__).parent / "fixtures"
 
 

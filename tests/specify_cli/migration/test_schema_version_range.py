@@ -22,6 +22,10 @@ from specify_cli.migration.schema_version import (
 # ---------------------------------------------------------------------------
 
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 def test_min_lte_max() -> None:
     """MIN_SUPPORTED_SCHEMA must be <= MAX_SUPPORTED_SCHEMA."""
     assert MIN_SUPPORTED_SCHEMA <= MAX_SUPPORTED_SCHEMA

@@ -8,6 +8,8 @@ import pytest
 import acceptance_support as acc
 import task_helpers as th
 
+pytestmark = [pytest.mark.integration]
+
 ACCEPTANCE_MODE_CHECKLIST = "checklist"
 
 

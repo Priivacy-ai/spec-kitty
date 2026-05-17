@@ -21,6 +21,8 @@ from specify_cli.text_sanitization import (
 import contextlib
 
 
+pytestmark = [pytest.mark.integration]
+
 class TestCharacterDetection:
     """Test 1.1: Detect All Problematic Character Types"""
 

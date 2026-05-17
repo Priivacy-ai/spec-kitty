@@ -10,6 +10,8 @@ import pytest
 from specify_cli.core.atomic import atomic_write
 
 
+pytestmark = [pytest.mark.unit]
+
 def test_atomic_write_str(tmp_path: Path) -> None:
     """Write a string, read back, confirm UTF-8 content matches."""
     target = tmp_path / "output.txt"

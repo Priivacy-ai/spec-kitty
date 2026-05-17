@@ -8,6 +8,8 @@ from specify_cli.auth.config import get_saas_base_url
 from specify_cli.auth.errors import ConfigurationError
 
 
+pytestmark = [pytest.mark.integration]
+
 def test_get_saas_base_url_reads_env_var(monkeypatch):
     monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://saas.test")
     assert get_saas_base_url() == "https://saas.test"

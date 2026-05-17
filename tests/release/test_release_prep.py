@@ -32,6 +32,8 @@ from specify_cli.release.version import propose_version
 # Helpers
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.integration]
+
 runner = CliRunner()
 
 

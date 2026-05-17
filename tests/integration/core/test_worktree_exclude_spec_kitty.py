@@ -25,6 +25,8 @@ from specify_cli.core.worktree import (
 )
 
 
+pytestmark = [pytest.mark.integration]
+
 def _run(cmd: list[str]) -> None:
     subprocess.run(cmd, check=True, capture_output=True, text=True)
 

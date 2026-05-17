@@ -18,6 +18,8 @@ from pathlib import Path
 import pytest
 
 
+pytestmark = [pytest.mark.integration]
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TARGET = "src/specify_cli/mission_step_contracts/executor.py"
 

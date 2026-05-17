@@ -43,6 +43,10 @@ from charter.synthesizer.path_guard import PathGuard
 # ---------------------------------------------------------------------------
 
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 def _write_artifact(
     repo: Path, kind: str, slug: str, filename: str, content: bytes
 ) -> Path:

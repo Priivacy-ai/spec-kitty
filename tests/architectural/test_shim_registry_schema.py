@@ -7,6 +7,8 @@ import pytest
 
 from specify_cli.compat.registry import RegistrySchemaError, validate_registry
 
+pytestmark = [pytest.mark.architectural]
+
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _REGISTRY_PATH = _REPO_ROOT / "architecture" / "2.x" / "shim-registry.yaml"
 

@@ -22,6 +22,8 @@ from typing import Any
 import pytest
 import yaml
 
+pytestmark = [pytest.mark.unit]
+
 _DOC_ACTIONS: tuple[str, ...] = (
     "discover",
     "audit",

@@ -28,6 +28,8 @@ from charter.synthesizer.evidence import (
 # Helpers — minimal valid instances
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.unit]
+
 def _make_code_signals(**overrides: object) -> CodeSignals:
     defaults = dict(
         stack_id="python",

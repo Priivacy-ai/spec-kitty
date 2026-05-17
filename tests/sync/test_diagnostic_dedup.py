@@ -18,6 +18,8 @@ from specify_cli.diagnostics import (
 )
 
 
+pytestmark = [pytest.mark.unit]
+
 @pytest.fixture(autouse=True)
 def _isolate_diagnostic_state() -> Iterator[None]:
     """Reset dedup + success-flag state before and after each test."""

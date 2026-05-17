@@ -25,6 +25,10 @@ from charter.compiler import _default_doctrine_service
 # Direct tests for resolve_project_root()
 # ---------------------------------------------------------------------------
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 class TestResolveProjectRoot:
     """Tests for the shared _doctrine_paths.resolve_project_root() helper."""
 

@@ -28,6 +28,8 @@ import yaml
 from specify_cli.migration.schema_version import REQUIRED_SCHEMA_VERSION
 
 
+pytestmark = [pytest.mark.e2e]
+
 def _make_pre_schema_project(root: Path) -> None:
     """Create a minimal pre-3.x Spec Kitty project at ``root``.
 

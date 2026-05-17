@@ -22,6 +22,8 @@ from specify_cli.audit.models import (
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.integration]
+
 class TestSeverity:
     def test_has_exactly_three_members(self) -> None:
         members = list(Severity)

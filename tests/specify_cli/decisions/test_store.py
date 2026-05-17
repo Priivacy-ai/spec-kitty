@@ -36,6 +36,8 @@ from specify_cli.decisions.store import (
 # Shared helpers
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.unit]
+
 ULID_A = "01KPWT8PNY8683QX3WBW6VXYM7"
 ULID_B = "01KPWT8PNY8683QX3WBW6VXYM8"
 ULID_C = "01KPWT8PNY8683QX3WBW6VXYM9"

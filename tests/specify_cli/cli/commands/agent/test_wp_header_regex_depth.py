@@ -21,6 +21,8 @@ import pytest
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 class TestParseWpSectionsHeaderDepth:
     """_parse_wp_sections_from_tasks_md must detect WP sections at h2/h3/h4."""
 

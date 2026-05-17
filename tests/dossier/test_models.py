@@ -14,6 +14,8 @@ from pydantic import ValidationError
 from specify_cli.dossier.models import ArtifactRef, MissionDossier
 
 
+pytestmark = [pytest.mark.unit]
+
 class TestArtifactRefValidation:
     """Test ArtifactRef field validation."""
 

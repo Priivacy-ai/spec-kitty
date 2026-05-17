@@ -30,6 +30,10 @@ from specify_cli.widen.models import AudienceSelection
 # ---------------------------------------------------------------------------
 
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 def _member(user_id: int, display_name: str) -> AudienceMember:
     return {
         "user_id": user_id,

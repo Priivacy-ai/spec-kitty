@@ -5,6 +5,10 @@ from __future__ import annotations
 from specify_cli.dashboard.templates import get_dashboard_html
 
 
+import pytest
+
+pytestmark = [pytest.mark.integration]
+
 def test_dashboard_glossary_interactions_use_native_links() -> None:
     html = get_dashboard_html()
 

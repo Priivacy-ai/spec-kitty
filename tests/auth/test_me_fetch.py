@@ -15,6 +15,8 @@ import respx
 from specify_cli.auth.http.me_fetch import fetch_me_payload
 
 
+pytestmark = [pytest.mark.integration]
+
 @respx.mock
 def test_fetch_me_payload_success() -> None:
     """Happy path: 200 + parsed teams payload returned verbatim to the caller."""

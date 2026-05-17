@@ -24,6 +24,10 @@ from specify_cli.audit.serializer import build_report_json
 # ---------------------------------------------------------------------------
 
 
+import pytest
+
+pytestmark = [pytest.mark.integration]
+
 def _finding(code: str, severity: Severity, artifact_path: str, detail: str | None = None) -> MissionFinding:
     return MissionFinding(code=code, severity=severity, artifact_path=artifact_path, detail=detail)
 

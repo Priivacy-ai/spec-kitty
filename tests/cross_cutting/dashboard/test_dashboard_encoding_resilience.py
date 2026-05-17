@@ -18,6 +18,8 @@ from specify_cli.dashboard.scanner import (
 )
 
 
+pytestmark = [pytest.mark.integration]
+
 class TestDashboardReadResilience:
     """Test 3.1 & 3.2: Dashboard read resilience with and without auto-fix"""
 

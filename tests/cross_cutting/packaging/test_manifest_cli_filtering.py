@@ -14,6 +14,10 @@ from pathlib import Path
 from specify_cli.manifest import FileManifest
 
 
+import pytest
+
+pytestmark = [pytest.mark.integration]
+
 def test_cli_commands_not_treated_as_scripts(tmp_path: Path):
     """
     GIVEN a command template with 'sh: spec-kitty agent --json' frontmatter

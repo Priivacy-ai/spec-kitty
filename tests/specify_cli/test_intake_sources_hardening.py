@@ -7,6 +7,8 @@ from unittest.mock import patch
 from specify_cli.intake_sources import scan_for_plans, HARNESS_PLAN_SOURCES
 
 
+pytestmark = [pytest.mark.unit]
+
 def test_scan_excludes_out_of_bounds_path(tmp_path, monkeypatch):
     """Paths resolving outside cwd are silently excluded."""
     # Create in-bounds file

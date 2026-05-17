@@ -18,6 +18,8 @@ from specify_cli.status.store import append_event
 from specify_cli.status.models import StatusEvent, Lane
 
 
+pytestmark = [pytest.mark.unit]
+
 def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
     """Seed a WP into a specific lane in the event log."""
     _lane_alias = {"doing": "in_progress"}

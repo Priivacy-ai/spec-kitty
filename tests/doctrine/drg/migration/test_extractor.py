@@ -27,6 +27,9 @@ from doctrine.drg.models import NodeKind, Relation
 from doctrine.drg.validator import validate_graph
 
 # Path to the shipped doctrine root inside the repo.
+
+pytestmark = [pytest.mark.doctrine]
+
 DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[4] / "src" / "doctrine"
 
 _yaml = YAML(typ="safe")

@@ -34,6 +34,8 @@ from charter.synthesizer.synthesize_pipeline import ProvenanceEntry, run_all
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 @pytest.fixture
 def full_interview_snapshot() -> dict[str, Any]:
     """Interview snapshot that drives all target kinds in the minimal DRG."""

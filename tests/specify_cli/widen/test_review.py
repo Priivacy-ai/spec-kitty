@@ -50,6 +50,10 @@ from specify_cli.widen.review import (
 # ---------------------------------------------------------------------------
 
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 def make_discussion(
     participants: list[str] | None = None,
     message_count: int = 3,

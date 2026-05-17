@@ -19,6 +19,10 @@ from doctrine.spdd_reasons.template_renderer import (
     process_spdd_blocks,
 )
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 REVIEW_TEMPLATE_PATH = (
     REPO_ROOT

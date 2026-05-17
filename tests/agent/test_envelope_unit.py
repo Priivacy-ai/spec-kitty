@@ -15,6 +15,8 @@ from specify_cli.orchestrator_api.envelope import (
 )
 
 
+pytestmark = [pytest.mark.unit]
+
 class TestMakeEnvelope:
     def test_make_envelope_shape(self):
         """All 7 required keys present with correct types."""

@@ -11,6 +11,8 @@ from typing import Any, cast
 import pytest
 import yaml
 
+pytestmark = [pytest.mark.architectural]
+
 MANIFEST_PATH = Path(__file__).parents[2] / "architecture" / "2.x" / "05_ownership_manifest.yaml"
 
 REQUIRED_SLICE_KEYS = frozenset(

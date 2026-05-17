@@ -30,6 +30,8 @@ from specify_cli.doctrine_synthesizer import (
 # Runner + fixtures
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.integration]
+
 runner = CliRunner()
 
 # Valid 26-char ULIDs for test fixtures (Crockford base32: 0-9 A-H J-N P-T V-Z)

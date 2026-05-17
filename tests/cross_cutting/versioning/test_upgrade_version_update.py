@@ -11,6 +11,10 @@ from specify_cli.upgrade.metadata import ProjectMetadata
 from specify_cli.upgrade.runner import MigrationRunner
 
 
+import pytest
+
+pytestmark = [pytest.mark.integration]
+
 def _init_git_repo(root):
     """Initialize a git repo so upgrade migrations can resolve canonical roots."""
     subprocess.run(

@@ -29,6 +29,8 @@ from specify_cli.compat.cache import NagCache, NagCacheRecord
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.integration]
+
 def _make_record(tmp_path: Path, last_shown_at: datetime | None = None) -> NagCacheRecord:
     """Write a minimal NagCacheRecord to a tmp cache and return the path."""
     return NagCacheRecord(

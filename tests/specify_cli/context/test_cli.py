@@ -17,6 +17,8 @@ from specify_cli.cli.commands.context import app
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 def _make_project(tmp_path: Path, *, mission_slug: str = "057-test-feature", wp_code: str = "WP01") -> Path:
     """Create a minimal spec-kitty project tree for CLI tests."""
     # .kittify/config.yaml

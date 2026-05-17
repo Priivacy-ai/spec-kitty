@@ -24,6 +24,8 @@ import sys
 import pytest
 
 
+pytestmark = [pytest.mark.unit]
+
 @pytest.mark.windows_ci
 def test_cli_startup_under_non_utf8_codepage_does_not_crash(tmp_path: pytest.TempPathFactory) -> None:
     """CLI startup must not crash when stdout is on a non-UTF-8 code page.

@@ -9,6 +9,8 @@ import pytest
 from specify_cli.paths import render_runtime_path
 
 
+pytestmark = [pytest.mark.unit]
+
 def test_windows_returns_absolute(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(sys, "platform", "win32")
     # Simulate Windows absolute path semantics on a POSIX test runner by using

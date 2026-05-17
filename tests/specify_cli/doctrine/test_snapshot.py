@@ -12,6 +12,10 @@ from specify_cli.doctrine.snapshot import write_pack_manifest, write_snapshot
 from specify_cli.doctrine.sources.protocol import FetchResult
 
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 @dataclass
 class _ScriptedSource:
     """Test double implementing the OrgDoctrineSource protocol structurally."""

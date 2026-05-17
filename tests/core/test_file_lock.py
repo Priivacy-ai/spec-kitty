@@ -28,6 +28,8 @@ from specify_cli.core.file_lock import (
 )
 
 
+pytestmark = [pytest.mark.unit]
+
 @pytest.fixture()
 def lock_path(tmp_path: Path) -> Path:
     return tmp_path / "subdir" / "refresh.lock"

@@ -22,6 +22,8 @@ import pytest
 
 from specify_cli.runtime.resolver import resolve_command
 
+pytestmark = [pytest.mark.unit]
+
 _RESEARCH_STEPS = ("scoping", "methodology", "gathering", "synthesis", "output", "accept")
 
 

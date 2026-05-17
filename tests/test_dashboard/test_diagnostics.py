@@ -12,6 +12,10 @@ from pathlib import Path
 from specify_cli.dashboard import diagnostics
 
 
+import pytest
+
+pytestmark = [pytest.mark.integration]
+
 def _install_manifest_stubs(monkeypatch, worktree_path: Path) -> None:
     """Provide lightweight manifest + worktree stubs for diagnostics tests."""
 

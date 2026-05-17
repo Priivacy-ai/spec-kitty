@@ -7,6 +7,10 @@ import zipfile
 from pathlib import Path
 from textwrap import dedent
 
+import pytest
+
+pytestmark = [pytest.mark.integration]
+
 SCRIPT = (
     Path(__file__).resolve().parents[2]
     / "scripts"

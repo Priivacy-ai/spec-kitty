@@ -14,6 +14,10 @@ from specify_cli.status.models import StatusEvent
 from specify_cli.status.reducer import materialize_to_json, reduce
 
 
+import pytest
+
+pytestmark = [pytest.mark.integration]
+
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 

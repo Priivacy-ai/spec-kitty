@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
+pytestmark = [pytest.mark.integration]
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 LEGACY_DIRNAME = "agent" + "-" + "profiles"
 LEGACY_PATH = REPO_ROOT / "src" / "doctrine" / LEGACY_DIRNAME

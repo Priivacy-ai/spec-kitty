@@ -22,6 +22,8 @@ from specify_cli.compat.config import (
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 def _write_yaml(path: Path, content: str) -> None:
     """Write content to path, creating parent dirs."""
     path.parent.mkdir(parents=True, exist_ok=True)

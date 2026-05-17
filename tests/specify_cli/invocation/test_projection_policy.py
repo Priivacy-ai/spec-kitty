@@ -25,6 +25,8 @@ from specify_cli.invocation.projection_policy import (
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 def test_policy_table_covers_all_16_pairs() -> None:
     """Every (ModeOfWork, EventKind) product must appear in POLICY_TABLE."""
     expected_pairs = {(m, e) for m in ModeOfWork for e in EventKind}

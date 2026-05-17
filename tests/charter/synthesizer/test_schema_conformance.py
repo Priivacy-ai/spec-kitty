@@ -39,6 +39,8 @@ from charter.synthesizer.synthesize_pipeline import ProvenanceEntry, _assert_sch
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 VALID_DIRECTIVE_BODY: dict[str, Any] = {
     "id": "PROJECT_001",
     "schema_version": "1.0",

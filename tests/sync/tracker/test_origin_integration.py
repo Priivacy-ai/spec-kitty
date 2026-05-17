@@ -41,6 +41,8 @@ from specify_cli.tracker.saas_client import SaaSTrackerClient
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 def _make_response(
     status_code: int = 200,
     json_body: dict[str, Any] | None = None,

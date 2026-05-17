@@ -47,6 +47,8 @@ from tests.integration.retrospective.conftest import (
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.integration]
+
 def _make_proposal(mission_id: str, event_id: str) -> Proposal:
     """Build a minimal add_glossary_term proposal."""
     import ulid as _ulid

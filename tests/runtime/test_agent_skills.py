@@ -8,6 +8,10 @@ from specify_cli.runtime.agent_skills import ensure_global_agent_skills
 from specify_cli.skills.registry import SkillRegistry
 
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 def _create_skill(root: Path, name: str, content: str | None = None) -> None:
     skill_dir = root / name
     skill_dir.mkdir(parents=True, exist_ok=True)

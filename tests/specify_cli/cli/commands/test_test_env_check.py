@@ -19,6 +19,8 @@ from specify_cli.cli.commands._test_env_check import (
 )
 
 
+pytestmark = [pytest.mark.unit]
+
 def test_assert_pytest_available_succeeds_when_pytest_importable(
     tmp_path: Path,
 ) -> None:

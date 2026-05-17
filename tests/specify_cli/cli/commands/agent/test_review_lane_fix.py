@@ -13,6 +13,8 @@ from specify_cli.status.models import Lane, StatusEvent
 # Helpers
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.unit]
+
 def _make_event(to_lane: Lane, review_ref: str | None = None, wp_id: str = "WP01") -> StatusEvent:
     """Build a minimal StatusEvent for testing detection logic."""
     return StatusEvent(

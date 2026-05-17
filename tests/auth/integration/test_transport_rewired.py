@@ -25,6 +25,8 @@ from pathlib import Path
 import pytest
 
 
+pytestmark = [pytest.mark.integration]
+
 def test_sync_client_imports_get_token_manager() -> None:
     """``sync/client.py`` must import ``get_token_manager`` from the auth pkg.
 

@@ -10,6 +10,10 @@ from specify_cli.core.config import (
     SKILL_CLASS_WRAPPER,
 )
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 VALID_CLASSES = {SKILL_CLASS_SHARED, SKILL_CLASS_NATIVE, SKILL_CLASS_WRAPPER}
 
 

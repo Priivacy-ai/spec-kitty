@@ -38,6 +38,8 @@ from specify_cli.git.sparse_checkout import (
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 @pytest.fixture(autouse=True)
 def _reset_warning_state() -> None:
     """Reset the module-level session-warning flag before every test."""

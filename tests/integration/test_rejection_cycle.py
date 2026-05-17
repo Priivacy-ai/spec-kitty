@@ -29,6 +29,8 @@ from specify_cli.status.store import append_event
 # Helpers
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.integration]
+
 def _make_event(
     *,
     event_id: str = "01HXYZ0123456789ABCDEFGHJK",

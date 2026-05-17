@@ -25,6 +25,8 @@ from specify_cli.cli.commands.init import register_init_command
 # Helpers
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.integration]
+
 def _make_app(monkeypatch: pytest.MonkeyPatch) -> Typer:
     out = io.StringIO()
     console = Console(file=out, force_terminal=False, highlight=False)

@@ -13,6 +13,8 @@ from pathlib import Path
 import pytest
 
 
+pytestmark = [pytest.mark.integration]
+
 def _setup_fake_assets(asset_dir: str) -> None:
     """Create a minimal package asset tree for testing."""
     missions = Path(asset_dir) / "missions"

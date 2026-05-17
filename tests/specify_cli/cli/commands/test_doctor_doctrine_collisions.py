@@ -18,6 +18,10 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.doctor import app as doctor_app
 
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 runner = CliRunner()
 
 

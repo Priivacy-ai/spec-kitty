@@ -8,6 +8,8 @@ from pydantic import ValidationError
 from doctrine.agent_profiles.profile import AgentProfile, Role
 
 
+pytestmark = [pytest.mark.doctrine]
+
 class TestRoleConstruction:
     def test_known_constant_is_role_instance(self):
         assert isinstance(Role.IMPLEMENTER, Role)

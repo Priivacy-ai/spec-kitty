@@ -32,6 +32,8 @@ from charter.synthesizer.write_pipeline import promote
 # Helpers
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.unit]
+
 RUN_ID = "01KPE222TESTSTAGING00000001"
 
 

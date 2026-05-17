@@ -37,6 +37,8 @@ from kernel.errors import KittyInternalConsistencyError
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 def test_load_charter_bytes_utf8_succeeds() -> None:
     """Inline UTF-8 bytes load cleanly with confidence=1.0 and no
     normalization."""

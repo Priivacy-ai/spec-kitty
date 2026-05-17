@@ -37,6 +37,9 @@ from specify_cli.next._internal_runtime.discovery import DiscoveryContext
 
 
 # Path to the on-disk fixtures created by T029.
+
+pytestmark = [pytest.mark.integration]
+
 _FIXTURES_ROOT = Path(__file__).resolve().parent.parent / "fixtures" / "missions"
 
 
