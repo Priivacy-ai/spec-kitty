@@ -8,5 +8,7 @@
   "purpose_context": "This mission advances Charter-Mediated Doctrine Selection (Mission B) on feat/org-doctrine-layer so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "Charter-Mediated Doctrine Selection (Mission B)",
   "slug": "charter-mediated-doctrine-selection-01KRTZCA",
-  "target_branch": "feat/org-doctrine-layer"
+  "target_branch": "feat/org-doctrine-layer",
+  "vcs": "git",
+  "vcs_locked_at": "2026-05-17T16:23:49.176270+00:00"
 }
