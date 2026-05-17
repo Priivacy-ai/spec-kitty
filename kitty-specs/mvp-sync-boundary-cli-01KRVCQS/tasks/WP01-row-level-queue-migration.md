@@ -24,8 +24,8 @@ subtasks:
 - T004
 - T005
 phase: Phase 1 - Queue
-agent: claude
-shell_pid: '54665'
+agent: "claude:opus-4-7:python-pedro:implementer"
+shell_pid: "54665"
 history:
 - timestamp: '2026-05-17T16:42:00Z'
   lane: planned
@@ -138,3 +138,7 @@ Planning base: `main`. Final merge target: `main`. Worktree allocated per lane i
 - Confirm: INSERT OR IGNORE used; delete only after row exists in dst.
 - Run the new test file in isolation: < 5s.
 - Confirm no new deps added.
+
+## Activity Log
+
+- 2026-05-17T16:46:15Z – claude:opus-4-7:python-pedro:implementer – shell_pid=54665 – Assigned agent via action command
