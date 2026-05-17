@@ -241,3 +241,4 @@ Coverage:
 ## Activity Log
 
 - 2026-05-17T17:15:25Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1708946 – Started implementation via action command
+- 2026-05-17T17:35:55Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1708946 – Activation render body filled; runtime re-export ratcheted by cross-check test; case-1 trigger stanza ATDD green
