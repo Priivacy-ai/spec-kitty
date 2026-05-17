@@ -303,3 +303,4 @@ Pinned by `test_resolve_governance_hard_fails_for_unknown_mission_type`.
 - 2026-05-17T18:21:59Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=1774534 – Started review via action command
 - 2026-05-17T18:25:17Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=1774534 – Moved to planned
 - 2026-05-17T18:26:12Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1776735 – Started implementation via action command
+- 2026-05-17T18:33:05Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1776735 – Cycle 2: renamed to resolve_mission_type_governance (resolves collision); wired into prompt_builder.py; integration test proves live wiring for documentation mission (no software-dev-default leak)
