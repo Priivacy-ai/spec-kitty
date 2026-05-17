@@ -23,7 +23,8 @@ subtasks:
 - T015
 - T016
 phase: Phase 2 - Status
-agent: claude
+agent: "claude:opus-4-7:python-pedro:implementer"
+shell_pid: "70501"
 history:
 - timestamp: '2026-05-17T16:42:00Z'
   lane: planned
@@ -129,3 +130,7 @@ Planning base: `main`. Final merge target: `main`.
 - Confirm `--check` returns exit 0 in healthy state.
 - Confirm each of the four scenarios in T016 trips the gate with a clear message.
 - Spot-check `doctor` (or status) output for orphan listing.
+
+## Activity Log
+
+- 2026-05-17T17:11:16Z – claude:opus-4-7:python-pedro:implementer – shell_pid=70501 – Started implementation via action command
