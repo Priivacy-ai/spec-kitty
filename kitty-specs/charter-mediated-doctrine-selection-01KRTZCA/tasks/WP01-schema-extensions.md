@@ -20,8 +20,8 @@ subtasks:
 - T004
 - T005
 - T008
-agent: "claude:opus-4-7:python-pedro:implementer"
-shell_pid: "1612262"
+agent: "claude:opus-4-7:reviewer-renata:reviewer"
+shell_pid: "1637106"
 history: []
 agent_profile: python-pedro
 authoritative_surface: src/charter/schemas.py
@@ -277,3 +277,4 @@ The following tests turn green (or stay green) with this WP:
 
 - 2026-05-17T16:23:50Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1612262 – Assigned agent via action command
 - 2026-05-17T16:34:01Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1612262 – Schema extensions land: 5 selected_<kind> parity fields on DoctrineSelectionConfig, ActivationEntry + ALLOWED_MISSION_TYPES/ALLOWED_ACTIONS/REGISTERED_TRIGGERS surface in src/charter/activations.py, _OPTIONAL_EMPTY_OMIT_KEYS extended, GovernanceConfig.activations field added. 4/4 test_activation_registry_schema and 1/3 test_artifact_selection_completeness (the WP01 target) now green; remaining 2 belong to WP06 T002. layer-rules 9/9 still passing; full architectural suite 117 pass / 2 known WP06 failures.
+- 2026-05-17T16:34:46Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=1637106 – Started review via action command
