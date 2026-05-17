@@ -1233,7 +1233,7 @@ def status(
     """
     from specify_cli.auth import get_token_manager
     from specify_cli.sync.config import SyncConfig
-    from specify_cli.sync.daemon import get_sync_daemon_status
+    from specify_cli.sync.daemon import get_sync_daemon_status, scan_sync_daemons
     from specify_cli.sync.queue import OfflineQueue
 
     console.print()
@@ -1269,6 +1269,10 @@ def status(
     table.add_row("Daemon", daemon_text)
     if daemon_status.url:
         table.add_row("Daemon URL", daemon_status.url)
+    if daemon_status.pid is not None:
+        table.add_row("Daemon PID", str(daemon_status.pid))
+    if daemon_status.port is not None:
+        table.add_row("Daemon Port", str(daemon_status.port))
 
     sync_mode = "[green]Global daemon[/green]" if daemon_status.sync_running else "[yellow]Queue only[/yellow]"
     table.add_row("Sync Mode", sync_mode)
@@ -1308,6 +1312,7 @@ def status(
     # parsing), where ``check_connection`` would be a ``typer.OptionInfo``
     # instance rather than a real bool. We only treat ``True`` as opt-in.
     auth_recovery_pending = False
+    orphan_report = None
     if check_connection is True:
         connection_status, connection_note = _check_server_connection(server_url)
         table.add_row("Ping", connection_status)
@@ -1322,8 +1327,43 @@ def status(
             or "Authentication failed" in connection_status
         )
 
+        # Surface daemon-singleton honesty: scan for stale `run_sync_daemon`
+        # processes that are not the one recorded in DAEMON_STATE_FILE.
+        # Multiple co-existing daemons (across checkouts / Conductor workspaces /
+        # bleed-through restarts) are how the regression in #1071 manifests in
+        # practice; report them here so operators see the divergence without
+        # having to grep ``ps`` themselves.
+        try:
+            orphan_report = scan_sync_daemons()
+        except Exception:  # noqa: BLE001
+            orphan_report = None
+        if orphan_report is not None:
+            if orphan_report.orphan_count == 0:
+                table.add_row(
+                    "Singleton",
+                    "[green]OK[/green] (no orphan daemons detected)",
+                )
+            else:
+                table.add_row(
+                    "Singleton",
+                    f"[yellow]{orphan_report.orphan_count} orphan daemon(s) detected[/yellow]",
+                )
+
     console.print(table)
     console.print()
+
+    if orphan_report is not None and orphan_report.orphan_count > 0:
+        console.print(
+            "[yellow]Other live ``run_sync_daemon`` processes detected outside the "
+            "registered singleton (#1071):[/yellow]"
+        )
+        for orphan in orphan_report.orphan_processes:
+            console.print(f"  PID {orphan.pid}: {' '.join(orphan.cmdline)}")
+        console.print(
+            "[dim]Run `spec-kitty sync doctor` for a guided cleanup, or kill the "
+            "rogue processes manually.[/dim]"
+        )
+        console.print()
 
     # --- Queue health section (T022/T023) ---
     queue_stats = queue.get_queue_stats()
@@ -1589,8 +1629,53 @@ def doctor() -> None:  # noqa: C901
             "Events will continue to queue locally."
         )
 
+    # --- 3b. Daemon singleton invariant (spec-kitty#1071) ---
+    # Inspect for live `run_sync_daemon` processes that are not the registered
+    # singleton. Multiple co-existing daemons (across checkouts, workspaces, or
+    # bleed-through restarts) are the exact failure mode that #1071 surfaced
+    # during the canonical status investigation. Report them honestly here.
+    from specify_cli.sync.daemon import scan_sync_daemons
+
+    try:
+        singleton_report = scan_sync_daemons()
+    except Exception:  # noqa: BLE001
+        singleton_report = None
+
+    if singleton_report is not None:
+        if singleton_report.orphan_count == 0:
+            table.add_row(
+                "Daemon singleton",
+                "[green]OK[/green] (no orphan `run_sync_daemon` processes)",
+            )
+        else:
+            table.add_row(
+                "Daemon singleton",
+                f"[yellow]{singleton_report.orphan_count} orphan daemon(s)[/yellow]",
+            )
+            issues.append(
+                f"{singleton_report.orphan_count} live `run_sync_daemon` process(es) "
+                f"are not the registered singleton. Multiple daemons make queue state "
+                f"ambiguous (spec-kitty#1071). Kill the orphans manually or run "
+                f"`spec-kitty sync stop` and a clean `spec-kitty sync now`."
+            )
+
     console.print(table)
     console.print()
+
+    if singleton_report is not None and singleton_report.orphan_count > 0:
+        orphan_table = Table(
+            title="Orphan run_sync_daemon Processes",
+            show_header=True,
+            header_style="bold yellow",
+            show_lines=False,
+            expand=False,
+        )
+        orphan_table.add_column("PID", justify="right", style="yellow")
+        orphan_table.add_column("Command line", overflow="fold")
+        for orphan in singleton_report.orphan_processes:
+            orphan_table.add_row(str(orphan.pid), " ".join(orphan.cmdline))
+        console.print(orphan_table)
+        console.print()
 
     # --- 4. Top event types (if queue non-empty) ---
     if stats.top_event_types:
