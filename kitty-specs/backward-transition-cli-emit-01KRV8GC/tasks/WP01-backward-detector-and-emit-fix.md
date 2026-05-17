@@ -226,3 +226,4 @@ A reviewer should:
 ## Activity Log
 
 - 2026-05-17T15:36:19Z – claude:opus:python-pedro:implementer – shell_pid=3059 – Assigned agent via action command
+- 2026-05-17T15:41:24Z – claude:opus:python-pedro:implementer – shell_pid=3059 – Backward detector + auto-promote block landed; existing tests pass; smoke OK
