@@ -26,12 +26,12 @@ Total subtasks: 20.
 | T003 | Add structured info-level log per migrated row (table, stable key) | WP01 | [D] |
 | T004 | Add tests: `tests/sync/test_queue_row_level_migration.py` covering FR-001..FR-004 plus the four scenarios in start-here.md WP1090 prompt (migrate; migrate when destination has unrelated rows; idempotent re-run; detect legacy rows for active scope) | WP01 | [D] |
 | T005 | Run `uv run pytest tests/sync` + `mypy --strict src/specify_cli/sync/queue.py`; confirm no regressions | WP01 | [D] |
-| T006 | Create `src/specify_cli/sync/owner.py` with `DaemonOwnerRecord` dataclass + atomic write/read/compare helpers per data-model.md | WP02 |
-| T007 | Wire `daemon.py` start path to write the owner record atomically when the daemon binds its port | WP02 |
-| T008 | Extend daemon health endpoint to include the owner record (excluding `token`) | WP02 |
-| T009 | Add foreground-side helper `check_daemon_owner_match()` returning a tuple `(is_coherent, mismatched_fields)`. Add a thin call-site shim used by any sync action that talks to the daemon | WP02 |
-| T010 | Add orphan-detection helper that identifies owner records whose PID is not alive OR whose executable path no longer exists | WP02 |
-| T011 | Tests: `tests/sync/test_daemon_owner_record.py` covering FR-005..FR-007, FR-010, C-002 (no real-process kills; use controlled subprocesses or fake metadata) | WP02 |
+| T006 | Create `src/specify_cli/sync/owner.py` with `DaemonOwnerRecord` dataclass + atomic write/read/compare helpers per data-model.md | WP02 | [D] |
+| T007 | Wire `daemon.py` start path to write the owner record atomically when the daemon binds its port | WP02 | [D] |
+| T008 | Extend daemon health endpoint to include the owner record (excluding `token`) | WP02 | [D] |
+| T009 | Add foreground-side helper `check_daemon_owner_match()` returning a tuple `(is_coherent, mismatched_fields)`. Add a thin call-site shim used by any sync action that talks to the daemon | WP02 | [D] |
+| T010 | Add orphan-detection helper that identifies owner records whose PID is not alive OR whose executable path no longer exists | WP02 | [D] |
+| T011 | Tests: `tests/sync/test_daemon_owner_record.py` covering FR-005..FR-007, FR-010, C-002 (no real-process kills; use controlled subprocesses or fake metadata) | WP02 | [D] |
 | T012 | Extend `sync status` to include the FR-008 fields (foreground identity, daemon owner identity, mismatch diagnostics, orphan count, legacy DB row counts) | WP03 |
 | T013 | Implement `sync status --check` exit-code logic per FR-009 (a/b/c) | WP03 |
 | T014 | Add `doctor` listing of orphan daemons with a retirement command (FR-010) | WP03 |
