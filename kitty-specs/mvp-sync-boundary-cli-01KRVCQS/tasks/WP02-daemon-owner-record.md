@@ -139,3 +139,4 @@ Planning base: `main`. Final merge target: `main`. Worktree per lane.
 ## Activity Log
 
 - 2026-05-17T16:58:32Z – claude:opus-4-7:python-pedro:implementer – shell_pid=61161 – Started implementation via action command
+- 2026-05-17T17:07:41Z – claude:opus-4-7:python-pedro:implementer – shell_pid=61161 – Ready for review: DaemonOwnerRecord + atomic write + mismatch/orphan helpers + tests
