@@ -12,7 +12,7 @@
 | ID | Description | WP | Parallel |
 |---|---|---|---|
 | T001 | Extend `DoctrineSelectionConfig` with 5 new `selected_<kind>` fields | WP01 | | [D] |
-| T002 | Extend `OrgCharterPolicy` with 7 new `required_<kind>` fields + `activations` field | WP01 | [P] |
+| T002 | Extend `OrgCharterPolicy` with 7 new `required_<kind>` fields + `activations` field | WP01 | [D] |
 | T003 | Add `ActivationEntry`, `ALLOWED_MISSION_TYPES`, `ALLOWED_ACTIONS`, `resolve_for_context` in `src/charter/activations.py` | WP01 | [D] |
 | T004 | Extend `_OPTIONAL_EMPTY_OMIT_KEYS` in `src/charter/schemas.py` with 5 new keys for NFR-005 byte-stability | WP01 | | [D] |
 | T005 | Unit tests for new schema fields (round-trip empty, round-trip populated, parity) | WP01 | [D] |
@@ -37,12 +37,12 @@
 | T024 | Populate `tests/architectural/test_trigger_registry_coverage.py::_REGISTERED_TRIGGERS` with the 14-token frozenset per data-model.md §7 + MANDATORY runtime re-export from `src/charter/activations.py` | WP05 | [D] |
 | T024a | Cross-check architectural test `test_trigger_registry_runtime_export_in_sync` asserting byte-identical equality between canonical SSOT frozensets and `charter.activations` runtime re-exports | WP05 | [D] |
 | T025 | Unit tests: activation stanza emitted on context match; wildcard match works; multiple matches concatenate in declaration order | WP05 | [D] |
-| T026 | Extend `apply_org_charter_to_interview` in `src/specify_cli/doctrine/org_charter.py` to union every `required_<kind>` (7 new) into `interview_data.selected_<kind>` | WP06 | |
-| T027 | Extend `load_org_charter_policies` merge to handle all 8 `required_<kind>` lists with union-preserving-first-seen-order semantics | WP06 | |
-| T028 | Extend org-pack merge for `activations` field (concatenate; last-duplicate-wins on identity 4-tuple) | WP06 | |
-| T029 | Extend `DoctrineLayerCollisionWarning` emission to cover styleguides, toolguides, paradigms, procedures, mission_step_contracts (FR-014) | WP06 | |
-| T030 | Implement strict missing-pack policy (FR-015): hard-fail with named-pack-and-path error when `local_path` does not exist | WP06 | |
-| T031 | Unit tests: org charter union for each kind; collision warning for each kind; missing-pack hard-fail | WP06 | [P] |
+| T026 | Extend `apply_org_charter_to_interview` in `src/specify_cli/doctrine/org_charter.py` to union every `required_<kind>` (7 new) into `interview_data.selected_<kind>` | WP06 | | [D] |
+| T027 | Extend `load_org_charter_policies` merge to handle all 8 `required_<kind>` lists with union-preserving-first-seen-order semantics | WP06 | | [D] |
+| T028 | Extend org-pack merge for `activations` field (concatenate; last-duplicate-wins on identity 4-tuple) | WP06 | | [D] |
+| T029 | Extend `DoctrineLayerCollisionWarning` emission to cover styleguides, toolguides, paradigms, procedures, mission_step_contracts (FR-014) | WP06 | | [D] |
+| T030 | Implement strict missing-pack policy (FR-015): hard-fail with named-pack-and-path error when `local_path` does not exist | WP06 | | [D] |
+| T031 | Unit tests: org charter union for each kind; collision warning for each kind; missing-pack hard-fail | WP06 | [D] |
 | T032 | Migrate `src/specify_cli/invocation/registry.py` to `from charter.profiles import ...`; remove from allowlist | WP07 | | [D] |
 | T033 | Migrate `src/specify_cli/invocation/router.py` to `from charter.profiles import ...`; remove from allowlist | WP07 | [D] |
 | T034 | Migrate `src/specify_cli/mission_loader/registry.py` and `mission_loader/contract_synthesis.py` to `from charter.mission_steps import ...`; remove both from allowlist | WP07 | [D] |
