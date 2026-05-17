@@ -453,6 +453,25 @@ def read_lifecycle_events(log_path: Path) -> list[dict[str, Any]]:
     return _read_lifecycle_lines(log_path)
 
 
+def _iter_status_event_objects(text: str) -> Iterable[dict[str, Any]]:
+    """Yield reducer-style status events from raw mission log text."""
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(obj, dict) and "event_type" not in obj:
+            yield obj
+
+
+def _is_bootstrap_status_event(obj: Mapping[str, Any]) -> bool:
+    """Return True when the reducer event is the forced bootstrap planned event."""
+    return bool(obj.get("force")) and obj.get("to_lane") == "planned" and obj.get("from_lane") in (None, "planned")
+
+
 def has_non_bootstrap_status_history(feature_dir: Path) -> bool:
     """Return True when the mission status log contains a non-bootstrap event.
 
@@ -471,32 +490,11 @@ def has_non_bootstrap_status_history(feature_dir: Path) -> bool:
         text = log_path.read_text(encoding="utf-8")
     except OSError:
         return False
-    for raw in text.splitlines():
-        line = raw.strip()
-        if not line:
-            continue
-        try:
-            obj = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        # WPStatusChanged events from the status reducer carry
-        # ``wp_id`` + ``from_lane`` + ``to_lane`` and do NOT carry a
-        # top-level ``event_type`` field (that field is reserved for
-        # lifecycle events; the status reducer keys its events by
-        # the absence of the field — see status.store).
-        if not isinstance(obj, dict):
-            continue
-        if "event_type" in obj:
-            # Lifecycle and other event-typed entries prove that the stream
-            # exists, but they do not prove a WP advanced beyond bootstrap
-            # planned state. The merge guard needs real status transitions.
-            continue
+    for obj in _iter_status_event_objects(text):
         to_lane = obj.get("to_lane")
-        from_lane = obj.get("from_lane")
-        force = bool(obj.get("force"))
         if to_lane != "planned":
             return True
-        if force and to_lane == "planned" and from_lane in (None, "planned"):
+        if _is_bootstrap_status_event(obj):
             # Bootstrap planned event — skip.
             continue
         # Non-bootstrap planned event (e.g. legitimate planned -> planned

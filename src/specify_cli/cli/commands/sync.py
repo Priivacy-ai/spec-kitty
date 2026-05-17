@@ -205,6 +205,60 @@ def _render_top_event_types(stats: QueueStats, target_console: Console) -> None:
     target_console.print(type_table)
 
 
+def _print_sync_summary(result: object) -> None:
+    """Render the sync summary with highlighted failure details."""
+    from specify_cli.sync.batch import format_sync_summary
+
+    summary = format_sync_summary(result)
+    header = (
+        f"[green]Synced:[/green] {getattr(result, 'synced_count', 0)}  "
+        f"[dim]Duplicates:[/dim] {getattr(result, 'duplicate_count', 0)}  "
+        f"[red]Errors:[/red] {getattr(result, 'error_count', 0)}"
+    )
+    for line in summary.splitlines():
+        if line.startswith("  "):
+            console.print(f"  [yellow]{line.strip()}[/yellow]")
+            continue
+        console.print(header)
+
+
+def _maybe_write_sync_report(report: Path | None, result: object) -> None:
+    """Persist the per-event failure report when requested."""
+    if report is None:
+        return
+
+    failed_results = getattr(result, "failed_results", ())
+    if failed_results:
+        from specify_cli.sync.batch import write_failure_report
+
+        write_failure_report(report, result)
+        console.print(f"\n[cyan]Failure report written to {report}[/cyan]")
+        return
+
+    console.print("\n[dim]No failures to report.[/dim]")
+
+
+def _sync_result_activity(result: object) -> int:
+    """Return the total number of acknowledged sync outcomes."""
+    counts = (
+        getattr(result, "synced_count", 0),
+        getattr(result, "duplicate_count", 0),
+        getattr(result, "error_count", 0),
+    )
+    return sum(value for value in counts if isinstance(value, int) and not isinstance(value, bool))
+
+
+def _enforce_sync_now_exit(strict: bool, queue_size: int, result: object) -> None:
+    """Apply the strict exit contract for ``spec-kitty sync now``."""
+    error_count = getattr(result, "error_count", 0)
+    if strict and isinstance(error_count, int) and error_count > 0:
+        raise typer.Exit(1)
+
+    if strict and queue_size > 0 and _sync_result_activity(result) == 0:
+        console.print("[red]Error:[/red] Sync made no progress; not authenticated or sync is blocked.")
+        raise typer.Exit(1)
+
+
 def format_queue_health(stats: QueueStats, target_console: Console) -> None:
     """Render queue health metrics as Rich panels/tables.
 
@@ -1102,7 +1156,6 @@ def now(
         spec-kitty sync now --no-strict
     """
     from specify_cli.sync.background import get_sync_service
-    from specify_cli.sync.batch import format_sync_summary, write_failure_report
 
     if not is_saas_sync_enabled():
         console.print(f"[yellow]{saas_sync_disabled_message()}[/yellow]")
@@ -1146,36 +1199,9 @@ def now(
             raise typer.Exit(1)
         return
 
-    # Print actionable summary instead of bare counts
-    summary = format_sync_summary(result)
-    for line in summary.split("\n"):
-        if line.startswith("  "):
-            console.print(f"  [yellow]{line.strip()}[/yellow]")
-        else:
-            console.print(
-                f"[green]Synced:[/green] {result.synced_count}  "
-                f"[dim]Duplicates:[/dim] {result.duplicate_count}  "
-                f"[red]Errors:[/red] {result.error_count}"
-            )
-
-    # Write failure report if requested and there are failures
-    if report and result.failed_results:
-        write_failure_report(report, result)
-        console.print(f"\n[cyan]Failure report written to {report}[/cyan]")
-    elif report and not result.failed_results:
-        console.print("\n[dim]No failures to report.[/dim]")
-
-    # Strict exit: fail on sync errors surfaced by the service result.
-    if strict and result.error_count > 0:
-        raise typer.Exit(1)
-
-    # Preserve the strict contract for queue-backed syncs that report no
-    # progress at all. A non-empty queue combined with an all-zero result is
-    # treated as an unauthenticated/no-progress failure instead of silently
-    # succeeding.
-    if strict and queue_size > 0 and (result.synced_count + result.duplicate_count + result.error_count) == 0:
-        console.print("[red]Error:[/red] Sync made no progress; not authenticated or sync is blocked.")
-        raise typer.Exit(1)
+    _print_sync_summary(result)
+    _maybe_write_sync_report(report, result)
+    _enforce_sync_now_exit(strict, queue_size, result)
 
 
 @app.command()

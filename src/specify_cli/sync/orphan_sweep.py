@@ -21,7 +21,6 @@ import json
 import socket
 import subprocess
 import time
-import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
 from typing import Any
@@ -114,9 +113,7 @@ def _probe_health(port: int) -> dict[str, Any] | None:
             if response.status != 200:
                 return None
             payload = response.read()
-    except (urllib.error.URLError, OSError, TimeoutError):
-        return None
-    except Exception:
+    except OSError:
         return None
 
     try:
