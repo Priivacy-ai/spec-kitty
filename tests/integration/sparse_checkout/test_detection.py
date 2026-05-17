@@ -27,7 +27,7 @@ from specify_cli.git.sparse_checkout import (
 # ---------------------------------------------------------------------------
 
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 def _run(cmd: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(

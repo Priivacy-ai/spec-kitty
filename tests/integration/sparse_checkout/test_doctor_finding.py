@@ -27,7 +27,7 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.doctor import app as doctor_app
 
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 def _run(cmd: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(

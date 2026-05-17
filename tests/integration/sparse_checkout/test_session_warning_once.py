@@ -22,7 +22,7 @@ from specify_cli.git.sparse_checkout import (
 )
 
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 @pytest.fixture(autouse=True)
 def _reset_state() -> None:

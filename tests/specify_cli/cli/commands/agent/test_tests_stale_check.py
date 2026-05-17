@@ -26,7 +26,7 @@ from specify_cli.post_merge.stale_assertions import (
 # Helpers
 # ---------------------------------------------------------------------------
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 def _git(args: list[str], cwd: Path) -> str:
     result = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True)

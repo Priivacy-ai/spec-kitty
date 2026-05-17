@@ -15,7 +15,7 @@ from specify_cli.doc_generators import (
     RustdocGenerator,
 )
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.integration]
 
 # T062: Test JSDoc Detection
 def test_jsdoc_detects_package_json(tmp_path):

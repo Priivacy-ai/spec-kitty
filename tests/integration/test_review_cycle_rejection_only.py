@@ -35,7 +35,7 @@ from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
 
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 MISSION_SLUG = "001-rejection-only-feature"
 WP_SLUG = "WP01-test-task"

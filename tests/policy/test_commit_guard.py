@@ -11,7 +11,7 @@ from specify_cli.policy.config import CommitGuardConfig
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 class TestBranchDetection:
     def test_lane_branch(self):

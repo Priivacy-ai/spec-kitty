@@ -23,7 +23,7 @@ import pytest
 # Locate project root and report path
 # ---------------------------------------------------------------------------
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _THIS_FILE = Path(__file__).resolve()
 # tests/release/ -> tests/ -> project root

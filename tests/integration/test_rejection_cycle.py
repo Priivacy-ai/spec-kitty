@@ -29,7 +29,7 @@ from specify_cli.status.store import append_event
 # Helpers
 # ---------------------------------------------------------------------------
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 def _make_event(
     *,

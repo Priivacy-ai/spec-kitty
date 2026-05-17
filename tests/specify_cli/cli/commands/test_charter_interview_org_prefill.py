@@ -20,7 +20,7 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.charter import app as charter_app
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 runner = CliRunner()
 

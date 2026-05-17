@@ -15,7 +15,7 @@ import pytest
 
 # Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
 # Reason: trampoline bug: subprocess
-pytestmark = pytest.mark.non_sandbox
+pytestmark = [pytest.mark.non_sandbox, pytest.mark.git_repo]
 
 
 @pytest.mark.windows_ci

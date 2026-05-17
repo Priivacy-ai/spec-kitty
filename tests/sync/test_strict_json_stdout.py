@@ -84,7 +84,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 def _repo_root() -> pathlib.Path:
     """Locate the worktree root by walking up from this test file."""

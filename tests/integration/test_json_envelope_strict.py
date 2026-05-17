@@ -45,7 +45,7 @@ from specify_cli.cli.commands.agent.mission import app as mission_app
 from specify_cli.sync.diagnose import emit_diagnostic
 
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 # ---------------------------------------------------------------------------

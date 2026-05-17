@@ -13,7 +13,7 @@ from ulid import ULID
 
 from specify_cli.cli.commands.agent.mission import app
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 runner = CliRunner()
 TEST_MISSION_ID = "01KNXQS9ATWWFXS3K5ZJ9E5008"

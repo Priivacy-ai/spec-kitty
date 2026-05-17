@@ -36,7 +36,7 @@ import pytest
 from specify_cli.next.decision import DecisionKind
 from tests.lane_test_utils import write_single_lane_manifest
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 # ---------------------------------------------------------------------------
