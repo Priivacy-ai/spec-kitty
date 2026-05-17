@@ -1,7 +1,7 @@
 {
-  "event_count": 7,
-  "last_event_id": "01KRVDS49745FTMT8QXJT7S2W1",
-  "materialized_at": "2026-05-17T16:54:45.287970+00:00",
+  "event_count": 8,
+  "last_event_id": "01KRVDSZGP765KWBNB5P5VVEZT",
+  "materialized_at": "2026-05-17T16:55:13.174500+00:00",
   "mission_number": "",
   "mission_slug": "mvp-sync-boundary-cli-01KRVCQS",
   "mission_type": "software-dev",
@@ -11,18 +11,18 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 0,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 3
   },
   "work_packages": {
     "WP01": {
-      "actor": "user",
+      "actor": "claude:opus-4-7:reviewer-renata:reviewer",
       "force_count": 1,
-      "lane": "for_review",
-      "last_event_id": "01KRVDS49745FTMT8QXJT7S2W1",
-      "last_transition_at": "2026-05-17T16:54:45.287970+00:00"
+      "lane": "in_review",
+      "last_event_id": "01KRVDSZGP765KWBNB5P5VVEZT",
+      "last_transition_at": "2026-05-17T16:55:13.174500+00:00"
     },
     "WP02": {
       "actor": "finalize-tasks",

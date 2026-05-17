@@ -24,8 +24,8 @@ subtasks:
 - T004
 - T005
 phase: Phase 1 - Queue
-agent: "claude:opus-4-7:python-pedro:implementer"
-shell_pid: "54665"
+agent: "claude:opus-4-7:reviewer-renata:reviewer"
+shell_pid: "58351"
 history:
 - timestamp: '2026-05-17T16:42:00Z'
   lane: planned
@@ -143,3 +143,4 @@ Planning base: `main`. Final merge target: `main`. Worktree allocated per lane i
 
 - 2026-05-17T16:46:15Z – claude:opus-4-7:python-pedro:implementer – shell_pid=54665 – Assigned agent via action command
 - 2026-05-17T16:54:45Z – claude:opus-4-7:python-pedro:implementer – shell_pid=54665 – Ready for review: row-level migration + helper + tests
+- 2026-05-17T16:55:13Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=58351 – Started review via action command
