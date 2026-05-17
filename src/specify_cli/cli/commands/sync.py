@@ -339,6 +339,34 @@ def _require_authenticated_session(command_name: str | None = None):
     raise typer.Exit(1)
 
 
+def _require_daemon_owner_coherence(command_name: str | None = None) -> None:
+    """FR-007 precondition gate for sync mutating commands.
+
+    Refuses to act when the foreground CLI's identity (package version,
+    executable path, server URL, auth scope, queue DB path) does not match
+    the registered daemon owner record on any D-3 field. The refusal
+    message names the mismatched field(s) so the operator knows which fix
+    is needed.
+
+    No-op when no daemon owner record exists (no daemon to disagree with).
+    """
+    from specify_cli.sync.owner import check_daemon_owner_match
+
+    coherent, mismatched = check_daemon_owner_match()
+    if coherent:
+        return
+    label = f" `{command_name}`" if command_name else ""
+    console.print(
+        f"[red]Error:[/red] Refusing{label} — daemon/foreground mismatch on: "
+        f"{', '.join(mismatched)}."
+    )
+    console.print(
+        "Run [bold]spec-kitty sync status --check[/bold] for details, "
+        "or [bold]spec-kitty doctor[/bold] to inspect orphan daemons."
+    )
+    raise typer.Exit(code=2)
+
+
 def _private_team_name(session) -> str | None:
     for team in session.teams:
         if team.is_private_teamspace:
@@ -468,6 +496,8 @@ def share(
         request_repository_share_sync,
     )
 
+    _require_daemon_owner_coherence("spec-kitty sync share")
+
     if not is_saas_sync_enabled():
         console.print(f"[red]{saas_sync_disabled_message()}[/red]")
         raise typer.Exit(1)
@@ -541,6 +571,8 @@ def unshare(
         leave_repository_share_sync,
     )
 
+    _require_daemon_owner_coherence("spec-kitty sync unshare")
+
     if not is_saas_sync_enabled():
         console.print(f"[red]{saas_sync_disabled_message()}[/red]")
         raise typer.Exit(1)
@@ -598,6 +630,8 @@ def opt_out(
         delete_private_project_sync,
         list_repository_shares_sync,
     )
+
+    _require_daemon_owner_coherence("spec-kitty sync opt-out")
 
     routing = _require_active_checkout()
     result = disable_checkout_sync(
@@ -669,6 +703,8 @@ def opt_in(
 ) -> None:
     """Enable SaaS sync for this checkout."""
     from specify_cli.sync.routing import enable_checkout_sync
+
+    _require_daemon_owner_coherence("spec-kitty sync opt-in")
 
     if not is_saas_sync_enabled():
         console.print(f"[dim]{saas_sync_disabled_message()}[/dim]")
@@ -1156,6 +1192,8 @@ def now(
         spec-kitty sync now --no-strict
     """
     from specify_cli.sync.background import get_sync_service
+
+    _require_daemon_owner_coherence("spec-kitty sync now")
 
     if not is_saas_sync_enabled():
         console.print(f"[yellow]{saas_sync_disabled_message()}[/yellow]")
