@@ -20,13 +20,25 @@ from charter.synthesizer.request import SynthesisRequest, SynthesisTarget
 from charter.synthesizer.fixture_adapter import FixtureAdapter
 
 
+_THIS_DIR = Path(__file__).parent
+
+
 # The synthesizer suite is the coverage authority for charter's critical-path
 # pipeline. Keep every test in this directory on the fast charter lane so the
 # diff-coverage gate sees the real synthesis coverage instead of only the
 # legacy non-synth charter tests.
+#
+# IMPORTANT: scope the marker to THIS directory only. Earlier versions of this
+# hook iterated the full `items` list without filtering, which caused pytest
+# to mark every test in the entire suite as `fast` whenever this conftest was
+# loaded (i.e. whenever pytest's collection touched anything under
+# `tests/charter/synthesizer/`). That made the `-m fast` filter useless on
+# whole-tree runs while still appearing to behave correctly on subpath runs.
+# Keep the scope check to prevent the regression.
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     for item in items:
-        item.add_marker(pytest.mark.fast)
+        if _THIS_DIR in Path(item.fspath).parents:
+            item.add_marker(pytest.mark.fast)
 
 
 # ---------------------------------------------------------------------------
