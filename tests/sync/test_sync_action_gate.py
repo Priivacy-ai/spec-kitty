@@ -52,15 +52,10 @@ def test_gate_no_op_when_owner_matches_foreground() -> None:
 
     from specify_cli.cli.commands import sync as sync_module
 
-    with patch(
-        "specify_cli.cli.commands.sync.check_daemon_owner_match",
-        return_value=(True, []),
-        create=True,
-    ):
-        # Direct attribute injection — the gate imports the helper inside the
-        # function body, so we have to patch the source module too.
-        with patch("specify_cli.sync.owner.check_daemon_owner_match", return_value=(True, [])):
-            sync_module._require_daemon_owner_coherence("spec-kitty sync share")
+    # The gate imports check_daemon_owner_match from specify_cli.sync.owner
+    # inside the function body, so we patch the source module only.
+    with patch("specify_cli.sync.owner.check_daemon_owner_match", return_value=(True, [])):
+        sync_module._require_daemon_owner_coherence("spec-kitty sync share")
 
 
 def test_gate_refuses_on_mismatch_naming_field() -> None:

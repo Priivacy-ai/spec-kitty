@@ -247,13 +247,18 @@ def test_check_fails_when_legacy_body_upload_backlog_exists(
     # contract is "these tokens appear in the rendered output in order"
     # rather than "these tokens land on the same source line".
     flat = " ".join(result.stdout.split())
+    # Strip-all-whitespace view tolerates wraps that insert a space mid-token
+    # (e.g. Rich wrapping `queue.db` as `queue` + newline + `.db` produces
+    # `queue .db` after the split-join above). The CI runner uses a narrower
+    # terminal than dev workstations and triggers this case.
+    flat_nows = flat.replace(" ", "")
     assert "Identity boundary check FAILED" in flat
-    assert "queue.db" in flat
-    assert "body_upload_queue" in flat
+    assert "queue.db" in flat_nows
+    assert "body_upload_queue" in flat_nows
     # FR-013 tag for the active mission.
     assert f"setup-plan stranded mission slug {mission_slug}" in flat
     # And the legacy DB filename should land verbatim.
-    assert _legacy_db_path().name in flat
+    assert _legacy_db_path().name in flat_nows
 
 
 # ---------------------------------------------------------------------------
