@@ -19,7 +19,7 @@ subtasks:
 - T049
 - T050
 - T051
-agent: claude
+agent: "claude:opus-4-7:python-pedro:implementer"
 agent_profile: python-pedro
 authoritative_surface: src/specify_cli/cli/commands/doctrine.py
 execution_mode: code_change
@@ -36,6 +36,7 @@ owned_files:
 role: implementer
 history: []
 tags: []
+shell_pid: "1790218"
 ---
 
 ## Do This First: Load Agent Profile
@@ -217,3 +218,7 @@ Add a section calling out the FR-015 policy change:
 - Verify all 10 glossary entries flipped to `Status: canonical` — grep for `Status \| candidate` returns zero hits in the Mission B-affected sections.
 - Verify the user-doc note names the FR-015 policy change with concrete remediation steps.
 - Spot-check the doctor output formatting — provenance suffix readable, no empty sections shown.
+
+## Activity Log
+
+- 2026-05-17T18:38:00Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1790218 – Started implementation via action command
