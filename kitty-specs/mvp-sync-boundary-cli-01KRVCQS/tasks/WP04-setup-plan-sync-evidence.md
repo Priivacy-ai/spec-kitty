@@ -23,8 +23,8 @@ subtasks:
 - T019
 - T020
 phase: Phase 2 - Setup-plan
-agent: "claude:opus-4-7:python-pedro:implementer"
-shell_pid: "78254"
+agent: "claude:opus-4-7:reviewer-renata:reviewer"
+shell_pid: "82462"
 history:
 - timestamp: '2026-05-17T16:42:00Z'
   lane: planned
@@ -148,3 +148,4 @@ Planning base: `main`. Final merge target: `main`. This WP lands last in the mis
 
 - 2026-05-17T17:26:23Z – claude:opus-4-7:python-pedro:implementer – shell_pid=78254 – Started implementation via action command
 - 2026-05-17T17:37:13Z – claude:opus-4-7:python-pedro:implementer – shell_pid=78254 – Ready for review: setup-plan FR-011 refuse + FR-012 audit + 3 regression tests
+- 2026-05-17T17:37:51Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=82462 – Started review via action command
