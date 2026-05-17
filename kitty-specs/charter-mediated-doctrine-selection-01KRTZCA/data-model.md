@@ -92,12 +92,13 @@ Location: `src/charter/activations.py`
 | `activation_context` | `dict[str, str]` | yes | Context match key. Recognised keys: `mission_type`, `action`. Either may be absent (= wildcard) or `generic`/`any` (= wildcard). |
 | `doctrine_pack_id` | `str` | yes | Pack ID. Recognised values: `project`, `built-in`, or any configured org pack name. |
 | `artifact_id` | `str` | yes | Artifact ID within the pack. |
-| `artifact_kind` | `str \| None` | no | Optional disambiguator when two artifacts share an ID across kinds. |
+| `artifact_kind` | `str \| None` | no | Optional disambiguator when two artifacts share an ID across kinds. Accepted in singular (`styleguide`) or plural (`styleguides`) form; normalised to plural-canonical internally. |
 
 **Field validators:**
 
 - `activation_context.mission_type`, if present, MUST be a member of `ALLOWED_MISSION_TYPES`. Typos raise `pydantic.ValidationError`.
-- `activation_context.action`, if present, MUST be a member of `ALLOWED_ACTIONS`. Typos raise `pydantic.ValidationError`.
+- `activation_context.action`, if present, MUST be a member of `REGISTERED_TRIGGERS` (the 14-token superset — operators may target both mission-level verbs from `ALLOWED_ACTIONS` and fine-grained tokens like `write_comment`). Typos raise `pydantic.ValidationError`. See §7 for the full vocabulary and contracts/activation-registry.md "Operator-facing YAML" for the canonical example.
+- `artifact_kind`, if present, MAY be supplied in either singular (`styleguide`) or plural (`styleguides`) form; the charter normalises to the plural-canonical form internally. Either form raises `pydantic.ValidationError` if unknown.
 - `doctrine_pack_id` MUST be a non-empty string.
 - `artifact_id` MUST be a non-empty string.
 - `artifact_kind`, if present, MUST be one of the 8 `DoctrineService` property names.
