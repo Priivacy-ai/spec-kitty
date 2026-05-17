@@ -138,6 +138,39 @@ _VALID_VERDICTS: frozenset[str] = frozenset(
 )
 
 
+# ---------------------------------------------------------------------------
+# WP01: Backward transition detection
+# ---------------------------------------------------------------------------
+# Canonical forward progression of work-package lanes. A move from lane X to
+# lane Y is "backward" iff both lanes are in this list and Y precedes X. Lanes
+# outside this list (blocked, canceled) are not part of the directional axis
+# and are never classified as backward by `_is_backward_transition`.
+_FORWARD_ORDER: list[str] = [
+    Lane.PLANNED,
+    Lane.CLAIMED,
+    Lane.IN_PROGRESS,
+    Lane.FOR_REVIEW,
+    Lane.IN_REVIEW,
+    Lane.APPROVED,
+    Lane.DONE,
+]
+
+
+def _is_backward_transition(current_lane: str, target_lane: str) -> bool:
+    """Return True iff target precedes current in the canonical forward order.
+
+    Purely directional: terminal-lane exit semantics (e.g. leaving ``done``)
+    are enforced upstream by ``validate_transition``; this helper does not
+    re-impose them. Lanes outside ``_FORWARD_ORDER`` (``blocked``,
+    ``canceled``) always return False.
+    """
+    c = resolve_lane_alias(current_lane)
+    t = resolve_lane_alias(target_lane)
+    if c not in _FORWARD_ORDER or t not in _FORWARD_ORDER:
+        return False
+    return _FORWARD_ORDER.index(t) < _FORWARD_ORDER.index(c)
+
+
 def _review_cycle_number(path: Path) -> int:
     """Return the numeric review-cycle suffix for sorting review artifacts."""
     match = re.search(r"review-cycle-(\d+)\.md", path.name)
@@ -1711,15 +1744,26 @@ def move_task(
         if not emit_reason:
             emit_reason = f"Force move to {target_lane}" if force else f"move-task: {old_lane} -> {target_lane}"
 
+        # Auto-promote backward transitions to force=True with canonical reason shape.
+        # Contract: spec-kitty-events docs/consumer-contract-dossier-v2.4.0.md
+        # § "Backward Transitions: The Review-Rejection Family".
+        # See: kitty-specs/backward-transition-cli-emit-01KRV8GC/contracts/auto-promote-backward-emit.md
+        if not force and _is_backward_transition(old_lane, canonical_lane):
+            emit_force = True
+            if emit_reason is None or emit_reason.startswith("move-task: "):
+                reason_parts = [f"backward rewind: {old_lane} -> {canonical_lane}"]
+                if review_feedback_pointer and review_feedback_pointer != "force-override":
+                    reason_parts.append(review_feedback_pointer)
+                emit_reason = ": ".join(reason_parts)
+
         def _lane_targets_for_emit(current_lane: str, requested_lane: str) -> list[str]:
             current = resolve_lane_alias(current_lane)
             target = resolve_lane_alias(requested_lane)
-            forward = [Lane.PLANNED, Lane.CLAIMED, Lane.IN_PROGRESS, Lane.FOR_REVIEW, Lane.IN_REVIEW, Lane.APPROVED, Lane.DONE]
-            if current in forward and target in forward:
-                current_idx = forward.index(current)
-                target_idx = forward.index(target)
+            if current in _FORWARD_ORDER and target in _FORWARD_ORDER:
+                current_idx = _FORWARD_ORDER.index(current)
+                target_idx = _FORWARD_ORDER.index(target)
                 if target_idx > current_idx:
-                    return forward[current_idx + 1 : target_idx + 1]
+                    return _FORWARD_ORDER[current_idx + 1 : target_idx + 1]
             return [target]
 
         transition_targets = [canonical_lane]

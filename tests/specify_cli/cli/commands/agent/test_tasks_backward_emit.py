@@ -1,0 +1,527 @@
+"""Tests for WP02: FR-008 family + FR-009 wire-shape regression.
+
+Covers the auto-promoted backward-emit behavior landed in WP01:
+
+- FR-008 (a-d): the four review-rejection family members
+  (in_review|approved|for_review|in_progress → planned) auto-promote
+  ``emit_force=True`` with a canonical ``reason`` starting with
+  ``"backward rewind: <from> -> planned"``.
+- FR-008 (d): the forward control ``planned → claimed`` does NOT
+  auto-promote.
+- FR-008 (e): forward skip-ahead expansion preserved
+  (``planned → in_progress`` emits two events via the existing
+  ``_lane_targets_for_emit`` helper).
+- FR-011: explicit ``--force`` on a backward move preserves the
+  existing path (``force=True``, ``reason == "Force move to planned"``).
+- FR-008 (f): backward emit with ``--review-feedback-file`` appends
+  the canonical ``": <review-cycle://…>"`` URI segment.
+- FR-009: the auto-promoted ``approved → planned`` wire shape matches
+  Mission 1's ``wp-status-changed-approved-rewind-valid`` conformance
+  fixture (when available in the installed events package).
+
+Tests exercise ``move_task`` end-to-end via Typer's ``CliRunner`` and
+read the resulting events directly from ``status.events.jsonl``. No
+mocks of ``emit_status_transition`` or ``validate_transition``.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+from typer.testing import CliRunner
+
+from specify_cli.cli.commands.agent.tasks import app
+from specify_cli.status.models import Lane, StatusEvent
+from specify_cli.status.store import append_event, read_events
+from tests.mocked_env import setup_mocked_env
+
+pytestmark = pytest.mark.fast
+
+runner = CliRunner()
+
+
+# ---------------------------------------------------------------------------
+# Fixtures / helpers
+# ---------------------------------------------------------------------------
+
+
+def _build_feature_in_lane(
+    tmp_path: Path,
+    *,
+    mission_slug: str,
+    wp_id: str,
+    lane: str,
+) -> tuple[Path, Path]:
+    """Build a synthetic feature dir with the WP seeded in the given lane.
+
+    Returns ``(feature_dir, wp_file)``.
+    """
+    feature_dir = tmp_path / "kitty-specs" / mission_slug
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True, exist_ok=True)
+    (tmp_path / ".kittify").mkdir(exist_ok=True)
+
+    wp_file = tasks_dir / f"{wp_id}-test.md"
+    wp_file.write_text(
+        f"---\n"
+        f"work_package_id: {wp_id}\n"
+        f"title: Test {wp_id}\n"
+        f"execution_mode: code_change\n"
+        f"agent: testbot\n"
+        f"owned_files:\n  - src/{wp_id.lower()}/**\n"
+        f"authoritative_surface: src/{wp_id.lower()}/\n"
+        f"---\n\n# {wp_id}\n\n## Activity Log\n",
+        encoding="utf-8",
+    )
+
+    # Seed the canonical event log so the WP exists in the lane
+    # the test wants to start from. We chain through PLANNED so the
+    # transitions are legal; non-PLANNED starting lanes require a
+    # forced bootstrap event to skip ahead deterministically.
+    canonical_start = Lane(lane)
+    if canonical_start is Lane.PLANNED:
+        seed = StatusEvent(
+            event_id=f"seed-{wp_id}-planned",
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+            from_lane=Lane.PLANNED,
+            to_lane=Lane.PLANNED,
+            at="2026-01-01T00:00:00+00:00",
+            actor="test",
+            force=True,
+            execution_mode="worktree",
+            reason="seed: bootstrap",
+        )
+        append_event(feature_dir, seed)
+    else:
+        # Force-seed directly into the desired lane. The reducer cares
+        # only about the latest event's to_lane, so a single forced
+        # bootstrap event is sufficient.
+        seed = StatusEvent(
+            event_id=f"seed-{wp_id}-{lane}",
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+            from_lane=Lane.PLANNED,
+            to_lane=canonical_start,
+            at="2026-01-01T00:00:00+00:00",
+            actor="test",
+            force=True,
+            execution_mode="worktree",
+            reason=f"seed: bootstrap to {lane}",
+        )
+        append_event(feature_dir, seed)
+    return feature_dir, wp_file
+
+
+def _write_feedback_file(tmp_path: Path) -> Path:
+    """Write a minimal non-empty review feedback markdown file."""
+    fb = tmp_path / "feedback.md"
+    fb.write_text(
+        "**Issue**: Backward-transition regression test feedback.\n"
+        "\n"
+        "Re-implement the change with the canonical wire shape.\n",
+        encoding="utf-8",
+    )
+    return fb
+
+
+def _read_latest_events_for_wp(feature_dir: Path, wp_id: str) -> list[StatusEvent]:
+    """Return every event for ``wp_id`` in append order."""
+    return [e for e in read_events(feature_dir) if e.wp_id == wp_id]
+
+
+def _invoke_move(
+    *,
+    tmp_path: Path,
+    mission_slug: str,
+    args: list[str],
+):
+    """Run move_task end-to-end with the standard mocked env."""
+    with setup_mocked_env(
+        tmp_path,
+        mission_slug=mission_slug,
+        workspace_resolution=FileNotFoundError,
+    ):
+        return runner.invoke(app, args, catch_exceptions=False)
+
+
+# ---------------------------------------------------------------------------
+# T003 — FR-008 family tests
+# ---------------------------------------------------------------------------
+
+
+class TestReviewRejectionFamily:
+    """Auto-promote ``force=True`` on the four review-rejection family members."""
+
+    @pytest.mark.parametrize(
+        "starting_lane, expected_prefix",
+        [
+            ("in_review", "backward rewind: in_review -> planned"),
+            ("approved", "backward rewind: approved -> planned"),
+            ("for_review", "backward rewind: for_review -> planned"),
+            ("in_progress", "backward rewind: in_progress -> planned"),
+        ],
+    )
+    def test_backward_to_planned_auto_promotes_force(
+        self,
+        tmp_path: Path,
+        starting_lane: str,
+        expected_prefix: str,
+    ) -> None:
+        """Each review-rejection family member auto-promotes to force=True."""
+        mission_slug = f"test-mission-{starting_lane.replace('_', '-')}"
+        wp_id = "WP05"
+        feature_dir, _wp_file = _build_feature_in_lane(
+            tmp_path, mission_slug=mission_slug, wp_id=wp_id, lane=starting_lane
+        )
+        feedback = _write_feedback_file(tmp_path)
+
+        result = _invoke_move(
+            tmp_path=tmp_path,
+            mission_slug=mission_slug,
+            args=[
+                "move-task",
+                wp_id,
+                "--to",
+                "planned",
+                "--mission",
+                mission_slug,
+                "--review-feedback-file",
+                str(feedback),
+                "--no-auto-commit",
+            ],
+        )
+
+        assert result.exit_code == 0, f"move-task failed:\n{result.output}"
+
+        events = _read_latest_events_for_wp(feature_dir, wp_id)
+        # Last event is the auto-promoted backward emit.
+        emitted = events[-1]
+        assert str(emitted.from_lane) == starting_lane, (
+            f"Expected from_lane={starting_lane}, got {emitted.from_lane}"
+        )
+        assert str(emitted.to_lane) == "planned"
+        assert emitted.force is True, (
+            f"Backward emit must auto-promote force=True; got reason={emitted.reason}"
+        )
+        assert emitted.reason is not None
+        assert emitted.reason.startswith(expected_prefix), (
+            f"reason must start with {expected_prefix!r}; got {emitted.reason!r}"
+        )
+
+
+class TestForwardControl:
+    """Forward transitions must NOT auto-promote to force=True."""
+
+    def test_planned_to_claimed_does_not_auto_promote(self, tmp_path: Path) -> None:
+        """A forward step preserves force=False and a non-rewind reason."""
+        mission_slug = "test-mission-forward-control"
+        wp_id = "WP05"
+        feature_dir, _wp_file = _build_feature_in_lane(
+            tmp_path, mission_slug=mission_slug, wp_id=wp_id, lane="planned"
+        )
+
+        result = _invoke_move(
+            tmp_path=tmp_path,
+            mission_slug=mission_slug,
+            args=[
+                "move-task",
+                wp_id,
+                "--to",
+                "claimed",
+                "--mission",
+                mission_slug,
+                "--no-auto-commit",
+            ],
+        )
+
+        assert result.exit_code == 0, f"forward move failed:\n{result.output}"
+
+        events = _read_latest_events_for_wp(feature_dir, wp_id)
+        emitted = events[-1]
+        assert str(emitted.from_lane) == "planned"
+        assert str(emitted.to_lane) == "claimed"
+        assert emitted.force is False, (
+            f"Forward move must not auto-promote force=True; reason={emitted.reason}"
+        )
+        assert emitted.reason is None or not emitted.reason.startswith(
+            "backward rewind: "
+        ), f"Forward emit must not use the rewind reason; got {emitted.reason!r}"
+
+
+class TestForwardSkipAheadExpansion:
+    """Forward skip-ahead expansion preserved via _lane_targets_for_emit."""
+
+    def test_planned_to_in_progress_expands_intermediate(
+        self, tmp_path: Path
+    ) -> None:
+        """``planned → in_progress`` emits two events (via claimed).
+
+        FORWARD_ORDER index 0 → 2, so ``_lane_targets_for_emit`` returns
+        ``[claimed, in_progress]`` — two events. This is the true 2-step
+        skip-ahead and the canonical guard for FR-008 (e).
+        """
+        mission_slug = "test-mission-forward-skip"
+        wp_id = "WP05"
+        feature_dir, _wp_file = _build_feature_in_lane(
+            tmp_path, mission_slug=mission_slug, wp_id=wp_id, lane="planned"
+        )
+
+        events_before = len(_read_latest_events_for_wp(feature_dir, wp_id))
+
+        result = _invoke_move(
+            tmp_path=tmp_path,
+            mission_slug=mission_slug,
+            args=[
+                "move-task",
+                wp_id,
+                "--to",
+                "in_progress",
+                "--mission",
+                mission_slug,
+                "--no-auto-commit",
+            ],
+        )
+
+        assert result.exit_code == 0, f"forward skip-ahead failed:\n{result.output}"
+
+        events = _read_latest_events_for_wp(feature_dir, wp_id)
+        new_events = events[events_before:]
+        # Two new events emitted: planned->claimed and claimed->in_progress.
+        assert len(new_events) == 2, (
+            f"Expected 2 new events for forward skip-ahead; got "
+            f"{len(new_events)}: {[(str(e.from_lane), str(e.to_lane)) for e in new_events]}"
+        )
+        assert (str(new_events[0].from_lane), str(new_events[0].to_lane)) == (
+            "planned",
+            "claimed",
+        )
+        assert (str(new_events[1].from_lane), str(new_events[1].to_lane)) == (
+            "claimed",
+            "in_progress",
+        )
+        # No auto-promotion on forward emits.
+        for ev in new_events:
+            assert ev.force is False
+            assert ev.reason is None or not ev.reason.startswith(
+                "backward rewind: "
+            )
+
+
+class TestExplicitForceBackward:
+    """Explicit ``--force`` on a backward move preserves the existing path (FR-011)."""
+
+    def test_explicit_force_backward_uses_existing_path(self, tmp_path: Path) -> None:
+        """``--force`` on backward: force=True via existing path; reason is the
+        existing ``"Force move to planned"`` fallback (auto-promote bypassed)."""
+        mission_slug = "test-mission-explicit-force"
+        wp_id = "WP05"
+        feature_dir, _wp_file = _build_feature_in_lane(
+            tmp_path, mission_slug=mission_slug, wp_id=wp_id, lane="in_review"
+        )
+        feedback = _write_feedback_file(tmp_path)
+
+        result = _invoke_move(
+            tmp_path=tmp_path,
+            mission_slug=mission_slug,
+            args=[
+                "move-task",
+                wp_id,
+                "--to",
+                "planned",
+                "--force",
+                "--mission",
+                mission_slug,
+                "--review-feedback-file",
+                str(feedback),
+                "--no-auto-commit",
+            ],
+        )
+
+        assert result.exit_code == 0, f"forced backward move failed:\n{result.output}"
+
+        events = _read_latest_events_for_wp(feature_dir, wp_id)
+        emitted = events[-1]
+        assert str(emitted.from_lane) == "in_review"
+        assert str(emitted.to_lane) == "planned"
+        assert emitted.force is True
+        # Auto-promote path is bypassed when force is explicit (FR-011);
+        # the reason falls through to the standing fallback.
+        assert emitted.reason == "Force move to Lane.PLANNED" or emitted.reason == (
+            "Force move to planned"
+        ), (
+            f"Explicit --force must use the existing fallback reason; "
+            f"got {emitted.reason!r}"
+        )
+        # And it must NOT be the auto-promoted rewind shape.
+        assert not (emitted.reason or "").startswith("backward rewind: "), (
+            f"Explicit --force must not synthesize the auto-promote reason; "
+            f"got {emitted.reason!r}"
+        )
+
+
+class TestBackwardEmitFeedbackRef:
+    """Backward emit with ``--review-feedback-file`` includes the canonical URI."""
+
+    def test_backward_emit_includes_feedback_ref(self, tmp_path: Path) -> None:
+        """The auto-promoted reason ends with ``": review-cycle://…"``."""
+        mission_slug = "test-mission-feedback-ref"
+        wp_id = "WP05"
+        feature_dir, _wp_file = _build_feature_in_lane(
+            tmp_path, mission_slug=mission_slug, wp_id=wp_id, lane="in_review"
+        )
+        feedback = _write_feedback_file(tmp_path)
+
+        result = _invoke_move(
+            tmp_path=tmp_path,
+            mission_slug=mission_slug,
+            args=[
+                "move-task",
+                wp_id,
+                "--to",
+                "planned",
+                "--mission",
+                mission_slug,
+                "--review-feedback-file",
+                str(feedback),
+                "--no-auto-commit",
+            ],
+        )
+
+        assert result.exit_code == 0, f"backward emit failed:\n{result.output}"
+
+        emitted = _read_latest_events_for_wp(feature_dir, wp_id)[-1]
+        assert emitted.force is True
+        assert emitted.reason is not None
+        # Prefix:
+        prefix = "backward rewind: in_review -> planned"
+        assert emitted.reason.startswith(prefix), (
+            f"reason must start with {prefix!r}; got {emitted.reason!r}"
+        )
+        # Feedback-ref segment:
+        suffix = emitted.reason[len(prefix):]
+        assert suffix.startswith(": review-cycle://"), (
+            f"reason must include ': review-cycle://...' segment after the "
+            f"prefix; got {emitted.reason!r}"
+        )
+        # The URI mentions the mission slug + a review-cycle file.
+        assert mission_slug in emitted.reason
+        assert "review-cycle-" in emitted.reason
+
+
+# ---------------------------------------------------------------------------
+# T004 — FR-009 wire-shape regression against Mission 1's fixture
+# ---------------------------------------------------------------------------
+
+
+def _load_approved_rewind_fixture():
+    """Return Mission 1's ``wp-status-changed-approved-rewind-valid``
+    fixture, or ``None`` when the installed events package predates it.
+
+    Per the mission spec (FR-009) the fixture lives in the ``edge_cases``
+    category. The installed ``spec_kitty_events`` may not yet ship it
+    (Mission 1 of the program is still being released); when absent we
+    skip the test rather than fail — the assertion remains valid as soon
+    as the upstream package lands the fixture.
+    """
+    try:
+        from spec_kitty_events.conformance import load_fixtures
+    except Exception:
+        return None
+
+    target = "wp-status-changed-approved-rewind-valid"
+    for category in (
+        "edge_cases",
+        "events",
+        "mission_audit",
+        "lane_mapping",
+    ):
+        try:
+            fixtures = load_fixtures(category)
+        except Exception:
+            continue
+        for fc in fixtures:
+            if getattr(fc, "id", None) == target:
+                return fc
+    return None
+
+
+class TestApprovedRewindWireShape:
+    """FR-009: auto-promoted ``approved → planned`` matches Mission 1's fixture."""
+
+    def test_approved_to_planned_matches_mission1_fixture(
+        self, tmp_path: Path
+    ) -> None:
+        """Wire shape (``force``, ``reason``-prefix, ``from_lane``, ``to_lane``)
+        matches ``wp-status-changed-approved-rewind-valid``.
+
+        Anchor: ``spec-kitty-events`` ``docs/consumer-contract-dossier-v2.4.0.md``
+        § "Backward Transitions: The Review-Rejection Family".
+        """
+        mission_slug = "test-mission-fr009"
+        wp_id = "WP07"
+        feature_dir, _wp_file = _build_feature_in_lane(
+            tmp_path, mission_slug=mission_slug, wp_id=wp_id, lane="approved"
+        )
+        feedback = _write_feedback_file(tmp_path)
+
+        result = _invoke_move(
+            tmp_path=tmp_path,
+            mission_slug=mission_slug,
+            args=[
+                "move-task",
+                wp_id,
+                "--to",
+                "planned",
+                "--mission",
+                mission_slug,
+                "--review-feedback-file",
+                str(feedback),
+                "--no-auto-commit",
+            ],
+        )
+        assert result.exit_code == 0, f"approved→planned failed:\n{result.output}"
+
+        emitted = _read_latest_events_for_wp(feature_dir, wp_id)[-1]
+
+        # CLI emit wire-shape invariants (independent of the upstream fixture).
+        expected_prefix = "backward rewind: approved -> planned"
+        assert emitted.force is True
+        assert str(emitted.from_lane) == "approved"
+        assert str(emitted.to_lane) == "planned"
+        assert emitted.reason is not None
+        assert emitted.reason.startswith(expected_prefix), (
+            f"reason must start with {expected_prefix!r}; got {emitted.reason!r}"
+        )
+
+        # Cross-check against Mission 1's fixture if available.
+        fixture = _load_approved_rewind_fixture()
+        if fixture is None:
+            pytest.skip(
+                "Mission 1 fixture 'wp-status-changed-approved-rewind-valid' not "
+                "yet published in the installed spec_kitty_events package; CLI "
+                "wire-shape invariants verified above."
+            )
+
+        fp = getattr(fixture, "payload", {}) or {}
+        # Pull from common spelling variants (the fixture is normative;
+        # consumers tolerate both ``from_lane``/``to_lane`` and the
+        # nested ``data`` form).
+        f_force = fp.get("force", fp.get("data", {}).get("force"))
+        f_from = fp.get("from_lane", fp.get("data", {}).get("from_lane"))
+        f_to = fp.get("to_lane", fp.get("data", {}).get("to_lane"))
+        f_reason = fp.get("reason", fp.get("data", {}).get("reason"))
+
+        if f_force is not None:
+            assert emitted.force == f_force == True  # noqa: E712
+        if f_from is not None:
+            assert str(emitted.from_lane) == f_from == "approved"
+        if f_to is not None:
+            assert str(emitted.to_lane) == f_to == "planned"
+        if f_reason is not None:
+            assert isinstance(f_reason, str)
+            assert f_reason.startswith(expected_prefix), (
+                f"Fixture reason must start with {expected_prefix!r}; "
+                f"got {f_reason!r}"
+            )
