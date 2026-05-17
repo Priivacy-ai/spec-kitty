@@ -14,7 +14,7 @@ subtasks:
 - T006
 - T007
 - T009
-agent: claude
+agent: "claude:opus-4-7:python-pedro:implementer"
 agent_profile: python-pedro
 authoritative_surface: src/charter/extractor.py
 execution_mode: code_change
@@ -26,6 +26,7 @@ owned_files:
 role: implementer
 history: []
 tags: []
+shell_pid: "1645548"
 ---
 
 ## Do This First: Load Agent Profile
@@ -187,3 +188,7 @@ Fixtures and assertions:
 - Verify the alias tuple for each new field — `selected_<kind>` MUST be the canonical first entry.
 - Verify the activations applier is called from the same code path that applies the doctrine row (so a single fenced YAML block can carry both).
 - Verify `_OPTIONAL_EMPTY_OMIT_KEYS` covers `activations` so empty fixtures stay byte-identical.
+
+## Activity Log
+
+- 2026-05-17T16:38:10Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1645548 – Started implementation via action command
