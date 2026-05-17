@@ -1,7 +1,7 @@
 {
-  "event_count": 9,
-  "last_event_id": "01KRVDZBYVPDA8MM1CBEBDC3FP",
-  "materialized_at": "2026-05-17T16:58:09.755791+00:00",
+  "event_count": 11,
+  "last_event_id": "01KRVE01JQXG01XYNAK7E64J5P",
+  "materialized_at": "2026-05-17T16:58:31.894865+00:00",
   "mission_number": "",
   "mission_slug": "mvp-sync-boundary-cli-01KRVCQS",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 3
+    "planned": 2
   },
   "work_packages": {
     "WP01": {
@@ -25,11 +25,11 @@
       "last_transition_at": "2026-05-17T16:58:09.755791+00:00"
     },
     "WP02": {
-      "actor": "finalize-tasks",
+      "actor": "claude:opus-4-7:python-pedro:implementer",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KRVD948CPB4GC7F9F1J36YQ8",
-      "last_transition_at": "2026-05-17T16:46:00.972241+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KRVE01JQXG01XYNAK7E64J5P",
+      "last_transition_at": "2026-05-17T16:58:31.894865+00:00"
     },
     "WP03": {
       "actor": "finalize-tasks",
