@@ -70,7 +70,11 @@ directives:
 
     assert result.paradigms == ["test-first"]
     assert result.directives == ["TEST_FIRST"]
-    assert result.tools == ["git"]
+    # Tools resolve as the union of charter declaration and runtime registry
+    # (DRIFT-1 remediation): charter declares [git]; registry baseline is
+    # {git, python, pytest}; resolved set is the sorted union.
+    assert result.tools == ["git", "pytest", "python"]
+    assert result.metadata["tools_source"] == "charter+registry"
     assert result.template_set == "software-dev-default"
     assert result.metadata["template_set_source"] == "charter"
 
@@ -105,7 +109,18 @@ doctrine:
     assert "NOT_A_DIRECTIVE" in str(exc.value)
 
 
-def test_resolve_governance_missing_tool_hard_fails(tmp_path: Path) -> None:
+def test_resolve_governance_charter_declares_tool_outside_registry_is_unioned(tmp_path: Path) -> None:
+    """Charter-declared tools not in the runtime registry are added to the resolved set.
+
+    Per the union semantic (see DRIFT-1 remediation): the runtime registry is
+    a baseline of always-available tools; the charter ``available_tools`` list
+    is an additional declaration. The effective resolved set is the union of
+    the two — declaring ``imaginary-tool`` in the charter adds it to the
+    resolved set instead of raising a GovernanceResolutionError.
+
+    A diagnostic line records which tools came from the charter declaration so
+    operators can see at a glance which tools were added beyond the baseline.
+    """
     _write_charter_files(
         tmp_path,
         governance="""
@@ -114,10 +129,16 @@ doctrine:
 """,
     )
 
-    with pytest.raises(GovernanceResolutionError) as exc:
-        resolve_governance(tmp_path, tool_registry={"git", "python"})
+    result = resolve_governance(tmp_path, tool_registry={"git", "python"})
 
-    assert "imaginary-tool" in str(exc.value)
+    assert "imaginary-tool" in result.tools
+    assert "git" in result.tools
+    assert "python" in result.tools
+    assert result.metadata["tools_source"] == "charter+registry"
+    assert any(
+        "imaginary-tool" in diag and "Charter declared additional tool" in diag
+        for diag in result.diagnostics
+    )
 
 
 def test_resolve_governance_missing_template_set_hard_fails(tmp_path: Path) -> None:
@@ -205,7 +226,7 @@ directives:
     assert result.directives == ["LOCAL_ONLY"]
     assert result.template_set == "fallback-pack"
     assert result.metadata == {
-        "tools_source": "registry_fallback",
+        "tools_source": "registry_only",
         "directives_source": "catalog_fallback",
         "template_set_source": "fallback",
     }
@@ -492,8 +513,15 @@ def test_template_set_failure_names_exact_offending_value(tmp_path: Path, monkey
     assert "ghost-template-set" in str(exc.value)
 
 
-def test_tool_failure_names_exact_offending_value(tmp_path: Path, monkeypatch) -> None:
-    """Error message names the exact tool name that was not in the registry."""
+def test_tool_outside_registry_appears_in_diagnostic(tmp_path: Path, monkeypatch) -> None:
+    """A charter-declared tool not in the runtime registry is unioned into the
+    resolved tools and the operator is informed via diagnostics (DRIFT-1 remediation).
+
+    The pre-remediation behaviour raised GovernanceResolutionError; the union
+    semantic treats the runtime registry as a baseline of always-available
+    tools and the charter declaration as additive. The diagnostic message
+    names the exact tool(s) that came from the charter so operators can audit.
+    """
     doctrine_root = _make_doctrine_root(tmp_path)
     monkeypatch.setattr(catalog_module, "resolve_doctrine_root", lambda: doctrine_root)
 
@@ -503,10 +531,13 @@ def test_tool_failure_names_exact_offending_value(tmp_path: Path, monkeypatch) -
         governance="doctrine:\n  available_tools: [ghost-tool]\n",
     )
 
-    with pytest.raises(GovernanceResolutionError) as exc:
-        resolve_governance(repo_root, tool_registry={"git"})
+    result = resolve_governance(repo_root, tool_registry={"git"})
 
-    assert "ghost-tool" in str(exc.value)
+    assert "ghost-tool" in result.tools
+    assert "git" in result.tools
+    diagnostic_text = "\n".join(result.diagnostics)
+    assert "ghost-tool" in diagnostic_text
+    assert "Charter declared additional tool" in diagnostic_text
 
 
 def test_local_support_declaration_bypasses_catalog_validation(tmp_path: Path, monkeypatch) -> None:

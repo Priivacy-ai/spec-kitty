@@ -29,29 +29,12 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
-## Review Steps
-
-### 1. Setup
-
-Run:
-
-```bash
-spec-kitty agent context resolve --action review --mission <handle> --json
-```
-
-Then execute the returned `check_prerequisites` command and capture
-`feature_dir`. All paths must be absolute.
-
-The output of `spec-kitty agent action review ...` is the authoritative work
-package prompt and review context. Do **not** separately call
-`spec-kitty charter context` or go hunting for alternate prompt files unless
-the command output tells you to.
-
 ## Governance Payload Contract
 
-The prompt above is guaranteed to carry the following surfaces. Trust the
-prompt; do not consult external governance sources unless explicitly cited by
-a fetch command + when-doing rule in the prompt.
+The prompt produced by `spec-kitty agent action review` is guaranteed to carry
+the following surfaces. Trust the prompt; do not consult external governance
+sources unless explicitly cited by a fetch command + when-doing rule in the
+prompt.
 
 **Guaranteed bodies** (verbatim in the prompt when under the token budget; the
 resolver substitutes a `spec-kitty charter context --include section:<slug>`
@@ -98,6 +81,25 @@ token budget; whenever a fetch command appears, the accompanying
 - `spec-kitty charter context --include directive:DIRECTIVE_NNN`
 - `spec-kitty charter context --include tactic:<id>`
 - `spec-kitty charter context --include section:<slug>`
+
+## Review Steps
+
+### 1. Setup
+
+Run:
+
+```bash
+spec-kitty agent context resolve --action review --mission <handle> --json
+```
+
+Then execute the returned `check_prerequisites` command and capture
+`feature_dir`. All paths must be absolute.
+
+The output of `spec-kitty agent action review ...` is the authoritative work
+package prompt and review context. Do **not** separately call
+`spec-kitty charter context` or go hunting for alternate prompt files unless
+the command output tells you to. The **Governance Payload Contract** section
+above documents what the prompt is guaranteed to carry.
 
 ### 2. Load Work Package Prompt
 
