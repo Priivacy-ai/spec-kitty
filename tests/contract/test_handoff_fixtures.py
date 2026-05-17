@@ -44,6 +44,7 @@ FIXTURE_EVENTS = [
             "to_lane": "in_progress",
             "actor": "claude-agent",
             "mission_slug": "039-cli-2x-readiness",
+            "execution_mode": "worktree",
         },
         "timestamp": "2026-02-12T10:00:00+00:00",
         "build_id": _FIXTURE_BUILD_ID,
@@ -134,6 +135,8 @@ FIXTURE_EVENTS = [
         "aggregate_id": "039-cli-2x-readiness",
         "payload": {
             "mission_slug": "039-cli-2x-readiness",
+            "mission_number": 39,
+            "mission_type": "software-dev",
             "total_wps": 9,
             "completed_at": "2026-02-12T18:00:00+00:00",
             "total_duration": "8h 30m",
