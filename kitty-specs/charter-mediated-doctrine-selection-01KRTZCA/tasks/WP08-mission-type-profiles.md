@@ -18,7 +18,7 @@ subtasks:
 - T045
 - T046
 - T047
-agent: "claude:opus-4-7:python-pedro:implementer"
+agent: "claude:opus-4-7:reviewer-renata:reviewer"
 agent_profile: python-pedro
 authoritative_surface: src/charter/mission_type_profiles.py
 execution_mode: code_change
@@ -32,7 +32,7 @@ owned_files:
 role: implementer
 history: []
 tags: []
-shell_pid: "1776735"
+shell_pid: "1785106"
 ---
 
 ## Do This First: Load Agent Profile
@@ -304,3 +304,4 @@ Pinned by `test_resolve_governance_hard_fails_for_unknown_mission_type`.
 - 2026-05-17T18:25:17Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=1774534 – Moved to planned
 - 2026-05-17T18:26:12Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1776735 – Started implementation via action command
 - 2026-05-17T18:33:05Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1776735 – Cycle 2: renamed to resolve_mission_type_governance (resolves collision); wired into prompt_builder.py; integration test proves live wiring for documentation mission (no software-dev-default leak)
+- 2026-05-17T18:33:51Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=1785106 – Started review via action command
