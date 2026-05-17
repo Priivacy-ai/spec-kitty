@@ -21,11 +21,11 @@ Total subtasks: 20.
 
 | ID | Description | WP |
 |----|-------------|----|
-| T001 | Enumerate live schema of `queue`, `body_upload_queue`, and (if present) body upload failure/history table; document chosen stable keys in code comment | WP01 |
-| T002 | Rewrite `_migrate_legacy_queue_to_scope` as row-level merge per data-model.md; remove whole-DB emptiness guard | WP01 |
-| T003 | Add structured info-level log per migrated row (table, stable key) | WP01 |
-| T004 | Add tests: `tests/sync/test_queue_row_level_migration.py` covering FR-001..FR-004 plus the four scenarios in start-here.md WP1090 prompt (migrate; migrate when destination has unrelated rows; idempotent re-run; detect legacy rows for active scope) | WP01 |
-| T005 | Run `uv run pytest tests/sync` + `mypy --strict src/specify_cli/sync/queue.py`; confirm no regressions | WP01 |
+| T001 | Enumerate live schema of `queue`, `body_upload_queue`, and (if present) body upload failure/history table; document chosen stable keys in code comment | WP01 | [D] |
+| T002 | Rewrite `_migrate_legacy_queue_to_scope` as row-level merge per data-model.md; remove whole-DB emptiness guard | WP01 | [D] |
+| T003 | Add structured info-level log per migrated row (table, stable key) | WP01 | [D] |
+| T004 | Add tests: `tests/sync/test_queue_row_level_migration.py` covering FR-001..FR-004 plus the four scenarios in start-here.md WP1090 prompt (migrate; migrate when destination has unrelated rows; idempotent re-run; detect legacy rows for active scope) | WP01 | [D] |
+| T005 | Run `uv run pytest tests/sync` + `mypy --strict src/specify_cli/sync/queue.py`; confirm no regressions | WP01 | [D] |
 | T006 | Create `src/specify_cli/sync/owner.py` with `DaemonOwnerRecord` dataclass + atomic write/read/compare helpers per data-model.md | WP02 |
 | T007 | Wire `daemon.py` start path to write the owner record atomically when the daemon binds its port | WP02 |
 | T008 | Extend daemon health endpoint to include the owner record (excluding `token`) | WP02 |
