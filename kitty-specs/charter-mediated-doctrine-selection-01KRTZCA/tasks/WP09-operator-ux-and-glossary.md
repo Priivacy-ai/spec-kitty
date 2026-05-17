@@ -19,7 +19,7 @@ subtasks:
 - T049
 - T050
 - T051
-agent: "claude:opus-4-7:python-pedro:implementer"
+agent: "claude:opus-4-7:reviewer-renata:reviewer"
 agent_profile: python-pedro
 authoritative_surface: src/specify_cli/cli/commands/doctrine.py
 execution_mode: code_change
@@ -36,7 +36,7 @@ owned_files:
 role: implementer
 history: []
 tags: []
-shell_pid: "1790218"
+shell_pid: "1816945"
 ---
 
 ## Do This First: Load Agent Profile
@@ -223,3 +223,4 @@ Add a section calling out the FR-015 policy change:
 
 - 2026-05-17T18:38:00Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1790218 – Started implementation via action command
 - 2026-05-17T18:58:21Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1790218 – Operator UX (doctrine new/validate + doctor doctrine Selections snapshot-tested) + 10 glossary entries promoted to canonical. Mission B closing WP.
+- 2026-05-17T18:59:07Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=1816945 – Started review via action command
