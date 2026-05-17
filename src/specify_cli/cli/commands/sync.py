@@ -112,6 +112,99 @@ _DRAIN_BLOCKED_HELP = {
 }
 
 
+def _build_queue_summary_lines(stats: QueueStats) -> list[str]:
+    """Build the queue-health summary lines shown in the panel."""
+    summary_lines: list[str] = []
+    pct = (stats.total_queued / stats.max_queue_size * 100) if stats.max_queue_size > 0 else 0
+    depth_color = "red" if pct >= 100 else ("yellow" if pct >= 80 else "green")
+    summary_lines.append(
+        f"[bold]Queue Depth:[/bold] [{depth_color}]{stats.total_queued:,} / {stats.max_queue_size:,}[/{depth_color}] "
+        f"({pct:.0f}%)"
+    )
+    summary_lines.append(f"[bold]Retried:[/bold]    {stats.total_retried:,}")
+    if stats.oldest_event_age is not None:
+        age_str = humanize_timedelta(stats.oldest_event_age)
+        summary_lines.append(f"[bold]Oldest Event:[/bold] {age_str} ago")
+
+    if stats.drain_blocked_counts:
+        ready = stats.drain_blocked_counts.get("ready", 0)
+        blocked = stats.total_queued - ready
+        ready_color = "green" if blocked == 0 else "yellow"
+        summary_lines.append(
+            f"[bold]Drain Ready:[/bold] [{ready_color}]{ready:,} ready[/{ready_color}]"
+            f" / [yellow]{blocked:,} blocked[/yellow]"
+        )
+    return summary_lines
+
+
+def _render_drain_blockers(stats: QueueStats, target_console: Console) -> None:
+    """Render the drain-blocker breakdown when blocked items exist."""
+    blocked_only = {k: v for k, v in stats.drain_blocked_counts.items() if k != "ready" and v > 0}
+    if not blocked_only:
+        return
+
+    block_table = Table(
+        title="Drain Blockers",
+        show_header=True,
+        header_style="bold",
+        show_lines=False,
+        expand=False,
+    )
+    block_table.add_column("Reason", style="yellow")
+    block_table.add_column("Count", justify="right")
+    block_table.add_column("Remediation", style="dim")
+    for reason, count in sorted(blocked_only.items(), key=lambda kv: -kv[1]):
+        block_table.add_row(
+            reason,
+            str(count),
+            _DRAIN_BLOCKED_HELP.get(reason, ""),
+        )
+    target_console.print(block_table)
+
+
+def _render_retry_distribution(stats: QueueStats, target_console: Console) -> None:
+    """Render retry buckets when queue retry stats are present."""
+    if not stats.retry_distribution:
+        return
+
+    retry_table = Table(
+        title="Retry Distribution",
+        show_header=True,
+        header_style="bold",
+        show_lines=False,
+        expand=False,
+    )
+    retry_table.add_column("Bucket", style="dim")
+    retry_table.add_column("Count", justify="right")
+
+    for bucket in ("0 retries", "1-3 retries", "4+ retries"):
+        if bucket in stats.retry_distribution:
+            retry_table.add_row(bucket, str(stats.retry_distribution[bucket]))
+
+    target_console.print(retry_table)
+
+
+def _render_top_event_types(stats: QueueStats, target_console: Console) -> None:
+    """Render the top event types table when data is available."""
+    if not stats.top_event_types:
+        return
+
+    type_table = Table(
+        title="Top Event Types",
+        show_header=True,
+        header_style="bold",
+        show_lines=False,
+        expand=False,
+    )
+    type_table.add_column("Event Type", style="cyan")
+    type_table.add_column("Count", justify="right")
+
+    for event_type, count in stats.top_event_types:
+        type_table.add_row(event_type, str(count))
+
+    target_console.print(type_table)
+
+
 def format_queue_health(stats: QueueStats, target_console: Console) -> None:
     """Render queue health metrics as Rich panels/tables.
 
@@ -125,30 +218,7 @@ def format_queue_health(stats: QueueStats, target_console: Console) -> None:
         stats: Aggregate queue statistics from OfflineQueue.get_queue_stats()
         target_console: Rich Console to print to (allows testing with captured output)
     """
-    # --- Summary panel ---
-    summary_lines: list[str] = []
-    pct = (stats.total_queued / stats.max_queue_size * 100) if stats.max_queue_size > 0 else 0
-    depth_color = "red" if pct >= 100 else ("yellow" if pct >= 80 else "green")
-    summary_lines.append(
-        f"[bold]Queue Depth:[/bold] [{depth_color}]{stats.total_queued:,} / {stats.max_queue_size:,}[/{depth_color}] "
-        f"({pct:.0f}%)"
-    )
-    summary_lines.append(f"[bold]Retried:[/bold]    {stats.total_retried:,}")
-    if stats.oldest_event_age is not None:
-        age_str = humanize_timedelta(stats.oldest_event_age)
-        summary_lines.append(f"[bold]Oldest Event:[/bold] {age_str} ago")
-
-    # Highlight drain readiness right next to the depth so operators see
-    # ready-vs-blocked at a glance (issue #1075).
-    if stats.drain_blocked_counts:
-        ready = stats.drain_blocked_counts.get("ready", 0)
-        blocked = stats.total_queued - ready
-        ready_color = "green" if blocked == 0 else "yellow"
-        summary_lines.append(
-            f"[bold]Drain Ready:[/bold] [{ready_color}]{ready:,} ready[/{ready_color}]"
-            f" / [yellow]{blocked:,} blocked[/yellow]"
-        )
-
+    summary_lines = _build_queue_summary_lines(stats)
     target_console.print(
         Panel(
             "\n".join(summary_lines),
@@ -158,63 +228,9 @@ def format_queue_health(stats: QueueStats, target_console: Console) -> None:
         )
     )
 
-    # --- Drain blocker breakdown ---
-    blocked_only = {k: v for k, v in stats.drain_blocked_counts.items() if k != "ready" and v > 0}
-    if blocked_only:
-        block_table = Table(
-            title="Drain Blockers",
-            show_header=True,
-            header_style="bold",
-            show_lines=False,
-            expand=False,
-        )
-        block_table.add_column("Reason", style="yellow")
-        block_table.add_column("Count", justify="right")
-        block_table.add_column("Remediation", style="dim")
-        for reason, count in sorted(blocked_only.items(), key=lambda kv: -kv[1]):
-            block_table.add_row(
-                reason,
-                str(count),
-                _DRAIN_BLOCKED_HELP.get(reason, ""),
-            )
-        target_console.print(block_table)
-
-    # --- Retry distribution ---
-    if stats.retry_distribution:
-        retry_table = Table(
-            title="Retry Distribution",
-            show_header=True,
-            header_style="bold",
-            show_lines=False,
-            expand=False,
-        )
-        retry_table.add_column("Bucket", style="dim")
-        retry_table.add_column("Count", justify="right")
-
-        # Ensure deterministic bucket order
-        bucket_order = ["0 retries", "1-3 retries", "4+ retries"]
-        for bucket in bucket_order:
-            if bucket in stats.retry_distribution:
-                retry_table.add_row(bucket, str(stats.retry_distribution[bucket]))
-
-        target_console.print(retry_table)
-
-    # --- Top event types ---
-    if stats.top_event_types:
-        type_table = Table(
-            title="Top Event Types",
-            show_header=True,
-            header_style="bold",
-            show_lines=False,
-            expand=False,
-        )
-        type_table.add_column("Event Type", style="cyan")
-        type_table.add_column("Count", justify="right")
-
-        for event_type, count in stats.top_event_types:
-            type_table.add_row(event_type, str(count))
-
-        target_console.print(type_table)
+    _render_drain_blockers(stats, target_console)
+    _render_retry_distribution(stats, target_console)
+    _render_top_event_types(stats, target_console)
 
 
 # Create a Typer app for sync subcommands

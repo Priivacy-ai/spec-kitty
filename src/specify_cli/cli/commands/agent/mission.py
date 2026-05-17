@@ -63,6 +63,10 @@ app = typer.Typer(name="mission", help="Mission lifecycle commands for AI agents
 
 console = Console()
 
+TASKS_MD_FILENAME = "tasks.md"
+SETUP_PLAN_COMMAND_NAME = "spec-kitty agent mission setup-plan"
+FINALIZE_TASKS_COMMAND_NAME = "spec-kitty agent mission finalize-tasks"
+
 
 def _extract_wp_ids_from_task_files(wp_files: list[Path]) -> list[str]:
     """Return canonical WP IDs discovered from task filenames."""
@@ -84,7 +88,7 @@ def _collect_finalize_artifacts(
     candidates: list[Path] = [
         feature_dir / "status.events.jsonl",
         feature_dir / "status.json",
-        feature_dir / "tasks.md",
+        feature_dir / TASKS_MD_FILENAME,
         feature_dir / ".kittify" / "dossiers" / mission_slug / "snapshot-latest.json",
     ]
     candidates.extend(sorted(path for path in tasks_dir.iterdir() if path.is_file()))
@@ -901,7 +905,7 @@ def setup_plan(
         _enforce_git_preflight(
             repo_root,
             json_output=json_output,
-            command_name="spec-kitty agent mission setup-plan",
+            command_name=SETUP_PLAN_COMMAND_NAME,
         )
 
         # Determine feature directory using centralized detection.
@@ -942,7 +946,7 @@ def setup_plan(
                 "spec_file": str(spec_file.resolve()),
                 "remediation": [
                     f"Restore the missing spec file at {spec_file.resolve()}",
-                    "Or select another mission explicitly: spec-kitty agent mission setup-plan --mission <mission-slug> --json",
+                    f"Or select another mission explicitly: {SETUP_PLAN_COMMAND_NAME} --mission <mission-slug> --json",
                 ],
             }
             if json_output:
@@ -1030,14 +1034,14 @@ def setup_plan(
                 feature_dir,
                 event_type=SPECIFY_COMPLETED,
                 mission_slug=mission_slug,
-                actor="spec-kitty agent mission setup-plan",
+                actor=SETUP_PLAN_COMMAND_NAME,
                 artifact_path=str(spec_file.relative_to(repo_root)),
             )
             emit_artifact_phase(
                 feature_dir,
                 event_type=PLAN_STARTED,
                 mission_slug=mission_slug,
-                actor="spec-kitty agent mission setup-plan",
+                actor=SETUP_PLAN_COMMAND_NAME,
             )
         except Exception as _phase_exc:  # noqa: BLE001
             logger.debug("Lifecycle phase emission skipped: %s", _phase_exc)
@@ -1060,7 +1064,7 @@ def setup_plan(
                     feature_dir,
                     event_type=PLAN_COMPLETED,
                     mission_slug=mission_slug,
-                    actor="spec-kitty agent mission setup-plan",
+                    actor=SETUP_PLAN_COMMAND_NAME,
                     artifact_path=str(plan_file.relative_to(repo_root)),
                 )
             except Exception as _plan_exc:  # noqa: BLE001
@@ -1592,7 +1596,7 @@ def finalize_tasks(
         # Parse dependencies and requirement refs using 2-tier priority:
         # 1. WP frontmatter (primary — map-requirements writes here directly)
         # 2. tasks.md text parsing (backward compat for pre-API projects)
-        tasks_md = feature_dir / "tasks.md"
+        tasks_md = feature_dir / TASKS_MD_FILENAME
         wp_dependencies: dict[str, list[str]] = {}
         wp_requirement_refs: dict[str, list[str]] = {}
 
@@ -1990,7 +1994,7 @@ def finalize_tasks(
                     feature_dir,
                     event_type=TASKS_STARTED,
                     mission_slug=mission_slug,
-                    actor="spec-kitty agent mission finalize-tasks",
+                    actor=FINALIZE_TASKS_COMMAND_NAME,
                     wp_count=len(work_packages),
                 )
             except Exception as _tasks_started_exc:  # noqa: BLE001
@@ -2105,10 +2109,10 @@ def finalize_tasks(
                     wp_title=_wp_title,
                     wp_path=_wp_path,
                     depends_on=_depends_on,
-                    actor="spec-kitty agent mission finalize-tasks",
+                    actor=FINALIZE_TASKS_COMMAND_NAME,
                 )
 
-            _tasks_artifact = feature_dir / "tasks.md"
+            _tasks_artifact = feature_dir / TASKS_MD_FILENAME
             _tasks_artifact_rel: str | None = None
             if _tasks_artifact.exists():
                 try:
@@ -2119,8 +2123,8 @@ def finalize_tasks(
                 feature_dir,
                 event_type=TASKS_COMPLETED,
                 mission_slug=mission_slug,
-                actor="spec-kitty agent mission finalize-tasks",
-                artifact_path=_tasks_artifact_rel or "tasks.md",
+                actor=FINALIZE_TASKS_COMMAND_NAME,
+                artifact_path=_tasks_artifact_rel or TASKS_MD_FILENAME,
                 wp_count=len(work_packages),
             )
         except Exception as _local_wp_exc:  # noqa: BLE001
