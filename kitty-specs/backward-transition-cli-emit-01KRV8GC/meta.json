@@ -1,0 +1,14 @@
+{
+  "created_at": "2026-05-17T15:22:35.912792+00:00",
+  "friendly_name": "CLI Backward-Transition Emit Path",
+  "mission_id": "01KRV8GCG83GH1K12CWQ52SNW5",
+  "mission_number": 118,
+  "mission_slug": "backward-transition-cli-emit-01KRV8GC",
+  "mission_type": "software-dev",
+  "purpose_context": "Mission 2 of cross-repo planning#16. CLI today emits WPStatusChanged with force=False on review rejections (in_review/approved -> planned), contradicting the contract that backward transitions require force=True. SaaS materializer correctly rejects the contradictory wire shape; this mission removes the contradiction at the source. Mission 1 (spec-kitty-events #15) defined the canonical reason shape and conformance fixtures this mission cites by reference.",
+  "purpose_tldr": "Auto-promote force=True with canonical reason shape on user-deliberate backward move-task requests in the CLI emit path.",
+  "slug": "backward-transition-cli-emit-01KRV8GC",
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-05-17T15:36:16.387812+00:00"
+}
