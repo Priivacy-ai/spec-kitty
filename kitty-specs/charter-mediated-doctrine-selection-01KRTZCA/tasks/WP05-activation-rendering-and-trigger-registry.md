@@ -15,7 +15,7 @@ subtasks:
 - T024
 - T024a
 - T025
-agent: claude
+agent: "claude:opus-4-7:python-pedro:implementer"
 agent_profile: python-pedro
 authoritative_surface: src/charter/_activation_render.py
 execution_mode: code_change
@@ -27,6 +27,7 @@ owned_files:
 role: implementer
 history: []
 tags: []
+shell_pid: "1708946"
 ---
 
 ## Do This First: Load Agent Profile
@@ -236,3 +237,7 @@ Coverage:
 - Verify the rendered stanza phrasing matches the ATDD test's regex (`when you write (a )?(code )?comment`).
 - Verify wildcard handling produces clean prose (no "When you implement in a generic mission" — drop the qualifier).
 - Run the ATDD test for Case 1 step 5 explicitly — its assertion is layered (phrase + ID + fetch command).
+
+## Activity Log
+
+- 2026-05-17T17:15:25Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1708946 – Started implementation via action command
