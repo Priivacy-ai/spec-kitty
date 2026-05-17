@@ -11,6 +11,9 @@ requirement_refs:
 planning_base_branch: feat/org-doctrine-layer
 merge_target_branch: feat/org-doctrine-layer
 branch_strategy: Planning artifacts for this mission were generated on feat/org-doctrine-layer. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/org-doctrine-layer unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-charter-mediated-doctrine-selection-01KRTZCA
+base_commit: a0f209d33b59f5728d248b7c14e63445dfcb6618
+created_at: '2026-05-17T16:23:49.744822+00:00'
 subtasks:
 - T001
 - T003
@@ -18,6 +21,8 @@ subtasks:
 - T005
 - T008
 agent: claude
+shell_pid: '1612262'
+history: []
 agent_profile: python-pedro
 authoritative_surface: src/charter/schemas.py
 execution_mode: code_change
@@ -27,7 +32,6 @@ owned_files:
 - tests/charter/test_schemas_selection.py
 - tests/charter/test_activations.py
 role: implementer
-history: []
 tags: []
 ---
 
