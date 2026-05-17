@@ -430,6 +430,36 @@ def create_mission_core(
             _local_evt_exc,
         )
 
+    # Mission creation immediately scaffolds an empty ``spec.md`` and opens
+    # the specify phase. Record ``SpecifyStarted`` against the canonical
+    # local log so that TeamSpace replay can show "currently specifying"
+    # before the agent commits substantive spec content (which is where
+    # ``setup-plan`` later emits ``SpecifyCompleted``). Without this event
+    # the canonical lifecycle stream skips straight from ``MissionCreated``
+    # to ``SpecifyCompleted``, leaving the specify-phase entry point
+    # invisible to dashboards and TeamSpace — see issue #1067.
+    try:
+        from specify_cli.status.lifecycle_events import (
+            SPECIFY_STARTED,
+            emit_artifact_phase,
+        )
+
+        emit_artifact_phase(
+            feature_dir,
+            event_type=SPECIFY_STARTED,
+            mission_slug=mission_slug_formatted,
+            actor="spec-kitty mission create",
+            artifact_path=str(spec_file.relative_to(resolved_root))
+            if spec_file.is_relative_to(resolved_root)
+            else "spec.md",
+        )
+    except Exception as _phase_evt_exc:  # noqa: BLE001
+        logger.debug(
+            "Local SpecifyStarted persistence skipped for %s: %s",
+            mission_slug_formatted,
+            _phase_evt_exc,
+        )
+
     # Best-effort SaaS fan-out (occurs after local persistence above).
     with contextlib.suppress(Exception):
         emit_mission_created(
