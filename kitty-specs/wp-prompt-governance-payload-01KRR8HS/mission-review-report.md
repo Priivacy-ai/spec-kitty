@@ -1,15 +1,15 @@
 # Mission Review Report: wp-prompt-governance-payload-01KRR8HS
 
-**Reviewer**: spec-kitty-mission-review (Claude Opus 4.7, 1M ctx)
-**Date**: 2026-05-16
-**Mission**: `wp-prompt-governance-payload-01KRR8HS` — WP-prompt governance payload completeness
-**Mission ID**: `01KRR8HS66A7NFV64HHPXG2JJE`
-**Mission type**: software-dev
-**Target branch**: `feat/org-doctrine-layer`
-**Squash merge commit**: `480536c1`
-**Pre-merge baseline (parent)**: `480536c1^`
-**HEAD at review**: `be7f731d`
-**WPs reviewed**: WP01..WP07 (all `done`, all `approved`)
+**Reviewer**: spec-kitty-mission-review (Claude Opus 4.7, 1M ctx)  
+**Date**: 2026-05-16  
+**Mission**: `wp-prompt-governance-payload-01KRR8HS` — WP-prompt governance payload completeness  
+**Mission ID**: `01KRR8HS66A7NFV64HHPXG2JJE`  
+**Mission type**: software-dev  
+**Target branch**: `feat/org-doctrine-layer`  
+**Squash merge commit**: `480536c1`  
+**Pre-merge baseline (parent)**: `480536c1^`  
+**HEAD at review**: `be7f731d`  
+**WPs reviewed**: WP01..WP07 (all `done`, all `approved`)  
 
 ---
 

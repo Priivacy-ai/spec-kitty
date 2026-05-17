@@ -925,15 +925,11 @@ class EventEmitter:
         }
         if created_at is not None:
             payload["created_at"] = created_at
-        # mission_id is the aggregate identity (FR-024).  Always include in
-        # payload when present so SaaS consumers see both the join key and
-        # display slug.  aggregate_id switches from mission_slug → mission_id
-        # when mission_id is available; legacy call sites that omit mission_id
-        # fall back to mission_slug for backward compat during the drift window.
         effective_aggregate_id = mission_slug
         if mission_id is not None:
             payload["mission_id"] = mission_id
             effective_aggregate_id = mission_id
+
         return self._emit(
             event_type="MissionCreated",
             aggregate_id=effective_aggregate_id,
@@ -1762,3 +1758,7 @@ class EventEmitter:
             self.queue.queue_event(event)
         except Exception as queue_exc:
             logger.warning("Failed to queue event %s after async send failure: %s", event.get("event_id"), queue_exc)
+
+    @property
+    def git_resolver(self):
+        return self._git_resolver
