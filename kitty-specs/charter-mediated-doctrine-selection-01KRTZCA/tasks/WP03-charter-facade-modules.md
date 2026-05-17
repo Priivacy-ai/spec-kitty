@@ -19,8 +19,8 @@ subtasks:
 - T014
 - T015
 - T016
-agent: claude
-shell_pid: '1613694'
+agent: "claude:opus-4-7:python-pedro:implementer"
+shell_pid: "1613694"
 history: []
 agent_profile: python-pedro
 authoritative_surface: src/charter/profiles.py
@@ -284,3 +284,7 @@ def test_facade_reexports_doctrine_symbol_by_identity(
 - Run the new architectural test; confirm it parametrises ~22 cases (matches the import inventory in the boundary audit).
 - Confirm no facade file exceeds 20 lines (signal of accidental logic creep).
 - These modules MUST land before WP07; verify the dependency is honoured by `lanes.json`.
+
+## Activity Log
+
+- 2026-05-17T16:23:58Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1613694 – Assigned agent via action command
