@@ -130,10 +130,10 @@ No CRITICAL or HIGH findings. Mission is READY FOR IMPLEMENTATION.
 
 Optional pre-implementation touch-ups (LOW/MEDIUM):
 
-1. I1 / A1 - Tighten trigger-registry SSOT story in data-model.md sec 7.
-2. I2 - Clarify the WP07 file count in tasks.md ("13 migrate + 1 new = 14 paths").
-3. U1 - Pin the doctor doctrine Selections format with a snapshot test (already in WP09 owned_files).
-4. D1 - Cosmetic; defer to follow-up.
+1. ~~I1 / A1 - Tighten trigger-registry SSOT story in data-model.md sec 7.~~ **Resolved in `be6b1c53` (2026-05-17)** — see §9.
+2. ~~I2 - Clarify the WP07 file count in tasks.md ("13 migrate + 1 new = 14 paths").~~ **Resolved in `be6b1c53` (2026-05-17)** — see §9.
+3. ~~U1 - Pin the doctor doctrine Selections format with a snapshot test (already in WP09 owned_files).~~ **Resolved in `be6b1c53` (2026-05-17)** — see §9.
+4. D1 - Cosmetic; defer to follow-up. *(Only remaining touch-up.)*
 
 Suggested next command:
 
@@ -147,4 +147,45 @@ spec-kitty agent action implement WP01 --agent claude
 
 READY FOR IMPLEMENTATION. Mission is internally consistent, charter-aligned, and fully covered by 9 WPs / 51 subtasks. The 7-file ATDD suite at bd95f1f5 is the executable acceptance gate, and every assertion is mapped to a specific WP. Lane decomposition produced a clean 2-lane dependency graph (lanes.json).
 
-The 4 findings above are quality-of-life touch-ups, not blockers.
+The 4 findings above are quality-of-life touch-ups, not blockers. Three (I1+A1, I2, U1) were applied pre-implementation; see §9 for the resolution log. D1 remains as a cosmetic follow-up.
+
+---
+
+## 9. Drift-Risk Resolution Log
+
+**Date:** 2026-05-17
+**Resolution commit:** `be6b1c53169536659d8c62a215f8312fb87ddbbb` (`be6b1c53`)
+**Branch:** `feat/org-doctrine-layer`
+
+### I1 + A1 — Trigger registry SSOT consolidation
+
+**Changes:**
+- `data-model.md` §7 rewritten as the **canonical definition** for both `_ALLOWED_ACTIONS` (10 tokens) and `_REGISTERED_TRIGGERS` (15 tokens). Includes the union formula `_REGISTERED_TRIGGERS = _ALLOWED_ACTIONS ∪ {write_comment, write_docstring, rename_identifier, add_dependency}` exactly once.
+- `data-model.md` §5 collapsed to a one-line pointer to §7.
+- `plan.md` §2.10 collapsed to a one-line pointer to §7.
+- `contracts/activation-registry.md` "Note on Trigger Registry" section collapsed to a one-line pointer to §7.
+- `src/charter/activations.py` runtime re-export upgraded from **optional** to **MANDATORY** (per data-model.md §7 contract).
+- New architectural cross-check test `test_trigger_registry_runtime_export_in_sync` (lives in `tests/architectural/test_trigger_registry_coverage.py`) added to WP05's deliverables — asserts byte-identical equality between the canonical frozensets and the runtime re-exports.
+- WP05 subtasks updated: T024 rewritten to mark re-export MANDATORY; new T024a explicitly scopes the cross-check test as a deliverable.
+- WP05 frontmatter `owned_files` extended with `src/charter/activations.py`; `subtasks` extended with T024a.
+- WP05 Definition of Done cites the new cross-check test.
+
+**Verification:** `rg "= _ALLOWED_ACTIONS \\| frozenset\\(\\{"` returns exactly two hits — `data-model.md` §7 (canonical) and `WP05` (implementation reference that points back to §7). All other locations reference §7 via a hyperlink pointer.
+
+### I2 — WP07 file count clarity
+
+**Changes:**
+- `tasks/WP07-...md` Context section gains an explicit "Scope clarification" paragraph: 13 migrating runtime files + 1 new `src/kernel/schema_utils.py` = 14 paths touched, allowlist counts 13.
+- `tasks.md` WP07 summary cell appends "13 migrate + 1 new = 14 paths" parenthetical.
+- `plan.md` §2.9 appends a parenthetical noting the new kernel module and that the allowlist still counts 13.
+
+### U1 — `doctor doctrine` Selections snapshot test
+
+**Changes:**
+- `tasks/WP09-...md` T050 gains an explicit Definition-of-Done clause requiring a snapshot test at `tests/cli/test_doctor_doctrine_selections_snapshot.py` with snapshot file `tests/cli/__snapshots__/doctor_doctrine_selections.txt`. Snapshot scope (multi-source kind, empty kind, exact provenance suffix) pinned in the task body.
+- WP09 frontmatter `owned_files` extended with both the test file and the snapshot file.
+- WP09 Definition of Done cites the new snapshot test.
+
+### D1 — Cosmetic ATDD-mapping duplication (intentionally deferred)
+
+No action. Per analyzer recommendation: acceptable redundancy for traceability; defer to a follow-up cosmetic pass.
