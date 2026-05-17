@@ -1,28 +1,28 @@
 {
-  "event_count": 20,
-  "last_event_id": "01KRVCQK7EDGZ279Q9JFPV8K2R",
-  "materialized_at": "2026-05-17T16:36:26.478032+00:00",
+  "event_count": 21,
+  "last_event_id": "01KRVCSM9K77FKTXB6H7Q311Y9",
+  "materialized_at": "2026-05-17T16:37:33.107358+00:00",
   "mission_number": "",
   "mission_slug": "charter-mediated-doctrine-selection-01KRTZCA",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 1,
+    "approved": 2,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 1,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 6
   },
   "work_packages": {
     "WP01": {
-      "actor": "claude:opus-4-7:reviewer-renata:reviewer",
+      "actor": "user",
       "force_count": 1,
-      "lane": "in_review",
-      "last_event_id": "01KRVCMHAMJYYT2VKDYH5JMBEX",
-      "last_transition_at": "2026-05-17T16:34:46.228611+00:00"
+      "lane": "approved",
+      "last_event_id": "01KRVCSM9K77FKTXB6H7Q311Y9",
+      "last_transition_at": "2026-05-17T16:37:33.107358+00:00"
     },
     "WP02": {
       "actor": "finalize-tasks",
