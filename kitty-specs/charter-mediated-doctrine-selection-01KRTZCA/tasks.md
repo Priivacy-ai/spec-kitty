@@ -34,7 +34,8 @@
 | T021 | Unit tests: each new renderer emits ID + body (or fetch + when-doing under overflow); provenance line present for org artifacts | WP04 | [D] |
 | T022 | Add `_render_activation_stanza` helper in `src/charter/context.py` producing the "When you `<action>` in a `<mission_type>` mission, run ..." line | WP05 | | [D] |
 | T023 | Wire activation resolver call (`charter.activations.resolve_for_context`) into `build_charter_context` and render matching entries | WP05 | | [D] |
-| T024 | Populate `tests/architectural/test_trigger_registry_coverage.py::_REGISTERED_TRIGGERS` with the 15-token frozenset per plan §2.10 | WP05 | [D] |
+| T024 | Populate `tests/architectural/test_trigger_registry_coverage.py::_REGISTERED_TRIGGERS` with the 14-token frozenset per data-model.md §7 + MANDATORY runtime re-export from `src/charter/activations.py` | WP05 | [D] |
+| T024a | Cross-check architectural test `test_trigger_registry_runtime_export_in_sync` asserting byte-identical equality between canonical SSOT frozensets and `charter.activations` runtime re-exports | WP05 | [D] |
 | T025 | Unit tests: activation stanza emitted on context match; wildcard match works; multiple matches concatenate in declaration order | WP05 | [D] |
 | T026 | Extend `apply_org_charter_to_interview` in `src/specify_cli/doctrine/org_charter.py` to union every `required_<kind>` (7 new) into `interview_data.selected_<kind>` | WP06 | |
 | T027 | Extend `load_org_charter_policies` merge to handle all 8 `required_<kind>` lists with union-preserving-first-seen-order semantics | WP06 | |
