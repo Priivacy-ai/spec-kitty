@@ -891,8 +891,73 @@ def setup_plan(
     Examples:
         spec-kitty agent mission setup-plan --json
         spec-kitty agent mission setup-plan --mission 020-my-feature --json
+
+    ------------------------------------------------------------------
+    WP04 / FR-011 + FR-012 audit (2026-05-17)
+    ------------------------------------------------------------------
+    This command's full call graph was audited to confirm every body
+    upload / queue write goes through ``default_queue_db_path()`` and
+    that no setup-plan path opens the legacy ``~/.spec-kitty/queue.db``
+    directly. The audit covered:
+
+      * ``trigger_feature_dossier_sync_if_enabled()`` (this function
+        constructs ``OfflineBodyUploadQueue()`` which delegates to
+        ``default_queue_db_path()`` — FR-012 lock).
+      * ``OfflineBodyUploadQueue.__init__`` (``sync.body_queue``) —
+        falls back to ``default_queue_db_path()`` when ``db_path`` is
+        ``None``.
+      * ``emit_artifact_phase()`` / ``SPECIFY_COMPLETED`` /
+        ``PLAN_STARTED`` / ``PLAN_COMPLETED`` — writes to local
+        lifecycle JSONL only, no queue DB.
+      * ``safe_commit()`` — local git only, no queue DB.
+
+    No direct ``_legacy_queue_db_path()`` call sites exist in the
+    setup-plan call graph as of 2026-05-17. The FR-011 refuse-loudly
+    guard immediately below this comment is the load-bearing gate that
+    ensures we never silently fall back to the legacy queue when SaaS
+    sync is enabled but the foreground is unauthenticated.
+
+    Cross-reference: WP04 of mission
+    ``mvp-sync-boundary-cli-01KRVCQS``; regression tests in
+    ``tests/runtime/test_setup_plan_sync_evidence.py``.
+    ------------------------------------------------------------------
     """
     try:
+        # FR-011 (WP04): when hosted SaaS sync is opt-in via the env var,
+        # refuse loudly and exit non-zero if the foreground process has no
+        # authenticated session / credentials we could derive a queue scope
+        # from. This guard MUST run before any side effect (git preflight,
+        # plan-file scaffolding, lifecycle emit, dossier sync) so that an
+        # unauthenticated SAAS-enabled invocation never strands body uploads
+        # in the legacy queue.
+        if os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC") == "1":
+            from specify_cli.sync.queue import (
+                read_queue_scope_from_credentials,
+                read_queue_scope_from_session,
+            )
+
+            _scope = read_queue_scope_from_session() or read_queue_scope_from_credentials()
+            if not _scope:
+                error_msg = (
+                    "SaaS sync cannot be guaranteed: no authenticated session/credentials found."
+                )
+                remediation = (
+                    "Run `spec-kitty auth login` or unset SPEC_KITTY_ENABLE_SAAS_SYNC "
+                    "before running setup-plan."
+                )
+                if json_output:
+                    _emit_json(
+                        {
+                            "error_code": "SAAS_SYNC_UNAUTHENTICATED",
+                            "error": error_msg,
+                            "remediation": [remediation],
+                        }
+                    )
+                else:
+                    console.print(f"[red]Error[/red]: {error_msg}")
+                    console.print(remediation)
+                raise typer.Exit(code=2)
+
         repo_root = locate_project_root()
         if repo_root is None:
             error_msg = "Could not locate project root. Run from within spec-kitty repository."

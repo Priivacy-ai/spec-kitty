@@ -21,6 +21,7 @@ from __future__ import annotations
 import errno
 import json
 import logging
+import os
 import secrets
 import socket
 import subprocess
@@ -383,25 +384,30 @@ class SyncDaemonHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def handle_health(self) -> None:
+        from specify_cli.sync.owner import read_owner_record, redact_token
         from specify_cli.sync.runtime import get_runtime
 
         runtime = get_runtime()
         sync = runtime.background_service
-        self._send_json(
-            200,
-            {
-                "status": "ok",
-                "token": getattr(self, "daemon_token", None),
-                "protocol_version": DAEMON_PROTOCOL_VERSION,
-                "package_version": _get_package_version(),
-                "sync": {
-                    "running": bool(sync and sync.is_running),
-                    "last_sync": sync.last_sync.isoformat() if sync and sync.last_sync else None,
-                    "consecutive_failures": sync.consecutive_failures if sync else 0,
-                },
-                "websocket_status": runtime.get_websocket_status(),
+        payload: dict[str, Any] = {
+            "status": "ok",
+            "token": getattr(self, "daemon_token", None),
+            "protocol_version": DAEMON_PROTOCOL_VERSION,
+            "package_version": _get_package_version(),
+            "sync": {
+                "running": bool(sync and sync.is_running),
+                "last_sync": sync.last_sync.isoformat() if sync and sync.last_sync else None,
+                "consecutive_failures": sync.consecutive_failures if sync else 0,
             },
-        )
+            "websocket_status": runtime.get_websocket_status(),
+        }
+        # Surface the redacted owner record (FR-006). The redactor returns
+        # ``None`` when no record exists; we drop the key in that case so
+        # the wire shape stays clean.
+        owner_view = redact_token(read_owner_record())
+        if owner_view is not None:
+            payload["owner"] = owner_view
+        self._send_json(200, payload)
 
     def handle_sync_trigger(self) -> None:
         if self._require_token() is None:
@@ -557,7 +563,23 @@ def _start_self_check_tick(
 
 
 def run_sync_daemon(port: int, daemon_token: str | None) -> None:
-    """Run the machine-global sync daemon forever."""
+    """Run the machine-global sync daemon forever.
+
+    Once the HTTP server is bound, this function writes the canonical
+    :class:`DaemonOwnerRecord` to ``<sync_root>/daemon/owner.json`` so the
+    foreground can detect ownership mismatches (FR-005/FR-006/FR-007) and
+    orphan crashes (FR-010). The record is removed on clean shutdown; if
+    the process is killed (SIGKILL, crash, power loss) the file remains
+    and orphan detection on the foreground side reconciles it.
+    """
+    import atexit
+    import signal as _signal
+
+    from specify_cli.sync.owner import (
+        build_record_for_current_process,
+        remove_owner_record,
+        write_owner_record,
+    )
     from specify_cli.sync.runtime import get_runtime
 
     get_runtime()
@@ -567,11 +589,56 @@ def run_sync_daemon(port: int, daemon_token: str | None) -> None:
         {"daemon_token": daemon_token},
     )
     server = HTTPServer(("127.0.0.1", port), handler_class)
+
+    # Bind succeeded — record ownership BEFORE accepting traffic so any
+    # health probe that arrives in the first scheduling slice already sees
+    # a coherent owner field.
+    record = build_record_for_current_process(
+        pid=os.getpid(),
+        port=port,
+        token=daemon_token or "",
+    )
+    try:
+        write_owner_record(record)
+    except OSError as exc:  # pragma: no cover - filesystem catastrophe
+        logger.warning("Failed to write daemon owner record: %s", exc)
+
+    def _cleanup_owner_record() -> None:
+        try:
+            remove_owner_record()
+        except Exception:  # noqa: BLE001 — best-effort, never block exit
+            logger.debug("Owner record cleanup raised; continuing")
+
+    atexit.register(_cleanup_owner_record)
+
+    def _signal_handler(signum: int, _frame: Any) -> None:
+        logger.info("Received signal %d; shutting down daemon", signum)
+        _cleanup_owner_record()
+        # Trigger HTTPServer.serve_forever() to return.
+        try:
+            server.shutdown()
+        except Exception:  # noqa: BLE001
+            pass
+
+    # Best-effort signal handlers. ``signal.signal`` only works on the main
+    # thread, which is where ``run_sync_daemon`` always executes; if we are
+    # ever called off-main-thread (tests stubbing this in), we silently
+    # skip rather than raising.
+    for sig_name in ("SIGTERM", "SIGINT"):
+        sig = getattr(_signal, sig_name, None)
+        if sig is None:
+            continue
+        try:
+            _signal.signal(sig, _signal_handler)
+        except (ValueError, OSError):  # pragma: no cover - off main thread
+            pass
+
     tick = _start_self_check_tick(server, my_port=port)
     try:
         server.serve_forever()
     finally:
         tick.cancel()
+        _cleanup_owner_record()
 
 
 def _background_script(port: int, daemon_token: str | None) -> str:

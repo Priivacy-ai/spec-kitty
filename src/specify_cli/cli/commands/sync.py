@@ -1204,13 +1204,101 @@ def now(
     _enforce_sync_now_exit(strict, queue_size, result)
 
 
+def _count_legacy_body_uploads_for_mission(mission_slug: str | None) -> int:
+    """Return the number of legacy ``body_upload_queue`` rows tagged for *mission_slug*.
+
+    Best-effort: returns 0 when the legacy DB does not exist, when the
+    ``body_upload_queue`` table is missing, or when ``mission_slug`` is
+    ``None``. The query is read-only — it never mutates the legacy DB.
+
+    Used by FR-013 to tag the legacy-queue diagnostic when setup-plan
+    body uploads from the active mission are still stranded in the
+    pre-scoped queue file.
+    """
+    if not mission_slug:
+        return 0
+    import sqlite3 as _sqlite3
+
+    from specify_cli.sync.queue import _legacy_queue_db_path
+
+    legacy_db = _legacy_queue_db_path()
+    if not legacy_db.exists():
+        return 0
+    try:
+        conn = _sqlite3.connect(legacy_db)
+    except _sqlite3.Error:
+        return 0
+    try:
+        cur = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='body_upload_queue'"
+        )
+        if cur.fetchone() is None:
+            return 0
+        row = conn.execute(
+            "SELECT COUNT(*) FROM body_upload_queue WHERE mission_slug = ?",
+            (mission_slug,),
+        ).fetchone()
+        return int(row[0]) if row else 0
+    except _sqlite3.Error:
+        return 0
+    finally:
+        conn.close()
+
+
+def _build_boundary_check_failures(
+    *,
+    daemon_mismatched_fields: list[str],
+    legacy_counts: dict[str, int],
+    legacy_db_path: str,
+    orphan_count: int,
+    stranded_mission_slug: str | None,
+) -> list[str]:
+    """Return human-readable failure lines for the ``sync status --check`` gate.
+
+    The gate trips (returns non-zero) when ANY of the three FR-009 conditions
+    hold: foreground/daemon disagree on a D-3 field, the legacy DB still has
+    rows in any migration table for the active scope, or one or more
+    orphaned daemon records exist.
+
+    The returned list is empty when the boundary is coherent.
+    """
+    failures: list[str] = []
+    if daemon_mismatched_fields:
+        failures.append(
+            "foreground/daemon disagree on D-3 field(s): "
+            + ", ".join(daemon_mismatched_fields)
+        )
+    if legacy_counts:
+        total = sum(legacy_counts.values())
+        tables = ", ".join(f"{t}={c}" for t, c in sorted(legacy_counts.items()))
+        line = (
+            f"legacy queue DB {legacy_db_path} has {total} row(s) pending "
+            f"migration ({tables})"
+        )
+        if stranded_mission_slug:
+            # FR-013: tag stranded setup-plan body uploads for the active mission.
+            line += f" — setup-plan stranded mission slug {stranded_mission_slug}"
+        failures.append(line)
+    if orphan_count > 0:
+        failures.append(
+            f"{orphan_count} orphan daemon record(s) detected; retire via "
+            "`spec-kitty sync doctor`"
+        )
+    return failures
+
+
 @app.command()
-def status(
+def status(  # noqa: C901
     check_connection: bool = typer.Option(
         False,
         "--check",
         "-c",
-        help="Test connection to server (may be slow if server is unreachable)",
+        help=(
+            "Test connection to server AND enforce the identity-boundary "
+            "coherence gate (FR-009). Exits non-zero when foreground/daemon "
+            "disagree, when legacy rows remain in the active scope, or when "
+            "any orphan daemon record is present."
+        ),
     ),
 ) -> None:
     """Show sync queue status, connection state, and auth info.
@@ -1374,6 +1462,146 @@ def status(
         console.print("[green]Queue empty -- all events synced.[/green]")
         console.print()
 
+    # --- Identity Boundary section (WP03 / FR-008) -------------------------
+    # The boundary view answers: "who do I think I am, who does the recorded
+    # daemon think it is, and what state is sitting in the legacy/scoped
+    # queue files right now?" We render the foreground identity, the
+    # active scoped queue, the legacy queue, the recorded daemon owner,
+    # the D-3 mismatched fields, and the orphan-record count.
+    from specify_cli.sync.owner import (
+        compute_foreground_identity,
+        list_orphan_records,
+        mismatched_fields,
+        read_owner_record,
+    )
+    from specify_cli.sync.queue import (
+        _legacy_queue_db_path,
+        detect_legacy_rows_for_scope,
+    )
+
+    foreground_identity = compute_foreground_identity()
+    daemon_record = read_owner_record()
+    daemon_mismatched: list[str] = []
+    if daemon_record is not None:
+        daemon_mismatched = mismatched_fields(daemon_record, foreground_identity)
+    orphan_records = list_orphan_records()
+    orphan_record_count = len(orphan_records)
+
+    active_scope = foreground_identity.get("auth_scope")
+    legacy_counts: dict[str, int] = detect_legacy_rows_for_scope(
+        active_scope if isinstance(active_scope, str) else ""
+    )
+    legacy_db_path = _legacy_queue_db_path()
+
+    # FR-013: detect setup-plan body uploads stranded in the legacy DB
+    # for the current mission slug. Best-effort — when the active mission
+    # cannot be derived from cwd (e.g. operator running from the repo
+    # root), we omit the tag.
+    _workspace_path, active_mission_slug = _detect_workspace_context()
+    stranded_count = _count_legacy_body_uploads_for_mission(active_mission_slug)
+    stranded_tag = active_mission_slug if stranded_count > 0 else None
+
+    # Active-queue diagnostics on the foreground queue.
+    body_queue_count = 0
+    try:
+        from specify_cli.sync.body_queue import OfflineBodyUploadQueue
+
+        active_body_queue = OfflineBodyUploadQueue(db_path=queue.db_path)
+        import sqlite3 as _sqlite3
+
+        _conn = _sqlite3.connect(active_body_queue.db_path)
+        try:
+            body_queue_count = int(
+                _conn.execute("SELECT COUNT(*) FROM body_upload_queue").fetchone()[0]
+            )
+        finally:
+            _conn.close()
+    except Exception:  # noqa: BLE001 — read-only diagnostic, never raise
+        body_queue_count = 0
+
+    # Legacy body-upload count (read-only).
+    legacy_body_count = legacy_counts.get("body_upload_queue", 0)
+    legacy_event_count = legacy_counts.get("queue", 0)
+
+    boundary_table = Table(
+        title="Identity Boundary",
+        show_header=False,
+        box=None,
+        expand=False,
+    )
+    boundary_table.add_column("Key", style="dim")
+    boundary_table.add_column("Value")
+
+    # Foreground.
+    boundary_table.add_row(
+        "Foreground CLI", str(foreground_identity.get("package_version") or "-")
+    )
+    boundary_table.add_row(
+        "Foreground exec", str(foreground_identity.get("executable_path") or "-")
+    )
+    boundary_table.add_row(
+        "Foreground server", str(foreground_identity.get("server_url") or "-")
+    )
+    boundary_table.add_row(
+        "Foreground principal",
+        str(foreground_identity.get("auth_principal") or "[dim]none[/dim]"),
+    )
+    boundary_table.add_row(
+        "Foreground team",
+        str(foreground_identity.get("auth_team") or "[dim]none[/dim]"),
+    )
+    boundary_table.add_row(
+        "Foreground scope",
+        str(foreground_identity.get("auth_scope") or "[dim]none[/dim]"),
+    )
+
+    # Active scoped queue.
+    boundary_table.add_row(
+        "Active queue DB", str(foreground_identity.get("queue_db_path") or "-")
+    )
+    boundary_table.add_row("Active queue events", f"{queue_size}")
+    boundary_table.add_row("Active body uploads", f"{body_queue_count}")
+
+    # Legacy queue.
+    boundary_table.add_row("Legacy queue DB", str(legacy_db_path))
+    legacy_line = f"{legacy_event_count} event(s), {legacy_body_count} body upload(s)"
+    if stranded_tag:
+        legacy_line += f" — setup-plan stranded mission slug {stranded_tag}"
+    boundary_table.add_row("Legacy queue rows", legacy_line)
+
+    # Daemon owner record.
+    if daemon_record is None:
+        boundary_table.add_row("Daemon owner", "[dim]no record[/dim]")
+    else:
+        boundary_table.add_row("Daemon PID", str(daemon_record.pid))
+        boundary_table.add_row("Daemon port", str(daemon_record.port))
+        boundary_table.add_row("Daemon version", daemon_record.package_version)
+        boundary_table.add_row("Daemon exec", daemon_record.executable_path)
+        boundary_table.add_row("Daemon source", daemon_record.source_checkout_path)
+        boundary_table.add_row("Daemon server", daemon_record.server_url)
+        boundary_table.add_row(
+            "Daemon scope", daemon_record.auth_scope or "[dim]none[/dim]"
+        )
+        boundary_table.add_row("Daemon queue DB", daemon_record.queue_db_path)
+
+    # Diagnostics.
+    if daemon_mismatched:
+        boundary_table.add_row(
+            "Mismatched fields",
+            f"[red]{', '.join(daemon_mismatched)}[/red]",
+        )
+    else:
+        boundary_table.add_row("Mismatched fields", "[green]none[/green]")
+    boundary_table.add_row(
+        "Orphan daemon records",
+        f"[yellow]{orphan_record_count}[/yellow]"
+        if orphan_record_count
+        else "[green]0[/green]",
+    )
+
+    console.print(boundary_table)
+    console.print()
+
     if not check_connection:
         console.print("[dim]Use 'spec-kitty sync status --check' to test connectivity.[/dim]")
         console.print()
@@ -1385,6 +1613,28 @@ def status(
         )
         if outcome is RecoveryOutcome.EXIT_4:
             raise typer.Exit(EXIT_LOGGED_OUT_ON_CONNECTED_TEAMSPACE)
+
+    # --- --check coherence gate (WP03 / FR-009) ---------------------------
+    # Returns non-zero when any of the three FR-009 conditions hold. The
+    # gate ONLY trips under --check so the read-only ``sync status``
+    # surface keeps its existing exit-0 contract.
+    if check_connection is True:
+        failures = _build_boundary_check_failures(
+            daemon_mismatched_fields=daemon_mismatched,
+            legacy_counts=legacy_counts,
+            legacy_db_path=str(legacy_db_path),
+            orphan_count=orphan_record_count,
+            stranded_mission_slug=stranded_tag,
+        )
+        if failures:
+            console.print(
+                "[red]Identity boundary check FAILED:[/red]",
+                style=None,
+            )
+            for line in failures:
+                console.print(f"  [red]![/red] {line}")
+            console.print()
+            raise typer.Exit(1)
 
 
 @app.command()
@@ -1714,6 +1964,45 @@ def doctor() -> None:  # noqa: C901
                 str(failure["failure_reason"]),
             )
         console.print(failure_table)
+        console.print()
+
+    # --- 4b. Orphan daemon records (WP03 / FR-010) ------------------------
+    # The owner-record registry (WP02) may carry records whose recorded PID
+    # is dead or whose executable has gone missing. List them here with a
+    # copy-pasteable retirement hint so operators can clean up without
+    # grepping the daemon directory.
+    from specify_cli.sync.owner import list_orphan_records, owner_record_path
+
+    orphan_records = list_orphan_records()
+    if orphan_records:
+        issues.append(
+            f"{len(orphan_records)} orphan daemon owner record(s) on disk; "
+            f"retire via `rm {owner_record_path()}`."
+        )
+        orphan_table = Table(
+            title="Orphan Daemons",
+            show_header=True,
+            header_style="bold yellow",
+            show_lines=False,
+            expand=False,
+        )
+        orphan_table.add_column("PID", justify="right", style="yellow")
+        orphan_table.add_column("Port", justify="right")
+        orphan_table.add_column("Version")
+        orphan_table.add_column("Executable", overflow="fold")
+        orphan_table.add_column("Started At")
+        for record in orphan_records:
+            orphan_table.add_row(
+                str(record.pid),
+                str(record.port),
+                record.package_version,
+                record.executable_path,
+                record.started_at,
+            )
+        console.print(orphan_table)
+        console.print(
+            f"[dim]Retire orphan record(s): rm {owner_record_path()}[/dim]"
+        )
         console.print()
 
     # --- 5. Summary ---
