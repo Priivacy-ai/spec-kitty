@@ -243,3 +243,4 @@ Coverage:
 - 2026-05-17T17:15:25Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1708946 – Started implementation via action command
 - 2026-05-17T17:35:55Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1708946 – Activation render body filled; runtime re-export ratcheted by cross-check test; case-1 trigger stanza ATDD green
 - 2026-05-17T17:36:44Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=1729018 – Started review via action command
+- 2026-05-17T17:41:10Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=1729018 – Review passed: activation render body filled; runtime trigger registry ratcheted via cross-check test; case-1 trigger stanza ATDD green; layer rule intact. Action widening from 10→14 validated against data-model.md §7. Singular kind normalisation is defensive (both forms accepted). T024a metadata gap is orchestrator-side, not a WP regression.
