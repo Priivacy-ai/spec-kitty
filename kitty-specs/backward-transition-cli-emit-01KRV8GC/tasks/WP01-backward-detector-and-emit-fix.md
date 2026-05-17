@@ -21,8 +21,8 @@ created_at: '2026-05-17T15:36:17.631963+00:00'
 subtasks:
 - T001
 - T002
-agent: claude
-shell_pid: '3059'
+agent: "claude:opus:python-pedro:implementer"
+shell_pid: "3059"
 history:
 - timestamp: '2026-05-17T15:30:00Z'
   actor: planner
@@ -222,3 +222,7 @@ A reviewer should:
    - Synthesizes the canonical reason shape with optional feedback-ref.
 4. Confirm `_lane_targets_for_emit` semantics are unchanged (only the constant reference was moved out).
 5. Run the existing test suite to confirm zero regression: `uv run pytest tests/specify_cli/cli/commands/agent/test_tasks.py -q`.
+
+## Activity Log
+
+- 2026-05-17T15:36:19Z – claude:opus:python-pedro:implementer – shell_pid=3059 – Assigned agent via action command
