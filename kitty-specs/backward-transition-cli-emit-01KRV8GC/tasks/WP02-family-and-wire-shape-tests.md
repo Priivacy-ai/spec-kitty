@@ -14,7 +14,8 @@ subtasks:
 - T003
 - T004
 - T005
-agent: claude
+agent: "claude:opus:python-pedro:implementer"
+shell_pid: "4812"
 history:
 - timestamp: '2026-05-17T15:30:00Z'
   actor: planner
@@ -257,3 +258,7 @@ uv run mypy --strict src/specify_cli/cli/commands/agent/tasks.py
 5. Confirm `uv run pytest tests/ -q` is green and `uv run ruff check src/specify_cli/` is green.
 6. Confirm no mocks of internal helpers.
 7. Confirm no edits to source code (`src/`) — all changes are in `tests/`.
+
+## Activity Log
+
+- 2026-05-17T15:44:41Z – claude:opus:python-pedro:implementer – shell_pid=4812 – Started implementation via action command
