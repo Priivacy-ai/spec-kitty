@@ -79,7 +79,7 @@ If the existing closure `_lane_targets_for_emit` already uses `forward = [Lane.P
 **Independent test**: The new test file passes; full unit suite passes; ruff + mypy + coverage gates green.
 
 **Included subtasks**:
-- [ ] T003 New test file `tests/specify_cli/cli/commands/agent/test_tasks_backward_emit.py`. Six methods minimum:
+- [x] T003 New test file `tests/specify_cli/cli/commands/agent/test_tasks_backward_emit.py`. Six methods minimum:
   - `test_in_review_to_planned_auto_promotes_force` (FR-008a)
   - `test_approved_to_planned_auto_promotes_force` (FR-008b)
   - `test_for_review_to_planned_auto_promotes_force` (FR-008c, partial — for_review variant)
@@ -87,8 +87,8 @@ If the existing closure `_lane_targets_for_emit` already uses `forward = [Lane.P
   - `test_planned_to_claimed_does_not_auto_promote` (FR-008d, forward control)
   - `test_in_progress_to_for_review_expands_intermediate` (FR-008e, skip-ahead forward unchanged)
   - `test_backward_emit_includes_feedback_ref` (FR-008f, with `--review-feedback-file`)
-- [ ] T004 In the same test file: `test_approved_to_planned_matches_mission1_fixture` — FR-009 wire-shape regression. Load fixture via `spec_kitty_events.conformance.load_fixtures("edge_cases")`. Assert on emitted-event payload: `force == True`, `reason.startswith("backward rewind: approved -> planned")`, `from_lane == "approved"`, `to_lane == "planned"`.
-- [ ] T005 Run quality gates and report results:
+- [x] T004 In the same test file: `test_approved_to_planned_matches_mission1_fixture` — FR-009 wire-shape regression. Load fixture via `spec_kitty_events.conformance.load_fixtures("edge_cases")`. Assert on emitted-event payload: `force == True`, `reason.startswith("backward rewind: approved -> planned")`, `from_lane == "approved"`, `to_lane == "planned"`.
+- [x] T005 Run quality gates and report results:
   - `uv run pytest tests/cli/commands tests/status -k "move_task or status or transition" -q` (NFR-001 ≤30s)
   - `uv run pytest tests/ -q` (SC-004)
   - `uv run ruff check src/specify_cli/` (NFR-003)
