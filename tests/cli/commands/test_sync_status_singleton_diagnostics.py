@@ -5,15 +5,17 @@ The singleton invariant (one live ``run_sync_daemon`` per
 helpers into the user-facing ``sync status --check`` output so operators
 can see the daemon PID/port and any orphan processes without grepping
 ``ps`` themselves.
+
+The ``status`` command imports ``get_sync_daemon_status`` / ``scan_sync_daemons``
+inside the function body, so these tests patch the source module
+(``specify_cli.sync.daemon``) rather than the importing command module.
 """
 
 from __future__ import annotations
 
-from io import StringIO
 from unittest.mock import patch
 
 import pytest
-from rich.console import Console
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands import sync as sync_command
@@ -52,10 +54,12 @@ def test_status_check_includes_daemon_pid_and_port(monkeypatch):
     monkeypatch.setattr(sync_command, "is_saas_sync_enabled", lambda: True)
 
     with (
-        patch.object(sync_command, "get_sync_daemon_status", return_value=_healthy_status(pid=12345, port=9400)),
-        patch.object(
-            sync_command,
-            "scan_sync_daemons",
+        patch(
+            "specify_cli.sync.daemon.get_sync_daemon_status",
+            return_value=_healthy_status(pid=12345, port=9400),
+        ),
+        patch(
+            "specify_cli.sync.daemon.scan_sync_daemons",
             return_value=DaemonSingletonReport(
                 state_pid=12345,
                 state_file_present=True,
@@ -96,10 +100,12 @@ def test_status_check_flags_orphan_daemons(monkeypatch):
     )
 
     with (
-        patch.object(sync_command, "get_sync_daemon_status", return_value=_healthy_status(pid=4242, port=9400)),
-        patch.object(
-            sync_command,
-            "scan_sync_daemons",
+        patch(
+            "specify_cli.sync.daemon.get_sync_daemon_status",
+            return_value=_healthy_status(pid=4242, port=9400),
+        ),
+        patch(
+            "specify_cli.sync.daemon.scan_sync_daemons",
             return_value=DaemonSingletonReport(
                 state_pid=4242,
                 state_file_present=True,
@@ -135,8 +141,14 @@ def test_status_without_check_skips_orphan_scan(monkeypatch):
         raise AssertionError("scan_sync_daemons must not run on fast path")
 
     with (
-        patch.object(sync_command, "get_sync_daemon_status", return_value=_healthy_status()),
-        patch.object(sync_command, "scan_sync_daemons", side_effect=fail_if_called),
+        patch(
+            "specify_cli.sync.daemon.get_sync_daemon_status",
+            return_value=_healthy_status(),
+        ),
+        patch(
+            "specify_cli.sync.daemon.scan_sync_daemons",
+            side_effect=fail_if_called,
+        ),
     ):
         result = runner.invoke(app, ["status"])
 

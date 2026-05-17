@@ -1,4 +1,20 @@
-"""Machine-global sync daemon lifecycle and localhost control plane."""
+"""Sync daemon lifecycle and localhost control plane.
+
+Scope honesty (see #1071): the singleton is bound to ``DAEMON_STATE_FILE``,
+which resolves under the user-scoped runtime root (``~/.spec-kitty/sync-daemon``
+on POSIX, ``%LOCALAPPDATA%\\spec-kitty\\daemon`` via the unified RuntimeRoot
+on Windows). That means *one daemon per state-file scope*. Different
+``$HOME`` values (Conductor workspaces, container mounts, etc.) write to
+different state files and therefore each spawn their own daemon, which is
+how the cross-checkout leak in #1071 manifests in practice.
+
+The ``scan_sync_daemons`` helper enumerates *every* live ``run_sync_daemon``
+process on the host regardless of which state file claimed them, and the
+``sync status --check`` / ``sync doctor`` surfaces surface that report so
+operators can detect cross-scope orphans. ``ensure_sync_daemon_running``
+verifies that any daemon it kills on version-mismatch has actually exited
+before clearing the state file (see ``_kill_and_cleanup``).
+"""
 
 from __future__ import annotations
 
@@ -618,11 +634,29 @@ def get_sync_daemon_status(timeout: float = 0.5) -> SyncDaemonStatus:
     )
 
 
-def _kill_and_cleanup(pid: int | None) -> None:
-    """Best-effort kill a daemon process and remove the state file."""
+def _kill_and_cleanup(pid: int | None, *, wait_timeout: float = 2.0) -> None:
+    """Kill a daemon process, wait for it to actually exit, and remove the state file.
+
+    The AC for #1071 explicitly requires that ``ensure_sync_daemon_running``
+    not leave older daemons alive after starting a replacement for
+    version/protocol mismatch. We therefore wait briefly for the killed
+    process to exit before unlinking the state file so that the next
+    ``ensure_running`` call observes a clean slate rather than racing the
+    prior daemon's teardown.
+    """
     if pid is not None:
         try:
-            psutil.Process(pid).kill()
+            proc = psutil.Process(pid)
+            proc.kill()
+            try:
+                proc.wait(timeout=wait_timeout)
+            except psutil.TimeoutExpired:
+                logger.warning(
+                    "Daemon pid=%s did not exit within %.1fs after SIGKILL; "
+                    "state file will be cleared anyway",
+                    pid,
+                    wait_timeout,
+                )
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             pass
     DAEMON_STATE_FILE.unlink(missing_ok=True)
