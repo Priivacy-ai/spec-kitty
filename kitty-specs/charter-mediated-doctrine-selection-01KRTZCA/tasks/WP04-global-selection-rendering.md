@@ -17,7 +17,7 @@ subtasks:
 - T020
 - T021
 - T023
-agent: claude
+agent: "claude:opus-4-7:python-pedro:implementer"
 agent_profile: python-pedro
 authoritative_surface: src/charter/context.py
 execution_mode: code_change
@@ -27,6 +27,7 @@ owned_files:
 role: implementer
 history: []
 tags: []
+shell_pid: "1677156"
 ---
 
 ## Do This First: Load Agent Profile
@@ -154,3 +155,7 @@ Coverage:
 - Verify provenance suffix is emitted only for org-sourced artifacts (not built-in, not project).
 - Verify the empty-selection case doesn't emit a stray header.
 - Run latency test to confirm no regression.
+
+## Activity Log
+
+- 2026-05-17T16:52:36Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1677156 – Started implementation via action command
