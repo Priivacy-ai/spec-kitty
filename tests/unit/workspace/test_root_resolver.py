@@ -25,7 +25,7 @@ from specify_cli.workspace.root_resolver import (
 )
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 @pytest.fixture(autouse=True)
 def _clear_cache():

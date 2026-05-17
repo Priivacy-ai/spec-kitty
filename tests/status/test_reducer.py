@@ -17,7 +17,7 @@ from specify_cli.status.reducer import (
 )
 from specify_cli.status.store import append_event
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 def _make_event(

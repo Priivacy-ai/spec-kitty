@@ -19,7 +19,7 @@ from specify_cli.cli.commands.agent.workflow import _render_charter_context
 from charter.context import build_charter_context
 from specify_cli.next.prompt_builder import _build_wp_prompt, _governance_context
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 @pytest.fixture(autouse=True)

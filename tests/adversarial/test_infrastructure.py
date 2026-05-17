@@ -17,7 +17,7 @@ from tests.adversarial.conftest import (
 )
 
 
-pytestmark = [pytest.mark.adversarial]
+pytestmark = [pytest.mark.adversarial, pytest.mark.git_repo]
 
 
 class TestAttackVectorData:

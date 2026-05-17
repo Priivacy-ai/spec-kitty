@@ -62,7 +62,7 @@ from specify_cli.next.prompt_builder import _build_wp_prompt, _governance_contex
 from tests.lane_test_utils import write_single_lane_manifest
 
 
-pytestmark = [pytest.mark.architectural]
+pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
 
 
 # ---------------------------------------------------------------------------

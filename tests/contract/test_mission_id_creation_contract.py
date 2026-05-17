@@ -28,7 +28,7 @@ from specify_cli.core.mission_creation import (
 
 # Crockford base32 subset (excludes I, L, O, U) — the ULID alphabet.
 
-pytestmark = [pytest.mark.contract]
+pytestmark = [pytest.mark.contract, pytest.mark.git_repo]
 
 _ULID_RE = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
 

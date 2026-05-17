@@ -21,7 +21,7 @@ from pathlib import Path
 import pytest
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 @pytest.mark.skipif(
     sys.platform == "win32",

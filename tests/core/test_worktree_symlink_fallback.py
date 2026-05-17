@@ -24,7 +24,7 @@ from pathlib import Path
 import pytest
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 def _init_repo_with_kittify(repo: Path) -> None:
     """Initialise a minimal git repo with .kittify/memory and AGENTS.md."""

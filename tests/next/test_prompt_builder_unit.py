@@ -26,7 +26,7 @@ from specify_cli.next.prompt_builder import (
 # ---------------------------------------------------------------------------
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 @pytest.fixture
 def feature_dir(tmp_path: Path) -> Path:

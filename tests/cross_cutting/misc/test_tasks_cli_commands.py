@@ -11,7 +11,7 @@ from tests.utils import REPO_ROOT, run, run_tasks_cli, write_wp
 from task_helpers import locate_work_package
 
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 def assert_success(result) -> None:
     if result.returncode != 0:

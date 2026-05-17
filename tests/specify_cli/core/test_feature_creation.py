@@ -15,7 +15,7 @@ from specify_cli.core.mission_creation import (
     create_mission_core,
 )
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _CORE_MODULE = "specify_cli.core.mission_creation"
 

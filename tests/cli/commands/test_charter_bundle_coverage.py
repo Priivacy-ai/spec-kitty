@@ -24,7 +24,7 @@ from specify_cli.cli.commands.charter_bundle import (
     app,
 )
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 runner = CliRunner()
 

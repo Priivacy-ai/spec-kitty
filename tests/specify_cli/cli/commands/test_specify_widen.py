@@ -38,7 +38,7 @@ from specify_cli.widen.state import WidenPendingStore
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 _app = typer.Typer()
 _app.command()(specify)
