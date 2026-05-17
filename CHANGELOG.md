@@ -9,7 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [3.2.0rc9] - Unreleased
+## [3.2.0rc10] - 2026-05-17
+
+Rolls forward `3.2.0rc9` (never tagged) and adds the Teamspace MVP
+canonical-lifecycle / sync-daemon launch-gate followups:
+
+- **#1067 follow-up.** `core/mission_creation.py:create_mission_core`
+  now emits the canonical `SpecifyStarted` event immediately after
+  `MissionCreated`, referencing the freshly scaffolded `spec.md`
+  artifact path. Previously the constant was defined but never emitted,
+  so the canonical lifecycle stream skipped straight from
+  `MissionCreated` to `SpecifyCompleted` at setup-plan time — leaving
+  TeamSpace replay and the local dashboard blind to in-progress
+  specifying. Regression coverage in
+  `tests/specify_cli/core/test_mission_creation_specify_started.py`.
+- **#1071 follow-up.** `sync status --check` and `sync doctor` now
+  surface the daemon PID/port and any orphan `run_sync_daemon`
+  processes (via the existing `scan_sync_daemons` helper), so operators
+  see cross-checkout daemon divergence without grepping `ps`.
+  `_kill_and_cleanup` now waits for the killed PID to actually exit
+  before clearing `DAEMON_STATE_FILE` — closing the AC bullet that
+  required version-mismatch replacement not leave older daemons live.
+  Module docstring updated to be honest about state-file-scoped
+  singleton semantics. Regression coverage in
+  `tests/cli/commands/test_sync_status_singleton_diagnostics.py` and
+  `tests/sync/test_daemon_replace_on_version_mismatch.py`.
+
+Everything previously slated for rc9 (below) is included in rc10.
+
+## [3.2.0rc9] (rolled into rc10)
 
 The `quality-devex-hardening-3-2-01KRJGKH` mission closes six epic-#822
 tickets and lands the doctrine tactics, canonical-terminology glossary,
