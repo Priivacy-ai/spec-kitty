@@ -13,6 +13,7 @@ branch_strategy: Planning artifacts for this mission were generated on feat/org-
 subtasks:
 - T022
 - T024
+- T024a
 - T025
 agent: claude
 agent_profile: python-pedro
@@ -20,6 +21,7 @@ authoritative_surface: src/charter/_activation_render.py
 execution_mode: code_change
 owned_files:
 - src/charter/_activation_render.py
+- src/charter/activations.py
 - tests/architectural/test_trigger_registry_coverage.py
 - tests/charter/test_context_activation_render.py
 role: implementer
@@ -129,28 +131,68 @@ activation_lines = [
 
 Concatenate `activation_lines` into the assembled context text under an `Activations:` header.
 
-### T024 — Populate `_REGISTERED_TRIGGERS`
+### T024 — Populate canonical frozensets and **MANDATORY** runtime re-export
 
-**File**: `tests/architectural/test_trigger_registry_coverage.py`
+**Files**:
+- `tests/architectural/test_trigger_registry_coverage.py` (canonical home — see data-model.md §7)
+- `src/charter/activations.py` (mandatory runtime re-export)
 
-Replace the empty frozenset with the 15-token canonical set from plan §2.10:
+Per the canonical definition in [data-model.md §7](../data-model.md#7-trigger-registry-fr-009--canonical-definition), populate both canonical frozensets in the test file:
 
 ```python
-_REGISTERED_TRIGGERS: frozenset[str] = frozenset({
+# tests/architectural/test_trigger_registry_coverage.py
+_ALLOWED_ACTIONS: frozenset[str] = frozenset({
     "specify", "plan", "tasks", "implement", "review", "merge", "accept",
     "charter.interview", "charter.generate", "charter.context",
+})
+_REGISTERED_TRIGGERS: frozenset[str] = _ALLOWED_ACTIONS | frozenset({
     "write_comment", "write_docstring", "rename_identifier", "add_dependency",
 })
 ```
 
-This is the canonical home (per the test's docstring). Re-export from `charter.activations` for runtime consumers if needed:
+**MANDATORY** (not optional) — re-export both canonical frozensets from `src/charter/activations.py` as `ALLOWED_ACTIONS` and `REGISTERED_TRIGGERS` so the runtime resolver, prompt builder, and charter sync validator all consume one source. This replaces the prior "re-export if needed" wording and removes the copy/paste-drift attack surface:
 
 ```python
-# In src/charter/activations.py
-REGISTERED_TRIGGERS: frozenset[str] = frozenset({...same 15 tokens...})
+# src/charter/activations.py
+# Re-export the canonical frozensets defined in
+# tests/architectural/test_trigger_registry_coverage.py per data-model.md §7.
+# DO NOT redefine the literals here.
+from tests.architectural.test_trigger_registry_coverage import (
+    _ALLOWED_ACTIONS as ALLOWED_ACTIONS,
+    _REGISTERED_TRIGGERS as REGISTERED_TRIGGERS,
+)
 ```
 
-Keep the two in sync; an architectural assertion in the trigger-coverage test compares them if desired (optional).
+(If importing test-tree code into runtime is undesirable, instead relocate the canonical literals to a dedicated `src/charter/_trigger_vocabulary.py` module and import them back into the test file — the byte-identity contract is what matters, and the cross-check test in T024a enforces it either way.)
+
+### T024a — Cross-check architectural test (MANDATORY deliverable)
+
+**File**: `tests/architectural/test_trigger_registry_coverage.py`
+
+Add the cross-check test `test_trigger_registry_runtime_export_in_sync` to the same file. It MUST assert byte-identical equality between the canonical frozensets and the `src/charter/activations.py` re-exports:
+
+```python
+def test_trigger_registry_runtime_export_in_sync() -> None:
+    """Cross-check: the runtime re-export in charter.activations MUST be
+    byte-identical to the canonical frozensets in this file. Pinning this
+    eliminates the copy/paste-drift risk identified in analysis-report.md
+    finding A1.
+    """
+    from charter.activations import ALLOWED_ACTIONS, REGISTERED_TRIGGERS
+
+    assert ALLOWED_ACTIONS == _ALLOWED_ACTIONS, (
+        "charter.activations.ALLOWED_ACTIONS drifted from the canonical "
+        "_ALLOWED_ACTIONS in test_trigger_registry_coverage.py. See data-model.md §7."
+    )
+    assert REGISTERED_TRIGGERS == _REGISTERED_TRIGGERS, (
+        "charter.activations.REGISTERED_TRIGGERS drifted from the canonical "
+        "_REGISTERED_TRIGGERS in test_trigger_registry_coverage.py. See data-model.md §7."
+    )
+    assert isinstance(ALLOWED_ACTIONS, frozenset)
+    assert isinstance(REGISTERED_TRIGGERS, frozenset)
+```
+
+This test is the architectural gate that makes the runtime re-export non-optional.
 
 ### T025 — Unit tests
 
@@ -172,6 +214,8 @@ Coverage:
 - ✅ `tests/integration/test_user_doctrine_artifact_lifecycle.py::test_case_1_styleguide_render_includes_trigger_stanza` turns GREEN
 - ✅ `tests/architectural/test_trigger_registry_coverage.py::test_every_declared_trigger_is_in_the_registered_set` stays GREEN with the populated set (still vacuous since no artifacts declare triggers yet — WP08 may add a first declaration)
 - ✅ `tests/architectural/test_trigger_registry_coverage.py::test_registered_triggers_constant_is_a_frozenset_for_immutability` stays GREEN
+- ✅ **NEW** `tests/architectural/test_trigger_registry_coverage.py::test_trigger_registry_runtime_export_in_sync` GREEN — pins the byte-identical equality between the canonical frozensets and the `src/charter/activations.py` re-exports (resolves analysis-report finding A1)
+- ✅ `src/charter/activations.py` exposes `ALLOWED_ACTIONS` and `REGISTERED_TRIGGERS` as `frozenset[str]`, sourced from the canonical definition per data-model.md §7
 - ✅ New unit tests cover stanza rendering with wildcards, multiple matches, and zero matches
 - ✅ `tests/specify_cli/next/test_wp_prompt_governance_contract.py` — 23/23 stays green
 

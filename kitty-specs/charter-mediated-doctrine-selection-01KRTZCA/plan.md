@@ -170,7 +170,7 @@ The exact field values for documentation / research / plan are doctrine-side dat
 
 ### 2.9 13 runtime files — migration
 
-The 13 files in the boundary ratchet allowlist swap `from doctrine.<x> import <Y>` to `from charter.<facade> import <Y>` per the facade table in §1.3. Each file rewrite + corresponding allowlist removal is one commit (C-003).
+The 13 files in the boundary ratchet allowlist swap `from doctrine.<x> import <Y>` to `from charter.<facade> import <Y>` per the facade table in §1.3. Each file rewrite + corresponding allowlist removal is one commit (C-003). (Plus 1 new module `src/kernel/schema_utils.py` from the SchemaUtilities promotion in T040; the allowlist ratchet still counts only the 13 migrating runtime files. Total paths touched in WP07: 14.)
 
 Special case: `bulk_edit/occurrence_map.py`'s `SchemaUtilities` consumer migrates to `kernel.schema_utils` (after promoting the module out of `doctrine.shared`), not via charter.
 
@@ -178,25 +178,7 @@ Borderline cases: the three `versioning` consumers (`cli/commands/charter.py`, `
 
 ### 2.10 Trigger registry initial population (C-005, HiC-facing decision)
 
-Per C-005, the resolved trigger set MUST appear in `plan.md` before
-implementation begins. **Decision**: the Trigger Registry (FR-009) is
-populated with the union of the mission-type verbs and the charter-loop
-verbs, plus four fine-grained tokens for the initial set:
-
-```python
-_REGISTERED_TRIGGERS: frozenset[str] = frozenset({
-    # Mission-type verbs (prompt-builder emits these as action labels)
-    "specify", "plan", "tasks", "implement", "review", "merge", "accept",
-    # Charter-loop verbs
-    "charter.interview", "charter.generate", "charter.context",
-    # Fine-grained tokens (initial set — extend in follow-up missions only)
-    "write_comment", "write_docstring", "rename_identifier", "add_dependency",
-})
-```
-
-This matches the spec FR-009 enumeration verbatim. The same vocabulary is the union of `ALLOWED_ACTIONS` from `charter.activations` and the four fine-grained tokens that artifacts may declare in `triggers:` blocks. The two test files — `test_activation_registry_schema.py::test_activation_context_action_vocabulary_is_closed` and `test_trigger_registry_coverage.py::test_every_declared_trigger_is_in_the_registered_set` — both pin different slices of this same vocabulary and the implementation must keep them in sync.
-
-Initial shipped artifacts MAY declare `triggers:` blocks for the four fine-grained tokens; the prompt builder emits the corresponding fetch stanza when the resolver sees that token in an activation entry. Adding a new token to `_REGISTERED_TRIGGERS` is a deliberate amend (the architectural test forces it).
+See [data-model.md §7](data-model.md#7-trigger-registry-fr-009--canonical-definition) for the canonical vocabulary definition, the `_REGISTERED_TRIGGERS = _ALLOWED_ACTIONS ∪ {write_comment, write_docstring, rename_identifier, add_dependency}` union formula, the mandatory `src/charter/activations.py` re-export contract, and the cross-check architectural test that prevents drift. C-005 is satisfied by that pinned set (15 trigger tokens / 10 action tokens) — implementation must consume the vocabulary via that single source, not by restating it.
 
 ### 2.11 Missing-pack policy change (C-006, FR-015)
 

@@ -31,6 +31,8 @@ owned_files:
 - tests/specify_cli/cli/commands/test_doctrine_new.py
 - tests/specify_cli/cli/commands/test_doctrine_validate.py
 - tests/specify_cli/cli/commands/test_doctor_doctrine_selections.py
+- tests/cli/test_doctor_doctrine_selections_snapshot.py
+- tests/cli/__snapshots__/doctor_doctrine_selections.txt
 role: implementer
 history: []
 tags: []
@@ -154,6 +156,8 @@ Selections (active globally-selected artifacts):
 
 The data source is the resolved `DoctrineSelectionConfig` (after project + org pre-fill + mission-type profile union). Provenance from the same `org_source_map` mechanism WP04 introduced.
 
+**Definition of Done (resolves analysis-report finding U1):** the Selections section format MUST be pinned by a snapshot test in `tests/cli/test_doctor_doctrine_selections_snapshot.py` that fixtures a known charter + activation registry state and asserts the rendered Selections section verbatim. The snapshot file lives at `tests/cli/__snapshots__/doctor_doctrine_selections.txt`. The snapshot covers (a) at least one kind with multiple sources (`built-in`, `project`, `org:<pack>`), (b) at least one empty kind rendered as `(none)`, and (c) the exact provenance suffix format. The snapshot file is regenerated only by deliberate operator intent; CI compares byte-for-byte.
+
 ### T051 — Glossary promotion + missing-pack doc note
 
 **File**: `glossary/contexts/doctrine.md`
@@ -187,6 +191,7 @@ Add a section calling out the FR-015 policy change:
 - ✅ `spec-kitty doctrine new styleguide my-test` writes a valid YAML to `.kittify/doctrine/styleguides/my-test.styleguide.yaml`
 - ✅ `spec-kitty doctrine validate .kittify/doctrine/styleguides/my-test.styleguide.yaml` exits 0
 - ✅ `spec-kitty doctor doctrine` output includes a "Selections" section
+- ✅ `tests/cli/test_doctor_doctrine_selections_snapshot.py` GREEN; snapshot at `tests/cli/__snapshots__/doctor_doctrine_selections.txt` matches the rendered output byte-for-byte (resolves analysis-report finding U1)
 - ✅ All 10 glossary entries in `glossary/contexts/doctrine.md` carry `Status: canonical`
 - ✅ User docs include the FR-015 policy-change note
 - ✅ New CLI integration tests cover happy paths for `doctrine new`, `doctrine validate`, and the extended `doctor doctrine` output
