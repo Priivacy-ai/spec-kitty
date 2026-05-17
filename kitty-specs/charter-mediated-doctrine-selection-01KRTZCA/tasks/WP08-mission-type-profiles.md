@@ -18,7 +18,7 @@ subtasks:
 - T045
 - T046
 - T047
-agent: claude
+agent: "claude:opus-4-7:python-pedro:implementer"
 agent_profile: python-pedro
 authoritative_surface: src/charter/mission_type_profiles.py
 execution_mode: code_change
@@ -32,6 +32,7 @@ owned_files:
 role: implementer
 history: []
 tags: []
+shell_pid: "1770351"
 ---
 
 ## Do This First: Load Agent Profile
@@ -294,3 +295,7 @@ Pinned by `test_resolve_governance_hard_fails_for_unknown_mission_type`.
 - Verify the documentation profile produces a payload that does NOT contain "software-dev-default".
 - Verify the hard-fail message names the unknown mission_type verbatim.
 - Verify the parametrised tests run × 4 for each canonical mission type.
+
+## Activity Log
+
+- 2026-05-17T18:12:35Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1770351 – Started implementation via action command
