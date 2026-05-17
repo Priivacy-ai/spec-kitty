@@ -299,3 +299,4 @@ Pinned by `test_resolve_governance_hard_fails_for_unknown_mission_type`.
 ## Activity Log
 
 - 2026-05-17T18:12:35Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1770351 – Started implementation via action command
+- 2026-05-17T18:20:47Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1770351 – 4 governance-profile.yaml files + charter.mission_type_profiles loader + 14/14 mission-type profile resolution tests green; UnknownMissionTypeError hard-fail on unknown mission_type; 23/23 wp_prompt_governance contract regression green; layer rule clean (no specify_cli imports)
