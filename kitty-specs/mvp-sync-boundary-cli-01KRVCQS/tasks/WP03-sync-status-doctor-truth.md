@@ -136,3 +136,4 @@ Planning base: `main`. Final merge target: `main`.
 - 2026-05-17T17:11:16Z – claude:opus-4-7:python-pedro:implementer – shell_pid=70501 – Started implementation via action command
 - 2026-05-17T17:22:26Z – claude:opus-4-7:python-pedro:implementer – shell_pid=70501 – Ready for review: sync status + doctor truthfulness + 4 scenarios
 - 2026-05-17T17:22:53Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=75062 – Started review via action command
+- 2026-05-17T17:26:07Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=75062 – Review passed: status surfaces full boundary; --check returns non-zero on incoherence; orphan listing in doctor; 5 scenarios green; mypy clean.
