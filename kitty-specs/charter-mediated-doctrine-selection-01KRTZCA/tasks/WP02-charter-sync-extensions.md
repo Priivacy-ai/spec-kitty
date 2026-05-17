@@ -192,3 +192,4 @@ Fixtures and assertions:
 ## Activity Log
 
 - 2026-05-17T16:38:10Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1645548 – Started implementation via action command
+- 2026-05-17T16:47:25Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1645548 – Sync extensions: 5 selected_<kind> fields + activations block round-trip; case-1 lifecycle test green; layer rule intact
