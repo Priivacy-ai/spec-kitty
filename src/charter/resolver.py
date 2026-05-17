@@ -78,21 +78,40 @@ def _resolve_tools_selection(
     available_tools: set[str],
     diagnostics: list[str],
 ) -> tuple[list[str], str]:
-    """Resolve tool list from charter selection or registry fallback."""
+    """Resolve tool list as the union of registry baseline and charter selection.
+
+    The runtime tool registry is the *baseline* (tools the framework guarantees
+    are present, e.g. ``git``, ``spec-kitty``). The charter's
+    ``available_tools`` list is a *declaration* of additional tools the project
+    has adopted (e.g. ``pytest``, ``mypy``, ``ruff``). The effective resolved
+    set is therefore the **union** of the two sets, not the intersection — a
+    charter that declares ``mypy`` does not need the runtime registry to
+    pre-register ``mypy`` for the declaration to take effect.
+
+    Returns ``(sorted_tools, source)`` where ``source`` is one of:
+      - ``"charter+registry"`` — charter declared one or more tools; the
+        resolved set unions them with the registry baseline.
+      - ``"registry_only"`` — charter did not declare any tools; the resolved
+        set falls back to the registry baseline alone.
+
+    A diagnostic is emitted only when the charter is silent, mirroring the
+    pre-union behaviour so operators continue to see the "fallback applied"
+    cue when their charter omits the declaration.
+    """
     selected_tools = doctrine.available_tools
     if selected_tools:
-        missing_tools = sorted(tool for tool in selected_tools if tool not in available_tools)
-        if missing_tools:
-            raise GovernanceResolutionError(
-                [
-                    "Charter selected unavailable tool(s): " + ", ".join(missing_tools),
-                    "Update charter available_tools or register those tools in the runtime tool registry.",
-                ]
+        unioned = sorted(set(selected_tools) | available_tools)
+        added_from_charter = sorted(set(selected_tools) - available_tools)
+        if added_from_charter:
+            diagnostics.append(
+                "Charter declared additional tool(s) beyond the runtime registry: "
+                + ", ".join(added_from_charter)
+                + "."
             )
-        return list(selected_tools), "charter"
+        return unioned, "charter+registry"
 
     diagnostics.append("No available_tools selection provided; using runtime tool registry fallback.")
-    return sorted(available_tools), "registry_fallback"
+    return sorted(available_tools), "registry_only"
 
 
 def _resolve_directives_selection(
