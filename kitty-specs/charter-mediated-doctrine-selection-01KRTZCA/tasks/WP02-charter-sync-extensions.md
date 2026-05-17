@@ -14,7 +14,7 @@ subtasks:
 - T006
 - T007
 - T009
-agent: "claude:opus-4-7:python-pedro:implementer"
+agent: "claude:opus-4-7:reviewer-renata:reviewer"
 agent_profile: python-pedro
 authoritative_surface: src/charter/extractor.py
 execution_mode: code_change
@@ -26,7 +26,7 @@ owned_files:
 role: implementer
 history: []
 tags: []
-shell_pid: "1645548"
+shell_pid: "1666985"
 ---
 
 ## Do This First: Load Agent Profile
@@ -193,3 +193,4 @@ Fixtures and assertions:
 
 - 2026-05-17T16:38:10Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1645548 – Started implementation via action command
 - 2026-05-17T16:47:25Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1645548 – Sync extensions: 5 selected_<kind> fields + activations block round-trip; case-1 lifecycle test green; layer rule intact
+- 2026-05-17T16:48:00Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=1666985 – Started review via action command
