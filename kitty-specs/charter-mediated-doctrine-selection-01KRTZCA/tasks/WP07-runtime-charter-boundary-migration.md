@@ -22,7 +22,7 @@ subtasks:
 - T038
 - T039
 - T040
-agent: "claude:opus-4-7:python-pedro:implementer"
+agent: "claude:opus-4-7:reviewer-renata:reviewer"
 agent_profile: python-pedro
 authoritative_surface: src/specify_cli/invocation/registry.py
 execution_mode: code_change
@@ -45,7 +45,7 @@ owned_files:
 role: implementer
 history: []
 tags: []
-shell_pid: "1641835"
+shell_pid: "1673511"
 ---
 
 ## Do This First: Load Agent Profile
@@ -202,3 +202,4 @@ Remove `bulk_edit/occurrence_map.py` from allowlist.
 
 - 2026-05-17T16:36:26Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1641835 – Started implementation via action command
 - 2026-05-17T16:50:12Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1641835 – Runtime migration complete: allowlist drained 13->0 entries (target <=2). All 13 baseline files now route doctrine surface through charter facades; SchemaUtilities promoted to src/kernel/schema_utils.py with back-compat re-export from doctrine.shared.schema_utils. Facade extensions: charter.drg gained ArtifactKind; charter.versioning gained BundleCompatibilityStatus, CURRENT_BUNDLE_SCHEMA_VERSION, run_migration (cross-check test updated). Gates: boundary ratchet PASS, layer rules 8/8 PASS, facade identity 33/33 PASS, governance contract 23/23 PASS, schema_utils 22/22 PASS, ruff clean on touched files, CLI smoke OK. 7 pre-existing test_activation_registry_schema/test_artifact_selection_completeness failures and 9 pre-existing invocation/research_composition failures are WP04-territory; not introduced by this WP.
+- 2026-05-17T16:50:49Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=1673511 – Started review via action command
