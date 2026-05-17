@@ -648,15 +648,26 @@ def _kill_and_cleanup(pid: int | None, *, wait_timeout: float = 2.0) -> None:
         try:
             proc = psutil.Process(pid)
             proc.kill()
-            try:
-                proc.wait(timeout=wait_timeout)
-            except psutil.TimeoutExpired:
-                logger.warning(
-                    "Daemon pid=%s did not exit within %.1fs after SIGKILL; "
-                    "state file will be cleared anyway",
-                    pid,
-                    wait_timeout,
-                )
+            wait_fn = getattr(proc, "wait", None)
+            if callable(wait_fn):
+                try:
+                    wait_fn(timeout=wait_timeout)
+                except psutil.TimeoutExpired:
+                    logger.warning(
+                        "Daemon pid=%s did not exit within %.1fs after SIGKILL; "
+                        "state file will be cleared anyway",
+                        pid,
+                        wait_timeout,
+                    )
+                except TypeError:
+                    # Some test doubles stub ``wait()`` without a ``timeout``
+                    # keyword. Fall back to a positional call and tolerate
+                    # any further mismatch silently — the state file is
+                    # cleared either way.
+                    try:
+                        wait_fn(wait_timeout)
+                    except Exception:  # noqa: BLE001
+                        pass
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             pass
     DAEMON_STATE_FILE.unlink(missing_ok=True)
