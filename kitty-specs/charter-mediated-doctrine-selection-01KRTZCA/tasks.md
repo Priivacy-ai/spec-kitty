@@ -59,10 +59,10 @@
 | T045 | Ship `src/doctrine/missions/plan/governance-profile.yaml` with minimal defaults | WP08 | [D] |
 | T046 | Wire `resolve_governance` into the mission-context pipeline (read meta.json mission_type; union with project + org) | WP08 | | [D] |
 | T047 | Hard-fail on unknown mission_type with no project override; message names the unknown value | WP08 | | [D] |
-| T048 | Add `spec-kitty doctrine new <kind> <name>` CLI command + `--pack <path>` flag in `src/specify_cli/cli/commands/doctrine.py` | WP09 | |
-| T049 | Add `spec-kitty doctrine validate <path>` CLI command for project-layer validation | WP09 | [P] |
-| T050 | Extend `spec-kitty doctor doctrine` with a "Selections" section listing per-kind active artifacts + resolved pack source | WP09 | [P] |
-| T051 | Promote 10 glossary entries in `glossary/contexts/doctrine.md` from `Status: candidate` to `Status: canonical` (C-007); add user-doc note for missing-pack policy change (C-006) | WP09 | [P] |
+| T048 | Add `spec-kitty doctrine new <kind> <name>` CLI command + `--pack <path>` flag in `src/specify_cli/cli/commands/doctrine.py` | WP09 | | [D] |
+| T049 | Add `spec-kitty doctrine validate <path>` CLI command for project-layer validation | WP09 | [D] |
+| T050 | Extend `spec-kitty doctor doctrine` with a "Selections" section listing per-kind active artifacts + resolved pack source | WP09 | [D] |
+| T051 | Promote 10 glossary entries in `glossary/contexts/doctrine.md` from `Status: candidate` to `Status: canonical` (C-007); add user-doc note for missing-pack policy change (C-006) | WP09 | [D] |
 
 ---
 
