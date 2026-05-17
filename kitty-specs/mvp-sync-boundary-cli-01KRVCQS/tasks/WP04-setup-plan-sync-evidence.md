@@ -149,3 +149,4 @@ Planning base: `main`. Final merge target: `main`. This WP lands last in the mis
 - 2026-05-17T17:26:23Z – claude:opus-4-7:python-pedro:implementer – shell_pid=78254 – Started implementation via action command
 - 2026-05-17T17:37:13Z – claude:opus-4-7:python-pedro:implementer – shell_pid=78254 – Ready for review: setup-plan FR-011 refuse + FR-012 audit + 3 regression tests
 - 2026-05-17T17:37:51Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=82462 – Started review via action command
+- 2026-05-17T17:41:27Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=82462 – Review passed: FR-011 refuse-loudly + FR-012 audit block; setup-plan already routed through default_queue_db_path indirectly via OfflineBodyUploadQueue; tests A/B/C pass; mypy error count unchanged (pre-existing errors persist but no regression introduced).
