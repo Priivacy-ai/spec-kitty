@@ -37,10 +37,10 @@ Total subtasks: 20.
 | T014 | Add `doctor` listing of orphan daemons with a retirement command (FR-010) | WP03 | [D] |
 | T015 | Add FR-013 "setup-plan stranded" tag when status detects setup-plan body uploads in legacy | WP03 | [D] |
 | T016 | Tests: `tests/sync/test_sync_status_boundary_check.py` covering stale daemon version, legacy body-upload backlog, daemon queue mismatch, healthy state | WP03 | [D] |
-| T017 | Audit setup-plan code path; confirm every body-upload-emitting and event-emitting call uses `default_queue_db_path()` (no direct legacy path) | WP04 |
-| T018 | Add FR-011 refuse-loudly behaviour: with `SPEC_KITTY_ENABLE_SAAS_SYNC=1` and unauthenticated foreground, setup-plan exits non-zero with a specific diagnostic and writes nothing | WP04 |
-| T019 | Add cross-cutting regression test (`tests/runtime/test_setup_plan_sync_evidence.py`) that authenticates a tmp HOME and asserts setup-plan rows land in scoped DB, NOT legacy. Second test asserts the FR-011 refuse-loudly behaviour | WP04 |
-| T020 | Run full `uv run pytest tests/sync tests/status tests/runtime` and `mypy --strict src/specify_cli/sync/ src/specify_cli/cli/commands/sync/ src/specify_cli/cli/commands/agent/`; confirm green | WP04 |
+| T017 | Audit setup-plan code path; confirm every body-upload-emitting and event-emitting call uses `default_queue_db_path()` (no direct legacy path) | WP04 | [D] |
+| T018 | Add FR-011 refuse-loudly behaviour: with `SPEC_KITTY_ENABLE_SAAS_SYNC=1` and unauthenticated foreground, setup-plan exits non-zero with a specific diagnostic and writes nothing | WP04 | [D] |
+| T019 | Add cross-cutting regression test (`tests/runtime/test_setup_plan_sync_evidence.py`) that authenticates a tmp HOME and asserts setup-plan rows land in scoped DB, NOT legacy. Second test asserts the FR-011 refuse-loudly behaviour | WP04 | [D] |
+| T020 | Run full `uv run pytest tests/sync tests/status tests/runtime` and `mypy --strict src/specify_cli/sync/ src/specify_cli/cli/commands/sync/ src/specify_cli/cli/commands/agent/`; confirm green | WP04 | [D] |
 
 ## Requirement coverage
 
