@@ -8,5 +8,7 @@
   "purpose_context": "Mission 2 of cross-repo planning#16. CLI today emits WPStatusChanged with force=False on review rejections (in_review/approved -> planned), contradicting the contract that backward transitions require force=True. SaaS materializer correctly rejects the contradictory wire shape; this mission removes the contradiction at the source. Mission 1 (spec-kitty-events #15) defined the canonical reason shape and conformance fixtures this mission cites by reference.",
   "purpose_tldr": "Auto-promote force=True with canonical reason shape on user-deliberate backward move-task requests in the CLI emit path.",
   "slug": "backward-transition-cli-emit-01KRV8GC",
-  "target_branch": "main"
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-05-17T15:36:16.387812+00:00"
 }
