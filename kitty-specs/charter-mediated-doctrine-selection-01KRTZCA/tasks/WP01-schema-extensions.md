@@ -20,8 +20,8 @@ subtasks:
 - T004
 - T005
 - T008
-agent: claude
-shell_pid: '1612262'
+agent: "claude:opus-4-7:python-pedro:implementer"
+shell_pid: "1612262"
 history: []
 agent_profile: python-pedro
 authoritative_surface: src/charter/schemas.py
@@ -272,3 +272,7 @@ The following tests turn green (or stay green) with this WP:
 - Verify `_OPTIONAL_EMPTY_OMIT_KEYS` carries all 5 new keys so byte-stability holds.
 - Verify the activation Pydantic validators reject `mission_type="dev"` and `action="compile"` (the canonical ATDD assertions).
 - Verify no `from doctrine.*` import lands in `charter.activations` (it doesn't need any).
+
+## Activity Log
+
+- 2026-05-17T16:23:50Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1612262 – Assigned agent via action command
