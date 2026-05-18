@@ -512,8 +512,9 @@ def test_lifecycle_saas_outbox_skips_when_disabled(
 
 
 def test_lifecycle_saas_outbox_queues_when_scoped(
-    monkeypatch: pytest.MonkeyPatch,
+    feature_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
     queued: list[dict[str, object]] = []
 
     class _Queue:
@@ -532,14 +533,35 @@ def test_lifecycle_saas_outbox_queues_when_scoped(
     )
     monkeypatch.setattr("specify_cli.sync.queue.OfflineQueue", _Queue)
 
-    lifecycle._queue_lifecycle_event_if_enabled({"event_id": "evt-1"})
+    emit_artifact_phase(
+        feature_dir,
+        event_type=SPECIFY_COMPLETED,
+        mission_slug="demo-mission",
+        actor="test",
+        artifact_path="kitty-specs/demo-mission/spec.md",
+    )
 
-    assert queued == [{"event_id": "evt-1"}]
+    assert len(queued) == 1
+    queued_event = queued[0]
+    assert queued_event["event_type"] == SPECIFY_COMPLETED
+    assert queued_event["schema_version"] == "3.0.0"
+    assert queued_event["build_id"]
+    assert queued_event["node_id"]
+    assert isinstance(queued_event["lamport_clock"], int)
+    assert queued_event["lamport_clock"] >= 1
+    assert queued_event["correlation_id"] == queued_event["event_id"]
+
+    from spec_kitty_events import Event
+    from spec_kitty_events.project_lifecycle import SpecifyCompletedPayload
+
+    Event(**queued_event)
+    SpecifyCompletedPayload.model_validate(queued_event["payload"])
 
 
 def test_lifecycle_saas_outbox_suppresses_queue_failures(
-    monkeypatch: pytest.MonkeyPatch,
+    feature_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
     class _Queue:
         def __init__(self) -> None:
             raise RuntimeError("queue unavailable")
@@ -554,4 +576,10 @@ def test_lifecycle_saas_outbox_suppresses_queue_failures(
     )
     monkeypatch.setattr("specify_cli.sync.queue.OfflineQueue", _Queue)
 
-    lifecycle._queue_lifecycle_event_if_enabled({"event_id": "evt-1"})
+    emit_artifact_phase(
+        feature_dir,
+        event_type=SPECIFY_COMPLETED,
+        mission_slug="demo-mission",
+        actor="test",
+        artifact_path="kitty-specs/demo-mission/spec.md",
+    )

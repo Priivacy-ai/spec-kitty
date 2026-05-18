@@ -79,6 +79,11 @@ def _table_row_count(db_path: Path, table_name: str) -> int:
 
 def _queued_event_types(db_path: Path) -> list[str]:
     """Return queued event types from the offline event outbox."""
+    return [str(event["event_type"]) for event in _queued_events(db_path)]
+
+
+def _queued_events(db_path: Path) -> list[dict[str, Any]]:
+    """Return queued event payloads from the offline event outbox."""
     if not db_path.exists():
         return []
     conn = sqlite3.connect(db_path)
@@ -91,14 +96,12 @@ def _queued_event_types(db_path: Path) -> list[str]:
         rows = conn.execute("SELECT data FROM queue ORDER BY id ASC").fetchall()
     finally:
         conn.close()
-    event_types: list[str] = []
-    for (raw,) in rows:
-        event_types.append(str(json.loads(raw)["event_type"]))
-    return event_types
+    return [json.loads(raw) for (raw,) in rows]
 
 
 def _build_minimal_repo(tmp_path: Path, mission_slug: str) -> Path:
     """Create the minimum kitty-specs structure setup-plan needs."""
+    (tmp_path / ".kittify").mkdir(parents=True, exist_ok=True)
     feature_dir = tmp_path / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True, exist_ok=True)
 
@@ -270,6 +273,37 @@ class TestAuthenticatedSetupPlanLandsInScoped:
         assert "SpecifyCompleted" in scoped_event_types
         assert "PlanStarted" in scoped_event_types
         assert "PlanCompleted" in scoped_event_types
+
+        from spec_kitty_events import Event
+        from spec_kitty_events.project_lifecycle import (
+            PlanCompletedPayload,
+            PlanStartedPayload,
+            SpecifyCompletedPayload,
+        )
+        from specify_cli.core.contract_gate import validate_outbound_payload
+
+        payload_models = {
+            "SpecifyCompleted": SpecifyCompletedPayload,
+            "PlanStarted": PlanStartedPayload,
+            "PlanCompleted": PlanCompletedPayload,
+        }
+        lifecycle_rows = [
+            event
+            for event in _queued_events(expected_scoped_path)
+            if event["event_type"] in payload_models
+        ]
+        assert {event["event_type"] for event in lifecycle_rows} >= set(payload_models)
+        for event in lifecycle_rows:
+            validate_outbound_payload(event, "envelope")
+            Event(**event)
+            payload_models[event["event_type"]].model_validate(event["payload"])
+            assert event["schema_version"] == "3.0.0"
+            assert event["build_id"]
+            assert event["node_id"]
+            assert isinstance(event["lamport_clock"], int)
+            assert event["project_uuid"]
+            assert event["correlation_id"]
+
         assert legacy_body_rows == 0, (
             f"FR-012 violation: legacy DB at {legacy_path} has "
             f"{legacy_body_rows} body_upload_queue rows."
