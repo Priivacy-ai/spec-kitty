@@ -1,7 +1,7 @@
 {
-  "event_count": 39,
-  "last_event_id": "01KRXTWBEJMZ0993BE4H857Z87",
-  "materialized_at": "2026-05-18T15:22:11.282552+00:00",
+  "event_count": 41,
+  "last_event_id": "01KRXX1P2S4XQFD4FMTQSQQPCT",
+  "materialized_at": "2026-05-18T16:00:03.161012+00:00",
   "mission_number": "",
   "mission_slug": "slice-f-multi-context-extensibility-01KRX5C8",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 8
+    "planned": 7
   },
   "work_packages": {
     "WP01": {
@@ -46,11 +46,11 @@
       "last_transition_at": "2026-05-18T14:35:28.873771+00:00"
     },
     "WP05": {
-      "actor": "user",
+      "actor": "claude:sonnet-4-6:python-pedro:implementer",
       "force_count": 2,
-      "lane": "planned",
-      "last_event_id": "01KRXTWBEJMZ0993BE4H857Z87",
-      "last_transition_at": "2026-05-18T15:22:11.282552+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KRXX1P2S4XQFD4FMTQSQQPCT",
+      "last_transition_at": "2026-05-18T16:00:03.161012+00:00"
     },
     "WP06": {
       "actor": "finalize-tasks",
