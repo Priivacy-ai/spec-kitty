@@ -332,3 +332,4 @@ pytest tests/contract/test_example_round_trip.py -v
 - 2026-05-18T13:09:38Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=2260092 – Started implementation via action command
 - 2026-05-18T13:47:05Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=2260092 – Contract round-trip CI gate landed (FR-140 + FR-141); Slice F contracts tagged; legacy allowlist baselined for shrink-over-time
 - 2026-05-18T13:54:27Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=2260092 – Moved to planned
+- 2026-05-18T14:03:05Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=2260092 – Cycle 2 orchestrator remediation per HiC directive — deleted 3 stub Pydantic models, converted round-trip ImportError to pytest.skip with future-WP attribution, reverted BaselinesFile loosening, added binding skipif-removal acceptance criterion to WP06/WP09/WP10. 234 passed / 1 skipped on full architectural sweep.
