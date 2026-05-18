@@ -23,6 +23,7 @@ Reviewers consult this file to know which test pins which scenario — and which
 | Scenario 5 | Scenario | `tests/integration/test_catalog_miss_cli_visibility.py` | `test_typoed_styleguide_produces_visible_stderr_warning` | WP05 | WP05 | planned |
 | Scenario 6 | Scenario | `tests/architectural/test_ratchet_baselines.py` | `test_growing_an_allowlist_above_baseline_fails` | WP01 | WP01 | planned |
 | AC-1 | AC | `tests/integration/test_three_layer_drg_end_to_end.py` | `test_charter_lint_lints_all_three_layers_with_provenance` | WP06 | WP06 | planned |
+| FR-002 | FR | `tests/integration/test_charter_status_reports_three_layers.py` | `test_charter_status_reports_shipped_org_and_project` | WP07 | WP07 | planned |
 | AC-2 | AC | `tests/cli/test_doctrine_org_commands.py` | `test_doctrine_org_init_scaffolds_minimal_pack` AND `test_doctor_doctrine_surfaces_org_layer_state` | WP08 | WP08 | planned |
 | AC-3 | AC | `tests/specify_cli/next/test_wp_prompt_governance_contract.py` (regression) + `tests/integration/test_monorepo_charter_scope.py` (new behaviour) | (all 23 existing) + `test_default_scope_is_byte_identical_to_today` | WP09 | WP09 | planned |
 | AC-4 | AC | `tests/integration/test_workflow_sequence_runtime.py` | `test_fixture_mission_with_workflow_id_produces_documented_step_diff` | WP11 | WP11 | planned |
