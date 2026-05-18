@@ -16,9 +16,6 @@
         "WP06",
         "WP07",
         "WP08",
-        "WP09",
-        "WP10",
-        "WP11",
         "WP12"
       ],
       "write_scope": [
@@ -124,6 +121,35 @@
       ],
       "depends_on_lanes": [],
       "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP09",
+        "WP10",
+        "WP11"
+      ],
+      "write_scope": [
+        "architecture/adrs/2026-05-18-1-monorepo-charter-scope.md",
+        "src/charter/scope.py",
+        "src/charter/scope_router.py",
+        "src/doctrine/workflows/_fixtures/our-team-design-first.workflow.yaml",
+        "src/doctrine/workflows/software-dev-default.workflow.yaml",
+        "src/specify_cli/next/_internal_runtime/planner.py",
+        "src/specify_cli/next/_internal_runtime/workflow_registry.py",
+        "src/specify_cli/next/_internal_runtime/workflow_schema.py",
+        "tests/charter/test_charter_scope.py",
+        "tests/integration/test_monorepo_charter_scope.py",
+        "tests/integration/test_workflow_sequence_runtime.py",
+        "tests/specify_cli/next/test_workflow_registry.py",
+        "tests/specify_cli/next/test_workflow_software_dev_default_is_byte_stable.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 1
     }
   ],
   "computed_at": "2026-05-18T11:39:18.907172+00:00",
