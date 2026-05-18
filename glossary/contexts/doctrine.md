@@ -228,7 +228,7 @@ Terms describing the Doctrine domain model and doctrine artifact taxonomy.
 |---|---|
 | **Definition** | Architectural pattern in which the project / org charter is the sole authority that decides which doctrine artifacts apply to a given mission run. Doctrine is the knowledge store; charter is the selector; runtime asks charter for the activated set rather than reaching into doctrine directly. Enforced via the runtime → charter → doctrine boundary. |
 | **Context** | Doctrine |
-| **Status** | candidate |
+| **Status** | canonical |
 | **Applicable to** | `2.x` |
 | **Related terms** | [Global Selection](#global-selection), [Context-Scoped Selection](#context-scoped-selection), [Charter Facade](#charter-facade), [Doctrine Pack](#doctrine-pack) |
 
@@ -240,7 +240,7 @@ Terms describing the Doctrine domain model and doctrine artifact taxonomy.
 |---|---|
 | **Definition** | Selection mode in which the charter declares an artifact is *always* active for every WP prompt regardless of action or mission type. Expressed via `selected_<kind>: [<id>, ...]` on the project charter or `required_<kind>: [<id>, ...]` on the org charter. Example: *"this project always uses the python-conventions styleguide."* |
 | **Context** | Doctrine |
-| **Status** | candidate |
+| **Status** | canonical |
 | **Applicable to** | `2.x` |
 | **Related terms** | [Context-Scoped Selection](#context-scoped-selection), [Charter-Mediated Selection](#charter-mediated-selection) |
 
@@ -252,7 +252,7 @@ Terms describing the Doctrine domain model and doctrine artifact taxonomy.
 |---|---|
 | **Definition** | Selection mode in which the charter declares an artifact is active only for a specific [Activation Context](#activation-context) (mission_type × action). Surfaces in the prompt as a fetch command paired with a "when you <action>, run …" conditional. Example: *"when writing a code comment in a software-dev mission, fetch the caveman styleguide."* Implemented via the [Activation Registry](#activation-registry). |
 | **Context** | Doctrine |
-| **Status** | candidate |
+| **Status** | canonical |
 | **Applicable to** | `2.x` |
 | **Related terms** | [Activation Registry](#activation-registry), [Activation Context](#activation-context), [Global Selection](#global-selection) |
 
@@ -264,7 +264,7 @@ Terms describing the Doctrine domain model and doctrine artifact taxonomy.
 |---|---|
 | **Definition** | Charter-level list of `(activation_context, doctrine_pack_id, artifact_id)` tuples expressing which doctrine artifacts activate in which contexts. Lives on the charter (not on the artifact) so different projects can activate the same shared artifact in different contexts without forking it. Both project charter and org charter may declare entries; org-declared entries propagate to consumers via the standard org-charter pre-fill. |
 | **Context** | Doctrine |
-| **Status** | candidate |
+| **Status** | canonical |
 | **Applicable to** | `2.x` |
 | **Related terms** | [Activation Context](#activation-context), [Context-Scoped Selection](#context-scoped-selection), [Doctrine Pack](#doctrine-pack) |
 
@@ -276,7 +276,7 @@ Terms describing the Doctrine domain model and doctrine artifact taxonomy.
 |---|---|
 | **Definition** | The key that scopes a context-scoped activation. A two-field shape — `mission_type` (one of `software-dev`, `documentation`, `research`, `plan`, or `generic`) and `action` (one of `specify`, `plan`, `tasks`, `implement`, `review`, `merge`, `accept`, plus charter verbs). The wildcard `generic` matches any value in its slot. Resolved during charter-context build by matching the current mission's `meta.json mission_type` and the in-flight CLI action against registered entries. |
 | **Context** | Doctrine |
-| **Status** | candidate |
+| **Status** | canonical |
 | **Applicable to** | `2.x` |
 | **Related terms** | [Activation Registry](#activation-registry), [Mission-Type Profile](#mission-type-profile) |
 
@@ -288,7 +288,7 @@ Terms describing the Doctrine domain model and doctrine artifact taxonomy.
 |---|---|
 | **Definition** | The stable identifier of a doctrine pack (declared in the pack's manifest or in `.kittify/config.yaml` `doctrine.org.packs[].name`). Used as the second tuple element in the [Activation Registry](#activation-registry) to disambiguate when multiple packs ship artifacts with the same id. Special values: `project` (the project-layer pack at `.kittify/doctrine/`), `built-in` (the spec-kitty bundled pack). |
 | **Context** | Doctrine |
-| **Status** | candidate |
+| **Status** | canonical |
 | **Applicable to** | `2.x` |
 | **Related terms** | [Doctrine Pack](#doctrine-pack), [Activation Registry](#activation-registry) |
 
@@ -300,7 +300,7 @@ Terms describing the Doctrine domain model and doctrine artifact taxonomy.
 |---|---|
 | **Definition** | Canonical frozenset of agent-action tokens (e.g. `write_comment`, `write_docstring`, `rename_identifier`, `add_dependency`) the prompt builder knows how to emit "when you <token>, …" stanzas for. Any `triggers:` value declared on a shipped doctrine artifact must be a member of this set; the architectural test `test_trigger_registry_coverage.py` enforces no dead triggers. Mission B's WP05 populates the initial set. |
 | **Context** | Doctrine |
-| **Status** | candidate |
+| **Status** | canonical |
 | **Applicable to** | `2.x` |
 | **Related terms** | [Activation Context](#activation-context), [Activation Registry](#activation-registry) |
 
@@ -312,7 +312,7 @@ Terms describing the Doctrine domain model and doctrine artifact taxonomy.
 |---|---|
 | **Definition** | A `src/charter/<facade>.py` module that re-exports (or thinly wraps) a doctrine surface so runtime callers can consume it as `from charter.<facade> import X` instead of `from doctrine.<x> import X`. Examples: `charter.profiles`, `charter.mission_steps`, `charter.drg`, `charter.primitives`, `charter.resolution`, `charter.versioning`. The set of facades is the runtime → charter → doctrine boundary's public surface. |
 | **Context** | Doctrine |
-| **Status** | candidate |
+| **Status** | canonical |
 | **Applicable to** | `2.x` |
 | **Related terms** | [Charter-Mediated Selection](#charter-mediated-selection) |
 
@@ -324,7 +324,7 @@ Terms describing the Doctrine domain model and doctrine artifact taxonomy.
 |---|---|
 | **Definition** | Shipped governance profile per mission type (`software-dev`, `documentation`, `research`, `plan`) at `src/doctrine/missions/<type>/governance-profile.yaml`. Declares default selections and default activations for that mission type. The charter resolver reads `meta.json mission_type`, picks the matching profile, and unions its declarations into the project + org selections. No `software-dev-default` fallback for non-software missions — the resolver hard-fails if a mission's `mission_type` has no matching profile and the project has not declared its own. |
 | **Context** | Doctrine |
-| **Status** | candidate |
+| **Status** | canonical |
 | **Applicable to** | `2.x` |
 | **Related terms** | [Activation Context](#activation-context), [Global Selection](#global-selection) |
 
@@ -336,7 +336,7 @@ Terms describing the Doctrine domain model and doctrine artifact taxonomy.
 |---|---|
 | **Definition** | The field-naming convention for [Global Selection](#global-selection) entries. On the project charter (`DoctrineSelectionConfig`), each artifact kind gets a `selected_<kind>: [<id>, ...]` field — `selected_directives`, `selected_styleguides`, `selected_toolguides`, `selected_paradigms`, `selected_tactics`, `selected_procedures`, `selected_agent_profiles`, `selected_mission_step_contracts`. On the org charter (`OrgCharterPolicy`), the mirror is `required_<kind>: [<id>, ...]`. `apply_org_charter_to_interview` unions the org `required_<kind>` into the project `selected_<kind>` non-destructively. The architectural test `test_artifact_selection_completeness.py` enforces parity — every `DoctrineService` artifact kind has both a `selected_*` and a `required_*` field. |
 | **Context** | Doctrine |
-| **Status** | candidate |
+| **Status** | canonical |
 | **Applicable to** | `2.x` |
 | **Related terms** | [Global Selection](#global-selection), [Charter-Mediated Selection](#charter-mediated-selection) |
 

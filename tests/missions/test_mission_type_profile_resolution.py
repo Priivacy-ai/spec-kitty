@@ -106,7 +106,7 @@ def test_load_profile_returns_mission_type_profile(mission_type: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Test 3 — resolve_governance honours meta.json mission_type
+# Test 3 — resolve_mission_type_governance honours meta.json mission_type
 # ---------------------------------------------------------------------------
 
 
@@ -157,10 +157,12 @@ def test_resolve_governance_picks_documentation_profile_for_documentation_missio
     Fails today on ImportError or because no documentation profile exists.
     """
     try:
-        from charter.mission_type_profiles import resolve_governance  # type: ignore[import-not-found]
+        from charter.mission_type_profiles import (  # type: ignore[import-not-found]
+            resolve_mission_type_governance,
+        )
     except ImportError as exc:
         pytest.fail(
-            "Could not import `charter.mission_type_profiles.resolve_governance`. "
+            "Could not import `charter.mission_type_profiles.resolve_mission_type_governance`. "
             "Mission B WP06 must introduce the resolver that reads meta.json's "
             "mission_type and dispatches to the matching profile.\n"
             f"Underlying ImportError: {exc!r}"
@@ -177,7 +179,7 @@ def test_resolve_governance_picks_documentation_profile_for_documentation_missio
         encoding="utf-8",
     )
 
-    payload = resolve_governance(repo_root, feature_dir)
+    payload = resolve_mission_type_governance(repo_root, feature_dir)
     payload_text = getattr(payload, "text", str(payload))
 
     assert "software-dev-default" not in payload_text.lower(), (
@@ -188,7 +190,7 @@ def test_resolve_governance_picks_documentation_profile_for_documentation_missio
 
     declared_mission_type = getattr(payload, "mission_type", None)
     assert declared_mission_type == "documentation", (
-        f"resolve_governance returned payload with mission_type="
+        f"resolve_mission_type_governance returned payload with mission_type="
         f"{declared_mission_type!r}; expected `documentation` (read from "
         "meta.json). If this fails the resolver is not honouring meta.json's "
         "mission_type at all — see WP06 spec."
@@ -209,10 +211,12 @@ def test_resolve_governance_hard_fails_for_unknown_mission_type(tmp_path: Path) 
     message naming the unknown mission_type.
     """
     try:
-        from charter.mission_type_profiles import resolve_governance  # type: ignore[import-not-found]
+        from charter.mission_type_profiles import (  # type: ignore[import-not-found]
+            resolve_mission_type_governance,
+        )
     except ImportError as exc:
         pytest.fail(
-            "Could not import `charter.mission_type_profiles.resolve_governance`. "
+            "Could not import `charter.mission_type_profiles.resolve_mission_type_governance`. "
             "Mission B WP06 must introduce the resolver.\n"
             f"Underlying ImportError: {exc!r}"
         )
@@ -231,7 +235,7 @@ def test_resolve_governance_hard_fails_for_unknown_mission_type(tmp_path: Path) 
     )
 
     with pytest.raises(Exception) as excinfo:  # noqa: PT011 — accept any clear error class
-        resolve_governance(repo_root, feature_dir)
+        resolve_mission_type_governance(repo_root, feature_dir)
 
     assert "totally-made-up-mission-type" in str(excinfo.value), (
         "Hard-fail message MUST name the unknown mission_type so operators "

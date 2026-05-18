@@ -47,10 +47,7 @@ Order is preserved: synthesized contracts appear in the same order as
 
 from __future__ import annotations
 
-from doctrine.mission_step_contracts.models import (
-    MissionStep,
-    MissionStepContract,
-)
+from charter.mission_steps import MissionStep, MissionStepContract
 
 from specify_cli.mission_loader.retrospective import RETROSPECTIVE_MARKER_ID
 from specify_cli.next._internal_runtime.schema import MissionTemplate, PromptStep

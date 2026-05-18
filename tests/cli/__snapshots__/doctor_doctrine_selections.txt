@@ -1,0 +1,14 @@
+Selections (active globally-selected artifacts):
+  directives:
+    - DIRECTIVE_032           (source: built-in)
+    - PROJECT_DIRECTIVE_01    (source: charter)
+  tactics: (none)
+  paradigms: (none)
+  styleguides:
+    - my-project-styleguide   (source: charter)
+    - shared-team-styleguide  (source: charter)
+  toolguides:
+    - shared-team-toolguide   (source: org-required)
+  procedures: (none)
+  mission_step_contracts: (none)
+  agent_profiles: (none)

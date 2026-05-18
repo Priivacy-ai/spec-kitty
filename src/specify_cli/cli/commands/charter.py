@@ -23,7 +23,7 @@ from specify_cli.decisions.service import DecisionError as _DecisionError
 from specify_cli.diagnostics import mark_invocation_succeeded
 from specify_cli.task_utils import TaskCliError, find_repo_root
 from charter.sync import ensure_charter_bundle_fresh
-from doctrine.versioning import check_bundle_compatibility, get_bundle_schema_version
+from charter.versioning import check_bundle_compatibility, get_bundle_schema_version
 
 logger = logging.getLogger(__name__)
 METADATA_FILENAME = "metadata.yaml"

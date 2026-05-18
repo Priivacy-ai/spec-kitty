@@ -11,6 +11,10 @@ import tempfile
 from pathlib import Path
 
 from charter.context import build_charter_context
+from charter.mission_type_profiles import (
+    UnknownMissionTypeError,
+    resolve_mission_type_governance,
+)
 from charter.resolver import GovernanceResolutionError, resolve_governance
 from specify_cli.core.paths import get_feature_target_branch
 from specify_cli.runtime.resolver import resolve_command
@@ -148,6 +152,7 @@ def _build_wp_prompt(
     else:
         lines.append("Workspace contract: repository root planning workspace")
     lines.append("")
+    lines.extend(_mission_type_governance_lines(repo_root, feature_dir))
     lines.append(_governance_context(repo_root, action=action, profile=agent_profile_id))
     lines.append("")
 
@@ -264,6 +269,51 @@ def _mission_context_header(mission_slug: str, feature_dir: Path, agent: str) ->
         "=" * 80,
     ]
     return "\n".join(lines)
+
+
+def _mission_type_governance_lines(repo_root: Path, feature_dir: Path) -> list[str]:
+    """Return the mission-type governance lines to splice into a WP prompt.
+
+    Returns an empty list when no payload is rendered.  Wrapping the
+    optionality here (instead of in the caller) keeps
+    :func:`_build_wp_prompt` under the C901 complexity ceiling.
+    """
+    payload = _mission_type_governance_payload(repo_root, feature_dir)
+    if payload is None:
+        return []
+    return [payload, ""]
+
+
+def _mission_type_governance_payload(repo_root: Path, feature_dir: Path) -> str | None:
+    """Resolve mission-type-scoped governance for a WP prompt (WP08, FR-011).
+
+    The mission-type resolver (``charter.mission_type_profiles.resolve_mission_type_governance``)
+    runs FIRST so the documentation / research / plan default selections
+    fill any gaps the project + org layers leave empty.  The hard-fail
+    contract (:class:`UnknownMissionTypeError`) is intentionally NOT
+    swallowed: a mission whose ``meta.json`` declares an unknown
+    ``mission_type`` and whose project has no ``selected_*`` overrides
+    MUST fail loudly rather than silently routing to
+    ``software-dev-default``.
+
+    Real missions write ``meta.json`` at ``finalize-tasks`` time; older
+    fixtures that predate WP08 wiring legitimately have no ``meta.json``,
+    so we return ``None`` in that case to preserve backward
+    compatibility.  Parse / I/O failures also collapse to ``None`` so the
+    project + org resolver downstream can still surface its own
+    diagnostics.
+    """
+    if not (feature_dir / "meta.json").exists():
+        return None
+    try:
+        payload = resolve_mission_type_governance(repo_root, feature_dir)
+    except UnknownMissionTypeError:
+        # FR-011 hard-fail surface: propagate so the operator sees the
+        # missing-profile diagnostic instead of a silent fallback.
+        raise
+    except Exception:
+        return None
+    return payload.text.rstrip()
 
 
 def _governance_context(

@@ -335,6 +335,14 @@ class BaseDoctrineRepository(ABC, Generic[T]):
         """Return all loaded assets sorted by key."""
         return sorted(self._items.values(), key=lambda obj: self._key(obj))
 
+    def all(self) -> list[T]:
+        """Alias for :meth:`list_all` — used by Mission B ATDD tests that
+        iterate the catalog to force three-layer load and surface collision
+        warnings.  Added in WP06 (charter-mediated-doctrine-selection)
+        because the test suite uses the more conversational ``.all()``
+        name while existing call sites use ``.list_all()``."""
+        return self.list_all()
+
     def get(self, item_id: str) -> T | None:
         """Get asset by ID."""
         return self._items.get(item_id)

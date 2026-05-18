@@ -35,8 +35,7 @@ from __future__ import annotations
 import contextlib
 from collections.abc import Iterable, Iterator
 
-from doctrine.mission_step_contracts.models import MissionStepContract
-from doctrine.mission_step_contracts.repository import MissionStepContractRepository
+from charter.mission_steps import MissionStepContract, MissionStepContractRepository
 
 from specify_cli.mission_loader.contract_synthesis import synthesize_contracts
 from specify_cli.next._internal_runtime.schema import MissionTemplate

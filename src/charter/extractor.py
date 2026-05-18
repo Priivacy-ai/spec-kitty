@@ -15,6 +15,7 @@ from typing import Any
 
 from kernel._safe_re import re
 
+from charter.activations import ActivationEntry
 from charter.hasher import hash_content
 from doctrine.versioning import CURRENT_BUNDLE_SCHEMA_VERSION
 from charter.parser import CharterParser, CharterSection
@@ -211,6 +212,7 @@ class Extractor:
         performance = PerformanceConfig()
         branch_strategy = BranchStrategyConfig()
         doctrine = DoctrineSelectionConfig()
+        activations: list[ActivationEntry] = []
 
         _FIELD_HANDLERS: dict[str, Any] = {
             "testing": lambda s: self._apply_testing_keywords(testing, s.structured_data.get("keywords", {})),
@@ -237,6 +239,16 @@ class Extractor:
         for section in sections:
             self._merge_doctrine_selection(section, doctrine)
 
+        # WP02 (charter-mediated-doctrine-selection) T007: scan every fenced
+        # YAML block across all sections for a top-level ``activations:`` key
+        # and collect the entries onto GovernanceConfig.activations. The
+        # registry is intentionally section-agnostic — operators may declare
+        # ``activations`` inside the doctrine block, a dedicated section, or
+        # anywhere a fenced YAML block lives — so the scan mirrors the
+        # ``_merge_doctrine_selection`` "look in every section" pattern.
+        for section in sections:
+            self._collect_activations_from_section(section, activations)
+
         return GovernanceConfig(
             testing=testing,
             quality=quality,
@@ -244,7 +256,68 @@ class Extractor:
             performance=performance,
             branch_strategy=branch_strategy,
             doctrine=doctrine,
+            activations=activations,
         )
+
+    def _collect_activations_from_section(
+        self,
+        section: CharterSection,
+        activations: list[ActivationEntry],
+    ) -> None:
+        """Append any ActivationEntry rows found in a section's fenced YAML.
+
+        Each fenced YAML block is inspected for a top-level ``activations:``
+        key. The value must be a list; each list item is delegated to
+        :meth:`_apply_activations_block`. Blocks without an ``activations:``
+        key are skipped silently — this matches the additive, schema-tolerant
+        contract documented in ``contracts/activation-registry.md``.
+        """
+        yaml_blocks = section.structured_data.get("yaml_blocks", [])
+        for block in yaml_blocks:
+            if not isinstance(block, dict):
+                continue
+            self._apply_activations_block(block, activations)
+
+    @staticmethod
+    def _apply_activations_block(
+        block: dict[str, Any],
+        activations: list[ActivationEntry],
+    ) -> None:
+        """Append validated ActivationEntry rows from one parsed YAML block.
+
+        Behaviour (per ``contracts/activation-registry.md`` and the WP02
+        task spec):
+
+        - ``block["activations"]`` MUST be a list when present. Non-list
+          values (``activations: foo`` / ``activations: {}``) are silently
+          ignored to match the schema-tolerant contract used by sibling
+          resolver-input keys; validation failures (e.g. ``mission_type:
+          dev`` typo) are reported by Pydantic and re-raised as ``ValueError``
+          so charter sync fails loud rather than swallowing operator typos.
+        - Non-dict list items (e.g. a bare string) are skipped silently;
+          they don't represent a meaningful entry to validate.
+        - Validation failures from :class:`ActivationEntry.model_validate`
+          are wrapped in a ``ValueError`` whose message names the offending
+          entry so operators can locate the bad row in ``charter.md``.
+        """
+        raw = block.get("activations")
+        if not isinstance(raw, list):
+            return
+        for item in raw:
+            if not isinstance(item, dict):
+                continue
+            try:
+                entry = ActivationEntry.model_validate(item)
+            except Exception as exc:  # noqa: BLE001 — re-raise as ValueError
+                # Pydantic raises ValidationError (subclass of ValueError),
+                # but other shape mismatches (e.g. extra=forbid violations)
+                # also surface here. Surface a single canonical exception
+                # type so charter sync's outer try/except (sync.py) can
+                # render a stable error string.
+                raise ValueError(
+                    f"charter activations: invalid entry {item!r}: {exc}"
+                ) from exc
+            activations.append(entry)
 
     def _apply_testing_keywords(self, testing: CharterTestingConfig, keywords: dict[str, Any]) -> None:
         """Apply testing section keyword values to the testing config."""
@@ -433,7 +506,17 @@ class Extractor:
         return merged
 
     def _apply_selection_row(self, row: dict[str, Any], doctrine: DoctrineSelectionConfig) -> None:
-        """Apply one table/yaml row that may contain doctrine selection keys."""
+        """Apply one table/yaml row that may contain doctrine selection keys.
+
+        WP02 extends the original three ``selected_<kind>`` fields with parity
+        readers for the five additional kinds exposed by ``DoctrineService``
+        (``styleguides`` / ``toolguides`` / ``procedures`` / ``agent_profiles``
+        / ``mission_step_contracts``). The canonical key is always
+        ``selected_<plural-kind>``; the bare ``<plural-kind>`` alias (and a
+        kebab-case alias for the two-word kinds) is accepted only as a
+        secondary candidate per ``_get_list_value`` ordering — the prefixed
+        key wins on conflict.
+        """
         normalized = {str(k).strip().lower(): v for k, v in row.items()}
 
         paradigms = self._get_list_value(normalized, ("selected_paradigms", "paradigms"))
@@ -447,6 +530,38 @@ class Extractor:
         tactics = self._get_list_value(normalized, ("selected_tactics", "tactics"))
         if tactics:
             doctrine.selected_tactics = tactics
+
+        # WP02 (charter-mediated-doctrine-selection) T006: parity readers for
+        # the five additional `selected_<kind>` fields. Each follows the same
+        # pattern as the three above — canonical key first, alias(es) after.
+        styleguides = self._get_list_value(normalized, ("selected_styleguides", "styleguides"))
+        if styleguides:
+            doctrine.selected_styleguides = styleguides
+
+        toolguides = self._get_list_value(normalized, ("selected_toolguides", "toolguides"))
+        if toolguides:
+            doctrine.selected_toolguides = toolguides
+
+        procedures = self._get_list_value(normalized, ("selected_procedures", "procedures"))
+        if procedures:
+            doctrine.selected_procedures = procedures
+
+        agent_profiles = self._get_list_value(
+            normalized, ("selected_agent_profiles", "agent_profiles", "agent-profiles")
+        )
+        if agent_profiles:
+            doctrine.selected_agent_profiles = agent_profiles
+
+        mission_step_contracts = self._get_list_value(
+            normalized,
+            (
+                "selected_mission_step_contracts",
+                "mission_step_contracts",
+                "mission-step-contracts",
+            ),
+        )
+        if mission_step_contracts:
+            doctrine.selected_mission_step_contracts = mission_step_contracts
 
         tools = self._get_list_value(normalized, ("available_tools", "tools", "selected_tools"))
         if tools:

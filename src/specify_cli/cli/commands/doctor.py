@@ -1490,13 +1490,31 @@ def doctrine_check(
     registry = load_pack_registry(repo_root)
 
     if not registry.packs:
+        # WP09 T050 / FR-018: the Selections diagnostic is independent of
+        # whether org packs are configured.  A project with built-in +
+        # project-only doctrine still has selections to audit, so emit
+        # the section in both human and JSON shapes before exiting.
+        selection_block = _build_selection_block(repo_root)
         if json_output:
-            console.print_json(json.dumps({"org_configured": False, "packs": []}))
+            console.print_json(
+                json.dumps(
+                    {
+                        "org_configured": False,
+                        "packs": [],
+                        "selections": selection_block,
+                    },
+                    indent=2,
+                    default=str,
+                )
+            )
         else:
             console.print("[yellow]No org doctrine configured.[/yellow]")
             console.print(
                 "Add a 'doctrine.org' block to .kittify/config.yaml to register a pack."
             )
+            console.print()
+            for line in _render_selection_block_lines(selection_block):
+                console.print(line)
         raise typer.Exit(0)
 
     pack_entries: list[dict[str, object]] = []
@@ -1525,11 +1543,17 @@ def doctrine_check(
     # capturing DoctrineLayerCollisionWarning emissions.
     collision_summaries = _collect_doctrine_collisions(repo_root)
 
+    # WP09 T050 / FR-018: build the Selections section so operators can audit
+    # which globally-selected artifacts are active across project + org +
+    # mission-type-profile layers, each annotated with its resolved source.
+    selection_block = _build_selection_block(repo_root)
+
     if json_output:
         payload = {
             "org_configured": True,
             "packs": pack_entries,
             "collisions": collision_summaries,
+            "selections": selection_block,
         }
         console.print_json(json.dumps(payload, indent=2, default=str))
         raise typer.Exit(0)
@@ -1555,6 +1579,13 @@ def doctrine_check(
         console.print(
             "\n[dim]Collisions:[/dim] none — every artifact resolves from a single layer."
         )
+
+    # FR-018 / WP09 T050: render the Selections section verbatim so the
+    # snapshot test in tests/cli/test_doctor_doctrine_selections_snapshot.py
+    # can pin the operator-facing format byte-for-byte.
+    console.print()
+    for line in _render_selection_block_lines(selection_block):
+        console.print(line)
     console.print()
     raise typer.Exit(0)
 
@@ -1627,3 +1658,170 @@ def _collect_doctrine_collisions(repo_root: Path) -> list[dict[str, object]]:
             }
         )
     return collisions
+
+
+# ---------------------------------------------------------------------------
+# WP09 T050 — Selections section (FR-018)
+# ---------------------------------------------------------------------------
+
+#: Canonical artifact-kind plurals as surfaced by ``doctor doctrine`` in the
+#: Selections section.  Ordering is the operator-facing reading order from
+#: the WP09 plan (directives first, agent_profiles last so the audit ends
+#: on the "who can drive" surface).
+_SELECTION_KIND_PLURALS: tuple[str, ...] = (
+    "directives",
+    "tactics",
+    "paradigms",
+    "styleguides",
+    "toolguides",
+    "procedures",
+    "mission_step_contracts",
+    "agent_profiles",
+)
+
+
+def _resolve_artifact_source(
+    item_id: str,
+    plural: str,
+    service: object,
+    org_required: dict[str, list[str]],
+    project_selected: set[str],
+) -> str:
+    """Return a stable ``source: <token>`` annotation for *item_id*.
+
+    The annotation tokens are deliberately compact so the snapshot test
+    can pin them byte-for-byte:
+
+    * ``built-in`` — artifact comes from the shipped doctrine layer
+    * ``project`` — artifact lives under ``.kittify/doctrine/``
+    * ``org`` — artifact lives in an org pack (per-pack attribution is
+      not yet tracked at the repository layer; see ``_collect_org_source_map``
+      in charter.context for the same limitation)
+    * ``charter`` — declared selected in the project charter but the
+      DoctrineService does not (yet) know about it (e.g. typo or
+      missing snapshot)
+    * ``org-required`` — required by an org pack's ``org-charter.yaml``
+      but not present in the resolved catalog
+    """
+    repo = getattr(service, plural, None)
+    if repo is not None:
+        try:
+            provenance = repo.get_provenance(item_id)  # type: ignore[attr-defined]
+        except (AttributeError, KeyError):
+            provenance = None
+        if provenance == "builtin":
+            return "built-in"
+        if provenance == "project":
+            return "project"
+        if provenance == "org":
+            return "org"
+    # Not loaded — distinguish "project charter declared it" vs "org pack
+    # required it" so the operator can find the right config file.
+    if item_id in project_selected:
+        return "charter"
+    if item_id in (org_required.get(plural) or []):
+        return "org-required"
+    return "unknown"
+
+
+def _build_selection_block(repo_root: Path) -> dict[str, list[dict[str, str]]]:
+    """Return ``{plural: [{"id": ..., "source": ...}, ...]}`` for FR-018.
+
+    Composes the union of project charter ``selected_<kind>`` and merged
+    org ``required_<kind>`` lists, dedupes per-kind (preserving order:
+    project-charter ids first, org-required ids appended), and tags each
+    entry with the resolved source layer.
+
+    Mission-type-profile selections are intentionally excluded here:
+    profiles apply per-mission (gated by ``meta.json mission_type``)
+    while ``doctor doctrine`` is a project-wide diagnostic.  The
+    selections block reflects the *globally* active set so the operator
+    can audit charter intent without picking a specific mission.
+    """
+    from doctrine.service import DoctrineService
+    from specify_cli.doctrine.config import resolve_org_roots
+
+    # Project charter selections (best-effort; missing/malformed → empty).
+    # We intentionally bypass ``charter.sync.load_governance_config`` here:
+    # that loader runs the charter auto-sync pipeline (and requires a git
+    # repository).  The Selections section is a diagnostic — it MUST work
+    # in any working tree, including freshly-bootstrapped tmp fixtures and
+    # non-git operator workspaces.  Reading the YAML directly preserves
+    # accuracy while keeping the diagnostic side-effect-free.
+    project_selections: dict[str, list[str]] = {kind: [] for kind in _SELECTION_KIND_PLURALS}
+    governance_yaml = repo_root / ".kittify" / "charter" / "governance.yaml"
+    if governance_yaml.exists():
+        try:
+            from ruamel.yaml import YAML as _YAML
+
+            data = _YAML(typ="safe").load(governance_yaml.read_text(encoding="utf-8"))
+            doctrine_block = (data or {}).get("doctrine") or {}
+            for kind in _SELECTION_KIND_PLURALS:
+                value = doctrine_block.get(f"selected_{kind}")
+                if isinstance(value, list):
+                    project_selections[kind] = [str(v) for v in value]
+        except Exception:  # noqa: BLE001 — diagnostics must never crash on malformed yaml
+            pass
+
+    # Merged org-charter required_<kind> (best-effort).
+    org_required: dict[str, list[str]] = {kind: [] for kind in _SELECTION_KIND_PLURALS}
+    try:
+        from specify_cli.doctrine.org_charter import load_org_charter_policies
+
+        policy = load_org_charter_policies(repo_root)
+        for kind in _SELECTION_KIND_PLURALS:
+            org_required[kind] = list(getattr(policy, f"required_{kind}", []) or [])
+    except Exception:  # noqa: BLE001 — diagnostics must never crash on missing/invalid org
+        pass
+
+    # DoctrineService instance for provenance lookup.
+    org_roots = resolve_org_roots(repo_root)
+    project_doctrine = repo_root / ".kittify" / "doctrine"
+    project_root = project_doctrine if project_doctrine.exists() else None
+    service = DoctrineService(
+        org_roots=list(org_roots),
+        project_root=project_root,
+    )
+
+    result: dict[str, list[dict[str, str]]] = {}
+    for kind in _SELECTION_KIND_PLURALS:
+        seen: set[str] = set()
+        ordered: list[str] = []
+        for item_id in project_selections[kind] + org_required[kind]:
+            if item_id in seen:
+                continue
+            seen.add(item_id)
+            ordered.append(item_id)
+        project_set = set(project_selections[kind])
+        entries: list[dict[str, str]] = []
+        for item_id in ordered:
+            entries.append({
+                "id": item_id,
+                "source": _resolve_artifact_source(
+                    item_id, kind, service, org_required, project_set
+                ),
+            })
+        result[kind] = entries
+    return result
+
+
+def _render_selection_block_lines(
+    selections: dict[str, list[dict[str, str]]],
+) -> list[str]:
+    """Render the Selections block as a list of pinned-format lines.
+
+    The exact layout is pinned by the snapshot test
+    ``tests/cli/test_doctor_doctrine_selections_snapshot.py``.  Every
+    change to spacing, punctuation, or per-kind ordering MUST update the
+    snapshot fixture in the same commit.
+    """
+    lines: list[str] = ["Selections (active globally-selected artifacts):"]
+    for kind in _SELECTION_KIND_PLURALS:
+        entries = selections.get(kind, [])
+        if not entries:
+            lines.append(f"  {kind}: (none)")
+            continue
+        lines.append(f"  {kind}:")
+        for entry in entries:
+            lines.append(f"    - {entry['id']:<24}(source: {entry['source']})")
+    return lines

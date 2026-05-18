@@ -9,11 +9,18 @@ Surface area:
 * ``spec-kitty doctrine pack assemble <out> <inputs...> [--force]
   [--conflicts-out FILE] [--json]`` — assemble multiple input packs into a
   single distributable output pack.
+* ``spec-kitty doctrine new <kind> <id> [--pack <path>]`` — scaffold a stub
+  project-layer (or pack-layer) artifact YAML pre-filled with the canonical
+  schema's required fields (FR-016).
+* ``spec-kitty doctrine validate <path>`` — validate a single project-layer
+  artifact file or a doctrine tree against the artifact schemas (FR-017).
 
 Both ``pack validate`` and ``pack assemble`` are implemented by WP06; their
 heavy lifting lives in :mod:`specify_cli.doctrine.pack_validator` and
 :mod:`specify_cli.doctrine.pack_assembler` so this module only handles
-argument parsing and exit-code mapping.
+argument parsing and exit-code mapping. ``new`` and ``validate`` are owned
+by WP09 (Mission B) and reuse the same schema registry from
+:mod:`specify_cli.doctrine.pack_validator`.
 """
 
 from __future__ import annotations
@@ -205,3 +212,348 @@ def pack_assemble(
         json_output=json_output,
     )
     raise typer.Exit(0 if result.ok else 1)
+
+
+# ----------------------------------------------------------------------
+# new — scaffold a stub artifact (FR-016 / WP09 T048)
+# ----------------------------------------------------------------------
+
+#: Canonical artifact kinds the scaffolder supports.  The plural form names
+#: the on-disk directory (``directives/``, ``styleguides/``, …) and the
+#: singular form becomes the YAML filename suffix
+#: (``foo.directive.yaml``).  Order is the canonical listing order from
+#: the pack contract; consumed by ``--help`` rendering.
+_CANONICAL_KIND_SINGULAR_TO_PLURAL: dict[str, str] = {
+    "directive": "directives",
+    "tactic": "tactics",
+    "styleguide": "styleguides",
+    "toolguide": "toolguides",
+    "paradigm": "paradigms",
+    "procedure": "procedures",
+    "agent_profile": "agent_profiles",
+    "mission_step_contract": "mission_step_contracts",
+}
+
+#: Per-kind stub bodies.  Each stub is the *minimum* YAML payload that
+#: passes the corresponding Pydantic schema in ``src/doctrine/*/models.py``
+#: when ``<ID>`` is substituted in.  The scaffolder validates the rendered
+#: stub against the schema before writing — if a future schema change
+#: tightens a required field, the next ``doctrine new`` invocation will
+#: surface the mismatch immediately rather than silently scaffolding an
+#: invalid file.
+def _stub_template(kind_singular: str, artifact_id: str) -> str:
+    """Return the canonical YAML stub for ``kind_singular`` populated with ``artifact_id``."""
+    if kind_singular == "directive":
+        # Directive: id must match [A-Z][A-Z0-9_-]*; intent + title required.
+        return (
+            f'schema_version: "1.0"\n'
+            f"id: {artifact_id}\n"
+            f"title: TODO short title\n"
+            f"intent: TODO why this directive exists\n"
+            f"enforcement: advisory\n"
+        )
+    if kind_singular == "tactic":
+        # Tactic: needs at least one step.
+        return (
+            f'schema_version: "1.0"\n'
+            f"id: {artifact_id}\n"
+            f"name: TODO short name\n"
+            f"purpose: TODO when to apply this tactic\n"
+            f"steps:\n"
+            f"  - title: TODO first step\n"
+            f"    description: TODO what the step does\n"
+        )
+    if kind_singular == "styleguide":
+        # Styleguide: needs at least one principle (min_length=1).
+        return (
+            f'schema_version: "1.0"\n'
+            f"id: {artifact_id}\n"
+            f"title: TODO short title\n"
+            f"scope: code\n"
+            f"principles:\n"
+            f"  - TODO first principle\n"
+            f"applies_to_languages: []\n"
+        )
+    if kind_singular == "toolguide":
+        # Toolguide: guide_path must match ^src/doctrine/.+\.md$.
+        return (
+            f'schema_version: "1.0"\n'
+            f"id: {artifact_id}\n"
+            f"tool: TODO tool name\n"
+            f"title: TODO short title\n"
+            f"guide_path: src/doctrine/toolguides/{artifact_id}.md\n"
+            f"summary: TODO one-line summary\n"
+        )
+    if kind_singular == "paradigm":
+        return (
+            f'schema_version: "1.0"\n'
+            f"id: {artifact_id}\n"
+            f"name: TODO short name\n"
+            f"summary: TODO one-line summary of the paradigm\n"
+        )
+    if kind_singular == "procedure":
+        # Procedure: name + purpose + entry/exit + min 1 step.
+        return (
+            f'schema_version: "1.0"\n'
+            f"id: {artifact_id}\n"
+            f"name: TODO short name\n"
+            f"purpose: TODO why this procedure exists\n"
+            f"entry_condition: TODO when to enter\n"
+            f"exit_condition: TODO when complete\n"
+            f"steps:\n"
+            f"  - title: TODO first step\n"
+        )
+    if kind_singular == "agent_profile":
+        # AgentProfile uses hyphenated YAML aliases (profile-id, schema-version,
+        # specialization → {primary-focus, ...}). The model requires roles
+        # (min_length=1), purpose, and a Specialization with primary-focus.
+        # Reviewers will fill in the full 6-section structure; this stub
+        # carries only the schema's hard-required fields.
+        return (
+            f'schema-version: "1.0"\n'
+            f"profile-id: {artifact_id}\n"
+            f"name: TODO agent display name\n"
+            f"roles: [implementer]\n"
+            f"purpose: TODO one-line purpose statement\n"
+            f"specialization:\n"
+            f"  primary-focus: TODO primary focus area\n"
+        )
+    if kind_singular == "mission_step_contract":
+        return (
+            f"id: {artifact_id}\n"
+            f'schema_version: "1.0"\n'
+            f"action: TODO action verb\n"
+            f"mission: TODO mission slug\n"
+            f"steps:\n"
+            f"  - id: step-1\n"
+            f"    description: TODO step description\n"
+        )
+    # Unreachable — caller validated kind first.
+    raise ValueError(f"Unsupported artifact kind: {kind_singular}")
+
+
+def _resolve_scaffold_root(
+    repo_root: Path | None,
+    pack: Path | None,
+) -> Path:
+    """Return the doctrine root that scaffolded files should land under.
+
+    Project-layer scaffolding (no ``--pack``) writes to
+    ``<repo_root>/.kittify/doctrine/``.  Pack-mode scaffolding writes to
+    the user-supplied pack root verbatim.
+    """
+    if pack is not None:
+        return pack
+    if repo_root is None:
+        raise typer.BadParameter(
+            "Could not locate spec-kitty project root. Run from inside a project "
+            "containing .kittify/ or pass --pack to target an explicit pack directory."
+        )
+    return repo_root / ".kittify" / "doctrine"
+
+
+@app.command(name="new")
+def new(
+    kind: str = typer.Argument(
+        ...,
+        help=(
+            "Artifact kind (singular): one of "
+            + ", ".join(sorted(_CANONICAL_KIND_SINGULAR_TO_PLURAL))
+            + "."
+        ),
+    ),
+    artifact_id: str = typer.Argument(
+        ...,
+        metavar="ID",
+        help="Artifact identifier (kebab-case for most kinds; SCREAMING_SNAKE for directives).",
+    ),
+    pack: Path | None = typer.Option(
+        None,
+        "--pack",
+        help=(
+            "Scaffold inside a doctrine pack directory instead of the project layer. "
+            "When omitted, the stub lands under .kittify/doctrine/."
+        ),
+    ),
+) -> None:
+    """Scaffold a stub doctrine artifact YAML (FR-016).
+
+    The scaffolder pre-fills the canonical schema's required fields with
+    ``TODO …`` placeholders so the file passes ``doctrine validate`` on
+    first emit.  Refuses to overwrite an existing file.
+    """
+    kind_singular = kind.strip().lower()
+    if kind_singular not in _CANONICAL_KIND_SINGULAR_TO_PLURAL:
+        valid = ", ".join(sorted(_CANONICAL_KIND_SINGULAR_TO_PLURAL))
+        console.print(
+            f"[red]Unknown artifact kind '{kind}'.[/red] "
+            f"Expected one of: {valid}."
+        )
+        raise typer.Exit(2)
+
+    plural = _CANONICAL_KIND_SINGULAR_TO_PLURAL[kind_singular]
+
+    from specify_cli.core.paths import locate_project_root
+
+    repo_root = locate_project_root()
+    try:
+        doctrine_root = _resolve_scaffold_root(repo_root, pack)
+    except typer.BadParameter as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
+
+    target_dir = doctrine_root / plural
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target_path = target_dir / f"{artifact_id}.{kind_singular}.yaml"
+
+    if target_path.exists():
+        console.print(
+            f"[red]Refusing to overwrite existing file:[/red] {target_path}"
+        )
+        raise typer.Exit(1)
+
+    stub_text = _stub_template(kind_singular, artifact_id)
+
+    # Sanity-check the stub against the schema before writing so a future
+    # schema tightening can't silently regress the scaffolder.  The
+    # registry in pack_validator is the canonical source of truth.
+    from ruamel.yaml import YAML
+
+    from specify_cli.doctrine.pack_validator import _artifact_schema_registry
+
+    schema_cls = _artifact_schema_registry()[plural][1]
+    parsed = YAML(typ="safe").load(stub_text)
+    try:
+        schema_cls.model_validate(parsed)
+    except Exception as exc:  # noqa: BLE001 — surface to operator verbatim
+        console.print(
+            f"[red]Internal error:[/red] stub for kind '{kind_singular}' failed "
+            f"schema validation: {exc}"
+        )
+        raise typer.Exit(1) from exc
+
+    target_path.write_text(stub_text, encoding="utf-8")
+    console.print(
+        f"[green]Created stub artifact:[/green] {target_path}\n"
+        f"Run [bold]spec-kitty doctrine validate {target_path}[/bold] to confirm."
+    )
+
+
+# ----------------------------------------------------------------------
+# validate — project-layer artifact / tree validation (FR-017 / WP09 T049)
+# ----------------------------------------------------------------------
+
+#: Map filename suffix → ``(plural_dir_name, kind_singular)`` for the
+#: ``validate`` command to detect a single file's artifact kind without
+#: requiring the operator to pass it explicitly.  Mirrors the suffixes
+#: declared in :func:`_artifact_schema_registry`.
+_SUFFIX_TO_KIND: dict[str, tuple[str, str]] = {
+    ".directive.yaml": ("directives", "directive"),
+    ".tactic.yaml": ("tactics", "tactic"),
+    ".styleguide.yaml": ("styleguides", "styleguide"),
+    ".toolguide.yaml": ("toolguides", "toolguide"),
+    ".paradigm.yaml": ("paradigms", "paradigm"),
+    ".procedure.yaml": ("procedures", "procedure"),
+    ".agent.yaml": ("agent_profiles", "agent_profile"),
+    ".step-contract.yaml": ("mission_step_contracts", "mission_step_contract"),
+}
+
+
+def _detect_artifact_kind(path: Path) -> tuple[str, str] | None:
+    """Return ``(plural, singular)`` for *path* based on its filename suffix."""
+    name = path.name.lower()
+    for suffix, kinds in _SUFFIX_TO_KIND.items():
+        if name.endswith(suffix):
+            return kinds
+    return None
+
+
+def _validate_single_artifact(
+    path: Path,
+) -> tuple[bool, str | None]:
+    """Validate a single artifact YAML file.
+
+    Returns ``(ok, error_message)``.  ``error_message`` is ``None`` on
+    success and a human-readable string on failure.
+    """
+    from ruamel.yaml import YAML
+    from ruamel.yaml.error import YAMLError
+
+    from specify_cli.doctrine.pack_validator import _artifact_schema_registry
+
+    detected = _detect_artifact_kind(path)
+    if detected is None:
+        return False, (
+            f"unrecognised artifact filename suffix (expected one of "
+            f"{', '.join(sorted(_SUFFIX_TO_KIND))})"
+        )
+    plural, _singular = detected
+    try:
+        data = YAML(typ="safe").load(path.read_text(encoding="utf-8"))
+    except (YAMLError, OSError) as exc:
+        return False, f"YAML parse error: {exc}"
+    if data is None:
+        return False, "empty YAML document"
+    if not isinstance(data, dict):
+        return False, "expected a YAML mapping at top level"
+    schema_cls = _artifact_schema_registry()[plural][1]
+    try:
+        schema_cls.model_validate(data)
+    except Exception as exc:  # noqa: BLE001 — schema errors → operator text
+        return False, f"schema validation failed: {exc}"
+    return True, None
+
+
+@app.command(name="validate")
+def validate(
+    path: Path = typer.Argument(
+        ...,
+        help=(
+            "Artifact YAML file or a directory containing project-layer "
+            "doctrine artifacts (recurses into per-kind subdirectories)."
+        ),
+    ),
+) -> None:
+    """Validate project-layer doctrine artifacts against their schemas (FR-017).
+
+    When *path* is a single file, validates that file.  When *path* is a
+    directory, walks the tree for ``*.yaml`` files whose filename suffix
+    matches a canonical artifact kind and validates each one.
+
+    Exit code: ``0`` if every artifact validates; ``1`` if any artifact
+    fails.  A per-file error report is printed for failures.
+    """
+    if not path.exists():
+        console.print(f"[red]Path not found:[/red] {path}")
+        raise typer.Exit(2)
+
+    targets: list[Path] = (
+        [path]
+        if path.is_file()
+        else sorted(p for p in path.rglob("*.yaml") if _detect_artifact_kind(p))
+    )
+
+    if not targets:
+        console.print(
+            f"[yellow]No doctrine artifact files found under {path}.[/yellow]"
+        )
+        raise typer.Exit(0)
+
+    failures: list[tuple[Path, str]] = []
+    for target in targets:
+        ok, err = _validate_single_artifact(target)
+        if ok:
+            console.print(f"[green]OK[/green] {target}")
+        else:
+            failures.append((target, err or "(no error message)"))
+            console.print(f"[red]FAIL[/red] {target}: {err}")
+
+    if failures:
+        console.print(
+            f"\n[red]{len(failures)} of {len(targets)} artifact(s) failed validation.[/red]"
+        )
+        raise typer.Exit(1)
+    console.print(
+        f"\n[green]{len(targets)} artifact(s) passed validation.[/green]"
+    )
+    raise typer.Exit(0)

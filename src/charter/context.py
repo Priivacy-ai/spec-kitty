@@ -105,6 +105,13 @@ def build_charter_context(
     """
     profile_record = _load_agent_profile(profile) if profile else None
 
+    # WP06 / FR-015 — surface a loud diagnostic when the consumer's
+    # config references an org pack whose snapshot is missing on disk.
+    # We render the diagnostic into the bootstrap text (rather than
+    # raising) so the prompt body carries the actionable error to the
+    # operator even when the caller does not catch the exception.
+    missing_pack_diagnostic = _missing_pack_diagnostic(repo_root)
+
     from charter.sync import ensure_charter_bundle_fresh
 
     sync_result = ensure_charter_bundle_fresh(repo_root)
@@ -114,13 +121,20 @@ def build_charter_context(
     charter_path = canonical_root / KITTIFY_DIRNAME / "charter" / "charter.md"
     references_path = canonical_root / KITTIFY_DIRNAME / "charter" / "references.yaml"
 
+    def _augment(text: str) -> str:
+        if missing_pack_diagnostic:
+            return missing_pack_diagnostic + "\n\n" + text
+        return text
+
     if normalized not in BOOTSTRAP_ACTIONS:
         effective_depth = depth if depth is not None else 1
         return CharterContextResult(
             action=normalized,
             mode="compact",
             first_load=False,
-            text=_render_compact_governance(repo_root, profile=profile_record, action=normalized),
+            text=_augment(
+                _render_compact_governance(repo_root, profile=profile_record, action=normalized)
+            ),
             references_count=0,
             depth=effective_depth,
         )
@@ -137,7 +151,7 @@ def build_charter_context(
             action=normalized,
             mode="missing",
             first_load=state_bundle.first_load,
-            text=text,
+            text=_augment(text),
             references_count=0,
             depth=state_bundle.effective_depth,
         )
@@ -149,16 +163,31 @@ def build_charter_context(
             action=normalized,
             mode="compact",
             first_load=state_bundle.first_load,
-            text=_render_compact_governance(repo_root, profile=profile_record, action=normalized),
+            text=_augment(
+                _render_compact_governance(repo_root, profile=profile_record, action=normalized)
+            ),
             references_count=0,
             depth=state_bundle.effective_depth,
         )
+
+    # WP06 — when the caller did not supply an explicit ``org_root``,
+    # fall back to the first existing pack path discovered via the
+    # charter-layer enumeration of ``.kittify/config.yaml``.  This keeps
+    # callers that go through ``build_charter_context`` directly (e.g.
+    # ATDD tests) on the same three-layer (shipped + org + project)
+    # service shape that the ``specify_cli``-wrapped callers get.
+    effective_org_root = org_root
+    if effective_org_root is None:
+        for _name, candidate in _enumerate_org_pack_paths(repo_root):
+            if candidate.exists():
+                effective_org_root = candidate
+                break
 
     doctrine_bundle = _load_action_doctrine_bundle(
         repo_root=repo_root,
         action=normalized,
         effective_depth=state_bundle.effective_depth,
-        org_root=org_root,
+        org_root=effective_org_root,
     )
     charter_content = charter_path.read_text(encoding="utf-8")
     summary = _extract_policy_summary(charter_content)
@@ -184,7 +213,7 @@ def build_charter_context(
         action=normalized,
         mode="bootstrap",
         first_load=state_bundle.first_load,
-        text=text,
+        text=_augment(text),
         references_count=len(references),
         depth=state_bundle.effective_depth,
     )
@@ -256,6 +285,144 @@ def _classify_artifact_urns(
     return directive_ids, tactic_ids, styleguide_ids, toolguide_ids
 
 
+#: Artifact-kind suffixes for which an org pack may declare a
+#: ``required_<kind>`` list (mirrors
+#: :data:`specify_cli.doctrine.org_charter.REQUIRED_KIND_FIELDS`).  Kept
+#: as a local constant inside the charter layer so we can do the
+#: cross-pack union without importing ``specify_cli`` (preserves the
+#: kernel <- doctrine <- charter <- specify_cli dependency direction).
+_REQUIRED_KIND_FIELDS: tuple[str, ...] = (
+    "directives",
+    "tactics",
+    "paradigms",
+    "styleguides",
+    "toolguides",
+    "procedures",
+    "agent_profiles",
+    "mission_step_contracts",
+)
+
+
+def _enumerate_org_pack_paths(repo_root: Path) -> list[tuple[str, Path]]:
+    """Parse ``.kittify/config.yaml`` and return ``(pack_name, local_path)`` pairs.
+
+    Charter-layer mirror of the multi-pack registry read in
+    :mod:`specify_cli.doctrine.config`.  Returns an empty list when the
+    config is absent, malformed, or declares no ``doctrine.org`` block.
+    Tilde-expansion is applied so paths like ``~/.kittify/org/<name>``
+    resolve to the user's home dir (matching ``OrgPackConfig._expand_tilde``).
+
+    This is a deliberately small reader — it does NOT round-trip through
+    the Pydantic schema because charter cannot import ``specify_cli``.
+    The on-disk shape it reads is the same one ``specify_cli`` writes,
+    pinned by ``contracts/config-schema.yaml``.
+    """
+    config_path = repo_root / KITTIFY_DIRNAME / "config.yaml"
+    if not config_path.exists():
+        return []
+    try:
+        text = config_path.read_text(encoding="utf-8")
+    except OSError:
+        return []
+    if not text.strip():
+        return []
+    try:
+        data = YAML(typ="safe").load(text)
+    except (YAMLError, ValueError):
+        return []
+    if not isinstance(data, dict):
+        return []
+    org_block = data.get("doctrine", {}).get("org") if isinstance(data.get("doctrine"), dict) else None
+    if not isinstance(org_block, dict):
+        return []
+
+    entries: list[tuple[str, Path]] = []
+    raw_packs = org_block.get("packs")
+    if isinstance(raw_packs, list):
+        for raw in raw_packs:
+            if not isinstance(raw, dict):
+                continue
+            name = str(raw.get("name", "")).strip()
+            local_path_raw = raw.get("local_path")
+            if not name or local_path_raw is None:
+                continue
+            entries.append((name, Path(str(local_path_raw)).expanduser()))
+        return entries
+    # Legacy single-pack form: ``doctrine.org.local_path`` without ``packs``.
+    legacy_path = org_block.get("local_path")
+    if legacy_path is not None:
+        entries.append(("default", Path(str(legacy_path)).expanduser()))
+    return entries
+
+
+def _missing_pack_diagnostic(repo_root: Path) -> str | None:
+    """Return a human-readable diagnostic when an org pack is missing on disk.
+
+    Per FR-015 (Mission B WP06), a consumer whose ``.kittify/config.yaml``
+    references a pack whose ``local_path`` does not exist on disk MUST
+    surface a loud diagnostic at context-resolution time.  Returns ``None``
+    when every configured pack exists (or no packs are configured).
+
+    The diagnostic is rendered into the bootstrap text by
+    :func:`build_charter_context` so the operator sees the error in the
+    prompt body — exactly what ``test_case_2_consumer_without_fetched_pack_fails_loudly``
+    pins.
+    """
+    missing: list[tuple[str, Path]] = []
+    for name, local_path in _enumerate_org_pack_paths(repo_root):
+        if not local_path.exists():
+            missing.append((name, local_path))
+    if not missing:
+        return None
+    lines = [
+        "Charter Context Error:",
+        "  - Doctrine pack(s) referenced in .kittify/config.yaml do NOT exist on disk:",
+    ]
+    for name, local_path in missing:
+        lines.append(f"    - pack `{name}`: local_path `{local_path}` does not exist")
+    lines.append(
+        "  - Run `spec-kitty doctrine fetch --pack <name>` to populate the pack, "
+        "or remove the entry from .kittify/config.yaml."
+    )
+    return "\n".join(lines)
+
+
+def _read_org_required_selections(repo_root: Path) -> dict[str, list[str]]:
+    """Union every org pack's ``required_<kind>`` across packs.
+
+    Reads each configured pack's ``org-charter.yaml`` directly and
+    returns a ``{kind: [ids...]}`` map covering the 8 kinds listed in
+    :data:`_REQUIRED_KIND_FIELDS`.  Union preserves first-seen order
+    across packs (declaration-order precedence, matching the merge
+    semantics of :func:`specify_cli.doctrine.org_charter.load_org_charter_policies`).
+
+    Packs whose ``local_path`` is missing are silently skipped here —
+    the loud diagnostic for that case is produced by
+    :func:`_missing_pack_diagnostic` upstream.
+    """
+    yaml = YAML(typ="safe")
+    out: dict[str, list[str]] = {kind: [] for kind in _REQUIRED_KIND_FIELDS}
+    for _name, pack_path in _enumerate_org_pack_paths(repo_root):
+        charter_path = pack_path / "org-charter.yaml"
+        if not charter_path.exists():
+            continue
+        try:
+            raw = yaml.load(charter_path.read_text(encoding="utf-8"))
+        except (OSError, YAMLError, ValueError):
+            continue
+        if not isinstance(raw, dict):
+            continue
+        for kind in _REQUIRED_KIND_FIELDS:
+            value = raw.get(f"required_{kind}")
+            if not isinstance(value, list):
+                continue
+            for item in value:
+                token = str(item).strip()
+                if token and token not in out[kind]:
+                    out[kind].append(token)
+    return out
+
+
 def _load_doctrine_selection(repo_root: Path) -> DoctrineSelectionConfig:
     """Return the charter's :class:`DoctrineSelectionConfig` for *repo_root*.
 
@@ -265,15 +432,43 @@ def _load_doctrine_selection(repo_root: Path) -> DoctrineSelectionConfig:
     resilient (NFR-005) so a malformed governance file never crashes
     prompt rendering — the authority-paths block will simply lack
     charter-declared entries.
+
+    Mission B WP06: after loading the charter-level selection, this
+    helper UNIONs every org pack's ``required_<kind>`` into the matching
+    ``selected_<kind>`` field.  Org-required artifacts therefore reach
+    the prompt without the operator having to mirror them in the
+    project's own ``governance.yaml`` (FR-003 / FR-008).  The union is
+    non-destructive: project-selected ids are preserved and org-required
+    additions append in first-seen order across packs.
     """
 
     from charter.sync import load_governance_config
 
     try:
         governance = load_governance_config(repo_root)
+        selection = governance.doctrine
     except Exception:  # noqa: BLE001 — best-effort governance load
-        return DoctrineSelectionConfig()
-    return governance.doctrine
+        selection = DoctrineSelectionConfig()
+
+    org_required = _read_org_required_selections(repo_root)
+    if not any(org_required.values()):
+        return selection
+
+    # Merge per-kind, preserving project-selected order and appending new
+    # org-required ids.  Pydantic models default to mutable list fields
+    # so in-place ``extend`` is fine; we still rebuild the model via
+    # ``model_copy`` to keep the original instance immutable for callers
+    # that hold a reference.
+    updates: dict[str, list[str]] = {}
+    for kind in _REQUIRED_KIND_FIELDS:
+        field_name = f"selected_{kind}"
+        current = list(getattr(selection, field_name, []) or [])
+        additions = [token for token in org_required[kind] if token not in current]
+        if additions:
+            updates[field_name] = current + additions
+    if not updates:
+        return selection
+    return selection.model_copy(update=updates)
 
 
 def _load_action_doctrine_bundle(
@@ -286,23 +481,46 @@ def _load_action_doctrine_bundle(
     """Load DRG-backed action doctrine artifacts for bootstrap rendering."""
     from charter._drg_helpers import load_validated_graph
     from charter.sync import load_governance_config
+    from doctrine.drg.loader import DRGLoadError
     from doctrine.drg.query import resolve_context
+
+    governance = load_governance_config(repo_root)
+    mission = (governance.doctrine.template_set or "software-dev-default").removesuffix("-default")
+    project_directives = {_normalize_directive_id(d) for d in governance.doctrine.selected_directives}
 
     # WP07 T034: route the DRG load through the shared helper so the shipped +
     # org + project three-layer overlay is honoured.  Callers in ``specify_cli``
     # supply *org_root* explicitly; charter-internal callers pass ``None`` and
     # get the two-layer (shipped + project) merge.
-    merged = load_validated_graph(repo_root, org_root=org_root)
+    #
+    # WP04 (charter-mediated-doctrine-selection): a project that authors a
+    # user doctrine artifact (e.g. ``.kittify/doctrine/styleguides/foo.yaml``)
+    # without a sibling ``*.graph.yaml`` fragment causes ``load_graph_or_dir``
+    # to raise ``DRGLoadError``. The DRG-action resolution is orthogonal to
+    # charter-level global selection rendering, so we collapse the failure to
+    # an empty action bundle and let the selection-renderer path continue
+    # surfacing charter-authored ``selected_<kind>`` lists.  A WARNING is
+    # logged so operators can audit the missing graph fragment.
+    directive_ids: list[str] = []
+    tactic_ids: list[str] = []
+    styleguide_ids: list[str] = []
+    toolguide_ids: list[str] = []
+    try:
+        merged = load_validated_graph(repo_root, org_root=org_root)
+        action_urn = f"action:{mission}/{action}"
+        resolved = resolve_context(merged, action_urn, depth=effective_depth)
+        directive_ids, tactic_ids, styleguide_ids, toolguide_ids = _classify_artifact_urns(
+            resolved.artifact_urns, merged, project_directives
+        )
+    except DRGLoadError as exc:
+        _LOGGER.warning(
+            "DRG action resolution skipped for %s/%s: %s. "
+            "Charter-level selections still render.",
+            mission,
+            action,
+            exc,
+        )
 
-    governance = load_governance_config(repo_root)
-    mission = (governance.doctrine.template_set or "software-dev-default").removesuffix("-default")
-    project_directives = {_normalize_directive_id(d) for d in governance.doctrine.selected_directives}
-    action_urn = f"action:{mission}/{action}"
-    resolved = resolve_context(merged, action_urn, depth=effective_depth)
-
-    directive_ids, tactic_ids, styleguide_ids, toolguide_ids = _classify_artifact_urns(
-        resolved.artifact_urns, merged, project_directives
-    )
     return _ActionDoctrineBundle(
         mission=mission,
         directive_ids=directive_ids,
@@ -381,6 +599,32 @@ def _render_bootstrap_text(
     if profile_block:
         lines.append("")
         lines.append(profile_block)
+
+    # WP04 (FR-005) — charter-level global selection rendering.  The
+    # combined 5-kind block surfaces every artifact named in
+    # ``DoctrineSelectionConfig.selected_<kind>`` (with provenance
+    # disclosure for org-distributed entries).
+    selection_block = _render_selection_block(
+        doctrine_selection, service, repo_root=repo_root
+    )
+    if selection_block:
+        lines.append("")
+        lines.append(selection_block)
+
+    # WP04 T023 — activation-registry hook (FR-007).  The renderer body
+    # is WP05's surface (``charter._activation_render``); WP04 only
+    # ships the call site so the wire is exercised end-to-end as soon
+    # as WP05 lands.  Until then the stub returns ``""``.
+    activation_block = _render_activation_block(
+        doctrine_selection,
+        repo_root,
+        service,
+        mission_type=doctrine_bundle.mission,
+        action=action,
+    )
+    if activation_block:
+        lines.append("")
+        lines.append(activation_block)
 
     lines.append("")
     lines.append(f"Action Doctrine ({action}):")
@@ -1078,6 +1322,525 @@ def _render_profile_tactics(
             )
 
     return lines
+
+
+# ---------------------------------------------------------------------------
+# Charter-level global selection rendering (WP04 — FR-005)
+# ---------------------------------------------------------------------------
+
+
+_SELECTED_STYLEGUIDES_HEADER = "Selected styleguides:"
+_SELECTED_TOOLGUIDES_HEADER = "Selected toolguides:"
+_SELECTED_PROCEDURES_HEADER = "Selected procedures:"
+_SELECTED_AGENT_PROFILES_HEADER = "Selected agent profiles:"
+_SELECTED_MISSION_STEP_CONTRACTS_HEADER = "Selected mission step contracts:"
+
+
+def _provenance_suffix(
+    artifact_id: str,
+    org_source_map: dict[str, str] | None,
+) -> str:
+    """Return ``" (source: org, pack: <name>)"`` for org-sourced artifacts.
+
+    Per the WP04 contract (selection-schema.md §"Resolver-level"):
+
+    * built-in / project artifacts → no suffix (matches today's convention).
+    * org-distributed artifacts → ``(source: org, pack: <name>)`` so the
+      operator can audit which pack contributed the rule.
+
+    ``org_source_map`` maps ``artifact_id → pack_name``. When the pack name
+    is not known (legacy callers pass an empty string), the suffix
+    collapses to ``(source: org)`` so the provenance signal survives even
+    without per-pack attribution.
+    """
+    if not org_source_map or artifact_id not in org_source_map:
+        return ""
+    pack = (org_source_map.get(artifact_id) or "").strip()
+    if pack:
+        return f" (source: org, pack: {pack})"
+    return " (source: org)"
+
+
+def _format_inline_styleguide_body(styleguide: object) -> list[str]:
+    """Render the verbatim body of a styleguide as indented lines."""
+    body_lines: list[str] = []
+    title = getattr(styleguide, "title", None)
+    if isinstance(title, str) and title.strip():
+        body_lines.append(f"    Title: {title.strip()}")
+    scope = getattr(styleguide, "scope", None)
+    if scope is not None:
+        scope_str = scope.value if hasattr(scope, "value") else str(scope)
+        if scope_str:
+            body_lines.append(f"    Scope: {scope_str}")
+    principles = getattr(styleguide, "principles", None)
+    if isinstance(principles, list) and principles:
+        body_lines.append("    Principles:")
+        for principle in principles:
+            body_lines.append(f"      - {principle}")
+    return body_lines
+
+
+def _format_inline_toolguide_body(toolguide: object) -> list[str]:
+    """Render the verbatim body of a toolguide as indented lines."""
+    body_lines: list[str] = []
+    title = getattr(toolguide, "title", None)
+    if isinstance(title, str) and title.strip():
+        body_lines.append(f"    Title: {title.strip()}")
+    tool = getattr(toolguide, "tool", None)
+    if isinstance(tool, str) and tool.strip():
+        body_lines.append(f"    Tool: {tool.strip()}")
+    summary = getattr(toolguide, "summary", None)
+    if isinstance(summary, str) and summary.strip():
+        body_lines.append(f"    Summary: {summary.strip()}")
+    return body_lines
+
+
+def _format_inline_procedure_body(procedure: object) -> list[str]:
+    """Render the verbatim body of a procedure as indented lines."""
+    body_lines: list[str] = []
+    name = getattr(procedure, "name", None)
+    if isinstance(name, str) and name.strip():
+        body_lines.append(f"    Name: {name.strip()}")
+    purpose = getattr(procedure, "purpose", None)
+    if isinstance(purpose, str) and purpose.strip():
+        body_lines.append(f"    Purpose: {purpose.strip()}")
+    entry = getattr(procedure, "entry_condition", None)
+    if isinstance(entry, str) and entry.strip():
+        body_lines.append(f"    Entry condition: {entry.strip()}")
+    exit_ = getattr(procedure, "exit_condition", None)
+    if isinstance(exit_, str) and exit_.strip():
+        body_lines.append(f"    Exit condition: {exit_.strip()}")
+    steps = getattr(procedure, "steps", None)
+    if isinstance(steps, list) and steps:
+        body_lines.append("    Steps:")
+        for step in steps:
+            step_title = getattr(step, "title", str(step))
+            body_lines.append(f"      - {step_title}")
+    return body_lines
+
+
+def _format_inline_agent_profile_body(profile_obj: object) -> list[str]:
+    """Render the verbatim body of an agent profile as indented lines."""
+    body_lines: list[str] = []
+    name = getattr(profile_obj, "name", None)
+    if isinstance(name, str) and name.strip():
+        body_lines.append(f"    Name: {name.strip()}")
+    purpose = getattr(profile_obj, "purpose", None)
+    if isinstance(purpose, str) and purpose.strip():
+        body_lines.append(f"    Purpose: {purpose.strip()}")
+    roles = getattr(profile_obj, "roles", None)
+    if isinstance(roles, list) and roles:
+        role_names = [
+            role.value if hasattr(role, "value") else str(role) for role in roles
+        ]
+        body_lines.append(f"    Roles: {', '.join(role_names)}")
+    return body_lines
+
+
+def _format_inline_step_contract_body(contract: object) -> list[str]:
+    """Render the verbatim body of a mission step contract as indented lines."""
+    body_lines: list[str] = []
+    action = getattr(contract, "action", None)
+    if isinstance(action, str) and action.strip():
+        body_lines.append(f"    Action: {action.strip()}")
+    mission = getattr(contract, "mission", None)
+    if isinstance(mission, str) and mission.strip():
+        body_lines.append(f"    Mission: {mission.strip()}")
+    steps = getattr(contract, "steps", None)
+    if isinstance(steps, list) and steps:
+        body_lines.append("    Steps:")
+        for step in steps:
+            step_id = getattr(step, "id", None)
+            step_desc = getattr(step, "description", "")
+            if step_id:
+                body_lines.append(f"      - {step_id}: {step_desc}")
+            else:
+                body_lines.append(f"      - {step_desc}")
+    return body_lines
+
+
+def _render_selected_artifacts(
+    selected_ids: list[str],
+    repository: object,
+    *,
+    header: str,
+    selector_kind: str,
+    when_clause: str,
+    body_formatter,  # noqa: ANN001 — callable[(object), list[str]]
+    org_source_map: dict[str, str] | None = None,
+) -> list[str]:
+    """Shared implementation for the 5 ``_render_selected_<kind>`` helpers.
+
+    Each helper is a thin wrapper that picks the right repository
+    (``service.styleguides`` / ``service.toolguides`` / ...) and inline
+    body formatter, then defers to this routine for the budget /
+    fetch-stanza / provenance logic.
+
+    Returns an empty list when ``selected_ids`` is empty so the caller
+    can filter out the header — preserving the "no leading header,
+    no trailing section" guarantee from the WP04 reviewer checklist.
+    """
+    if not selected_ids:
+        return []
+
+    lines: list[str] = [header]
+    seen: set[str] = set()
+    for artifact_id in selected_ids:
+        # Deduplicate while preserving authoring order (R-4 mitigation).
+        if artifact_id in seen:
+            continue
+        seen.add(artifact_id)
+
+        suffix = _provenance_suffix(artifact_id, org_source_map)
+        header_line = f"  - {artifact_id}{suffix}"
+        lines.append(header_line)
+
+        artifact = None
+        if repository is not None:
+            try:
+                artifact = repository.get(artifact_id)  # type: ignore[attr-defined]
+            except Exception:  # noqa: BLE001 — best-effort catalog lookup
+                artifact = None
+
+        if artifact is None:
+            lines.append("    (catalog entry not found; verify charter selection)")
+            _LOGGER.warning(
+                "Charter selected %s '%s' but the catalog does not carry it; "
+                "rendered as fetch-only.",
+                selector_kind,
+                artifact_id,
+            )
+            lines.extend(
+                _shared_fetch_stanza_lines(
+                    f"{selector_kind}:{artifact_id}",
+                    when_clause,
+                    indent="    ",
+                )
+            )
+            continue
+
+        body_lines = body_formatter(artifact)
+        if body_lines and _budget_estimate(body_lines) <= _PROFILE_INLINE_BODY_LIMIT_CHARS:
+            lines.extend(body_lines)
+        else:
+            lines.extend(
+                _shared_fetch_stanza_lines(
+                    f"{selector_kind}:{artifact_id}",
+                    when_clause,
+                    indent="    ",
+                )
+            )
+
+    return lines
+
+
+def _render_selected_styleguides(
+    selected_ids: list[str],
+    service: object,
+    *,
+    org_source_map: dict[str, str] | None = None,
+) -> list[str]:
+    """Render globally-selected styleguides into prompt lines (T017).
+
+    Returns inline body lines when budget allows; fetch + when-doing
+    stanzas when overflow triggers.  Provenance is appended as
+    ``(source: org, pack: <name>)`` after each org-sourced artifact ID.
+    """
+    repo = getattr(service, "styleguides", None)
+    return _render_selected_artifacts(
+        selected_ids,
+        repo,
+        header=_SELECTED_STYLEGUIDES_HEADER,
+        selector_kind="styleguide",
+        when_clause="are about to write a code comment or styled output",
+        body_formatter=_format_inline_styleguide_body,
+        org_source_map=org_source_map,
+    )
+
+
+def _render_selected_toolguides(
+    selected_ids: list[str],
+    service: object,
+    *,
+    org_source_map: dict[str, str] | None = None,
+) -> list[str]:
+    """Render globally-selected toolguides into prompt lines (T018)."""
+    repo = getattr(service, "toolguides", None)
+    return _render_selected_artifacts(
+        selected_ids,
+        repo,
+        header=_SELECTED_TOOLGUIDES_HEADER,
+        selector_kind="toolguide",
+        when_clause="are about to invoke a project tool",
+        body_formatter=_format_inline_toolguide_body,
+        org_source_map=org_source_map,
+    )
+
+
+def _render_selected_procedures(
+    selected_ids: list[str],
+    service: object,
+    *,
+    org_source_map: dict[str, str] | None = None,
+) -> list[str]:
+    """Render globally-selected procedures into prompt lines (T018)."""
+    repo = getattr(service, "procedures", None)
+    return _render_selected_artifacts(
+        selected_ids,
+        repo,
+        header=_SELECTED_PROCEDURES_HEADER,
+        selector_kind="procedure",
+        when_clause="are about to follow a multi-step workflow",
+        body_formatter=_format_inline_procedure_body,
+        org_source_map=org_source_map,
+    )
+
+
+def _render_selected_agent_profiles(
+    selected_ids: list[str],
+    service: object,
+    *,
+    org_source_map: dict[str, str] | None = None,
+) -> list[str]:
+    """Render globally-selected agent profiles into prompt lines (T018)."""
+    repo = getattr(service, "agent_profiles", None)
+    return _render_selected_artifacts(
+        selected_ids,
+        repo,
+        header=_SELECTED_AGENT_PROFILES_HEADER,
+        selector_kind="agent_profile",
+        when_clause="are about to apply a code change",
+        body_formatter=_format_inline_agent_profile_body,
+        org_source_map=org_source_map,
+    )
+
+
+def _render_selected_mission_step_contracts(
+    selected_ids: list[str],
+    service: object,
+    *,
+    org_source_map: dict[str, str] | None = None,
+) -> list[str]:
+    """Render globally-selected mission step contracts (T018)."""
+    repo = getattr(service, "mission_step_contracts", None)
+    return _render_selected_artifacts(
+        selected_ids,
+        repo,
+        header=_SELECTED_MISSION_STEP_CONTRACTS_HEADER,
+        selector_kind="mission_step_contract",
+        when_clause="are about to step a mission action",
+        body_formatter=_format_inline_step_contract_body,
+        org_source_map=org_source_map,
+    )
+
+
+def _collect_org_source_map(
+    repository: object,
+    artifact_ids: list[str],
+) -> dict[str, str]:
+    """Map ``artifact_id → "org"`` (placeholder pack name) for org-sourced IDs.
+
+    Computed once per ``build_charter_context`` call so each renderer
+    can call :func:`_provenance_suffix` without a repository walk
+    (R-3 mitigation: ``Provenance source map computed N times per build``).
+
+    The repository tracks provenance as one of ``"builtin"`` / ``"org"`` /
+    ``"project"`` (see :meth:`doctrine.base.BaseDoctrineRepository.get_provenance`);
+    today there is no per-pack attribution at the repository layer.  When
+    that lands, the value here will gain pack-name semantics — for now
+    we use an empty-string sentinel so the suffix collapses to
+    ``(source: org)`` per :func:`_provenance_suffix`.
+    """
+    if repository is None or not artifact_ids:
+        return {}
+
+    org_map: dict[str, str] = {}
+    for artifact_id in artifact_ids:
+        try:
+            source = repository.get_provenance(artifact_id)  # type: ignore[attr-defined]
+        except (AttributeError, KeyError):
+            source = None
+        if source == "org":
+            org_map[artifact_id] = ""
+    return org_map
+
+
+def _render_selection_block(
+    doctrine_selection: DoctrineSelectionConfig | None,
+    service: object,
+    *,
+    repo_root: Path | None = None,
+) -> str:
+    """Render the combined 5-kind selection section block.
+
+    Concatenates the 5 ``_render_selected_<kind>`` outputs with blank
+    lines between non-empty blocks so the prompt body remains readable.
+    Returns ``""`` when no selections exist on the charter — the caller
+    can then skip the leading blank line without emitting a stray
+    section header.
+
+    Mission B WP06: the provenance map now ALSO carries org-pack-required
+    ids (read straight from each pack's ``org-charter.yaml``) so that
+    artifacts declared by an org pack but absent from the catalog (e.g.
+    a styleguide whose YAML failed schema validation) still surface their
+    org provenance in the prompt.  The catalog-derived map wins when
+    both are present — that path retains the per-artifact provenance the
+    DoctrineService computed.
+    """
+    if doctrine_selection is None or service is None:
+        return ""
+
+    # WP04 T020: compute the provenance source map ONCE per build, then
+    # pass it down to each renderer — avoids the N×repo-walk regression
+    # called out in the WP04 risk table.
+    org_required: dict[str, list[str]] = (
+        _read_org_required_selections(repo_root) if repo_root is not None else {}
+    )
+
+    def _merge(
+        catalog_map: dict[str, str],
+        kind: str,
+        selected_ids: list[str],
+    ) -> dict[str, str]:
+        merged = dict(catalog_map)
+        for sid in selected_ids:
+            if sid in merged:
+                continue
+            if sid in (org_required.get(kind) or []):
+                # Sentinel value matches ``_collect_org_source_map``: empty
+                # string collapses to a bare ``(source: org)`` suffix per
+                # :func:`_provenance_suffix`.
+                merged[sid] = ""
+        return merged
+
+    styleguide_org = _merge(
+        _collect_org_source_map(
+            getattr(service, "styleguides", None), doctrine_selection.selected_styleguides
+        ),
+        "styleguides",
+        doctrine_selection.selected_styleguides,
+    )
+    toolguide_org = _merge(
+        _collect_org_source_map(
+            getattr(service, "toolguides", None), doctrine_selection.selected_toolguides
+        ),
+        "toolguides",
+        doctrine_selection.selected_toolguides,
+    )
+    procedure_org = _merge(
+        _collect_org_source_map(
+            getattr(service, "procedures", None), doctrine_selection.selected_procedures
+        ),
+        "procedures",
+        doctrine_selection.selected_procedures,
+    )
+    agent_profile_org = _merge(
+        _collect_org_source_map(
+            getattr(service, "agent_profiles", None),
+            doctrine_selection.selected_agent_profiles,
+        ),
+        "agent_profiles",
+        doctrine_selection.selected_agent_profiles,
+    )
+    step_contract_org = _merge(
+        _collect_org_source_map(
+            getattr(service, "mission_step_contracts", None),
+            doctrine_selection.selected_mission_step_contracts,
+        ),
+        "mission_step_contracts",
+        doctrine_selection.selected_mission_step_contracts,
+    )
+
+    blocks: list[str] = []
+    sections = (
+        _render_selected_styleguides(
+            doctrine_selection.selected_styleguides, service, org_source_map=styleguide_org
+        ),
+        _render_selected_toolguides(
+            doctrine_selection.selected_toolguides, service, org_source_map=toolguide_org
+        ),
+        _render_selected_procedures(
+            doctrine_selection.selected_procedures, service, org_source_map=procedure_org
+        ),
+        _render_selected_agent_profiles(
+            doctrine_selection.selected_agent_profiles,
+            service,
+            org_source_map=agent_profile_org,
+        ),
+        _render_selected_mission_step_contracts(
+            doctrine_selection.selected_mission_step_contracts,
+            service,
+            org_source_map=step_contract_org,
+        ),
+    )
+    for section_lines in sections:
+        if section_lines:
+            blocks.append("\n".join(section_lines))
+    return "\n\n".join(blocks)
+
+
+def _load_governance_activations(repo_root: Path) -> list[object]:
+    """Best-effort load of ``GovernanceConfig.activations`` for *repo_root*.
+
+    The activation registry is a top-level governance field (per
+    :mod:`charter.activations`).  We isolate the load here so the call
+    site in :func:`_render_bootstrap_text` stays small and any parse
+    failure collapses to an empty list (mirrors
+    :func:`_load_doctrine_selection`'s resilience pattern).
+    """
+    from charter.sync import load_governance_config
+
+    try:
+        governance = load_governance_config(repo_root)
+    except Exception:  # noqa: BLE001 — best-effort governance load
+        return []
+    return list(governance.activations)
+
+
+def _render_activation_block(
+    doctrine_selection: DoctrineSelectionConfig | None,  # noqa: ARG001
+    repo_root: Path | None,
+    service: object,
+    *,
+    mission_type: str,
+    action: str,
+) -> str:
+    """Call the WP05 activation-stanza renderer with the runtime context.
+
+    WP04 owns the wire; WP05 owns the body.  This helper centralises the
+    boilerplate (governance load + safe-call) so the call site in
+    :func:`_render_bootstrap_text` is a single line.
+
+    Returns ``""`` when the activation list is empty, when the WP05
+    renderer is still a stub, or when any error is raised by the
+    renderer (defensive — the prompt build hot path must not crash).
+    """
+    if repo_root is None:
+        return ""
+    activations = _load_governance_activations(repo_root)
+    if not activations:
+        return ""
+
+    from charter._activation_render import render_activation_stanza
+
+    try:
+        return render_activation_stanza(
+            activations,  # type: ignore[arg-type]
+            service,
+            mission_type=mission_type,
+            action=action,
+        )
+    except Exception:  # noqa: BLE001 — defensive: never crash the prompt build
+        _LOGGER.warning(
+            "Activation stanza renderer raised; surface omitted for action %s.",
+            action,
+        )
+        return ""
+
+
+# ---------------------------------------------------------------------------
+# Profile-driven rendering helpers (continued)
+# ---------------------------------------------------------------------------
 
 
 def _render_profile_sections(

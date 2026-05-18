@@ -4,8 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from doctrine.agent_profiles.profile import AgentProfile
-from doctrine.agent_profiles.repository import AgentProfileRepository
+from charter.profiles import AgentProfile, AgentProfileRepository
 
 from specify_cli.invocation.errors import ProfileNotFoundError
 
