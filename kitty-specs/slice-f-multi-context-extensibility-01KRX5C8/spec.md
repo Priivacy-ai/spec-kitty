@@ -203,7 +203,8 @@ Explicitly descoped from this mission (each gets a separate disposition; see Con
 | FR-300 | `tests/architectural/README.md` SHALL exist, documenting the 5-axis architectural model (Layer direction × Surface completeness × Closed-vocabulary integrity × Lifecycle presence × Dependency hygiene) from the post-merge ratchet coherence audit, and listing every gate with its axis. | Approved |
 | FR-301 | The forward-staged migrations convention (chain target may lead `pyproject.toml`; the bump is a separate release step) SHALL be documented in `src/specify_cli/upgrade/migrations/README.md` (preferred per architect's preference) OR in `CLAUDE.md` PyPI Release section. | Approved |
 | FR-302 | All Mission C domain-language terms in the §"Domain Language" table SHALL be promoted to `Status: canonical` in `glossary/contexts/doctrine.md`. | Approved |
-| FR-303 | The project charter (`.kittify/charter/charter.md`) SHALL be amended to add the binding burn-down policy (per C-006) and the `__all__` declaration convention (per C-007). | Approved |
+| FR-303 | The project charter (`.kittify/charter/charter.md`) SHALL be amended to add: (a) the binding burn-down policy (per C-006), (b) the `__all__` declaration convention (per C-007), and (c) the ATDD-first discipline note (per C-011), so future missions inherit the convention. | Approved |
+| FR-304 | Every commit landing an ATDD acceptance test SHALL declare in its commit message which user scenario / acceptance criterion the test covers AND record the expected red→green transition (the commit that turns the test green is identified by SHA-or-WP in the implementing WP's frontmatter). | Approved |
 
 ---
 
@@ -218,6 +219,7 @@ Explicitly descoped from this mission (each gets a separate disposition; see Con
 | NFR-005 | All new and existing architectural ratchets pass on HEAD at mission close, including the new FR-110/111 meta-test and FR-120/121 symbol-level gate. | `pytest tests/architectural/ -v` exit 0; warnings allowed only for documented patch-skips per the migration chain gate's `_KNOWN_PATCH_SKIPS`. |
 | NFR-006 | The catalog-miss visibility test (FR-132) runs via subprocess (`subprocess.run([...])`), not via pytest's in-process warning capture. This proves visibility under real operator conditions. | The test code calls `subprocess.run` with a real spec-kitty CLI invocation; assertion is against captured stderr bytes. |
 | NFR-007 | Mission closure is gated on `spec-kitty.analyze` passing with 0 CRITICAL and 0 HIGH findings. MEDIUM findings are reviewed but may be merged with documented follow-up. | Analyze report at `kitty-specs/<mission>/analysis-report.md` shows verdict: READY FOR IMPLEMENTATION at mission close (post all WPs). |
+| NFR-008 | ATDD coverage: every user scenario in §"User Scenarios & Testing" (Scenarios 1–6) AND every acceptance criterion that maps to operator-observable behaviour (AC-1, AC-2, AC-3, AC-4, AC-5, AC-7, AC-8, AC-9, AC-10) MUST have at least one failing-first ATDD acceptance test committed BEFORE its implementing WP starts coding. The test must be red on the WP's planning base commit and green on the WP's final commit (red→green transition asserted by the reviewer per the discipline in §"Development Discipline: ATDD-First"). | Coverage tracking spreadsheet at `kitty-specs/<mission>/atdd-coverage.md` (created at plan time) lists every Scenario/AC and the test file that pins it; coverage ≥ 90% of in-scope ACs (the 10% slack handles ACs that are pure-documentation deliverables — AC-12 ADR existence, AC-13 GitHub ticket existence, AC-14 README existence, AC-15 doc presence, AC-16 charter amendment, where existence assertions ARE the ATDD test). |
 
 ---
 
@@ -235,6 +237,7 @@ Explicitly descoped from this mission (each gets a separate disposition; see Con
 | C-008 | Backward compat for missions without `workflow_id`: the default `software-dev-default` workflow MUST produce a byte-identical action sequence to today's hardcoded behaviour. **No silent semantic drift** between hardcoded and default-via-YAML paths. | FR-014 derivative. |
 | C-009 | Org-DRG schema MUST reuse Mission B's 8-kind plural-naming parity and union semantics (DoctrineSelectionConfig.selected_<kind> / OrgCharterPolicy.required_<kind> shapes). Any divergence requires written rationale + glossary update. | Predecessor mission compatibility. |
 | C-010 | Glossary canonical promotion is a pre-acceptance gate: all 10 Mission C domain-language terms in §"Domain Language" MUST be promoted from `candidate` to `canonical` BEFORE the mission is accepted. | Architect convention (mirrors Mission B C-007). |
+| C-011 | **ATDD-first discipline (binding for this mission):** every implementation WP follows the red-green-refactor cycle. The WP cannot start coding until at least one failing-first ATDD test exists that pins the user-observable behaviour the WP delivers. The ATDD test is committed as a separate commit (often the first commit of the lane) BEFORE any implementation commits in the same lane. The reviewer verifies red→green: the test was red on the WP's `planning_base_branch` commit AND green on the WP's final `for_review` commit. Coverage scope is defined by NFR-008. Refactor steps inside a WP MUST keep the test green. This mirrors Mission B's pattern (where the 7-file ATDD spec at `bd95f1f5` was the canonical executable contract that all implementation WPs turned green). | Mission B precedent; charter amendment per FR-303(c) so future missions inherit. |
 
 ---
 
@@ -279,6 +282,69 @@ Explicitly descoped from this mission (each gets a separate disposition; see Con
 | `CatalogMissEvent` | Structured-log payload for the FR-131 logging handler when a catalog miss fires. | New (extends existing `CharterCatalogMissWarning`). |
 | `MissionTypeProfile` | Existing (Mission B). | Unchanged; referenced for the workflow-vs-mission-type-profile relationship in WP10. |
 | `DoctrineSelectionConfig.selected_<kind>` / `OrgCharterPolicy.required_<kind>` | Existing (Mission B). | Unchanged; the org-DRG schema reuses this 8-kind parity per C-009. |
+
+---
+
+## Development Discipline: ATDD-First (Red-Green-Refactor)
+
+This mission adopts **ATDD-first** discipline (binding per C-011). The pattern is the one Mission B successfully ran — the 7-file ATDD spec committed at `bd95f1f5` was the canonical executable contract; each implementation WP was scored by which ATDD assertions it turned green. Mission C scales this pattern across 4 lanes and 12 WPs.
+
+### The cycle
+
+For each user scenario / acceptance criterion in scope (per NFR-008):
+
+1. **RED (test-first).** Author the acceptance test that pins the operator-observable behaviour. Commit it as a separate commit (often the first commit of the lane, or a dedicated ATDD WP at the start of the lane). The test MUST fail on the WP's `planning_base_branch` because the production code doesn't exist yet — that's the contract.
+2. **GREEN (minimum code to pass).** The implementing WP writes just enough production code to turn the named test green. No gold-plating; no extra surfaces; no defensive scaffolding for hypothetical future requirements (per the project guideline).
+3. **REFACTOR (with the test as safety net).** If the implementation needs cleanup, do it as separate commits within the same WP, re-running the test after each change. The test stays green throughout.
+
+### Lane-level ATDD landing
+
+Each lane lands its ATDD tests in a single early commit (or a single early WP) that the implementation WPs then turn green:
+
+- **Lane A (architectural rigor):** ATDD tests for ratchet baseline (FR-111), symbol-level dead-code (FR-120), contract round-trip (FR-140). Landed at the start of Lane A; the corresponding implementation WPs (WP01, WP02, WP03 per the proposed structure) turn each test green in turn.
+- **Lane B (independent remediations):** ATDD tests for alias deletion regression (FR-103) and catalog-miss CLI visibility (FR-132). Landed at the start of Lane B; WP04 turns the alias test green; WP05 turns the visibility test green.
+- **Lane C (org-DRG):** ATDD tests for Scenario 1 (org-DRG end-to-end with fixture org pack), FR-002/003/004/005, AC-1. Landed at the start of Lane C; WP06/WP07/WP08 turn each test green in turn.
+- **Lane D (monorepo + workflows + closing):** ATDD tests for Scenario 2 (monorepo CharterScope), Scenario 3 (composable workflow), FR-008..015, AC-3, AC-4. Landed at the start of Lane D; WP09/WP10/WP11 turn each test green. WP12 (closing) adds the cross-axis integration tests AND the binding tests for the existence-only ACs (AC-12, AC-13, AC-14, AC-15, AC-16).
+
+### Reviewer obligation
+
+When a WP moves to `for_review`, the reviewer MUST validate the red→green transition:
+
+```bash
+# Confirm the test was RED on the WP's planning base:
+git checkout <wp.planning_base_branch>
+pytest <test_path>::<test_name>  # MUST FAIL
+
+# Confirm the test is GREEN on the WP's final commit:
+git checkout <wp_branch>
+pytest <test_path>::<test_name>  # MUST PASS
+```
+
+If the test was already green on the planning base (no red phase), the WP did not follow ATDD discipline — the reviewer rejects with feedback to either rebase the WP onto a commit predating the test OR demonstrate the test exercises new production code paths.
+
+### Coverage tracking
+
+A coverage spreadsheet at `kitty-specs/<mission>/atdd-coverage.md` (authored at `/spec-kitty.plan` time) lists every in-scope Scenario / AC and the test file + test name that pins it. The planner populates the spreadsheet from the FR/Scenario/AC tables; each row gets filled in as WPs land. NFR-008's threshold is ≥ 90% in-scope ACs covered (the 10% slack covers documentation-only deliverables — AC-12 ADR existence, AC-13 GitHub ticket existence, AC-14 README existence, AC-15 doc presence, AC-16 charter amendment — where the existence assertion IS the ATDD test).
+
+### Out of scope for ATDD
+
+The following deliverables are NOT subject to red→green discipline (they ship a pure-documentation artefact whose existence is the test):
+
+- AC-12 (ADR-N-delete-auth-transport.md exists)
+- AC-13 (GitHub ticket open)
+- AC-14 (tests/architectural/README.md documents 5-axis model)
+- AC-15 (forward-staged migrations convention documented)
+- AC-16 (charter amendments)
+
+For these, the WP's review confirms the file/issue exists with the required content; no failing-first phase applies.
+
+### Why this matters here
+
+Mission B taught two lessons that this discipline directly addresses:
+- **WP08 cycle-1 dead code** (zero live callers despite 14 passing tests) — caught only when the cycle-1 reviewer explicitly grepped. ATDD-first plus red→green verification would have caught it at cycle-1 dispatch because the integration test (which a reviewer can re-run) would have been already-green on the planning base.
+- **WP01 singular/plural drift** (contract example contradicted implementation) — caught only when WP05's implementer read the contract independently. An ATDD test asserting the contract example parses cleanly would have failed at WP01 dispatch.
+
+Both classes of failure recur where there's no failing-first executable spec to validate the WP's contract.
 
 ---
 
