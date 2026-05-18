@@ -18,7 +18,7 @@ subtasks:
 - T019
 - T020
 - T021
-agent: claude:sonnet-4-6:python-pedro:implementer
+agent: "claude:sonnet-4-6:python-pedro:implementer"
 history: []
 agent_profile: python-pedro
 authoritative_surface: src/charter/resolver.py
@@ -30,6 +30,7 @@ owned_files:
 - tests/charter/test_alias_deleted_regression.py
 role: implementer
 tags: []
+shell_pid: "2332821"
 ---
 
 ## ⚡ Do This First: Load Agent Profile
@@ -275,3 +276,7 @@ pytest tests/charter/test_alias_deleted_regression.py -v
 - Confirm full architectural sweep: `PWHEADLESS=1 pytest tests/architectural/ -v` exit 0 (NFR-005).
 
 **FR-304 commit-message check:** T017 RED commit cites `covers: Scenario 4, AC-5` and `expected GREEN at: WP04 final commit`. The alias deletion commit (T018-T019) cites `closes: FR-100, FR-101, C-003 (HiC §5a.1 binding)`.
+
+## Activity Log
+
+- 2026-05-18T14:14:12Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=2332821 – Started implementation via action command
