@@ -386,28 +386,13 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
 )
 
 # ---------- C. WP-in-flight Slice F charter symbols ----------
-# Public surface shipped by Slice F WP09 (CharterScope abstraction +
-# scope_router wrapper) ahead of its WP11 call-site wiring. Per ADR-8
-# (architecture/adrs/2026-05-18-1-monorepo-charter-scope.md) the
-# wrapper is intentionally introduced WP-ahead-of-wiring so WP07
-# retains sole ownership of ``charter/context.py``. The four entries
-# below MUST be removed when WP11 lands the prompt_builder call site
-# that imports ``build_with_scope`` (which transitively pulls
-# CharterScope, CharterScopeConfig, CharterScopeConflict,
-# CharterScopeNotFound into the live import graph via scope_router
-# and the FR-140 round-trip case for CharterScopeConfig).
-#
-# Tracker: Slice F WP09 → WP11 sequencing per
-# kitty-specs/slice-f-multi-context-extensibility-01KRX5C8/tasks/
-# WP09-charter-scope-and-adr8.md "Risks #1".
-_CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE: frozenset[str] = frozenset(
-    {
-        "charter.scope::CharterScopeConfig",
-        "charter.scope::CharterScopeConflict",
-        "charter.scope::CharterScopeNotFound",
-        "charter.scope_router::build_with_scope",
-    }
-)
+# WP11 wiring trigger reached (post-merge remediation cycle 1, 2026-05-19):
+# prompt_builder.py now imports build_with_scope from charter.scope_router,
+# which transitively pulls CharterScope, CharterScopeConfig,
+# CharterScopeConflict, CharterScopeNotFound into the live src/ import
+# graph. All four symbols have live callers; the allowlist is empty.
+# See HIGH-1 in the mission-review-report.md for the full rationale.
+_CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE: frozenset[str] = frozenset()
 
 # ---------- C. WP-in-flight Slice F workflow registry symbols ----------
 # WP11 removal trigger reached: get_workflow, UnknownWorkflowError,

@@ -242,28 +242,22 @@ _CATEGORY_4_BACKCOMPAT_SHIMS: frozenset[str] = frozenset(
 # assertion. See src/specify_cli/compat/__init__.py for the
 # compat-shim mission context.
 #
-# Slice F WP09 addition: ``charter.scope_router`` is a thin wrapper
-# combining ``CharterScope.resolve`` + ``build_charter_context``. WP09
-# ships the module ready for use; Slice F WP11 wires the prompt builder
-# call site to invoke ``build_with_scope``. Per ADR-8
-# (architecture/adrs/2026-05-18-1-monorepo-charter-scope.md) the wrapper
-# is intentionally introduced WP-ahead-of-wiring to preserve WP07's
-# ownership of ``charter/context.py``. Remove this entry from the
-# allowlist when WP11 lands the prompt-builder call site (the symbol
-# allowlist entry for ``charter.scope_router::build_with_scope`` is the
-# matching surface in test_no_dead_symbols.py and should be removed at
-# the same time).
+# charter.scope_router removed (post-merge remediation cycle 1, 2026-05-19):
+# prompt_builder.py now imports build_with_scope from charter.scope_router,
+# giving scope_router a live src/ caller. The WP09→WP11 wiring trigger has
+# been reached; the allowlist entry is removed. See HIGH-1 in
+# mission-review-report.md.
 _CATEGORY_5_WP_IN_FLIGHT_ADAPTERS: frozenset[str] = frozenset(
     {
         "specify_cli.compat._adapters.detector",
         "specify_cli.compat._adapters.gate",
         "specify_cli.compat._adapters.version_checker",
-        # Slice F WP09 → WP11 wiring (ADR-8, FR-010).
-        "charter.scope_router",
         # specify_cli.next._internal_runtime.workflow_registry removed:
         # WP11 wired get_workflow() into planner.py (planner imports it
         # via workflow_registry at module scope), so the module now has a
         # live src/ caller.  WP11 removal trigger reached.
+        # charter.scope_router removed: post-merge remediation cycle 1
+        # wired prompt_builder._governance_context through build_with_scope.
     }
 )
 

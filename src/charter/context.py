@@ -8,6 +8,10 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, UTC
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from charter.scope import CharterScope
 
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
@@ -102,6 +106,7 @@ def build_charter_context(
     mark_loaded: bool = True,
     depth: int | None = None,
     org_root: Path | None = None,
+    scope: "CharterScope | None" = None,
 ) -> CharterContextResult:
     """Build charter context by querying the Doctrine Reference Graph.
 
@@ -115,7 +120,24 @@ def build_charter_context(
         resolve the value via :func:`specify_cli.doctrine.config.resolve_org_roots`
         and pass it explicitly (preserving the kernel <- doctrine <- charter <-
         specify_cli dependency direction).
+    scope:
+        Optional :class:`charter.scope.CharterScope` produced by
+        :func:`charter.scope_router.build_with_scope`.  When provided, the
+        effective ``repo_root`` for this call is ``scope.root`` so the
+        nearest-enclosing charter is used instead of the repository root.
+        This satisfies FR-010 spec wording: callers MAY pass a pre-resolved
+        scope or rely on the :func:`build_with_scope` convenience wrapper.
+        When ``scope`` is ``None`` the argument is ignored and *repo_root* is
+        used as-is (backward-compatible with all existing callers).
+
+        MEDIUM-2 (post-merge remediation cycle 1): added as a keyword-only
+        pass-through so the FR-010 spec contract "SHALL accept an optional
+        scope parameter" is honoured without breaking the WP07 call-site
+        signature.
     """
+    # MEDIUM-2: honour the scope kwarg by overriding repo_root when provided.
+    if scope is not None:
+        repo_root = scope.root
     profile_record = _load_agent_profile(profile) if profile else None
 
     # WP06 / FR-015 — surface a loud diagnostic when the consumer's

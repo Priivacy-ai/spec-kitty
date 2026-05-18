@@ -21,6 +21,7 @@ import tempfile
 from pathlib import Path
 
 from charter.context import build_charter_context
+from charter.scope_router import build_with_scope
 from charter.mission_type_profiles import (
     UnknownMissionTypeError,
     resolve_mission_type_governance,
@@ -140,7 +141,7 @@ def _build_template_prompt(
     template_content = result.path.read_text(encoding="utf-8")
 
     header = _mission_context_header(mission_slug, feature_dir, agent)
-    governance = _governance_context(repo_root, action=action)
+    governance = _governance_context(repo_root, action=action, feature_dir=feature_dir)
     return f"{header}\n\n{governance}\n\n{template_content}"
 
 
@@ -186,7 +187,7 @@ def _build_wp_prompt(
         lines.append("Workspace contract: repository root planning workspace")
     lines.append("")
     lines.extend(_mission_type_governance_lines(repo_root, feature_dir))
-    lines.append(_governance_context(repo_root, action=action, profile=agent_profile_id))
+    lines.append(_governance_context(repo_root, action=action, feature_dir=feature_dir, profile=agent_profile_id))
     lines.append("")
 
     # WP isolation rules
@@ -353,6 +354,7 @@ def _governance_context(
     repo_root: Path,
     action: str | None = None,
     *,
+    feature_dir: Path | None = None,
     profile: str | None = None,
 ) -> str:
     """Render governance context for prompt preamble.
@@ -360,21 +362,49 @@ def _governance_context(
     For bootstrap actions, charter context is injected on first load.
     Falls back to compact governance rendering if charter artifacts are missing.
 
+    When *feature_dir* is supplied, charter resolution is monorepo-aware:
+    :func:`charter.scope_router.build_with_scope` resolves the nearest
+    enclosing charter for *feature_dir* before building context.  For
+    single-project repos (no ``charter_scopes:`` configured) this is a
+    pass-through — the resolved scope root equals *repo_root* and the
+    output is byte-identical to the previous behaviour (NFR-001 binding).
+    When *feature_dir* is ``None``, the call falls back to
+    :func:`charter.context.build_charter_context` with *repo_root* directly,
+    preserving backward compat with callers that do not yet supply the arg.
+
     When *profile* is supplied (typically the WP frontmatter
     ``agent_profile`` field forwarded by :func:`_build_wp_prompt`), it is
-    passed through to :func:`build_charter_context` so the resolver
-    renders the profile's directive- and tactic-references into the
-    prompt the agent will read.  ``profile=None`` preserves the prior
-    byte-identical output (NFR-005 contract from WP03).
+    passed through so the resolver renders the profile's directive- and
+    tactic-references into the prompt the agent will read.  ``profile=None``
+    preserves the prior byte-identical output (NFR-005 contract from WP03).
+
+    HIGH-1 (post-merge remediation cycle 1): routes through
+    :func:`charter.scope_router.build_with_scope` when *feature_dir* is
+    provided so monorepo operators get the nearest-enclosing charter, not
+    always the root-project charter.
     """
     if action:
         try:
-            context = build_charter_context(
-                repo_root,
-                action=action,
-                mark_loaded=True,
-                profile=profile,
-            )
+            if feature_dir is not None:
+                # Monorepo-aware path: resolve the nearest enclosing charter
+                # for feature_dir, then build the context from that scope root.
+                context = build_with_scope(
+                    repo_root,
+                    feature_dir,
+                    action=action,
+                    mark_loaded=True,
+                    profile=profile,
+                )
+            else:
+                # Single-project / legacy path: call build_charter_context
+                # directly with repo_root (byte-identical to pre-HIGH-1 for
+                # callers that do not supply feature_dir).
+                context = build_charter_context(
+                    repo_root,
+                    action=action,
+                    mark_loaded=True,
+                    profile=profile,
+                )
             if context.mode != "missing":
                 return context.text
         except Exception:

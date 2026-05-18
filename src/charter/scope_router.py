@@ -20,7 +20,12 @@ from pathlib import Path
 from typing import Any
 
 from charter.context import CharterContextResult, build_charter_context
-from charter.scope import CharterScope
+from charter.scope import (
+    CharterScope,
+    CharterScopeConfig,
+    CharterScopeConflict,
+    CharterScopeNotFound,
+)
 
 __all__ = ["build_with_scope"]
 
