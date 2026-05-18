@@ -358,3 +358,4 @@ pytest tests/integration/test_catalog_miss_cli_visibility.py -v
 - 2026-05-18T14:42:20Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=2367982 – Started implementation via action command
 - 2026-05-18T15:04:09Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=2367982 – CLI logging bootstrap (FR-130 + FR-131) + subprocess visibility test (FR-132 + NFR-006); AC-9 GREEN. RISK-3 from Mission B post-merge review now fully closed at operator surface.
 - 2026-05-18T15:06:02Z – claude:sonnet-4-6:reviewer-renata:reviewer – shell_pid=2408484 – Started review via action command
+- 2026-05-18T15:22:11Z – claude:sonnet-4-6:reviewer-renata:reviewer – shell_pid=2408484 – Moved to planned
