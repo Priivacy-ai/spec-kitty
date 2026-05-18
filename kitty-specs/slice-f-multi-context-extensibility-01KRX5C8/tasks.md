@@ -93,11 +93,11 @@ Lane A blocks Lane C/D so the burn-down meta-test (FR-110/111) is in place befor
 - [x] T033 — Add `tests/charter/test_org_drg_loader.py` unit coverage for loader + merge + provenance; Lane C ATDD suite GREEN for FR-001/003/004/005 (WP06)
 
 #### WP07 — Org-DRG integration into `build_charter_context` + `doctor doctrine`
-- [ ] T034 — Land failing-first `tests/integration/test_charter_status_reports_three_layers.py` (RED on planning base) (WP07)
-- [ ] T035 — Wire `load_org_drg` + `merge_three_layers` into `build_charter_context` via a NEW helper (avoid signature break — WP09 owns scope= parameter via a separate router file) (FR-001 provenance, FR-007) (WP07)
-- [ ] T036 — Thread per-layer `source:` provenance into the `_render_*` helpers so rendered stanzas carry `built-in | org:<pack> | project` (WP07)
-- [ ] T037 — Extend `spec-kitty doctor doctrine` to surface org-layer state (configured packs, fetched/missing, collisions) in its Selections section (FR-007) (WP07)
-- [ ] T038 — Confirm Lane C tests covering `charter status` + provenance GREEN; NFR-001 (23 fixtures) still pass without org pack configured (WP07)
+- [x] T034 — Land failing-first `tests/integration/test_charter_status_reports_three_layers.py` (RED on planning base) (WP07)
+- [x] T035 — Wire `load_org_drg` + `merge_three_layers` into `build_charter_context` via a NEW helper (avoid signature break — WP09 owns scope= parameter via a separate router file) (FR-001 provenance, FR-007) (WP07)
+- [x] T036 — Thread per-layer `source:` provenance into the `_render_*` helpers so rendered stanzas carry `built-in | org:<pack> | project` (WP07)
+- [x] T037 — Extend `spec-kitty doctor doctrine` to surface org-layer state (configured packs, fetched/missing, collisions) in its Selections section (FR-007) (WP07)
+- [x] T038 — Confirm Lane C tests covering `charter status` + provenance GREEN; NFR-001 (23 fixtures) still pass without org pack configured (WP07)
 
 #### WP08 — Org-DRG operator UX + glossary partial
 - [ ] T039 — Land failing-first `tests/cli/test_doctrine_org_commands.py` for `org init` and `org validate` (RED on planning base) (WP08)
