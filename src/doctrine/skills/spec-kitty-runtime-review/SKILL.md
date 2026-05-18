@@ -65,6 +65,37 @@ from this skill.
 
 ---
 
+## Step 3.5: Contract Round-Trip Check
+
+If the mission ships a `kitty-specs/<mission>/contracts/` directory, walk it
+before issuing a verdict. Contracts pin concrete examples (payloads, CLI
+invocations, schema fragments, error messages, allowed-value sets) that the
+implementation must round-trip verbatim. Vocabulary or shape drift here is
+invisible to spec-level review and surfaces late at mission-review or
+downstream consumption time.
+
+1. **Enumerate** — `ls kitty-specs/<mission>/contracts/`. If the directory is
+   absent, record a one-line note ("no contracts/ artifact") and skip to
+   Step 4.
+2. **Filter** — for each contract file, decide whether this WP touches the
+   symbols, payloads, or commands it pins. Skipped files get a one-line note
+   ("orthogonal to WP##").
+3. **Walk every concrete example** — extract every YAML block, JSON snippet,
+   CLI invocation, schema fragment, and error message in the in-scope
+   contracts. Verify the implementation **accepts inputs and produces
+   outputs verbatim**: singular vs plural, default values, enum members,
+   exit codes, flag names — all of it.
+4. **SSOT cross-check** — if a contract pins a closed set (allowed values,
+   registered triggers, enum members), require **one assertion that mirrors
+   the runtime constant against its test-side or doc-side copy byte-for-
+   byte**. If the WP introduces such a constant without that mirror
+   assertion, reject.
+5. **Verdict** — any contradiction between the implementation and a contract
+   example is a **BLOCKER**, cited as `contract file:line` plus
+   `impl symbol`. Contracts are spec artifacts, not preferences.
+
+---
+
 ## Step 4: Issue Verdict
 
 Take exactly one action — never "approve with conditions".
