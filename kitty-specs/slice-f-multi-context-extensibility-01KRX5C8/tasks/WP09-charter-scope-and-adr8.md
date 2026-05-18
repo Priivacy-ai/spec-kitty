@@ -421,3 +421,4 @@ pytest tests/integration/test_monorepo_charter_scope.py tests/charter/test_chart
 
 - 2026-05-18T16:52:07Z – claude:opus-4-7:python-pedro:implementer – shell_pid=2508041 – Started implementation via action command
 - 2026-05-18T18:50:57Z – claude:opus-4-7:python-pedro:implementer – shell_pid=2734405 – Assigned agent via action command
+- 2026-05-18T19:13:34Z – claude:opus-4-7:python-pedro:implementer – shell_pid=2734405 – CharterScope abstraction (FR-008-FR-011) + ADR-8 + scope_router wrapper; CharterScopeConfig round-trip flipped SKIPPED->PASSED; NFR-001 23/23; single-project default byte-stable.
