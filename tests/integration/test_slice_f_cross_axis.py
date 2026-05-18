@@ -351,7 +351,7 @@ def test_governance_context_production_path_uses_monorepo_charter(
 
     def _capturing_build_charter_context(
         resolved_root: Path, **kwargs  # type: ignore[no-untyped-def]
-    ) -> "CharterContextResult":
+    ) -> CharterContextResult:
         captured_scope_roots.append(resolved_root)
         # Return a minimal stub so the rest of the pipeline proceeds.
         from charter.context import build_charter_context  # noqa: PLC0415
