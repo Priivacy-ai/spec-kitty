@@ -170,13 +170,35 @@ def _resolve_template_set_selection(
     return fallback_template_set, "fallback"
 
 
-def resolve_governance(
+def resolve_project_governance(
     repo_root: Path,
     *,
     tool_registry: set[str] | None = None,
     fallback_template_set: str = DEFAULT_TEMPLATE_SET,
 ) -> GovernanceResolution:
-    """Resolve active governance from charter-first selection data."""
+    """Resolve active governance from project + org charter selection data.
+
+    This resolver consumes the charter-mediated **project + org** doctrine
+    selections at ``.kittify/charter/governance.yaml`` and
+    ``.kittify/charter/directives.yaml``.  It is intentionally *narrow* to
+    that surface: it does NOT read ``meta.json`` or per-mission overrides.
+
+    The companion resolver
+    :func:`charter.mission_type_profiles.resolve_mission_type_governance`
+    handles **mission-type** scoped governance (``meta.json mission_type``
+    → shipped governance profile).  The two resolvers compose at the
+    prompt-builder layer: the mission-type resolver runs first to fill
+    documentation / research / plan defaults, then this resolver fills
+    project + org selections on top.  Keeping them as two named functions
+    (rather than one umbrella) preserves the FR-011 hard-fail contract on
+    the mission-type side and the rich :class:`GovernanceResolution`
+    dataclass on the project + org side.
+
+    .. note::
+        The legacy alias :func:`resolve_governance` is retained for
+        back-compat with downstream code that imported the unqualified
+        name.  New code should call :func:`resolve_project_governance`.
+    """
     governance = load_governance_config(repo_root)
     directives_cfg = load_directives_config(repo_root)
     doctrine_catalog = load_doctrine_catalog()
@@ -270,7 +292,7 @@ def collect_governance_diagnostics(
 ) -> list[str]:
     """Collect diagnostics for planning/runtime checks."""
     try:
-        resolution = resolve_governance(
+        resolution = resolve_project_governance(
             repo_root,
             tool_registry=tool_registry,
             fallback_template_set=fallback_template_set,
@@ -287,3 +309,18 @@ def _merge_unique(primary: list[str], secondary: list[str]) -> list[str]:
         if item and item not in merged:
             merged.append(item)
     return merged
+
+
+# ---------------------------------------------------------------------------
+# Back-compat alias
+# ---------------------------------------------------------------------------
+#
+# DRIFT-1 (mission B post-merge) resolved the dual-symbol ambiguity between
+# this resolver and ``charter.mission_type_profiles.resolve_mission_type_governance``
+# by promoting :func:`resolve_project_governance` as the canonical name for the
+# project + org surface.  The bare ``resolve_governance`` symbol is retained
+# here (and re-exported from ``charter.__init__``) so that any downstream code
+# importing the legacy name continues to function.  New callers MUST prefer
+# the explicit names.
+resolve_governance = resolve_project_governance
+"""Deprecated alias for :func:`resolve_project_governance` (kept for back-compat)."""
