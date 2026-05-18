@@ -970,3 +970,123 @@ class TestProjectCharterDeclaresResolverInputs:
             "runtime tool registry. Fallback diagnostics hide which directives "
             "the charter actually intends to inject."
         )
+
+
+# ---------------------------------------------------------------------------
+# Contract HIGH-1 — _governance_context MUST use build_with_scope so
+# monorepo CharterScope resolution is active in the production path.
+#
+# ATDD anchor: post-merge remediation cycle 1 (2026-05-18)
+# covers: FR-010 (Axis 2 production wiring)
+# ---------------------------------------------------------------------------
+
+
+class TestGovernanceContextUsesMonorepoAwarePath:
+    """_governance_context MUST delegate to build_with_scope, not call
+    build_charter_context directly. This pins the Axis 2 production wiring so
+    a future refactor cannot accidentally bypass the CharterScope resolver.
+    """
+
+    def test_governance_context_uses_build_with_scope_not_direct_call(
+        self, project_with_implement_wp: tuple[Path, Path, str]
+    ) -> None:
+        """_governance_context MUST call build_with_scope (not build_charter_context
+        directly) so that monorepo CharterScope resolution is exercised.
+
+        This is the production-wiring test for HIGH-1 (Slice F post-merge
+        remediation cycle 1). Before the fix, _governance_context called
+        build_charter_context(repo_root, ...) directly, bypassing the
+        CharterScope resolver entirely. After the fix, it routes through
+        build_with_scope(repo_root, feature_dir, ...) so a monorepo operator
+        running from packages/auth/ gets the auth charter, not the root charter.
+        """
+        import specify_cli.next.prompt_builder as _pb  # noqa: PLC0415
+
+        # HIGH-1 RED condition: build_with_scope is not yet imported into
+        # prompt_builder, so the attribute doesn't exist. Verify that the
+        # module imports build_with_scope (after the fix it will).
+        assert hasattr(_pb, "build_with_scope"), (
+            "specify_cli.next.prompt_builder MUST import build_with_scope "
+            "from charter.scope_router to enable monorepo CharterScope "
+            "resolution (HIGH-1 / FR-010). Currently build_charter_context "
+            "is called directly, bypassing CharterScope.resolve. "
+            "Fix: add 'from charter.scope_router import build_with_scope' to "
+            "prompt_builder.py and route _governance_context through it."
+        )
+
+        repo_root, feature_dir, mission_slug = project_with_implement_wp
+
+        calls: list[tuple] = []
+
+        def _capturing_build_with_scope(
+            r: Path, f: Path, **kwargs  # type: ignore[no-untyped-def]
+        ):
+            calls.append((r, f))
+            from charter.context import build_charter_context  # noqa: PLC0415
+            return build_charter_context(r, **kwargs)
+
+        with patch(
+            "specify_cli.next.prompt_builder.build_with_scope",
+            side_effect=_capturing_build_with_scope,
+        ):
+            _governance_context(repo_root, feature_dir=feature_dir, action="implement")
+
+        assert calls, (
+            "_governance_context MUST call build_with_scope to enable monorepo "
+            "CharterScope resolution (HIGH-1 / FR-010). Currently it calls "
+            "build_charter_context directly, which bypasses CharterScope.resolve. "
+            "Fix: import build_with_scope in prompt_builder and route through it."
+        )
+        called_repo_root, called_feature_dir = calls[0]
+        assert called_repo_root == repo_root
+        assert called_feature_dir == feature_dir
+
+    def test_build_wp_prompt_passes_feature_dir_to_governance_context(
+        self, project_with_implement_wp: tuple[Path, Path, str]
+    ) -> None:
+        """_build_wp_prompt MUST forward feature_dir to _governance_context.
+
+        Without feature_dir, the CharterScope resolver cannot determine which
+        sub-project charter to load in a monorepo. This test pins the call-site
+        signature so the feature_dir argument is never silently dropped.
+        """
+        repo_root, feature_dir, mission_slug = project_with_implement_wp
+
+        captured_feature_dir: list[Path] = []
+
+        orig_governance_context = __import__(
+            "specify_cli.next.prompt_builder",
+            fromlist=["_governance_context"],
+        )._governance_context
+
+        def _spy_governance_context(
+            r: Path,
+            *,
+            feature_dir: Path | None = None,
+            action: str | None = None,
+            profile: str | None = None,
+        ) -> str:
+            if feature_dir is not None:
+                captured_feature_dir.append(feature_dir)
+            return orig_governance_context(r, feature_dir=feature_dir, action=action, profile=profile)
+
+        with patch(
+            "specify_cli.next.prompt_builder._governance_context",
+            side_effect=_spy_governance_context,
+        ):
+            _build_wp_prompt(
+                action="implement",
+                feature_dir=feature_dir,
+                mission_slug=mission_slug,
+                wp_id="WP01",
+                agent="claude",
+                repo_root=repo_root,
+                mission_type="software-dev",
+            )
+
+        assert captured_feature_dir, (
+            "_build_wp_prompt MUST pass feature_dir to _governance_context so the "
+            "CharterScope resolver has the feature directory path available. "
+            "Without it, monorepo operators always get the root-project charter."
+        )
+        assert captured_feature_dir[0] == feature_dir

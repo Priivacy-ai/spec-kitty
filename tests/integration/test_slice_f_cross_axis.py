@@ -276,3 +276,115 @@ def test_monorepo_scope_resolution_does_not_affect_drg(
         f"Cross-axis isolation failure: DRG pack_name changed after scope "
         f"resolution; got {fragments[0].pack_name!r}"
     )
+
+
+# ---------------------------------------------------------------------------
+# LOW-6: Production prompt-path test for Axis 2 (post-merge remediation)
+#
+# Previously the cross-axis test invoked CharterScope.resolve directly.
+# After HIGH-1 wiring, the production path (_governance_context via
+# build_with_scope) must be exercised end-to-end.
+#
+# covers: FR-010 production path (LOW-6 / post-merge remediation cycle 1)
+# ---------------------------------------------------------------------------
+
+
+def test_governance_context_production_path_uses_monorepo_charter(
+    tmp_complex_setup: Path,
+) -> None:
+    """Axis 2 production-path test: _governance_context(repo_root, feature_dir=...)
+    MUST resolve to the nearest enclosing charter in a monorepo.
+
+    This test drives the actual prompt-build production path — the same call
+    chain an operator triggers when running `spec-kitty next` from a monorepo
+    subpath. It does NOT call CharterScope.resolve directly; it exercises
+    the prompt_builder._governance_context function which must now route
+    through build_with_scope.
+
+    Assertion: when feature_dir is inside packages/auth/, the resolved charter
+    root used in the call to build_with_scope is the auth-package root
+    (packages/auth/.kittify/), NOT the repository root. We verify this by
+    capturing the repo_root argument that build_with_scope forwards to
+    build_charter_context (which equals scope.root for the resolved scope).
+    """
+    import subprocess  # noqa: PLC0415
+
+    # The complex setup has git-unaware directories; we need git for charter
+    # resolution. Initialize a minimal git repo at tmp_complex_setup.
+    subprocess.run(
+        ["git", "init", "--initial-branch=main"],
+        cwd=tmp_complex_setup,
+        check=False,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=tmp_complex_setup,
+        check=False,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test"],
+        cwd=tmp_complex_setup,
+        check=False,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "config", "commit.gpgsign", "false"],
+        cwd=tmp_complex_setup,
+        check=False,
+        capture_output=True,
+    )
+
+    from unittest.mock import patch  # noqa: PLC0415
+
+    from charter.context import CharterContextResult  # noqa: PLC0415
+    from specify_cli.next.prompt_builder import _governance_context  # noqa: PLC0415
+
+    repo_root = tmp_complex_setup
+    deep_auth_path = repo_root / "packages" / "auth" / "some" / "deep" / "dir"
+
+    # Capture which root build_with_scope resolves to. For the auth scope,
+    # the resolved scope.root should be packages/auth, and build_with_scope
+    # passes scope.root as the first positional argument to build_charter_context.
+    captured_scope_roots: list[Path] = []
+
+    def _capturing_build_charter_context(
+        resolved_root: Path, **kwargs  # type: ignore[no-untyped-def]
+    ) -> "CharterContextResult":
+        captured_scope_roots.append(resolved_root)
+        # Return a minimal stub so the rest of the pipeline proceeds.
+        from charter.context import build_charter_context  # noqa: PLC0415
+        try:
+            return build_charter_context(resolved_root, **kwargs)
+        except Exception:
+            # If the stub charter isn't valid, return a dummy result.
+            return CharterContextResult(
+                mode="missing",
+                text="Governance: stub",
+                depth=0,
+                loading_context=None,
+            )
+
+    with patch(
+        "charter.scope_router.build_charter_context",
+        side_effect=_capturing_build_charter_context,
+    ):
+        _governance_context(repo_root, feature_dir=deep_auth_path, action="implement")
+
+    assert captured_scope_roots, (
+        "Axis 2 production-path failure: _governance_context with feature_dir "
+        "inside packages/auth/ MUST route through build_with_scope, which calls "
+        "build_charter_context with the per-package charter root. "
+        "Currently build_with_scope is not called from _governance_context — "
+        "the HIGH-1 wiring is missing."
+    )
+
+    # The resolved scope root must be the auth package root, NOT repo_root.
+    resolved_root = captured_scope_roots[0]
+    auth_root = repo_root / "packages" / "auth"
+    assert resolved_root == auth_root, (
+        f"Axis 2 production-path failure: expected scope root {auth_root}, "
+        f"got {resolved_root}. _governance_context MUST resolve the nearest "
+        f"enclosing charter for the given feature_dir, not always use repo_root."
+    )
