@@ -330,3 +330,4 @@ pytest tests/contract/test_example_round_trip.py -v
 ## Activity Log
 
 - 2026-05-18T13:09:38Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=2260092 – Started implementation via action command
+- 2026-05-18T13:47:05Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=2260092 – Contract round-trip CI gate landed (FR-140 + FR-141); Slice F contracts tagged; legacy allowlist baselined for shrink-over-time
