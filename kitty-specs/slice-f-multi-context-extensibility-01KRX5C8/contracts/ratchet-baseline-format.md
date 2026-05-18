@@ -16,6 +16,10 @@ The ratchet baseline file (`tests/architectural/_baselines.yaml`) is the canonic
 
 ### Schema
 
+#### Real-values example (the gate's positive case)
+
+This block is what an actual `_baselines.yaml` looks like at HEAD after WP01 + WP03 land. The contract round-trip gate parses this block and asserts it validates cleanly against `BaselinesFile`.
+
 ```yaml
 # pydantic_model: tests.architectural.test_ratchet_baselines.BaselinesFile
 # expect: valid
@@ -47,6 +51,44 @@ test_example_round_trip:
 test_all_declarations_required:
   charter_without_all: 0           # all migrated at WP02
   kernel_without_all: 0            # all migrated at WP02
+```
+
+#### Schema-shape example with placeholders (the gate's negative case)
+
+This block illustrates the schema shape for documentation purposes with placeholder values where the live count is operator-dependent. The contract round-trip gate parses this block and asserts it correctly FAILS validation (placeholders are strings, not the `int` the schema demands). This pattern doubles as a regression-test for the validator: if the validator silently coerced strings to ints (a bug class), this block would parse cleanly and the gate would flag it.
+
+```yaml
+# pydantic_model: tests.architectural.test_ratchet_baselines.BaselinesFile
+# expect: invalid
+# expect_message: Input should be a valid integer
+test_no_dead_modules:
+  category_1_auto_discovered: <count-at-HEAD>
+  category_2_schema_generators: <count-at-HEAD>
+  category_3_external_entry_points: <count-at-HEAD>
+  category_4_compat_shims: <count-at-HEAD>
+  category_5_slot_holders: <count-at-HEAD>
+  category_6_internal_runtime: <count-at-HEAD>
+  category_7_grandfathered: <count-at-HEAD>
+
+test_migration_chain_integrity:
+  known_line_jumps: <count-at-HEAD>
+  known_patch_skips: <count-at-HEAD>
+
+test_runtime_charter_doctrine_boundary:
+  baseline_allowlist: <count-at-HEAD>
+
+test_auth_transport_singleton:
+  allowed_direct_httpx_files: <count-at-HEAD>
+
+test_compat_shims:
+  pure_shim_files: <count-at-HEAD>
+
+test_example_round_trip:
+  legacy_contract_allowlist: <discovered-at-WP03>
+
+test_all_declarations_required:
+  charter_without_all: 0
+  kernel_without_all: 0
 ```
 
 (Initial values for this mission: WP01 implementer reads HEAD-of-mission-branch sizes and pins them. The Cat-7 value `7` reflects the FR-113 same-PR shrinkage from 10.)
