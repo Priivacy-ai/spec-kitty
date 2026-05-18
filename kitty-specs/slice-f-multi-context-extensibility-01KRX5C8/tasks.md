@@ -132,18 +132,18 @@ Lane A blocks Lane C/D so the burn-down meta-test (FR-110/111) is in place befor
 - [x] T060 — Confirm Scenario 3 + AC-4 GREEN; default workflow is byte-stable; pre-Slice-F missions without `workflow_id` produce identical `spec-kitty next` output (NEW-2 permanent default) (WP11)
 
 #### WP12 — Closing: cross-axis tests + glossary + READMEs + charter amendments + auth-transport ADR + GitHub ticket
-- [ ] T061 — Author `architecture/adrs/2026-05-18-2-delete-specify-cli-auth-transport.md` per FR-200 (dead-code finding, audit evidence, DELETE recommendation, deferral rationale per HiC §5a.3, "deleted in commit X" reserved field for Robert) (WP12)
-- [ ] T062 — Open GitHub ticket against `Priivacy-ai/spec-kitty` with the same evidence, labelled for Robert's queue; pin ticket URL in WP12 close-out commit message (FR-201, AC-13) (WP12)
-- [ ] T063 — Create `tests/architectural/README.md` documenting the 5-axis architectural model (Layer × Surface × Closed-vocabulary × Lifecycle × Dependency) and listing every gate with its axis (FR-300, AC-14) (WP12)
-- [ ] T064 — Create or extend `src/specify_cli/upgrade/migrations/README.md` documenting the forward-staged migrations convention (Q7 / FR-301 / AC-15) (WP12)
-- [ ] T065 — Promote all 10 Slice F domain-language terms in `glossary/contexts/doctrine.md` from `candidate` to `canonical` (FR-302, C-010, NFR-004, AC-11) (WP12)
-- [ ] T066 — Land failing-first `tests/glossary/test_canonical_promotion.py::test_all_slice_f_terms_are_canonical_in_doctrine_context` (RED on planning base, GREEN after T065) (WP12)
-- [ ] T067 — Amend `.kittify/charter/charter.md` to add binding burn-down policy (FR-303a / C-004), `__all__` declaration convention (FR-303b / C-007), and ATDD-first discipline note (FR-303c / C-011) per AC-16 (WP12)
-- [ ] T068 — Land cross-axis integration test asserting Axis 1 + Axis 2 + Axis 3 interact correctly (org pack present, monorepo scope active, custom workflow selected) (WP12)
-- [ ] T069 — Update `atdd-coverage.md` Status column rows to `green` for each landed test; capture RED commit SHA per FR-304 (WP12)
-- [ ] T070 — Run full architectural sweep + governance contract regression: `PWHEADLESS=1 pytest tests/architectural/ tests/specify_cli/next/test_wp_prompt_governance_contract.py -v`; capture exit 0 (NFR-001, NFR-003, NFR-005, AC-17) (WP12)
-- [ ] T071 — Run `spec-kitty analyze` and confirm verdict READY FOR IMPLEMENTATION with 0 CRITICAL / 0 HIGH (NFR-007, AC-18) (WP12)
-- [ ] T072 — Close-out commit aggregates: list of every test now GREEN, every FR satisfied, charter sections amended, ADR landed, GitHub ticket URL (FR-304 commit-message obligation) (WP12)
+- [x] T061 — Author `architecture/adrs/2026-05-18-2-delete-specify-cli-auth-transport.md` per FR-200 (dead-code finding, audit evidence, DELETE recommendation, deferral rationale per HiC §5a.3, "deleted in commit X" reserved field for Robert) (WP12)
+- [x] T062 — Open GitHub ticket against `Priivacy-ai/spec-kitty` with the same evidence, labelled for Robert's queue; pin ticket URL in WP12 close-out commit message (FR-201, AC-13) (WP12)
+- [x] T063 — Create `tests/architectural/README.md` documenting the 5-axis architectural model (Layer × Surface × Closed-vocabulary × Lifecycle × Dependency) and listing every gate with its axis (FR-300, AC-14) (WP12)
+- [x] T064 — Create or extend `src/specify_cli/upgrade/migrations/README.md` documenting the forward-staged migrations convention (Q7 / FR-301 / AC-15) (WP12)
+- [x] T065 — Promote all 10 Slice F domain-language terms in `glossary/contexts/doctrine.md` from `candidate` to `canonical` (FR-302, C-010, NFR-004, AC-11) (WP12)
+- [x] T066 — Land failing-first `tests/glossary/test_canonical_promotion.py::test_all_slice_f_terms_are_canonical_in_doctrine_context` (RED on planning base, GREEN after T065) (WP12)
+- [x] T067 — Amend `.kittify/charter/charter.md` to add binding burn-down policy (FR-303a / C-004), `__all__` declaration convention (FR-303b / C-007), and ATDD-first discipline note (FR-303c / C-011) per AC-16 (WP12)
+- [x] T068 — Land cross-axis integration test asserting Axis 1 + Axis 2 + Axis 3 interact correctly (org pack present, monorepo scope active, custom workflow selected) (WP12)
+- [x] T069 — Update `atdd-coverage.md` Status column rows to `green` for each landed test; capture RED commit SHA per FR-304 (WP12)
+- [x] T070 — Run full architectural sweep + governance contract regression: `PWHEADLESS=1 pytest tests/architectural/ tests/specify_cli/next/test_wp_prompt_governance_contract.py -v`; capture exit 0 (NFR-001, NFR-003, NFR-005, AC-17) (WP12)
+- [x] T071 — Run `spec-kitty analyze` and confirm verdict READY FOR IMPLEMENTATION with 0 CRITICAL / 0 HIGH (NFR-007, AC-18) (WP12)
+- [x] T072 — Close-out commit aggregates: list of every test now GREEN, every FR satisfied, charter sections amended, ADR landed, GitHub ticket URL (FR-304 commit-message obligation) (WP12)
 
 ---
 
