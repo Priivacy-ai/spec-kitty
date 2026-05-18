@@ -18,7 +18,7 @@ subtasks:
 - T019
 - T020
 - T021
-agent: claude:opus-4-7:python-pedro:implementer
+agent: claude:sonnet-4-6:python-pedro:implementer
 history: []
 agent_profile: python-pedro
 authoritative_surface: src/charter/resolver.py
