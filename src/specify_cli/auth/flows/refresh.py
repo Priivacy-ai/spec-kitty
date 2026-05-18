@@ -105,22 +105,7 @@ class TokenRefreshFlow:
                 raise RefreshReplayError(retry_after=int(body.get("retry_after", 0)))
             # Non-replay 409 (unexpected) — fall through to generic TokenRefreshError below
 
-        if response.status_code in {400, 401}:
-            try:
-                body = response.json()
-            except ValueError:
-                body = {}
-            error = body.get("error", "")
-            if error == "invalid_grant":
-                raise RefreshTokenExpiredError(
-                    "Refresh token is invalid or expired. "
-                    "Run `spec-kitty auth login` again."
-                )
-            if error == "session_invalid":
-                raise SessionInvalidError(
-                    "Session has been invalidated server-side. "
-                    "Run `spec-kitty auth login` again."
-                )
+        self._raise_known_auth_error(response)
 
         raise TokenRefreshError(
             f"Token refresh failed: HTTP {response.status_code} - "
@@ -211,6 +196,26 @@ class TokenRefreshFlow:
         # we never produce a session with an indeterminate refresh expiry
         # when we previously had one.
         return session.refresh_token_expires_at
+
+    @staticmethod
+    def _raise_known_auth_error(response: Any) -> None:
+        if response.status_code not in {400, 401}:
+            return
+        try:
+            body = response.json()
+        except ValueError:
+            body = {}
+        error = body.get("error", "")
+        if error == "invalid_grant":
+            raise RefreshTokenExpiredError(
+                "Refresh token is invalid or expired. "
+                "Run `spec-kitty auth login` again."
+            )
+        if error == "session_invalid":
+            raise SessionInvalidError(
+                "Session has been invalidated server-side. "
+                "Run `spec-kitty auth login` again."
+            )
 
 
 def _parse_iso_utc(value: str) -> datetime:

@@ -237,4 +237,5 @@ def test_init_rejects_removed_agent_strategy_option(cli_app, monkeypatch: pytest
     )
     assert result.exit_code == 2
     plain_output = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
-    assert re.search(r"No such option:\s+-{1,2}agent-strategy", plain_output)
+    assert "No such option" in plain_output
+    assert "--agent-strategy" in plain_output
