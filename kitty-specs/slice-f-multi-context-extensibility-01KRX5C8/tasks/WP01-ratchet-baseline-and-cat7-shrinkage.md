@@ -13,6 +13,9 @@ requirement_refs:
 planning_base_branch: feat/org-doctrine-layer
 merge_target_branch: feat/org-doctrine-layer
 branch_strategy: Planning artifacts for this mission were generated on feat/org-doctrine-layer. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/org-doctrine-layer unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-slice-f-multi-context-extensibility-01KRX5C8
+base_commit: 6751931773c7894e057b0b902337c37cea9fc079
+created_at: '2026-05-18T12:12:50.872499+00:00'
 subtasks:
 - T001
 - T002
@@ -22,6 +25,7 @@ subtasks:
 - T006
 - T007
 agent: claude:opus-4-7:python-pedro:implementer
+shell_pid: '2194800'
 history: []
 agent_profile: python-pedro
 authoritative_surface: tests/architectural/
