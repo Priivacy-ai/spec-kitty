@@ -117,15 +117,10 @@ class TestGitignoreManager:
         assert ".claude/" in content
 
     def test_protect_all_agents_includes_all_agents(self, manager):
-        """Test that all 13 agent directories are protected."""
+        """Test that all registered agent directories are protected."""
         manager.protect_all_agents()
 
-        expected_dirs = [
-            ".claude/", ".codex/", ".opencode/", ".windsurf/",
-            ".gemini/", ".cursor/", ".qwen/", ".kilocode/",
-            ".augment/", ".roo/", ".amazonq/", ".agent/",
-            ".github/copilot/"
-        ]
+        expected_dirs = [agent.directory for agent in AGENT_DIRECTORIES]
 
         content = manager.gitignore_path.read_text()
         for dir_name in expected_dirs:
@@ -351,9 +346,8 @@ class TestGitignoreManager:
 
         # Modifying one shouldn't affect the other
         dirs1.append(AgentDirectory("test", ".test/", False, "Test"))
-        # Count rose from 13 → 14 when PR #626 added Kiro.
-        assert len(dirs1) == 16  # 15 original + 1 test agent
-        assert len(dirs2) == 15  # Original unchanged
+        assert len(dirs1) == len(AGENT_DIRECTORIES) + 1
+        assert len(dirs2) == len(AGENT_DIRECTORIES)
 
     def test_all_agent_directories_have_trailing_slash(self):
         """Test that all agent directories end with trailing slash."""
