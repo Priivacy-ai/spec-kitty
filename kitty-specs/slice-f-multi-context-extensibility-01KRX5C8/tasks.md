@@ -109,12 +109,12 @@ Lane A blocks Lane C/D so the burn-down meta-test (FR-110/111) is in place befor
 ### Lane D — Monorepo + workflows + closing (depends on Lane A; WP12 depends on all)
 
 #### WP09 — CharterScope abstraction + ADR-8
-- [ ] T044 — Land failing-first `tests/integration/test_monorepo_charter_scope.py` (both happy path + malformed config) + `tests/charter/test_charter_scope.py` unit suite (RED on planning base) (WP09)
-- [ ] T045 — Author `architecture/adrs/2026-05-18-1-monorepo-charter-scope.md` (ADR-8) finalising the design per FR-008 / spec §1.2 (WP09)
-- [ ] T046 — Create `src/charter/scope.py` with `CharterScope` dataclass, `default()` + `resolve()` constructors, `CharterScopeConflict` + `CharterScopeNotFound` exceptions per data-model §4 (FR-009) (WP09)
-- [ ] T047 — Create `src/charter/scope_router.py` as a thin wrapper invoking `build_charter_context` with a resolved scope — avoids breaking `context.py` signature (architectural carve-out for WP07 ownership of context.py) (FR-010) (WP09)
-- [ ] T048 — Wire `prompt_builder.build_prompt` to call `CharterScope.resolve` → `scope_router` so single-project repos route via `CharterScope.default(repo_root)` (byte-identical to today, NFR-001) (WP09)
-- [ ] T049 — Confirm Scenario 2 + AC-3 GREEN; the 23 `test_wp_prompt_governance_contract.py` fixtures pass unchanged (NFR-001) (WP09)
+- [x] T044 — Land failing-first `tests/integration/test_monorepo_charter_scope.py` (both happy path + malformed config) + `tests/charter/test_charter_scope.py` unit suite (RED on planning base) (WP09)
+- [x] T045 — Author `architecture/adrs/2026-05-18-1-monorepo-charter-scope.md` (ADR-8) finalising the design per FR-008 / spec §1.2 (WP09)
+- [x] T046 — Create `src/charter/scope.py` with `CharterScope` dataclass, `default()` + `resolve()` constructors, `CharterScopeConflict` + `CharterScopeNotFound` exceptions per data-model §4 (FR-009) (WP09)
+- [x] T047 — Create `src/charter/scope_router.py` as a thin wrapper invoking `build_charter_context` with a resolved scope — avoids breaking `context.py` signature (architectural carve-out for WP07 ownership of context.py) (FR-010) (WP09)
+- [x] T048 — Wire `prompt_builder.build_prompt` to call `CharterScope.resolve` → `scope_router` so single-project repos route via `CharterScope.default(repo_root)` (byte-identical to today, NFR-001) (WP09)
+- [x] T049 — Confirm Scenario 2 + AC-3 GREEN; the 23 `test_wp_prompt_governance_contract.py` fixtures pass unchanged (NFR-001) (WP09)
 
 #### WP10 — Workflow sequence YAML schema + registry
 - [ ] T050 — Land failing-first `tests/specify_cli/next/test_workflow_registry.py` (covers `test_unknown_workflow_id_hard_fails_with_available_list` Scenario 3 exception) (RED on planning base) (WP10)
