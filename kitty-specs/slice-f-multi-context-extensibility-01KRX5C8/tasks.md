@@ -68,11 +68,11 @@ Lane A blocks Lane C/D so the burn-down meta-test (FR-110/111) is in place befor
 ### Lane B — Independent remediations
 
 #### WP04 — DRIFT-1 alias clean deletion
-- [ ] T017 — Land failing-first `tests/charter/test_alias_deleted_regression.py::test_resolve_governance_import_raises_import_error` (RED on planning base; alias still exists) (WP04)
-- [ ] T018 — DELETE the `resolve_governance = resolve_project_governance` alias + the "Deprecated alias" docstring at `src/charter/resolver.py:325-326` and `:198` (FR-100, C-003) (WP04)
-- [ ] T019 — Remove `resolve_governance` from the import block and `__all__` in `src/charter/__init__.py` (FR-101) (WP04)
-- [ ] T020 — Migrate `tests/charter/test_resolver.py` (and any other site `rg "resolve_governance" tests/` finds) to import `resolve_project_governance` (FR-102) (WP04)
-- [ ] T021 — Confirm regression test GREEN; add `test_no_test_fixture_still_imports_legacy_alias` coverage for AC-5 (WP04)
+- [x] T017 — Land failing-first `tests/charter/test_alias_deleted_regression.py::test_resolve_governance_import_raises_import_error` (RED on planning base; alias still exists) (WP04)
+- [x] T018 — DELETE the `resolve_governance = resolve_project_governance` alias + the "Deprecated alias" docstring at `src/charter/resolver.py:325-326` and `:198` (FR-100, C-003) (WP04)
+- [x] T019 — Remove `resolve_governance` from the import block and `__all__` in `src/charter/__init__.py` (FR-101) (WP04)
+- [x] T020 — Migrate `tests/charter/test_resolver.py` (and any other site `rg "resolve_governance" tests/` finds) to import `resolve_project_governance` (FR-102) (WP04)
+- [x] T021 — Confirm regression test GREEN; add `test_no_test_fixture_still_imports_legacy_alias` coverage for AC-5 (WP04)
 
 #### WP05 — CLI logging bootstrap + Rich-aware handler
 - [ ] T022 — Land failing-first `tests/integration/test_catalog_miss_cli_visibility.py::test_typoed_styleguide_produces_visible_stderr_warning` (subprocess; RED on planning base) (WP05)
