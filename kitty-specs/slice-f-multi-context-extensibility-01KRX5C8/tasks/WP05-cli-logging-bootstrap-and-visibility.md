@@ -360,3 +360,4 @@ pytest tests/integration/test_catalog_miss_cli_visibility.py -v
 - 2026-05-18T15:06:02Z – claude:sonnet-4-6:reviewer-renata:reviewer – shell_pid=2408484 – Started review via action command
 - 2026-05-18T15:22:11Z – claude:sonnet-4-6:reviewer-renata:reviewer – shell_pid=2408484 – Moved to planned
 - 2026-05-18T16:00:03Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=2451186 – Started implementation via action command
+- 2026-05-18T16:07:27Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=2451186 – Cycle 2: test assertion tightened to require Rich-format (per cycle-1 reviewer + reframed spec 25066955). Real ATDD red→green now verified. Pre-bootstrap output lacks level prefix → assertion FAILS. With bootstrap → 'WARNING  Charter catalog miss' matches → PASSES.
