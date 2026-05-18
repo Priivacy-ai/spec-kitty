@@ -31,7 +31,7 @@ catalog and turns selections into project-specific governance.
 | `interview.py` | `CharterInterview` — the guided Q&A flow |
 | `compiler.py` | `compile_charter()` — transitive resolution producing `charter.md` + `references.yaml` |
 | `context.py` | `build_charter_context()` — action-scoped governance injection |
-| `resolver.py` | `resolve_governance()` — profile-aware governance resolution |
+| `resolver.py` | `resolve_project_governance()` / `resolve_governance_for_profile()` — profile-aware governance resolution |
 | `catalog.py` | `DoctrineCatalog` / `resolve_doctrine_root()` — discovers available doctrine artifacts |
 | `defaults.yaml` | Default interview answers for `--non-interactive` and "accept defaults" paths |
 

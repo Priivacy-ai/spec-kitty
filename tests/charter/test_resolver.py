@@ -11,8 +11,8 @@ from charter.interview import default_interview
 from charter.resolver import (
     GovernanceResolutionError,
     collect_governance_diagnostics,
-    resolve_governance,
     resolve_governance_for_profile,
+    resolve_project_governance,
 )
 
 pytestmark = pytest.mark.fast
@@ -66,7 +66,7 @@ directives:
 """,
     )
 
-    result = resolve_governance(repo_root, tool_registry={"git", "python", "pytest"})
+    result = resolve_project_governance(repo_root, tool_registry={"git", "python", "pytest"})
 
     assert result.paradigms == ["test-first"]
     assert result.directives == ["TEST_FIRST"]
@@ -89,7 +89,7 @@ doctrine:
     )
 
     with pytest.raises(GovernanceResolutionError) as exc:
-        resolve_governance(tmp_path)
+        resolve_project_governance(tmp_path)
 
     assert "missing-paradigm" in str(exc.value)
 
@@ -104,7 +104,7 @@ doctrine:
     )
 
     with pytest.raises(GovernanceResolutionError) as exc:
-        resolve_governance(tmp_path)
+        resolve_project_governance(tmp_path)
 
     assert "NOT_A_DIRECTIVE" in str(exc.value)
 
@@ -129,7 +129,7 @@ doctrine:
 """,
     )
 
-    result = resolve_governance(tmp_path, tool_registry={"git", "python"})
+    result = resolve_project_governance(tmp_path, tool_registry={"git", "python"})
 
     assert "imaginary-tool" in result.tools
     assert "git" in result.tools
@@ -151,7 +151,7 @@ doctrine:
     )
 
     with pytest.raises(GovernanceResolutionError) as exc:
-        resolve_governance(tmp_path)
+        resolve_project_governance(tmp_path)
 
     assert "missing-template-set" in str(exc.value)
 
@@ -165,7 +165,7 @@ doctrine:
 """,
     )
 
-    result = resolve_governance(
+    result = resolve_project_governance(
         tmp_path,
         tool_registry={"git"},
         fallback_template_set="fallback-pack",
@@ -185,7 +185,7 @@ def test_resolver_does_not_read_mission_files(tmp_path: Path) -> None:
     mission_file.parent.mkdir(parents=True)
     mission_file.write_text("::invalid-yaml::\n\tbad")
 
-    result = resolve_governance(tmp_path, tool_registry={"git"})
+    result = resolve_project_governance(tmp_path, tool_registry={"git"})
     assert result.tools == ["git"]
 
 
@@ -216,7 +216,7 @@ directives:
 """,
     )
 
-    result = resolve_governance(
+    result = resolve_project_governance(
         tmp_path,
         tool_registry={"python", "git"},
         fallback_template_set="fallback-pack",
@@ -249,7 +249,7 @@ def test_resolve_governance_uses_catalog_directives_when_no_local_declarations(
         ),
     )
 
-    result = resolve_governance(tmp_path, tool_registry={"git"})
+    result = resolve_project_governance(tmp_path, tool_registry={"git"})
 
     assert result.directives == ["DIRECTIVE_003", "DIRECTIVE_010"]
     assert result.metadata["directives_source"] == "catalog_fallback"
@@ -452,7 +452,7 @@ def test_paradigm_failure_names_exact_offending_id(tmp_path: Path, monkeypatch) 
     )
 
     with pytest.raises(GovernanceResolutionError) as exc:
-        resolve_governance(repo_root)
+        resolve_project_governance(repo_root)
 
     error_text = str(exc.value)
     assert "my-bad-paradigm" in error_text
@@ -475,7 +475,7 @@ def test_paradigm_failure_skipped_when_shipped_dir_absent(tmp_path: Path, monkey
     )
 
     # Should not raise — domain is absent so skip validation
-    result = resolve_governance(repo_root, tool_registry={"git"})
+    result = resolve_project_governance(repo_root, tool_registry={"git"})
     assert result.paradigms == ["any-value"]
 
 
@@ -491,7 +491,7 @@ def test_directive_failure_names_exact_offending_id(tmp_path: Path, monkeypatch)
     )
 
     with pytest.raises(GovernanceResolutionError) as exc:
-        resolve_governance(repo_root)
+        resolve_project_governance(repo_root)
 
     assert "GHOST_DIRECTIVE" in str(exc.value)
 
@@ -508,7 +508,7 @@ def test_template_set_failure_names_exact_offending_value(tmp_path: Path, monkey
     )
 
     with pytest.raises(GovernanceResolutionError) as exc:
-        resolve_governance(repo_root)
+        resolve_project_governance(repo_root)
 
     assert "ghost-template-set" in str(exc.value)
 
@@ -531,7 +531,7 @@ def test_tool_outside_registry_appears_in_diagnostic(tmp_path: Path, monkeypatch
         governance="doctrine:\n  available_tools: [ghost-tool]\n",
     )
 
-    result = resolve_governance(repo_root, tool_registry={"git"})
+    result = resolve_project_governance(repo_root, tool_registry={"git"})
 
     assert "ghost-tool" in result.tools
     assert "git" in result.tools
@@ -553,7 +553,7 @@ def test_local_support_declaration_bypasses_catalog_validation(tmp_path: Path, m
     )
 
     # Should NOT raise — LOCAL_ONLY is declared in directives.yaml
-    result = resolve_governance(repo_root, tool_registry={"git"})
+    result = resolve_project_governance(repo_root, tool_registry={"git"})
     assert "LOCAL_ONLY" in result.directives
 
 

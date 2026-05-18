@@ -90,4 +90,6 @@ def load_validated_graph(repo_root: Path, org_root: Path | None = None) -> DRGGr
     return merged
 
 
-__all__ = ["load_validated_graph", "_resolve_org_root"]
+__all__ = [
+    "load_validated_graph",
+]

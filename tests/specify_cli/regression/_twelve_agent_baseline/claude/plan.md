@@ -7,29 +7,29 @@ description: Create an implementation plan
 
 **Version**: 0.11.0+
 
-## 📍 WORKING DIRECTORY: Stay in the repository<!-- glossary:glossary:repository --> root checkout<!-- glossary:glossary:repository-root-checkout -->
+## 📍 WORKING DIRECTORY: Stay in the repository root checkout
 
 **IMPORTANT**: Plan works in the repository root checkout. NO worktrees created.
 
 ```bash
-# Run from project<!-- glossary:glossary:project --> root (same directory as /spec-kitty.specify):
+# Run from project root (same directory as /spec-kitty.specify):
 # You should already be here if you just ran /spec-kitty.specify
 
 # Creates:
-# - kitty-specs/<mission_slug<!-- glossary:glossary:mission_slug -->>/plan.md → In repository root checkout
+# - kitty-specs/<mission_slug>/plan.md → In repository root checkout
 #   (the NNN- prefix in the directory listing is display-only metadata)
-# - Commits to target branch<!-- glossary:glossary:target-branch -->
+# - Commits to target branch
 # - NO worktrees created
 ```
 
 **Do NOT cd anywhere**. Stay in the repository root checkout.
 
-## Mission<!-- glossary:glossary:mission --> Handle Rule
+## Mission Handle Rule
 
 `/spec-kitty.plan` operates on an existing mission, so use `--mission <handle>`
 when the CLI needs a mission selector.
 
-- `<handle>` can be the mission's `mission_id<!-- glossary:glossary:mission_id -->` (ULID), `mid8<!-- glossary:glossary:mid8 -->` (first 8 chars of
+- `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of
   the ULID), or `mission_slug`.
 - Prefer `mission_id` or `mid8` when the repo has multiple similarly named
   missions.
@@ -44,6 +44,33 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## Commit Boundary (issue #846)
+
+`/spec-kitty.plan` will refuse to advance the plan phase unless **two**
+gates pass:
+
+1. **Entry gate.** `spec.md` must already be both **committed** (tracked +
+   present at HEAD) and **substantive** (at least one populated `FR-###`
+   row — not just template placeholders). If either check fails, the CLI
+   returns `phase_complete=false` with a `blocked_reason` naming "committed
+   AND substantive" and does **not** create or commit `plan.md`.
+
+2. **Exit gate.** `plan.md` is only auto-committed when its Technical Context
+   section contains a real `Language/Version` value (and at least one peer
+   field) — not the `[e.g., …]` / `[NEEDS CLARIFICATION …]` placeholders. If
+   the plan is left as scaffold, it stays untracked on disk and the CLI
+   returns `phase_complete=false` with a substantive-plan `blocked_reason`.
+
+Section presence is the only signal — adding arbitrary prose without the
+required structural rows does **not** count as substantive (no byte-length
+escape hatch).
+
+To advance: populate the Technical Context with real values, then re-run
+`spec-kitty agent mission setup-plan --json`. The substantive plan will be
+auto-committed and `phase_complete` will report `true`.
+
+Reference: `kitty-specs/charter-e2e-827-followups-01KQAJA0/contracts/specify-plan-commit-boundary.md`.
+
 ## Branch Strategy Confirmation (MANDATORY)
 
 Before asking planning questions or generating artifacts, you must make the branch contract explicit.
@@ -54,7 +81,7 @@ Before asking planning questions or generating artifacts, you must make the bran
   1. immediately after parsing `setup-plan --json`
   2. again in the final report before suggesting `/spec-kitty.tasks`
 
-## Charter<!-- glossary:glossary:charter --> Context Bootstrap (required)
+## Charter Context Bootstrap (required)
 
 Before planning interrogation, load charter context for this action:
 
@@ -71,7 +98,7 @@ This command runs in the **repository root checkout**, not in a worktree.
 
 - Resolve branch context from deterministic JSON output, not from `meta.json` inspection:
   - Run `spec-kitty agent mission setup-plan --mission <mission-slug> --json`
-  - Use `current_branch`, `target_branch` / `base_branch`, and `planning_base_branch<!-- glossary:glossary:planning_base_branch -->` / `merge_target_branch<!-- glossary:glossary:merge_target_branch -->` (plus uppercase aliases) from that payload
+  - Use `current_branch`, `target_branch` / `base_branch`, and `planning_base_branch` / `merge_target_branch` (plus uppercase aliases) from that payload
   - Use `branch_matches_target` from that payload to detect branch mismatch; do not probe branch state manually inside the prompt
 - Planning artifacts live in `kitty-specs/<mission_slug>/` (the `NNN-` prefix is display-only metadata)
 - The plan template is committed to the target branch after generation
@@ -94,7 +121,7 @@ This command does **not** update agent-specific context files.
   - `quickstart.md`
   - `occurrence_map.yaml` when bulk-edit planning applies
 
-## Decision Moment<!-- glossary:glossary:decision-moment --> Protocol
+## Decision Moment Protocol
 
 Before asking **any** clarifying question during plan elaboration, you MUST:
 
@@ -146,7 +173,7 @@ Before asking **any** clarifying question during plan elaboration, you MUST:
 
 Before executing any scripts or generating artifacts you must interrogate the specification and stakeholders.
 
-- **Scope<!-- glossary:glossary:scope --> proportionality (CRITICAL)**: FIRST, assess the feature's complexity from the spec:
+- **Scope proportionality (CRITICAL)**: FIRST, assess the feature's complexity from the spec:
   - **Trivial/Test Features** (hello world, simple static pages, basic demos): Ask 1-2 questions maximum about tech stack preference, then proceed with sensible defaults
   - **Simple Features** (small components, minor API additions): Ask 2-3 questions about tech choices and constraints
   - **Complex Features** (new subsystems, multi-component features): Ask 3-5 questions covering architecture, NFRs, integrations
@@ -174,7 +201,7 @@ Before executing any scripts or generating artifacts you must interrogate the sp
 Planning requirements (scale to complexity):
 
 1. Maintain a **Planning Questions** table internally covering questions appropriate to the feature's complexity (1-2 for trivial, up to 5+ for platform-level). Track columns `#`, `Question`, `Why it matters`, and `Current insight`. Do **not** render this table to the user.
-2. For trivial features, standard practices are acceptable (vanilla HTML, simple file structure, no build<!-- glossary:glossary:build --> tools). Only probe if the user's request suggests otherwise.
+2. For trivial features, standard practices are acceptable (vanilla HTML, simple file structure, no build tools). Only probe if the user's request suggests otherwise.
 3. When you have sufficient context for the scope, summarize into an **Engineering Alignment** note and confirm. Include invariant, state-transition, or event assumptions when they materially affect the design.
 4. If user explicitly asks to skip questions or use defaults, acknowledge and proceed with best practices for that feature type.
 
@@ -182,15 +209,15 @@ Planning requirements (scale to complexity):
 
 If this mission is marked `change_mode: bulk_edit` in `meta.json` — or if the
 spec describes renaming the same string (identifier, path, key, label, term)
-across many files — load the `spec-kitty-bulk-edit-classification` skill<!-- glossary:glossary:skill --> and
+across many files — load the `spec-kitty-bulk-edit-classification` skill and
 follow it. You will produce `kitty-specs/<mission>/occurrence_map.yaml`
 alongside the other planning artifacts. Every one of the 8 standard categories
 (code_symbols, import_paths, filesystem_paths, serialized_keys, cli_commands,
 user_facing_strings, tests_fixtures, logs_telemetry) must have an explicit
 action. Without that artifact, the `implement` command will refuse to start
-the first WP<!-- glossary:glossary:wp -->.
+the first WP.
 
-If the mission is not a bulk edit<!-- glossary:glossary:bulk-edit -->, skip this step.
+If the mission is not a bulk edit, skip this step.
 
 ## Outline
 
@@ -206,7 +233,7 @@ If the mission is not a bulk edit<!-- glossary:glossary:bulk-edit -->, skip this
 
 3. **Setup**: If step 2 did not already return a successful setup payload, run `spec-kitty agent mission setup-plan --mission <mission-slug> --json` from the repository root and parse JSON for:
    - `result`: "success" or error message
-   - `mission_slug`: Resolved feature slug<!-- glossary:glossary:feature-slug -->
+   - `mission_slug`: Resolved feature slug
    - `spec_file`: Absolute path to resolved spec.md
    - `plan_file`: Absolute path to the created plan.md
    - `feature_dir`: Absolute path to the feature directory
@@ -216,7 +243,7 @@ If the mission is not a bulk edit<!-- glossary:glossary:bulk-edit -->, skip this
    - `branch_strategy_summary`: canonical sentence describing the branch strategy
 
    Before proceeding, explicitly state to the user:
-   - Current branch<!-- glossary:glossary:current-branch --> at plan start
+   - Current branch at plan start
    - Intended planning/base branch
    - Final merge target for completed changes
    - Whether `branch_matches_target` says the current branch matches that intended target
@@ -238,7 +265,7 @@ If the mission is not a bulk edit<!-- glossary:glossary:bulk-edit -->, skip this
    - Update Technical Context with explicit statements from the user or discovery research; mark `[NEEDS CLARIFICATION: …] <!-- decision_id: <id> -->` only when the user deliberately postpones a decision (call `decision defer` before writing each such marker)
    - If a charter exists, fill Charter Check section from it and challenge any conflicts directly with the user. If no charter exists, mark the section as skipped.
    - Evaluate gates (ERROR if violations unjustified or questions remain unanswered)
-   - Phase<!-- glossary:glossary:phase --> 0: Generate research.md (commission research to resolve every outstanding clarification, prioritizing unresolved domain rules, lifecycle questions, and event/integration behavior before generic tech comparisons)
+   - Phase 0: Generate research.md (commission research to resolve every outstanding clarification, prioritizing unresolved domain rules, lifecycle questions, and event/integration behavior before generic tech comparisons)
    - Phase 1: Generate data-model.md, contracts/, quickstart.md based on confirmed intent; when applicable, capture entities/value objects, invariants, state transitions, and externally visible events in the design artifacts
    - Re-evaluate Charter Check post-design, asking the user to resolve new gaps before proceeding
 
@@ -312,7 +339,7 @@ After reporting:
 
 Do NOT:
 - ❌ Generate `tasks.md`
-- ❌ Create work package<!-- glossary:glossary:work-package --> (WP) files
+- ❌ Create work package (WP) files
 - ❌ Create `tasks/` subdirectories
 - ❌ Proceed to implementation
 

@@ -28,3 +28,6 @@ glossary_runner
     the concrete ``GlossaryAwarePrimitiveRunner`` at import time; doctrine
     calls ``get_runner()`` without importing ``specify_cli``.
 """
+
+__all__: list[str] = []
+

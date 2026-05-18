@@ -18,6 +18,16 @@ from charter.sync import (
     load_governance_config,
 )
 
+__all__ = [
+    "DEFAULT_TOOL_REGISTRY",
+    "GovernanceResolution",
+    "GovernanceResolutionError",
+    "collect_governance_diagnostics",
+    "resolve_governance_for_profile",
+    "resolve_project_governance",
+]
+
+
 if TYPE_CHECKING:
     from doctrine.drg.models import DRGGraph
     from doctrine.service import DoctrineService
@@ -194,10 +204,6 @@ def resolve_project_governance(
     the mission-type side and the rich :class:`GovernanceResolution`
     dataclass on the project + org side.
 
-    .. note::
-        The legacy alias :func:`resolve_governance` is retained for
-        back-compat with downstream code that imported the unqualified
-        name.  New code should call :func:`resolve_project_governance`.
     """
     governance = load_governance_config(repo_root)
     directives_cfg = load_directives_config(repo_root)
@@ -310,17 +316,3 @@ def _merge_unique(primary: list[str], secondary: list[str]) -> list[str]:
             merged.append(item)
     return merged
 
-
-# ---------------------------------------------------------------------------
-# Back-compat alias
-# ---------------------------------------------------------------------------
-#
-# DRIFT-1 (mission B post-merge) resolved the dual-symbol ambiguity between
-# this resolver and ``charter.mission_type_profiles.resolve_mission_type_governance``
-# by promoting :func:`resolve_project_governance` as the canonical name for the
-# project + org surface.  The bare ``resolve_governance`` symbol is retained
-# here (and re-exported from ``charter.__init__``) so that any downstream code
-# importing the legacy name continues to function.  New callers MUST prefer
-# the explicit names.
-resolve_governance = resolve_project_governance
-"""Deprecated alias for :func:`resolve_project_governance` (kept for back-compat)."""

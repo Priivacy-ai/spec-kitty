@@ -20,6 +20,24 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
+__all__ = [
+    "DuplicateTargetError",
+    "FixtureAdapterMissingError",
+    "GeneratedArtifactLoadError",
+    "GeneratedArtifactMissingError",
+    "ManifestIntegrityError",
+    "NeutralityGateViolation",
+    "PathGuardViolation",
+    "ProjectDRGValidationError",
+    "StagingPromoteError",
+    "SynthesisError",
+    "SynthesisSchemaError",
+    "TopicSelectorAmbiguousError",
+    "TopicSelectorUnresolvedError",
+    "render_error_panel",
+]
+
+
 
 # ---------------------------------------------------------------------------
 # Base

@@ -13,6 +13,13 @@ from ruamel.yaml.error import YAMLError
 from doctrine.shared.scoping import applies_to_languages_match, normalize_languages
 from kernel.paths import get_package_asset_root as _get_package_asset_root
 
+__all__ = [
+    "DoctrineCatalog",
+    "load_doctrine_catalog",
+    "resolve_doctrine_root",
+]
+
+
 _log = logging.getLogger(__name__)
 
 

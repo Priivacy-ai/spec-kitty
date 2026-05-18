@@ -94,22 +94,26 @@ _SKIP_FILENAME_PREFIXES: tuple[str, ...] = ("_compat",)
 
 
 # Allowlist of modules whose lack of static src/ callers is documented and
-# intentional. Each block lists the category and the per-entry rationale.
+# intentional. The allowlist is split into per-category frozensets so the
+# ratchet-baseline meta-test (`tests/architectural/test_ratchet_baselines.py`)
+# can track Cat-7 (grandfathered orphans) separately from the auto-discovery
+# categories. See Slice F FR-112 for the refactor rationale.
 #
 # THIS ALLOWLIST IS A RATCHET. When an entry gains a real caller, remove
 # it from this set -- the test enforces shrinkage. When a new orphan
 # appears, do NOT add it here as a reflex: investigate first, then
 # either wire it from runtime, delete it, or add it under category 7
 # with a ``# TODO(triage):`` comment and a follow-up tracker ticket.
-_ALLOWLIST: frozenset[str] = frozenset(
+
+# ---------- 1. Auto-discovered via pkgutil.iter_modules ----------
+# Loaded by src/specify_cli/upgrade/migrations/__init__.py's
+# auto_discover_migrations() which scans the directory for
+# m_*.py files. No static import; the @MigrationRegistry.register
+# decorator fires at import time. base.py is excluded from this
+# list because it IS imported statically (every migration does
+# `from .base import BaseMigration`).
+_CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
     {
-        # ---------- 1. Auto-discovered via pkgutil.iter_modules ----------
-        # Loaded by src/specify_cli/upgrade/migrations/__init__.py's
-        # auto_discover_migrations() which scans the directory for
-        # m_*.py files. No static import; the @MigrationRegistry.register
-        # decorator fires at import time. base.py is excluded from this
-        # list because it IS imported statically (every migration does
-        # `from .base import BaseMigration`).
         "specify_cli.upgrade.migrations.m_0_10_0_python_only",
         "specify_cli.upgrade.migrations.m_0_10_12_charter_cleanup",
         "specify_cli.upgrade.migrations.m_0_10_14_update_implement_slash_command",
@@ -181,30 +185,45 @@ _ALLOWLIST: frozenset[str] = frozenset(
         "specify_cli.upgrade.migrations.m_3_2_4_repository_root_checkout_terminology",
         "specify_cli.upgrade.migrations.m_3_2_5_fix_prompt_file_workaround",
         "specify_cli.upgrade.migrations.m_3_2_6_charter_bundle_v2",
-        # ---------- 2. Build-script schema generators ----------
-        # Loaded by scripts/generate_schemas.py via dotted-string
-        # importlib.import_module to derive JSON schemas from Pydantic
-        # models. Never imported by runtime code.
+    }
+)
+
+# ---------- 2. Build-script schema generators ----------
+# Loaded by scripts/generate_schemas.py via dotted-string
+# importlib.import_module to derive JSON schemas from Pydantic
+# models. Never imported by runtime code.
+_CATEGORY_2_BUILD_SCHEMA_GENERATORS: frozenset[str] = frozenset(
+    {
         "doctrine.agent_profiles.schema_models",
         "doctrine.import_candidates.models",
         "doctrine.missions.models",
         "doctrine.model_task_routing.models",
-        # ---------- 3. External CLI / hook entry points ----------
-        # Invoked as `python -m specify_cli.policy.commit_guard_hook`
-        # from the git pre-commit hook script installed by
-        # src/specify_cli/policy/hook_installer.py. The module path
-        # appears only as the string literal MODULE in hook_installer.
+    }
+)
+
+# ---------- 3. External CLI / hook entry points ----------
+# Invoked as `python -m specify_cli.policy.commit_guard_hook`
+# from the git pre-commit hook script installed by
+# src/specify_cli/policy/hook_installer.py. The module path
+# appears only as the string literal MODULE in hook_installer.
+# Stand-alone task helper scripts are invoked outside the spec-kitty
+# import graph (legacy /scripts/tasks/ entry points kept for the
+# acceptance_support compatibility wrapper).
+_CATEGORY_3_EXTERNAL_CLI_ENTRYPOINTS: frozenset[str] = frozenset(
+    {
         "specify_cli.policy.commit_guard_hook",
-        # Stand-alone task helper scripts invoked outside the spec-kitty
-        # import graph (legacy /scripts/tasks/ entry points kept for the
-        # acceptance_support compatibility wrapper).
         "specify_cli.scripts.tasks.acceptance_support",
         "specify_cli.scripts.tasks.task_helpers",
         "specify_cli.scripts.tasks.tasks_cli",
-        # ---------- 4. Documented backward-compat shims ----------
-        # Re-export modules whose docstring starts with
-        # ``Backward-compat shim -- canonical home is ...``. Tests pin
-        # the re-export contract; the lack of src/ callers is the point.
+    }
+)
+
+# ---------- 4. Documented backward-compat shims ----------
+# Re-export modules whose docstring starts with
+# ``Backward-compat shim -- canonical home is ...``. Tests pin
+# the re-export contract; the lack of src/ callers is the point.
+_CATEGORY_4_BACKCOMPAT_SHIMS: frozenset[str] = frozenset(
+    {
         "specify_cli.acceptance_matrix",
         "specify_cli.core.identity_aliases",
         "specify_cli.doc_generators",
@@ -213,33 +232,69 @@ _ALLOWLIST: frozenset[str] = frozenset(
         "specify_cli.state_contract",
         "specify_cli.tasks_support",
         "specify_cli.workspace_context",
-        # ---------- 5. WP-in-flight slot-holder adapters ----------
-        # Carry the `# adapter:no-logic` marker; reserved for the WP07
-        # compat-planner wiring. Removing them now would break
-        # tests/architectural/test_compat_shims.py's slot-presence
-        # assertion. See src/specify_cli/compat/__init__.py for the
-        # compat-shim mission context.
+    }
+)
+
+# ---------- 5. WP-in-flight slot-holder adapters ----------
+# Carry the `# adapter:no-logic` marker; reserved for the WP07
+# compat-planner wiring. Removing them now would break
+# tests/architectural/test_compat_shims.py's slot-presence
+# assertion. See src/specify_cli/compat/__init__.py for the
+# compat-shim mission context.
+#
+# Slice F WP09 addition: ``charter.scope_router`` is a thin wrapper
+# combining ``CharterScope.resolve`` + ``build_charter_context``. WP09
+# ships the module ready for use; Slice F WP11 wires the prompt builder
+# call site to invoke ``build_with_scope``. Per ADR-8
+# (architecture/adrs/2026-05-18-1-monorepo-charter-scope.md) the wrapper
+# is intentionally introduced WP-ahead-of-wiring to preserve WP07's
+# ownership of ``charter/context.py``. Remove this entry from the
+# allowlist when WP11 lands the prompt-builder call site (the symbol
+# allowlist entry for ``charter.scope_router::build_with_scope`` is the
+# matching surface in test_no_dead_symbols.py and should be removed at
+# the same time).
+_CATEGORY_5_WP_IN_FLIGHT_ADAPTERS: frozenset[str] = frozenset(
+    {
         "specify_cli.compat._adapters.detector",
         "specify_cli.compat._adapters.gate",
         "specify_cli.compat._adapters.version_checker",
-        # ---------- 6. Frozen-contract internal re-exports ----------
-        # Internalized from spec-kitty-runtime under
-        # shared-package-boundary-cutover-01KQ22DS. The CLI imports
-        # the implementation files (engine.py, events.py); these three
-        # exist as the per-task-layout public surface frozen in
-        # kitty-specs/.../contracts/internal_runtime_surface.md.
+        # Slice F WP09 → WP11 wiring (ADR-8, FR-010).
+        "charter.scope_router",
+        # specify_cli.next._internal_runtime.workflow_registry removed:
+        # WP11 wired get_workflow() into planner.py (planner imports it
+        # via workflow_registry at module scope), so the module now has a
+        # live src/ caller.  WP11 removal trigger reached.
+    }
+)
+
+# ---------- 6. Frozen-contract internal re-exports ----------
+# Internalized from spec-kitty-runtime under
+# shared-package-boundary-cutover-01KQ22DS. The CLI imports
+# the implementation files (engine.py, events.py); these three
+# exist as the per-task-layout public surface frozen in
+# kitty-specs/.../contracts/internal_runtime_surface.md.
+_CATEGORY_6_FROZEN_RUNTIME_REEXPORTS: frozenset[str] = frozenset(
+    {
         "specify_cli.next._internal_runtime.emitter",
         "specify_cli.next._internal_runtime.lifecycle",
         "specify_cli.next._internal_runtime.models",
-        # ---------- 7. Grandfathered orphans (HiC triage queue) ----------
-        # Modules that look like genuine "library written but never
-        # wired" cases. Tests exercise them, but no runtime caller does.
-        # Each MUST eventually be wired, deleted, or formally adopted
-        # into one of the categories above. Do not add new entries to
-        # this category without filing a follow-up tracker ticket.
-        # TODO(triage): wire CentralTemplateRepository into the template
-        # resolver chain or delete it (added in mission 057, never wired).
-        "doctrine.templates.repository",
+    }
+)
+
+# ---------- 7. Grandfathered orphans (HiC triage queue) ----------
+# Modules that look like genuine "library written but never
+# wired" cases. Tests exercise them, but no runtime caller does.
+# Each MUST eventually be wired, deleted, or formally adopted
+# into one of the categories above. Do not add new entries to
+# this category without filing a follow-up tracker ticket.
+#
+# Per Slice F C-006 (binding), Cat-7 MUST shrink by >= 2 entries
+# per major release; target = 0 by 4.0. WP01 of Slice F shrinks
+# this list from 10 -> 7 by deleting three modules outright
+# (doctrine.templates.repository, specify_cli.glossary.prompts,
+# specify_cli.glossary.rendering) per DM-01KRX6N0YAFBY7MTJC0CN3D3E4.
+_CATEGORY_7_GRANDFATHERED_ORPHANS: frozenset[str] = frozenset(
+    {
         # TODO(triage): hidden_feature_option / LEGACY_FEATURE_HELP
         # landed in mission stability-and-hygiene-hardening-2026-04
         # WP07 but no CLI command adopted them.
@@ -259,14 +314,26 @@ _ALLOWLIST: frozenset[str] = frozenset(
         # TODO(triage): policy.audit append-only log is written by tests
         # only -- no runtime emission of PolicyAuditEvent objects yet.
         "specify_cli.policy.audit",
-        # TODO(triage): glossary conflict prompt/render surface is
-        # tested in isolation; no glossary command invokes it.
-        "specify_cli.glossary.prompts",
-        "specify_cli.glossary.rendering",
         # TODO(triage): documented stub awaiting the retrospective
         # lifecycle terminus runner (WP06 of a future mission).
         "specify_cli.retrospective.lifecycle",
     }
+)
+
+
+# Aggregate of every per-category set. The existing
+# `test_no_new_dead_modules_under_src` check below treats this as the
+# effective allowlist; the per-category frozensets above are the surface
+# inspected by the ratchet-baseline meta-test
+# (tests/architectural/test_ratchet_baselines.py).
+_ALLOWLIST: frozenset[str] = (
+    _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS
+    | _CATEGORY_2_BUILD_SCHEMA_GENERATORS
+    | _CATEGORY_3_EXTERNAL_CLI_ENTRYPOINTS
+    | _CATEGORY_4_BACKCOMPAT_SHIMS
+    | _CATEGORY_5_WP_IN_FLIGHT_ADAPTERS
+    | _CATEGORY_6_FROZEN_RUNTIME_REEXPORTS
+    | _CATEGORY_7_GRANDFATHERED_ORPHANS
 )
 
 
@@ -482,4 +549,29 @@ def test_no_new_dead_modules_under_src() -> None:
     assert not new_orphans and not stale_allowlist_entries, _format_failure(
         new_orphans=new_orphans,
         stale_allowlist_entries=stale_allowlist_entries,
+    )
+
+
+def test_category_7_grandfathered_at_most_seven_entries() -> None:
+    """AC-7 (Slice F WP01): Cat-7 grandfathered orphans MUST be <= 7.
+
+    The Slice F mission shrank Cat-7 from 10 -> 7 by deleting
+    ``doctrine.templates.repository`` (WP01 T005),
+    ``specify_cli.glossary.prompts`` and
+    ``specify_cli.glossary.rendering`` (WP01 T006). This assertion
+    locks in the new ceiling so any regression that re-adds a Cat-7
+    entry without further burn-down is caught immediately, independently
+    of the per-category baseline in ``_baselines.yaml``.
+
+    Per C-006 (binding), Cat-7 MUST shrink by >= 2 entries per major
+    release; target = 0 by 4.0. This assertion is the floor side of
+    that ratchet for the Slice F mission.
+    """
+    current = len(_CATEGORY_7_GRANDFATHERED_ORPHANS)
+    assert current <= 7, (
+        f"_CATEGORY_7_GRANDFATHERED_ORPHANS has {current} entries; "
+        f"the Slice F WP01 AC-7 invariant caps it at 7. Either wire "
+        f"or delete the regressed entry, OR if growth is unavoidable "
+        f"escalate per the C-006 burn-down policy and update this "
+        f"assertion together with _baselines.yaml and the charter."
     )

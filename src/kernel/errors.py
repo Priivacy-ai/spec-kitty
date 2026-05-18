@@ -29,6 +29,11 @@ Attributes carried by every subclass:
 
 from __future__ import annotations
 
+__all__ = [
+    "KittyInternalConsistencyError",
+]
+
+
 
 class KittyInternalConsistencyError(Exception):
     """Base for errors indicating a violated internal invariant.

@@ -50,6 +50,13 @@ from .orchestrator import SynthesisResult
 from .request import SynthesisRequest, SynthesisTarget, compute_inputs_hash, _evidence_to_jsonable
 from .targets import build_targets, detect_duplicates, order_targets
 
+__all__ = [
+    "ProvenanceEntry",
+    "canonical_yaml",
+    "run_all",
+]
+
+
 
 def _get_synthesizer_version() -> str:
     """Return the installed spec-kitty-cli version, falling back to a dev sentinel."""

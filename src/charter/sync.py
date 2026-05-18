@@ -25,6 +25,16 @@ from charter.schemas import (
     GovernanceConfig,
 )
 
+__all__ = [
+    "SyncResult",
+    "ensure_charter_bundle_fresh",
+    "load_directives_config",
+    "load_governance_config",
+    "post_save_hook",
+    "sync",
+]
+
+
 logger = logging.getLogger(__name__)
 
 _KITTIFY_DIRNAME = ".kittify"

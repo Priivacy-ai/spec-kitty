@@ -21,6 +21,12 @@ from collections.abc import Mapping, Sequence
 
 from .request import SynthesisRequest
 
+__all__ = [
+    "AdapterOutput",
+    "SynthesisAdapter",
+]
+
+
 
 # ---------------------------------------------------------------------------
 # Output

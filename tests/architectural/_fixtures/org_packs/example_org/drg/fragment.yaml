@@ -1,0 +1,14 @@
+pack_name: example-org
+source_kind: local_path
+source_ref: tests/architectural/_fixtures/org_packs/example_org
+layer_index: 1
+provenance_marker: org
+nodes:
+  - id: sox-controls
+    kind: directives
+    title: "SOX Control Framework (example fixture)"
+    body_path: directives/sox-controls.directive.yaml
+edges:
+  - source: sox-controls
+    target: caveman-comments
+    relation: refines

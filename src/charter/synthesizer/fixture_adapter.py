@@ -36,6 +36,11 @@ from .adapter import AdapterOutput
 from .errors import FixtureAdapterMissingError
 from .request import SynthesisRequest, compute_inputs_hash, short_hash
 
+__all__ = [
+    "FixtureAdapter",
+]
+
+
 # Pinned version for provenance stamping. Bump when fixture format changes.
 FIXTURE_VERSION = "1.0.0"
 

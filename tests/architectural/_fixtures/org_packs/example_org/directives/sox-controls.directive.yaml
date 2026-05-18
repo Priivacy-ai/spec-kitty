@@ -1,0 +1,9 @@
+id: sox-controls
+type: directive
+title: "SOX Control Framework (example fixture)"
+body: |
+  Fixture-only directive used by the Slice F WP06 ATDD suite. Documents an
+  imagined SOX control framework as an org-tier advisory. Not loaded by
+  shipped doctrine.
+severity: advisory
+status: active

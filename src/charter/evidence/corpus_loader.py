@@ -10,6 +10,11 @@ import ruamel.yaml
 from charter.corpus import CORPUS_ROOT
 from charter.synthesizer.evidence import CorpusEntry, CorpusSnapshot
 
+__all__ = [
+    "CorpusLoader",
+]
+
+
 
 class CorpusLoaderError(Exception):
     """Raised when a corpus file cannot be loaded or parsed."""

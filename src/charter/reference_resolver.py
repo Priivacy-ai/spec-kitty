@@ -10,6 +10,11 @@ from doctrine.drg.models import DRGGraph, Relation
 from doctrine.drg.query import ResolveTransitiveRefsResult, resolve_transitive_refs
 from doctrine.drg.validator import assert_valid
 
+__all__ = [
+    "resolve_references_transitively",
+]
+
+
 
 def resolve_references_transitively(
     directive_ids: list[str],
