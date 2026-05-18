@@ -498,3 +498,60 @@ def test_append_lifecycle_event_returns_none_when_write_fails(
         )
         is None
     )
+
+
+def test_lifecycle_saas_outbox_skips_when_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "specify_cli.sync.feature_flags.is_saas_sync_enabled",
+        lambda: False,
+    )
+
+    lifecycle._queue_lifecycle_event_if_enabled({"event_id": "evt-1"})
+
+
+def test_lifecycle_saas_outbox_queues_when_scoped(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    queued: list[dict[str, object]] = []
+
+    class _Queue:
+        def queue_event(self, event: dict[str, object]) -> bool:
+            queued.append(event)
+            return True
+
+    monkeypatch.setattr(
+        "specify_cli.sync.feature_flags.is_saas_sync_enabled",
+        lambda: True,
+    )
+    monkeypatch.setattr("specify_cli.sync.queue.read_queue_scope_from_session", lambda: None)
+    monkeypatch.setattr(
+        "specify_cli.sync.queue.read_queue_scope_from_credentials",
+        lambda: "https://example.test|user@example.test|team-a",
+    )
+    monkeypatch.setattr("specify_cli.sync.queue.OfflineQueue", _Queue)
+
+    lifecycle._queue_lifecycle_event_if_enabled({"event_id": "evt-1"})
+
+    assert queued == [{"event_id": "evt-1"}]
+
+
+def test_lifecycle_saas_outbox_suppresses_queue_failures(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class _Queue:
+        def __init__(self) -> None:
+            raise RuntimeError("queue unavailable")
+
+    monkeypatch.setattr(
+        "specify_cli.sync.feature_flags.is_saas_sync_enabled",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        "specify_cli.sync.queue.read_queue_scope_from_session",
+        lambda: "https://example.test|user@example.test|team-a",
+    )
+    monkeypatch.setattr("specify_cli.sync.queue.OfflineQueue", _Queue)
+
+    lifecycle._queue_lifecycle_event_if_enabled({"event_id": "evt-1"})
