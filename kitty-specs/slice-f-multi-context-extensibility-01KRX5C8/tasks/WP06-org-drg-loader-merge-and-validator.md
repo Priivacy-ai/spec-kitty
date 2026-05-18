@@ -507,3 +507,4 @@ pytest tests/integration/test_three_layer_drg_end_to_end.py \
 ## Activity Log
 
 - 2026-05-18T16:15:06Z – claude:opus-4-7:python-pedro:implementer – shell_pid=2472098 – Started implementation via action command
+- 2026-05-18T16:36:32Z – claude:opus-4-7:python-pedro:implementer – shell_pid=2472098 – Org-DRG loader + merge + validator extension; 4 ATDD tests GREEN; OrgDRGFragment round-trip case flipped SKIPPED→PASSED; FR-001/003/004/005 satisfied. Lane C opener landed.
