@@ -341,3 +341,128 @@ Terms describing the Doctrine domain model and doctrine artifact taxonomy.
 | **Related terms** | [Global Selection](#global-selection), [Charter-Mediated Selection](#charter-mediated-selection) |
 
 ---
+
+<!-- ================================================================== -->
+<!-- Slice F org-tier terms (WP08 / C-010)                              -->
+<!-- Status: canonical — promoted by WP12 T065                          -->
+<!-- ================================================================== -->
+
+### Three-layer DRG
+
+| | |
+|---|---|
+| **Definition** | The three-tier Doctrine Relationship Graph composed of: (1) the shipped built-in layer (`src/doctrine/drg/shipped.json`), (2) zero or more org-tier extension fragments (`drg/fragment.yaml` inside each configured org pack), and (3) optional project-tier annotations declared in the project charter. Each tier is additive; org and project tiers may only extend or annotate shipped nodes — they cannot remove or reclassify them. Resolved at runtime by `charter.drg.merge_three_layers`. |
+| **Context** | Doctrine |
+| **Status** | canonical |
+| **Applicable to** | `2.x` |
+| **Related terms** | [Doctrine Pack](#doctrine-pack), [Organisation Tier](#organisation-tier), [Charter-Mediated Selection](#charter-mediated-selection) |
+
+---
+
+### Organisation Tier
+
+| | |
+|---|---|
+| **Definition** | The middle layer of the three-layer DRG model, contributed by one or more configured org doctrine packs. Each pack ships an `org-charter.yaml` (governance policies and required artifact selections) and an optional `drg/fragment.yaml` (DRG extension nodes and edges). Organisation-tier content propagates to all consumer projects via `apply_org_charter_to_interview` and the standard charter pre-fill path. |
+| **Context** | Doctrine |
+| **Status** | canonical |
+| **Applicable to** | `2.x` |
+| **Related terms** | [Three-layer DRG](#three-layer-drg), [Doctrine Pack](#doctrine-pack), [Charter Selection](#charter-selection) |
+
+---
+
+### CharterScope
+
+| | |
+|---|---|
+| **Definition** | The combined set of artifact selections, activation registry entries, and governance policies that are active for a given project at runtime. Produced by unioning the shipped built-in defaults, the org-tier `required_*` declarations, and the project-tier `selected_*` overrides. `charter context --json` materialises the current CharterScope into the prompt. |
+| **Context** | Doctrine |
+| **Status** | canonical |
+| **Applicable to** | `2.x` |
+| **Related terms** | [Charter-Mediated Selection](#charter-mediated-selection), [Global Selection](#global-selection), [Context-Scoped Selection](#context-scoped-selection) |
+
+---
+
+### Workflow Sequence
+
+| | |
+|---|---|
+| **Definition** | A named, ordered list of mission-action steps with declared entry conditions, exit conditions, and optional per-step runtime hooks. Stored as a `WorkflowSequence` Pydantic model in `spec-kitty next`'s internal runtime schema registry. Org packs may contribute custom workflow sequences that extend or override the shipped set when activated via the Activation Registry. |
+| **Context** | Doctrine |
+| **Status** | canonical |
+| **Applicable to** | `2.x` |
+| **Related terms** | [Activation Registry](#activation-registry), [Mission-Type Profile](#mission-type-profile), [Procedure](#procedure) |
+
+---
+
+### Workflow ID
+
+| | |
+|---|---|
+| **Definition** | The stable, kebab-case identifier of a Workflow Sequence (e.g. `software-dev-default`). Used as the lookup key in the workflow schema registry and in the `meta.json` `workflow_id` field to record which sequence drove a given mission run. Org packs must not reuse shipped workflow IDs without explicit override semantics. |
+| **Context** | Doctrine |
+| **Status** | canonical |
+| **Applicable to** | `2.x` |
+| **Related terms** | [Workflow Sequence](#workflow-sequence), [Mission-Type Profile](#mission-type-profile) |
+
+---
+
+### Ratchet Baseline
+
+| | |
+|---|---|
+| **Definition** | A snapshot of a quality metric (failure count, symbol count, dead-module count) recorded in `tests/architectural/ratchet-baseline-*.md` and enforced by the corresponding architectural gate. A ratchet baseline only moves in the decreasing direction during normal development; any increase fails CI. Org packs may declare additional ratchet metrics via governance policies, but cannot lower an existing shipped baseline. |
+| **Context** | Doctrine |
+| **Status** | canonical |
+| **Applicable to** | `2.x` |
+| **Related terms** | [Three-layer DRG](#three-layer-drg), [Organisation Tier](#organisation-tier) |
+
+---
+
+### Cat-7 Grandfathered Orphan
+
+| | |
+|---|---|
+| **Definition** | A dead-module or dead-symbol violation that has been explicitly classified as category 7 ("deferred — grandfathered") in the remediation tracking spreadsheet. Cat-7 items are excluded from the active failure count tracked by the ratchet baseline but must not be added to the allowlist via side-effect imports (the C2 anti-pattern). Each cat-7 record must carry a deferral reason and a target WP for cleanup. |
+| **Context** | Doctrine |
+| **Status** | canonical |
+| **Applicable to** | `2.x` |
+| **Related terms** | [Ratchet Baseline](#ratchet-baseline), [Symbol-level Dead Code](#symbol-level-dead-code), [Catalog Miss](#catalog-miss) |
+
+---
+
+### Symbol-level Dead Code
+
+| | |
+|---|---|
+| **Definition** | A public symbol (function, class, constant) exported by a module but not referenced by any other module or test in the codebase, as detected by `tests/architectural/test_no_dead_symbols.py`. Distinguished from module-level dead code (an entire module with no importers). Symbol-level findings are reported per-file and contribute to the dead-symbol ratchet baseline. |
+| **Context** | Doctrine |
+| **Status** | canonical |
+| **Applicable to** | `2.x` |
+| **Related terms** | [Ratchet Baseline](#ratchet-baseline), [Cat-7 Grandfathered Orphan](#cat-7-grandfathered-orphan), [`__all__` Declaration Convention](#__all__-declaration-convention) |
+
+---
+
+### Catalog Miss
+
+| | |
+|---|---|
+| **Definition** | A doctrine artifact ID referenced by a charter selection (e.g. `selected_directives: [foo]`) that does not resolve to any known artifact in the shipped pack, any configured org pack, or the project-layer doctrine tree. Catalog misses are reported as errors by `spec-kitty doctor doctrine` and by the `test_no_dead_symbols.py` gate when the referencing code reaches into the doctrine catalog. |
+| **Context** | Doctrine |
+| **Status** | canonical |
+| **Applicable to** | `2.x` |
+| **Related terms** | [Doctrine Catalog](#doctrine-catalog), [Charter Selection](#charter-selection), [Organisation Tier](#organisation-tier) |
+
+---
+
+### `__all__` Declaration Convention
+
+| | |
+|---|---|
+| **Definition** | The project convention that every Python module with a public API must declare an `__all__` list enumerating its exported symbols. The `test_no_dead_symbols.py` architectural gate uses `__all__` as the canonical public surface; symbols absent from `__all__` are not counted as dead even if unreferenced, and symbols present in `__all__` but never imported externally are flagged as candidates for removal. |
+| **Context** | Doctrine |
+| **Status** | canonical |
+| **Applicable to** | `2.x` |
+| **Related terms** | [Symbol-level Dead Code](#symbol-level-dead-code), [Ratchet Baseline](#ratchet-baseline) |
+
+---

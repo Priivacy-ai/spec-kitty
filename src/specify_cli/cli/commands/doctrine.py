@@ -14,6 +14,12 @@ Surface area:
   schema's required fields (FR-016).
 * ``spec-kitty doctrine validate <path>`` — validate a single project-layer
   artifact file or a doctrine tree against the artifact schemas (FR-017).
+* ``spec-kitty doctrine org init <path> [--force]`` — scaffold a minimal
+  org doctrine pack skeleton (org-charter.yaml, drg/fragment.yaml, README.md)
+  ready for distribution (FR-006 / WP08).
+* ``spec-kitty doctrine org validate <path>`` — validate an org doctrine pack
+  using the WP06 loader and schema checks; exits non-zero on errors (FR-006 /
+  WP08).
 
 Both ``pack validate`` and ``pack assemble`` are implemented by WP06; their
 heavy lifting lives in :mod:`specify_cli.doctrine.pack_validator` and
@@ -44,6 +50,13 @@ pack_app = typer.Typer(
     no_args_is_help=True,
 )
 app.add_typer(pack_app, name="pack")
+
+org_app = typer.Typer(
+    name="org",
+    help="Manage org-layer doctrine pack authoring (init, validate).",
+    no_args_is_help=True,
+)
+app.add_typer(org_app, name="org")
 
 console = Console()
 
@@ -557,3 +570,177 @@ def validate(
         f"\n[green]{len(targets)} artifact(s) passed validation.[/green]"
     )
     raise typer.Exit(0)
+
+
+# ----------------------------------------------------------------------
+# org init — scaffold a minimal org doctrine pack skeleton (FR-006 / WP08)
+# ----------------------------------------------------------------------
+
+#: Minimal ``org-charter.yaml`` body.  All fields are optional in
+#: :class:`specify_cli.doctrine.org_charter.OrgCharterPolicy`; the stub
+#: carries the schema_version sentinel and a TODO org_name as a
+#: quickstart hint.
+_ORG_CHARTER_STUB = """\
+schema_version: "1"
+org_name: TODO replace with your organisation name
+required_directives: []
+required_tactics: []
+required_paradigms: []
+required_styleguides: []
+required_toolguides: []
+required_procedures: []
+required_agent_profiles: []
+required_mission_step_contracts: []
+governance_policies: []
+activations: []
+"""
+
+#: Minimal ``drg/fragment.yaml`` stub.  Carries ``# pydantic_model:`` and
+#: ``# expect: valid`` frontmatter so the FR-140 contract round-trip gate
+#: exercises it automatically.  The ``source_ref`` placeholder is
+#: intentionally ``TODO`` — operators replace it with the pack's real path.
+_DRG_FRAGMENT_STUB = """\
+# pydantic_model: charter.drg.OrgDRGFragment
+# expect: valid
+pack_name: TODO replace with your pack name
+source_kind: local_path
+source_ref: .
+layer_index: 1
+provenance_marker: org
+nodes: []
+edges: []
+"""
+
+#: Minimal ``README.md`` stub.
+_ORG_PACK_README_STUB = """\
+# Org Doctrine Pack
+
+> Scaffolded by `spec-kitty doctrine org init`.
+
+## Contents
+
+- `org-charter.yaml` — organisation-level governance policy
+- `drg/fragment.yaml` — DRG extension fragment declaring org-tier nodes
+- Additional artifact subdirectories (e.g. `directives/`, `tactics/`) may
+  be added alongside the `org-charter.yaml`.
+
+## Validation
+
+```bash
+spec-kitty doctrine org validate .
+```
+"""
+
+
+@org_app.command(name="init")
+def org_init(
+    pack_path: Path = typer.Argument(
+        ...,
+        help="Path to the directory to initialise as an org doctrine pack.",
+    ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        help="Overwrite an existing pack directory.",
+    ),
+) -> None:
+    """Scaffold a minimal org doctrine pack skeleton (FR-006).
+
+    Creates three files under *pack-path*::
+
+        org-charter.yaml   — governance policy stub
+        drg/fragment.yaml  — DRG extension stub (with pydantic_model: frontmatter)
+        README.md          — authoring quickstart
+
+    Refuses to overwrite an existing directory unless ``--force`` is passed.
+    """
+    if pack_path.exists() and not force:
+        console.print(
+            f"[red]Target directory already exists:[/red] {pack_path}\n"
+            "Pass [bold]--force[/bold] to overwrite."
+        )
+        raise typer.Exit(1)
+
+    pack_path.mkdir(parents=True, exist_ok=True)
+    (pack_path / "drg").mkdir(parents=True, exist_ok=True)
+
+    (pack_path / "org-charter.yaml").write_text(_ORG_CHARTER_STUB, encoding="utf-8")
+    (pack_path / "drg" / "fragment.yaml").write_text(_DRG_FRAGMENT_STUB, encoding="utf-8")
+    (pack_path / "README.md").write_text(_ORG_PACK_README_STUB, encoding="utf-8")
+
+    console.print(f"[green]Org pack scaffolded at:[/green] {pack_path}")
+    console.print("  org-charter.yaml")
+    console.print("  drg/fragment.yaml")
+    console.print("  README.md")
+    console.print(
+        f"\nRun [bold]spec-kitty doctrine org validate {pack_path}[/bold] to confirm."
+    )
+
+
+# ----------------------------------------------------------------------
+# org validate — validate an org pack against WP06 schema (FR-006 / WP08)
+# ----------------------------------------------------------------------
+
+
+@org_app.command(name="validate")
+def org_validate(
+    pack_path: Path = typer.Argument(
+        ...,
+        help="Path to the org doctrine pack directory to validate.",
+    ),
+) -> None:
+    """Validate an org doctrine pack using schema and DRG checks (FR-006).
+
+    Calls the WP06 :func:`specify_cli.doctrine.pack_validator.validate_pack`
+    loader.  Prints per-file findings with file paths.  Exits non-zero when
+    at least one error is found.
+    """
+    from specify_cli.doctrine.pack_validator import (
+        render_validation_result,
+        validate_pack,
+    )
+
+    result = validate_pack(pack_path)
+
+    # Additionally validate drg/fragment.yaml against OrgDRGFragment schema
+    # (pack_validator covers DRG edge/node cross-refs; this catches
+    # kind-constraint violations that pack_validator defers to advisory).
+    fragment_path = pack_path / "drg" / "fragment.yaml"
+    if fragment_path.exists():
+        from ruamel.yaml import YAML
+        from ruamel.yaml.error import YAMLError
+
+        try:
+            raw = fragment_path.read_text(encoding="utf-8")
+            # Strip pydantic_model / expect frontmatter comment lines.
+            payload_lines = [
+                line for line in raw.splitlines()
+                if not line.strip().startswith("#")
+            ]
+            frag_data = YAML(typ="safe").load("\n".join(payload_lines))
+            if frag_data is not None and isinstance(frag_data, dict):
+                from charter.drg import OrgDRGFragment
+                from pydantic import ValidationError as PydanticValidationError
+
+                try:
+                    OrgDRGFragment.model_validate(frag_data)
+                except PydanticValidationError as exc:
+                    from specify_cli.doctrine.pack_validator import ValidationIssue, ValidationResult
+
+                    extra_error = ValidationIssue(
+                        severity="error",
+                        artifact_type="drg",
+                        artifact_id=frag_data.get("pack_name"),
+                        file=str(fragment_path),
+                        message=f"OrgDRGFragment schema validation failed: {exc.errors()[0].get('msg', exc)}",
+                    )
+                    result = ValidationResult(
+                        ok=False,
+                        errors=[*result.errors, extra_error],
+                        advisories=result.advisories,
+                    )
+        except (YAMLError, OSError):
+            pass  # pack_validator already reported YAML parse errors
+
+    render_validation_result(result, json_output=False)
+    raise typer.Exit(0 if result.ok else 1)

@@ -70,7 +70,6 @@ from .resolver import (
     GovernanceResolution,
     GovernanceResolutionError,
     collect_governance_diagnostics,
-    resolve_governance,
     resolve_governance_for_profile,
     resolve_project_governance,
 )
@@ -121,7 +120,6 @@ __all__ = [
     "sync",
     "GovernanceResolution",
     "GovernanceResolutionError",
-    "resolve_governance",
     "resolve_governance_for_profile",
     "resolve_project_governance",
     "collect_governance_diagnostics",

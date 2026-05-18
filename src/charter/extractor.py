@@ -34,6 +34,12 @@ from charter.schemas import (
     emit_yaml,
 )
 
+__all__ = [
+    "Extractor",
+    "write_extraction_result",
+]
+
+
 logger = logging.getLogger(__name__)
 
 # Section heading keywords → (target_schema, target_field)

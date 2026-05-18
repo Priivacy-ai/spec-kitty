@@ -593,6 +593,4 @@ __all__ = [
     "stage_and_validate",
     "compute_written_artifacts",
     "StagedArtifact",
-    "_is_generic_scoped",
-    "_run_neutrality_gate",
 ]

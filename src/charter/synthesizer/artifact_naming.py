@@ -6,6 +6,12 @@ fed arbitrary artifact IDs from external inputs or persisted manifests.
 
 from __future__ import annotations
 
+__all__ = [
+    "artifact_filename",
+    "doctrine_kind_subdir",
+]
+
+
 
 def extract_directive_number(artifact_id: str | None) -> str:
     """Return the numeric directive segment from an artifact ID.

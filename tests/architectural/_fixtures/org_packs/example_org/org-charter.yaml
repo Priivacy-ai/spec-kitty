@@ -1,0 +1,8 @@
+org_name: example-org
+description: |
+  Minimal example organisation pack used by Slice F WP06 tests to exercise
+  the three-layer DRG loader, merge, and validator extension. Contributes a
+  single advisory directive (SOX-style control framework) and one refines
+  edge pointing at a project-tier artefact.
+required_directives:
+  - sox-controls

@@ -12,11 +12,11 @@ description: Validate dependencies, finalize WP metadata, and commit all task ar
 ## Purpose
 
 Run the finalization command to parse dependencies from `tasks.md`, validate
-them, update WP<!-- glossary:glossary:wp --> frontmatter, and commit all task artifacts to the target branch<!-- glossary:glossary:target-branch -->.
+them, update WP frontmatter, and commit all task artifacts to the target branch.
 
 ---
 
-## 📍 WORKING DIRECTORY: Stay in planning repository<!-- glossary:glossary:repository --><!-- glossary:glossary:planning-repository -->
+## 📍 WORKING DIRECTORY: Stay in planning repository
 
 **IMPORTANT**: This step works in the planning repository. NO worktrees created.
 
@@ -34,7 +34,7 @@ $ARGUMENTS
 finalization:
 
 ```bash
-spec-kitty agent mission<!-- glossary:glossary:mission --> finalize-tasks --validate-only --mission <mission-slug> --json
+spec-kitty agent mission finalize-tasks --validate-only --mission <mission-slug> --json
 ```
 
 This command will:
@@ -92,9 +92,9 @@ The JSON output includes:
 Provide a concise outcome summary:
 
 - Path to `tasks.md`
-- Work package<!-- glossary:glossary:work-package --> count and per-package subtask tallies
+- Work package count and per-package subtask tallies
 - Parallelization highlights
-- MVP scope<!-- glossary:glossary:scope --> recommendation
+- MVP scope recommendation
 - Finalization status (dependencies parsed, X WP files updated, committed to target branch)
 - Next suggested command (e.g., `/spec-kitty.analyze` or `/spec-kitty.implement`)
 

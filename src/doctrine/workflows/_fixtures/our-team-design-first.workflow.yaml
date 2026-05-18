@@ -1,0 +1,31 @@
+# pydantic_model: specify_cli.next._internal_runtime.workflow_schema.WorkflowSequence
+# expect: valid
+workflow_id: our-team-design-first
+description: |
+  Test fixture workflow with an extra design-review step between plan and tasks.
+  Used by Scenario 3 / AC-4 to prove composable workflow sequencing works.
+version: 1
+initial: specify
+actions:
+  - action_name: specify
+    description: Create a mission specification
+    next: [plan]
+  - action_name: plan
+    description: Create an implementation plan
+    next: [design-review]
+  - action_name: design-review
+    description: Review the design before decomposing into tasks
+    next: [tasks]
+  - action_name: tasks
+    description: Decompose plan into work packages
+    next: [implement]
+  - action_name: implement
+    description: Execute a work package implementation
+    next: [review]
+  - action_name: review
+    description: Review a work package implementation
+    next: [merge]
+  - action_name: merge
+    description: Merge a completed mission
+    next: []
+    terminal: true

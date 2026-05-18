@@ -1502,6 +1502,8 @@ def doctrine_check(
                         "org_configured": False,
                         "packs": [],
                         "selections": selection_block,
+                        # WP07 FR-007: always include org_drg key so callers can rely on it
+                        "org_drg": _collect_org_layer_data(repo_root),
                     },
                     indent=2,
                     default=str,
@@ -1548,12 +1550,17 @@ def doctrine_check(
     # mission-type-profile layers, each annotated with its resolved source.
     selection_block = _build_selection_block(repo_root)
 
+    # WP07 T037 (FR-007): collect org-layer DRG state for JSON output.
+    org_layer_data = _collect_org_layer_data(repo_root)
+
     if json_output:
         payload = {
             "org_configured": True,
             "packs": pack_entries,
             "collisions": collision_summaries,
             "selections": selection_block,
+            # WP07 FR-007: org-layer DRG state (configured packs, node/edge counts, collisions)
+            "org_drg": org_layer_data,
         }
         console.print_json(json.dumps(payload, indent=2, default=str))
         raise typer.Exit(0)
@@ -1579,6 +1586,9 @@ def doctrine_check(
         console.print(
             "\n[dim]Collisions:[/dim] none — every artifact resolves from a single layer."
         )
+
+    # WP07 T037 (FR-007): surface org-layer DRG state in human-readable output.
+    _render_org_layer_section(repo_root, console)
 
     # FR-018 / WP09 T050: render the Selections section verbatim so the
     # snapshot test in tests/cli/test_doctor_doctrine_selections_snapshot.py
@@ -1658,6 +1668,143 @@ def _collect_doctrine_collisions(repo_root: Path) -> list[dict[str, object]]:
             }
         )
     return collisions
+
+
+# ---------------------------------------------------------------------------
+# WP07 T037 — Organisation Layer section (FR-007)
+# ---------------------------------------------------------------------------
+
+
+def _render_org_layer_section(repo_root: Path, console: Console) -> None:
+    """Surface organisation-tier DRG state in ``doctor doctrine`` (FR-007).
+
+    Lists each configured pack with its fetched/missing status, node/edge
+    counts, and any collision warnings from ``merge_three_layers``.
+
+    Diagnostic commands are READ-ONLY and must never crash on operator
+    misconfiguration.  All exceptions are caught and rendered as findings
+    so ``doctor doctrine`` always returns a usable report.
+    """
+    from charter.drg import (  # noqa: PLC0415
+        OrgDRGConflictError,
+        OrgPackMissingError,
+        load_org_drg,
+        merge_three_layers,
+    )
+    from charter.catalog import resolve_doctrine_root  # noqa: PLC0415
+    from doctrine.drg.loader import load_graph_or_dir  # noqa: PLC0415
+
+    console.print("\n[bold]Organisation Layer[/bold] (WP07 / FR-007)")
+
+    try:
+        fragments = load_org_drg(repo_root)
+    except OrgPackMissingError as exc:
+        console.print(f"  [red]org pack missing:[/red] {exc}")
+        return
+    except Exception as exc:  # noqa: BLE001
+        console.print(f"  [red]org-DRG load error:[/red] {exc}")
+        return
+
+    if not fragments:
+        console.print("  (no organisation packs configured)")
+        return
+
+    for frag in fragments:
+        node_count = len(frag.nodes)
+        edge_count = len(frag.edges)
+        console.print(
+            f"  - [green]{frag.pack_name}[/green] "
+            f"[{frag.source_kind}: {frag.source_ref}] "
+            f"✓ loaded ({node_count} nodes, {edge_count} edges)"
+        )
+
+    # Merge with shipped layer to surface collision warnings.
+    # Truncate to ≤3 lines per the WP07 risk table (risk 4: verbosity mitigation).
+    try:
+        shipped = load_graph_or_dir(resolve_doctrine_root())
+        merge_three_layers(shipped=shipped, org_fragments=fragments, project=None)
+        console.print("  collisions: none")
+    except OrgDRGConflictError as exc:
+        shown = exc.conflicts[:3]
+        console.print(f"  collisions: {len(exc.conflicts)} shipped-invariant override(s)")
+        for conflict in shown:
+            console.print(
+                f"    [yellow]•[/yellow] {conflict.kind} "
+                f"target={conflict.target_id} "
+                f"resolution={conflict.resolution_applied}"
+            )
+        if len(exc.conflicts) > 3:
+            console.print(f"    … and {len(exc.conflicts) - 3} more (run charter lint for details)")
+    except Exception as exc:  # noqa: BLE001 — doctor must not crash
+        console.print(f"  [yellow]collision check skipped:[/yellow] {exc}")
+
+
+def _collect_org_layer_data(repo_root: Path) -> dict[str, object]:
+    """Return structured org-layer data for ``doctor doctrine --json`` (FR-007).
+
+    Mirrors the human-readable output of :func:`_render_org_layer_section`
+    but as a dict suitable for JSON serialisation.  Always returns a dict
+    with an ``"org_drg"`` key so callers can rely on its presence.
+    """
+    from charter.drg import (  # noqa: PLC0415
+        OrgDRGConflictError,
+        OrgPackMissingError,
+        load_org_drg,
+        merge_three_layers,
+    )
+    from charter.catalog import resolve_doctrine_root  # noqa: PLC0415
+    from doctrine.drg.loader import load_graph_or_dir  # noqa: PLC0415
+
+    result: dict[str, object] = {
+        "configured_packs": [],
+        "collision_warnings": [],
+        "errors": [],
+    }
+
+    try:
+        fragments = load_org_drg(repo_root)
+    except OrgPackMissingError as exc:
+        result["errors"] = [str(exc)]  # type: ignore[assignment]
+        return result
+    except Exception as exc:  # noqa: BLE001
+        result["errors"] = [f"org-DRG load error: {exc}"]  # type: ignore[assignment]
+        return result
+
+    packs = []
+    for frag in fragments:
+        packs.append(
+            {
+                "name": frag.pack_name,
+                "source_kind": frag.source_kind,
+                "source_ref": frag.source_ref,
+                "layer_index": frag.layer_index,
+                "node_count": len(frag.nodes),
+                "edge_count": len(frag.edges),
+                "fetched": True,
+            }
+        )
+    result["configured_packs"] = packs  # type: ignore[assignment]
+
+    if not fragments:
+        return result
+
+    try:
+        shipped = load_graph_or_dir(resolve_doctrine_root())
+        merge_three_layers(shipped=shipped, org_fragments=fragments, project=None)
+    except OrgDRGConflictError as exc:
+        result["collision_warnings"] = [  # type: ignore[assignment]
+            {
+                "kind": c.kind,
+                "target_id": c.target_id,
+                "conflicting_layers": c.conflicting_layers,
+                "resolution": c.resolution_applied,
+            }
+            for c in exc.conflicts
+        ]
+    except Exception:  # noqa: BLE001
+        pass
+
+    return result
 
 
 # ---------------------------------------------------------------------------

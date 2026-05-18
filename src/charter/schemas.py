@@ -14,6 +14,22 @@ from ruamel.yaml import YAML
 
 from charter.activations import ActivationEntry
 
+__all__ = [
+    "BranchStrategyConfig",
+    "CharterTestingConfig",
+    "CommitConfig",
+    "Directive",
+    "DirectivesConfig",
+    "DoctrineSelectionConfig",
+    "ExtractionMetadata",
+    "GovernanceConfig",
+    "PerformanceConfig",
+    "QualityConfig",
+    "SectionsParsed",
+    "emit_yaml",
+]
+
+
 # Header comment for all emitted YAML files
 YAML_HEADER = (
     "# Auto-generated from charter.md — do not edit directly.\n"

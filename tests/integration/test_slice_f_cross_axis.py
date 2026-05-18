@@ -1,0 +1,278 @@
+"""Cross-axis integration: Slice F Axis 1 + Axis 2 + Axis 3 together.
+
+FR-300 (broader): proves that the three Slice F axes interact correctly in a
+single fixture — an org pack contributes DRG fragments (Axis 1), a monorepo
+has per-package CharterScope resolution (Axis 2), and a custom workflow
+sequence drives the next-action planner (Axis 3).
+
+The fixture combines:
+  - An org pack with a DRG fragment (Axis 1: three-layer DRG)
+  - A monorepo layout with two charter scopes (Axis 2: CharterScope)
+  - A mission with a custom workflow_id (Axis 3: composable workflow)
+
+All three axes must work together without interfering with each other.
+
+covers: FR-300 (broader) — expected GREEN at: WP12 final commit
+"""
+from __future__ import annotations
+
+import json
+import shutil
+from pathlib import Path
+from textwrap import dedent
+
+import pytest
+import yaml
+
+pytestmark = [pytest.mark.integration]
+
+_REPO_ROOT: Path = Path(__file__).resolve().parents[2]
+_FIXTURE_ORG_PACK: Path = (
+    _REPO_ROOT
+    / "tests"
+    / "architectural"
+    / "_fixtures"
+    / "org_packs"
+    / "example_org"
+)
+
+
+# ---------------------------------------------------------------------------
+# Shared fixture: complex setup combining all three Slice F axes
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def tmp_complex_setup(tmp_path: Path) -> Path:
+    """Build a combined fixture: org pack + monorepo scopes + custom workflow.
+
+    Layout::
+
+        <tmp>/
+          example_org/           # org pack (Axis 1)
+            org-charter.yaml
+            drg/fragment.yaml
+          .kittify/
+            config.yaml          # references org pack + charter_scopes
+          packages/
+            auth/.kittify/charter/charter.md
+            auth/some/deep/dir/
+            web/.kittify/charter/charter.md
+          kitty-specs/
+            demo-mission-01CROSS/
+              meta.json          # workflow_id = our-team-design-first (Axis 3)
+    """
+    # Axis 1: copy the fixture org pack alongside the repo
+    pack_dest = tmp_path / "example_org"
+    if _FIXTURE_ORG_PACK.exists():
+        shutil.copytree(_FIXTURE_ORG_PACK, pack_dest)
+    else:
+        # Minimal org pack if the fixture org pack doesn't exist
+        pack_dest.mkdir(parents=True)
+        (pack_dest / "org-charter.yaml").write_text(
+            dedent("""\
+                schema_version: "1.0"
+                org_id: example-org
+                required_directives: []
+            """)
+        )
+        (pack_dest / "drg").mkdir()
+        (pack_dest / "drg" / "fragment.yaml").write_text(
+            dedent("""\
+                schema_version: "1.0"
+                pack_name: example-org
+                nodes: []
+                edges: []
+            """)
+        )
+
+    # Axis 2: monorepo with two charter scopes
+    (tmp_path / ".kittify").mkdir()
+    config: dict = {
+        "organisation_packs": [
+            {
+                "name": "example-org",
+                "source": "local_path",
+                "path": str(pack_dest),
+            }
+        ],
+        "charter_scopes": [
+            {"root": "packages/auth", "name": "auth"},
+            {"root": "packages/web", "name": "web"},
+        ],
+    }
+    (tmp_path / ".kittify" / "config.yaml").write_text(yaml.safe_dump(config))
+    (tmp_path / ".kittify" / "charter").mkdir()
+
+    auth_root = tmp_path / "packages" / "auth"
+    (auth_root / ".kittify" / "charter").mkdir(parents=True)
+    (auth_root / ".kittify" / "charter" / "charter.md").write_text(
+        "# Auth package charter\n"
+    )
+    (auth_root / "some" / "deep" / "dir").mkdir(parents=True)
+
+    web_root = tmp_path / "packages" / "web"
+    (web_root / ".kittify" / "charter").mkdir(parents=True)
+    (web_root / ".kittify" / "charter" / "charter.md").write_text(
+        "# Web package charter\n"
+    )
+
+    # Axis 3: mission with custom workflow_id
+    mission_dir = tmp_path / "kitty-specs" / "demo-mission-01CROSS"
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_id": "01CROSS000000000000000000",
+                "mission_slug": "demo-mission",
+                "mission_number": None,
+                "friendly_name": "Cross-axis demo",
+                "workflow_id": "our-team-design-first",
+            }
+        )
+    )
+
+    return tmp_path
+
+
+# ---------------------------------------------------------------------------
+# Axis 1 × Axis 2 × Axis 3 combined test
+# ---------------------------------------------------------------------------
+
+
+def test_org_pack_in_monorepo_with_custom_workflow(tmp_complex_setup: Path) -> None:
+    """Axis 1 + Axis 2 + Axis 3 in one fixture.
+
+    Verifies:
+      1. (Axis 1) The org pack DRG fragment is loadable from the combined config;
+         merged DRG carries provenance from the org layer.
+      2. (Axis 2) CharterScope.resolve() selects the nearest enclosing scope for
+         a path deep inside a monorepo package.
+      3. (Axis 3) The custom workflow_id in meta.json produces a non-default
+         next action for the mission planner.
+
+    All three axes must operate without interfering with each other.
+    """
+    from charter.drg import DRGGraph, load_org_drg, merge_three_layers  # noqa: PLC0415
+
+    # ---- Axis 1: three-layer DRG ----------------------------------------
+    fragments = load_org_drg(tmp_complex_setup)
+    assert len(fragments) >= 1, (
+        "Axis 1 failure: expected at least one DRG fragment from the org pack"
+    )
+    assert fragments[0].pack_name == "example-org", (
+        f"Axis 1 failure: wrong pack name {fragments[0].pack_name!r}"
+    )
+
+    shipped = DRGGraph(
+        schema_version="1.0",
+        generated_at="2026-05-18T00:00:00Z",
+        generated_by="cross-axis-test",
+        nodes=[],
+        edges=[],
+    )
+    merged = merge_three_layers(
+        shipped=shipped, org_fragments=fragments, project=None
+    )
+    assert merged is not None, "Axis 1 failure: merge_three_layers returned None"
+
+    # ---- Axis 2: CharterScope monorepo resolution ------------------------
+    from charter.scope import CharterScope  # noqa: PLC0415
+
+    deep_auth_path = tmp_complex_setup / "packages" / "auth" / "some" / "deep" / "dir"
+    scope = CharterScope.resolve(tmp_complex_setup, deep_auth_path)
+    assert scope is not None, (
+        "Axis 2 failure: CharterScope.resolve returned None for deep auth path"
+    )
+    # The resolved scope should correspond to the auth package
+    assert scope.name == "auth", (
+        f"Axis 2 failure: expected scope name 'auth', got {scope.name!r}"
+    )
+
+    # ---- Axis 3: composable workflow next-action -------------------------
+    from specify_cli.next._internal_runtime.planner import (  # noqa: PLC0415
+        resolve_next_workflow_action,
+    )
+
+    mission_dir = tmp_complex_setup / "kitty-specs" / "demo-mission-01CROSS"
+    result = resolve_next_workflow_action(
+        mission_dir=mission_dir,
+        current_action="plan",
+    )
+    assert result.next_action == "design-review", (
+        f"Axis 3 failure: expected 'design-review' for our-team-design-first "
+        f"workflow at action='plan', got {result.next_action!r}"
+    )
+
+    # ---- Cross-axis invariant: loading DRG did not disturb workflow ------
+    # A second call to resolve_next_workflow_action must return the same result
+    # (no global state pollution from Axis 1 or Axis 2 operations)
+    result2 = resolve_next_workflow_action(
+        mission_dir=mission_dir,
+        current_action="plan",
+    )
+    assert result2.next_action == result.next_action, (
+        "Cross-axis failure: resolve_next_workflow_action is not idempotent "
+        "after org-pack DRG loading"
+    )
+
+
+def test_org_pack_drg_does_not_affect_default_workflow(
+    tmp_complex_setup: Path,
+) -> None:
+    """Axis 1 × Axis 3 isolation: loading an org DRG must not alter the default
+    workflow for a mission that does NOT set workflow_id."""
+    from charter.drg import load_org_drg  # noqa: PLC0415
+    from specify_cli.next._internal_runtime.planner import (  # noqa: PLC0415
+        resolve_next_workflow_action,
+    )
+
+    # Load org DRG (Axis 1 operation)
+    _ = load_org_drg(tmp_complex_setup)
+
+    # Create a mission with NO workflow_id
+    mission_dir = tmp_complex_setup / "kitty-specs" / "default-mission-01DFLT"
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_id": "01DFLT000000000000000000",
+                "mission_slug": "default-mission",
+                "mission_number": None,
+            }
+        )
+    )
+
+    result = resolve_next_workflow_action(
+        mission_dir=mission_dir,
+        current_action="plan",
+    )
+    # Default workflow: plan → tasks (not design-review)
+    assert result.next_action == "tasks", (
+        f"Cross-axis isolation failure: Axis 1 DRG load altered default "
+        f"workflow; expected 'tasks', got {result.next_action!r}"
+    )
+
+
+def test_monorepo_scope_resolution_does_not_affect_drg(
+    tmp_complex_setup: Path,
+) -> None:
+    """Axis 2 × Axis 1 isolation: resolving a charter scope must not alter the
+    DRG fragment list."""
+    from charter.drg import load_org_drg  # noqa: PLC0415
+    from charter.scope import CharterScope  # noqa: PLC0415
+
+    # Axis 2 operation first — resolve the web scope
+    web_dir = tmp_complex_setup / "packages" / "web"
+    _scope = CharterScope.resolve(tmp_complex_setup, web_dir)
+
+    # Axis 1 operation: DRG fragment count must be stable
+    fragments = load_org_drg(tmp_complex_setup)
+    assert len(fragments) >= 1, (
+        "Cross-axis isolation failure: CharterScope resolution altered DRG "
+        "fragment list"
+    )
+    assert fragments[0].pack_name == "example-org", (
+        f"Cross-axis isolation failure: DRG pack_name changed after scope "
+        f"resolution; got {fragments[0].pack_name!r}"
+    )

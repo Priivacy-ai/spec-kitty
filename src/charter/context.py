@@ -33,6 +33,14 @@ from doctrine.agent_profiles import AgentProfile, AgentProfileRepository
 from doctrine.spdd_reasons import append_spdd_reasons_guidance, is_spdd_reasons_active
 from kernel.atomic import atomic_write
 
+__all__ = [
+    "BOOTSTRAP_ACTIONS",
+    "CharterContextResult",
+    "build_charter_context",
+    "build_charter_context_json",
+]
+
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -621,12 +629,35 @@ def _render_bootstrap_text(
 
     lines.append("")
     lines.append(f"Action Doctrine ({action}):")
-    _extend_named_artifact_lines(lines, "Directives", doctrine_bundle.directive_ids, service.directives, "title", "intent")  # type: ignore[attr-defined]
-    _extend_named_artifact_lines(lines, "Tactics", doctrine_bundle.tactic_ids, service.tactics, "name", "purpose")  # type: ignore[attr-defined]
+
+    # WP07 T035/T036 (FR-001, Option B) — compute org-layer provenance map ONCE
+    # and pass it to each _extend_named_artifact_lines call so org-contributed
+    # artifacts carry a ``(source: org:<pack>)`` suffix.  Returns {} when no org
+    # packs are configured → NFR-001 byte-stability preserved (23 fixtures unchanged).
+    _all_action_ids = (
+        doctrine_bundle.directive_ids
+        + doctrine_bundle.tactic_ids
+        + doctrine_bundle.styleguide_ids
+        + doctrine_bundle.toolguide_ids
+    )
+    _action_org_source_map = (
+        _build_action_org_source_map(repo_root, _all_action_ids)
+        if repo_root is not None and _all_action_ids
+        else {}
+    )
+
+    _extend_named_artifact_lines(lines, "Directives", doctrine_bundle.directive_ids, service.directives, "title", "intent", org_source_map=_action_org_source_map)  # type: ignore[attr-defined]
+    _extend_named_artifact_lines(lines, "Tactics", doctrine_bundle.tactic_ids, service.tactics, "name", "purpose", org_source_map=_action_org_source_map)  # type: ignore[attr-defined]
 
     if effective_depth >= _EXTENDED_CONTEXT_DEPTH:
-        _extend_named_artifact_lines(lines, "Styleguides", doctrine_bundle.styleguide_ids, service.styleguides, "title", None)  # type: ignore[attr-defined]
-        _extend_named_artifact_lines(lines, "Toolguides", doctrine_bundle.toolguide_ids, service.toolguides, "title", None)  # type: ignore[attr-defined]
+        _extend_named_artifact_lines(  # type: ignore[attr-defined]
+            lines, "Styleguides", doctrine_bundle.styleguide_ids,
+            service.styleguides, "title", None, org_source_map=_action_org_source_map,
+        )
+        _extend_named_artifact_lines(  # type: ignore[attr-defined]
+            lines, "Toolguides", doctrine_bundle.toolguide_ids,
+            service.toolguides, "title", None, org_source_map=_action_org_source_map,
+        )
 
     _append_guidelines_lines(lines, doctrine_bundle.mission, action)
 
@@ -768,26 +799,95 @@ def _extend_named_artifact_lines(
     repository: object,
     title_attr: str,
     summary_attr: str | None,
+    org_source_map: dict[str, str] | None = None,
 ) -> None:
-    """Append formatted artifact lines when the bucket is non-empty."""
+    """Append formatted artifact lines when the bucket is non-empty.
+
+    When *org_source_map* is provided, each artifact contributed by an org
+    pack receives a ``(source: org:<pack>)`` suffix (Option B — additive only
+    when an org pack is present, preserving NFR-001 byte-stability when no
+    org packs are configured).
+    """
     if not artifact_ids:
         return
 
     formatted: list[str] = []
     for artifact_id in artifact_ids:
+        suffix = _provenance_suffix(artifact_id, org_source_map)
         artifact = repository.get(artifact_id)  # type: ignore[attr-defined]
         if artifact is None:
-            formatted.append(f"    - {artifact_id}")
+            formatted.append(f"    - {artifact_id}{suffix}")
             continue
         title = getattr(artifact, title_attr)
         summary = getattr(artifact, summary_attr) if summary_attr else None
         if isinstance(summary, str) and summary:
-            formatted.append(f"    - {artifact_id}: {title} — {summary}")
+            formatted.append(f"    - {artifact_id}: {title} — {summary}{suffix}")
         else:
-            formatted.append(f"    - {artifact_id}: {title}")
+            formatted.append(f"    - {artifact_id}: {title}{suffix}")
 
     lines.append(f"  {heading}:")
     lines.extend(formatted)
+
+
+def _build_action_org_source_map(
+    repo_root: Path,
+    artifact_ids: list[str],
+) -> dict[str, str]:
+    """Build an ``artifact_id → pack_name`` map for action-doctrine artifacts contributed by org packs.
+
+    Uses :func:`charter.drg.load_org_drg` (WP06) to read the configured
+    organisation-tier DRG fragments and maps each fragment node id to the
+    pack name that contributed it.  The resulting map is consumed by
+    :func:`_extend_named_artifact_lines` to append ``(source: org:<pack>)``
+    suffixes.
+
+    Returns ``{}`` when:
+    * no org packs are configured (NFR-001 byte-stability — no diff to 23-fixture suite)
+    * ``load_org_drg`` raises any exception (best-effort; action doctrine still renders)
+    * no artifact IDs are provided
+
+    Option B per T036: stanzas carry ``source:`` ONLY when an org pack
+    contributes the artifact.  Shipped-only artifacts carry no suffix,
+    preserving the existing plain-text rendering for all 23 governance-
+    contract fixtures.
+
+    Implementation note: we read provenance directly from the ``OrgDRGFragment``
+    node list rather than calling ``merge_three_layers`` and inspecting the
+    merged graph.  The merge monkey-patches a ``source`` sidecar attribute onto
+    DRGEdge objects that already have a ``source`` field (the URN endpoint), which
+    causes Pydantic validation failures when the returned DRGGraph is reconstructed
+    with the real shipped graph (hundreds of edges).  Reading fragment nodes directly
+    is simpler and sufficient for building the id → pack_name map.
+    """
+    if not artifact_ids:
+        return {}
+
+    try:
+        from charter.drg import load_org_drg  # noqa: PLC0415 — lazy import keeps charter boundary clean
+    except ImportError:
+        return {}
+
+    try:
+        org_fragments = load_org_drg(repo_root)
+    except Exception:  # noqa: BLE001 — best-effort; never crash action doctrine rendering
+        return {}
+
+    if not org_fragments:
+        # No org packs → NFR-001 preserved (byte-identical output for 23 fixtures).
+        return {}
+
+    # Build the map directly from fragment node ids.
+    # Each fragment node has an ``id`` (e.g. ``"sox-controls"``) and the fragment
+    # has a ``pack_name`` (e.g. ``"example-org"``).
+    artifact_id_set = set(artifact_ids)
+    source_map: dict[str, str] = {}
+    for fragment in org_fragments:
+        pack_name = fragment.pack_name
+        for node in fragment.nodes:
+            if node.id in artifact_id_set and node.id not in source_map:
+                source_map[node.id] = pack_name
+
+    return source_map
 
 
 def _build_doctrine_service(repo_root: Path, *, org_roots: list[Path] | None = None) -> object:
