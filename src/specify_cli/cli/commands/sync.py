@@ -1289,6 +1289,7 @@ def _build_boundary_check_failures(
     legacy_counts: dict[str, int],
     legacy_db_path: str,
     orphan_count: int,
+    live_orphan_count: int,
     stranded_mission_slug: str | None,
 ) -> list[str]:
     """Return human-readable failure lines for the ``sync status --check`` gate.
@@ -1321,6 +1322,11 @@ def _build_boundary_check_failures(
         failures.append(
             f"{orphan_count} orphan daemon record(s) detected; retire via "
             "`spec-kitty sync doctor`"
+        )
+    if live_orphan_count > 0:
+        failures.append(
+            f"{live_orphan_count} live orphan run_sync_daemon process(es) detected; "
+            "retire via `spec-kitty sync doctor`"
         )
     return failures
 
@@ -1618,6 +1624,12 @@ def status(  # noqa: C901
         boundary_table.add_row("Daemon source", daemon_record.source_checkout_path)
         boundary_table.add_row("Daemon server", daemon_record.server_url)
         boundary_table.add_row(
+            "Daemon principal", daemon_record.auth_principal or "[dim]none[/dim]"
+        )
+        boundary_table.add_row(
+            "Daemon team", daemon_record.auth_team or "[dim]none[/dim]"
+        )
+        boundary_table.add_row(
             "Daemon scope", daemon_record.auth_scope or "[dim]none[/dim]"
         )
         boundary_table.add_row("Daemon queue DB", daemon_record.queue_db_path)
@@ -1662,6 +1674,9 @@ def status(  # noqa: C901
             legacy_counts=legacy_counts,
             legacy_db_path=str(legacy_db_path),
             orphan_count=orphan_record_count,
+            live_orphan_count=(
+                orphan_report.orphan_count if orphan_report is not None else 0
+            ),
             stranded_mission_slug=stranded_tag,
         )
         if failures:

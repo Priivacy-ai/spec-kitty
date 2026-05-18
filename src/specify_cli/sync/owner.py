@@ -314,7 +314,10 @@ def compute_foreground_identity() -> dict[str, Any]:
 MISMATCH_FIELDS: tuple[str, ...] = (
     "package_version",
     "executable_path",
+    "source_checkout_path",
     "server_url",
+    "auth_principal",
+    "auth_team",
     "auth_scope",
     "queue_db_path",
 )

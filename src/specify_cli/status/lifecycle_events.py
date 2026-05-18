@@ -2,10 +2,10 @@
 
 This module is the durable, local-first writer for the canonical event
 stream that records project initialization, mission creation,
-spec/plan/tasks artifact lifecycle, and work-package creation. It is
-intentionally independent of the SaaS sync emitter: lifecycle events
-land on disk synchronously *before* any best-effort SaaS fan-out, so
-local dashboards and TeamSpace import always have a complete history.
+spec/plan/tasks artifact lifecycle, and work-package creation. Lifecycle
+events land on disk synchronously *before* any best-effort SaaS outbox
+fan-out, so local dashboards and TeamSpace import always have a complete
+history even when the scoped sync boundary is unavailable.
 
 Two log targets exist:
 
@@ -176,6 +176,26 @@ def _build_envelope(
     }
 
 
+def _queue_lifecycle_event_if_enabled(envelope: Mapping[str, Any]) -> None:
+    """Best-effort SaaS outbox fan-out for canonical lifecycle events."""
+    try:
+        from specify_cli.sync.feature_flags import is_saas_sync_enabled
+        from specify_cli.sync.queue import (
+            OfflineQueue,
+            read_queue_scope_from_credentials,
+            read_queue_scope_from_session,
+        )
+
+        if not is_saas_sync_enabled():
+            return
+        scope = read_queue_scope_from_session() or read_queue_scope_from_credentials()
+        if not scope:
+            return
+        OfflineQueue().queue_event(dict(envelope))
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Lifecycle SaaS queue fan-out skipped: %s", exc)
+
+
 def _match_lifecycle_event(
     candidate: Mapping[str, Any],
     *,
@@ -249,6 +269,7 @@ def append_lifecycle_event(
     except OSError as exc:
         logger.warning("Could not persist %s event to %s: %s", event_type, log_path, exc)
         return None
+    _queue_lifecycle_event_if_enabled(envelope)
     return envelope
 
 

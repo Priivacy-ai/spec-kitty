@@ -226,7 +226,10 @@ def _fg_from_record(record: Any) -> dict[str, Any]:
     return {
         "package_version": record.package_version,
         "executable_path": record.executable_path,
+        "source_checkout_path": record.source_checkout_path,
         "server_url": record.server_url,
+        "auth_principal": record.auth_principal,
+        "auth_team": record.auth_team,
         "auth_scope": record.auth_scope,
         "queue_db_path": record.queue_db_path,
     }
@@ -245,7 +248,10 @@ def test_mismatched_fields_returns_empty_when_aligned(_scoped_home: Path) -> Non
     [
         ("package_version", "0.0.0-mismatch"),
         ("executable_path", "/no/such/python"),
+        ("source_checkout_path", "/tmp/other-checkout"),
         ("server_url", "https://other.example.com"),
+        ("auth_principal", "other@example.com"),
+        ("auth_team", "team-other"),
         ("auth_scope", None),  # None vs non-None is a mismatch per D-3
         ("queue_db_path", "/tmp/some-other-queue.db"),
     ],

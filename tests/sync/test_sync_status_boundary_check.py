@@ -286,6 +286,33 @@ def test_check_fails_when_orphan_daemon_record_exists() -> None:
     assert "1 orphan" in flat
 
 
+def test_check_fails_when_live_orphan_daemon_process_exists(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A live unregistered ``run_sync_daemon`` process trips --check."""
+    from specify_cli.sync.daemon import DaemonSingletonReport, OrphanDaemonInfo
+
+    monkeypatch.setattr(
+        "specify_cli.sync.daemon.scan_sync_daemons",
+        lambda: DaemonSingletonReport(
+            state_pid=None,
+            state_file_present=False,
+            orphan_processes=(
+                OrphanDaemonInfo(
+                    pid=424242,
+                    cmdline=(sys.executable, "-c", "run_sync_daemon(9401)"),
+                ),
+            ),
+        ),
+    )
+
+    result = runner.invoke(app, ["status", "--check"])
+    assert result.exit_code != 0, result.stdout
+    flat = " ".join(result.stdout.split())
+    assert "live orphan run_sync_daemon" in flat
+    assert "Identity boundary check FAILED" in flat
+
+
 # ---------------------------------------------------------------------------
 # Regression: sync status (no --check) stays exit 0 even when the boundary
 # would trip --check. This protects the read-only surface contract.

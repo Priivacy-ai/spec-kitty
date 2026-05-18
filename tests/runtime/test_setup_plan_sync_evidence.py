@@ -21,11 +21,13 @@ so we never touch the operator's real ``~/.spec-kitty``.
 from __future__ import annotations
 
 import ast
+import contextlib
+import importlib
+import json
 import sqlite3
-import sys
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 import typer
@@ -73,6 +75,26 @@ def _table_row_count(db_path: Path, table_name: str) -> int:
         return int(row[0]) if row else 0
     finally:
         conn.close()
+
+
+def _queued_event_types(db_path: Path) -> list[str]:
+    """Return queued event types from the offline event outbox."""
+    if not db_path.exists():
+        return []
+    conn = sqlite3.connect(db_path)
+    try:
+        cursor = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name = 'queue'"
+        )
+        if cursor.fetchone() is None:
+            return []
+        rows = conn.execute("SELECT data FROM queue ORDER BY id ASC").fetchall()
+    finally:
+        conn.close()
+    event_types: list[str] = []
+    for (raw,) in rows:
+        event_types.append(str(json.loads(raw)["event_type"]))
+    return event_types
 
 
 def _build_minimal_repo(tmp_path: Path, mission_slug: str) -> Path:
@@ -124,6 +146,7 @@ class TestAuthenticatedSetupPlanLandsInScoped:
         home = tmp_path / "home"
         home.mkdir()
         monkeypatch.setenv("HOME", str(home))
+        monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
 
         # Authenticate via credentials file (the credentials path is the
         # documented fallback for ``read_queue_scope_from_credentials``).
@@ -213,15 +236,11 @@ class TestAuthenticatedSetupPlanLandsInScoped:
             ),
         }
 
-        started = {k: p.start() for k, p in patches.items()}
+        for p in patches.values():
+            p.start()
         try:
-            try:
+            with contextlib.suppress(typer.Exit, SystemExit):
                 setup_plan(feature=mission_slug, json_output=True)
-            except (typer.Exit, SystemExit):
-                # setup-plan may exit for a variety of plan-substantive / git
-                # reasons after running the dossier pipeline; that's fine —
-                # we only care about queue-write evidence.
-                pass
         finally:
             for p in patches.values():
                 p.stop()
@@ -237,35 +256,20 @@ class TestAuthenticatedSetupPlanLandsInScoped:
                 f"expected scoped {expected_scoped_path!r} — FR-012 violation."
             )
 
-        # Drive a real enqueue through the same default-path resolution
-        # setup-plan's body queue uses, to produce a row we can count.
-        from specify_cli.sync.namespace import NamespaceRef
-
-        body_queue = OfflineBodyUploadQueue()
-        assert body_queue.db_path == expected_scoped_path
-
-        body_queue.enqueue(
-            namespace=NamespaceRef(
-                project_uuid="550e8400-e29b-41d4-a716-446655440000",
-                mission_slug=mission_slug,
-                target_branch="main",
-                mission_type="software-dev",
-                manifest_version="1",
-            ),
-            artifact_path="spec.md",
-            content_hash="cafebabe" * 8,
-            content_body="# Test Feature\n",
-            size_bytes=15,
-        )
-
-        # Scoped DB should have rows; legacy must be untouched.
-        scoped_rows = _table_row_count(expected_scoped_path, "body_upload_queue")
+        # setup-plan's actual lifecycle emissions must reach the scoped event
+        # outbox. This proves canonical evidence crosses the active sync
+        # boundary; no manual body upload is inserted by the test.
+        scoped_event_types = _queued_event_types(expected_scoped_path)
+        scoped_rows = _table_row_count(expected_scoped_path, "queue")
         legacy_body_rows = _table_row_count(legacy_path, "body_upload_queue")
         legacy_event_rows = _table_row_count(legacy_path, "queue")
 
         assert scoped_rows > 0, (
-            f"Expected scoped body_upload_queue rows > 0, got {scoped_rows}."
+            f"Expected scoped lifecycle queue rows > 0, got {scoped_rows}."
         )
+        assert "SpecifyCompleted" in scoped_event_types
+        assert "PlanStarted" in scoped_event_types
+        assert "PlanCompleted" in scoped_event_types
         assert legacy_body_rows == 0, (
             f"FR-012 violation: legacy DB at {legacy_path} has "
             f"{legacy_body_rows} body_upload_queue rows."
@@ -359,6 +363,66 @@ class TestSetupPlanRefusesWithoutAuthWhenSaasEnabled:
             f"FR-011 violation: scoped queue dir at {scoped_dir} was created."
         )
 
+    def test_setup_plan_refuses_daemon_queue_incoherence_with_boundary_diagnostics(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        home = tmp_path / "home"
+        home.mkdir()
+        monkeypatch.setenv("HOME", str(home))
+        monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+
+        _write_credentials(
+            home,
+            username="auth@example.com",
+            server_url="https://test.example.com",
+            team_slug="team-alpha",
+        )
+
+        from specify_cli.cli.commands.agent.mission import setup_plan
+        from specify_cli.sync.owner import (
+            DaemonOwnerRecord,
+            compute_foreground_identity,
+            write_owner_record,
+        )
+
+        identity = compute_foreground_identity()
+        write_owner_record(
+            DaemonOwnerRecord(
+                pid=12345,
+                port=9400,
+                token="secret-token",
+                package_version=str(identity["package_version"]),
+                executable_path=str(identity["executable_path"]),
+                source_checkout_path=str(identity["source_checkout_path"]),
+                server_url=str(identity["server_url"]),
+                auth_principal=identity.get("auth_principal"),
+                auth_team=identity.get("auth_team"),
+                auth_scope=identity.get("auth_scope"),
+                queue_db_path="/tmp/other-queue.db",
+                started_at="2026-05-18T08:00:00+00:00",
+            )
+        )
+
+        with pytest.raises((typer.Exit, SystemExit)) as exc_info:
+            setup_plan(feature="any-mission", json_output=False)
+
+        exit_code = getattr(exc_info.value, "exit_code", None) or getattr(
+            exc_info.value, "code", None
+        )
+        assert exit_code == 2
+
+        captured = capsys.readouterr()
+        combined = captured.out + captured.err
+        flat = " ".join(combined.split())
+        assert "SaaS sync cannot be guaranteed" in flat
+        assert "Auth scope:" in flat
+        assert "Queue DB:" in flat
+        assert "Daemon owner:" in flat
+        assert "queue_db_path" in flat
+
 
 # ---------------------------------------------------------------------------
 # Test C — AST regression: no direct _legacy_queue_db_path calls in setup-plan
@@ -428,4 +492,5 @@ class TestNoDirectLegacyDbPathCallsInSetupPlanCode:
 
 def test_module_is_importable() -> None:
     """Smoke check so the regression file fails loudly if imports break."""
-    assert "specify_cli.cli.commands.agent.mission" in sys.modules or True
+    module = importlib.import_module("specify_cli.cli.commands.agent.mission")
+    assert module.setup_plan is not None
