@@ -63,7 +63,6 @@ class RecoveryOutcome(StrEnum):
 
 
 def detect_logged_out_with_connected_teamspace(
-    repo_root: Path | None = None,  # noqa: ARG001 - reserved for future use
 ) -> str | None:
     """Return a teamspace handle if logged-out on a connected repo, else None.
 
@@ -224,13 +223,13 @@ def offer_login_recovery(
             return RecoveryOutcome.SKIPPED
 
         try:
-            from specify_cli.auth.errors import AuthenticationError  # lazy
+            from specify_cli.auth.errors import AuthenticationError as authentication_error_cls  # lazy
         except Exception:  # pragma: no cover - defensive
-            AuthenticationError = Exception  # type: ignore[assignment, misc]  # fallback when auth module is unavailable
+            authentication_error_cls = Exception
 
         try:
             asyncio.run(login_impl(headless=False, force=False))
-        except AuthenticationError as exc:
+        except authentication_error_cls as exc:
             console.print(f"[red]Login failed:[/red] {exc}")
             return RecoveryOutcome.SKIPPED
         return RecoveryOutcome.LOGGED_IN

@@ -244,7 +244,7 @@ def _coerce_namespace(
     try:
         return LocalNamespaceTuple(**merged)
     except (TypeError, ValueError) as exc:
-        logger.error("Cannot build LocalNamespaceTuple from %r: %s", namespace, exc)
+        logger.exception("Cannot build LocalNamespaceTuple from %r: %s", namespace, exc)
         return None
 
 
@@ -505,7 +505,7 @@ def emit_snapshot_computed(
     snapshot_id: str,
     namespace: LocalNamespaceTuple | dict[str, Any] | None = None,
     *,
-    mission_type: str | None = None,  # noqa: ARG001 — pulled from namespace
+    mission_type: str | None = None,
     computed_at: str | None = None,
     anomaly_count: int | None = None,
     context_diagnostics: dict[str, str] | None = None,
@@ -519,6 +519,12 @@ def emit_snapshot_computed(
     if ns is None:
         _missing_namespace_log("MissionDossierSnapshotComputed")
         return None
+    if mission_type and mission_type != ns.mission_type:
+        logger.warning(
+            "Snapshot mission_type %r did not match namespace mission_type %r; using namespace value",
+            mission_type,
+            ns.mission_type,
+        )
 
     try:
         diagnostics = _snapshot_legacy_diagnostics(

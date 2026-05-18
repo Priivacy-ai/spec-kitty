@@ -129,7 +129,7 @@ class WebSocketClient:
         except TokenRefreshError as exc:
             self.connected = False
             self.status = ConnectionStatus.OFFLINE
-            logger.error("Token refresh failed: %s", exc)
+            logger.exception("Token refresh failed: %s", exc)
             raise
         except Exception as exc:
             self.connected = False
