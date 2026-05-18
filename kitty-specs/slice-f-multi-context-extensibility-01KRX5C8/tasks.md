@@ -100,11 +100,11 @@ Lane A blocks Lane C/D so the burn-down meta-test (FR-110/111) is in place befor
 - [x] T038 — Confirm Lane C tests covering `charter status` + provenance GREEN; NFR-001 (23 fixtures) still pass without org pack configured (WP07)
 
 #### WP08 — Org-DRG operator UX + glossary partial
-- [ ] T039 — Land failing-first `tests/cli/test_doctrine_org_commands.py` for `org init` and `org validate` (RED on planning base) (WP08)
-- [ ] T040 — Implement `spec-kitty doctrine org init <path>` scaffolding `drg/fragment.yaml`, `org-charter.yaml`, README in `src/specify_cli/cli/commands/doctrine.py` (FR-006) (WP08)
-- [ ] T041 — Implement `spec-kitty doctrine org validate <path>` invoking the loader + schema validation independently of the rest of the system (FR-006) (WP08)
-- [ ] T042 — Add Slice F org-tier domain terms (Three-layer DRG, Organisation tier, etc.) to `glossary/contexts/doctrine.md` as `candidate` (promotion to `canonical` happens in WP12 per C-010 / NFR-004) (WP08)
-- [ ] T043 — Confirm CLI ATDD GREEN; AC-2 satisfied (`doctor doctrine` from WP07 + `org init/validate` here) (WP08)
+- [x] T039 — Land failing-first `tests/cli/test_doctrine_org_commands.py` for `org init` and `org validate` (RED on planning base) (WP08)
+- [x] T040 — Implement `spec-kitty doctrine org init <path>` scaffolding `drg/fragment.yaml`, `org-charter.yaml`, README in `src/specify_cli/cli/commands/doctrine.py` (FR-006) (WP08)
+- [x] T041 — Implement `spec-kitty doctrine org validate <path>` invoking the loader + schema validation independently of the rest of the system (FR-006) (WP08)
+- [x] T042 — Add Slice F org-tier domain terms (Three-layer DRG, Organisation tier, etc.) to `glossary/contexts/doctrine.md` as `candidate` (promotion to `canonical` happens in WP12 per C-010 / NFR-004) (WP08)
+- [x] T043 — Confirm CLI ATDD GREEN; AC-2 satisfied (`doctor doctrine` from WP07 + `org init/validate` here) (WP08)
 
 ### Lane D — Monorepo + workflows + closing (depends on Lane A; WP12 depends on all)
 
