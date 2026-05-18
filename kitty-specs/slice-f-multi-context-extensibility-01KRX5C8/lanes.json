@@ -1,0 +1,207 @@
+{
+  "version": 1,
+  "mission_slug": "slice-f-multi-context-extensibility-01KRX5C8",
+  "mission_id": "01KRX5C8MQRGG7WJW1YK53DTF5",
+  "mission_branch": "kitty/mission-slice-f-multi-context-extensibility-01KRX5C8",
+  "target_branch": "feat/org-doctrine-layer",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06",
+        "WP07",
+        "WP08",
+        "WP09",
+        "WP10",
+        "WP11",
+        "WP12"
+      ],
+      "write_scope": [
+        ".kittify/charter/charter.md",
+        "architecture/adrs/2026-05-18-1-monorepo-charter-scope.md",
+        "architecture/adrs/2026-05-18-2-delete-specify-cli-auth-transport.md",
+        "glossary/contexts/doctrine.md",
+        "kitty-specs/slice-f-multi-context-extensibility-01KRX5C8/atdd-coverage.md",
+        "kitty-specs/slice-f-multi-context-extensibility-01KRX5C8/contracts/*.md",
+        "src/charter/__init__.py",
+        "src/charter/_activation_render.py",
+        "src/charter/_catalog_miss.py",
+        "src/charter/_diagnostics.py",
+        "src/charter/_doctrine_paths.py",
+        "src/charter/_drg_helpers.py",
+        "src/charter/_io.py",
+        "src/charter/activations.py",
+        "src/charter/bundle.py",
+        "src/charter/catalog.py",
+        "src/charter/compact.py",
+        "src/charter/compiler.py",
+        "src/charter/context.py",
+        "src/charter/context_renderers/**",
+        "src/charter/corpus/**",
+        "src/charter/drg.py",
+        "src/charter/evidence/**",
+        "src/charter/extractor.py",
+        "src/charter/generator.py",
+        "src/charter/hasher.py",
+        "src/charter/interview.py",
+        "src/charter/language_scope.py",
+        "src/charter/mission_steps.py",
+        "src/charter/mission_type_profiles.py",
+        "src/charter/neutrality/**",
+        "src/charter/parser.py",
+        "src/charter/primitives.py",
+        "src/charter/profiles.py",
+        "src/charter/reference_resolver.py",
+        "src/charter/resolution.py",
+        "src/charter/resolver.py",
+        "src/charter/schemas.py",
+        "src/charter/scope.py",
+        "src/charter/scope_router.py",
+        "src/charter/sync.py",
+        "src/charter/synthesizer/**",
+        "src/charter/template_resolver.py",
+        "src/charter/versioning.py",
+        "src/doctrine/templates/repository.py",
+        "src/doctrine/workflows/_fixtures/our-team-design-first.workflow.yaml",
+        "src/doctrine/workflows/software-dev-default.workflow.yaml",
+        "src/kernel/**",
+        "src/specify_cli/__main__.py",
+        "src/specify_cli/cli/commands/charter.py",
+        "src/specify_cli/cli/commands/doctor.py",
+        "src/specify_cli/cli/commands/doctrine.py",
+        "src/specify_cli/cli/logging_bootstrap.py",
+        "src/specify_cli/glossary/prompts.py",
+        "src/specify_cli/glossary/rendering.py",
+        "src/specify_cli/next/_internal_runtime/planner.py",
+        "src/specify_cli/next/_internal_runtime/workflow_registry.py",
+        "src/specify_cli/next/_internal_runtime/workflow_schema.py",
+        "src/specify_cli/next/prompt_builder.py",
+        "src/specify_cli/upgrade/migrations/README.md",
+        "tests/agent/glossary/test_prompts.py",
+        "tests/agent/glossary/test_rendering.py",
+        "tests/architectural/README.md",
+        "tests/architectural/_baselines.yaml",
+        "tests/architectural/_fixtures/org_packs/example_org/**",
+        "tests/architectural/test_all_declarations_required.py",
+        "tests/architectural/test_no_dead_modules.py",
+        "tests/architectural/test_no_dead_symbols.py",
+        "tests/architectural/test_ratchet_baselines.py",
+        "tests/charter/test_alias_deleted_regression.py",
+        "tests/charter/test_charter_scope.py",
+        "tests/charter/test_context_provenance.py",
+        "tests/charter/test_org_drg_cannot_override_shipped_invariants.py",
+        "tests/charter/test_org_drg_loader.py",
+        "tests/charter/test_resolver.py",
+        "tests/cli/test_doctrine_org_commands.py",
+        "tests/contract/test_example_round_trip.py",
+        "tests/doctrine/templates/test_repository.py",
+        "tests/glossary/test_canonical_promotion.py",
+        "tests/integration/test_catalog_miss_cli_visibility.py",
+        "tests/integration/test_charter_lint_lints_all_layers.py",
+        "tests/integration/test_charter_status_reports_three_layers.py",
+        "tests/integration/test_monorepo_charter_scope.py",
+        "tests/integration/test_org_pack_missing_path_hard_fails.py",
+        "tests/integration/test_slice_f_cross_axis.py",
+        "tests/integration/test_three_layer_drg_end_to_end.py",
+        "tests/integration/test_workflow_sequence_runtime.py",
+        "tests/specify_cli/cli/commands/test_doctor_doctrine_org_layer.py",
+        "tests/specify_cli/next/test_workflow_registry.py",
+        "tests/specify_cli/next/test_workflow_software_dev_default_is_byte_stable.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-05-18T11:39:18.907172+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP01"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP04",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP04"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP01"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP06",
+        "rule": "dependency",
+        "evidence": "WP07 depends on WP06"
+      },
+      {
+        "wp_a": "WP08",
+        "wp_b": "WP07",
+        "rule": "dependency",
+        "evidence": "WP08 depends on WP07"
+      },
+      {
+        "wp_a": "WP09",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP09 depends on WP01"
+      },
+      {
+        "wp_a": "WP10",
+        "wp_b": "WP09",
+        "rule": "dependency",
+        "evidence": "WP10 depends on WP09"
+      },
+      {
+        "wp_a": "WP11",
+        "wp_b": "WP10",
+        "rule": "dependency",
+        "evidence": "WP11 depends on WP10"
+      },
+      {
+        "wp_a": "WP12",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP12 depends on WP01"
+      },
+      {
+        "wp_a": "WP12",
+        "wp_b": "WP04",
+        "rule": "dependency",
+        "evidence": "WP12 depends on WP04"
+      }
+    ],
+    "total_merges": 11,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 11
+    }
+  }
+}
