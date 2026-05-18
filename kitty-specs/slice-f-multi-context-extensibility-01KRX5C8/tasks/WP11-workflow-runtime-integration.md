@@ -19,7 +19,7 @@ subtasks:
 - T058
 - T059
 - T060
-agent: claude:sonnet-4-6:python-pedro:implementer
+agent: "claude:sonnet-4-6:python-pedro:implementer"
 history: []
 agent_profile: python-pedro
 authoritative_surface: src/specify_cli/next/_internal_runtime/planner.py
@@ -31,6 +31,7 @@ owned_files:
 - tests/specify_cli/next/test_workflow_software_dev_default_is_byte_stable.py
 role: implementer
 tags: []
+shell_pid: "2879721"
 ---
 
 ## ⚡ Do This First: Load Agent Profile
@@ -366,3 +367,7 @@ pytest tests/integration/test_workflow_sequence_runtime.py \
 - Confirm byte-stability test pins the same `(current, next)` pairs the hardcoded sequence produced (C-008 binding — REJECT if any pair differs).
 
 **FR-304 commit-message check:** T056 RED commit cites `covers: Scenario 3, AC-4`. T057 RED commit cites `covers: FR-014, C-008`.
+
+## Activity Log
+
+- 2026-05-18T20:08:49Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=2879721 – Started implementation via action command
