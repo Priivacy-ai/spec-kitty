@@ -25,7 +25,6 @@ execution_mode: code_change
 owned_files:
 - src/specify_cli/cli/commands/doctrine.py
 - tests/cli/test_doctrine_org_commands.py
-- glossary/contexts/doctrine.md
 role: implementer
 tags: []
 ---

@@ -31,7 +31,6 @@ execution_mode: code_change
 owned_files:
 - src/charter/scope.py
 - src/charter/scope_router.py
-- src/specify_cli/next/prompt_builder.py
 - architecture/adrs/2026-05-18-1-monorepo-charter-scope.md
 - tests/charter/test_charter_scope.py
 - tests/integration/test_monorepo_charter_scope.py
