@@ -360,6 +360,7 @@ The following tests turn GREEN with this WP:
 - ✅ 23 governance-contract fixtures pass unchanged (NFR-001 — verified via `pytest tests/specify_cli/next/test_wp_prompt_governance_contract.py -v`)
 - ✅ Full architectural sweep exit 0 (NFR-005)
 - ✅ Layer-rule sweep unchanged (NFR-003)
+- ✅ **`tests/contract/test_example_round_trip.py` case `charter.scope.CharterScopeConfig` flips from SKIPPED to PASSED** — WP03 cycle-2 remediation left this case skip-decorated pending the WP09 model. Landing `CharterScopeConfig` (with its real field shape + validators in `src/charter/scope.py`) MUST turn the case green. This is a binding pre-approval acceptance criterion: the reviewer rejects if the case still shows `SKIPPED` after WP09 lands.
 
 FR coverage:
 
