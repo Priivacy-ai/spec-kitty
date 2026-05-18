@@ -372,3 +372,4 @@ pytest tests/cli/test_doctrine_org_commands.py -v
 ## Activity Log
 
 - 2026-05-18T18:18:51Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=2673731 – Started implementation via action command
+- 2026-05-18T18:35:33Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=2673731 – Org-DRG operator UX: doctrine org init + validate; 10 candidate glossary terms; AC-2 fully GREEN (init/validate side; doctor side already passed in WP07).
