@@ -75,11 +75,11 @@ Lane A blocks Lane C/D so the burn-down meta-test (FR-110/111) is in place befor
 - [x] T021 — Confirm regression test GREEN; add `test_no_test_fixture_still_imports_legacy_alias` coverage for AC-5 (WP04)
 
 #### WP05 — CLI logging bootstrap + Rich-aware handler
-- [ ] T022 — Land failing-first `tests/integration/test_catalog_miss_cli_visibility.py::test_typoed_styleguide_produces_visible_stderr_warning` (subprocess; RED on planning base) (WP05)
-- [ ] T023 — Install `logging.captureWarnings(True)` at CLI bootstrap in `src/specify_cli/__main__.py` (FR-130) (WP05)
-- [ ] T024 — Add Rich-aware `logging.Handler` deferring to existing Rich `Console` instance (no double-init per RR-6); route `WARNING+` through stderr (FR-131) (WP05)
-- [ ] T025 — Extend `src/charter/_catalog_miss.py` `_LOGGER.warning(extra=...)` payload to carry `kind`, `id`, `cause`, `suggestion`, `mission_id`, `scope` per data-model §8 (WP05)
-- [ ] T026 — Confirm subprocess visibility test GREEN; layer-rules + 23-fixture regression suite still pass (NFR-001, NFR-003) (WP05)
+- [x] T022 — Land failing-first `tests/integration/test_catalog_miss_cli_visibility.py::test_typoed_styleguide_produces_visible_stderr_warning` (subprocess; RED on planning base) (WP05)
+- [x] T023 — Install `logging.captureWarnings(True)` at CLI bootstrap in `src/specify_cli/__main__.py` (FR-130) (WP05)
+- [x] T024 — Add Rich-aware `logging.Handler` deferring to existing Rich `Console` instance (no double-init per RR-6); route `WARNING+` through stderr (FR-131) (WP05)
+- [x] T025 — Extend `src/charter/_catalog_miss.py` `_LOGGER.warning(extra=...)` payload to carry `kind`, `id`, `cause`, `suggestion`, `mission_id`, `scope` per data-model §8 (WP05)
+- [x] T026 — Confirm subprocess visibility test GREEN; layer-rules + 23-fixture regression suite still pass (NFR-001, NFR-003) (WP05)
 
 ### Lane C — Org-DRG (depends on Lane A)
 
