@@ -12,6 +12,11 @@ from pathlib import Path
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
+from charter._catalog_miss import (
+    classify_catalog_miss,
+    emit_catalog_miss_warning,
+    format_catalog_miss_stanza,
+)
 from charter._doctrine_paths import resolve_project_root
 from charter.context_renderers import (
     BUDGET_DEFAULT,
@@ -1218,12 +1223,24 @@ def _render_profile_directives(
                 directive = None
 
         if directive is None:
-            lines.append("    (catalog entry not found; verify profile references)")
-            _LOGGER.warning(
-                "Profile '%s' cites directive '%s' but the catalog does not "
-                "carry it; rendered as fetch-only.",
-                profile.profile_id,
-                code,
+            # RISK-3 (Mission B post-merge): structured catalog-miss
+            # stanza + warning instead of the generic placeholder.
+            diagnosis = classify_catalog_miss(
+                code, _available_catalog_ids(repo)
+            )
+            lines.extend(
+                format_catalog_miss_stanza(
+                    selector_kind="directive",
+                    artifact_id=code,
+                    diagnosis=diagnosis,
+                    indent="    ",
+                )
+            )
+            emit_catalog_miss_warning(
+                selector_kind="directive",
+                artifact_id=code,
+                diagnosis=diagnosis,
+                context=f"profile:{profile.profile_id}",
             )
             continue
 
@@ -1276,12 +1293,24 @@ def _render_profile_tactics(
                 tactic = None
 
         if tactic is None:
-            lines.append("    (catalog entry not found; verify profile references)")
-            _LOGGER.warning(
-                "Profile '%s' cites tactic '%s' but the catalog does not "
-                "carry it; rendered as fetch-only.",
-                profile.profile_id,
-                tactic_id,
+            # RISK-3 (Mission B post-merge): structured catalog-miss
+            # stanza + warning instead of the generic placeholder.
+            diagnosis = classify_catalog_miss(
+                tactic_id, _available_catalog_ids(repo)
+            )
+            lines.extend(
+                format_catalog_miss_stanza(
+                    selector_kind="tactic",
+                    artifact_id=tactic_id,
+                    diagnosis=diagnosis,
+                    indent="    ",
+                )
+            )
+            emit_catalog_miss_warning(
+                selector_kind="tactic",
+                artifact_id=tactic_id,
+                diagnosis=diagnosis,
+                context=f"profile:{profile.profile_id}",
             )
             continue
 
@@ -1447,6 +1476,44 @@ def _format_inline_step_contract_body(contract: object) -> list[str]:
     return body_lines
 
 
+def _available_catalog_ids(repository: object | None) -> list[str]:
+    """Return the IDs the repository carries, for fuzzy-match suggestions.
+
+    Used by the catalog-miss diagnosis path (RISK-3 from the Mission B
+    post-merge review).  Defensive against stub repositories used in
+    tests that may not implement ``list_all`` / ``all``; returns an
+    empty list when no listing API is available.
+    """
+    if repository is None:
+        return []
+    for attr in ("list_all", "all"):
+        lister = getattr(repository, attr, None)
+        if callable(lister):
+            try:
+                items = lister()
+            except Exception as exc:  # noqa: BLE001 — best-effort introspection
+                _LOGGER.debug(
+                    "Catalog listing via %s() raised %r; falling back.",
+                    attr,
+                    exc,
+                )
+                continue
+            ids: list[str] = []
+            for item in items or []:
+                ident = getattr(item, "id", None)
+                if isinstance(ident, str) and ident:
+                    ids.append(ident)
+            if ids:
+                return ids
+    # Fall back to introspecting the stub's internal ``_items`` dict
+    # (used by the test doubles in ``tests/charter/`` so we can suggest
+    # close matches without forcing every stub to grow a ``list_all``).
+    items = getattr(repository, "_items", None)
+    if isinstance(items, dict):
+        return [k for k in items if isinstance(k, str)]
+    return []
+
+
 def _render_selected_artifacts(
     selected_ids: list[str],
     repository: object,
@@ -1491,12 +1558,26 @@ def _render_selected_artifacts(
                 artifact = None
 
         if artifact is None:
-            lines.append("    (catalog entry not found; verify charter selection)")
-            _LOGGER.warning(
-                "Charter selected %s '%s' but the catalog does not carry it; "
-                "rendered as fetch-only.",
-                selector_kind,
-                artifact_id,
+            # RISK-3 (Mission B post-merge): replace the generic
+            # placeholder with a structured stanza that classifies the
+            # miss (typo vs. missing vs. schema-validation drop) and
+            # routes a warning through both ``warnings.warn`` and the
+            # module logger so the failure is never silent.
+            diagnosis = classify_catalog_miss(
+                artifact_id, _available_catalog_ids(repository)
+            )
+            lines.extend(
+                format_catalog_miss_stanza(
+                    selector_kind=selector_kind,
+                    artifact_id=artifact_id,
+                    diagnosis=diagnosis,
+                    indent="    ",
+                )
+            )
+            emit_catalog_miss_warning(
+                selector_kind=selector_kind,
+                artifact_id=artifact_id,
+                diagnosis=diagnosis,
             )
             lines.extend(
                 _shared_fetch_stanza_lines(

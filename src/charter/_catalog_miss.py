@@ -1,0 +1,308 @@
+"""Catalog-miss surfacing for charter-mediated doctrine selection.
+
+The charter prompt renderer (``charter.context._render_selected_artifacts``
+and friends) historically emitted a generic
+``(catalog entry not found; verify charter selection)`` placeholder when an
+ID in the selection was not present in the loaded doctrine catalog. That
+fallback hid three very different causes:
+
+1. **Typo** — the charter selected ``"caveman-comemnts"`` but the catalog
+   carries ``"caveman-comments"``.
+2. **Missing artifact** — no artifact with the given ID is present in any
+   layer (project / org / built-in).
+3. **Schema validation failure** — an artifact YAML exists on disk but was
+   silently dropped by the loader because Pydantic ``extra="forbid"``
+   validation rejected it.  The loader emits a ``UserWarning`` (see
+   ``doctrine.base.BaseDoctrineRepository._load_shipped_items``) but the
+   prompt renderer never sees the dropped artifact, so the user only
+   discovers it via a downstream catalog-miss.
+
+RISK-3 from the post-merge review of Mission B asked us to make these
+explicit and non-hiding.  HiC decided we should warn (not fail) and route
+the warning into the standard ``warnings`` stream so it surfaces in normal
+operator workflows.
+
+This module ships the structured surfacing primitives used by all three
+catalog-miss call sites in ``charter.context``:
+
+* :class:`CharterCatalogMissError` — raise-able exception for callers that
+  prefer hard-fail semantics (not currently used by the renderer, exported
+  for downstream consumers).
+* :class:`CharterCatalogMissWarning` — non-fatal warning class so the user
+  sees the miss without the prompt build aborting.
+* :class:`CatalogMissCause` — classification enum: ``TYPO_SUSPECTED``,
+  ``MISSING_ARTIFACT``, ``SCHEMA_VALIDATION_SUSPECTED``.  The third value
+  is reserved for callers that already know the loader dropped the
+  artifact (e.g. a validation report); the renderer cannot distinguish
+  schema-drop from never-existed and therefore uses ``MISSING_ARTIFACT``
+  with a suggestion to run ``spec-kitty doctrine validate``.
+* :func:`classify_catalog_miss` — given the missing ID and the available
+  catalog IDs, returns a :class:`CatalogMissDiagnosis` describing the
+  cause + the closest-match suggestion (if any).
+* :func:`format_catalog_miss_stanza` — produces the structured prompt
+  lines that replace the generic placeholder.
+* :func:`emit_catalog_miss_warning` — emits a
+  :class:`CharterCatalogMissWarning` and a structured ``logger.warning``
+  with extra fields ``kind`` / ``id`` / ``cause`` / ``suggestion`` so the
+  miss shows up in any log aggregator and in the mission traceability
+  surface that tails the logger.
+
+The renderer integration in ``charter.context`` keeps emitting the prompt
+(no hard fail) so concurrent work can continue, but every miss now
+surfaces an actionable warning with the missing selector, the inferred
+cause, and a remediation hint.
+"""
+
+from __future__ import annotations
+
+import difflib
+import logging
+import warnings
+from collections.abc import Iterable
+from dataclasses import dataclass
+from enum import Enum
+
+
+__all__ = [
+    "CatalogMissCause",
+    "CatalogMissDiagnosis",
+    "CharterCatalogMissError",
+    "CharterCatalogMissWarning",
+    "classify_catalog_miss",
+    "emit_catalog_miss_warning",
+    "format_catalog_miss_stanza",
+]
+
+
+_LOGGER = logging.getLogger(__name__)
+
+# difflib.get_close_matches default cutoff is 0.6; we tighten it so we only
+# suggest a typo correction when the candidate is genuinely close.  A ratio
+# of 0.75 corresponds roughly to "one or two character edits away" for the
+# kebab-case identifiers that doctrine artifact IDs use.
+_TYPO_SIMILARITY_CUTOFF = 0.75
+
+
+class CatalogMissCause(str, Enum):  # noqa: UP042 — keep str mixin for Py3.10 compat
+    """Classification of why a catalog lookup missed.
+
+    Values:
+        TYPO_SUSPECTED: A close-match candidate exists in the catalog
+            (similarity ratio at or above the typo cutoff).  The
+            diagnosis will carry a ``suggestion`` field with the proposed
+            correction.
+        MISSING_ARTIFACT: No close match was found.  The artifact may
+            never have existed, OR it may have been silently dropped by
+            the loader due to schema validation failure.  The renderer
+            uses this value when it cannot distinguish the two — the
+            stanza then suggests running ``spec-kitty doctrine validate``
+            so the operator can surface any latent schema errors.
+        SCHEMA_VALIDATION_SUSPECTED: Reserved for callers that already
+            know the artifact YAML was rejected by Pydantic validation
+            (e.g. a validation report).  The renderer never uses this
+            value directly because it cannot inspect the loader's drop
+            history.
+    """
+
+    TYPO_SUSPECTED = "typo_suspected"
+    MISSING_ARTIFACT = "missing_artifact"
+    SCHEMA_VALIDATION_SUSPECTED = "schema_validation_suspected"
+
+
+@dataclass(frozen=True)
+class CatalogMissDiagnosis:
+    """Structured result of a catalog-miss classification.
+
+    Attributes:
+        cause: The inferred :class:`CatalogMissCause`.
+        suggestion: Optional closest-match ID when the cause is
+            ``TYPO_SUSPECTED`` (otherwise ``None``).
+    """
+
+    cause: CatalogMissCause
+    suggestion: str | None = None
+
+
+class CharterCatalogMissError(Exception):
+    """Raised when a charter selection references an unknown catalog ID.
+
+    Not currently raised by the renderer (which prefers to warn and keep
+    rendering so concurrent work continues), but exported for downstream
+    consumers — such as CI gates or strict validators — that prefer hard
+    fail-fast semantics over a warning.
+
+    Subclasses :class:`Exception` (not ``ValueError``) so it remains
+    distinct from generic input-validation errors and can be selectively
+    caught by callers that specifically care about catalog provenance.
+
+    Attributes:
+        selector: The full ``kind:id`` selector that missed (e.g.
+            ``"styleguide:caveman-comemnts"``).
+        cause: The inferred :class:`CatalogMissCause`.
+        suggestion: Optional closest-match suggestion text.
+    """
+
+    def __init__(
+        self,
+        selector: str,
+        *,
+        cause: CatalogMissCause,
+        suggestion: str | None = None,
+    ) -> None:
+        self.selector = selector
+        self.cause = cause
+        self.suggestion = suggestion
+        message = f"Catalog miss for {selector!r}: cause={cause.value}"
+        if suggestion:
+            message = f"{message}; suggestion={suggestion!r}"
+        super().__init__(message)
+
+
+class CharterCatalogMissWarning(Warning):
+    """Non-fatal warning emitted when a charter selection references an
+    unknown catalog ID.
+
+    This is the default surfacing path used by the renderer: the prompt
+    still builds (so concurrent work isn't blocked) but the warning is
+    raised through Python's standard ``warnings`` channel so it appears
+    in the operator's stderr and any test harness that captures
+    warnings.
+    """
+
+
+def classify_catalog_miss(
+    missing_id: str,
+    available_ids: Iterable[str],
+) -> CatalogMissDiagnosis:
+    """Classify a catalog miss as a typo, missing artifact, or schema drop.
+
+    Uses :func:`difflib.get_close_matches` against ``available_ids`` to
+    decide between ``TYPO_SUSPECTED`` and ``MISSING_ARTIFACT``.  This
+    function never returns ``SCHEMA_VALIDATION_SUSPECTED``; callers
+    that have ground-truth knowledge of a schema drop construct the
+    diagnosis directly.
+
+    Args:
+        missing_id: The selector ID that was not found in the catalog.
+        available_ids: An iterable of all IDs the catalog *does* carry
+            for this kind, used as the corpus for fuzzy matching.
+
+    Returns:
+        A :class:`CatalogMissDiagnosis` describing the cause and
+        (optionally) the closest-match suggestion.
+    """
+    candidates = [cid for cid in available_ids if isinstance(cid, str)]
+    if not candidates:
+        return CatalogMissDiagnosis(cause=CatalogMissCause.MISSING_ARTIFACT)
+
+    matches = difflib.get_close_matches(
+        missing_id, candidates, n=1, cutoff=_TYPO_SIMILARITY_CUTOFF
+    )
+    if matches:
+        return CatalogMissDiagnosis(
+            cause=CatalogMissCause.TYPO_SUSPECTED,
+            suggestion=matches[0],
+        )
+    return CatalogMissDiagnosis(cause=CatalogMissCause.MISSING_ARTIFACT)
+
+
+def format_catalog_miss_stanza(
+    *,
+    selector_kind: str,
+    artifact_id: str,
+    diagnosis: CatalogMissDiagnosis,
+    indent: str = "    ",
+) -> list[str]:
+    """Build the structured prompt lines that replace the legacy placeholder.
+
+    The stanza explicitly names the missing selector, classifies the
+    cause, and provides an actionable remediation hint — so the user can
+    fix the charter (typo case) or fix the artifact YAML (missing or
+    schema-failure case) instead of silently shipping an under-defined
+    prompt.
+
+    Args:
+        selector_kind: Doctrine kind (e.g. ``"styleguide"``,
+            ``"directive"``).
+        artifact_id: The missing ID.
+        diagnosis: The :class:`CatalogMissDiagnosis` from
+            :func:`classify_catalog_miss`.
+        indent: Leading whitespace per line; matches the surrounding
+            prompt indentation.  Defaults to four spaces — the indent
+            used by ``_render_selected_artifacts``.
+
+    Returns:
+        A list of prompt lines (each already indented).  The caller
+        extends the prompt buffer with this list.
+    """
+    selector = f"{selector_kind}:{artifact_id}"
+    lines: list[str] = [f"{indent}(catalog entry not found for {selector})"]
+    lines.append(f"{indent}  Cause: {diagnosis.cause.value}")
+    if diagnosis.cause is CatalogMissCause.TYPO_SUSPECTED and diagnosis.suggestion:
+        lines.append(
+            f"{indent}  Suggestion: did you mean '{diagnosis.suggestion}'? "
+            "Update the charter selection to match the canonical ID."
+        )
+    elif diagnosis.cause is CatalogMissCause.SCHEMA_VALIDATION_SUSPECTED:
+        lines.append(
+            f"{indent}  Suggestion: the artifact YAML failed Pydantic "
+            "validation and was dropped by the loader. Run "
+            "`spec-kitty doctrine validate` to surface the schema error."
+        )
+    else:
+        # MISSING_ARTIFACT — either never existed or schema-dropped; we
+        # can't distinguish from the renderer, so we offer both hints.
+        lines.append(
+            f"{indent}  Suggestion: confirm the artifact exists "
+            "(check project, org, and built-in layers) or run "
+            "`spec-kitty doctrine validate` to check for a silent schema "
+            "validation drop."
+        )
+    return lines
+
+
+def emit_catalog_miss_warning(
+    *,
+    selector_kind: str,
+    artifact_id: str,
+    diagnosis: CatalogMissDiagnosis,
+    context: str | None = None,
+    stacklevel: int = 3,
+) -> None:
+    """Emit the standard ``warnings.warn`` + structured logger entry.
+
+    Both surfaces carry the same structured fields (``kind``, ``id``,
+    ``cause``, ``suggestion``, optional ``context``) so consumers can
+    correlate the warning regardless of which channel they tail.
+
+    Args:
+        selector_kind: Doctrine kind (e.g. ``"styleguide"``).
+        artifact_id: The missing ID.
+        diagnosis: The :class:`CatalogMissDiagnosis`.
+        context: Optional caller context (e.g. profile ID for
+            profile-cited directive/tactic misses).
+        stacklevel: Passed through to :func:`warnings.warn` so the
+            warning is attributed to the renderer's caller, not to this
+            module.  Defaults to ``3`` to point past the renderer
+            helper.
+    """
+    parts = [
+        f"Charter catalog miss for {selector_kind}:{artifact_id}",
+        f"cause={diagnosis.cause.value}",
+    ]
+    if diagnosis.suggestion:
+        parts.append(f"suggestion={diagnosis.suggestion!r}")
+    if context:
+        parts.append(f"context={context!r}")
+    message = "; ".join(parts)
+
+    warnings.warn(message, CharterCatalogMissWarning, stacklevel=stacklevel)
+
+    extra = {
+        "kind": selector_kind,
+        "id": artifact_id,
+        "cause": diagnosis.cause.value,
+        "suggestion": diagnosis.suggestion,
+        "context": context,
+    }
+    _LOGGER.warning(message, extra=extra)
