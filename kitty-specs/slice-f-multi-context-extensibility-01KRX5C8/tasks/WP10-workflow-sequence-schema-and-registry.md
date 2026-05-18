@@ -379,6 +379,7 @@ The following tests turn GREEN with this WP:
 - ✅ `tests/specify_cli/next/test_workflow_registry.py::test_workflow_sequence_actions_form_dag`
 - ✅ WP03 round-trip gate accepts both workflow YAMLs (they carry `pydantic_model:` + `expect: valid` frontmatter)
 - ✅ Full architectural sweep exit 0 (NFR-005)
+- ✅ **`tests/contract/test_example_round_trip.py` case `specify_cli.next._internal_runtime.workflow_schema.WorkflowSequence` flips from SKIPPED to PASSED** — WP03 cycle-2 remediation left this case skip-decorated pending the WP10 model. Landing `WorkflowSequence` + `ActionStep` (with their real field shape + validators) MUST turn the case green. This is a binding pre-approval acceptance criterion: the reviewer rejects if the case still shows `SKIPPED` after WP10 lands.
 
 FR coverage:
 

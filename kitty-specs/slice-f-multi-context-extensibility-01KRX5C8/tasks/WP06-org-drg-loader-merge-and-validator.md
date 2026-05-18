@@ -439,6 +439,7 @@ The following tests turn GREEN with this WP:
 - ✅ `pytest tests/architectural/test_layer_rules.py -v` unchanged (NFR-003)
 - ✅ Full architectural sweep exit 0 (NFR-005)
 - ✅ 23 governance-contract fixtures pass unchanged (NFR-001 — no org pack configured ⇒ identical behaviour)
+- ✅ **`tests/contract/test_example_round_trip.py` case `charter.drg.OrgDRGFragment` flips from SKIPPED to PASSED** — WP03 cycle-2 remediation left this case skip-decorated pending the WP06 model. Landing `OrgDRGFragment` (with its real field shape + validators) MUST turn the case green. This is a binding pre-approval acceptance criterion: the reviewer rejects if the case still shows `SKIPPED` after WP06 lands.
 
 FR coverage:
 
