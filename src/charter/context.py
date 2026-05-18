@@ -106,7 +106,7 @@ def build_charter_context(
     mark_loaded: bool = True,
     depth: int | None = None,
     org_root: Path | None = None,
-    scope: "CharterScope | None" = None,
+    scope: CharterScope | None = None,
 ) -> CharterContextResult:
     """Build charter context by querying the Doctrine Reference Graph.
 

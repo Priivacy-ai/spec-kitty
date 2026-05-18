@@ -51,7 +51,6 @@ from __future__ import annotations
 
 import re
 import subprocess
-import textwrap
 from pathlib import Path
 from unittest.mock import patch
 
