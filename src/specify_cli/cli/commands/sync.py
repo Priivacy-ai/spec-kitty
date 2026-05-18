@@ -1196,12 +1196,19 @@ def now(
     from specify_cli.sync.background import get_sync_service
     from specify_cli.sync.preflight import run_preflight
 
-    # T012 / FR-002: gate `sync now` with the full preflight (auth required)
-    # BEFORE any enqueue, queue read, or SaaS flush. Any structural
-    # incoherence — D-3 mismatch, orphan record, legacy rows in scope, or
-    # missing hosted auth when SaaS sync is enabled — refuses the command
-    # with exit code 2 before producing any side effects.
-    _preflight_result = run_preflight(repo_root=Path.cwd(), require_auth=True)
+    # T012 / FR-002: gate `sync now` with the structural preflight BEFORE
+    # any enqueue, queue read, or SaaS flush. The preflight refuses on
+    # daemon-owner mismatch (D-3), orphan owner record, or legacy rows
+    # remaining in the current scope — these are coherence failures the
+    # operator must resolve before any sync makes sense.
+    #
+    # ``require_auth=False`` here on purpose: auth-absent has its own
+    # graceful UX path (``service.sync_now()`` produces structured
+    # unauthenticated errors and a failure report, exiting 1). FR-008's
+    # auth-required-and-absent refusal applies to ``setup-plan`` and to
+    # ``sync status --check``, not to ``sync now``, where forcing exit 2
+    # would clobber the issue #829 report-file flow.
+    _preflight_result = run_preflight(repo_root=Path.cwd(), require_auth=False)
     if not _preflight_result.ok:
         console.print("[red]Refusing `spec-kitty sync now`.[/red]")
         _preflight_result.render(console)
@@ -1446,12 +1453,25 @@ def _emit_status_check_json() -> None:
     import json as _json
     import sys as _sys
 
+    from specify_cli.sync.daemon import scan_sync_daemons
     from specify_cli.sync.preflight import build_boundary_failure_set
     from specify_cli.sync.queue import OfflineQueue, _legacy_queue_db_path
 
     failure_set = build_boundary_failure_set(repo_root=Path.cwd())
     fg = failure_set.foreground
     record = failure_set.daemon_record
+
+    # Live orphan daemon scan (#1071 failure mode): the on-disk owner-record
+    # detection already feeds ``failure_set.orphan_records``; we also probe
+    # live processes so an unregistered ``run_sync_daemon`` running outside
+    # the singleton fails ``--check`` even when on-disk state is clean.
+    try:
+        live_orphan_report = scan_sync_daemons()
+    except Exception:  # noqa: BLE001
+        live_orphan_report = None
+    live_orphan_count = (
+        int(live_orphan_report.orphan_count) if live_orphan_report is not None else 0
+    )
 
     # FR-004 / contracts/sync-status-output.md: when
     # ``SPEC_KITTY_ENABLE_SAAS_SYNC=1`` is set but no authenticated
@@ -1486,12 +1506,17 @@ def _emit_status_check_json() -> None:
     except Exception:  # noqa: BLE001
         active_body_count = 0
 
-    ok = failure_set.ok and (auth_present or not auth_required)
+    ok = (
+        failure_set.ok
+        and (auth_present or not auth_required)
+        and live_orphan_count == 0
+    )
     payload: dict[str, Any] = {
         "ok": ok,
         "exit_code": 0 if ok else 2,
         "auth_required": auth_required,
         "auth_present": auth_present,
+        "live_orphan_daemon_count": live_orphan_count,
         "foreground": {
             "package_version": fg.package_version,
             "executable_path": str(fg.executable_path),
@@ -2015,6 +2040,18 @@ def status(  # noqa: C901
             failures.append(
                 "Hosted SaaS sync is enabled but no authenticated identity "
                 "is available — run `spec-kitty auth login`."
+            )
+        # Live orphan daemon scan (#1071 failure mode): when ``scan_sync_daemons``
+        # finds ``run_sync_daemon`` processes outside the registered singleton,
+        # the boundary is incoherent regardless of whether auth and queue state
+        # otherwise look healthy. The earlier render block (line ~1734) already
+        # printed details to the operator; here we make ``--check`` reflect that
+        # by adding a failure line so the gate exits 2 instead of 0.
+        if orphan_report is not None and orphan_report.orphan_count > 0:
+            failures.append(
+                f"{orphan_report.orphan_count} live `run_sync_daemon` "
+                "process(es) detected outside the registered singleton — "
+                "run `spec-kitty sync doctor` for guided cleanup (#1071)."
             )
         if failures:
             console.print(

@@ -614,11 +614,19 @@ def run_sync_daemon(port: int, daemon_token: str | None) -> None:
     def _signal_handler(signum: int, _frame: Any) -> None:
         logger.info("Received signal %d; shutting down daemon", signum)
         _cleanup_owner_record()
-        # Trigger HTTPServer.serve_forever() to return.
-        try:
-            server.shutdown()
-        except Exception:  # noqa: BLE001
-            pass
+        # ``HTTPServer.shutdown()`` blocks until ``serve_forever()`` returns.
+        # If we call it on the main thread (where ``serve_forever()`` is
+        # blocking), the signal handler deadlocks against the serve loop and
+        # the process never exits. Spawn a daemon thread so the signal
+        # handler returns immediately and ``serve_forever()`` is free to
+        # observe the shutdown flag and unwind.
+        def _shutdown_off_thread() -> None:
+            try:
+                server.shutdown()
+            except Exception:  # noqa: BLE001 — best-effort during shutdown
+                logger.debug("server.shutdown() raised during signal teardown")
+
+        threading.Thread(target=_shutdown_off_thread, daemon=True).start()
 
     # Best-effort signal handlers. ``signal.signal`` only works on the main
     # thread, which is where ``run_sync_daemon`` always executes; if we are

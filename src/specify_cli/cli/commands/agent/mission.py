@@ -54,6 +54,7 @@ from specify_cli.core.wps_manifest import (
 from specify_cli.diagnostics import mark_invocation_succeeded
 from specify_cli.status.bootstrap import bootstrap_canonical_state
 from specify_cli.sync.events import emit_wp_created, get_emitter
+from specify_cli.sync.feature_flags import is_saas_sync_enabled
 from specify_cli.workspace.context import resolve_feature_worktree
 from specify_cli.merge.config import MergeStrategy
 
@@ -1644,19 +1645,36 @@ def finalize_tasks(
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
 
-        # WP04 (FR-002 / FR-009) note: ``finalize-tasks`` emits SaaS-visible
-        # ``WPCreated`` events further down (see ``emit_wp_created`` ~ line
-        # 2354). Those emissions are not directly gated here because the
-        # downstream SaaS egress (``sync now``, gated by ``run_preflight``
-        # in WP03) is the canonical chokepoint per the preflight contract:
-        # the boundary preflight protects the egress path, not the enqueue
-        # path. Adding a gate here would also force every offline / CI
-        # ``finalize-tasks`` invocation to depend on hosted auth, which
-        # would regress the broad existing test suite (see
-        # ``kitty-specs/mvp-cli-sync-boundary-completion-01KRX11M/evidence/saas-producing-paths.md``).
-        # If FR-002 ever needs an enqueue-side gate at this surface, it
-        # belongs in a follow-up mission with its own test-fixture
-        # isolation work.
+        # FR-002 / FR-009 enqueue-side gate: ``finalize-tasks`` emits SaaS-visible
+        # ``WPCreated`` / ``TasksCompleted`` events further down (see
+        # ``emit_wp_created_local`` ~ line 2240 and the dossier sync at
+        # ~ line 2351). Gate every SaaS-producing path through the same
+        # boundary preflight that ``sync now`` and ``setup-plan`` use.
+        # ``require_auth=False``: auth-absent is handled downstream; this
+        # gate only refuses on boundary incoherence (D-3 mismatch, orphan
+        # daemon record, legacy queue rows in scope) — exactly what FR-002
+        # protects. Guarded by ``is_saas_sync_enabled()`` so offline / CI
+        # invocations (with the feature flag unset) are unaffected.
+        if is_saas_sync_enabled() and not validate_only:
+            from specify_cli.sync.preflight import run_preflight
+
+            _ft_preflight = run_preflight(repo_root=repo_root, require_auth=False)
+            if not _ft_preflight.ok:
+                console.print(
+                    "[red]Refusing `spec-kitty agent mission finalize-tasks`.[/red]"
+                )
+                _ft_preflight.render(console)
+                if json_output:
+                    _emit_json(
+                        {
+                            "error": (
+                                "Boundary preflight refused finalize-tasks "
+                                "(FR-002 / FR-009)."
+                            ),
+                            "preflight": _ft_preflight.to_dict(),
+                        }
+                    )
+                raise typer.Exit(2)
 
         # Determine feature directory
         cwd = Path.cwd().resolve()

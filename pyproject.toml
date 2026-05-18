@@ -255,6 +255,23 @@ module = ["charter.*"]
 follow_imports = "skip"
 
 [[tool.mypy.overrides]]
+# Third-party runtime dependencies that do not ship PEP 561 stubs and whose
+# typed shadow packages (types-toml, types-requests, types-psutil) are not
+# pinned in this project's dev deps. Phase 2's mypy gate
+# (``mypy --strict src/specify_cli/sync/``) is meant to assert the project's
+# own typed surface is clean; ignoring missing imports for these third-party
+# packages keeps the gate focused on first-party drift.
+module = [
+    "toml",
+    "psutil",
+    "requests",
+    "requests.*",
+    "spec_kitty_events",
+    "spec_kitty_events.*",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
 # Transitional quarantine for legacy modules that are still being migrated to strict typing.
 module = [
     "specify_cli.agent_utils.status",
