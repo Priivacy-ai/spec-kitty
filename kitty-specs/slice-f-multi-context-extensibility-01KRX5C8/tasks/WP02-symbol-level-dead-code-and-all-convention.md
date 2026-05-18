@@ -18,7 +18,7 @@ subtasks:
 - T010
 - T011
 - T012
-agent: claude:opus-4-7:python-pedro:implementer
+agent: "claude:opus-4-7:python-pedro:implementer"
 history: []
 agent_profile: python-pedro
 authoritative_surface: tests/architectural/
@@ -60,6 +60,7 @@ owned_files:
 - src/kernel/**
 role: implementer
 tags: []
+shell_pid: "2224539"
 ---
 
 ## ⚡ Do This First: Load Agent Profile
@@ -319,3 +320,7 @@ pytest tests/architectural/test_no_dead_symbols.py tests/architectural/test_all_
 - Confirm layer-rule unchanged: `pytest tests/architectural/test_layer_rules.py -v` (NFR-003).
 
 **FR-304 commit-message check:** T008 + T009 RED commits cite `covers: AC-8` and `expected GREEN at: WP02 final commit`.
+
+## Activity Log
+
+- 2026-05-18T12:35:44Z – claude:opus-4-7:python-pedro:implementer – shell_pid=2224539 – Started implementation via action command
