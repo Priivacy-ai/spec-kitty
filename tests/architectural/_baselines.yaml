@@ -32,12 +32,12 @@ test_no_dead_modules:
   # justification: 8 documented backward-compat shim modules whose
   # absence of static src/ callers is the point.
   category_4_backcompat_shims: 8
-  # justification: 3 compat-shim WP-in-flight adapters + 1 Slice F WP09
-  # scope_router wrapper. WP11 removed workflow_registry from this category
-  # (get_workflow() is now imported by planner.py). scope_router bridges
-  # WP09 to WP11 (ADR-8, FR-010) and MUST be removed when WP11 lands the
-  # build_with_scope call site in prompt_builder.
-  category_5_wp_in_flight_adapters: 4
+  # justification: 3 compat-shim WP-in-flight adapters. scope_router was
+  # removed (post-merge remediation cycle 1, 2026-05-19): prompt_builder now
+  # imports build_with_scope from charter.scope_router so the module has a
+  # live src/ caller. WP11 removal trigger reached for both workflow_registry
+  # (WP11 final commit) and scope_router (remediation cycle 1).
+  category_5_wp_in_flight_adapters: 3
   # justification: 3 frozen-contract internal re-exports under
   # next/_internal_runtime/ frozen by shared-package-boundary-cutover.
   category_6_frozen_runtime_reexports: 3
@@ -121,14 +121,11 @@ test_no_dead_symbols:
   # FR-121 scopes WP02 to charter+kernel; this category is the
   # carry-over surface for the next mission that widens the convention.
   category_b_grandfathered_legacy: 276
-  # justification: 4 Slice F WP09 in-flight charter symbols
-  # (CharterScope{Config,Conflict,NotFound} + build_with_scope) shipped
-  # ahead of WP11's prompt_builder call-site wiring per ADR-8
-  # (2026-05-18-1-monorepo-charter-scope.md). MUST shrink to 0 when
-  # WP11 lands the call site that transitively imports the four
-  # symbols. See test_no_dead_symbols.py _CATEGORY_C_WP_IN_FLIGHT_*
-  # for the per-symbol surface and removal trigger.
-  category_c_wp_in_flight_charter_scope: 4
+  # Removal trigger reached (post-merge remediation cycle 1, 2026-05-19):
+  # prompt_builder imports build_with_scope which pulls CharterScope*
+  # into the live src/ import graph. All four symbols now have live
+  # callers; category shrunk from 4 to 0.
+  category_c_wp_in_flight_charter_scope: 0
   # WP11 removal trigger reached: all 4 workflow registry symbols now have
   # live src/ callers (planner.py imports get_workflow, UnknownWorkflowError,
   # list_available_workflows from workflow_registry, and ActionStep from
