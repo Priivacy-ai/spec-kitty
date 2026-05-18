@@ -604,3 +604,4 @@ pytest tests/glossary/test_canonical_promotion.py -v
 ## Activity Log
 
 - 2026-05-18T20:41:22Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=2952685 – Started implementation via action command
+- 2026-05-18T21:07:01Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=2952685 – WP12 closing: cross-axis tests + glossary canonical (10 terms -> canonical) + charter burn-down/__all__/ATDD-first amendments + auth-transport ADR + GitHub ticket #1118. C-005 binding honored (zero diff on transport.py). NFR-001 23/23 unchanged. Architectural sweep 236/237 (1 known pre-existing regression: ratchet-baseline-format.md::block-1 resolves at mission-merge). Ruff clean.
