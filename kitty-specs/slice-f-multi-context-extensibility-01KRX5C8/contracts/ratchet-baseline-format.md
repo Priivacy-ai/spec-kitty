@@ -42,7 +42,7 @@ test_compat_shims:
   pure_shim_files: 3               # MUST SHRINK -- C-006 target 0 by 4.0
 
 test_example_round_trip:
-  legacy_contract_allowlist: <discovered-at-WP03>
+  legacy_contract_allowlist: 151   # WP03 discovery sweep; shrinks as legacy contracts gain frontmatter
 
 test_all_declarations_required:
   charter_without_all: 0           # all migrated at WP02
