@@ -19,7 +19,7 @@ subtasks:
 - T053
 - T054
 - T055
-agent: claude:sonnet-4-6:python-pedro:implementer
+agent: "claude:sonnet-4-6:python-pedro:implementer"
 history: []
 agent_profile: python-pedro
 authoritative_surface: src/specify_cli/next/_internal_runtime/workflow_registry.py
@@ -32,6 +32,7 @@ owned_files:
 - tests/specify_cli/next/test_workflow_registry.py
 role: implementer
 tags: []
+shell_pid: "2814171"
 ---
 
 ## ⚡ Do This First: Load Agent Profile
@@ -430,3 +431,7 @@ pytest tests/specify_cli/next/test_workflow_registry.py -v
 - Confirm full architectural sweep exit 0 (NFR-005).
 
 **FR-304 commit-message check:** T050 RED commit cites `covers: Scenario 3 exception, FR-015 — expected GREEN at: WP10 final commit`.
+
+## Activity Log
+
+- 2026-05-18T19:36:31Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=2814171 – Started implementation via action command
