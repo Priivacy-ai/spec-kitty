@@ -7,6 +7,10 @@ reviewed_at: '2026-05-18T13:54:26Z'
 reviewer_agent: unknown
 verdict: rejected
 wp_id: WP03
+review_artifact_override_at: "2026-05-18T14:09:27Z"
+review_artifact_override_actor: "operator"
+review_artifact_override_wp_id: "WP03"
+review_artifact_override_reason: "Cycle 2 approved by reviewer-renata: orchestrator remediation (866d6ade) removed 3 stub Pydantic models from WP06/09/10 territories, reverted BaselinesFile loosening, converted round-trip ImportError to pytest.skip with future-WP attribution. WP06/WP09/WP10 task files carry binding acceptance criterion to flip skipped cases to PASSED (1bbb5310). 8 passed / 8 skipped on round-trip gate; 234 passed / 1 skipped on full architectural sweep. Override: review-cycle-1.md verdict was cycle-1 rejection; cycle-2 fully satisfies all acceptance criteria."
 ---
 
 # WP03 Review Feedback — Cycle 1 (REJECT)
