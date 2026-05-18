@@ -448,33 +448,12 @@ class SyncDaemonHandler(BaseHTTPRequestHandler):
             return
 
         self._send_json(200, {"status": "stopping"})
-        _shutdown_server_async(self.server, delay_s=0.05)
 
-
-def _shutdown_server_async(server: HTTPServer, *, delay_s: float = 0.0) -> threading.Thread:
-    """Call ``server.shutdown()`` from a helper thread.
-
-    ``BaseServer.shutdown()`` blocks until ``serve_forever()`` exits and the
-    stdlib requires callers to invoke it from a different thread than the
-    serving thread. This helper keeps HTTP and signal shutdown paths from
-    deadlocking the daemon's main loop.
-    """
-
-    def shutdown_server() -> None:
-        if delay_s > 0:
-            time.sleep(delay_s)
-        try:
+        def shutdown_server(server: HTTPServer) -> None:
+            time.sleep(0.05)
             server.shutdown()
-        except Exception:  # noqa: BLE001
-            logger.debug("HTTP server shutdown helper raised; continuing")
 
-    thread = threading.Thread(
-        target=shutdown_server,
-        name="spec-kitty-sync-daemon-shutdown",
-        daemon=True,
-    )
-    thread.start()
-    return thread
+        threading.Thread(target=shutdown_server, args=(self.server,), daemon=True).start()
 
 
 def _decide_self_retire(server: HTTPServer, my_port: int) -> None:
@@ -635,11 +614,9 @@ def run_sync_daemon(port: int, daemon_token: str | None) -> None:
     def _signal_handler(signum: int, _frame: Any) -> None:
         logger.info("Received signal %d; shutting down daemon", signum)
         _cleanup_owner_record()
-        # Trigger HTTPServer.serve_forever() to return. BaseServer.shutdown()
-        # must not run on the serving thread, which is where signal handlers
-        # execute for this daemon.
+        # Trigger HTTPServer.serve_forever() to return.
         try:
-            _shutdown_server_async(server)
+            server.shutdown()
         except Exception:  # noqa: BLE001
             pass
 

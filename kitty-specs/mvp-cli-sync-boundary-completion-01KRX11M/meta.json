@@ -1,0 +1,14 @@
+{
+  "created_at": "2026-05-18T07:50:41.311843+00:00",
+  "friendly_name": "MVP CLI Sync Boundary Completion",
+  "mission_id": "01KRX11MCY70M5NFBBHT4DQHJ2",
+  "mission_number": null,
+  "mission_slug": "mvp-cli-sync-boundary-completion-01KRX11M",
+  "mission_type": "software-dev",
+  "purpose_context": "PR #1107 lands row-level queue migration, daemon owner records, sync status truthfulness, and setup-plan refusal-on-no-auth, but its check_daemon_owner_match() helper is not wired into per-action preflights. Until those preflights exist, sync-producing CLI commands can still write into a split-brain daemon/queue/auth state and silently violate the MVP sync identity boundary. This mission closes that gap and produces the evidence needed to merge PR #1107 and close sub-issues #1090, #1088, #1087, and #1089.",
+  "purpose_tldr": "Finish PR #1107 and gate sync-producing CLI commands on daemon owner coherence so the MVP sync identity boundary is provable end-to-end.",
+  "slug": "mvp-cli-sync-boundary-completion-01KRX11M",
+  "target_branch": "kitty/pr/mvp-sync-boundary-cli-01KRVCQS",
+  "vcs": "git",
+  "vcs_locked_at": "2026-05-18T08:21:09.070629+00:00"
+}

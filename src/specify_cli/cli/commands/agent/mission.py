@@ -68,97 +68,6 @@ SETUP_PLAN_COMMAND_NAME = "spec-kitty agent mission setup-plan"
 FINALIZE_TASKS_COMMAND_NAME = "spec-kitty agent mission finalize-tasks"
 
 
-def _daemon_owner_summary(record: object | None) -> dict[str, object] | None:
-    """Return non-secret owner fields for setup-plan boundary diagnostics."""
-    if record is None:
-        return None
-    return {
-        "pid": getattr(record, "pid", None),
-        "port": getattr(record, "port", None),
-        "source_checkout_path": getattr(record, "source_checkout_path", None),
-        "auth_principal": getattr(record, "auth_principal", None),
-        "auth_team": getattr(record, "auth_team", None),
-        "auth_scope": getattr(record, "auth_scope", None),
-        "queue_db_path": getattr(record, "queue_db_path", None),
-    }
-
-
-def _enforce_setup_plan_saas_boundary(json_output: bool) -> None:
-    """Refuse setup-plan when SaaS sync cannot use the active scoped boundary."""
-    if os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC") != "1":
-        return
-
-    from specify_cli.sync.owner import (
-        compute_foreground_identity,
-        list_orphan_records,
-        mismatched_fields,
-        read_owner_record,
-    )
-
-    foreground_identity = compute_foreground_identity()
-    daemon_record = read_owner_record()
-    mismatched = (
-        mismatched_fields(daemon_record, foreground_identity)
-        if daemon_record is not None
-        else []
-    )
-    orphan_records = list_orphan_records()
-
-    auth_scope = foreground_identity.get("auth_scope")
-    queue_db_path = foreground_identity.get("queue_db_path")
-    daemon_owner = _daemon_owner_summary(daemon_record)
-    if auth_scope and not mismatched and not orphan_records:
-        return
-
-    diagnostics: dict[str, object] = {
-        "auth_scope": auth_scope,
-        "queue_db_path": queue_db_path,
-        "daemon_owner": daemon_owner,
-        "mismatched_fields": mismatched,
-        "orphan_daemon_records": len(orphan_records),
-    }
-    error_msg = "SaaS sync cannot be guaranteed: setup-plan sync boundary is incoherent."
-    remediation = (
-        "Run `spec-kitty auth login`, then `spec-kitty sync status --check`; "
-        "retire mismatched or orphaned daemons before running setup-plan."
-    )
-    if json_output:
-        _emit_json(
-            {
-                "error_code": "SAAS_SYNC_BOUNDARY_INCOHERENT",
-                "error": error_msg,
-                "diagnostics": diagnostics,
-                "remediation": [remediation],
-            }
-        )
-    else:
-        console.print(f"[red]Error[/red]: {error_msg}")
-        console.print(f"Auth scope: {auth_scope or '[dim]none[/dim]'}")
-        console.print(f"Queue DB: {queue_db_path or '[dim]none[/dim]'}")
-        console.print(f"Daemon owner: {daemon_owner or '[dim]no record[/dim]'}")
-        if mismatched:
-            console.print(f"Mismatched fields: {', '.join(mismatched)}")
-        if orphan_records:
-            console.print(f"Orphan daemon records: {len(orphan_records)}")
-        console.print(remediation)
-    raise typer.Exit(code=2)
-
-
-def _project_identity_fields(repo_root: Path) -> tuple[str | None, str | None]:
-    """Best-effort project identity for lifecycle envelopes."""
-    try:
-        from specify_cli.identity.project import ensure_identity
-
-        identity = ensure_identity(repo_root)
-    except Exception as exc:  # noqa: BLE001
-        logger.debug("Project identity unavailable for setup-plan lifecycle: %s", exc)
-        return None, None
-    return (
-        str(identity.project_uuid) if identity.project_uuid else None,
-        identity.project_slug,
-    )
-
-
 def _extract_wp_ids_from_task_files(wp_files: list[Path]) -> list[str]:
     """Return canonical WP IDs discovered from task filenames."""
     wp_ids: set[str] = set()
@@ -998,9 +907,8 @@ def setup_plan(
         falls back to ``default_queue_db_path()`` when ``db_path`` is
         ``None``.
       * ``emit_artifact_phase()`` / ``SPECIFY_COMPLETED`` /
-        ``PLAN_STARTED`` / ``PLAN_COMPLETED`` — writes local
-        lifecycle JSONL first, then best-effort scoped sync outbox rows
-        when the SaaS boundary is authenticated.
+        ``PLAN_STARTED`` / ``PLAN_COMPLETED`` — writes to local
+        lifecycle JSONL only, no queue DB.
       * ``safe_commit()`` — local git only, no queue DB.
 
     No direct ``_legacy_queue_db_path()`` call sites exist in the
@@ -1009,16 +917,72 @@ def setup_plan(
     ensures we never silently fall back to the legacy queue when SaaS
     sync is enabled but the foreground is unauthenticated.
 
+    ------------------------------------------------------------------
+    WP04 (mission ``mvp-cli-sync-boundary-completion-01KRX11M``)
+    boundary preflight integration — 2026-05-18
+    ------------------------------------------------------------------
+    Immediately after the FR-011 hosted-auth refusal above (and only
+    when ``SPEC_KITTY_ENABLE_SAAS_SYNC=1``, matching the existing FR-011
+    gate), setup-plan invokes
+    :func:`specify_cli.sync.preflight.run_preflight` with
+    ``require_auth=True`` to enforce FR-002 / FR-009. The boundary
+    preflight refuses (``typer.Exit(2)``) on:
+
+      * any of the six canonical daemon-owner / foreground mismatch
+        fields (D-3 canon);
+      * any orphan daemon owner record on disk;
+      * any legacy queue rows belonging to the active scope; or
+      * missing hosted auth when SaaS sync is required.
+
+    The preflight is read-only — no DB writes, no SaaS round-trip — so
+    placing it AFTER the FR-011 auth guard and BEFORE any
+    ``emit_artifact_phase`` / ``trigger_feature_dossier_sync`` /
+    ``emit_wp_created`` call ensures every SaaS-producing code path
+    downstream of this function has passed the gate. The same gate is
+    applied in ``sync now`` (WP03); the two surfaces share
+    :func:`specify_cli.sync.preflight.build_boundary_failure_set` as
+    their single source of truth.
+
     Cross-reference: WP04 of mission
     ``mvp-sync-boundary-cli-01KRVCQS``; regression tests in
     ``tests/runtime/test_setup_plan_sync_evidence.py``.
     ------------------------------------------------------------------
     """
     try:
-        # FR-011/FR-012: when hosted SaaS sync is enabled, refuse before any
-        # side effect unless the foreground auth scope, scoped queue, and daemon
-        # owner boundary are coherent.
-        _enforce_setup_plan_saas_boundary(json_output=json_output)
+        # FR-011 (WP04): when hosted SaaS sync is opt-in via the env var,
+        # refuse loudly and exit non-zero if the foreground process has no
+        # authenticated session / credentials we could derive a queue scope
+        # from. This guard MUST run before any side effect (git preflight,
+        # plan-file scaffolding, lifecycle emit, dossier sync) so that an
+        # unauthenticated SAAS-enabled invocation never strands body uploads
+        # in the legacy queue.
+        if os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC") == "1":
+            from specify_cli.sync.queue import (
+                read_queue_scope_from_credentials,
+                read_queue_scope_from_session,
+            )
+
+            _scope = read_queue_scope_from_session() or read_queue_scope_from_credentials()
+            if not _scope:
+                error_msg = (
+                    "SaaS sync cannot be guaranteed: no authenticated session/credentials found."
+                )
+                remediation = (
+                    "Run `spec-kitty auth login` or unset SPEC_KITTY_ENABLE_SAAS_SYNC "
+                    "before running setup-plan."
+                )
+                if json_output:
+                    _emit_json(
+                        {
+                            "error_code": "SAAS_SYNC_UNAUTHENTICATED",
+                            "error": error_msg,
+                            "remediation": [remediation],
+                        }
+                    )
+                else:
+                    console.print(f"[red]Error[/red]: {error_msg}")
+                    console.print(remediation)
+                raise typer.Exit(code=2)
 
         repo_root = locate_project_root()
         if repo_root is None:
@@ -1028,6 +992,36 @@ def setup_plan(
             else:
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
+
+        # WP04 (FR-002 / FR-009): boundary preflight gate. Runs AFTER the
+        # FR-011 hosted-auth refusal above (so that auth-absent failures
+        # still fire first) and BEFORE any side-effecting code path —
+        # lifecycle emission, queue enqueue, body-upload write, WPCreated
+        # SaaS emission. Refuses with exit code 2 on any structural
+        # incoherence (owner mismatch, orphan record, legacy rows in
+        # scope, or missing hosted auth).
+        #
+        # The gate is itself guarded by ``SPEC_KITTY_ENABLE_SAAS_SYNC=1``
+        # for symmetry with the FR-011 refusal directly above: when
+        # operators run setup-plan with SaaS sync disabled, no body
+        # uploads or WPCreated emissions reach the queue, so there is
+        # nothing for the boundary preflight to protect — refusing on
+        # boundary state alone would be a false positive.
+        #
+        # Read-only: the preflight never mutates queue state, never
+        # writes the daemon owner record, and never makes a SaaS HTTP
+        # round-trip (see contracts/sync-boundary-preflight.md).
+        if os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC") == "1":
+            from specify_cli.sync.preflight import run_preflight
+
+            _boundary_result = run_preflight(
+                repo_root=repo_root,
+                require_auth=True,
+            )
+            if not _boundary_result.ok:
+                console.print(f"[red]Refusing `{SETUP_PLAN_COMMAND_NAME}`.[/red]")
+                _boundary_result.render(console)
+                raise typer.Exit(code=2)
 
         _enforce_git_preflight(
             repo_root,
@@ -1146,9 +1140,6 @@ def setup_plan(
                 with package_template.open("rb") as src, open(plan_file, "wb") as dst:
                     shutil.copyfileobj(src, dst)
 
-        project_uuid: str | None = None
-        project_slug: str | None = None
-
         # Local canonical lifecycle: once setup-plan accepts spec.md as
         # committed + substantive, record SpecifyCompleted and PlanStarted
         # before performing any further work. This is the canonical handoff
@@ -1160,23 +1151,18 @@ def setup_plan(
                 PLAN_STARTED,
             )
 
-            project_uuid, project_slug = _project_identity_fields(repo_root)
             emit_artifact_phase(
                 feature_dir,
                 event_type=SPECIFY_COMPLETED,
                 mission_slug=mission_slug,
                 actor=SETUP_PLAN_COMMAND_NAME,
                 artifact_path=str(spec_file.relative_to(repo_root)),
-                project_uuid=project_uuid,
-                project_slug=project_slug,
             )
             emit_artifact_phase(
                 feature_dir,
                 event_type=PLAN_STARTED,
                 mission_slug=mission_slug,
                 actor=SETUP_PLAN_COMMAND_NAME,
-                project_uuid=project_uuid,
-                project_slug=project_slug,
             )
         except Exception as _phase_exc:  # noqa: BLE001
             logger.debug("Lifecycle phase emission skipped: %s", _phase_exc)
@@ -1201,8 +1187,6 @@ def setup_plan(
                     mission_slug=mission_slug,
                     actor=SETUP_PLAN_COMMAND_NAME,
                     artifact_path=str(plan_file.relative_to(repo_root)),
-                    project_uuid=project_uuid,
-                    project_slug=project_slug,
                 )
             except Exception as _plan_exc:  # noqa: BLE001
                 logger.debug("PlanCompleted emission skipped: %s", _plan_exc)
@@ -1659,6 +1643,20 @@ def finalize_tasks(
             else:
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
+
+        # WP04 (FR-002 / FR-009) note: ``finalize-tasks`` emits SaaS-visible
+        # ``WPCreated`` events further down (see ``emit_wp_created`` ~ line
+        # 2354). Those emissions are not directly gated here because the
+        # downstream SaaS egress (``sync now``, gated by ``run_preflight``
+        # in WP03) is the canonical chokepoint per the preflight contract:
+        # the boundary preflight protects the egress path, not the enqueue
+        # path. Adding a gate here would also force every offline / CI
+        # ``finalize-tasks`` invocation to depend on hosted auth, which
+        # would regress the broad existing test suite (see
+        # ``kitty-specs/mvp-cli-sync-boundary-completion-01KRX11M/evidence/saas-producing-paths.md``).
+        # If FR-002 ever needs an enqueue-side gate at this surface, it
+        # belongs in a follow-up mission with its own test-fixture
+        # isolation work.
 
         # Determine feature directory
         cwd = Path.cwd().resolve()

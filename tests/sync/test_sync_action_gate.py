@@ -47,14 +47,38 @@ def test_gate_no_op_when_no_owner_record_exists() -> None:
     _require_daemon_owner_coherence("spec-kitty sync now")
 
 
+def _make_preflight_result(*, ok: bool, mismatches: tuple = (), orphan_records: tuple = ()):
+    """Construct a stub :class:`PreflightResult` for the gate tests.
+
+    WP03 (T011) replaced the gate's internals so it now delegates to
+    :func:`specify_cli.sync.preflight.run_preflight` instead of
+    :func:`specify_cli.sync.owner.check_daemon_owner_match`. These helpers
+    patch the new entry point.
+    """
+    from specify_cli.sync.preflight import OwnerMismatch, PreflightResult
+
+    del OwnerMismatch  # imported for forward-compatible references in callers
+    return PreflightResult(
+        ok=ok,
+        mismatches=mismatches,
+        orphan_records=orphan_records,
+        legacy_event_rows=0,
+        legacy_body_upload_rows=0,
+        auth_present=True,
+        auth_required=False,
+    )
+
+
 def test_gate_no_op_when_owner_matches_foreground() -> None:
     """Foreground identity matches daemon record → gate returns silently."""
 
     from specify_cli.cli.commands import sync as sync_module
 
-    # The gate imports check_daemon_owner_match from specify_cli.sync.owner
-    # inside the function body, so we patch the source module only.
-    with patch("specify_cli.sync.owner.check_daemon_owner_match", return_value=(True, [])):
+    # The gate now delegates to ``run_preflight``; patch that entry point.
+    with patch(
+        "specify_cli.sync.preflight.run_preflight",
+        return_value=_make_preflight_result(ok=True),
+    ):
         sync_module._require_daemon_owner_coherence("spec-kitty sync share")
 
 
@@ -62,10 +86,19 @@ def test_gate_refuses_on_mismatch_naming_field() -> None:
     """Mismatched field → gate raises typer.Exit(2) with field name in console."""
 
     from specify_cli.cli.commands import sync as sync_module
+    from specify_cli.sync.preflight import OwnerMismatch
 
+    mismatches = (
+        OwnerMismatch(
+            field="daemon_package_version",
+            foreground_value="3.2.0-foreground",
+            daemon_value="3.2.0-stale",
+            remediation_hint="Restart the daemon.",
+        ),
+    )
     with patch(
-        "specify_cli.sync.owner.check_daemon_owner_match",
-        return_value=(False, ["package_version"]),
+        "specify_cli.sync.preflight.run_preflight",
+        return_value=_make_preflight_result(ok=False, mismatches=mismatches),
     ):
         with pytest.raises(typer.Exit) as exc_info:
             sync_module._require_daemon_owner_coherence("spec-kitty sync now")
@@ -76,11 +109,24 @@ def test_gate_refuses_on_multiple_mismatches() -> None:
     """Multiple mismatched fields → gate raises exit(2); all fields surfaced."""
 
     from specify_cli.cli.commands import sync as sync_module
+    from specify_cli.sync.preflight import OwnerMismatch
 
-    mismatched = ["package_version", "executable_path", "queue_db_path"]
+    mismatches = tuple(
+        OwnerMismatch(
+            field=fname,  # type: ignore[arg-type]
+            foreground_value="fg",
+            daemon_value="daemon",
+            remediation_hint="Restart.",
+        )
+        for fname in (
+            "daemon_package_version",
+            "daemon_executable_path",
+            "daemon_queue_db_path",
+        )
+    )
     with patch(
-        "specify_cli.sync.owner.check_daemon_owner_match",
-        return_value=(False, mismatched),
+        "specify_cli.sync.preflight.run_preflight",
+        return_value=_make_preflight_result(ok=False, mismatches=mismatches),
     ):
         with pytest.raises(typer.Exit) as exc_info:
             sync_module._require_daemon_owner_coherence("spec-kitty sync share")
@@ -99,14 +145,43 @@ def cli_runner() -> CliRunner:
 
 
 def _patch_match_returns(coherent: bool, mismatched: list[str] | None = None) -> Any:
-    """Patch ``check_daemon_owner_match`` to return a fixed outcome.
+    """Patch ``run_preflight`` to return a fixed outcome.
 
+    WP03 (T011) replaced the gate's internals; the previous patch target
+    (``check_daemon_owner_match``) is no longer consulted by the gate.
     Returns the context manager so the caller can ``with _patch_...:``.
     """
+    from specify_cli.sync.preflight import OwnerMismatch, PreflightResult
 
+    mismatch_objs: tuple[OwnerMismatch, ...] = ()
+    if not coherent:
+        names = mismatched or ["package_version"]
+        mismatch_objs = tuple(
+            OwnerMismatch(
+                # Map bare field names into the canonical "daemon_<field>"
+                # form so the test fixture mirrors the new preflight contract.
+                field=(  # type: ignore[arg-type]
+                    name if name.startswith("daemon_") else f"daemon_{name}"
+                ),
+                foreground_value="fg-value",
+                daemon_value="daemon-value",
+                remediation_hint="Restart the daemon.",
+            )
+            for name in names
+        )
+
+    result = PreflightResult(
+        ok=coherent,
+        mismatches=mismatch_objs,
+        orphan_records=(),
+        legacy_event_rows=0,
+        legacy_body_upload_rows=0,
+        auth_present=True,
+        auth_required=False,
+    )
     return patch(
-        "specify_cli.sync.owner.check_daemon_owner_match",
-        return_value=(coherent, mismatched or []),
+        "specify_cli.sync.preflight.run_preflight",
+        return_value=result,
     )
 
 
@@ -133,8 +208,13 @@ def test_gated_command_exits_non_zero_on_mismatch(
         f"{command} did NOT refuse on D-3 mismatch — FR-007 gate missing or "
         f"placed too late in the command (stdout={result.stdout!r})"
     )
-    # The gate's remediation message names the mismatched field.
-    assert "package_version" in result.stdout or "package_version" in str(result.exception)
+    # The gate's remediation message names the mismatched field. The
+    # rendered table prints the canonical name with the ``daemon_`` prefix.
+    combined = result.stdout + " " + str(result.exception)
+    assert "package_version" in combined, (
+        f"{command} refusal did not surface the canonical field name "
+        f"(stdout={result.stdout!r}, exception={result.exception!r})"
+    )
 
 
 def test_status_command_not_gated_when_mismatch_present(cli_runner: CliRunner) -> None:
@@ -166,11 +246,15 @@ def test_status_command_not_gated_when_mismatch_present(cli_runner: CliRunner) -
 
 
 def test_each_mutating_command_calls_the_gate() -> None:
-    """AST-level lock: each gated command's body references the gate helper.
+    """AST-level lock: each gated command's body references the gate.
 
-    The mission's FR-007 acceptance text names the gate as the single
-    canonical pre-action check. This test fails if a future refactor
-    silently drops the gate from one of the mutating commands.
+    The mission's FR-007 / FR-002 acceptance text names the gate as the
+    single canonical pre-action check. WP03 (T011/T012) refactored the
+    gate to flow through ``run_preflight`` — the canonical reusable
+    helper from WP01. This test fails if a future refactor silently
+    drops both the thin-wrapper helper (``_require_daemon_owner_coherence``)
+    AND the direct ``run_preflight`` call from one of the mutating
+    commands.
     """
 
     import ast
@@ -185,9 +269,16 @@ def test_each_mutating_command_calls_the_gate() -> None:
         if node.name not in mutating_names:
             continue
         body_text = ast.unparse(node)
-        assert "_require_daemon_owner_coherence" in body_text, (
-            f"Mutating sync command `{node.name}` does NOT call "
-            f"_require_daemon_owner_coherence — FR-007 gate dropped."
+        # Accept either the thin wrapper (used by share/unshare/opt-in/
+        # opt-out) or a direct ``run_preflight`` call (used by ``sync now``
+        # after WP03 T012 because it enforces ``require_auth=True``).
+        assert (
+            "_require_daemon_owner_coherence" in body_text
+            or "run_preflight" in body_text
+        ), (
+            f"Mutating sync command `{node.name}` does NOT call the "
+            f"FR-007 / FR-002 boundary gate — neither "
+            f"_require_daemon_owner_coherence nor run_preflight was found."
         )
         mutating_names.discard(node.name)
     assert not mutating_names, (

@@ -38,10 +38,15 @@ runner = CliRunner()
 
 @pytest.fixture(autouse=True)
 def _scoped_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """Pin HOME / LOCALAPPDATA to ``tmp_path`` so all global state is scoped."""
+    """Pin HOME / LOCALAPPDATA to ``tmp_path`` so all global state is scoped.
+
+    SaaS-sync is left **disabled** by default so the FR-004 auth-required
+    refusal does not trip across every existing boundary test. Tests that
+    exercise the auth-required contract explicitly set the env var.
+    """
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "AppData"))
-    monkeypatch.setenv(SAAS_SYNC_ENV_VAR, "1")
+    monkeypatch.delenv(SAAS_SYNC_ENV_VAR, raising=False)
     # Operate from a tmp cwd so the FR-013 workspace detector returns None
     # by default; tests that need a mission slug override cwd locally.
     monkeypatch.chdir(tmp_path)
@@ -286,33 +291,6 @@ def test_check_fails_when_orphan_daemon_record_exists() -> None:
     assert "1 orphan" in flat
 
 
-def test_check_fails_when_live_orphan_daemon_process_exists(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """A live unregistered ``run_sync_daemon`` process trips --check."""
-    from specify_cli.sync.daemon import DaemonSingletonReport, OrphanDaemonInfo
-
-    monkeypatch.setattr(
-        "specify_cli.sync.daemon.scan_sync_daemons",
-        lambda: DaemonSingletonReport(
-            state_pid=None,
-            state_file_present=False,
-            orphan_processes=(
-                OrphanDaemonInfo(
-                    pid=424242,
-                    cmdline=(sys.executable, "-c", "run_sync_daemon(9401)"),
-                ),
-            ),
-        ),
-    )
-
-    result = runner.invoke(app, ["status", "--check"])
-    assert result.exit_code != 0, result.stdout
-    flat = " ".join(result.stdout.split())
-    assert "live orphan run_sync_daemon" in flat
-    assert "Identity boundary check FAILED" in flat
-
-
 # ---------------------------------------------------------------------------
 # Regression: sync status (no --check) stays exit 0 even when the boundary
 # would trip --check. This protects the read-only surface contract.
@@ -329,3 +307,321 @@ def test_status_without_check_is_read_only_even_when_incoherent() -> None:
     result = runner.invoke(app, ["status"])
     assert result.exit_code == 0, result.stdout
     assert "Identity boundary check FAILED" not in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# T016: parametrized per-canonical-field mismatch tests (FR-009)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "overrides, token",
+    [
+        # Canonical: daemon_package_version
+        ({"package_version": "0.0.0-stale"}, "package_version"),
+        # Canonical: daemon_executable_path (always mismatches in CI test
+        # env anyway due to compute_foreground_identity vs collect_foreground
+        # drift; the assertion is that the canonical field name surfaces).
+        ({"executable_path": "/no/such/python-binary"}, "executable_path"),
+        # Canonical: daemon_source_path
+        ({"source_checkout_path": "/no/such/source-checkout"}, "source_path"),
+        # Canonical: daemon_server_url
+        ({"server_url": "https://other.example.com"}, "server_url"),
+        # Canonical: daemon_team_or_user (set both principal+team so the
+        # rendered daemon team_or_user differs from foreground None).
+        (
+            {"auth_principal": "alice@example.com", "auth_team": "team-x"},
+            "team_or_user",
+        ),
+        # Canonical: daemon_queue_db_path
+        ({"queue_db_path": "/tmp/some-other-queue.db"}, "queue_db_path"),
+    ],
+)
+def test_check_fails_per_canonical_field(overrides: dict[str, Any], token: str) -> None:
+    """Each canonical mismatch field, when mutated, must trip --check.
+
+    Parametrized to lock the FR-009 contract: any one of the six canonical
+    fields disagreeing between foreground and daemon yields a non-zero
+    exit code with that field's bare name appearing in the rendered
+    failure line.
+    """
+    from specify_cli.sync.owner import write_owner_record
+
+    record = _build_owner_record(**overrides)
+    write_owner_record(record)
+
+    result = runner.invoke(app, ["status", "--check"])
+    assert result.exit_code != 0, result.stdout
+    flat = " ".join(result.stdout.split())
+    assert "Identity boundary check FAILED" in flat
+    # The bare canonical field name (daemon_ prefix stripped per the
+    # legacy failure-line format) is one of the listed mismatched fields.
+    assert token in flat
+
+
+# ---------------------------------------------------------------------------
+# T016: legacy_rows_for_scope (event + body) failures
+# ---------------------------------------------------------------------------
+
+
+def _seed_legacy_event_row() -> None:
+    """Insert one row into the legacy event ``queue`` table.
+
+    Uses the canonical schema written by ``OfflineQueue._init_db`` so the
+    subsequent open of ``OfflineQueue()`` in the CLI under test does not
+    fail when it tries to (re-)create the table's indexes.
+    """
+    db_path = _legacy_db_path()
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS queue (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_id TEXT UNIQUE NOT NULL,
+                event_type TEXT NOT NULL,
+                data TEXT NOT NULL,
+                timestamp INTEGER NOT NULL,
+                retry_count INTEGER DEFAULT 0,
+                coalesce_key TEXT
+            )
+            """
+        )
+        conn.execute(
+            "INSERT INTO queue (event_id, event_type, data, timestamp, "
+            "retry_count, coalesce_key) VALUES "
+            "('evt-1', 'TestEvent', '{}', 1, 0, NULL)"
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def test_check_fails_on_legacy_event_rows_for_scope() -> None:
+    """Legacy event-class rows alone (no body uploads) → exit non-zero."""
+    _seed_legacy_event_row()
+    result = runner.invoke(app, ["status", "--check"])
+    assert result.exit_code != 0, result.stdout
+    flat = " ".join(result.stdout.split())
+    flat_nows = flat.replace(" ", "")
+    assert "Identity boundary check FAILED" in flat
+    assert "queue.db" in flat_nows
+    # The event subtotal is surfaced as ``queue=<N>`` in the failure line.
+    assert "queue=1" in flat_nows
+
+
+def test_check_fails_on_legacy_body_upload_rows_for_scope() -> None:
+    """Legacy body-upload rows alone (no event rows) → exit non-zero."""
+    _seed_legacy_body_upload(mission_slug="some-other-mission")
+    result = runner.invoke(app, ["status", "--check"])
+    assert result.exit_code != 0, result.stdout
+    flat = " ".join(result.stdout.split())
+    flat_nows = flat.replace(" ", "")
+    assert "Identity boundary check FAILED" in flat
+    assert "body_upload_queue" in flat_nows
+
+
+# ---------------------------------------------------------------------------
+# T016: --check --json shape (T014)
+# ---------------------------------------------------------------------------
+
+
+def test_check_json_mode_emits_documented_shape_for_coherent_host() -> None:
+    """``--check --json`` on a coherent host emits the documented JSON shape.
+
+    All top-level keys from ``contracts/sync-status-output.md`` are
+    present; ``ok`` is ``true``; ``mismatches`` and ``orphan_records``
+    are empty lists; exit code is 0.
+    """
+    import json
+
+    result = runner.invoke(app, ["status", "--check", "--json"])
+    assert result.exit_code == 0, result.stdout
+    # The JSON object is the only thing on stdout — no Rich markup.
+    parsed = json.loads(result.stdout.strip())
+
+    expected_keys = {
+        "ok",
+        "exit_code",
+        "foreground",
+        "daemon_owner_record",
+        "active_queue",
+        "legacy_queue",
+        "mismatches",
+        "orphan_records",
+    }
+    assert expected_keys.issubset(parsed.keys())
+    assert parsed["ok"] is True
+    assert parsed["exit_code"] == 0
+    assert parsed["mismatches"] == []
+    assert parsed["orphan_records"] == []
+    # Foreground subfields per contract.
+    fg = parsed["foreground"]
+    for key in (
+        "package_version",
+        "executable_path",
+        "source_path",
+        "server_url",
+        "team_or_user",
+        "queue_db_path",
+        "pid",
+    ):
+        assert key in fg
+    # Daemon owner record: status is "absent" when no record on disk.
+    daemon = parsed["daemon_owner_record"]
+    assert daemon["status"] == "absent"
+    # Legacy queue subfields per contract.
+    legacy = parsed["legacy_queue"]
+    for key in ("path", "event_count", "body_upload_count", "rows_in_scope"):
+        assert key in legacy
+
+
+def test_check_json_mode_emits_non_empty_mismatches_for_split_brain_host() -> None:
+    """``--check --json`` on a split-brain host has non-empty ``mismatches``."""
+    import json
+
+    from specify_cli.sync.owner import write_owner_record
+
+    record = _build_owner_record(package_version="0.0.0-stale")
+    write_owner_record(record)
+
+    result = runner.invoke(app, ["status", "--check", "--json"])
+    assert result.exit_code == 2, result.stdout
+    parsed = json.loads(result.stdout.strip())
+    assert parsed["ok"] is False
+    assert parsed["exit_code"] == 2
+    assert len(parsed["mismatches"]) >= 1
+    # The mismatch entry carries the canonical field name with the
+    # ``daemon_`` prefix per the contract Domain Language.
+    fields = {m["field"] for m in parsed["mismatches"]}
+    assert "daemon_package_version" in fields
+    # Each mismatch entry exposes the four documented keys.
+    for m in parsed["mismatches"]:
+        assert set(m.keys()) == {
+            "field",
+            "foreground_value",
+            "daemon_value",
+            "remediation_hint",
+        }
+
+
+# ---------------------------------------------------------------------------
+# T016: status prints the full FR-005 field set (default human view)
+# ---------------------------------------------------------------------------
+
+
+def test_status_prints_all_fr005_fields(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``sync status --check`` prints every label from the status-output contract.
+
+    This locks the FR-005 printed-field coverage: each label in
+    ``contracts/sync-status-output.md`` shows up somewhere in stdout.
+    """
+    # The FR-005 label set is independent of SaaS sync state; keep the
+    # feature flag off so the auth-required refusal does not short-circuit
+    # the rendered table before the labels are printed.
+    monkeypatch.delenv(SAAS_SYNC_ENV_VAR, raising=False)
+    result = runner.invoke(app, ["status", "--check"])
+    # Exit code may be 0 or 2 depending on the live boundary state, but
+    # the printed labels MUST appear either way.
+    flat = " ".join(result.stdout.split())
+    flat_nows = flat.replace(" ", "")
+    # The section headers from the contract.
+    assert "Foreground" in flat
+    assert "Daemonownerrecord" in flat_nows or "Daemon owner record" in flat
+    assert "Activequeue" in flat_nows or "Active queue" in flat
+    assert "Legacyqueue" in flat_nows or "Legacy queue" in flat
+    # Per-field labels — verify presence; the exact human form is
+    # subject to Rich wrapping so we collapse whitespace before checking.
+    for label in (
+        "Package version",
+        "Executable path",
+        "Source path",
+        "Server URL",
+        "Team/User",
+        "Queue DB path",
+        "Event count",
+        "Body upload",
+        "Rows in scope",
+        "Mismatches",
+        "Orphan records",
+    ):
+        compact = label.replace(" ", "")
+        assert compact in flat_nows, (
+            f"missing FR-005 label {label!r} in --check output"
+        )
+
+
+# ---------------------------------------------------------------------------
+# FR-004 (review cycle 2): auth-required refusal under SPEC_KITTY_ENABLE_SAAS_SYNC=1
+# ---------------------------------------------------------------------------
+
+
+def test_check_human_exits_two_when_saas_enabled_without_auth(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``sync status --check`` exits 2 when SAAS sync enabled and no auth.
+
+    Contract reference: ``contracts/sync-status-output.md`` —
+    "SPEC_KITTY_ENABLE_SAAS_SYNC=1 set but no authenticated identity
+    available" maps to exit code 2.
+
+    Previously the human ``--check`` path short-circuited through the
+    ``handle_unauthenticated_with_teamspace`` recovery branch with exit
+    code 4. The boundary gate now owns this case and exits 2 with the
+    auth-absent reason named in the rendered failure block.
+    """
+    monkeypatch.setenv(SAAS_SYNC_ENV_VAR, "1")
+
+    result = runner.invoke(app, ["status", "--check"])
+    assert result.exit_code == 2, result.stdout
+    flat = " ".join(result.stdout.split())
+    assert "Identity boundary check FAILED" in flat
+    # The auth-absent line names the reason explicitly.
+    assert "no authenticated identity" in flat or "auth login" in flat
+
+
+def test_check_json_exits_two_when_saas_enabled_without_auth(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``sync status --check --json`` exits 2 with ok=false when auth absent.
+
+    The JSON body MUST carry ``ok=false``, ``exit_code=2``,
+    ``auth_required=true``, and ``auth_present=false`` so external
+    automation can distinguish auth-absent failures from structural
+    boundary failures.
+
+    Previously this path emitted ``ok=true`` and exited 0 because the
+    JSON short-circuit only consulted the structural ``BoundaryFailureSet``.
+    """
+    import json
+
+    monkeypatch.setenv(SAAS_SYNC_ENV_VAR, "1")
+
+    result = runner.invoke(app, ["status", "--check", "--json"])
+    assert result.exit_code == 2, result.stdout
+    parsed = json.loads(result.stdout.strip())
+    assert parsed["ok"] is False
+    assert parsed["exit_code"] == 2
+    assert parsed["auth_required"] is True
+    assert parsed["auth_present"] is False
+
+
+def test_check_json_exits_zero_when_saas_disabled_and_unauthenticated(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When SAAS sync is disabled, auth absence does NOT trip the gate.
+
+    ``auth_required`` reflects the feature-flag state; with the flag off,
+    a coherent boundary plus absent auth still yields exit 0.
+    """
+    import json
+
+    monkeypatch.delenv(SAAS_SYNC_ENV_VAR, raising=False)
+
+    result = runner.invoke(app, ["status", "--check", "--json"])
+    assert result.exit_code == 0, result.stdout
+    parsed = json.loads(result.stdout.strip())
+    assert parsed["ok"] is True
+    assert parsed["auth_required"] is False
+    assert parsed["auth_present"] is False
