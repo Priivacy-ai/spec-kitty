@@ -435,3 +435,4 @@ pytest tests/specify_cli/next/test_workflow_registry.py -v
 ## Activity Log
 
 - 2026-05-18T19:36:31Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=2814171 – Started implementation via action command
+- 2026-05-18T19:56:44Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=2814171 – WP10: workflow schema + registry + default workflow YAML; ATDD red→green; WorkflowSchema round-trip flipped SKIPPED→PASSED (3 contract blocks); NFR-001 23/23; no regressions (34 failures, pre-existing); layer rule clean; ruff clean; Category C: 4 workflow registry symbols + 1 module in dead-modules allowlist, removal trigger WP11 get_workflow() call site.
