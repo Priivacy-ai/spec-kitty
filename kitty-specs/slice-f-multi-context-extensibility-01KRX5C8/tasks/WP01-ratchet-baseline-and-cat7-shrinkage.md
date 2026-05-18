@@ -24,8 +24,8 @@ subtasks:
 - T005
 - T006
 - T007
-agent: "claude:opus-4-7:python-pedro:implementer"
-shell_pid: "2194800"
+agent: "claude:opus-4-7:reviewer-renata:reviewer"
+shell_pid: "2216643"
 history: []
 agent_profile: python-pedro
 authoritative_surface: tests/architectural/
@@ -328,3 +328,4 @@ If the meta-test was already green on the planning base, REJECT the WP per spec 
 
 - 2026-05-18T12:12:51Z – claude:opus-4-7:python-pedro:implementer – shell_pid=2194800 – Assigned agent via action command
 - 2026-05-18T12:29:22Z – claude:opus-4-7:python-pedro:implementer – shell_pid=2194800 – Lane-A foundation: ratchet baselines + per-category refactor + Cat-7 shrinkage 10->7 (deleted doctrine.templates.repository + glossary.{prompts,rendering} per Q5)
+- 2026-05-18T12:30:30Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=2216643 – Started review via action command
