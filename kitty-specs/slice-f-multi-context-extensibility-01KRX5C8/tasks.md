@@ -53,11 +53,11 @@ Lane A blocks Lane C/D so the burn-down meta-test (FR-110/111) is in place befor
 - [x] T007 — Set Cat-7 baseline to 7 in `_baselines.yaml`; meta-test turns GREEN; add AC-7 assertion test (WP01)
 
 #### WP02 — Symbol-level dead-code gate + `__all__` convention
-- [ ] T008 — Land failing-first `tests/architectural/test_no_dead_symbols.py` (walks `__all__`; RED on planning base) (WP02)
-- [ ] T009 — Land failing-first `tests/architectural/test_all_declarations_required.py` (RED on planning base) (WP02)
-- [ ] T010 — Add `__all__` declarations to every module under `src/charter/` (FR-121, C-007) (WP02)
-- [ ] T011 — Add `__all__` declarations to every module under `src/kernel/` (FR-121, C-007) (WP02)
-- [ ] T012 — Wire any unimported public symbols (from T008 RED) into live callers, OR remove them; both gates GREEN (WP02)
+- [x] T008 — Land failing-first `tests/architectural/test_no_dead_symbols.py` (walks `__all__`; RED on planning base) (WP02)
+- [x] T009 — Land failing-first `tests/architectural/test_all_declarations_required.py` (RED on planning base) (WP02)
+- [x] T010 — Add `__all__` declarations to every module under `src/charter/` (FR-121, C-007) (WP02)
+- [x] T011 — Add `__all__` declarations to every module under `src/kernel/` (FR-121, C-007) (WP02)
+- [x] T012 — Wire any unimported public symbols (from T008 RED) into live callers, OR remove them; both gates GREEN (WP02)
 
 #### WP03 — Contract round-trip CI gate
 - [ ] T013 — Land failing-first `tests/contract/test_example_round_trip.py` parameterised over tagged codeblocks (RED on planning base) (WP03)
