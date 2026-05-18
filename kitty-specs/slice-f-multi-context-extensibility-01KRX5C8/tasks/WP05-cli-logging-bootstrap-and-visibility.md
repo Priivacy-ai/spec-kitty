@@ -18,7 +18,7 @@ subtasks:
 - T024
 - T025
 - T026
-agent: claude:sonnet-4-6:python-pedro:implementer
+agent: "claude:sonnet-4-6:python-pedro:implementer"
 history: []
 agent_profile: python-pedro
 authoritative_surface: src/specify_cli/__main__.py
@@ -30,6 +30,7 @@ owned_files:
 - tests/integration/test_catalog_miss_cli_visibility.py
 role: implementer
 tags: []
+shell_pid: "2367982"
 ---
 
 ## ⚡ Do This First: Load Agent Profile
@@ -351,3 +352,7 @@ pytest tests/integration/test_catalog_miss_cli_visibility.py -v
 - Confirm `tests/architectural/test_auth_transport_singleton.py` is UNCHANGED (C-005 — auth-transport descoped).
 
 **FR-304 commit-message check:** T022 RED commit cites `covers: Scenario 5, AC-9` and `expected GREEN at: WP05 final commit`.
+
+## Activity Log
+
+- 2026-05-18T14:42:20Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=2367982 – Started implementation via action command
