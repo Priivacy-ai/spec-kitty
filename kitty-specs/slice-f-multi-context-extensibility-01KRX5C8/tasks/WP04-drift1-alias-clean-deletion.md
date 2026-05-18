@@ -280,3 +280,4 @@ pytest tests/charter/test_alias_deleted_regression.py -v
 ## Activity Log
 
 - 2026-05-18T14:14:12Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=2332821 – Started implementation via action command
+- 2026-05-18T14:27:35Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=2332821 – DRIFT-1 alias clean deletion per HiC §5a.1; test fixtures migrated to canonical name; ImportError regression GREEN
