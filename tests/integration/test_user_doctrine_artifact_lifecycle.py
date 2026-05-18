@@ -109,7 +109,8 @@ _CAVEMAN_STYLEGUIDE_YAML = textwrap.dedent(
     patterns:
       - name: Caveman Inline Comment
         description: "ALL CAPS, present-tense imperative, no articles."
-        rule: "# OPEN FILE — READ ALL BYTES"
+        good_example: "# OPEN FILE — READ ALL BYTES"
+        bad_example: "# we open the file and read all of its bytes"
     """
 )
 
@@ -281,6 +282,30 @@ def test_case_1_project_styleguide_appears_in_implement_prompt(
         "(see src/charter/schemas.py). Mission B WP04 adds the field and the "
         "matching renderer (_render_selected_styleguides). See "
         "docs/development/mission-b-proposed-scope.md → WP04."
+    )
+
+    # RISK-2 (mission-b post-merge review): the ID-only assertion above is
+    # satisfied even by a generic catalog-miss stanza that merely names the
+    # styleguide. To prove the rendered prompt actually includes the
+    # styleguide BODY, require at least one distinctive phrase from the
+    # caveman styleguide content. If none of these appear, the renderer is
+    # silently falling through to a placeholder and the "ID + body" branch
+    # of the OR above is synthetic.
+    body_markers = (
+        "Ugg style",
+        "CAVEMAN NOT TALK FANCY",
+        "Caveman Inline Comment",
+        "OPEN FILE",
+    )
+    found_body_markers = [m for m in body_markers if m in result.text]
+    assert found_body_markers, (
+        "The implement charter context names `caveman-comments` but does NOT "
+        "include any distinctive phrase from the styleguide body. Looked for "
+        f"any of {body_markers!r} — found none. This indicates the renderer "
+        "is emitting a catalog-miss placeholder rather than rendering the "
+        "actual styleguide body. Verify (a) the fixture YAML parses cleanly "
+        "against `Styleguide` (src/doctrine/styleguides/) and (b) "
+        "_render_selected_artifacts (src/charter/context.py) inlines the body."
     )
 
 

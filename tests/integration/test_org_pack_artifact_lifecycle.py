@@ -87,7 +87,8 @@ _CAVEMAN_STYLEGUIDE_YAML = textwrap.dedent(
     patterns:
       - name: Caveman Inline Comment
         description: "ALL CAPS, present-tense imperative, no articles."
-        rule: "# OPEN FILE — READ ALL BYTES"
+        good_example: "# OPEN FILE — READ ALL BYTES"
+        bad_example: "# we open the file and read all of its bytes"
     """
 )
 
