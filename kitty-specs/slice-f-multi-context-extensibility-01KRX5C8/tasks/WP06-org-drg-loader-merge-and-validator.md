@@ -25,7 +25,7 @@ subtasks:
 - T031
 - T032
 - T033
-agent: claude:opus-4-7:python-pedro:implementer
+agent: "claude:opus-4-7:python-pedro:implementer"
 history: []
 agent_profile: python-pedro
 authoritative_surface: src/charter/drg.py
@@ -41,6 +41,7 @@ owned_files:
 - tests/architectural/_fixtures/org_packs/example_org/**
 role: implementer
 tags: []
+shell_pid: "2472098"
 ---
 
 ## ⚡ Do This First: Load Agent Profile
@@ -502,3 +503,7 @@ pytest tests/integration/test_three_layer_drg_end_to_end.py \
 - Confirm full architectural sweep exit 0 (NFR-005).
 
 **FR-304 commit-message check:** T027 RED commit cites `covers: Scenario 1, Scenario 1 exception, FR-004, FR-005, AC-1 (partial)` and `expected GREEN at: WP06/WP07/WP08`.
+
+## Activity Log
+
+- 2026-05-18T16:15:06Z – claude:opus-4-7:python-pedro:implementer – shell_pid=2472098 – Started implementation via action command
