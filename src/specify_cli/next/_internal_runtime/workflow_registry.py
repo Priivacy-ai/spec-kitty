@@ -29,6 +29,7 @@ caller (currently WP11's ``planner.plan_next``).
 from __future__ import annotations
 
 import functools
+import re
 from pathlib import Path
 
 import yaml
@@ -44,7 +45,21 @@ class UnknownWorkflowError(Exception):
     FR-015 binding: this exception MUST name the unknown id AND list the
     currently available workflow ids.  The caller MUST NOT silently fall back
     to ``software-dev-default``.
+
+    Also raised by the slug validator (MEDIUM-4 / post-merge remediation
+    cycle 1) when *workflow_id* does not match ``[a-z0-9][a-z0-9-]*``.
+    In that case the message begins with "Invalid workflow_id" to distinguish
+    validation rejection from a normal lookup miss.
     """
+
+
+# Defense-in-depth validator (MEDIUM-4, post-merge remediation cycle 1,
+# 2026-05-19). workflow_id originates from operator-authored meta.json; an
+# adversarial value such as "../../evil" must be rejected before the string
+# is interpolated into a filesystem path. The .workflow.yaml suffix alone
+# is insufficient protection for all traversal patterns.
+# Pattern: must start with [a-z0-9] and contain only [a-z0-9-] characters.
+_WORKFLOW_ID_PATTERN: re.Pattern[str] = re.compile(r"[a-z0-9][a-z0-9-]*")
 
 
 # ---------------------------------------------------------------------------
@@ -82,12 +97,22 @@ def get_workflow(workflow_id: str) -> WorkflowSequence:
     Raises
     ------
     UnknownWorkflowError
-        If *workflow_id* cannot be resolved to any file in the search roots.
-        The exception message names the unknown id and lists available ids
-        (FR-015 binding).
+        If *workflow_id* fails the slug validator or cannot be resolved to
+        any file in the search roots. The exception message begins with
+        "Invalid workflow_id" for validator failures and "Unknown workflow_id"
+        for lookup misses (FR-015 binding, MEDIUM-4).
     pydantic.ValidationError
         If the resolved YAML file fails ``WorkflowSequence`` validation.
     """
+    # MEDIUM-4: slug validator (defense-in-depth against path traversal).
+    # Reject before any filesystem interaction.
+    if not _WORKFLOW_ID_PATTERN.fullmatch(workflow_id):
+        raise UnknownWorkflowError(
+            f"Invalid workflow_id {workflow_id!r}: must match [a-z0-9][a-z0-9-]*. "
+            f"Path-traversal sequences, uppercase letters, spaces, and special "
+            f"characters are not permitted in workflow identifiers."
+        )
+
     for root in _SEARCH_ROOTS:
         candidate = root / f"{workflow_id}.workflow.yaml"
         if candidate.exists():
