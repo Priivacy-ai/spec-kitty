@@ -122,3 +122,66 @@ Land Issue #1111 Slice F (3 architectural axes: three-layer DRG resolution per #
 1. **Mission-level review** (`/spec-kitty-mission-review` with architect-alphonso): spec → code fidelity, FR coverage audit, cross-WP drift, security review of the descoped auth-transport ADR
 2. **Post-review remediations** if HIGH findings emerge
 3. **Branch PR upstream** (`feat/org-doctrine-layer` → `main` on Priivacy-ai/spec-kitty) — bundles Mission B + Slice F + the 5 absorbed remediations as a single charter/doctrine baseline slice
+
+---
+
+## Post-merge remediation cycle 1 (2026-05-19)
+
+**Reviewer:** architect-alphonso (via claude:opus-4-7[1m]) at commit `a130a85d`
+**Agent:** python-pedro:implementer (via claude:sonnet-4-6)
+**Findings addressed:** HIGH-1, MEDIUM-2, MEDIUM-3, MEDIUM-4, LOW-6 (LOW-5 resolves as side-effect of HIGH-1)
+**Unaddressed:** LOW-7 (acceptable baseline noise — `[checklist]` parametrization delta ≤ 2)
+
+### HIGH-1 — Axis 2 (CharterScope) production wiring
+
+**Finding:** `build_with_scope` had zero `src/` callers; the WP09→WP11 in-flight Category C allowlist was never cleared.
+
+**Fix:**
+- `src/specify_cli/next/prompt_builder.py`: added `from charter.scope_router import build_with_scope` import; extended `_governance_context()` with `feature_dir: Path | None = None` kwarg; when `feature_dir` is provided, delegates to `build_with_scope(repo_root, feature_dir, ...)` instead of `build_charter_context(repo_root, ...)` directly. Single-project path (feature_dir=None) is byte-identical to pre-fix.
+- `_build_wp_prompt` and `_build_template_prompt` both forward their `feature_dir` argument.
+- `scope_router.py`: added explicit `# noqa: F401` imports of `CharterScopeConfig`, `CharterScopeConflict`, `CharterScopeNotFound` to give those `__all__` exports a live `src/` caller.
+
+**Verification:** NFR-001 25/25 passing (23 original + 2 new HIGH-1 contract tests). Cat-C allowlist emptied (4→0). Cat-5 scope_router entry removed (4→3). `_baselines.yaml` updated accordingly.
+
+### LOW-5 (side-effect of HIGH-1) — Cat-C and Cat-5 allowlists cleared
+
+Both `category_c_wp_in_flight_charter_scope` (was 4) and `category_5_wp_in_flight_adapters` (was 4) reduced to their correct post-wiring values (0 and 3 respectively).
+
+### MEDIUM-2 — FR-010 spec/impl deviation
+
+**Finding:** `build_charter_context` did not accept an optional `scope` parameter as specified in FR-010.
+
+**Fix:** Added `scope: CharterScope | None = None` keyword-only parameter to `build_charter_context` in `src/charter/context.py`. When provided, `repo_root` is overridden with `scope.root`. Uses `TYPE_CHECKING` import to avoid circular dependency. All existing callers are unaffected (scope defaults to None).
+
+### MEDIUM-3 — CharterScope glossary definition drift
+
+**Finding:** `glossary/contexts/doctrine.md` lines 374-380 described the Mission B selection-layer concept, not the Slice F monorepo path-resolution dataclass.
+
+**Fix:** Rewrote the CharterScope entry to describe `CharterScope.default()` and `CharterScope.resolve()`, reference ADR-8, and link to the correct related terms. `test_canonical_promotion.py` still passes (Status: canonical unchanged).
+
+### MEDIUM-4 — workflow_id sanitization
+
+**Finding:** `get_workflow(workflow_id)` interpolated `workflow_id` into a filesystem path without validating the slug. A path-traversal value would attempt to open `../../evil.workflow.yaml`.
+
+**Fix:** Added `_WORKFLOW_ID_PATTERN = re.compile(r"[a-z0-9][a-z0-9-]*")` and a `fullmatch` check at the top of `get_workflow()`. Invalid slugs raise `UnknownWorkflowError("Invalid workflow_id …")` before any filesystem interaction. The error message prefix "Invalid" distinguishes validator rejection from normal lookup failure ("Unknown").
+
+### LOW-6 — Cross-axis integration test via production path
+
+**Finding:** `test_slice_f_cross_axis.py` called `CharterScope.resolve` directly, not through the prompt-build pipeline.
+
+**Fix:** Added `test_governance_context_production_path_uses_monorepo_charter` which drives `_governance_context(repo_root, feature_dir=deep_auth_path, action="implement")` with a monorepo fixture, patches `charter.scope_router.build_charter_context` to capture the `resolved_root` argument, and asserts the resolved root equals the auth package root (not `repo_root`).
+
+### Debrief accuracy correction
+
+The original debrief claimed: "Per-WP 'WP-in-flight Category C' allowlists with explicit removal triggers (WP09 + WP10 → cleared by WP11) kept the dead-code gates honest across the mission without permanent debt." This was only half-true: WP11 cleared `category_c_wp_in_flight_workflow_registry` (now 0) but did NOT clear `category_c_wp_in_flight_charter_scope` (was still 4 at merge). Remediation cycle 1 completes the clearance.
+
+### Gate summary
+
+| Gate | Result |
+|---|---|
+| NFR-001 governance contract | 25/25 pass |
+| Slice F architectural sweep | 73/73 pass |
+| C-005 auth/transport.py diff | empty (zero-diff honored) |
+| Layer rule (no specify_cli in charter modules) | zero matches |
+| Full sweep | 34 failed (at pre-merge baseline) |
+| Ruff | clean |
