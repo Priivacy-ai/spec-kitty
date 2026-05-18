@@ -159,6 +159,22 @@ After all subtasks are complete:
 - All tests pass
 - No files outside `owned_files` were modified
 - Code follows project conventions (run linter if configured)
+- **Diff-scoped ruff sweep (MANDATORY before moving to `for_review`)** —
+  catches lint regressions before they reach the cycle-1 reviewer. The WP06
+  cycle-1 `textwrap` F401 in `tests/specify_cli/doctrine/test_missing_pack_policy.py`
+  would have been caught by this step. Scope is the diff only so the implementer
+  does not drown in pre-existing warnings owned by other WPs.
+  ```bash
+  CHANGED_PY=$(git diff --name-only --diff-filter=AMR HEAD | rg '\.py$' || true)
+  if [ -n "$CHANGED_PY" ]; then
+    .venv/bin/ruff check $CHANGED_PY
+  fi
+  ```
+  - The command MUST exit 0. If it does not, fix or `ruff check --fix` and re-run.
+  - Paste the final command + exit code into your handoff note
+    (e.g. `"ruff diff-scoped check: 0 issues, exit 0"`).
+  - On cycle-N re-implementation, diff against the WP's planning base instead
+    of `HEAD`: `git diff --name-only $(git merge-base HEAD main)`.
 
 ---
 
