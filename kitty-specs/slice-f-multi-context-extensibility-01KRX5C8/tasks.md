@@ -44,13 +44,13 @@ Lane A blocks Lane C/D so the burn-down meta-test (FR-110/111) is in place befor
 ### Lane A — Architectural rigor
 
 #### WP01 — Ratchet baseline + meta-test + Cat-7 shrinkage 10→7
-- [ ] T001 — Land failing-first `tests/architectural/test_ratchet_baselines.py` meta-test scaffold (RED on planning base) (WP01)
-- [ ] T002 — Create `tests/architectural/_baselines.yaml` with per-test, per-category baselines (FR-110) (WP01)
-- [ ] T003 — Refactor `tests/architectural/test_no_dead_modules.py::_ALLOWLIST` into per-category frozensets (FR-112) (WP01)
-- [ ] T004 — DELETE `src/doctrine/templates/repository.py` + its test (Cat-7 shrinkage #1, FR-113) (WP01)
-- [ ] T005 — DELETE `src/specify_cli/glossary/prompts.py` + its test (Cat-7 shrinkage #2, Q5/DM-01KRX6N0YAFBY7MTJC0CN3D3E4) (WP01)
-- [ ] T006 — DELETE `src/specify_cli/glossary/rendering.py` + its test (Cat-7 shrinkage #3) (WP01)
-- [ ] T007 — Set Cat-7 baseline to 7 in `_baselines.yaml`; meta-test turns GREEN; add AC-7 assertion test (WP01)
+- [x] T001 — Land failing-first `tests/architectural/test_ratchet_baselines.py` meta-test scaffold (RED on planning base) (WP01)
+- [x] T002 — Create `tests/architectural/_baselines.yaml` with per-test, per-category baselines (FR-110) (WP01)
+- [x] T003 — Refactor `tests/architectural/test_no_dead_modules.py::_ALLOWLIST` into per-category frozensets (FR-112) (WP01)
+- [x] T004 — DELETE `src/doctrine/templates/repository.py` + its test (Cat-7 shrinkage #1, FR-113) (WP01)
+- [x] T005 — DELETE `src/specify_cli/glossary/prompts.py` + its test (Cat-7 shrinkage #2, Q5/DM-01KRX6N0YAFBY7MTJC0CN3D3E4) (WP01)
+- [x] T006 — DELETE `src/specify_cli/glossary/rendering.py` + its test (Cat-7 shrinkage #3) (WP01)
+- [x] T007 — Set Cat-7 baseline to 7 in `_baselines.yaml`; meta-test turns GREEN; add AC-7 assertion test (WP01)
 
 #### WP02 — Symbol-level dead-code gate + `__all__` convention
 - [ ] T008 — Land failing-first `tests/architectural/test_no_dead_symbols.py` (walks `__all__`; RED on planning base) (WP02)
