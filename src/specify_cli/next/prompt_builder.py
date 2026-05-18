@@ -15,7 +15,7 @@ from charter.mission_type_profiles import (
     UnknownMissionTypeError,
     resolve_mission_type_governance,
 )
-from charter.resolver import GovernanceResolutionError, resolve_governance
+from charter.resolver import GovernanceResolutionError, resolve_project_governance
 from specify_cli.core.paths import get_feature_target_branch
 from specify_cli.runtime.resolver import resolve_command
 from specify_cli.status.wp_metadata import read_wp_frontmatter
@@ -354,7 +354,7 @@ def _governance_context(
 def _legacy_governance_context(repo_root: Path) -> str:
     """Render compact governance context via resolver."""
     try:
-        resolution = resolve_governance(repo_root)
+        resolution = resolve_project_governance(repo_root)
     except GovernanceResolutionError as exc:
         return f"Governance: unresolved ({exc})"
     except Exception as exc:

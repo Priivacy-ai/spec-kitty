@@ -14,7 +14,7 @@ from pathlib import Path
 
 from charter.resolver import (
     GovernanceResolutionError,
-    resolve_governance,
+    resolve_project_governance,
 )
 from specify_cli.runtime.home import get_kittify_home
 
@@ -130,7 +130,7 @@ def check_stale_legacy_assets(project_dir: Path) -> DoctorCheck:
 def check_governance_resolution(project_dir: Path) -> DoctorCheck:
     """Validate charter-centric governance resolution for this project."""
     try:
-        resolution = resolve_governance(project_dir)
+        resolution = resolve_project_governance(project_dir)
     except GovernanceResolutionError as exc:
         return DoctorCheck(
             "governance_resolution",
