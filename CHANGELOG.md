@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0rc12] - 2026-05-18
+
+Ships the MVP CLI sync-boundary preflight surface required by the Teamspace
+auth-boundary hardening launch gate:
+
+- Includes `#1115`: `specify_cli.sync.owner` daemon owner record with
+  mismatch / orphan detection, `specify_cli.sync.preflight` read-only
+  auth/daemon/queue boundary preflight, and the new identity-boundary rows
+  exposed by `sync status --check` / `sync doctor`.
+- Closes `#1087` (sync status/doctor expose auth/queue/daemon split brain),
+  `#1088` (sync daemon coherent machine-global owner), `#1089` (setup-plan
+  evidence enqueued in one sync scope), and `#1090` (scoped queue migration
+  does not strand authenticated work).
+- Unblocks the deployed-dev sync identity-boundary canary
+  (`spec-kitty-end-to-end-testing#42` / `#41`) by providing a packaged CLI
+  whose `sync status --check` output is parseable by the canary harness.
+
 ## [3.2.0rc11] - 2026-05-17
 
 Closes the planning#16 backward-transition follow-up across the CLI release
