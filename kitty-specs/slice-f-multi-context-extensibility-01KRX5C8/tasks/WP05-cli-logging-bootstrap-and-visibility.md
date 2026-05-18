@@ -18,7 +18,7 @@ subtasks:
 - T024
 - T025
 - T026
-agent: claude:opus-4-7:python-pedro:implementer
+agent: claude:sonnet-4-6:python-pedro:implementer
 history: []
 agent_profile: python-pedro
 authoritative_surface: src/specify_cli/__main__.py

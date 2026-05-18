@@ -19,7 +19,7 @@ subtasks:
 - T053
 - T054
 - T055
-agent: claude:opus-4-7:python-pedro:implementer
+agent: claude:sonnet-4-6:python-pedro:implementer
 history: []
 agent_profile: python-pedro
 authoritative_surface: src/specify_cli/next/_internal_runtime/workflow_registry.py
