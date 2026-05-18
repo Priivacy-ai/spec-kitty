@@ -63,7 +63,7 @@ class RecoveryOutcome(StrEnum):
 
 
 def detect_logged_out_with_connected_teamspace(
-    repo_root: Path | None = None,  # noqa: ARG001 - reserved for future use
+    repo_root: Path | None = None,
 ) -> str | None:
     """Return a teamspace handle if logged-out on a connected repo, else None.
 
@@ -99,7 +99,7 @@ def detect_logged_out_with_connected_teamspace(
     try:
         from specify_cli.sync.routing import resolve_checkout_sync_routing  # lazy
 
-        routing = resolve_checkout_sync_routing()
+        routing = resolve_checkout_sync_routing(start=repo_root)
     except Exception:  # pragma: no cover - defensive
         routing = None
 
@@ -126,6 +126,29 @@ def detect_logged_out_with_connected_teamspace(
                     return name.strip()
 
     return None
+
+
+def _run_login_recovery(console: Console) -> RecoveryOutcome:
+    """Run the deferred login flow and map failures to ``SKIPPED``."""
+    try:
+        from specify_cli.cli.commands._auth_login import login_impl  # lazy
+    except Exception as exc:  # pragma: no cover - defensive
+        console.print(f"[red]Login flow is unavailable:[/red] {exc}")
+        return RecoveryOutcome.SKIPPED
+
+    try:
+        from specify_cli.auth.errors import AuthenticationError  # lazy
+    except Exception:  # pragma: no cover - defensive
+        authentication_error = Exception
+    else:
+        authentication_error = AuthenticationError
+
+    try:
+        asyncio.run(login_impl(headless=False, force=False))
+    except authentication_error as exc:
+        console.print(f"[red]Login failed:[/red] {exc}")
+        return RecoveryOutcome.SKIPPED
+    return RecoveryOutcome.LOGGED_IN
 
 
 def is_interactive() -> bool:
@@ -217,23 +240,7 @@ def offer_login_recovery(
     console.print(choice or "")
 
     if choice == "l":
-        try:
-            from specify_cli.cli.commands._auth_login import login_impl  # lazy
-        except Exception as exc:  # pragma: no cover - defensive
-            console.print(f"[red]Login flow is unavailable:[/red] {exc}")
-            return RecoveryOutcome.SKIPPED
-
-        try:
-            from specify_cli.auth.errors import AuthenticationError  # lazy
-        except Exception:  # pragma: no cover - defensive
-            AuthenticationError = Exception  # type: ignore[assignment, misc]  # fallback when auth module is unavailable
-
-        try:
-            asyncio.run(login_impl(headless=False, force=False))
-        except AuthenticationError as exc:
-            console.print(f"[red]Login failed:[/red] {exc}")
-            return RecoveryOutcome.SKIPPED
-        return RecoveryOutcome.LOGGED_IN
+        return _run_login_recovery(console)
 
     if choice == "q":
         return RecoveryOutcome.QUIT
