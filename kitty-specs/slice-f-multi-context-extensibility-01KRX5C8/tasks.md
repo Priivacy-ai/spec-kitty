@@ -117,12 +117,12 @@ Lane A blocks Lane C/D so the burn-down meta-test (FR-110/111) is in place befor
 - [x] T049 — Confirm Scenario 2 + AC-3 GREEN; the 23 `test_wp_prompt_governance_contract.py` fixtures pass unchanged (NFR-001) (WP09)
 
 #### WP10 — Workflow sequence YAML schema + registry
-- [ ] T050 — Land failing-first `tests/specify_cli/next/test_workflow_registry.py` (covers `test_unknown_workflow_id_hard_fails_with_available_list` Scenario 3 exception) (RED on planning base) (WP10)
-- [ ] T051 — Create `src/specify_cli/next/_internal_runtime/workflow_schema.py` with `WorkflowSequence` + `ActionStep` Pydantic v2 models per data-model §5 + §6 (FR-012) (WP10)
-- [ ] T052 — Create `src/specify_cli/next/_internal_runtime/workflow_registry.py` with `get_workflow(workflow_id) -> WorkflowSequence`; precedence: `src/doctrine/workflows/<id>.workflow.yaml`, then `_fixtures/`, then operator override (WP10)
-- [ ] T053 — Create `src/doctrine/workflows/software-dev-default.workflow.yaml` declaring the existing six-step sequence — byte-stable to today's hardcoded sequence (FR-014, C-008) (WP10)
-- [ ] T054 — Create `src/doctrine/workflows/_fixtures/our-team-design-first.workflow.yaml` fixture with extra `design-review` step between `plan` and `tasks` (for WP11 / Scenario 3) (WP10)
-- [ ] T055 — Confirm registry tests GREEN; unknown-id hard-fails with available-list message (FR-015, no silent fallback) (WP10)
+- [x] T050 — Land failing-first `tests/specify_cli/next/test_workflow_registry.py` (covers `test_unknown_workflow_id_hard_fails_with_available_list` Scenario 3 exception) (RED on planning base) (WP10)
+- [x] T051 — Create `src/specify_cli/next/_internal_runtime/workflow_schema.py` with `WorkflowSequence` + `ActionStep` Pydantic v2 models per data-model §5 + §6 (FR-012) (WP10)
+- [x] T052 — Create `src/specify_cli/next/_internal_runtime/workflow_registry.py` with `get_workflow(workflow_id) -> WorkflowSequence`; precedence: `src/doctrine/workflows/<id>.workflow.yaml`, then `_fixtures/`, then operator override (WP10)
+- [x] T053 — Create `src/doctrine/workflows/software-dev-default.workflow.yaml` declaring the existing six-step sequence — byte-stable to today's hardcoded sequence (FR-014, C-008) (WP10)
+- [x] T054 — Create `src/doctrine/workflows/_fixtures/our-team-design-first.workflow.yaml` fixture with extra `design-review` step between `plan` and `tasks` (for WP11 / Scenario 3) (WP10)
+- [x] T055 — Confirm registry tests GREEN; unknown-id hard-fails with available-list message (FR-015, no silent fallback) (WP10)
 
 #### WP11 — Workflow runtime integration
 - [ ] T056 — Land failing-first `tests/integration/test_workflow_sequence_runtime.py::test_non_default_workflow_id_produces_extra_design_review_step` + `test_fixture_mission_with_workflow_id_produces_documented_step_diff` (RED on planning base) (WP11)
