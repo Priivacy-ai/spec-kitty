@@ -24,8 +24,8 @@ subtasks:
 - T005
 - T006
 - T007
-agent: claude:opus-4-7:python-pedro:implementer
-shell_pid: '2194800'
+agent: "claude:opus-4-7:python-pedro:implementer"
+shell_pid: "2194800"
 history: []
 agent_profile: python-pedro
 authoritative_surface: tests/architectural/
@@ -323,3 +323,7 @@ If the meta-test was already green on the planning base, REJECT the WP per spec 
 - Confirm 23 fixtures pass: `pytest tests/specify_cli/next/test_wp_prompt_governance_contract.py -v` (NFR-001).
 
 **FR-304 commit-message check:** every commit that lands an ATDD test references the scenario/AC it covers and the expected GREEN WP. The T001 RED commit's message should read approximately: "ATDD: ratchet baseline meta-test (RED) — covers: Scenario 6, AC-6, AC-7 — expected GREEN at: WP01 final commit".
+
+## Activity Log
+
+- 2026-05-18T12:12:51Z – claude:opus-4-7:python-pedro:implementer – shell_pid=2194800 – Assigned agent via action command
