@@ -286,6 +286,45 @@ that is the intentional design. The real logic is one layer up.
 
 ---
 
+## Breaking change (mission B): missing packs hard-fail
+
+Prior to mission `charter-mediated-doctrine-selection-01KRTZCA`, a doctrine pack
+configured in `.kittify/config.yaml` whose `local_path` did not exist on disk was
+silently skipped — resolution would degrade to the built-in + project layers
+without surfacing the misconfiguration. This made stale pack entries and typoed
+paths invisible until a missing artifact tripped a downstream lookup.
+
+As of this mission (FR-015), missing packs cause `spec-kitty charter context` and
+every downstream command (including `spec-kitty next`) to fail loudly with a
+message naming the pack and the missing path:
+
+```
+Doctrine pack `very-serious-developers` configured at
+`/home/alice/.kittify/org/very-serious-developers` does not exist on disk. Run
+`spec-kitty doctrine fetch --pack very-serious-developers` to populate it, or
+remove the pack from .kittify/config.yaml.
+```
+
+The diagnostic is intentionally actionable — operators are given two concrete
+remediation steps, and the error is raised by `MissingDoctrinePackError`
+(`src/specify_cli/doctrine/org_charter.py`) so callers can catch and report it
+in their own UIs.
+
+**Migration**
+
+1. Run `spec-kitty doctor doctrine` to enumerate configured packs and their
+   on-disk status.
+2. For each missing pack, either:
+   - `spec-kitty doctrine fetch --pack <name>` to populate the snapshot, or
+   - Remove the entry from `.kittify/config.yaml` under `doctrine.org.packs`.
+3. Re-run `spec-kitty doctor doctrine` to confirm a clean state before the next
+   `charter context` build.
+
+This behaviour is non-negotiable: silent fallback risked teams unknowingly
+running without the governance their charter assumed. There is no opt-out flag.
+
+---
+
 ## Frequently asked questions
 
 **Can I have multiple org layers?**
@@ -298,9 +337,11 @@ project-level exception; `charter lint` will surface an advisory so the
 override remains visible.
 
 **What if the org snapshot is missing on disk?**
-Resolution gracefully falls back to built-in + project. The org layer is additive;
-its absence does not break the project. `spec-kitty doctor doctrine` will report
-the configured-but-not-fetched pack so you know to run `doctrine fetch`.
+As of mission `charter-mediated-doctrine-selection-01KRTZCA` (FR-015), this is a
+**hard error**. Earlier releases silently fell back to built-in + project; that
+behaviour was hiding misconfigured packs and stale paths. See the breaking-change
+section below for the migration path. `spec-kitty doctor doctrine` reports every
+configured pack and flags any that are missing.
 
 **Is it safe to gitignore the snapshot directory?**
 Yes — and that is the recommended pattern. `doctrine fetch` is the install step;

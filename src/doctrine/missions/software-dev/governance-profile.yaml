@@ -1,0 +1,22 @@
+# Mission-type governance profile — software-dev
+#
+# Pinned by `tests/missions/test_mission_type_profile_resolution.py`.
+# Schema: `charter.mission_type_profiles.MissionTypeProfile`
+# Contract: kitty-specs/charter-mediated-doctrine-selection-01KRTZCA/contracts/mission-type-profile.md
+#
+# `template_set: software-dev-default` preserves backwards compatibility for
+# the 23-test ATDD suite at
+# tests/specify_cli/next/test_wp_prompt_governance_contract.py and for every
+# legacy fixture mission whose meta.json declares `mission_type: software-dev`.
+mission_type: software-dev
+template_set: software-dev-default
+selected_directives: []
+selected_tactics: []
+selected_paradigms: []
+selected_styleguides: []
+selected_toolguides: []
+selected_procedures: []
+selected_agent_profiles: []
+selected_mission_step_contracts: []
+available_tools: []
+activations: []

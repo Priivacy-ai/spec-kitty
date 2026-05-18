@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.drg import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 from .models import SenseStatus, TermSense
 from .store import GlossaryStore

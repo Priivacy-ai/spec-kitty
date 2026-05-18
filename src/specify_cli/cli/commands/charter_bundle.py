@@ -33,7 +33,7 @@ from charter.resolution import (
     resolve_canonical_repo_root,
 )
 from charter.synthesizer.synthesize_pipeline import ProvenanceEntry
-from doctrine.versioning import check_bundle_compatibility, get_bundle_schema_version
+from charter.versioning import check_bundle_compatibility, get_bundle_schema_version
 from ruamel.yaml import YAML as _YAML
 
 app = typer.Typer(

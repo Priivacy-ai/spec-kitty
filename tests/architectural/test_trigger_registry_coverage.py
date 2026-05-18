@@ -45,10 +45,54 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 _DOCTRINE_ROOT = _REPO_ROOT / "src" / "doctrine"
 
 
-# Canonical agent-action registry. Populated by Mission B WP05 with the
-# trigger vocabulary the prompt builder understands. Today the registry
-# is empty — and so are the artifacts. WP05 must extend BOTH together.
-_REGISTERED_TRIGGERS: frozenset[str] = frozenset()
+# ---------------------------------------------------------------------------
+# Canonical trigger registry  (data-model.md §7 — SINGLE SOURCE OF TRUTH)
+# ---------------------------------------------------------------------------
+#
+# Per data-model.md §7 ("Trigger Registry (FR-009) — CANONICAL DEFINITION"),
+# this file is the canonical home for both vocabularies.  The runtime
+# re-exports under ``charter.activations`` (``ALLOWED_ACTIONS`` and
+# ``REGISTERED_TRIGGERS``) MUST be byte-identical to the constants below
+# — pinned by ``test_trigger_registry_runtime_export_in_sync``.
+#
+# 10-token operator-side action vocabulary for ``activation_context.action``
+# in operator-authored ``activations:`` blocks (charter, org-pack,
+# mission-type profile).  Mission-type verbs + charter-loop verbs.
+_ALLOWED_ACTIONS: frozenset[str] = frozenset(
+    {
+        # Mission-type verbs
+        "specify",
+        "plan",
+        "tasks",
+        "implement",
+        "review",
+        "merge",
+        "accept",
+        # Charter-loop verbs
+        "charter.interview",
+        "charter.generate",
+        "charter.context",
+    }
+)
+
+# Union formula (the ONLY place this formula appears in code):
+#   _REGISTERED_TRIGGERS = _ALLOWED_ACTIONS ∪ {fine-grained tokens}
+#
+# Fine-grained tokens describe agent sub-actions that may occur during
+# ANY mission verb (e.g. ``write_comment`` happens during implement,
+# review, and the charter loop).  They are NOT in ``_ALLOWED_ACTIONS``
+# because they cannot stand alone as a mission verb, but they ARE valid
+# operator-authored tokens for ``activation_context.action`` per the
+# wider validator in ``charter.activations`` (see data-model.md §7's
+# mutation rule).
+_REGISTERED_TRIGGERS: frozenset[str] = _ALLOWED_ACTIONS | frozenset(
+    {
+        "write_comment",
+        "write_docstring",
+        "rename_identifier",
+        "add_dependency",
+    }
+)
 
 
 def _iter_doctrine_yaml_files() -> list[Path]:
@@ -144,4 +188,84 @@ def test_registered_triggers_constant_is_a_frozenset_for_immutability() -> None:
     assert isinstance(_REGISTERED_TRIGGERS, frozenset), (
         "_REGISTERED_TRIGGERS must be a frozenset to prevent runtime mutation. "
         f"Observed type: {type(_REGISTERED_TRIGGERS).__name__}"
+    )
+
+
+def test_allowed_actions_constant_is_a_frozenset_for_immutability() -> None:
+    """``_ALLOWED_ACTIONS`` MUST be a frozenset (same rationale as the
+    sibling check for ``_REGISTERED_TRIGGERS``)."""
+    assert isinstance(_ALLOWED_ACTIONS, frozenset), (
+        "_ALLOWED_ACTIONS must be a frozenset to prevent runtime mutation. "
+        f"Observed type: {type(_ALLOWED_ACTIONS).__name__}"
+    )
+
+
+def test_registered_triggers_is_strict_superset_of_allowed_actions() -> None:
+    """Per the union formula in data-model.md §7,
+    ``_REGISTERED_TRIGGERS = _ALLOWED_ACTIONS ∪ {fine-grained tokens}`` —
+    so every action MUST be a registered trigger, and the trigger set
+    MUST contain at least one fine-grained token not in the action set.
+
+    Pinning this here keeps the two vocabularies from accidentally
+    diverging in a future refactor (e.g. someone moving ``implement``
+    out of ``_ALLOWED_ACTIONS`` without also removing it from
+    ``_REGISTERED_TRIGGERS``).
+    """
+    assert _ALLOWED_ACTIONS <= _REGISTERED_TRIGGERS, (
+        "_REGISTERED_TRIGGERS must be a superset of _ALLOWED_ACTIONS per "
+        "the union formula in data-model.md §7. Missing from triggers: "
+        f"{sorted(_ALLOWED_ACTIONS - _REGISTERED_TRIGGERS)}"
+    )
+    fine_grained = _REGISTERED_TRIGGERS - _ALLOWED_ACTIONS
+    assert fine_grained, (
+        "_REGISTERED_TRIGGERS must contain at least one fine-grained "
+        "token beyond _ALLOWED_ACTIONS. Today the canonical set is "
+        "{write_comment, write_docstring, rename_identifier, "
+        "add_dependency} — see data-model.md §7."
+    )
+
+
+def test_trigger_registry_runtime_export_in_sync() -> None:
+    """Cross-check: the runtime re-export in :mod:`charter.activations`
+    MUST be byte-identical to the canonical frozensets in this file.
+
+    Pinning this eliminates the copy/paste-drift risk identified in
+    ``analysis-report.md`` finding A1 (Trigger Registry vs Activation
+    Vocabulary drift).  Per data-model.md §7 "MANDATORY runtime
+    re-export", the runtime contract is that the two pairs are
+    byte-identical ``frozenset[str]`` instances at import time — this
+    test is the architectural gate that enforces that contract.
+
+    If this test fails, do NOT edit the runtime constants directly.
+    The canonical home is THIS file (per data-model.md §7).  Either:
+
+    1. Update ``_ALLOWED_ACTIONS`` / ``_REGISTERED_TRIGGERS`` here AND
+       teach ``charter.activations`` to import / re-export the new
+       values (typical case — adding a new trigger token).
+    2. Investigate why the runtime is diverging from the canonical
+       vocabulary (regression case — fix the import path / re-export).
+    """
+    from charter.activations import ALLOWED_ACTIONS, REGISTERED_TRIGGERS
+
+    assert isinstance(ALLOWED_ACTIONS, frozenset), (
+        "charter.activations.ALLOWED_ACTIONS must be a frozenset "
+        f"(observed type: {type(ALLOWED_ACTIONS).__name__})."
+    )
+    assert isinstance(REGISTERED_TRIGGERS, frozenset), (
+        "charter.activations.REGISTERED_TRIGGERS must be a frozenset "
+        f"(observed type: {type(REGISTERED_TRIGGERS).__name__})."
+    )
+    assert ALLOWED_ACTIONS == _ALLOWED_ACTIONS, (
+        "charter.activations.ALLOWED_ACTIONS drifted from the canonical "
+        "_ALLOWED_ACTIONS in test_trigger_registry_coverage.py. "
+        "See data-model.md §7 for the SSOT contract.\n"
+        f"  missing from runtime: {sorted(_ALLOWED_ACTIONS - ALLOWED_ACTIONS)}\n"
+        f"  extra in runtime:     {sorted(ALLOWED_ACTIONS - _ALLOWED_ACTIONS)}"
+    )
+    assert REGISTERED_TRIGGERS == _REGISTERED_TRIGGERS, (
+        "charter.activations.REGISTERED_TRIGGERS drifted from the canonical "
+        "_REGISTERED_TRIGGERS in test_trigger_registry_coverage.py. "
+        "See data-model.md §7 for the SSOT contract.\n"
+        f"  missing from runtime: {sorted(_REGISTERED_TRIGGERS - REGISTERED_TRIGGERS)}\n"
+        f"  extra in runtime:     {sorted(REGISTERED_TRIGGERS - _REGISTERED_TRIGGERS)}"
     )

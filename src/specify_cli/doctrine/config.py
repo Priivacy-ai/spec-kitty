@@ -51,6 +51,7 @@ __all__ = [
     "load_pack_registry",
     "save_pack_registry",
     "resolve_org_roots",
+    "assert_pack_local_paths_exist",
 ]
 
 SourceType = Literal["git", "https", "api"]
@@ -255,3 +256,33 @@ def resolve_org_roots(repo_root: Path) -> list[Path]:
     """
     registry = load_pack_registry(repo_root)
     return [pack.local_path for pack in registry.packs]
+
+
+def assert_pack_local_paths_exist(repo_root: Path) -> None:
+    """Hard-fail when any configured org pack's ``local_path`` is missing.
+
+    Per FR-015 (Mission B WP06), a consumer that references an org pack
+    whose snapshot has not been fetched MUST surface a loud, actionable
+    diagnostic — silent skip is the failure mode this guard forbids.
+    Mission A's policy was to filter missing paths and continue; the
+    Mission B contract requires either the pack be present or context
+    resolution fails.
+
+    Raises :class:`specify_cli.doctrine.org_charter.MissingDoctrinePackError`
+    naming the first pack whose ``local_path`` does not exist on disk.
+    Caller sites at the CLI boundary (e.g. ``build_charter_context`` via
+    the prompt builder) catch the exception and convert it to a clear
+    diagnostic in the rendered text — see contracts/mission-type-profile.md
+    and plan.md §2.6.
+
+    When the registry is empty (no configured packs) the function is a
+    no-op.
+    """
+    # Lazy import — ``org_charter`` depends on ``config``; we need to
+    # avoid a circular import at module-load time.
+    from specify_cli.doctrine.org_charter import MissingDoctrinePackError
+
+    registry = load_pack_registry(repo_root)
+    for pack in registry.packs:
+        if not pack.local_path.exists():
+            raise MissingDoctrinePackError(pack.name, pack.local_path)

@@ -1,0 +1,22 @@
+# Mission-type governance profile — research
+#
+# Pinned by `tests/missions/test_mission_type_profile_resolution.py`.
+# Schema: `charter.mission_type_profiles.MissionTypeProfile`
+# Contract: kitty-specs/charter-mediated-doctrine-selection-01KRTZCA/contracts/mission-type-profile.md
+#
+# Research missions focus on investigation and evidence gathering rather
+# than code change. Default selections remain empty — operators tune
+# research tactics (e.g. structured citation, hypothesis registries) via
+# project- or org-layer overrides until a follow-up mission curates them.
+mission_type: research
+template_set: null
+selected_directives: []
+selected_tactics: []
+selected_paradigms: []
+selected_styleguides: []
+selected_toolguides: []
+selected_procedures: []
+selected_agent_profiles: []
+selected_mission_step_contracts: []
+available_tools: []
+activations: []

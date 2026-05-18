@@ -27,9 +27,16 @@ from pathlib import Path
 
 from ruamel.yaml import YAML
 
-from doctrine.drg import DRGEdge, DRGGraph, DRGNode, Relation, load_graph, merge_layers
-from doctrine.drg.models import NodeKind
-from doctrine.drg.query import resolve_context
+from charter.drg import (
+    DRGEdge,
+    DRGGraph,
+    DRGNode,
+    NodeKind,
+    Relation,
+    load_graph,
+    merge_layers,
+    resolve_context,
+)
 from specify_cli.calibration.inequality import InequalityResult, assert_inequality_holds
 
 

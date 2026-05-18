@@ -23,7 +23,7 @@ from typing import Any
 import jsonschema
 from ruamel.yaml import YAML
 
-from doctrine.shared.schema_utils import SchemaUtilities
+from kernel.schema_utils import SchemaUtilities
 
 logger = logging.getLogger(__name__)
 

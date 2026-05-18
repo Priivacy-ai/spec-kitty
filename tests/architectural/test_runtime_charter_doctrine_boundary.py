@@ -52,27 +52,21 @@ _EXEMPT_SUBPACKAGE = _RUNTIME_ROOT / "doctrine"
 
 
 # Baseline allowlist captured from the boundary audit (snapshot 2026-05-17).
-# Each entry MUST eventually be migrated to a `from charter.<facade>` import
-# (see runtime-charter-doctrine-boundary.md → Phase 2/3). The allowlist
-# shrinks as migrations land; never add new entries here without an
-# explicit governance decision.
-_BASELINE_ALLOWLIST: frozenset[str] = frozenset(
-    {
-        "src/specify_cli/bulk_edit/occurrence_map.py",
-        "src/specify_cli/calibration/walker.py",
-        "src/specify_cli/cli/commands/charter.py",
-        "src/specify_cli/cli/commands/charter_bundle.py",
-        "src/specify_cli/glossary/drg_builder.py",
-        "src/specify_cli/invocation/registry.py",
-        "src/specify_cli/invocation/router.py",
-        "src/specify_cli/mission_loader/contract_synthesis.py",
-        "src/specify_cli/mission_loader/registry.py",
-        "src/specify_cli/mission_step_contracts/executor.py",
-        "src/specify_cli/missions/__init__.py",
-        "src/specify_cli/runtime/resolver.py",
-        "src/specify_cli/upgrade/migrations/m_3_2_6_charter_bundle_v2.py",
-    }
-)
+#
+# WP07 migration status (mission charter-mediated-doctrine-selection-01KRTZCA):
+# All 13 baseline-allowlist files have been migrated from direct
+# `from doctrine.*` imports to `from charter.<facade>` imports. The
+# `bulk_edit/occurrence_map.py` SchemaUtilities consumer was migrated to
+# `from kernel.schema_utils import SchemaUtilities` per the kernel
+# promotion path documented in contracts/charter-facade-modules.md.
+#
+# The allowlist is now EMPTY — every direct doctrine import in
+# `src/specify_cli/` (outside the `doctrine/` pack-management subpackage)
+# is a violation. Per C-004 the allowlist may grow to at most 2
+# documented exceptions if a future migration is genuinely lossy; each
+# such addition MUST include a one-line rationale immediately above the
+# entry, and must be paired with a tracker ticket for follow-up removal.
+_BASELINE_ALLOWLIST: frozenset[str] = frozenset()
 
 
 def _is_exempt_subpackage(path: Path) -> bool:

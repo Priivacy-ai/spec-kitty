@@ -12,6 +12,8 @@ from typing import Any
 from pydantic import BaseModel, Field
 from ruamel.yaml import YAML
 
+from charter.activations import ActivationEntry
+
 # Header comment for all emitted YAML files
 YAML_HEADER = (
     "# Auto-generated from charter.md — do not edit directly.\n"
@@ -58,11 +60,36 @@ class BranchStrategyConfig(BaseModel):
 
 
 class DoctrineSelectionConfig(BaseModel):
-    """Charter-level selection of active doctrine elements."""
+    """Charter-level selection of active doctrine elements.
+
+    Field naming MUST exactly mirror the corresponding ``DoctrineService``
+    property name (e.g. ``selected_styleguides`` mirrors
+    ``DoctrineService.styleguides``). This parity rule is pinned by
+    ``tests/architectural/test_artifact_selection_completeness.py`` —
+    adding a new ``@property`` to ``DoctrineService`` without the matching
+    ``selected_<kind>`` field here is a CI failure.
+    """
 
     selected_paradigms: list[str] = Field(default_factory=list)
     selected_directives: list[str] = Field(default_factory=list)
     selected_tactics: list[str] = Field(default_factory=list)
+    selected_styleguides: list[str] = Field(default_factory=list)
+    """Charter-active styleguide IDs (mirrors ``DoctrineService.styleguides``).
+    Default empty preserves backwards compatibility (NFR-005)."""
+    selected_toolguides: list[str] = Field(default_factory=list)
+    """Charter-active toolguide IDs (mirrors ``DoctrineService.toolguides``).
+    Default empty preserves backwards compatibility (NFR-005)."""
+    selected_procedures: list[str] = Field(default_factory=list)
+    """Charter-active procedure IDs (mirrors ``DoctrineService.procedures``).
+    Default empty preserves backwards compatibility (NFR-005)."""
+    selected_agent_profiles: list[str] = Field(default_factory=list)
+    """Charter-active agent-profile IDs (mirrors
+    ``DoctrineService.agent_profiles``). Default empty preserves backwards
+    compatibility (NFR-005)."""
+    selected_mission_step_contracts: list[str] = Field(default_factory=list)
+    """Charter-active mission-step-contract IDs (mirrors
+    ``DoctrineService.mission_step_contracts``). Default empty preserves
+    backwards compatibility (NFR-005)."""
     available_tools: list[str] = Field(default_factory=list)
     template_set: str | None = None
     authority_paths: list[str] = Field(default_factory=list)
@@ -82,6 +109,14 @@ class GovernanceConfig(BaseModel):
     performance: PerformanceConfig = Field(default_factory=PerformanceConfig)
     branch_strategy: BranchStrategyConfig = Field(default_factory=BranchStrategyConfig)
     doctrine: DoctrineSelectionConfig = Field(default_factory=DoctrineSelectionConfig)
+    activations: list[ActivationEntry] = Field(default_factory=list)
+    """Charter-level activation registry (FR-006 / WP01 T008). The registry
+    lives on :class:`GovernanceConfig` (the top-level governance namespace),
+    NOT on :class:`DoctrineSelectionConfig`, because activations pair
+    artifacts with runtime contexts rather than selecting global defaults.
+    Default empty preserves backwards compatibility (NFR-005): existing
+    ``governance.yaml`` files without this key parse unchanged, and the
+    emitter omits the block via :data:`_OPTIONAL_EMPTY_OMIT_KEYS`."""
     enforcement: dict[str, str] = Field(default_factory=dict)
 
 
@@ -139,8 +174,21 @@ class ExtractionMetadata(BaseModel):
 # (NFR-005). Anchored centrally so future "additive optional" fields can
 # join the same allow-list without touching the writer logic.
 _OPTIONAL_EMPTY_OMIT_KEYS: frozenset[str] = frozenset({
-    "references",       # Directive.references (cross-link list)
-    "authority_paths",  # DoctrineSelectionConfig.authority_paths
+    "references",                        # Directive.references (cross-link list)
+    "authority_paths",                   # DoctrineSelectionConfig.authority_paths
+    # WP01 (charter-mediated-doctrine-selection): additive `selected_<kind>`
+    # parity fields. Keep empty values out of emitted YAML so existing
+    # serialized fixtures and user charters stay byte-identical pre-/post-
+    # mission (NFR-005).
+    "selected_styleguides",
+    "selected_toolguides",
+    "selected_procedures",
+    "selected_agent_profiles",
+    "selected_mission_step_contracts",
+    # WP01 T008 (charter-mediated-doctrine-selection): activation registry
+    # block on GovernanceConfig — empty list ⇒ omit from emitted YAML so
+    # the default-config fixture remains byte-stable (NFR-005).
+    "activations",
 })
 
 
