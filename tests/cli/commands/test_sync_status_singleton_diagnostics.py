@@ -49,8 +49,10 @@ def _healthy_status(pid: int = 4242, port: int = 9400) -> SyncDaemonStatus:
     )
 
 
-def test_status_check_includes_daemon_pid_and_port(monkeypatch):
+def test_status_check_includes_daemon_pid_and_port(monkeypatch, tmp_path):
     """The daemon PID and port appear in the ``sync status --check`` table."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "AppData"))
     monkeypatch.setattr(sync_command, "is_saas_sync_enabled", lambda: True)
 
     with (
@@ -84,8 +86,10 @@ def test_status_check_includes_daemon_pid_and_port(monkeypatch):
     assert "OK" in result.output
 
 
-def test_status_check_flags_orphan_daemons(monkeypatch):
+def test_status_check_flags_orphan_daemons(monkeypatch, tmp_path):
     """Orphan ``run_sync_daemon`` processes are surfaced with PIDs in the output."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "AppData"))
     monkeypatch.setattr(sync_command, "is_saas_sync_enabled", lambda: True)
 
     orphans = (
@@ -120,7 +124,7 @@ def test_status_check_flags_orphan_daemons(monkeypatch):
     ):
         result = runner.invoke(app, ["status", "--check"])
 
-    assert result.exit_code == 0, result.output
+    assert result.exit_code == 1, result.output
     # The Singleton table cell reports the count.
     assert "2 orphan daemon(s)" in result.output
     # The follow-up section lists each orphan PID with its cmdline.
@@ -128,10 +132,13 @@ def test_status_check_flags_orphan_daemons(monkeypatch):
     assert "99002" in result.output
     assert "run_sync_daemon(9401" in result.output
     assert "spec-kitty sync doctor" in result.output
+    assert "Identity boundary check FAILED" in result.output
 
 
-def test_status_without_check_skips_orphan_scan(monkeypatch):
+def test_status_without_check_skips_orphan_scan(monkeypatch, tmp_path):
     """``sync status`` without ``--check`` is the fast path; no scan is run."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "AppData"))
     monkeypatch.setattr(sync_command, "is_saas_sync_enabled", lambda: True)
 
     scan_called = {"count": 0}

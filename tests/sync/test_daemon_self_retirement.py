@@ -10,8 +10,14 @@ network-free.
 from __future__ import annotations
 
 import os
+import signal
+import socket
+import subprocess
+import sys
 import threading
 import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -50,6 +56,33 @@ def _mtime(path: Path) -> float | None:
         return path.stat().st_mtime_ns
     except FileNotFoundError:
         return None
+
+
+def _unused_local_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        return int(sock.getsockname()[1])
+
+
+def _wait_for_daemon_health(port: int, proc: subprocess.Popen[str]) -> None:
+    url = f"http://127.0.0.1:{port}/api/health"
+    deadline = time.monotonic() + 10.0
+    last_error: Exception | None = None
+    while time.monotonic() < deadline:
+        if proc.poll() is not None:
+            stdout, stderr = proc.communicate(timeout=1)
+            raise AssertionError(
+                f"daemon exited before health check: rc={proc.returncode}\n"
+                f"stdout={stdout}\nstderr={stderr}"
+            )
+        try:
+            with urllib.request.urlopen(url, timeout=0.25) as response:  # noqa: S310
+                if response.status == 200:
+                    return
+        except (OSError, urllib.error.URLError) as exc:
+            last_error = exc
+        time.sleep(0.05)
+    raise AssertionError(f"daemon health check timed out: {last_error}")
 
 
 # ---------------------------------------------------------------------------
@@ -289,6 +322,52 @@ class TestRunSyncDaemonWiring:
             if t not in threads_before and t.is_alive() and not t.daemon
         }
         assert not leaked, f"non-daemon threads leaked: {leaked}"
+
+    @pytest.mark.skipif(os.name == "nt", reason="POSIX signal semantics only")
+    def test_sigterm_exits_without_deadlocking_server_shutdown(self, tmp_path: Path) -> None:
+        """SIGTERM must stop the daemon instead of deadlocking serve_forever()."""
+        port = _unused_local_port()
+        env = os.environ.copy()
+        env["HOME"] = str(tmp_path)
+        env["LOCALAPPDATA"] = str(tmp_path / "AppData")
+        env["SPEC_KITTY_ENABLE_SAAS_SYNC"] = "1"
+        src_dir = Path(__file__).resolve().parents[2] / "src"
+        env["PYTHONPATH"] = (
+            str(src_dir)
+            if not env.get("PYTHONPATH")
+            else f"{src_dir}{os.pathsep}{env['PYTHONPATH']}"
+        )
+
+        script = (
+            "from specify_cli.sync.daemon import run_sync_daemon\n"
+            f"run_sync_daemon({port}, 'tok')\n"
+        )
+        proc = subprocess.Popen(  # noqa: S603
+            [sys.executable, "-c", script],
+            cwd=Path(__file__).resolve().parents[2],
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        try:
+            _wait_for_daemon_health(port, proc)
+            owner_path = tmp_path / ".spec-kitty" / "sync" / "daemon" / "owner.json"
+            assert owner_path.exists()
+
+            proc.send_signal(signal.SIGTERM)
+            stdout, stderr = proc.communicate(timeout=5.0)
+
+            assert proc.returncode == 0, (
+                f"daemon did not exit cleanly after SIGTERM\n"
+                f"stdout={stdout}\nstderr={stderr}"
+            )
+            assert not owner_path.exists()
+        except Exception:
+            if proc.poll() is None:
+                proc.kill()
+                proc.communicate(timeout=5)
+            raise
 
 
 # ---------------------------------------------------------------------------

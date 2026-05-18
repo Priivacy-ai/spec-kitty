@@ -498,3 +498,175 @@ def test_append_lifecycle_event_returns_none_when_write_fails(
         )
         is None
     )
+
+
+def test_lifecycle_saas_outbox_skips_when_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "specify_cli.sync.feature_flags.is_saas_sync_enabled",
+        lambda: False,
+    )
+
+    lifecycle._queue_lifecycle_event_if_enabled({"event_id": "evt-1"})
+
+
+def test_lifecycle_repo_root_resolution_handles_supported_logs(repo: Path) -> None:
+    project_log = project_event_log_path(repo)
+    mission_log = repo / "kitty-specs" / "demo-mission" / "status.events.jsonl"
+    unknown_log = repo / "other" / "status.events.jsonl"
+
+    assert lifecycle._repo_root_for_lifecycle_log(None) is None
+    assert lifecycle._repo_root_for_lifecycle_log(project_log) == repo
+    assert lifecycle._repo_root_for_lifecycle_log(mission_log) == repo
+    assert lifecycle._repo_root_for_lifecycle_log(unknown_log) is None
+
+
+def test_lifecycle_saas_builder_skips_non_materializable_inputs(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    log_path = project_event_log_path(repo)
+    valid_payload = {
+        "project_uuid": "00000000-0000-0000-0000-000000000001",
+        "project_slug": "demo",
+        "actor": "test",
+    }
+
+    assert lifecycle._build_saas_lifecycle_event({}, log_path=log_path) is None
+    assert (
+        lifecycle._build_saas_lifecycle_event(
+            {"event_type": PROJECT_INITIALIZED, "payload": valid_payload},
+            log_path=log_path,
+        )
+        is None
+    )
+    assert (
+        lifecycle._build_saas_lifecycle_event(
+            {
+                "event_type": PROJECT_INITIALIZED,
+                "payload": valid_payload,
+                "aggregate_type": "Project",
+            },
+            log_path=repo / "other" / "status.events.jsonl",
+        )
+        is None
+    )
+
+    from specify_cli.identity.project import ProjectIdentity
+
+    monkeypatch.setattr(
+        "specify_cli.identity.project.ensure_identity",
+        lambda _repo_root: ProjectIdentity(),
+    )
+    assert (
+        lifecycle._build_saas_lifecycle_event(
+            {
+                "event_type": PROJECT_INITIALIZED,
+                "payload": valid_payload,
+                "aggregate_type": "Project",
+            },
+            log_path=log_path,
+        )
+        is None
+    )
+
+
+def test_lifecycle_saas_outbox_skips_unmaterializable_event(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    queued: list[dict[str, object]] = []
+
+    class _Queue:
+        def queue_event(self, event: dict[str, object]) -> bool:
+            queued.append(event)
+            return True
+
+    monkeypatch.setattr(
+        "specify_cli.sync.feature_flags.is_saas_sync_enabled",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        "specify_cli.sync.queue.read_queue_scope_from_session",
+        lambda: "https://example.test|user@example.test|team-a",
+    )
+    monkeypatch.setattr("specify_cli.sync.queue.OfflineQueue", _Queue)
+    monkeypatch.setattr(lifecycle, "_build_saas_lifecycle_event", lambda *_args, **_kwargs: None)
+
+    lifecycle._queue_lifecycle_event_if_enabled({"event_id": "evt-1"})
+
+    assert queued == []
+
+
+def test_lifecycle_saas_outbox_queues_when_scoped(
+    feature_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    queued: list[dict[str, object]] = []
+
+    class _Queue:
+        def queue_event(self, event: dict[str, object]) -> bool:
+            queued.append(event)
+            return True
+
+    monkeypatch.setattr(
+        "specify_cli.sync.feature_flags.is_saas_sync_enabled",
+        lambda: True,
+    )
+    monkeypatch.setattr("specify_cli.sync.queue.read_queue_scope_from_session", lambda: None)
+    monkeypatch.setattr(
+        "specify_cli.sync.queue.read_queue_scope_from_credentials",
+        lambda: "https://example.test|user@example.test|team-a",
+    )
+    monkeypatch.setattr("specify_cli.sync.queue.OfflineQueue", _Queue)
+
+    emit_artifact_phase(
+        feature_dir,
+        event_type=SPECIFY_COMPLETED,
+        mission_slug="demo-mission",
+        actor="test",
+        artifact_path="kitty-specs/demo-mission/spec.md",
+    )
+
+    assert len(queued) == 1
+    queued_event = queued[0]
+    assert queued_event["event_type"] == SPECIFY_COMPLETED
+    assert queued_event["schema_version"] == "3.0.0"
+    assert queued_event["build_id"]
+    assert queued_event["node_id"]
+    assert isinstance(queued_event["lamport_clock"], int)
+    assert queued_event["lamport_clock"] >= 1
+    assert queued_event["correlation_id"] == queued_event["event_id"]
+
+    from spec_kitty_events import Event
+    from spec_kitty_events.project_lifecycle import SpecifyCompletedPayload
+
+    Event(**queued_event)
+    SpecifyCompletedPayload.model_validate(queued_event["payload"])
+
+
+def test_lifecycle_saas_outbox_suppresses_queue_failures(
+    feature_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    class _Queue:
+        def __init__(self) -> None:
+            raise RuntimeError("queue unavailable")
+
+    monkeypatch.setattr(
+        "specify_cli.sync.feature_flags.is_saas_sync_enabled",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        "specify_cli.sync.queue.read_queue_scope_from_session",
+        lambda: "https://example.test|user@example.test|team-a",
+    )
+    monkeypatch.setattr("specify_cli.sync.queue.OfflineQueue", _Queue)
+
+    emit_artifact_phase(
+        feature_dir,
+        event_type=SPECIFY_COMPLETED,
+        mission_slug="demo-mission",
+        actor="test",
+        artifact_path="kitty-specs/demo-mission/spec.md",
+    )

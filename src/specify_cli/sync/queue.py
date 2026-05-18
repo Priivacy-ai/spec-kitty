@@ -524,22 +524,263 @@ def _queue_db_has_content(db_path: Path) -> bool:
         conn.close()
 
 
-def _migrate_legacy_queue_to_scope(scoped_db_path: Path) -> None:
-    """Copy legacy queue data into the scoped DB when the scoped DB is empty."""
+# ----------------------------------------------------------------------
+# Row-level legacy→scoped queue migration (FR-001/FR-002)
+#
+# Spec: kitty-specs/mvp-sync-boundary-cli-01KRVCQS/data-model.md
+#
+# Stable keys are taken from the live schema in this file and in
+# ``body_queue.py``:
+#
+# * ``queue`` — ``event_id`` carries a ``UNIQUE`` constraint (see
+#   ``OfflineQueue._init_db``). It is the only natural identity per row.
+# * ``body_upload_queue`` — the schema declares a composite
+#   ``UNIQUE(project_uuid, mission_slug, target_branch, mission_type,
+#   manifest_version, artifact_path, content_hash)`` (see
+#   ``_BODY_QUEUE_SCHEMA``). That composite is the schema-canonical
+#   identity per row.
+# * ``body_upload_failure_log`` — schema declares
+#   ``UNIQUE(project_uuid, mission_slug, target_branch, mission_type,
+#   manifest_version, artifact_path, content_hash, failure_reason)``.
+#
+# Using these tuples as the dedup key keeps ``INSERT OR IGNORE`` honest:
+# the unique index decides which rows already live in the destination
+# and which are net-new, regardless of whether ``id`` (AUTOINCREMENT
+# rowid) collides between legacy and scoped DBs.
+# ----------------------------------------------------------------------
+
+_MIGRATION_TABLES: list[tuple[str, tuple[str, ...]]] = [
+    ("queue", ("event_id",)),
+    (
+        "body_upload_queue",
+        (
+            "project_uuid",
+            "mission_slug",
+            "target_branch",
+            "mission_type",
+            "manifest_version",
+            "artifact_path",
+            "content_hash",
+        ),
+    ),
+    (
+        "body_upload_failure_log",
+        (
+            "project_uuid",
+            "mission_slug",
+            "target_branch",
+            "mission_type",
+            "manifest_version",
+            "artifact_path",
+            "content_hash",
+            "failure_reason",
+        ),
+    ),
+]
+
+
+def _table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
+    cursor = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name = ?",
+        (table_name,),
+    )
+    return cursor.fetchone() is not None
+
+
+def _format_key(key_columns: tuple[str, ...], key_values: tuple[Any, ...]) -> str:
+    """Render a stable-key tuple as a compact log token without payload data.
+
+    Only column names and the values that make up the unique key appear here.
+    No payload columns (event bodies, JSON blobs) are ever logged.
+    """
+    return ",".join(f"{col}={val!r}" for col, val in zip(key_columns, key_values))
+
+
+def _scoped_dst_schema(dst: sqlite3.Connection) -> None:
+    """Ensure the destination DB has both event-queue and body-queue tables.
+
+    The event-queue schema is normally created via ``OfflineQueue._init_db``,
+    but the migration function is callable before any ``OfflineQueue`` has
+    been opened against the destination path. We replicate the minimum
+    schema (table + UNIQUE index on ``event_id``) here so ``INSERT OR
+    IGNORE`` semantics survive a fresh destination DB.
+    """
+    dst.execute(
+        """
+        CREATE TABLE IF NOT EXISTS queue (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_id TEXT UNIQUE NOT NULL,
+            event_type TEXT NOT NULL,
+            data TEXT NOT NULL,
+            timestamp INTEGER NOT NULL,
+            retry_count INTEGER DEFAULT 0,
+            coalesce_key TEXT
+        )
+        """
+    )
+    dst.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON queue(timestamp)")
+    dst.execute("CREATE INDEX IF NOT EXISTS idx_retry ON queue(retry_count)")
+    dst.execute(
+        "CREATE INDEX IF NOT EXISTS idx_coalesce_key ON queue(coalesce_key)"
+    )
+    ensure_body_queue_schema(dst)
+
+
+def _column_names(conn: sqlite3.Connection, table_name: str) -> list[str]:
+    cursor = conn.execute(f"PRAGMA table_info({table_name})")
+    return [str(row[1]) for row in cursor]
+
+
+def _migrate_one_table(
+    src: sqlite3.Connection,
+    dst: sqlite3.Connection,
+    table: str,
+    key_columns: tuple[str, ...],
+    logger: Any,
+) -> int:
+    """Merge a single table from *src* into *dst* by row-level INSERT OR IGNORE.
+
+    Returns the number of legacy rows successfully migrated (i.e. either
+    newly inserted into dst, or already present in dst by stable key —
+    both states are safe to delete from src).
+    """
+    if not _table_exists(src, table):
+        return 0
+    if not _table_exists(dst, table):
+        return 0
+
+    src_columns = _column_names(src, table)
+    dst_columns = _column_names(dst, table)
+    # Only carry columns that exist on both sides. This keeps the migration
+    # safe across additive schema drift in either direction. Exclude the
+    # synthetic ``id`` AUTOINCREMENT rowid: it is a local-only identifier
+    # whose value is meaningless across DBs and would collide with rows
+    # already in dst (causing ``INSERT OR IGNORE`` to silently drop the
+    # legacy row even when its stable key is fresh).
+    shared_columns = [c for c in src_columns if c in dst_columns and c != "id"]
+    # Sanity: the chosen key columns must exist on both sides; otherwise we
+    # cannot dedupe and must skip the table rather than risk duplication.
+    for key_col in key_columns:
+        if key_col not in shared_columns:
+            return 0
+
+    insert_columns = ", ".join(shared_columns)
+    placeholders = ", ".join("?" for _ in shared_columns)
+    insert_sql = (
+        f"INSERT OR IGNORE INTO {table} ({insert_columns}) "  # noqa: S608 — column names are static / schema-derived
+        f"VALUES ({placeholders})"
+    )
+    where_clause = " AND ".join(f"{col} = ?" for col in key_columns)
+    exists_sql = (
+        f"SELECT 1 FROM {table} WHERE {where_clause} LIMIT 1"  # noqa: S608 — column names are static
+    )
+    delete_sql = (
+        f"DELETE FROM {table} WHERE {where_clause}"  # noqa: S608 — column names are static
+    )
+
+    select_sql = f"SELECT {insert_columns} FROM {table}"  # noqa: S608 — column names are static
+    src_cursor = src.execute(select_sql)
+    src_rows = src_cursor.fetchall()
+
+    migrated = 0
+    for row in src_rows:
+        key_values = tuple(row[shared_columns.index(c)] for c in key_columns)
+        dst.execute(insert_sql, row)
+        # Verify the row really landed in dst before deleting the legacy
+        # copy. INSERT OR IGNORE could have skipped due to a UNIQUE
+        # conflict that is itself a successful merge, or due to some
+        # other constraint failure (e.g. NOT NULL drift) that is not.
+        landed = dst.execute(exists_sql, key_values).fetchone() is not None
+        if not landed:
+            continue
+        src.execute(delete_sql, key_values)
+        migrated += 1
+        logger.info(
+            "migrated row legacy→scoped: table=%s key=%s",
+            table,
+            _format_key(key_columns, key_values),
+        )
+    return migrated
+
+
+def _migrate_legacy_queue_to_scope(scoped_db_path: Path) -> int:
+    """Idempotent row-level merge from legacy queue.db into the scoped DB.
+
+    Replaces the historical whole-DB ``backup()`` path, which only ran when
+    the scoped DB was completely empty. The new strategy walks every
+    table listed in :data:`_MIGRATION_TABLES`, applies ``INSERT OR
+    IGNORE`` keyed by the schema-canonical unique key, verifies the row
+    landed in the destination, and only then deletes the legacy copy.
+
+    Returns the total count of rows migrated across all tables. Safe to
+    re-run: a second invocation against an already-drained legacy DB
+    returns ``0``.
+    """
+    import logging
+
+    logger = logging.getLogger("specify_cli.sync.queue")
     legacy_db = _legacy_queue_db_path()
     if not legacy_db.exists():
-        return
-    if _queue_db_has_content(scoped_db_path):
-        return
-
+        return 0
     scoped_db_path.parent.mkdir(parents=True, exist_ok=True)
+
+    migrated = 0
     src = sqlite3.connect(legacy_db)
     dst = sqlite3.connect(scoped_db_path)
     try:
-        src.backup(dst)
+        # Row-factory access by index is enough; we only need positional
+        # tuples for the INSERT statements below.
+        _scoped_dst_schema(dst)
+        for table, key_columns in _MIGRATION_TABLES:
+            migrated += _migrate_one_table(src, dst, table, key_columns, logger)
+        src.commit()
+        dst.commit()
     finally:
         dst.close()
         src.close()
+    return migrated
+
+
+def detect_legacy_rows_for_scope(scope: str) -> dict[str, int]:
+    """Return per-table counts of legacy rows that belong to *scope*.
+
+    The legacy queue DB at ``~/.spec-kitty/queue.db`` predates per-scope
+    queues, so any rows it still holds will, on the next authenticated
+    drain, be merged into the active scope. This helper lets ``sync
+    status`` (WP03) surface the pending migration *before* a drain
+    happens, without mutating the legacy DB.
+
+    Args:
+        scope: Active queue scope identity as built by
+            :func:`build_queue_scope`. Used for log context and to make
+            the helper signature future-proof; the legacy DB has no
+            per-scope partitioning today, so all legacy rows count
+            toward the active scope.
+
+    Returns:
+        Mapping of table name → row count. Tables that do not exist in
+        the legacy DB or contain zero rows are omitted from the result.
+    """
+    del scope  # Reserved for future use; no per-scope partitioning today.
+    legacy_db = _legacy_queue_db_path()
+    counts: dict[str, int] = {}
+    if not legacy_db.exists():
+        return counts
+
+    conn = sqlite3.connect(legacy_db)
+    try:
+        for table, _key_columns in _MIGRATION_TABLES:
+            if not _table_exists(conn, table):
+                continue
+            row = conn.execute(
+                f"SELECT COUNT(*) FROM {table}"  # noqa: S608 — table names are static / schema-derived
+            ).fetchone()
+            count = int(row[0]) if row else 0
+            if count > 0:
+                counts[table] = count
+    finally:
+        conn.close()
+    return counts
 
 
 def default_queue_db_path(credentials_path: Path | None = None) -> Path:

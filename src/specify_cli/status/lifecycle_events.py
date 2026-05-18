@@ -2,10 +2,10 @@
 
 This module is the durable, local-first writer for the canonical event
 stream that records project initialization, mission creation,
-spec/plan/tasks artifact lifecycle, and work-package creation. It is
-intentionally independent of the SaaS sync emitter: lifecycle events
-land on disk synchronously *before* any best-effort SaaS fan-out, so
-local dashboards and TeamSpace import always have a complete history.
+spec/plan/tasks artifact lifecycle, and work-package creation. Lifecycle
+events land on disk synchronously *before* any best-effort SaaS outbox
+fan-out, so local dashboards and TeamSpace import always have a complete
+history even when the scoped sync boundary is unavailable.
 
 Two log targets exist:
 
@@ -176,6 +176,128 @@ def _build_envelope(
     }
 
 
+def _repo_root_for_lifecycle_log(log_path: Path | None) -> Path | None:
+    if log_path is None:
+        return None
+    resolved = log_path.resolve()
+    if resolved.name == PROJECT_EVENTS_FILENAME and resolved.parent.name == ".kittify":
+        return resolved.parent.parent
+    if (
+        resolved.name == MISSION_EVENTS_FILENAME
+        and resolved.parent.parent.name == "kitty-specs"
+    ):
+        return resolved.parent.parent.parent
+    return None
+
+
+def _validate_lifecycle_payload(event_type: str, payload: Mapping[str, Any]) -> None:
+    """Validate lifecycle payloads against the shared package when available."""
+    from spec_kitty_events import project_lifecycle
+
+    payload_models = {
+        PROJECT_INITIALIZED: project_lifecycle.ProjectInitializedPayload,
+        SPECIFY_STARTED: project_lifecycle.SpecifyStartedPayload,
+        SPECIFY_COMPLETED: project_lifecycle.SpecifyCompletedPayload,
+        PLAN_STARTED: project_lifecycle.PlanStartedPayload,
+        PLAN_COMPLETED: project_lifecycle.PlanCompletedPayload,
+        TASKS_STARTED: project_lifecycle.TasksStartedPayload,
+        TASKS_COMPLETED: project_lifecycle.TasksCompletedPayload,
+        WP_CREATED: project_lifecycle.WPCreatedPayload,
+    }
+    model = payload_models.get(event_type)
+    if model is not None:
+        model.model_validate(dict(payload))
+
+
+def _build_saas_lifecycle_event(
+    envelope: Mapping[str, Any],
+    *,
+    log_path: Path | None = None,
+) -> dict[str, Any] | None:
+    """Return a SaaS-materializable lifecycle event for the scoped outbox.
+
+    Local lifecycle JSONL intentionally keeps its local-first shape. The SaaS
+    queue, however, must carry the same canonical envelope fields as normal
+    sync events or live ingress rejects the batch.
+    """
+    from spec_kitty_events import Event as EventModel
+
+    from specify_cli.core.contract_gate import validate_outbound_payload
+    from specify_cli.identity.project import ensure_identity
+    from specify_cli.sync.clock import LamportClock
+
+    event_type = envelope.get("event_type")
+    payload = envelope.get("payload")
+    if not isinstance(event_type, str) or not isinstance(payload, Mapping):
+        return None
+
+    aggregate_type = envelope.get("aggregate_type")
+    if not isinstance(aggregate_type, str):
+        return None
+
+    repo_root = _repo_root_for_lifecycle_log(log_path)
+    if repo_root is None:
+        logger.debug("Lifecycle SaaS fan-out skipped: repo root unavailable")
+        return None
+
+    identity = ensure_identity(repo_root)
+    if not identity.project_uuid or not identity.build_id:
+        logger.debug("Lifecycle SaaS fan-out skipped: project identity incomplete")
+        return None
+
+    _validate_lifecycle_payload(event_type, payload)
+
+    clock = LamportClock.load()
+    event_id = _generate_event_id()
+    aggregate_id = envelope.get("aggregate_id") or payload.get("mission_slug") or event_id
+    event = {
+        "event_id": event_id,
+        "event_type": event_type,
+        "aggregate_id": str(aggregate_id),
+        "aggregate_type": aggregate_type,
+        "schema_version": "3.0.0",
+        "build_id": identity.build_id,
+        "payload": dict(payload),
+        "node_id": identity.node_id or clock.node_id,
+        "lamport_clock": clock.tick(),
+        "causation_id": None,
+        "correlation_id": event_id,
+        "timestamp": envelope.get("timestamp") or _now_iso(),
+        "project_uuid": str(identity.project_uuid),
+        "project_slug": identity.project_slug or envelope.get("project_slug"),
+    }
+    validate_outbound_payload(event, "envelope")
+    EventModel(**event)
+    return event
+
+
+def _queue_lifecycle_event_if_enabled(
+    envelope: Mapping[str, Any],
+    *,
+    log_path: Path | None = None,
+) -> None:
+    """Best-effort SaaS outbox fan-out for canonical lifecycle events."""
+    try:
+        from specify_cli.sync.feature_flags import is_saas_sync_enabled
+        from specify_cli.sync.queue import (
+            OfflineQueue,
+            read_queue_scope_from_credentials,
+            read_queue_scope_from_session,
+        )
+
+        if not is_saas_sync_enabled():
+            return
+        scope = read_queue_scope_from_session() or read_queue_scope_from_credentials()
+        if not scope:
+            return
+        saas_event = _build_saas_lifecycle_event(envelope, log_path=log_path)
+        if saas_event is None:
+            return
+        OfflineQueue().queue_event(saas_event)
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Lifecycle SaaS queue fan-out skipped: %s", exc)
+
+
 def _match_lifecycle_event(
     candidate: Mapping[str, Any],
     *,
@@ -249,6 +371,7 @@ def append_lifecycle_event(
     except OSError as exc:
         logger.warning("Could not persist %s event to %s: %s", event_type, log_path, exc)
         return None
+    _queue_lifecycle_event_if_enabled(envelope, log_path=log_path)
     return envelope
 
 

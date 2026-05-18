@@ -68,6 +68,97 @@ SETUP_PLAN_COMMAND_NAME = "spec-kitty agent mission setup-plan"
 FINALIZE_TASKS_COMMAND_NAME = "spec-kitty agent mission finalize-tasks"
 
 
+def _daemon_owner_summary(record: object | None) -> dict[str, object] | None:
+    """Return non-secret owner fields for setup-plan boundary diagnostics."""
+    if record is None:
+        return None
+    return {
+        "pid": getattr(record, "pid", None),
+        "port": getattr(record, "port", None),
+        "source_checkout_path": getattr(record, "source_checkout_path", None),
+        "auth_principal": getattr(record, "auth_principal", None),
+        "auth_team": getattr(record, "auth_team", None),
+        "auth_scope": getattr(record, "auth_scope", None),
+        "queue_db_path": getattr(record, "queue_db_path", None),
+    }
+
+
+def _enforce_setup_plan_saas_boundary(json_output: bool) -> None:
+    """Refuse setup-plan when SaaS sync cannot use the active scoped boundary."""
+    if os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC") != "1":
+        return
+
+    from specify_cli.sync.owner import (
+        compute_foreground_identity,
+        list_orphan_records,
+        mismatched_fields,
+        read_owner_record,
+    )
+
+    foreground_identity = compute_foreground_identity()
+    daemon_record = read_owner_record()
+    mismatched = (
+        mismatched_fields(daemon_record, foreground_identity)
+        if daemon_record is not None
+        else []
+    )
+    orphan_records = list_orphan_records()
+
+    auth_scope = foreground_identity.get("auth_scope")
+    queue_db_path = foreground_identity.get("queue_db_path")
+    daemon_owner = _daemon_owner_summary(daemon_record)
+    if auth_scope and not mismatched and not orphan_records:
+        return
+
+    diagnostics: dict[str, object] = {
+        "auth_scope": auth_scope,
+        "queue_db_path": queue_db_path,
+        "daemon_owner": daemon_owner,
+        "mismatched_fields": mismatched,
+        "orphan_daemon_records": len(orphan_records),
+    }
+    error_msg = "SaaS sync cannot be guaranteed: setup-plan sync boundary is incoherent."
+    remediation = (
+        "Run `spec-kitty auth login`, then `spec-kitty sync status --check`; "
+        "retire mismatched or orphaned daemons before running setup-plan."
+    )
+    if json_output:
+        _emit_json(
+            {
+                "error_code": "SAAS_SYNC_BOUNDARY_INCOHERENT",
+                "error": error_msg,
+                "diagnostics": diagnostics,
+                "remediation": [remediation],
+            }
+        )
+    else:
+        console.print(f"[red]Error[/red]: {error_msg}")
+        console.print(f"Auth scope: {auth_scope or '[dim]none[/dim]'}")
+        console.print(f"Queue DB: {queue_db_path or '[dim]none[/dim]'}")
+        console.print(f"Daemon owner: {daemon_owner or '[dim]no record[/dim]'}")
+        if mismatched:
+            console.print(f"Mismatched fields: {', '.join(mismatched)}")
+        if orphan_records:
+            console.print(f"Orphan daemon records: {len(orphan_records)}")
+        console.print(remediation)
+    raise typer.Exit(code=2)
+
+
+def _project_identity_fields(repo_root: Path) -> tuple[str | None, str | None]:
+    """Best-effort project identity for lifecycle envelopes."""
+    try:
+        from specify_cli.identity.project import ensure_identity
+
+        identity = ensure_identity(repo_root)
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Project identity unavailable for setup-plan lifecycle: %s", exc)
+        return None, None
+    return (
+        str(identity.project_uuid) if identity.project_uuid else None,
+        identity.project_slug,
+    )
+
+
 def _extract_wp_ids_from_task_files(wp_files: list[Path]) -> list[str]:
     """Return canonical WP IDs discovered from task filenames."""
     wp_ids: set[str] = set()
@@ -891,8 +982,44 @@ def setup_plan(
     Examples:
         spec-kitty agent mission setup-plan --json
         spec-kitty agent mission setup-plan --mission 020-my-feature --json
+
+    ------------------------------------------------------------------
+    WP04 / FR-011 + FR-012 audit (2026-05-17)
+    ------------------------------------------------------------------
+    This command's full call graph was audited to confirm every body
+    upload / queue write goes through ``default_queue_db_path()`` and
+    that no setup-plan path opens the legacy ``~/.spec-kitty/queue.db``
+    directly. The audit covered:
+
+      * ``trigger_feature_dossier_sync_if_enabled()`` (this function
+        constructs ``OfflineBodyUploadQueue()`` which delegates to
+        ``default_queue_db_path()`` — FR-012 lock).
+      * ``OfflineBodyUploadQueue.__init__`` (``sync.body_queue``) —
+        falls back to ``default_queue_db_path()`` when ``db_path`` is
+        ``None``.
+      * ``emit_artifact_phase()`` / ``SPECIFY_COMPLETED`` /
+        ``PLAN_STARTED`` / ``PLAN_COMPLETED`` — writes local
+        lifecycle JSONL first, then best-effort scoped sync outbox rows
+        when the SaaS boundary is authenticated.
+      * ``safe_commit()`` — local git only, no queue DB.
+
+    No direct ``_legacy_queue_db_path()`` call sites exist in the
+    setup-plan call graph as of 2026-05-17. The FR-011 refuse-loudly
+    guard immediately below this comment is the load-bearing gate that
+    ensures we never silently fall back to the legacy queue when SaaS
+    sync is enabled but the foreground is unauthenticated.
+
+    Cross-reference: WP04 of mission
+    ``mvp-sync-boundary-cli-01KRVCQS``; regression tests in
+    ``tests/runtime/test_setup_plan_sync_evidence.py``.
+    ------------------------------------------------------------------
     """
     try:
+        # FR-011/FR-012: when hosted SaaS sync is enabled, refuse before any
+        # side effect unless the foreground auth scope, scoped queue, and daemon
+        # owner boundary are coherent.
+        _enforce_setup_plan_saas_boundary(json_output=json_output)
+
         repo_root = locate_project_root()
         if repo_root is None:
             error_msg = "Could not locate project root. Run from within spec-kitty repository."
@@ -1019,6 +1146,9 @@ def setup_plan(
                 with package_template.open("rb") as src, open(plan_file, "wb") as dst:
                     shutil.copyfileobj(src, dst)
 
+        project_uuid: str | None = None
+        project_slug: str | None = None
+
         # Local canonical lifecycle: once setup-plan accepts spec.md as
         # committed + substantive, record SpecifyCompleted and PlanStarted
         # before performing any further work. This is the canonical handoff
@@ -1030,18 +1160,23 @@ def setup_plan(
                 PLAN_STARTED,
             )
 
+            project_uuid, project_slug = _project_identity_fields(repo_root)
             emit_artifact_phase(
                 feature_dir,
                 event_type=SPECIFY_COMPLETED,
                 mission_slug=mission_slug,
                 actor=SETUP_PLAN_COMMAND_NAME,
                 artifact_path=str(spec_file.relative_to(repo_root)),
+                project_uuid=project_uuid,
+                project_slug=project_slug,
             )
             emit_artifact_phase(
                 feature_dir,
                 event_type=PLAN_STARTED,
                 mission_slug=mission_slug,
                 actor=SETUP_PLAN_COMMAND_NAME,
+                project_uuid=project_uuid,
+                project_slug=project_slug,
             )
         except Exception as _phase_exc:  # noqa: BLE001
             logger.debug("Lifecycle phase emission skipped: %s", _phase_exc)
@@ -1066,6 +1201,8 @@ def setup_plan(
                     mission_slug=mission_slug,
                     actor=SETUP_PLAN_COMMAND_NAME,
                     artifact_path=str(plan_file.relative_to(repo_root)),
+                    project_uuid=project_uuid,
+                    project_slug=project_slug,
                 )
             except Exception as _plan_exc:  # noqa: BLE001
                 logger.debug("PlanCompleted emission skipped: %s", _plan_exc)

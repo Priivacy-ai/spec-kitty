@@ -1169,6 +1169,91 @@ def _run_audit_mode(
     _audit_fail_gate(report, fail_on_severity, fail_on_teamspace_blocker)
 
 
+@app.command(name="orphan-daemons")
+def orphan_daemons(
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Machine-readable JSON output"),
+    ] = False,
+) -> None:
+    """List orphan daemon owner records and emit retirement hints.
+
+    Implements FR-010 of the identity-boundary mission: an orphan
+    daemon owner record is one whose recorded PID is dead OR whose
+    recorded executable path no longer exists on disk. Each orphan
+    is printed with a copy-pasteable retirement command that removes
+    the on-disk ``owner.json`` so the next ``sync status --check``
+    returns clean.
+
+    Exit codes:
+      0  No orphan records.
+      1  At least one orphan record found.
+
+    Examples:
+        spec-kitty doctor orphan-daemons
+        spec-kitty doctor orphan-daemons --json
+    """
+    from specify_cli.sync.owner import list_orphan_records, owner_record_path
+
+    orphans = list_orphan_records()
+    record_path = owner_record_path()
+    retire_hint = f"rm {record_path}"
+
+    if json_output:
+        payload = {
+            "orphan_count": len(orphans),
+            "owner_record_path": str(record_path),
+            "retirement_command": retire_hint if orphans else None,
+            "orphans": [
+                {
+                    "pid": r.pid,
+                    "port": r.port,
+                    "package_version": r.package_version,
+                    "executable_path": r.executable_path,
+                    "source_checkout_path": r.source_checkout_path,
+                    "server_url": r.server_url,
+                    "auth_scope": r.auth_scope,
+                    "queue_db_path": r.queue_db_path,
+                    "started_at": r.started_at,
+                }
+                for r in orphans
+            ],
+        }
+        console.print_json(json.dumps(payload, indent=2, sort_keys=True))
+        raise typer.Exit(1 if orphans else 0)
+
+    if not orphans:
+        console.print(
+            "[green]Orphan Daemons[/green]: no orphan daemon owner records detected."
+        )
+        raise typer.Exit(0)
+
+    console.print(
+        f"\n[bold]Orphan Daemons[/bold] — {len(orphans)} record(s)\n"
+    )
+    table = Table(box=None, padding=(0, 2), show_edge=False)
+    table.add_column("PID", style="yellow", justify="right", min_width=6)
+    table.add_column("Port", justify="right", min_width=6)
+    table.add_column("Version", min_width=10)
+    table.add_column("Executable", overflow="fold")
+    table.add_column("Started At", min_width=20)
+    for record in orphans:
+        table.add_row(
+            str(record.pid),
+            str(record.port),
+            record.package_version,
+            record.executable_path,
+            record.started_at,
+        )
+    console.print(table)
+    console.print()
+    console.print(
+        f"[bold]Retirement hint:[/bold] [cyan]{retire_hint}[/cyan]"
+    )
+    console.print()
+    raise typer.Exit(1)
+
+
 @app.command(name="mission-state")
 def mission_state(  # noqa: C901
     audit: Annotated[
