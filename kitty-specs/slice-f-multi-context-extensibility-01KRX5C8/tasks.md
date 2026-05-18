@@ -125,11 +125,11 @@ Lane A blocks Lane C/D so the burn-down meta-test (FR-110/111) is in place befor
 - [x] T055 — Confirm registry tests GREEN; unknown-id hard-fails with available-list message (FR-015, no silent fallback) (WP10)
 
 #### WP11 — Workflow runtime integration
-- [ ] T056 — Land failing-first `tests/integration/test_workflow_sequence_runtime.py::test_non_default_workflow_id_produces_extra_design_review_step` + `test_fixture_mission_with_workflow_id_produces_documented_step_diff` (RED on planning base) (WP11)
-- [ ] T057 — Land failing-first `tests/specify_cli/next/test_workflow_software_dev_default_is_byte_stable.py` (RED on planning base; pins C-008) (WP11)
-- [ ] T058 — Extend `src/specify_cli/next/_internal_runtime/planner.py` to consume `meta.json::workflow_id`; absent ⇒ `software-dev-default`; unknown ⇒ hard-fail via WP10's registry (FR-013, FR-015) (WP11)
-- [ ] T059 — Extend `src/specify_cli/next/prompt_builder.py` to look up the workflow once per mission run (cached) and resolve next-action via workflow graph instead of the hardcoded sequence (WP11)
-- [ ] T060 — Confirm Scenario 3 + AC-4 GREEN; default workflow is byte-stable; pre-Slice-F missions without `workflow_id` produce identical `spec-kitty next` output (NEW-2 permanent default) (WP11)
+- [x] T056 — Land failing-first `tests/integration/test_workflow_sequence_runtime.py::test_non_default_workflow_id_produces_extra_design_review_step` + `test_fixture_mission_with_workflow_id_produces_documented_step_diff` (RED on planning base) (WP11)
+- [x] T057 — Land failing-first `tests/specify_cli/next/test_workflow_software_dev_default_is_byte_stable.py` (RED on planning base; pins C-008) (WP11)
+- [x] T058 — Extend `src/specify_cli/next/_internal_runtime/planner.py` to consume `meta.json::workflow_id`; absent ⇒ `software-dev-default`; unknown ⇒ hard-fail via WP10's registry (FR-013, FR-015) (WP11)
+- [x] T059 — Extend `src/specify_cli/next/prompt_builder.py` to look up the workflow once per mission run (cached) and resolve next-action via workflow graph instead of the hardcoded sequence (WP11)
+- [x] T060 — Confirm Scenario 3 + AC-4 GREEN; default workflow is byte-stable; pre-Slice-F missions without `workflow_id` produce identical `spec-kitty next` output (NEW-2 permanent default) (WP11)
 
 #### WP12 — Closing: cross-axis tests + glossary + READMEs + charter amendments + auth-transport ADR + GitHub ticket
 - [ ] T061 — Author `architecture/adrs/2026-05-18-2-delete-specify-cli-auth-transport.md` per FR-200 (dead-code finding, audit evidence, DELETE recommendation, deferral rationale per HiC §5a.3, "deleted in commit X" reserved field for Robert) (WP12)
