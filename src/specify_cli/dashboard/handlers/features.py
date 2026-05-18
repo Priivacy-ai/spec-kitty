@@ -6,12 +6,14 @@ import json
 import logging
 import urllib.parse
 from pathlib import Path
-from typing import Optional
+from typing import Optional, cast
 
 from ..api_types import (
     ArtifactDirectoryResponse,
+    FeatureItem,
     FeaturesListResponse,
     KanbanResponse,
+    KanbanTaskData,
     MissionContext,
     ResearchResponse,
 )
@@ -39,8 +41,13 @@ def _require_project_path(project_dir: str | None) -> Path:
     return Path(project_dir).resolve()
 
 
+def _string_field(mapping: dict[str, object], key: str, default: str = "") -> str:
+    value = mapping.get(key, default)
+    return value if isinstance(value, str) else str(value)
+
+
 def _resolve_active_mission_context(project_path: Path) -> tuple[dict[str, object] | None, MissionContext]:
-    active_feature = resolve_active_feature(project_path)
+    active_feature = cast(dict[str, object] | None, resolve_active_feature(project_path))
     mission_context: MissionContext = {
         "name": "No active feature",
         "domain": "unknown",
@@ -52,7 +59,12 @@ def _resolve_active_mission_context(project_path: Path) -> tuple[dict[str, objec
     if not active_feature:
         return None, mission_context
 
-    feature_mission_type = active_feature.get("meta", {}).get("mission", "software-dev")
+    meta = active_feature.get("meta")
+    if not isinstance(meta, dict):
+        meta = {}
+    mission_value = meta.get("mission", "software-dev")
+    feature_mission_type = mission_value if isinstance(mission_value, str) else str(mission_value)
+    feature_name = _string_field(active_feature, "name")
     try:
         kittify_dir = project_path / ".kittify"
         mission = get_mission_by_name(feature_mission_type, kittify_dir)
@@ -64,7 +76,7 @@ def _resolve_active_mission_context(project_path: Path) -> tuple[dict[str, objec
             "slug": feature_mission_type,
             "description": "",
             "path": "",
-            "feature": active_feature.get("name", ""),
+            "feature": feature_name,
         }
         return active_feature, mission_context
 
@@ -75,7 +87,7 @@ def _resolve_active_mission_context(project_path: Path) -> tuple[dict[str, objec
         "slug": mission.path.name,
         "description": mission.config.description or "",
         "path": format_path_for_display(str(mission.path)),
-        "feature": active_feature.get("name", ""),
+        "feature": feature_name,
     }
     return active_feature, mission_context
 
@@ -87,7 +99,7 @@ class FeatureHandler(DashboardHandler):
         """Return summary data for all features."""
         try:
             project_path = _require_project_path(self.project_dir)
-            features = scan_all_features(project_path)
+            features = cast(list[FeatureItem], scan_all_features(project_path))
 
             # Add legacy format indicator to each feature
             for feature in features:
@@ -121,15 +133,16 @@ class FeatureHandler(DashboardHandler):
             if not active_worktree_display and current_path != project_path:
                 active_worktree_display = format_path_for_display(str(current_path))
 
+            active_feature_id = _string_field(active_feature, "id") if active_feature else None
             response: FeaturesListResponse = {
-                "features": features,  # type: ignore[typeddict-item]
-                "active_feature_id": active_feature.get("id") if active_feature else None,
+                "features": features,
+                "active_feature_id": active_feature_id,
                 "project_path": format_path_for_display(str(project_path)),
                 "worktrees_root": worktrees_root_display,
                 "active_worktree": active_worktree_display,
                 "active_mission": mission_context,
             }
-            self._send_json(200, response)  # type: ignore[arg-type]
+            self._send_json(200, dict(response))
         except Exception as exc:  # pragma: no cover - defensive fallback
             logger.exception("Failed to scan dashboard features")
             self._send_json(500, {"error": "failed_to_scan_features", "detail": str(exc)})
@@ -140,7 +153,7 @@ class FeatureHandler(DashboardHandler):
         if len(parts) >= 4:
             feature_id = parts[3]
             project_path = _require_project_path(self.project_dir)
-            kanban_data = scan_feature_kanban(project_path, feature_id)
+            kanban_data = cast(dict[str, list[KanbanTaskData]], scan_feature_kanban(project_path, feature_id))
 
             # Check if feature uses legacy format
             feature_dir = resolve_feature_dir(project_path, feature_id)
@@ -160,7 +173,7 @@ class FeatureHandler(DashboardHandler):
                     pass
 
             response: KanbanResponse = {
-                "lanes": kanban_data,  # type: ignore[typeddict-item]
+                "lanes": kanban_data,
                 "is_legacy": is_legacy,
                 "upgrade_needed": is_legacy,
                 "weighted_percentage": weighted_pct,
