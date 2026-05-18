@@ -46,7 +46,7 @@ else:  # pragma: no cover - platform-specific
 if TYPE_CHECKING:
     from specify_cli.sync.config import SyncConfig
 
-import psutil
+import psutil  # type: ignore[import-untyped]
 
 from specify_cli.core.atomic import atomic_write
 from specify_cli.sync.diagnostics import SyncDiagnosticCode, emit_sync_diagnostic

@@ -17,7 +17,7 @@ from datetime import datetime, UTC
 from pathlib import Path
 from urllib.parse import urlparse
 
-import requests
+import requests  # type: ignore[import-untyped]
 
 from specify_cli.auth.http import request_with_stdlib_fallback_sync
 from specify_cli.sync._team import (

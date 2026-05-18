@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import ValidationError as PydanticValidationError
 
-from spec_kitty_events import Event
+from spec_kitty_events import Event  # type: ignore[import-not-found]
 from .batch import categorize_error
 from .emitter import _PAYLOAD_RULES, VALID_EVENT_TYPES, VALID_AGGREGATE_TYPES
 
