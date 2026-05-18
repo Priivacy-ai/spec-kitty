@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "mission_slug": "mvp-cli-sync-boundary-completion-01KRX11M",
+  "mission_id": "01KRX11MCY70M5NFBBHT4DQHJ2",
+  "mission_branch": "kitty/mission-mvp-cli-sync-boundary-completion-01KRX11M",
+  "target_branch": "kitty/pr/mvp-sync-boundary-cli-01KRVCQS",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission.py",
+        "src/specify_cli/cli/commands/doctor.py",
+        "src/specify_cli/cli/commands/sync.py",
+        "src/specify_cli/sync/preflight.py",
+        "src/specify_cli/sync/queue.py",
+        "tests/runtime/test_setup_plan_sync_evidence.py",
+        "tests/sync/test_daemon_owner_record.py",
+        "tests/sync/test_queue_row_level_migration.py",
+        "tests/sync/test_sync_boundary_preflight.py",
+        "tests/sync/test_sync_status_boundary_check.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "kitty-specs/mvp-cli-sync-boundary-completion-01KRX11M/evidence/**"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-05-18T08:10:02.656233+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP05"
+  ],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP02"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP01"
+      }
+    ],
+    "total_merges": 3,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 3
+    }
+  }
+}

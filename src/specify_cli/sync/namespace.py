@@ -97,7 +97,7 @@ def resolve_manifest_version(mission_type: str) -> str:
 
     manifest = ManifestRegistry.load_manifest(mission_type)
     if manifest is not None:
-        return manifest.manifest_version
+        return str(manifest.manifest_version)
     return "1"
 
 

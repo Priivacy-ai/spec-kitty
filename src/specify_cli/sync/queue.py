@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, UTC
 from pathlib import Path
 from typing import Any, Protocol
 
-import toml
+import toml  # type: ignore[import-untyped]
 
 
 class _BatchEventResultLike(Protocol):
@@ -728,27 +728,139 @@ def _migrate_legacy_queue_to_scope(scoped_db_path: Path) -> int:
     src = sqlite3.connect(legacy_db)
     dst = sqlite3.connect(scoped_db_path)
     try:
-        # Row-factory access by index is enough; we only need positional
-        # tuples for the INSERT statements below.
-        _scoped_dst_schema(dst)
-        for table, key_columns in _MIGRATION_TABLES:
-            migrated += _migrate_one_table(src, dst, table, key_columns, logger)
-        src.commit()
-        dst.commit()
+        try:
+            # Row-factory access by index is enough; we only need positional
+            # tuples for the INSERT statements below.
+            _scoped_dst_schema(dst)
+            for table, key_columns in _MIGRATION_TABLES:
+                migrated += _migrate_one_table(
+                    src, dst, table, key_columns, logger
+                )
+            # FR-006/FR-007: commit destination FIRST, then legacy
+            # source. Reasoning: if dst.commit() fails, the legacy
+            # rows are still in src (uncommitted delete rolls back)
+            # and the next retry replays the migration. If
+            # src.commit() fails AFTER dst.commit() succeeded, the
+            # legacy rows survive (delete uncommitted) and retry is
+            # safe because the per-row INSERT uses INSERT OR IGNORE
+            # keyed on the schema-canonical unique key — already-
+            # migrated rows are detected as "landed" and the legacy
+            # copy is deleted again. The previous ordering committed
+            # src first, which would have stranded rows in the gap
+            # between src.commit() success and dst.commit() failure.
+            dst.commit()
+            src.commit()
+        except Exception:
+            # Atomic rollback for the WP02 acceptance: a failure inside
+            # any per-table loop must leave neither the scoped DB nor
+            # the legacy DB partially mutated. SQLite holds the writes
+            # inside an implicit transaction until commit(), so
+            # rollback() unwinds them.
+            try:
+                dst.rollback()
+            except sqlite3.Error:
+                pass
+            try:
+                src.rollback()
+            except sqlite3.Error:
+                pass
+            raise
     finally:
         dst.close()
         src.close()
     return migrated
 
 
-def detect_legacy_rows_for_scope(scope: str) -> dict[str, int]:
-    """Return per-table counts of legacy rows that belong to *scope*.
+@dataclass(frozen=True)
+class LegacyRowCounts:
+    """Structured counts of legacy queue rows pending migration.
+
+    Returned by :func:`detect_legacy_rows_for_scope`. Splits the per-table
+    counts into the two row classes the sync boundary contract cares
+    about: event-queue rows and body-upload rows. ``per_table`` preserves
+    the original per-table mapping for callers (sync status CLI) that
+    surface table-level diagnostics.
+
+    Behaves like a mapping for the small set of existing call sites that
+    still treat the result as a ``dict``: ``bool(value)``, ``len(value)``,
+    iteration, ``value.get(name, 0)``, and equality against a plain dict
+    all delegate to ``per_table``. New call sites should read the named
+    subtotals directly (``event_rows``, ``body_upload_rows``,
+    ``total_rows``).
+    """
+
+    event_rows: int = 0
+    body_upload_rows: int = 0
+    failure_log_rows: int = 0
+    per_table: dict[str, int] = field(default_factory=dict)
+
+    @property
+    def total_rows(self) -> int:
+        return self.event_rows + self.body_upload_rows + self.failure_log_rows
+
+    # ------------------------------------------------------------------
+    # Mapping-like surface for backwards-compatible callers.
+    # ------------------------------------------------------------------
+
+    def __bool__(self) -> bool:
+        return bool(self.per_table)
+
+    def __len__(self) -> int:
+        return len(self.per_table)
+
+    def __iter__(self) -> Any:
+        return iter(self.per_table)
+
+    def __contains__(self, key: object) -> bool:
+        return key in self.per_table
+
+    def __getitem__(self, key: str) -> int:
+        return self.per_table[key]
+
+    def get(self, key: str, default: int = 0) -> int:
+        return self.per_table.get(key, default)
+
+    def items(self) -> Any:
+        return self.per_table.items()
+
+    def keys(self) -> Any:
+        return self.per_table.keys()
+
+    def values(self) -> Any:
+        return self.per_table.values()
+
+    def __eq__(self, other: object) -> bool:
+        # Equality against another LegacyRowCounts compares the full
+        # dataclass; equality against a plain dict compares per_table
+        # only (used by existing tests that pre-date the structured
+        # return).
+        if isinstance(other, LegacyRowCounts):
+            return (
+                self.event_rows == other.event_rows
+                and self.body_upload_rows == other.body_upload_rows
+                and self.failure_log_rows == other.failure_log_rows
+                and self.per_table == other.per_table
+            )
+        if isinstance(other, dict):
+            return self.per_table == other
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        # frozen dataclasses are hashable by default; the dict field
+        # breaks that, so we provide an explicit hash over the subtotals.
+        return hash(
+            (self.event_rows, self.body_upload_rows, self.failure_log_rows)
+        )
+
+
+def detect_legacy_rows_for_scope(scope: str) -> LegacyRowCounts:
+    """Return subtotals of legacy rows that belong to *scope*.
 
     The legacy queue DB at ``~/.spec-kitty/queue.db`` predates per-scope
     queues, so any rows it still holds will, on the next authenticated
     drain, be merged into the active scope. This helper lets ``sync
-    status`` (WP03) surface the pending migration *before* a drain
-    happens, without mutating the legacy DB.
+    status`` (WP03) and the preflight gate (WP01) surface the pending
+    migration *before* a drain happens, without mutating the legacy DB.
 
     Args:
         scope: Active queue scope identity as built by
@@ -758,14 +870,22 @@ def detect_legacy_rows_for_scope(scope: str) -> dict[str, int]:
             toward the active scope.
 
     Returns:
-        Mapping of table name → row count. Tables that do not exist in
-        the legacy DB or contain zero rows are omitted from the result.
+        :class:`LegacyRowCounts` carrying ``event_rows`` (legacy
+        ``queue`` table), ``body_upload_rows`` (legacy
+        ``body_upload_queue`` table), ``failure_log_rows`` (legacy
+        ``body_upload_failure_log`` table), ``total_rows``, and the
+        per-table mapping. Empty/missing tables are omitted from
+        ``per_table``; their subtotal is ``0``.
     """
     del scope  # Reserved for future use; no per-scope partitioning today.
     legacy_db = _legacy_queue_db_path()
-    counts: dict[str, int] = {}
     if not legacy_db.exists():
-        return counts
+        return LegacyRowCounts()
+
+    per_table: dict[str, int] = {}
+    event_rows = 0
+    body_upload_rows = 0
+    failure_log_rows = 0
 
     conn = sqlite3.connect(legacy_db)
     try:
@@ -776,11 +896,24 @@ def detect_legacy_rows_for_scope(scope: str) -> dict[str, int]:
                 f"SELECT COUNT(*) FROM {table}"  # noqa: S608 — table names are static / schema-derived
             ).fetchone()
             count = int(row[0]) if row else 0
-            if count > 0:
-                counts[table] = count
+            if count <= 0:
+                continue
+            per_table[table] = count
+            if table == "queue":
+                event_rows += count
+            elif table == "body_upload_queue":
+                body_upload_rows += count
+            elif table == "body_upload_failure_log":
+                failure_log_rows += count
     finally:
         conn.close()
-    return counts
+
+    return LegacyRowCounts(
+        event_rows=event_rows,
+        body_upload_rows=body_upload_rows,
+        failure_log_rows=failure_log_rows,
+        per_table=per_table,
+    )
 
 
 def default_queue_db_path(credentials_path: Path | None = None) -> Path:

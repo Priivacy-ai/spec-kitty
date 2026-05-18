@@ -1,0 +1,56 @@
+{
+  "event_count": 50,
+  "last_event_id": "01KRXG87H570RCX5HHXX9DGZ7R",
+  "materialized_at": "2026-05-18T12:16:26.149314+00:00",
+  "mission_number": "",
+  "mission_slug": "mvp-cli-sync-boundary-completion-01KRX11M",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 5,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01KRX5BRE5PY4YFHCGBC7RQMXS",
+      "last_transition_at": "2026-05-18T09:06:07.429772+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KRX6QVN0SJ2P0VYSP1CGG4ZV",
+      "last_transition_at": "2026-05-18T09:30:12.512805+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KRX9TVAX5T53JZVG1A45FSDV",
+      "last_transition_at": "2026-05-18T10:24:16.221282+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KRXFHC8C65Q0RKCEXYD6TAGD",
+      "last_transition_at": "2026-05-18T12:03:57.324643+00:00"
+    },
+    "WP05": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KRXG87H570RCX5HHXX9DGZ7R",
+      "last_transition_at": "2026-05-18T12:16:26.149314+00:00"
+    }
+  }
+}

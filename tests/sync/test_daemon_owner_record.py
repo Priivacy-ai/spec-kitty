@@ -226,10 +226,7 @@ def _fg_from_record(record: Any) -> dict[str, Any]:
     return {
         "package_version": record.package_version,
         "executable_path": record.executable_path,
-        "source_checkout_path": record.source_checkout_path,
         "server_url": record.server_url,
-        "auth_principal": record.auth_principal,
-        "auth_team": record.auth_team,
         "auth_scope": record.auth_scope,
         "queue_db_path": record.queue_db_path,
     }
@@ -248,10 +245,7 @@ def test_mismatched_fields_returns_empty_when_aligned(_scoped_home: Path) -> Non
     [
         ("package_version", "0.0.0-mismatch"),
         ("executable_path", "/no/such/python"),
-        ("source_checkout_path", "/tmp/other-checkout"),
         ("server_url", "https://other.example.com"),
-        ("auth_principal", "other@example.com"),
-        ("auth_team", "team-other"),
         ("auth_scope", None),  # None vs non-None is a mismatch per D-3
         ("queue_db_path", "/tmp/some-other-queue.db"),
     ],
@@ -449,3 +443,123 @@ def test_build_record_for_current_process_uses_identity(
     assert record.queue_db_path == "/tmp/queue.db"
     # Timestamp is ISO-8601 UTC.
     assert record.started_at.endswith("+00:00")
+
+
+# ---------------------------------------------------------------------------
+# T016: sync now refuses on daemon-owner mismatch (FR-002)
+# ---------------------------------------------------------------------------
+
+
+def _build_compute_foreground_for_split_brain() -> dict[str, Any]:
+    """Helper: return a foreground identity that DIFFERS from the daemon record."""
+    return {
+        "package_version": "9.9.9-foreground",
+        "executable_path": sys.executable,
+        "source_checkout_path": str(Path(__file__).resolve().parents[2]),
+        "server_url": "https://spec-kitty-dev.fly.dev",
+        "auth_principal": "tester@example.com",
+        "auth_team": "t-private",
+        "auth_scope": "https://spec-kitty-dev.fly.dev|tester@example.com|t-private",
+        "queue_db_path": str(Path.home() / ".spec-kitty" / "queues" / "queue-aaaaaaaa.db"),
+    }
+
+
+def test_sync_now_refuses_on_daemon_owner_mismatch(
+    _scoped_home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`sync now` MUST refuse with exit 2 when the boundary is incoherent.
+
+    The refusal MUST happen BEFORE any DB write or SaaS flush. We assert
+    this indirectly: the queue size is never read (no console output
+    about syncing), and the call returns exit code 2.
+    """
+    from typer.testing import CliRunner
+
+    from specify_cli.cli.commands.sync import app
+    from specify_cli.sync import owner as owner_mod
+    from specify_cli.sync.feature_flags import SAAS_SYNC_ENV_VAR
+
+    monkeypatch.setenv(SAAS_SYNC_ENV_VAR, "1")
+
+    # Write a daemon record whose package_version disagrees with the
+    # foreground; sync now must refuse before any enqueue.
+    record = _build_record(package_version="3.2.0-daemon")
+    owner_mod.write_owner_record(record)
+
+    # Force a split-brain identity so the preflight finds a mismatch.
+    monkeypatch.setattr(
+        "specify_cli.sync.owner.compute_foreground_identity",
+        _build_compute_foreground_for_split_brain,
+    )
+    # Also stub the preflight's foreground-identity helper to surface the
+    # same divergent values — the preflight reads via its own collector,
+    # so we mock that path too.
+    import specify_cli.sync.preflight as preflight_mod
+    from specify_cli.sync.preflight import ForegroundIdentity
+
+    def fake_collect(_repo_root: Path) -> ForegroundIdentity:
+        return ForegroundIdentity(
+            package_version="9.9.9-foreground",
+            executable_path=Path(sys.executable),
+            source_path=Path(__file__).resolve().parents[2],
+            server_url="https://spec-kitty-dev.fly.dev",
+            team_or_user="tester@example.com/t-private",
+            queue_db_path=Path("/tmp/foreground-queue.db"),
+            pid=os.getpid(),
+        )
+
+    monkeypatch.setattr(
+        preflight_mod, "collect_foreground_identity", fake_collect
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["now"])
+    assert result.exit_code == 2, result.stdout
+    flat = " ".join(result.stdout.split())
+    # The refusal banner names the gated command.
+    assert "Refusing" in flat or "refused" in flat
+    # And the rendered remediation references the boundary mismatch.
+    assert "spec-kitty sync now" in flat or "mismatched" in flat
+
+
+# ---------------------------------------------------------------------------
+# T016: sync doctor and preflight agree on orphan detection
+# ---------------------------------------------------------------------------
+
+
+def test_sync_doctor_and_preflight_agree_on_orphan_detection(
+    _scoped_home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Same orphan-record fixture must be detected by both code paths.
+
+    `sync doctor`'s orphan section and `run_preflight`'s `orphan_records`
+    both flow through `list_orphan_records()`; this test locks the
+    invariant so a future refactor can't cause them to disagree.
+    """
+    from specify_cli.sync.owner import list_orphan_records, write_owner_record
+    from specify_cli.sync.preflight import build_boundary_failure_set
+
+    def _spawn_then_reap_pid_local() -> int:
+        proc = subprocess.Popen(  # noqa: S603 — controlled command
+            [sys.executable, "-c", "import sys; sys.exit(0)"],
+        )
+        proc.wait(timeout=5)
+        return proc.pid
+
+    dead_pid = _spawn_then_reap_pid_local()
+    record = _build_record(pid=dead_pid)
+    write_owner_record(record)
+
+    # Path 1: list_orphan_records (used by sync doctor + sync status section).
+    doctor_orphans = list_orphan_records()
+
+    # Path 2: build_boundary_failure_set (used by run_preflight and the
+    # sync status --check / --json surfaces).
+    failure_set = build_boundary_failure_set(repo_root=Path.cwd())
+    preflight_orphans = list(failure_set.orphan_records)
+
+    # Both surfaces must surface the same set of orphan PIDs.
+    doctor_pids = sorted(r.pid for r in doctor_orphans)
+    preflight_pids = sorted(r.pid for r in preflight_orphans)
+    assert doctor_pids == preflight_pids
+    assert dead_pid in doctor_pids

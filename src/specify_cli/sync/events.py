@@ -34,7 +34,8 @@ def _resolve_repo_root() -> Path | None:
     try:
         from specify_cli.task_utils import TaskCliError, find_repo_root
 
-        return find_repo_root()
+        root: Path = find_repo_root()
+        return root
     except TaskCliError:
         logger.debug("Non-project context; repo root unavailable for sync daemon")
         return None
@@ -120,7 +121,8 @@ def _resolve_mission_id_for_slug(repo_root: Path | None, mission_slug: str | Non
     try:
         from specify_cli.mission_metadata import resolve_mission_identity
 
-        return resolve_mission_identity(feature_dir).mission_id
+        mid: str | None = resolve_mission_identity(feature_dir).mission_id
+        return mid
     except Exception as exc:
         logger.debug("Could not resolve mission_id for %s: %s", mission_slug, exc)
         return None

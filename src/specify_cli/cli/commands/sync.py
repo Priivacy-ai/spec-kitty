@@ -12,6 +12,7 @@ import re
 import subprocess
 from datetime import datetime, timedelta, UTC
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlparse
 
 import typer
@@ -348,22 +349,23 @@ def _require_daemon_owner_coherence(command_name: str | None = None) -> None:
     message names the mismatched field(s) so the operator knows which fix
     is needed.
 
-    No-op when no daemon owner record exists (no daemon to disagree with).
-    """
-    from specify_cli.sync.owner import check_daemon_owner_match
+    WP03: thin wrapper over :func:`run_preflight`. ``require_auth`` is
+    ``False`` because individual SaaS-producing call sites (``sync now``,
+    ``setup-plan``) enforce auth-required explicitly; the generic gate
+    only enforces the structural boundary (mismatches, orphans, legacy
+    rows in scope).
 
-    coherent, mismatched = check_daemon_owner_match()
-    if coherent:
+    No-op when the boundary is coherent. Exits with code 2 otherwise.
+    """
+    from specify_cli.sync.preflight import run_preflight
+
+    result = run_preflight(repo_root=Path.cwd(), require_auth=False)
+    if result.ok:
         return
     label = f" `{command_name}`" if command_name else ""
-    console.print(
-        f"[red]Error:[/red] Refusing{label} — daemon/foreground mismatch on: "
-        f"{', '.join(mismatched)}."
-    )
-    console.print(
-        "Run [bold]spec-kitty sync status --check[/bold] for details, "
-        "or [bold]spec-kitty doctor[/bold] to inspect orphan daemons."
-    )
+    if label:
+        console.print(f"[red]Refusing{label}.[/red]")
+    result.render(console)
     raise typer.Exit(code=2)
 
 
@@ -1192,8 +1194,25 @@ def now(
         spec-kitty sync now --no-strict
     """
     from specify_cli.sync.background import get_sync_service
+    from specify_cli.sync.preflight import run_preflight
 
-    _require_daemon_owner_coherence("spec-kitty sync now")
+    # T012 / FR-002: gate `sync now` with the structural preflight BEFORE
+    # any enqueue, queue read, or SaaS flush. The preflight refuses on
+    # daemon-owner mismatch (D-3), orphan owner record, or legacy rows
+    # remaining in the current scope — these are coherence failures the
+    # operator must resolve before any sync makes sense.
+    #
+    # ``require_auth=False`` here on purpose: auth-absent has its own
+    # graceful UX path (``service.sync_now()`` produces structured
+    # unauthenticated errors and a failure report, exiting 1). FR-008's
+    # auth-required-and-absent refusal applies to ``setup-plan`` and to
+    # ``sync status --check``, not to ``sync now``, where forcing exit 2
+    # would clobber the issue #829 report-file flow.
+    _preflight_result = run_preflight(repo_root=Path.cwd(), require_auth=False)
+    if not _preflight_result.ok:
+        console.print("[red]Refusing `spec-kitty sync now`.[/red]")
+        _preflight_result.render(console)
+        raise typer.Exit(code=2)
 
     if not is_saas_sync_enabled():
         console.print(f"[yellow]{saas_sync_disabled_message()}[/yellow]")
@@ -1283,24 +1302,40 @@ def _count_legacy_body_uploads_for_mission(mission_slug: str | None) -> int:
         conn.close()
 
 
-def _build_boundary_check_failures(
+def _build_boundary_check_failures(  # noqa: C901
     *,
-    daemon_mismatched_fields: list[str],
-    legacy_counts: dict[str, int],
-    legacy_db_path: str,
-    orphan_count: int,
-    live_orphan_count: int,
-    stranded_mission_slug: str | None,
+    failure_set: Any = None,
+    daemon_mismatched_fields: list[str] | None = None,
+    legacy_counts: Any = None,
+    legacy_db_path: str | None = None,
+    orphan_count: int | None = None,
+    stranded_mission_slug: str | None = None,
 ) -> list[str]:
     """Return human-readable failure lines for the ``sync status --check`` gate.
 
-    The gate trips (returns non-zero) when ANY of the three FR-009 conditions
-    hold: foreground/daemon disagree on a D-3 field, the legacy DB still has
-    rows in any migration table for the active scope, or one or more
-    orphaned daemon records exist.
+    WP03 (T010): this function is now a thin renderer over
+    :class:`specify_cli.sync.preflight.BoundaryFailureSet` — the single
+    source of truth shared with :func:`run_preflight`. The function
+    accepts EITHER a pre-computed *failure_set* (preferred) OR the
+    legacy positional pieces (kept for callers that already constructed
+    them); when only the legacy pieces are passed, the result is still
+    derived from them.
+
+    The gate trips (returns non-zero) when ANY of the three FR-009
+    conditions hold: foreground/daemon disagree on a D-3 field, the
+    legacy DB still has rows in any migration table for the active
+    scope, or one or more orphaned daemon records exist.
 
     The returned list is empty when the boundary is coherent.
     """
+    # Preferred path: derive from the structured failure set.
+    if failure_set is not None:
+        return _failure_lines_from_set(
+            failure_set,
+            stranded_mission_slug=stranded_mission_slug,
+        )
+
+    # Legacy path: compose lines from the previously-passed pieces.
     failures: list[str] = []
     if daemon_mismatched_fields:
         failures.append(
@@ -1318,17 +1353,238 @@ def _build_boundary_check_failures(
             # FR-013: tag stranded setup-plan body uploads for the active mission.
             line += f" — setup-plan stranded mission slug {stranded_mission_slug}"
         failures.append(line)
-    if orphan_count > 0:
+    if orphan_count is not None and orphan_count > 0:
         failures.append(
             f"{orphan_count} orphan daemon record(s) detected; retire via "
             "`spec-kitty sync doctor`"
         )
-    if live_orphan_count > 0:
-        failures.append(
-            f"{live_orphan_count} live orphan run_sync_daemon process(es) detected; "
-            "retire via `spec-kitty sync doctor`"
-        )
     return failures
+
+
+def _failure_lines_from_set(
+    failure_set: Any,
+    *,
+    stranded_mission_slug: str | None = None,
+) -> list[str]:
+    """Render the structured failure set as human-readable failure lines.
+
+    Lines mirror the legacy ``_build_boundary_check_failures`` output so
+    existing tests that grep for substrings keep working.
+    """
+    from specify_cli.sync.queue import _legacy_queue_db_path
+
+    failures: list[str] = []
+
+    mismatch_fields = [m.field for m in failure_set.mismatches]
+    if mismatch_fields:
+        # Legacy callers (and tests) expect bare canonical names; strip the
+        # ``daemon_`` prefix to keep the on-screen tokens compact and to
+        # preserve backwards-compatible substring matching.
+        bare_fields = [f.removeprefix("daemon_") for f in mismatch_fields]
+        failures.append(
+            "foreground/daemon disagree on D-3 field(s): "
+            + ", ".join(bare_fields)
+        )
+
+    if failure_set.legacy_rows_for_scope > 0:
+        total = failure_set.legacy_rows_for_scope
+        parts: list[str] = []
+        if failure_set.legacy_event_rows > 0:
+            parts.append(f"queue={failure_set.legacy_event_rows}")
+        if failure_set.legacy_body_upload_rows > 0:
+            parts.append(f"body_upload_queue={failure_set.legacy_body_upload_rows}")
+        legacy_path = _legacy_queue_db_path()
+        line = (
+            f"legacy queue DB {legacy_path} has {total} row(s) pending "
+            f"migration ({', '.join(parts)})"
+        )
+        if stranded_mission_slug:
+            line += (
+                f" — setup-plan stranded mission slug {stranded_mission_slug}"
+            )
+        failures.append(line)
+
+    n_orphans = len(failure_set.orphan_records)
+    if n_orphans > 0:
+        failures.append(
+            f"{n_orphans} orphan daemon record(s) detected; retire via "
+            "`spec-kitty sync doctor`"
+        )
+
+    return failures
+
+
+def _render_daemon_team_or_user(record: Any) -> str | None:
+    """Render the daemon's ``team_or_user`` from its split fields.
+
+    The on-disk record splits the identity across ``auth_principal`` and
+    ``auth_team``; the canonical mismatch field combines them into a single
+    ``team_or_user`` value so the operator sees one row, not two.
+    """
+    principal = getattr(record, "auth_principal", None)
+    team = getattr(record, "auth_team", None)
+    if not principal:
+        return None
+    if team:
+        return f"{principal}/{team}"
+    return str(principal)
+
+
+def _emit_status_check_json() -> None:
+    """T014: emit a single JSON object on stdout per the status-output contract.
+
+    The shape matches ``contracts/sync-status-output.md`` exactly:
+
+    - ``ok`` / ``exit_code``
+    - ``foreground`` (package_version, executable_path, source_path,
+      server_url, team_or_user, queue_db_path, pid)
+    - ``daemon_owner_record`` (status, pid, port, package_version,
+      executable_path, source_path, server_url, team_or_user,
+      queue_db_path)
+    - ``active_queue`` (path, event_count, body_upload_count)
+    - ``legacy_queue`` (path, event_count, body_upload_count,
+      rows_in_scope)
+    - ``mismatches`` (list of {field, foreground_value, daemon_value,
+      remediation_hint})
+    - ``orphan_records`` (list)
+
+    Exit code: 0 if the structured failure set reports ``ok``, else 2.
+    """
+    import json as _json
+    import sys as _sys
+
+    from specify_cli.sync.daemon import scan_sync_daemons
+    from specify_cli.sync.preflight import build_boundary_failure_set
+    from specify_cli.sync.queue import OfflineQueue, _legacy_queue_db_path
+
+    failure_set = build_boundary_failure_set(repo_root=Path.cwd())
+    fg = failure_set.foreground
+    record = failure_set.daemon_record
+
+    # Live orphan daemon scan (#1071 failure mode): the on-disk owner-record
+    # detection already feeds ``failure_set.orphan_records``; we also probe
+    # live processes so an unregistered ``run_sync_daemon`` running outside
+    # the singleton fails ``--check`` even when on-disk state is clean.
+    try:
+        live_orphan_report = scan_sync_daemons()
+    except Exception:  # noqa: BLE001
+        live_orphan_report = None
+    live_orphan_count = (
+        int(live_orphan_report.orphan_count) if live_orphan_report is not None else 0
+    )
+
+    # FR-004 / contracts/sync-status-output.md: when
+    # ``SPEC_KITTY_ENABLE_SAAS_SYNC=1`` is set but no authenticated
+    # identity is available, the gate exits 2 with ``ok=false`` and the
+    # auth-absent reason surfaced in the JSON body. ``auth_required``
+    # is True iff the SaaS-sync feature flag is enabled.
+    auth_required = is_saas_sync_enabled()
+    auth_present = fg.server_url is not None and fg.team_or_user is not None
+
+    # Active queue counts. Best-effort: never raise from a JSON path.
+    queue = OfflineQueue()
+    active_event_count = 0
+    try:
+        active_event_count = int(queue.size())
+    except Exception:  # noqa: BLE001
+        active_event_count = 0
+    active_body_count = 0
+    try:
+        from specify_cli.sync.body_queue import OfflineBodyUploadQueue
+        import sqlite3 as _sqlite3
+
+        active_body_queue = OfflineBodyUploadQueue(db_path=queue.db_path)
+        _conn = _sqlite3.connect(active_body_queue.db_path)
+        try:
+            active_body_count = int(
+                _conn.execute(
+                    "SELECT COUNT(*) FROM body_upload_queue"
+                ).fetchone()[0]
+            )
+        finally:
+            _conn.close()
+    except Exception:  # noqa: BLE001
+        active_body_count = 0
+
+    ok = (
+        failure_set.ok
+        and (auth_present or not auth_required)
+        and live_orphan_count == 0
+    )
+    payload: dict[str, Any] = {
+        "ok": ok,
+        "exit_code": 0 if ok else 2,
+        "auth_required": auth_required,
+        "auth_present": auth_present,
+        "live_orphan_daemon_count": live_orphan_count,
+        "foreground": {
+            "package_version": fg.package_version,
+            "executable_path": str(fg.executable_path),
+            "source_path": str(fg.source_path),
+            "server_url": fg.server_url,
+            "team_or_user": fg.team_or_user,
+            "queue_db_path": str(fg.queue_db_path),
+            "pid": fg.pid,
+        },
+        "daemon_owner_record": {
+            "status": failure_set.daemon_status,
+            "pid": record.pid if record is not None else None,
+            "port": record.port if record is not None else None,
+            "package_version": record.package_version if record is not None else None,
+            "executable_path": record.executable_path if record is not None else None,
+            "source_path": (
+                record.source_checkout_path if record is not None else None
+            ),
+            "server_url": record.server_url if record is not None else None,
+            "team_or_user": (
+                _render_daemon_team_or_user(record) if record is not None else None
+            ),
+            "queue_db_path": record.queue_db_path if record is not None else None,
+        },
+        "active_queue": {
+            "path": str(fg.queue_db_path),
+            "event_count": active_event_count,
+            "body_upload_count": active_body_count,
+        },
+        "legacy_queue": {
+            "path": str(_legacy_queue_db_path()),
+            "event_count": failure_set.legacy_event_rows,
+            "body_upload_count": failure_set.legacy_body_upload_rows,
+            "rows_in_scope": failure_set.legacy_rows_for_scope,
+        },
+        "mismatches": [
+            {
+                "field": m.field,
+                "foreground_value": m.foreground_value,
+                "daemon_value": m.daemon_value,
+                "remediation_hint": m.remediation_hint,
+            }
+            for m in failure_set.mismatches
+        ],
+        "orphan_records": [
+            {
+                "pid": r.pid,
+                "port": r.port,
+                "package_version": r.package_version,
+                "executable_path": r.executable_path,
+                "source_path": r.source_checkout_path,
+                "server_url": r.server_url,
+                "team_or_user": _render_daemon_team_or_user(r),
+                "queue_db_path": r.queue_db_path,
+                "started_at": r.started_at,
+            }
+            for r in failure_set.orphan_records
+        ],
+    }
+
+    # Write directly to ``sys.stdout`` (not Rich) so the output is one
+    # JSON object with no markup, panels, or wrapping.
+    _sys.stdout.write(_json.dumps(payload))
+    _sys.stdout.write("\n")
+    _sys.stdout.flush()
+
+    if not ok:
+        raise typer.Exit(2)
 
 
 @app.command()
@@ -1342,6 +1598,15 @@ def status(  # noqa: C901
             "coherence gate (FR-009). Exits non-zero when foreground/daemon "
             "disagree, when legacy rows remain in the active scope, or when "
             "any orphan daemon record is present."
+        ),
+    ),
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help=(
+            "When combined with --check, emit a single JSON object on "
+            "stdout matching contracts/sync-status-output.md and suppress "
+            "the human-readable block. Exit code 0 if coherent, 2 otherwise."
         ),
     ),
 ) -> None:
@@ -1367,6 +1632,13 @@ def status(  # noqa: C901
     from specify_cli.sync.config import SyncConfig
     from specify_cli.sync.daemon import get_sync_daemon_status, scan_sync_daemons
     from specify_cli.sync.queue import OfflineQueue
+
+    # T014: --check --json short-circuit. Emits a single JSON object on
+    # stdout matching contracts/sync-status-output.md and exits 0/2 based
+    # on the structured failure set. Suppresses the human-readable block.
+    if check_connection is True and json_output is True:
+        _emit_status_check_json()
+        return
 
     console.print()
     console.print("[cyan]Spec Kitty Sync Status[/cyan]")
@@ -1512,12 +1784,17 @@ def status(  # noqa: C901
     # queue files right now?" We render the foreground identity, the
     # active scoped queue, the legacy queue, the recorded daemon owner,
     # the D-3 mismatched fields, and the orphan-record count.
+    #
+    # T010 / T013: drive the boundary block from the single-source-of-truth
+    # `BoundaryFailureSet` so this view never drifts from the --check gate
+    # or the preflight. Full FR-005 fields are rendered.
     from specify_cli.sync.owner import (
         compute_foreground_identity,
         list_orphan_records,
         mismatched_fields,
         read_owner_record,
     )
+    from specify_cli.sync.preflight import build_boundary_failure_set
     from specify_cli.sync.queue import (
         _legacy_queue_db_path,
         detect_legacy_rows_for_scope,
@@ -1531,8 +1808,17 @@ def status(  # noqa: C901
     orphan_records = list_orphan_records()
     orphan_record_count = len(orphan_records)
 
+    # Structured failure set — single source of truth for --check / preflight.
+    failure_set = build_boundary_failure_set(repo_root=Path.cwd())
+
     active_scope = foreground_identity.get("auth_scope")
-    legacy_counts: dict[str, int] = detect_legacy_rows_for_scope(
+    # WP02: ``detect_legacy_rows_for_scope`` now returns a structured
+    # ``LegacyRowCounts`` value that still acts like a per-table mapping
+    # (so the existing ``legacy_counts.get("body_upload_queue", 0)`` /
+    # ``sum(legacy_counts.values())`` / ``sorted(legacy_counts.items())``
+    # sites keep working) while exposing named subtotals to callers that
+    # want them (preflight uses those).
+    legacy_counts = detect_legacy_rows_for_scope(
         active_scope if isinstance(active_scope, str) else ""
     )
     legacy_db_path = _legacy_queue_db_path()
@@ -1576,66 +1862,115 @@ def status(  # noqa: C901
     boundary_table.add_column("Key", style="dim")
     boundary_table.add_column("Value")
 
-    # Foreground.
+    fg = failure_set.foreground
+    daemon_status_label = failure_set.daemon_status
+
+    # FR-005: Foreground identity (full field set per contract).
+    boundary_table.add_row("Foreground:", "")
+    boundary_table.add_row("  Package version", str(fg.package_version or "-"))
+    boundary_table.add_row("  Executable path", str(fg.executable_path or "-"))
+    boundary_table.add_row("  Source path", str(fg.source_path or "-"))
     boundary_table.add_row(
-        "Foreground CLI", str(foreground_identity.get("package_version") or "-")
+        "  Server URL", fg.server_url if fg.server_url else "<unset>"
     )
     boundary_table.add_row(
-        "Foreground exec", str(foreground_identity.get("executable_path") or "-")
+        "  Team/User", fg.team_or_user if fg.team_or_user else "<unset>"
+    )
+    boundary_table.add_row("  Queue DB path", str(fg.queue_db_path or "-"))
+
+    # FR-005: Daemon owner record.
+    boundary_table.add_row("Daemon owner record:", "")
+    boundary_table.add_row("  Status", daemon_status_label)
+    if daemon_record is None:
+        boundary_table.add_row("  PID", "<absent>")
+        boundary_table.add_row("  Port", "<absent>")
+        boundary_table.add_row("  Package version", "<absent>")
+        boundary_table.add_row("  Executable path", "<absent>")
+        boundary_table.add_row("  Source path", "<absent>")
+        boundary_table.add_row("  Server URL", "<absent>")
+        boundary_table.add_row("  Team/User", "<absent>")
+        boundary_table.add_row("  Queue DB path", "<absent>")
+    else:
+        boundary_table.add_row("  PID", str(daemon_record.pid))
+        boundary_table.add_row("  Port", str(daemon_record.port))
+        boundary_table.add_row(
+            "  Package version", daemon_record.package_version or "<absent>"
+        )
+        boundary_table.add_row(
+            "  Executable path", daemon_record.executable_path or "<absent>"
+        )
+        boundary_table.add_row(
+            "  Source path", daemon_record.source_checkout_path or "<absent>"
+        )
+        boundary_table.add_row(
+            "  Server URL", daemon_record.server_url or "<absent>"
+        )
+        # Render daemon team_or_user as "principal[/team]" to match the
+        # canonical contract field.
+        daemon_team_or_user = _render_daemon_team_or_user(daemon_record)
+        boundary_table.add_row(
+            "  Team/User", daemon_team_or_user if daemon_team_or_user else "<absent>"
+        )
+        boundary_table.add_row(
+            "  Queue DB path", daemon_record.queue_db_path or "<absent>"
+        )
+
+    # FR-005: Active queue.
+    boundary_table.add_row("Active queue:", "")
+    boundary_table.add_row("  Path", str(fg.queue_db_path or "-"))
+    boundary_table.add_row("  Event count", f"{queue_size}")
+    boundary_table.add_row("  Body upload cnt", f"{body_queue_count}")
+
+    # FR-005: Legacy queue.
+    boundary_table.add_row("Legacy queue:", "")
+    boundary_table.add_row("  Path", str(legacy_db_path))
+    boundary_table.add_row(
+        "  Event count", f"{failure_set.legacy_event_rows}"
     )
     boundary_table.add_row(
-        "Foreground server", str(foreground_identity.get("server_url") or "-")
+        "  Body upload cnt", f"{failure_set.legacy_body_upload_rows}"
     )
     boundary_table.add_row(
-        "Foreground principal",
-        str(foreground_identity.get("auth_principal") or "[dim]none[/dim]"),
+        "  Rows in scope", f"{failure_set.legacy_rows_for_scope}"
+    )
+    if stranded_tag:
+        boundary_table.add_row(
+            "  Stranded mission",
+            f"setup-plan stranded mission slug {stranded_tag}",
+        )
+
+    # FR-005: Mismatches / Orphan records counts.
+    n_mismatches = len(failure_set.mismatches)
+    boundary_table.add_row(
+        "Mismatches",
+        f"[red]{n_mismatches}[/red]" if n_mismatches else "[green]0[/green]",
     )
     boundary_table.add_row(
-        "Foreground team",
-        str(foreground_identity.get("auth_team") or "[dim]none[/dim]"),
-    )
-    boundary_table.add_row(
-        "Foreground scope",
-        str(foreground_identity.get("auth_scope") or "[dim]none[/dim]"),
+        "Orphan records",
+        f"[yellow]{orphan_record_count}[/yellow]"
+        if orphan_record_count
+        else "[green]0[/green]",
     )
 
-    # Active scoped queue.
-    boundary_table.add_row(
-        "Active queue DB", str(foreground_identity.get("queue_db_path") or "-")
+    # Preserve backward-compatible legacy-event/body summary line so
+    # operator workflows that grep for ``body_upload_queue`` keep matching.
+    legacy_line = (
+        f"{legacy_event_count} event(s), {legacy_body_count} body upload(s)"
     )
-    boundary_table.add_row("Active queue events", f"{queue_size}")
-    boundary_table.add_row("Active body uploads", f"{body_queue_count}")
-
-    # Legacy queue.
-    boundary_table.add_row("Legacy queue DB", str(legacy_db_path))
-    legacy_line = f"{legacy_event_count} event(s), {legacy_body_count} body upload(s)"
     if stranded_tag:
         legacy_line += f" — setup-plan stranded mission slug {stranded_tag}"
     boundary_table.add_row("Legacy queue rows", legacy_line)
 
-    # Daemon owner record.
-    if daemon_record is None:
-        boundary_table.add_row("Daemon owner", "[dim]no record[/dim]")
-    else:
-        boundary_table.add_row("Daemon PID", str(daemon_record.pid))
-        boundary_table.add_row("Daemon port", str(daemon_record.port))
-        boundary_table.add_row("Daemon version", daemon_record.package_version)
-        boundary_table.add_row("Daemon exec", daemon_record.executable_path)
-        boundary_table.add_row("Daemon source", daemon_record.source_checkout_path)
-        boundary_table.add_row("Daemon server", daemon_record.server_url)
+    # Diagnostics block (kept for backwards compatibility — tests grep
+    # for "Mismatched fields"). The canonical field names are listed
+    # with their ``daemon_`` prefix per the contract Domain Language.
+    if failure_set.mismatches:
+        mismatch_field_names = [m.field for m in failure_set.mismatches]
         boundary_table.add_row(
-            "Daemon principal", daemon_record.auth_principal or "[dim]none[/dim]"
+            "Mismatched fields",
+            f"[red]{', '.join(mismatch_field_names)}[/red]",
         )
-        boundary_table.add_row(
-            "Daemon team", daemon_record.auth_team or "[dim]none[/dim]"
-        )
-        boundary_table.add_row(
-            "Daemon scope", daemon_record.auth_scope or "[dim]none[/dim]"
-        )
-        boundary_table.add_row("Daemon queue DB", daemon_record.queue_db_path)
-
-    # Diagnostics.
-    if daemon_mismatched:
+    elif daemon_mismatched:
         boundary_table.add_row(
             "Mismatched fields",
             f"[red]{', '.join(daemon_mismatched)}[/red]",
@@ -1649,36 +1984,75 @@ def status(  # noqa: C901
         else "[green]0[/green]",
     )
 
+    # When the canonical mismatch list is non-empty, render the detail
+    # block per contract (foreground vs daemon vs remediation hint).
+    if failure_set.mismatches:
+        mismatch_detail = Table(
+            title="Mismatch Detail",
+            show_header=True,
+            header_style="bold",
+            box=None,
+            expand=False,
+        )
+        mismatch_detail.add_column("Field", style="bold")
+        mismatch_detail.add_column("Foreground")
+        mismatch_detail.add_column("Daemon")
+        for m in failure_set.mismatches:
+            mismatch_detail.add_row(
+                m.field,
+                m.foreground_value or "<unset>",
+                m.daemon_value or "<unset>",
+            )
+
     console.print(boundary_table)
     console.print()
+    if failure_set.mismatches:
+        console.print(mismatch_detail)
+        console.print()
 
     if not check_connection:
         console.print("[dim]Use 'spec-kitty sync status --check' to test connectivity.[/dim]")
         console.print()
 
-    if auth_recovery_pending:
-        outcome = handle_unauthenticated_with_teamspace(
-            command_name="sync status",
-            console=console,
-        )
-        if outcome is RecoveryOutcome.EXIT_4:
-            raise typer.Exit(EXIT_LOGGED_OUT_ON_CONNECTED_TEAMSPACE)
-
     # --- --check coherence gate (WP03 / FR-009) ---------------------------
     # Returns non-zero when any of the three FR-009 conditions hold. The
     # gate ONLY trips under --check so the read-only ``sync status``
-    # surface keeps its existing exit-0 contract.
+    # surface keeps its existing exit-0 contract. T010: derived from the
+    # structured failure set so it never drifts from `run_preflight`.
+    #
+    # FR-004 / contracts/sync-status-output.md: under --check, when
+    # ``SPEC_KITTY_ENABLE_SAAS_SYNC=1`` is set but no authenticated
+    # identity is available, the gate exits 2 (NOT 4 via the
+    # ``auth_recovery_pending`` connected-teamspace recovery path).
+    # We layer the auth-required failure into the boundary gate so the
+    # exit code matches the documented status-output contract.
     if check_connection is True:
         failures = _build_boundary_check_failures(
-            daemon_mismatched_fields=daemon_mismatched,
-            legacy_counts=legacy_counts,
-            legacy_db_path=str(legacy_db_path),
-            orphan_count=orphan_record_count,
-            live_orphan_count=(
-                orphan_report.orphan_count if orphan_report is not None else 0
-            ),
+            failure_set=failure_set,
             stranded_mission_slug=stranded_tag,
         )
+        fg_id = failure_set.foreground
+        auth_present_check = (
+            fg_id.server_url is not None and fg_id.team_or_user is not None
+        )
+        auth_required_check = is_saas_sync_enabled()
+        if auth_required_check and not auth_present_check:
+            failures.append(
+                "Hosted SaaS sync is enabled but no authenticated identity "
+                "is available — run `spec-kitty auth login`."
+            )
+        # Live orphan daemon scan (#1071 failure mode): when ``scan_sync_daemons``
+        # finds ``run_sync_daemon`` processes outside the registered singleton,
+        # the boundary is incoherent regardless of whether auth and queue state
+        # otherwise look healthy. The earlier render block (line ~1734) already
+        # printed details to the operator; here we make ``--check`` reflect that
+        # by adding a failure line so the gate exits 2 instead of 0.
+        if orphan_report is not None and orphan_report.orphan_count > 0:
+            failures.append(
+                f"{orphan_report.orphan_count} live `run_sync_daemon` "
+                "process(es) detected outside the registered singleton — "
+                "run `spec-kitty sync doctor` for guided cleanup (#1071)."
+            )
         if failures:
             console.print(
                 "[red]Identity boundary check FAILED:[/red]",
@@ -1687,7 +2061,15 @@ def status(  # noqa: C901
             for line in failures:
                 console.print(f"  [red]![/red] {line}")
             console.print()
-            raise typer.Exit(1)
+            raise typer.Exit(2)
+
+    if auth_recovery_pending:
+        outcome = handle_unauthenticated_with_teamspace(
+            command_name="sync status",
+            console=console,
+        )
+        if outcome is RecoveryOutcome.EXIT_4:
+            raise typer.Exit(EXIT_LOGGED_OUT_ON_CONNECTED_TEAMSPACE)
 
 
 @app.command()
@@ -2024,6 +2406,12 @@ def doctor() -> None:  # noqa: C901
     # is dead or whose executable has gone missing. List them here with a
     # copy-pasteable retirement hint so operators can clean up without
     # grepping the daemon directory.
+    #
+    # T015: this routes through ``list_orphan_records()`` — the SAME entry
+    # point used by ``run_preflight`` and ``sync status --check`` — so the
+    # three surfaces never disagree on what is orphaned. (Cross-file note
+    # for WP04: ``doctor orphan-daemons`` in ``cli/commands/doctor.py``
+    # must also call ``list_orphan_records()``.)
     from specify_cli.sync.owner import list_orphan_records, owner_record_path
 
     orphan_records = list_orphan_records()

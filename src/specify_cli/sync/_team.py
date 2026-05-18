@@ -64,7 +64,7 @@ def resolve_private_team_id_for_ingress(
             else None
         )
         if team_id is not None:
-            return team_id
+            return str(team_id)
 
     payload = {
         "category": CATEGORY_MISSING_PRIVATE_TEAM,

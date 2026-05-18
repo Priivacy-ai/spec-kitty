@@ -25,7 +25,7 @@ import urllib.request
 from dataclasses import dataclass, field
 from typing import Any
 
-import psutil
+import psutil  # type: ignore[import-untyped]
 
 from specify_cli.sync.daemon import (
     DAEMON_PORT_MAX_ATTEMPTS,

@@ -50,10 +50,29 @@ def _healthy_status(pid: int = 4242, port: int = 9400) -> SyncDaemonStatus:
 
 
 def test_status_check_includes_daemon_pid_and_port(monkeypatch, tmp_path):
-    """The daemon PID and port appear in the ``sync status --check`` table."""
+    """The daemon PID and port appear in the ``sync status --check`` table.
+
+    Authenticate a foreground identity so the FR-004 auth-required gate
+    does not trip — this test's intent is to verify field rendering, not
+    the auth gate behavior (which is exercised in
+    ``test_status_check_flags_orphan_daemons`` and the WP03 boundary tests).
+    """
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "AppData"))
     monkeypatch.setattr(sync_command, "is_saas_sync_enabled", lambda: True)
+
+    # Stage a foreground identity with a real auth scope so the
+    # auth-required-and-absent failure does not trip the boundary gate.
+    cred_dir = tmp_path / ".spec-kitty"
+    cred_dir.mkdir(parents=True, exist_ok=True)
+    (cred_dir / "credentials").write_text(
+        "[user]\n"
+        'username = "tester@example.com"\n'
+        'team_slug = "t-private"\n'
+        "[server]\n"
+        'url = "https://spec-kitty-dev.fly.dev"\n',
+        encoding="utf-8",
+    )
 
     with (
         patch(
@@ -124,7 +143,10 @@ def test_status_check_flags_orphan_daemons(monkeypatch, tmp_path):
     ):
         result = runner.invoke(app, ["status", "--check"])
 
-    assert result.exit_code == 1, result.output
+    # FR-004 + WP-followup live-orphan-scan gate: ``--check`` exits 2 when
+    # any of the documented split-brain shapes are present, including live
+    # ``run_sync_daemon`` orphans (#1071 failure mode).
+    assert result.exit_code == 2, result.output
     # The Singleton table cell reports the count.
     assert "2 orphan daemon(s)" in result.output
     # The follow-up section lists each orphan PID with its cmdline.
@@ -133,6 +155,8 @@ def test_status_check_flags_orphan_daemons(monkeypatch, tmp_path):
     assert "run_sync_daemon(9401" in result.output
     assert "spec-kitty sync doctor" in result.output
     assert "Identity boundary check FAILED" in result.output
+    # The orphan-scan failure line surfaces in the gate output (#1071).
+    assert "live `run_sync_daemon` process(es) detected" in result.output
 
 
 def test_status_without_check_skips_orphan_scan(monkeypatch, tmp_path):

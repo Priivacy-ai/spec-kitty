@@ -1,0 +1,20 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.11.11, pytest-9.0.3, pluggy-1.6.0
+rootdir: /Users/robert/spec-kitty-dev/spec-kitty-20260518-082805-q0Lu7J/spec-kitty/.worktrees/mvp-cli-sync-boundary-completion-01KRX11M-lane-a
+configfile: pytest.ini (WARNING: ignoring pytest config in pyproject.toml!)
+plugins: anyio-4.13.0
+collected 92 items
+
+tests/sync/test_queue_row_level_migration.py ...........                 [ 11%]
+tests/sync/test_daemon_owner_record.py ............................      [ 42%]
+tests/sync/test_sync_status_boundary_check.py ...................        [ 63%]
+tests/sync/test_sync_boundary_preflight.py ........................      [ 89%]
+tests/runtime/test_setup_plan_sync_evidence.py ..........                [100%]
+
+=============================== warnings summary ===============================
+src/specify_cli/migration/normalize_mission_lifecycle.py:20
+  /Users/robert/spec-kitty-dev/spec-kitty-20260518-082805-q0Lu7J/spec-kitty/.worktrees/mvp-cli-sync-boundary-completion-01KRX11M-lane-a/src/specify_cli/migration/normalize_mission_lifecycle.py:20: DeprecationWarning: specify_cli.migration.rebuild_state is deprecated; use specify_cli.migration.mission_state.repair_repo for canonical, deterministic mission-state repair.
+    from specify_cli.migration.rebuild_state import rebuild_event_log
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 92 passed, 1 warning in 2.29s =========================

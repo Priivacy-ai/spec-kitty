@@ -36,13 +36,36 @@ runner = CliRunner()
 
 
 def _mock_unauth_sync_now(monkeypatch):
-    """Wire `sync now` so it always hits the unauthenticated branch."""
+    """Wire `sync now` so it always hits the unauthenticated branch.
+
+    WP03 (T012) added a preflight gate at the top of ``sync now`` that
+    refuses with exit code 2 when the SaaS auth scope is absent. These
+    recovery tests exercise the layer below that — they assume the
+    preflight passes and the unauth detection happens against the live
+    sync attempt. We stub the preflight here so the recovery layer keeps
+    being exercised by these tests; the preflight itself has dedicated
+    test coverage in ``test_sync_boundary_preflight.py``.
+    """
     from specify_cli.sync import feature_flags as ff
+    from specify_cli.sync.preflight import PreflightResult
 
     monkeypatch.setattr(ff, "is_saas_sync_enabled", lambda: True)
     monkeypatch.setattr(
         "specify_cli.cli.commands._teamspace_mission_state_gate.enforce_teamspace_mission_state_ready",
         lambda *a, **k: None,
+    )
+
+    monkeypatch.setattr(
+        "specify_cli.sync.preflight.run_preflight",
+        lambda **kwargs: PreflightResult(
+            ok=True,
+            mismatches=(),
+            orphan_records=(),
+            legacy_event_rows=0,
+            legacy_body_upload_rows=0,
+            auth_present=True,
+            auth_required=True,
+        ),
     )
 
     fake_service = MagicMock()

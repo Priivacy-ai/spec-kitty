@@ -4,7 +4,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
-import toml
+import toml  # type: ignore[import-untyped]
 
 from specify_cli.core.atomic import atomic_write
 
@@ -36,7 +36,8 @@ class SyncConfig:
         if not self.config_file.exists():
             return {}
         try:
-            return toml.load(self.config_file)
+            data: dict[str, Any] = toml.load(self.config_file)
+            return data
         except (toml.TomlDecodeError, OSError):
             return {}
 

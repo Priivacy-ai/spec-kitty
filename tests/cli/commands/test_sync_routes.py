@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timedelta, UTC
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
@@ -25,6 +26,22 @@ def _disable_teamspace_mission_state_gate(monkeypatch: pytest.MonkeyPatch) -> No
         "enforce_teamspace_mission_state_ready",
         lambda **_kwargs: None,
     )
+
+
+@pytest.fixture(autouse=True)
+def _isolate_home_for_preflight(
+    monkeypatch: pytest.MonkeyPatch, tmp_path_factory: pytest.TempPathFactory
+) -> None:
+    """Isolate ``Path.home()`` so the WP03 boundary preflight (transitively
+    invoked by sync share / unshare / opt-out via ``_require_daemon_owner_coherence``)
+    does not refuse on the operator's real ``~/.spec-kitty/`` queue/owner
+    state. Cross-platform per C-008 (patches the classmethod and both
+    POSIX ``HOME`` and Windows ``USERPROFILE``)."""
+    home = tmp_path_factory.mktemp("home")
+    monkeypatch.setattr(Path, "home", classmethod(lambda _cls: home))
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    monkeypatch.setenv("LOCALAPPDATA", str(home / "AppData"))
 
 
 def _session() -> StoredSession:
@@ -277,7 +294,15 @@ def test_now_logged_out_nonempty_queue_reports_unauthenticated_failures(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path,
 ) -> None:
-    """Issue #829: logged-out sync now is unauthenticated, not generic sync failure."""
+    """Issue #829: logged-out sync now is unauthenticated, not generic sync failure.
+
+    The autouse ``_isolate_home_for_preflight`` fixture above redirects
+    ``Path.home()`` to a tmp dir so the WP03 boundary preflight transitively
+    invoked by ``sync now`` evaluates against a clean state. The preflight in
+    ``sync now`` is called with ``require_auth=False`` by design — auth-absent
+    falls through to the existing ``service.sync_now()`` graceful
+    failure-report path (the behavior this test exercises).
+    """
     unauthenticated_result = BatchSyncResult()
     unauthenticated_result.total_events = 3
     unauthenticated_result.error_count = 3
