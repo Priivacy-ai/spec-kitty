@@ -419,6 +419,17 @@ This mirrors Mission B's executable-contract pattern (the 7-file ATDD spec
 at `bd95f1f5` was the canonical contract).
 ```
 
+**Also amend the existing "Charter Resolution Hints" section (analyze finding F-CHA-01):** the current `authority_paths` declares `[glossary/contexts/, architecture/2.x/adr/]` but the repo's de-facto active ADR directory is `architecture/adrs/` (32+ ADRs there, including the two Slice F lands at T064 and elsewhere). Update the line to:
+
+```yaml
+authority_paths:
+  - glossary/contexts/   # canonical terminology
+  - architecture/2.x/adr/   # 2.x-era architectural decisions (historical)
+  - architecture/adrs/   # active ADR directory (de-facto convention)
+```
+
+Without this amendment, every new ADR Slice F writes diverges from the charter-declared authority path. F-CHA-01 closure.
+
 ### T068 — Cross-axis integration test (FR-300 broader)
 
 **File:** `tests/integration/test_slice_f_cross_axis.py` (new)

@@ -25,6 +25,7 @@ execution_mode: code_change
 owned_files:
 - src/specify_cli/cli/commands/doctrine.py
 - tests/cli/test_doctrine_org_commands.py
+- glossary/contexts/doctrine.md  # WP08 lands `candidate` entries for org-tier terms (T042); WP12 promotes to `canonical` (T065). Both writes land in the single-lane sequence; F-OWN-01 resolution per analysis-report.md.
 role: implementer
 tags: []
 ---
