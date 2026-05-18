@@ -84,13 +84,13 @@ Lane A blocks Lane C/D so the burn-down meta-test (FR-110/111) is in place befor
 ### Lane C — Org-DRG (depends on Lane A)
 
 #### WP06 — Org-layer DRG: schema, loader, merge, validator extension
-- [ ] T027 — Land failing-first ATDD suite for Lane C: `test_three_layer_drg_end_to_end.py`, `test_org_pack_missing_path_hard_fails.py`, `test_org_drg_cannot_override_shipped_invariants.py`, `test_charter_lint_lints_all_layers.py` (all RED on planning base) (WP06)
-- [ ] T028 — Add `OrgDRGFragment` Pydantic v2 model to `src/charter/drg.py` per data-model §2 (FR-001, C-009 8-kind parity) (WP06)
-- [ ] T029 — Add `OrgDRGConflict` dataclass + `OrgDRGConflictError` exception per data-model §3 (FR-004, FR-005) (WP06)
-- [ ] T030 — Implement `load_org_drg(repo_root) -> list[OrgDRGFragment]` reading `.kittify/config.yaml::organisation_packs:` (local_path only this mission; NEW-1) (WP06)
-- [ ] T031 — Implement `merge_three_layers(shipped, org_fragments, project) -> DRGGraph` with shipped-wins-on-conflict + hard-fail on layer rule violation (FR-005) (WP06)
-- [ ] T032 — Extend `charter lint` to invoke three-layer loader; per-layer named-source findings (FR-003) (WP06)
-- [ ] T033 — Add `tests/charter/test_org_drg_loader.py` unit coverage for loader + merge + provenance; Lane C ATDD suite GREEN for FR-001/003/004/005 (WP06)
+- [x] T027 — Land failing-first ATDD suite for Lane C: `test_three_layer_drg_end_to_end.py`, `test_org_pack_missing_path_hard_fails.py`, `test_org_drg_cannot_override_shipped_invariants.py`, `test_charter_lint_lints_all_layers.py` (all RED on planning base) (WP06)
+- [x] T028 — Add `OrgDRGFragment` Pydantic v2 model to `src/charter/drg.py` per data-model §2 (FR-001, C-009 8-kind parity) (WP06)
+- [x] T029 — Add `OrgDRGConflict` dataclass + `OrgDRGConflictError` exception per data-model §3 (FR-004, FR-005) (WP06)
+- [x] T030 — Implement `load_org_drg(repo_root) -> list[OrgDRGFragment]` reading `.kittify/config.yaml::organisation_packs:` (local_path only this mission; NEW-1) (WP06)
+- [x] T031 — Implement `merge_three_layers(shipped, org_fragments, project) -> DRGGraph` with shipped-wins-on-conflict + hard-fail on layer rule violation (FR-005) (WP06)
+- [x] T032 — Extend `charter lint` to invoke three-layer loader; per-layer named-source findings (FR-003) (WP06)
+- [x] T033 — Add `tests/charter/test_org_drg_loader.py` unit coverage for loader + merge + provenance; Lane C ATDD suite GREEN for FR-001/003/004/005 (WP06)
 
 #### WP07 — Org-DRG integration into `build_charter_context` + `doctor doctrine`
 - [ ] T034 — Land failing-first `tests/integration/test_charter_status_reports_three_layers.py` (RED on planning base) (WP07)
