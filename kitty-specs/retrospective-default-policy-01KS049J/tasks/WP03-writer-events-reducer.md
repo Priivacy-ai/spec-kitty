@@ -5,6 +5,7 @@ dependencies:
 - WP02
 requirement_refs:
 - FR-008
+- FR-009
 - FR-013
 - FR-014
 - FR-021
@@ -124,22 +125,23 @@ Persist generated records to disk with overwrite/update/error semantics. Emit `R
 
 ---
 
-### T015 — Add `RetrospectiveCaptured` + `RetrospectiveCaptureFailed` event types
+### T015 — Add the three canonical retrospective lifecycle event types
 
-**Purpose**: Emit lifecycle events that join the canonical event log additively.
+**Purpose**: Emit the three canonical lifecycle events (`RetrospectiveCaptured`, `RetrospectiveCaptureFailed`, `RetrospectiveSkipped`) that join the canonical event log additively. **All three are owned by this WP; WP04 imports them — there is no cross-WP file ownership.**
 
 **Steps**:
 
-1. **First**: inspect the `spec_kitty_events` public surface to determine whether `RetrospectiveCaptured` / equivalent already exists:
+1. **First**: inspect the `spec_kitty_events` public surface to determine whether any of the three already exist:
    ```bash
    python -c "import spec_kitty_events; print([n for n in dir(spec_kitty_events) if 'etrospec' in n.lower()])"
-   grep -rn "RetrospectiveCaptured\|RetrospectiveCaptureFailed" $(python -c "import spec_kitty_events, pathlib; print(pathlib.Path(spec_kitty_events.__file__).parent)")
+   grep -rn "RetrospectiveCaptured\|RetrospectiveCaptureFailed\|RetrospectiveSkipped" $(python -c "import spec_kitty_events, pathlib; print(pathlib.Path(spec_kitty_events.__file__).parent)")
    ```
    - If found at top level: REUSE with additive `policy_source` field. Document the import path in this WP's review notes.
    - If found only at a sub-path: do NOT import from sub-path (violates FR-024). Treat as not-exposed and proceed to step 2.
    - If not found: add new event types in the local emit path.
 
-2. Create `src/specify_cli/retrospective/events.py` with the canonical envelopes per [contracts/retrospective-events.contract.md](../contracts/retrospective-events.contract.md):
+2. Create `src/specify_cli/retrospective/events.py` with all three canonical envelopes per [contracts/retrospective-events.contract.md](../contracts/retrospective-events.contract.md):
+
    ```python
    @dataclass
    class RetrospectiveCaptured:
@@ -160,20 +162,51 @@ Persist generated records to disk with overwrite/update/error semantics. Emit `R
        provenance_kind: ProvenanceKind
        proposal_count: int
        evidence_ref_count: int
-       # serialize to JSON envelope of the canonical event log
    ```
-   And the `RetrospectiveCaptureFailed` analog with `failure_category`, `failure_message`, `remediation_hint`, `attempted_provenance_kind`, `missing_artifacts`.
 
-3. Provide an `emit_captured(record, repo_root, *, provenance_kind, actor) -> Event` helper and `emit_capture_failed(...) -> Event` helper. Use the existing per-mission `kitty-specs/<mission_slug>/status.events.jsonl` writer infrastructure (do NOT re-implement JSONL append).
+   The `RetrospectiveCaptureFailed` analog adds `failure_category`, `failure_message`, `remediation_hint`, `attempted_provenance_kind`, `missing_artifacts`.
 
-4. Round-trip test: serialize an event, write to JSONL, read it back via the canonical reader — payload byte-equal after `sort_keys` normalization.
+   The `RetrospectiveSkipped` analog per the contract's Skipped section:
+   ```python
+   @dataclass
+   class RetrospectiveSkipped:
+       schema_version: int = 1
+       event_id: str
+       lamport: int
+       at: str
+       actor: Actor
+       mission_id: str
+       mission_slug: str
+       wp_id: None = None
+       force: bool = False
+       execution_mode: Literal["worktree", "main"]
+       skip_reason: str                         # MUST be non-empty
+       skip_reason_source: Literal["cli_flag", "config_flag", "ci_environment"]
+       policy_source: dict[str, str]
+       bypassed_provenance_kind: Literal["runtime_strict_gate"]
+       would_have_attempted: bool
+   ```
+
+3. Provide three emit helpers in `events.py`:
+   - `emit_captured(record, repo_root, *, provenance_kind, actor) -> Event`
+   - `emit_capture_failed(mission_id, mission_slug, repo_root, *, failure_category, failure_message, remediation_hint, policy_source, attempted_provenance_kind, missing_artifacts, actor) -> Event`
+   - `emit_skipped(mission_id, mission_slug, repo_root, *, skip_reason, skip_reason_source, policy_source, actor, would_have_attempted=True) -> Event`
+
+   Use the existing per-mission `kitty-specs/<mission_slug>/status.events.jsonl` writer infrastructure (do NOT re-implement JSONL append).
+
+4. Constructor-level invariants enforced by the emit helpers:
+   - `emit_skipped` rejects empty `skip_reason` with `ValueError("skip_reason MUST be non-empty per RetrospectiveSkipped contract")`.
+   - `emit_captured` rejects `provenance_kind == "synthesize_fabricate"` AND `record.findings_status == "has_findings"` with `RecordValidationError` (defense-in-depth alongside T014's writer check).
+
+5. Round-trip test: serialize each of the three events, write to JSONL, read back via the canonical reader — payload byte-equal after `sort_keys` normalization.
 
 **Files**:
-- `src/specify_cli/retrospective/events.py` (new, ~180 lines)
+- `src/specify_cli/retrospective/events.py` (new, ~250 lines — three types + emit helpers)
 
 **Validation**:
 - [ ] Public-surface inspection result documented in commit message
-- [ ] Both event types serialize/round-trip cleanly
+- [ ] All three event types serialize/round-trip cleanly
+- [ ] `emit_skipped(...)` with empty `skip_reason` raises `ValueError`
 - [ ] No imports from `spec_kitty_events.models.*` or other sub-paths (FR-024 architectural test stays green)
 
 ---
@@ -233,9 +266,9 @@ Persist generated records to disk with overwrite/update/error semantics. Emit `R
            return "failed"
        return "missing"
    ```
-2. Update the `summary` JSON output shape to include `findings_status` per mission and `policy_source` (snapshot from the most recent `RetrospectiveCaptured` event).
-3. Backward compatibility: existing `summary` output keys preserved; only new keys are added (NFR-007 additive).
-4. Tests: cover all four states with fixtures.
+2. **Scope boundary (non-goals for this subtask)**: this WP owns the *classifier logic* in `summary.py` only. The CLI output-shape extension (adding `findings_status` and `policy_source` keys to the `summary` JSON output, and the `--filter <state>` flag) is **WP05 T027's responsibility** — WP05's prompt explicitly cedes the classifier to WP03 and owns the CLI output shape. T017 must NOT edit `src/specify_cli/cli/commands/agent_retrospect.py` or `src/specify_cli/cli/commands/retrospect.py`.
+3. Backward compatibility: the classifier is additive — existing read-paths in `summary.py` keep working (NFR-007).
+4. Tests: cover all four classifier states with fixtures.
 
 **Files**:
 - `src/specify_cli/retrospective/summary.py` (extend, ~80 lines added)
@@ -259,6 +292,7 @@ Persist generated records to disk with overwrite/update/error semantics. Emit `R
 - [ ] Coverage on `src/specify_cli/retrospective/{writer,events,summary}.py` ≥ 90%
 - [ ] Atomic write verified: deliberate kill during write leaves no partial record
 - [ ] Reducer fixtures committed; snapshots byte-stable
+- [ ] **No env-var mutation in this WP's owned tests**: `grep -nE "monkeypatch\.setenv.*SPEC_KITTY_(RETROSPECTIVE|MODE)|os\.environ\[.*SPEC_KITTY_(RETROSPECTIVE|MODE)" tests/retrospective/test_writer.py tests/retrospective/test_events.py tests/retrospective/test_reducer_fixtures.py tests/retrospective/fixtures/event_logs/` returns no hits (FR-016 enforcement)
 
 ## Risks & Reviewer Guidance
 
