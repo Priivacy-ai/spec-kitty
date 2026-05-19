@@ -333,3 +333,4 @@ spec-kitty agent action implement WP07 --agent claude
 ## Activity Log
 
 - 2026-05-19T17:20:00Z – claude:claude-sonnet-4-6:curator-carla:curator – shell_pid=59674 – Started implementation via action command
+- 2026-05-19T17:31:11Z – claude:claude-sonnet-4-6:curator-carla:curator – shell_pid=59674 – Ready for review: canonical how-to (T035) + 4 shipped skills updated with canonical post-merge sequence (T039) + CONTRIBUTING #1137 diagnostic (T041) + charter-governed-workflow.md and from-charter-2x.md migrated to durable keys (T038); slash-commands.md audited clean; markdownlint not installed (noted); snapshot tests 234 passed; retrospective suite 549 passed; grep SPEC_KITTY_(RETROSPECTIVE|MODE) returns only labeled-deprecated hit.
