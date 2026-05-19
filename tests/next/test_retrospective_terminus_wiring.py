@@ -178,6 +178,184 @@ def test_runtime_passes_non_none_callback_for_enabled_policy(
     )
 
 
+def test_facilitator_noops_when_policy_disabled(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.next.runtime_bridge import _build_retrospective_facilitator_callback
+    from specify_cli.retrospective import generator as generator_mod
+    from specify_cli.retrospective import policy as policy_mod
+
+    monkeypatch.setattr(policy_mod, "resolve_policy", lambda repo_root: (SimpleNamespace(enabled=False), {}))
+    monkeypatch.setattr(
+        generator_mod,
+        "generate_retrospective",
+        lambda *args, **kwargs: pytest.fail("disabled policy must not generate"),
+    )
+
+    callback = _build_retrospective_facilitator_callback("disabled-mission", tmp_path)
+
+    assert callback(mission_id="01KQDISABLED", feature_dir=tmp_path, repo_root=tmp_path) is None
+
+
+def test_facilitator_emits_failure_on_policy_resolution_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from specify_cli.next.runtime_bridge import _build_retrospective_facilitator_callback
+    from specify_cli.retrospective import lifecycle_events as events_mod
+    from specify_cli.retrospective import policy as policy_mod
+    from specify_cli.retrospective.policy import PolicyResolutionError
+
+    failure = PolicyResolutionError(".kittify/config.yaml", "invalid_enum", "bad timing")
+    failures: list[dict[str, Any]] = []
+
+    monkeypatch.setattr(policy_mod, "resolve_policy", lambda repo_root: (_ for _ in ()).throw(failure))
+    monkeypatch.setattr(events_mod, "emit_capture_failed", lambda **kwargs: failures.append(kwargs))
+
+    callback = _build_retrospective_facilitator_callback("bad-policy", tmp_path)
+
+    with pytest.raises(PolicyResolutionError):
+        callback(mission_id="01KQBADPOLICY", feature_dir=tmp_path, repo_root=tmp_path)
+
+    assert failures
+    assert failures[0]["mission_id"] == "01KQBADPOLICY"
+    assert failures[0]["policy_source"]["enabled"] == "<resolution_error>"
+
+
+def test_facilitator_classifies_generator_missing_artifact(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from specify_cli.next.runtime_bridge import _build_retrospective_facilitator_callback
+    from specify_cli.retrospective import generator as generator_mod
+    from specify_cli.retrospective import lifecycle_events as events_mod
+    from specify_cli.retrospective import policy as policy_mod
+
+    missing_path = tmp_path / "kitty-specs" / "missing" / "tasks.md"
+    failures: list[dict[str, Any]] = []
+
+    monkeypatch.setattr(policy_mod, "resolve_policy", lambda repo_root: (SimpleNamespace(enabled=True), {"enabled": "default"}))
+    monkeypatch.setattr(
+        generator_mod,
+        "generate_retrospective",
+        lambda *args, **kwargs: (_ for _ in ()).throw(FileNotFoundError(2, "missing", missing_path)),
+    )
+    monkeypatch.setattr(events_mod, "emit_capture_failed", lambda **kwargs: failures.append(kwargs))
+
+    callback = _build_retrospective_facilitator_callback("missing-artifact", tmp_path)
+
+    with pytest.raises(FileNotFoundError):
+        callback(mission_id="01KQMISSING", feature_dir=tmp_path, repo_root=tmp_path)
+
+    assert failures[0]["failure_category"] == "missing_artifacts"
+    assert failures[0]["missing_artifacts"] == [str(missing_path)]
+
+
+def test_facilitator_handles_existing_record_and_emit_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from specify_cli.next.runtime_bridge import _build_retrospective_facilitator_callback
+    from specify_cli.retrospective import generator as generator_mod
+    from specify_cli.retrospective import lifecycle_events as events_mod
+    from specify_cli.retrospective import policy as policy_mod
+    from specify_cli.retrospective import writer as writer_mod
+    from specify_cli.retrospective.writer import RecordExistsError
+
+    record = SimpleNamespace(findings_status="ran_no_findings")
+    failures: list[dict[str, Any]] = []
+
+    monkeypatch.setattr(policy_mod, "resolve_policy", lambda repo_root: (SimpleNamespace(enabled=True), {"enabled": "default"}))
+    monkeypatch.setattr(generator_mod, "generate_retrospective", lambda *args, **kwargs: record)
+    monkeypatch.setattr(
+        writer_mod,
+        "write_gen_record",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RecordExistsError(tmp_path / "retrospective.yaml")),
+    )
+    monkeypatch.setattr(events_mod, "emit_captured", lambda *args, **kwargs: (_ for _ in ()).throw(OSError("event log busy")))
+    monkeypatch.setattr(events_mod, "emit_capture_failed", lambda **kwargs: failures.append(kwargs))
+
+    callback = _build_retrospective_facilitator_callback("existing-record", tmp_path)
+
+    assert callback(mission_id="01KQEXISTS", feature_dir=tmp_path, repo_root=tmp_path) is record
+    assert failures
+    assert failures[0]["failure_category"] == "generator_exception"
+    assert failures[0]["attempted_provenance_kind"] == "runtime_post_completion"
+
+
+def test_facilitator_reraises_write_failure_after_failed_event(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from specify_cli.next.runtime_bridge import _build_retrospective_facilitator_callback
+    from specify_cli.retrospective import generator as generator_mod
+    from specify_cli.retrospective import lifecycle_events as events_mod
+    from specify_cli.retrospective import policy as policy_mod
+    from specify_cli.retrospective import writer as writer_mod
+
+    failures: list[dict[str, Any]] = []
+
+    monkeypatch.setattr(policy_mod, "resolve_policy", lambda repo_root: (SimpleNamespace(enabled=True), {"enabled": "default"}))
+    monkeypatch.setattr(generator_mod, "generate_retrospective", lambda *args, **kwargs: object())
+    monkeypatch.setattr(writer_mod, "write_gen_record", lambda *args, **kwargs: (_ for _ in ()).throw(OSError("disk full")))
+    monkeypatch.setattr(events_mod, "emit_capture_failed", lambda **kwargs: failures.append(kwargs))
+
+    callback = _build_retrospective_facilitator_callback("write-fails", tmp_path)
+
+    with pytest.raises(OSError, match="disk full"):
+        callback(mission_id="01KQWRITEFAIL", feature_dir=tmp_path, repo_root=tmp_path)
+
+    assert failures and failures[0]["failure_message"] == "disk full"
+
+
+def test_run_retrospective_learning_capture_failure_policy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from specify_cli.next import runtime_bridge as bridge
+
+    def _raising_callback(**_kwargs: Any) -> None:
+        raise RuntimeError("capture failed")
+
+    monkeypatch.setattr(
+        bridge,
+        "_build_retrospective_facilitator_callback",
+        lambda **kwargs: _raising_callback,
+    )
+
+    bridge._run_retrospective_learning_capture(
+        mission_id="01KQWARN",
+        mission_slug="warn-mission",
+        feature_dir=tmp_path,
+        repo_root=tmp_path,
+        block_on_failure=False,
+    )
+    with pytest.raises(RuntimeError, match="capture failed"):
+        bridge._run_retrospective_learning_capture(
+            mission_id="01KQBLOCK",
+            mission_slug="block-mission",
+            feature_dir=tmp_path,
+            repo_root=tmp_path,
+            block_on_failure=True,
+        )
+
+
+def test_failure_emit_swallows_emit_failure(tmp_path: Path) -> None:
+    from specify_cli.next.runtime_bridge import _classify_and_emit_failure
+
+    def _emit_capture_failed(**_kwargs: Any) -> None:
+        raise OSError("status log locked")
+
+    _classify_and_emit_failure(
+        mission_id="01KQEMITFAIL",
+        mission_slug="emit-fail",
+        repo_root=tmp_path,
+        exc=FileNotFoundError(2, "missing", tmp_path / "tasks.md"),
+        source_map={"enabled": "default"},
+        provenance_kind="runtime_post_completion",
+        emit_capture_failed=_emit_capture_failed,
+    )
+
+
+def test_status_reader_skips_retrospective_lifecycle_type_event() -> None:
+    from specify_cli.status.store import _should_skip_status_event
+
+    assert _should_skip_status_event({"type": "RetrospectiveCaptured"}) is True
+
+
 # ---------------------------------------------------------------------------
 # Unit: _BufferingRuntimeEmitter
 # ---------------------------------------------------------------------------
