@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0rc13] - 2026-05-19
+
+Ships a focused sync-boundary hotfix for pipx-style CLI installs:
+
+- Fixes `#1120`: daemon owner records now canonicalize
+  `executable_path` at the `DaemonOwnerRecord` boundary, and foreground
+  sync identity uses the same canonicalization helper. Pipx-installed CLIs
+  whose `sys.executable` flows through a symlink no longer report a spurious
+  `daemon_executable_path` mismatch during `sync status --check` or
+  sync-producing command preflight.
+- Adds adversarial coverage for owner-record dataclass canonicalization,
+  resolve-failure fallback behavior, and the asymmetric one-sided resolve
+  failure class that could reintroduce false split-brain detection.
+
 ## [3.2.0rc12] - 2026-05-18
 
 Ships the MVP CLI sync-boundary preflight surface required by the Teamspace
