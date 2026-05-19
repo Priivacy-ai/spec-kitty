@@ -350,13 +350,13 @@ T030, T031, T032, T033 are different concerns and parallelizable. T034 (tests) p
 
 ### Included subtasks
 
-- [ ] T035 [P] Update `docs/how-to/use-retrospective-learning.md` as canonical operator how-to (FR-018) (WP07)
-- [ ] T036 [P] Update `docs/how-to/accept-and-merge.md` (correct PR #1136 wording) + `docs/how-to/merge-feature.md` (FR-018) (WP07)
-- [ ] T037 [P] Update `docs/explanation/retrospective-learning-loop.md` + `docs/reference/cli-commands.md` + `docs/reference/slash-commands.md` (FR-018) (WP07)
-- [ ] T038 [P] Update `README.md` retrospective blurb + `docs/tutorials/your-first-feature.md` (FR-018) (WP07)
-- [ ] T039 [P] Update 4 shipped skills: `spec-kitty-mission-review`, `spec-kitty-implement-review`, `spec-kitty-program-orchestrate`, `spec-kitty-runtime-next` (FR-019) (WP07)
-- [ ] T040 [P] Review `retrospective-facilitator.agent.yaml`; align boundaries/permissions with FR-001/FR-010 if drift exists (FR-020) (WP07)
-- [ ] T041 [P] Add `CONTRIBUTING.md` namespace-package diagnostic note for #1137 (FR-017) (WP07)
+- [x] T035 [P] Update `docs/how-to/use-retrospective-learning.md` as canonical operator how-to (FR-018) (WP07)
+- [x] T036 [P] Update `docs/how-to/accept-and-merge.md` (correct PR #1136 wording) + `docs/how-to/merge-feature.md` (FR-018) (WP07)
+- [x] T037 [P] Update `docs/explanation/retrospective-learning-loop.md` + `docs/reference/cli-commands.md` + `docs/reference/slash-commands.md` (FR-018) (WP07)
+- [x] T038 [P] Update `README.md` retrospective blurb + `docs/tutorials/your-first-feature.md` (FR-018) (WP07)
+- [x] T039 [P] Update 4 shipped skills: `spec-kitty-mission-review`, `spec-kitty-implement-review`, `spec-kitty-program-orchestrate`, `spec-kitty-runtime-next` (FR-019) (WP07)
+- [x] T040 [P] Review `retrospective-facilitator.agent.yaml`; align boundaries/permissions with FR-001/FR-010 if drift exists (FR-020) (WP07)
+- [x] T041 [P] Add `CONTRIBUTING.md` namespace-package diagnostic note for #1137 (FR-017) (WP07)
 
 ### Implementation sketch
 
