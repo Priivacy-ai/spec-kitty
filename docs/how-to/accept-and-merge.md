@@ -57,24 +57,50 @@ For detailed merge options including dry-run, strategies, and cleanup flags, see
 
 ## After Merge
 
-Run the post-merge mission review (`/spec-kitty-mission-review` in your agent).
-The mission's `retrospective.yaml` is captured earlier, during the runtime
-terminus — `spec-kitty next` runs the facilitator (HiC prompt in human-in-the-
-loop mode, mandatory in autonomous mode). Post-merge, while context is fresh,
-review what was captured and apply any staged proposals:
+Complete the following three steps before declaring the mission done.
+
+**1. Mission review** — run the post-merge mission review to confirm spec→code fidelity and FR
+coverage:
 
 ```bash
-# Cross-mission view of captured retrospectives
-spec-kitty retrospect summary
+# In your agent:
+/spec-kitty-mission-review
 
-# Apply staged proposals from the authored retrospective.yaml
-# (dry-run by default; pass --apply to mutate)
-spec-kitty agent retrospect synthesize --mission <slug>
+# Or directly:
+spec-kitty agent mission review --mission <handle>
 ```
 
-If `retrospective.yaml` does not exist for the mission, it was never captured —
-see [How to Use the Retrospective Learning Loop](use-retrospective-learning.md)
-for how the facilitator runs at terminus.
+**2. Author or verify the retrospective** — under default policy the record was already written
+during merge. Verify with:
+
+```bash
+cat .kittify/missions/$(jq -r .mission_id kitty-specs/<slug>/meta.json)/retrospective.yaml
+```
+
+If the file is absent (for example, an older mission predating 3.2.0), author it now:
+
+```bash
+spec-kitty retrospect create --mission <handle>
+```
+
+Reserve the noun "capture" for the event-log fact `RetrospectiveCaptured`, not for the
+operator verb.
+
+**3. Surface findings** — aggregate across recent missions or inspect proposals for this one:
+
+```bash
+# Cross-mission view (read-only aggregation)
+spec-kitty retrospect summary
+
+# Preview proposals in this mission's retrospective.yaml (dry-run by default)
+spec-kitty agent retrospect synthesize --mission <handle> --preview
+
+# Apply a proposal (requires explicit --apply)
+spec-kitty agent retrospect synthesize --mission <handle> --apply <proposal-id>
+```
+
+For full details on each command, see
+[How to Use Retrospective Learning](use-retrospective-learning.md).
 
 ## Merge Strategies
 

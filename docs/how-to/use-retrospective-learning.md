@@ -1,236 +1,237 @@
 ---
-title: How to Use the Retrospective Learning Loop
-description: Run retrospect summary, preview and apply synthesis proposals, resolve conflicts, and handle facilitator failures.
+title: How to Use Retrospective Learning
+description: Understand the four retrospective commands, configure policy, author records on demand, backfill historical missions, and apply proposals to governance.
 ---
 
-# How to Use the Retrospective Learning Loop
+# How to Use Retrospective Learning
 
-This guide covers the operator workflow for the retrospective learning loop: viewing summaries,
-previewing proposals, applying synthesis, resolving conflicts, and understanding the HiC vs
-autonomous gate behavior.
-
-For an explanation of why retrospectives exist and the gate model, see
+This guide is the canonical operator how-to for the retrospective learning loop introduced in
+Spec Kitty 3.2.0. Other docs link here. For conceptual background on the four-category model and
+bounded contexts, see
 [Understanding the Retrospective Learning Loop](../explanation/retrospective-learning-loop.md).
 
 ---
 
-## 1. View the retrospective summary
+## 30-second mental model
 
-Get a cross-mission overview of retrospective activity:
+| What | Where it lives | Authored by |
+|---|---|---|
+| **Policy** (whether / when / how-to-fail) | `.kittify/config.yaml#retrospective` or charter frontmatter | Operator (durable config) |
+| **Record** (`retrospective.yaml`) | `.kittify/missions/<mission_id>/` | Runtime (default), or `spec-kitty retrospect create` / `backfill` |
+| **Summary** (aggregation across records) | stdout / JSON | `spec-kitty retrospect summary` — **read-only** |
+| **Proposal application** | Doctrine / DRG / glossary mutations gated by human approval | `spec-kitty agent retrospect synthesize` (preview / apply) |
 
-```bash
-uv run spec-kitty retrospect summary
-```
-
-The summary reads `.kittify/missions/*/retrospective.yaml` and
-`kitty-specs/*/status.events.jsonl`. It produces a cross-mission view showing:
-
-- Total missions, completed retrospectives, skipped (HiC), failed, in-flight, and legacy counts
-- Top "not helpful" targets (DRG edges or artifacts flagged repeatedly)
-- Top missing glossary terms
-- Top missing DRG edges
-- Proposal acceptance statistics (total, accepted, rejected, applied, pending)
-
-> **Note**: This command requires at least one completed mission with a retrospective record. On
-> a brand-new project with no completed missions, it will report zero missions — this is expected.
-
-For machine-readable output:
-
-```bash
-uv run spec-kitty retrospect summary --json
-
-# Restrict to missions started on or after a date
-uv run spec-kitty retrospect summary --since 2026-01-01
-
-# Adjust top-N ranking limit (default 20)
-uv run spec-kitty retrospect summary --limit 10
-```
+The key distinction: **`create` authors; `summary` aggregates; `synthesize` applies.**
 
 ---
 
-## 2. Preview synthesis proposals (dry-run)
+## The default path (you do nothing)
 
-`agent retrospect synthesize` defaults to dry-run mode. It shows what proposals would be applied
-without making any changes:
-
-```bash
-uv run spec-kitty agent retrospect synthesize --mission my-feature-slug
-```
-
-Sample dry-run output:
-
-```
-Mode: dry-run (default)
-
-Planned applications: 3
-  ✔ P1  add_glossary_term     "lifecycle-terminus-hook"
-  ✔ P2  flag_not_helpful      drg:edge:doctrine_directive_017->action_specify
-  ✔ P3  add_edge              drg:edge:doctrine_tactic:premortem->action:plan
-
-Apply: not run (use --apply to mutate)
-```
-
-**Proposal kinds** include:
-- `add_glossary_term` / `update_glossary_term` — add or update a glossary term in the doctrine
-- `flag_not_helpful` — mark a DRG artifact as not helpful; auto-included in the apply batch
-- `add_edge` / `synthesize_*` — DRG graph changes; require `--apply`
-
-No proposal writes during dry-run. `flag_not_helpful` is automatically included when you run
-with `--apply`, even if you did not name its proposal ID explicitly. All mutations still require
-explicit `--apply`.
-
-You can restrict the batch to specific proposals:
+With no `retrospective:` block in `.kittify/config.yaml`, every completed mission produces a
+`retrospective.yaml` automatically when `spec-kitty merge` runs:
 
 ```bash
-uv run spec-kitty agent retrospect synthesize --mission my-feature-slug --proposal-id P1 --proposal-id P3
+# Normal mission completion
+spec-kitty merge --feature my-feature
+
+# After merge, the runtime authored:
+#   .kittify/missions/<mission_id>/retrospective.yaml
+# and emitted a RetrospectiveCaptured event in the mission's status.events.jsonl.
+
+# Inspect the record
+cat .kittify/missions/$(jq -r .mission_id kitty-specs/my-feature-01J6XW9K/meta.json)/retrospective.yaml
+
+# Aggregate across all completed missions
+spec-kitty retrospect summary
 ```
+
+If generation fails (for example, the mission lacks an event log), the runtime emits a
+`RetrospectiveCaptureFailed` event and prints a one-line warning. Mission completion is **not**
+blocked. Author later with `spec-kitty retrospect create --mission <handle>`.
 
 ---
 
-## 3. Apply synthesis
+## The opt-out path
 
-When the dry-run looks correct, apply with `--apply`:
+To turn off all retrospective behavior:
 
-```bash
-uv run spec-kitty agent retrospect synthesize --mission my-feature-slug --apply
+```yaml
+# .kittify/config.yaml
+retrospective:
+  enabled: false
 ```
 
-Applied proposals mutate project state: glossary terms are written under `.kittify/glossary/`,
-DRG edges are updated under `.kittify/drg/`, synthesized doctrine artifacts are written under
-`.kittify/doctrine/`, and `flag_not_helpful` records are written under `.kittify/doctrine/.flags/`.
-Provenance is recorded for every change, linking the application back to its originating
-retrospective and mission.
-
-Write the JSON envelope to a file in addition to console output:
-
-```bash
-uv run spec-kitty agent retrospect synthesize --mission my-feature-slug --apply \
-  --json-out synthesis-result.json
-```
+No generator runs at any boundary. No warnings. No events.
 
 ---
 
-## 4. Resolve conflicts
+## The strict path (governed projects)
 
-If the synthesizer detects conflicting proposals (two proposals that contradict each other, e.g.,
-one adds a term and another modifies its definition differently), it fails closed and applies
-nothing from the conflicting set.
+To require a successful retrospective before mission completion can proceed:
 
-The dry-run output will show which proposals conflict:
-
-```
-CONFLICT detected between P1 and P4:
-  P1: add_glossary_term "lifecycle-terminus-hook" (scope: team_domain)
-  P4: add_glossary_term "lifecycle-terminus-hook" (scope: mission_local)
-  → Both proposals target the same term surface with different scopes.
-
-Conflict detection is fail-closed: no proposals applied.
+```yaml
+# .kittify/config.yaml  OR  charter frontmatter
+retrospective:
+  enabled: true
+  timing: before_completion
+  failure_policy: block
 ```
 
-To resolve:
-1. Read the conflict output carefully to understand which proposals conflict.
-2. Apply only the non-conflicting proposal IDs with repeated `--proposal-id` flags, or update the
-   source retrospective record so only the intended proposal remains accepted.
-3. If you resolve the issue manually, edit the durable target surface for the proposal type:
-   `.kittify/glossaries/<scope>.yaml` for curated glossary terms, `.kittify/drg/edges.yaml` for
-   project DRG edges, or `.kittify/doctrine/` for project-local doctrine artifacts.
-4. Re-run `agent retrospect synthesize --mission <slug>` and then apply the surviving batch with
-   `--apply`.
+Mission completion blocks if generation fails. The block message cites the resolved policy source
+so operators know which file or key drives the gate.
 
----
-
-## 5. Staleness
-
-A retrospective summary becomes stale when many missions have completed but their proposals have
-not been reviewed. The summary itself does not become invalid, but unreviewed proposals accumulate.
-
-Detect staleness:
-```bash
-uv run spec-kitty retrospect summary --json | head -50
-```
-
-Look at the `proposal_acceptance.pending` count. If pending proposals are high, work through them
-mission by mission:
+To skip the gate for a single completion:
 
 ```bash
-# For each completed mission slug, preview proposals:
-uv run spec-kitty agent retrospect synthesize --mission <slug>
-# Then apply if they look good:
-uv run spec-kitty agent retrospect synthesize --mission <slug> --apply
+spec-kitty merge --feature my-feature --skip-retrospective
 ```
+
+`--skip-retrospective` requires an explicit permission and logs actor and provenance in the event
+log.
+
+> **Charter wins by default.** When both `.kittify/config.yaml` and charter frontmatter define
+> `retrospective:` settings, the charter takes precedence. Use
+> `retrospective.precedence: config` in charter frontmatter to delegate authority to config.
 
 ---
 
-## 6. Facilitator failures
+## Authoring a retrospective on demand
 
-When the retrospective facilitator itself fails (for example, the retrospective record cannot be
-loaded or the synthesis process errors), the failure is visible in the summary:
+Use `retrospect create` to author a record for a single completed mission without re-running merge:
 
 ```bash
-uv run spec-kitty retrospect summary
+# Default: errors if a record already exists
+spec-kitty retrospect create --mission my-feature-01J6XW9K
+
+# Replace an existing record
+spec-kitty retrospect create --mission my-feature-01J6XW9K --overwrite
+
+# Merge into an existing record (deduplicates by (category, summary))
+spec-kitty retrospect create --mission my-feature-01J6XW9K --update
+
+# JSON output for tooling
+spec-kitty retrospect create --mission my-feature-01J6XW9K --json
 ```
 
-The output shows failed retrospective counts separately from skipped ones. For a specific mission,
-dry-run synthesis reports the failure reason:
+`<handle>` accepts `mission_id` (full ULID), `mid8` (8-char prefix), or `mission_slug`. The
+resolver disambiguates by `mission_id`; ambiguous handles produce a `MISSION_AMBIGUOUS_SELECTOR`
+structured error listing candidates.
+
+---
+
+## Backfilling historical records
+
+After upgrading from a pre-3.2.0 project, populate retrospectives for old completed missions:
 
 ```bash
-uv run spec-kitty agent retrospect synthesize --mission my-feature-slug
+# Preview (no writes)
+spec-kitty retrospect backfill --since 2026-01-01 --dry-run
+
+# Apply
+spec-kitty retrospect backfill --since 2026-01-01
+
+# Single mission
+spec-kitty retrospect backfill --mission my-old-feature
+
+# Include skipped / failed candidates in the event log (useful for dashboards)
+spec-kitty retrospect backfill --since 2026-01-01 --emit-skipped --emit-failures
 ```
 
-Common facilitator failure causes:
-- Malformed `retrospective.yaml` — check the YAML syntax in
-  `.kittify/missions/<mission_id>/retrospective.yaml`
-- Missing status events — check `kitty-specs/<slug>/status.events.jsonl` for retrospective events
-- Stale evidence — proposals reference event IDs that no longer resolve
-
-See [Troubleshooting Charter Failures](../how-to/troubleshoot-charter.md) for fix steps.
+Existing records are never silently overwritten by backfill. Use
+`retrospect create --overwrite` per mission for that.
 
 ---
 
-## 7. HiC vs Autonomous behavior
+## Reviewing and applying proposals
 
-The retrospective gate operates differently depending on the mission's governance mode:
+A `retrospective.yaml` may contain `proposals[]` with suggested changes to glossary, DRG,
+doctrine, and so on. Applying them is always human-approved:
 
-**Autonomous mode**: The retrospective is mandatory. It runs unconditionally at mission terminus.
-A silent skip is impossible by construction. If the facilitator dispatch fails, the mission is
-blocked — it does not silently transition to `done`. Exit code 2 is returned.
+```bash
+# Preview proposals (dry-run — no mutations)
+spec-kitty agent retrospect synthesize --mission my-feature-01J6XW9K --preview
 
-**Human-in-Command (HiC) mode**: The runtime offers the retrospective to the operator at terminus.
-The operator may either run it or explicitly skip it. Skipping requires an explicit action with a
-reason. An audit record is always created for the skip. Silent auto-run is impossible in HiC mode.
+# Apply a specific proposal
+spec-kitty agent retrospect synthesize --mission my-feature-01J6XW9K --apply p-001
+```
 
-The mode is determined by the charter's mode policy, with this precedence:
-charter/project override > explicit flag > environment variable > parent process.
+Low-risk proposals (`flag_not_helpful`) may auto-apply when policy explicitly enables it:
+
+```yaml
+# .kittify/config.yaml
+retrospective:
+  apply_proposals: low_risk_auto
+  permissions:
+    apply_low_risk_changes: true
+```
+
+> **`synthesize` does not author records.** If invoked on a mission with no record, it errors
+> with a pointer to `retrospect create`. The legacy "fabricate empty record" path is preserved
+> behind `--fabricate-empty` but is no longer the default.
 
 ---
 
-## 8. Skip semantics (HiC mode)
+## Migration from env vars (deprecated)
 
-In HiC mode, when `spec-kitty next` presents the retrospective, you can skip it by responding
-`n` and providing a reason at the prompt. The skip is recorded as:
+If your shell or CI sets `SPEC_KITTY_RETROSPECTIVE=1` or `SPEC_KITTY_MODE=autonomous`:
 
-- `status: skipped` in `.kittify/missions/<mission_id>/retrospective.yaml`
-- A `retrospective.skipped` event in `kitty-specs/<slug>/status.events.jsonl`
-- Both the YAML record and the event are required
-
-Skipped retrospectives appear in `retrospect summary` counts under "Skipped (HiC)".
-
----
-
-## Exit codes for `agent retrospect synthesize`
-
-| Exit code | Meaning |
+| Old env var | New durable config |
 |---|---|
-| 0 | Success — dry-run complete (no mutations) or proposals applied |
-| Non-zero | Failure — consult the command output for the structured error |
+| `SPEC_KITTY_RETROSPECTIVE=1` | `retrospective.enabled: true` (this is now the default — usually just unset the env var) |
+| `SPEC_KITTY_RETROSPECTIVE=0` | `retrospective.enabled: false` |
+| `SPEC_KITTY_MODE=autonomous` | `retrospective.timing: before_completion` AND `retrospective.failure_policy: block` |
 
-For the full exit code reference, see
-[Retrospective Schema Reference](../reference/retrospective-schema.md).
+Env vars still work this release cycle but emit a one-time deprecation warning per process.
+Durable config wins when both are present. Suppress the warning in CI with
+`SPEC_KITTY_NO_DEPRECATION_WARNINGS=1` once you have migrated.
+
+---
+
+## What the commands DON'T do
+
+- **`spec-kitty retrospect summary`** — read-only aggregation. Does NOT author or mutate any
+  record.
+- **`spec-kitty agent retrospect synthesize`** — preview and apply proposals from an *existing*
+  record. Does NOT author records. If invoked on a mission with no record, it errors with a
+  pointer to `retrospect create`.
+- **The runtime** — does NOT mutate doctrine, DRG, or glossary automatically. Generation
+  produces a record with proposals; application is a separate human-approved step.
+
+---
+
+## Common errors and remediations
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `RETROSPECTIVE_RECORD_EXISTS` | Existing record on disk; called `create` without flag | Pass `--overwrite` or `--update` |
+| `MISSION_NOT_COMPLETED` | Some WPs still in non-terminal lanes | Complete the mission first, or accept open WPs as known |
+| `MISSION_AMBIGUOUS_SELECTOR` | Handle resolves to multiple missions | Use `mission_id` (ULID) or `mid8` instead of slug |
+| Mission completion blocks with `RETROSPECTIVE_GATE_BLOCKED` | Policy is `before_completion + block` and generation failed | Inspect `RetrospectiveCaptureFailed` event in `status.events.jsonl` for `remediation_hint`; address and retry |
+| Deprecation warning keeps firing | Env var set in shell or CI | Unset the env var; rely on `.kittify/config.yaml` |
+| `cannot import name 'normalize_event_id' from 'spec_kitty_events'` during pytest collection (locally only) | Local PEP 420 namespace-package corruption from a partial pip uninstall — NOT a wheel bug | `uv sync --reinstall-package spec-kitty-events` (see [CONTRIBUTING.md](../../CONTRIBUTING.md)) |
+
+---
+
+## Verifying your install
+
+```bash
+# Confirm the CLI exposes the new commands
+spec-kitty retrospect --help              # should list create, backfill, summary
+spec-kitty retrospect create --help       # should show --overwrite, --update, --json
+
+# Confirm policy resolution
+spec-kitty agent retrospect policy --json   # shows resolved policy + source map
+```
+
+If `spec-kitty retrospect` reports "No such command", run `spec-kitty upgrade` and re-check.
+
+For the full operator quickstart including test-runner commands, see
+[quickstart.md](../../kitty-specs/retrospective-default-policy-01KS049J/quickstart.md).
 
 ---
 
 ## See Also
 
-- [Understanding the Retrospective Learning Loop](../explanation/retrospective-learning-loop.md)
-- [Retrospective Schema Reference](../reference/retrospective-schema.md)
-- [How Charter Works](../3x/charter-overview.md)
+- [Understanding the Retrospective Learning Loop](../explanation/retrospective-learning-loop.md) — conceptual explanation
+- [Retrospective Schema Reference](../reference/retrospective-schema.md) — YAML and event schemas
+- [CLI Commands Reference](../reference/cli-commands.md#retrospect-commands) — flag reference

@@ -754,6 +754,37 @@ for wp in WP01 WP02 WP03 WP04 WP05 WP06; do
 done
 ```
 
+### Post-Merge Retrospective Sequence
+
+After WPs are marked done, follow the canonical post-merge sequence:
+
+**1. Mission review** — dispatch the `spec-kitty-mission-review` skill to confirm spec→code
+fidelity and FR coverage.
+
+**2. Author or verify the retrospective** — under default 3.2.0 policy the record is written
+during merge. Verify:
+
+```bash
+cat .kittify/missions/$(jq -r .mission_id kitty-specs/<slug>/meta.json)/retrospective.yaml
+```
+
+If absent (older mission or generation failed), author it:
+
+```bash
+spec-kitty retrospect create --mission <mission-slug>
+```
+
+**3. Surface findings**:
+
+```bash
+spec-kitty retrospect summary                              # cross-mission aggregation (read-only)
+spec-kitty agent retrospect synthesize --mission <slug> --preview  # inspect proposals
+spec-kitty agent retrospect synthesize --mission <slug> --apply <id>  # apply a proposal
+```
+
+`summary` aggregates; it does NOT author. `synthesize` previews and applies proposals from an
+existing record; it does NOT author. Use `retrospect create` to author.
+
 ---
 
 ## Key Rules
