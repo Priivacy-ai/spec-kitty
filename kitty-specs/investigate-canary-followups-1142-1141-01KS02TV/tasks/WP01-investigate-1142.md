@@ -13,7 +13,7 @@ requirement_refs:
 - FR-010
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: 'Lane-based worktree allocated by lanes.json at finalize-tasks time. Cross-branch edit (FR-007) is performed on `kitty/pr/unblock-sync-identity-boundary-canary-01KRZJ07-to-main` (or `main` if PR #1143 has merged) — NOT inside the lane worktree.'
+branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T001
 - T002
