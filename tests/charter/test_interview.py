@@ -85,6 +85,43 @@ def test_apply_answer_overrides_updates_answers_and_lists() -> None:
     assert updated.available_tools == ["git", "pytest"]
 
 
+@pytest.mark.parametrize(
+    "phrase",
+    [
+        "I want Lynn Cole's rules.",
+        "I want to do it like Lynn Cole.",
+        "Use the Lynn Cole.",
+        "Agents write too much code.",
+        "AI code is bloated.",
+        "Avoid agentic code bloat.",
+    ],
+)
+def test_apply_answer_overrides_selects_lynn_cole_doctrine_aliases(phrase: str) -> None:
+    base = default_interview(mission="software-dev", profile="minimal")
+
+    updated = apply_answer_overrides(
+        base,
+        answers={"project_intent": phrase},
+    )
+
+    assert "DIRECTIVE_039" in updated.selected_directives
+    assert "deep-module-design" in updated.selected_paradigms
+
+
+def test_apply_answer_overrides_does_not_duplicate_lynn_cole_aliases() -> None:
+    base = default_interview(mission="software-dev", profile="minimal")
+
+    updated = apply_answer_overrides(
+        base,
+        answers={"project_intent": "Use Lynn Cole's agent coding rules."},
+        selected_paradigms=["deep-module-design"],
+        selected_directives=["DIRECTIVE_039"],
+    )
+
+    assert updated.selected_directives == ["DIRECTIVE_039"]
+    assert updated.selected_paradigms == ["deep-module-design"]
+
+
 def test_apply_answer_overrides_updates_agent_identity_fields() -> None:
     base = default_interview(mission="software-dev", profile="minimal")
 

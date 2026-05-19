@@ -17,6 +17,7 @@ from charter.catalog import DoctrineCatalog, load_doctrine_catalog, resolve_doct
 from charter.interview import (
     CharterInterview,
     LocalSupportDeclaration,
+    apply_doctrine_intent_aliases,
     validate_local_support_declarations,
 )
 from charter.language_scope import extract_declared_languages
@@ -85,6 +86,7 @@ def compile_charter(
     supplied, a default service rooted at shipped doctrine (and an optional
     project overlay under *repo_root*) is constructed automatically.
     """
+    interview = apply_doctrine_intent_aliases(interview)
     active_languages = extract_declared_languages("\n".join(str(value) for value in interview.answers.values()))
     catalog = doctrine_catalog or load_doctrine_catalog(active_languages=active_languages)
     diagnostics: list[str] = []
@@ -153,6 +155,7 @@ def compile_charter(
         selected_tactics=selected_tactics,
         available_tools=available_tools,
         references=references,
+        doctrine_service=doctrine_service,
     )
 
     return CompiledCharter(
@@ -762,6 +765,7 @@ def _render_charter_markdown(
     selected_directives: list[str],
     available_tools: list[str],
     references: list[CharterReference],
+    doctrine_service: DoctrineService,
     selected_tactics: list[str] | None = None,
 ) -> str:
     selected_tactics = selected_tactics or []
@@ -786,7 +790,7 @@ def _render_charter_markdown(
         f"- Deployment Constraints: {deployment}",
     ]
 
-    numbered_directives = _render_directives(interview, selected_directives)
+    numbered_directives = _render_directives(interview, selected_directives, doctrine_service)
 
     reference_rows = ["| Reference ID | Kind | Summary | Local Doc |", "|---|---|---|---|"]
     for reference in references:
@@ -841,12 +845,24 @@ def _render_charter_markdown(
     )
 
 
-def _render_directives(interview: CharterInterview, selected_directives: list[str]) -> str:
+def _render_directives(
+    interview: CharterInterview,
+    selected_directives: list[str],
+    doctrine_service: DoctrineService,
+) -> str:
     lines: list[str] = []
     index = 1
 
-    for directive in selected_directives:
-        lines.append(f"{index}. Apply doctrine directive `{directive}` to planning and implementation decisions.")
+    for directive_id in selected_directives:
+        directive = doctrine_service.directives.get(directive_id)
+        if directive is None or directive.id != "DIRECTIVE_039":
+            lines.append(f"{index}. Apply doctrine directive `{directive_id}` to planning and implementation decisions.")
+            index += 1
+            continue
+
+        lines.append(f"{index}. {directive.title} (`{directive.id}`): {directive.intent.strip()}")
+        for rule in directive.integrity_rules:
+            lines.append(f"   - {rule}")
         index += 1
 
     risk = interview.answers.get("risk_boundaries")
