@@ -44,14 +44,14 @@ A reviewer can copy the Commands section from the posted #1142 comment, run them
 
 ### Included subtasks
 
-- [ ] T001 Pre-flight repo state verification (FR-008) (WP01)
-- [ ] T002 Verify `NEXT-AGENT-HANDOFF.md` is absent (FR-009) (WP01)
-- [ ] T003 Snapshot issue #1142 body (WP01)
-- [ ] T004 Execute #1142 H1 clean-venv repro (WP01)
-- [ ] T005 Execute #1142 H2 emitter walk (conditional) (WP01)
-- [ ] T006 Compose + post #1142 substantive comment (WP01)
+- [x] T001 Pre-flight repo state verification (FR-008) (WP01)
+- [x] T002 Verify `NEXT-AGENT-HANDOFF.md` is absent (FR-009) (WP01)
+- [x] T003 Snapshot issue #1142 body (WP01)
+- [x] T004 Execute #1142 H1 clean-venv repro (WP01)
+- [x] T005 Execute #1142 H2 emitter walk (conditional) (WP01)
+- [x] T006 Compose + post #1142 substantive comment (WP01)
 - [ ] T007 Close #1142 with fix-pattern (conditional) (WP01)
-- [ ] T008 Update `mission-exception.md ## Follow-up` row for #1142 (WP01)
+- [x] T008 Update `mission-exception.md ## Follow-up` row for #1142 (WP01)
 
 ### Implementation sketch
 
