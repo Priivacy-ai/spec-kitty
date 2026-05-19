@@ -7,9 +7,24 @@ import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
 
+import pytest
 from ulid import ULID
 
 from specify_cli.lanes.branch_naming import mid8, strip_numeric_prefix
+
+
+@pytest.fixture(autouse=True)
+def _disable_saas_sync_for_tasks_tests(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Disable the SaaS sync boundary preflight for tasks-suite tests.
+
+    The root conftest enables SPEC_KITTY_ENABLE_SAAS_SYNC=1 so legacy
+    sync/auth tests stay live, but these tasks-suite tests exercise
+    finalize-tasks / setup-plan against a real developer queue state and
+    the boundary preflight (FR-002 / FR-009) refuses on any legacy rows
+    in scope. The preflight is not what these tests are testing — they
+    test the planning workflow logic — so we disable the gate here.
+    """
+    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
 
 
 def create_mission_fast(project: Path, slug: str, number: int = 1) -> Path:

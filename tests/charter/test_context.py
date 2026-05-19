@@ -270,6 +270,7 @@ class TestBuildContextV2:
             patch("doctrine.drg.loader.load_graph", return_value=mock_graph),
             patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
             patch("doctrine.drg.validator.assert_valid"),
+            patch("charter.sync.ensure_charter_bundle_fresh", return_value=None),
         ):
             result = build_charter_context(tmp_path, action="implement", depth=2, mark_loaded=False)
 
