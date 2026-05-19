@@ -14,9 +14,34 @@ from ruamel.yaml.error import YAMLError
 
 from doctrine.drg.models import DRGGraph, DRGNode
 
+__all__ = [
+    "DRGLoadError",
+    "has_graph_files",
+    "load_graph",
+    "load_graph_or_dir",
+    "merge_layers",
+]
+
 
 class DRGLoadError(Exception):
     """Raised when a graph YAML file cannot be loaded or validated."""
+
+
+def has_graph_files(path: Path) -> bool:
+    """Return True iff *path* contains a graph file the DRG loader recognises.
+
+    The DRG loader treats either ``graph.yaml`` (single-file layout) or
+    one or more ``*.graph.yaml`` fragments as a valid graph source. A
+    directory that exists but contains only sub-trees (eg ``overlays/``)
+    is NOT a valid graph source and ``load_graph_or_dir`` would raise
+    ``DRGLoadError`` on it. Callers that treat a project overlay as
+    optional should guard with this helper.
+    """
+    if not path.is_dir():
+        return False
+    if (path / "graph.yaml").is_file():
+        return True
+    return any(path.glob("*.graph.yaml"))
 
 
 def load_graph(path: Path) -> DRGGraph:

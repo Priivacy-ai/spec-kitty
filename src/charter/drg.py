@@ -8,11 +8,16 @@ under ``src/specify_cli/`` to reach doctrine artifacts only through such
 charter facades.
 
 This file is partly a pure re-export module — and partly the home of the
-Slice F WP06 organisation-tier DRG loader (``OrgDRGFragment``,
-``load_org_drg``, ``merge_three_layers``, ``OrgDRGConflictError``,
-``OrgPackMissingError``). The org-DRG additions live in the charter layer
-per the architectural constraint that anything new in the doctrine-overlay
-space must be reachable by ``specify_cli`` only through ``charter``.
+Slice F WP06 organisation-tier DRG loader (``load_org_drg``,
+``merge_three_layers``, ``OrgDRGConflictError``). The org-DRG additions live
+in the charter layer per the architectural constraint that anything new in the
+doctrine-overlay space must be reachable by ``specify_cli`` only through
+``charter``.
+
+Schema / fragment models live in ``doctrine.drg.org_pack_loader``
+(PR #1119 DDD-boundary fix): ``OrgDRGFragment``, ``OrgPackMissingError``.
+Charter re-exports them here so existing ``from charter.drg import …`` call
+sites remain valid without crossing the layer boundary directly.
 
 Slice F WP06 design notes
 -------------------------
@@ -26,9 +31,9 @@ kinds (``kind: directives``) and human-friendly fields (``id``, ``title``,
 ``body_path``). The shipped DRGNode uses URNs and singular enum kinds. To
 satisfy both surfaces:
 
-* Fragment-side parsing uses the private ``_OrgDRGNode`` / ``_OrgDRGEdge``
-  models declared below. Their ``kind`` field is constrained to the
-  Mission B 8-kind plural universe (C-009 binding).
+* Fragment-side parsing uses private node/edge models declared in
+  ``doctrine.drg.org_pack_loader``. Their ``kind`` field is constrained
+  to the Mission B 8-kind plural universe (C-009 binding).
 * ``merge_three_layers`` bridges fragment nodes onto the shipped DRG by
   minting URNs of the form ``<singular_kind>:<id>`` (e.g. ``directive:sox-controls``).
 * Provenance is threaded by attaching a ``source`` sidecar attribute to
@@ -46,14 +51,19 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, ClassVar, Literal
+from typing import Any, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel
 
 from doctrine.artifact_kinds import ArtifactKind
 from doctrine.drg import load_graph, merge_layers
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from doctrine.drg.org_pack_loader import (
+    OrgDRGFragment,
+    OrgPackMissingError,
+    load_org_pack,
+)
 from doctrine.drg.query import ResolvedContext, resolve_context
 
 __all__ = [
@@ -79,7 +89,8 @@ __all__ = [
 # ---------------------------------------------------------------------------
 # C-009: 8-kind plural universe inherited from Mission B
 # ---------------------------------------------------------------------------
-# Byte-identical to ``charter.activations._ALLOWED_KINDS``. We re-declare
+# Byte-identical to ``charter.activations._ALLOWED_KINDS`` and to
+# ``doctrine.drg.org_pack_loader._ORG_DRG_CANONICAL_KINDS``. We re-declare
 # rather than import to keep ``charter.drg`` free of intra-package import
 # fan-out; the contract test sweep enforces drift detection between the
 # two declarations (see C-009 binding).
@@ -113,83 +124,6 @@ _PLURAL_TO_SINGULAR: dict[str, str] = {
 
 
 # ---------------------------------------------------------------------------
-# Private fragment-side node / edge models (contract YAML shape)
-# ---------------------------------------------------------------------------
-
-
-class _OrgDRGNode(BaseModel):
-    """One node in an organisation-tier DRG fragment.
-
-    Shape matches the contract YAML example: ``id`` + plural ``kind`` +
-    ``title`` + optional ``body_path``. Distinct from
-    ``doctrine.drg.models.DRGNode`` (URN-based). The merge bridges the two
-    by minting URNs at merge time.
-    """
-
-    model_config = ConfigDict(extra="forbid")
-
-    id: str
-    kind: str
-    title: str | None = None
-    body_path: str | None = None
-
-    @field_validator("kind")
-    @classmethod
-    def _validate_kind(cls, value: str) -> str:
-        if value not in _ORG_DRG_CANONICAL_KINDS:
-            # "unknown kind" wording is binding per the contract example
-            # at kitty-specs/.../contracts/contract-round-trip-frontmatter.md
-            # (expect_message substring); do not weaken without updating
-            # the contract.
-            raise ValueError(
-                f"unknown kind {value!r}: not in canonical 8-kind universe "
-                f"(C-009 binding): {sorted(_ORG_DRG_CANONICAL_KINDS)}"
-            )
-        return value
-
-
-class _OrgDRGEdge(BaseModel):
-    """One typed edge in an organisation-tier DRG fragment.
-
-    Mirrors the contract YAML example shape: ``source`` + ``target`` +
-    ``relation`` (free-form string label; the merge bridges to
-    ``doctrine.drg.models.Relation`` when possible).
-    """
-
-    model_config = ConfigDict(extra="forbid")
-
-    source: str
-    target: str
-    relation: str
-
-
-# ---------------------------------------------------------------------------
-# Public fragment schema (FR-001)
-# ---------------------------------------------------------------------------
-
-
-class OrgDRGFragment(BaseModel):
-    """A loaded organisation-tier DRG fragment with provenance metadata.
-
-    One instance per configured ``organisation_packs:`` entry. The loader
-    (``load_org_drg``) produces them in declaration order with
-    ``layer_index`` 1..N. ``provenance_marker`` is the fixed string
-    ``"org"`` — every node and edge from this fragment is tagged
-    ``source: org:<pack_name>`` in the resolved DRG (see ``merge_three_layers``).
-    """
-
-    model_config = ConfigDict(extra="forbid")
-
-    pack_name: str
-    source_kind: Literal["local_path", "url", "package"]
-    source_ref: str
-    layer_index: int = Field(ge=1)
-    provenance_marker: Literal["org"] = "org"
-    nodes: list[_OrgDRGNode] = Field(default_factory=list)
-    edges: list[_OrgDRGEdge] = Field(default_factory=list)
-
-
-# ---------------------------------------------------------------------------
 # Conflict reporting (FR-004, FR-005)
 # ---------------------------------------------------------------------------
 
@@ -204,7 +138,7 @@ class OrgDRGConflict:
     * ``node_override`` — an org fragment node collides with a shipped node.
     * ``kind_mismatch`` — an org fragment node declares a kind not in the
       8-kind universe (in practice this is caught at validation time by
-      :class:`_OrgDRGNode`).
+      ``_OrgDRGNode`` in ``doctrine.drg.org_pack_loader``).
     * ``layer_rule_violation`` — a node body_path / import reaches across
       the architectural layer boundary (C-001 binding).
 
@@ -254,27 +188,6 @@ class OrgDRGConflictError(Exception):
         return "\n".join(lines)
 
 
-class OrgPackMissingError(Exception):
-    """Raised when a configured org pack's ``local_path`` does not exist (FR-004).
-
-    Mirrors Mission B FR-015 — missing org packs hard-fail at load time
-    with an operator-actionable error. No silent fallback.
-    """
-
-    REMEDIATION: ClassVar[str] = (
-        "Either fetch the pack (`spec-kitty doctrine fetch --pack <name>`) "
-        "or remove the entry from `.kittify/config.yaml`."
-    )
-
-    def __init__(self, pack_name: str, configured_path: str | Path):
-        self.pack_name = pack_name
-        self.configured_path = str(configured_path)
-        super().__init__(
-            f"Org pack {pack_name!r} configured at {self.configured_path!r} "
-            f"not found. {self.REMEDIATION}"
-        )
-
-
 # ---------------------------------------------------------------------------
 # Loader (FR-001, FR-004, NEW-1)
 # ---------------------------------------------------------------------------
@@ -285,6 +198,12 @@ def load_org_drg(repo_root: Path) -> list[OrgDRGFragment]:
 
     Returns one :class:`OrgDRGFragment` per pack in declaration order.
     Layer indices are assigned ``1..N``.
+
+    This function is project-config-aware (charter-domain): it reads
+    ``organisation_packs:`` from ``.kittify/config.yaml`` and resolves each
+    pack's path relative to *repo_root*. Per-pack schema parsing and
+    validation is delegated to
+    :func:`doctrine.drg.org_pack_loader.load_org_pack`.
 
     Parameters
     ----------
@@ -328,22 +247,8 @@ def load_org_drg(repo_root: Path) -> list[OrgDRGFragment]:
         configured_path = Path(str(entry["path"])).expanduser()
         if not configured_path.is_absolute():
             configured_path = (repo_root / configured_path).resolve()
-        if not configured_path.is_dir():
-            raise OrgPackMissingError(name, configured_path)
-        fragment_yaml = configured_path / "drg" / "fragment.yaml"
-        if not fragment_yaml.exists():
-            raise OrgPackMissingError(name, fragment_yaml)
-        fragment_data = yaml.safe_load(fragment_yaml.read_text(encoding="utf-8")) or {}
-        # Operator-side authoritative fields override pack-side declarations.
-        # This is intentional: the loader knows the canonical pack name,
-        # source kind, source_ref, and layer_index from the operator
-        # configuration; the pack-side fragment.yaml's copies are advisory
-        # and would be wrong if the operator renamed or relocated the pack.
-        fragment_data["pack_name"] = name
-        fragment_data["source_kind"] = "local_path"
-        fragment_data["source_ref"] = str(configured_path)
-        fragment_data["layer_index"] = layer_index
-        fragments.append(OrgDRGFragment.model_validate(fragment_data))
+        # Delegate all per-pack schema parsing to the doctrine layer.
+        fragments.append(load_org_pack(name, configured_path, layer_index))
     return fragments
 
 
@@ -368,7 +273,7 @@ def _tag_source(obj: BaseModel, source: str) -> BaseModel:
     return obj
 
 
-def _violates_layer_rule(node: _OrgDRGNode) -> bool:
+def _violates_layer_rule(node: Any) -> bool:
     """C-001 / FR-005 — an org node reaching across the layer boundary.
 
     Conservative heuristic: any reference (in ``body_path`` or other text
@@ -403,7 +308,7 @@ def _shipped_invariant_ids(shipped: DRGGraph) -> frozenset[str]:
 
 
 def _bridge_org_node_to_drg_node(
-    node: _OrgDRGNode, source: str
+    node: Any, source: str
 ) -> tuple[str, DRGNode]:
     """Mint a URN-shaped :class:`DRGNode` from a fragment-side node.
 
@@ -431,7 +336,7 @@ _RELATION_ALIASES: dict[str, Relation] = {
 
 
 def _bridge_org_edge_to_drg_edge(
-    edge: _OrgDRGEdge, node_id_to_urn: dict[str, str], source: str
+    edge: Any, node_id_to_urn: dict[str, str], source: str
 ) -> DRGEdge | None:
     """Mint a URN-shaped :class:`DRGEdge` from a fragment-side edge.
 
@@ -535,7 +440,7 @@ def merge_three_layers(
         # Two-pass: detect layer-rule violations first (always hard_fail),
         # then bridge surviving nodes and detect shipped-invariant
         # collisions.
-        surviving_nodes: list[_OrgDRGNode] = []
+        surviving_nodes: list[Any] = []
         for node in fragment.nodes:
             if _violates_layer_rule(node):
                 conflicts.append(
