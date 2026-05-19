@@ -222,8 +222,6 @@ ignore = [
 "src/specify_cli/cli/commands/agent/config.py" = ["B904"]
 "src/specify_cli/cli/commands/agent/status.py" = ["B904"]
 "src/specify_cli/cli/commands/agent/workflow.py" = ["B904"]
-"src/specify_cli/cli/commands/retrospect.py" = ["B904"]
-"src/specify_cli/cli/commands/agent_retrospect.py" = ["B904"]
 # F822 false positives: these acceptance-support shims populate their namespace
 # at runtime via ``globals().update(_load_acceptance_api())``; the names in
 # ``__all__`` are real but resolved dynamically and not visible to static

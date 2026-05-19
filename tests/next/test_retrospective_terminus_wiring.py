@@ -371,18 +371,25 @@ def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
 def _scaffold_opt_in_project(tmp_path: Path) -> tuple[Path, Path]:
     """Build a fully scaffolded project with the retrospective gate opted in.
 
-    Charter ``mode: autonomous`` activates the gate. The mission has WP01 in
-    ``done`` so the DAG can drive to terminal without a real implement
-    cycle. ``meta.json`` carries a ULID mission_id so the bridge resolves
-    it correctly.
+    Strict retrospective policy activates the pre-completion gate. The mission
+    has WP01 in ``done`` so the DAG can drive to terminal without a real
+    implement cycle. ``meta.json`` carries a ULID mission_id so the bridge
+    resolves it correctly.
     """
     repo_root = tmp_path / "project"
     repo_root.mkdir()
     _init_git_repo(repo_root)
 
-    # .kittify with charter that activates the gate
+    # .kittify with strict policy that activates the pre-completion gate.
     kittify = repo_root / ".kittify"
     kittify.mkdir()
+    (kittify / "config.yaml").write_text(
+        "retrospective:\n"
+        "  enabled: true\n"
+        "  timing: before_completion\n"
+        "  failure_policy: block\n",
+        encoding="utf-8",
+    )
     charter_dir = kittify / "charter"
     charter_dir.mkdir()
     (charter_dir / "charter.md").write_text(
@@ -481,6 +488,11 @@ def test_legacy_path_blocks_and_rolls_back_on_terminal(tmp_path: Path, monkeypat
         return recorder
 
     monkeypatch.setattr(bridge.SyncRuntimeEventEmitter, "for_feature", _wrapped_for_feature)
+    monkeypatch.setattr(
+        bridge,
+        "_run_retrospective_learning_capture",
+        lambda **kwargs: (_ for _ in ()).throw(RuntimeError("strict retrospective failed")),
+    )
 
     decision = None
     for _ in range(40):
@@ -540,6 +552,64 @@ def test_legacy_path_blocks_when_prestate_cannot_be_captured(tmp_path: Path, mon
     assert "Cannot read run state.json" in (decision.reason or "")
 
 
+def test_legacy_path_default_policy_runs_post_completion_capture(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from specify_cli.next import runtime_bridge as bridge
+    from specify_cli.next._internal_runtime.schema import NextDecision
+
+    repo_root, _feature_dir = _scaffold_opt_in_project(tmp_path)
+    (repo_root / ".kittify" / "config.yaml").write_text(
+        "retrospective:\n"
+        "  enabled: true\n"
+        "  timing: post_completion\n"
+        "  failure_policy: warn\n",
+        encoding="utf-8",
+    )
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    (run_dir / "state.json").write_text("{}", encoding="utf-8")
+    (run_dir / "run.events.jsonl").write_text("", encoding="utf-8")
+
+    emitted: list[Any] = []
+
+    class _Emitter:
+        def seed_from_snapshot(self, snapshot: Any) -> None:
+            return None
+
+        def emit_mission_run_completed(self, payload: Any) -> None:
+            emitted.append(payload)
+
+    monkeypatch.setattr(
+        bridge.SyncRuntimeEventEmitter,
+        "for_feature",
+        lambda **kwargs: _Emitter(),
+    )
+    monkeypatch.setattr(
+        bridge,
+        "get_or_start_run",
+        lambda *args, **kwargs: SimpleNamespace(run_dir=run_dir, run_id="run-1"),
+    )
+    def _terminal_runtime_step(*args: Any, **kwargs: Any) -> NextDecision:
+        kwargs["emitter"].emit_mission_run_completed(object())
+        return NextDecision(kind="terminal", run_id="run-1", mission_key="software-dev")
+
+    monkeypatch.setattr(bridge, "runtime_next_step", _terminal_runtime_step)
+
+    captures: list[dict[str, Any]] = []
+    monkeypatch.setattr(
+        bridge,
+        "_run_retrospective_learning_capture",
+        lambda **kwargs: captures.append(dict(kwargs)),
+    )
+
+    decision = bridge.decide_next_via_runtime("test-agent", "test-mission-01KQ6YEG", "success", repo_root)
+
+    assert decision.kind == DecisionKind.terminal
+    assert emitted, "default post-completion policy must not buffer MissionRunCompleted"
+    assert captures and captures[0]["block_on_failure"] is False
+
+
 def test_legacy_path_discards_buffer_when_runtime_engine_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from specify_cli.next import runtime_bridge as bridge
 
@@ -575,7 +645,6 @@ def test_legacy_path_discards_buffer_when_runtime_engine_raises(tmp_path: Path, 
 
 def test_legacy_path_logs_rollback_failures_after_gate_block(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
     from specify_cli.next import runtime_bridge as bridge
-    from specify_cli.next._internal_runtime import retrospective_terminus
     from specify_cli.next._internal_runtime.schema import NextDecision
 
     repo_root, _feature_dir = _scaffold_opt_in_project(tmp_path)
@@ -602,8 +671,8 @@ def test_legacy_path_logs_rollback_failures_after_gate_block(tmp_path: Path, mon
         lambda *args, **kwargs: NextDecision(kind="terminal", run_id="run-1", mission_key="software-dev"),
     )
     monkeypatch.setattr(
-        retrospective_terminus,
-        "run_terminus",
+        bridge,
+        "_run_retrospective_learning_capture",
         lambda **kwargs: (_ for _ in ()).throw(RuntimeError("gate blocked")),
     )
 

@@ -107,7 +107,7 @@ def _resolve_handle(
                 f"No mission found for handle {handle!r}. "
                 "Check the mission handle or run `spec-kitty agent mission list`."
             )
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
     except AmbiguousHandleError as exc:
         if json_output:
             _console.print_json(
@@ -121,9 +121,9 @@ def _resolve_handle(
             )
         else:
             _err_console.print(f"[red]Error MISSION_AMBIGUOUS_SELECTOR:[/red] {exc}")
-        raise typer.Exit(2)
-    except SystemExit:
-        raise typer.Exit(1)
+        raise typer.Exit(2) from exc
+    except SystemExit as exc:
+        raise typer.Exit(1) from exc
 
 
 def _check_mission_completed(
@@ -297,7 +297,7 @@ def create_cmd(
             )
         else:
             _err_console.print(f"[red]Error POLICY_RESOLUTION_ERROR:[/red] {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     # Determine write mode
     write_mode = "overwrite" if overwrite else ("update" if update else "error")
@@ -315,10 +315,10 @@ def create_cmd(
         )
     except FileNotFoundError as exc:
         _err_console.print(f"[red]Error:[/red] Could not find mission artifacts: {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
     except Exception as exc:
         _err_console.print(f"[red]Error:[/red] Generator failed: {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     # Override provenance with explicit_create
     import dataclasses
@@ -357,10 +357,10 @@ def create_cmd(
                 f"A retrospective record already exists at {exc.path}. "
                 "Pass --overwrite to replace it or --update to merge."
             )
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
     except Exception as exc:
         _err_console.print(f"[red]Error:[/red] Failed to write record: {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     # Emit lifecycle event (non-fatal — record write already succeeded)
     with contextlib.suppress(Exception):
@@ -918,12 +918,12 @@ def summary_cmd(  # noqa: C901
     if since is not None:
         try:
             since_date = date_type.fromisoformat(since)
-        except ValueError:
+        except ValueError as exc:
             _err_console.print(
                 f"[red]Error:[/red] Invalid --since date {since!r}. "
                 "Expected ISO-8601 format (YYYY-MM-DD)."
             )
-            raise typer.Exit(1)
+            raise typer.Exit(1) from exc
 
     # Validate --filter state
     valid_states = {"has_findings", "ran_no_findings", "missing", "failed"}
@@ -942,7 +942,7 @@ def summary_cmd(  # noqa: C901
         )
     except OSError as exc:
         _err_console.print(f"[red]Error:[/red] I/O error reading corpus: {exc}")
-        raise typer.Exit(2)
+        raise typer.Exit(2) from exc
 
     # Build per-mission 4-state classification
     missions_with_state: list[dict[str, object]] = []
@@ -1055,7 +1055,7 @@ def summary_cmd(  # noqa: C901
                 _console.print(f"\n[dim]JSON written to {json_out}[/dim]")
         except OSError as exc:
             _err_console.print(f"[red]Error:[/red] Could not write JSON to {json_out}: {exc}")
-            raise typer.Exit(2)
+            raise typer.Exit(2) from exc
 
     raise typer.Exit(0)
 

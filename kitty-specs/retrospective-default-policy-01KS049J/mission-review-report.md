@@ -1,11 +1,11 @@
 # Mission Review Report — retrospective-default-policy-01KS049J
 
-**Mission ID**: 01KS049J4V9CSWBKJHTY2FB69H  
-**Mission slug**: retrospective-default-policy-01KS049J  
-**Reviewer**: mission-review-agent (claude:claude-sonnet-4-6)  
-**Review date**: 2026-05-19  
-**Branch reviewed**: `kitty/mission-retrospective-default-policy-01KS049J` (lane-a merged in)  
-**Baseline parent**: `a81c5c28901f824d4040d348eee2e81e008c500e`  
+**Mission ID**: 01KS049J4V9CSWBKJHTY2FB69H
+**Mission slug**: retrospective-default-policy-01KS049J
+**Reviewer**: mission-review-agent (claude:claude-sonnet-4-6)
+**Review date**: 2026-05-19
+**Branch reviewed**: `kitty/mission-retrospective-default-policy-01KS049J` (lane-a merged in)
+**Baseline parent**: `a81c5c28901f824d4040d348eee2e81e008c500e`
 **Merge state**: mission branch ready; main-branch merge deferred pending upstream sync
 
 ---

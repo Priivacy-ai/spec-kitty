@@ -357,7 +357,7 @@ def synthesize_cmd(
                 f'[red]Error:[/red] No mission found for handle "{exc.handle}". '
                 f"Check that the handle is correct and that the mission exists in kitty-specs/."
             )
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
     except AmbiguousHandleError as exc:
         if json_only:
             _console.print_json(
@@ -373,9 +373,9 @@ def synthesize_cmd(
             )
         else:
             _err_console.print(str(exc))
-        raise typer.Exit(1)
-    except SystemExit:
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
+    except SystemExit as exc:
+        raise typer.Exit(1) from exc
 
     mission_id = resolved.mission_id
     actor = _build_actor(actor_id)
@@ -388,7 +388,7 @@ def synthesize_cmd(
     outcome = "retrospective_synthesized"
     try:
         record = read_record(retro_file)
-    except FileNotFoundError:
+    except FileNotFoundError as exc:
         # T028: Default path — error with RETROSPECTIVE_RECORD_MISSING (exit 1).
         # Legacy path preserved behind --fabricate-empty flag.
         if not fabricate_empty:
@@ -414,7 +414,7 @@ def synthesize_cmd(
                     f"No retrospective record found for this mission.\n"
                     f"Author one with: [bold]spec-kitty retrospect create --mission {resolved.mission_slug}[/bold]"
                 )
-            raise typer.Exit(1)
+            raise typer.Exit(1) from exc
 
         # --fabricate-empty: legacy auto-fabrication path
         feature_dir = resolved.feature_dir
@@ -456,7 +456,7 @@ def synthesize_cmd(
                     )
                 else:
                     _err_console.print(f"[red]Error:[/red] Could not create retrospective record: {exc}")
-                raise typer.Exit(3)
+                raise typer.Exit(3) from exc
         else:
             msg = f"Retrospective record not found and mission artifacts are insufficient: {retro_file}"
             if json_only:
@@ -475,23 +475,23 @@ def synthesize_cmd(
                         }
                     )
                 )
-                raise typer.Exit(0)
+                raise typer.Exit(0) from exc
             _err_console.print(f"[red]Error:[/red] {msg}")
-            raise typer.Exit(3)
+            raise typer.Exit(3) from exc
     except (YAMLParseError, SchemaError) as exc:
         msg = f"Retrospective record malformed: {exc}"
         if json_only:
             _err_console.print_json(json.dumps({"error": "record_malformed", "detail": str(exc)}))
         else:
             _err_console.print(f"[red]Error:[/red] {msg}")
-        raise typer.Exit(3)
+        raise typer.Exit(3) from exc
     except OSError as exc:
         msg = f"I/O error reading retrospective: {exc}"
         if json_only:
             _err_console.print_json(json.dumps({"error": "io_error", "detail": str(exc)}))
         else:
             _err_console.print(f"[red]Error:[/red] {msg}")
-        raise typer.Exit(2)
+        raise typer.Exit(2) from exc
 
     # ------------------------------------------------------------------
     # Step 4: Build the proposal batch
