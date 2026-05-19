@@ -6,9 +6,21 @@ name to the set of top-level keys that are expected in that artifact type.
 ``check_unknown_keys()`` uses this registry to emit ``UNKNOWN_SHAPE`` findings
 for any top-level key that is not in the known set, not a legacy key, and not
 a forbidden key (those have dedicated finding codes).
+
+Also exposes ``is_mission_lifecycle_row()`` — a row-family classifier that
+distinguishes legitimate mission-lifecycle event rows
+(``aggregate_type == "Mission"`` AND non-empty ``event_type``) from canonical
+status-transition rows (``from_lane`` / ``to_lane``). The audit engine consults
+this predicate to scope the ``FORBIDDEN_KEYS`` rule to non-lifecycle rows.
+
+Reference: ``kitty-specs/unblock-sync-identity-boundary-canary-01KRZJ07/
+contracts/audit-row-family.md``.
 """
 
 from __future__ import annotations
+
+from collections.abc import Mapping
+from typing import Any
 
 from .detectors import FORBIDDEN_KEYS, LEGACY_KEYS
 from .models import MissionFinding, Severity
@@ -147,6 +159,43 @@ KNOWN_TOP_LEVEL_KEYS_BY_ARTIFACT: dict[str, frozenset[str]] = {
         }
     ),
 }
+
+
+# ---------------------------------------------------------------------------
+# Row-family classifiers
+# ---------------------------------------------------------------------------
+
+
+def is_mission_lifecycle_row(row: Mapping[str, Any]) -> bool:
+    """Return ``True`` iff *row* matches the mission-lifecycle row family.
+
+    Mission-lifecycle rows are written by ``status/lifecycle_events.py`` (and
+    its peers) into ``status.events.jsonl``. They carry the lifecycle
+    discriminator ``event_type`` (e.g. ``"MissionCreated"``,
+    ``"SpecifyStarted"``) and identify the aggregate via
+    ``aggregate_type == "Mission"``. **Both** predicates must hold; either
+    alone does NOT classify as a lifecycle row — that distinction is what
+    keeps the ``FORBIDDEN_KEYS`` audit rule effective against malformed
+    status-transition rows that carry ``event_type`` without
+    ``aggregate_type``.
+
+    Args:
+        row: A parsed JSONL row (typically from ``status.events.jsonl``).
+
+    Returns:
+        ``True`` when *row* is a mission-lifecycle row; ``False`` otherwise
+        (including for non-mapping inputs, which are conservatively rejected).
+
+    Reference:
+        ``kitty-specs/unblock-sync-identity-boundary-canary-01KRZJ07/
+        contracts/audit-row-family.md``.
+    """
+    if not isinstance(row, Mapping):
+        return False
+    if row.get("aggregate_type") != "Mission":
+        return False
+    event_type = row.get("event_type")
+    return isinstance(event_type, str) and bool(event_type)
 
 
 # ---------------------------------------------------------------------------
