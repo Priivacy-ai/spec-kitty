@@ -137,7 +137,7 @@ The 1.x/2.x branch split was originally documented in [ADR-12: Two-Branch Strate
 
 ### Quality Gates
 
-- All tests pass (pytest)
+- Required pytest surface passes (targeted packages for scoped changes; full suite only for the cases named in Testing Requirements)
 - Type checking passes (mypy --strict)
 - No regressions in existing functionality
 - Documentation updated (README, CLI help text)
