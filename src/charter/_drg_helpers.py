@@ -83,11 +83,33 @@ def load_validated_graph(repo_root: Path, org_root: Path | None = None) -> DRGGr
     shipped = load_graph_or_dir(doctrine_root)
     org = load_graph_or_dir(org_root) if org_root and org_root.exists() else None
     project_dir = repo_root / ".kittify" / "doctrine"
-    project = load_graph_or_dir(project_dir) if project_dir.exists() else None
+    project = (
+        load_graph_or_dir(project_dir)
+        if _project_dir_has_graph_files(project_dir)
+        else None
+    )
 
     merged = merge_layers(merge_layers(shipped, org), project)
     assert_valid(merged)
     return merged
+
+
+def _project_dir_has_graph_files(project_dir: Path) -> bool:
+    """Return ``True`` iff *project_dir* exists and contains a DRG graph.
+
+    The project overlay directory ``<repo_root>/.kittify/doctrine`` may
+    exist while holding only sub-directories such as ``overlays/`` (a
+    legitimate layout that carries calibration overlays without a project
+    graph). ``load_graph_or_dir`` would otherwise raise ``DRGLoadError``
+    on such a directory because it expects either ``graph.yaml`` or
+    ``*.graph.yaml`` fragments at the top level. Guard so the optional
+    project layer truly stays optional.
+    """
+    if not project_dir.is_dir():
+        return False
+    if (project_dir / "graph.yaml").is_file():
+        return True
+    return any(project_dir.glob("*.graph.yaml"))
 
 
 __all__ = [
