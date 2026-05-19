@@ -21,8 +21,8 @@ subtasks:
 - T029
 phase: Surface
 assignee: ''
-agent: "claude:claude-sonnet-4-6:python-pedro:implementer"
-shell_pid: "55085"
+agent: "claude:claude-sonnet-4-6:reviewer-renata:reviewer"
+shell_pid: "57311"
 history:
 - timestamp: '2026-05-19T13:29:59Z'
   agent: system
@@ -346,3 +346,4 @@ spec-kitty agent action implement WP05 --agent claude
 - 2026-05-19T16:54:04Z – claude:claude-sonnet-4-6:reviewer-renata:reviewer – shell_pid=53834 – Moved to planned
 - 2026-05-19T16:54:38Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=55085 – Started implementation via action command
 - 2026-05-19T17:05:31Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=55085 – Cycle 2: fixed synthesize_fabricate provenance gap AND emit-skipped dead-flag. End-to-end test verifies the written record provenance.kind; emit_skipped emits per-mission RetrospectiveSkipped events on backfill skips. 91 tests pass, retrospect.py=99% coverage.
+- 2026-05-19T17:06:01Z – claude:claude-sonnet-4-6:reviewer-renata:reviewer – shell_pid=57311 – Started review via action command
