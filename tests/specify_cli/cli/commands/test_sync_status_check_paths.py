@@ -1,7 +1,11 @@
-"""WP02 (#1123): canonical file paths render verbatim in ``sync status --check``.
+"""WP02 (#1123) + WP02 cycle 1 (B-1): canonical paths render verbatim AND
+parse cleanly under the cross-repo canary parser contract.
 
 These tests pin the behavior documented in
-``contracts/sync-status-check-rendering.md``:
+``contracts/sync-status-check-rendering.md`` AND the cross-repo contract
+with the sibling canary parser at
+``spec-kitty-end-to-end-testing/src/spec_kitty_e2e/identity_boundary/
+status_parser.py``:
 
 * Non-TTY capture (the canary read path) must surface every canonical
   path field byte-identical to its ``--json`` value.
@@ -10,6 +14,11 @@ These tests pin the behavior documented in
   render outside the width-bound Rich ``Table``.
 * The ``--json`` contract is unchanged: every path field present in
   the text form appears with the same value under ``--json``.
+* The parser-compat shape: each section header (``Foreground:``,
+  ``Active queue:``, ``Legacy queue:``, ``Daemon owner record:``) is
+  followed by indented ``Key  Value`` rows; queue sections expose
+  their path under literal key ``Path`` so the canary's
+  ``_row(section, "Path")`` finds it.
 
 The fixture stubs out network and live-process probes so the test only
 exercises the rendering surface.
@@ -18,6 +27,7 @@ exercises the rendering surface.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
@@ -88,35 +98,100 @@ def _isolate_external_calls(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Canary parser replica (in-tree, no sibling repo dependency)
 # ---------------------------------------------------------------------------
+#
+# This replicates the exact lex/section-walk logic from the sibling
+# canary parser at ``spec-kitty-end-to-end-testing/src/spec_kitty_e2e/
+# identity_boundary/status_parser.py`` so the parser-compat test does
+# not need the sibling repo on disk. The contract this test pins is:
+#
+#   * The line-oriented stream from ``sync status --check`` is composed
+#     of section-header rows (ending with ``:``) and key/value rows.
+#   * Key/value rows match the regex
+#     ``^\\s*(?P<key>\\S.*?)\\s{2,}(?P<value>.+?)\\s*$``.
+#   * Section-rows have leading whitespace; the section ends at the next
+#     unindented row.
+#   * Queue sections (``Active queue:``, ``Legacy queue:``) expose their
+#     canonical path under literal child key ``Path``.
 
-# Path-row labels emitted by ``_print_boundary_paths`` mapped to the
-# canonical JSON path that holds their value.
-_PATH_LABEL_TO_JSON_KEY: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("Foreground Executable path", ("foreground", "executable_path")),
-    ("Foreground Source path", ("foreground", "source_path")),
-    ("Foreground Queue DB path", ("foreground", "queue_db_path")),
-    ("Active queue path", ("active_queue", "path")),
-    ("Legacy queue path", ("legacy_queue", "path")),
+_PARSER_KEY_VALUE_RE = re.compile(
+    r"^\s*(?P<key>\S.*?)\s{2,}(?P<value>.+?)\s*$"
 )
 
 
-def _extract_path_lines(stdout: str) -> dict[str, str]:
-    """Pull ``label: value`` pairs out of the text rendering for the path rows."""
-    extracted: dict[str, str] = {}
+def _parser_split_rows(stdout: str) -> list[tuple[str, str]]:
+    """Replica of the sibling parser's ``_split_rows`` lexer."""
+    rows: list[tuple[str, str]] = []
     for raw in stdout.splitlines():
         line = raw.rstrip()
-        for label, _ in _PATH_LABEL_TO_JSON_KEY:
-            needle = f"  {label}: "
-            if needle in line:
-                # Slice from the start of the needle so leading Rich
-                # framing (if any) is dropped; everything after the
-                # ``: `` is the rendered path verbatim.
-                start = line.index(needle) + len(needle)
-                extracted[label] = line[start:]
-                break
-    return extracted
+        if not line:
+            continue
+        match = _PARSER_KEY_VALUE_RE.match(line)
+        if match is None:
+            stripped = line.strip()
+            if stripped.endswith(":"):
+                rows.append((line, ""))
+            continue
+        key = match.group("key").rstrip(":")
+        leading_ws = len(line) - len(line.lstrip(" "))
+        rows.append((" " * leading_ws + key, match.group("value").strip()))
+    return rows
+
+
+def _parser_find_section_rows(
+    rows: list[tuple[str, str]], header: str
+) -> list[tuple[str, str]]:
+    """Replica of the sibling parser's ``_find_section_rows`` walker."""
+    out: list[tuple[str, str]] = []
+    in_section = False
+    for key, value in rows:
+        stripped = key.strip()
+        is_indented = key.startswith(" ")
+        if not in_section:
+            if stripped == header:
+                in_section = True
+            continue
+        if is_indented:
+            out.append((stripped, value))
+            continue
+        break
+    return out
+
+
+def _parser_row_value(section: list[tuple[str, str]], key: str) -> str | None:
+    for k, v in section:
+        if k == key:
+            return v
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+# Section-scoped path rows: (parser-section-header, parser-row-key,
+# corresponding JSON dotted path).
+_SECTION_PATH_MATRIX: tuple[tuple[str, str, tuple[str, ...]], ...] = (
+    ("Foreground:", "Executable path", ("foreground", "executable_path")),
+    ("Foreground:", "Source path", ("foreground", "source_path")),
+    ("Foreground:", "Queue DB path", ("foreground", "queue_db_path")),
+    ("Active queue:", "Path", ("active_queue", "path")),
+    ("Legacy queue:", "Path", ("legacy_queue", "path")),
+)
+
+
+def _extract_section_path(
+    stdout: str, header: str, key: str
+) -> str | None:
+    """Pull a single ``(section, key)`` value out of the rendered text.
+
+    Uses the canary parser's exact walk semantics so this test fails iff
+    the cross-repo contract would fail.
+    """
+    rows = _parser_split_rows(stdout)
+    section = _parser_find_section_rows(rows, header)
+    return _parser_row_value(section, key)
 
 
 def _read_json_path(payload: dict[str, Any], dotted: tuple[str, ...]) -> str:
@@ -136,25 +211,22 @@ def test_non_tty_capture_shows_every_path_verbatim() -> None:
     """Under ``CliRunner`` (forces non-TTY) every path row must appear in stdout.
 
     This is the canary-harness read path. ``sync status --check`` must emit
-    every canonical file path verbatim, so a downstream consumer can pull
-    a path from the rendered output and ``stat()`` it on disk.
+    every canonical file path verbatim under its parser-attributed section
+    header, so a downstream consumer can pull a path from the rendered
+    output and ``stat()`` it on disk.
     """
     result = runner.invoke(app, ["status", "--check"])
-    # Exit code may be 0 or 2 depending on the boundary failure set; the
-    # rendering contract holds either way.
     assert result.exit_code in (0, 2), result.stdout
 
-    extracted = _extract_path_lines(result.stdout)
-    expected_labels = {label for label, _ in _PATH_LABEL_TO_JSON_KEY}
-    missing = expected_labels - set(extracted)
-    assert not missing, f"missing path rows: {missing}\nSTDOUT:\n{result.stdout}"
-
-    # Each captured value must be non-empty (a path or ``<absent>``); critically,
-    # it must not be truncated by Rich's ellipsis.
-    for label, value in extracted.items():
-        assert value, f"empty value for {label!r}"
+    for header, key, _ in _SECTION_PATH_MATRIX:
+        value = _extract_section_path(result.stdout, header, key)
+        assert value is not None, (
+            f"missing parser-attributed path: {header!r} / {key!r}\n"
+            f"STDOUT:\n{result.stdout}"
+        )
+        assert value, f"empty value for {header!r} / {key!r}"
         assert "…" not in value, (
-            f"ellipsis in {label!r}: {value!r}"
+            f"ellipsis in {header!r} / {key!r}: {value!r}"
         )
 
 
@@ -166,7 +238,9 @@ def test_long_path_renders_without_ellipsis(
 
     Patches ``compute_foreground_identity`` and ``build_boundary_failure_set``
     so the renderer sees a long synthetic path. The canonical ``--json``
-    form already emits the full path; this test pins the text-form parity.
+    form already emits the full path; this test pins the text-form parity
+    AND the parser-compat attribution (the long path must surface under
+    ``Active queue:`` / ``Path``, not some other key/section).
     """
     long_path = (
         "/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/"
@@ -175,7 +249,6 @@ def test_long_path_renders_without_ellipsis(
     )
     assert len(long_path) > 100
 
-    # Patch the foreground identity dict used elsewhere in the function.
     real_compute = sync_cmd.compute_foreground_identity if hasattr(
         sync_cmd, "compute_foreground_identity"
     ) else None
@@ -190,9 +263,6 @@ def test_long_path_renders_without_ellipsis(
         lambda: identity_with_long,
     )
 
-    # Patch the structured failure-set's foreground so the rendered
-    # ``Foreground queue DB path`` / ``Active queue path`` rows hold the
-    # long path verbatim.
     from specify_cli.sync.preflight import build_boundary_failure_set
 
     real_fs = build_boundary_failure_set(repo_root=Path.cwd())
@@ -224,30 +294,39 @@ def test_long_path_renders_without_ellipsis(
 
     result = runner.invoke(app, ["status", "--check"])
     assert result.exit_code in (0, 2), result.stdout
-    # The contract is scoped to the canonical boundary path rows that
-    # WP02 owns. Other surfaces (the early "Sync Status" summary
-    # table) may still ellipsise unrelated fields; WP02 does not
-    # widen those. Inspect only the lines emitted by
-    # ``_print_boundary_paths`` and the corresponding ``Active queue
-    # path`` / ``Foreground queue DB path`` lines.
-    extracted = _extract_path_lines(result.stdout)
-    for label, value in extracted.items():
-        assert "…" not in value, (
-            f"ellipsis in boundary path row {label!r}: {value!r}\n"
-            f"FULL STDOUT:\n{result.stdout}"
-        )
-    # And specifically the long path must be present verbatim under
-    # the Foreground/Active queue path rows.
-    assert extracted["Foreground Queue DB path"] == long_path, extracted
-    assert extracted["Active queue path"] == long_path, extracted
+
+    # Parser-attributed: the long path appears under Foreground/Queue DB
+    # path AND Active queue/Path.
+    fg_qdb = _extract_section_path(
+        result.stdout, "Foreground:", "Queue DB path"
+    )
+    assert fg_qdb == long_path, (
+        f"Foreground/Queue DB path mismatch: {fg_qdb!r}\n"
+        f"STDOUT:\n{result.stdout}"
+    )
+    active_path = _extract_section_path(
+        result.stdout, "Active queue:", "Path"
+    )
+    assert active_path == long_path, (
+        f"Active queue/Path mismatch: {active_path!r}\n"
+        f"STDOUT:\n{result.stdout}"
+    )
     assert long_path in result.stdout, (
         f"long path not present verbatim in stdout:\n"
         f"long_path={long_path!r}\n\nSTDOUT:\n{result.stdout}"
     )
+    # Sanity: no ellipsis in the boundary section itself. The earlier
+    # ``Spec Kitty Sync Status`` summary Rich Table is a separate
+    # surface that may still ellipsise unrelated fields (e.g.
+    # ``Config File`` under non-TTY capture); WP02 does not widen
+    # that table. We slice the stdout to just the Identity Boundary
+    # block before asserting no ``…``.
+    boundary_start = result.stdout.index("Identity Boundary")
+    boundary_block = result.stdout[boundary_start:]
+    assert "…" not in boundary_block, (
+        f"unexpected ellipsis in Identity Boundary block:\n{boundary_block}"
+    )
 
-    # Silence unused-name warning when the conditional binding above
-    # is skipped on environments lacking ``compute_foreground_identity``
-    # as a module-level alias.
     _ = real_compute
 
 
@@ -255,8 +334,9 @@ def test_narrow_console_does_not_wrap_path_rows() -> None:
     """A 40-column Console must still print path rows on a single line.
 
     The path renderer is supposed to bypass the width-bound Table entirely.
-    We exercise the helper directly with a synthetic narrow Console and
-    assert each path row is exactly one physical line.
+    We exercise the section emitter directly with a synthetic narrow
+    Console and assert each path row appears on a single physical line
+    (no wrap, no ellipsis).
     """
     from io import StringIO
 
@@ -269,25 +349,27 @@ def test_narrow_console_does_not_wrap_path_rows() -> None:
         legacy_windows=False,
         color_system=None,
     )
-    sync_cmd._print_boundary_paths(
+    sync_cmd._print_boundary_section(
         narrow,
+        "Active queue:",
         [
-            ("Active queue path", long_path),
-            ("Foreground source path", long_path),
+            ("Path", long_path),
+            ("Event count", "0"),
         ],
     )
     rendered = narrow_buf.getvalue()
-    # Path lines must not be folded across the 40-column width: the
-    # entire long_path must appear on a single physical line.
+    # The long path must appear on a single physical line under the
+    # section. We assert by looking for the path verbatim somewhere in
+    # the rendered text and confirming the line containing it also
+    # starts with the indented ``Path`` key.
+    assert long_path in rendered, (
+        f"long path absent from narrow rendering:\n{rendered}"
+    )
     for line in rendered.splitlines():
-        if "Active queue path:" in line:
-            assert long_path in line, (
-                f"Active queue path was wrapped:\nLINE:{line!r}\nALL:{rendered!r}"
-            )
-        if "Foreground source path:" in line:
-            assert long_path in line, (
-                f"Foreground source path was wrapped:\n"
-                f"LINE:{line!r}\nALL:{rendered!r}"
+        if long_path in line:
+            assert line.lstrip().startswith("Path"), (
+                f"long path line does not start with 'Path' key:\n"
+                f"LINE:{line!r}\nALL:{rendered}"
             )
     assert "…" not in rendered, f"ellipsis present in narrow output:\n{rendered}"
 
@@ -300,18 +382,78 @@ def test_text_form_paths_match_json_form_byte_for_byte() -> None:
 
     text_result = runner.invoke(app, ["status", "--check"])
     assert text_result.exit_code in (0, 2), text_result.stdout
-    extracted = _extract_path_lines(text_result.stdout)
 
-    for label, dotted in _PATH_LABEL_TO_JSON_KEY:
-        # Only assert for paths that are concrete strings in JSON --
-        # daemon paths may be ``null`` when no owner record is present,
-        # and in that case the text form emits ``<absent>``. The matrix
-        # under ``_PATH_LABEL_TO_JSON_KEY`` is the foreground + queue
-        # fields which are always strings in the JSON contract.
+    for header, key, dotted in _SECTION_PATH_MATRIX:
         json_value = _read_json_path(payload, dotted)
-        text_value = extracted[label]
+        text_value = _extract_section_path(text_result.stdout, header, key)
+        assert text_value is not None, (
+            f"missing text-form value for {header!r}/{key!r}\n"
+            f"STDOUT:\n{text_result.stdout}"
+        )
         assert json_value == text_value, (
-            f"JSON/text mismatch for {label}:\n"
+            f"JSON/text mismatch for {header}/{key}:\n"
             f"  json={json_value!r}\n  text={text_value!r}\n"
             f"FULL STDOUT:\n{text_result.stdout}"
         )
+
+
+def test_canary_parser_compat_smoke() -> None:
+    """B-1 regression: the rendered text must satisfy the sibling canary parser.
+
+    This replicates the canary parser's required-section + required-Path
+    assertions (the contract WP02 cycle 1 fixes). Specifically:
+
+    1. All four section headers (``Foreground:``, ``Daemon owner record:``,
+       ``Active queue:``, ``Legacy queue:``) appear unindented in the
+       rendered text.
+    2. Both queue sections expose a child row with key literally ``Path``.
+    3. Each ``Path`` value is non-empty (no empty-string sentinel that
+       would trip ``_require_str``).
+
+    Had this test existed in cycle 0, it would have caught the
+    ``active_queue.Path missing`` ValueError raised by WP04 canary
+    verification.
+    """
+    result = runner.invoke(app, ["status", "--check"])
+    assert result.exit_code in (0, 2), result.stdout
+
+    rows = _parser_split_rows(result.stdout)
+    required_headers = {
+        "Foreground:",
+        "Daemon owner record:",
+        "Active queue:",
+        "Legacy queue:",
+    }
+    seen_headers = {key.strip() for key, _ in rows if key.strip() in required_headers}
+    missing = required_headers - seen_headers
+    assert not missing, (
+        f"required section headers missing from --check stdout: {missing}\n"
+        f"STDOUT:\n{result.stdout}"
+    )
+
+    # Active queue / Path attribution.
+    active = _parser_find_section_rows(rows, "Active queue:")
+    active_path = _parser_row_value(active, "Path")
+    assert active_path is not None and active_path, (
+        "Active queue section missing 'Path' child row; canary parser "
+        "raises 'missing required string field active_queue.Path'.\n"
+        f"STDOUT:\n{result.stdout}"
+    )
+
+    # Legacy queue / Path attribution.
+    legacy = _parser_find_section_rows(rows, "Legacy queue:")
+    legacy_path = _parser_row_value(legacy, "Path")
+    assert legacy_path is not None and legacy_path, (
+        "Legacy queue section missing 'Path' child row; canary parser "
+        "raises 'missing required string field legacy_queue.Path'.\n"
+        f"STDOUT:\n{result.stdout}"
+    )
+
+    # Event count is also a required parser field per the sibling
+    # parser's ``_coerce_int(_row(active, "Event count"), ...)``.
+    assert _parser_row_value(active, "Event count") is not None, (
+        "Active queue section missing 'Event count' child row"
+    )
+    assert _parser_row_value(legacy, "Event count") is not None, (
+        "Legacy queue section missing 'Event count' child row"
+    )

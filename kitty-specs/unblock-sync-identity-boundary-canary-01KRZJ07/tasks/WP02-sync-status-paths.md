@@ -22,6 +22,10 @@ history:
 - at: '2026-05-19T08:46:23Z'
   actor: spec-kitty.tasks
   note: Generated initial WP prompt.
+- at: '2026-05-19T11:30:00Z'
+  actor: claude:opus:python-pedro:implementer
+  note: 'Cycle 1 B-1 acknowledged. Identity Boundary view refactored from a single Rich Table into plain Console line emission via _print_boundary_section: section headers (Foreground:/Daemon owner record:/Active queue:/Legacy queue:) followed by 2-space-indented Key  Value rows separated by 2+ spaces, satisfying the sibling canary parser`s _KEY_VALUE_RE + section-walk contract. Queue sections expose child key literally `Path` (not `Active queue path`/`Legacy queue path`). Added in-tree parser-compat test that replicates the canary parser; smoke against /tmp/canary-repo parse_sync_status_check_output passes. FR-005 path-verbatim, FR-006 JSON byte parity, C-004 field-name stability all preserved.'
+review_status: acknowledged
 agent_profile: python-pedro
 authoritative_surface: src/specify_cli/cli/commands/sync.py
 execution_mode: code_change
