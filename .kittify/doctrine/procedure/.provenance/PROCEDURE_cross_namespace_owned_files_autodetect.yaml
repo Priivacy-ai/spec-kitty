@@ -1,0 +1,12 @@
+artifact_id: PROCEDURE_cross_namespace_owned_files_autodetect
+source: retrospective
+source_mission_id: 01KS02TVCYPQXQ9DX1Z39SXZ6K
+source_proposal_id: 01KS09AX69Q7VTFXR0M5APNEGA
+source_evidence_event_ids:
+- 01KS04PS2PP7JH4N5D8W72V138
+applied_by:
+  kind: agent
+  id: agent
+  profile_id:
+applied_at: '2026-05-19T14:16:23.267818+00:00'
+re_applied: false

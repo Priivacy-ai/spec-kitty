@@ -6,9 +6,26 @@ name to the set of top-level keys that are expected in that artifact type.
 ``check_unknown_keys()`` uses this registry to emit ``UNKNOWN_SHAPE`` findings
 for any top-level key that is not in the known set, not a legacy key, and not
 a forbidden key (those have dedicated finding codes).
+
+Also exposes ``is_mission_lifecycle_row()`` — a row-family classifier that
+distinguishes legitimate lifecycle event rows (those carrying a non-empty
+``event_type`` AND an ``aggregate_type`` in the known lifecycle set
+``{"Mission", "Project", "WorkPackage", "MissionDossier"}``) from canonical
+status-transition rows (``from_lane`` / ``to_lane``). The audit engine
+consults this predicate to scope the ``FORBIDDEN_KEYS`` rule to non-lifecycle
+rows. Issue #1142 broadened the accepted set beyond ``"Mission"`` so that
+``Project``, ``WorkPackage``, and ``MissionDossier`` lifecycle rows emitted
+by the events package no longer raise ``FORBIDDEN_KEY`` findings on
+legitimate keys.
+
+Reference: ``kitty-specs/unblock-sync-identity-boundary-canary-01KRZJ07/
+contracts/audit-row-family.md``.
 """
 
 from __future__ import annotations
+
+from collections.abc import Mapping
+from typing import Any
 
 from .detectors import FORBIDDEN_KEYS, LEGACY_KEYS
 from .models import MissionFinding, Severity
@@ -147,6 +164,64 @@ KNOWN_TOP_LEVEL_KEYS_BY_ARTIFACT: dict[str, frozenset[str]] = {
         }
     ),
 }
+
+
+# ---------------------------------------------------------------------------
+# Row-family classifiers
+# ---------------------------------------------------------------------------
+
+# Aggregate types that legitimately carry the ``event_type`` discriminator.
+# Issue #1142: the original predicate accepted only ``"Mission"``, which
+# mis-classified ``Project``, ``WorkPackage``, and ``MissionDossier``
+# lifecycle rows emitted by the events package as malformed
+# status-transition rows. The audit engine then raised ``FORBIDDEN_KEY``
+# findings against legitimate lifecycle keys (``event_type``,
+# ``aggregate_type``), blocking canary scenarios 1 + 2 with
+# ``TeamSpace migration required. Finding codes: FORBIDDEN_KEY``.
+LIFECYCLE_AGGREGATE_TYPES: frozenset[str] = frozenset(
+    {"Mission", "Project", "WorkPackage", "MissionDossier"}
+)
+
+
+def is_mission_lifecycle_row(row: Mapping[str, Any]) -> bool:
+    """Return ``True`` iff *row* matches the lifecycle event-row family.
+
+    Lifecycle rows are written by ``status/lifecycle_events.py`` (and its
+    peers) into ``status.events.jsonl``. They carry the lifecycle
+    discriminator ``event_type`` (e.g. ``"MissionCreated"``,
+    ``"SpecifyStarted"``, ``"WPStatusChanged"``) and identify the aggregate
+    via ``aggregate_type`` set to one of
+    ``{"Mission", "Project", "WorkPackage", "MissionDossier"}``. **Both**
+    predicates must hold; either alone does NOT classify as a lifecycle
+    row — that distinction is what keeps the ``FORBIDDEN_KEYS`` audit rule
+    effective against malformed status-transition rows that carry
+    ``event_type`` without a matching ``aggregate_type``.
+
+    Issue #1142 broadened the accepted ``aggregate_type`` set beyond the
+    original ``"Mission"``-only check. The events package legitimately
+    emits ``Project``/``WorkPackage``/``MissionDossier`` lifecycle rows
+    and the audit must not flag those as forbidden-key violations.
+
+    Args:
+        row: A parsed JSONL row (typically from ``status.events.jsonl``).
+
+    Returns:
+        ``True`` when *row* is a lifecycle row; ``False`` otherwise
+        (including for non-mapping inputs, which are conservatively
+        rejected, and for rows whose ``aggregate_type`` is absent,
+        empty, or outside the known lifecycle set).
+
+    Reference:
+        ``kitty-specs/unblock-sync-identity-boundary-canary-01KRZJ07/
+        contracts/audit-row-family.md``.
+    """
+    if not isinstance(row, Mapping):
+        return False
+    aggregate_type = row.get("aggregate_type")
+    if aggregate_type not in LIFECYCLE_AGGREGATE_TYPES:
+        return False
+    event_type = row.get("event_type")
+    return isinstance(event_type, str) and bool(event_type)
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,26 @@
+{
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-05-19T11:56:24.473442+00:00",
+      "accepted_by": "robert",
+      "accepted_from_commit": "4863f4757090e436308b4c6b5ce69ea0d18c3f57"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-05-19T11:56:24.473442+00:00",
+  "accepted_by": "robert",
+  "accepted_from_commit": "4863f4757090e436308b4c6b5ce69ea0d18c3f57",
+  "created_at": "2026-05-19T07:25:29.772025+00:00",
+  "friendly_name": "Unblock Sync Identity-Boundary Canary",
+  "mission_id": "01KRZJ079AYV48V0Y41EACAC79",
+  "mission_number": null,
+  "mission_slug": "unblock-sync-identity-boundary-canary-01KRZJ07",
+  "mission_type": "software-dev",
+  "purpose_context": "The 2026-05-19 deployed-dev canary against spec-kitty-cli==3.2.0rc13 hit three CLI blockers (FORBIDDEN_KEY false positive on lifecycle rows, Rich ellipsis truncating queue DB paths, and a dead doctor restart-daemon remediation reference) that prevent the sync identity-boundary canary from turning green on scenarios 1, 2, and 4. A fourth scenario, 3, is gated by an unrelated harness rename landing separately in spec-kitty-end-to-end-testing#43 and is explicitly not in scope. Unblocking these scenarios restores the canary as a release gate for the sync surface.",
+  "purpose_tldr": "Fix three CLI bugs surfaced by the 2026-05-19 rc13 canary so sync identity-boundary scenarios 1, 2, and 4 turn green again.",
+  "slug": "unblock-sync-identity-boundary-canary-01KRZJ07",
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-05-19T09:58:14.518198+00:00"
+}

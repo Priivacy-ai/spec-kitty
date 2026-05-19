@@ -1468,6 +1468,66 @@ def _render_daemon_team_or_user(record: Any) -> str | None:
     return str(principal)
 
 
+def _print_boundary_section(
+    target_console: Console,
+    header: str,
+    rows: list[tuple[str, str]],
+) -> None:
+    """WP02 cycle 1 / B-1: emit a boundary section as parser-friendly text.
+
+    Each section in the Identity Boundary view (``Foreground:``,
+    ``Daemon owner record:``, ``Active queue:``, ``Legacy queue:``) is
+    rendered as:
+
+    1. The section header on its own line, no leading indent, trailing colon.
+    2. One row per ``(key, value)`` pair, indented by exactly two spaces,
+       with the key and value separated by **two or more spaces** so the
+       sibling canary parser's ``_KEY_VALUE_RE`` (``^\\s*(?P<key>\\S.*?)\\s{2,}(?P<value>.+?)\\s*$``)
+       matches them as section children.
+
+    The format mirrors the docstring in the sibling parser
+    (``spec-kitty-end-to-end-testing/src/spec_kitty_e2e/identity_boundary/
+    status_parser.py``) which documents:
+
+        Active queue:
+          Path                      <path>
+          Event count               <int>
+
+    Rendering uses plain ``Console.print`` with ``soft_wrap=True``,
+    ``overflow="ignore"``, ``crop=False`` and ``no_wrap=True`` so long
+    path values render verbatim under non-TTY capture (no Rich
+    ellipsis), matching the ``--json`` byte-for-byte. The two-space key
+    indent + 2+ spaces between key and value is the contract the parser
+    enforces; do not collapse to a single separator space.
+
+    Keys are padded to a fixed column so the rendering matches the
+    operator-visible layout in the parser docstring, but the parser
+    itself tolerates any amount of whitespace >= 2 between key and
+    value.
+    """
+    target_console.print(header, soft_wrap=True, crop=False, highlight=False)
+    if not rows:
+        return
+    # Fixed key column (24 chars after the 2-space indent) gives a
+    # consistent, operator-friendly layout. The parser only requires
+    # ``\s{2,}`` between key and value; this padding is purely cosmetic
+    # but matches the layout sketched in the parser's docstring.
+    key_col_width = 24
+    for key, value in rows:
+        # Right-pad the key so there are always >= 2 spaces before the
+        # value (the key column is 24 chars; even a 22-char key still
+        # leaves 2 trailing spaces before the value).
+        padded_key = key.ljust(key_col_width)
+        target_console.print(
+            f"  {padded_key}{value}",
+            soft_wrap=True,
+            overflow="ignore",
+            crop=False,
+            no_wrap=True,
+            highlight=False,
+        )
+
+
 def _emit_status_check_json() -> None:
     """T014: emit a single JSON object on stdout per the status-output contract.
 
@@ -1892,130 +1952,131 @@ def status(  # noqa: C901
     legacy_body_count = legacy_counts.get("body_upload_queue", 0)
     legacy_event_count = legacy_counts.get("queue", 0)
 
-    boundary_table = Table(
-        title="Identity Boundary",
-        show_header=False,
-        box=None,
-        expand=False,
-    )
-    boundary_table.add_column("Key", style="dim")
-    boundary_table.add_column("Value")
+    # WP02 (#1123) + WP02 cycle 1 (B-1): the entire Identity Boundary
+    # view is now rendered as plain ``Console.print`` line output rather
+    # than a Rich ``Table``. This satisfies two contracts simultaneously:
+    #
+    # 1. FR-005 path-verbatim: every canonical file path renders
+    #    full-width, single-line, no Rich ellipsis (`…`), under non-TTY
+    #    capture or narrow terminals.
+    # 2. Cross-repo canary parser contract: the sibling canary at
+    #    ``spec-kitty-end-to-end-testing/src/spec_kitty_e2e/
+    #    identity_boundary/status_parser.py`` walks rows under section
+    #    headers (``Foreground:``, ``Daemon owner record:``,
+    #    ``Active queue:``, ``Legacy queue:``) and requires the
+    #    queue-section child key to be literally ``Path`` (not
+    #    ``Active queue path``). Each section's rows must be indented and
+    #    follow the section header in line order.
+    #
+    # We keep the row data in plain ``list[tuple[str, str]]`` lists per
+    # section, then emit them via ``_print_boundary_section`` which
+    # writes the section header followed by indented ``  Key  Value``
+    # rows separated by 2+ spaces (the parser's ``_KEY_VALUE_RE``
+    # contract).
+    #
+    # The canonical path fields per ``contracts/sync-status-check-rendering.md``
+    # are:
+    #   - Foreground.executable_path / source_path / queue_db_path
+    #   - Daemon owner record.executable_path / source_path / queue_db_path
+    #   - Active queue.path
+    #   - Legacy queue.path
+    # All of them flow through this same indented-row pathway and inherit
+    # the no-ellipsis guarantee from ``soft_wrap=True``/``overflow="ignore"``.
 
     fg = failure_set.foreground
     daemon_status_label = failure_set.daemon_status
 
-    # FR-005: Foreground identity (full field set per contract).
-    boundary_table.add_row("Foreground:", "")
-    _add_boundary_identity_row(
-        boundary_table,
-        _BOUNDARY_LABEL_PACKAGE_VERSION,
-        fg.package_version,
-        fallback="-",
-    )
-    _add_boundary_identity_row(
-        boundary_table,
-        _BOUNDARY_LABEL_EXECUTABLE_PATH,
-        fg.executable_path,
-        fallback="-",
-    )
-    _add_boundary_identity_row(
-        boundary_table,
-        _BOUNDARY_LABEL_SOURCE_PATH,
-        fg.source_path,
-        fallback="-",
-    )
-    _add_boundary_identity_row(
-        boundary_table,
-        _BOUNDARY_LABEL_SERVER_URL,
-        fg.server_url,
-        fallback=_UNSET_VALUE,
-    )
-    _add_boundary_identity_row(
-        boundary_table,
-        _BOUNDARY_LABEL_TEAM_USER,
-        fg.team_or_user,
-        fallback=_UNSET_VALUE,
-    )
-    _add_boundary_identity_row(
-        boundary_table,
-        _BOUNDARY_LABEL_QUEUE_DB_PATH,
-        fg.queue_db_path,
-        fallback="-",
-    )
+    # ---- Foreground section ------------------------------------------------
+    foreground_rows: list[tuple[str, str]] = [
+        ("Package version", str(fg.package_version or "-")),
+        ("Executable path", str(fg.executable_path or "-")),
+        ("Source path", str(fg.source_path or "-")),
+        ("Server URL", fg.server_url if fg.server_url else _UNSET_VALUE),
+        ("Team/User", fg.team_or_user if fg.team_or_user else _UNSET_VALUE),
+        ("Queue DB path", str(fg.queue_db_path or "-")),
+    ]
 
-    # FR-005: Daemon owner record.
-    boundary_table.add_row("Daemon owner record:", "")
-    boundary_table.add_row("  Status", daemon_status_label)
+    # ---- Daemon owner record section --------------------------------------
+    daemon_rows: list[tuple[str, str]] = [("Status", daemon_status_label)]
     if daemon_record is None:
-        _add_boundary_identity_rows(
-            boundary_table,
+        daemon_rows.extend(
             [
-                ("  PID", None),
-                ("  Port", None),
-                (_BOUNDARY_LABEL_PACKAGE_VERSION, None),
-                (_BOUNDARY_LABEL_EXECUTABLE_PATH, None),
-                (_BOUNDARY_LABEL_SOURCE_PATH, None),
-                (_BOUNDARY_LABEL_SERVER_URL, None),
-                (_BOUNDARY_LABEL_TEAM_USER, None),
-                (_BOUNDARY_LABEL_QUEUE_DB_PATH, None),
-            ],
-            fallback=_ABSENT_VALUE,
+                ("PID", _ABSENT_VALUE),
+                ("Port", _ABSENT_VALUE),
+                ("Package version", _ABSENT_VALUE),
+                ("Executable path", _ABSENT_VALUE),
+                ("Source path", _ABSENT_VALUE),
+                ("Server URL", _ABSENT_VALUE),
+                ("Team/User", _ABSENT_VALUE),
+                ("Queue DB path", _ABSENT_VALUE),
+            ]
         )
     else:
         # Render daemon team_or_user as "principal[/team]" to match the
         # canonical contract field.
         daemon_team_or_user = _render_daemon_team_or_user(daemon_record)
-        _add_boundary_identity_rows(
-            boundary_table,
+        daemon_rows.extend(
             [
-                ("  PID", daemon_record.pid),
-                ("  Port", daemon_record.port),
-                (_BOUNDARY_LABEL_PACKAGE_VERSION, daemon_record.package_version),
-                (_BOUNDARY_LABEL_EXECUTABLE_PATH, daemon_record.executable_path),
-                (_BOUNDARY_LABEL_SOURCE_PATH, daemon_record.source_checkout_path),
-                (_BOUNDARY_LABEL_SERVER_URL, daemon_record.server_url),
-                (_BOUNDARY_LABEL_TEAM_USER, daemon_team_or_user),
-                (_BOUNDARY_LABEL_QUEUE_DB_PATH, daemon_record.queue_db_path),
-            ],
-            fallback=_ABSENT_VALUE,
+                ("PID", str(daemon_record.pid)),
+                ("Port", str(daemon_record.port)),
+                ("Package version", daemon_record.package_version or _ABSENT_VALUE),
+                ("Executable path", daemon_record.executable_path or _ABSENT_VALUE),
+                ("Source path", daemon_record.source_checkout_path or _ABSENT_VALUE),
+                ("Server URL", daemon_record.server_url or _ABSENT_VALUE),
+                (
+                    "Team/User",
+                    daemon_team_or_user if daemon_team_or_user else _ABSENT_VALUE,
+                ),
+                ("Queue DB path", daemon_record.queue_db_path or _ABSENT_VALUE),
+            ]
         )
 
-    # FR-005: Active queue.
-    boundary_table.add_row("Active queue:", "")
-    boundary_table.add_row("  Path", str(fg.queue_db_path or "-"))
-    boundary_table.add_row("  Event count", f"{queue_size}")
-    boundary_table.add_row("  Body upload cnt", f"{body_queue_count}")
+    # ---- Active queue section ---------------------------------------------
+    # Parser-critical: child key MUST be ``Path`` (not ``Active queue path``).
+    active_queue_rows: list[tuple[str, str]] = [
+        ("Path", str(fg.queue_db_path or "-")),
+        ("Event count", f"{queue_size}"),
+        ("Body upload cnt", f"{body_queue_count}"),
+    ]
 
-    # FR-005: Legacy queue.
-    boundary_table.add_row("Legacy queue:", "")
-    boundary_table.add_row("  Path", str(legacy_db_path))
-    boundary_table.add_row(
-        "  Event count", f"{failure_set.legacy_event_rows}"
-    )
-    boundary_table.add_row(
-        "  Body upload cnt", f"{failure_set.legacy_body_upload_rows}"
-    )
-    boundary_table.add_row(
-        "  Rows in scope", f"{failure_set.legacy_rows_for_scope}"
-    )
+    # ---- Legacy queue section ---------------------------------------------
+    # Parser-critical: child key MUST be ``Path`` (not ``Legacy queue path``).
+    legacy_queue_rows: list[tuple[str, str]] = [
+        ("Path", str(legacy_db_path)),
+        ("Event count", f"{failure_set.legacy_event_rows}"),
+        ("Body upload cnt", f"{failure_set.legacy_body_upload_rows}"),
+        ("Rows in scope", f"{failure_set.legacy_rows_for_scope}"),
+    ]
     if stranded_tag:
-        boundary_table.add_row(
-            "  Stranded mission",
-            f"setup-plan stranded mission slug {stranded_tag}",
+        legacy_queue_rows.append(
+            (
+                "Stranded mission",
+                f"setup-plan stranded mission slug {stranded_tag}",
+            )
         )
 
-    # FR-005: Mismatches / Orphan records counts.
+    # ---- Top-level scalar rows (Mismatches / Orphan records / etc.) -------
+    # These appear UNINDENTED (no leading 2-space indent) so the parser
+    # treats them as terminators of the preceding section. The parser
+    # picks them up from the top-level row stream by exact key match.
     n_mismatches = len(failure_set.mismatches)
-    boundary_table.add_row(
-        "Mismatches",
-        f"[red]{n_mismatches}[/red]" if n_mismatches else _ZERO_STATUS,
+    mismatches_value = (
+        f"[red]{n_mismatches}[/red]" if n_mismatches else _ZERO_STATUS
     )
-    boundary_table.add_row(
-        "Orphan records",
+    orphan_value = (
         f"[yellow]{orphan_record_count}[/yellow]"
         if orphan_record_count
-        else _ZERO_STATUS,
+        else _ZERO_STATUS
     )
+    if failure_set.mismatches:
+        mismatch_field_names = [m.field for m in failure_set.mismatches]
+        mismatched_fields_value = (
+            f"[red]{', '.join(mismatch_field_names)}[/red]"
+        )
+    elif daemon_mismatched:
+        mismatched_fields_value = f"[red]{', '.join(daemon_mismatched)}[/red]"
+    else:
+        mismatched_fields_value = "[green]none[/green]"
 
     # Preserve backward-compatible legacy-event/body summary line so
     # operator workflows that grep for ``body_upload_queue`` keep matching.
@@ -2024,30 +2085,14 @@ def status(  # noqa: C901
     )
     if stranded_tag:
         legacy_line += f" — setup-plan stranded mission slug {stranded_tag}"
-    boundary_table.add_row("Legacy queue rows", legacy_line)
 
-    # Diagnostics block (kept for backwards compatibility — tests grep
-    # for "Mismatched fields"). The canonical field names are listed
-    # with their ``daemon_`` prefix per the contract Domain Language.
-    if failure_set.mismatches:
-        mismatch_field_names = [m.field for m in failure_set.mismatches]
-        boundary_table.add_row(
-            _MISMATCHED_FIELDS_LABEL,
-            f"[red]{', '.join(mismatch_field_names)}[/red]",
-        )
-    elif daemon_mismatched:
-        boundary_table.add_row(
-            _MISMATCHED_FIELDS_LABEL,
-            f"[red]{', '.join(daemon_mismatched)}[/red]",
-        )
-    else:
-        boundary_table.add_row(_MISMATCHED_FIELDS_LABEL, "[green]none[/green]")
-    boundary_table.add_row(
-        "Orphan daemon records",
-        f"[yellow]{orphan_record_count}[/yellow]"
-        if orphan_record_count
-        else _ZERO_STATUS,
-    )
+    top_level_rows: list[tuple[str, str]] = [
+        ("Mismatches", mismatches_value),
+        ("Orphan records", orphan_value),
+        ("Legacy queue rows", legacy_line),
+        (_MISMATCHED_FIELDS_LABEL, mismatched_fields_value),
+        ("Orphan daemon records", orphan_value),
+    ]
 
     # When the canonical mismatch list is non-empty, render the detail
     # block per contract (foreground vs daemon vs remediation hint).
@@ -2069,7 +2114,32 @@ def status(  # noqa: C901
                 m.daemon_value or "<unset>",
             )
 
-    console.print(boundary_table)
+    # WP02 cycle 1 (B-1): emit the Identity Boundary view as plain
+    # line-oriented text so the cross-repo canary parser can attribute
+    # ``Path`` rows to their preceding section headers. Each
+    # ``_print_boundary_section`` call writes the header followed by
+    # 2-space-indented ``Key  Value`` rows separated by 2+ spaces.
+    # Top-level scalars (Mismatches / Orphan records / etc.) print
+    # without leading indent so the parser treats them as section
+    # terminators.
+    console.print("[bold]Identity Boundary[/bold]")
+    _print_boundary_section(console, "Foreground:", foreground_rows)
+    _print_boundary_section(console, "Daemon owner record:", daemon_rows)
+    _print_boundary_section(console, "Active queue:", active_queue_rows)
+    _print_boundary_section(console, "Legacy queue:", legacy_queue_rows)
+    # Top-level scalars: unindented ``Key  Value`` rows.
+    for key, value in top_level_rows:
+        # Pad key to a fixed column width matching the section rows so
+        # values line up visually. The parser only requires >=2 spaces
+        # between key and value at any indent (incl. zero indent).
+        console.print(
+            f"{key.ljust(24)}{value}",
+            soft_wrap=True,
+            overflow="ignore",
+            crop=False,
+            no_wrap=True,
+            highlight=False,
+        )
     console.print()
     if failure_set.mismatches:
         console.print(mismatch_detail)

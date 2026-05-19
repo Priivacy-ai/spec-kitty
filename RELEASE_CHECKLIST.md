@@ -134,10 +134,14 @@ gh pr create --base main --title "Release X.Y.Z" --fill
 
 ### 5. Merge the Release PR
 
-- [ ] Use a linear-history merge strategy that matches branch protection (`rebase` if available).
+- [ ] Use a merge strategy that leaves a PR marker in the main-branch commit
+      message so the `Protect Main Branch` workflow can verify provenance.
+      Today that means squash-merge for release PRs; do not use `--rebase`
+      unless the protection workflow has been updated to recognize rebased PR
+      commits.
 
 ```bash
-gh pr merge --rebase --delete-branch
+gh pr merge --squash --delete-branch
 ```
 
 ### 6. Tag the Release from `main`

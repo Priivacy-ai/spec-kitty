@@ -163,6 +163,57 @@ class TestValidateCommand:
 
     @patch("specify_cli.cli.commands.agent.status.locate_project_root")
     @patch("specify_cli.cli.commands.agent.status.get_main_repo_root")
+    def test_validate_ignores_retrospective_events(
+        self,
+        mock_main_root,
+        mock_locate,
+        tmp_path,
+    ):
+        """Retrospective rows share status.events.jsonl but are not lane transitions."""
+        mission_slug = "034-test-feature"
+        events = [
+            _make_event(
+                from_lane="planned",
+                to_lane="claimed",
+                at="2026-02-08T12:00:00Z",
+            ),
+            {
+                "actor": {"kind": "agent", "id": "agent", "profile_id": None},
+                "at": "2026-02-08T12:01:00Z",
+                "event_id": "01HXYZ0123456789ABCDEFGHJM",
+                "event_name": "retrospective.proposal.applied",
+                "mid8": "01HXYZ01",
+                "mission_id": "01HXYZ0123456789ABCDEFGHJK",
+                "mission_slug": mission_slug,
+                "payload": {
+                    "applied_by": {"kind": "agent", "id": "agent", "profile_id": None},
+                    "kind": "synthesize_directive",
+                    "proposal_id": "01HXYZ0123456789ABCDEFGHJN",
+                    "provenance_ref": ".kittify/doctrine/directive/.provenance/example.yaml",
+                    "target_urn": "doctrine:directive:example",
+                },
+            },
+        ]
+        _setup_feature(
+            tmp_path,
+            mission_slug,
+            events=events,
+            wp_files={"WP01": "claimed"},
+        )
+
+        mock_locate.return_value = tmp_path
+        mock_main_root.return_value = tmp_path
+
+        result = runner.invoke(
+            app, ["validate", "--mission", mission_slug, "--json"]
+        )
+        assert result.exit_code == 0
+        data = _extract_json(result.output)
+        assert data["passed"] is True
+        assert data["error_count"] == 0
+
+    @patch("specify_cli.cli.commands.agent.status.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.status.get_main_repo_root")
     def test_validate_illegal_transition(
         self,
         mock_main_root,

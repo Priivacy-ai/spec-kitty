@@ -1,0 +1,76 @@
+WARNING: Cache entry deserialization failed, entry ignored
+Obtaining file:///private/tmp/sk-canary-1142/canary-repo
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Checking if build backend supports build_editable: started
+  Checking if build backend supports build_editable: finished with status 'done'
+  Getting requirements to build editable: started
+  Getting requirements to build editable: finished with status 'done'
+  Preparing editable metadata (pyproject.toml): started
+  Preparing editable metadata (pyproject.toml): finished with status 'done'
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting httpx<1.0,>=0.27 (from spec-kitty-end-to-end-testing==0.1.0)
+  Using cached httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting PyYAML<7.0,>=6.0 (from spec-kitty-end-to-end-testing==0.1.0)
+  Using cached pyyaml-6.0.3-cp314-cp314-macosx_11_0_arm64.whl.metadata (2.4 kB)
+Collecting pytest<9.0,>=8.2 (from spec-kitty-end-to-end-testing==0.1.0)
+  Using cached pytest-8.4.2-py3-none-any.whl.metadata (7.7 kB)
+Collecting tenacity<9.0,>=8.2 (from spec-kitty-end-to-end-testing==0.1.0)
+  Using cached tenacity-8.5.0-py3-none-any.whl.metadata (1.2 kB)
+Collecting respx<1.0,>=0.20 (from spec-kitty-end-to-end-testing==0.1.0)
+  Using cached respx-0.23.1-py2.py3-none-any.whl.metadata (4.3 kB)
+Collecting pytest-timeout<3.0,>=2.3 (from spec-kitty-end-to-end-testing==0.1.0)
+  Using cached pytest_timeout-2.4.0-py3-none-any.whl.metadata (20 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting anyio (from httpx<1.0,>=0.27->spec-kitty-end-to-end-testing==0.1.0)
+  Using cached anyio-4.13.0-py3-none-any.whl.metadata (4.5 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting certifi (from httpx<1.0,>=0.27->spec-kitty-end-to-end-testing==0.1.0)
+  Using cached certifi-2026.4.22-py3-none-any.whl.metadata (2.5 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting httpcore==1.* (from httpx<1.0,>=0.27->spec-kitty-end-to-end-testing==0.1.0)
+  Using cached httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting idna (from httpx<1.0,>=0.27->spec-kitty-end-to-end-testing==0.1.0)
+  Using cached idna-3.15-py3-none-any.whl.metadata (7.7 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting h11>=0.16 (from httpcore==1.*->httpx<1.0,>=0.27->spec-kitty-end-to-end-testing==0.1.0)
+  Using cached h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+Collecting iniconfig>=1 (from pytest<9.0,>=8.2->spec-kitty-end-to-end-testing==0.1.0)
+  Using cached iniconfig-2.3.0-py3-none-any.whl.metadata (2.5 kB)
+Collecting packaging>=20 (from pytest<9.0,>=8.2->spec-kitty-end-to-end-testing==0.1.0)
+  Using cached packaging-26.2-py3-none-any.whl.metadata (3.5 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting pluggy<2,>=1.5 (from pytest<9.0,>=8.2->spec-kitty-end-to-end-testing==0.1.0)
+  Using cached pluggy-1.6.0-py3-none-any.whl.metadata (4.8 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting pygments>=2.7.2 (from pytest<9.0,>=8.2->spec-kitty-end-to-end-testing==0.1.0)
+  Using cached pygments-2.20.0-py3-none-any.whl.metadata (2.5 kB)
+Using cached httpx-0.28.1-py3-none-any.whl (73 kB)
+Using cached httpcore-1.0.9-py3-none-any.whl (78 kB)
+Using cached pytest-8.4.2-py3-none-any.whl (365 kB)
+Using cached pluggy-1.6.0-py3-none-any.whl (20 kB)
+Using cached pytest_timeout-2.4.0-py3-none-any.whl (14 kB)
+Using cached pyyaml-6.0.3-cp314-cp314-macosx_11_0_arm64.whl (173 kB)
+Using cached respx-0.23.1-py2.py3-none-any.whl (25 kB)
+Using cached tenacity-8.5.0-py3-none-any.whl (28 kB)
+Using cached h11-0.16.0-py3-none-any.whl (37 kB)
+Using cached iniconfig-2.3.0-py3-none-any.whl (7.5 kB)
+Using cached packaging-26.2-py3-none-any.whl (100 kB)
+Using cached pygments-2.20.0-py3-none-any.whl (1.2 MB)
+Using cached anyio-4.13.0-py3-none-any.whl (114 kB)
+Using cached idna-3.15-py3-none-any.whl (72 kB)
+Using cached certifi-2026.4.22-py3-none-any.whl (135 kB)
+Building wheels for collected packages: spec-kitty-end-to-end-testing
+  Building editable for spec-kitty-end-to-end-testing (pyproject.toml): started
+  Building editable for spec-kitty-end-to-end-testing (pyproject.toml): finished with status 'done'
+  Created wheel for spec-kitty-end-to-end-testing: filename=spec_kitty_end_to_end_testing-0.1.0-0.editable-py3-none-any.whl size=2194 sha256=c0c285da86ecbf0b7ea9563c6b485786d8c91783e277a72ae8695ec60f49d00c
+  Stored in directory: /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/pip-ephem-wheel-cache-wr1_6_gz/wheels/f0/d6/6d/d77e9622838c924454ac152fda0096a190e2a9f30b2243bfc2
+Successfully built spec-kitty-end-to-end-testing
+Installing collected packages: tenacity, PyYAML, pygments, pluggy, packaging, iniconfig, idna, h11, certifi, pytest, httpcore, anyio, pytest-timeout, httpx, respx, spec-kitty-end-to-end-testing
+
+Successfully installed PyYAML-6.0.3 anyio-4.13.0 certifi-2026.4.22 h11-0.16.0 httpcore-1.0.9 httpx-0.28.1 idna-3.15 iniconfig-2.3.0 packaging-26.2 pluggy-1.6.0 pygments-2.20.0 pytest-8.4.2 pytest-timeout-2.4.0 respx-0.23.1 spec-kitty-end-to-end-testing-0.1.0 tenacity-8.5.0
+
+[notice] A new release of pip is available: 26.1 -> 26.1.1
+[notice] To update, run: pip install --upgrade pip

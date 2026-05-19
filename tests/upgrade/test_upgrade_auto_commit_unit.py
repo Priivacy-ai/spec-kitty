@@ -486,6 +486,94 @@ def test_upgrade_no_migrations_json_includes_auto_commit_fields(
     assert data["warnings"] == []
 
 
+def test_upgrade_no_migrations_stamps_missing_schema_version(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    """Regression for issue #1158: up-to-date semver must still repair schema metadata."""
+    import yaml
+
+    from specify_cli.migration.schema_version import (
+        REQUIRED_SCHEMA_VERSION,
+        check_compatibility,
+        get_project_schema_version,
+    )
+
+    project_path = _setup_upgrade_project(tmp_path)
+    metadata_path = project_path / ".kittify" / "metadata.yaml"
+    metadata_path.write_text(
+        "spec_kitty:\n"
+        "  version: 3.2.0rc14\n"
+        "  initialized_at: '2026-01-01T00:00:00'\n"
+        "environment:\n"
+        "  python_version: '3.14'\n"
+        "  platform: darwin\n"
+        "  platform_version: ''\n"
+        "migrations:\n"
+        "  applied:\n"
+        "  - id: 3.0.0_canonical_context\n"
+        "    applied_at: '2026-01-01T00:00:00'\n"
+        "    result: success\n"
+        "    notes: canonical context already migrated\n"
+        "  - id: 3.2.0a4_normalize_mission_lifecycle\n"
+        "    applied_at: '2026-01-01T00:00:00'\n"
+        "    result: success\n"
+        "    notes: lifecycle already normalized\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(Path, "cwd", lambda: project_path)
+
+    status_calls = {"count": 0}
+
+    def _fake_status(_repo_path: Path) -> set[str]:
+        status_calls["count"] += 1
+        if status_calls["count"] == 1:
+            return set()
+        return {".kittify/metadata.yaml"}
+
+    safe_commit_calls: list[list[str]] = []
+
+    def _fake_safe_commit(
+        *,
+        repo_path: Path,
+        files_to_commit: list[Path],
+        commit_message: str,
+        allow_empty: bool = False,
+    ) -> bool:
+        safe_commit_calls.append([str(path) for path in files_to_commit])
+        return True
+
+    monkeypatch.setattr(upgrade_cmd, "_git_status_paths", _fake_status)
+    monkeypatch.setattr(upgrade_cmd, "safe_commit", _fake_safe_commit)
+
+    assert get_project_schema_version(project_path) is None
+
+    upgrade_cmd.upgrade(
+        dry_run=False,
+        force=True,
+        target="3.2.0rc14",
+        json_output=True,
+        verbose=False,
+        no_worktrees=True,
+        cli=False,
+        project=False,
+    )
+
+    data = json.loads(capsys.readouterr().out.strip())
+    assert data["status"] == "up_to_date"
+    assert data["auto_committed"] is True
+    assert data["auto_commit_paths"] == [".kittify/metadata.yaml"]
+
+    metadata = yaml.safe_load(metadata_path.read_text(encoding="utf-8"))
+    assert metadata["spec_kitty"]["schema_version"] == REQUIRED_SCHEMA_VERSION
+    assert check_compatibility(
+        get_project_schema_version(project_path),
+        REQUIRED_SCHEMA_VERSION,
+    ).is_compatible
+    assert safe_commit_calls == [[".kittify/metadata.yaml"]]
+
+
 def test_upgrade_no_migrations_surfaces_teamspace_mission_state_prompt(
     tmp_path: Path,
     monkeypatch,

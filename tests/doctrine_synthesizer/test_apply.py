@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.doctrine_synthesizer.apply import apply_proposals
+from specify_cli.doctrine_synthesizer.apply import _repo_relative_posix, apply_proposals
 from specify_cli.doctrine_synthesizer.provenance import load_provenance
 from specify_cli.retrospective.schema import (
     ActorRef,
@@ -243,6 +243,17 @@ class TestAddGlossaryTerm:
             dry_run=False,
         )
         assert len(result.events_emitted) == 1
+        events_path = repo_root / "kitty-specs" / MISSION_SLUG / "status.events.jsonl"
+        event = json.loads(events_path.read_text(encoding="utf-8").splitlines()[-1])
+        provenance_ref = event["payload"]["provenance_ref"]
+        assert provenance_ref == ".kittify/glossary/.provenance/doctrine.yaml"
+        assert not Path(provenance_ref).is_absolute()
+
+    def test_repo_relative_posix_falls_back_for_external_path(self, tmp_path: Path) -> None:
+        repo_root = tmp_path / "repo"
+        external_path = tmp_path / "external" / "artifact.yaml"
+
+        assert _repo_relative_posix(external_path, repo_root) == external_path.as_posix()
 
     def test_idempotent_rerun_re_applied_true(self, tmp_path: Path) -> None:
         """Re-running with same approved set → applied with re_applied=True, no new event."""

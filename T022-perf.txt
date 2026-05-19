@@ -1,0 +1,50 @@
+WP01 / T022 — Audit performance gate (NFR-001)
+================================================
+
+Mission: unblock-sync-identity-boundary-canary-01KRZJ07
+Date:    2026-05-19
+Host:    Darwin 24.6.0 (arm64), Python 3.11.11
+
+Methodology
+-----------
+Synthetic kitty-specs/ tree with 100 mission dirs, each containing:
+- meta.json (minimal identity)
+- status.events.jsonl with 50 rows: 10 lifecycle rows
+  (aggregate_type=Mission, event_type in {MissionCreated, SpecifyStarted}) +
+  40 canonical status-transition rows (from_lane/to_lane).
+
+run_audit(AuditOptions(repo_root=tmp, scan_root=tmp/kitty-specs)) invoked
+3 times per condition; median reported.
+
+Results
+-------
+BASELINE (unpatched code, rc13-equivalent main checkout at 981e62be):
+  runs:   [0.0392s, 0.0381s, 0.0372s]
+  median: 0.0381 s
+  FORBIDDEN_KEY findings: 1000   <-- reproduces the #1122 bug
+                                     (10 lifecycle rows x 100 missions)
+
+PATCHED (this WP, lane-a):
+  runs:   [0.0414s, 0.0401s, 0.0398s]
+  median: 0.0401 s
+  FORBIDDEN_KEY findings: 0      <-- bug fixed
+
+Ratio
+-----
+median_patched / median_baseline = 0.0401 / 0.0381 = 1.053x
+
+NFR-001 gate: ratio <= 2.0      PASS (1.053 << 2.0)
+
+Notes
+-----
+- "rc13 baseline" was measured against the main-checkout HEAD (981e62be),
+  which post-dates rc13 (4c60ff97) but does NOT include the patch
+  (verified: `is_mission_lifecycle_row` import fails on main). The audit
+  package itself has not changed between rc13 and 981e62be, so this is a
+  valid stand-in for the rc13 timing on the same hardware.
+- The +2ms / +5% increase is consistent with one extra Mapping.get() call
+  per row in detect_forbidden_keys() (the predicate's two membership
+  checks). No allocation-heavy work was added.
+- Test execution (tests/specify_cli/audit/test_detectors_row_family.py
+  + tests/audit/) runs in ~2.2s on this host with the patch applied,
+  same as unpatched.

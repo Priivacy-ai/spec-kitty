@@ -529,6 +529,42 @@ class TestValidateMaterializationDrift:
         findings = validate_materialization_drift(tmp_path)
         assert any("event_count" in f for f in findings)
 
+    def test_retrospective_snapshot_mismatch(self, tmp_path: Path):
+        """Retrospective rows must be reflected in the derived status snapshot."""
+        event = _make_event()
+        retro_event = {
+            "actor": {"kind": "agent", "id": "agent", "profile_id": None},
+            "at": "2026-02-08T12:01:00Z",
+            "event_id": "01HXYZ0123456789ABCDEFGHJM",
+            "event_name": "retrospective.proposal.applied",
+            "mid8": "01HXYZ01",
+            "mission_id": "01HXYZ0123456789ABCDEFGHJK",
+            "mission_slug": "034-test-feature",
+            "payload": {
+                "applied_by": {"kind": "agent", "id": "agent", "profile_id": None},
+                "kind": "synthesize_directive",
+                "proposal_id": "01HXYZ0123456789ABCDEFGHJN",
+                "provenance_ref": ".kittify/doctrine/directive/.provenance/example.yaml",
+                "target_urn": "doctrine:directive:example",
+            },
+        }
+        (tmp_path / "status.events.jsonl").write_text(
+            json.dumps(event, sort_keys=True) + "\n" + json.dumps(retro_event, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+
+        from specify_cli.status.reducer import materialize
+
+        materialize(tmp_path)
+
+        snapshot_path = tmp_path / "status.json"
+        data = json.loads(snapshot_path.read_text())
+        data.pop("retrospective")
+        snapshot_path.write_text(json.dumps(data, sort_keys=True, indent=2, ensure_ascii=False) + "\n")
+
+        findings = validate_materialization_drift(tmp_path)
+        assert any("retrospective snapshot" in f for f in findings)
+
 
 # ---------------------------------------------------------------------------
 # validate_derived_views

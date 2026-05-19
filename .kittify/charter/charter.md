@@ -28,6 +28,7 @@ This charter captures the technical standards, architectural principles, and dev
 - **mypy --strict** must pass (no type errors)
 - **Integration tests** for CLI commands
 - **Unit tests** for core logic
+- **Run only the affected test packages, not the full suite, whenever the change is scoped to a known surface.** The repository's test suite has ~17,000 tests and a full run is expensive in wall-clock time and orchestrator context budget. Per-WP and per-PR validation should target the directories that bound the change (e.g., `tests/specify_cli/audit/` for an audit-detector change, `tests/specify_cli/cli/commands/test_sync*.py` for a sync surface change). The full `pytest tests/` gate is reserved for: (a) post-merge mission-level validation against the merged mission branch, (b) explicit cross-cutting changes that touch shared infrastructure, and (c) release-candidate verification. Each WP must declare its targeted test surface in the WP prompt's validation section so reviewers can confirm scope.
 
 ### Performance and Scale
 
@@ -136,7 +137,7 @@ The 1.x/2.x branch split was originally documented in [ADR-12: Two-Branch Strate
 
 ### Quality Gates
 
-- All tests pass (pytest)
+- Required pytest surface passes (targeted packages for scoped changes; full suite only for the cases named in Testing Requirements)
 - Type checking passes (mypy --strict)
 - No regressions in existing functionality
 - Documentation updated (README, CLI help text)

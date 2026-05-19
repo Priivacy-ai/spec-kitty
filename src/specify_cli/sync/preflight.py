@@ -34,9 +34,10 @@ from __future__ import annotations
 
 import os
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Literal
+from typing import Any, Literal
 
 from rich.console import Console
 from rich.table import Table
@@ -95,31 +96,34 @@ _UNSET_PLACEHOLDER = "<unset>"
 
 # Remediation hints, keyed by canonical field name. Kept short so the
 # refusal output fits within the NFR-004 25-line budget.
+#
+# The four "restart-class" mismatches (package_version, executable_path,
+# source_path, queue_db_path) all share a single canonical remedy phrase
+# so a future grep stays uniform and the operator sees one consistent
+# action: run `spec-kitty doctor restart-daemon`, then verify with
+# `spec-kitty sync status --check`. The two auth-class mismatches
+# (server_url, team_or_user) keep their own phrasing because their
+# remedy involves an auth step before the restart.
+_RESTART_DAEMON_REMEDY: str = (
+    "Run `spec-kitty doctor restart-daemon` to restart the daemon at the "
+    "foreground version/source, then verify with `spec-kitty sync status "
+    "--check`."
+)
+
 _REMEDIATION_HINTS: dict[MismatchField, str] = {
-    "daemon_package_version": (
-        "Run `spec-kitty doctor restart-daemon` to restart the daemon at the "
-        "foreground version."
-    ),
-    "daemon_executable_path": (
-        "Run `spec-kitty doctor restart-daemon` to restart the daemon at the "
-        "foreground source."
-    ),
-    "daemon_source_path": (
-        "Run `spec-kitty doctor restart-daemon` to restart the daemon at the "
-        "foreground source."
-    ),
+    "daemon_package_version": _RESTART_DAEMON_REMEDY,
+    "daemon_executable_path": _RESTART_DAEMON_REMEDY,
+    "daemon_source_path": _RESTART_DAEMON_REMEDY,
     "daemon_server_url": (
         "Reauthenticate (`spec-kitty auth login`) or restart the daemon "
         "against the matching server."
     ),
     "daemon_team_or_user": (
-        "Switch to the foreground team/user (`spec-kitty auth switch ...`) "
-        "or restart the daemon."
+        "Re-authenticate as the foreground team/user (`spec-kitty auth "
+        "logout` then `spec-kitty auth login`) and then run `spec-kitty "
+        "doctor restart-daemon`."
     ),
-    "daemon_queue_db_path": (
-        "Run `spec-kitty doctor restart-daemon`; the scoped queue path "
-        "changed."
-    ),
+    "daemon_queue_db_path": _RESTART_DAEMON_REMEDY,
 }
 
 
@@ -265,7 +269,7 @@ def _orphan_record_to_dict(record: DaemonOwnerRecord) -> dict[str, Any]:
     """Render an orphan record as a plain dict (token redacted)."""
     data: dict[str, Any] = dict(record.as_dict())
     if "token" in data:
-        data["token"] = "<redacted>"
+        data["token"] = "<redacted>"  # noqa: S105 - intentional redaction marker
     return data
 
 
@@ -306,10 +310,7 @@ def _build_remediation_lines(
         "daemon_queue_db_path",
     )
     if any(field_name in mismatch_fields for field_name in restart_class):
-        remediation_lines.append(
-            "  • Run `spec-kitty doctor restart-daemon` to restart the "
-            "daemon at the foreground version/source."
-        )
+        remediation_lines.append(f"  • {_RESTART_DAEMON_REMEDY}")
     if "daemon_server_url" in mismatch_fields:
         remediation_lines.append(
             "  • Reauthenticate (`spec-kitty auth login`) or restart "
@@ -317,8 +318,9 @@ def _build_remediation_lines(
         )
     if "daemon_team_or_user" in mismatch_fields:
         remediation_lines.append(
-            "  • Switch team/user (`spec-kitty auth switch ...`) or "
-            "restart the daemon."
+            "  • Re-authenticate as the foreground team/user "
+            "(`spec-kitty auth logout` then `spec-kitty auth login`) "
+            "and then run `spec-kitty doctor restart-daemon`."
         )
     if orphan_count:
         remediation_lines.append(
@@ -510,13 +512,9 @@ def collect_foreground_identity(repo_root: Path) -> ForegroundIdentity:
     # strings as None for robustness against credential-file edge cases.
     has_auth = bool(auth_principal) and bool(server_url_raw)
     server_url: str | None = str(server_url_raw) if has_auth else None
-    if has_auth:
-        if auth_team:
-            team_or_user = f"{auth_principal}/{auth_team}"
-        else:
-            team_or_user = str(auth_principal)
-    else:
-        team_or_user = None
+    team_or_user = (
+        f"{auth_principal}/{auth_team}" if auth_team else str(auth_principal)
+    ) if has_auth else None
 
     executable_path = Path(_canonical_executable_path(sys.executable))
     source_path = _resolve_source_path()
@@ -750,13 +748,13 @@ def build_boundary_failure_set(
     Read-only: no SaaS round-trip, no queue mutation, no owner-record
     write. The on-disk daemon record is read; that's it.
     """
-    if foreground is None:
-        # ``collect_foreground_identity`` doesn't actually use repo_root
-        # today; we pass through what we have so a future refactor that
-        # reads repo-relative config picks it up.
-        fg = collect_foreground_identity(repo_root if repo_root is not None else Path.cwd())
-    else:
-        fg = foreground
+    # ``collect_foreground_identity`` doesn't actually use repo_root today; we
+    # pass through what we have so a future refactor can read repo-relative config.
+    fg = (
+        collect_foreground_identity(repo_root if repo_root is not None else Path.cwd())
+        if foreground is None
+        else foreground
+    )
 
     # 1. Owner record lookup.
     record: DaemonOwnerRecord | None = (

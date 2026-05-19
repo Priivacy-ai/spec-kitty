@@ -183,6 +183,14 @@ def _assert_within(base: Path, target: Path) -> Path:
     return resolved_target
 
 
+def _repo_relative_posix(path: Path, repo_root: Path) -> str:
+    """Return a stable repo-relative path for persisted event payloads."""
+    try:
+        return path.resolve().relative_to(repo_root.resolve()).as_posix()
+    except ValueError:
+        return path.as_posix()
+
+
 def _apply_add_glossary_term(
     payload: AddGlossaryTermPayload,
     repo_root: Path,
@@ -739,7 +747,7 @@ def _apply_one(
                 proposal_id=proposal.id,
                 kind=proposal.kind,
                 target_urn=target_urn,
-                provenance_ref=str(prov_path),
+                provenance_ref=_repo_relative_posix(prov_path, repo_root),
                 applied_by=actor,
             ),
         )

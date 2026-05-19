@@ -15,6 +15,7 @@ Cases covered:
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import pytest
@@ -95,11 +96,16 @@ class TestFanOutPreservation:
         finally:
             adapters.reset_handlers()
 
-    def test_no_handlers_registered_is_silent_no_op(self, feature_dir: Path) -> None:
-        """Empty registry -> emit_status_transition succeeds with silent fan-out drop."""
+    def test_no_handlers_registered_logs_zero_handler_breadcrumb(
+        self,
+        feature_dir: Path,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Empty registry -> emit succeeds and logs handlers=0 for diagnosis."""
         adapters.reset_handlers()
 
         try:
+            caplog.set_level(logging.INFO, logger="specify_cli.status.adapters")
             event = emit_status_transition(
                 TransitionRequest(
                     feature_dir=feature_dir,
@@ -112,6 +118,10 @@ class TestFanOutPreservation:
             )
             assert event is not None
             assert event.to_lane == Lane.CLAIMED
+            assert (
+                "fire_saas_fanout: wp_id=WP01 from=planned to=claimed "
+                "force=False handlers=0"
+            ) in caplog.text
         finally:
             adapters.reset_handlers()
 

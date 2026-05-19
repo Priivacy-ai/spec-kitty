@@ -1,0 +1,647 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.14.4, pytest-8.4.2, pluggy-1.6.0 -- /private/tmp/sk-canary-1142/canary-repo/.venv/bin/python3.14
+cachedir: .pytest_cache
+rootdir: /private/tmp/sk-canary-1142/canary-repo
+configfile: pyproject.toml
+plugins: timeout-2.4.0, respx-0.23.1, anyio-4.13.0
+timeout: 600.0s
+timeout method: signal
+timeout func_only: False
+collecting ... collected 2 items / 2 deselected / 0 selected
+
+============================ 2 deselected in 0.15s =============================
+============================= test session starts ==============================
+platform darwin -- Python 3.14.4, pytest-8.4.2, pluggy-1.6.0 -- /private/tmp/sk-canary-1142/canary-repo/.venv/bin/python3.14
+cachedir: .pytest_cache
+rootdir: /private/tmp/sk-canary-1142/canary-repo
+configfile: pyproject.toml
+plugins: timeout-2.4.0, respx-0.23.1, anyio-4.13.0
+timeout: 60.0s
+timeout method: signal
+timeout func_only: False
+collecting ... collected 2 items
+
+tests/identity_boundary/test_scenario_1_fresh_authenticated_mission.py::test_scenario_1_fresh_authenticated_mission_reaches_saas SKIPPED
+tests/identity_boundary/test_scenario_2_legacy_queue_migration.py::test_scenario_2_legacy_queue_row_migration SKIPPED
+
+=========================== short test summary info ============================
+SKIPPED [1] tests/identity_boundary/test_scenario_1_fresh_authenticated_mission.py:190: SPEC_KITTY_ENABLE_SAAS_SYNC not set; skipping deployed-dev canary
+SKIPPED [1] tests/identity_boundary/test_scenario_2_legacy_queue_migration.py:250: SPEC_KITTY_ENABLE_SAAS_SYNC not set; skipping deployed-dev canary
+============================== 2 skipped in 1.93s ==============================
+============================= test session starts ==============================
+platform darwin -- Python 3.14.4, pytest-8.4.2, pluggy-1.6.0 -- /private/tmp/sk-canary-1142/canary-repo/.venv/bin/python3.14
+cachedir: .pytest_cache
+rootdir: /private/tmp/sk-canary-1142/canary-repo
+configfile: pyproject.toml
+plugins: timeout-2.4.0, respx-0.23.1, anyio-4.13.0
+timeout: 60.0s
+timeout method: signal
+timeout func_only: False
+collecting ... collected 2 items
+
+tests/identity_boundary/test_scenario_1_fresh_authenticated_mission.py::test_scenario_1_fresh_authenticated_mission_reaches_saas FAILED
+tests/identity_boundary/test_scenario_2_legacy_queue_migration.py::test_scenario_2_legacy_queue_row_migration FAILED
+
+=================================== FAILURES ===================================
+___________ test_scenario_1_fresh_authenticated_mission_reaches_saas ___________
+
+canary_preflight = CanaryPreflightConfig(saas_url='https://spec-kitty-dev.fly.dev', team_slug=None, is_trusted_runner=True)
+canary_run = CanaryRun(run_id='01KS05ADKRGR0SBE2Y1WQ95TCE', started_at='2026-05-19T13:03:06Z', finished_at='', outcome='skipped', s...private/tmp/sk-canary-1142/canary-repo/artifacts/sync_identity_boundary/01KS05ADKRGR0SBE2Y1WQ95TCE.json', scenarios=[])
+e2e_config = E2EConfig(run_real_agents=False, saas_url='https://spec-kitty-dev.fly.dev', actor_one=ActorCredentials(username='e2e_c...e, provision_admin=True, fly_app=None, fly_process_group='app', enable_collaboration=True, command_timeout_seconds=900)
+isolated_home = PosixPath('/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/pytest-of-robert/pytest-660/canary-scenario-10/scenario-1')
+tmp_path = PosixPath('/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/pytest-of-robert/pytest-660/test_scenario_1_fresh_authenti0')
+
+    @pytest.mark.sync_identity_boundary_deployed_dev
+    @pytest.mark.deployed_dev
+    @pytest.mark.scenario_id(1)
+    @pytest.mark.timeout(900)
+    def test_scenario_1_fresh_authenticated_mission_reaches_saas(
+        canary_preflight: CanaryPreflightConfig,  # ASSERT FR-002.1
+        canary_run: CanaryRun,
+        e2e_config: E2EConfig,
+        isolated_home: Path,
+        tmp_path: Path,
+    ) -> None:
+        """End-to-end scenario 1 — see module docstring."""
+    
+        cfg = e2e_config
+        started_at = now_utc_iso()
+        start_ts = time.monotonic()
+    
+        # ------------------------------------------------------------------
+        # Readiness window opens here — every code path between this line
+        # and ``capture_after()`` is covered by FR-013.S1.
+        # ------------------------------------------------------------------
+        with record_readiness_window(cfg.saas_url) as (before, capture_after):
+            # FR-013.S1 (pre-condition): SaaS must be green before we even
+            # start enqueuing work. If this is red the rest of the run is
+            # inconclusive — surface that loudly rather than continuing.
+            assert is_ready(before), (  # ASSERT FR-013.S1
+                f"SaaS not ready before scenario 1: {before!r}"
+            )
+    
+            # Provision the canary team + actor identities on deployed-dev.
+            provision = ensure_remote_identities(cfg=cfg, cwd=tmp_path)
+            cfg = provision.cfg
+    
+            repo_dir = tmp_path / "scenario-1-checkout"
+            initialize_spec_kitty_repo(repo_dir, timeout_seconds=cfg.command_timeout_seconds)
+            unique_repo = f"spec-kitty-canary-{uuid4().hex[:12]}"
+            run_command(
+                [
+                    "git",
+                    "remote",
+                    "add",
+                    "origin",
+                    f"git@github.com:Priivacy-ai/{unique_repo}.git",
+                ],
+                cwd=repo_dir,
+            )
+    
+            # Build the actor against the isolated SPEC_KITTY_HOME so the
+            # canary never touches the operator's real home (NFR-006 / C-008).
+            actor = Actor(
+                name="canary-scenario-1-actor",
+                credentials=cfg.actor_one,
+                home=isolated_home,
+            )
+    
+            # ASSERT FR-004 — the authenticated lifecycle starts here.
+            configure_and_login_actor(
+                actor,
+                repo_dir=repo_dir,
+                saas_url=cfg.saas_url,
+                timeout_seconds=cfg.command_timeout_seconds,
+            )
+            team_slug = actor.read_team_slug()
+            assert team_slug, "authenticated CLI login did not persist a team slug"
+    
+            # --------------------------------------------------------------
+            # FR-003 — sync status --check boundary inspection.
+            # --------------------------------------------------------------
+            status_extra = {
+                "SPEC_KITTY_HOME": str(isolated_home),
+                "HOME": str(isolated_home),
+            }
+            status_result = run_spec_kitty(
+                ["sync", "status", "--check"],
+                cwd=repo_dir,
+                enable_saas_sync=True,
+                env=actor.env(status_extra),
+                timeout_seconds=cfg.command_timeout_seconds,
+                check=False,
+            )
+            # Parse the status table; presence-only assertions per the
+            # contract (the value-assertions belong to FR-005 / FR-007).
+            status_parsed = parse_sync_status_check_output(status_result.stdout)
+    
+            # ASSERT FR-003 — every required field is present + typed.
+            assert status_parsed["active_queue_db_path"], (  # ASSERT FR-003
+                "active_queue_db_path missing from sync status --check output"
+            )
+            _coerce_int(status_parsed["active_event_count"], field="active_event_count")
+            _coerce_int(
+                status_parsed["active_body_upload_count"],
+                field="active_body_upload_count",
+            )
+            _coerce_int(status_parsed["legacy_event_count"], field="legacy_event_count")
+            _coerce_int(
+                status_parsed["legacy_body_upload_count"],
+                field="legacy_body_upload_count",
+            )
+            # daemon_owner is either an explicit dict or an explicit None —
+            # both branches satisfy FR-003.
+            assert "daemon_owner" in status_parsed
+            _coerce_int(status_parsed["orphan_count"], field="orphan_count")
+    
+            # --------------------------------------------------------------
+            # FR-004 — full authenticated mission lifecycle.
+            # --------------------------------------------------------------
+            canary_mission_label = f"canary-{canary_run.run_id.lower()}"
+    
+            create = run_spec_kitty(
+                [
+                    "agent",
+                    "mission",
+                    "create",
+                    canary_mission_label,
+                    "--mission-type",
+                    "software-dev",
+                    "--json",
+                ],
+                cwd=repo_dir,
+                enable_saas_sync=True,
+                env=actor.env(status_extra),
+                timeout_seconds=cfg.command_timeout_seconds,
+            )
+            mission_payload = parse_json_payload(create.stdout)
+            mission_slug = str(
+                mission_payload.get("mission_slug") or mission_payload.get("slug")
+            )
+            assert mission_slug, f"mission create did not return a slug: {mission_payload}"
+            feature_dir = Path(str(mission_payload["feature_dir"]))
+    
+            # setup-plan: seed minimal spec/tasks then re-run so the planning
+            # phase has substantive content to commit. The launch-gate test
+            # follows the same shape.
+            run_spec_kitty(
+                [
+                    "agent",
+                    "mission",
+                    "setup-plan",
+                    "--mission",
+                    mission_slug,
+                    "--json",
+                ],
+                cwd=repo_dir,
+                enable_saas_sync=True,
+                env=actor.env(status_extra),
+                timeout_seconds=cfg.command_timeout_seconds,
+            )
+            _seed_minimal_spec(feature_dir)
+            _git_commit_all(repo_dir, "chore: seed canary scenario 1 mission")
+    
+            # finalize-tasks is the canonical "ready to sync" step in the
+            # current CLI (mirrors test_go_live_pre_connector_saas_e2e.py).
+            run_spec_kitty(
+                [
+                    "agent",
+                    "mission",
+                    "finalize-tasks",
+                    "--mission",
+                    mission_slug,
+                    "--json",
+                ],
+                cwd=repo_dir,
+                enable_saas_sync=True,
+                env=actor.env(status_extra),
+                timeout_seconds=cfg.command_timeout_seconds,
+            )
+            _git_commit_all(repo_dir, "chore: finalize canary scenario 1 tasks")
+    
+            # Move WP01 to done so the projection has a status transition to
+            # materialize. ``--done-override-reason`` records the canary
+            # provenance for reviewers.
+            run_spec_kitty(
+                [
+                    "agent",
+                    "tasks",
+                    "move-task",
+                    "WP01",
+                    "--to",
+                    "done",
+                    "--mission",
+                    mission_slug,
+                    "--agent",
+                    actor.credentials.username,
+                    "--reviewer",
+                    actor.credentials.username,
+                    "--approval-ref",
+                    f"sync-identity-boundary-canary:{mission_slug}",
+                    "--done-override-reason",
+                    "Sync identity boundary canary records one transition.",
+                    "--json",
+                ],
+                cwd=repo_dir,
+                enable_saas_sync=True,
+                env=actor.env(status_extra),
+                timeout_seconds=cfg.command_timeout_seconds,
+            )
+    
+>           sync_now = run_spec_kitty(
+                [
+                    "sync",
+                    "now",
+                    "--report",
+                    str(tmp_path / "scenario-1-sync-failures.json"),
+                ],
+                cwd=repo_dir,
+                enable_saas_sync=True,
+                env=actor.env(status_extra),
+                timeout_seconds=cfg.command_timeout_seconds,
+            )
+
+tests/identity_boundary/test_scenario_1_fresh_authenticated_mission.py:387: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/spec_kitty_e2e/cli.py:178: in run_spec_kitty
+    return run_command(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cmd = ['spec-kitty', 'sync', 'now', '--report', '/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/pytest-of-robert/pytest-660/test_scenario_1_fresh_authenti0/scenario-1-sync-failures.json']
+
+    def run_command(
+        cmd: Sequence[str],
+        *,
+        cwd: Path,
+        env: dict[str, str] | None = None,
+        timeout_seconds: int = 300,
+        input_text: str | None = None,
+        check: bool = True,
+    ) -> CommandResult:
+        merged_env = os.environ.copy()
+        if env:
+            merged_env.update(env)
+    
+        completed = subprocess.run(
+            list(cmd),
+            cwd=str(cwd),
+            env=merged_env,
+            input=input_text,
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+        )
+        result = CommandResult(
+            cmd=cmd,
+            cwd=cwd,
+            returncode=completed.returncode,
+            stdout=completed.stdout,
+            stderr=completed.stderr,
+        )
+        if check and not result.ok:
+>           raise CommandError(result)
+E           spec_kitty_e2e.shell.CommandError: Command failed (1): spec-kitty sync now --report /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/pytest-of-robert/pytest-660/test_scenario_1_fresh_authenti0/scenario-1-sync-failures.json
+E           cwd=/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/pytest-of-robert/pytest-660/test_scenario_1_fresh_authenti0/scenario-1-checkout
+E           stdout:
+E           ╭──────────────────── TeamSpace Migration Required ─────────────────────╮
+E           │ TeamSpace mission-state migration is required before connecting.      │
+E           │ Found 2 TeamSpace blocker(s) across 2 mission(s).                     │
+E           │ Finding codes: FORBIDDEN_KEY                                          │
+E           │                                                                       │
+E           │ Recommended sequence:                                                 │
+E           │   spec-kitty doctor mission-state --audit --fail-on teamspace-blocker │
+E           │   spec-kitty doctor mission-state --fix                               │
+E           │   spec-kitty doctor mission-state --teamspace-dry-run                 │
+E           ╰───────────────────────────────────────────────────────────────────────╯
+E           Blocked: `spec-kitty sync now` will not connect until this migration is 
+E           complete.
+E           
+E           stderr:
+
+src/spec_kitty_e2e/shell.py:66: CommandError
+__________________ test_scenario_2_legacy_queue_row_migration __________________
+
+canary_preflight = CanaryPreflightConfig(saas_url='https://spec-kitty-dev.fly.dev', team_slug=None, is_trusted_runner=True)
+canary_run = CanaryRun(run_id='01KS05ADKRGR0SBE2Y1WQ95TCE', started_at='2026-05-19T13:03:06Z', finished_at='', outcome='skipped', s...age_count=0, status_transition_count=0, force_required_transition_count=0), readiness_before={}, readiness_after={}))])
+e2e_config = E2EConfig(run_real_agents=False, saas_url='https://spec-kitty-dev.fly.dev', actor_one=ActorCredentials(username='e2e_c...e, provision_admin=True, fly_app=None, fly_process_group='app', enable_collaboration=True, command_timeout_seconds=900)
+isolated_home = PosixPath('/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/pytest-of-robert/pytest-660/canary-scenario-20/scenario-2')
+tmp_path = PosixPath('/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/pytest-of-robert/pytest-660/test_scenario_2_legacy_queue_r0')
+
+    @pytest.mark.sync_identity_boundary_deployed_dev
+    @pytest.mark.deployed_dev
+    @pytest.mark.scenario_id(2)
+    @pytest.mark.timeout(900)
+    def test_scenario_2_legacy_queue_row_migration(
+        canary_preflight: CanaryPreflightConfig,  # ASSERT FR-002
+        canary_run: CanaryRun,
+        e2e_config: E2EConfig,
+        isolated_home: Path,
+        tmp_path: Path,
+    ) -> None:
+        """End-to-end scenario 2 — see module docstring."""
+    
+        cfg = e2e_config
+        started_at = now_utc_iso()
+        start_ts = time.monotonic()
+    
+        # Synthetic seed ids: embed a unique token in each legacy event payload
+        # so we can cross-reference the formerly-legacy rows on SaaS by
+        # payload identifier (not just by total count). FR-007.
+        legacy_seed_id_a = f"wp06-legacy-{uuid4().hex}"
+        legacy_seed_id_b = f"wp06-legacy-{uuid4().hex}"
+        scoped_seed_id = f"wp06-scoped-{uuid4().hex}"
+        # Body upload identifier: use a unique content hash so FR-008's
+        # cross-reference on SaaS is precise.
+        body_upload_hash = uuid4().hex + uuid4().hex  # 64 hex chars
+    
+        # ------------------------------------------------------------------
+        # Readiness window opens here — every code path between this line
+        # and ``capture_after()`` is covered by FR-013.S2.
+        # ------------------------------------------------------------------
+        with record_readiness_window(cfg.saas_url) as (before, capture_after):
+            # FR-013.S2 (pre-condition): SaaS must be green before we seed
+            # anything. A red SaaS makes the rest of the run inconclusive.
+            assert is_ready(before), (  # ASSERT FR-013.S2
+                f"SaaS not ready before scenario 2: {before!r}"
+            )
+    
+            # --------------------------------------------------------------
+            # T024 — Seed the legacy queue BEFORE authentication so we can
+            # prove the migration happened. FR-006.
+            # --------------------------------------------------------------
+            legacy_seed = seed_legacy_queue_rows(
+                isolated_home,
+                events=[
+                    {
+                        "event_id": f"canary-legacy-{legacy_seed_id_a}",
+                        "event_type": "WPStatusChanged",
+                        "payload": {
+                            "seed_id": legacy_seed_id_a,
+                            "wp_id": "WP-CANARY-LEGACY-A",
+                            "from_lane": "planned",
+                            "to_lane": "claimed",
+                        },
+                    },
+                    {
+                        "event_id": f"canary-legacy-{legacy_seed_id_b}",
+                        "event_type": "WPStatusChanged",
+                        "payload": {
+                            "seed_id": legacy_seed_id_b,
+                            "wp_id": "WP-CANARY-LEGACY-B",
+                            "from_lane": "claimed",
+                            "to_lane": "in_progress",
+                        },
+                    },
+                ],
+                body_uploads=[
+                    {
+                        "artifact_path": f"canary/scenario-2-{uuid4().hex[:8]}.md",
+                        "content_body": (
+                            f"# canary scenario 2 body upload\n"
+                            f"seed_id={legacy_seed_id_a}\n"
+                        ),
+                        "content_hash": body_upload_hash,
+                    },
+                ],
+                cwd=tmp_path,
+            )
+            legacy_queue_db_path = str(legacy_seed["db_path"])
+            initially_seeded_legacy_event_count = int(legacy_seed["event_count"])
+            initially_seeded_legacy_body_upload_count = int(
+                legacy_seed["body_upload_count"]
+            )
+            # ASSERT FR-006 — legacy queue has rows before auth.
+            assert initially_seeded_legacy_event_count >= 1, legacy_seed
+            assert initially_seeded_legacy_body_upload_count >= 1, legacy_seed
+    
+            # Provision the canary team + actor identities on deployed-dev.
+            provision = ensure_remote_identities(cfg=cfg, cwd=tmp_path)
+            cfg = provision.cfg
+    
+            repo_dir = tmp_path / "scenario-2-checkout"
+            initialize_spec_kitty_repo(
+                repo_dir, timeout_seconds=cfg.command_timeout_seconds
+            )
+            unique_repo = f"spec-kitty-canary-{uuid4().hex[:12]}"
+            run_command(
+                [
+                    "git",
+                    "remote",
+                    "add",
+                    "origin",
+                    f"git@github.com:Priivacy-ai/{unique_repo}.git",
+                ],
+                cwd=repo_dir,
+            )
+    
+            # Build the actor against the isolated SPEC_KITTY_HOME so the
+            # canary never touches the operator's real home (NFR-006 / C-008).
+            actor = Actor(
+                name="canary-scenario-2-actor",
+                credentials=cfg.actor_one,
+                home=isolated_home,
+            )
+    
+            # Authenticate. The scoped queue DB may not exist until this
+            # point on a fresh home (created lazily on first auth), so we
+            # run ``seed_scoped_queue_rows`` *after* login but *before*
+            # ``sync now`` to guarantee the scoped DB is non-empty at drain
+            # time — documented in WP06 §Risks.
+            configure_and_login_actor(
+                actor,
+                repo_dir=repo_dir,
+                saas_url=cfg.saas_url,
+                timeout_seconds=cfg.command_timeout_seconds,
+            )
+            team_slug = actor.read_team_slug()
+            assert team_slug, "authenticated CLI login did not persist a team slug"
+    
+            # Now seed the scoped queue with an unrelated event so the drain
+            # exercises a non-empty scoped DB. FR-006 (scoped half).
+            scoped_seed = seed_scoped_queue_rows(
+                isolated_home,
+                events=[
+                    {
+                        "event_id": f"canary-scoped-{scoped_seed_id}",
+                        "event_type": "WPStatusChanged",
+                        "payload": {
+                            "seed_id": scoped_seed_id,
+                            "wp_id": "WP-CANARY-SCOPED-A",
+                            "from_lane": "planned",
+                            "to_lane": "claimed",
+                        },
+                    },
+                ],
+                cwd=tmp_path,
+            )
+            scoped_queue_db_path = str(scoped_seed["db_path"])
+            initially_seeded_scoped_event_count = int(scoped_seed["event_count"])
+            # ASSERT FR-006 — scoped queue non-empty at drain time.
+            assert initially_seeded_scoped_event_count >= 1, scoped_seed
+    
+            # --------------------------------------------------------------
+            # T025 — Authenticated CLI lifecycle + drive ``sync now``.
+            # Reuse Scenario 1's tiny mission lifecycle so events flow.
+            # --------------------------------------------------------------
+            status_extra = {
+                "SPEC_KITTY_HOME": str(isolated_home),
+                "HOME": str(isolated_home),
+            }
+            canary_mission_label = f"canary-{canary_run.run_id.lower()}-s2"
+    
+            create = run_spec_kitty(
+                [
+                    "agent",
+                    "mission",
+                    "create",
+                    canary_mission_label,
+                    "--mission-type",
+                    "software-dev",
+                    "--json",
+                ],
+                cwd=repo_dir,
+                enable_saas_sync=True,
+                env=actor.env(status_extra),
+                timeout_seconds=cfg.command_timeout_seconds,
+            )
+            mission_payload = parse_json_payload(create.stdout)
+            mission_slug = str(
+                mission_payload.get("mission_slug") or mission_payload.get("slug")
+            )
+            assert mission_slug, f"mission create did not return a slug: {mission_payload}"
+            feature_dir = Path(str(mission_payload["feature_dir"]))
+    
+            run_spec_kitty(
+                [
+                    "agent",
+                    "mission",
+                    "setup-plan",
+                    "--mission",
+                    mission_slug,
+                    "--json",
+                ],
+                cwd=repo_dir,
+                enable_saas_sync=True,
+                env=actor.env(status_extra),
+                timeout_seconds=cfg.command_timeout_seconds,
+            )
+            _seed_minimal_spec(feature_dir)
+            _git_commit_all(repo_dir, "chore: seed canary scenario 2 mission")
+    
+            run_spec_kitty(
+                [
+                    "agent",
+                    "mission",
+                    "finalize-tasks",
+                    "--mission",
+                    mission_slug,
+                    "--json",
+                ],
+                cwd=repo_dir,
+                enable_saas_sync=True,
+                env=actor.env(status_extra),
+                timeout_seconds=cfg.command_timeout_seconds,
+            )
+            _git_commit_all(repo_dir, "chore: finalize canary scenario 2 tasks")
+    
+            run_spec_kitty(
+                [
+                    "agent",
+                    "tasks",
+                    "move-task",
+                    "WP01",
+                    "--to",
+                    "done",
+                    "--mission",
+                    mission_slug,
+                    "--agent",
+                    actor.credentials.username,
+                    "--reviewer",
+                    actor.credentials.username,
+                    "--approval-ref",
+                    f"sync-identity-boundary-canary:{mission_slug}",
+                    "--done-override-reason",
+                    "Sync identity boundary canary scenario 2 records one transition.",
+                    "--json",
+                ],
+                cwd=repo_dir,
+                enable_saas_sync=True,
+                env=actor.env(status_extra),
+                timeout_seconds=cfg.command_timeout_seconds,
+            )
+    
+>           sync_now = run_spec_kitty(
+                [
+                    "sync",
+                    "now",
+                    "--report",
+                    str(tmp_path / "scenario-2-sync-failures.json"),
+                ],
+                cwd=repo_dir,
+                enable_saas_sync=True,
+                env=actor.env(status_extra),
+                timeout_seconds=cfg.command_timeout_seconds,
+            )
+
+tests/identity_boundary/test_scenario_2_legacy_queue_migration.py:493: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/spec_kitty_e2e/cli.py:178: in run_spec_kitty
+    return run_command(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cmd = ['spec-kitty', 'sync', 'now', '--report', '/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/pytest-of-robert/pytest-660/test_scenario_2_legacy_queue_r0/scenario-2-sync-failures.json']
+
+    def run_command(
+        cmd: Sequence[str],
+        *,
+        cwd: Path,
+        env: dict[str, str] | None = None,
+        timeout_seconds: int = 300,
+        input_text: str | None = None,
+        check: bool = True,
+    ) -> CommandResult:
+        merged_env = os.environ.copy()
+        if env:
+            merged_env.update(env)
+    
+        completed = subprocess.run(
+            list(cmd),
+            cwd=str(cwd),
+            env=merged_env,
+            input=input_text,
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+        )
+        result = CommandResult(
+            cmd=cmd,
+            cwd=cwd,
+            returncode=completed.returncode,
+            stdout=completed.stdout,
+            stderr=completed.stderr,
+        )
+        if check and not result.ok:
+>           raise CommandError(result)
+E           spec_kitty_e2e.shell.CommandError: Command failed (1): spec-kitty sync now --report /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/pytest-of-robert/pytest-660/test_scenario_2_legacy_queue_r0/scenario-2-sync-failures.json
+E           cwd=/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/pytest-of-robert/pytest-660/test_scenario_2_legacy_queue_r0/scenario-2-checkout
+E           stdout:
+E           ╭──────────────────── TeamSpace Migration Required ─────────────────────╮
+E           │ TeamSpace mission-state migration is required before connecting.      │
+E           │ Found 2 TeamSpace blocker(s) across 2 mission(s).                     │
+E           │ Finding codes: FORBIDDEN_KEY                                          │
+E           │                                                                       │
+E           │ Recommended sequence:                                                 │
+E           │   spec-kitty doctor mission-state --audit --fail-on teamspace-blocker │
+E           │   spec-kitty doctor mission-state --fix                               │
+E           │   spec-kitty doctor mission-state --teamspace-dry-run                 │
+E           ╰───────────────────────────────────────────────────────────────────────╯
+E           Blocked: `spec-kitty sync now` will not connect until this migration is 
+E           complete.
+E           
+E           stderr:
+
+src/spec_kitty_e2e/shell.py:66: CommandError
+=========================== short test summary info ============================
+FAILED tests/identity_boundary/test_scenario_1_fresh_authenticated_mission.py::test_scenario_1_fresh_authenticated_mission_reaches_saas
+FAILED tests/identity_boundary/test_scenario_2_legacy_queue_migration.py::test_scenario_2_legacy_queue_row_migration
+======================== 2 failed in 161.89s (0:02:41) =========================

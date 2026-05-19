@@ -2,5 +2,5 @@ schema_version: "1.0"
 id: powershell-syntax
 tool: powershell
 title: PowerShell Syntax Guide
-guide_path: docs/POWERSHELL_SYNTAX.md
+guide_path: /absolute/POWERSHELL_SYNTAX.md
 summary: PowerShell-specific syntax and parameter conventions.

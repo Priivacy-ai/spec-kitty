@@ -298,19 +298,21 @@ def install(repo_root: Path, agent_key: str) -> InstallReport:
         existing = manifest.find(rel_path)
 
         if existing is not None:
-            # Drift check: on-disk hash must match the manifest record.
+            # Drift check: if the file exists, its hash must match the
+            # manifest record. A missing managed file is a repairable gap.
+            file_exists = abs_path.exists()
             on_disk_hash = (
                 manifest_store.fingerprint_file(abs_path)
-                if abs_path.exists()
+                if file_exists
                 else None
             )
-            if on_disk_hash != existing.content_hash:
+            if file_exists and on_disk_hash != existing.content_hash:
                 raise InstallerError("unexpected_collision", path=rel_path)
 
             # Compute the hash we *would* write.
             would_write_hash = manifest_store.fingerprint(skill_md_bytes)
 
-            if existing.content_hash == would_write_hash:
+            if file_exists and existing.content_hash == would_write_hash:
                 # Same bytes — either already claimed by this agent or shared.
                 if agent_key in existing.agents:
                     report.already_installed.append(rel_path)
