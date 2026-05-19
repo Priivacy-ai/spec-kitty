@@ -364,3 +364,4 @@ spec-kitty agent action implement WP04 --agent claude
 ## Activity Log
 
 - 2026-05-19T15:51:25Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=27380 – Started implementation via action command
+- 2026-05-19T16:18:45Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=27380 – Ready for review: facilitator_callback wired in both call sites via _build_retrospective_facilitator_callback(); default warn + strict block + skip + opt-out flows; AST+mock dual-check wiring tests (T023a+T023b); 9 integration test files covering 8 scenarios; 440 tests pass in 25s (NFR-001 <60s); all classification/attribution helpers covered; ruff clean; FR-016 env-mutation free.
