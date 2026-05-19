@@ -186,21 +186,30 @@ References:
    Remediation: <remediation_hint>
    To bypass once: re-run with --skip-retrospective (logged in event log).
    ```
-4. Add `--skip-retrospective` flag to the completing command (typically `spec-kitty merge`, but confirm by grepping for the `MissionCompleted` emit site). When set:
-   - Bypass the gate entirely
-   - Emit a `RetrospectiveSkipped` event (define alongside Captured/Failed in WP03's events.py) with actor + reason
-   - Mission completion proceeds
+4. Add `--skip-retrospective="<reason>"` flag to the completing command (typically `spec-kitty merge`, but confirm by grepping for the `MissionCompleted` emit site). When set:
+   - Bypass the gate entirely.
+   - Import `emit_skipped` and `RetrospectiveSkipped` from `specify_cli.retrospective.events` (defined and exported by **WP03 T015** — this WP does not edit `events.py`).
+   - Call `emit_skipped(...)` with `skip_reason="<reason>"`, `skip_reason_source="cli_flag"`, `policy_source=source_map`, `actor=cli_actor()`.
+   - Empty `skip_reason` is rejected by `emit_skipped` with `ValueError` per the contract. The CLI surfaces this as a `BadParameter` ("--skip-retrospective requires a reason").
+   - Mission completion proceeds after the Skipped event lands.
 
 **Files**:
 - `src/specify_cli/next/_internal_runtime/retrospective_terminus.py` (extend, ~100 lines)
-- `src/specify_cli/retrospective/events.py` (extend with `RetrospectiveSkipped` event type; WP03's owned_files include this file — coordinate at merge time)
+
+This WP **does not** edit `src/specify_cli/retrospective/events.py` or any other WP03-owned file. All three event types (`RetrospectiveCaptured`, `RetrospectiveCaptureFailed`, `RetrospectiveSkipped`) and their emit helpers are owned by WP03 T015. This WP only imports them:
+
+```python
+from specify_cli.retrospective.events import (
+    RetrospectiveCaptured, RetrospectiveCaptureFailed, RetrospectiveSkipped,
+    emit_captured, emit_capture_failed, emit_skipped,
+)
+```
 
 **Validation**:
 - [ ] Strict policy + healthy mission → record + `RetrospectiveCaptured(provenance_kind="runtime_strict_gate")` + mission completes
 - [ ] Strict policy + generator fails → `RetrospectiveCaptureFailed` + `RetrospectiveGateBlocked` exception → CLI exits 1 with the formatted message
-- [ ] Strict policy + `--skip-retrospective` → `RetrospectiveSkipped` event with actor/reason; mission completes
-
-**Note on owned-files overlap**: WP03 owns `events.py`. The `RetrospectiveSkipped` event type belongs there. Coordinate by adding it in WP03 (extend T015's scope to include the third event type) and importing in this WP. Update WP03's owned_files only via merge of both PRs onto main; do not edit WP03 files from this WP's worktree.
+- [ ] Strict policy + `--skip-retrospective="<non-empty reason>"` → `RetrospectiveSkipped(skip_reason=..., skip_reason_source="cli_flag", bypassed_provenance_kind="runtime_strict_gate")` event; mission completes
+- [ ] Strict policy + `--skip-retrospective=""` (empty reason) → CLI rejects with `BadParameter` (no event emitted, mission does not complete)
 
 ---
 
@@ -266,13 +275,41 @@ References:
 
 **Steps**:
 
-1. **Wiring test** at `tests/next/test_retrospective_terminus_wiring.py`:
+1. **Wiring test** at `tests/next/test_retrospective_terminus_wiring.py` — REQUIRE BOTH approaches:
+
+   **(a) AST-level assertion** — parse `runtime_bridge.py` and assert no `Call` to `run_terminus` passes `facilitator_callback=None`:
    ```python
-   def test_runtime_bridge_does_not_pass_facilitator_callback_none_for_enabled_policy():
-       # Inspect the actual call site or use mock.patch to capture the call
-       # Assert: when policy.enabled is True, facilitator_callback is not None
+   def test_no_none_facilitator_callback_in_source_ast():
+       import ast, pathlib
+       src = pathlib.Path("src/specify_cli/next/runtime_bridge.py").read_text()
+       tree = ast.parse(src)
+       for node in ast.walk(tree):
+           if not isinstance(node, ast.Call):
+               continue
+           if not _is_run_terminus_call(node):
+               continue
+           for kw in node.keywords:
+               assert not (kw.arg == "facilitator_callback" and _is_constant_none(kw.value)), (
+                   f"runtime_bridge.py:{node.lineno} passes facilitator_callback=None; "
+                   "the wiring fix from this mission's WP04 has regressed."
+               )
    ```
-   Use either AST inspection of `runtime_bridge.py` (more brittle) or a mock-based test that captures `run_terminus`'s `facilitator_callback` argument.
+
+   **(b) Runtime mock-based assertion** — patch `run_terminus` and assert the closure passed in for an enabled policy is non-None and callable:
+   ```python
+   def test_runtime_passes_non_none_callback_for_enabled_policy(monkeypatch):
+       calls: list = []
+       monkeypatch.setattr("specify_cli.next.runtime_bridge.run_terminus",
+                           lambda **kw: calls.append(kw))
+       # Drive the runtime bridge against a default-policy mission
+       _invoke_runtime_for_completion(mission_handle="fake", policy=default_policy())
+       assert len(calls) == 1, "run_terminus should be called exactly once"
+       cb = calls[0]["facilitator_callback"]
+       assert cb is not None, "Enabled policy must wire a real callback"
+       assert callable(cb), "facilitator_callback must be callable"
+   ```
+
+   **Why both**: AST inspection catches a hard-coded `None` reintroduction at the source level. The mock-based assertion catches the subtler regression where a feature flag, conditional branch, or environment check silently sets the callback to None at runtime even though the source looks healthy. A regression on either path is independently fatal.
 
 2. **Integration tests** at `tests/integration/retrospective/`:
    - `test_default_flow_healthy.py` — scaffold a mission in `tmp_path` with realistic artifacts; run the completion path; assert record on disk + `RetrospectiveCaptured` event + `MissionCompleted` event
@@ -301,9 +338,11 @@ References:
 - [ ] All 6 subtasks complete
 - [ ] `uv run pytest tests/next/test_retrospective_terminus_wiring.py tests/integration/retrospective/ -q` exits 0
 - [ ] `uv run pytest tests/retrospective/ -q` exits 0 (WP01-WP03 stay green)
+- [ ] **NFR-001 aggregate budget**: `uv run pytest tests/retrospective tests/integration/retrospective tests/next/test_retrospective_terminus_wiring.py -q` completes in under 60 seconds wall-clock on the project's CI runner
 - [ ] `uv run ruff check src/specify_cli/next/ tests/integration/retrospective/` exits 0
+- [ ] **No env-var mutation in this WP's owned tests**: `grep -nE "monkeypatch\.setenv.*SPEC_KITTY_(RETROSPECTIVE|MODE)|os\.environ\[.*SPEC_KITTY_(RETROSPECTIVE|MODE)" tests/next/test_retrospective_terminus_wiring.py tests/integration/retrospective/` returns no hits (FR-016 enforcement)
 - [ ] No edits outside `owned_files`
-- [ ] `facilitator_callback=None` is no longer reachable from any enabled-policy path
+- [ ] `facilitator_callback=None` is no longer reachable from any enabled-policy path (verified via both AST + runtime mock per T023.1)
 
 ## Risks & Reviewer Guidance
 

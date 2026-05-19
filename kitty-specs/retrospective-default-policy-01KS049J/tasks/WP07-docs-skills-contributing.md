@@ -40,6 +40,8 @@ owned_files:
 - docs/reference/cli-commands.md
 - docs/reference/slash-commands.md
 - docs/tutorials/your-first-feature.md
+- docs/tutorials/charter-governed-workflow.md
+- docs/migration/from-charter-2x.md
 - README.md
 - CONTRIBUTING.md
 - src/doctrine/skills/spec-kitty-mission-review/SKILL.md
@@ -76,7 +78,7 @@ PR #1136 ("Clarify accept, merge, and retrospective workflow") shipped wording t
 - `backfill` authors historical records.
 - `synthesize` previews/applies proposals from an existing record.
 
-The canonical post-merge sequence (FR-019) is: **mission review → create/capture retrospective → summary or synthesize**.
+The canonical post-merge sequence (FR-019) is: **mission review → author or verify retrospective (`retrospect create`) → surface findings (`summary` aggregates; `synthesize` reviews proposals)**.
 
 References:
 - Operator quickstart: [quickstart.md](../quickstart.md)
@@ -130,7 +132,7 @@ References:
 2. Replace the post-merge guidance section (whatever its current heading) with the canonical sequence:
    > **After merge, before declaring the mission done**:
    > 1. **Mission review** — run `spec-kitty agent mission review --mission <handle>` to confirm spec→code fidelity and FR coverage.
-   > 2. **Capture the retrospective** — under default policy this already happened during merge; verify with `cat .kittify/missions/<mission_id>/retrospective.yaml`. If absent (e.g. older mission), run `spec-kitty retrospect create --mission <handle>`.
+   > 2. **Author or verify the retrospective** — under default policy this already happened during merge; verify with `cat .kittify/missions/<mission_id>/retrospective.yaml`. If absent (e.g. older mission), author with `spec-kitty retrospect create --mission <handle>`. (Reserve the noun "capture" for the event-log fact `RetrospectiveCaptured`, not for the operator verb.)
    > 3. **Surface findings** — run `spec-kitty retrospect summary` to aggregate across recent missions, or `spec-kitty agent retrospect synthesize --mission <handle> --preview` to inspect proposals in one record.
 3. Cross-link to `docs/how-to/use-retrospective-learning.md` (T035) for full details.
 4. Both files must speak the same canonical sequence (FR-019).
@@ -171,22 +173,27 @@ References:
 
 ---
 
-### T038 — `README.md` + `docs/tutorials/your-first-feature.md`
+### T038 — `README.md` + `docs/tutorials/your-first-feature.md` + governed-workflow / migration docs
 
-**Purpose**: First-touch surfaces for new users.
+**Purpose**: First-touch surfaces for new users, plus the two governed-workflow / migration docs that occurrence_map.yaml re-classified from `audit` to `reframe` (Reviewer Renata F17).
 
 **Steps**:
 
 1. `README.md`: locate the retrospective blurb (if absent, add a brief one in the feature highlights section). Two sentences: "Every completed mission generates a retrospective by default. Tune via `.kittify/config.yaml#retrospective` or charter; see [how-to](docs/how-to/use-retrospective-learning.md)."
 2. `docs/tutorials/your-first-feature.md`: at the end-of-tutorial wrap-up, add a one-paragraph note pointing users at where the retrospective record landed and how to inspect it.
+3. `docs/tutorials/charter-governed-workflow.md`: replace any references to strict-mode env vars (`SPEC_KITTY_MODE=autonomous`) with the durable charter equivalent (`retrospective.timing: before_completion + retrospective.failure_policy: block` in charter frontmatter or `.kittify/config.yaml`). Per shape A's deprecation framing.
+4. `docs/migration/from-charter-2x.md`: update any retrospective env-var references to the durable replacements. If the doc covers 2.x→3.x migration that is now obsolete, add a forward-pointer to `docs/how-to/use-retrospective-learning.md`.
 
 **Files**:
 - `README.md` (edit, ~5 lines)
 - `docs/tutorials/your-first-feature.md` (edit, ~15 lines added)
+- `docs/tutorials/charter-governed-workflow.md` (edit, ~10 lines)
+- `docs/migration/from-charter-2x.md` (edit, ~8 lines)
 
 **Validation**:
 - [ ] README's retrospective blurb under 50 words
 - [ ] Tutorial mentions the record location in `.kittify/missions/<mission_id>/retrospective.yaml`
+- [ ] `grep -nE "SPEC_KITTY_(RETROSPECTIVE|MODE)" docs/tutorials/charter-governed-workflow.md docs/migration/from-charter-2x.md` returns either no hits OR only hits inside an explicitly-labeled "deprecated env var (compatibility shim)" block
 
 ---
 
@@ -202,7 +209,7 @@ References:
    - `src/doctrine/skills/spec-kitty-program-orchestrate/SKILL.md`
    - `src/doctrine/skills/spec-kitty-runtime-next/SKILL.md`
 
-   audit the post-merge / mission-completion guidance. Replace any text that conflates `summary` or `synthesize` with authoring. Insert the canonical sequence: "mission review → create/capture retrospective → summary or synthesize".
+   audit the post-merge / mission-completion guidance. Replace any text that conflates `summary` or `synthesize` with authoring. Insert the canonical sequence: "mission review → author or verify retrospective (`retrospect create`) → surface findings (`summary` aggregates; `synthesize` reviews proposals)".
 
 2. Each skill file's edit is small (5-15 lines) but cumulative. Use `grep` to find every reference:
    ```bash

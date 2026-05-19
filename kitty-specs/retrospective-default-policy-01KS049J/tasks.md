@@ -362,7 +362,7 @@ T030, T031, T032, T033 are different concerns and parallelizable. T034 (tests) p
 
 1. Each doc edit replaces the "summary captures retrospective learning" framing with the four-category canonical narrative: `summary` aggregates → `create` authors → `backfill` historical-authors → `synthesize` previews/applies proposals from an existing record.
 2. PR #1136 wording lives in `docs/how-to/accept-and-merge.md` — update in place; reference `quickstart.md` from this mission for examples.
-3. Skill files: edit the post-merge guidance to say "mission review → create/capture retrospective → summary/synthesize" in that order.
+3. Skill files: edit the post-merge guidance to say "mission review → author or verify retrospective (`retrospect create`) → surface findings (`summary` aggregates; `synthesize` reviews proposals)" in that order. Reserve the noun "capture" for the event-log fact (`RetrospectiveCaptured`), not the operator verb.
 4. `retrospective-facilitator.agent.yaml`: re-read against FR-001 (policy resolver) and FR-010 (no auto-application of structural changes). Adjust permission flags or boundary text only if real drift exists; do not rewrite the profile structurally.
 5. CONTRIBUTING.md: append the diagnostic per [research.md R-7 and #1137 closing comment]:
 
@@ -388,17 +388,24 @@ All seven subtasks touch different files — fully parallelizable.
 
 ---
 
-## Phasing & Lane Estimate
+## Phasing & Lane Structure
 
-Computed lanes will land at finalize-tasks time via `lanes.json`. Expected shape based on owned-files non-overlap:
+Computed lanes land at finalize-tasks time via `lanes.json`. After this mission's first finalize pass, the actual result is a **single lane `lane-a`** containing all 7 WPs, collapsed by the dependency-rule collapser. Reason: every WP transitively depends on WP01 (via the resolver surface), so the lane computer fuses the entire chain into one execution worktree.
 
-- **Lane A** (foundation): WP01 → WP02 → WP03 in sequence; all touch `src/specify_cli/retrospective/`.
-- **Lane B** (runtime): WP04 — touches `src/specify_cli/next/`; starts after Lane A merges.
-- **Lane C** (CLI): WP05 — touches `src/specify_cli/cli/commands/`; starts after Lane A merges.
-- **Lane D** (deprecation): WP06 — touches `src/specify_cli/retrospective/config.py`+`mode.py` (which Lane A does NOT touch); can run in parallel with Lanes B/C after WP01.
-- **Lane E** (docs): WP07 — touches `docs/`, `README.md`, `CONTRIBUTING.md`, `src/doctrine/skills/`; starts after Lanes B+C merge.
+Implication: this mission executes **serially** in `.worktrees/<mission-slug>-lane-a` — one WP at a time, no cross-WP parallelism. Within a single WP, the `[P]` markers in the Subtask Index still indicate parallelism opportunities (e.g. multiple unrelated docs in WP07), but those are sequential subtask choices for one agent, not multi-agent dispatch.
 
-Three concurrent lanes (B, C, D) after Lane A. Lane E last.
+Sequence (by parsed dependency graph):
+
+1. WP01 (foundation) →
+2. WP02 (depends on WP01) →
+3. WP03 (depends on WP02) →
+4. WP04 (depends on WP01, WP02, WP03) →
+5. WP05 (depends on WP02, WP03) — could in principle run alongside WP04, but lane collapse keeps them serial →
+6. WP06 (depends on WP01) — same; lane collapse keeps it serial →
+7. WP07 (depends on WP04, WP05) →
+8. Mission review.
+
+An operator who wants real parallelism after the foundation lands can re-finalize with explicit `--no-collapse` (if such a flag exists) or split the mission post-merge. As written, the safer choice is to honor the collapser's output.
 
 ## Bulk-Edit Plan (FR-022)
 

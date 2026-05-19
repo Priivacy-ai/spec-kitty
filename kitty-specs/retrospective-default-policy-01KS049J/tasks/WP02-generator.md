@@ -261,6 +261,7 @@ The generator architecture decision is recorded in [DM-01KS051316C8Z0SDEKZ2B088C
 - [ ] Coverage on `src/specify_cli/retrospective/generator.py` ≥ 90%
 - [ ] `uv run ruff check src/specify_cli/retrospective/ tests/retrospective/` exits 0
 - [ ] Wall-clock under 2.0s on the largest fixture (NFR-005)
+- [ ] **No env-var mutation in this WP's owned tests**: `grep -nE "monkeypatch\.setenv.*SPEC_KITTY_(RETROSPECTIVE|MODE)|os\.environ\[.*SPEC_KITTY_(RETROSPECTIVE|MODE)" tests/retrospective/test_generator.py` returns no hits (FR-016 enforcement)
 - [ ] Public exports added to `src/specify_cli/retrospective/__init__.py`: `RetrospectiveRecord`, `generate_retrospective`, `GENERATOR_VERSION`
 - [ ] No edits outside `owned_files`
 

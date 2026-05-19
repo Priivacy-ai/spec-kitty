@@ -7,9 +7,9 @@ This contract specifies the new (or extended) retrospective lifecycle event payl
 
 ## Reuse vs new
 
-Per [research.md R-3](../research.md#r-3--existing-event-type-coverage), implementation MUST first check whether `spec_kitty_events` (consumed via the FR-024 frozen public surface) already exposes a retrospective-capture event. If yes, reuse with additive `policy_source` attribution. If no, the new types below land in the local emit path under `specify_cli.status` infrastructure.
+Per [research.md R-3](../research.md#r-3--existing-event-type-coverage), implementation MUST first check whether `spec_kitty_events` (consumed via the FR-024 frozen public surface) already exposes the retrospective lifecycle events. If yes, reuse with additive `policy_source` attribution. If no, the three canonical event types below (`RetrospectiveCaptured`, `RetrospectiveCaptureFailed`, `RetrospectiveSkipped`) land in the local emit path under `specify_cli.status` infrastructure.
 
-The contracts below specify the canonical payloads regardless of whether the event-type name is new or reused; the reduction shape is identical.
+The contracts below specify the canonical payloads regardless of whether the event-type name is new or reused; the reduction shape is identical. All three types are canonical at the time this mission ships — there is no "provisional" event in this contract.
 
 ## Common envelope
 
@@ -134,13 +134,64 @@ Fired when generation is attempted under `failure_policy: warn` and fails. Does 
 - Subsequent `RetrospectiveCaptured` for the same mission supersedes prior `RetrospectiveCaptureFailed` for read-purposes (summary's `failed` lane is "most recent Failed not followed by a Captured").
 - Reducer impact identical to `RetrospectiveCaptured` — no lane transition.
 
+## `RetrospectiveSkipped`
+
+Fired when the strict gate (`timing: before_completion + failure_policy: block`) is bypassed via `--skip-retrospective` on the completing command. Records actor, reason, and resolved policy source so the bypass is auditable. Does NOT fire under default policy (no gate; nothing to skip) or under `enabled: false` (no policy; nothing to skip).
+
+### Payload (event-specific fields)
+
+| Field | Type | Description |
+|---|---|---|
+| `skip_reason` | `string` | Free-form operator reason. MUST be non-empty; CLI rejects `--skip-retrospective` without a reason. |
+| `skip_reason_source` | `enum{cli_flag, config_flag, ci_environment}` | Where the reason came from. `cli_flag` for `--skip-retrospective="<reason>"`; `config_flag` for a `.kittify/config.yaml` operator override (not in scope this release); `ci_environment` reserved for future CI annotations. |
+| `policy_source` | `dict[str,str]` | Resolver source-map snapshot. Identifies which charter or config keys made the gate strict (and therefore worth skipping). |
+| `bypassed_provenance_kind` | `enum{runtime_strict_gate}` | The provenance kind the attempt would have carried had it not been skipped. Today this is always `runtime_strict_gate` (the only path that can be skipped). |
+| `would_have_attempted` | `bool` | `true` when the runtime had loaded the policy and was about to dispatch the generator. Always `true` today; reserved for future "skip before resolve" paths. |
+
+### Example
+
+```json
+{
+  "type": "RetrospectiveSkipped",
+  "schema_version": 1,
+  "event_id": "01KS06EXAMPLESKIPPEDXYZABC",
+  "lamport": 144,
+  "at": "2026-05-19T13:02:00+00:00",
+  "actor": {"kind": "human", "id": "robert@spec-kitty.ai", "display": "Robert Douglass"},
+  "mission_id": "01J6XW9KQT7M0YB3N4R5CQZ2EX",
+  "mission_slug": "my-feature-01J6XW9K",
+  "wp_id": null,
+  "force": false,
+  "execution_mode": "main",
+  "skip_reason": "Strict gate blocking on missing mission-review-report.md; merge needed for release window. Will author retrospective post-merge via `spec-kitty retrospect create`.",
+  "skip_reason_source": "cli_flag",
+  "policy_source": {
+    "enabled": ".kittify/charter/charter.md:retrospective.enabled",
+    "timing": ".kittify/charter/charter.md:retrospective.timing",
+    "failure_policy": ".kittify/charter/charter.md:retrospective.failure_policy"
+  },
+  "bypassed_provenance_kind": "runtime_strict_gate",
+  "would_have_attempted": true
+}
+```
+
+### Invariants
+
+- `RetrospectiveSkipped` MUST be emitted ONLY under strict policy paths (`timing: before_completion + failure_policy: block` AND `enabled: true`). Emission under any other policy combination is a runtime bug.
+- `skip_reason` is non-empty. CLI flag accepts `--skip-retrospective="<reason>"` form (or interactive prompt if invoked without a reason in TTY mode); rejects empty.
+- Followed eventually by either:
+  - a successful `RetrospectiveCaptured` event from a later `spec-kitty retrospect create --mission <handle>` invocation, OR
+  - operator-recorded acceptance that no retrospective will be authored for this mission (out of band).
+- Reducer impact identical to the other two event types — no lane transition, additive top-level snapshot key only (`retrospective.last_skipped_at`).
+- The emitted `MissionCompleted` event MUST appear AFTER `RetrospectiveSkipped` in the event log (by lamport). Verified by WP04 integration tests.
+
 ## Reduction guarantees (FR-021)
 
 For every mission's `status.events.jsonl` file:
 
 - The lane-state reduction (current lane of each WP, mission lifecycle phase) MUST be byte-identical before and after this mission, when the file contains only pre-existing event types.
-- Adding the new retrospective event types is additive; the reducer MUST treat unknown-to-it event types as no-ops for lane reduction and pass them through for read-purposes.
-- Materialized snapshots (`status.json`, lifecycle views) MAY gain new top-level keys reflecting retrospective state (e.g. `retrospective.last_captured_at`, `retrospective.last_failed_at`), but MUST NOT mutate keys that pre-date this mission.
+- Adding the three new retrospective event types is additive; the reducer MUST treat unknown-to-it event types as no-ops for lane reduction and pass them through for read-purposes.
+- Materialized snapshots (`status.json`, lifecycle views) MAY gain new top-level keys reflecting retrospective state (e.g. `retrospective.last_captured_at`, `retrospective.last_failed_at`, `retrospective.last_skipped_at`), but MUST NOT mutate keys that pre-date this mission.
 
 ## Schema test obligations
 

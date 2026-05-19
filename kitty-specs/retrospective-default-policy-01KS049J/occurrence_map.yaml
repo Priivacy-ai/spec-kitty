@@ -97,28 +97,50 @@ shape_a_env_var_deprecation:
         text: "SPEC_KITTY_MODE is a test/dev override only and will be removed. Set retrospective.timing and retrospective.failure_policy in .kittify/config.yaml or charter frontmatter instead."
         notes: Same delivery as above.
     tests_fixtures:
+      # Pre-existing test files outside any WP's owned_files. Per the
+      # bulk-edit gate tolerance documented at the bottom of this file,
+      # these `audit→keep-or-refactor` items are resolved during their
+      # respective WP's implementation; the gate does NOT require a
+      # diff for an audit-keep outcome. WP06 (T032) refactors env-mutating
+      # pre-existing tests opportunistically; WP04 (T023) decides whether
+      # any of these integration tests are superseded by the new
+      # tests/integration/retrospective/ suite it creates.
       - path: tests/retrospective/test_config_opt_in.py
         action: audit
-        notes: Pre-existing test of env-var-driven config. WP06 T032 refactors to prefer injected RetrospectivePolicy; tests that exercise env-var deprecation pathway move to test_env_deprecation.py.
+        gate_tolerance: keep-or-refactor
+        notes: Pre-existing env-var-driven test. Resolution at WP06 T032 — either refactor to inject policy (preferred), or supersede + delete + cover the case in test_env_deprecation.py. Decision documented in WP06 commit.
       - path: tests/retrospective/test_mode_detection.py
         action: audit
-        notes: Pre-existing test of env-var-driven mode. Same refactor path as test_config_opt_in.py.
+        gate_tolerance: keep-or-refactor
+        notes: Same as test_config_opt_in.py.
       - path: tests/integration/retrospective/conftest.py
         action: audit
-        notes: Shared fixtures for integration tests. Audit for env-var mutations; refactor to inject RetrospectivePolicy directly per FR-016.
+        gate_tolerance: keep-or-refactor
+        notes: Shared fixtures. WP04 T023 decides whether to extend (preferred — additive) or replace. If the new tests/integration/retrospective/ test suite shares this conftest, env-mutation in it gets refactored as part of WP04. If WP04 introduces a parallel suite, this stays as-is.
       - path: tests/integration/retrospective/test_lifecycle_hook.py
         action: audit
-        notes: Currently uses SPEC_KITTY_MODE. Refactor per FR-016.
+        gate_tolerance: keep-or-supersede
+        notes: WP04 T023 may supersede this with `tests/integration/retrospective/test_strict_flow_block.py` and `test_strict_flow_skip.py`. If superseded, delete-with-rationale. If kept, refactor env-mutation per FR-016 in the same WP.
       - path: tests/integration/retrospective/test_hic_terminus_e2e.py
         action: audit
+        gate_tolerance: keep-or-supersede
+        notes: Decision at WP04 review. Likely superseded by `test_default_flow_healthy.py` / `test_default_flow_generator_failure.py`.
       - path: tests/integration/retrospective/test_autonomous_terminus_e2e.py
         action: audit
+        gate_tolerance: keep-or-supersede
+        notes: Likely superseded by `test_strict_flow_*.py`. Decision at WP04 review.
       - path: tests/integration/retrospective/test_next_mission_sees_change.py
         action: audit
+        gate_tolerance: keep
+        notes: Unrelated to the env-var deprecation; keep unless WP04 finds it duplicates new coverage.
       - path: tests/integration/retrospective/test_silent_auto_run_blocked.py
         action: audit
+        gate_tolerance: keep-or-refactor
+        notes: Tests the legacy silent-fabrication path. After WP05 T028 lands the default-error change, this test's premise is invalid — refactor to assert the new error code OR delete with rationale. Decision at WP05 review.
       - path: tests/integration/retrospective/test_silent_skip_blocked.py
         action: audit
+        gate_tolerance: keep-or-refactor
+        notes: Same as test_silent_auto_run_blocked.py.
       - path: tests/retrospective/test_env_deprecation.py
         action: add
         notes: New dedicated module (WP06 T034) for env-var deprecation behavior — one-warn-per-process, durable-wins, suppression flag.
@@ -226,14 +248,21 @@ shape_b_doc_semantics_correction:
         action: reframe
         notes: T038 — adds tutorial wrap-up pointing at the retrospective.yaml record.
       - source: docs/tutorials/charter-governed-workflow.md
-        action: audit
-        notes: May reference strict-mode env vars; refactor to charter `retrospective.timing: before_completion` per shape A. Coordinate with WP07.
+        action: reframe
+        owned_by: WP07
+        notes: References strict-mode env vars per the grep. Refactor to charter `retrospective.timing: before_completion + failure_policy: block` per shape A. This file is added to WP07's owned_files (see Note 2 below).
+      - source: docs/migration/from-charter-2x.md
+        action: reframe
+        owned_by: WP07
+        notes: Migration doc that references retrospective env vars. Update to durable charter/config keys. Added to WP07's owned_files.
       - source: docs/tutorials/claude-code-integration.md
         action: audit
+        gate_tolerance: keep-or-light-edit
+        notes: Grep showed retrospective phrases; may be passing mention only. WP07 decides at review — if a light edit is needed, add to owned_files at that point.
       - source: docs/tutorials/claude-code-workflow.md
         action: audit
-      - source: docs/migration/from-charter-2x.md
-        action: audit
+        gate_tolerance: keep-or-light-edit
+        notes: Same as claude-code-integration.md.
       - source: docs/3x/index.md
         action: audit
         notes: 3.x landing page. Audit for accurate retrospective summary.
@@ -297,19 +326,43 @@ shape_b_doc_semantics_correction:
 # ============================================================================
 # Bulk-Edit Gate Validation Notes
 # ============================================================================
-# The implement-review loop validates that every occurrence with action
-# `reframe`, `add`, or `remove` has a corresponding diff in the WP that owns
-# the file. Occurrences with `audit` action are inspected during the WP and
-# resolved to a final action in the WP's commit notes — no blanket rule
-# applies.
+# Note 1 — Action semantics
+#   The implement-review loop validates that every occurrence with action
+#   `reframe`, `add`, or `remove` has a corresponding diff in the WP that
+#   owns the file. Occurrences with `audit` action carry an explicit
+#   `gate_tolerance` value:
+#     - keep                  audit-and-leave-untouched is acceptable; no diff required
+#     - keep-or-refactor      audit may resolve to either keep or refactor; either is acceptable
+#     - keep-or-supersede     audit may resolve to keep, or to delete-with-rationale; either is acceptable
+#     - keep-or-light-edit    audit may resolve to no-change or a minor edit; if edit, add to owned_files
+#     (no value)              defaults to "keep" — no diff required
+#   The bulk-edit gate at mission review accepts any of these resolutions
+#   for `audit` items as compliant with FR-022.
 #
-# Cross-WP coordination:
+# Note 2 — owned_files expansion for re-classified items
+#   Two shape-B `audit` items were re-classified to `reframe` after
+#   Reviewer Renata's pre-implementation review (Finding 17): the tutorial
+#   `docs/tutorials/charter-governed-workflow.md` and the migration doc
+#   `docs/migration/from-charter-2x.md`. These ARE owned by WP07 — see
+#   `owned_by: WP07` on each. WP07's frontmatter `owned_files` lists them
+#   explicitly. Other tutorial files remain `audit` with gate_tolerance
+#   keep-or-light-edit; if WP07's implementer decides to edit them, that
+#   WP review should expand owned_files in the same PR.
+#
+# Note 3 — Cross-WP coordination
 #   - Shape A (env-var) ownership runs through WP06. WP06's test refactor
-#     (T032) is a cross-cutting concern; other WPs whose tests touch env
-#     vars opportunistically refactor as they implement.
+#     (T032) is a cross-cutting concern; pre-existing env-mutating tests
+#     in tests/retrospective/ and tests/integration/retrospective/ are
+#     audit items here. WP04/WP06 implementers decide each one's fate at
+#     implementation time and record the decision in their commit notes.
+#     Each affected WP's DoD includes a grep-based gate that no NEW
+#     env-mutation appears in its owned tests (FR-016 enforcement).
 #   - Shape B (doc semantics) ownership runs through WP07. The 4 shipped
 #     skills regenerate snapshot tests on first edit.
 #
-# `spec-kitty agent mission finalize-tasks --validate-only` ran clean on
-# commit `5f2a94d8`. This occurrence_map.yaml is the second-pass artifact
-# capturing the bulk-edit shape catalog per FR-022.
+# Note 4 — Provenance
+#   `spec-kitty agent mission finalize-tasks --validate-only` ran clean on
+#   commit `5f2a94d8`. This occurrence_map.yaml is the second-pass
+#   artifact capturing the bulk-edit shape catalog per FR-022. Renata's
+#   pre-implementation review surfaced the audit-tolerance question and
+#   the WP07 owned_files expansion; both addressed in this revision.
