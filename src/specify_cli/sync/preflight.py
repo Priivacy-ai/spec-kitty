@@ -547,9 +547,15 @@ def _build_mismatches(
     daemon_team_or_user = _daemon_team_or_user(record)
 
     # (canonical_field, foreground_value, daemon_value)
+    daemon_executable_path: Path = Path(record.executable_path)
+    try:
+        daemon_executable_path = daemon_executable_path.resolve()
+    except (OSError, RuntimeError):
+        pass
+
     comparisons: list[tuple[MismatchField, object, object]] = [
         ("daemon_package_version", foreground.package_version, record.package_version),
-        ("daemon_executable_path", foreground.executable_path, Path(record.executable_path)),
+        ("daemon_executable_path", foreground.executable_path, daemon_executable_path),
         ("daemon_source_path", foreground.source_path, Path(record.source_checkout_path)),
         ("daemon_server_url", foreground.server_url, record.server_url or None),
         ("daemon_team_or_user", foreground.team_or_user, daemon_team_or_user),

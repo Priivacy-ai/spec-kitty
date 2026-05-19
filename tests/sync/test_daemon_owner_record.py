@@ -240,6 +240,25 @@ def test_mismatched_fields_returns_empty_when_aligned(_scoped_home: Path) -> Non
     assert mismatched_fields(record, fg) == []
 
 
+def test_mismatched_fields_normalizes_executable_symlink(
+    _scoped_home: Path, tmp_path: Path
+) -> None:
+    """pipx-style executable symlinks should not create split-brain mismatches."""
+    from specify_cli.sync.owner import mismatched_fields
+
+    symlink = tmp_path / Path(sys.executable).name
+    try:
+        symlink.symlink_to(Path(sys.executable))
+    except OSError as exc:
+        pytest.skip(f"symlink unavailable on this platform: {exc}")
+
+    record = _build_record(executable_path=str(symlink))
+    fg = _fg_from_record(record)
+    fg["executable_path"] = str(Path(sys.executable).resolve())
+
+    assert mismatched_fields(record, fg) == []
+
+
 @pytest.mark.parametrize(
     "field, mutated_value",
     [

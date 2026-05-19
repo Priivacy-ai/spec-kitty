@@ -66,7 +66,7 @@ class DaemonOwnerRecord:
     - ``port``: TCP port the daemon listens on (127.0.0.1).
     - ``token``: control-plane bearer token (NEVER serialised to clients).
     - ``package_version``: ``importlib.metadata`` version of ``spec-kitty-cli``.
-    - ``executable_path``: ``sys.executable`` of the daemon process.
+    - ``executable_path``: resolved ``sys.executable`` of the daemon process.
     - ``source_checkout_path``: repo root of the installed package (the same
       algorithm is used on the foreground side so the strings compare cleanly).
     - ``server_url``: SaaS server URL configured for this scope.
@@ -294,7 +294,7 @@ def compute_foreground_identity() -> dict[str, Any]:
 
     return {
         "package_version": _get_package_version(),
-        "executable_path": sys.executable,
+        "executable_path": str(Path(sys.executable).resolve()),
         "source_checkout_path": _resolve_source_checkout_path(),
         "server_url": _read_server_url_for_scope(),
         "auth_principal": auth_principal,
@@ -334,6 +334,12 @@ def mismatched_fields(
     for field in MISMATCH_FIELDS:
         daemon_value = getattr(daemon_record, field)
         fg_value = foreground_identity.get(field)
+        if field == "executable_path":
+            try:
+                daemon_value = str(Path(str(daemon_value)).resolve())
+                fg_value = str(Path(str(fg_value)).resolve())
+            except (OSError, RuntimeError):
+                pass
         if daemon_value != fg_value:
             out.append(field)
     return out

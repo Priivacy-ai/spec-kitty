@@ -399,6 +399,26 @@ def test_run_preflight_refuses_on_per_field_mismatch(
     )
 
 
+def test_run_preflight_accepts_daemon_executable_symlink(
+    tmp_path: Path, patched_legacy_counts
+) -> None:
+    """Regression: pipx-installed CLIs may record symlinked ``sys.executable``."""
+    patched_legacy_counts({})
+    symlink = tmp_path / Path(sys.executable).name
+    try:
+        symlink.symlink_to(Path(sys.executable))
+    except OSError as exc:
+        pytest.skip(f"symlink unavailable on this platform: {exc}")
+
+    _write_record(executable_path=str(symlink))
+    foreground = _make_foreground(executable_path=Path(sys.executable).resolve())
+
+    result = run_preflight(repo_root=tmp_path, foreground=foreground, require_auth=True)
+
+    assert result.ok is True
+    assert [m.field for m in result.mismatches] == []
+
+
 def test_canonical_mismatch_field_names_are_exact() -> None:
     """The :class:`MismatchField` Literal carries exactly six canonical names."""
     import typing
