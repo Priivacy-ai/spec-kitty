@@ -290,8 +290,8 @@ class StepContractExecutor:
             if directive_node is not None and directive_node.kind == node_kind:
                 return directive_urn
 
-        matches = [
-            node.urn
+        matches: list[str] = [
+            str(node.urn)
             for node in graph.nodes
             if node.kind == node_kind and node.urn.split(":", 1)[1] == candidate
         ]
