@@ -215,12 +215,12 @@ T013 (writer) and T015 (events) can run in parallel — different files. T016 (f
 
 ### Included subtasks
 
-- [ ] T018 Replace `facilitator_callback=None` in `next/runtime_bridge.py` with real generator + policy wiring (FR-005) (WP04)
-- [ ] T019 Implement default post-completion flow: attempt → write+Captured event on success, warn+Failed event on failure (FR-008) (WP04)
-- [ ] T020 Implement strict pre-completion gate: block with policy_source citation; `--skip-retrospective` bypass with actor/provenance (FR-009) (WP04)
-- [ ] T021 Wire `policy_source` attribution on every emitted retrospective event (FR-001) (WP04)
-- [ ] T022 Anchor gate-evaluation point at canonical "mission completion" per data-model.md (immediately before `MissionCompleted` emit) (WP04)
-- [ ] T023 Wiring + integration tests under `tests/next/test_retrospective_terminus_wiring.py` and `tests/integration/retrospective/` (FR-005/008/009) (WP04)
+- [x] T018 Replace `facilitator_callback=None` in `next/runtime_bridge.py` with real generator + policy wiring (FR-005) (WP04)
+- [x] T019 Implement default post-completion flow: attempt → write+Captured event on success, warn+Failed event on failure (FR-008) (WP04)
+- [x] T020 Implement strict pre-completion gate: block with policy_source citation; `--skip-retrospective` bypass with actor/provenance (FR-009) (WP04)
+- [x] T021 Wire `policy_source` attribution on every emitted retrospective event (FR-001) (WP04)
+- [x] T022 Anchor gate-evaluation point at canonical "mission completion" per data-model.md (immediately before `MissionCompleted` emit) (WP04)
+- [x] T023 Wiring + integration tests under `tests/next/test_retrospective_terminus_wiring.py` and `tests/integration/retrospective/` (FR-005/008/009) (WP04)
 
 ### Implementation sketch
 
