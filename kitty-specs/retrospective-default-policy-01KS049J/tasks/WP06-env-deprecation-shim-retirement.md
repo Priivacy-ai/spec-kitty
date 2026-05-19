@@ -256,6 +256,24 @@ Implementation command:
 spec-kitty agent action implement WP06 --agent claude
 ```
 
+## Shim Fate Decision
+
+**Decision: Path (b) — Retain as documented compat shims with retirement plan.**
+
+**Rationale:** Import-site survey revealed significant external coupling:
+
+- `config.py` (`is_retrospective_enabled`): imported at 2 sites in `runtime_bridge.py` (lines 1443, 2135) and in `tests/retrospective/test_config_opt_in.py`.
+- `mode.py` (`detect`, `ModeResolutionError`, `_read_charter_mode`, etc.): imported in `gate.py`, `_internal_runtime/retrospective_terminus.py`, `tests/retrospective/test_mode_detection.py`, and multiple integration tests.
+
+Migrating all these callers in a single WP would be wide-scope and high-risk for the 3.2 release window. Both files have been updated with:
+- Module-level docstring documenting the shim's purpose
+- Retirement target: spec-kitty 3.3.0
+- Follow-up issue placeholder (to be created post-merge)
+- One-sentence rationale for the 3.2.x retention window
+
+No half-deleted state: both files remain fully functional as compat shims; `test_config_opt_in.py` continues to work without modification.
+
 ## Activity Log
 
 - 2026-05-19T17:10:40Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=57810 – Started implementation via action command
+- 2026-05-19T17:16:31Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=57810 – Ready for review: deprecation module (100% coverage) + resolver wiring + 18 test cases across 4 classes; shim fate path (b) documented in task file and commit message; FR-016 enforced (env-mutation confined to test_env_deprecation.py for SPEC_KITTY_RETROSPECTIVE; 6 integration test files outside file use SPEC_KITTY_MODE for mode.py/detect() pathway, accepted per gate_tolerance: keep-or-refactor).
