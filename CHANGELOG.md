@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0rc15] - 2026-05-19
+
+Ships the Phase 4 canary unblock work landed via PR `#1180`:
+
+- Closes `#1142`: broadens `is_mission_lifecycle_row` in
+  `src/specify_cli/audit/shape_registry.py` to accept all four canonical
+  aggregate types (`Project`, `Mission`, `WorkPackage`, `MissionDossier`)
+  rather than `Mission` alone. Fresh missions no longer trip the
+  `FORBIDDEN_KEY` TeamSpace gate when `sync now` runs.
+- Closes `#1141`: adds a diagnostic breadcrumb at `fire_saas_fanout` entry in
+  `src/specify_cli/status/adapters.py` plus regression coverage that the
+  backward `in_review → planned` rollback reaches fanout with the expected
+  shape. **Note**: this is a diagnostic landing, not the full root-cause fix
+  — the silent replacement that the canary scenario 4 peek catches likely
+  lives downstream in `OfflineQueue.queue_event` and is expected to be
+  chased on a follow-up RC if it reproduces.
+- Bundles the +30 targeted audit / status-emit-sequence tests from `#1180`.
+
 ## [3.2.0rc14] - 2026-05-19
 
 Ships the next 3.2 release candidate after the doctrine/charter and
