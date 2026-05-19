@@ -22,6 +22,19 @@ from specify_cli.migration.schema_version import MAX_SUPPORTED_SCHEMA, SCHEMA_CA
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
+@pytest.fixture(autouse=True)
+def _disable_saas_sync_for_e2e_tests(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Disable hosted sync preflight for local workflow e2e tests.
+
+    The root conftest enables SPEC_KITTY_ENABLE_SAAS_SYNC=1 so hosted
+    sync/auth coverage stays live in the suites that intentionally exercise
+    it. The tests in this tree drive local CLI workflows in temporary
+    projects without hosted credentials, so the preflight would otherwise
+    fail before the behavior under test runs.
+    """
+    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+
+
 # ---------------------------------------------------------------------------
 # Source-checkout pollution-guard helpers (T002)
 # ---------------------------------------------------------------------------
