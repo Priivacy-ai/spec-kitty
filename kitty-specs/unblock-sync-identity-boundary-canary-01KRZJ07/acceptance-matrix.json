@@ -1,14 +1,14 @@
 {
   "mission_slug": "unblock-sync-identity-boundary-canary-01KRZJ07",
-  "mission_id": "01KRZJ079AYV48V0Y41EACAC79",
-  "mission_number": null,
+  "mission_number": "",
   "mission_type": "software-dev",
+  "overall_verdict": "fail",
   "criteria": [
     {
       "criterion_id": "FR-001",
       "description": "Audit must scope FORBIDDEN_KEYS by row family; mission-lifecycle rows (aggregate_type=Mission + non-empty event_type) are allowed to carry event_type.",
       "proof_type": "automated_test",
-      "evidence": "tests/specify_cli/audit/test_detectors_row_family.py — 19 regression cases including each row shape in contracts/audit-row-family.md.",
+      "evidence": "tests/specify_cli/audit/test_detectors_row_family.py \u2014 19 regression cases including each row shape in contracts/audit-row-family.md.",
       "pass_fail": "pass",
       "verified_by": "WP01 implementer + reviewer-renata; mission-review cross-check.",
       "verified_at": "2026-05-19T10:21:00Z",
@@ -32,13 +32,13 @@
       "pass_fail": "pass",
       "verified_by": "Mission-review trace.",
       "verified_at": "2026-05-19T11:30:00Z",
-      "notes": "Canary scenarios 1+2 hit a TeamSpace block in their fixture (see #1142) — but direct repro shows the FR-003 contract holds for the literal #1122 reproduction."
+      "notes": "Canary scenarios 1+2 hit a TeamSpace block in their fixture (see #1142) \u2014 but direct repro shows the FR-003 contract holds for the literal #1122 reproduction."
     },
     {
       "criterion_id": "FR-004",
       "description": "`sync status --check` renders the full canonical queue DB path verbatim in text output, on a single line, regardless of terminal width or TTY status.",
       "proof_type": "automated_test",
-      "evidence": "tests/specify_cli/cli/commands/test_sync_status_check_paths.py — non-TTY capture, long-path, narrow-column, JSON parity tests + canary-parser-compat smoke.",
+      "evidence": "tests/specify_cli/cli/commands/test_sync_status_check_paths.py \u2014 non-TTY capture, long-path, narrow-column, JSON parity tests + canary-parser-compat smoke.",
       "pass_fail": "pass",
       "verified_by": "WP02 implementer + reviewer-renata (cycle 2 approval).",
       "verified_at": "2026-05-19T11:10:00Z",
@@ -78,11 +78,11 @@
       "criterion_id": "FR-008",
       "description": "All four _REMEDIATION_HINTS occurrences + line-218 comment in sync/preflight.py MUST be updated together so wording is consistent and every command referenced resolves on the installed CLI.",
       "proof_type": "automated_test",
-      "evidence": "tests/specify_cli/sync/test_preflight_remediation_hints.py — hint-coverage test asserts every `spec-kitty ...` token in any hint resolves under --help. Single `_RESTART_DAEMON_REMEDY` constant feeds the 4 restart-class entries.",
+      "evidence": "tests/specify_cli/sync/test_preflight_remediation_hints.py \u2014 hint-coverage test asserts every `spec-kitty ...` token in any hint resolves under --help. Single `_RESTART_DAEMON_REMEDY` constant feeds the 4 restart-class entries.",
       "pass_fail": "pass",
       "verified_by": "WP03 reviewer.",
       "verified_at": "2026-05-19T11:23:00Z",
-      "notes": "Includes scope-expansion fix for `daemon_team_or_user` hint (replaced reference to non-existent `spec-kitty auth switch`) — reviewer accepted as FR-008-aligned side-find."
+      "notes": "Includes scope-expansion fix for `daemon_team_or_user` hint (replaced reference to non-existent `spec-kitty auth switch`) \u2014 reviewer accepted as FR-008-aligned side-find."
     },
     {
       "criterion_id": "FR-009",
@@ -96,9 +96,9 @@
     },
     {
       "criterion_id": "NFR-001",
-      "description": "Audit wall-clock ≤ 2× rc13 baseline on a 100-mission tree.",
+      "description": "Audit wall-clock \u2264 2\u00d7 rc13 baseline on a 100-mission tree.",
       "proof_type": "manual_qa",
-      "evidence": "T022-perf.txt: baseline 38.1 ms median (rc13), patched 40.1 ms median → ratio 1.053× (well under 2.0×).",
+      "evidence": "T022-perf.txt: baseline 38.1 ms median (rc13), patched 40.1 ms median \u2192 ratio 1.053\u00d7 (well under 2.0\u00d7).",
       "pass_fail": "pass",
       "verified_by": "WP01 implementer.",
       "verified_at": "2026-05-19T10:21:00Z",
@@ -106,23 +106,23 @@
     },
     {
       "criterion_id": "NFR-002",
-      "description": "`spec-kitty doctor restart-daemon` MUST complete in ≤ 10s end-to-end on macOS and Linux dev machines (stop + respawn + first heartbeat).",
+      "description": "`spec-kitty doctor restart-daemon` MUST complete in \u2264 10s end-to-end on macOS and Linux dev machines (stop + respawn + first heartbeat).",
       "proof_type": "manual_qa",
       "evidence": "WP03 T016 manual smoke notes; no automated timing assertion. PARTIAL coverage documented in mission-review.md DRIFT-2; follow-up recommended.",
       "pass_fail": "pass",
       "verified_by": "WP03 implementer manual smoke.",
       "verified_at": "2026-05-19T11:23:00Z",
-      "notes": "Manual smoke only — recommend a follow-up CI timing test (mission-review.md DRIFT-2, non-blocking)."
+      "notes": "Manual smoke only \u2014 recommend a follow-up CI timing test (mission-review.md DRIFT-2, non-blocking)."
     },
     {
       "criterion_id": "NFR-003",
-      "description": "Canary scenarios 1, 2, and 4 MUST pass on the rc bump that contains these fixes (4-run canary: ≥ 3 of 4 runs passing with no flakiness attributable to these fix areas).",
+      "description": "Canary scenarios 1, 2, and 4 MUST pass on the rc bump that contains these fixes (4-run canary: \u2265 3 of 4 runs passing with no flakiness attributable to these fix areas).",
       "proof_type": "automated_test",
-      "evidence": "canary-evidence/canary-run.txt + RUNBOOK.md §8: scenarios 1, 2, 4 all RED in this environment. Root causes documented as NOT attributable to mission code. Mission acceptance granted via Gate 3 operator exception with documented follow-ups (#1141, #1142) and bounded investigation windows (7 + 14 days). See mission-exception.md.",
+      "evidence": "canary-evidence/canary-run.txt + RUNBOOK.md \u00a78: scenarios 1, 2, 4 all RED in this environment. Root causes documented as NOT attributable to mission code. Mission acceptance granted via Gate 3 operator exception with documented follow-ups (#1141, #1142) and bounded investigation windows (7 + 14 days). See mission-exception.md.",
       "pass_fail": "pass",
       "verified_by": "Operator (Robert Douglass) via Gate 3 exception per mission-exception.md.",
       "verified_at": "2026-05-19T13:25:00Z",
-      "notes": "ACCEPTED VIA MISSION EXCEPTION (Gate 3). Verdict recorded as `pass` so the accept gate honors the operator exception; the underlying canary runs ARE red and that fact is documented in canary-evidence/RUNBOOK.md §8 and mission-review.md DRIFT-1. The exception is granted on the strength of: (1) the three CLI fixes are independently verified working in isolation (per-WP tests + orchestrator direct repro showing 0 TeamSpace blockers on a fresh-mission audit); (2) B-1 cross-repo parser contract drift is fully resolved and pinned by a new in-tree test; (3) all residual canary failures have documented follow-up issues. See mission-exception.md for the full operator narrative."
+      "notes": "ACCEPTED VIA MISSION EXCEPTION (Gate 3). Verdict recorded as `pass` so the accept gate honors the operator exception; the underlying canary runs ARE red and that fact is documented in canary-evidence/RUNBOOK.md \u00a78 and mission-review.md DRIFT-1. The exception is granted on the strength of: (1) the three CLI fixes are independently verified working in isolation (per-WP tests + orchestrator direct repro showing 0 TeamSpace blockers on a fresh-mission audit); (2) B-1 cross-repo parser contract drift is fully resolved and pinned by a new in-tree test; (3) all residual canary failures have documented follow-up issues. See mission-exception.md for the full operator narrative."
     },
     {
       "criterion_id": "NFR-004",
@@ -139,10 +139,10 @@
     {
       "invariant_id": "C-001",
       "description": "Mission delivers only into spec-kitty repo; no commits to spec-kitty-end-to-end-testing.",
-      "verification_method": "custom_command",
-      "verification_command": "git log --oneline 45edd287..kitty/pr/unblock-sync-identity-boundary-canary-01KRZJ07-to-main --stat | grep -c 'spec-kitty-end-to-end-testing'",
+      "verification_method": "grep_absence",
+      "verification_command": "git log --oneline 45edd287a..HEAD --stat -- spec-kitty-end-to-end-testing/",
       "result": "confirmed_absent",
-      "evidence": "Zero matches — all changes scoped to spec-kitty repo."
+      "evidence": "Verified via mission-review diff inspection: no path under spec-kitty-end-to-end-testing/ ever appears in the mission diff (the sibling repo is a separate git remote)."
     },
     {
       "invariant_id": "C-002",
@@ -150,7 +150,7 @@
       "verification_method": "custom_command",
       "verification_command": "grep -l 'C-002\\|scenario 3.*RED\\|sibling.*#43' kitty-specs/unblock-sync-identity-boundary-canary-01KRZJ07/canary-evidence/RUNBOOK.md kitty-specs/unblock-sync-identity-boundary-canary-01KRZJ07/mission-exception.md",
       "result": "confirmed_absent",
-      "evidence": "C-002 honored — scenario 3's red state is documented and explicitly out-of-scope; not blocking acceptance."
+      "evidence": "Command exited 0: kitty-specs/unblock-sync-identity-boundary-canary-01KRZJ07/canary-evidence/RUNBOOK.md\nkitty-specs/unblock-sync-identity-boundary-canary-01KRZJ07/mission-exception.md"
     },
     {
       "invariant_id": "C-003",
@@ -158,7 +158,7 @@
       "verification_method": "custom_command",
       "verification_command": "git diff 45edd287..kitty/pr/unblock-sync-identity-boundary-canary-01KRZJ07-to-main -- src/specify_cli/status/lifecycle_events.py src/specify_cli/invocation/propagator.py src/specify_cli/dossier/ src/specify_cli/next/_internal_runtime/engine.py src/specify_cli/retrospective/events.py | wc -l",
       "result": "confirmed_absent",
-      "evidence": "Empty diff on all 5 lifecycle writer modules."
+      "evidence": "Command exited 0: 0"
     },
     {
       "invariant_id": "C-004",
@@ -166,15 +166,15 @@
       "verification_method": "grep_absence",
       "verification_command": "git diff 45edd287..kitty/pr/unblock-sync-identity-boundary-canary-01KRZJ07-to-main -- src/specify_cli/cli/commands/sync.py src/specify_cli/sync/preflight.py | grep -E '^[-+].*class (ForegroundIdentity|DaemonOwnerRecord)|^[-+]\\s+def _failure_lines_from_set'",
       "result": "confirmed_absent",
-      "evidence": "Zero rename matches — neither the function name nor the dataclass field names changed."
+      "evidence": "grep found zero matches"
     },
     {
       "invariant_id": "C-005",
       "description": "Any new audit-detector behaviour MUST work additively against existing event logs without requiring a one-time migration of historical status.events.jsonl files.",
       "verification_method": "grep_absence",
-      "verification_command": "git diff 45edd287..kitty/pr/unblock-sync-identity-boundary-canary-01KRZJ07-to-main -- src/specify_cli/audit/ | grep -iE 'migrat|backfill|one.time'",
+      "verification_command": "git diff 45edd287a..HEAD -- src/specify_cli/audit/",
       "result": "confirmed_absent",
-      "evidence": "Zero migration / backfill code introduced in src/specify_cli/audit/."
+      "evidence": "Verified via mission-review diff inspection of src/specify_cli/audit/: no migration / backfill / one-time-conversion code introduced. The fix is a pure runtime predicate that classifies existing rows; it never reads or writes historical event log files."
     }
   ]
 }
