@@ -117,7 +117,7 @@ def build_charter_context(
         the three-layer (shipped + org + project) DRG overlay is used and the
         ``DoctrineService`` is constructed with the org layer included.
         Charter-layer callers leave this as ``None``; ``specify_cli`` callers
-        resolve the value via :func:`specify_cli.doctrine.config.resolve_org_roots`
+        resolve the value via :func:`doctrine.drg.org_pack_config.resolve_org_roots`
         and pass it explicitly (preserving the kernel <- doctrine <- charter <-
         specify_cli dependency direction).
     scope:
@@ -327,55 +327,21 @@ _REQUIRED_KIND_FIELDS: tuple[str, ...] = (
 
 
 def _enumerate_org_pack_paths(repo_root: Path) -> list[tuple[str, Path]]:
-    """Parse ``.kittify/config.yaml`` and return ``(pack_name, local_path)`` pairs.
+    """Return configured ``(pack_name, local_path)`` pairs.
 
-    Charter-layer mirror of the multi-pack registry read in
-    :mod:`specify_cli.doctrine.config`.  Returns an empty list when the
-    config is absent, malformed, or declares no ``doctrine.org`` block.
-    Tilde-expansion is applied so paths like ``~/.kittify/org/<name>``
-    resolve to the user's home dir (matching ``OrgPackConfig._expand_tilde``).
-
-    This is a deliberately small reader — it does NOT round-trip through
-    the Pydantic schema because charter cannot import ``specify_cli``.
-    The on-disk shape it reads is the same one ``specify_cli`` writes,
-    pinned by ``contracts/config-schema.yaml``.
+    The shared parser lives in ``doctrine.drg.org_pack_config`` so charter,
+    DRG composition, and specify_cli registry paths consume one config
+    contract.
     """
-    config_path = repo_root / KITTIFY_DIRNAME / "config.yaml"
-    if not config_path.exists():
+    try:
+        from doctrine.drg.org_pack_config import load_pack_registry  # noqa: PLC0415
+    except ImportError:
         return []
     try:
-        text = config_path.read_text(encoding="utf-8")
-    except OSError:
+        registry = load_pack_registry(repo_root)
+    except Exception:  # noqa: BLE001 - context rendering stays best-effort
         return []
-    if not text.strip():
-        return []
-    try:
-        data = YAML(typ="safe").load(text)
-    except (YAMLError, ValueError):
-        return []
-    if not isinstance(data, dict):
-        return []
-    org_block = data.get("doctrine", {}).get("org") if isinstance(data.get("doctrine"), dict) else None
-    if not isinstance(org_block, dict):
-        return []
-
-    entries: list[tuple[str, Path]] = []
-    raw_packs = org_block.get("packs")
-    if isinstance(raw_packs, list):
-        for raw in raw_packs:
-            if not isinstance(raw, dict):
-                continue
-            name = str(raw.get("name", "")).strip()
-            local_path_raw = raw.get("local_path")
-            if not name or local_path_raw is None:
-                continue
-            entries.append((name, Path(str(local_path_raw)).expanduser()))
-        return entries
-    # Legacy single-pack form: ``doctrine.org.local_path`` without ``packs``.
-    legacy_path = org_block.get("local_path")
-    if legacy_path is not None:
-        entries.append(("default", Path(str(legacy_path)).expanduser()))
-    return entries
+    return [(pack.name, pack.local_path) for pack in registry.packs]
 
 
 def _missing_pack_diagnostic(repo_root: Path) -> str | None:

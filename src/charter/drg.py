@@ -36,11 +36,11 @@ satisfy both surfaces:
   to the Mission B 8-kind plural universe (C-009 binding).
 * ``merge_three_layers`` bridges fragment nodes onto the shipped DRG by
   minting URNs of the form ``<singular_kind>:<id>`` (e.g. ``directive:sox-controls``).
-* Provenance is threaded by attaching a ``source`` sidecar attribute to
+* Provenance is threaded by attaching a ``provenance`` sidecar attribute to
   each merged node/edge. Because the shipped models are frozen
   ``BaseModel`` instances, the merge returns a ``DRGGraph`` whose node /
-  edge objects carry a ``source`` attribute monkey-set after
-  construction; consumers read it with ``getattr(node, 'source', None)``.
+  edge objects carry a ``provenance`` attribute monkey-set after
+  construction; consumers read it with ``getattr(node, 'provenance', None)``.
 
 This matches data-model.md §2's stated provenance semantics
 (``source: built-in | org:<pack> | project``) while honouring the
@@ -54,12 +54,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
-import yaml
 from pydantic import BaseModel
 
 from doctrine.artifact_kinds import ArtifactKind
 from doctrine.drg import load_graph, merge_layers
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from doctrine.drg.org_pack_config import load_pack_registry
 from doctrine.drg.org_pack_loader import (
     OrgDRGFragment,
     OrgPackMissingError,
@@ -201,17 +201,17 @@ def load_org_drg(repo_root: Path) -> list[OrgDRGFragment]:
     Returns one :class:`OrgDRGFragment` per pack in declaration order.
     Layer indices are assigned ``1..N``.
 
-    This function is project-config-aware (charter-domain): it reads
-    ``organisation_packs:`` from ``.kittify/config.yaml`` and resolves each
-    pack's path relative to *repo_root*. Per-pack schema parsing and
-    validation is delegated to
-    :func:`doctrine.drg.org_pack_loader.load_org_pack`.
+    This function is project-config-aware (charter-domain): it reads the
+    shared org-pack registry contract from
+    :func:`doctrine.drg.org_pack_config.load_pack_registry` and resolves each
+    pack's local path relative to *repo_root*. Per-pack schema parsing and
+    validation is delegated to :func:`doctrine.drg.org_pack_loader.load_org_pack`.
 
     Parameters
     ----------
     repo_root:
         Repository root containing ``.kittify/config.yaml``. When the
-        config is absent or has no ``organisation_packs:`` key, the
+        config is absent or has no ``doctrine.org`` pack entries, the
         function returns ``[]`` (NFR-001 backward compatibility — repos
         with no org packs behave identically to today).
 
@@ -224,33 +224,14 @@ def load_org_drg(repo_root: Path) -> list[OrgDRGFragment]:
         When a pack declares ``source: url`` or ``source: package`` —
         only ``local_path`` is shipped in this mission (NEW-1).
     """
-    config_path = repo_root / ".kittify" / "config.yaml"
-    if not config_path.exists():
-        return []
-    raw = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
-    if not isinstance(raw, dict):
-        return []
-    packs_config = raw.get("organisation_packs") or []
-    if not isinstance(packs_config, list):
-        return []
-
+    registry = load_pack_registry(repo_root)
     fragments: list[OrgDRGFragment] = []
-    for layer_index, entry in enumerate(packs_config, start=1):
-        if not isinstance(entry, dict):
-            continue
-        name = entry["name"]
-        source = entry.get("source", "local_path")
-        if source != "local_path":
-            raise NotImplementedError(
-                f"Org pack source {source!r} not yet implemented "
-                f"(see Slice F follow-up tracker for `url` / `package` "
-                f"sources). Use `source: local_path` for now."
-            )
-        configured_path = Path(str(entry["path"])).expanduser()
+    for layer_index, pack in enumerate(registry.packs, start=1):
+        configured_path = pack.local_path
         if not configured_path.is_absolute():
             configured_path = (repo_root / configured_path).resolve()
         # Delegate all per-pack schema parsing to the doctrine layer.
-        fragments.append(load_org_pack(name, configured_path, layer_index))
+        fragments.append(load_org_pack(pack.name, configured_path, layer_index))
     return fragments
 
 

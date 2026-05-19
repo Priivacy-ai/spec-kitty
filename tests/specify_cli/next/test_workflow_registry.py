@@ -136,3 +136,58 @@ def test_valid_workflow_id_slug_accepted():
             "Valid slug 'software-dev-default' MUST NOT be rejected by the "
             "workflow_id validator. Exception: " + str(exc)
         )
+
+
+def test_workflow_sequence_rejects_unreachable_cycle():
+    """A hidden island cycle must not validate just because initial cannot reach it."""
+    import pydantic
+
+    from specify_cli.next._internal_runtime.workflow_schema import WorkflowSequence
+
+    with pytest.raises(pydantic.ValidationError, match="unreachable|cycle"):
+        WorkflowSequence.model_validate(
+            {
+                "workflow_id": "test",
+                "description": "x",
+                "version": 1,
+                "initial": "start",
+                "actions": [
+                    {
+                        "action_name": "start",
+                        "description": "x",
+                        "terminal": True,
+                    },
+                    {"action_name": "a", "description": "x", "next": ["b"]},
+                    {"action_name": "b", "description": "x", "next": ["a"]},
+                ],
+            }
+        )
+
+
+def test_workflow_sequence_rejects_unreachable_action():
+    """Orphan actions are almost certainly authoring mistakes."""
+    import pydantic
+
+    from specify_cli.next._internal_runtime.workflow_schema import WorkflowSequence
+
+    with pytest.raises(pydantic.ValidationError, match="unreachable"):
+        WorkflowSequence.model_validate(
+            {
+                "workflow_id": "test",
+                "description": "x",
+                "version": 1,
+                "initial": "start",
+                "actions": [
+                    {
+                        "action_name": "start",
+                        "description": "x",
+                        "terminal": True,
+                    },
+                    {
+                        "action_name": "orphan",
+                        "description": "x",
+                        "terminal": True,
+                    },
+                ],
+            }
+        )
