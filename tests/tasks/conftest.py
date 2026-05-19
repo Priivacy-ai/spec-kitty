@@ -11,6 +11,7 @@ import pytest
 from ulid import ULID
 
 from specify_cli.lanes.branch_naming import mid8, strip_numeric_prefix
+from tests.conftest import reset_spec_kitty_queue_state
 
 
 @pytest.fixture(autouse=True)
@@ -25,6 +26,22 @@ def _disable_saas_sync_for_tasks_tests(monkeypatch: pytest.MonkeyPatch) -> None:
     test the planning workflow logic — so we disable the gate here.
     """
     monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+
+
+@pytest.fixture(autouse=True)
+def _autoclean_spec_kitty_queue():
+    """Wipe ``~/.spec-kitty/{queue.db,queues,daemon}`` before every test.
+
+    Defense in depth on top of ``_disable_saas_sync_for_tasks_tests``:
+    even if some test re-sets ``SPEC_KITTY_ENABLE_SAAS_SYNC=1`` for its
+    own scope, the queue is empty so the preflight gate (upstream commit
+    ``cc5e1ca9``) cannot refuse on cross-test pollution. Same wipe runs
+    on teardown so tests in this tree do not leak pollution downstream.
+    Mirrors JUnit's ``@Before``/``@After`` reset.
+    """
+    reset_spec_kitty_queue_state()
+    yield
+    reset_spec_kitty_queue_state()
 
 
 def create_mission_fast(project: Path, slug: str, number: int = 1) -> Path:

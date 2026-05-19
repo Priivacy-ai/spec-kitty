@@ -464,18 +464,65 @@ def test_agent_tasks_status_json_strict_with_sync_enabled_isolated(
         f"PYTHONPATH override is not taking effect."
     )
 
-    result = _run_cli_isolated(
-        [
-            "agent",
-            "tasks",
-            "status",
-            "--mission",
-            "private-teamspace-ingress-safeguards-01KQH03Y",
-            "--json",
-        ],
-        env_overrides=env_overrides,
-        cwd=repo,
-    )
+    # `agent tasks status` refuses early on detached HEAD; GitHub's
+    # `actions/checkout` for `pull_request` events checks out the merge
+    # ref in detached state, so the subprocess otherwise exits 1 with
+    # `{"error": "Detached HEAD ..."}` before reaching the sync layer
+    # under test. Symbolically point HEAD at a synthetic branch for the
+    # duration of the subprocess invocation and restore the original
+    # ref afterwards. The git tree itself is unchanged — only the
+    # symbolic ref moves.
+    prior_head = subprocess.run(
+        ["git", "symbolic-ref", "--quiet", "HEAD"],
+        cwd=str(repo),
+        capture_output=True,
+        text=True,
+    ).stdout.strip() or None
+    if prior_head is None:
+        prior_head_sha = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=str(repo),
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        subprocess.run(
+            ["git", "symbolic-ref", "HEAD", "refs/heads/pr-ci-detached-head-temp"],
+            cwd=str(repo),
+            check=True,
+            capture_output=True,
+        )
+    else:
+        prior_head_sha = None
+
+    try:
+        result = _run_cli_isolated(
+            [
+                "agent",
+                "tasks",
+                "status",
+                "--mission",
+                "private-teamspace-ingress-safeguards-01KQH03Y",
+                "--json",
+            ],
+            env_overrides=env_overrides,
+            cwd=repo,
+        )
+    finally:
+        if prior_head_sha is not None:
+            # Restore detached HEAD pointing at the original commit so the
+            # test runner's checkout state is byte-identical to before.
+            subprocess.run(
+                ["git", "symbolic-ref", "--delete", "HEAD"],
+                cwd=str(repo),
+                capture_output=True,
+            )
+            subprocess.run(
+                ["git", "update-ref", "--no-deref", "HEAD", prior_head_sha],
+                cwd=str(repo),
+                check=True,
+                capture_output=True,
+            )
 
     assert result.returncode == 0, (
         "agent tasks status --json must succeed even when sync emits "
