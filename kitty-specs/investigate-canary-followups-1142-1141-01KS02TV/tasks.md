@@ -88,13 +88,13 @@ A reviewer can read the posted #1141 comment, follow its Commands section to the
 
 ### Included subtasks
 
-- [ ] T009 Snapshot issue #1141 body (WP02)
-- [ ] T010 Execute #1141 H4 (fixture state) (WP02)
-- [ ] T011 Execute #1141 H3 (sequencing race) — conditional (WP02)
-- [ ] T012 Execute #1141 H2 (payload shape comparison) — conditional (WP02)
-- [ ] T013 Execute #1141 H1 (CLI regression) — conditional (WP02)
-- [ ] T014 Compose + post #1141 substantive comment with A/B/C recommendation (WP02)
-- [ ] T015 Update `mission-exception.md ## Follow-up` row for #1141 (WP02)
+- [x] T009 Snapshot issue #1141 body (WP02)
+- [x] T010 Execute #1141 H4 (fixture state) (WP02)
+- [x] T011 Execute #1141 H3 (sequencing race) — conditional (WP02)
+- [x] T012 Execute #1141 H2 (payload shape comparison) — conditional (WP02)
+- [x] T013 Execute #1141 H1 (CLI regression) — conditional (WP02)
+- [x] T014 Compose + post #1141 substantive comment with A/B/C recommendation (WP02)
+- [x] T015 Update `mission-exception.md ## Follow-up` row for #1141 (WP02)
 
 ### Implementation sketch
 
