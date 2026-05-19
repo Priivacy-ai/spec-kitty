@@ -523,7 +523,29 @@ def test_upgrade_no_migrations_stamps_missing_schema_version(
         encoding="utf-8",
     )
     monkeypatch.setattr(Path, "cwd", lambda: project_path)
-    monkeypatch.setattr(upgrade_cmd, "_git_status_paths", lambda _rp: set())
+
+    status_calls = {"count": 0}
+
+    def _fake_status(_repo_path: Path) -> set[str]:
+        status_calls["count"] += 1
+        if status_calls["count"] == 1:
+            return set()
+        return {".kittify/metadata.yaml"}
+
+    safe_commit_calls: list[list[str]] = []
+
+    def _fake_safe_commit(
+        *,
+        repo_path: Path,
+        files_to_commit: list[Path],
+        commit_message: str,
+        allow_empty: bool = False,
+    ) -> bool:
+        safe_commit_calls.append([str(path) for path in files_to_commit])
+        return True
+
+    monkeypatch.setattr(upgrade_cmd, "_git_status_paths", _fake_status)
+    monkeypatch.setattr(upgrade_cmd, "safe_commit", _fake_safe_commit)
 
     assert get_project_schema_version(project_path) is None
 
@@ -540,6 +562,8 @@ def test_upgrade_no_migrations_stamps_missing_schema_version(
 
     data = json.loads(capsys.readouterr().out.strip())
     assert data["status"] == "up_to_date"
+    assert data["auto_committed"] is True
+    assert data["auto_commit_paths"] == [".kittify/metadata.yaml"]
 
     metadata = yaml.safe_load(metadata_path.read_text(encoding="utf-8"))
     assert metadata["spec_kitty"]["schema_version"] == REQUIRED_SCHEMA_VERSION
@@ -547,6 +571,7 @@ def test_upgrade_no_migrations_stamps_missing_schema_version(
         get_project_schema_version(project_path),
         REQUIRED_SCHEMA_VERSION,
     ).is_compatible
+    assert safe_commit_calls == [[".kittify/metadata.yaml"]]
 
 
 def test_upgrade_no_migrations_surfaces_teamspace_mission_state_prompt(
