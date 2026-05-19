@@ -188,35 +188,43 @@ def validate_done_evidence(events: list[dict]) -> list[str]:
     return findings
 
 
+def _validate_materialization_files(status_path: Path, events_path: Path) -> list[str] | None:
+    """Return early materialization file findings, or None when both files exist."""
+    if not events_path.exists():
+        if status_path.exists():
+            return ["status.json exists but status.events.jsonl is missing"]
+        return []
+
+    if not status_path.exists():
+        return ["status.events.jsonl exists but status.json is missing (run 'spec-kitty agent status materialize' to generate)"]
+
+    return None
+
+
 def validate_materialization_drift(feature_dir: Path) -> list[str]:
     """Compare status.json on disk vs reducer output from the event log.
 
     Returns findings describing any drift detected. An empty list means
     no drift.
     """
-    from .reducer import SNAPSHOT_FILENAME, reduce
-    from .store import EVENTS_FILENAME, read_events
+    from .reducer import SNAPSHOT_FILENAME, materialize_snapshot
+    from .store import EVENTS_FILENAME
 
     findings: list[str] = []
 
     status_path = feature_dir / SNAPSHOT_FILENAME
     events_path = feature_dir / EVENTS_FILENAME
 
-    if not events_path.exists():
-        if status_path.exists():
-            findings.append("status.json exists but status.events.jsonl is missing")
-        return findings
-
-    if not status_path.exists():
-        findings.append("status.events.jsonl exists but status.json is missing (run 'spec-kitty agent status materialize' to generate)")
-        return findings
+    file_findings = _validate_materialization_files(status_path, events_path)
+    if file_findings is not None:
+        return file_findings
 
     # Read on-disk snapshot
     disk_data = json.loads(status_path.read_text(encoding="utf-8"))
 
-    # Compute expected snapshot from events
-    events = read_events(feature_dir)
-    expected_snapshot = reduce(events)
+    # Compute expected snapshot from all compatible event families.
+    expected_snapshot = materialize_snapshot(feature_dir)
+    expected_data = expected_snapshot.to_dict()
 
     # Compare work_packages and summary (skip materialized_at which is timestamp)
     disk_wps = disk_data.get("work_packages", {})
@@ -237,6 +245,9 @@ def validate_materialization_drift(feature_dir: Path) -> list[str]:
                 findings.append(f"Materialization drift: {wp_id} lane={disk_wp.get('lane')} in status.json but reducer says lane={expected_wp.get('lane')}")
             elif disk_wp != expected_wp:
                 findings.append(f"Materialization drift: {wp_id} state differs between status.json and reducer output")
+
+    if disk_data.get("retrospective") != expected_data.get("retrospective"):
+        findings.append("Materialization drift: retrospective snapshot differs between status.json and reducer output")
 
     # Also check event count and last_event_id
     if disk_data.get("event_count") != expected_snapshot.event_count:

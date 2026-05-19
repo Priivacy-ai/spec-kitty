@@ -1,0 +1,12 @@
+artifact_id: DIRECTIVE_terminus_retrospective_always_on
+source: retrospective
+source_mission_id: 01KS02TVCYPQXQ9DX1Z39SXZ6K
+source_proposal_id: 01KS09AX69Q7VTFXR0M5APNEGC
+source_evidence_event_ids:
+- 01KS088208QV3BAP4G3ZJB42AN
+applied_by:
+  kind: agent
+  id: agent
+  profile_id:
+applied_at: '2026-05-19T14:16:23.278210+00:00'
+re_applied: false
