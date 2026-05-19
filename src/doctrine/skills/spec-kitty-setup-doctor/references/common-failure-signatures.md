@@ -178,7 +178,7 @@ spec-kitty implement WP01
 
 ## 9. Shared Package Import Resolves As Namespace Package
 
-**Symptom:** Pytest collection or CLI startup fails with:
+**Symptom:** Test collection or CLI startup fails with:
 
 ```text
 ImportError: cannot import name 'normalize_event_id' from 'spec_kitty_events' (unknown location)
