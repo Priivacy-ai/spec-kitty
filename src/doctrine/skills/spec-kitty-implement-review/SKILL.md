@@ -195,20 +195,24 @@ The prompt contains all context, acceptance criteria, and review feedback
    The most common review failure is dead code — tests pass but the feature
    is never invoked from the live command path.
 7. Run the project's declared validation command before handoff
-8. **Diff-scoped ruff sweep (MANDATORY before move-task to for_review)**:
-   Catches lint regressions before they reach the cycle-1 reviewer — the WP06
-   cycle-1 `textwrap` F401 in `tests/specify_cli/doctrine/test_missing_pack_policy.py`
-   would have been caught by this step. Scope is the diff only, so the implementer
-   does not drown in pre-existing warnings owned by other WPs.
+8. **Diff-scoped lint sweep (MANDATORY before move-task to for_review)**:
+   Catches lint regressions before they reach the cycle-1 reviewer — unused-import
+   or formatting violations introduced by a WP should be caught here, scoped to the
+   diff only so the implementer does not drown in pre-existing warnings owned by
+   other WPs. Use the project's declared linter (see charter / project README for
+   the configured command and source-file extension).
    ```bash
-   CHANGED_PY=$(git diff --name-only --diff-filter=AMR HEAD | rg '\.py$' || true)
-   if [ -n "$CHANGED_PY" ]; then
-     .venv/bin/ruff check $CHANGED_PY
+   # Replace `<ext>` with the project's source-file extension (e.g. py, ts, rs, go)
+   # and `<lint-command>` with the project's configured linter invocation.
+   CHANGED_SRC=$(git diff --name-only --diff-filter=AMR HEAD | rg '\.<ext>$' || true)
+   if [ -n "$CHANGED_SRC" ]; then
+     <lint-command> $CHANGED_SRC
    fi
    ```
-   - The command MUST exit 0. If it does not, fix or `ruff check --fix` and re-run.
+   - The command MUST exit 0. If it does not, fix or run the linter's autofix mode
+     and re-run.
    - Paste the final command + exit code into the handoff note
-     (e.g. `"ruff diff-scoped check: 0 issues, exit 0"`).
+     (e.g. `"<lint-command> diff-scoped check: 0 issues, exit 0"`).
    - On cycle-N re-implementation, use the WP's planning base instead of `HEAD`:
      `git diff --name-only $(git merge-base HEAD main)`.
 9. Commit: git add -A && git commit -m "feat(WP##): <description>"

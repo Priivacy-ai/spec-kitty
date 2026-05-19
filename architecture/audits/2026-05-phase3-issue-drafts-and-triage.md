@@ -58,7 +58,7 @@ The audit's firefighting analysis (~0.3% of commits after stripping false positi
 #### References
 - Audit: `architecture/audits/2026-05-spec-kitty-caacs.md` — Top findings #1, "Bus factor / knowledge map" section, "DDD ratification notes (architect)"
 - Crosscheck: `architecture/audits/2026-05-822-crosscheck.md` — F1 forward map (zero matches)
-- Doctrine: `src/doctrine/tactics/shipped/analysis/forensic-repository-audit.tactic.yaml`, `src/doctrine/procedures/shipped/legacy-codebase-triage.procedure.yaml`
+- Doctrine: `src/doctrine/tactics/built-in/analysis/forensic-repository-audit.tactic.yaml`, `src/doctrine/procedures/built-in/legacy-codebase-triage.procedure.yaml`
 - Related (WEAK matches in the same risk area): #771 (touches `merge.py`, in the F2 cluster)
 
 ---
@@ -107,7 +107,7 @@ This is a load-bearing seam (the mission state ↔ git worktree transaction). Th
 #### References
 - Audit: `architecture/audits/2026-05-spec-kitty-caacs.md` — Top findings #2, "Hotspot table" rows #2/#3, "Triage matrix → Important + not urgent"
 - Crosscheck: `architecture/audits/2026-05-822-crosscheck.md` — F2 forward map (zero matches)
-- Doctrine: `src/doctrine/tactics/shipped/analysis/forensic-repository-audit.tactic.yaml`, `src/doctrine/procedures/shipped/legacy-codebase-triage.procedure.yaml`
+- Doctrine: `src/doctrine/tactics/built-in/analysis/forensic-repository-audit.tactic.yaml`, `src/doctrine/procedures/built-in/legacy-codebase-triage.procedure.yaml`
 - Related (WEAK matches): #771 (auto-rebase on `merge.py`, adjacent file in same cluster)
 
 ---
@@ -184,7 +184,7 @@ If one file is dead, every co-edit is wasted effort and a chance to drift. If bo
 #### References
 - Audit: `architecture/audits/2026-05-spec-kitty-caacs.md` — "Temporal coupling" pair #20, "Triage matrix → Important + urgent"
 - Crosscheck: `architecture/audits/2026-05-822-crosscheck.md` — F6 (zero matches)
-- Doctrine: `src/doctrine/tactics/shipped/analysis/forensic-repository-audit.tactic.yaml`
+- Doctrine: `src/doctrine/tactics/built-in/analysis/forensic-repository-audit.tactic.yaml`
 
 ---
 ### Issue draft 5 — F7 — Evaluate template-loader abstraction for command-template ↔ dispatcher coupling
@@ -471,7 +471,7 @@ Decisions about which F-rated function to refactor first should be informed by w
 #### References
 - Audit: `architecture/audits/2026-05-spec-kitty-caacs.md` — "Limitations" #2, "Open follow-ups for cross-check" #9
 - Crosscheck: `architecture/audits/2026-05-822-crosscheck.md` — F13 (zero matches)
-- Doctrine: `src/doctrine/tactics/shipped/analysis/forensic-repository-audit.tactic.yaml`, `src/doctrine/procedures/shipped/legacy-codebase-triage.procedure.yaml`
+- Doctrine: `src/doctrine/tactics/built-in/analysis/forensic-repository-audit.tactic.yaml`, `src/doctrine/procedures/built-in/legacy-codebase-triage.procedure.yaml`
 
 ---
 ### Issue draft 12 — F14 — Re-run forensic audit with kitty-specs/ in scope
@@ -512,7 +512,7 @@ Spec-kitty is a methodology tool. Its dogfood missions in `kitty-specs/` are the
 #### References
 - Audit: `architecture/audits/2026-05-spec-kitty-caacs.md` — "Limitations" #1, "Open follow-ups for cross-check" #10
 - Crosscheck: `architecture/audits/2026-05-822-crosscheck.md` — F14 (zero matches)
-- Doctrine: `src/doctrine/tactics/shipped/analysis/forensic-repository-audit.tactic.yaml`, `src/doctrine/procedures/shipped/legacy-codebase-triage.procedure.yaml`
+- Doctrine: `src/doctrine/tactics/built-in/analysis/forensic-repository-audit.tactic.yaml`, `src/doctrine/procedures/built-in/legacy-codebase-triage.procedure.yaml`
 
 ---
 
