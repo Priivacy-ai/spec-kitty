@@ -43,6 +43,7 @@ from rich.table import Table
 
 from specify_cli.sync.owner import (
     DaemonOwnerRecord,
+    _canonical_executable_path,
     is_orphan,
     list_orphan_records,
     owner_record_path,
@@ -495,7 +496,7 @@ def collect_foreground_identity(repo_root: Path) -> ForegroundIdentity:
     else:
         team_or_user = None
 
-    executable_path = Path(sys.executable).resolve()
+    executable_path = Path(_canonical_executable_path(sys.executable))
     source_path = _resolve_source_path()
     queue_db_path = _resolve_queue_db_path_readonly()
 
@@ -547,15 +548,13 @@ def _build_mismatches(
     daemon_team_or_user = _daemon_team_or_user(record)
 
     # (canonical_field, foreground_value, daemon_value)
-    daemon_executable_path: Path = Path(record.executable_path)
-    try:
-        daemon_executable_path = daemon_executable_path.resolve()
-    except (OSError, RuntimeError):
-        pass
-
+    # ``record.executable_path`` is already canonicalized at read time by
+    # :func:`specify_cli.sync.owner._canonical_executable_path`; no defensive
+    # resolve here (asymmetric resolution would re-introduce the bug this
+    # canonicalization closes).
     comparisons: list[tuple[MismatchField, object, object]] = [
         ("daemon_package_version", foreground.package_version, record.package_version),
-        ("daemon_executable_path", foreground.executable_path, daemon_executable_path),
+        ("daemon_executable_path", foreground.executable_path, Path(record.executable_path)),
         ("daemon_source_path", foreground.source_path, Path(record.source_checkout_path)),
         ("daemon_server_url", foreground.server_url, record.server_url or None),
         ("daemon_team_or_user", foreground.team_or_user, daemon_team_or_user),
