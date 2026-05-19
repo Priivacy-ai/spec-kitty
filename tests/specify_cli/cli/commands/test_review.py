@@ -250,6 +250,77 @@ def test_review_exits_2_when_mission_is_empty(tmp_path: Path, monkeypatch: pytes
     assert result.exit_code == 2, result.output
 
 
+def test_review_post_merge_requires_issue_matrix(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Post-merge mode must fail when issue-matrix.md is missing."""
+    repo_root, feature_dir = _setup_fixture(
+        tmp_path,
+        {"WP01": "done"},
+        baseline_merge_commit="0000000000000000000000000000000000000000",
+    )
+
+    monkeypatch.chdir(repo_root)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.find_repo_root",
+        lambda: repo_root,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.assert_pytest_available",
+        lambda _: None,
+    )
+    _mock_resolved = _make_mock_resolved(feature_dir)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.resolve_mission_handle",
+        lambda handle, repo_root: _mock_resolved,
+    )
+
+    app = _build_cli_app()
+    runner = CliRunner()
+    result = runner.invoke(app, ["--mission", _MISSION_SLUG, "--mode", "post-merge"])
+
+    assert result.exit_code == 0, result.output
+
+    report_text = (feature_dir / "mission-review-report.md").read_text(encoding="utf-8")
+    assert "verdict: pass_with_notes" in report_text
+    assert "ISSUE_MATRIX_MISSING" in result.output
+    assert "issue_matrix_present: false" in report_text
+
+
+def test_review_emits_json_diagnostic_when_pytest_missing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Missing test extra should fail before selector resolution and print JSON."""
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+
+    monkeypatch.chdir(repo_root)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.find_repo_root",
+        lambda: repo_root,
+    )
+
+    from specify_cli.cli.commands.review import TestExtraMissing
+
+    def _raise_missing(_: Path) -> None:
+        raise TestExtraMissing("MISSION_REVIEW_TEST_EXTRA_MISSING")
+
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.assert_pytest_available",
+        _raise_missing,
+    )
+
+    app = _build_cli_app()
+    runner = CliRunner()
+    result = runner.invoke(app, ["--mission", _MISSION_SLUG])
+
+    assert result.exit_code == 1, result.output
+    assert '"diagnostic_code": "MISSION_REVIEW_TEST_EXTRA_MISSING"' in result.output
+    assert "uv sync --extra test" in result.output
+
+
 # ---------------------------------------------------------------------------
 # Internal helper
 # ---------------------------------------------------------------------------

@@ -35,6 +35,21 @@ logger = logging.getLogger(__name__)
 
 AcceptanceMode = str  # Expected values: "pr", "local", "checklist"
 
+SPEC_FILE = "spec.md"
+PLAN_FILE = "plan.md"
+TASKS_FILE = "tasks.md"
+QUICKSTART_FILE = "quickstart.md"
+DATA_MODEL_FILE = "data-model.md"
+RESEARCH_FILE = "research.md"
+PRIMARY_ARTIFACT_FILES = (
+    SPEC_FILE,
+    PLAN_FILE,
+    QUICKSTART_FILE,
+    TASKS_FILE,
+    RESEARCH_FILE,
+    DATA_MODEL_FILE,
+)
+
 
 class AcceptanceError(TaskCliError):
     """Raised when acceptance cannot complete due to outstanding issues."""
@@ -308,11 +323,11 @@ def _check_needs_clarification(files: Sequence[Path]) -> list[str]:
 
 
 def _missing_artifacts(feature_dir: Path) -> tuple[list[str], list[str]]:
-    required = [feature_dir / "spec.md", feature_dir / "plan.md", feature_dir / "tasks.md"]
+    required = [feature_dir / SPEC_FILE, feature_dir / PLAN_FILE, feature_dir / TASKS_FILE]
     optional = [
-        feature_dir / "quickstart.md",
-        feature_dir / "data-model.md",
-        feature_dir / "research.md",
+        feature_dir / QUICKSTART_FILE,
+        feature_dir / DATA_MODEL_FILE,
+        feature_dir / RESEARCH_FILE,
         feature_dir / "contracts",
     ]
     missing_required = [str(p.relative_to(feature_dir)) for p in required if not p.exists()]
@@ -347,14 +362,7 @@ def normalize_feature_encoding(repo_root: Path, feature: str) -> list[Path]:
         return []
 
     candidates: list[Path] = []
-    primary_files = [
-        feature_dir / "spec.md",
-        feature_dir / "plan.md",
-        feature_dir / "quickstart.md",
-        feature_dir / "tasks.md",
-        feature_dir / "research.md",
-        feature_dir / "data-model.md",
-    ]
+    primary_files = [feature_dir / artifact_name for artifact_name in PRIMARY_ARTIFACT_FILES]
     candidates.extend(p for p in primary_files if p.exists())
 
     for subdir in [feature_dir / "tasks", feature_dir / "research", feature_dir / "checklists"]:
