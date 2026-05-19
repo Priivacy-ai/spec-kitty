@@ -87,12 +87,12 @@ A reasonable cut for an early-feedback release: ship WP01-WP04 as a "preview" mi
 
 ### Included subtasks
 
-- [ ] T001 Define `RetrospectivePolicy` + `RetrospectivePermissions` domain models with built-in defaults (WP01)
-- [ ] T002 Implement resolver: charter → config → defaults; return `(policy, source_map)` (WP01)
-- [ ] T003 Implement charter `retrospective.precedence: config` delegation (WP01)
-- [ ] T004 Implement `PolicyResolutionError` + malformed-input handling per FR-024 (WP01)
-- [ ] T005 Wire env-var observation into `source_map` as deprecated source (never wins) (WP01)
-- [ ] T006 Unit tests for policy resolver covering FR-001/002/003/004/015/024 (WP01)
+- [x] T001 Define `RetrospectivePolicy` + `RetrospectivePermissions` domain models with built-in defaults (WP01)
+- [x] T002 Implement resolver: charter → config → defaults; return `(policy, source_map)` (WP01)
+- [x] T003 Implement charter `retrospective.precedence: config` delegation (WP01)
+- [x] T004 Implement `PolicyResolutionError` + malformed-input handling per FR-024 (WP01)
+- [x] T005 Wire env-var observation into `source_map` as deprecated source (never wins) (WP01)
+- [x] T006 Unit tests for policy resolver covering FR-001/002/003/004/015/024 (WP01)
 
 ### Implementation sketch
 
@@ -129,12 +129,12 @@ Internal: T001 and the test scaffolding for T006 can start in parallel once cont
 
 ### Included subtasks
 
-- [ ] T007 Define `RetrospectiveRecord` + `Finding` + `Proposal` + `EvidenceRef` + `Provenance` types per data-model.md (WP02)
-- [ ] T008 Implement `generate_retrospective(mission_handle, policy, repo_root) -> RetrospectiveRecord` (pure-Python generator) (WP02)
-- [ ] T009 Implement findings classification (helped/not_helpful/gaps/proposals) from artifact + event evidence (WP02)
-- [ ] T010 Implement `findings_status` resolution (`has_findings` vs `ran_no_findings`) per FR-007 (WP02)
-- [ ] T011 Implement proposal `risk_class` classification (low vs structural) per FR-010 (WP02)
-- [ ] T012 Unit tests + 3 fixture missions for the generator (FR-006/007/010) (WP02)
+- [x] T007 Define `RetrospectiveRecord` + `Finding` + `Proposal` + `EvidenceRef` + `Provenance` types per data-model.md (WP02)
+- [x] T008 Implement `generate_retrospective(mission_handle, policy, repo_root) -> RetrospectiveRecord` (pure-Python generator) (WP02)
+- [x] T009 Implement findings classification (helped/not_helpful/gaps/proposals) from artifact + event evidence (WP02)
+- [x] T010 Implement `findings_status` resolution (`has_findings` vs `ran_no_findings`) per FR-007 (WP02)
+- [x] T011 Implement proposal `risk_class` classification (low vs structural) per FR-010 (WP02)
+- [x] T012 Unit tests + 3 fixture missions for the generator (FR-006/007/010) (WP02)
 
 ### Implementation sketch
 
@@ -171,11 +171,11 @@ T007 (types) and T012 (test scaffolding + fixtures) can start in parallel. T008-
 
 ### Included subtasks
 
-- [ ] T013 Implement `writer.write_record(record, mode)` with overwrite/update/error semantics per data-model.md (WP03)
-- [ ] T014 Enforce `synthesize_fabricate ⇒ ran_no_findings` invariant in writer validation (WP03)
-- [ ] T015 Add `RetrospectiveCaptured` + `RetrospectiveCaptureFailed` event types (reuse if existing per FR-024 frozen surface, else add additively) (WP03)
-- [ ] T016 Verify reducer no-op behavior for retrospective events; add fixture set under `tests/retrospective/fixtures/event_logs/` per FR-025 (WP03)
-- [ ] T017 Unit tests for writer + events + reducer fidelity (FR-021/025) (WP03)
+- [x] T013 Implement `writer.write_record(record, mode)` with overwrite/update/error semantics per data-model.md (WP03)
+- [x] T014 Enforce `synthesize_fabricate ⇒ ran_no_findings` invariant in writer validation (WP03)
+- [x] T015 Add `RetrospectiveCaptured` + `RetrospectiveCaptureFailed` event types (reuse if existing per FR-024 frozen surface, else add additively) (WP03)
+- [x] T016 Verify reducer no-op behavior for retrospective events; add fixture set under `tests/retrospective/fixtures/event_logs/` per FR-025 (WP03)
+- [x] T017 Unit tests for writer + events + reducer fidelity (FR-021/025) (WP03)
 
 ### Implementation sketch
 
@@ -215,12 +215,12 @@ T013 (writer) and T015 (events) can run in parallel — different files. T016 (f
 
 ### Included subtasks
 
-- [ ] T018 Replace `facilitator_callback=None` in `next/runtime_bridge.py` with real generator + policy wiring (FR-005) (WP04)
-- [ ] T019 Implement default post-completion flow: attempt → write+Captured event on success, warn+Failed event on failure (FR-008) (WP04)
-- [ ] T020 Implement strict pre-completion gate: block with policy_source citation; `--skip-retrospective` bypass with actor/provenance (FR-009) (WP04)
-- [ ] T021 Wire `policy_source` attribution on every emitted retrospective event (FR-001) (WP04)
-- [ ] T022 Anchor gate-evaluation point at canonical "mission completion" per data-model.md (immediately before `MissionCompleted` emit) (WP04)
-- [ ] T023 Wiring + integration tests under `tests/next/test_retrospective_terminus_wiring.py` and `tests/integration/retrospective/` (FR-005/008/009) (WP04)
+- [x] T018 Replace `facilitator_callback=None` in `next/runtime_bridge.py` with real generator + policy wiring (FR-005) (WP04)
+- [x] T019 Implement default post-completion flow: attempt → write+Captured event on success, warn+Failed event on failure (FR-008) (WP04)
+- [x] T020 Implement strict pre-completion gate: block with policy_source citation; `--skip-retrospective` bypass with actor/provenance (FR-009) (WP04)
+- [x] T021 Wire `policy_source` attribution on every emitted retrospective event (FR-001) (WP04)
+- [x] T022 Anchor gate-evaluation point at canonical "mission completion" per data-model.md (immediately before `MissionCompleted` emit) (WP04)
+- [x] T023 Wiring + integration tests under `tests/next/test_retrospective_terminus_wiring.py` and `tests/integration/retrospective/` (FR-005/008/009) (WP04)
 
 ### Implementation sketch
 
@@ -260,12 +260,12 @@ T018 sequential (the wiring change). T019, T020 can branch in parallel once T018
 
 ### Included subtasks
 
-- [ ] T024 [P] Implement `spec-kitty retrospect create --mission <handle>` per `contracts/retrospect-cli.contract.md` (FR-011) (WP05)
-- [ ] T025 [P] Add `--overwrite` / `--update` / `--json` flags + structured error codes for `create` (WP05)
-- [ ] T026 [P] Implement `spec-kitty retrospect backfill --since/--until --mission --dry-run --emit-skipped --emit-failures` (FR-012) (WP05)
-- [ ] T027 [P] Tighten `retrospect summary` to distinguish `has_findings` / `ran_no_findings` / `missing` / `failed` (FR-013, no semantic change) (WP05)
-- [ ] T028 [P] Tighten `agent retrospect synthesize` default-path error; add `--fabricate-empty` compat flag with actor-attributed provenance (FR-014) (WP05)
-- [ ] T029 [P] CLI tests covering all four surfaces + JSON contract assertions (WP05)
+- [x] T024 [P] Implement `spec-kitty retrospect create --mission <handle>` per `contracts/retrospect-cli.contract.md` (FR-011) (WP05)
+- [x] T025 [P] Add `--overwrite` / `--update` / `--json` flags + structured error codes for `create` (WP05)
+- [x] T026 [P] Implement `spec-kitty retrospect backfill --since/--until --mission --dry-run --emit-skipped --emit-failures` (FR-012) (WP05)
+- [x] T027 [P] Tighten `retrospect summary` to distinguish `has_findings` / `ran_no_findings` / `missing` / `failed` (FR-013, no semantic change) (WP05)
+- [x] T028 [P] Tighten `agent retrospect synthesize` default-path error; add `--fabricate-empty` compat flag with actor-attributed provenance (FR-014) (WP05)
+- [x] T029 [P] CLI tests covering all four surfaces + JSON contract assertions (WP05)
 
 ### Implementation sketch
 
@@ -305,11 +305,11 @@ T024, T026, T027, T028 are different command implementations — can ship in par
 
 ### Included subtasks
 
-- [ ] T030 [P] Implement `DeprecationWarning` + Rich stderr notice for `SPEC_KITTY_RETROSPECTIVE` / `SPEC_KITTY_MODE` (FR-015, NFR-006: one warning per process) (WP06)
-- [ ] T031 [P] Add `SPEC_KITTY_NO_DEPRECATION_WARNINGS=1` suppression env var; documented in WP07 docs (WP06)
-- [ ] T032 [P] Refactor existing tests to prefer injected `RetrospectivePolicy` over `os.environ` mutations (FR-016) (WP06)
-- [ ] T033 [P] Resolve shim fate for `retrospective/config.py` + `retrospective/mode.py` per FR-023 — either fold+delete with reference updates, OR retain as documented compat shim with explicit retirement target (deprecation version, follow-up issue, rationale) (WP06)
-- [ ] T034 [P] Tests for deprecation behavior: one-warn-per-process, durable wins, suppression flag (WP06)
+- [x] T030 [P] Implement `DeprecationWarning` + Rich stderr notice for `SPEC_KITTY_RETROSPECTIVE` / `SPEC_KITTY_MODE` (FR-015, NFR-006: one warning per process) (WP06)
+- [x] T031 [P] Add `SPEC_KITTY_NO_DEPRECATION_WARNINGS=1` suppression env var; documented in WP07 docs (WP06)
+- [x] T032 [P] Refactor existing tests to prefer injected `RetrospectivePolicy` over `os.environ` mutations (FR-016) (WP06)
+- [x] T033 [P] Resolve shim fate for `retrospective/config.py` + `retrospective/mode.py` per FR-023 — either fold+delete with reference updates, OR retain as documented compat shim with explicit retirement target (deprecation version, follow-up issue, rationale) (WP06)
+- [x] T034 [P] Tests for deprecation behavior: one-warn-per-process, durable wins, suppression flag (WP06)
 
 ### Implementation sketch
 
@@ -350,13 +350,13 @@ T030, T031, T032, T033 are different concerns and parallelizable. T034 (tests) p
 
 ### Included subtasks
 
-- [ ] T035 [P] Update `docs/how-to/use-retrospective-learning.md` as canonical operator how-to (FR-018) (WP07)
-- [ ] T036 [P] Update `docs/how-to/accept-and-merge.md` (correct PR #1136 wording) + `docs/how-to/merge-feature.md` (FR-018) (WP07)
-- [ ] T037 [P] Update `docs/explanation/retrospective-learning-loop.md` + `docs/reference/cli-commands.md` + `docs/reference/slash-commands.md` (FR-018) (WP07)
-- [ ] T038 [P] Update `README.md` retrospective blurb + `docs/tutorials/your-first-feature.md` (FR-018) (WP07)
-- [ ] T039 [P] Update 4 shipped skills: `spec-kitty-mission-review`, `spec-kitty-implement-review`, `spec-kitty-program-orchestrate`, `spec-kitty-runtime-next` (FR-019) (WP07)
-- [ ] T040 [P] Review `retrospective-facilitator.agent.yaml`; align boundaries/permissions with FR-001/FR-010 if drift exists (FR-020) (WP07)
-- [ ] T041 [P] Add `CONTRIBUTING.md` namespace-package diagnostic note for #1137 (FR-017) (WP07)
+- [x] T035 [P] Update `docs/how-to/use-retrospective-learning.md` as canonical operator how-to (FR-018) (WP07)
+- [x] T036 [P] Update `docs/how-to/accept-and-merge.md` (correct PR #1136 wording) + `docs/how-to/merge-feature.md` (FR-018) (WP07)
+- [x] T037 [P] Update `docs/explanation/retrospective-learning-loop.md` + `docs/reference/cli-commands.md` + `docs/reference/slash-commands.md` (FR-018) (WP07)
+- [x] T038 [P] Update `README.md` retrospective blurb + `docs/tutorials/your-first-feature.md` (FR-018) (WP07)
+- [x] T039 [P] Update 4 shipped skills: `spec-kitty-mission-review`, `spec-kitty-implement-review`, `spec-kitty-program-orchestrate`, `spec-kitty-runtime-next` (FR-019) (WP07)
+- [x] T040 [P] Review `retrospective-facilitator.agent.yaml`; align boundaries/permissions with FR-001/FR-010 if drift exists (FR-020) (WP07)
+- [x] T041 [P] Add `CONTRIBUTING.md` namespace-package diagnostic note for #1137 (FR-017) (WP07)
 
 ### Implementation sketch
 
