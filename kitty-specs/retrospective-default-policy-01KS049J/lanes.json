@@ -1,0 +1,123 @@
+{
+  "version": 1,
+  "mission_slug": "retrospective-default-policy-01KS049J",
+  "mission_id": "01KS049J4V9CSWBKJHTY2FB69H",
+  "mission_branch": "kitty/mission-retrospective-default-policy-01KS049J",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06",
+        "WP07"
+      ],
+      "write_scope": [
+        "CONTRIBUTING.md",
+        "README.md",
+        "docs/explanation/retrospective-learning-loop.md",
+        "docs/how-to/accept-and-merge.md",
+        "docs/how-to/merge-feature.md",
+        "docs/how-to/use-retrospective-learning.md",
+        "docs/migration/from-charter-2x.md",
+        "docs/reference/cli-commands.md",
+        "docs/reference/slash-commands.md",
+        "docs/tutorials/charter-governed-workflow.md",
+        "docs/tutorials/your-first-feature.md",
+        "src/doctrine/agent_profiles/built-in/retrospective-facilitator.agent.yaml",
+        "src/doctrine/skills/spec-kitty-implement-review/SKILL.md",
+        "src/doctrine/skills/spec-kitty-mission-review/SKILL.md",
+        "src/doctrine/skills/spec-kitty-program-orchestrate/SKILL.md",
+        "src/doctrine/skills/spec-kitty-runtime-next/SKILL.md",
+        "src/specify_cli/cli/commands/agent_retrospect.py",
+        "src/specify_cli/cli/commands/retrospect.py",
+        "src/specify_cli/next/_internal_runtime/retrospective_terminus.py",
+        "src/specify_cli/next/runtime_bridge.py",
+        "src/specify_cli/retrospective/__init__.py",
+        "src/specify_cli/retrospective/config.py",
+        "src/specify_cli/retrospective/deprecation.py",
+        "src/specify_cli/retrospective/events.py",
+        "src/specify_cli/retrospective/generator.py",
+        "src/specify_cli/retrospective/mode.py",
+        "src/specify_cli/retrospective/policy.py",
+        "src/specify_cli/retrospective/schema.py",
+        "src/specify_cli/retrospective/summary.py",
+        "src/specify_cli/retrospective/writer.py",
+        "tests/cli/commands/test_retrospect.py",
+        "tests/integration/retrospective/**",
+        "tests/next/test_retrospective_terminus_wiring.py",
+        "tests/retrospective/conftest.py",
+        "tests/retrospective/fixtures/event_logs/**",
+        "tests/retrospective/fixtures/missions/**",
+        "tests/retrospective/test_env_deprecation.py",
+        "tests/retrospective/test_events.py",
+        "tests/retrospective/test_generator.py",
+        "tests/retrospective/test_policy.py",
+        "tests/retrospective/test_reducer_fixtures.py",
+        "tests/retrospective/test_writer.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-05-19T14:06:38.904278+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP02"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP01"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP02"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP01"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP04",
+        "rule": "dependency",
+        "evidence": "WP07 depends on WP04"
+      }
+    ],
+    "total_merges": 6,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 6
+    }
+  }
+}

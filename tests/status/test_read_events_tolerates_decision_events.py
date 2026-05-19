@@ -30,6 +30,7 @@ from specify_cli.status.store import StoreError, read_events
 
 pytestmark = [pytest.mark.unit]
 
+
 def _write_events_jsonl(feature_dir: Path, events: list[dict[str, Any]]) -> None:
     feature_dir.mkdir(parents=True, exist_ok=True)
     events_path = feature_dir / "status.events.jsonl"
@@ -39,9 +40,7 @@ def _write_events_jsonl(feature_dir: Path, events: list[dict[str, Any]]) -> None
     )
 
 
-def _make_lane_event(
-    event_id: str, wp_id: str, to_lane: str = "claimed"
-) -> dict[str, Any]:
+def _make_lane_event(event_id: str, wp_id: str, to_lane: str = "claimed") -> dict[str, Any]:
     return {
         "event_id": event_id,
         "mission_slug": "demo",
@@ -113,6 +112,24 @@ def test_read_events_with_only_decision_events_returns_empty(
         [_make_decision_opened("01EVT0001"), _make_decision_resolved("01EVT0002")],
     )
     assert read_events(feature_dir) == []
+
+
+def test_read_events_skips_retrospective_lifecycle_type_events(
+    tmp_path: Path,
+) -> None:
+    """Retrospective lifecycle records share status.events.jsonl but are not lanes."""
+    feature_dir = tmp_path / "feature"
+    _write_events_jsonl(
+        feature_dir,
+        [
+            {"type": "RetrospectiveCaptured", "mission_id": "01KQRETRO"},
+            _make_lane_event("01EVT0002", "WP01"),
+        ],
+    )
+
+    result = read_events(feature_dir)
+
+    assert [event.event_id for event in result] == ["01EVT0002"]
 
 
 def test_read_events_still_raises_on_invalid_json(tmp_path: Path) -> None:

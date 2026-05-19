@@ -1,6 +1,7 @@
 # 2.x ADRs
 
-Architectural Decision Records for the current 2.x track.
+Architectural Decision Records for the 2.x track. **Not the current track —
+see [`architecture/3.x/adr/`](../../3.x/adr/README.md) for current decisions.**
 
 ## Naming
 
@@ -8,9 +9,14 @@ Architectural Decision Records for the current 2.x track.
 
 ## Source of Truth
 
-This folder is canonical for 2.x decisions.
+This folder is canonical for 2.x decisions (dates before 2026-03-30, the
+3.0.0 release). ADRs dated on or after 2026-03-30 were moved to
+[`architecture/3.x/adr/`](../../3.x/adr/README.md); back-compat symlinks at
+the old `architecture/2.x/adr/<filename>` paths point at the new location so
+existing references in CHANGELOG entries, test snapshots, and shipped docs
+continue to resolve.
 
-Legacy links through `architecture/adrs/` are compatibility aliases.
+Legacy links through `architecture/adrs/` are 1.x compatibility aliases.
 
 ## Status Conventions
 

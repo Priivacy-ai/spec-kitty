@@ -193,28 +193,52 @@ and `prompt_file` for the agent to execute. `next` itself does not spawn the age
 
 ---
 
-## Step 5: View the retrospective summary
+## Step 5: The retrospective record and summary
 
-When a mission completes, the retrospective learning loop captures findings, proposals, and
-governance gaps. View the cross-mission summary with:
+When a mission completes, Spec Kitty automatically authors a `retrospective.yaml` for that
+mission under `.kittify/missions/<mission_id>/`. This is the default-on behavior introduced in
+3.2.0 — no configuration is needed.
+
+To verify the record was written:
+
+```bash
+cat .kittify/missions/$(jq -r .mission_id kitty-specs/<slug>/meta.json)/retrospective.yaml
+```
+
+If you want to require a successful retrospective before a mission can close (strict governed
+projects), set this in charter frontmatter or `.kittify/config.yaml`:
+
+```yaml
+retrospective:
+  timing: before_completion
+  failure_policy: block
+```
+
+This replaces the deprecated `SPEC_KITTY_MODE=autonomous` environment variable, which is
+retained as a compatibility shim but emits a deprecation warning. Prefer the durable config
+keys above.
+
+Once the record exists, view the cross-mission summary with:
 
 ```bash
 uv run spec-kitty retrospect summary
 ```
 
-> **Note**: `retrospect summary` reads `.kittify/missions/*/retrospective.yaml` and
-> `kitty-specs/*/status.events.jsonl`. It requires at least one completed mission with a
-> retrospective record. On a brand-new project with no completed missions, it will report zero
-> missions in its summary — this is expected.
+> **Note**: `retrospect summary` is **read-only** — it aggregates existing records. It does not
+> author or modify records. On a brand-new project with no completed missions, it reports zero
+> missions — this is expected.
 
 The summary shows counts (completed, skipped, failed, in-flight), top "not helpful" targets,
 top missing glossary terms, and proposal acceptance statistics.
 
-To see the output in machine-readable form:
+For machine-readable output:
 
 ```bash
 uv run spec-kitty retrospect summary --json
 ```
+
+For the full operator workflow including proposal application, see
+[How to Use Retrospective Learning](../how-to/use-retrospective-learning.md).
 
 ---
 

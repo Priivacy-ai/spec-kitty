@@ -310,10 +310,24 @@ def read_events_raw(feature_dir: Path) -> list[dict[str, Any]]:
     return results
 
 
+_RETROSPECTIVE_LIFECYCLE_EVENT_TYPES: frozenset[str] = frozenset({
+    "RetrospectiveCaptured",
+    "RetrospectiveCaptureFailed",
+    "RetrospectiveSkipped",
+})
+
+
 def _should_skip_status_event(obj: dict[str, Any]) -> bool:
     """Return True for non-lane events that intentionally share the JSONL file."""
     event_name = obj.get("event_name")
     if isinstance(event_name, str) and event_name.startswith("retrospective."):
+        return True
+
+    # WP03: Skip the three new canonical retrospective lifecycle events which use
+    # a "type" field (not "event_name") per contracts/retrospective-events.contract.md.
+    # These are descriptive lifecycle events, not lane transitions.
+    event_type = obj.get("type")
+    if isinstance(event_type, str) and event_type in _RETROSPECTIVE_LIFECYCLE_EVENT_TYPES:
         return True
 
     # Why: Skip mission-level events (DecisionPointOpened,

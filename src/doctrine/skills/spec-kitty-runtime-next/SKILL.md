@@ -117,7 +117,7 @@ Every call to `spec-kitty next` returns exactly one decision kind:
 | `step` | Normal action available | Read `prompt_file` and execute |
 | `decision_required` | Runtime needs input | Answer with `--answer` and `--decision-id` |
 | `blocked` | Guards failing, cannot proceed | Read `reason` + `guard_failures`, resolve blockers |
-| `terminal` | Mission complete | Run `/spec-kitty.accept`; if it passes, merge and continue to mission review + retrospective |
+| `terminal` | Mission complete | Run `/spec-kitty.accept`; if it passes, merge, then: mission review → author or verify retrospective (`retrospect create`) → surface findings (`summary` aggregates; `synthesize` reviews proposals) |
 
 ### Decision Output Fields
 
@@ -471,13 +471,19 @@ while [ "$KIND" = "step" ] || [ "$KIND" = "decision_required" ]; do
   KIND=$(echo "$DECISION" | jq -r '.kind')
 done
 
-# 3. Handle terminal state
+# 3. Handle terminal state — canonical post-merge sequence
 if [ "$KIND" = "terminal" ] || [ "$DONE" -eq "$TOTAL" ]; then
   # Run /spec-kitty.accept.
   # If acceptance passes, run /spec-kitty.merge.
-  # After merge, run /spec-kitty-mission-review and:
-  #   spec-kitty retrospect summary
-  #   spec-kitty agent retrospect synthesize --mission 042-mission
+  # After merge, follow the canonical post-merge sequence:
+  #   a. Mission review: /spec-kitty-mission-review
+  #   b. Author or verify retrospective:
+  #      spec-kitty retrospect create --mission 042-mission  # if record absent
+  #      OR verify: cat .kittify/missions/<mission_id>/retrospective.yaml
+  #   c. Surface findings:
+  #      spec-kitty retrospect summary                                   # read-only aggregation
+  #      spec-kitty agent retrospect synthesize --mission 042-mission --preview
+  # Note: summary aggregates; synthesize applies proposals — neither authors records.
 fi
 ```
 

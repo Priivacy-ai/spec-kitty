@@ -5,8 +5,13 @@
 spec_kitty:
   version: 3.2.0rc15
   initialized_at: '2026-04-07T09:10:40.826207'
-  last_upgraded_at: '2026-04-27T19:12:06.441023'
+  last_upgraded_at: '2026-05-19T12:44:58.404394+00:00'
   schema_version: 3
+  schema_capabilities:
+  - canonical_context
+  - event_log_authority
+  - ownership_manifest
+  - thin_shims
 environment:
   python_version: 3.14.0
   platform: darwin
@@ -24,69 +29,12 @@ migrations:
   - id: 3.1.1_normalize_status_json
     applied_at: '2026-04-09T16:23:40.921567'
     result: success
-    notes: '001-mission-system-architecture: normalised status.json; 002-lightweight-pypi-release:
-      normalised status.json; 003-auto-protect-agent: normalised status.json; 004-modular-code-refactoring:
-      normalised status.json; 005-refactor-mission-system: normalised status.json;
-      006-per-feature-mission: normalised status.json; 007-frontmatter-only-lane:
-      normalised status.json; 008-unified-python-cli: normalised status.json; 010-workspace-per-work-package-for-parallel-development:
-      normalised status.json; 011-constitution-packaging-safety-and-redesign: normalised
-      status.json; 012-documentation-mission: normalised status.json; 013-fix-and-test-dashboard:
-      normalised status.json; 014-comprehensive-end-user-documentation: normalised
-      status.json; 017-smarter-feature-merge-with-preflight: normalised status.json;
-      018-merge-preflight-documentation: normalised status.json; 019-autonomous-multi-agent-orchestration-research:
-      normalised status.json; 020-autonomous-multi-agent-orchestrator: normalised
-      status.json; 021-orchestrator-end-to-end-testing-suite: normalised status.json;
-      022-orchestrator-user-documentation: normalised status.json; 023-documentation-sprint-agent-management-cleanup:
-      normalised status.json; 024-adversarial-test-suite-0-13-0: normalised status.json;
-      025-cli-event-log-integration: normalised status.json; 026-agent-directory-centralization-architecture-research:
-      normalised status.json; 027-cli-authentication-module-commands: normalised status.json;
-      028-cli-event-emission-sync: normalised status.json; 030-2x-sync-auth-docs:
-      normalised status.json; 032-identity-aware-cli-event-sync: normalised status.json;
-      033-github-observability-event-metadata: normalised status.json; 034-feature-status-state-model-remediation:
-      normalised status.json; 035-frontmatter-history-to-canonical-jsonl: normalised
-      status.json; 036-kittify-runtime-centralization: normalised status.json; 037-mission-dsl-foundation:
-      normalised status.json; 039-cli-2x-readiness: normalised status.json; 040-mission-collaboration-cli-soft-coordination:
-      normalised status.json; 041-enable-plan-mission-runtime-support: normalised
-      status.json; 041-mission-glossary-semantic-integrity: normalised status.json;
-      042-local-mission-dossier-authority-parity-export: normalised status.json; 043-doctrine-lite-constitution-generator:
-      normalised status.json; 044-constitution-interview-compiler-context-bootstrap:
-      normalised status.json; 045-agent-profile-system: normalised status.json; 045-mission-handoff-package-version-matrix:
-      normalised status.json; 046-doctrine-artifact-domain-models: normalised status.json;
-      046-verify-audit-doctor-setup: normalised status.json; 047-mutmut-mutation-testing-ci:
-      normalised status.json; 047-namespace-aware-artifact-body-sync: normalised status.json;
-      048-structured-agent-identity-and-constitution-profile-integration: normalised
-      status.json; 048-tracker-publish-resource-routing: normalised status.json; 049-fix-merge-target-resolution:
-      normalised status.json; 050-state-model-cleanup-foundations: normalised status.json;
-      051-canonical-state-authority-single-metadata-writer: normalised status.json;
-      052-acceptance-pipeline-regression-fixes: normalised status.json; 053-orchestrator-api-json-contract-fidelity:
-      normalised status.json; 054-constitution-interview-compiler-and-bootstrap: normalised
-      status.json; 054-state-architecture-cleanup-phase-2: normalised status.json;
-      055-agent-skills-pack: normalised status.json; 055-doctrine-stack-init-and-profile-integration:
-      normalised status.json; 056-documentation-parity-sprint: normalised status.json;
-      057-canonical-context-architecture-cleanup: normalised status.json; 057-doctrine-stack-init-and-profile-integration:
-      normalised status.json; 058-hybrid-prompt-and-shim-agent-surface: normalised
-      status.json; 058-mission-template-repository-refactor: normalised status.json;
-      059-saas-mediated-cli-tracker-reflow: normalised status.json; 060-canonical-status-model-cleanup:
-      normalised status.json; 061-ticket-first-mission-origin-binding: normalised
-      status.json; 062-fix-doctrine-migration-test-failures: normalised status.json;
-      062-tracker-binding-context-discovery: normalised status.json; 063-universal-charter-rename:
-      normalised status.json; 064-complete-mission-identity-cutover: normalised status.json;
-      065-tasks-and-lane-stabilization: normalised status.json; 065-wp-metadata-state-type-hardening:
-      normalised status.json; 066-review-loop-stabilization: normalised status.json;
-      067-runtime-recovery-and-audit-safety: normalised status.json; 068-post-merge-reliability-and-release-hardening:
-      normalised status.json; 069-planning-pipeline-integrity: normalised status.json;
-      070-123-test-feature: normalised status.json; 071-123-test-feature: normalised
-      status.json; 072-123-test-feature: normalised status.json; 073-123-test-feature:
-      normalised status.json; 074-123-test-feature: normalised status.json; 076-init-command-overhaul:
-      normalised status.json; 077-mission-terminology-cleanup: normalised status.json;
-      078-planning-artifact-and-query-consistency: normalised status.json; 079-post-555-release-hardening:
-      normalised status.json'
+    notes: '001-mission-system-architecture: normalised status.json; 002-lightweight-pypi-release: normalised status.json; 003-auto-protect-agent: normalised status.json; 004-modular-code-refactoring: normalised status.json; 005-refactor-mission-system: normalised status.json; 006-per-feature-mission: normalised status.json; 007-frontmatter-only-lane: normalised status.json; 008-unified-python-cli: normalised status.json; 010-workspace-per-work-package-for-parallel-development: normalised status.json; 011-constitution-packaging-safety-and-redesign: normalised status.json; 012-documentation-mission: normalised status.json; 013-fix-and-test-dashboard: normalised status.json; 014-comprehensive-end-user-documentation: normalised status.json; 017-smarter-feature-merge-with-preflight: normalised status.json; 018-merge-preflight-documentation: normalised status.json; 019-autonomous-multi-agent-orchestration-research: normalised status.json; 020-autonomous-multi-agent-orchestrator: normalised status.json; 021-orchestrator-end-to-end-testing-suite: normalised status.json; 022-orchestrator-user-documentation: normalised status.json; 023-documentation-sprint-agent-management-cleanup: normalised status.json; 024-adversarial-test-suite-0-13-0: normalised status.json; 025-cli-event-log-integration: normalised status.json; 026-agent-directory-centralization-architecture-research: normalised status.json; 027-cli-authentication-module-commands: normalised status.json; 028-cli-event-emission-sync: normalised status.json; 030-2x-sync-auth-docs: normalised status.json; 032-identity-aware-cli-event-sync: normalised status.json; 033-github-observability-event-metadata: normalised status.json; 034-feature-status-state-model-remediation: normalised status.json; 035-frontmatter-history-to-canonical-jsonl: normalised status.json; 036-kittify-runtime-centralization: normalised status.json; 037-mission-dsl-foundation: normalised status.json; 039-cli-2x-readiness: normalised status.json; 040-mission-collaboration-cli-soft-coordination: normalised status.json; 041-enable-plan-mission-runtime-support: normalised status.json; 041-mission-glossary-semantic-integrity: normalised status.json; 042-local-mission-dossier-authority-parity-export: normalised status.json; 043-doctrine-lite-constitution-generator: normalised status.json; 044-constitution-interview-compiler-context-bootstrap: normalised status.json; 045-agent-profile-system: normalised status.json; 045-mission-handoff-package-version-matrix: normalised status.json; 046-doctrine-artifact-domain-models: normalised status.json; 046-verify-audit-doctor-setup: normalised status.json; 047-mutmut-mutation-testing-ci: normalised status.json; 047-namespace-aware-artifact-body-sync: normalised status.json; 048-structured-agent-identity-and-constitution-profile-integration: normalised status.json; 048-tracker-publish-resource-routing: normalised status.json; 049-fix-merge-target-resolution: normalised status.json; 050-state-model-cleanup-foundations: normalised status.json; 051-canonical-state-authority-single-metadata-writer: normalised status.json; 052-acceptance-pipeline-regression-fixes: normalised status.json; 053-orchestrator-api-json-contract-fidelity: normalised status.json; 054-constitution-interview-compiler-and-bootstrap: normalised status.json; 054-state-architecture-cleanup-phase-2: normalised status.json; 055-agent-skills-pack: normalised status.json; 055-doctrine-stack-init-and-profile-integration: normalised status.json; 056-documentation-parity-sprint: normalised status.json; 057-canonical-context-architecture-cleanup: normalised status.json; 057-doctrine-stack-init-and-profile-integration: normalised status.json; 058-hybrid-prompt-and-shim-agent-surface: normalised status.json; 058-mission-template-repository-refactor: normalised status.json; 059-saas-mediated-cli-tracker-reflow: normalised status.json; 060-canonical-status-model-cleanup: normalised status.json; 061-ticket-first-mission-origin-binding: normalised status.json; 062-fix-doctrine-migration-test-failures: normalised status.json;
+      062-tracker-binding-context-discovery: normalised status.json; 063-universal-charter-rename: normalised status.json; 064-complete-mission-identity-cutover: normalised status.json; 065-tasks-and-lane-stabilization: normalised status.json; 065-wp-metadata-state-type-hardening: normalised status.json; 066-review-loop-stabilization: normalised status.json; 067-runtime-recovery-and-audit-safety: normalised status.json; 068-post-merge-reliability-and-release-hardening: normalised status.json; 069-planning-pipeline-integrity: normalised status.json; 070-123-test-feature: normalised status.json; 071-123-test-feature: normalised status.json; 072-123-test-feature: normalised status.json; 073-123-test-feature: normalised status.json; 074-123-test-feature: normalised status.json; 076-init-command-overhaul: normalised status.json; 077-mission-terminology-cleanup: normalised status.json; 078-planning-artifact-and-query-consistency: normalised status.json; 079-post-555-release-hardening: normalised status.json'
   - id: 3.2.0_codex_to_skills
     applied_at: '2026-04-19T14:40:14.278127'
     result: success
-    notes: Installed 11 Codex skill packages under .agents/skills/; Moved 8 superseded
-      Codex prompt(s) from .codex/prompts/ to .codex/prompts.superseded/ (new skill
-      packages live in .agents/skills/)
+    notes: Installed 11 Codex skill packages under .agents/skills/; Moved 8 superseded Codex prompt(s) from .codex/prompts/ to .codex/prompts.superseded/ (new skill packages live in .agents/skills/)
   - id: 3.2.0_update_planning_templates
     applied_at: '2026-04-19T14:40:14.287114'
     result: success
@@ -94,193 +42,11 @@ migrations:
   - id: 3.2.0a4_normalize_mission_lifecycle
     applied_at: '2026-04-26T08:25:43.548001'
     result: success
-    notes: '001-mission-system-architecture: Rebuilt status.events.jsonl (0 synthetic
-      events, 0 corrected); 001-mission-system-architecture: Regenerated canonical
-      status/progress/lifecycle views; 002-lightweight-pypi-release: Regenerated canonical
-      status/progress/lifecycle views; 003-auto-protect-agent: Regenerated canonical
-      status/progress/lifecycle views; 004-modular-code-refactoring: Regenerated canonical
-      status/progress/lifecycle views; 005-refactor-mission-system: Regenerated canonical
-      status/progress/lifecycle views; 006-per-feature-mission: Regenerated canonical
-      status/progress/lifecycle views; 007-frontmatter-only-lane: Regenerated canonical
-      status/progress/lifecycle views; 008-unified-python-cli: Regenerated canonical
-      status/progress/lifecycle views; 010-workspace-per-work-package-for-parallel-development:
-      Regenerated canonical status/progress/lifecycle views; 011-constitution-packaging-safety-and-redesign:
-      Regenerated canonical status/progress/lifecycle views; 012-documentation-mission:
-      Regenerated canonical status/progress/lifecycle views; 013-fix-and-test-dashboard:
-      Regenerated canonical status/progress/lifecycle views; 014-comprehensive-end-user-documentation:
-      Regenerated canonical status/progress/lifecycle views; 017-smarter-feature-merge-with-preflight:
-      Regenerated canonical status/progress/lifecycle views; 018-merge-preflight-documentation:
-      Regenerated canonical status/progress/lifecycle views; 019-autonomous-multi-agent-orchestration-research:
-      Regenerated canonical status/progress/lifecycle views; 020-autonomous-multi-agent-orchestrator:
-      Regenerated canonical status/progress/lifecycle views; 021-orchestrator-end-to-end-testing-suite:
-      Regenerated canonical status/progress/lifecycle views; 022-orchestrator-user-documentation:
-      Backfilled missing WP identity fields; 022-orchestrator-user-documentation:
-      Rebuilt status.events.jsonl (0 synthetic events, 0 corrected); 022-orchestrator-user-documentation:
-      Regenerated canonical status/progress/lifecycle views; 023-documentation-sprint-agent-management-cleanup:
-      Regenerated canonical status/progress/lifecycle views; 024-adversarial-test-suite-0-13-0:
-      Backfilled missing WP identity fields; 024-adversarial-test-suite-0-13-0: Rebuilt
-      status.events.jsonl (0 synthetic events, 0 corrected); 024-adversarial-test-suite-0-13-0:
-      Regenerated canonical status/progress/lifecycle views; 025-cli-event-log-integration:
-      Regenerated canonical status/progress/lifecycle views; 026-agent-directory-centralization-architecture-research:
-      Rebuilt status.events.jsonl (0 synthetic events, 0 corrected); 026-agent-directory-centralization-architecture-research:
-      Regenerated canonical status/progress/lifecycle views; 027-cli-authentication-module-commands:
-      Backfilled missing WP identity fields; 027-cli-authentication-module-commands:
-      Rebuilt status.events.jsonl (0 synthetic events, 0 corrected); 027-cli-authentication-module-commands:
-      Regenerated canonical status/progress/lifecycle views; 028-cli-event-emission-sync:
-      Regenerated canonical status/progress/lifecycle views; 030-2x-sync-auth-docs:
-      Rebuilt status.events.jsonl (0 synthetic events, 0 corrected); 030-2x-sync-auth-docs:
-      Regenerated canonical status/progress/lifecycle views; 032-identity-aware-cli-event-sync:
-      Regenerated canonical status/progress/lifecycle views; 033-github-observability-event-metadata:
-      Backfilled missing WP identity fields; 033-github-observability-event-metadata:
-      Rebuilt status.events.jsonl (0 synthetic events, 0 corrected); 033-github-observability-event-metadata:
-      Regenerated canonical status/progress/lifecycle views; 034-feature-status-state-model-remediation:
-      Regenerated canonical status/progress/lifecycle views; 035-frontmatter-history-to-canonical-jsonl:
-      Regenerated canonical status/progress/lifecycle views; 036-kittify-runtime-centralization:
-      Regenerated canonical status/progress/lifecycle views; 037-mission-dsl-foundation:
-      Regenerated canonical status/progress/lifecycle views; 039-cli-2x-readiness:
-      Regenerated canonical status/progress/lifecycle views; 040-mission-collaboration-cli-soft-coordination:
-      Rebuilt status.events.jsonl (0 synthetic events, 0 corrected); 040-mission-collaboration-cli-soft-coordination:
-      Regenerated canonical status/progress/lifecycle views; 041-enable-plan-mission-runtime-support:
-      Regenerated canonical status/progress/lifecycle views; 041-mission-glossary-semantic-integrity:
-      Regenerated canonical status/progress/lifecycle views; 042-local-mission-dossier-authority-parity-export:
-      Regenerated canonical status/progress/lifecycle views; 043-doctrine-lite-constitution-generator:
-      Rebuilt status.events.jsonl (0 synthetic events, 0 corrected); 043-doctrine-lite-constitution-generator:
-      Regenerated canonical status/progress/lifecycle views; 044-constitution-interview-compiler-context-bootstrap:
-      Rebuilt status.events.jsonl (0 synthetic events, 0 corrected); 044-constitution-interview-compiler-context-bootstrap:
-      Regenerated canonical status/progress/lifecycle views; 045-agent-profile-system:
-      Backfilled mission identity metadata; 045-agent-profile-system: Regenerated
-      canonical status/progress/lifecycle views; 045-mission-handoff-package-version-matrix:
-      Regenerated canonical status/progress/lifecycle views; 046-doctrine-artifact-domain-models:
-      Backfilled mission identity metadata; 046-doctrine-artifact-domain-models: Regenerated
-      canonical status/progress/lifecycle views; 046-verify-audit-doctor-setup: Rebuilt
-      status.events.jsonl (0 synthetic events, 0 corrected); 046-verify-audit-doctor-setup:
-      Regenerated canonical status/progress/lifecycle views; 047-mutmut-mutation-testing-ci:
-      Regenerated canonical status/progress/lifecycle views; 047-namespace-aware-artifact-body-sync:
-      Regenerated canonical status/progress/lifecycle views; 048-structured-agent-identity-and-constitution-profile-integration:
-      Backfilled mission identity metadata; 048-structured-agent-identity-and-constitution-profile-integration:
-      Regenerated canonical status/progress/lifecycle views; 048-tracker-publish-resource-routing:
-      Regenerated canonical status/progress/lifecycle views; 049-fix-merge-target-resolution:
-      Regenerated canonical status/progress/lifecycle views; 050-state-model-cleanup-foundations:
-      Regenerated canonical status/progress/lifecycle views; 051-canonical-state-authority-single-metadata-writer:
-      Regenerated canonical status/progress/lifecycle views; 052-acceptance-pipeline-regression-fixes:
-      Regenerated canonical status/progress/lifecycle views; 053-orchestrator-api-json-contract-fidelity:
-      Regenerated canonical status/progress/lifecycle views; 054-constitution-interview-compiler-and-bootstrap:
-      Backfilled mission identity metadata; 054-constitution-interview-compiler-and-bootstrap:
-      Regenerated canonical status/progress/lifecycle views; 054-state-architecture-cleanup-phase-2:
-      Regenerated canonical status/progress/lifecycle views; 055-agent-skills-pack:
-      Regenerated canonical status/progress/lifecycle views; 056-documentation-parity-sprint:
-      Regenerated canonical status/progress/lifecycle views; 057-canonical-context-architecture-cleanup:
-      Regenerated canonical status/progress/lifecycle views; 057-doctrine-stack-init-and-profile-integration:
-      Backfilled mission identity metadata; 057-doctrine-stack-init-and-profile-integration:
-      Regenerated canonical status/progress/lifecycle views; 058-hybrid-prompt-and-shim-agent-surface:
-      Regenerated canonical status/progress/lifecycle views; 058-mission-template-repository-refactor:
-      Backfilled mission identity metadata; 058-mission-template-repository-refactor:
-      Regenerated canonical status/progress/lifecycle views; 059-saas-mediated-cli-tracker-reflow:
-      Regenerated canonical status/progress/lifecycle views; 060-canonical-status-model-cleanup:
-      Regenerated canonical status/progress/lifecycle views; 061-ticket-first-mission-origin-binding:
-      Backfilled mission identity metadata; 061-ticket-first-mission-origin-binding:
-      Regenerated canonical status/progress/lifecycle views; 062-fix-doctrine-migration-test-failures:
-      Backfilled mission identity metadata; 062-fix-doctrine-migration-test-failures:
-      Normalized legacy mission_number type; 062-fix-doctrine-migration-test-failures:
-      Regenerated canonical status/progress/lifecycle views; 062-tracker-binding-context-discovery:
-      Backfilled mission identity metadata; 062-tracker-binding-context-discovery:
-      Regenerated canonical status/progress/lifecycle views; 063-universal-charter-rename:
-      Backfilled mission identity metadata; 063-universal-charter-rename: Regenerated
-      canonical status/progress/lifecycle views; 064-complete-mission-identity-cutover:
-      Backfilled mission identity metadata; 064-complete-mission-identity-cutover:
-      Regenerated canonical status/progress/lifecycle views; 065-tasks-and-lane-stabilization:
-      Backfilled mission identity metadata; 065-tasks-and-lane-stabilization: Normalized
-      legacy mission_number type; 065-tasks-and-lane-stabilization: Regenerated canonical
-      status/progress/lifecycle views; 065-wp-metadata-state-type-hardening: Backfilled
-      mission identity metadata; 065-wp-metadata-state-type-hardening: Regenerated
-      canonical status/progress/lifecycle views; 066-review-loop-stabilization: Backfilled
-      mission identity metadata; 066-review-loop-stabilization: Normalized legacy
-      mission_number type; 066-review-loop-stabilization: Regenerated canonical status/progress/lifecycle
-      views; 067-runtime-recovery-and-audit-safety: Backfilled mission identity metadata;
-      067-runtime-recovery-and-audit-safety: Normalized legacy mission_number type;
-      067-runtime-recovery-and-audit-safety: Regenerated canonical status/progress/lifecycle
-      views; 068-post-merge-reliability-and-release-hardening: Backfilled mission
-      identity metadata; 068-post-merge-reliability-and-release-hardening: Normalized
-      legacy mission_number type; 068-post-merge-reliability-and-release-hardening:
-      Regenerated canonical status/progress/lifecycle views; 069-planning-pipeline-integrity:
-      Backfilled mission identity metadata; 069-planning-pipeline-integrity: Normalized
-      legacy mission_number type; 069-planning-pipeline-integrity: Regenerated canonical
-      status/progress/lifecycle views; 076-init-command-overhaul: Backfilled mission
-      identity metadata; 076-init-command-overhaul: Normalized legacy mission_number
-      type; 076-init-command-overhaul: Regenerated canonical status/progress/lifecycle
-      views; 077-mission-terminology-cleanup: Backfilled mission identity metadata;
-      077-mission-terminology-cleanup: Normalized legacy mission_number type; 077-mission-terminology-cleanup:
-      Regenerated canonical status/progress/lifecycle views; 078-planning-artifact-and-query-consistency:
-      Backfilled mission identity metadata; 078-planning-artifact-and-query-consistency:
-      Normalized legacy mission_number type; 078-planning-artifact-and-query-consistency:
-      Regenerated canonical status/progress/lifecycle views; 079-post-555-release-hardening:
-      Backfilled mission identity metadata; 079-post-555-release-hardening: Normalized
-      legacy mission_number type; 079-post-555-release-hardening: Regenerated canonical
-      status/progress/lifecycle views; 080-browser-mediated-oauth-cli-auth: Backfilled
-      mission identity metadata; 080-browser-mediated-oauth-cli-auth: Normalized legacy
-      mission_number type; 080-browser-mediated-oauth-cli-auth: Regenerated canonical
-      status/progress/lifecycle views; 080-ci-hardening-and-lint-cleanup: Backfilled
-      mission identity metadata; 080-ci-hardening-and-lint-cleanup: Normalized legacy
-      mission_number type; 080-ci-hardening-and-lint-cleanup: Regenerated canonical
-      status/progress/lifecycle views; 080-wpstate-lane-consumer-strangler-fig-phase-2:
-      Backfilled mission identity metadata; 080-wpstate-lane-consumer-strangler-fig-phase-2:
-      Normalized legacy mission_number type; 080-wpstate-lane-consumer-strangler-fig-phase-2:
-      Regenerated canonical status/progress/lifecycle views; 081-canonical-baseline-and-repository-boundary:
-      Backfilled mission identity metadata; 081-canonical-baseline-and-repository-boundary:
-      Normalized legacy mission_number type; 081-canonical-baseline-and-repository-boundary:
-      Regenerated canonical status/progress/lifecycle views; 082-stealth-gated-saas-sync-hardening:
-      Backfilled mission identity metadata; 082-stealth-gated-saas-sync-hardening:
-      Normalized legacy mission_number type; 082-stealth-gated-saas-sync-hardening:
-      Regenerated canonical status/progress/lifecycle views; 083-agent-skills-codex-vibe:
-      Backfilled mission identity metadata; 083-agent-skills-codex-vibe: Regenerated
-      canonical status/progress/lifecycle views; bulk-edit-occurrence-classification-guardrail-01KP423X:
-      Regenerated canonical status/progress/lifecycle views; charter-ownership-consolidation-and-neutrality-hardening-01KPD880:
-      Regenerated canonical status/progress/lifecycle views; charter-synthesizer-phase-3-completion-01KPJFHG:
-      Regenerated canonical status/progress/lifecycle views; cli-interview-decision-moments-01KPWT8P:
-      Regenerated canonical status/progress/lifecycle views; cli-widen-mode-and-write-back-01KPXFGJ:
-      Regenerated canonical status/progress/lifecycle views; complexity-code-smell-remediation-01KP15HB:
-      Regenerated canonical status/progress/lifecycle views; drg-phase-zero-01KP2YCE:
-      Regenerated canonical status/progress/lifecycle views; excise-doctrine-curation-and-inline-references-01KP54J6:
-      Regenerated canonical status/progress/lifecycle views; functional-ownership-map-01KPDY72:
-      Regenerated canonical status/progress/lifecycle views; glossary-drg-chokepoint-01KPTE0P:
-      Regenerated canonical status/progress/lifecycle views; glossary-drg-surfaces-and-charter-lint-01KPTY5Y:
-      Regenerated canonical status/progress/lifecycle views; glossary-functional-module-extraction-01KPDYM9:
-      Regenerated canonical status/progress/lifecycle views; intake-auto-detect-01KPNGCX:
-      Regenerated canonical status/progress/lifecycle views; legacy-sparse-and-review-lock-hardening-01KP54ZW:
-      Regenerated canonical status/progress/lifecycle views; local-custom-mission-loader-01KQ2VNJ:
-      Regenerated canonical status/progress/lifecycle views; migration-shim-ownership-rules-01KPDYDW:
-      Regenerated canonical status/progress/lifecycle views; phase-3-charter-synthesizer-pipeline-01KPE222:
-      Regenerated canonical status/progress/lifecycle views; phase-4-closeout-host-surfaces-and-trail-01KPWA5X:
-      Regenerated canonical status/progress/lifecycle views; phase-4-trail-host-surface-closeout-01KPSXD2:
-      Regenerated canonical status/progress/lifecycle views; phase6-composition-stabilization-01KQ2JAS:
-      Regenerated canonical status/progress/lifecycle views; profile-invocation-runtime-audit-trail-01KPQRX2:
-      Regenerated canonical status/progress/lifecycle views; profile-roles-as-value-object-01KPRJRY:
-      Regenerated canonical status/progress/lifecycle views; retire-mission-identity-drift-window-01KP2JNZ:
-      Regenerated canonical status/progress/lifecycle views; runtime-mission-execution-extraction-01KPDYGW:
-      Regenerated canonical status/progress/lifecycle views; shared-package-boundary-cutover-01KQ22DS:
-      Regenerated canonical status/progress/lifecycle views; software-dev-composition-rewrite-01KQ26CY:
-      Regenerated canonical status/progress/lifecycle views; specify-brief-intake-mode-01KPMXQB:
-      Regenerated canonical status/progress/lifecycle views; stabilization-release-core-bug-fixes-01KPQJAN:
-      Regenerated canonical status/progress/lifecycle views; unified-charter-bundle-chokepoint-01KP5Q2G:
-      Regenerated canonical status/progress/lifecycle views'
+    notes: '001-mission-system-architecture: Rebuilt status.events.jsonl (0 synthetic events, 0 corrected); 001-mission-system-architecture: Regenerated canonical status/progress/lifecycle views; 002-lightweight-pypi-release: Regenerated canonical status/progress/lifecycle views; 003-auto-protect-agent: Regenerated canonical status/progress/lifecycle views; 004-modular-code-refactoring: Regenerated canonical status/progress/lifecycle views; 005-refactor-mission-system: Regenerated canonical status/progress/lifecycle views; 006-per-feature-mission: Regenerated canonical status/progress/lifecycle views; 007-frontmatter-only-lane: Regenerated canonical status/progress/lifecycle views; 008-unified-python-cli: Regenerated canonical status/progress/lifecycle views; 010-workspace-per-work-package-for-parallel-development: Regenerated canonical status/progress/lifecycle views; 011-constitution-packaging-safety-and-redesign: Regenerated canonical status/progress/lifecycle views; 012-documentation-mission: Regenerated canonical status/progress/lifecycle views; 013-fix-and-test-dashboard: Regenerated canonical status/progress/lifecycle views; 014-comprehensive-end-user-documentation: Regenerated canonical status/progress/lifecycle views; 017-smarter-feature-merge-with-preflight: Regenerated canonical status/progress/lifecycle views; 018-merge-preflight-documentation: Regenerated canonical status/progress/lifecycle views; 019-autonomous-multi-agent-orchestration-research: Regenerated canonical status/progress/lifecycle views; 020-autonomous-multi-agent-orchestrator: Regenerated canonical status/progress/lifecycle views; 021-orchestrator-end-to-end-testing-suite: Regenerated canonical status/progress/lifecycle views; 022-orchestrator-user-documentation: Backfilled missing WP identity fields; 022-orchestrator-user-documentation: Rebuilt status.events.jsonl (0 synthetic events, 0 corrected); 022-orchestrator-user-documentation: Regenerated canonical status/progress/lifecycle views; 023-documentation-sprint-agent-management-cleanup: Regenerated canonical status/progress/lifecycle views; 024-adversarial-test-suite-0-13-0: Backfilled missing WP identity fields; 024-adversarial-test-suite-0-13-0: Rebuilt status.events.jsonl (0 synthetic events, 0 corrected); 024-adversarial-test-suite-0-13-0: Regenerated canonical status/progress/lifecycle views; 025-cli-event-log-integration: Regenerated canonical status/progress/lifecycle views; 026-agent-directory-centralization-architecture-research: Rebuilt status.events.jsonl (0 synthetic events, 0 corrected); 026-agent-directory-centralization-architecture-research: Regenerated canonical status/progress/lifecycle views; 027-cli-authentication-module-commands: Backfilled missing WP identity fields; 027-cli-authentication-module-commands: Rebuilt status.events.jsonl (0 synthetic events, 0 corrected); 027-cli-authentication-module-commands: Regenerated canonical status/progress/lifecycle views; 028-cli-event-emission-sync: Regenerated canonical status/progress/lifecycle views; 030-2x-sync-auth-docs: Rebuilt status.events.jsonl (0 synthetic events, 0 corrected); 030-2x-sync-auth-docs: Regenerated canonical status/progress/lifecycle views; 032-identity-aware-cli-event-sync: Regenerated canonical status/progress/lifecycle views; 033-github-observability-event-metadata: Backfilled missing WP identity fields; 033-github-observability-event-metadata: Rebuilt status.events.jsonl (0 synthetic events, 0 corrected); 033-github-observability-event-metadata: Regenerated canonical status/progress/lifecycle views; 034-feature-status-state-model-remediation: Regenerated canonical status/progress/lifecycle views; 035-frontmatter-history-to-canonical-jsonl: Regenerated canonical status/progress/lifecycle views; 036-kittify-runtime-centralization: Regenerated canonical status/progress/lifecycle views; 037-mission-dsl-foundation: Regenerated canonical status/progress/lifecycle views; 039-cli-2x-readiness: Regenerated canonical status/progress/lifecycle views; 040-mission-collaboration-cli-soft-coordination: Rebuilt status.events.jsonl
+      (0 synthetic events, 0 corrected); 040-mission-collaboration-cli-soft-coordination: Regenerated canonical status/progress/lifecycle views; 041-enable-plan-mission-runtime-support: Regenerated canonical status/progress/lifecycle views; 041-mission-glossary-semantic-integrity: Regenerated canonical status/progress/lifecycle views; 042-local-mission-dossier-authority-parity-export: Regenerated canonical status/progress/lifecycle views; 043-doctrine-lite-constitution-generator: Rebuilt status.events.jsonl (0 synthetic events, 0 corrected); 043-doctrine-lite-constitution-generator: Regenerated canonical status/progress/lifecycle views; 044-constitution-interview-compiler-context-bootstrap: Rebuilt status.events.jsonl (0 synthetic events, 0 corrected); 044-constitution-interview-compiler-context-bootstrap: Regenerated canonical status/progress/lifecycle views; 045-agent-profile-system: Backfilled mission identity metadata; 045-agent-profile-system: Regenerated canonical status/progress/lifecycle views; 045-mission-handoff-package-version-matrix: Regenerated canonical status/progress/lifecycle views; 046-doctrine-artifact-domain-models: Backfilled mission identity metadata; 046-doctrine-artifact-domain-models: Regenerated canonical status/progress/lifecycle views; 046-verify-audit-doctor-setup: Rebuilt status.events.jsonl (0 synthetic events, 0 corrected); 046-verify-audit-doctor-setup: Regenerated canonical status/progress/lifecycle views; 047-mutmut-mutation-testing-ci: Regenerated canonical status/progress/lifecycle views; 047-namespace-aware-artifact-body-sync: Regenerated canonical status/progress/lifecycle views; 048-structured-agent-identity-and-constitution-profile-integration: Backfilled mission identity metadata; 048-structured-agent-identity-and-constitution-profile-integration: Regenerated canonical status/progress/lifecycle views; 048-tracker-publish-resource-routing: Regenerated canonical status/progress/lifecycle views; 049-fix-merge-target-resolution: Regenerated canonical status/progress/lifecycle views; 050-state-model-cleanup-foundations: Regenerated canonical status/progress/lifecycle views; 051-canonical-state-authority-single-metadata-writer: Regenerated canonical status/progress/lifecycle views; 052-acceptance-pipeline-regression-fixes: Regenerated canonical status/progress/lifecycle views; 053-orchestrator-api-json-contract-fidelity: Regenerated canonical status/progress/lifecycle views; 054-constitution-interview-compiler-and-bootstrap: Backfilled mission identity metadata; 054-constitution-interview-compiler-and-bootstrap: Regenerated canonical status/progress/lifecycle views; 054-state-architecture-cleanup-phase-2: Regenerated canonical status/progress/lifecycle views; 055-agent-skills-pack: Regenerated canonical status/progress/lifecycle views; 056-documentation-parity-sprint: Regenerated canonical status/progress/lifecycle views; 057-canonical-context-architecture-cleanup: Regenerated canonical status/progress/lifecycle views; 057-doctrine-stack-init-and-profile-integration: Backfilled mission identity metadata; 057-doctrine-stack-init-and-profile-integration: Regenerated canonical status/progress/lifecycle views; 058-hybrid-prompt-and-shim-agent-surface: Regenerated canonical status/progress/lifecycle views; 058-mission-template-repository-refactor: Backfilled mission identity metadata; 058-mission-template-repository-refactor: Regenerated canonical status/progress/lifecycle views; 059-saas-mediated-cli-tracker-reflow: Regenerated canonical status/progress/lifecycle views; 060-canonical-status-model-cleanup: Regenerated canonical status/progress/lifecycle views; 061-ticket-first-mission-origin-binding: Backfilled mission identity metadata; 061-ticket-first-mission-origin-binding: Regenerated canonical status/progress/lifecycle views; 062-fix-doctrine-migration-test-failures: Backfilled mission identity metadata; 062-fix-doctrine-migration-test-failures: Normalized legacy mission_number type; 062-fix-doctrine-migration-test-failures: Regenerated canonical status/progress/lifecycle views; 062-tracker-binding-context-discovery:
+      Backfilled mission identity metadata; 062-tracker-binding-context-discovery: Regenerated canonical status/progress/lifecycle views; 063-universal-charter-rename: Backfilled mission identity metadata; 063-universal-charter-rename: Regenerated canonical status/progress/lifecycle views; 064-complete-mission-identity-cutover: Backfilled mission identity metadata; 064-complete-mission-identity-cutover: Regenerated canonical status/progress/lifecycle views; 065-tasks-and-lane-stabilization: Backfilled mission identity metadata; 065-tasks-and-lane-stabilization: Normalized legacy mission_number type; 065-tasks-and-lane-stabilization: Regenerated canonical status/progress/lifecycle views; 065-wp-metadata-state-type-hardening: Backfilled mission identity metadata; 065-wp-metadata-state-type-hardening: Regenerated canonical status/progress/lifecycle views; 066-review-loop-stabilization: Backfilled mission identity metadata; 066-review-loop-stabilization: Normalized legacy mission_number type; 066-review-loop-stabilization: Regenerated canonical status/progress/lifecycle views; 067-runtime-recovery-and-audit-safety: Backfilled mission identity metadata; 067-runtime-recovery-and-audit-safety: Normalized legacy mission_number type; 067-runtime-recovery-and-audit-safety: Regenerated canonical status/progress/lifecycle views; 068-post-merge-reliability-and-release-hardening: Backfilled mission identity metadata; 068-post-merge-reliability-and-release-hardening: Normalized legacy mission_number type; 068-post-merge-reliability-and-release-hardening: Regenerated canonical status/progress/lifecycle views; 069-planning-pipeline-integrity: Backfilled mission identity metadata; 069-planning-pipeline-integrity: Normalized legacy mission_number type; 069-planning-pipeline-integrity: Regenerated canonical status/progress/lifecycle views; 076-init-command-overhaul: Backfilled mission identity metadata; 076-init-command-overhaul: Normalized legacy mission_number type; 076-init-command-overhaul: Regenerated canonical status/progress/lifecycle views; 077-mission-terminology-cleanup: Backfilled mission identity metadata; 077-mission-terminology-cleanup: Normalized legacy mission_number type; 077-mission-terminology-cleanup: Regenerated canonical status/progress/lifecycle views; 078-planning-artifact-and-query-consistency: Backfilled mission identity metadata; 078-planning-artifact-and-query-consistency: Normalized legacy mission_number type; 078-planning-artifact-and-query-consistency: Regenerated canonical status/progress/lifecycle views; 079-post-555-release-hardening: Backfilled mission identity metadata; 079-post-555-release-hardening: Normalized legacy mission_number type; 079-post-555-release-hardening: Regenerated canonical status/progress/lifecycle views; 080-browser-mediated-oauth-cli-auth: Backfilled mission identity metadata; 080-browser-mediated-oauth-cli-auth: Normalized legacy mission_number type; 080-browser-mediated-oauth-cli-auth: Regenerated canonical status/progress/lifecycle views; 080-ci-hardening-and-lint-cleanup: Backfilled mission identity metadata; 080-ci-hardening-and-lint-cleanup: Normalized legacy mission_number type; 080-ci-hardening-and-lint-cleanup: Regenerated canonical status/progress/lifecycle views; 080-wpstate-lane-consumer-strangler-fig-phase-2: Backfilled mission identity metadata; 080-wpstate-lane-consumer-strangler-fig-phase-2: Normalized legacy mission_number type; 080-wpstate-lane-consumer-strangler-fig-phase-2: Regenerated canonical status/progress/lifecycle views; 081-canonical-baseline-and-repository-boundary: Backfilled mission identity metadata; 081-canonical-baseline-and-repository-boundary: Normalized legacy mission_number type; 081-canonical-baseline-and-repository-boundary: Regenerated canonical status/progress/lifecycle views; 082-stealth-gated-saas-sync-hardening: Backfilled mission identity metadata; 082-stealth-gated-saas-sync-hardening: Normalized legacy mission_number type; 082-stealth-gated-saas-sync-hardening: Regenerated canonical status/progress/lifecycle views; 083-agent-skills-codex-vibe:
+      Backfilled mission identity metadata; 083-agent-skills-codex-vibe: Regenerated canonical status/progress/lifecycle views; bulk-edit-occurrence-classification-guardrail-01KP423X: Regenerated canonical status/progress/lifecycle views; charter-ownership-consolidation-and-neutrality-hardening-01KPD880: Regenerated canonical status/progress/lifecycle views; charter-synthesizer-phase-3-completion-01KPJFHG: Regenerated canonical status/progress/lifecycle views; cli-interview-decision-moments-01KPWT8P: Regenerated canonical status/progress/lifecycle views; cli-widen-mode-and-write-back-01KPXFGJ: Regenerated canonical status/progress/lifecycle views; complexity-code-smell-remediation-01KP15HB: Regenerated canonical status/progress/lifecycle views; drg-phase-zero-01KP2YCE: Regenerated canonical status/progress/lifecycle views; excise-doctrine-curation-and-inline-references-01KP54J6: Regenerated canonical status/progress/lifecycle views; functional-ownership-map-01KPDY72: Regenerated canonical status/progress/lifecycle views; glossary-drg-chokepoint-01KPTE0P: Regenerated canonical status/progress/lifecycle views; glossary-drg-surfaces-and-charter-lint-01KPTY5Y: Regenerated canonical status/progress/lifecycle views; glossary-functional-module-extraction-01KPDYM9: Regenerated canonical status/progress/lifecycle views; intake-auto-detect-01KPNGCX: Regenerated canonical status/progress/lifecycle views; legacy-sparse-and-review-lock-hardening-01KP54ZW: Regenerated canonical status/progress/lifecycle views; local-custom-mission-loader-01KQ2VNJ: Regenerated canonical status/progress/lifecycle views; migration-shim-ownership-rules-01KPDYDW: Regenerated canonical status/progress/lifecycle views; phase-3-charter-synthesizer-pipeline-01KPE222: Regenerated canonical status/progress/lifecycle views; phase-4-closeout-host-surfaces-and-trail-01KPWA5X: Regenerated canonical status/progress/lifecycle views; phase-4-trail-host-surface-closeout-01KPSXD2: Regenerated canonical status/progress/lifecycle views; phase6-composition-stabilization-01KQ2JAS: Regenerated canonical status/progress/lifecycle views; profile-invocation-runtime-audit-trail-01KPQRX2: Regenerated canonical status/progress/lifecycle views; profile-roles-as-value-object-01KPRJRY: Regenerated canonical status/progress/lifecycle views; retire-mission-identity-drift-window-01KP2JNZ: Regenerated canonical status/progress/lifecycle views; runtime-mission-execution-extraction-01KPDYGW: Regenerated canonical status/progress/lifecycle views; shared-package-boundary-cutover-01KQ22DS: Regenerated canonical status/progress/lifecycle views; software-dev-composition-rewrite-01KQ26CY: Regenerated canonical status/progress/lifecycle views; specify-brief-intake-mode-01KPMXQB: Regenerated canonical status/progress/lifecycle views; stabilization-release-core-bug-fixes-01KPQJAN: Regenerated canonical status/progress/lifecycle views; unified-charter-bundle-chokepoint-01KP5Q2G: Regenerated canonical status/progress/lifecycle views'
   - id: 3.2.0a4_safe_globalize_commands
     applied_at: '2026-04-26T08:25:43.570856'
     result: success
-    notes: 'Removed: .claude/commands/spec-kitty.accept.md; Removed: .claude/commands/spec-kitty.analyze.md;
-      Removed: .claude/commands/spec-kitty.charter.md; Removed: .claude/commands/spec-kitty.checklist.md;
-      Removed: .claude/commands/spec-kitty.dashboard.md; Removed: .claude/commands/spec-kitty.implement.md;
-      Removed: .claude/commands/spec-kitty.merge.md; Removed: .claude/commands/spec-kitty.plan.md;
-      Removed: .claude/commands/spec-kitty.research.md; Removed: .claude/commands/spec-kitty.review.md;
-      Removed: .claude/commands/spec-kitty.specify.md; Removed: .claude/commands/spec-kitty.status.md;
-      Removed: .claude/commands/spec-kitty.tasks-finalize.md; Removed: .claude/commands/spec-kitty.tasks-outline.md;
-      Removed: .claude/commands/spec-kitty.tasks-packages.md; Removed: .claude/commands/spec-kitty.tasks.md;
-      Removed empty directory: .claude/commands; Removed: .codex/prompts/spec-kitty.accept.md;
-      Removed: .codex/prompts/spec-kitty.analyze.md; Removed: .codex/prompts/spec-kitty.charter.md;
-      Removed: .codex/prompts/spec-kitty.checklist.md; Removed: .codex/prompts/spec-kitty.dashboard.md;
-      Removed: .codex/prompts/spec-kitty.implement.md; Removed: .codex/prompts/spec-kitty.merge.md;
-      Removed: .codex/prompts/spec-kitty.plan.md; Removed: .codex/prompts/spec-kitty.research.md;
-      Removed: .codex/prompts/spec-kitty.review.md; Removed: .codex/prompts/spec-kitty.specify.md;
-      Removed: .codex/prompts/spec-kitty.status.md; Preserved: .codex/prompts/spec-kitty.tasks-finalize.md
-      (no global equivalent at ~/.codex/prompts/spec-kitty.tasks-finalize.md); Removed:
-      .codex/prompts/spec-kitty.tasks.md; Removed: .codex/prompts/spec-kitty.tasks_outline.md;
-      Removed: .codex/prompts/spec-kitty.tasks_packages.md'
+    notes: 'Removed: .claude/commands/spec-kitty.accept.md; Removed: .claude/commands/spec-kitty.analyze.md; Removed: .claude/commands/spec-kitty.charter.md; Removed: .claude/commands/spec-kitty.checklist.md; Removed: .claude/commands/spec-kitty.dashboard.md; Removed: .claude/commands/spec-kitty.implement.md; Removed: .claude/commands/spec-kitty.merge.md; Removed: .claude/commands/spec-kitty.plan.md; Removed: .claude/commands/spec-kitty.research.md; Removed: .claude/commands/spec-kitty.review.md; Removed: .claude/commands/spec-kitty.specify.md; Removed: .claude/commands/spec-kitty.status.md; Removed: .claude/commands/spec-kitty.tasks-finalize.md; Removed: .claude/commands/spec-kitty.tasks-outline.md; Removed: .claude/commands/spec-kitty.tasks-packages.md; Removed: .claude/commands/spec-kitty.tasks.md; Removed empty directory: .claude/commands; Removed: .codex/prompts/spec-kitty.accept.md; Removed: .codex/prompts/spec-kitty.analyze.md; Removed: .codex/prompts/spec-kitty.charter.md; Removed: .codex/prompts/spec-kitty.checklist.md; Removed: .codex/prompts/spec-kitty.dashboard.md; Removed: .codex/prompts/spec-kitty.implement.md; Removed: .codex/prompts/spec-kitty.merge.md; Removed: .codex/prompts/spec-kitty.plan.md; Removed: .codex/prompts/spec-kitty.research.md; Removed: .codex/prompts/spec-kitty.review.md; Removed: .codex/prompts/spec-kitty.specify.md; Removed: .codex/prompts/spec-kitty.status.md; Preserved: .codex/prompts/spec-kitty.tasks-finalize.md (no global equivalent at ~/.codex/prompts/spec-kitty.tasks-finalize.md); Removed: .codex/prompts/spec-kitty.tasks.md; Removed: .codex/prompts/spec-kitty.tasks_outline.md; Removed: .codex/prompts/spec-kitty.tasks_packages.md'

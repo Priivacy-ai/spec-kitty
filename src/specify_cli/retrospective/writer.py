@@ -2,21 +2,56 @@
 
 Uses ruamel.yaml round-trip dumper for stable byte output, and os.replace
 for atomic rename so a crash never leaves a partially-written canonical file.
+
+WP03 additions:
+  - ``write_gen_record(record, mode, repo_root)`` for GenRetrospectiveRecord with
+    error / overwrite / update semantics.
+  - ``RecordExistsError`` raised by mode="error" when canonical path exists.
+  - Defense-in-depth ``synthesize_fabricate ⇒ ran_no_findings`` check (T014).
 """
 
 from __future__ import annotations
 
+import dataclasses
 import io
 import os
 from pathlib import Path
+from typing import Literal
 
 from ruamel.yaml import YAML
 
-from specify_cli.retrospective.schema import RetrospectiveRecord
+from specify_cli.retrospective.schema import (
+    GenActor,
+    GenEvidenceRef,
+    GenFinding,
+    GenProposal,
+    GenProvenance,
+    GenRetrospectiveRecord,
+    RecordValidationError,
+    RetrospectiveRecord,
+    validate_record,
+)
 
 
 class WriterError(Exception):
     """Raised when the writer cannot persist a retrospective record."""
+
+
+class RecordExistsError(WriterError):
+    """Raised by write_gen_record(mode='error') when canonical path already exists.
+
+    Attributes:
+        path: The canonical path that already exists.
+    """
+
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        super().__init__(
+            f"Retrospective record already exists at {path}. "
+            "Use mode='overwrite' to replace it wholesale, or mode='update' to "
+            "merge with the existing record. "
+            "CLI flags: --overwrite / --update"
+        )
 
 
 def write_record(record: RetrospectiveRecord, *, repo_root: Path) -> Path:
@@ -112,5 +147,382 @@ def write_record(record: RetrospectiveRecord, *, repo_root: Path) -> Path:
         except OSError:
             pass
         raise WriterError(f"Unexpected error writing retrospective record: {exc}") from exc
+
+    return canonical
+
+
+# ---------------------------------------------------------------------------
+# WP03: GenRetrospectiveRecord writer with error / overwrite / update modes
+# ---------------------------------------------------------------------------
+
+
+def _gen_record_to_dict(record: GenRetrospectiveRecord) -> dict:
+    """Serialize a GenRetrospectiveRecord to a plain Python dict for YAML."""
+    def _actor_to_dict(a: GenActor) -> dict:
+        d: dict = {"kind": a.kind, "id": a.id}
+        if a.display is not None:
+            d["display"] = a.display
+        return d
+
+    def _provenance_to_dict(p: GenProvenance) -> dict:
+        d: dict = {
+            "kind": p.kind,
+            "invoked_at": p.invoked_at,
+            "policy_resolved_from": dict(p.policy_resolved_from),
+        }
+        if p.command is not None:
+            d["command"] = p.command
+        return d
+
+    def _evidence_ref_to_dict(e: GenEvidenceRef) -> dict:
+        d: dict = {"id": e.id, "kind": e.kind}
+        if e.path is not None:
+            d["path"] = e.path
+        if e.range is not None:
+            d["range"] = e.range
+        if e.url is not None:
+            d["url"] = e.url
+        return d
+
+    def _finding_to_dict(f: GenFinding) -> dict:
+        d: dict = {
+            "id": f.id,
+            "category": f.category,
+            "summary": f.summary,
+            "evidence_refs": list(f.evidence_refs),
+        }
+        if f.details is not None:
+            d["details"] = f.details
+        return d
+
+    def _proposal_to_dict(p: GenProposal) -> dict:
+        d: dict = {
+            "id": p.id,
+            "category": p.category,
+            "risk_class": p.risk_class,
+            "summary": p.summary,
+            "evidence_refs": list(p.evidence_refs),
+            "suggested_action": p.suggested_action,
+            "auto_applicable": p.auto_applicable,
+        }
+        if p.details is not None:
+            d["details"] = p.details
+        return d
+
+    return {
+        "schema_version": record.schema_version,
+        "mission_id": record.mission_id,
+        "mission_slug": record.mission_slug,
+        "mission_number": record.mission_number,
+        "friendly_name": record.friendly_name,
+        "mission_type": record.mission_type,
+        "target_branch": record.target_branch,
+        "created_at": record.created_at,
+        "created_by": _actor_to_dict(record.created_by),
+        "provenance": _provenance_to_dict(record.provenance),
+        "policy_source": dict(record.policy_source),
+        "findings_status": record.findings_status,
+        "helped": [_finding_to_dict(f) for f in record.helped],
+        "not_helpful": [_finding_to_dict(f) for f in record.not_helpful],
+        "gaps": [_finding_to_dict(f) for f in record.gaps],
+        "proposals": [_proposal_to_dict(p) for p in record.proposals],
+        "evidence_refs": [_evidence_ref_to_dict(e) for e in record.evidence_refs],
+        "generator_version": record.generator_version,
+        "provenance_history": [_provenance_to_dict(p) for p in record.provenance_history],
+    }
+
+
+def _dict_to_gen_record(data: dict) -> GenRetrospectiveRecord:
+    """Deserialize a plain dict (from YAML) into a GenRetrospectiveRecord."""
+    def _dict_to_actor(d: dict) -> GenActor:
+        return GenActor(kind=d["kind"], id=d["id"], display=d.get("display"))
+
+    def _dict_to_provenance(d: dict) -> GenProvenance:
+        return GenProvenance(
+            kind=d["kind"],
+            invoked_at=d["invoked_at"],
+            policy_resolved_from=dict(d.get("policy_resolved_from", {})),
+            command=d.get("command"),
+        )
+
+    def _dict_to_evidence_ref(d: dict) -> GenEvidenceRef:
+        return GenEvidenceRef(
+            id=d["id"],
+            kind=d["kind"],
+            path=d.get("path"),
+            range=d.get("range"),
+            url=d.get("url"),
+        )
+
+    def _dict_to_finding(d: dict) -> GenFinding:
+        return GenFinding(
+            id=d["id"],
+            category=d["category"],
+            summary=d["summary"],
+            evidence_refs=list(d.get("evidence_refs", [])),
+            details=d.get("details"),
+        )
+
+    def _dict_to_proposal(d: dict) -> GenProposal:
+        return GenProposal(
+            id=d["id"],
+            category=d["category"],
+            risk_class=d["risk_class"],
+            summary=d["summary"],
+            evidence_refs=list(d.get("evidence_refs", [])),
+            suggested_action=d["suggested_action"],
+            auto_applicable=d["auto_applicable"],
+            details=d.get("details"),
+        )
+
+    return GenRetrospectiveRecord(
+        schema_version=data.get("schema_version", 1),
+        mission_id=data.get("mission_id", ""),
+        mission_slug=data.get("mission_slug", ""),
+        mission_number=data.get("mission_number"),
+        friendly_name=data.get("friendly_name", ""),
+        mission_type=data.get("mission_type", ""),
+        target_branch=data.get("target_branch", ""),
+        created_at=data.get("created_at", ""),
+        created_by=_dict_to_actor(data.get("created_by", {"kind": "runtime", "id": "unknown"})),
+        provenance=_dict_to_provenance(data.get("provenance", {"kind": "runtime_post_completion", "invoked_at": ""})),
+        policy_source=dict(data.get("policy_source", {})),
+        findings_status=data.get("findings_status", "ran_no_findings"),
+        helped=[_dict_to_finding(f) for f in data.get("helped", [])],
+        not_helpful=[_dict_to_finding(f) for f in data.get("not_helpful", [])],
+        gaps=[_dict_to_finding(f) for f in data.get("gaps", [])],
+        proposals=[_dict_to_proposal(p) for p in data.get("proposals", [])],
+        evidence_refs=[_dict_to_evidence_ref(e) for e in data.get("evidence_refs", [])],
+        generator_version=data.get("generator_version", ""),
+        provenance_history=[_dict_to_provenance(p) for p in data.get("provenance_history", [])],
+    )
+
+
+def _merge_gen_records(existing: GenRetrospectiveRecord, new: GenRetrospectiveRecord) -> GenRetrospectiveRecord:
+    """Merge two GenRetrospectiveRecords per data-model.md merge semantics.
+
+    Rules:
+    - helped / not_helpful / gaps / proposals: deduplicate by (category, summary.lower()).
+      New entries append with their original ids (caller is responsible for uniqueness).
+    - evidence_refs: deduplicate by (kind, path, range, url). New entries append.
+    - policy_source: replaced wholesale with new.
+    - provenance: new becomes active; prior prepended to provenance_history.
+    - findings_status: recomputed from final lists.
+    """
+    # Deduplicate findings by (category, summary.lower())
+    def _merge_findings(old: list[GenFinding], new_items: list[GenFinding]) -> list[GenFinding]:
+        seen: set[tuple[str, str]] = {(f.category, f.summary.lower()) for f in old}
+        merged = list(old)
+        for f in new_items:
+            key = (f.category, f.summary.lower())
+            if key not in seen:
+                seen.add(key)
+                merged.append(f)
+        return merged
+
+    # Deduplicate proposals by (category, summary.lower())
+    def _merge_proposals(old: list[GenProposal], new_items: list[GenProposal]) -> list[GenProposal]:
+        seen: set[tuple[str, str]] = {(p.category, p.summary.lower()) for p in old}
+        merged = list(old)
+        for p in new_items:
+            key = (p.category, p.summary.lower())
+            if key not in seen:
+                seen.add(key)
+                merged.append(p)
+        return merged
+
+    # Deduplicate evidence_refs by (kind, path, range, url)
+    def _evidence_key(e: GenEvidenceRef) -> tuple:
+        return (e.kind, e.path, e.range, e.url)
+
+    existing_ev_keys: set[tuple] = {_evidence_key(e) for e in existing.evidence_refs}
+    merged_evidence = list(existing.evidence_refs)
+    for e in new.evidence_refs:
+        if _evidence_key(e) not in existing_ev_keys:
+            existing_ev_keys.add(_evidence_key(e))
+            merged_evidence.append(e)
+
+    merged_helped = _merge_findings(existing.helped, new.helped)
+    merged_not_helpful = _merge_findings(existing.not_helpful, new.not_helpful)
+    merged_gaps = _merge_findings(existing.gaps, new.gaps)
+    merged_proposals = _merge_proposals(existing.proposals, new.proposals)
+
+    # Recompute findings_status from final lists.
+    has_any = bool(merged_helped or merged_not_helpful or merged_gaps or merged_proposals)
+    findings_status: Literal["has_findings", "ran_no_findings"] = "has_findings" if has_any else "ran_no_findings"
+
+    # Provenance: new replaces existing; existing prepended to history.
+    new_history = [existing.provenance] + list(existing.provenance_history)
+
+    return dataclasses.replace(
+        new,
+        helped=merged_helped,
+        not_helpful=merged_not_helpful,
+        gaps=merged_gaps,
+        proposals=merged_proposals,
+        evidence_refs=merged_evidence,
+        findings_status=findings_status,
+        provenance_history=new_history,
+    )
+
+
+def _atomic_write_gen(data: dict, canonical: Path, target_dir: Path) -> None:
+    """Atomically write a dict as YAML to canonical path.
+
+    Write to <canonical>.tmp.<pid>.<random>, fsync, os.replace.
+    """
+    tmp_name = f"retrospective.yaml.tmp.{os.getpid()}.{os.urandom(4).hex()}"
+    tmp_path = target_dir / tmp_name
+
+    try:
+        yaml = YAML(typ="rt")
+        yaml.default_flow_style = False
+        yaml.preserve_quotes = True
+        yaml.width = 120
+
+        buf = io.BytesIO()
+        yaml.dump(data, buf)
+        serialized = buf.getvalue()
+
+        fd = os.open(str(tmp_path), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
+        try:
+            os.write(fd, serialized)
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+
+        os.replace(str(tmp_path), str(canonical))
+
+        # Best-effort dir fsync.
+        try:
+            dir_fd = os.open(str(target_dir), os.O_RDONLY)
+            try:
+                os.fsync(dir_fd)
+            finally:
+                os.close(dir_fd)
+        except OSError:
+            pass
+
+    except WriterError:
+        raise
+    except OSError as exc:
+        try:
+            tmp_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise WriterError(f"IO error writing retrospective record: {exc}") from exc
+    except Exception as exc:
+        try:
+            tmp_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise WriterError(f"Unexpected error writing retrospective record: {exc}") from exc
+
+
+def write_gen_record(
+    record: GenRetrospectiveRecord,
+    *,
+    mode: Literal["error", "overwrite", "update"],
+    repo_root: Path,
+) -> Path:
+    """Atomically write a generator record to its canonical path with three modes.
+
+    Canonical path: <repo_root>/.kittify/missions/<mission_id>/retrospective.yaml
+
+    Args:
+        record: The generator record to persist.
+        mode: Write mode:
+            "error"     — raise RecordExistsError if canonical path exists.
+            "overwrite" — replace wholesale regardless of prior record.
+            "update"    — merge with existing record per data-model.md merge semantics.
+        repo_root: Root of the spec-kitty project.
+
+    Returns:
+        The absolute canonical path that was written.
+
+    Raises:
+        RecordExistsError: mode="error" and canonical path already exists.
+        RecordValidationError: Record violates invariants (including
+            synthesize_fabricate ⇒ ran_no_findings).
+        WriterError: IO error during write.
+    """
+    # Run validate_record for schema invariants (WP02).
+    validate_record(record)
+
+    # T014 defense-in-depth: reject synthesize_fabricate with findings.
+    # Note: validate_record() (above) already enforces this invariant.  This
+    # secondary guard is a belt-and-suspenders safety net for callers that
+    # bypass the schema-level check.  Mark it no-cover so coverage tooling
+    # does not demand a redundant test.
+    if (  # pragma: no cover
+        record.provenance.kind == "synthesize_fabricate"
+        and record.findings_status != "ran_no_findings"
+    ):
+        raise RecordValidationError(  # pragma: no cover
+            violation="synthesize_fabricate_findings_status_mismatch",
+            detail=(
+                "synthesize_fabricate provenance MUST imply findings_status=ran_no_findings; "
+                f"got findings_status={record.findings_status!r}. "
+                "See data-model.md invariants."
+            ),
+        )
+
+    mission_id = record.mission_id
+    if not mission_id:
+        raise WriterError("record.mission_id must be non-empty to determine canonical path")
+
+    target_dir = repo_root / ".kittify" / "missions" / mission_id
+    canonical = target_dir / "retrospective.yaml"
+
+    try:
+        target_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise WriterError(f"Cannot create target directory {target_dir}: {exc}") from exc
+
+    if mode == "error":
+        if canonical.exists():
+            raise RecordExistsError(canonical)
+        final_record = record
+
+    elif mode == "overwrite":
+        final_record = record
+
+    elif mode == "update":
+        if canonical.exists():
+            # Load and validate the existing record.
+            yaml_safe = YAML(typ="safe")
+            try:
+                raw_text = canonical.read_text(encoding="utf-8")
+                existing_data = yaml_safe.load(raw_text)
+            except Exception as exc:
+                raise WriterError(
+                    f"Cannot load existing record at {canonical} for merge: {exc}"
+                ) from exc
+
+            if not isinstance(existing_data, dict):
+                raise WriterError(
+                    f"Existing record at {canonical} is not a YAML mapping"
+                )
+
+            try:
+                existing = _dict_to_gen_record(existing_data)
+                validate_record(existing)
+            except RecordValidationError as exc:
+                raise WriterError(
+                    f"Existing record at {canonical} fails validation: {exc}"
+                ) from exc
+
+            final_record = _merge_gen_records(existing, record)
+            # Re-validate merged record.
+            validate_record(final_record)
+        else:
+            # No existing record; behave like "error" mode (first write).
+            final_record = record
+
+    else:
+        raise WriterError(f"Unknown write mode {mode!r}; expected 'error', 'overwrite', or 'update'")
+
+    data = _gen_record_to_dict(final_record)
+    _atomic_write_gen(data, canonical, target_dir)
 
     return canonical

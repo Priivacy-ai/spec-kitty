@@ -1,0 +1,131 @@
+# Snapshot of large-with-gaps generator output
+# Generated with invoked_at=2026-05-19T12:00:00+00:00 and default policy
+# Used for regression detection in test_generator.py::TestFindingsClassification
+# To regenerate: python -c "from tests.retrospective.snapshot_helper import regenerate; regenerate()"
+
+schema_version: 1
+mission_id: "01TESTLARGEGAPS000000000LG"
+mission_slug: "large-with-gaps"
+mission_number: null
+friendly_name: "Large Mission With Gaps"
+mission_type: "software-dev"
+target_branch: "main"
+created_at: "2026-05-19T12:00:00+00:00"
+generator_version: "1.0"
+findings_status: "has_findings"
+
+created_by:
+  kind: "runtime"
+  id: "spec-kitty-generator"
+  display: "Spec Kitty Generator"
+
+provenance:
+  kind: "runtime_post_completion"
+  command: null
+  invoked_at: "2026-05-19T12:00:00+00:00"
+  policy_resolved_from: {}
+
+policy_source: {}
+
+helped:
+  - id: "h-001"
+    category: "implementation"
+    summary: "WP01 completed without rejection cycles"
+    details: null
+    evidence_refs: ["e-005"]
+  - id: "h-002"
+    category: "implementation"
+    summary: "WP03 completed without rejection cycles"
+    details: null
+    evidence_refs: ["e-007"]
+  - id: "h-003"
+    category: "implementation"
+    summary: "WP05 completed without rejection cycles"
+    details: null
+    evidence_refs: ["e-009"]
+  - id: "h-004"
+    category: "implementation"
+    summary: "WP06 completed without rejection cycles"
+    details: null
+    evidence_refs: ["e-010"]
+
+not_helpful:
+  - id: "n-001"
+    category: "review_loop"
+    summary: "WP02 required 1 rejection cycle(s) before approval"
+    evidence_refs: ["e-012"]
+  - id: "n-002"
+    category: "review_loop"
+    summary: "WP04 required 1 rejection cycle(s) before approval"
+    evidence_refs: ["e-013"]
+
+gaps:
+  - id: "g-001"
+    category: "spec_quality"
+    summary: "Unresolved clarification marker in spec.md (line 13)"
+    evidence_refs: ["e-002"]
+  - id: "g-002"
+    category: "spec_quality"
+    summary: "Unresolved clarification marker in spec.md (line 22)"
+    evidence_refs: ["e-002"]
+  - id: "g-003"
+    category: "spec_quality"
+    summary: "FR-007 defined in spec.md has no WP coverage"
+    evidence_refs: ["e-002"]
+  - id: "g-004"
+    category: "spec_quality"
+    summary: "FR-008 defined in spec.md has no WP coverage"
+    evidence_refs: ["e-002"]
+  - id: "g-005"
+    category: "doc"
+    summary: "research.md absent"
+    evidence_refs: ["e-002"]
+  - id: "g-006"
+    category: "doc"
+    summary: "data-model.md absent"
+    evidence_refs: ["e-002"]
+
+proposals: []
+
+evidence_refs:
+  - id: "e-001"
+    kind: "file"
+    path: "kitty-specs/large-with-gaps/meta.json"
+  - id: "e-002"
+    kind: "file"
+    path: "kitty-specs/large-with-gaps/spec.md"
+  - id: "e-003"
+    kind: "file"
+    path: "kitty-specs/large-with-gaps/plan.md"
+  - id: "e-004"
+    kind: "file"
+    path: "kitty-specs/large-with-gaps/tasks.md"
+  - id: "e-005"
+    kind: "file"
+    path: "kitty-specs/large-with-gaps/tasks/WP01.md"
+  - id: "e-006"
+    kind: "file"
+    path: "kitty-specs/large-with-gaps/tasks/WP02.md"
+  - id: "e-007"
+    kind: "file"
+    path: "kitty-specs/large-with-gaps/tasks/WP03.md"
+  - id: "e-008"
+    kind: "file"
+    path: "kitty-specs/large-with-gaps/tasks/WP04.md"
+  - id: "e-009"
+    kind: "file"
+    path: "kitty-specs/large-with-gaps/tasks/WP05.md"
+  - id: "e-010"
+    kind: "file"
+    path: "kitty-specs/large-with-gaps/tasks/WP06.md"
+  - id: "e-011"
+    kind: "file"
+    path: "kitty-specs/large-with-gaps/status.events.jsonl"
+  - id: "e-012"
+    kind: "event_range"
+    path: "kitty-specs/large-with-gaps/status.events.jsonl"
+    range: "01TESTLG00000000000000000007"
+  - id: "e-013"
+    kind: "event_range"
+    path: "kitty-specs/large-with-gaps/status.events.jsonl"
+    range: "01TESTLG00000000000000000017"

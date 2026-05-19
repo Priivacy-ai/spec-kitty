@@ -94,6 +94,40 @@ Tests use several mechanisms to ensure they run against source code:
 
 All integration tests use the `run_cli` fixture which handles this automatically.
 
+### Pytest collection fails with "cannot import name 'normalize_event_id' from 'spec_kitty_events'"
+
+**Symptom**: Pytest collection fails before any tests run with:
+
+```
+ImportError: cannot import name 'normalize_event_id' from 'spec_kitty_events' (unknown location)
+```
+
+**Cause**: Local PEP 420 namespace-package corruption from a partial `pip uninstall`. The wheel
+is fine; CI is unaffected. This is **NOT** a Spec Kitty bug — it is a Python install integrity
+issue.
+
+**Diagnostic**:
+
+```bash
+python -c "import spec_kitty_events; print(repr(spec_kitty_events.__file__), spec_kitty_events.__path__)"
+# Healthy:   prints a path ending in __init__.py
+# Corrupt:   prints None followed by _NamespacePath([...])  ← this is the bad state
+```
+
+**Fix**:
+
+```bash
+uv sync --reinstall-package spec-kitty-events
+```
+
+Per the closing comment on [#1137](https://github.com/Priivacy-ai/spec-kitty/issues/1137), the
+Spec Kitty code path deliberately does NOT fall back to importing from
+`spec_kitty_events.models.*` — that would violate the FR-024 frozen public-surface architectural
+contract (enforced by `tests/architectural/test_events_tracker_public_imports.py`) and mask local
+environment corruption that future contributors should still encounter visibly.
+
+---
+
 ### Troubleshooting Version Issues
 
 If you see errors like "Version Mismatch Detected", it means you have a pip-installed version of spec-kitty-cli that doesn't match your source code version.

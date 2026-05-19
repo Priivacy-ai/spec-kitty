@@ -277,15 +277,39 @@ For detailed troubleshooting including conflict resolution and error recovery, s
 
 ## After Merge
 
-Run `/spec-kitty-mission-review` in your agent. The mission's
-`retrospective.yaml` is authored earlier at the runtime terminus, not by
-`merge`. Before context decays, review what was captured and apply any staged
-proposals:
+Complete the following three steps before declaring the mission done.
+
+**1. Mission review** — run the post-merge mission review to confirm spec→code fidelity and FR
+coverage:
 
 ```bash
-spec-kitty retrospect summary                       # cross-mission view
-spec-kitty agent retrospect synthesize --mission <slug>  # dry-run; --apply to mutate
+# In your agent:
+/spec-kitty-mission-review
 ```
+
+**2. Author or verify the retrospective** — under default policy the record was written during
+merge. Verify with:
+
+```bash
+cat .kittify/missions/$(jq -r .mission_id kitty-specs/<slug>/meta.json)/retrospective.yaml
+```
+
+If absent (older mission predating 3.2.0), author it:
+
+```bash
+spec-kitty retrospect create --mission <handle>
+```
+
+**3. Surface findings**:
+
+```bash
+spec-kitty retrospect summary                              # cross-mission view (read-only)
+spec-kitty agent retrospect synthesize --mission <handle> --preview  # inspect proposals
+spec-kitty agent retrospect synthesize --mission <handle> --apply <id>  # apply a proposal
+```
+
+For the full command reference, see
+[How to Use Retrospective Learning](use-retrospective-learning.md).
 
 ---
 

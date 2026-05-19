@@ -194,6 +194,301 @@ def _resolve_mission_id_for_terminus(feature_dir: Path) -> str:
     return feature_dir.name
 
 
+def _build_retrospective_facilitator_callback(
+    mission_slug: str,
+    repo_root: Path,  # noqa: ARG001
+    provenance_kind: str = "runtime_post_completion",
+) -> Any:
+    """Build the facilitator callback that wires WP01/02/03 surfaces into the terminus.
+
+    Returns a callable suitable for ``facilitator_callback=`` in ``run_terminus()``.
+    When invoked by the terminus, it:
+
+    1. Resolves policy via WP01 ``resolve_policy()``.
+    2. Dispatches to the generator via WP02 ``generate_retrospective()``.
+    3. Writes the record via WP03 ``write_gen_record(mode="error")``.
+    4. Emits a ``RetrospectiveCaptured`` lifecycle event (WP03 ``emit_captured()``).
+
+    The callback returns a ``RetrospectiveRecord`` (the old pydantic-based schema type)
+    to satisfy the terminus contract.  Generator failures are classified and logged;
+    the caller (terminus) decides whether to block or continue based on the exception
+    propagating upward.
+
+    WP04 — T018/T019/T020/T021
+    """
+    # Late imports to keep the module-level import graph clean and to allow
+    # the terminus to remain the single import point for heavy optional deps.
+    from specify_cli.retrospective.policy import (
+        PolicyResolutionError,
+        resolve_policy,
+    )
+    from specify_cli.retrospective.generator import generate_retrospective
+    from specify_cli.retrospective.writer import RecordExistsError, write_gen_record
+    from specify_cli.retrospective.lifecycle_events import (
+        Actor as RetroActor,
+        emit_captured,
+        emit_capture_failed,
+    )
+
+    _prov: str = provenance_kind  # captured in closure
+
+    def _facilitator(
+        *,
+        mission_id: str,
+        feature_dir: Path,  # noqa: ARG001
+        repo_root: Path,
+        **_kwargs: Any,
+    ) -> Any:
+        """WP04 facilitator: policy-resolve → generate → write → emit."""
+        # Step 1: Resolve policy.
+        try:
+            policy, source_map = resolve_policy(repo_root)
+        except PolicyResolutionError as exc:
+            source_map = _resolution_error_source_map()
+            _classify_and_emit_failure(
+                mission_id=mission_id,
+                mission_slug=mission_slug,
+                repo_root=repo_root,
+                exc=exc,
+                source_map=source_map,
+                provenance_kind=_prov,
+                emit_capture_failed=emit_capture_failed,
+            )
+            raise
+
+        # Short-circuit if policy disabled.
+        if not policy.enabled:
+            return None  # terminus interprets None as no-op for disabled paths
+
+        # Step 2: Generate.
+        try:
+            record = generate_retrospective(
+                mission_slug,
+                policy,
+                repo_root,
+                provenance_kind=_prov,  # type: ignore[arg-type]
+                policy_source=source_map,
+            )
+        except FileNotFoundError as exc:
+            _classify_and_emit_failure(
+                mission_id=mission_id,
+                mission_slug=mission_slug,
+                repo_root=repo_root,
+                exc=exc,
+                source_map=source_map,
+                provenance_kind=_prov,
+                emit_capture_failed=emit_capture_failed,
+            )
+            raise
+
+        except Exception as exc:  # noqa: BLE001
+            _classify_and_emit_failure(
+                mission_id=mission_id,
+                mission_slug=mission_slug,
+                repo_root=repo_root,
+                exc=exc,
+                source_map=source_map,
+                provenance_kind=_prov,
+                emit_capture_failed=emit_capture_failed,
+            )
+            raise
+
+        # Step 3: Write record.
+        try:
+            write_gen_record(record, repo_root=repo_root, mode="error")
+        except RecordExistsError:
+            # Record already written (e.g. backfill ran first).  Treat as
+            # non-fatal: emit Captured with existing record path and continue.
+            logger.debug(
+                "Retrospective record already exists for mission %s — skipping write.",
+                mission_slug,
+            )
+        except Exception as exc:  # noqa: BLE001
+            _classify_and_emit_failure(
+                mission_id=mission_id,
+                mission_slug=mission_slug,
+                repo_root=repo_root,
+                exc=exc,
+                source_map=source_map,
+                provenance_kind=_prov,
+                emit_capture_failed=emit_capture_failed,
+            )
+            raise
+
+        # Step 4: Emit RetrospectiveCaptured lifecycle event.
+        # Guard against emit failure after a successful record write — without
+        # this guard, an emit-side failure (event log corruption, disk full
+        # during JSONL append, etc.) leaves an orphan retrospective.yaml on
+        # disk with no corresponding RetrospectiveCaptured event in the log.
+        # That breaks the summary classifier (read on disk + absence of
+        # Captured/Failed event → state misreported as "missing" or "failed").
+        # Mission review (TOCTOU finding) caught this; we now downgrade to a
+        # Failed event so the on-disk record AND the event log agree.
+        runtime_actor = RetroActor(kind="runtime", id="spec-kitty-generator")
+        try:
+            emit_captured(
+                record,
+                repo_root,
+                provenance_kind=_prov,  # type: ignore[arg-type]
+                actor=runtime_actor,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "Retrospective record written but RetrospectiveCaptured emit "
+                "failed for mission %s; emitting RetrospectiveCaptureFailed.",
+                mission_slug,
+                exc_info=exc,
+            )
+            _classify_and_emit_failure(
+                mission_id=mission_id,
+                mission_slug=mission_slug,
+                repo_root=repo_root,
+                exc=exc,
+                source_map=source_map,
+                provenance_kind=_prov,
+                emit_capture_failed=emit_capture_failed,
+            )
+            # Do NOT re-raise — the record is on disk; mission completion
+            # should proceed under default-warn policy. Strict-block policy
+            # would have already raised before reaching this step.
+
+        # Return a minimal stub satisfying the terminus protocol.
+        # The terminus uses this as a truthy "record was produced" sentinel.
+        return record
+
+    return _facilitator
+
+
+def _resolution_error_source_map() -> dict[str, str]:
+    """Return a minimal policy source map for malformed policy failures."""
+    return {
+        "enabled": "<resolution_error>",
+        "timing": "<resolution_error>",
+        "failure_policy": "<resolution_error>",
+    }
+
+
+def _resolve_retrospective_policy_for_runtime(
+    repo_root: Path,
+) -> tuple[Any, dict[str, str], Exception | None]:
+    """Resolve retrospective policy for runtime dispatch without raising."""
+    from specify_cli.retrospective.policy import default_policy, resolve_policy
+
+    try:
+        policy, source_map = resolve_policy(repo_root)
+    except Exception as exc:  # noqa: BLE001
+        return default_policy(), _resolution_error_source_map(), exc
+    return policy, source_map, None
+
+
+def _retrospective_blocks_completion(policy: Any) -> bool:
+    """Return True for the explicit strict pre-completion gate policy."""
+    return (
+        bool(getattr(policy, "enabled", False))
+        and getattr(policy, "timing", None) == "before_completion"
+        and getattr(policy, "failure_policy", None) == "block"
+    )
+
+
+def _run_retrospective_learning_capture(
+    *,
+    mission_id: str,
+    mission_slug: str,
+    feature_dir: Path,
+    repo_root: Path,
+    block_on_failure: bool,
+) -> None:
+    """Run the policy-driven retrospective capture path.
+
+    The default product path is best-effort post-completion learning: write the
+    record and emit canonical RetrospectiveCaptured/CaptureFailed events, but do
+    not hold mission completion hostage. Strict projects opt into blocking by
+    policy via timing=before_completion + failure_policy=block.
+    """
+    callback = _build_retrospective_facilitator_callback(
+        mission_slug=mission_slug,
+        repo_root=repo_root,
+        provenance_kind="runtime_strict_gate" if block_on_failure else "runtime_post_completion",
+    )
+    try:
+        callback(mission_id=mission_id, feature_dir=feature_dir, repo_root=repo_root)
+    except Exception:
+        logger.exception(
+            "retrospective capture failed for mission %s (block_on_failure=%s)",
+            mission_slug,
+            block_on_failure,
+        )
+        if block_on_failure:
+            raise
+
+
+def _classify_exc(exc: Exception) -> str:
+    """Map an exception to a failure_category string per T019 classify() table."""
+    from specify_cli.retrospective.writer import RecordExistsError  # noqa: PLC0415
+
+    if isinstance(exc, RecordExistsError):
+        return "other"
+    if isinstance(exc, (FileNotFoundError, IsADirectoryError)):
+        return "missing_artifacts"
+    # Default: generator_exception
+    return "generator_exception"
+
+
+def _remediation_hint(exc: Exception, source_map: dict[str, str]) -> str | None:
+    """Return a remediation hint appropriate for the given exception."""
+    from specify_cli.retrospective.writer import RecordExistsError  # noqa: PLC0415
+
+    if isinstance(exc, RecordExistsError):
+        return "Re-run with --overwrite to replace the existing record."
+    if isinstance(exc, (FileNotFoundError, IsADirectoryError)):
+        return "Run `spec-kitty migrate normalize-lifecycle` to repair missing artifacts."
+    # PolicyResolutionError: surface the source
+    sources = ", ".join(sorted(set(source_map.values()))) if source_map else "unknown"
+    return f"Check policy configuration at: {sources}"
+
+
+def _classify_and_emit_failure(
+    *,
+    mission_id: str,
+    mission_slug: str,
+    repo_root: Path,
+    exc: Exception,
+    source_map: dict[str, str],
+    provenance_kind: str,
+    emit_capture_failed: Any,
+) -> None:
+    """Classify ``exc`` and emit a ``RetrospectiveCaptureFailed`` event."""
+    from specify_cli.retrospective.lifecycle_events import Actor as RetroActor  # noqa: PLC0415
+
+    failure_category = _classify_exc(exc)
+    hint = _remediation_hint(exc, source_map)
+    runtime_actor = RetroActor(kind="runtime", id="spec-kitty-generator")
+
+    # Trim message — no stack traces in events (T019).
+    message = str(exc)[:400] if exc else "Unknown error"
+
+    missing: list[str] | None = None
+    if isinstance(exc, FileNotFoundError):
+        missing = [str(exc.filename)] if getattr(exc, "filename", None) else None
+
+    try:
+        emit_capture_failed(
+            mission_id=mission_id,
+            mission_slug=mission_slug,
+            repo_root=repo_root,
+            failure_category=failure_category,  # type: ignore[arg-type]
+            failure_message=message,
+            remediation_hint=hint,
+            policy_source=source_map,
+            attempted_provenance_kind=provenance_kind,  # type: ignore[arg-type]
+            missing_artifacts=missing,
+            actor=runtime_actor,
+        )
+    except Exception:  # noqa: BLE001
+        # If emission itself fails, log but don't mask the original exception.
+        logger.warning("Failed to emit RetrospectureCaptureFailed event", exc_info=True)
+
+
 def _feature_runs_path(repo_root: Path) -> Path:
     return repo_root / ".kittify" / "runtime" / _FEATURE_RUNS_FILE
 
@@ -1237,32 +1532,20 @@ def _advance_run_state_after_composition(
             )
             sync_emitter.emit_decision_input_requested(dr_payload)
     elif decision.kind == "terminal" and did_complete_step:
-        # Retrospective lifecycle gate (FR-011..FR-014). Opt-in via charter
-        # ``mode:`` clause or ``SPEC_KITTY_RETROSPECTIVE`` env var; projects
-        # that have not opted in see no behavior change. When opted in,
-        # ``run_terminus`` drives mode detection, prompt/skip/run flow, and
-        # emits the canonical retrospective.* events; ``before_mark_done``
-        # then consults the gate. Any blocking decision propagates as
-        # ``MissionCompletionBlocked`` and prevents ``MissionRunCompleted``
-        # from being emitted, keeping the audit trail honest.
-        from specify_cli.retrospective.config import is_retrospective_enabled
+        policy, _source_map, policy_error = _resolve_retrospective_policy_for_runtime(repo_root)
+        retrospective_enabled = bool(getattr(policy, "enabled", False))
+        block_on_retrospective = _retrospective_blocks_completion(policy)
+        mission_id = _resolve_mission_id_for_terminus(feature_dir)
 
-        if is_retrospective_enabled(repo_root):
-            from specify_cli.next._internal_runtime.retrospective_terminus import (
-                run_terminus,
-            )
-            from specify_cli.retrospective.schema import ActorRef
-
-            mission_id = _resolve_mission_id_for_terminus(feature_dir)
-            operator_actor = ActorRef(kind="agent", id=agent, profile_id=None)
-            run_terminus(
+        if retrospective_enabled and block_on_retrospective:
+            if policy_error is not None:
+                raise policy_error
+            _run_retrospective_learning_capture(
                 mission_id=mission_id,
-                mission_type=mission_type,
+                mission_slug=mission_slug,
                 feature_dir=feature_dir,
                 repo_root=repo_root,
-                operator_actor=operator_actor,
-                facilitator_callback=None,  # wiring deferred; gate enforces
-                hic_prompt=_rich_hic_prompt,
+                block_on_failure=True,
             )
 
         mc_actor = RuntimeActorIdentity(actor_id=agent, actor_type="llm")
@@ -1275,6 +1558,15 @@ def _advance_run_state_after_composition(
             run_dir, MISSION_RUN_COMPLETED, mc_payload.model_dump(mode="json")
         )
         sync_emitter.emit_mission_run_completed(mc_payload)
+
+        if retrospective_enabled and not block_on_retrospective:
+            _run_retrospective_learning_capture(
+                mission_id=mission_id,
+                mission_slug=mission_slug,
+                feature_dir=feature_dir,
+                repo_root=repo_root,
+                block_on_failure=False,
+            )
 
     # Step 4 — persist the new snapshot so the next ``decide_next_via_runtime``
     # call observes the fresh issued_step_id and any new pending_decisions.
@@ -1913,36 +2205,19 @@ def decide_next_via_runtime(  # noqa: C901
                 step_id=current_step_id,
             )
 
-    # Retrospective lifecycle gate (FR-011..FR-014). The legacy
-    # ``runtime_next_step`` path is a black-box engine call that updates
-    # state.json and emits ``MissionRunCompleted`` synchronously through
-    # the sync emitter (which dispatches to remote queues / SaaS). If we
-    # let the engine run with the real emitter and gate-check afterwards,
-    # both the snapshot AND the sync events are already out the door by
-    # the time the gate blocks — and rolling back local files cannot
-    # retract dispatched sync events.
-    #
-    # Strategy: use a buffering emitter for the speculative engine call.
-    # The buffer records every emit_* call in order without firing them.
-    # After the engine returns:
-    #   * non-terminal → flush buffer to real emitter (normal behavior).
-    #   * terminal + opt-in + gate allows → flush buffer (mission really
-    #     completed).
-    #   * terminal + opt-in + gate blocks → discard buffer (no events
-    #     ever leave the bridge) AND restore state.json + truncate
-    #     run.events.jsonl to pre-call shape.
-    # This mirrors the composition path, which runs the gate before its
-    # ``MissionRunCompleted`` emission.
-    from specify_cli.retrospective.config import is_retrospective_enabled
-
-    retrospective_enabled = is_retrospective_enabled(repo_root)
+    # Strict retrospective policy remains a pre-completion gate. The default
+    # post-completion policy is best-effort and must not buffer or roll back
+    # MissionRunCompleted; it runs after terminal events have flushed.
+    policy, _source_map, policy_error = _resolve_retrospective_policy_for_runtime(repo_root)
+    retrospective_enabled = bool(getattr(policy, "enabled", False))
+    block_on_retrospective = _retrospective_blocks_completion(policy)
 
     pre_state_bytes: bytes | None = None
     pre_events_size: int | None = None
     engine_emitter: Any = sync_emitter
     buffer: _BufferingRuntimeEmitter | None = None
 
-    if retrospective_enabled:
+    if block_on_retrospective:
         run_dir = Path(run_ref.run_dir)
         state_path = run_dir / STATE_FILE
         events_path = run_dir / "run.events.jsonl"
@@ -1994,23 +2269,17 @@ def decide_next_via_runtime(  # noqa: C901
             origin=origin,
         )
 
-    if retrospective_enabled and runtime_decision.kind == "terminal":
-        from specify_cli.next._internal_runtime.retrospective_terminus import (
-            run_terminus,
-        )
-        from specify_cli.retrospective.schema import ActorRef
-
+    if block_on_retrospective and runtime_decision.kind == "terminal":
         mission_id = _resolve_mission_id_for_terminus(feature_dir)
-        operator_actor = ActorRef(kind="agent", id=agent, profile_id=None)
         try:
-            run_terminus(
+            if policy_error is not None:
+                raise policy_error
+            _run_retrospective_learning_capture(
                 mission_id=mission_id,
-                mission_type=mission_type,
+                mission_slug=mission_slug,
                 feature_dir=feature_dir,
                 repo_root=repo_root,
-                operator_actor=operator_actor,
-                facilitator_callback=None,
-                hic_prompt=_rich_hic_prompt,
+                block_on_failure=True,
             )
         except Exception as exc:
             # Gate refused. Drop the buffered emit calls (so no
@@ -2055,6 +2324,20 @@ def decide_next_via_runtime(  # noqa: C901
     # emitter so observers receive them in original order.
     if buffer is not None:
         buffer.flush(sync_emitter)
+
+    if (
+        retrospective_enabled
+        and not block_on_retrospective
+        and runtime_decision.kind == "terminal"
+    ):
+        mission_id = _resolve_mission_id_for_terminus(feature_dir)
+        _run_retrospective_learning_capture(
+            mission_id=mission_id,
+            mission_slug=mission_slug,
+            feature_dir=feature_dir,
+            repo_root=repo_root,
+            block_on_failure=False,
+        )
 
     return _map_runtime_decision(
         runtime_decision,

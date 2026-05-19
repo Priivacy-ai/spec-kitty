@@ -1,0 +1,368 @@
+# Bulk-Edit Occurrence Map — Retrospective Learning Default-On Policy
+#
+# Mission: retrospective-default-policy-01KS049J
+# Mission ID: 01KS049J4V9CSWBKJHTY2FB69H
+# Generated: 2026-05-19
+# FR: FR-022 (bulk-edit guardrails)
+#
+# Two bulk-edit shapes are present in this mission. Each shape is mapped across
+# the 8 standard categories (code_symbols, import_paths, filesystem_paths,
+# serialized_keys, cli_commands, user_facing_strings, tests_fixtures,
+# logs_telemetry). Each occurrence carries an explicit `action`:
+#
+#   - reframe:  text remains but its semantic meaning changes
+#   - add:      new occurrence introduced by this mission
+#   - remove:   occurrence deleted by this mission
+#   - keep:     occurrence kept verbatim (no action)
+#   - audit:    inspect during the WP; final action decided by the implementer
+#
+# Resolved at /spec-kitty.tasks time per the plan's bulk-edit classification
+# (FR-022). Carriers: WP06 (shape A), WP07 (shape B).
+
+change_mode: bulk_edit
+
+# ============================================================================
+# SHAPE A — Env-var deprecation messaging
+# ============================================================================
+# Identifiers `SPEC_KITTY_RETROSPECTIVE` and `SPEC_KITTY_MODE` are demoted from
+# durable product-configuration to test/dev overrides only. Every reference
+# either gains a deprecation warning, gets re-framed as a test/dev escape
+# hatch, or is replaced with the durable equivalent (`retrospective.enabled`,
+# `retrospective.timing`, `retrospective.failure_policy`).
+#
+# Carrier WP: WP06 (Env-var deprecation + shim retirement)
+
+shape_a_env_var_deprecation:
+  description: |
+    Demote SPEC_KITTY_RETROSPECTIVE and SPEC_KITTY_MODE to test/dev overrides.
+    Durable replacements live in .kittify/config.yaml#retrospective and
+    charter frontmatter. Env vars retain backward compatibility for one
+    release cycle with a one-warning-per-process DeprecationWarning + Rich
+    stderr notice (suppressible via SPEC_KITTY_NO_DEPRECATION_WARNINGS=1).
+  identifiers:
+    - SPEC_KITTY_RETROSPECTIVE
+    - SPEC_KITTY_MODE
+  carrier_wp: WP06
+  durable_replacements:
+    SPEC_KITTY_RETROSPECTIVE: retrospective.enabled
+    SPEC_KITTY_MODE: retrospective.timing + retrospective.failure_policy
+  categories:
+    code_symbols:
+      - path: src/specify_cli/next/runtime_bridge.py
+        action: audit
+        notes: Read-site for SPEC_KITTY_RETROSPECTIVE. WP06 wires deprecation; WP04 replaces facilitator_callback=None with the real generator using resolved policy. Env-var read may move into the deprecation module.
+      - path: src/specify_cli/retrospective/config.py
+        action: reframe
+        notes: Env-var-driven config today. WP06 T033 decides fate (fold+delete OR retain-as-shim). Either way, no longer the canonical policy surface — that is policy.py.
+      - path: src/specify_cli/retrospective/mode.py
+        action: reframe
+        notes: Same as config.py — covered by WP06 T033.
+    import_paths:
+      - path: src/specify_cli/retrospective/__init__.py
+        action: audit
+        notes: Re-exports today include config/mode entry points. WP06 updates exports to new policy.py surface; shim path depends on T033 decision.
+    filesystem_paths:
+      - path: .kittify/config.yaml
+        action: add
+        notes: New canonical home for the `retrospective:` block. WP01 resolver reads from this path. Documented in docs (WP07 T035).
+      - path: .kittify/charter/charter.md
+        action: add
+        notes: Charter frontmatter may include `retrospective:` block. WP01 resolver reads frontmatter. Documented in docs (WP07).
+    serialized_keys:
+      - key: retrospective
+        scope: .kittify/config.yaml top-level
+        action: add
+        notes: New top-level key with sub-keys enabled, timing, failure_policy, write_record, generate_proposals, apply_proposals, permissions. Schema in contracts/retrospective-policy.schema.json.
+      - key: retrospective
+        scope: charter frontmatter
+        action: add
+        notes: Same schema as config.yaml. Charter wins by default; may delegate via retrospective.precedence:config.
+    cli_commands:
+      - command: spec-kitty retrospect create --mission <handle>
+        action: add
+        notes: New authoring command (WP05). Replaces the de facto authoring use of `synthesize`.
+      - command: spec-kitty retrospect backfill --since <date>
+        action: add
+        notes: New historical-authoring command (WP05).
+      - command: spec-kitty merge --skip-retrospective
+        action: add
+        notes: Bypass flag for strict-gate completion. WP04. Logs actor/provenance.
+    user_facing_strings:
+      - source: src/specify_cli/retrospective/deprecation.py
+        action: add
+        text: "SPEC_KITTY_RETROSPECTIVE is a test/dev override only and will be removed. Set retrospective.enabled in .kittify/config.yaml or charter frontmatter instead."
+        notes: One-warning-per-process per NFR-006. Rich stderr notice + Python DeprecationWarning.
+      - source: src/specify_cli/retrospective/deprecation.py
+        action: add
+        text: "SPEC_KITTY_MODE is a test/dev override only and will be removed. Set retrospective.timing and retrospective.failure_policy in .kittify/config.yaml or charter frontmatter instead."
+        notes: Same delivery as above.
+    tests_fixtures:
+      # Pre-existing test files outside any WP's owned_files. Per the
+      # bulk-edit gate tolerance documented at the bottom of this file,
+      # these `audit→keep-or-refactor` items are resolved during their
+      # respective WP's implementation; the gate does NOT require a
+      # diff for an audit-keep outcome. WP06 (T032) refactors env-mutating
+      # pre-existing tests opportunistically; WP04 (T023) decides whether
+      # any of these integration tests are superseded by the new
+      # tests/integration/retrospective/ suite it creates.
+      - path: tests/retrospective/test_config_opt_in.py
+        action: audit
+        gate_tolerance: keep-or-refactor
+        notes: Pre-existing env-var-driven test. Resolution at WP06 T032 — either refactor to inject policy (preferred), or supersede + delete + cover the case in test_env_deprecation.py. Decision documented in WP06 commit.
+      - path: tests/retrospective/test_mode_detection.py
+        action: audit
+        gate_tolerance: keep-or-refactor
+        notes: Same as test_config_opt_in.py.
+      - path: tests/integration/retrospective/conftest.py
+        action: audit
+        gate_tolerance: keep-or-refactor
+        notes: Shared fixtures. WP04 T023 decides whether to extend (preferred — additive) or replace. If the new tests/integration/retrospective/ test suite shares this conftest, env-mutation in it gets refactored as part of WP04. If WP04 introduces a parallel suite, this stays as-is.
+      - path: tests/integration/retrospective/test_lifecycle_hook.py
+        action: audit
+        gate_tolerance: keep-or-supersede
+        notes: WP04 T023 may supersede this with `tests/integration/retrospective/test_strict_flow_block.py` and `test_strict_flow_skip.py`. If superseded, delete-with-rationale. If kept, refactor env-mutation per FR-016 in the same WP.
+      - path: tests/integration/retrospective/test_hic_terminus_e2e.py
+        action: audit
+        gate_tolerance: keep-or-supersede
+        notes: Decision at WP04 review. Likely superseded by `test_default_flow_healthy.py` / `test_default_flow_generator_failure.py`.
+      - path: tests/integration/retrospective/test_autonomous_terminus_e2e.py
+        action: audit
+        gate_tolerance: keep-or-supersede
+        notes: Likely superseded by `test_strict_flow_*.py`. Decision at WP04 review.
+      - path: tests/integration/retrospective/test_next_mission_sees_change.py
+        action: audit
+        gate_tolerance: keep
+        notes: Unrelated to the env-var deprecation; keep unless WP04 finds it duplicates new coverage.
+      - path: tests/integration/retrospective/test_silent_auto_run_blocked.py
+        action: audit
+        gate_tolerance: keep-or-refactor
+        notes: Tests the legacy silent-fabrication path. After WP05 T028 lands the default-error change, this test's premise is invalid — refactor to assert the new error code OR delete with rationale. Decision at WP05 review.
+      - path: tests/integration/retrospective/test_silent_skip_blocked.py
+        action: audit
+        gate_tolerance: keep-or-refactor
+        notes: Same as test_silent_auto_run_blocked.py.
+      - path: tests/retrospective/test_env_deprecation.py
+        action: add
+        notes: New dedicated module (WP06 T034) for env-var deprecation behavior — one-warn-per-process, durable-wins, suppression flag.
+    logs_telemetry:
+      - signal: '<env:SPEC_KITTY_RETROSPECTIVE>' in RetrospectiveCaptured.policy_source
+        action: add
+        notes: When env var is observed (even though it never wins), record in source_map so log readers can see env-var presence. WP01 T005.
+      - signal: '<env:SPEC_KITTY_MODE>' in RetrospectiveCaptured.policy_source
+        action: add
+        notes: Same pattern.
+      - signal: DeprecationWarning category for env-var observation
+        action: add
+        notes: One per process. Captured by pytest's recwarn fixture in tests.
+
+# ============================================================================
+# SHAPE B — Doc semantics correction (summary / create / backfill / synthesize)
+# ============================================================================
+# Across docs, README, and shipped skills, the phrases "summary captures the
+# retrospective" and "synthesize generates the retrospective" are replaced by
+# four distinct CLI semantics:
+#
+#   - summary    aggregates across records (read-only)
+#   - create     authors one record for a completed mission
+#   - backfill   authors historical records in bulk
+#   - synthesize previews/applies proposals from an existing record
+#
+# Carrier WP: WP07 (Docs + shipped skills + CONTRIBUTING note)
+
+shape_b_doc_semantics_correction:
+  description: |
+    Replace PR #1136's framing that conflates `summary` and `synthesize` with
+    authoring. The canonical post-merge sequence is:
+    mission review -> create/capture retrospective -> summary or synthesize.
+  carrier_wp: WP07
+  source_phrases_to_remove:
+    - "summary captures the retrospective"
+    - "synthesize generates the retrospective"
+    - "run summary to capture"
+    - "run synthesize after merge to capture"
+  canonical_replacements:
+    summary: "aggregates findings across existing records (read-only)"
+    create: "authors a real retrospective for one completed mission"
+    backfill: "creates records for historical missions"
+    synthesize: "previews or applies proposals from an existing record"
+  categories:
+    code_symbols:
+      - path: src/specify_cli/cli/commands/agent_retrospect.py
+        action: reframe
+        notes: Existing `synthesize` command's default-path tightens per FR-014. WP05 T028.
+      - path: src/specify_cli/cli/commands/retrospect.py
+        action: add
+        notes: New module hosting `create` and `backfill`. WP05 T024 / T026.
+    import_paths: []
+    filesystem_paths:
+      - path: .kittify/missions/<mission_id>/retrospective.yaml
+        action: reframe
+        notes: This was previously sometimes populated by `synthesize`'s silent fabrication fallback. After this mission, it is populated by the runtime (default) or by explicit `retrospect create`. The path itself does not change; its provenance does.
+    serialized_keys:
+      - key: findings_status
+        action: add
+        scope: retrospective.yaml record
+        notes: New top-level key per RetrospectiveRecord schema. Values has_findings | ran_no_findings. Distinguishes empty-but-ran from missing/failed at summary level.
+      - key: policy_source
+        action: add
+        scope: retrospective.yaml record AND retrospective events
+        notes: Snapshot of resolver source_map at authoring time. NFR-007 additive.
+      - key: provenance
+        action: add
+        scope: retrospective.yaml record
+        notes: Structured provenance with kind enum (runtime_post_completion, runtime_strict_gate, explicit_create, backfill, synthesize_fabricate).
+      - key: provenance_history
+        action: add
+        scope: retrospective.yaml record (when --update used)
+        notes: Most-recent-first list of prior provenances.
+    cli_commands:
+      - command: spec-kitty retrospect summary
+        action: reframe
+        notes: Stays read-only; output gains findings_status + policy_source keys per record + 4-state aggregate counts. WP05 T027.
+      - command: spec-kitty agent retrospect synthesize
+        action: reframe
+        notes: Default path errors on missing record. --fabricate-empty preserves legacy behavior with logged provenance. WP05 T028.
+      - command: spec-kitty agent retrospect synthesize --fabricate-empty
+        action: add
+        notes: New compat flag for the legacy fabrication path (FR-014).
+    user_facing_strings:
+      - source: docs/how-to/use-retrospective-learning.md
+        action: reframe
+        notes: T035 — canonical operator how-to. Rewrites the four-category mental model.
+      - source: docs/how-to/accept-and-merge.md
+        action: reframe
+        notes: T036 — corrects PR #1136 wording. Post-merge sequence becomes "mission review -> create/capture retrospective -> summary or synthesize".
+      - source: docs/how-to/merge-feature.md
+        action: reframe
+        notes: T036.
+      - source: docs/explanation/retrospective-learning-loop.md
+        action: reframe
+        notes: T037 — adds bounded-context diagram and four-category model.
+      - source: docs/reference/cli-commands.md
+        action: reframe
+        notes: T037 — adds retrospect create/backfill entries; updates summary/synthesize entries.
+      - source: docs/reference/slash-commands.md
+        action: audit
+        notes: T037 — audit for PR #1136 contamination; edit only if found.
+      - source: docs/tutorials/your-first-feature.md
+        action: reframe
+        notes: T038 — adds tutorial wrap-up pointing at the retrospective.yaml record.
+      - source: docs/tutorials/charter-governed-workflow.md
+        action: reframe
+        owned_by: WP07
+        notes: References strict-mode env vars per the grep. Refactor to charter `retrospective.timing: before_completion + failure_policy: block` per shape A. This file is added to WP07's owned_files (see Note 2 below).
+      - source: docs/migration/from-charter-2x.md
+        action: reframe
+        owned_by: WP07
+        notes: Migration doc that references retrospective env vars. Update to durable charter/config keys. Added to WP07's owned_files.
+      - source: docs/tutorials/claude-code-integration.md
+        action: audit
+        gate_tolerance: keep-or-light-edit
+        notes: Grep showed retrospective phrases; may be passing mention only. WP07 decides at review — if a light edit is needed, add to owned_files at that point.
+      - source: docs/tutorials/claude-code-workflow.md
+        action: audit
+        gate_tolerance: keep-or-light-edit
+        notes: Same as claude-code-integration.md.
+      - source: docs/3x/index.md
+        action: audit
+        notes: 3.x landing page. Audit for accurate retrospective summary.
+      - source: docs/how-to/troubleshoot-charter.md
+        action: audit
+      - source: docs/how-to/manage-glossary.md
+        action: audit
+      - source: docs/reference/retrospective-schema.md
+        action: audit
+        notes: Reference for the on-disk record schema. Should match contracts/retrospective-record.schema.json — verify and update if drift exists.
+      - source: docs/explanation/documentation-mission.md
+        action: audit
+      - source: README.md
+        action: reframe
+        notes: T038 — top-level retrospective blurb (≤ 50 words) pointing at the canonical how-to.
+      - source: CONTRIBUTING.md
+        action: add
+        notes: T041 — namespace-package diagnostic for #1137 (FR-017). Documents the env-corruption symptom and `uv sync --reinstall-package spec-kitty-events` fix.
+      - source: src/doctrine/skills/spec-kitty-mission-review/SKILL.md
+        action: reframe
+        notes: T039 — post-merge sequence in shipped skill.
+      - source: src/doctrine/skills/spec-kitty-implement-review/SKILL.md
+        action: reframe
+        notes: T039.
+      - source: src/doctrine/skills/spec-kitty-program-orchestrate/SKILL.md
+        action: reframe
+        notes: T039.
+      - source: src/doctrine/skills/spec-kitty-runtime-next/SKILL.md
+        action: reframe
+        notes: T039.
+      - source: src/doctrine/agent_profiles/built-in/retrospective-facilitator.agent.yaml
+        action: audit
+        notes: T040 — review boundaries against FR-001/FR-010 model. Targeted edits only; no structural rewrite.
+    tests_fixtures:
+      - path: tests/specify_cli/skills/__snapshots__/codex/implement.SKILL.md
+        action: regenerate
+        notes: Skill snapshot. WP07 T039 edits trigger regeneration via the snapshot test infrastructure.
+      - path: tests/specify_cli/skills/__snapshots__/codex/review.SKILL.md
+        action: regenerate
+      - path: tests/specify_cli/skills/__snapshots__/vibe/implement.SKILL.md
+        action: regenerate
+      - path: tests/specify_cli/skills/__snapshots__/vibe/review.SKILL.md
+        action: regenerate
+      - path: tests/specify_cli/regression/_twelve_agent_baseline/**
+        action: audit
+        notes: 12 agents' regression baselines may reference architecture/2.x/adr/ paths and retrospective workflow text. The architecture restructure earlier in this mission moved 3.x-era ADRs to 3.x/adr/ with back-compat symlinks at 2.x/adr/<file>. Baselines still resolve via the symlinks; text mentions of the 2.x/adr/ directory are still accurate as a back-compat shim. No regeneration expected unless WP07 edits propagate.
+    logs_telemetry:
+      - signal: provenance.kind enum
+        action: add
+        notes: Five values; new event field. NFR-007 additive.
+      - signal: RetrospectiveCaptured event
+        action: add
+        notes: New event type (or reuse if already on the frozen surface — WP03 confirms). Carries findings_status, record_path, generator_version, policy_source, provenance_kind, proposal_count, evidence_ref_count.
+      - signal: RetrospectiveCaptureFailed event
+        action: add
+        notes: New event with failure_category enum (missing_artifacts, generator_exception, schema_validation_error, io_error, policy_resolution_error, other).
+      - signal: RetrospectiveSkipped event (provisional)
+        action: add
+        notes: Emitted when --skip-retrospective bypass is used under strict policy. WP04 T020. Carries actor + reason.
+
+# ============================================================================
+# Bulk-Edit Gate Validation Notes
+# ============================================================================
+# Note 1 — Action semantics
+#   The implement-review loop validates that every occurrence with action
+#   `reframe`, `add`, or `remove` has a corresponding diff in the WP that
+#   owns the file. Occurrences with `audit` action carry an explicit
+#   `gate_tolerance` value:
+#     - keep                  audit-and-leave-untouched is acceptable; no diff required
+#     - keep-or-refactor      audit may resolve to either keep or refactor; either is acceptable
+#     - keep-or-supersede     audit may resolve to keep, or to delete-with-rationale; either is acceptable
+#     - keep-or-light-edit    audit may resolve to no-change or a minor edit; if edit, add to owned_files
+#     (no value)              defaults to "keep" — no diff required
+#   The bulk-edit gate at mission review accepts any of these resolutions
+#   for `audit` items as compliant with FR-022.
+#
+# Note 2 — owned_files expansion for re-classified items
+#   Two shape-B `audit` items were re-classified to `reframe` after
+#   Reviewer Renata's pre-implementation review (Finding 17): the tutorial
+#   `docs/tutorials/charter-governed-workflow.md` and the migration doc
+#   `docs/migration/from-charter-2x.md`. These ARE owned by WP07 — see
+#   `owned_by: WP07` on each. WP07's frontmatter `owned_files` lists them
+#   explicitly. Other tutorial files remain `audit` with gate_tolerance
+#   keep-or-light-edit; if WP07's implementer decides to edit them, that
+#   WP review should expand owned_files in the same PR.
+#
+# Note 3 — Cross-WP coordination
+#   - Shape A (env-var) ownership runs through WP06. WP06's test refactor
+#     (T032) is a cross-cutting concern; pre-existing env-mutating tests
+#     in tests/retrospective/ and tests/integration/retrospective/ are
+#     audit items here. WP04/WP06 implementers decide each one's fate at
+#     implementation time and record the decision in their commit notes.
+#     Each affected WP's DoD includes a grep-based gate that no NEW
+#     env-mutation appears in its owned tests (FR-016 enforcement).
+#   - Shape B (doc semantics) ownership runs through WP07. The 4 shipped
+#     skills regenerate snapshot tests on first edit.
+#
+# Note 4 — Provenance
+#   `spec-kitty agent mission finalize-tasks --validate-only` ran clean on
+#   commit `5f2a94d8`. This occurrence_map.yaml is the second-pass
+#   artifact capturing the bulk-edit shape catalog per FR-022. Renata's
+#   pre-implementation review surfaced the audit-tolerance question and
+#   the WP07 owned_files expansion; both addressed in this revision.

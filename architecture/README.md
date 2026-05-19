@@ -7,17 +7,20 @@ This directory is the canonical architecture corpus for Spec Kitty.
 | Path | Purpose |
 |---|---|
 | `architecture/1.x/` | Legacy architecture track (1.x), including 1.x ADRs |
-| `architecture/2.x/` | Current architecture track (2.x), including ADRs, user journeys, initiatives, and C4/domain models |
+| `architecture/2.x/` | Prior architecture track (2.x), captures the 2.x → 3.x cutover |
+| `architecture/3.x/` | Current architecture track (3.x), starting with the 3.0.0 release (2026-03-30) |
 | `architecture/audience/` | Persona catalog for architecture audiences and actor links |
 | `architecture/glossary/` | Architecture-level glossary landing page and pointers |
-| `architecture/adrs/` | Backward-compatibility links to moved ADR files |
-| `architecture/adr-template.md` | ADR template used by both tracks |
+| `architecture/adrs/` | Backward-compatibility links to moved 1.x ADR files (legacy compat shim) |
+| `architecture/adr-template.md` | Shared ADR template used by all tracks |
 
 ## Versioned ADR Locations
 
 - 1.x ADRs: `architecture/1.x/adr/`
-- 2.x ADRs: `architecture/2.x/adr/`
-- Legacy path compatibility: `architecture/adrs/` (symlink aliases)
+- 2.x ADRs: `architecture/2.x/adr/` (pre-3.0 dates only; 3.x-era moves live under `3.x/`)
+- 3.x ADRs: `architecture/3.x/adr/` (canonical for the current track)
+- Legacy 1.x path compatibility: `architecture/adrs/` (symlink aliases)
+- 2.x → 3.x move compatibility: each moved ADR retains a symlink at its old `architecture/2.x/adr/<filename>` path pointing into `architecture/3.x/adr/`, so CHANGELOG entries, test snapshots, and shipped docs that reference the old path continue to resolve.
 
 ## 2.x Architecture Model
 

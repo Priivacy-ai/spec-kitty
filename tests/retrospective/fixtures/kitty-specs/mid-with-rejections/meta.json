@@ -1,0 +1,8 @@
+{
+  "mission_id": "01TESTMIDREJ0000000000000M",
+  "mission_slug": "mid-with-rejections",
+  "friendly_name": "Mid Mission With Rejections",
+  "mission_type": "software-dev",
+  "target_branch": "main",
+  "created_at": "2026-02-01T09:00:00+00:00"
+}

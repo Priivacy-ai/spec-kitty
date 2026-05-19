@@ -7,6 +7,11 @@ in-flight / terminus_no_retrospective records (NFR-004).
 Source-of-truth:
     kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/data-model.md
     kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/research.md  R-008
+
+WP03 addition (T017):
+    ``classify_mission_record(feature_dir)`` — distinguish the four per-mission
+    record states: ``has_findings``, ``ran_no_findings``, ``missing``, ``failed``.
+    This function is additive; existing read-paths in this module are unchanged.
 """
 
 from __future__ import annotations
@@ -16,7 +21,7 @@ import logging
 from collections import defaultdict
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Generator
+from typing import Generator, Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -522,3 +527,126 @@ def build_summary(
         skip_reasons_top=_top_n_reason_counts(skip_reasons_counter, limit_top_n),
     )
     return snapshot
+
+
+# ---------------------------------------------------------------------------
+# WP03 T017: Per-mission record classifier (additive, no CLI output changes)
+# ---------------------------------------------------------------------------
+
+#: Types returned by classify_mission_record.
+MissionRecordState = Literal["has_findings", "ran_no_findings", "missing", "failed"]
+
+
+def _most_recent_gen_event(
+    feature_dir: Path,
+    event_type: str,
+) -> dict | None:
+    """Return the most-recent event dict matching ``type == event_type``, or None.
+
+    Reads ``status.events.jsonl`` from the given feature directory.
+    Returns the event with the highest ``lamport`` value, or the last
+    occurrence in log order when lamport values are absent/tied.
+    """
+    events_path = feature_dir / "status.events.jsonl"
+    if not events_path.exists():
+        return None
+
+    best: dict | None = None
+    best_lamport: int = -1
+
+    try:
+        for raw in events_path.read_text(encoding="utf-8").splitlines():
+            raw = raw.strip()
+            if not raw:
+                continue
+            try:
+                obj = json.loads(raw)
+            except json.JSONDecodeError:
+                continue
+            if obj.get("type") != event_type:
+                continue
+            lp = obj.get("lamport", 0)
+            if not isinstance(lp, int):
+                lp = 0
+            if best is None or lp >= best_lamport:
+                best = obj
+                best_lamport = lp
+    except OSError:
+        pass
+
+    return best
+
+
+def classify_mission_record(feature_dir: Path) -> MissionRecordState:
+    """Classify the per-mission retrospective record state.
+
+    The four states (FR-013):
+    - ``"has_findings"``    — record on disk with findings_status=="has_findings"
+    - ``"ran_no_findings"`` — record on disk with findings_status=="ran_no_findings"
+    - ``"missing"``         — no record on disk AND no recent Failed event
+    - ``"failed"``          — no record on disk AND most-recent ``RetrospectiveCaptureFailed``
+                              lamport > most-recent ``RetrospectiveCaptured`` lamport
+
+    Args:
+        feature_dir: Path to the mission directory inside ``.kittify/missions/<mission_id>/``
+            OR the kitty-specs mission directory — whichever contains the
+            ``retrospective.yaml`` file. Callers typically pass the feature_dir that
+            contains the event log AND the record file.
+
+    Returns:
+        One of the four state literals above.
+
+    Note (scope boundary):
+        This function provides the *classifier logic* only. CLI output-shape changes
+        belong to WP05 T027. Do not call this from CLI commands in this WP.
+    """
+    record_path = feature_dir / "retrospective.yaml"
+
+    if record_path.exists():
+        try:
+            from ruamel.yaml import YAML as _YAML
+            _yaml = _YAML(typ="safe")
+            raw = _yaml.load(record_path.read_text(encoding="utf-8"))
+            if isinstance(raw, dict):
+                status = raw.get("findings_status", "ran_no_findings")
+                if status in ("has_findings", "ran_no_findings"):
+                    return status  # type: ignore[return-value]
+        except Exception:
+            pass
+        # Fallback for Pydantic-model records (old schema).
+        try:
+            pydantic_record = read_record(record_path)
+            # Pydantic records use 'status' field; map to our four states.
+            status = pydantic_record.status
+            if status == "completed":
+                # Completed but no findings_status field — treat as has_findings
+                # if any findings/proposals exist, else ran_no_findings.
+                has_any = bool(
+                    list(pydantic_record.helped)
+                    + list(pydantic_record.not_helpful)
+                    + list(pydantic_record.gaps)
+                    + list(pydantic_record.proposals)
+                )
+                return "has_findings" if has_any else "ran_no_findings"
+        except Exception:
+            pass
+        # We couldn't read it cleanly; conservatively return has_findings.
+        return "has_findings"
+
+    # No record on disk — check event log for RetrospectiveCaptureFailed.
+    last_failed = _most_recent_gen_event(feature_dir, "RetrospectiveCaptureFailed")
+    last_captured = _most_recent_gen_event(feature_dir, "RetrospectiveCaptured")
+
+    if last_failed is not None:
+        failed_lp = last_failed.get("lamport", 0)
+        if not isinstance(failed_lp, int):
+            failed_lp = 0
+        captured_lp = 0
+        if last_captured is not None:
+            captured_lp = last_captured.get("lamport", 0)
+            if not isinstance(captured_lp, int):
+                captured_lp = 0
+        if failed_lp > captured_lp:
+            return "failed"
+
+    return "missing"

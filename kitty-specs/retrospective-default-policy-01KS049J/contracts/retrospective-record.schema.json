@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec-kitty.example/contracts/retrospective-default-policy-01KS049J/retrospective-record.schema.json",
+  "title": "RetrospectiveRecord",
+  "description": "The on-disk retrospective.yaml record for a single mission. Authored by the runtime, by `spec-kitty retrospect create`, or by `spec-kitty retrospect backfill`.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "mission_id",
+    "mission_slug",
+    "mission_number",
+    "friendly_name",
+    "mission_type",
+    "target_branch",
+    "created_at",
+    "created_by",
+    "provenance",
+    "policy_source",
+    "findings_status",
+    "helped",
+    "not_helpful",
+    "gaps",
+    "proposals",
+    "evidence_refs",
+    "generator_version"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "mission_id": {"type": "string", "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"},
+    "mission_slug": {"type": "string"},
+    "mission_number": {"type": ["integer", "null"]},
+    "friendly_name": {"type": "string"},
+    "mission_type": {"type": "string"},
+    "target_branch": {"type": "string"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "created_by": {"$ref": "#/$defs/Actor"},
+    "provenance": {"$ref": "#/$defs/Provenance"},
+    "policy_source": {
+      "type": "object",
+      "additionalProperties": {"type": "string"},
+      "description": "Snapshot of the resolver's source_map at authoring time."
+    },
+    "findings_status": {
+      "type": "string",
+      "enum": ["has_findings", "ran_no_findings"],
+      "description": "Persisted records may only be has_findings or ran_no_findings. missing/failed are event-payload-only states."
+    },
+    "helped": {"type": "array", "items": {"$ref": "#/$defs/Finding"}},
+    "not_helpful": {"type": "array", "items": {"$ref": "#/$defs/Finding"}},
+    "gaps": {"type": "array", "items": {"$ref": "#/$defs/Finding"}},
+    "proposals": {"type": "array", "items": {"$ref": "#/$defs/Proposal"}},
+    "evidence_refs": {"type": "array", "items": {"$ref": "#/$defs/EvidenceRef"}},
+    "generator_version": {"type": "string"},
+    "provenance_history": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/Provenance"},
+      "description": "Present only when the record has been --update'd. Most-recent-first."
+    }
+  },
+  "$defs": {
+    "Actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "id"],
+      "properties": {
+        "kind": {"type": "string", "enum": ["human", "agent", "runtime"]},
+        "id": {"type": "string"},
+        "display": {"type": "string"}
+      }
+    },
+    "Provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "invoked_at", "policy_resolved_from"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["runtime_post_completion", "runtime_strict_gate", "explicit_create", "backfill", "synthesize_fabricate"]
+        },
+        "command": {"type": ["string", "null"]},
+        "invoked_at": {"type": "string", "format": "date-time"},
+        "policy_resolved_from": {"type": "object", "additionalProperties": {"type": "string"}}
+      }
+    },
+    "Finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "category", "summary", "evidence_refs"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z]-[0-9]{3,}$"},
+        "category": {
+          "type": "string",
+          "enum": ["process", "tooling", "spec_quality", "review_loop", "design", "implementation", "doc", "other"]
+        },
+        "summary": {"type": "string", "minLength": 1, "maxLength": 280},
+        "details": {"type": ["string", "null"]},
+        "evidence_refs": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "Proposal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "category", "risk_class", "summary", "evidence_refs", "suggested_action", "auto_applicable"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^p-[0-9]{3,}$"},
+        "category": {
+          "type": "string",
+          "enum": ["glossary", "drg", "doctrine", "tooling", "process", "other"]
+        },
+        "risk_class": {"type": "string", "enum": ["low", "structural"]},
+        "summary": {"type": "string", "minLength": 1, "maxLength": 280},
+        "details": {"type": ["string", "null"]},
+        "evidence_refs": {"type": "array", "items": {"type": "string"}},
+        "suggested_action": {"type": "string"},
+        "auto_applicable": {"type": "boolean"}
+      }
+    },
+    "EvidenceRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^e-[0-9]{3,}$"},
+        "kind": {"type": "string", "enum": ["file", "event_range", "external"]},
+        "path": {"type": ["string", "null"]},
+        "range": {"type": ["string", "null"]},
+        "url": {"type": ["string", "null"]}
+      }
+    }
+  }
+}
