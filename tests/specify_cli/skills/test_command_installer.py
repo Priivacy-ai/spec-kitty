@@ -228,6 +228,19 @@ class TestIdempotentInstall:
                 f"File mtime changed (unexpected write) for {cmd!r}"
             )
 
+    def test_second_call_repairs_missing_manifest_entry_file(self, repo: Path) -> None:
+        install(repo, "vibe")
+        skill_path = _skill_path(repo, "tasks")
+        rel_path = ".agents/skills/spec-kitty.tasks/SKILL.md"
+        skill_path.unlink()
+
+        report = install(repo, "vibe")
+
+        assert skill_path.exists()
+        assert rel_path in report.added
+        assert rel_path not in report.already_installed
+        assert verify(repo).gaps == []
+
 
 # ---------------------------------------------------------------------------
 # Reused-shared (two agents, one set of files)
