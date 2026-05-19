@@ -1,0 +1,361 @@
+"""Regression tests for ``spec-kitty doctor restart-daemon``.
+
+Covers the exit-code matrix in ``contracts/doctor-restart-daemon.md``:
+
+- exit 0 — happy path (daemon stopped + respawned at foreground)
+- exit 1 — no owner record on disk
+- exit 2 — stop succeeds but respawn fails
+- exit 3 — stop primitive fails
+- foreground binding — after restart the daemon launcher is invoked
+  with ``intent=REMOTE_REQUIRED`` so the new daemon binds to the
+  foreground executable / source.
+
+All tests monkeypatch the daemon stop / launch primitives so that no
+actual ``run_sync_daemon`` subprocess is spawned during the test run.
+"""
+
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+import pytest
+from typer.testing import CliRunner
+
+from specify_cli.cli.commands import doctor as doctor_module
+from specify_cli.sync.daemon import DaemonIntent, DaemonStartOutcome
+
+pytestmark = pytest.mark.fast
+
+
+# ---------------------------------------------------------------------------
+# Fakes
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class _FakeRecord:
+    """Minimal stand-in for :class:`DaemonOwnerRecord` for these tests."""
+
+    pid: int = 12345
+
+
+def _install_owner_record_fakes(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    record: _FakeRecord | None,
+    path_exists: bool,
+) -> None:
+    """Wire up fakes for ``owner_record_path().exists()`` and ``read_owner_record()``.
+
+    ``restart_daemon`` does its presence check via
+    ``owner_record_path().exists()`` and only then reads the record
+    fields, so the two fakes must agree.
+    """
+
+    class _FakePath:
+        def exists(self) -> bool:
+            return path_exists
+
+    # ``_owner_record_present`` and ``_read_previous_pid`` both import
+    # their helpers lazily from ``specify_cli.sync.owner`` at call time,
+    # so the canonical patch targets live on that module, not on
+    # ``specify_cli.sync.restart`` (which has no module-level binding).
+    monkeypatch.setattr(
+        "specify_cli.sync.owner.owner_record_path",
+        lambda: _FakePath(),
+        raising=True,
+    )
+    monkeypatch.setattr(
+        "specify_cli.sync.owner.read_owner_record",
+        lambda: record,
+        raising=True,
+    )
+
+
+def _install_stop_fake(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    result: tuple[bool, str] | Exception,
+) -> list[int]:
+    """Install a fake ``stop_sync_daemon`` and return a call-counter list."""
+    calls: list[int] = []
+
+    def _fake_stop(timeout: float = 5.0) -> tuple[bool, str]:
+        calls.append(1)
+        if isinstance(result, Exception):
+            raise result
+        return result
+
+    monkeypatch.setattr(
+        "specify_cli.sync.daemon.stop_sync_daemon",
+        _fake_stop,
+        raising=True,
+    )
+    return calls
+
+
+def _install_launch_fake(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    outcome: DaemonStartOutcome | Exception,
+) -> list[dict[str, Any]]:
+    """Install a fake ``ensure_sync_daemon_running`` and capture calls."""
+    calls: list[dict[str, Any]] = []
+
+    def _fake_launch(*args: Any, **kwargs: Any) -> DaemonStartOutcome:
+        calls.append({"args": args, "kwargs": kwargs})
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+    monkeypatch.setattr(
+        "specify_cli.sync.daemon.ensure_sync_daemon_running",
+        _fake_launch,
+        raising=True,
+    )
+    return calls
+
+
+def _runner() -> CliRunner:
+    # Click 8.2+ removed the ``mix_stderr`` kwarg; the default behaviour is
+    # what we want for these tests, so we just construct the runner plain.
+    return CliRunner()
+
+
+# ---------------------------------------------------------------------------
+# Exit-code matrix
+# ---------------------------------------------------------------------------
+
+
+def test_happy_path_exits_zero_and_reports_new_pid(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Daemon stops, respawns, exits 0; JSON contract honoured."""
+    _install_owner_record_fakes(
+        monkeypatch, record=_FakeRecord(pid=12345), path_exists=True
+    )
+    stop_calls = _install_stop_fake(monkeypatch, result=(True, "Sync daemon stopped."))
+    launch_calls = _install_launch_fake(
+        monkeypatch,
+        outcome=DaemonStartOutcome(started=True, skipped_reason=None, pid=67890),
+    )
+
+    result = _runner().invoke(doctor_module.app, ["restart-daemon", "--json"])
+
+    assert result.exit_code == 0
+    assert stop_calls == [1], "stop primitive must be called exactly once"
+    assert len(launch_calls) == 1, "launch primitive must be called exactly once"
+
+    payload = json.loads(result.stdout.strip())
+    assert payload["status"] == "restarted"
+    assert payload["previous_pid"] == 12345
+    assert payload["new_pid"] == 67890
+    assert payload["new_pid"] != payload["previous_pid"]
+    assert payload["error"] is None
+
+
+def test_no_owner_exits_one_and_directs_to_sync_now(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Absent owner record → exit 1, message points operator at sync now."""
+    _install_owner_record_fakes(monkeypatch, record=None, path_exists=False)
+    stop_calls = _install_stop_fake(monkeypatch, result=(False, "should-not-call"))
+    launch_calls = _install_launch_fake(
+        monkeypatch,
+        outcome=DaemonStartOutcome(started=False, skipped_reason="x", pid=None),
+    )
+
+    result = _runner().invoke(doctor_module.app, ["restart-daemon", "--json"])
+
+    assert result.exit_code == 1
+    assert stop_calls == [], "stop must not be invoked when no owner record exists"
+    assert launch_calls == [], "launch must not be invoked when no owner record exists"
+
+    payload = json.loads(result.stdout.strip())
+    assert payload["status"] == "no_owner"
+    assert payload["previous_pid"] is None
+    assert payload["new_pid"] is None
+    assert payload["error"] is not None
+    assert "spec-kitty sync now" in payload["error"]
+
+
+def test_stop_failure_exits_three_and_skips_launch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Stop primitive failure → exit 3; launch must NOT be called."""
+    _install_owner_record_fakes(
+        monkeypatch, record=_FakeRecord(pid=12345), path_exists=True
+    )
+    stop_calls = _install_stop_fake(
+        monkeypatch, result=RuntimeError("daemon unresponsive")
+    )
+    launch_calls = _install_launch_fake(
+        monkeypatch,
+        outcome=DaemonStartOutcome(started=True, skipped_reason=None, pid=99999),
+    )
+
+    result = _runner().invoke(doctor_module.app, ["restart-daemon", "--json"])
+
+    assert result.exit_code == 3
+    assert stop_calls == [1]
+    assert launch_calls == [], "launch must not run after a stop failure"
+
+    payload = json.loads(result.stdout.strip())
+    assert payload["status"] == "stop_failed"
+    assert payload["previous_pid"] == 12345
+    assert payload["new_pid"] is None
+    assert payload["error"] is not None
+    assert "daemon unresponsive" in payload["error"]
+
+
+def test_respawn_failure_exits_two(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Stop OK, launch raises → exit 2."""
+    _install_owner_record_fakes(
+        monkeypatch, record=_FakeRecord(pid=12345), path_exists=True
+    )
+    _install_stop_fake(monkeypatch, result=(True, "Sync daemon stopped."))
+    _install_launch_fake(monkeypatch, outcome=RuntimeError("port allocation failed"))
+
+    result = _runner().invoke(doctor_module.app, ["restart-daemon", "--json"])
+
+    assert result.exit_code == 2
+    payload = json.loads(result.stdout.strip())
+    assert payload["status"] == "respawn_failed"
+    assert payload["previous_pid"] == 12345
+    assert payload["new_pid"] is None
+    assert "port allocation failed" in (payload["error"] or "")
+
+
+def test_respawn_skipped_exits_two(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Stop OK, launch reports ``started=False`` → exit 2 (respawn_failed)."""
+    _install_owner_record_fakes(
+        monkeypatch, record=_FakeRecord(pid=12345), path_exists=True
+    )
+    _install_stop_fake(monkeypatch, result=(True, "Sync daemon stopped."))
+    _install_launch_fake(
+        monkeypatch,
+        outcome=DaemonStartOutcome(
+            started=False, skipped_reason="rollout_disabled", pid=None
+        ),
+    )
+
+    result = _runner().invoke(doctor_module.app, ["restart-daemon", "--json"])
+
+    assert result.exit_code == 2
+    payload = json.loads(result.stdout.strip())
+    assert payload["status"] == "respawn_failed"
+    assert "rollout_disabled" in (payload["error"] or "")
+
+
+def test_foreground_binding_uses_remote_required_intent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Launch is invoked with ``intent=REMOTE_REQUIRED`` so the new daemon
+    binds to the foreground executable / source (not the stale owner's)."""
+    _install_owner_record_fakes(
+        monkeypatch, record=_FakeRecord(pid=12345), path_exists=True
+    )
+    _install_stop_fake(monkeypatch, result=(True, "Sync daemon stopped."))
+    launch_calls = _install_launch_fake(
+        monkeypatch,
+        outcome=DaemonStartOutcome(started=True, skipped_reason=None, pid=67890),
+    )
+
+    result = _runner().invoke(doctor_module.app, ["restart-daemon"])
+
+    assert result.exit_code == 0
+    assert len(launch_calls) == 1
+    intent = launch_calls[0]["kwargs"].get("intent")
+    assert intent == DaemonIntent.REMOTE_REQUIRED
+
+
+# ---------------------------------------------------------------------------
+# Render surface
+# ---------------------------------------------------------------------------
+
+
+def test_human_render_includes_pid_summary(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Default (non-JSON) render contains both previous and new PIDs."""
+    _install_owner_record_fakes(
+        monkeypatch, record=_FakeRecord(pid=12345), path_exists=True
+    )
+    _install_stop_fake(monkeypatch, result=(True, "Sync daemon stopped."))
+    _install_launch_fake(
+        monkeypatch,
+        outcome=DaemonStartOutcome(started=True, skipped_reason=None, pid=67890),
+    )
+
+    result = _runner().invoke(doctor_module.app, ["restart-daemon"])
+
+    assert result.exit_code == 0
+    assert "12345" in result.stdout
+    assert "67890" in result.stdout
+    assert "restarted" in result.stdout.lower()
+
+
+def test_stale_owner_cleaned_still_exits_zero(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When stop reports the existing daemon was unhealthy, the result is
+    ``stale_owner_cleaned`` but exit code is still 0 (operator is told
+    the daemon was respawned)."""
+    _install_owner_record_fakes(
+        monkeypatch, record=_FakeRecord(pid=12345), path_exists=True
+    )
+    _install_stop_fake(
+        monkeypatch,
+        result=(
+            True,
+            "Unhealthy sync daemon process stopped. Metadata has been cleared.",
+        ),
+    )
+    _install_launch_fake(
+        monkeypatch,
+        outcome=DaemonStartOutcome(started=True, skipped_reason=None, pid=67890),
+    )
+
+    result = _runner().invoke(doctor_module.app, ["restart-daemon", "--json"])
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout.strip())
+    assert payload["status"] == "stale_owner_cleaned"
+    assert payload["new_pid"] == 67890
+
+
+def test_doctor_help_lists_restart_daemon() -> None:
+    """``doctor --help`` lists the ``restart-daemon`` subcommand."""
+    result = _runner().invoke(doctor_module.app, ["--help"])
+    assert result.exit_code == 0
+    assert "restart-daemon" in result.stdout
+
+
+def test_restart_daemon_help_exits_zero() -> None:
+    """``doctor restart-daemon --help`` exits 0 and shows help text."""
+    result = _runner().invoke(doctor_module.app, ["restart-daemon", "--help"])
+    assert result.exit_code == 0
+    assert "restart" in result.stdout.lower()
+
+
+# ---------------------------------------------------------------------------
+# Sanity: repo_root resolution must not crash outside a project
+# ---------------------------------------------------------------------------
+
+
+def test_runs_outside_project_does_not_crash(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The CLI tolerates ``locate_project_root`` returning None or raising
+    by falling back to ``Path.cwd()``. Exercise the no-owner branch from
+    a tmp dir so we know the entry point is robust."""
+    monkeypatch.chdir(tmp_path)
+    _install_owner_record_fakes(monkeypatch, record=None, path_exists=False)
+    _install_stop_fake(monkeypatch, result=(False, "noop"))
+    _install_launch_fake(
+        monkeypatch,
+        outcome=DaemonStartOutcome(started=False, skipped_reason="x", pid=None),
+    )
+
+    result = _runner().invoke(doctor_module.app, ["restart-daemon", "--json"])
+    assert result.exit_code == 1
