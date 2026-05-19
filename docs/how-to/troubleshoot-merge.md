@@ -232,21 +232,36 @@ Pre-flight failed. Fix these issues before merging:
 spec-kitty agent action implement WP03
 ```
 
-### Target Branch Behind Origin
+### Target Branch Not Synchronized With Origin
 
 ```
-Pre-flight failed. Fix these issues before merging:
-  1. main is 3 commit(s) behind origin. Run: git checkout main && git pull
+Error: Target branch is not synchronized with its tracking branch.
+  diagnostic_code: TARGET_BRANCH_NOT_SYNCHRONIZED
+  branch_or_work_package: main
+  violated_invariant: local_target_branch_must_match_tracking_branch
 ```
 
-**Fix**: Update your local main branch:
+`spec-kitty merge` stops before mutating merge state when the target branch is ahead of, behind, or diverged from its tracking branch.
+
+First inspect the branch state:
 
 ```bash
-git checkout main
-git pull
+git fetch origin main
+git log --oneline --left-right --cherry-pick main...origin/main
+git diff --name-only origin/main...main
 ```
 
-Then retry the merge from any checkout where the mission resolves correctly.
+If local `main` is **ahead** or **diverged**, do not push it just to satisfy the preflight. Ahead commits may include Spec Kitty orchestration history, agent state commits, worktree bookkeeping, unrelated missions, or other local-only work. Use the focused PR path from the diagnostic unless you verified every ahead commit belongs on `main` now:
+
+```bash
+git switch -c kitty/pr/<mission-slug>-to-main kitty/mission-<mission-slug>
+git push -u origin kitty/pr/<mission-slug>-to-main
+gh pr create --base main --head kitty/pr/<mission-slug>-to-main
+```
+
+Only direct-push `main` after reviewing both commits and changed paths, and only when the human explicitly wants those commits published.
+
+If local `main` is only **behind**, update it from the tracking branch after reviewing remote-only commits, then retry the merge from any checkout where the mission resolves correctly.
 
 ### Branch Does Not Exist
 
@@ -276,7 +291,8 @@ spec-kitty implement WP02
 | `Target repository at <path> has uncommitted changes.` | Repository root checkout has uncommitted work | Commit or stash in the repository root checkout |
 | `Missing worktree for WP##. Expected at <path>. Run: spec-kitty agent action implement WP##` | The resolved execution workspace for that WP does not exist yet | Run `spec-kitty agent action implement WP##` |
 | `Branch <branch> does not exist` | Git branch was deleted manually | Recreate worktree with `spec-kitty implement WP##` |
-| `<branch> is N commit(s) behind origin. Run: git checkout <branch> && git pull` | Target branch diverged from origin | Run the suggested git checkout and pull commands |
+| `TARGET_BRANCH_NOT_SYNCHRONIZED` | Target branch is ahead of, behind, or diverged from its tracking branch | Inspect commits and paths; use the focused PR path for ahead/diverged local target branches unless every ahead commit is intentionally ready for `main` |
+| `<branch> is N commit(s) behind origin. Run: git checkout <branch> && git pull` | Legacy target branch staleness diagnostic | Review remote-only commits, then update the local target branch |
 | `Warning: Could not fast-forward <branch>.` | Fast-forward failed, conflicts likely | Resolve conflicts manually |
 | `Merge failed. Resolve conflicts and try again.` | Git merge conflict occurred in a multi-workspace mission | Resolve conflicts, then `spec-kitty merge --resume` |
 | `Merge failed. You may need to resolve conflicts.` | Git merge conflict occurred (legacy merge) | Resolve conflicts, then re-run merge |

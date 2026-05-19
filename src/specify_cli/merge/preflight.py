@@ -215,7 +215,35 @@ def target_branch_sync_remediation(
             "Inspect differences: "
             f"git log --oneline --left-right --cherry-pick {status.target_branch}...{tracking_branch}"
         ),
+        (
+            "Inspect changed paths: "
+            f"git diff --name-only {tracking_branch}...{status.target_branch}"
+        ),
     ]
+
+    if status.state in {"ahead", "diverged"}:
+        lines.extend(
+            [
+                (
+                    "Recommended: use the focused PR path unless you verified every ahead "
+                    f"commit belongs on '{status.target_branch}' now."
+                ),
+                (
+                    f"Do not run 'git push origin {status.target_branch}' just to satisfy "
+                    "this preflight; local target commits may include orchestration history "
+                    "or unrelated missions."
+                ),
+                (
+                    f"Only direct-push '{status.target_branch}' after reviewing the ahead "
+                    "commits and changed paths."
+                ),
+            ]
+        )
+    elif status.state == "behind":
+        lines.append(
+            f"Recommended: update local '{status.target_branch}' from '{tracking_branch}' "
+            "after reviewing remote-only commits; do not push the local target branch."
+        )
 
     if mission_slug:
         focused_branch = focused_pr_branch_name(mission_slug, status.target_branch)

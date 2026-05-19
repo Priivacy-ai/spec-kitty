@@ -319,7 +319,14 @@ Different agents use different argument placeholders:
 
 `main` has a **Protect Main Branch** CI workflow that fails on any direct push. This is intentional branch-protection policy enforcement, not a code bug.
 
-- `spec-kitty merge` pushes directly to `main` by design. The "Protect Main Branch" failure this causes is **expected and known** — do not attempt to fix it.
+- `spec-kitty merge` may push directly to `main` by design when the local target branch is clean and intentionally ready to publish. The "Protect Main Branch" failure this causes is **expected and known** — do not attempt to fix it as a code-health failure.
+- If `spec-kitty merge` blocks because local `main` is ahead of or diverged from `origin/main`, do **not** advise `git push origin main` just to satisfy the preflight. First inspect both commit history and changed paths:
+  ```bash
+  git log --oneline --left-right --cherry-pick main...origin/main
+  git diff --name-only origin/main...main
+  ```
+- If the ahead commits include Spec Kitty orchestration history, agent state commits, worktree bookkeeping, unrelated missions, or any other change outside the deliverable, use the focused PR branch path from the merge preflight instead of pushing `main`.
+- Only recommend pushing `main` after verifying every ahead commit belongs on `main` now and the human explicitly wants direct-main delivery.
 - The only CI result relevant to code health is **CI Quality**. If that passes, the commit is clean.
 - Do not create extra PRs, force-push, or revert commits to address the Protect Main Branch failure.
 
