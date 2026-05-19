@@ -362,7 +362,7 @@ class TestMergeThreeLayers:
         shipped = _shipped_with_node("directive:foo")
         merged = merge_three_layers(shipped=shipped, org_fragments=[], project=None)
         assert all(
-            getattr(n, "source", None) == "built-in" for n in merged.nodes
+            getattr(n, "provenance", None) == "built-in" for n in merged.nodes
         )
 
     def test_org_fragment_nodes_tagged_with_pack_name(self) -> None:
@@ -384,7 +384,7 @@ class TestMergeThreeLayers:
             shipped=shipped, org_fragments=[fragment], project=None
         )
         assert any(
-            getattr(n, "source", None) == "org:acme" for n in merged.nodes
+            getattr(n, "provenance", None) == "org:acme" for n in merged.nodes
         )
 
     def test_project_layer_nodes_tagged_project(self) -> None:
@@ -399,7 +399,7 @@ class TestMergeThreeLayers:
         merged = merge_three_layers(
             shipped=shipped, org_fragments=[], project=project
         )
-        assert any(getattr(n, "source", None) == "project" for n in merged.nodes)
+        assert any(getattr(n, "provenance", None) == "project" for n in merged.nodes)
 
     def test_shipped_invariant_override_hard_fails(self) -> None:
         """FR-005: an org pack cannot shadow a shipped node URN."""
@@ -485,7 +485,7 @@ class TestMergeThreeLayers:
             shipped=shipped, org_fragments=[fragment], project=None
         )
         org_edges = [
-            e for e in merged.edges if getattr(e, "source", None) == "org:edge-pack"
+            e for e in merged.edges if getattr(e, "provenance", None) == "org:edge-pack"
         ]
         assert len(org_edges) == 1
         assert org_edges[0].relation == Relation.REQUIRES

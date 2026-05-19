@@ -49,6 +49,7 @@ contract YAML shape that the FR-140 round-trip gate enforces.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
@@ -85,6 +86,7 @@ __all__ = [
     "resolve_context",
 ]
 
+_logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # C-009: 8-kind plural universe inherited from Mission B
@@ -258,19 +260,99 @@ def load_org_drg(repo_root: Path) -> list[OrgDRGFragment]:
 
 
 def _tag_source(obj: BaseModel, source: str) -> BaseModel:
-    """Attach a ``source`` sidecar attribute to a frozen Pydantic model.
+    """Attach a ``provenance`` sidecar attribute to a frozen Pydantic model.
 
     DRGNode / DRGEdge are :class:`BaseModel` instances with no native
-    ``source`` field. We need to thread provenance through the merged
+    ``provenance`` field. We need to thread provenance through the merged
     graph without changing the shipped model shape, so we monkey-set a
-    plain attribute. Consumers read with ``getattr(node, 'source', None)``.
+    plain attribute. Consumers read with ``getattr(node, 'provenance', None)``.
+
+    .. note::
+        The attribute is named ``provenance`` (NOT ``source``) to avoid
+        colliding with ``DRGEdge.source``, which is the source-endpoint URN
+        declared in the Pydantic model. Using ``source`` as the sidecar name
+        caused ``_tag_source`` to silently overwrite the endpoint URN on every
+        merged edge (P0 bug, Robert review 2026-05).
 
     The Pydantic v2 ``object.__setattr__`` workaround is needed because
     BaseModel restricts attribute assignment to declared fields by
     default.
     """
-    object.__setattr__(obj, "source", source)
+    object.__setattr__(obj, "provenance", source)
     return obj
+
+
+def _merge_org_fragment(
+    fragment: OrgDRGFragment,
+    merged_nodes: dict[str, DRGNode],
+    merged_edges: list[DRGEdge],
+    invariant_urns: frozenset[str],
+    conflicts: list[OrgDRGConflict],
+) -> None:
+    """Merge one org-DRG fragment into *merged_nodes* / *merged_edges*.
+
+    Extracted from :func:`merge_three_layers` to keep its cyclomatic
+    complexity within the ruff C901 limit (15).
+    """
+    source_marker = f"org:{fragment.pack_name}"
+    surviving_nodes: list[Any] = []
+    for node in fragment.nodes:
+        if _violates_layer_rule(node):
+            conflicts.append(
+                OrgDRGConflict(
+                    kind="layer_rule_violation",
+                    conflicting_layers=[source_marker],
+                    target_id=node.id,
+                    shipped_value=None,
+                    org_value=node.model_dump(),
+                    project_value=None,
+                    resolution_applied="hard_fail",
+                )
+            )
+            continue
+        surviving_nodes.append(node)
+
+    node_id_to_urn: dict[str, str] = {}
+    for node in surviving_nodes:
+        urn, drg_node = _bridge_org_node_to_drg_node(node, source_marker)
+        node_id_to_urn[node.id] = urn
+        if urn in invariant_urns:
+            conflicts.append(
+                OrgDRGConflict(
+                    kind="node_override",
+                    conflicting_layers=["built-in", source_marker],
+                    target_id=urn,
+                    shipped_value=merged_nodes[urn].model_dump(),
+                    org_value=node.model_dump(),
+                    project_value=None,
+                    resolution_applied="hard_fail",
+                )
+            )
+            continue
+        if urn not in merged_nodes:
+            merged_nodes[urn] = drg_node
+
+    for edge in fragment.edges:
+        drg_edge = _bridge_org_edge_to_drg_edge(edge, node_id_to_urn, source_marker)
+        if drg_edge is not None:
+            merged_edges.append(drg_edge)
+
+
+def _warn_project_override(urn: str, existing_provenance: str) -> None:
+    """Emit a WARNING when the project layer overrides a shipped/org node.
+
+    Called from :func:`merge_three_layers` only.  Extracted to keep the
+    merge function's cyclomatic complexity within the ruff C901 threshold.
+    """
+    layer_label = "shipped" if existing_provenance == "built-in" else existing_provenance
+    _logger.warning(
+        "Project doctrine overrides %s node %r (was provenance=%r). "
+        "This is allowed by design (project > org > shipped precedence); "
+        "flag here for operator visibility.",
+        layer_label,
+        urn,
+        existing_provenance,
+    )
 
 
 def _violates_layer_rule(node: Any) -> bool:
@@ -384,13 +466,19 @@ def merge_three_layers(
 ) -> DRGGraph:
     """Overlay shipped → org → project layers (FR-001, FR-005).
 
-    Precedence: shipped invariants always win. Org-tier nodes that
-    collide with a shipped node raise :class:`OrgDRGConflictError`
-    (``resolution_applied='hard_fail'``). Layer-rule violations (org
-    nodes reaching into ``src/specify_cli/``) always hard-fail.
+    Precedence: project > org > shipped. Operator-authored project doctrine
+    may override both shipped and org tiers. When the project layer overrides
+    a shipped or org node, a ``logging.warning`` is emitted with the URN +
+    original layer so the override is visible in operator output but does
+    not block the merge. Use :class:`OrgDRGConflict` records to query overrides
+    programmatically.
 
-    Every node and edge in the returned graph carries a ``source``
-    sidecar attribute readable via ``getattr(node, 'source', None)``:
+    Org-tier nodes that collide with a shipped node raise
+    :class:`OrgDRGConflictError` (``resolution_applied='hard_fail'``). Layer-rule
+    violations (org nodes reaching into ``src/specify_cli/``) always hard-fail.
+
+    Every node and edge in the returned graph carries a ``provenance``
+    sidecar attribute readable via ``getattr(node, 'provenance', None)``:
 
     * ``"built-in"`` — shipped layer (Mission A);
     * ``"org:<pack_name>"`` — contributed by an :class:`OrgDRGFragment`;
@@ -413,7 +501,7 @@ def merge_three_layers(
     Returns
     -------
     DRGGraph:
-        The merged graph. Nodes and edges carry the ``source`` sidecar
+        The merged graph. Nodes and edges carry the ``provenance`` sidecar
         attribute described above.
 
     Raises
@@ -436,75 +524,20 @@ def merge_three_layers(
     invariant_urns = _shipped_invariant_ids(shipped)
 
     for fragment in org_fragments:
-        source_marker = f"org:{fragment.pack_name}"
-        # Two-pass: detect layer-rule violations first (always hard_fail),
-        # then bridge surviving nodes and detect shipped-invariant
-        # collisions.
-        surviving_nodes: list[Any] = []
-        for node in fragment.nodes:
-            if _violates_layer_rule(node):
-                conflicts.append(
-                    OrgDRGConflict(
-                        kind="layer_rule_violation",
-                        conflicting_layers=[source_marker],
-                        target_id=node.id,
-                        shipped_value=None,
-                        org_value=node.model_dump(),
-                        project_value=None,
-                        resolution_applied="hard_fail",
-                    )
-                )
-                continue
-            surviving_nodes.append(node)
-
-        # If any layer-rule violations fired in this fragment, fail-fast
-        # before doing more work — the operator must fix the pack first.
-        if conflicts and any(
-            c.resolution_applied == "hard_fail" for c in conflicts
-        ):
-            # Defer raising until all fragments have been scanned so the
-            # operator sees the full conflict report. We continue
-            # scanning subsequent fragments below.
-            pass
-
-        # Track fragment-local id→urn so edges can resolve their endpoints.
-        node_id_to_urn: dict[str, str] = {}
-        for node in surviving_nodes:
-            urn, drg_node = _bridge_org_node_to_drg_node(node, source_marker)
-            node_id_to_urn[node.id] = urn
-            if urn in invariant_urns:
-                conflicts.append(
-                    OrgDRGConflict(
-                        kind="node_override",
-                        conflicting_layers=["built-in", source_marker],
-                        target_id=urn,
-                        shipped_value=merged_nodes[urn].model_dump(),
-                        org_value=node.model_dump(),
-                        project_value=None,
-                        resolution_applied="hard_fail",
-                    )
-                )
-                continue
-            # Org-vs-org collision: earlier fragment wins (shipped_wins
-            # semantic mirrored to first-fragment-wins). Silent.
-            if urn in merged_nodes and not hasattr(merged_nodes[urn], "source"):
-                # Shouldn't happen since shipped nodes are always tagged.
-                pass
-            if urn not in merged_nodes:
-                merged_nodes[urn] = drg_node
-
-        for edge in fragment.edges:
-            drg_edge = _bridge_org_edge_to_drg_edge(
-                edge, node_id_to_urn, source_marker
-            )
-            if drg_edge is not None:
-                merged_edges.append(drg_edge)
+        _merge_org_fragment(
+            fragment, merged_nodes, merged_edges, invariant_urns, conflicts
+        )
 
     if any(c.resolution_applied == "hard_fail" for c in conflicts):
         raise OrgDRGConflictError(conflicts)
 
     if project is not None:
         for node in project.nodes:
+            if node.urn in merged_nodes:
+                existing_provenance = getattr(
+                    merged_nodes[node.urn], "provenance", "unknown"
+                )
+                _warn_project_override(node.urn, existing_provenance)
             merged_nodes[node.urn] = _tag_source(node.model_copy(), "project")
         for edge in project.edges:
             merged_edges.append(_tag_source(edge.model_copy(), "project"))
