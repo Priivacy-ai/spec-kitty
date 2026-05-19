@@ -188,8 +188,8 @@ ADR template sections:
 - **Context:** Why per-package charter resolution is needed (per #522 + spec §1.2)
 - **Decision:** Introduce `CharterScope` abstraction at the charter layer; single-project default preserves byte-stability; monorepo config opts in.
 - **Consequences:**
-  - + per-package charter scoping unblocked for monorepo teams
-  - + single-project repos completely unaffected (NFR-001)
+  - - per-package charter scoping unblocked for monorepo teams
+  - - single-project repos completely unaffected (NFR-001)
   - − operators must learn the `charter_scopes:` config shape
 - **Alternatives considered:** repo-root-only forever; per-mission `charter_root:` field; auto-discovery of `.kittify/charter/` directories.
 - **Related:** #522, spec.md FR-008..FR-011, contracts/charter-scope-resolution.md

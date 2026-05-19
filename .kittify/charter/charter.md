@@ -334,4 +334,3 @@ The reviewer verifies red→green: the test was RED on the WP's
 
 This mirrors Mission B's executable-contract pattern (the 7-file ATDD spec
 at `bd95f1f5` was the canonical contract).
-

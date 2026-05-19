@@ -39,7 +39,7 @@ diff is merged.
 
 Spec Kitty missions have no workflow mechanism to force a deliberate
 per-category classification before bulk edits begin. This is the failure shape
-#393 was created to close.
+issue #393 was created to close.
 
 ## Decision Drivers
 

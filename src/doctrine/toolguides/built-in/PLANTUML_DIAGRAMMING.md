@@ -251,7 +251,7 @@ PUML_SVG := $(PUML_SRC:.puml=.svg)
 diagrams: $(PUML_SVG)
 
 %.svg: %.puml
-	plantuml -tsvg $<
+ plantuml -tsvg $<
 ```
 
 ## Project Conventions

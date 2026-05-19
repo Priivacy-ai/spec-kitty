@@ -44,6 +44,7 @@ Lane A blocks Lane C/D so the burn-down meta-test (FR-110/111) is in place befor
 ### Lane A — Architectural rigor
 
 #### WP01 — Ratchet baseline + meta-test + Cat-7 shrinkage 10→7
+
 - [x] T001 — Land failing-first `tests/architectural/test_ratchet_baselines.py` meta-test scaffold (RED on planning base) (WP01)
 - [x] T002 — Create `tests/architectural/_baselines.yaml` with per-test, per-category baselines (FR-110) (WP01)
 - [x] T003 — Refactor `tests/architectural/test_no_dead_modules.py::_ALLOWLIST` into per-category frozensets (FR-112) (WP01)
@@ -53,6 +54,7 @@ Lane A blocks Lane C/D so the burn-down meta-test (FR-110/111) is in place befor
 - [x] T007 — Set Cat-7 baseline to 7 in `_baselines.yaml`; meta-test turns GREEN; add AC-7 assertion test (WP01)
 
 #### WP02 — Symbol-level dead-code gate + `__all__` convention
+
 - [x] T008 — Land failing-first `tests/architectural/test_no_dead_symbols.py` (walks `__all__`; RED on planning base) (WP02)
 - [x] T009 — Land failing-first `tests/architectural/test_all_declarations_required.py` (RED on planning base) (WP02)
 - [x] T010 — Add `__all__` declarations to every module under `src/charter/` (FR-121, C-007) (WP02)
@@ -60,6 +62,7 @@ Lane A blocks Lane C/D so the burn-down meta-test (FR-110/111) is in place befor
 - [x] T012 — Wire any unimported public symbols (from T008 RED) into live callers, OR remove them; both gates GREEN (WP02)
 
 #### WP03 — Contract round-trip CI gate
+
 - [x] T013 — Land failing-first `tests/contract/test_example_round_trip.py` parameterised over tagged codeblocks (RED on planning base) (WP03)
 - [x] T014 — Document the `pydantic_model:` + `expect:` frontmatter convention in this mission's `contracts/contract-round-trip-frontmatter.md` reference link AND in the test file's docstring (FR-140) (WP03)
 - [x] T015 — Add legacy allowlist to `tests/architectural/_baselines.yaml::test_example_round_trip.legacy_contract_allowlist` (FR-141) (WP03)
@@ -68,6 +71,7 @@ Lane A blocks Lane C/D so the burn-down meta-test (FR-110/111) is in place befor
 ### Lane B — Independent remediations
 
 #### WP04 — DRIFT-1 alias clean deletion
+
 - [x] T017 — Land failing-first `tests/charter/test_alias_deleted_regression.py::test_resolve_governance_import_raises_import_error` (RED on planning base; alias still exists) (WP04)
 - [x] T018 — DELETE the `resolve_governance = resolve_project_governance` alias + the "Deprecated alias" docstring at `src/charter/resolver.py:325-326` and `:198` (FR-100, C-003) (WP04)
 - [x] T019 — Remove `resolve_governance` from the import block and `__all__` in `src/charter/__init__.py` (FR-101) (WP04)
@@ -75,6 +79,7 @@ Lane A blocks Lane C/D so the burn-down meta-test (FR-110/111) is in place befor
 - [x] T021 — Confirm regression test GREEN; add `test_no_test_fixture_still_imports_legacy_alias` coverage for AC-5 (WP04)
 
 #### WP05 — CLI logging bootstrap + Rich-aware handler
+
 - [x] T022 — Land failing-first `tests/integration/test_catalog_miss_cli_visibility.py::test_typoed_styleguide_produces_visible_stderr_warning` (subprocess; RED on planning base) (WP05)
 - [x] T023 — Install `logging.captureWarnings(True)` at CLI bootstrap in `src/specify_cli/__main__.py` (FR-130) (WP05)
 - [x] T024 — Add Rich-aware `logging.Handler` deferring to existing Rich `Console` instance (no double-init per RR-6); route `WARNING+` through stderr (FR-131) (WP05)
@@ -84,6 +89,7 @@ Lane A blocks Lane C/D so the burn-down meta-test (FR-110/111) is in place befor
 ### Lane C — Org-DRG (depends on Lane A)
 
 #### WP06 — Org-layer DRG: schema, loader, merge, validator extension
+
 - [x] T027 — Land failing-first ATDD suite for Lane C: `test_three_layer_drg_end_to_end.py`, `test_org_pack_missing_path_hard_fails.py`, `test_org_drg_cannot_override_shipped_invariants.py`, `test_charter_lint_lints_all_layers.py` (all RED on planning base) (WP06)
 - [x] T028 — Add `OrgDRGFragment` Pydantic v2 model to `src/charter/drg.py` per data-model §2 (FR-001, C-009 8-kind parity) (WP06)
 - [x] T029 — Add `OrgDRGConflict` dataclass + `OrgDRGConflictError` exception per data-model §3 (FR-004, FR-005) (WP06)
@@ -93,6 +99,7 @@ Lane A blocks Lane C/D so the burn-down meta-test (FR-110/111) is in place befor
 - [x] T033 — Add `tests/charter/test_org_drg_loader.py` unit coverage for loader + merge + provenance; Lane C ATDD suite GREEN for FR-001/003/004/005 (WP06)
 
 #### WP07 — Org-DRG integration into `build_charter_context` + `doctor doctrine`
+
 - [x] T034 — Land failing-first `tests/integration/test_charter_status_reports_three_layers.py` (RED on planning base) (WP07)
 - [x] T035 — Wire `load_org_drg` + `merge_three_layers` into `build_charter_context` via a NEW helper (avoid signature break — WP09 owns scope= parameter via a separate router file) (FR-001 provenance, FR-007) (WP07)
 - [x] T036 — Thread per-layer `source:` provenance into the `_render_*` helpers so rendered stanzas carry `built-in | org:<pack> | project` (WP07)
@@ -100,6 +107,7 @@ Lane A blocks Lane C/D so the burn-down meta-test (FR-110/111) is in place befor
 - [x] T038 — Confirm Lane C tests covering `charter status` + provenance GREEN; NFR-001 (23 fixtures) still pass without org pack configured (WP07)
 
 #### WP08 — Org-DRG operator UX + glossary partial
+
 - [x] T039 — Land failing-first `tests/cli/test_doctrine_org_commands.py` for `org init` and `org validate` (RED on planning base) (WP08)
 - [x] T040 — Implement `spec-kitty doctrine org init <path>` scaffolding `drg/fragment.yaml`, `org-charter.yaml`, README in `src/specify_cli/cli/commands/doctrine.py` (FR-006) (WP08)
 - [x] T041 — Implement `spec-kitty doctrine org validate <path>` invoking the loader + schema validation independently of the rest of the system (FR-006) (WP08)
@@ -109,6 +117,7 @@ Lane A blocks Lane C/D so the burn-down meta-test (FR-110/111) is in place befor
 ### Lane D — Monorepo + workflows + closing (depends on Lane A; WP12 depends on all)
 
 #### WP09 — CharterScope abstraction + ADR-8
+
 - [x] T044 — Land failing-first `tests/integration/test_monorepo_charter_scope.py` (both happy path + malformed config) + `tests/charter/test_charter_scope.py` unit suite (RED on planning base) (WP09)
 - [x] T045 — Author `architecture/adrs/2026-05-18-1-monorepo-charter-scope.md` (ADR-8) finalising the design per FR-008 / spec §1.2 (WP09)
 - [x] T046 — Create `src/charter/scope.py` with `CharterScope` dataclass, `default()` + `resolve()` constructors, `CharterScopeConflict` + `CharterScopeNotFound` exceptions per data-model §4 (FR-009) (WP09)
@@ -117,6 +126,7 @@ Lane A blocks Lane C/D so the burn-down meta-test (FR-110/111) is in place befor
 - [x] T049 — Confirm Scenario 2 + AC-3 GREEN; the 23 `test_wp_prompt_governance_contract.py` fixtures pass unchanged (NFR-001) (WP09)
 
 #### WP10 — Workflow sequence YAML schema + registry
+
 - [x] T050 — Land failing-first `tests/specify_cli/next/test_workflow_registry.py` (covers `test_unknown_workflow_id_hard_fails_with_available_list` Scenario 3 exception) (RED on planning base) (WP10)
 - [x] T051 — Create `src/specify_cli/next/_internal_runtime/workflow_schema.py` with `WorkflowSequence` + `ActionStep` Pydantic v2 models per data-model §5 + §6 (FR-012) (WP10)
 - [x] T052 — Create `src/specify_cli/next/_internal_runtime/workflow_registry.py` with `get_workflow(workflow_id) -> WorkflowSequence`; precedence: `src/doctrine/workflows/<id>.workflow.yaml`, then `_fixtures/`, then operator override (WP10)
@@ -125,6 +135,7 @@ Lane A blocks Lane C/D so the burn-down meta-test (FR-110/111) is in place befor
 - [x] T055 — Confirm registry tests GREEN; unknown-id hard-fails with available-list message (FR-015, no silent fallback) (WP10)
 
 #### WP11 — Workflow runtime integration
+
 - [x] T056 — Land failing-first `tests/integration/test_workflow_sequence_runtime.py::test_non_default_workflow_id_produces_extra_design_review_step` + `test_fixture_mission_with_workflow_id_produces_documented_step_diff` (RED on planning base) (WP11)
 - [x] T057 — Land failing-first `tests/specify_cli/next/test_workflow_software_dev_default_is_byte_stable.py` (RED on planning base; pins C-008) (WP11)
 - [x] T058 — Extend `src/specify_cli/next/_internal_runtime/planner.py` to consume `meta.json::workflow_id`; absent ⇒ `software-dev-default`; unknown ⇒ hard-fail via WP10's registry (FR-013, FR-015) (WP11)
@@ -132,6 +143,7 @@ Lane A blocks Lane C/D so the burn-down meta-test (FR-110/111) is in place befor
 - [x] T060 — Confirm Scenario 3 + AC-4 GREEN; default workflow is byte-stable; pre-Slice-F missions without `workflow_id` produce identical `spec-kitty next` output (NEW-2 permanent default) (WP11)
 
 #### WP12 — Closing: cross-axis tests + glossary + READMEs + charter amendments + auth-transport ADR + GitHub ticket
+
 - [x] T061 — Author `architecture/adrs/2026-05-18-2-delete-specify-cli-auth-transport.md` per FR-200 (dead-code finding, audit evidence, DELETE recommendation, deferral rationale per HiC §5a.3, "deleted in commit X" reserved field for Robert) (WP12)
 - [x] T062 — Open GitHub ticket against `Priivacy-ai/spec-kitty` with the same evidence, labelled for Robert's queue; pin ticket URL in WP12 close-out commit message (FR-201, AC-13) (WP12)
 - [x] T063 — Create `tests/architectural/README.md` documenting the 5-axis architectural model (Layer × Surface × Closed-vocabulary × Lifecycle × Dependency) and listing every gate with its axis (FR-300, AC-14) (WP12)
