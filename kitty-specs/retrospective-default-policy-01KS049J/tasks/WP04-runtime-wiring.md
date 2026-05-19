@@ -22,7 +22,8 @@ subtasks:
 - T023
 phase: Runtime
 assignee: ''
-agent: claude
+agent: "claude:claude-sonnet-4-6:reviewer-renata:reviewer"
+shell_pid: "41604"
 history:
 - timestamp: '2026-05-19T13:29:59Z'
   agent: system
@@ -359,3 +360,10 @@ Implementation command:
 ```bash
 spec-kitty agent action implement WP04 --agent claude
 ```
+
+## Activity Log
+
+- 2026-05-19T15:51:25Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=27380 – Started implementation via action command
+- 2026-05-19T16:18:45Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=27380 – Ready for review: facilitator_callback wired in both call sites via _build_retrospective_facilitator_callback(); default warn + strict block + skip + opt-out flows; AST+mock dual-check wiring tests (T023a+T023b); 9 integration test files covering 8 scenarios; 440 tests pass in 25s (NFR-001 <60s); all classification/attribution helpers covered; ruff clean; FR-016 env-mutation free.
+- 2026-05-19T16:19:33Z – claude:claude-sonnet-4-6:reviewer-renata:reviewer – shell_pid=41604 – Started review via action command
+- 2026-05-19T16:25:18Z – claude:claude-sonnet-4-6:reviewer-renata:reviewer – shell_pid=41604 – Review passed: 440 tests green in 23.83s (NFR-001 <60s); ruff clean; FR-016 env-mutation clean on WP04-owned files; facilitator_callback=None fully eliminated (both call sites at ~L1459 and ~L2211 now call _build_retrospective_facilitator_callback); AST test walks all run_terminus Call nodes and asserts no keyword=None; mock test captures kwargs and asserts non-None+callable; 8/8 spec scenarios covered; gate fires before MissionRunCompleted at both call sites; two-event-model is clean (terminus uses retrospective.events old-model for its own autonomous/HiC flows, runtime_bridge uses lifecycle_events new-model for WP04 facilitator path; both correctly no-op in store reducer via WP03-owned skip guards); WP04-owned code paths fully covered.

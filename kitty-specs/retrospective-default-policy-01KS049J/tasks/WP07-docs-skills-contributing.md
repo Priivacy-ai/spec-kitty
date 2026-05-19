@@ -23,7 +23,8 @@ subtasks:
 - T041
 phase: Polish
 assignee: ''
-agent: claude
+agent: "claude:claude-sonnet-4-6:reviewer-renata:reviewer"
+shell_pid: "60993"
 history:
 - timestamp: '2026-05-19T13:29:59Z'
   agent: system
@@ -328,3 +329,10 @@ Implementation command:
 ```bash
 spec-kitty agent action implement WP07 --agent claude
 ```
+
+## Activity Log
+
+- 2026-05-19T17:20:00Z – claude:claude-sonnet-4-6:curator-carla:curator – shell_pid=59674 – Started implementation via action command
+- 2026-05-19T17:31:11Z – claude:claude-sonnet-4-6:curator-carla:curator – shell_pid=59674 – Ready for review: canonical how-to (T035) + 4 shipped skills updated with canonical post-merge sequence (T039) + CONTRIBUTING #1137 diagnostic (T041) + charter-governed-workflow.md and from-charter-2x.md migrated to durable keys (T038); slash-commands.md audited clean; markdownlint not installed (noted); snapshot tests 234 passed; retrospective suite 549 passed; grep SPEC_KITTY_(RETROSPECTIVE|MODE) returns only labeled-deprecated hit.
+- 2026-05-19T17:31:58Z – claude:claude-sonnet-4-6:reviewer-renata:reviewer – shell_pid=60993 – Started review via action command
+- 2026-05-19T17:35:11Z – claude:claude-sonnet-4-6:reviewer-renata:reviewer – shell_pid=60993 – Review passed: all 10 required sections present in canonical how-to; PR #1136 phrasing patterns absent (grep 0 hits); env-var deprecation hit at charter-governed-workflow.md:217 is inside labeled compatibility-shim block (compliant); bounded-context diagram with Renata's event-model layering note confirmed in retrospective-learning-loop.md; retrospective-facilitator.agent.yaml T040 edits confirmed (primary-focus human-mediated/not-runtime-default, avoidance-boundary FR-010 no-structural-auto-apply, handoff-to synthesize-command); CONTRIBUTING.md T041 contains exact python -c diagnostic + uv sync fix + FR-024 rationale + #1137 link; 234 skill snapshot tests passed; 549 retrospective suite tests passed; no TODO/FIXME/XXX in delivered prose; README blurb 15 words (under 50)
