@@ -15,6 +15,29 @@ from specify_cli.cli.commands.agent.mission import app
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
+
+@pytest.fixture(autouse=True)
+def _disable_saas_sync_for_setup_plan_contract_tests(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Opt out of the autouse ``SPEC_KITTY_ENABLE_SAAS_SYNC=1`` fixture.
+
+    `tests/conftest.py` flips the SAAS_SYNC flag on globally so legacy
+    sync/auth tests still exercise the wired path. This module tests
+    `setup-plan` / `finalize-tasks` JSON-output contracts and error
+    handling — NOT sync emission. With the flag on, upstream commit
+    ``cc5e1ca9`` adds an FR-011 auth-presence gate at the head of
+    `setup-plan` that exits 2 (`SAAS_SYNC_UNAUTHENTICATED`) before any
+    of the assertions in this file can run, because the test
+    environment has no auth scope.
+
+    Unset the flag for the duration of these tests. Tests that DO
+    exercise the SAAS_SYNC-gated path live in
+    ``tests/runtime/test_setup_plan_sync_evidence.py`` and re-enable
+    the flag explicitly.
+    """
+    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+
 runner = CliRunner()
 TEST_MISSION_ID = "01KNXQS9ATWWFXS3K5ZJ9E5008"
 TEST_MISSION_MID8 = TEST_MISSION_ID[:8]

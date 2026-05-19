@@ -11,53 +11,24 @@ import pytest
 from ulid import ULID
 
 from specify_cli.lanes.branch_naming import mid8, strip_numeric_prefix
+from tests.conftest import reset_spec_kitty_queue_state
 
 
 @pytest.fixture(autouse=True)
-def _stub_sync_boundary_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Force `finalize-tasks`' sync-boundary preflight to ``ok=True``.
+def _autoclean_spec_kitty_queue():
+    """Wipe ``~/.spec-kitty/{queue.db,queues,daemon}`` before every test.
 
-    Why this fixture exists
-    -----------------------
-    `tests/conftest.py` flips ``SPEC_KITTY_ENABLE_SAAS_SYNC=1`` on every
-    test so legacy sync/auth coverage continues to run. With that flag set,
-    `agent mission finalize-tasks` calls `specify_cli.sync.preflight.run_preflight`
-    before any FR-002/FR-009 SaaS-emitting code path. The preflight reads the
-    real `~/.spec-kitty/queue.db` and refuses (exit code 2) if any legacy
-    queue rows accumulated in the shared HOME during the session — a
-    cross-test pollution that earlier sync tests reliably produce.
-
-    These `tests/tasks/` files exercise the finalize-tasks JSON output
-    contract and dependency-parsing behaviour. They are NOT testing the
-    sync boundary, so a clean ``PreflightResult(ok=True)`` is the right
-    seam to neutralise the unrelated gate. Tests that DO exercise the
-    boundary live under `tests/sync/` and patch / construct their own
-    PreflightResult.
-
-    Imported lazily to avoid pulling sync internals into tests that monkey-
-    patch `specify_cli.sync.preflight` themselves.
+    See ``tests/agent/conftest.py`` for the long-form rationale. In
+    short: the sync-boundary preflight (upstream commit ``cc5e1ca9``)
+    refuses ``finalize-tasks`` when legacy queue rows accumulate from
+    earlier tests in the shard. Wiping the user-scoped queue state
+    before every test eliminates the cross-pollution. Same wipe runs
+    on teardown so tests in this tree do not leak pollution
+    downstream.
     """
-    from specify_cli.sync.preflight import PreflightResult
-
-    ok_result = PreflightResult(
-        ok=True,
-        mismatches=(),
-        orphan_records=(),
-        legacy_event_rows=0,
-        legacy_body_upload_rows=0,
-        auth_present=True,
-        auth_required=False,
-    )
-    # mission.finalize_tasks does a function-scoped
-    # ``from specify_cli.sync.preflight import run_preflight`` after checking
-    # ``is_saas_sync_enabled()``, so patch the source module symbol (the only
-    # binding the lazy import resolves to). ``raising=False`` keeps the stub
-    # alive even when preflight is re-exported elsewhere.
-    monkeypatch.setattr(
-        "specify_cli.sync.preflight.run_preflight",
-        lambda **_kwargs: ok_result,
-        raising=False,
-    )
+    reset_spec_kitty_queue_state()
+    yield
+    reset_spec_kitty_queue_state()
 
 
 def create_mission_fast(project: Path, slug: str, number: int = 1) -> Path:
