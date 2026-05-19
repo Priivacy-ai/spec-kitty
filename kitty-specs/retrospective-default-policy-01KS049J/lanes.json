@@ -23,8 +23,10 @@
         "docs/how-to/accept-and-merge.md",
         "docs/how-to/merge-feature.md",
         "docs/how-to/use-retrospective-learning.md",
+        "docs/migration/from-charter-2x.md",
         "docs/reference/cli-commands.md",
         "docs/reference/slash-commands.md",
+        "docs/tutorials/charter-governed-workflow.md",
         "docs/tutorials/your-first-feature.md",
         "src/doctrine/agent_profiles/built-in/retrospective-facilitator.agent.yaml",
         "src/doctrine/skills/spec-kitty-implement-review/SKILL.md",
@@ -70,7 +72,7 @@
       "parallel_group": 0
     }
   ],
-  "computed_at": "2026-05-19T13:46:31.752555+00:00",
+  "computed_at": "2026-05-19T14:06:38.904278+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": [],
   "collapse_report": {
