@@ -50,12 +50,12 @@ Three CLI bug fixes (WP01–WP03) plus one cross-repo canary verification (WP04)
 **Independent test**: `pytest tests/specify_cli/audit/` plus the integration test that runs `spec-kitty agent mission create` + `spec-kitty doctor mission-state --audit --json` in a tmp project and asserts zero `FORBIDDEN_KEY` findings.
 
 **Included subtasks**:
-- [ ] T001 Add `is_mission_lifecycle_row` predicate in `audit/shape_registry.py` (WP01)
-- [ ] T002 Teach `FORBIDDEN_KEYS` detector to consult the predicate (WP01)
-- [ ] T003 Per-shape regression test matrix (WP01)
-- [ ] T004 End-to-end integration test on fresh mission (WP01)
-- [ ] T005 mypy --strict + ruff + audit suite green check (WP01)
-- [ ] T022 Audit performance gate (NFR-001; ≤ 2× rc13 baseline) (WP01)
+- [x] T001 Add `is_mission_lifecycle_row` predicate in `audit/shape_registry.py` (WP01)
+- [x] T002 Teach `FORBIDDEN_KEYS` detector to consult the predicate (WP01)
+- [x] T003 Per-shape regression test matrix (WP01)
+- [x] T004 End-to-end integration test on fresh mission (WP01)
+- [x] T005 mypy --strict + ruff + audit suite green check (WP01)
+- [x] T022 Audit performance gate (NFR-001; ≤ 2× rc13 baseline) (WP01)
 
 **Implementation sketch**: predicate in `shape_registry.py` → detector consults it before applying `FORBIDDEN_KEYS` → test matrix per contract row → integration test confirms fresh mission yields zero findings.
 
@@ -76,11 +76,11 @@ Three CLI bug fixes (WP01–WP03) plus one cross-repo canary verification (WP04)
 **Independent test**: `pytest tests/specify_cli/cli/commands/test_sync_status_check_paths.py` covering non-TTY capture, long path, narrow column, JSON parity.
 
 **Included subtasks**:
-- [ ] T006 Inventory path-bearing fields in boundary state (WP02)
-- [ ] T007 Refactor `_render_boundary_table` (or equivalent) to print path rows outside the Table (WP02)
-- [ ] T008 Regression tests for non-TTY, long-path, narrow-column, JSON parity (WP02)
-- [ ] T009 Smoke run confirming no `…` ellipsis in piped capture (WP02)
-- [ ] T010 mypy --strict + ruff green on touched files (WP02)
+- [x] T006 Inventory path-bearing fields in boundary state (WP02)
+- [x] T007 Refactor `_render_boundary_table` (or equivalent) to print path rows outside the Table (WP02)
+- [x] T008 Regression tests for non-TTY, long-path, narrow-column, JSON parity (WP02)
+- [x] T009 Smoke run confirming no `…` ellipsis in piped capture (WP02)
+- [x] T010 mypy --strict + ruff green on touched files (WP02)
 
 **Implementation sketch**: separate path rows from identity scalars → render path rows via `Console.print(f"{label}: {path}")` outside Rich Table → keep Table for non-path identity rows → tests cover the documented edge cases.
 
@@ -101,12 +101,12 @@ Three CLI bug fixes (WP01–WP03) plus one cross-repo canary verification (WP04)
 **Independent test**: `pytest tests/specify_cli/cli/commands/test_doctor_restart_daemon.py tests/specify_cli/sync/test_preflight_remediation_hints.py`.
 
 **Included subtasks**:
-- [ ] T011 Implement `restart_daemon` composition primitive (WP03)
-- [ ] T012 Register `restart-daemon` typer subcommand under `spec-kitty doctor` (WP03)
-- [ ] T013 Refresh 4 `_REMEDIATION_HINTS` occurrences + line-218 comment in `sync/preflight.py` (WP03)
-- [ ] T014 Regression tests for the subcommand (5 scenarios) (WP03)
-- [ ] T015 Hint-coverage test: every command in any hint resolves on installed CLI (WP03)
-- [ ] T016 Manual smoke: spawn fake daemon, restart, verify; trigger boundary mismatch (WP03)
+- [x] T011 Implement `restart_daemon` composition primitive (WP03)
+- [x] T012 Register `restart-daemon` typer subcommand under `spec-kitty doctor` (WP03)
+- [x] T013 Refresh 4 `_REMEDIATION_HINTS` occurrences + line-218 comment in `sync/preflight.py` (WP03)
+- [x] T014 Regression tests for the subcommand (5 scenarios) (WP03)
+- [x] T015 Hint-coverage test: every command in any hint resolves on installed CLI (WP03)
+- [x] T016 Manual smoke: spawn fake daemon, restart, verify; trigger boundary mismatch (WP03)
 
 **Implementation sketch**: `restart_daemon(repo_root, foreground)` composes existing `stop_registered_daemon` + `launch_daemon_for_foreground` → typer command in `doctor.py` is a thin wrapper → refresh 4 hint strings + comment to reference the new (now-working) subcommand uniformly.
 
@@ -127,12 +127,12 @@ Three CLI bug fixes (WP01–WP03) plus one cross-repo canary verification (WP04)
 **Independent test**: visual inspection of `canary-evidence/{latest,run-1}.json` shows scenarios 1, 2, 4 green; scenario 3 may remain red per C-002.
 
 **Included subtasks**:
-- [ ] T017 Document sibling-repo canary checkout + invocation (WP04)
-- [ ] T018 Run `pytest tests/identity_boundary/` against rc bump (WP04)
-- [ ] T019 Capture canary artifacts under `canary-evidence/` (WP04)
-- [ ] T020 Verify scenarios 1, 2, 4 GREEN; scenario 3 may stay RED (WP04)
-- [ ] T023 Full `pytest tests/` gate (NFR-004 regression check) (WP04)
-- [ ] T021 Record canary outcome summary in WP04 PR description (WP04)
+- [x] T017 Document sibling-repo canary checkout + invocation (WP04)
+- [x] T018 Run `pytest tests/identity_boundary/` against rc bump (WP04)
+- [x] T019 Capture canary artifacts under `canary-evidence/` (WP04)
+- [x] T020 Verify scenarios 1, 2, 4 GREEN; scenario 3 may stay RED (WP04)
+- [x] T023 Full `pytest tests/` gate (NFR-004 regression check) (WP04)
+- [x] T021 Record canary outcome summary in WP04 PR description (WP04)
 
 **Implementation sketch**: clone/checkout `Priivacy-ai/spec-kitty-end-to-end-testing` next to this repo → install rc bump → run `pytest tests/identity_boundary/` → copy `artifacts/sync_identity_boundary/<rc>/{latest,run-1}.json` into `canary-evidence/` → assert scenarios 1, 2, 4 pass.
 
