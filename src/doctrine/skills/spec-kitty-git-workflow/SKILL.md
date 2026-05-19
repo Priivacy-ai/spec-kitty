@@ -110,6 +110,10 @@ one would create excessive git noise.
 
 ### 5. Merge Execution
 
+Run `spec-kitty accept --mission 042-mission` before merge once every WP is
+approved. Acceptance is a readiness nudge and artifact check; merge still owns
+the final mission-close transition.
+
 `spec-kitty merge --mission 042-mission` runs the full merge sequence:
 
 ```
@@ -223,6 +227,7 @@ Per-command override: `--no-auto-commit` flag on `spec-kitty implement`.
    → reviewer checks the diff
 
 4. MERGED
+   spec-kitty accept --mission 042-mission
    spec-kitty merge --mission 042-mission
    → git merge --no-ff kitty/mission-042-mission-lane-a
    → git worktree remove .worktrees/042-mission-lane-a --force

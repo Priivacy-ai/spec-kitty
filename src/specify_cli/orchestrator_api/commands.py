@@ -11,7 +11,7 @@ Error codes used:
   WP_NOT_FOUND                -- WP ID does not exist in the mission
   TRANSITION_REJECTED         -- transition not allowed by state machine
   WP_ALREADY_CLAIMED          -- WP claimed by a different actor
-  MISSION_NOT_READY           -- not all WPs done (for accept-mission)
+  MISSION_NOT_READY           -- not all WPs approved/done (for accept-mission)
   PREFLIGHT_FAILED            -- preflight checks failed (for merge-mission)
   CONTRACT_VERSION_MISMATCH   -- provider version is below MIN_PROVIDER_VERSION
   UNSUPPORTED_STRATEGY        -- merge strategy not implemented
@@ -957,7 +957,7 @@ def accept_mission(
     mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
     actor: str = typer.Option(..., "--actor", help=_HELP_ACTOR),
 ) -> None:
-    """Accept a mission after all WPs are done."""
+    """Accept a mission after all WPs are approved or done."""
     cmd = "accept-mission"
 
     main_repo_root = _get_main_repo_root()
@@ -972,9 +972,14 @@ def accept_mission(
     snapshot = materialize(mission_dir)
     dep_graph = build_dependency_graph(mission_dir)
 
-    # Check all WPs (from dep_graph) are done — include WPs with no events (implicitly planned)
+    # Check all WPs (from dep_graph) are approved/done; WPs with no events are implicitly planned.
     all_wp_ids = set(dep_graph.keys()) | set(snapshot.work_packages.keys())
-    incomplete = [wp_id for wp_id in sorted(all_wp_ids) if wp_state_for(snapshot.work_packages.get(wp_id, {}).get("lane", Lane.PLANNED)).lane != Lane.DONE]
+    incomplete = [
+        wp_id
+        for wp_id in sorted(all_wp_ids)
+        if wp_state_for(snapshot.work_packages.get(wp_id, {}).get("lane", Lane.PLANNED)).lane
+        not in {Lane.APPROVED, Lane.DONE}
+    ]
     if incomplete:
         _fail(
             cmd,

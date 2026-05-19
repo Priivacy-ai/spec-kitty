@@ -116,8 +116,10 @@ canceled   (reachable from planned, claimed, in_progress, for_review, in_review,
 **What happens**:
 - Lane branch content is ready for merge orchestration
 - No further changes expected
-- `done` is a terminal lane (force required to leave)
-- Once ALL WPs are in `done`, run `/spec-kitty.accept` to validate the entire feature
+- `approved` unblocks dependent WPs immediately
+- `done` is recorded by merge/acceptance bookkeeping after approved work lands
+- Once all WPs are `approved` or `done`, run `/spec-kitty.accept` to validate
+  the entire mission before merge
 
 #### blocked
 
@@ -230,10 +232,8 @@ Any transition not in the 27 allowed pairs can still be performed with `--force`
    spec-kitty agent tasks move-task WP01 --to approved --approval-ref PR#42
    lane: approved
 
-7. Reviewer marks done
-   spec-kitty agent tasks move-task WP01 --to done
-   lane: done
-   (Once ALL WPs are done: /spec-kitty.accept validates entire feature)
+7. Continue until every WP is approved or done
+   (Then /spec-kitty.accept validates the mission before merge)
 ```
 
 ### Review Feedback: in_review -> planned (with feedback)
@@ -439,13 +439,10 @@ spec-kitty agent tasks move-task WP01 --to in_review --assignee reviewer
 # Approve (in_review -> approved)
 spec-kitty agent tasks move-task WP01 --to approved --approval-ref PR#42
 
-# Move WP to done after approval
-spec-kitty agent tasks move-task WP01 --to done
-
 # Request changes with feedback file (in_review -> planned)
 spec-kitty agent tasks move-task WP01 --to planned --review-feedback-file feedback.md
 
-# Once ALL WPs are done, validate entire feature
+# Once ALL WPs are approved or done, validate the mission before merge
 /spec-kitty.accept
 ```
 

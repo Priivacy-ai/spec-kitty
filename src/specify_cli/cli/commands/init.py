@@ -902,6 +902,7 @@ def init(  # noqa: C901
     steps_lines.append("   - [cyan]/spec-kitty.review[/]    - Review prompts and move them to /tasks/done/")
     steps_lines.append("   - [cyan]/spec-kitty.accept[/]    - Run acceptance checks and verify mission complete")
     steps_lines.append("   - [cyan]/spec-kitty.merge[/]     - Merge mission into target branch and cleanup worktree")
+    steps_lines.append("   - [cyan]spec-kitty retrospect summary[/] - Review retrospective status after merge")
     step_num += 1
 
     # T003: Canonical post-#555 agent loop path

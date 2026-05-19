@@ -63,7 +63,9 @@ The mission has reached its final state. The agent loop should exit.
 - `reason`: Explanation of terminal state (e.g., "all work packages complete")
 - `progress`: Final WP progress summary
 
-**Agent response:** Run `/spec-kitty.accept` for final validation. Report completion to the user.
+**Agent response:** Run `/spec-kitty.accept` for final validation. If it
+passes, run `/spec-kitty.merge`, then run `/spec-kitty-mission-review` and the
+retrospective workflow.
 
 ## Progress Field
 

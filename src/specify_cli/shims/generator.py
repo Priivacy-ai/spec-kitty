@@ -32,8 +32,8 @@ from specify_cli.shims.registry import CLI_DRIVEN_COMMANDS
 SHIM_DESCRIPTIONS: dict[str, str] = {
     "implement": "Execute a work package implementation",
     "review": "Review a work package implementation",
-    "accept": "Accept a completed mission",
-    "merge": "Merge a completed mission",
+    "accept": "Validate an approved mission before merge",
+    "merge": "Merge an accepted mission",
     "status": "Show mission and work package status",
     "dashboard": "Open the mission dashboard",
     "tasks-finalize": "Finalize a mission's work packages",

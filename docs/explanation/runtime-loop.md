@@ -130,7 +130,9 @@ Something is preventing the mission from advancing. The `reason` field explains 
 
 All work is done. There are no more steps to execute.
 
-**What to do:** Run `/spec-kitty.accept` for final validation, then report completion.
+**What to do:** Run `/spec-kitty.accept` for final validation. If it passes,
+run `/spec-kitty.merge`, then run `/spec-kitty-mission-review` and the
+retrospective workflow.
 
 ## The Agent Loop Pattern
 
@@ -183,7 +185,10 @@ If `--result` is omitted, the command stays in read-only query mode. Query mode 
 
 When `spec-kitty next` is called on a mission where all WPs are done but no prior runtime state exists, the runtime may create a new run starting from the beginning of the mission instead of recognizing that the mission is already complete. It will return `kind: "step"` even though there is nothing left to do.
 
-**Workaround:** Always check the `progress` field in the response. If `progress.done_wps` equals `progress.total_wps` and `total_wps` is greater than zero, treat the mission as complete regardless of the reported `kind`. Run `/spec-kitty.accept` to finalize.
+**Workaround:** Always check the `progress` field in the response. If
+approved/done WPs account for `progress.total_wps`, treat the mission as ready
+for acceptance regardless of the reported `kind`. Run `/spec-kitty.accept`;
+if it passes, merge and continue to mission-review plus retrospective.
 
 ### Some steps may return a null prompt file (#336)
 

@@ -4,10 +4,14 @@ Use this guide to validate feature readiness and merge to the mission's target b
 
 ## Prerequisites
 
-- All WPs are in `lane: "done"`
+- All WPs are `approved` or `done`, with review feedback resolved
 - You are in a checkout where the feature can be resolved (repository root checkout or execution workspace)
 
 ## Accept the Feature
+
+Run acceptance after the implement-review loop approves every WP and before
+merge. This is a readiness nudge for humans and LLMs; merge still performs its
+own gates and remains the mission-close operation.
 
 In your agent:
 
@@ -23,7 +27,7 @@ spec-kitty accept
 
 ### What Accept Checks
 
-- All WPs are in `done`
+- All WPs are `approved` or `done`
 - Required metadata and activity logs are present
 - No unresolved `[NEEDS CLARIFICATION]` markers remain
 
@@ -50,6 +54,16 @@ spec-kitty merge --push
 By default, `spec-kitty merge` lands in the mission's recorded target branch. Use `spec-kitty merge --target <branch>` only when you intentionally need to override that destination.
 
 For detailed merge options including dry-run, strategies, and cleanup flags, see [Merge a Feature](merge-feature.md).
+
+## After Merge
+
+Run the post-merge mission review (`/spec-kitty-mission-review` in your agent),
+then run the retrospective while context is fresh:
+
+```bash
+spec-kitty retrospect summary
+spec-kitty agent retrospect synthesize --mission <slug>
+```
 
 ## Merge Strategies
 

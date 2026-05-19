@@ -1779,8 +1779,16 @@ def merge(
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
 
-    # -- Post-merge: Suggest mission review --
-    console.print("\n[cyan]Next:[/cyan] Run [bold]/spec-kitty-mission-review[/bold] to audit the merged mission for spec→code fidelity, drift, risks, and security.")
+    # -- Post-merge: Suggest mission review and retrospective --
+    console.print(
+        "\n[cyan]Next:[/cyan] Run [bold]/spec-kitty-mission-review[/bold] "
+        "to audit the merged mission for spec→code fidelity, drift, risks, and security."
+    )
+    console.print(
+        "[cyan]Then:[/cyan] Run [bold]spec-kitty retrospect summary[/bold] and "
+        f"[bold]spec-kitty agent retrospect synthesize --mission {resolved_feature}[/bold] "
+        "while context is fresh."
+    )
 
 
 __all__ = [

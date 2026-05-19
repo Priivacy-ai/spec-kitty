@@ -83,13 +83,17 @@ Then let the runtime choose the next action until the mission is ready:
 spec-kitty next --agent claude --mission <mission-slug>
 ```
 
-Review, accept, and merge:
+Review, accept, merge, and close the loop:
 
 ```text
 /spec-kitty.review
 /spec-kitty.accept
 /spec-kitty.merge --push
 ```
+
+After merge, run `/spec-kitty-mission-review`, then capture the retrospective
+with `spec-kitty retrospect summary` and
+`spec-kitty agent retrospect synthesize --mission <mission-slug>`.
 
 For the full walkthrough, see [Your First Feature](docs/tutorials/your-first-feature.md).
 

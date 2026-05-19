@@ -22,7 +22,7 @@ Anthropic’s **Claude Code** pairs naturally with Spec Kitty’s guardrails. Th
 | Planning | Generate architecture briefs via Claude | `/spec-kitty.plan` |
 | Tasks | Produce work packages and prompts that Claude can execute | `/spec-kitty.tasks` |
 | Implementation | Run Claude on specific prompt files | `/spec-kitty.implement` |
-| Review & Merge | Summarize results and follow-up tasks, then land the branch | `/spec-kitty.review`, `/spec-kitty.merge` |
+| Review & Merge | Review, accept readiness, then land the branch | `/spec-kitty.review`, `/spec-kitty.accept`, `/spec-kitty.merge` |
 
 ## Setup Checklist
 
@@ -85,13 +85,16 @@ Claude will use the template metadata to understand scope, file boundaries, and 
 
 Once Claude (and any partner agents) finish the feature:
 
-1. Ensure all WPs have `lane: done` in their frontmatter and all checklists are complete.
+1. Ensure all WPs are `approved` or `done` and all review feedback is resolved.
 2. Run the guided merge:
  ```bash
+  spec-kitty accept
   spec-kitty merge --remove-worktree
   ```
    Run it from any checkout where the mission can be resolved; the CLI automatically performs the Git steps from the main checkout so execution workspaces stay in sync.
    The command documents merge steps, updates activity logs, and optionally removes the execution worktrees to keep the repository tidy.
+3. Run `/spec-kitty-mission-review`, then run `spec-kitty retrospect summary`
+   and `spec-kitty agent retrospect synthesize --mission <slug>`.
 
 ## Beyond Claude
 

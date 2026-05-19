@@ -36,7 +36,11 @@ do not fix anything. You document.
 - Before tagging a release that depends on this mission's changes
 - When a downstream team needs a sign-off on spec→code fidelity
 - When you suspect a WP review was too narrow and cross-WP holes exist
-- As the "accept" gate in a mission lifecycle
+
+This is not the pre-merge acceptance gate. Run `spec-kitty accept --mission
+<slug>` before merge; use this skill after merge for final spec-to-code review.
+After this mission review, remind the operator to run the retrospective while
+the work is still fresh.
 
 ---
 
@@ -762,6 +766,13 @@ specific findings that block release.]
 
 [List findings that are not blocking release but should be addressed in a
 follow-up mission.]
+
+## Retrospective Reminder
+
+Run the retrospective workflow now, before context decays:
+
+- `spec-kitty retrospect summary`
+- `spec-kitty agent retrospect synthesize --mission <slug>`
 ```
 
 ---
@@ -811,3 +822,9 @@ follow-up mission.]
    `spec-kitty-runtime-review`, which defers to the CLI-generated prompt as
    the source of truth, this skill produces original analysis. The spec and
    contracts are the source of truth.
+
+10. **Always include the retrospective reminder.** The report must end with a
+    `## Retrospective Reminder` section that tells the human or LLM operator to
+    run `spec-kitty retrospect summary` and
+    `spec-kitty agent retrospect synthesize --mission <slug>` after the
+    post-merge mission review.
