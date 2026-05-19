@@ -18,7 +18,8 @@ subtasks:
 - T034
 phase: Surface
 assignee: ''
-agent: claude
+agent: "claude:claude-sonnet-4-6:python-pedro:implementer"
+shell_pid: "57810"
 history:
 - timestamp: '2026-05-19T13:29:59Z'
   agent: system
@@ -254,3 +255,7 @@ Implementation command:
 ```bash
 spec-kitty agent action implement WP06 --agent claude
 ```
+
+## Activity Log
+
+- 2026-05-19T17:10:40Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=57810 – Started implementation via action command
