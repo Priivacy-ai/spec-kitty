@@ -55,10 +55,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 def _is_run_terminus_call(node: ast.Call) -> bool:
     """Return True if the Call node targets a function named 'run_terminus'."""
     func = node.func
-    return (
-        (isinstance(func, ast.Name) and func.id == "run_terminus")
-        or (isinstance(func, ast.Attribute) and func.attr == "run_terminus")
-    )
+    return (isinstance(func, ast.Name) and func.id == "run_terminus") or (isinstance(func, ast.Attribute) and func.attr == "run_terminus")
 
 
 def _is_constant_none(node: ast.expr) -> bool:
@@ -128,14 +125,8 @@ def test_runtime_passes_non_none_callback_for_enabled_policy(
         repo_root=tmp_path,
         provenance_kind="runtime_post_completion",
     )
-    assert callback is not None, (
-        "_build_retrospective_facilitator_callback returned None; "
-        "the WP04 wiring regression is present."
-    )
-    assert callable(callback), (
-        f"_build_retrospective_facilitator_callback must return a callable; "
-        f"got {type(callback).__name__}"
-    )
+    assert callback is not None, "_build_retrospective_facilitator_callback returned None; the WP04 wiring regression is present."
+    assert callable(callback), f"_build_retrospective_facilitator_callback must return a callable; got {type(callback).__name__}"
 
     # --- Part 2: Verify the callback is wired through run_terminus ---
     # Patch run_terminus to capture its kwargs.
@@ -169,13 +160,8 @@ def test_runtime_passes_non_none_callback_for_enabled_policy(
 
     assert len(captured_calls) == 1, "run_terminus should be called exactly once"
     cb_received = captured_calls[0].get("facilitator_callback")
-    assert cb_received is not None, (
-        "Enabled policy must wire a real callback; got None. "
-        "WP04 wiring regression detected."
-    )
-    assert callable(cb_received), (
-        f"facilitator_callback must be callable; got {type(cb_received).__name__}"
-    )
+    assert cb_received is not None, "Enabled policy must wire a real callback; got None. WP04 wiring regression detected."
+    assert callable(cb_received), f"facilitator_callback must be callable; got {type(cb_received).__name__}"
 
 
 def test_facilitator_noops_when_policy_disabled(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -195,9 +181,7 @@ def test_facilitator_noops_when_policy_disabled(tmp_path: Path, monkeypatch: pyt
     assert callback(mission_id="01KQDISABLED", feature_dir=tmp_path, repo_root=tmp_path) is None
 
 
-def test_facilitator_emits_failure_on_policy_resolution_error(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_facilitator_emits_failure_on_policy_resolution_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from specify_cli.next.runtime_bridge import _build_retrospective_facilitator_callback
     from specify_cli.retrospective import lifecycle_events as events_mod
     from specify_cli.retrospective import policy as policy_mod
@@ -219,9 +203,7 @@ def test_facilitator_emits_failure_on_policy_resolution_error(
     assert failures[0]["policy_source"]["enabled"] == "<resolution_error>"
 
 
-def test_facilitator_classifies_generator_missing_artifact(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_facilitator_classifies_generator_missing_artifact(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from specify_cli.next.runtime_bridge import _build_retrospective_facilitator_callback
     from specify_cli.retrospective import generator as generator_mod
     from specify_cli.retrospective import lifecycle_events as events_mod
@@ -247,9 +229,32 @@ def test_facilitator_classifies_generator_missing_artifact(
     assert failures[0]["missing_artifacts"] == [str(missing_path)]
 
 
-def test_facilitator_handles_existing_record_and_emit_failure(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_facilitator_classifies_generic_generator_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.next.runtime_bridge import _build_retrospective_facilitator_callback
+    from specify_cli.retrospective import generator as generator_mod
+    from specify_cli.retrospective import lifecycle_events as events_mod
+    from specify_cli.retrospective import policy as policy_mod
+
+    failures: list[dict[str, Any]] = []
+
+    monkeypatch.setattr(policy_mod, "resolve_policy", lambda repo_root: (SimpleNamespace(enabled=True), {"enabled": "default"}))
+    monkeypatch.setattr(
+        generator_mod,
+        "generate_retrospective",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("generator exploded")),
+    )
+    monkeypatch.setattr(events_mod, "emit_capture_failed", lambda **kwargs: failures.append(kwargs))
+
+    callback = _build_retrospective_facilitator_callback("generator-error", tmp_path)
+
+    with pytest.raises(RuntimeError, match="generator exploded"):
+        callback(mission_id="01KQGENFAIL", feature_dir=tmp_path, repo_root=tmp_path)
+
+    assert failures[0]["failure_category"] == "generator_exception"
+    assert failures[0]["failure_message"] == "generator exploded"
+
+
+def test_facilitator_handles_existing_record_and_emit_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from specify_cli.next.runtime_bridge import _build_retrospective_facilitator_callback
     from specify_cli.retrospective import generator as generator_mod
     from specify_cli.retrospective import lifecycle_events as events_mod
@@ -278,9 +283,27 @@ def test_facilitator_handles_existing_record_and_emit_failure(
     assert failures[0]["attempted_provenance_kind"] == "runtime_post_completion"
 
 
-def test_facilitator_reraises_write_failure_after_failed_event(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_record_exists_failure_classification_and_hint(tmp_path: Path) -> None:
+    from specify_cli.next.runtime_bridge import _classify_and_emit_failure
+    from specify_cli.retrospective.writer import RecordExistsError
+
+    failures: list[dict[str, Any]] = []
+
+    _classify_and_emit_failure(
+        mission_id="01KQEXISTSHINT",
+        mission_slug="existing-record",
+        repo_root=tmp_path,
+        exc=RecordExistsError(tmp_path / "retrospective.yaml"),
+        source_map={"enabled": "default"},
+        provenance_kind="runtime_post_completion",
+        emit_capture_failed=lambda **kwargs: failures.append(kwargs),
+    )
+
+    assert failures[0]["failure_category"] == "other"
+    assert failures[0]["remediation_hint"] == "Re-run with --overwrite to replace the existing record."
+
+
+def test_facilitator_reraises_write_failure_after_failed_event(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from specify_cli.next.runtime_bridge import _build_retrospective_facilitator_callback
     from specify_cli.retrospective import generator as generator_mod
     from specify_cli.retrospective import lifecycle_events as events_mod
@@ -302,9 +325,7 @@ def test_facilitator_reraises_write_failure_after_failed_event(
     assert failures and failures[0]["failure_message"] == "disk full"
 
 
-def test_run_retrospective_learning_capture_failure_policy(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_run_retrospective_learning_capture_failure_policy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from specify_cli.next import runtime_bridge as bridge
 
     def _raising_callback(**_kwargs: Any) -> None:
@@ -331,6 +352,21 @@ def test_run_retrospective_learning_capture_failure_policy(
             repo_root=tmp_path,
             block_on_failure=True,
         )
+
+
+def test_runtime_policy_resolution_falls_back_to_default(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.next import runtime_bridge as bridge
+    from specify_cli.retrospective import policy as policy_mod
+    from specify_cli.retrospective.policy import PolicyResolutionError
+
+    failure = PolicyResolutionError(".kittify/config.yaml", "invalid_enum", "bad timing")
+    monkeypatch.setattr(policy_mod, "resolve_policy", lambda repo_root: (_ for _ in ()).throw(failure))
+
+    policy, source_map, policy_error = bridge._resolve_retrospective_policy_for_runtime(tmp_path)
+
+    assert policy.enabled is True
+    assert source_map["enabled"] == "<resolution_error>"
+    assert policy_error is failure
 
 
 def test_failure_emit_swallows_emit_failure(tmp_path: Path) -> None:
@@ -562,10 +598,7 @@ def _scaffold_opt_in_project(tmp_path: Path) -> tuple[Path, Path]:
     kittify = repo_root / ".kittify"
     kittify.mkdir()
     (kittify / "config.yaml").write_text(
-        "retrospective:\n"
-        "  enabled: true\n"
-        "  timing: before_completion\n"
-        "  failure_policy: block\n",
+        "retrospective:\n  enabled: true\n  timing: before_completion\n  failure_policy: block\n",
         encoding="utf-8",
     )
     charter_dir = kittify / "charter"
@@ -603,8 +636,7 @@ def _scaffold_opt_in_project(tmp_path: Path) -> tuple[Path, Path]:
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir()
     (tasks_dir / "WP01.md").write_text(
-        "---\nwork_package_id: WP01\nlane: done\ndependencies: []\n"
-        "requirement_refs: [FR-001]\ntitle: WP01\n---\n# WP01\n",
+        "---\nwork_package_id: WP01\nlane: done\ndependencies: []\nrequirement_refs: [FR-001]\ntitle: WP01\n---\n# WP01\n",
         encoding="utf-8",
     )
     _seed_wp_lane(feature_dir, "WP01", "done")
@@ -730,18 +762,13 @@ def test_legacy_path_blocks_when_prestate_cannot_be_captured(tmp_path: Path, mon
     assert "Cannot read run state.json" in (decision.reason or "")
 
 
-def test_legacy_path_default_policy_runs_post_completion_capture(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_legacy_path_default_policy_runs_post_completion_capture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from specify_cli.next import runtime_bridge as bridge
     from specify_cli.next._internal_runtime.schema import NextDecision
 
     repo_root, _feature_dir = _scaffold_opt_in_project(tmp_path)
     (repo_root / ".kittify" / "config.yaml").write_text(
-        "retrospective:\n"
-        "  enabled: true\n"
-        "  timing: post_completion\n"
-        "  failure_policy: warn\n",
+        "retrospective:\n  enabled: true\n  timing: post_completion\n  failure_policy: warn\n",
         encoding="utf-8",
     )
     run_dir = tmp_path / "run"
@@ -768,6 +795,7 @@ def test_legacy_path_default_policy_runs_post_completion_capture(
         "get_or_start_run",
         lambda *args, **kwargs: SimpleNamespace(run_dir=run_dir, run_id="run-1"),
     )
+
     def _terminal_runtime_step(*args: Any, **kwargs: Any) -> NextDecision:
         kwargs["emitter"].emit_mission_run_completed(object())
         return NextDecision(kind="terminal", run_id="run-1", mission_key="software-dev")
@@ -876,3 +904,47 @@ def test_legacy_path_logs_rollback_failures_after_gate_block(tmp_path: Path, mon
     assert decision.reason == "Retrospective gate refused completion: gate blocked"
     assert "rollback of state.json failed after gate block" in caplog.text
     assert "rollback of run.events.jsonl failed after gate block" in caplog.text
+
+
+def test_legacy_path_blocks_on_strict_policy_resolution_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.next import runtime_bridge as bridge
+    from specify_cli.next._internal_runtime.schema import NextDecision
+
+    repo_root, _feature_dir = _scaffold_opt_in_project(tmp_path)
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    (run_dir / "state.json").write_text("{}", encoding="utf-8")
+    (run_dir / "run.events.jsonl").write_text("", encoding="utf-8")
+
+    strict_policy = SimpleNamespace(
+        enabled=True,
+        timing="before_completion",
+        failure_policy="block",
+    )
+    policy_error = RuntimeError("policy invalid")
+
+    monkeypatch.setattr(
+        bridge.SyncRuntimeEventEmitter,
+        "for_feature",
+        lambda **kwargs: SimpleNamespace(seed_from_snapshot=lambda snapshot: None),
+    )
+    monkeypatch.setattr(
+        bridge,
+        "get_or_start_run",
+        lambda *args, **kwargs: SimpleNamespace(run_dir=run_dir, run_id="run-1"),
+    )
+    monkeypatch.setattr(
+        bridge,
+        "runtime_next_step",
+        lambda *args, **kwargs: NextDecision(kind="terminal", run_id="run-1", mission_key="software-dev"),
+    )
+    monkeypatch.setattr(
+        bridge,
+        "_resolve_retrospective_policy_for_runtime",
+        lambda repo_root: (strict_policy, {"enabled": "test"}, policy_error),
+    )
+
+    decision = bridge.decide_next_via_runtime("test-agent", "test-mission-01KQ6YEG", "success", repo_root)
+
+    assert decision.kind == DecisionKind.blocked
+    assert decision.reason == "Retrospective gate refused completion: policy invalid"
