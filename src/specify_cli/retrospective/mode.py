@@ -2,6 +2,24 @@
 
 Source-of-truth: kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/research.md R-001
 Spec refs:       FR-016, C-013
+
+Compatibility shim notice
+--------------------------
+This module is scheduled for retirement.  It is retained through spec-kitty 3.2.x because
+``gate.py``, ``retrospective_terminus.py``, and test code import ``detect`` and
+``ModeResolutionError`` directly from here.
+
+**Retirement plan:**
+- Deprecation target: spec-kitty 3.3.0
+- Follow-up issue: https://github.com/Priivacy-ai/spec-kitty/issues/TBD
+  (Issue title: "Retire retrospective.config + mode shim modules")
+- Rationale: ``gate.py`` and ``_internal_runtime/retrospective_terminus.py`` import
+  ``detect`` from here; migrating those callers requires cross-cutting changes to the
+  gate API and integration tests that are out of scope for WP06.
+
+New code should import ``ModeResolutionError`` from ``specify_cli.retrospective.mode``
+(this module) until the retirement issue is resolved.  The ``detect()`` function will
+move to ``specify_cli.retrospective.policy`` in a future WP.
 """
 
 from __future__ import annotations

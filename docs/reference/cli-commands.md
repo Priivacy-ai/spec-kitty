@@ -1463,10 +1463,27 @@ group.
 - **`spec-kitty profiles list`** — List available agent profiles (`--json` for JSON output).
 - **`spec-kitty mission list`** — List all available missions with their source.
 - **`spec-kitty glossary list`** — List all glossary terms (`--scope`, `--status`, `--json`).
-- **`spec-kitty retrospect summary`** — View cross-mission retrospective summary (`--json`,
-  `--since <date>`, `--limit <n>`).
-- **`spec-kitty agent retrospect synthesize --mission <slug>`** — Preview synthesis proposals
-  (dry-run, default). Add `--apply` to mutate governance state.
+- **`spec-kitty retrospect create --mission <handle>`** — Author a `retrospective.yaml` record
+  for one completed mission. Flags: `--overwrite` (replace existing record), `--update` (merge
+  into existing record, deduplicating by `(category, summary)`), `--json` (JSON output). Errors
+  if a record already exists unless `--overwrite` or `--update` is passed. See
+  [contracts/retrospect-cli.contract.md](../../kitty-specs/retrospective-default-policy-01KS049J/contracts/retrospect-cli.contract.md)
+  for the full contract.
+- **`spec-kitty retrospect backfill`** — Author retrospective records for historical completed
+  missions that predate 3.2.0. Flags: `--since <date>` (ISO date lower bound), `--mission <handle>`
+  (single mission), `--dry-run` (preview without writing), `--emit-skipped`, `--emit-failures`
+  (include non-authored candidates in the event log for dashboard visibility). Existing records are
+  never silently overwritten by backfill.
+- **`spec-kitty retrospect summary`** — Read-only aggregation across all completed mission
+  retrospective records. Flags: `--json`, `--since <date>`, `--limit <n>`. Output includes
+  `findings_status` (completed / skipped / failed / in-flight / legacy counts), `policy_source`
+  (which config key or charter field drove the gate), top "not helpful" targets, top missing
+  glossary terms, and proposal acceptance statistics. Does NOT author or mutate any record.
+- **`spec-kitty agent retrospect synthesize --mission <handle>`** — Preview synthesis proposals
+  from an existing `retrospective.yaml` (dry-run by default). Flags: `--preview` (explicit
+  dry-run), `--apply <proposal-id>` (apply one proposal), `--apply` (apply full batch),
+  `--fabricate-empty` (legacy back-compat path, not the default). Does NOT author records; errors
+  with a pointer to `retrospect create` if no record exists for the mission.
 
 ---
 

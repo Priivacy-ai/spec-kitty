@@ -211,17 +211,31 @@ races on external side effects).
 
 ### 2i. Phase 8 — Retrospective
 
-The mission's `retrospective.yaml` is captured earlier at the runtime
-terminus. After mission review, review what was captured and apply staged
-proposals every time:
+The canonical post-merge sequence is: **mission review → author or verify retrospective
+(`retrospect create`) → surface findings (`summary` aggregates; `synthesize` reviews proposals)**.
+
+Under default 3.2.0 policy, the `retrospective.yaml` is authored during merge. Verify it:
 
 ```bash
-spec-kitty retrospect summary                       # cross-mission view
-spec-kitty agent retrospect synthesize --mission <slug>  # dry-run; --apply to mutate
+cat .kittify/missions/$(jq -r .mission_id kitty-specs/<slug>/meta.json)/retrospective.yaml
 ```
 
-If `retrospective.yaml` is missing for the mission, escalate — the terminus
-facilitator either did not run or was skipped without a recorded reason.
+If the record is absent (older mission or generation failed), author it now — context decays fast:
+
+```bash
+spec-kitty retrospect create --mission <slug>
+```
+
+Then surface findings:
+
+```bash
+spec-kitty retrospect summary                              # cross-mission aggregation (read-only)
+spec-kitty agent retrospect synthesize --mission <slug> --preview  # inspect proposals
+spec-kitty agent retrospect synthesize --mission <slug> --apply <id>  # apply a proposal
+```
+
+If `retrospective.yaml` is missing and `retrospect create` fails, escalate — check
+`status.events.jsonl` for `RetrospectiveCaptureFailed` events and their `remediation_hint`.
 
 ### 2j. Phase 9 — Post-Merge Remediation
 

@@ -39,9 +39,11 @@ do not fix anything. You document.
 
 This is not the pre-merge acceptance gate. Run `spec-kitty accept --mission
 <slug>` before merge; use this skill after merge for final spec-to-code review.
-After this mission review, remind the operator to review the retrospective
-that was captured at terminus (`spec-kitty retrospect summary` /
-`spec-kitty agent retrospect synthesize`) while the work is still fresh.
+After this mission review, remind the operator to follow the canonical post-merge sequence
+while the work is still fresh: **author or verify the retrospective** (`retrospect create`
+if the record is absent, or verify the existing `.kittify/missions/<mission_id>/retrospective.yaml`);
+**surface findings** (`spec-kitty retrospect summary` for cross-mission aggregation;
+`spec-kitty agent retrospect synthesize --mission <slug> --preview` to inspect proposals).
 
 ---
 
@@ -770,17 +772,31 @@ follow-up mission.]
 
 ## Retrospective Reminder
 
-The mission's `retrospective.yaml` is authored at the runtime terminus (HiC
-prompt or autonomous facilitator), not after merge. Before context decays,
-review the captured retrospective and apply any staged proposals:
+The canonical post-merge sequence is: **mission review → author or verify retrospective
+(`retrospect create`) → surface findings (`summary` aggregates; `synthesize` reviews proposals)**.
 
-- `spec-kitty retrospect summary` — cross-mission view (read-only)
-- `spec-kitty agent retrospect synthesize --mission <slug>` — apply staged
-  proposals from the authored `retrospective.yaml` (dry-run by default;
-  add `--apply` to mutate)
+Under default 3.2.0 policy, the `retrospective.yaml` record is authored automatically during
+merge. Verify it exists:
 
-If the record does not exist, escalate — the terminus facilitator either did
-not run or was skipped without a recorded reason.
+```bash
+cat .kittify/missions/$(jq -r .mission_id kitty-specs/<slug>/meta.json)/retrospective.yaml
+```
+
+If the file is absent (older mission, or generation failed), author it:
+
+```bash
+spec-kitty retrospect create --mission <slug>
+```
+
+Then surface findings:
+
+- `spec-kitty retrospect summary` — cross-mission aggregation (read-only; does NOT author)
+- `spec-kitty agent retrospect synthesize --mission <slug> --preview` — inspect proposals
+- `spec-kitty agent retrospect synthesize --mission <slug> --apply <id>` — apply a proposal
+
+If the record is absent and `retrospect create` fails, escalate — the terminus facilitator
+either did not run or was skipped without a recorded reason. Check `status.events.jsonl` for
+`RetrospectiveCaptureFailed` events and their `remediation_hint` field.
 ```
 
 ---

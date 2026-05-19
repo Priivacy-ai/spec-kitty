@@ -194,6 +194,201 @@ def _resolve_mission_id_for_terminus(feature_dir: Path) -> str:
     return feature_dir.name
 
 
+def _build_retrospective_facilitator_callback(
+    mission_slug: str,
+    repo_root: Path,  # noqa: ARG001
+    provenance_kind: str = "runtime_post_completion",
+) -> Any:
+    """Build the facilitator callback that wires WP01/02/03 surfaces into the terminus.
+
+    Returns a callable suitable for ``facilitator_callback=`` in ``run_terminus()``.
+    When invoked by the terminus, it:
+
+    1. Resolves policy via WP01 ``resolve_policy()``.
+    2. Dispatches to the generator via WP02 ``generate_retrospective()``.
+    3. Writes the record via WP03 ``write_gen_record(mode="error")``.
+    4. Emits a ``RetrospectiveCaptured`` lifecycle event (WP03 ``emit_captured()``).
+
+    The callback returns a ``RetrospectiveRecord`` (the old pydantic-based schema type)
+    to satisfy the terminus contract.  Generator failures are classified and logged;
+    the caller (terminus) decides whether to block or continue based on the exception
+    propagating upward.
+
+    WP04 — T018/T019/T020/T021
+    """
+    # Late imports to keep the module-level import graph clean and to allow
+    # the terminus to remain the single import point for heavy optional deps.
+    from specify_cli.retrospective.policy import (
+        PolicyResolutionError,
+        resolve_policy,
+    )
+    from specify_cli.retrospective.generator import generate_retrospective
+    from specify_cli.retrospective.writer import RecordExistsError, write_gen_record
+    from specify_cli.retrospective.lifecycle_events import (
+        Actor as RetroActor,
+        emit_captured,
+        emit_capture_failed,
+    )
+
+    _prov: str = provenance_kind  # captured in closure
+
+    def _facilitator(
+        *,
+        mission_id: str,
+        feature_dir: Path,  # noqa: ARG001
+        repo_root: Path,
+        **_kwargs: Any,
+    ) -> Any:
+        """WP04 facilitator: policy-resolve → generate → write → emit."""
+        # Step 1: Resolve policy.
+        try:
+            policy, source_map = resolve_policy(repo_root)
+        except PolicyResolutionError:
+            # Re-raise: terminus classifies and routes per T019/T020.
+            raise
+
+        # Short-circuit if policy disabled.
+        if not policy.enabled:
+            return None  # terminus interprets None as no-op for disabled paths
+
+        # Step 2: Generate.
+        try:
+            record = generate_retrospective(
+                mission_slug,
+                policy,
+                repo_root,
+                provenance_kind=_prov,  # type: ignore[arg-type]
+                policy_source=source_map,
+            )
+        except FileNotFoundError as exc:
+            _classify_and_emit_failure(
+                mission_id=mission_id,
+                mission_slug=mission_slug,
+                repo_root=repo_root,
+                exc=exc,
+                source_map=source_map,
+                provenance_kind=_prov,
+                emit_capture_failed=emit_capture_failed,
+            )
+            raise
+
+        except Exception as exc:  # noqa: BLE001
+            _classify_and_emit_failure(
+                mission_id=mission_id,
+                mission_slug=mission_slug,
+                repo_root=repo_root,
+                exc=exc,
+                source_map=source_map,
+                provenance_kind=_prov,
+                emit_capture_failed=emit_capture_failed,
+            )
+            raise
+
+        # Step 3: Write record.
+        try:
+            write_gen_record(record, repo_root=repo_root, mode="error")
+        except RecordExistsError:
+            # Record already written (e.g. backfill ran first).  Treat as
+            # non-fatal: emit Captured with existing record path and continue.
+            logger.debug(
+                "Retrospective record already exists for mission %s — skipping write.",
+                mission_slug,
+            )
+        except Exception as exc:  # noqa: BLE001
+            _classify_and_emit_failure(
+                mission_id=mission_id,
+                mission_slug=mission_slug,
+                repo_root=repo_root,
+                exc=exc,
+                source_map=source_map,
+                provenance_kind=_prov,
+                emit_capture_failed=emit_capture_failed,
+            )
+            raise
+
+        # Step 4: Emit RetrospectiveCaptured lifecycle event.
+        runtime_actor = RetroActor(kind="runtime", id="spec-kitty-generator")
+        emit_captured(
+            record,
+            repo_root,
+            provenance_kind=_prov,  # type: ignore[arg-type]
+            actor=runtime_actor,
+        )
+
+        # Return a minimal stub satisfying the terminus protocol.
+        # The terminus uses this as a truthy "record was produced" sentinel.
+        return record
+
+    return _facilitator
+
+
+def _classify_exc(exc: Exception) -> str:
+    """Map an exception to a failure_category string per T019 classify() table."""
+    from specify_cli.retrospective.writer import RecordExistsError  # noqa: PLC0415
+
+    if isinstance(exc, RecordExistsError):
+        return "other"
+    if isinstance(exc, (FileNotFoundError, IsADirectoryError)):
+        return "missing_artifacts"
+    # Default: generator_exception
+    return "generator_exception"
+
+
+def _remediation_hint(exc: Exception, source_map: dict[str, str]) -> str | None:
+    """Return a remediation hint appropriate for the given exception."""
+    from specify_cli.retrospective.writer import RecordExistsError  # noqa: PLC0415
+
+    if isinstance(exc, RecordExistsError):
+        return "Re-run with --overwrite to replace the existing record."
+    if isinstance(exc, (FileNotFoundError, IsADirectoryError)):
+        return "Run `spec-kitty migrate normalize-lifecycle` to repair missing artifacts."
+    # PolicyResolutionError: surface the source
+    sources = ", ".join(sorted(set(source_map.values()))) if source_map else "unknown"
+    return f"Check policy configuration at: {sources}"
+
+
+def _classify_and_emit_failure(
+    *,
+    mission_id: str,
+    mission_slug: str,
+    repo_root: Path,
+    exc: Exception,
+    source_map: dict[str, str],
+    provenance_kind: str,
+    emit_capture_failed: Any,
+) -> None:
+    """Classify ``exc`` and emit a ``RetrospectiveCaptureFailed`` event."""
+    from specify_cli.retrospective.lifecycle_events import Actor as RetroActor  # noqa: PLC0415
+
+    failure_category = _classify_exc(exc)
+    hint = _remediation_hint(exc, source_map)
+    runtime_actor = RetroActor(kind="runtime", id="spec-kitty-generator")
+
+    # Trim message — no stack traces in events (T019).
+    message = str(exc)[:400] if exc else "Unknown error"
+
+    missing: list[str] | None = None
+    if isinstance(exc, FileNotFoundError):
+        missing = [str(exc.filename)] if getattr(exc, "filename", None) else None
+
+    try:
+        emit_capture_failed(
+            mission_id=mission_id,
+            mission_slug=mission_slug,
+            repo_root=repo_root,
+            failure_category=failure_category,  # type: ignore[arg-type]
+            failure_message=message,
+            remediation_hint=hint,
+            policy_source=source_map,
+            attempted_provenance_kind=provenance_kind,  # type: ignore[arg-type]
+            missing_artifacts=missing,
+            actor=runtime_actor,
+        )
+    except Exception:  # noqa: BLE001
+        # If emission itself fails, log but don't mask the original exception.
+        logger.warning("Failed to emit RetrospectureCaptureFailed event", exc_info=True)
+
+
 def _feature_runs_path(repo_root: Path) -> Path:
     return repo_root / ".kittify" / "runtime" / _FEATURE_RUNS_FILE
 
@@ -1261,7 +1456,11 @@ def _advance_run_state_after_composition(
                 feature_dir=feature_dir,
                 repo_root=repo_root,
                 operator_actor=operator_actor,
-                facilitator_callback=None,  # wiring deferred; gate enforces
+                facilitator_callback=_build_retrospective_facilitator_callback(
+                    mission_slug=mission_slug,
+                    repo_root=repo_root,
+                    provenance_kind="runtime_post_completion",
+                ),
                 hic_prompt=_rich_hic_prompt,
             )
 
@@ -2009,7 +2208,11 @@ def decide_next_via_runtime(  # noqa: C901
                 feature_dir=feature_dir,
                 repo_root=repo_root,
                 operator_actor=operator_actor,
-                facilitator_callback=None,
+                facilitator_callback=_build_retrospective_facilitator_callback(
+                    mission_slug=mission_slug,
+                    repo_root=repo_root,
+                    provenance_kind="runtime_post_completion",
+                ),
                 hic_prompt=_rich_hic_prompt,
             )
         except Exception as exc:

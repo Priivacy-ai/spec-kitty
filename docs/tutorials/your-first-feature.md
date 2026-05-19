@@ -133,14 +133,24 @@ spec-kitty merge
 
 You should see the feature merged into the mission's target branch and the worktrees cleaned up.
 
-Before you move on, run the post-merge mission review
-(`/spec-kitty-mission-review` in your agent), then review the retrospective
-captured at the runtime terminus:
+Before you move on, complete the three post-merge steps:
 
-```bash
-spec-kitty retrospect summary                       # cross-mission view
-spec-kitty agent retrospect synthesize --mission <slug>  # dry-run; --apply to mutate
-```
+1. **Mission review** — run `/spec-kitty-mission-review` in your agent to verify spec→code
+   fidelity.
+2. **Verify the retrospective** — under default policy Spec Kitty already wrote a
+   `retrospective.yaml` during merge. Find it at:
+   ```bash
+   cat .kittify/missions/$(jq -r .mission_id kitty-specs/###-task-list/meta.json)/retrospective.yaml
+   ```
+   If the file is absent, author it: `spec-kitty retrospect create --mission ###-task-list`.
+3. **Surface findings** — review the record's proposals:
+   ```bash
+   spec-kitty retrospect summary                              # cross-mission aggregation (read-only)
+   spec-kitty agent retrospect synthesize --mission <slug> --preview  # inspect proposals
+   ```
+
+For the full retrospective workflow, see
+[How to Use Retrospective Learning](../how-to/use-retrospective-learning.md).
 
 ## Troubleshooting
 

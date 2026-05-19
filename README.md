@@ -37,6 +37,7 @@ It is probably overkill for one-off edits, tiny scripts, or teams that do not us
 | Avoid branch chaos | Isolated git worktrees under `.worktrees/` |
 | See progress | Optional local kanban dashboard with `spec-kitty dashboard` |
 | Integrate agents | Slash commands or skills for common AI coding tools |
+| Learn from missions | Every completed mission generates a retrospective by default. Tune via `.kittify/config.yaml#retrospective` or charter; see [how-to](docs/how-to/use-retrospective-learning.md). |
 
 ## Quick Start
 
