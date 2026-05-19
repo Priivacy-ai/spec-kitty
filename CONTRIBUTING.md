@@ -110,6 +110,40 @@ pytest
 
 This is the most common test issue and is easy to fix. The test isolation system will detect mismatches automatically.
 
+### Troubleshooting Shared Package Import Issues
+
+If pytest fails during collection with an error like:
+
+```text
+ImportError: cannot import name 'normalize_event_id' from 'spec_kitty_events' (unknown location)
+```
+
+check whether Python is resolving `spec_kitty_events` as a namespace package:
+
+```bash
+python - <<'PY'
+import spec_kitty_events
+
+print(repr(getattr(spec_kitty_events, "__file__", None)))
+print(spec_kitty_events.__path__)
+PY
+```
+
+Healthy output points at `spec_kitty_events/__init__.py`. Broken output shows
+`None _NamespacePath(...)`, which means the local install is corrupted. Rebuild
+the project environment with:
+
+```bash
+uv sync --reinstall-package spec-kitty-events
+```
+
+If the broken package lives in a global or Homebrew Python environment, remove
+the stale `spec_kitty_events/` directory and matching `.dist-info/` metadata
+from that interpreter's `site-packages`, then reinstall
+`spec-kitty-events`. See
+[Diagnose Installation Problems](docs/how-to/diagnose-installation.md#9-shared-package-imports-resolve-as-a-namespace-package)
+for the full recovery procedure.
+
 ### How Test Isolation Works
 
 The test infrastructure guarantees that tests always use source code:
@@ -338,10 +372,12 @@ git push origin vX.Y.Z
 ```
 
 #### Version already exists on PyPI
+
 - You attempted to release a version that's already published
 - Bump to the next version number and retry
 
 #### Changelog validation fails
+
 - Ensure CHANGELOG.md has a section matching the version in pyproject.toml
 - Check the date format is `YYYY-MM-DD`
 - Verify the version number is monotonically increasing

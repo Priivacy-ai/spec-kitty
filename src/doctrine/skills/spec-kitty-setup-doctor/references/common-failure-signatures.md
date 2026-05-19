@@ -173,3 +173,65 @@ git worktree prune
 # Re-create the worktree if needed
 spec-kitty implement WP01
 ```
+
+---
+
+## 9. Shared Package Import Resolves As Namespace Package
+
+**Symptom:** Pytest collection or CLI startup fails with:
+
+```text
+ImportError: cannot import name 'normalize_event_id' from 'spec_kitty_events' (unknown location)
+```
+
+Diagnostic command:
+
+```bash
+python - <<'PY'
+import spec_kitty_events
+
+print(repr(getattr(spec_kitty_events, "__file__", None)))
+print(spec_kitty_events.__path__)
+PY
+```
+
+Broken output shows `None _NamespacePath(...)`. Healthy output points at
+`spec_kitty_events/__init__.py`.
+
+**Cause:** The local Python environment contains a partially removed or
+mismatched `spec-kitty-events` install. Python treats the leftover
+`spec_kitty_events/` directory as a PEP 420 namespace package, so top-level
+re-exports from `__init__.py` are unavailable.
+
+**Recovery:**
+
+For the project venv:
+
+```bash
+uv sync --reinstall-package spec-kitty-events
+```
+
+For a global or Homebrew Python interpreter, remove stale package files before
+reinstalling:
+
+```bash
+python -m pip uninstall -y spec-kitty-events
+python - <<'PY'
+from pathlib import Path
+import site
+
+for root in map(Path, site.getsitepackages()):
+    for path in root.glob("spec_kitty_events*"):
+        print(path)
+PY
+```
+
+After inspecting the printed `site-packages` paths, delete the stale
+`spec_kitty_events/` directory and `spec_kitty_events-*.dist-info`, then run:
+
+```bash
+python -m pip install --force-reinstall spec-kitty-events==5.1.0
+```
+
+Do not bypass this by importing private submodules from Spec Kitty code. The
+CLI intentionally consumes the public top-level `spec_kitty_events` contract.
