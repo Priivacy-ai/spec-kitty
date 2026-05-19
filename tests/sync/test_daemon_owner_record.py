@@ -240,6 +240,99 @@ def test_mismatched_fields_returns_empty_when_aligned(_scoped_home: Path) -> Non
     assert mismatched_fields(record, fg) == []
 
 
+def test_mismatched_fields_normalizes_executable_symlink(
+    _scoped_home: Path, tmp_path: Path
+) -> None:
+    """pipx-style executable symlinks should not create split-brain mismatches."""
+    from specify_cli.sync.owner import mismatched_fields
+
+    symlink = tmp_path / Path(sys.executable).name
+    try:
+        symlink.symlink_to(Path(sys.executable))
+    except OSError as exc:
+        pytest.skip(f"symlink unavailable on this platform: {exc}")
+
+    record = _build_record(executable_path=str(symlink))
+    fg = _fg_from_record(record)
+    fg["executable_path"] = str(Path(sys.executable).resolve())
+
+    assert mismatched_fields(record, fg) == []
+
+
+def test_dataclass_canonicalizes_executable_path(
+    _scoped_home: Path, tmp_path: Path
+) -> None:
+    """Constructing a record with a symlink path stores the resolved target.
+
+    This locks in the dataclass-level invariant so future callers cannot
+    silently bypass normalization by constructing records directly.
+    """
+    symlink = tmp_path / Path(sys.executable).name
+    try:
+        symlink.symlink_to(Path(sys.executable))
+    except OSError as exc:
+        pytest.skip(f"symlink unavailable on this platform: {exc}")
+
+    record = _build_record(executable_path=str(symlink))
+    assert record.executable_path == str(Path(sys.executable).resolve())
+
+
+def test_canonical_executable_path_falls_back_to_raw_when_resolve_fails(
+    _scoped_home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """If :meth:`Path.resolve` raises, the raw string survives unchanged.
+
+    Exercises the ``except (OSError, RuntimeError)`` branch of
+    ``_canonical_executable_path`` — without this test the fallback is
+    untested and a regression could silently swallow the bug fix.
+    """
+    from specify_cli.sync import owner as owner_module
+
+    raw_path = "/no/such/python-that-will-not-resolve"
+
+    real_resolve = Path.resolve
+
+    def _exploding_resolve(self: Path, *args: Any, **kwargs: Any) -> Path:
+        if str(self) == raw_path:
+            raise OSError("simulated resolve failure")
+        return real_resolve(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "resolve", _exploding_resolve)
+
+    assert owner_module._canonical_executable_path(raw_path) == raw_path
+
+
+def test_mismatched_fields_when_one_side_fails_to_resolve(
+    _scoped_home: Path, tmp_path: Path
+) -> None:
+    """Resolution failure on one side must NOT produce a half-mutated compare.
+
+    Regression test for the earlier non-atomic try/except where a successful
+    resolve on the daemon side combined with a failed resolve on the foreground
+    side produced a spurious mismatch. With dataclass-level canonicalization,
+    both sides are pre-normalized at write time, so this scenario reduces to a
+    plain string compare and the helper cannot be tricked into a half-state.
+    """
+    from specify_cli.sync.owner import mismatched_fields
+
+    symlink = tmp_path / Path(sys.executable).name
+    try:
+        symlink.symlink_to(Path(sys.executable))
+    except OSError as exc:
+        pytest.skip(f"symlink unavailable on this platform: {exc}")
+
+    record = _build_record(executable_path=str(symlink))
+    fg = _fg_from_record(record)
+    # Foreground stores a path that no longer exists on disk; the canonical
+    # helper still resolves it lexically (or falls back to raw) without
+    # contaminating the daemon-side value the way the old try/except could.
+    bogus = "/nonexistent/path/that/cannot/be/resolved/python"
+    fg["executable_path"] = bogus
+
+    mismatches = mismatched_fields(record, fg)
+    assert mismatches == ["executable_path"]
+
+
 @pytest.mark.parametrize(
     "field, mutated_value",
     [

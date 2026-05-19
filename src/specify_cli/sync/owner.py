@@ -32,6 +32,7 @@ Design notes
 from __future__ import annotations
 
 import json
+import logging
 import os
 import sys
 import tempfile
@@ -46,6 +47,30 @@ from specify_cli.sync.daemon import (
     _is_process_alive,
     _sync_root,
 )
+
+logger = logging.getLogger(__name__)
+
+
+def _canonical_executable_path(value: object) -> str:
+    """Return the canonical (symlink-resolved) form of an executable path.
+
+    Resolution failures (deleted target, permission denied, runaway symlink
+    loop) fall back to the raw string. Logging at DEBUG so operators can
+    correlate a spurious mismatch with the underlying resolve failure.
+
+    This is the single source of truth for executable-path normalization on
+    both write paths (foreground identity, daemon record build) and the read
+    path (deserialization in :func:`read_owner_record`). Compare sites SHOULD
+    NOT re-resolve — by construction, every ``DaemonOwnerRecord.executable_path``
+    in memory has already passed through this helper.
+    """
+    raw = str(value)
+    try:
+        return str(Path(raw).resolve())
+    except (OSError, RuntimeError) as exc:
+        logger.debug("executable path resolve failed: %r (%s)", raw, exc)
+        return raw
+
 
 # ---------------------------------------------------------------------------
 # Data class
@@ -66,7 +91,13 @@ class DaemonOwnerRecord:
     - ``port``: TCP port the daemon listens on (127.0.0.1).
     - ``token``: control-plane bearer token (NEVER serialised to clients).
     - ``package_version``: ``importlib.metadata`` version of ``spec-kitty-cli``.
-    - ``executable_path``: ``sys.executable`` of the daemon process.
+    - ``executable_path``: canonical (symlink-resolved) ``sys.executable`` of
+      the daemon process. The invariant is established by
+      :func:`_canonical_executable_path` on every write boundary (foreground
+      identity, daemon record build) and on the read boundary
+      (:func:`read_owner_record`). Compare sites MUST NOT re-resolve.
+      Case is not normalized — case-insensitive filesystems (APFS/NTFS) may
+      still produce a mismatch if daemon and foreground disagree on casing.
     - ``source_checkout_path``: repo root of the installed package (the same
       algorithm is used on the foreground side so the strings compare cleanly).
     - ``server_url``: SaaS server URL configured for this scope.
@@ -90,6 +121,16 @@ class DaemonOwnerRecord:
     auth_scope: str | None
     queue_db_path: str
     started_at: str
+
+    def __post_init__(self) -> None:
+        # Enforce the canonical-executable-path invariant at the dataclass
+        # boundary so callers cannot bypass normalization by constructing a
+        # record directly (e.g. test fixtures). ``frozen=True`` requires
+        # ``object.__setattr__`` for the rewrite; fall back to the raw value
+        # on resolve failure (logged inside the helper).
+        canonical = _canonical_executable_path(self.executable_path)
+        if canonical != self.executable_path:
+            object.__setattr__(self, "executable_path", canonical)
 
     def as_dict(self) -> dict[str, Any]:
         """Return the record as a plain dict (token NOT redacted).
@@ -190,6 +231,7 @@ def read_owner_record() -> DaemonOwnerRecord | None:
             port=int(data["port"]),
             token=str(data["token"]),
             package_version=str(data["package_version"]),
+            # ``executable_path`` is canonicalized in ``DaemonOwnerRecord.__post_init__``.
             executable_path=str(data["executable_path"]),
             source_checkout_path=str(data["source_checkout_path"]),
             server_url=str(data["server_url"]),
@@ -294,7 +336,7 @@ def compute_foreground_identity() -> dict[str, Any]:
 
     return {
         "package_version": _get_package_version(),
-        "executable_path": sys.executable,
+        "executable_path": _canonical_executable_path(sys.executable),
         "source_checkout_path": _resolve_source_checkout_path(),
         "server_url": _read_server_url_for_scope(),
         "auth_principal": auth_principal,
