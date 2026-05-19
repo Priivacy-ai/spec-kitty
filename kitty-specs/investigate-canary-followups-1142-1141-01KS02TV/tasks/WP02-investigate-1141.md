@@ -19,7 +19,8 @@ subtasks:
 - T013
 - T014
 - T015
-agent: claude
+agent: "claude:opus-4-7:researcher-robbie:implementer"
+shell_pid: "67792"
 history:
 - timestamp: '2026-05-19T12:46:34Z'
   actor: claude
@@ -353,3 +354,7 @@ A reviewer should verify:
 ```bash
 spec-kitty agent action implement WP02 --agent claude --mission investigate-canary-followups-1142-1141-01KS02TV
 ```
+
+## Activity Log
+
+- 2026-05-19T13:19:34Z – claude:opus-4-7:researcher-robbie:implementer – shell_pid=67792 – Started implementation via action command
