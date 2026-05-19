@@ -7,6 +7,7 @@
 ## 1. Multi-file DRG loading strategy
 
 ### Decision
+
 Introduce `load_graph_or_dir(path: Path) -> DRGGraph` in `src/doctrine/drg/loader.py`.
 If `path` is a file, delegate to the existing `load_graph(path)`. If `path` is a directory,
 glob `*.graph.yaml` in alphabetical order, call `load_graph()` on each, and reduce with
@@ -18,12 +19,14 @@ where `path` is the directory root. This means the convention shifts from "alway
 `graph.yaml`" to "either `graph.yaml` or a `drg/` fragment directory at the same root".
 
 ### Rationale
+
 - Single entry point replaces twelve scattered `path / "graph.yaml"` constructions
 - No breaking change: a root containing only `graph.yaml` behaves identically to today
 - Fragment merging at load time keeps the cross-layer `merge_layers()` signature unchanged
 - Enables the shipped graph to be split into domain files without regressions elsewhere
 
 ### Alternatives considered
+
 - **Separate `load_graph_dir()` + unchanged callers**: more callers to update; the
   single-entry-point approach is cleaner and reduces the surface for future drift
 - **Directory-only convention (deprecate single file)**: too disruptive; single-file support
@@ -47,6 +50,7 @@ where `path` is the directory root. This means the convention shifts from "alway
 ## 2. Three-layer merge at `_drg_helpers.py`
 
 ### Decision
+
 `load_validated_graph(repo_root: Path, org_root: Path | None = None) -> DRGGraph`
 
 ```
@@ -69,6 +73,7 @@ org root (context.py, compiler.py) obtain it via a shared `_resolve_org_root(rep
 helper in the same module, which reads `config.yaml` and returns `None` if unconfigured.
 
 ### Rationale
+
 - Least-change approach: `merge_layers()` is already correct for additive semantics
 - `_drg_helpers.py` becomes the single authoritative DRG assembly point for all non-
   synthesizer paths; synthesizer paths use `load_graph_or_dir` directly (they build graphs
@@ -79,6 +84,7 @@ helper in the same module, which reads `config.yaml` and returns `None` if uncon
 ## 3. OrgDoctrineSource protocol and authentication
 
 ### Decision
+
 `OrgDoctrineSource` is a Python `Protocol` (structural typing, not ABC inheritance).
 Each implementation exposes a single method:
 
@@ -113,6 +119,7 @@ a secrets store, and follows the pattern established by other spec-kitty command
 delegate to git for VCS operations.
 
 ### Alternatives considered
+
 - **Python ABC over Protocol**: Protocol is preferred because implementations don't need to
   inherit from a base class — any object with a matching `fetch()` signature works. Easier
   for third-party source implementations.
@@ -126,6 +133,7 @@ delegate to git for VCS operations.
 ## 4. Config schema for `doctrine.org`
 
 ### Decision
+
 Extend `.kittify/config.yaml` with an optional `doctrine.org.packs` list. Each entry is a
 named pack with its own source and local path:
 
@@ -162,6 +170,7 @@ The `OrgPackConfig` Pydantic model validates each entry. `PackRegistry` is the l
 Path expansion (`~`) is resolved at load time for `local_path`.
 
 ### Rationale
+
 - Multi-pack support without a single point of coordination: each team manages their
   repository independently; the config lists them all in precedence order.
 - Backward-compatible: existing single-`local_path` configs keep working.
@@ -173,6 +182,7 @@ Path expansion (`~`) is resolved at load time for `local_path`.
 ## 5. `pack assemble` conflict detection and reporting
 
 ### Decision
+
 `pack assemble` detects conflicts at two levels:
 
 1. **Artifact ID collision across input packs**: two packs both define artifact with the
@@ -190,6 +200,7 @@ The operator resolves conflicts by:
 - Adding an explicit override artifact in the distributable's own layer
 
 ### Alternatives considered
+
 - **Last-writer-wins (no error)**: rejected — silent override of one pack by another
   produces unpredictable governance for consumers; explicit resolution is required
 - **Merge metadata from conflicting artifacts**: rejected — the full-replace semantics
@@ -200,6 +211,7 @@ The operator resolves conflicts by:
 ## 6. Provenance tag shape in `charter context --json`
 
 ### Decision
+
 The existing `charter context --json` output adds a `"source"` field to each artifact
 entry in the JSON response:
 
@@ -223,6 +235,7 @@ The human-readable `charter context` (non-JSON) output is unchanged — source a
 is JSON-only to avoid cluttering the existing terminal output.
 
 ### Alternatives considered
+
 - **Provenance in the artifact YAML itself**: rejected — provenance is a runtime property
   of the resolution, not a property of the artifact definition
 - **Provenance in the non-JSON output**: deferred — the terminal format is consumed by
@@ -233,6 +246,7 @@ is JSON-only to avoid cluttering the existing terminal output.
 ## 7. `spec-kitty doctor` org-layer listing surface
 
 ### Decision
+
 Add a `spec-kitty doctor doctrine` subcommand (consistent with the existing
 `doctor command-files`, `doctor identity`, etc. pattern):
 
@@ -251,6 +265,7 @@ If no snapshot is configured: a diagnostic message (not an error) advising the o
 to run `doctrine fetch` or check `config.yaml`.
 
 ### Rationale
+
 Consistent with existing `doctor` subcommand surface; keeps the main `doctor` invocation
 lean while providing a focused diagnostic for doctrine-layer issues.
 
@@ -259,6 +274,7 @@ lean while providing a focused diagnostic for doctrine-layer issues.
 ## 8. `charter lint` advisory warning placement
 
 ### Decision
+
 The existing `charter lint` command gains one new check: **org-overrides-shipped warning**.
 
 When the merged doctrine set contains any artifact whose ID exists in both shipped and
@@ -275,6 +291,7 @@ The check is implemented in the existing lint check registry by adding a
 `OrgOverridesShippedCheck` that reads provenance metadata from `DoctrineService`.
 
 ### Alternatives considered
+
 - **Hard error on override**: rejected per spec C-003 — organisations need to be able to
   override shipped artifacts; it should be visible, not blocked
 - **Separate `charter lint org`**: rejected — the advisory fits naturally in the existing

@@ -70,6 +70,7 @@ Signatures differ (the new one is not a drop-in), the return types differ, and t
 Per `kitty-specs/charter-mediated-doctrine-selection-01KRTZCA/tasks/WP08-mission-type-profiles.md`:
 
 > ### T046 — Wire `resolve_governance` into mission-context pipeline
+>
 > Identify the call site where the mission's governance payload is built for the implement prompt (today: `charter.context.build_charter_context` consumed by `runtime` or by `agent action implement`). **Insert a `resolve_governance` call that runs first, contributes its profile selections + activations to the union, and produces the final payload.**
 
 The implementer's defense quoted only the second sentence ("The exact wiring point is implementation detail; the test assertion is the contract"). That sentence narrows *where* to insert the call; it does **not** waive the requirement to insert one. The first sentence is the deliverable, and it was skipped.

@@ -961,7 +961,7 @@ or renamed).
 
 The multi-window synthesis adds **two new signals** relative to the
 existing audit. First, it **confirms F2** (the `cli/commands/agent/*`
-+ `merge.py` + `sync/emitter.py` + `next/runtime_bridge.py` refactor
+- `merge.py` + `sync/emitter.py` + `next/runtime_bridge.py` refactor
 cluster): the top-five urgent candidates are exactly the F2 cluster
 the existing audit named, and they hold rank in both windows (F#2-5
 and R#1-4). Twenty-four of the twenty-six intersection files are
@@ -987,8 +987,6 @@ there has not been enough wall time for any 1y hotspot to settle
 into history — but it also means the existing F2 verdict is not
 threatened by hidden short-lived bursts. The list is what it claims
 to be.
-
-
 
 1. **Scope (after 2026-05-09 expansion) = `src/ + tests/ + kitty-specs/`.** The
    remaining out-of-scope dirs are `architecture/`, `docs/`, and `.github/`.

@@ -16,6 +16,7 @@
 ## Gate Results
 
 ### Gate 1 — Contract tests
+
 - Command: `uv run pytest tests/contract/ -q --timeout=60`
 - Exit code: non-zero (19 failures / 218 passed / 1 skipped)
 - Result: **PASS for this mission** (no contract drift introduced by the mission)
@@ -31,6 +32,7 @@
   is 23/23 green.
 
 ### Gate 2 — Architectural tests
+
 - Command: `uv run pytest tests/architectural/ -q --timeout=60`
 - Exit code: 0
 - Result: **PASS** (104 passed, 1 skipped)
@@ -40,6 +42,7 @@
   in `charter/` (C-001 / NFR-004 preserved).
 
 ### Gate 3 — Cross-repo E2E
+
 - Command: N/A
 - Exit code: N/A
 - Result: **N/A** (not applicable to this fork)
@@ -53,6 +56,7 @@
   cross-repo behaviour) is false.
 
 ### Gate 4 — Issue Matrix
+
 - File: `kitty-specs/wp-prompt-governance-payload-01KRR8HS/issue-matrix.md`
 - Rows: 0 (file does not exist)
 - Result: **N/A** (the FR-037 issue-matrix discipline is a programme-level

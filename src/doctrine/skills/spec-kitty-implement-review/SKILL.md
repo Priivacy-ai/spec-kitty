@@ -209,11 +209,11 @@ The prompt contains all context, acceptance criteria, and review feedback
      <lint-command> $CHANGED_SRC
    fi
    ```
-   - The command MUST exit 0. If it does not, fix or run the linter's autofix mode
+- The command MUST exit 0. If it does not, fix or run the linter's autofix mode
      and re-run.
-   - Paste the final command + exit code into the handoff note
+- Paste the final command + exit code into the handoff note
      (e.g. `"<lint-command> diff-scoped check: 0 issues, exit 0"`).
-   - On cycle-N re-implementation, use the WP's planning base instead of `HEAD`:
+- On cycle-N re-implementation, use the WP's planning base instead of `HEAD`:
      `git diff --name-only $(git merge-base HEAD main)`.
 9. Commit: git add -A && git commit -m "feat(WP##): <description>"
 10. Mark subtasks done: spec-kitty agent tasks mark-status T001 T002 ... --status done

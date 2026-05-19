@@ -30,7 +30,7 @@ WP05 was reframed by HiC adjudication:
 - Cycle-2 implementation tightened the assertion to require RichHandler's
   characteristic `WARNING\s{2,}` (double-space) prefix that only `RichHandler`
   produces. Verified RED at the pre-bootstrap commit (raw Python defaults emit
-  no `WARNING  ` prefix); GREEN with the bootstrap installed.
+  no `WARNING` prefix); GREEN with the bootstrap installed.
 
 ## Carried-forward verifications (from cycle 1)
 
@@ -44,7 +44,7 @@ WP05 was reframed by HiC adjudication:
 
 - ATDD test now genuinely red→green: pre-bootstrap commit fails the
   `re.search(r"WARNING\s{2,}Charter catalog miss", ...)` assertion (Python's
-  default `_lastResort` emits no `WARNING  ` prefix); post-bootstrap passes.
+  default `_lastResort` emits no `WARNING` prefix); post-bootstrap passes.
 - Subprocess-based test runs the CLI with a typo'd charter and asserts the
   Rich-formatted WARNING text in captured stderr.
 
