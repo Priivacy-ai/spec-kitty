@@ -1,7 +1,7 @@
 {
-  "event_count": 32,
-  "last_event_id": "01KS0JH9Z217SGGN1J0XFHNE7B",
-  "materialized_at": "2026-05-19T16:54:04.002965+00:00",
+  "event_count": 34,
+  "last_event_id": "01KS0JJBB5CY8S7T46ADPHMXHM",
+  "materialized_at": "2026-05-19T16:54:38.181684+00:00",
   "mission_number": "",
   "mission_slug": "retrospective-default-policy-01KS049J",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 3
+    "planned": 2
   },
   "work_packages": {
     "WP01": {
@@ -46,11 +46,11 @@
       "last_transition_at": "2026-05-19T16:25:18.444172+00:00"
     },
     "WP05": {
-      "actor": "user",
+      "actor": "claude:claude-sonnet-4-6:python-pedro:implementer",
       "force_count": 2,
-      "lane": "planned",
-      "last_event_id": "01KS0JH9Z217SGGN1J0XFHNE7B",
-      "last_transition_at": "2026-05-19T16:54:04.002965+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KS0JJBB5CY8S7T46ADPHMXHM",
+      "last_transition_at": "2026-05-19T16:54:38.181684+00:00"
     },
     "WP06": {
       "actor": "finalize-tasks",
