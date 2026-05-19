@@ -28,16 +28,25 @@ from specify_cli.doctrine_synthesizer import (
     SynthesisResult,
     apply_proposals,
 )
+from specify_cli.retrospective import (
+    emit_captured,
+    RetrospectiveActor,
+)
+from specify_cli.retrospective.lifecycle_events import Actor as LifecycleActor
 from specify_cli.retrospective.reader import SchemaError, YAMLParseError, read_record
 from specify_cli.retrospective.schema import (
     ActorRef,
+    GenActor,
+    GenProvenance,
+    GenRetrospectiveRecord,
     MissionIdentity,
     Mode,
     ModeSourceSignal,
     RecordProvenance,
     RetrospectiveRecord,
 )
-from specify_cli.retrospective.writer import WriterError, write_record
+from specify_cli.retrospective.schema import RecordValidationError
+from specify_cli.retrospective.writer import WriterError, write_gen_record, write_record
 from specify_cli.status.reducer import reduce as reduce_status_events
 from specify_cli.status.store import read_events
 
@@ -215,39 +224,63 @@ def _create_empty_retrospective_record(
     mission_slug: str,
     feature_dir: Path,
     actor: ActorRef,
-) -> Path:
+) -> tuple[Path, GenRetrospectiveRecord]:
+    """Create an empty retrospective record with synthesize_fabricate provenance.
+
+    Produces a GenRetrospectiveRecord (dataclass-shape) with:
+      - provenance.kind = "synthesize_fabricate"
+      - findings_status = "ran_no_findings"
+    Written via write_gen_record() which enforces the T014 invariant.
+    Also emits a RetrospectiveCaptured event with provenance_kind="explicit_create"
+    (distinct from the record's provenance.kind per contract semantics).
+
+    Returns:
+        A tuple of (canonical_path, gen_record) so the caller can use the
+        gen_record directly without re-reading the YAML via the Pydantic reader.
+    """
     del feature_dir
     now = datetime.now(timezone.utc).isoformat()
-    record = RetrospectiveRecord(
-        schema_version="1",
-        mission=MissionIdentity(
-            mission_id=mission_id,
-            mid8=mission_id[:8],
-            mission_slug=mission_slug,
-            mission_type="software-dev",
-            mission_started_at=now,
-            mission_completed_at=now,
+    gen_actor = GenActor(kind=actor.kind, id=actor.id)
+    record = GenRetrospectiveRecord(
+        schema_version=1,
+        mission_id=mission_id,
+        mission_slug=mission_slug,
+        mission_number=None,
+        friendly_name="",
+        mission_type="software-dev",
+        target_branch="main",
+        created_at=now,
+        created_by=gen_actor,
+        provenance=GenProvenance(
+            kind="synthesize_fabricate",
+            invoked_at=now,
+            policy_resolved_from={},
+            command="agent retrospect synthesize --fabricate-empty",
         ),
-        mode=Mode(
-            value="autonomous",
-            source_signal=ModeSourceSignal(kind="environment", evidence="agent retrospect synthesize"),
-        ),
-        status="completed",
-        started_at=now,
-        completed_at=now,
-        actor=actor,
+        policy_source={},
+        findings_status="ran_no_findings",
         helped=[],
         not_helpful=[],
         gaps=[],
         proposals=[],
-        provenance=RecordProvenance(
-            authored_by=actor,
-            runtime_version="spec-kitty-cli",
-            written_at=now,
-            schema_version="1",
-        ),
+        evidence_refs=[],
+        generator_version="spec-kitty-cli",
     )
-    return write_record(record, repo_root=repo_root)
+    canonical_path = write_gen_record(record, mode="error", repo_root=repo_root)
+    # Emit lifecycle event — provenance_kind="explicit_create" per contract semantics
+    # (the event's provenance_kind is distinct from the record's provenance.kind).
+    try:
+        lifecycle_actor = LifecycleActor(kind="agent", id=actor.id, display="agent retrospect synthesize")
+        emit_captured(
+            record,
+            repo_root,
+            provenance_kind="explicit_create",
+            actor=lifecycle_actor,
+        )
+    except Exception:  # noqa: BLE001
+        # Non-fatal: record write already succeeded.
+        pass
+    return canonical_path, record
 
 
 # ---------------------------------------------------------------------------
@@ -387,15 +420,22 @@ def synthesize_cmd(
         feature_dir = resolved.feature_dir
         if feature_dir is not None and _mission_artifacts_sufficient_for_empty_record(feature_dir):
             try:
-                retro_file = _create_empty_retrospective_record(
+                retro_file, _gen_record = _create_empty_retrospective_record(
                     repo_root=repo_root,
                     mission_id=mission_id,
                     mission_slug=resolved.mission_slug,
                     feature_dir=feature_dir,
                     actor=actor,
                 )
-                record = read_record(retro_file)
+                # The fabricated record is in GenRetrospectiveRecord (dataclass) format.
+                # We do NOT call read_record() here because the Pydantic reader cannot
+                # parse the GenRecord YAML schema. For --fabricate-empty, proposals=[],
+                # so we skip re-reading and proceed with an empty proposal set.
+                # record is intentionally not set here; all_proposals will be [].
                 outcome = "retrospective_record_created"
+                # Jump directly to the proposal-building step with empty proposals.
+                # Use a sentinel to signal we should skip the normal record-reading path.
+                _fabricated_empty = True
             except (WriterError, OSError, YAMLParseError, SchemaError) as exc:
                 if json_only:
                     _console.print_json(
@@ -459,7 +499,10 @@ def synthesize_cmd(
     # flag_not_helpful proposals (apply_proposals handles the latter
     # automatically).
     # ------------------------------------------------------------------
-    all_proposals = record.proposals
+    # When --fabricate-empty created the record, _fabricated_empty is True and
+    # record is not defined (the gen record format is incompatible with Pydantic
+    # read_record). The fabricated record has no proposals by definition.
+    all_proposals = [] if locals().get("_fabricated_empty") else record.proposals
 
     if proposal_id:
         # --proposal-id filter: restrict approved_proposal_ids to those listed

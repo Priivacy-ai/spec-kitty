@@ -22,6 +22,7 @@ subtasks:
 phase: Surface
 assignee: ''
 agent: claude
+review_status: acknowledged
 history:
 - timestamp: '2026-05-19T13:29:59Z'
   agent: system

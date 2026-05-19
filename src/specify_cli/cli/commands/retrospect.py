@@ -35,6 +35,7 @@ from specify_cli.retrospective import (
     RetrospectiveActor,
     emit_captured,
     emit_capture_failed,
+    emit_skipped as _emit_retro_skipped,
     generate_retrospective,
     resolve_policy,
     write_gen_record,
@@ -574,7 +575,7 @@ def backfill_cmd(  # noqa: C901
         bool,
         typer.Option("--dry-run", help="Report what would be authored without writing"),
     ] = False,
-    emit_skipped: Annotated[  # noqa: ARG001
+    emit_skipped: Annotated[
         bool,
         typer.Option("--emit-skipped", help="Append a RetrospectiveSkipped event for skipped missions"),
     ] = False,
@@ -618,6 +619,21 @@ def backfill_cmd(  # noqa: C901
     created: list[dict[str, object]] = []
     created_paths: list[Path] = []
 
+    def _maybe_emit_skip(mission_id: str, mission_slug: str, reason: str) -> None:
+        """Emit a RetrospectiveSkipped event when --emit-skipped is set and not dry_run."""
+        if not emit_skipped or dry_run:
+            return
+        with contextlib.suppress(Exception):
+            _emit_retro_skipped(
+                mission_id,
+                mission_slug,
+                repo_root,
+                skip_reason=f"backfill_skip: {reason}",
+                skip_reason_source="cli_flag",
+                policy_source={},
+                actor=_cli_actor(),
+            )
+
     work_candidates = []
     for c in candidates:
         if "skip_reason" in c:
@@ -631,6 +647,7 @@ def backfill_cmd(  # noqa: C901
                     _canonical_record_path(repo_root, str(c["mission_id"]))
                 )
             skipped.append(skip_entry)
+            _maybe_emit_skip(str(c["mission_id"]), str(c["mission_slug"]), str(c["skip_reason"]))
         else:
             work_candidates.append(c)
 
@@ -648,6 +665,7 @@ def backfill_cmd(  # noqa: C901
                 "reason": "already_exists",
                 "record_path": str(record_path),
             })
+            _maybe_emit_skip(mid, mslug, "already_exists")
             return
 
         if dry_run:

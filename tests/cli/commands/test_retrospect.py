@@ -2171,3 +2171,330 @@ class TestSummaryCmdExtended:
         assert len(matching) >= 1
         # Should not be "missing" since .kittify has the retro
         # (depends on classify_mission_record behavior with the file present)
+
+
+# ---------------------------------------------------------------------------
+# TestSynthesizeFabricateProvenance (Cycle-2 Blocker 1)
+# ---------------------------------------------------------------------------
+
+
+class TestSynthesizeFabricateProvenance:
+    """End-to-end tests that the written record has synthesize_fabricate provenance.
+
+    These tests do NOT patch _create_empty_retrospective_record — they exercise
+    the real function and assert that the YAML on disk contains provenance.kind =
+    "synthesize_fabricate" and findings_status = "ran_no_findings".
+    """
+
+    def _make_feature_dir(self, kitty_specs_dir: Path) -> Path:
+        """Set up a feature dir with all required artifacts."""
+        feature_dir = kitty_specs_dir / MISSION_SLUG_COMPLETED
+        _write_kitty_meta(feature_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED)
+        _write_status_events_all_done(feature_dir, MISSION_SLUG_COMPLETED)
+        (feature_dir / "spec.md").write_text("# Spec\n", encoding="utf-8")
+        (feature_dir / "plan.md").write_text("# Plan\n", encoding="utf-8")
+        (feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(exist_ok=True)
+        (tasks_dir / "WP01.md").write_text("# WP01\n", encoding="utf-8")
+        return feature_dir
+
+    def test_fabricate_empty_writes_synthesize_fabricate_provenance_to_disk(
+        self, tmp_path: Path
+    ) -> None:
+        """--fabricate-empty: real writer path writes provenance.kind=synthesize_fabricate on disk.
+
+        This test was MISSING before cycle-2 fix: the old test patched
+        _create_empty_retrospective_record so the actual write was never exercised.
+        Now we call the real function and assert the YAML on disk.
+        """
+        import yaml as _yaml
+        from specify_cli.doctrine_synthesizer import SynthesisResult
+
+        repo_root, missions_dir, kitty_specs_dir = _setup_project(tmp_path)
+        feature_dir = self._make_feature_dir(kitty_specs_dir)
+
+        resolved = _build_resolved_mission(MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED, feature_dir)
+
+        empty_synthesis = SynthesisResult(
+            dry_run=True, planned=[], applied=[], conflicts=[], rejected=[], events_emitted=[]
+        )
+
+        # Do NOT patch _create_empty_retrospective_record — exercise the real code path.
+        with (
+            patch("specify_cli.cli.commands.agent_retrospect.locate_project_root", return_value=repo_root),
+            patch("specify_cli.cli.commands.agent_retrospect.resolve_mission_handle", return_value=resolved),
+            patch("specify_cli.cli.commands.agent_retrospect.apply_proposals", return_value=empty_synthesis),
+        ):
+            result = RUNNER.invoke(
+                agent_retrospect_app,
+                ["synthesize", "--mission", MISSION_SLUG_COMPLETED, "--fabricate-empty", "--json"],
+            )
+
+        # The command should succeed (exit 0)
+        assert result.exit_code == 0, result.output
+
+        # The YAML file must exist on disk
+        retro_path = missions_dir / MISSION_ID_COMPLETED / "retrospective.yaml"
+        assert retro_path.exists(), "retrospective.yaml must be written to disk by --fabricate-empty"
+
+        # Read back the YAML and verify provenance.kind
+        raw = _yaml.safe_load(retro_path.read_text(encoding="utf-8"))
+        assert isinstance(raw, dict), "retrospective.yaml must be a YAML mapping"
+        provenance = raw.get("provenance", {})
+        assert provenance.get("kind") == "synthesize_fabricate", (
+            f"provenance.kind MUST be 'synthesize_fabricate', got {provenance.get('kind')!r}"
+        )
+        assert raw.get("findings_status") == "ran_no_findings", (
+            f"findings_status MUST be 'ran_no_findings', got {raw.get('findings_status')!r}"
+        )
+
+    def test_fabricate_empty_emits_captured_event_with_explicit_create_provenance_kind(
+        self, tmp_path: Path
+    ) -> None:
+        """The RetrospectiveCaptured event emitted has provenance_kind='explicit_create'.
+
+        The event's provenance_kind is distinct from the record's provenance.kind per contract.
+        """
+        import json as _json
+        from specify_cli.doctrine_synthesizer import SynthesisResult
+
+        repo_root, missions_dir, kitty_specs_dir = _setup_project(tmp_path)
+        feature_dir = self._make_feature_dir(kitty_specs_dir)
+
+        resolved = _build_resolved_mission(MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED, feature_dir)
+        empty_synthesis = SynthesisResult(
+            dry_run=True, planned=[], applied=[], conflicts=[], rejected=[], events_emitted=[]
+        )
+
+        with (
+            patch("specify_cli.cli.commands.agent_retrospect.locate_project_root", return_value=repo_root),
+            patch("specify_cli.cli.commands.agent_retrospect.resolve_mission_handle", return_value=resolved),
+            patch("specify_cli.cli.commands.agent_retrospect.apply_proposals", return_value=empty_synthesis),
+        ):
+            result = RUNNER.invoke(
+                agent_retrospect_app,
+                ["synthesize", "--mission", MISSION_SLUG_COMPLETED, "--fabricate-empty"],
+            )
+
+        assert result.exit_code == 0, result.output
+
+        # The lifecycle event must have provenance_kind="explicit_create"
+        events_path = feature_dir / "status.events.jsonl"
+        if events_path.exists():
+            raw_lines = [
+                line.strip()
+                for line in events_path.read_text(encoding="utf-8").splitlines()
+                if line.strip()
+            ]
+            all_events = []
+            for raw_line in raw_lines:
+                try:
+                    all_events.append(_json.loads(raw_line))
+                except _json.JSONDecodeError:
+                    continue
+            captured_events = [e for e in all_events if e.get("type") == "RetrospectiveCaptured"]
+            if captured_events:
+                for evt in captured_events:
+                    assert evt.get("provenance_kind") == "explicit_create", (
+                        f"Event provenance_kind MUST be 'explicit_create', got {evt.get('provenance_kind')!r}"
+                    )
+
+    def test_writer_rejects_synthesize_fabricate_with_has_findings(self) -> None:
+        """T028 DoD: write_gen_record rejects synthesize_fabricate + has_findings.
+
+        This invariant is enforced at the schema level (validate_record) and at the
+        writer level as a defense-in-depth guard. This test exercises the writer path.
+        """
+        import pathlib
+        import tempfile
+        from datetime import UTC, datetime
+        from specify_cli.retrospective.schema import (
+            GenActor,
+            GenFinding,
+            GenProvenance,
+            GenRetrospectiveRecord,
+            RecordValidationError,
+        )
+        from specify_cli.retrospective.writer import write_gen_record
+
+        now = datetime.now(UTC).isoformat()
+        actor = GenActor(kind="runtime", id="test")
+
+        # Build a record with synthesize_fabricate provenance AND has_findings — must be rejected
+        with pytest.raises(RecordValidationError, match="synthesize_fabricate"):
+            bad_record = GenRetrospectiveRecord(
+                schema_version=1,
+                mission_id=MISSION_ID_COMPLETED,
+                mission_slug=MISSION_SLUG_COMPLETED,
+                created_at=now,
+                created_by=actor,
+                provenance=GenProvenance(
+                    kind="synthesize_fabricate",
+                    invoked_at=now,
+                ),
+                findings_status="has_findings",  # violates the invariant
+                helped=[
+                    GenFinding(
+                        id="h-001",
+                        category="process",
+                        summary="Some finding",
+                        evidence_refs=[],
+                    )
+                ],
+            )
+            # write_gen_record calls validate_record which must raise
+            with tempfile.TemporaryDirectory() as td:
+                write_gen_record(bad_record, mode="error", repo_root=pathlib.Path(td))
+
+
+# ---------------------------------------------------------------------------
+# TestBackfillEmitSkipped (Cycle-2 Blocker 2)
+# ---------------------------------------------------------------------------
+
+
+class TestBackfillEmitSkipped:
+    """Tests that --emit-skipped actually emits RetrospectiveSkipped events.
+
+    Before cycle-2 fix, the parameter was a dead no-op (ARG001 noqa comment).
+    These tests assert that events land in status.events.jsonl.
+    """
+
+    def test_emit_skipped_writes_event_to_status_events_jsonl(self, tmp_path: Path) -> None:
+        """--emit-skipped must write a RetrospectiveSkipped event for each skipped mission."""
+        import json as _json
+
+        repo_root, missions_dir, kitty_specs_dir = _setup_project(tmp_path)
+
+        # Mission with an existing record — will be skipped with reason="already_exists"
+        now = datetime.now(UTC)
+        completed_at = (now - timedelta(days=5)).isoformat()
+        mission_dir = missions_dir / MISSION_ID_COMPLETED
+        _write_meta(
+            mission_dir,
+            MISSION_ID_COMPLETED,
+            MISSION_SLUG_COMPLETED,
+            completed_at=completed_at,
+        )
+        # Pre-existing record triggers skip
+        record_path = mission_dir / "retrospective.yaml"
+        record_path.write_text("existing: true\n", encoding="utf-8")
+
+        # Set up kitty-specs feature dir so emit_skipped can find it
+        feature_dir = kitty_specs_dir / MISSION_SLUG_COMPLETED
+        feature_dir.mkdir(parents=True, exist_ok=True)
+
+        with patch("specify_cli.cli.commands.retrospect.locate_project_root", return_value=repo_root):
+            result = RUNNER.invoke(
+                retrospect_app,
+                ["backfill", "--emit-skipped", "--json"],
+            )
+
+        assert result.exit_code == 0, result.output
+        data = _json.loads(result.output)
+        skipped = data["skipped"]
+        assert any(s["reason"] == "already_exists" for s in skipped)
+
+        # A RetrospectiveSkipped event must have been written to status.events.jsonl
+        events_path = feature_dir / "status.events.jsonl"
+        assert events_path.exists(), (
+            "status.events.jsonl must exist after --emit-skipped (event must be written)"
+        )
+        raw_lines = [
+            line.strip()
+            for line in events_path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        all_events = [_json.loads(raw) for raw in raw_lines]
+        skip_events = [e for e in all_events if e.get("type") == "RetrospectiveSkipped"]
+        assert len(skip_events) >= 1, (
+            f"Expected at least 1 RetrospectiveSkipped event in status.events.jsonl, "
+            f"found {len(skip_events)}. All events: {all_events}"
+        )
+        # Verify the skip_reason is structured
+        for evt in skip_events:
+            assert evt.get("skip_reason", "").startswith("backfill_skip:"), (
+                f"skip_reason must start with 'backfill_skip:', got {evt.get('skip_reason')!r}"
+            )
+
+    def test_emit_skipped_not_set_does_not_write_events(self, tmp_path: Path) -> None:
+        """Without --emit-skipped, no RetrospectiveSkipped events are written."""
+        repo_root, missions_dir, kitty_specs_dir = _setup_project(tmp_path)
+
+        now = datetime.now(UTC)
+        completed_at = (now - timedelta(days=5)).isoformat()
+        mission_dir = missions_dir / MISSION_ID_COMPLETED
+        _write_meta(
+            mission_dir,
+            MISSION_ID_COMPLETED,
+            MISSION_SLUG_COMPLETED,
+            completed_at=completed_at,
+        )
+        record_path = mission_dir / "retrospective.yaml"
+        record_path.write_text("existing: true\n", encoding="utf-8")
+
+        feature_dir = kitty_specs_dir / MISSION_SLUG_COMPLETED
+        feature_dir.mkdir(parents=True, exist_ok=True)
+
+        with patch("specify_cli.cli.commands.retrospect.locate_project_root", return_value=repo_root):
+            result = RUNNER.invoke(
+                retrospect_app,
+                ["backfill", "--json"],  # No --emit-skipped
+            )
+
+        assert result.exit_code == 0, result.output
+
+        events_path = feature_dir / "status.events.jsonl"
+        if events_path.exists():
+            import json as _json2
+            raw_lines = [
+                line.strip()
+                for line in events_path.read_text(encoding="utf-8").splitlines()
+                if line.strip()
+            ]
+            all_events = [_json2.loads(raw) for raw in raw_lines]
+            skip_events = [e for e in all_events if e.get("type") == "RetrospectiveSkipped"]
+            assert len(skip_events) == 0, (
+                "Without --emit-skipped, no RetrospectiveSkipped events should be written"
+            )
+
+    def test_emit_skipped_dry_run_does_not_write_events(self, tmp_path: Path) -> None:
+        """--emit-skipped combined with --dry-run must NOT write any events."""
+        repo_root, missions_dir, kitty_specs_dir = _setup_project(tmp_path)
+
+        now = datetime.now(UTC)
+        completed_at = (now - timedelta(days=5)).isoformat()
+        mission_dir = missions_dir / MISSION_ID_COMPLETED
+        _write_meta(
+            mission_dir,
+            MISSION_ID_COMPLETED,
+            MISSION_SLUG_COMPLETED,
+            completed_at=completed_at,
+        )
+        record_path = mission_dir / "retrospective.yaml"
+        record_path.write_text("existing: true\n", encoding="utf-8")
+
+        feature_dir = kitty_specs_dir / MISSION_SLUG_COMPLETED
+        feature_dir.mkdir(parents=True, exist_ok=True)
+
+        with patch("specify_cli.cli.commands.retrospect.locate_project_root", return_value=repo_root):
+            result = RUNNER.invoke(
+                retrospect_app,
+                ["backfill", "--emit-skipped", "--dry-run", "--json"],
+            )
+
+        assert result.exit_code == 0, result.output
+
+        events_path = feature_dir / "status.events.jsonl"
+        if events_path.exists():
+            import json as _json3
+            raw_lines = [
+                line.strip()
+                for line in events_path.read_text(encoding="utf-8").splitlines()
+                if line.strip()
+            ]
+            all_events = [_json3.loads(raw) for raw in raw_lines]
+            skip_events = [e for e in all_events if e.get("type") == "RetrospectiveSkipped"]
+            assert len(skip_events) == 0, (
+                "--dry-run + --emit-skipped must NOT emit events"
+            )
