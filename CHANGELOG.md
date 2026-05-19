@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0rc14] - 2026-05-19
+
+Ships the next 3.2 release candidate after the doctrine/charter and
+sync-boundary follow-up window:
+
+- Adds the three-layer doctrine and charter DRG work: org-pack loading across
+  every configured pack, project/org/built-in precedence diagnostics,
+  org-charter interview pre-fill, collision warnings, and the related
+  workflow/governance payload hardening.
+- Closes the org-pack and charter-scope safety follow-ups by blocking archive
+  traversal, unsafe server-provided filenames, symlink/hardlink extraction, and
+  scope roots that escape the repository.
+- Documents recovery from partially installed command namespace packages for
+  `spec-kitty-events`, including the concrete import error signature and
+  reinstall path.
+- Keeps local workflow test suites honest under the hosted sync preflight:
+  e2e workflow tests now opt out of `SPEC_KITTY_ENABLE_SAAS_SYNC` the same way
+  integration and tasks suites do, while sync/auth suites retain hosted-sync
+  coverage.
+- Restores strict mission-step-contract type checking by making ambiguous DRG
+  URN matches explicitly typed.
+- Carries review and release hygiene fixes for unsafe target-branch merge
+  guidance, retrospective workflow wording, doctrine language-bias lint, fresh
+  sync Sonar findings, and Windows/main CI health.
+
 ## [3.2.0rc13] - 2026-05-19
 
 Ships a focused sync-boundary hotfix for pipx-style CLI installs:
