@@ -95,8 +95,9 @@ After review rejection (WP moves back to `planned` with `review_status: has_feed
 planned --> [workflow implement] --> in_progress --> [agent fixes] --> for_review --> [review] --> approved or planned
 ```
 
-After ALL WPs are approved: `spec-kitty merge --mission <slug>` merges
-everything and moves WPs to `done`.
+After ALL WPs are approved: run `spec-kitty accept --mission <slug>` first as
+the mission-readiness nudge. If acceptance passes, run
+`spec-kitty merge --mission <slug>` to merge everything and move WPs to `done`.
 
 **`approved` unblocks dependents immediately.** Do NOT wait for `done` before
 starting dependent WPs. The `done` lane is only reached via feature merge.
@@ -572,13 +573,14 @@ decisions between status checks.
 When each WP depends on the previous:
 
 ```
-WP01 (approved) --> WP02 (approved) --> WP03 (approved) --> merge --> all done
+WP01 (approved) --> WP02 (approved) --> WP03 (approved) --> accept --> merge --> all done
 ```
 
 1. Implement WP01, review, approve
 2. THEN implement WP02, review, approve. The implementation workspace base is inferred automatically from the approved dependency graph.
 3. THEN implement WP03, review, approve. The implementation workspace base is inferred automatically from the approved dependency graph.
-4. `spec-kitty merge --mission <slug>`
+4. `spec-kitty accept --mission <slug>`
+5. `spec-kitty merge --mission <slug>`
 
 ### Parallel Opportunities (Independent WPs)
 
@@ -641,16 +643,27 @@ spec-kitty agent tasks status --mission <slug>
 # If rejected: commit feedback, re-implement (cycle tracking)
 # If 3 rejections: arbiter mode
 
-# 6. After all WPs approved: merge
+# 6. After all WPs approved: accept, then merge
+spec-kitty accept --mission <slug>
 spec-kitty merge --mission <slug>
 ```
 
 ---
 
-## Step 6: Merge All Lanes
+## Step 6: Accept and Merge All Lanes
 
-After all WPs are approved, merge the lanes into the mission branch, then
-merge the mission branch into the mission's target branch.
+After all WPs are approved, run acceptance from the repository root checkout.
+Acceptance is a pre-merge readiness check and artifact nudge for humans and
+LLMs; it does not replace review approval and it does not close the mission.
+
+```bash
+# From the repository root checkout (NOT from a worktree)
+spec-kitty accept --mission <mission-slug>
+```
+
+If acceptance reports blockers, resolve them and rerun acceptance before
+merge. If it passes, merge the lanes into the mission branch, then merge the
+mission branch into the mission's target branch.
 
 ### Run the Merge Command
 
@@ -752,9 +765,11 @@ done
 5. **Track rejection cycles** (max 3) in commit messages
 6. **The orchestrator does not implement** -- it dispatches and monitors
 7. **`approved` unblocks dependents** -- do not wait for `done`
-8. **Never manually move WPs to `done`** -- that happens during feature merge
-9. **For Tier 3 agents**: orchestrator runs `move-task` on the agent's behalf
-10. **Parallel reviews are safe** -- each WP operates in its own worktree
+8. **Run `spec-kitty accept --mission <slug>` before merge** -- it is a
+   readiness nudge, not a replacement for WP review or merge gates
+9. **Never manually move WPs to `done`** -- that happens during feature merge
+10. **For Tier 3 agents**: orchestrator runs `move-task` on the agent's behalf
+11. **Parallel reviews are safe** -- each WP operates in its own worktree
 
 ---
 

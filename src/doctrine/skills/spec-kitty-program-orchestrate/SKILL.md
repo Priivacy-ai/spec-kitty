@@ -89,16 +89,17 @@ gated on the prior phase producing a clean artifact.
 2. /spec-kitty.plan                    → plan.md + research.md + data-model.md + contracts/ + quickstart.md
 3. /spec-kitty.tasks                   → tasks.md + tasks/WPxx-*.md + finalize-tasks
 4. Implement-review loop               (dispatch sub-agents per spec-kitty-implement-review)
-5. spec-kitty merge                    → squash commit on main
+5. spec-kitty accept + merge           → readiness nudge, then squash commit on main
 6. Post-merge mark-status done         (handle invariant-check workarounds)
 7. spec-kitty-mission-review skill     → structured report with verdict
-8. Post-merge remediation branch       (address any HIGH/MEDIUM findings)
+8. Retrospective workflow              → capture learning while context is fresh
+9. Post-merge remediation branch       (address any HIGH/MEDIUM findings)
 ```
 
 Phase 0 is where user decisions are required for non-autonomous repos.
 Phases 1–3 can be delegated to a single sub-agent per repo for autonomous
 repos; keep them in the foreground when you need architectural judgment.
-Phases 4–8 run via sub-agent dispatch once the phase-3 task contract is
+Phases 4–9 run via sub-agent dispatch once the phase-3 task contract is
 finalized.
 
 ---
@@ -177,14 +178,15 @@ Use `spec-kitty-implement-review` as your loop engine. Per-WP pattern:
 4. On `rejected`, read the review cycle file, dispatch a focused
    remediation agent with the exact blocker list, then re-review.
 
-### 2f. Phase 5 — Merge
+### 2f. Phase 5 — Accept and Merge
 
-Run `spec-kitty merge --mission <slug>`. Expect potential stale-lane
-errors when many WPs touched overlapping files. The rebase pattern is:
-`cd .worktrees/<slug>-lane-<letter> && git merge kitty/mission-<slug>`,
-resolve conflicts (usually union-merge on TOML/imports/comments),
-commit, retry the outer merge. See issue #771 for planned auto-rebase
-support.
+Run `spec-kitty accept --mission <slug>` after all WPs are approved. Treat it
+as a pre-merge readiness nudge for the orchestrator and the human operator.
+If it passes, run `spec-kitty merge --mission <slug>`. Expect potential
+stale-lane errors when many WPs touched overlapping files. The rebase pattern
+is: `cd .worktrees/<slug>-lane-<letter> && git merge kitty/mission-<slug>`,
+resolve conflicts (usually union-merge on TOML/imports/comments), commit, retry
+the outer merge. See issue #771 for planned auto-rebase support.
 
 ### 2g. Phase 6 — Mark WPs Done (workaround for the invariant check)
 
@@ -207,7 +209,21 @@ review reliably catches real bugs that slipped past per-WP review
 (FR-to-test coverage gaps, dead code, API whitelist misses, TOCTOU
 races on external side effects).
 
-### 2i. Phase 8 — Post-Merge Remediation
+### 2i. Phase 8 — Retrospective
+
+The mission's `retrospective.yaml` is captured earlier at the runtime
+terminus. After mission review, review what was captured and apply staged
+proposals every time:
+
+```bash
+spec-kitty retrospect summary                       # cross-mission view
+spec-kitty agent retrospect synthesize --mission <slug>  # dry-run; --apply to mutate
+```
+
+If `retrospective.yaml` is missing for the mission, escalate — the terminus
+facilitator either did not run or was skipped without a recorded reason.
+
+### 2j. Phase 9 — Post-Merge Remediation
 
 If the mission review verdict is `PASS WITH NOTES` with any HIGH or
 MEDIUM findings, dispatch a remediation sub-agent to fix them on a

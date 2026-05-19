@@ -946,6 +946,24 @@ requirement_refs:
 class TestSetupPlanCommand:
     """Tests for setup-plan command."""
 
+    @pytest.fixture(autouse=True)
+    def _stub_git_preflight(self, monkeypatch, tmp_path):
+        """Bypass ``run_git_preflight`` for setup-plan tests.
+
+        The git preflight runs against the repo root before any setup-plan
+        logic. In CI the patched ``locate_project_root`` returns a tmp_path
+        with no git repo, so the real preflight fails and raises
+        ``typer.Exit(2)`` before the inner error paths under test can run.
+        Tests that specifically assert preflight failures patch
+        ``run_git_preflight`` themselves and override this stub.
+        """
+        from specify_cli.core.git_preflight import GitPreflightResult
+
+        monkeypatch.setattr(
+            "specify_cli.cli.commands.agent.mission.run_git_preflight",
+            lambda *args, **kwargs: GitPreflightResult(repo_root=tmp_path),
+        )
+
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
     @patch("specify_cli.cli.commands.agent.mission._show_branch_context", return_value=(None, "main"))

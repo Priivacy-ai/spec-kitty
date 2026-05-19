@@ -1779,8 +1779,23 @@ def merge(
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
 
-    # -- Post-merge: Suggest mission review --
-    console.print("\n[cyan]Next:[/cyan] Run [bold]/spec-kitty-mission-review[/bold] to audit the merged mission for spec→code fidelity, drift, risks, and security.")
+    # -- Post-merge: Suggest mission review and retrospective review/synthesis --
+    # The mission's retrospective.yaml is captured earlier at the runtime
+    # terminus (HiC prompt or autonomous facilitator), not by merge. The two
+    # commands below operate on an already-authored record: `summary` is a
+    # cross-mission view; `synthesize` applies any staged proposals (dry-run
+    # by default — pass `--apply` to mutate). They do not create content.
+    console.print(
+        "\n[cyan]Next:[/cyan] Run [bold]/spec-kitty-mission-review[/bold] "
+        "to audit the merged mission for spec→code fidelity, drift, risks, and security."
+    )
+    console.print(
+        "[cyan]Then, while context is fresh, review the retrospective that was"
+        " captured at terminus:[/cyan]\n"
+        "  [bold]spec-kitty retrospect summary[/bold] — cross-mission view\n"
+        f"  [bold]spec-kitty agent retrospect synthesize --mission {resolved_feature}[/bold]"
+        " — apply staged proposals (dry-run; add --apply to mutate)"
+    )
 
 
 __all__ = [

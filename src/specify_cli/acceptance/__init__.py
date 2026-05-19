@@ -708,21 +708,21 @@ def _build_acceptance_instructions(
         else:
             instructions.extend([
                 f"Review the acceptance commit on branch `{branch}`.",
-                f"Push your branch: `git push origin {branch}`",
-                "Open a pull request referencing spec/plan/tasks artifacts.",
-                "Include acceptance summary and test evidence in the PR description.",
+                f"Run the mission merge when ready: `spec-kitty merge --mission {summary.feature}`",
+                "After merge, run /spec-kitty-mission-review and the retrospective workflow.",
             ])
     elif mode == "local":
         if is_integration_branch:
             instructions.append(f"Acceptance recorded directly on `{branch}`. No merge needed.")
         else:
             instructions.extend([
-                "Switch to your integration branch (e.g., `git checkout main`).",
-                "Synchronize it (e.g., `git pull --ff-only`).",
-                f"Merge the feature: `git merge {branch}`",
+                f"Acceptance passed. Run the mission merge: `spec-kitty merge --mission {summary.feature}`",
+                "After merge, run /spec-kitty-mission-review and the retrospective workflow.",
             ])
     else:  # checklist
-        instructions.append("All checks passed. Proceed with your manual acceptance workflow.")
+        instructions.append(
+            f"All checks passed. Recommended next step: `spec-kitty merge --mission {summary.feature}`."
+        )
 
     if summary.worktree_root != summary.primary_repo_root:
         cleanup_instructions.append(f"After merging, remove the worktree: `git worktree remove {summary.worktree_root}`")

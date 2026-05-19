@@ -324,8 +324,8 @@ All agents support the same 13 slash commands:
 | `/spec-kitty.tasks` | Generate work packages |
 | `/spec-kitty.implement` | Start WP implementation |
 | `/spec-kitty.review` | Review completed work |
-| `/spec-kitty.accept` | Accept feature for merge |
-| `/spec-kitty.merge` | Merge feature to main |
+| `/spec-kitty.accept` | Validate an approved mission before merge |
+| `/spec-kitty.merge` | Merge an accepted mission to its target branch |
 | `/spec-kitty.status` | Show kanban status |
 | `/spec-kitty.dashboard` | Open web dashboard |
 | `/spec-kitty.charter` | Create project principles |

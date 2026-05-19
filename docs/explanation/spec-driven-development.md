@@ -82,7 +82,8 @@ This becomes critical in parallel development where multiple AI agents implement
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  /spec-kitty.review          →   Check implementation vs spec   │
-│  /spec-kitty.accept          →   Approve and merge              │
+│  /spec-kitty.accept          →   Validate readiness before merge │
+│  /spec-kitty.merge           →   Land accepted mission           │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```

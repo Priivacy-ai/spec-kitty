@@ -364,24 +364,31 @@ class TestSyncNowExitCodes:
 
     @pytest.fixture(autouse=True)
     def _stub_teamspace_gate(self, monkeypatch):
-        """Bypass the M7 ``enforce_teamspace_mission_state_ready`` gate.
+        """Bypass the M7 ``enforce_teamspace_mission_state_ready`` gate and
+        the FR-002 sync-now structural preflight.
 
-        The gate audits the local project root before any sync work, and the
-        spec-kitty checkout's own ``.kittify/`` surfaces TeamSpace blockers
-        that raise ``typer.Exit(1)`` before exit-code semantics can be
-        observed. Tests here exercise the post-gate contract, so the gate is
-        stubbed to a no-op at the call-site in ``sync.py``.
+        Both gates audit the local project root before any sync work. In the
+        spec-kitty checkout the gates surface TeamSpace / daemon-owner
+        blockers that raise ``typer.Exit(1)`` or ``typer.Exit(2)`` before the
+        sync exit-code semantics under test can be observed. Tests here
+        exercise the post-gate contract, so both gates are stubbed at the
+        call-site in ``sync.py``.
 
         Mirrors the per-test pattern introduced in commit 80f71fe14
         (``test_strict_exits_0_on_success``) and lifted here so every
         exit-code test in this class is shielded.
         """
         import specify_cli.cli.commands.sync as sync_mod
+        from specify_cli.sync.preflight import PreflightResult
 
         monkeypatch.setattr(
             sync_mod,
             "enforce_teamspace_mission_state_ready",
             lambda **kwargs: None,
+        )
+        monkeypatch.setattr(
+            "specify_cli.sync.preflight.run_preflight",
+            lambda **kwargs: PreflightResult(ok=True, auth_present=True),
         )
 
     def _make_service(self, queue_size: int, result: MagicMock) -> MagicMock:

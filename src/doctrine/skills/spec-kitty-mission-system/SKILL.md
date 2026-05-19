@@ -98,8 +98,8 @@ discovery → specify → plan → tasks_outline → tasks_packages → tasks_fi
 **Guards:**
 - `specify → plan`: `spec.md` must exist
 - `plan → implement`: `plan.md` and `tasks.md` must exist
-- `implement → review`: all WPs must be done
-- `review → done`: review must be approved
+- `implement → review`: all WPs must be `approved` or `done`
+- `review → accept`: review must be approved
 
 **Agent context:** TDD practices, library-first architecture, tests before code.
 
@@ -449,7 +449,7 @@ Missions involve two orthogonal state machines:
 
 **Mission-type state** — which phase of the workflow are we in?
 ```
-discovery → specify → plan → tasks → implement → review → accept
+discovery → specify → plan → tasks → implement → review → accept → merge
 ```
 Managed by `mission-runtime.yaml` DAG and `spec-kitty next`.
 
