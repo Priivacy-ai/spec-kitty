@@ -2,7 +2,7 @@
   "mission_slug": "unblock-sync-identity-boundary-canary-01KRZJ07",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "fail",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
@@ -142,7 +142,7 @@
       "verification_method": "custom_command",
       "verification_command": "test -z \"$(git log --oneline 45edd287a..HEAD -- spec-kitty-end-to-end-testing/ 2>/dev/null)\"",
       "result": "confirmed_absent",
-      "evidence": "exit 0 when zero commits between baseline and HEAD touch the sibling repo path."
+      "evidence": "Command exited 0: "
     },
     {
       "invariant_id": "C-002",
@@ -150,7 +150,7 @@
       "verification_method": "custom_command",
       "verification_command": "test -f kitty-specs/unblock-sync-identity-boundary-canary-01KRZJ07/mission-exception.md && test -f kitty-specs/unblock-sync-identity-boundary-canary-01KRZJ07/canary-evidence/RUNBOOK.md",
       "result": "confirmed_absent",
-      "evidence": "exit 0 when both mission-exception.md and canary-evidence/RUNBOOK.md are present; both documents explicitly mark scenario 3 RED as expected per C-002."
+      "evidence": "Command exited 0: "
     },
     {
       "invariant_id": "C-003",
@@ -158,7 +158,7 @@
       "verification_method": "custom_command",
       "verification_command": "test -z \"$(git diff 45edd287a..HEAD -- src/specify_cli/status/lifecycle_events.py src/specify_cli/invocation/propagator.py src/specify_cli/dossier/ src/specify_cli/next/_internal_runtime/engine.py src/specify_cli/retrospective/events.py 2>/dev/null)\"",
       "result": "confirmed_absent",
-      "evidence": "exit 0 when zero diff between baseline and HEAD across all 5 lifecycle writer paths."
+      "evidence": "Command exited 0: "
     },
     {
       "invariant_id": "C-004",
@@ -166,7 +166,7 @@
       "verification_method": "custom_command",
       "verification_command": "! git diff 45edd287a..HEAD -- src/specify_cli/cli/commands/sync.py src/specify_cli/sync/preflight.py 2>/dev/null | grep -qE 'def _failure_lines_from_set|^[-+]class (ForegroundIdentity|DaemonOwnerRecord)'",
       "result": "confirmed_absent",
-      "evidence": "exit 0 when the diff contains no rename of `_failure_lines_from_set` and no class redefinition of ForegroundIdentity / DaemonOwnerRecord."
+      "evidence": "Command exited 0: "
     },
     {
       "invariant_id": "C-005",
@@ -174,7 +174,7 @@
       "verification_method": "custom_command",
       "verification_command": "! git diff 45edd287a..HEAD -- src/specify_cli/audit/ 2>/dev/null | grep -E '^\\+(?!#| *#)' | grep -qiE '(def [a-z_]*(migrat|backfill)|^\\+import .*(migrat|backfill)|^\\+from .*(migrat|backfill))'",
       "result": "confirmed_absent",
-      "evidence": "exit 0 when no migration/backfill code (functions or imports — comments allowed since the existing FORBIDDEN_KEYS docstring legitimately mentions the 'pre-migration producer' historical context that motivates the predicate) is introduced in the audit/ diff."
+      "evidence": "Command exited 0: "
     }
   ]
 }
