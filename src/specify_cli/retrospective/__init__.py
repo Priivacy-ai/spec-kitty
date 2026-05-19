@@ -12,6 +12,7 @@ Public API:
     generator       — generate_retrospective(): pure-Python deterministic generator (WP02)
     lifecycle_events — Three canonical lifecycle event types + emit helpers (WP03)
     summary         — classify_mission_record(): per-mission state classifier (WP03 T017)
+    deprecation     — warn_env_var_deprecated(): one-per-process deprecation for legacy env vars (WP06)
 
 Note on naming: the generator schema types are defined in schema.py with "Gen" prefix
 (GenRetrospectiveRecord, GenFinding, etc.) to coexist with the existing Pydantic models.
@@ -20,6 +21,7 @@ from the generator schema perspective. Existing Pydantic schema models remain av
 directly from specify_cli.retrospective.schema.
 """
 
+from specify_cli.retrospective.deprecation import warn_env_var_deprecated
 from specify_cli.retrospective.generator import GENERATOR_VERSION, generate_retrospective
 from specify_cli.retrospective.lifecycle_events import (
     Actor as RetrospectiveActor,
@@ -108,4 +110,6 @@ __all__ = [
     "RetrospectiveActor",
     # summary classifier (WP03 T017)
     "classify_mission_record",
+    # deprecation helpers (WP06)
+    "warn_env_var_deprecated",
 ]

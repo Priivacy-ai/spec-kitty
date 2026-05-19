@@ -24,6 +24,12 @@ from typing import Literal
 from ruamel.yaml import YAML as _YAML
 from ruamel.yaml.error import YAMLError as _YAMLError
 
+from specify_cli.retrospective.deprecation import (
+    _DOCS_URL,
+    REPLACEMENT_KEYS,
+    warn_env_var_deprecated,
+)
+
 _log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -684,10 +690,19 @@ def resolve_policy(
 
     # ------------------------------------------------------------------
     # Step 4: Env-var observation (T005 / FR-015) — never override
+    # Env vars are observed (source_map records their presence) but do NOT
+    # override durable charter or config values.  A deprecation warning is
+    # emitted once per process for each set env var (NFR-006 / FR-015).
     # ------------------------------------------------------------------
     retro_env = effective_env.get("SPEC_KITTY_RETROSPECTIVE", "").strip()
-    if retro_env and source_map.get("enabled") == "<default>":
-        source_map["enabled"] = "<env:SPEC_KITTY_RETROSPECTIVE>"
+    if retro_env:
+        if source_map.get("enabled") == "<default>":
+            source_map["enabled"] = "<env:SPEC_KITTY_RETROSPECTIVE>"
+        warn_env_var_deprecated(
+            "SPEC_KITTY_RETROSPECTIVE",
+            REPLACEMENT_KEYS["SPEC_KITTY_RETROSPECTIVE"],
+            _DOCS_URL,
+        )
 
     mode_env = effective_env.get("SPEC_KITTY_MODE", "").strip()
     if mode_env:
@@ -695,6 +710,11 @@ def resolve_policy(
             source_map["timing"] = "<env:SPEC_KITTY_MODE>"
         if source_map.get("failure_policy") == "<default>":
             source_map["failure_policy"] = "<env:SPEC_KITTY_MODE>"
+        warn_env_var_deprecated(
+            "SPEC_KITTY_MODE",
+            REPLACEMENT_KEYS["SPEC_KITTY_MODE"],
+            _DOCS_URL,
+        )
 
     return policy, source_map
 
