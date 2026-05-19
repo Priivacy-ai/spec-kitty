@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "mission_slug": "investigate-canary-followups-1142-1141-01KS02TV",
+  "mission_id": "01KS02TVCYPQXQ9DX1Z39SXZ6K",
+  "mission_branch": "kitty/mission-investigate-canary-followups-1142-1141-01KS02TV",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "kitty-specs/investigate-canary-followups-1142-1141-01KS02TV/research/comment-1141.md",
+        "kitty-specs/investigate-canary-followups-1142-1141-01KS02TV/research/comment-1142.md",
+        "kitty-specs/investigate-canary-followups-1142-1141-01KS02TV/research/h1-evidence-1141.md",
+        "kitty-specs/investigate-canary-followups-1142-1141-01KS02TV/research/h1-pip-canary-1142.log",
+        "kitty-specs/investigate-canary-followups-1142-1141-01KS02TV/research/h1-pip-spec-kitty-1142.log",
+        "kitty-specs/investigate-canary-followups-1142-1141-01KS02TV/research/h1-run-1142.log",
+        "kitty-specs/investigate-canary-followups-1142-1141-01KS02TV/research/h2-emitter-walk-1142.md",
+        "kitty-specs/investigate-canary-followups-1142-1141-01KS02TV/research/h2-evidence-1141.md",
+        "kitty-specs/investigate-canary-followups-1142-1141-01KS02TV/research/h3-evidence-1141.md",
+        "kitty-specs/investigate-canary-followups-1142-1141-01KS02TV/research/h4-evidence-1141.md",
+        "kitty-specs/investigate-canary-followups-1142-1141-01KS02TV/research/issue-1141-snapshot.json",
+        "kitty-specs/investigate-canary-followups-1142-1141-01KS02TV/research/issue-1142-snapshot.json",
+        "kitty-specs/investigate-canary-followups-1142-1141-01KS02TV/research/outcome-1141.md",
+        "kitty-specs/investigate-canary-followups-1142-1141-01KS02TV/research/outcome-1142.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-05-19T12:52:23.488653+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP01",
+    "WP02"
+  ]
+}

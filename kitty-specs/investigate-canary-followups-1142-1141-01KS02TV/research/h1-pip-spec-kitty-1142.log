@@ -1,0 +1,180 @@
+Processing /Users/robert/spec-kitty-dev/1122-1123-1124-43/spec-kitty
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Getting requirements to build wheel: finished with status 'done'
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting charset-normalizer<4,>=3.4 (from spec-kitty-cli==3.2.0rc14)
+  Using cached charset_normalizer-3.4.7-cp314-cp314-macosx_10_15_universal2.whl.metadata (40 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting cryptography>=42.0 (from spec-kitty-cli==3.2.0rc14)
+  Using cached cryptography-48.0.0-cp311-abi3-macosx_10_9_universal2.whl.metadata (4.3 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting filelock>=3.13.0 (from spec-kitty-cli==3.2.0rc14)
+  Using cached filelock-3.29.0-py3-none-any.whl.metadata (2.0 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting google-re2>=1.1 (from spec-kitty-cli==3.2.0rc14)
+  Using cached google_re2-1.1.20251105-1-cp314-cp314-macosx_15_0_arm64.whl.metadata (2.4 kB)
+Requirement already satisfied: httpx>=0.28.1 in ./.venv/lib/python3.14/site-packages (from httpx[socks]>=0.28.1->spec-kitty-cli==3.2.0rc14) (0.28.1)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting jsonschema>=4.0 (from spec-kitty-cli==3.2.0rc14)
+  Using cached jsonschema-4.26.0-py3-none-any.whl.metadata (7.6 kB)
+Requirement already satisfied: packaging>=23.0 in ./.venv/lib/python3.14/site-packages (from spec-kitty-cli==3.2.0rc14) (26.2)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting platformdirs>=4.9.2 (from spec-kitty-cli==3.2.0rc14)
+  Using cached platformdirs-4.9.6-py3-none-any.whl.metadata (4.7 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting psutil>=5.9.0 (from spec-kitty-cli==3.2.0rc14)
+  Using cached psutil-7.2.2-cp36-abi3-macosx_11_0_arm64.whl.metadata (22 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting pydantic>=2.0 (from spec-kitty-cli==3.2.0rc14)
+  Using cached pydantic-2.13.4-py3-none-any.whl.metadata (109 kB)
+Requirement already satisfied: pygments>=2.20.0 in ./.venv/lib/python3.14/site-packages (from spec-kitty-cli==3.2.0rc14) (2.20.0)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting python-ulid>=3.0 (from spec-kitty-cli==3.2.0rc14)
+  Using cached python_ulid-3.1.0-py3-none-any.whl.metadata (5.8 kB)
+Requirement already satisfied: pyyaml>=6.0 in ./.venv/lib/python3.14/site-packages (from spec-kitty-cli==3.2.0rc14) (6.0.3)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting readchar>=4.2.1 (from spec-kitty-cli==3.2.0rc14)
+  Using cached readchar-4.2.2-py3-none-any.whl.metadata (7.5 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting requests>=2.33.0 (from spec-kitty-cli==3.2.0rc14)
+  Using cached requests-2.34.2-py3-none-any.whl.metadata (4.8 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting rich>=14.3.3 (from spec-kitty-cli==3.2.0rc14)
+  Using cached rich-15.0.0-py3-none-any.whl.metadata (18 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting ruamel-yaml>=0.18.0 (from spec-kitty-cli==3.2.0rc14)
+  Using cached ruamel_yaml-0.19.1-py3-none-any.whl.metadata (16 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting spec-kitty-events<6.0.0,>=5.0.0 (from spec-kitty-cli==3.2.0rc14)
+  Using cached spec_kitty_events-5.1.0-py3-none-any.whl.metadata (7.2 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting spec-kitty-tracker<0.5,>=0.4 (from spec-kitty-cli==3.2.0rc14)
+  Using cached spec_kitty_tracker-0.4.3-py3-none-any.whl.metadata (11 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting toml>=0.10.2 (from spec-kitty-cli==3.2.0rc14)
+  Using cached toml-0.10.2-py2.py3-none-any.whl.metadata (7.1 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting transitions>=0.9.2 (from spec-kitty-cli==3.2.0rc14)
+  Using cached transitions-0.9.3-py2.py3-none-any.whl.metadata (97 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting truststore>=0.10.4 (from spec-kitty-cli==3.2.0rc14)
+  Using cached truststore-0.10.4-py3-none-any.whl.metadata (4.4 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting typer>=0.24.1 (from spec-kitty-cli==3.2.0rc14)
+  Using cached typer-0.25.1-py3-none-any.whl.metadata (15 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting websockets>=12.0 (from spec-kitty-cli==3.2.0rc14)
+  Using cached websockets-16.0-cp314-cp314-macosx_11_0_arm64.whl.metadata (6.8 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting annotated-types>=0.6.0 (from pydantic>=2.0->spec-kitty-cli==3.2.0rc14)
+  Using cached annotated_types-0.7.0-py3-none-any.whl.metadata (15 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting pydantic-core==2.46.4 (from pydantic>=2.0->spec-kitty-cli==3.2.0rc14)
+  Using cached pydantic_core-2.46.4-cp314-cp314-macosx_11_0_arm64.whl.metadata (6.6 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting typing-extensions>=4.14.1 (from pydantic>=2.0->spec-kitty-cli==3.2.0rc14)
+  Using cached typing_extensions-4.15.0-py3-none-any.whl.metadata (3.3 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting typing-inspection>=0.4.2 (from pydantic>=2.0->spec-kitty-cli==3.2.0rc14)
+  Using cached typing_inspection-0.4.2-py3-none-any.whl.metadata (2.6 kB)
+Requirement already satisfied: anyio in ./.venv/lib/python3.14/site-packages (from httpx>=0.28.1->httpx[socks]>=0.28.1->spec-kitty-cli==3.2.0rc14) (4.13.0)
+Requirement already satisfied: certifi in ./.venv/lib/python3.14/site-packages (from httpx>=0.28.1->httpx[socks]>=0.28.1->spec-kitty-cli==3.2.0rc14) (2026.4.22)
+Requirement already satisfied: httpcore==1.* in ./.venv/lib/python3.14/site-packages (from httpx>=0.28.1->httpx[socks]>=0.28.1->spec-kitty-cli==3.2.0rc14) (1.0.9)
+Requirement already satisfied: idna in ./.venv/lib/python3.14/site-packages (from httpx>=0.28.1->httpx[socks]>=0.28.1->spec-kitty-cli==3.2.0rc14) (3.15)
+Requirement already satisfied: h11>=0.16 in ./.venv/lib/python3.14/site-packages (from httpcore==1.*->httpx>=0.28.1->httpx[socks]>=0.28.1->spec-kitty-cli==3.2.0rc14) (0.16.0)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting cffi>=2.0.0 (from cryptography>=42.0->spec-kitty-cli==3.2.0rc14)
+  Using cached cffi-2.0.0-cp314-cp314-macosx_11_0_arm64.whl.metadata (2.6 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting pycparser (from cffi>=2.0.0->cryptography>=42.0->spec-kitty-cli==3.2.0rc14)
+  Using cached pycparser-3.0-py3-none-any.whl.metadata (8.2 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting socksio==1.* (from httpx[socks]>=0.28.1->spec-kitty-cli==3.2.0rc14)
+  Using cached socksio-1.0.0-py3-none-any.whl.metadata (6.1 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting attrs>=22.2.0 (from jsonschema>=4.0->spec-kitty-cli==3.2.0rc14)
+  Using cached attrs-26.1.0-py3-none-any.whl.metadata (8.8 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting jsonschema-specifications>=2023.03.6 (from jsonschema>=4.0->spec-kitty-cli==3.2.0rc14)
+  Using cached jsonschema_specifications-2025.9.1-py3-none-any.whl.metadata (2.9 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting referencing>=0.28.4 (from jsonschema>=4.0->spec-kitty-cli==3.2.0rc14)
+  Using cached referencing-0.37.0-py3-none-any.whl.metadata (2.8 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting rpds-py>=0.25.0 (from jsonschema>=4.0->spec-kitty-cli==3.2.0rc14)
+  Using cached rpds_py-0.30.0-cp314-cp314-macosx_11_0_arm64.whl.metadata (4.1 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting urllib3<3,>=1.26 (from requests>=2.33.0->spec-kitty-cli==3.2.0rc14)
+  Using cached urllib3-2.7.0-py3-none-any.whl.metadata (6.9 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting markdown-it-py>=2.2.0 (from rich>=14.3.3->spec-kitty-cli==3.2.0rc14)
+  Using cached markdown_it_py-4.2.0-py3-none-any.whl.metadata (7.4 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting mdurl~=0.1 (from markdown-it-py>=2.2.0->rich>=14.3.3->spec-kitty-cli==3.2.0rc14)
+  Using cached mdurl-0.1.2-py3-none-any.whl.metadata (1.6 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting six (from transitions>=0.9.2->spec-kitty-cli==3.2.0rc14)
+  Using cached six-1.17.0-py2.py3-none-any.whl.metadata (1.7 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting click>=8.2.1 (from typer>=0.24.1->spec-kitty-cli==3.2.0rc14)
+  Using cached click-8.4.0-py3-none-any.whl.metadata (2.6 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting shellingham>=1.3.0 (from typer>=0.24.1->spec-kitty-cli==3.2.0rc14)
+  Using cached shellingham-1.5.4-py2.py3-none-any.whl.metadata (3.5 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting annotated-doc>=0.0.2 (from typer>=0.24.1->spec-kitty-cli==3.2.0rc14)
+  Using cached annotated_doc-0.0.4-py3-none-any.whl.metadata (6.6 kB)
+Using cached charset_normalizer-3.4.7-cp314-cp314-macosx_10_15_universal2.whl (309 kB)
+Using cached spec_kitty_events-5.1.0-py3-none-any.whl (353 kB)
+Using cached pydantic-2.13.4-py3-none-any.whl (472 kB)
+Using cached pydantic_core-2.46.4-cp314-cp314-macosx_11_0_arm64.whl (2.0 MB)
+Using cached spec_kitty_tracker-0.4.3-py3-none-any.whl (66 kB)
+Using cached annotated_types-0.7.0-py3-none-any.whl (13 kB)
+Using cached cryptography-48.0.0-cp311-abi3-macosx_10_9_universal2.whl (8.0 MB)
+Using cached cffi-2.0.0-cp314-cp314-macosx_11_0_arm64.whl (181 kB)
+Using cached filelock-3.29.0-py3-none-any.whl (39 kB)
+Using cached google_re2-1.1.20251105-1-cp314-cp314-macosx_15_0_arm64.whl (483 kB)
+Using cached socksio-1.0.0-py3-none-any.whl (12 kB)
+Using cached jsonschema-4.26.0-py3-none-any.whl (90 kB)
+Using cached attrs-26.1.0-py3-none-any.whl (67 kB)
+Using cached jsonschema_specifications-2025.9.1-py3-none-any.whl (18 kB)
+Using cached platformdirs-4.9.6-py3-none-any.whl (21 kB)
+Using cached psutil-7.2.2-cp36-abi3-macosx_11_0_arm64.whl (129 kB)
+Using cached python_ulid-3.1.0-py3-none-any.whl (11 kB)
+Using cached readchar-4.2.2-py3-none-any.whl (9.4 kB)
+Using cached referencing-0.37.0-py3-none-any.whl (26 kB)
+Using cached requests-2.34.2-py3-none-any.whl (73 kB)
+Using cached urllib3-2.7.0-py3-none-any.whl (131 kB)
+Using cached rich-15.0.0-py3-none-any.whl (310 kB)
+Using cached markdown_it_py-4.2.0-py3-none-any.whl (91 kB)
+Using cached mdurl-0.1.2-py3-none-any.whl (10.0 kB)
+Using cached rpds_py-0.30.0-cp314-cp314-macosx_11_0_arm64.whl (353 kB)
+Using cached ruamel_yaml-0.19.1-py3-none-any.whl (118 kB)
+Using cached toml-0.10.2-py2.py3-none-any.whl (16 kB)
+Using cached transitions-0.9.3-py2.py3-none-any.whl (112 kB)
+Using cached truststore-0.10.4-py3-none-any.whl (18 kB)
+Using cached typer-0.25.1-py3-none-any.whl (58 kB)
+Using cached annotated_doc-0.0.4-py3-none-any.whl (5.3 kB)
+Using cached click-8.4.0-py3-none-any.whl (116 kB)
+Using cached shellingham-1.5.4-py2.py3-none-any.whl (9.8 kB)
+Using cached typing_extensions-4.15.0-py3-none-any.whl (44 kB)
+Using cached typing_inspection-0.4.2-py3-none-any.whl (14 kB)
+Using cached websockets-16.0-cp314-cp314-macosx_11_0_arm64.whl (175 kB)
+Using cached pycparser-3.0-py3-none-any.whl (48 kB)
+Using cached six-1.17.0-py2.py3-none-any.whl (11 kB)
+Building wheels for collected packages: spec-kitty-cli
+  Building wheel for spec-kitty-cli (pyproject.toml): started
+  Building wheel for spec-kitty-cli (pyproject.toml): finished with status 'done'
+  Created wheel for spec-kitty-cli: filename=spec_kitty_cli-3.2.0rc14-py3-none-any.whl size=4627262 sha256=0a26fd6d97798ce9cce8e636d098db46b88e74983a322d70ed91bbced06ce605
+  Stored in directory: /Users/robert/Library/Caches/pip/wheels/00/87/54/03affb37dbc90b56d12bc2aef993d950d3d555da65aa883200
+Successfully built spec-kitty-cli
+Installing collected packages: websockets, urllib3, typing-extensions, truststore, toml, socksio, six, shellingham, ruamel-yaml, rpds-py, readchar, python-ulid, pycparser, psutil, platformdirs, mdurl, google-re2, filelock, click, charset-normalizer, attrs, annotated-types, annotated-doc, typing-inspection, transitions, requests, referencing, pydantic-core, markdown-it-py, cffi, spec-kitty-tracker, rich, pydantic, jsonschema-specifications, cryptography, typer, spec-kitty-events, jsonschema, spec-kitty-cli
+
+Successfully installed annotated-doc-0.0.4 annotated-types-0.7.0 attrs-26.1.0 cffi-2.0.0 charset-normalizer-3.4.7 click-8.4.0 cryptography-48.0.0 filelock-3.29.0 google-re2-1.1.20251105 jsonschema-4.26.0 jsonschema-specifications-2025.9.1 markdown-it-py-4.2.0 mdurl-0.1.2 platformdirs-4.9.6 psutil-7.2.2 pycparser-3.0 pydantic-2.13.4 pydantic-core-2.46.4 python-ulid-3.1.0 readchar-4.2.2 referencing-0.37.0 requests-2.34.2 rich-15.0.0 rpds-py-0.30.0 ruamel-yaml-0.19.1 shellingham-1.5.4 six-1.17.0 socksio-1.0.0 spec-kitty-cli-3.2.0rc14 spec-kitty-events-5.1.0 spec-kitty-tracker-0.4.3 toml-0.10.2 transitions-0.9.3 truststore-0.10.4 typer-0.25.1 typing-extensions-4.15.0 typing-inspection-0.4.2 urllib3-2.7.0 websockets-16.0
+
+[notice] A new release of pip is available: 26.1 -> 26.1.1
+[notice] To update, run: pip install --upgrade pip
