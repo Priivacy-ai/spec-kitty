@@ -1430,6 +1430,46 @@ def _render_daemon_team_or_user(record: Any) -> str | None:
     return str(principal)
 
 
+def _print_boundary_paths(
+    target_console: Console,
+    path_rows: list[tuple[str, str]],
+) -> None:
+    """WP02 / #1123: render boundary path rows OUTSIDE the Rich Table.
+
+    Rich ``Console`` defaults to 80 columns when stdout is not a TTY and
+    its default ``overflow="ellipsis"`` truncates long values with a
+    U+2026 ellipsis. Machine consumers (the canary harness, also any
+    pipe) then see paths like ``/private/var/folders/gj/bxx04…`` that
+    do not exist on disk, while the ``--json`` form emits the full path.
+
+    This helper prints each (label, value) pair on its own line via
+    plain ``Console.print`` with ``soft_wrap=True``, ``overflow="ignore"``
+    and ``crop=False`` so paths render verbatim regardless of terminal
+    width or TTY status, matching the JSON contract byte-for-byte.
+
+    The contract that paths are rendered outside any width-bound
+    renderer (rather than via ``overflow="fold"`` on the table) is
+    documented in ``contracts/sync-status-check-rendering.md`` and is
+    intentionally structural: the next path field added to the
+    boundary view inherits the same guarantee for free.
+    """
+    if not path_rows:
+        return
+    for label, value in path_rows:
+        # ``f"{label}: {value}"`` with ``soft_wrap=True`` + ``crop=False``
+        # produces a single physical line; ``overflow="ignore"`` defeats
+        # the default Rich ellipsis path entirely. ``no_wrap=True``
+        # disables any word-level wrap on the value.
+        target_console.print(
+            f"  {label}: {value}",
+            soft_wrap=True,
+            overflow="ignore",
+            crop=False,
+            no_wrap=True,
+            highlight=False,
+        )
+
+
 def _emit_status_check_json() -> None:
     """T014: emit a single JSON object on stdout per the status-output contract.
 
@@ -1853,6 +1893,20 @@ def status(  # noqa: C901
     legacy_body_count = legacy_counts.get("body_upload_queue", 0)
     legacy_event_count = legacy_counts.get("queue", 0)
 
+    # WP02 (#1123): canonical file-path fields render OUTSIDE the Rich
+    # ``boundary_table`` so width-driven ellipsis (`…`) cannot truncate
+    # them when stdout is non-TTY or the terminal is narrow. Path rows
+    # are collected here, then printed via plain ``Console.print`` after
+    # the table assembly below. Scalar identity fields stay in the
+    # Table. The set of fields treated as paths matches the canonical
+    # ``--json`` path fields documented in
+    # ``contracts/sync-status-check-rendering.md``:
+    #   - Foreground.executable_path / source_path / queue_db_path
+    #   - Daemon owner record.executable_path / source_path / queue_db_path
+    #   - Active queue.path
+    #   - Legacy queue.path
+    boundary_path_rows: list[tuple[str, str]] = []
+
     boundary_table = Table(
         title="Identity Boundary",
         show_header=False,
@@ -1868,15 +1922,21 @@ def status(  # noqa: C901
     # FR-005: Foreground identity (full field set per contract).
     boundary_table.add_row("Foreground:", "")
     boundary_table.add_row("  Package version", str(fg.package_version or "-"))
-    boundary_table.add_row("  Executable path", str(fg.executable_path or "-"))
-    boundary_table.add_row("  Source path", str(fg.source_path or "-"))
+    boundary_path_rows.append(
+        ("Foreground Executable path", str(fg.executable_path or "-"))
+    )
+    boundary_path_rows.append(
+        ("Foreground Source path", str(fg.source_path or "-"))
+    )
     boundary_table.add_row(
         "  Server URL", fg.server_url if fg.server_url else "<unset>"
     )
     boundary_table.add_row(
         "  Team/User", fg.team_or_user if fg.team_or_user else "<unset>"
     )
-    boundary_table.add_row("  Queue DB path", str(fg.queue_db_path or "-"))
+    boundary_path_rows.append(
+        ("Foreground Queue DB path", str(fg.queue_db_path or "-"))
+    )
 
     # FR-005: Daemon owner record.
     boundary_table.add_row("Daemon owner record:", "")
@@ -1885,22 +1945,25 @@ def status(  # noqa: C901
         boundary_table.add_row("  PID", "<absent>")
         boundary_table.add_row("  Port", "<absent>")
         boundary_table.add_row("  Package version", "<absent>")
-        boundary_table.add_row("  Executable path", "<absent>")
-        boundary_table.add_row("  Source path", "<absent>")
+        boundary_path_rows.append(("Daemon Executable path", "<absent>"))
+        boundary_path_rows.append(("Daemon Source path", "<absent>"))
         boundary_table.add_row("  Server URL", "<absent>")
         boundary_table.add_row("  Team/User", "<absent>")
-        boundary_table.add_row("  Queue DB path", "<absent>")
+        boundary_path_rows.append(("Daemon Queue DB path", "<absent>"))
     else:
         boundary_table.add_row("  PID", str(daemon_record.pid))
         boundary_table.add_row("  Port", str(daemon_record.port))
         boundary_table.add_row(
             "  Package version", daemon_record.package_version or "<absent>"
         )
-        boundary_table.add_row(
-            "  Executable path", daemon_record.executable_path or "<absent>"
+        boundary_path_rows.append(
+            ("Daemon Executable path", daemon_record.executable_path or "<absent>")
         )
-        boundary_table.add_row(
-            "  Source path", daemon_record.source_checkout_path or "<absent>"
+        boundary_path_rows.append(
+            (
+                "Daemon Source path",
+                daemon_record.source_checkout_path or "<absent>",
+            )
         )
         boundary_table.add_row(
             "  Server URL", daemon_record.server_url or "<absent>"
@@ -1911,19 +1974,19 @@ def status(  # noqa: C901
         boundary_table.add_row(
             "  Team/User", daemon_team_or_user if daemon_team_or_user else "<absent>"
         )
-        boundary_table.add_row(
-            "  Queue DB path", daemon_record.queue_db_path or "<absent>"
+        boundary_path_rows.append(
+            ("Daemon Queue DB path", daemon_record.queue_db_path or "<absent>")
         )
 
     # FR-005: Active queue.
     boundary_table.add_row("Active queue:", "")
-    boundary_table.add_row("  Path", str(fg.queue_db_path or "-"))
+    boundary_path_rows.append(("Active queue path", str(fg.queue_db_path or "-")))
     boundary_table.add_row("  Event count", f"{queue_size}")
     boundary_table.add_row("  Body upload cnt", f"{body_queue_count}")
 
     # FR-005: Legacy queue.
     boundary_table.add_row("Legacy queue:", "")
-    boundary_table.add_row("  Path", str(legacy_db_path))
+    boundary_path_rows.append(("Legacy queue path", str(legacy_db_path)))
     boundary_table.add_row(
         "  Event count", f"{failure_set.legacy_event_rows}"
     )
@@ -2004,6 +2067,13 @@ def status(  # noqa: C901
                 m.daemon_value or "<unset>",
             )
 
+    # WP02 (#1123): print path rows BEFORE the boundary table via plain
+    # ``Console.print`` so they bypass the Rich Table's width-bound
+    # ellipsis. ``soft_wrap=True`` + ``overflow="ignore"`` + ``crop=False``
+    # guarantee single-line, verbatim rendering regardless of terminal
+    # width or TTY status. Labels are prefixed with two spaces to mirror
+    # the indentation of the in-Table scalar rows.
+    _print_boundary_paths(console, boundary_path_rows)
     console.print(boundary_table)
     console.print()
     if failure_set.mismatches:
