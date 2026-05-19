@@ -1254,6 +1254,58 @@ def orphan_daemons(
     raise typer.Exit(1)
 
 
+@app.command(name="restart-daemon")
+def restart_daemon_cmd(
+    json_output: Annotated[
+        bool,
+        typer.Option(
+            "--json",
+            help="Emit a single JSON object instead of human-readable text.",
+        ),
+    ] = False,
+) -> None:
+    """Stop the registered sync daemon and respawn it at the foreground.
+
+    Composes the existing daemon stop + launch primitives so the operator
+    has a one-shot remedy when the foreground process and the registered
+    daemon disagree on any of the six canonical D-3 fields (version,
+    executable, source, server URL, team/user, or queue DB path).
+
+    Exit codes:
+      0  Daemon restarted (or stale owner record cleaned and respawned).
+      1  No registered daemon — run ``spec-kitty sync now`` to launch one.
+      2  Daemon stop succeeded but respawn failed; system is stopped.
+      3  Daemon stop failed (unresponsive); owner record left intact.
+
+    Examples:
+        spec-kitty doctor restart-daemon
+        spec-kitty doctor restart-daemon --json
+    """
+    from specify_cli.sync.restart import (
+        render_restart_result,
+        restart_daemon,
+    )
+
+    # ``repo_root`` is accepted by ``restart_daemon`` for API symmetry
+    # with the rest of the preflight surface; the function does not
+    # currently consult the repo for any field. We resolve it
+    # best-effort so a future refactor that reads repo-relative state
+    # picks it up automatically without a CLI change.
+    repo_root: Path
+    try:
+        located = locate_project_root()
+    except Exception:  # noqa: BLE001 — restart never needs a repo today
+        located = None
+    repo_root = located if located is not None else Path.cwd()
+
+    result = restart_daemon(repo_root)
+    output = render_restart_result(result, json_output=json_output)
+    # Use stdout directly so ``--json`` emits one line, no Rich markup.
+    sys.stdout.write(output + "\n")
+    sys.stdout.flush()
+    raise typer.Exit(code=result.exit_code)
+
+
 @app.command(name="mission-state")
 def mission_state(  # noqa: C901
     audit: Annotated[
