@@ -18,6 +18,7 @@ for the design rationale.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 from pathlib import Path
@@ -30,6 +31,8 @@ logger = logging.getLogger(__name__)
 _VERSION_FILENAME = "agent-commands.lock"
 _LOCK_FILENAME = ".agent-commands.lock"
 _MISSION_NAME = "software-dev"
+_VERSION_MARKER_PREFIX = "<!-- spec-kitty-command-version:"
+_VERSION_MARKER_HEAD_LINES = 20
 
 
 # ---------------------------------------------------------------------------
@@ -113,6 +116,77 @@ def _compute_output_filename(command: str, agent_key: str) -> str:
     if ext:
         return f"spec-kitty.{stem}.{ext}"
     return f"spec-kitty.{stem}"
+
+
+def _expected_command_filenames(agent_key: str, templates_dir: Path) -> set[str]:
+    """Return the complete managed command filename set for *agent_key*.
+
+    The prompt-driven half is only valid when its backing template is present.
+    Missing templates therefore make the health check fail instead of allowing a
+    partial command install to be stamped as current.
+    """
+    from specify_cli.shims.registry import CLI_DRIVEN_COMMANDS, PROMPT_DRIVEN_COMMANDS
+
+    template_commands = {
+        template_path.stem
+        for template_path in templates_dir.glob("*.md")
+        if template_path.is_file()
+    }
+    if not template_commands >= PROMPT_DRIVEN_COMMANDS:
+        return set()
+
+    return {
+        _compute_output_filename(command, agent_key)
+        for command in sorted(PROMPT_DRIVEN_COMMANDS | CLI_DRIVEN_COMMANDS)
+    }
+
+
+def _file_has_current_version_marker(path: Path, cli_version: str) -> bool:
+    """Return True when *path* has this CLI version's managed marker."""
+    expected = f"{_VERSION_MARKER_PREFIX} {cli_version} -->"
+    try:
+        content = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return False
+
+    return any(
+        line.strip() == expected
+        for line in content.splitlines()[:_VERSION_MARKER_HEAD_LINES]
+    )
+
+
+def _agent_commands_healthy(agent_key: str, templates_dir: Path, cli_version: str) -> bool:
+    """Return True when one agent's global command directory is complete."""
+    expected = _expected_command_filenames(agent_key, templates_dir)
+    if not expected:
+        return False
+
+    output_dir = get_global_command_dir(agent_key)
+    if not output_dir.is_dir():
+        return False
+
+    existing = {
+        path.name
+        for path in output_dir.iterdir()
+        if path.is_file() and path.name.startswith("spec-kitty.")
+    }
+    if existing != expected:
+        return False
+
+    return all(
+        _file_has_current_version_marker(output_dir / filename, cli_version)
+        for filename in expected
+    )
+
+
+def _all_global_agent_commands_healthy(templates_dir: Path, cli_version: str) -> bool:
+    """Return True when every command-layer agent has a complete command set."""
+    from specify_cli.core.config import AGENT_COMMAND_CONFIG
+
+    return all(
+        _agent_commands_healthy(agent_key, templates_dir, cli_version)
+        for agent_key in AGENT_COMMAND_CONFIG
+    )
 
 
 def _sync_agent_commands(agent_key: str, templates_dir: Path, script_type: str) -> None:
@@ -229,7 +303,11 @@ def ensure_global_agent_commands() -> None:
 
     version_file = cache_dir / _VERSION_FILENAME
     cli_version = _get_cli_version()
-    if version_file.exists() and version_file.read_text().strip() == cli_version:
+    if (
+        version_file.exists()
+        and version_file.read_text().strip() == cli_version
+        and _all_global_agent_commands_healthy(templates_dir, cli_version)
+    ):
         return
 
     lock_path = cache_dir / _LOCK_FILENAME
@@ -237,7 +315,11 @@ def ensure_global_agent_commands() -> None:
     try:
         _lock_exclusive(lock_fd)
         # Re-check after acquiring lock (another process may have finished).
-        if version_file.exists() and version_file.read_text().strip() == cli_version:
+        if (
+            version_file.exists()
+            and version_file.read_text().strip() == cli_version
+            and _all_global_agent_commands_healthy(templates_dir, cli_version)
+        ):
             return
 
         from specify_cli.core.config import AGENT_COMMAND_CONFIG
@@ -253,8 +335,12 @@ def ensure_global_agent_commands() -> None:
                     exc_info=True,
                 )
 
-        # Write version last — an incomplete run leaves no version file,
-        # so the next invocation will retry the full sync.
-        version_file.write_text(cli_version)
+        # Write version last, and only after validating the complete managed
+        # command surface.  A partial install must not poison the fast path.
+        if _all_global_agent_commands_healthy(templates_dir, cli_version):
+            version_file.write_text(cli_version)
+        else:
+            with contextlib.suppress(FileNotFoundError):
+                version_file.unlink()
     finally:
         lock_fd.close()
