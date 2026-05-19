@@ -42,6 +42,23 @@ The resolved, runtime-effective policy controlling retrospective behavior for a 
   - `"<charter-frontmatter-path>:retrospective.<key>"`, e.g. `".kittify/charter/charter.md:retrospective.timing"`
   - `".kittify/config.yaml#retrospective.<key>"`
   - `"<default>"`
+  - `"<env:SPEC_KITTY_RETROSPECTIVE>"` or `"<env:SPEC_KITTY_MODE>"` during the FR-015 deprecation cycle (env vars never win over durable config or charter, but the source map records they were observed).
+
+#### Malformed-input handling (FR-024)
+
+The resolver MUST NOT raise an unhandled exception for any malformed input. Specific failure modes:
+
+| Malformed input | Resolver outcome |
+|---|---|
+| `.kittify/config.yaml` is not valid YAML | Returns `(default_policy, source_map_with_resolution_error)` AND raises `PolicyResolutionError(source=".kittify/config.yaml", reason="invalid_yaml", detail=<parser msg>)`. The runtime catches this and treats it as a generator-side failure per FR-024. |
+| `retrospective:` block has wrong type (e.g. list instead of dict) | Same as above, with `reason="invalid_type_for_retrospective_block"`. |
+| `retrospective:` block has unknown keys | If `retrospective.strict_keys: true` is set in config, raise `PolicyResolutionError(reason="unknown_key", detail=<key list>)`. Otherwise, log a warning and ignore unknown keys (default lenient behavior). |
+| Charter frontmatter has wrong type for `retrospective:` | Same shape as malformed config. |
+| `retrospective.timing` has an unknown enum value | Raise `PolicyResolutionError(reason="invalid_enum", detail="timing: got 'foo', expected one of [post_completion, before_completion]")`. |
+
+Under **default policy**, a `PolicyResolutionError` is downgraded to a `RetrospectiveCaptureFailed` event with `failure_category: policy_resolution_error`. Mission completion proceeds with built-in defaults for the completion logic (e.g. as if `failure_policy: warn` were set). The event payload's `policy_source` records `"<resolution_error>"` for the affected fields so observers can distinguish this from a healthy default-policy run.
+
+Under **strict policy** (`failure_policy: block`), a `PolicyResolutionError` is a blocking condition: mission completion does not proceed, and the block message names the source path, offending key, and underlying error. The intent: strict-governed projects should not be able to drift past a malformed policy unnoticed.
 
 #### Invariants
 
@@ -134,6 +151,7 @@ The artifact written to `.kittify/missions/<mission_id>/retrospective.yaml` (or 
 - `findings_status == "missing"` and `"failed"` MUST NOT be persisted in a `retrospective.yaml`. They are reserved for **event-payload** representations of "no record on disk" and "generation failed" states. A YAML file with `findings_status: missing` is a corrupt record.
 - Every `Finding.evidence_refs[*]` and `Proposal.evidence_refs[*]` MUST resolve to an `id` that exists in the top-level `evidence_refs[]` list.
 - `policy_source` is a snapshot — once written, it is not mutated. Re-running the generator on the same mission produces a new record (under `--overwrite`) or a merged record (under `--update`) with a new `policy_source` snapshot.
+- **`provenance.kind == "synthesize_fabricate"` MUST imply `findings_status == "ran_no_findings"`.** The fabrication compatibility path may never author a `has_findings` record. Writer validation rejects any record where this constraint is violated.
 
 #### Merge semantics (`retrospect create --update`)
 
@@ -207,6 +225,25 @@ The `source_map` returned by the resolver is a flat `dict[str, str]` keyed by do
 - The literal sentinel `"<env:SPEC_KITTY_RETROSPECTIVE>"` when an env var supplied the value during the deprecation cycle (FR-015 demotes env vars but does not yet remove them)
 
 The map is serialized into `RetrospectiveRecord.policy_source` and the event payloads.
+
+## Mission completion (canonical definition)
+
+For retrospective-policy purposes, **"mission completion"** is the runtime step that emits the `MissionCompleted` event after **both** preconditions hold:
+
+1. All work packages are in terminal lanes (`done` or `canceled`).
+2. The merge to the target branch has been written (the mission's tree state matches what `spec-kitty merge` produced).
+
+The strict gate (`timing: before_completion + failure_policy: block`) fires **between** "both preconditions hold" and "`MissionCompleted` is emitted." Under default policy, the same evaluation point applies but a generator failure becomes a warning rather than a block.
+
+This disambiguates three plausible interpretations:
+
+| Interpretation | Used for retrospective gate? |
+|---|---|
+| (a) The moment the last WP transitions to `done`. | No — too early; the merge may still fail. |
+| (b) The moment `spec-kitty merge` writes to the target branch. | No — too granular; the merge is one step of the completion sequence. |
+| (c) The moment the runtime emits `MissionCompleted` after (a) AND merge has landed. | **Yes — this is the gate evaluation point.** |
+
+The runtime MUST evaluate retrospective policy and (if policy says `before_completion`) run the gate at point (c), immediately before `MissionCompleted` would otherwise emit. A `--skip-retrospective` flag on the completing command bypasses the gate with explicit permission and logged actor/provenance.
 
 ## State transitions
 

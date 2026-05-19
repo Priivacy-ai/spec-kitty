@@ -50,3 +50,4 @@ Use the shared template at [`../../adr-template.md`](../../adr-template.md).
 | 2026-05-10 | [Deterministic historical mission-state repair](2026-05-10-1-deterministic-historical-mission-state-repair.md) |
 | 2026-05-14 | [Stale-lane auto-rebase classifier policy](2026-05-14-1-stale-lane-auto-rebase-classifier-policy.md) |
 | 2026-05-16 | [Doctrine layer merge semantics](2026-05-16-1-doctrine-layer-merge-semantics.md) |
+| 2026-05-19 | [Retrospective default-on policy architecture](2026-05-19-1-retrospective-default-policy-architecture.md) |
