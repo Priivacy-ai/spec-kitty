@@ -114,4 +114,4 @@ This document resolves all design unknowns called out in the spec and the plan's
 
 | Spec marker | Resolution |
 |-------------|------------|
-| (no `[NEEDS CLARIFICATION]` markers in spec) | n/a — spec was committed substantive with all interview decisions resolved. |
+| (none) | spec.md was committed substantive with all interview decisions resolved; no clarification markers were ever written. |
