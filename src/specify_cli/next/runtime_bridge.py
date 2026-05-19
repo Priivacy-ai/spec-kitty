@@ -307,13 +307,40 @@ def _build_retrospective_facilitator_callback(
             raise
 
         # Step 4: Emit RetrospectiveCaptured lifecycle event.
+        # Guard against emit failure after a successful record write — without
+        # this guard, an emit-side failure (event log corruption, disk full
+        # during JSONL append, etc.) leaves an orphan retrospective.yaml on
+        # disk with no corresponding RetrospectiveCaptured event in the log.
+        # That breaks the summary classifier (read on disk + absence of
+        # Captured/Failed event → state misreported as "missing" or "failed").
+        # Mission review (TOCTOU finding) caught this; we now downgrade to a
+        # Failed event so the on-disk record AND the event log agree.
         runtime_actor = RetroActor(kind="runtime", id="spec-kitty-generator")
-        emit_captured(
-            record,
-            repo_root,
-            provenance_kind=_prov,  # type: ignore[arg-type]
-            actor=runtime_actor,
-        )
+        try:
+            emit_captured(
+                record,
+                repo_root,
+                provenance_kind=_prov,  # type: ignore[arg-type]
+                actor=runtime_actor,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "Retrospective record written but RetrospectiveCaptured emit failed for mission %s — emitting RetrospectiveCaptureFailed to keep event log consistent.",
+                mission_slug,
+                exc_info=exc,
+            )
+            _classify_and_emit_failure(
+                mission_id=mission_id,
+                mission_slug=mission_slug,
+                repo_root=repo_root,
+                exc=exc,
+                source_map=source_map,
+                provenance_kind=_prov,
+                emit_capture_failed=emit_capture_failed,
+            )
+            # Do NOT re-raise — the record is on disk; mission completion
+            # should proceed under default-warn policy. Strict-block policy
+            # would have already raised before reaching this step.
 
         # Return a minimal stub satisfying the terminus protocol.
         # The terminus uses this as a truthy "record was produced" sentinel.

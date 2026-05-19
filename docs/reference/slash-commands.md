@@ -170,10 +170,17 @@ Syntax format in this reference:
 **What it does**:
 - Executes `spec-kitty merge` with selected strategy and cleanup flags.
 - Optionally pushes to origin and deletes worktrees/branches.
-- After merge, run `/spec-kitty-mission-review`, then review the retrospective
-  captured at the runtime terminus: `spec-kitty retrospect summary` and
-  `spec-kitty agent retrospect synthesize --mission <slug>` (dry-run by
-  default; add `--apply` to mutate).
+- After merge, run `/spec-kitty-mission-review`, then surface the retrospective
+  captured at the runtime terminus. Canonical post-merge sequence (FR-019):
+  1. **Mission review** — `/spec-kitty-mission-review` confirms spec→code fidelity.
+  2. **Author or verify the retrospective** — under default policy, the runtime
+     authored it during merge; verify via `cat .kittify/missions/<mission_id>/retrospective.yaml`.
+     If absent (older mission, generator failure under warn policy), author with
+     `spec-kitty retrospect create --mission <slug>`.
+  3. **Surface findings** — `spec-kitty retrospect summary` aggregates across
+     missions (read-only); `spec-kitty agent retrospect synthesize --mission <slug>`
+     previews or applies proposals from one record (dry-run by default; add
+     `--apply` to mutate).
 
 **Creates/updates**:
 - Merges mission branch into target branch.

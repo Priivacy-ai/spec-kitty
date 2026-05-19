@@ -32,7 +32,7 @@ With no `retrospective:` block in `.kittify/config.yaml`, every completed missio
 
 ```bash
 # Normal mission completion
-spec-kitty merge --feature my-feature
+spec-kitty merge --mission my-feature
 
 # After merge, the runtime authored:
 #   .kittify/missions/<mission_id>/retrospective.yaml
@@ -83,7 +83,7 @@ so operators know which file or key drives the gate.
 To skip the gate for a single completion:
 
 ```bash
-spec-kitty merge --feature my-feature --skip-retrospective
+spec-kitty merge --mission my-feature --skip-retrospective
 ```
 
 `--skip-retrospective` requires an explicit permission and logs actor and provenance in the event
