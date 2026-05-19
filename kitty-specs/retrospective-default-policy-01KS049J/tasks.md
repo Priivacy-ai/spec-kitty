@@ -129,12 +129,12 @@ Internal: T001 and the test scaffolding for T006 can start in parallel once cont
 
 ### Included subtasks
 
-- [ ] T007 Define `RetrospectiveRecord` + `Finding` + `Proposal` + `EvidenceRef` + `Provenance` types per data-model.md (WP02)
-- [ ] T008 Implement `generate_retrospective(mission_handle, policy, repo_root) -> RetrospectiveRecord` (pure-Python generator) (WP02)
-- [ ] T009 Implement findings classification (helped/not_helpful/gaps/proposals) from artifact + event evidence (WP02)
-- [ ] T010 Implement `findings_status` resolution (`has_findings` vs `ran_no_findings`) per FR-007 (WP02)
-- [ ] T011 Implement proposal `risk_class` classification (low vs structural) per FR-010 (WP02)
-- [ ] T012 Unit tests + 3 fixture missions for the generator (FR-006/007/010) (WP02)
+- [x] T007 Define `RetrospectiveRecord` + `Finding` + `Proposal` + `EvidenceRef` + `Provenance` types per data-model.md (WP02)
+- [x] T008 Implement `generate_retrospective(mission_handle, policy, repo_root) -> RetrospectiveRecord` (pure-Python generator) (WP02)
+- [x] T009 Implement findings classification (helped/not_helpful/gaps/proposals) from artifact + event evidence (WP02)
+- [x] T010 Implement `findings_status` resolution (`has_findings` vs `ran_no_findings`) per FR-007 (WP02)
+- [x] T011 Implement proposal `risk_class` classification (low vs structural) per FR-010 (WP02)
+- [x] T012 Unit tests + 3 fixture missions for the generator (FR-006/007/010) (WP02)
 
 ### Implementation sketch
 
