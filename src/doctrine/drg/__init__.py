@@ -12,7 +12,7 @@ Public API:
 
 from __future__ import annotations
 
-from doctrine.drg.loader import DRGLoadError, load_graph, load_graph_or_dir, merge_layers
+from doctrine.drg.loader import DRGLoadError, has_graph_files, load_graph, load_graph_or_dir, merge_layers
 from doctrine.drg.models import (
     DRGEdge,
     DRGGraph,
@@ -29,6 +29,7 @@ __all__ = [
     "DRGNode",
     "DRGEdge",
     "DRGGraph",
+    "has_graph_files",
     "load_graph",
     "load_graph_or_dir",
     "merge_layers",
