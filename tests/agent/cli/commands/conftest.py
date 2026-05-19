@@ -43,3 +43,45 @@ def _stub_teamspace_gate(monkeypatch):
             "enforce_teamspace_mission_state_ready",
             stub,
         )
+
+
+@pytest.fixture(autouse=True)
+def _stub_sync_boundary_preflight(monkeypatch):
+    """Force `run_preflight` to return ``ok=True`` for every test in this tree.
+
+    Why this fixture exists
+    -----------------------
+    `tests/conftest.py` enables ``SPEC_KITTY_ENABLE_SAAS_SYNC=1`` on every
+    test. With that flag set, `sync now`, `agent tasks status`, and
+    `agent mission finalize-tasks` all run the sync-boundary preflight
+    (FR-002 / FR-009), which reads the real ``~/.spec-kitty/queue.db`` and
+    refuses (exit code 2) when legacy queue rows accumulate from other
+    tests in the same session. Across the full ``tests/agent/`` shard,
+    sync-emitting tests reliably populate the queue, then
+    ``TestSyncNowExitCodes`` fires the gate and the expected exit codes
+    (0 / 1 / 4) are masked by the preflight's exit 2.
+
+    These tests assert on the *post-preflight* contract — auth, queue
+    drain, strict-mode semantics. Tests that exercise the preflight
+    explicitly live under ``tests/sync/`` and construct their own
+    PreflightResult.
+    """
+    from specify_cli.sync.preflight import PreflightResult
+
+    ok_result = PreflightResult(
+        ok=True,
+        mismatches=(),
+        orphan_records=(),
+        legacy_event_rows=0,
+        legacy_body_upload_rows=0,
+        auth_present=True,
+        auth_required=False,
+    )
+    # `sync now`, `setup-plan`, and `finalize-tasks` resolve run_preflight
+    # via function-scoped imports — patch the source module symbol to cover
+    # every call-site without enumerating each lazy importer.
+    monkeypatch.setattr(
+        "specify_cli.sync.preflight.run_preflight",
+        lambda **_kwargs: ok_result,
+        raising=False,
+    )
