@@ -1,0 +1,49 @@
+{
+  "event_count": 4,
+  "last_event_id": "01KRZPZP2ZSDF6CEESN3EYJ8MQ",
+  "materialized_at": "2026-05-19T08:52:35.039553+00:00",
+  "mission_number": "",
+  "mission_slug": "unblock-sync-identity-boundary-canary-01KRZJ07",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 4
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KRZPZNT9ZAHQYJSVZPX0ZD8P",
+      "last_transition_at": "2026-05-19T08:52:34.761487+00:00"
+    },
+    "WP02": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KRZPZNZVDAN80R7QKNQBS2TN",
+      "last_transition_at": "2026-05-19T08:52:34.939433+00:00"
+    },
+    "WP03": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KRZPZP1D3Z02QM7MQ8Z3JHZR",
+      "last_transition_at": "2026-05-19T08:52:34.989185+00:00"
+    },
+    "WP04": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KRZPZP2ZSDF6CEESN3EYJ8MQ",
+      "last_transition_at": "2026-05-19T08:52:35.039553+00:00"
+    }
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "version": 1,
+  "mission_slug": "unblock-sync-identity-boundary-canary-01KRZJ07",
+  "mission_id": "01KRZJ079AYV48V0Y41EACAC79",
+  "mission_branch": "kitty/mission-unblock-sync-identity-boundary-canary-01KRZJ07",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/audit/detectors.py",
+        "src/specify_cli/audit/shape_registry.py",
+        "tests/specify_cli/audit/test_detectors_row_family.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tests",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/sync.py",
+        "tests/specify_cli/cli/commands/test_sync_status_check_paths.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/doctor.py",
+        "src/specify_cli/sync/preflight.py",
+        "src/specify_cli/sync/restart.py",
+        "tests/specify_cli/cli/commands/test_doctor_restart_daemon.py",
+        "tests/specify_cli/sync/test_preflight_remediation_hints.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "kitty-specs/unblock-sync-identity-boundary-canary-01KRZJ07/canary-evidence/**"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-05-19T08:52:35.092363+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP04"
+  ]
+}
