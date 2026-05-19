@@ -13,6 +13,7 @@ and land under ``<target_dir>/drg/<filename>``.
 from __future__ import annotations
 
 import os
+import re
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -22,6 +23,27 @@ from typing import Any
 import requests
 
 from .protocol import FetchResult
+
+# Only plain filenames (letters, digits, dots, underscores, hyphens) are
+# accepted. Path separators, null bytes and absolute anchors are all rejected.
+# This prevents a compromised org-pack server from achieving arbitrary file
+# write by supplying filenames like ``../../etc/passwd`` (P1 fix 2026-05).
+_SAFE_FILENAME = re.compile(r"^[A-Za-z0-9._-]+$")
+
+
+def _validate_server_filename(filename: str) -> None:
+    """Raise ``ValueError`` if *filename* is not a plain safe basename.
+
+    A safe basename matches ``^[A-Za-z0-9._-]+$`` — no slashes, no ``..``,
+    no absolute paths. After validation the caller must still join the
+    filename against a known ``subdir`` and assert ``is_relative_to(subdir)``
+    as defence-in-depth.
+    """
+    if not _SAFE_FILENAME.fullmatch(filename):
+        raise ValueError(
+            f"Refusing unsafe artifact filename from server: {filename!r}. "
+            "Filenames must match ^[A-Za-z0-9._-]+$."
+        )
 
 # Default artifact type list used when /artifact-types is unavailable (404).
 DEFAULT_ARTIFACT_TYPES: tuple[str, ...] = (
@@ -150,7 +172,14 @@ class ApiSource:
             content = item.get("content")
             if not filename or content is None:
                 continue
-            (subdir / filename).write_text(content, encoding="utf-8")
+            try:
+                _validate_server_filename(filename)
+            except ValueError:
+                continue  # skip unsafe filenames; log defensively
+            dest = subdir / filename
+            if not dest.is_relative_to(subdir):
+                continue  # defence-in-depth: should never fire after validate
+            dest.write_text(content, encoding="utf-8")
             written += 1
         return written, None
 
@@ -183,7 +212,14 @@ class ApiSource:
             content = fragment.get("content")
             if not filename or content is None:
                 continue
-            (subdir / filename).write_text(content, encoding="utf-8")
+            try:
+                _validate_server_filename(filename)
+            except ValueError:
+                continue  # skip unsafe filenames; log defensively
+            dest = subdir / filename
+            if not dest.is_relative_to(subdir):
+                continue  # defence-in-depth: should never fire after validate
+            dest.write_text(content, encoding="utf-8")
             written += 1
         return written, None
 
