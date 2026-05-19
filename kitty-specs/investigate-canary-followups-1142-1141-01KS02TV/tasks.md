@@ -50,7 +50,7 @@ A reviewer can copy the Commands section from the posted #1142 comment, run them
 - [x] T004 Execute #1142 H1 clean-venv repro (WP01)
 - [x] T005 Execute #1142 H2 emitter walk (conditional) (WP01)
 - [x] T006 Compose + post #1142 substantive comment (WP01)
-- [ ] T007 Close #1142 with fix-pattern (conditional) (WP01)
+- [x] T007 Close #1142 with fix-pattern (conditional) (WP01)
 - [x] T008 Update `mission-exception.md ## Follow-up` row for #1142 (WP01)
 
 ### Implementation sketch
