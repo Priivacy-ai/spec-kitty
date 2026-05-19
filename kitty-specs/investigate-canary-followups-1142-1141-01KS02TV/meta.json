@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-05-19T13:33:34.489604+00:00",
+      "accepted_by": "robert",
+      "accepted_from_commit": "da57a348f0831fda39afa2d716817584685bb590"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-05-19T13:33:34.489604+00:00",
+  "accepted_by": "robert",
+  "accepted_from_commit": "da57a348f0831fda39afa2d716817584685bb590",
   "created_at": "2026-05-19T12:19:39.551432+00:00",
   "friendly_name": "Investigate canary follow-ups #1142 and #1141",
   "mission_id": "01KS02TVCYPQXQ9DX1Z39SXZ6K",
