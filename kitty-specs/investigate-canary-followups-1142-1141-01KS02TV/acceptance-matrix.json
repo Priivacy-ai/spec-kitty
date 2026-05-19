@@ -1,0 +1,149 @@
+{
+  "mission_slug": "investigate-canary-followups-1142-1141-01KS02TV",
+  "mission_id": "01KS02TVCYPQXQ9DX1Z39SXZ6K",
+  "mission_number": null,
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Operator MUST execute the #1142 H1 clean-venv repro (fresh canary venv, non-editable spec-kitty install, scenarios 1+2 only) before any other #1142 hypothesis.",
+      "proof_type": "manual_evidence",
+      "evidence": "research/h1-pip-canary-1142.log + research/h1-pip-spec-kitty-1142.log + research/h1-run-1142.log + research/outcome-1142.md §'Hypothesis 1 — RULED OUT'. Clean canary venv at /tmp/sk-canary-1142/canary-repo/.venv with spec-kitty-cli 3.2.0rc14; scenarios 1+2 fail with the exact FORBIDDEN_KEY assertion from #1142.",
+      "pass_fail": "pass",
+      "verified_by": "WP01 implementer + reviewer-renata.",
+      "verified_at": "2026-05-19T13:08:00Z",
+      "notes": "Result ruled out H1 (canary venv staleness). H1 ruled-out logic verified by the reviewer agent which confirmed the venv was brand-new and rc14 was the installed version."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Operator MUST post a comment on #1142 inside the 7-day window stating: hypothesis tested, result, evidence (log excerpts), and conclusion.",
+      "proof_type": "live_artifact",
+      "evidence": "https://github.com/Priivacy-ai/spec-kitty/issues/1142#issuecomment-4488095110 posted 2026-05-19T13:08Z within the 7-day window (deadline 2026-05-26). 121-line comment satisfies contracts/issue-comment-shape.md: Hypothesis tested / Commands run / Evidence / Conclusion / Recommendation.",
+      "pass_fail": "pass",
+      "verified_by": "WP01 reviewer-renata fetched and verified via gh api.",
+      "verified_at": "2026-05-19T13:08:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "If #1142 H1 turns scenarios 1+2 green, operator MUST close #1142 with a fix-pattern comment naming ‘rebuild the canary venv between runs’ as the operator trap.",
+      "proof_type": "n/a",
+      "evidence": "H1 was ruled out (FR-001), so the close-with-fix-pattern path was not taken. Issue stays OPEN per recommendation A.",
+      "pass_fail": "n/a",
+      "verified_by": "WP01 implementer; explicit no-op recorded in research/outcome-1142.md.",
+      "verified_at": "2026-05-19T13:08:00Z",
+      "notes": "Conditional FR; not applicable given the H1-ruled-out outcome."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "If #1142 H1 is still red, operator MUST execute H2 and inspect each named lifecycle emitter against the WP01 predicate; any non-conforming emitter triggers a linked 1-WP follow-up mission.",
+      "proof_type": "manual_evidence",
+      "evidence": "research/h2-emitter-walk-1142.md — static audit across 5 named emitter surfaces; 3 distinct non-Mission aggregate_types identified (Project at lifecycle_events.py:410, WorkPackage at 562, MissionDossier x4 in dossier/events.py); concrete row captured in research/outcome-1142.md from a minimal local repro. H2 CONFIRMED. Follow-up mission slug TBD (to be filed after this mission merges).",
+      "pass_fail": "pass",
+      "verified_by": "WP01 implementer + reviewer-renata grep cross-checked every cited file:line.",
+      "verified_at": "2026-05-19T13:08:00Z",
+      "notes": "doctor mission-state --audit on this repo confirms 47 FORBIDDEN_KEY findings before and after WP01’s commits — zero regression introduced."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Operator MUST execute #1141 hypotheses in order H4 → H3 → H2 → H1 and stop at the first hypothesis that explains the failure.",
+      "proof_type": "manual_evidence",
+      "evidence": "research/h4-evidence-1141.md, research/h3-evidence-1141.md, research/h2-evidence-1141.md, research/h1-evidence-1141.md — four files in cheapest-first order. H4 RULED OUT, H3 RULED OUT, H2 PARTIALLY RULED OUT (force-contract dimension), H1 LIKELY (silent fan-out failure).",
+      "pass_fail": "pass",
+      "verified_by": "WP02 implementer + reviewer-renata verified cheapest-first ordering and that each evidence file cites specific file:line locations.",
+      "verified_at": "2026-05-19T13:13:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Operator MUST post a comment on #1141 inside the 14-day window stating: hypothesis tested, result, evidence, conclusion, and one of the recommendations A/B/C from the issue body.",
+      "proof_type": "live_artifact",
+      "evidence": "https://github.com/Priivacy-ai/spec-kitty/issues/1141#issuecomment-4488224564 posted 2026-05-19T13:13Z within the 14-day window (deadline 2026-06-02). Comment carries all five required headings including Recommendation A with rationale.",
+      "pass_fail": "pass",
+      "verified_by": "WP02 reviewer-renata verified via gh api.",
+      "verified_at": "2026-05-19T13:13:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Operator MUST update kitty-specs/unblock-sync-identity-boundary-canary-01KRZJ07/mission-exception.md ## Follow-up section with the outcome for each issue.",
+      "proof_type": "diff",
+      "evidence": "Two single-line replacements in the ## Follow-up section (scenario 1+2 row and scenario 4 row). Both carry issue link, ISO investigation date, hypothesis verdicts, recommendation letter, comment URL, outcome-record path. Verified by reviewer that scenario 3 row was not touched. Edit lives on main; PR #1143 already merged so the fallback path (edit on main, no separate cross-branch PR) was used.",
+      "pass_fail": "pass",
+      "verified_by": "WP01 + WP02 reviewer-renata diff inspection.",
+      "verified_at": "2026-05-19T13:13:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Before any hypothesis repro, operator MUST verify the starting repo state matches the snapshot recorded in this spec's Edge Cases (clean tree, 0 0 divergence, HEAD == f51745df0, focused-PR branch present).",
+      "proof_type": "manual_evidence",
+      "evidence": "research/outcome-1142.md §'Pre-flight notes': starting state captured (7 commits ahead of origin/main from this mission; origin/main 5 commits ahead from PR #1143 merge + rc14 + #1154 + CI fixes); state-drift acknowledged and resolved via `git rebase origin/main` before investigation (clean rebase, no conflicts).",
+      "pass_fail": "pass",
+      "verified_by": "WP01 implementer.",
+      "verified_at": "2026-05-19T12:46:00Z",
+      "notes": "Handoff snapshot was 5 commits stale by the time the mission ran; rebase was the documented resolution."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Once spec.md is committed, operator MUST remove NEXT-AGENT-HANDOFF.md from the working tree.",
+      "proof_type": "diff",
+      "evidence": "File removed during /spec-kitty.specify on 2026-05-19 immediately after spec.md was committed. WP01 T002 verified absence (`test ! -f NEXT-AGENT-HANDOFF.md`).",
+      "pass_fail": "pass",
+      "verified_by": "WP01 implementer T002.",
+      "verified_at": "2026-05-19T12:21:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "If an investigation reveals a code change is required, the change MUST be delivered via a separate mission or PR — this mission's deliverable is investigation outcome only.",
+      "proof_type": "diff",
+      "evidence": "`git diff fdca93e14..HEAD --stat -- src/` shows no source modifications by this mission. Both #1142 (recommendation A: extend lifecycle-row classifier predicate) and #1141 (recommendation A: instrument fire_saas_fanout + add backward-emission unit test + bisect) are deferred to separate 1-WP follow-up missions.",
+      "pass_fail": "pass",
+      "verified_by": "Both reviewer cycles verified `git diff --stat -- src/` is empty.",
+      "verified_at": "2026-05-19T13:13:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "NFR-001",
+      "description": "First substantive comment on #1142 posted ≤ 7 days from this mission's creation date (2026-05-19), i.e. by 2026-05-26.",
+      "proof_type": "live_artifact",
+      "evidence": "Comment 4488095110 posted 2026-05-19T13:08Z, 7 days under the deadline.",
+      "pass_fail": "pass",
+      "verified_by": "WP01 reviewer.",
+      "verified_at": "2026-05-19T13:08:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "NFR-002",
+      "description": "First substantive comment on #1141 posted ≤ 14 days from this mission's creation date, i.e. by 2026-06-02.",
+      "proof_type": "live_artifact",
+      "evidence": "Comment 4488224564 posted 2026-05-19T13:13Z, 14 days under the deadline.",
+      "pass_fail": "pass",
+      "verified_by": "WP02 reviewer.",
+      "verified_at": "2026-05-19T13:13:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "NFR-003",
+      "description": "Evidence completeness on each issue comment. Comment contains at minimum: hypothesis label tested, exact commands run, log excerpt or file/line reference, yes/no conclusion. Reviewer can reproduce within 15 minutes from the comment alone.",
+      "proof_type": "code_review",
+      "evidence": "Both comments verified by reviewer-renata to carry all four required structural headings + concrete reproduction commands. #1142 comment additionally exposes the deployed-dev preflight requirements (`SPEC_KITTY_ENABLE_SAAS_SYNC`, `SPEC_KITTY_E2E_TRUSTED_RUNNER`) that the original issue body understated. #1141 comment documents that full bisect requires a trusted-runner workstation — limitation explicitly disclosed.",
+      "pass_fail": "pass",
+      "verified_by": "Both WP reviewers.",
+      "verified_at": "2026-05-19T13:13:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "NFR-004",
+      "description": "#1142 H1 clean-venv repro completes (pip install + pytest scenarios 1+2) in ≤ 15 minutes wall-clock.",
+      "proof_type": "manual_evidence",
+      "evidence": "research/h1-run-1142.log shows pytest scenarios 1+2 ran in 161.89s (~2:41). Total elapsed for venv setup + canary install + spec-kitty install + pytest ≈ 5 minutes — well under the 15-minute threshold.",
+      "pass_fail": "pass",
+      "verified_by": "WP01 implementer.",
+      "verified_at": "2026-05-19T13:05:00Z",
+      "notes": null
+    }
+  ]
+}
