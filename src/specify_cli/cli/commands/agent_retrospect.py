@@ -261,7 +261,10 @@ def _create_empty_retrospective_record(
         "Apply staged proposals from a mission's retrospective record.\n\n"
         "--dry-run is the default; pass --apply to mutate project state.\n"
         "flag_not_helpful is the only auto-applied kind (Q2-A).\n"
-        "Conflict detection is fail-closed: any conflict blocks the whole batch."
+        "Conflict detection is fail-closed: any conflict blocks the whole batch.\n\n"
+        "When no retrospective.yaml exists, the command errors with "
+        "RETROSPECTIVE_RECORD_MISSING (exit 1) and points to 'spec-kitty retrospect create'.\n"
+        "Pass --fabricate-empty to use the legacy auto-fabrication path instead."
     ),
 )
 def synthesize_cmd(
@@ -271,6 +274,10 @@ def synthesize_cmd(
     json_out: Annotated[Optional[Path], typer.Option("--json-out", help="Write JSON envelope to PATH in addition to other output")] = None,
     json_only: Annotated[bool, typer.Option("--json", help="Emit JSON to stdout (suppresses Rich rendering)")] = False,
     actor_id: Annotated[Optional[str], typer.Option("--actor-id", help="Override provenance actor id (default: inferred from environment)")] = None,
+    fabricate_empty: Annotated[
+        bool,
+        typer.Option("--fabricate-empty", help="Legacy: auto-fabricate an empty record when none exists (synthesize_fabricate provenance)"),
+    ] = False,
 ) -> None:
     """Apply staged proposals from a mission's retrospective record.
 
@@ -349,6 +356,34 @@ def synthesize_cmd(
     try:
         record = read_record(retro_file)
     except FileNotFoundError:
+        # T028: Default path — error with RETROSPECTIVE_RECORD_MISSING (exit 1).
+        # Legacy path preserved behind --fabricate-empty flag.
+        if not fabricate_empty:
+            if json_only:
+                _console.print_json(
+                    json.dumps(
+                        {
+                            "result": "blocked",
+                            "code": "RETROSPECTIVE_RECORD_MISSING",
+                            "mission_id": mission_id,
+                            "mission_slug": resolved.mission_slug,
+                            "blocked_reason": (
+                                f"No retrospective record found for this mission. "
+                                f"Author one with: spec-kitty retrospect create --mission {resolved.mission_slug}"
+                            ),
+                            "exit_code": 1,
+                        }
+                    )
+                )
+            else:
+                _err_console.print(
+                    f"[red]Error RETROSPECTIVE_RECORD_MISSING:[/red] "
+                    f"No retrospective record found for this mission.\n"
+                    f"Author one with: [bold]spec-kitty retrospect create --mission {resolved.mission_slug}[/bold]"
+                )
+            raise typer.Exit(1)
+
+        # --fabricate-empty: legacy auto-fabrication path
         feature_dir = resolved.feature_dir
         if feature_dir is not None and _mission_artifacts_sufficient_for_empty_record(feature_dir):
             try:
@@ -489,3 +524,42 @@ def synthesize_cmd(
             raise typer.Exit(5)
 
     raise typer.Exit(0)
+
+
+# ---------------------------------------------------------------------------
+# summary subcommand — back-compat alias for `spec-kitty agent retrospect summary`
+# T027: delegates to the canonical implementation in retrospect.py which
+#        surfaces the 4-state output. READ-ONLY invariant is enforced there.
+# ---------------------------------------------------------------------------
+
+
+@app.command(
+    "summary",
+    help=(
+        "Cross-mission retrospective summary.\n\n"
+        "Back-compat alias: equivalent to `spec-kitty retrospect summary`.\n\n"
+        "Distinguishes four record states: has_findings / ran_no_findings / missing / failed.\n\n"
+        "No mutation is performed."
+    ),
+    hidden=False,
+)
+def summary_cmd(
+    project: Annotated[Optional[Path], typer.Option("--project", help="Project root (default: cwd)")] = None,
+    json_only: Annotated[bool, typer.Option("--json", help="Emit JSON to stdout")] = False,
+    json_out: Annotated[Optional[Path], typer.Option("--json-out", help="Also write JSON to this file")] = None,
+    limit: Annotated[int, typer.Option("--limit", min=1, max=100, help="Top-N for ranked sections")] = 20,
+    since: Annotated[Optional[str], typer.Option("--since", help="ISO-8601 date filter")] = None,
+    include_malformed: Annotated[bool, typer.Option("--include-malformed", help="Include malformed record detail")] = False,
+    filter_state: Annotated[Optional[str], typer.Option("--filter", help="Filter by record state (has_findings|ran_no_findings|missing|failed)")] = None,
+) -> None:
+    """Cross-mission retrospective summary (back-compat alias). READ-ONLY."""
+    from specify_cli.cli.commands.retrospect import summary_cmd as _canonical_summary
+    _canonical_summary(
+        project=project,
+        json_only=json_only,
+        json_out=json_out,
+        limit=limit,
+        since=since,
+        include_malformed=include_malformed,
+        filter_state=filter_state,
+    )
