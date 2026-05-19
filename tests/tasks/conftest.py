@@ -7,9 +7,57 @@ import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
 
+import pytest
 from ulid import ULID
 
 from specify_cli.lanes.branch_naming import mid8, strip_numeric_prefix
+
+
+@pytest.fixture(autouse=True)
+def _stub_sync_boundary_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Force `finalize-tasks`' sync-boundary preflight to ``ok=True``.
+
+    Why this fixture exists
+    -----------------------
+    `tests/conftest.py` flips ``SPEC_KITTY_ENABLE_SAAS_SYNC=1`` on every
+    test so legacy sync/auth coverage continues to run. With that flag set,
+    `agent mission finalize-tasks` calls `specify_cli.sync.preflight.run_preflight`
+    before any FR-002/FR-009 SaaS-emitting code path. The preflight reads the
+    real `~/.spec-kitty/queue.db` and refuses (exit code 2) if any legacy
+    queue rows accumulated in the shared HOME during the session — a
+    cross-test pollution that earlier sync tests reliably produce.
+
+    These `tests/tasks/` files exercise the finalize-tasks JSON output
+    contract and dependency-parsing behaviour. They are NOT testing the
+    sync boundary, so a clean ``PreflightResult(ok=True)`` is the right
+    seam to neutralise the unrelated gate. Tests that DO exercise the
+    boundary live under `tests/sync/` and patch / construct their own
+    PreflightResult.
+
+    Imported lazily to avoid pulling sync internals into tests that monkey-
+    patch `specify_cli.sync.preflight` themselves.
+    """
+    from specify_cli.sync.preflight import PreflightResult
+
+    ok_result = PreflightResult(
+        ok=True,
+        mismatches=(),
+        orphan_records=(),
+        legacy_event_rows=0,
+        legacy_body_upload_rows=0,
+        auth_present=True,
+        auth_required=False,
+    )
+    # mission.finalize_tasks does a function-scoped
+    # ``from specify_cli.sync.preflight import run_preflight`` after checking
+    # ``is_saas_sync_enabled()``, so patch the source module symbol (the only
+    # binding the lazy import resolves to). ``raising=False`` keeps the stub
+    # alive even when preflight is re-exported elsewhere.
+    monkeypatch.setattr(
+        "specify_cli.sync.preflight.run_preflight",
+        lambda **_kwargs: ok_result,
+        raising=False,
+    )
 
 
 def create_mission_fast(project: Path, slug: str, number: int = 1) -> Path:
