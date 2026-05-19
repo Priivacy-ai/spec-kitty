@@ -47,7 +47,7 @@ spec-kitty verify-setup --diagnostics
 
 ## Common failure patterns
 
-Below are the eight most frequent failure states, each with its symptoms,
+Below are the nine most frequent failure states, each with its symptoms,
 root cause, and recovery steps.
 
 ### 1. Missing skill root
@@ -237,6 +237,80 @@ spec-kitty agent action implement WP01 --agent <name>
 ```
 
 ---
+
+### 9. Shared package imports resolve as a namespace package
+
+**Symptoms:**
+
+- `pytest` fails during collection before any tests run.
+- The traceback contains an error like:
+
+  ```text
+  ImportError: cannot import name 'normalize_event_id' from 'spec_kitty_events' (unknown location)
+  ```
+
+- The affected package reports `__file__` as `None`:
+
+  ```bash
+  python -c 'import spec_kitty_events as e; print(repr(getattr(e, "__file__", None))); print(e.__path__)'
+  ```
+
+  Broken output looks like:
+
+  ```text
+  None _NamespacePath([.../site-packages/spec_kitty_events])
+  ```
+
+**Cause:**  Python is resolving `spec_kitty_events` as a PEP 420 implicit
+namespace package instead of a normal package. This usually means an earlier
+install was partially removed: submodule files remain on disk, but
+`spec_kitty_events/__init__.py` or the matching `.dist-info/` metadata is
+missing, stale, or mismatched. In that state, top-level re-exports such as
+`normalize_event_id` are unavailable even when the installed wheel normally
+provides them.
+
+**Recovery:**
+
+For a project virtual environment managed by `uv`, reinstall the dependency:
+
+```bash
+uv sync --reinstall-package spec-kitty-events
+```
+
+For the affected Python interpreter, remove the stale package directory and
+metadata before reinstalling:
+
+```bash
+python -m pip uninstall -y spec-kitty-events
+
+python - <<'PY'
+from pathlib import Path
+import site
+
+for root in map(Path, site.getsitepackages()):
+    for path in root.glob("spec_kitty_events*"):
+        print(path)
+PY
+```
+
+Inspect the printed paths. They should be under the affected interpreter's
+`site-packages`. Then remove the stale package directory and metadata:
+
+```bash
+rm -rf /path/to/site-packages/spec_kitty_events \
+       /path/to/site-packages/spec_kitty_events-*.dist-info
+python -m pip install --force-reinstall spec-kitty-events==5.1.0
+```
+
+Re-run the diagnostic check. Healthy output includes a real `__init__.py` path:
+
+```text
+'.../site-packages/spec_kitty_events/__init__.py' [...]
+```
+
+Do not work around this by changing Spec Kitty imports to
+`spec_kitty_events.models`. The CLI intentionally consumes the public top-level
+`spec_kitty_events` surface, and the consumer contract tests pin that surface.
 
 ## Safety warning: --remove-orphaned and shared directories
 
