@@ -968,7 +968,7 @@ As of mission `shared-package-boundary-cutover-01KQ22DS` (2026-04-25):
 
 Architectural enforcement of these invariants lives in `tests/architectural/test_shared_package_boundary.py` and `tests/architectural/test_pyproject_shape.py`. The clean-install verification job in `.github/workflows/ci-quality.yml` (`clean-install-verification`) proves `spec-kitty next` works in a fresh venv without `spec-kitty-runtime`.
 
-ADR: [`architecture/2.x/adr/2026-04-25-1-shared-package-boundary.md`](architecture/2.x/adr/2026-04-25-1-shared-package-boundary.md). Migration runbook: [`docs/migration/shared-package-boundary-cutover.md`](docs/migration/shared-package-boundary-cutover.md).
+ADR: [`architecture/3.x/adr/2026-04-25-1-shared-package-boundary.md`](architecture/3.x/adr/2026-04-25-1-shared-package-boundary.md). Migration runbook: [`docs/migration/shared-package-boundary-cutover.md`](docs/migration/shared-package-boundary-cutover.md).
 
 <!-- MANUAL ADDITIONS END -->
 
