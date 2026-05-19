@@ -104,6 +104,27 @@ class _CharterScopeEntry(BaseModel):
             )
         return value
 
+    @field_validator("root")
+    @classmethod
+    def _root_must_be_relative_safe(cls, value: str) -> str:
+        """Reject absolute paths and ``..`` segments (P2 fix 2026-05).
+
+        An absolute ``root`` or one containing ``..`` would allow the scope
+        resolver to walk outside the repository root and read (or write)
+        arbitrary filesystem paths.
+        """
+        p = Path(value)
+        if p.is_absolute():
+            raise ValueError(
+                f"charter_scopes[].root must be a relative path, "
+                f"got absolute: {value!r}"
+            )
+        if ".." in p.parts:
+            raise ValueError(
+                f"charter_scopes[].root must not contain '..' segments: {value!r}"
+            )
+        return value
+
 
 class CharterScopeConfig(BaseModel):
     """Operator-facing ``.kittify/config.yaml::charter_scopes:`` payload.
@@ -177,14 +198,18 @@ class CharterScope:
             return cls.default(repo_root)
 
         # Compute absolute paths for the configured scope roots.
-        scope_roots: list[tuple[Path, str | None, str]] = [
-            (
-                (repo_root / entry.root).resolve(),
-                entry.name,
-                entry.root,
-            )
-            for entry in config_payload.charter_scopes
-        ]
+        # Defence-in-depth: even after Pydantic validation, assert that the
+        # resolved path stays inside repo_root (P2 fix 2026-05).
+        repo_root_abs = repo_root.resolve()
+        scope_roots: list[tuple[Path, str | None, str]] = []
+        for entry in config_payload.charter_scopes:
+            resolved = (repo_root / entry.root).resolve()
+            if not resolved.is_relative_to(repo_root_abs):
+                raise CharterScopeConflict(
+                    f"charter_scopes[].root {entry.root!r} resolves outside "
+                    f"repo_root {repo_root} — refusing traversal."
+                )
+            scope_roots.append((resolved, entry.name, entry.root))
 
         # Normalise feature_dir to an absolute path.
         feature_dir_abs = (
