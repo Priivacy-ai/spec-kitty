@@ -37,6 +37,8 @@ from specify_cli.auth.session import StoredSession, Team
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.integration]
+
 @pytest.fixture(autouse=True)
 def _saas_url(monkeypatch):
     monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://saas.test")

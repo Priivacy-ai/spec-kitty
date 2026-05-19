@@ -27,6 +27,10 @@ from specify_cli.cli.commands.migrate_cmd import app as migrate_app
 # ---------------------------------------------------------------------------
 
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 def _make_cp1252_file(path: Path, text: str | None = None) -> None:
     """Write a file in cp1252 encoding (bytes that are not valid UTF-8).
 

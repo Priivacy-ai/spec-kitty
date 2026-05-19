@@ -18,6 +18,10 @@ from pathlib import Path
 from charter.neutrality import NeutralityLintResult, run_neutrality_lint
 
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 def _format_failure(result: NeutralityLintResult) -> str:
     """Render a reviewer-actionable failure message per contract C-3.
 

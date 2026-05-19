@@ -26,6 +26,8 @@ from specify_cli.mission_v1.schema import (
 # Fixtures
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.unit]
+
 MINIMAL_V1_CONFIG: dict = {
     "mission": {
         "name": "software-dev",

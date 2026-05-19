@@ -17,9 +17,9 @@ from pathlib import Path
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult as BaseMigrationResult
-from doctrine.versioning import (
-    BundleCompatibilityStatus,
+from charter.versioning import (
     CURRENT_BUNDLE_SCHEMA_VERSION,
+    BundleCompatibilityStatus,
     check_bundle_compatibility,
     get_bundle_schema_version,
     run_migration,

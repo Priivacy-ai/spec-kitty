@@ -36,6 +36,8 @@ from pathlib import Path
 import pytest
 
 
+pytestmark = [pytest.mark.integration]
+
 _INTEGRATION_DIR = Path(__file__).resolve().parent
 _STRESS_DIR = _INTEGRATION_DIR.parent / "stress"
 _CONCURRENCY_DIR = _INTEGRATION_DIR.parent / "concurrency"

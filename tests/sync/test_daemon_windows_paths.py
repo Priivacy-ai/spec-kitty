@@ -9,6 +9,8 @@ from __future__ import annotations
 import pytest
 
 
+pytestmark = [pytest.mark.unit]
+
 @pytest.mark.windows_ci
 def test_sync_daemon_paths_under_localappdata() -> None:
     """On Windows, _sync_root() resolves under %LOCALAPPDATA%\\spec-kitty\\sync."""

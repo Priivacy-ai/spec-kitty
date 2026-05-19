@@ -111,6 +111,8 @@ from specify_cli.next._internal_runtime.significance import (
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 def _write_simple_mission(root: Path, key: str = "cov-mission") -> Path:
     """Write a minimal mission template at ``<root>/<key>/mission.yaml``."""
     mission_dir = root / key

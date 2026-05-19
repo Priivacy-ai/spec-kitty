@@ -23,7 +23,7 @@ from specify_cli.decisions.service import DecisionError as _DecisionError
 from specify_cli.diagnostics import mark_invocation_succeeded
 from specify_cli.task_utils import TaskCliError, find_repo_root
 from charter.sync import ensure_charter_bundle_fresh
-from doctrine.versioning import check_bundle_compatibility, get_bundle_schema_version
+from charter.versioning import check_bundle_compatibility, get_bundle_schema_version
 
 logger = logging.getLogger(__name__)
 METADATA_FILENAME = "metadata.yaml"
@@ -434,6 +434,86 @@ def _collect_synthesis_status(
         "provenance": provenance_status,
         "evidence": evidence_summary,
     }
+
+
+def _collect_org_layer_status(repo_root: Path) -> dict[str, Any]:
+    """Collect org-layer state for ``charter status`` (FR-002).
+
+    Returns a structured dict describing the configured organisation-tier
+    DRG packs, their fetched/missing state, node/edge counts, and any
+    collision warnings surfaced by ``merge_three_layers``.
+
+    When no packs are configured, returns ``{"packs": [], "has_shipped": True}``.
+    The caller (``status``) always emits this key in JSON output so operators
+    and ATDD assertions can rely on its presence.
+
+    NFR-001: this function is always called but the packs list is empty
+    for repos without org pack configuration — no spurious section added.
+
+    Per the charter layer architectural boundary (kernel <- doctrine <-
+    charter <- specify_cli), we use ``charter.drg.load_org_drg`` directly
+    rather than the ``specify_cli`` config path.  The caller may also pass
+    the repo root to ``specify_cli.doctrine.config`` for richer pack metadata;
+    this implementation stays purely charter-layer.
+    """
+    from charter.drg import (  # noqa: PLC0415
+        OrgDRGConflictError,
+        OrgPackMissingError,
+        load_org_drg,
+        merge_three_layers,
+    )
+    from charter.catalog import resolve_doctrine_root  # noqa: PLC0415
+    from doctrine.drg.loader import load_graph_or_dir  # noqa: PLC0415
+
+    result: dict[str, Any] = {
+        "has_shipped": True,  # shipped (built-in) layer is always present
+        "packs": [],
+        "collision_warnings": [],
+        "errors": [],
+    }
+
+    try:
+        fragments = load_org_drg(repo_root)
+    except OrgPackMissingError as exc:
+        result["errors"].append(str(exc))
+        return result
+    except Exception as exc:  # noqa: BLE001 — best-effort; status must not crash
+        result["errors"].append(f"org-DRG load error: {exc}")
+        return result
+
+    for frag in fragments:
+        pack_entry: dict[str, Any] = {
+            "name": frag.pack_name,
+            "source_kind": frag.source_kind,
+            "source_ref": frag.source_ref,
+            "layer_index": frag.layer_index,
+            "fetched": True,
+            "node_count": len(frag.nodes),
+            "edge_count": len(frag.edges),
+        }
+        result["packs"].append(pack_entry)
+
+    if not fragments:
+        return result
+
+    # Run merge to surface collision warnings (best-effort).
+    try:
+        shipped = load_graph_or_dir(resolve_doctrine_root())
+        merge_three_layers(shipped=shipped, org_fragments=fragments, project=None)
+    except OrgDRGConflictError as exc:
+        for conflict in exc.conflicts:
+            result["collision_warnings"].append(
+                {
+                    "kind": conflict.kind,
+                    "target_id": conflict.target_id,
+                    "conflicting_layers": conflict.conflicting_layers,
+                    "resolution": conflict.resolution_applied,
+                }
+            )
+    except Exception:  # noqa: BLE001 — collision check is advisory in doctor/status
+        pass
+
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -950,6 +1030,21 @@ def interview(  # noqa: C901
 
         interview_data = default_interview(mission=resolved_mission_type, profile=normalized_profile)
 
+        # ------------------------------------------------------------------
+        # FR-026 — Pre-fill interview from org charter packs (non-destructive).
+        # Missing answers receive the org default so the interactive prompt
+        # surfaces it; existing answers are preserved. Required directives are
+        # pre-selected. Failure here is non-fatal (org packs are optional).
+        # ------------------------------------------------------------------
+        try:
+            from specify_cli.doctrine.org_charter import apply_org_charter_to_interview
+
+            org_prefill_messages = apply_org_charter_to_interview(interview_data, repo_root)
+            for msg in org_prefill_messages:
+                console.print(f"[cyan]Org charter:[/cyan] {msg}")
+        except Exception as exc:  # noqa: BLE001 — org-charter is best-effort, never blocks interview
+            console.print(f"[yellow]Org charter pre-fill skipped:[/yellow] {exc}")
+
         # Resolve actor for Decision Moment events (non-fatal fallback)
         actor = _resolve_actor()
 
@@ -1192,6 +1287,35 @@ def interview(  # noqa: C901
         raise typer.Exit(code=1) from e
 
 
+def _build_doctrine_service_with_org_layer(repo_root: Path) -> Any:
+    """Return a ``DoctrineService`` rooted at shipped doctrine + project + configured org packs.
+
+    The org-layer roots are resolved from ``.kittify/config.yaml`` via
+    :func:`specify_cli.doctrine.config.resolve_org_roots`.  Packs missing from
+    disk are silently dropped (a fresh checkout that has not yet run
+    ``spec-kitty doctrine fetch`` must not fail charter generation).
+
+    Architectural note: this helper lives in ``specify_cli`` because it
+    depends on the ``specify_cli.doctrine.config`` reader, which the
+    ``charter`` layer is forbidden from importing.
+    """
+    from charter._doctrine_paths import resolve_project_root
+    from charter.catalog import resolve_doctrine_root
+    from doctrine.service import DoctrineService
+
+    from specify_cli.doctrine.config import resolve_org_roots
+
+    doctrine_root = resolve_doctrine_root()
+    project_root = resolve_project_root(repo_root) if repo_root is not None else None
+    org_roots = [p for p in resolve_org_roots(repo_root) if p.exists()]
+
+    return DoctrineService(
+        shipped_root=doctrine_root,
+        project_root=project_root,
+        org_roots=org_roots,
+    )
+
+
 def _is_inside_git_worktree(repo_root: Path) -> bool:
     """Return True iff ``repo_root`` is inside a git working tree.
 
@@ -1353,6 +1477,7 @@ def generate(
             interview=interview_data,
             template_set=template_set,
             repo_root=repo_root,
+            doctrine_service=_build_doctrine_service_with_org_layer(repo_root),
         )
         bundle_result = write_compiled_charter(charter_dir, compiled, force=force)
         if interview_source == "defaults":
@@ -1443,13 +1568,42 @@ def context(
     json_output: bool = typer.Option(False, "--json", help="Output JSON"),
 ) -> None:
     """Render charter context for a specific workflow action."""
-    from charter.context import BOOTSTRAP_ACTIONS, build_charter_context
+    from charter.context import (
+        BOOTSTRAP_ACTIONS,
+        build_charter_context,
+        build_charter_context_json,
+    )
+
+    from specify_cli.doctrine.config import resolve_org_roots
+    from specify_cli.doctrine.org_charter_loader import load_org_charter_json_block
 
     try:
         repo_root = find_repo_root()
-        result = build_charter_context(repo_root, action=action, mark_loaded=mark_loaded)
+        # WP07 T034: resolve the configured org doctrine snapshot in the
+        # specify_cli layer and pass it as data into the charter layer.
+        # ``charter`` must not import ``specify_cli`` (ADR 2026-03-27-1).
+        org_roots = [p for p in resolve_org_roots(repo_root) if p.exists()]
+        org_root = org_roots[0] if org_roots else None
+        result = build_charter_context(
+            repo_root,
+            action=action,
+            mark_loaded=mark_loaded,
+            org_root=org_root,
+        )
 
         if json_output:
+            # WP07 T033 + T046: structured JSON payload includes per-artifact
+            # provenance and the additive ``org_charter`` block.  The block
+            # is loaded in the specify_cli layer (where ``org_charter_loader``
+            # may import the optional WP09 module) and passed as data into the
+            # charter layer.
+            org_charter_block = load_org_charter_json_block(org_roots)
+            structured = build_charter_context_json(
+                repo_root,
+                action=action,
+                org_root=org_root,
+                org_charter_block=org_charter_block,
+            )
             print(
                 json.dumps(
                     {
@@ -1461,6 +1615,13 @@ def context(
                         "references_count": result.references_count,
                         "context": result.text,
                         "text": result.text,
+                        "directives": structured.get("directives", []),
+                        "tactics": structured.get("tactics", []),
+                        "styleguides": structured.get("styleguides", []),
+                        "toolguides": structured.get("toolguides", []),
+                        "org_charter": structured.get(
+                            "org_charter", {"present": False, "packs": []}
+                        ),
                     },
                     indent=2,
                 )
@@ -1549,6 +1710,10 @@ def status(  # noqa: C901
                 repo_root,
                 include_provenance=provenance,
             ),
+            # WP07 FR-002: org-layer state (shipped + org packs + project).
+            # Always present in JSON output; packs list is empty when no org
+            # packs are configured (NFR-001 — no spurious empty section).
+            "org_layer": _collect_org_layer_status(repo_root),
         }
 
         if json_output:
@@ -1713,6 +1878,42 @@ def status(  # noqa: C901
                 )
 
             console.print(table)
+
+        # WP07 FR-002 — Organisation Layer section (human-readable output only).
+        # JSON output was already emitted above; this block renders the console view.
+        org_layer = payload["org_layer"]
+        org_packs = org_layer.get("packs", [])
+        console.print("\n[bold]Organisation Layer[/bold]")
+        console.print("  [dim]shipped (built-in)[/dim]: [green]present[/green]")
+        if org_packs:
+            for pack in org_packs:
+                pack_name = pack.get("name", "unknown")
+                source_ref = pack.get("source_ref", "")
+                node_count = pack.get("node_count", 0)
+                edge_count = pack.get("edge_count", 0)
+                fetched = pack.get("fetched", True)
+                if fetched:
+                    console.print(
+                        f"  [green]org:{pack_name}[/green]: "
+                        f"[dim]{source_ref}[/dim] "
+                        f"({node_count} nodes, {edge_count} edges)"
+                    )
+                else:
+                    console.print(
+                        f"  [red]org:{pack_name}[/red]: [red]MISSING[/red] — {source_ref}"
+                    )
+            if org_layer.get("collision_warnings"):
+                for cw in org_layer["collision_warnings"]:
+                    console.print(
+                        f"  [yellow]collision[/yellow]: {cw.get('kind')} "
+                        f"target={cw.get('target_id')} "
+                        f"resolution={cw.get('resolution')}"
+                    )
+        else:
+            console.print("  org: [dim](no packs configured)[/dim]")
+        if org_layer.get("errors"):
+            for err in org_layer["errors"]:
+                console.print(f"  [red]Error:[/red] {err}")
 
     except TaskCliError as e:
         console.print(f"[red]Error:[/red] {e}")
@@ -1981,7 +2182,7 @@ def _run_synthesis_dry_run(
     validation_callback = _build_synthesis_validation_callback(request)
 
     with StagingDir.create(repo_root, request.run_id) as staging_dir:
-        staged_artifacts = stage_and_validate(
+        staged_artifacts: list[str] = stage_and_validate(
             request,
             staging_dir,
             results,
@@ -2901,10 +3102,98 @@ def charter_lint(
         min_severity=severity,
     )
 
+    # Slice F WP06 / FR-003: load the three-layer DRG fragment list so
+    # the human-readable surface can attribute findings (or the OK
+    # marker) to each configured layer by name. JSON output is unchanged
+    # — programmatic consumers read provenance from the merged DRG via
+    # ``charter.drg.merge_three_layers`` directly.
+    org_layer_summary: list[str] = []
+    org_fragments: list = []
+    try:
+        from charter.drg import OrgDRGFragment, load_org_drg
+
+        org_fragments = load_org_drg(repo_root)
+        # Type-narrow against the public Pydantic schema so a regression
+        # that returns the wrong shape fails fast at the CLI boundary.
+        assert all(isinstance(f, OrgDRGFragment) for f in org_fragments), (
+            "load_org_drg must return OrgDRGFragment instances"
+        )
+        for fragment in org_fragments:
+            org_layer_summary.append(f"org:{fragment.pack_name}")
+    except Exception as exc:  # noqa: BLE001 - degrade gracefully on bad pack
+        # A pack-loading failure (e.g. ``OrgPackMissingError``) should
+        # surface as a lint-time hard error, not silently swallow.
+        # FR-004 binding: hard-fail with a named error so the operator
+        # can fix the missing pack before re-running lint.
+        from charter.drg import OrgDRGConflictError, OrgPackMissingError
+
+        if isinstance(exc, (OrgPackMissingError, OrgDRGConflictError)):
+            console.print(f"[red]Charter Lint:[/red] org-layer load failed: {exc}")
+            raise typer.Exit(code=1) from exc
+        # Unknown failure shape — log and continue without org layer.
+        console.print(
+            f"[yellow]warning:[/yellow] org-layer skipped (load error): {exc}"
+        )
+
+    # When org packs are configured, exercise ``merge_three_layers``
+    # against an empty shipped graph so any pack-level conflict (layer
+    # rule violation, shipped-invariant override) surfaces here at lint
+    # time rather than at first-use of the merged DRG. The merge result
+    # itself is not consumed by the human-readable banner — the engine's
+    # existing graph load remains authoritative for findings — but the
+    # call enforces FR-005 hard-fails as a lint gate.
+    if org_fragments:
+        import datetime as _dt
+
+        from charter.drg import (
+            DRGGraph,
+            OrgDRGConflict,
+            OrgDRGConflictError,
+            merge_three_layers,
+        )
+
+        empty_shipped = DRGGraph(
+            schema_version="1.0",
+            generated_at=_dt.datetime.now(_dt.UTC).isoformat(),
+            generated_by="charter-lint",
+            nodes=[],
+            edges=[],
+        )
+        try:
+            merge_three_layers(
+                shipped=empty_shipped, org_fragments=org_fragments, project=None
+            )
+        except OrgDRGConflictError as exc:
+            # ``exc.conflicts`` is a list of ``OrgDRGConflict`` records;
+            # re-format with the conflict kind named so operators see
+            # which org pack(s) misbehaved.
+            conflicts: list[OrgDRGConflict] = list(exc.conflicts)
+            console.print(
+                f"[red]Charter Lint:[/red] {len(conflicts)} org-layer "
+                f"conflict(s) detected"
+            )
+            for c in conflicts:
+                console.print(
+                    f"  - kind={c.kind} target_id={c.target_id} "
+                    f"layers={c.conflicting_layers}"
+                )
+            raise typer.Exit(code=1) from exc
+
     if output_json:
         sys.stdout.write(report.to_json())
         sys.stdout.write("\n")
         return
+
+    # Per-layer banner (FR-003): always include built-in; org packs when
+    # configured; project layer is implicit (the engine's merged graph
+    # already covers it). Names match the ``source`` markers threaded by
+    # ``merge_three_layers``. Square brackets are escaped (``\\[``) so
+    # Rich does not interpret them as console markup tags.
+    console.print("[bold]Charter Lint - layers:[/bold]")
+    console.print(r"  [dim]\[built-in][/dim]")
+    for org_marker in org_layer_summary:
+        console.print(rf"  [dim]\[{org_marker}][/dim]")
+    console.print(r"  [dim]\[project][/dim]")
 
     # Human-readable output
     if not report.findings:

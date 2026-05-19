@@ -9,6 +9,8 @@ from __future__ import annotations
 import pytest
 
 
+pytestmark = [pytest.mark.unit]
+
 @pytest.mark.windows_ci
 def test_tracker_credentials_path_under_localappdata() -> None:
     """On Windows, _tracker_root() resolves under %LOCALAPPDATA%\\spec-kitty\\tracker."""

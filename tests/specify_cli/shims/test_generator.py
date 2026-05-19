@@ -22,6 +22,8 @@ from specify_cli.shims.registry import CLI_DRIVEN_COMMANDS, CONSUMER_SKILLS, PRO
 # _canonical_command
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.unit]
+
 class TestCanonicalCommand:
     def test_implement(self) -> None:
         cmd = _canonical_command("implement", "claude", "$ARGUMENTS")

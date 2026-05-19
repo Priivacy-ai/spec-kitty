@@ -1,8 +1,4 @@
-"""
-
-pytestmark = pytest.mark.git_repo
-
-Tests for GitVCS implementation.
+"""Tests for GitVCS implementation.
 
 Tests all VCSProtocol methods for the git backend.
 """
@@ -23,6 +19,8 @@ from specify_cli.core.vcs.types import (
     SyncStatus,
 )
 
+
+pytestmark = [pytest.mark.git_repo]
 
 
 # =============================================================================

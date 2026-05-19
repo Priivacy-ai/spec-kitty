@@ -12,6 +12,10 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.migrate_cmd import app as migrate_app
 
 
+import pytest
+
+pytestmark = [pytest.mark.integration]
+
 def _write_meta(feature_dir: Path, *, mission_id: str | None = None) -> None:
     feature_dir.mkdir(parents=True, exist_ok=True)
     payload = {

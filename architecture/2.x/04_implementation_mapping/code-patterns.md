@@ -26,7 +26,7 @@ once it has at least two real consumers.
 
 ## 1. Rule-Based Pipeline (Chain of Responsibility)
 
-**Doctrine:** [`chain-of-responsibility-rule-pipeline`](../../../src/doctrine/tactics/shipped/code-patterns/chain-of-responsibility-rule-pipeline.tactic.yaml)
+**Doctrine:** [`chain-of-responsibility-rule-pipeline`](../../../src/doctrine/tactics/built-in/code-patterns/chain-of-responsibility-rule-pipeline.tactic.yaml)
 
 A pipeline of small, pure functions, each one (1) checking applicability,
 (2) optionally executing its narrow piece of work, and (3) returning a result
@@ -131,7 +131,7 @@ both a shipped default and project-level override. Use the existing
 ## 4. Preflight Validation with Structured Result Object
 
 **Doctrine:** Reflected in
-[`refactoring-extract-first-order-concept`](../../../src/doctrine/tactics/shipped/refactoring/refactoring-extract-first-order-concept.tactic.yaml)
+[`refactoring-extract-first-order-concept`](../../../src/doctrine/tactics/built-in/refactoring/refactoring-extract-first-order-concept.tactic.yaml)
 applied to the "validate-then-act" boundary.
 
 Before any non-trivial mutating operation (merge, migration, upgrade), a

@@ -16,6 +16,8 @@ from specify_cli.invocation.writer import EVENTS_DIR, InvocationWriter
 # Helpers
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.unit]
+
 _INVOCATION_ID = "01ABCDEFGHJKMNPQRSTVWXYZ12"
 _INVOCATION_ID_2 = "01BCDEFGHJKMNPQRSTVWXYZ123"
 

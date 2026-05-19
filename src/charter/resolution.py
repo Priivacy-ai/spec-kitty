@@ -9,12 +9,26 @@ linked worktrees. Callers MUST resolve the returned path against ``cwd``.
 This module is the sole canonical-root authority for the unified charter
 bundle chokepoint (FR-003, FR-006, NFR-003). It raises loudly per C-001 — no
 fallback handlers, no silent degradation.
+
+In addition, this module is the charter-layer facade for resolution-tier
+types from ``doctrine.resolver`` (``ResolutionResult``, ``ResolutionTier``).
+The runtime → charter → doctrine boundary (ADR 2026-03-27-1, tightened by
+mission ``charter-mediated-doctrine-selection-01KRTZCA``) requires runtime
+modules under ``src/specify_cli/`` to reach doctrine artifacts only through
+charter facades. ``ResolutionResult`` and ``ResolutionTier`` are re-exported
+here as **pure re-exports** (object identity preserved). No behaviour, no
+wrappers, no type aliases.
 """
 from __future__ import annotations
 
 import subprocess
 from functools import lru_cache
 from pathlib import Path
+
+# Charter facade re-exports for doctrine.resolver — see mission
+# charter-mediated-doctrine-selection-01KRTZCA, contract
+# contracts/charter-facade-modules.md.
+from doctrine.resolver import ResolutionResult, ResolutionTier
 
 
 class NotInsideRepositoryError(RuntimeError):
@@ -131,5 +145,7 @@ resolve_canonical_repo_root.cache_clear = _resolve_cached.cache_clear  # type: i
 __all__ = [
     "GitCommonDirUnavailableError",
     "NotInsideRepositoryError",
+    "ResolutionResult",
+    "ResolutionTier",
     "resolve_canonical_repo_root",
 ]

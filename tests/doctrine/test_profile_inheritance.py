@@ -14,7 +14,7 @@ pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 @pytest.fixture
 def inheritance_repo(tmp_path: Path) -> AgentProfileRepository:
-    shipped = tmp_path / "shipped"
+    shipped = tmp_path / "built-in"
     shipped.mkdir()
 
     (shipped / "implementer.agent.yaml").write_text(
@@ -95,7 +95,7 @@ def test_resolve_profile_supports_multi_level_chain(inheritance_repo: AgentProfi
 
 
 def test_resolve_profile_missing_parent_raises_key_error(tmp_path: Path) -> None:
-    shipped = tmp_path / "shipped"
+    shipped = tmp_path / "built-in"
     shipped.mkdir()
     (shipped / "orphan.agent.yaml").write_text(
         """profile-id: orphan
@@ -117,7 +117,7 @@ specialization:
 
 
 def test_resolve_profile_cycle_raises(tmp_path: Path) -> None:
-    shipped = tmp_path / "shipped"
+    shipped = tmp_path / "built-in"
     shipped.mkdir()
     (shipped / "a.agent.yaml").write_text(
         """profile-id: a
@@ -165,7 +165,7 @@ def test_matching_uses_resolved_profile_context(inheritance_repo: AgentProfileRe
 @pytest.fixture
 def us6_repo(tmp_path: Path) -> AgentProfileRepository:
     """Fixture for US-6 inheritance and excluding scenarios."""
-    shipped = tmp_path / "shipped"
+    shipped = tmp_path / "built-in"
     shipped.mkdir()
 
     (shipped / "base.agent.yaml").write_text(
@@ -319,7 +319,7 @@ def test_multi_level_chain(us6_repo: AgentProfileRepository) -> None:
 
 def test_missing_parent_raises_key_error(tmp_path: Path) -> None:
     """US-6 S6: profile with specializes-from=nonexistent → KeyError with clear message."""
-    shipped = tmp_path / "shipped"
+    shipped = tmp_path / "built-in"
     shipped.mkdir()
     (shipped / "orphan.agent.yaml").write_text(
         """profile-id: orphan
@@ -345,7 +345,7 @@ specialization:
 # ---------------------------------------------------------------------------
 
 _SHIPPED_PROFILE_DIR = (
-    Path(__file__).parent.parent.parent / "src" / "doctrine" / "agent_profiles" / "shipped"
+    Path(__file__).parent.parent.parent / "src" / "doctrine" / "agent_profiles" / "built-in"
 )
 
 
@@ -409,7 +409,7 @@ def test_tactic_inheritance_passes_with_no_specialization_pairs(
     tmp_path: Path,
 ) -> None:
     """NFR-004: test must pass even when no profiles have specializes-from."""
-    shipped = tmp_path / "shipped"
+    shipped = tmp_path / "built-in"
     shipped.mkdir()
 
     (shipped / "base.agent.yaml").write_text(
@@ -458,7 +458,7 @@ def test_tactic_refs_are_union_merged_not_overridden(tmp_path: Path) -> None:
     explicit tactic list replaces the base's, and the resolved profile
     would be missing the base's tactic. This test catches that regression.
     """
-    shipped = tmp_path / "shipped"
+    shipped = tmp_path / "built-in"
     shipped.mkdir()
 
     (shipped / "base-impl.agent.yaml").write_text(

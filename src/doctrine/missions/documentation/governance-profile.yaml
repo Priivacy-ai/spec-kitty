@@ -1,0 +1,23 @@
+# Mission-type governance profile — documentation
+#
+# Pinned by `tests/missions/test_mission_type_profile_resolution.py`.
+# Schema: `charter.mission_type_profiles.MissionTypeProfile`
+# Contract: kitty-specs/charter-mediated-doctrine-selection-01KRTZCA/contracts/mission-type-profile.md
+#
+# template_set is intentionally null: documentation missions resolve their own
+# templates from `src/doctrine/missions/documentation/templates/`. Leaving
+# this empty guarantees `software-dev-default` does not leak in
+# (FR-011 / journey 4). Default selections are empty — follow-up missions
+# may curate documentation-specific tactics, styleguides, and procedures.
+mission_type: documentation
+template_set: null
+selected_directives: []
+selected_tactics: []
+selected_paradigms: []
+selected_styleguides: []
+selected_toolguides: []
+selected_procedures: []
+selected_agent_profiles: []
+selected_mission_step_contracts: []
+available_tools: []
+activations: []

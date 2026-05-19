@@ -30,6 +30,8 @@ from doctrine.drg.query import (
 )
 from doctrine.drg.validator import assert_valid
 
+pytestmark = [pytest.mark.doctrine]
+
 SHIPPED_GRAPH = Path(__file__).resolve().parents[3] / "src" / "doctrine" / "graph.yaml"
 
 

@@ -17,6 +17,8 @@ from specify_cli.cli.commands.agent.workflow import implement
 from specify_cli.git.sparse_checkout import _reset_session_warning_state
 
 
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+
 def _run(cmd: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         cmd,

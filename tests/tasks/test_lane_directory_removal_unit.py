@@ -20,6 +20,8 @@ from specify_cli.upgrade.migrations.m_0_9_1_complete_lane_migration import (
 )
 
 
+pytestmark = [pytest.mark.unit]
+
 @pytest.fixture
 def migration_0_9_0():
     """Create migration 0.9.0 instance."""

@@ -39,7 +39,7 @@ diff is merged.
 
 Spec Kitty missions have no workflow mechanism to force a deliberate
 per-category classification before bulk edits begin. This is the failure shape
-#393 was created to close.
+issue #393 was created to close.
 
 ## Decision Drivers
 
@@ -265,7 +265,7 @@ false positive in that path is worse than a bypassable false positive.
 ## Implementation Notes
 
 - Directive: `src/doctrine/directives/shipped/035-bulk-edit-occurrence-classification.directive.yaml`
-- Tactic: `src/doctrine/tactics/shipped/occurrence-classification-workflow.tactic.yaml`
+- Tactic: `src/doctrine/tactics/built-in/occurrence-classification-workflow.tactic.yaml`
 - Skill: `src/doctrine/skills/spec-kitty-bulk-edit-classification/SKILL.md`
 - Mission metadata field: `change_mode` (optional, valid values: `"bulk_edit"`)
   in `MissionMetaOptional` TypedDict.

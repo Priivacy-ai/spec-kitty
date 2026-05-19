@@ -17,9 +17,9 @@ import pytest
 
 from specify_cli.cli.commands.agent.workflow import _render_charter_context
 from charter.context import build_charter_context
-from specify_cli.next.prompt_builder import _governance_context
+from specify_cli.next.prompt_builder import _build_wp_prompt, _governance_context
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 @pytest.fixture(autouse=True)
@@ -217,3 +217,146 @@ class TestPromptBuilderGovernanceContext:
         _make_charter_bundle(tmp_path)
         text = _governance_context(tmp_path, action=None)
         assert "Governance:" in text
+
+    def test_governance_context_forwards_profile_kwarg_to_charter_context(
+        self, tmp_path: Path
+    ) -> None:
+        """WP06 (FR-004): ``_governance_context(..., profile=<id>)`` MUST
+        forward the profile to ``build_charter_context``.
+        """
+        _make_charter_bundle(tmp_path)
+        with patch(
+            "specify_cli.next.prompt_builder.build_charter_context"
+        ) as build:
+            build.return_value.mode = "bootstrap"
+            build.return_value.text = "stub"
+            _governance_context(tmp_path, action="implement", profile="python-pedro")
+        assert build.called, "build_charter_context must be invoked"
+        call_kwargs = build.call_args.kwargs
+        assert call_kwargs.get("profile") == "python-pedro", (
+            "profile kwarg MUST be forwarded so the resolver renders profile-cited "
+            "directives and tactics"
+        )
+
+    def test_governance_context_default_profile_is_none(self, tmp_path: Path) -> None:
+        """Calling without profile preserves the prior NFR-005 byte-identical
+        behaviour (profile=None -> resolver behaves as before WP03).
+        """
+        _make_charter_bundle(tmp_path)
+        with patch(
+            "specify_cli.next.prompt_builder.build_charter_context"
+        ) as build:
+            build.return_value.mode = "bootstrap"
+            build.return_value.text = "stub"
+            _governance_context(tmp_path, action="implement")
+        assert build.call_args.kwargs.get("profile") is None
+
+
+# ---------------------------------------------------------------------------
+# WP06: _build_wp_prompt forwards WP frontmatter agent_profile to
+# _governance_context.
+# ---------------------------------------------------------------------------
+
+
+_WP_WITH_PROFILE = """\
+---
+work_package_id: WP01
+title: Test WP
+dependencies: []
+requirement_refs: [FR-001]
+subtasks: [T001]
+agent: claude
+agent_profile: python-pedro
+role: implementer
+authoritative_surface: src/foo.py
+owned_files: [src/foo.py]
+execution_mode: code_change
+history: []
+---
+# WP01 — Test
+"""
+
+
+_WP_WITHOUT_PROFILE = """\
+---
+work_package_id: WP01
+title: Test WP
+dependencies: []
+requirement_refs: [FR-001]
+subtasks: [T001]
+agent: claude
+role: implementer
+authoritative_surface: src/foo.py
+owned_files: [src/foo.py]
+execution_mode: code_change
+history: []
+---
+# WP01 — Test
+"""
+
+
+class TestBuildWpPromptForwardsAgentProfile:
+    """WP06 (FR-004 wiring side): ``_build_wp_prompt`` MUST read the WP
+    frontmatter ``agent_profile`` field and forward it to
+    ``_governance_context(profile=<id>)``.
+    """
+
+    def _make_feature(self, tmp_path: Path, mission_slug: str, wp_body: str) -> Path:
+        feature_dir = tmp_path / "kitty-specs" / mission_slug
+        (feature_dir / "tasks").mkdir(parents=True)
+        (feature_dir / "tasks" / "WP01.md").write_text(wp_body, encoding="utf-8")
+        from tests.lane_test_utils import write_single_lane_manifest
+
+        write_single_lane_manifest(feature_dir, wp_ids=("WP01",))
+        return feature_dir
+
+    def test_implement_forwards_agent_profile_from_wp_frontmatter(
+        self, tmp_path: Path
+    ) -> None:
+        mission_slug = "999-test"
+        feature_dir = self._make_feature(tmp_path, mission_slug, _WP_WITH_PROFILE)
+        _make_charter_bundle(tmp_path)
+        with patch(
+            "specify_cli.next.prompt_builder._governance_context"
+        ) as gov:
+            gov.return_value = "stub"
+            _build_wp_prompt(
+                action="implement",
+                feature_dir=feature_dir,
+                mission_slug=mission_slug,
+                wp_id="WP01",
+                agent="claude",
+                repo_root=tmp_path,
+                mission_type="software-dev",
+            )
+        assert gov.called
+        assert gov.call_args.kwargs.get("profile") == "python-pedro", (
+            "_build_wp_prompt MUST extract the WP frontmatter ``agent_profile`` "
+            "and forward it via profile= to _governance_context. Without this, "
+            "the profile-cited directives the resolver renders never reach the "
+            "agent's prompt."
+        )
+
+    def test_implement_passes_none_when_frontmatter_lacks_agent_profile(
+        self, tmp_path: Path
+    ) -> None:
+        mission_slug = "999-noprofile"
+        feature_dir = self._make_feature(tmp_path, mission_slug, _WP_WITHOUT_PROFILE)
+        _make_charter_bundle(tmp_path)
+        with patch(
+            "specify_cli.next.prompt_builder._governance_context"
+        ) as gov:
+            gov.return_value = "stub"
+            _build_wp_prompt(
+                action="implement",
+                feature_dir=feature_dir,
+                mission_slug=mission_slug,
+                wp_id="WP01",
+                agent="claude",
+                repo_root=tmp_path,
+                mission_type="software-dev",
+            )
+        assert gov.call_args.kwargs.get("profile") is None, (
+            "When WP frontmatter has no agent_profile field, the profile kwarg "
+            "MUST be None (NFR-005 byte-identical fallback)."
+        )

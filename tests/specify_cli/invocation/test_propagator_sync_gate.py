@@ -23,6 +23,8 @@ from specify_cli.sync.routing import CheckoutSyncRouting
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 def _make_started_record() -> InvocationRecord:
     return InvocationRecord(
         event="started",

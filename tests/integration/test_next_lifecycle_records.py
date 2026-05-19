@@ -38,6 +38,8 @@ from specify_cli.invocation.lifecycle import (
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.integration]
+
 @dataclass
 class _FakeDecision:
     """Minimal stand-in for ``Decision`` used by the lifecycle wiring."""

@@ -13,6 +13,8 @@ import pytest
 from specify_cli.ownership.workspace_strategy import create_planning_workspace
 
 
+pytestmark = [pytest.mark.unit]
+
 class TestCreatePlanningWorkspace:
     def test_returns_repo_root(self, tmp_path: Path) -> None:
         """Returns repo_root directly."""

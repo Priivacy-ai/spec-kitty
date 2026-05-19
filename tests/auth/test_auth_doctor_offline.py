@@ -28,6 +28,8 @@ from specify_cli.cli.commands._auth_doctor import doctor_impl
 from specify_cli.sync.daemon import SyncDaemonStatus
 
 
+pytestmark = [pytest.mark.integration]
+
 def _make_session() -> StoredSession:
     now = datetime.now(UTC)
     return StoredSession(

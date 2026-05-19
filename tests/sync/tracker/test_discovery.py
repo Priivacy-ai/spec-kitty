@@ -17,6 +17,8 @@ from specify_cli.tracker.discovery import (
 # ── Fixtures ────────────────────────────────────────────────────────────
 
 
+pytestmark = [pytest.mark.unit]
+
 @pytest.fixture()
 def full_resource_data() -> dict:
     return {

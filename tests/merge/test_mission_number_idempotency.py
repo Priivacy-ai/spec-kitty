@@ -33,7 +33,7 @@ import pytest
 
 from specify_cli.merge.state import MergeState, load_state, save_state
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 # ---------------------------------------------------------------------------

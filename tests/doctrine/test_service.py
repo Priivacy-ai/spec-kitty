@@ -28,38 +28,38 @@ def test_service_loads_all_repositories_from_shipped_defaults(tmp_path: Path) ->
     shipped_root = tmp_path / "shipped-root"
 
     _write_yaml(
-        shipped_root / "directives" / "shipped" / "001-test.directive.yaml",
+        shipped_root / "directives" / "built-in" / "001-test.directive.yaml",
         {"schema_version": "1.0", "id": "DIRECTIVE_001", "title": "Test",
          "intent": "Test intent.", "enforcement": "required"},
     )
     _write_yaml(
-        shipped_root / "tactics" / "shipped" / "test-tactic.tactic.yaml",
+        shipped_root / "tactics" / "built-in" / "test-tactic.tactic.yaml",
         {"schema_version": "1.0", "id": "test-tactic", "name": "Test Tactic",
          "steps": [{"title": "Step 1"}]},
     )
     _write_yaml(
-        shipped_root / "styleguides" / "shipped" / "test-style.styleguide.yaml",
+        shipped_root / "styleguides" / "built-in" / "test-style.styleguide.yaml",
         {"schema_version": "1.0", "id": "test-style", "title": "Test Style",
          "scope": "code", "principles": ["Be clear"]},
     )
     _write_yaml(
-        shipped_root / "toolguides" / "shipped" / "test-tool.toolguide.yaml",
+        shipped_root / "toolguides" / "built-in" / "test-tool.toolguide.yaml",
         {"schema_version": "1.0", "id": "test-tool", "tool": "bash",
          "title": "Test Tool", "guide_path": "src/doctrine/test-tool.md", "summary": "Test."},
     )
     _write_yaml(
-        shipped_root / "paradigms" / "shipped" / "test-paradigm.paradigm.yaml",
+        shipped_root / "paradigms" / "built-in" / "test-paradigm.paradigm.yaml",
         {"schema_version": "1.0", "id": "test-paradigm", "name": "Test Paradigm",
          "summary": "Test."},
     )
     _write_yaml(
-        shipped_root / "procedures" / "shipped" / "test-proc.procedure.yaml",
+        shipped_root / "procedures" / "built-in" / "test-proc.procedure.yaml",
         {"schema_version": "1.0", "id": "test-proc", "name": "Test Procedure",
          "purpose": "Test.", "entry_condition": "Always.",
          "exit_condition": "Done.", "steps": [{"title": "Step 1"}]},
     )
     _write_yaml(
-        shipped_root / "agent_profiles" / "shipped" / "test.agent.yaml",
+        shipped_root / "agent_profiles" / "built-in" / "test.agent.yaml",
         {"profile-id": "test-agent", "name": "Test Agent", "roles": ["implementer"],
          "personality-traits": ["diligent"], "directive-references": [],
          "purpose": "Test agent for unit tests.",
@@ -117,7 +117,7 @@ def test_service_honors_custom_shipped_and_project_roots(tmp_path: Path) -> None
     }
 
     _write_yaml(
-        shipped_root / "directives" / "shipped" / "001-custom.directive.yaml",
+        shipped_root / "directives" / "built-in" / "001-custom.directive.yaml",
         shipped_directive,
     )
     _write_yaml(
@@ -146,7 +146,7 @@ def test_service_filters_language_scoped_artifacts_when_active_languages_do_not_
     shipped_root = tmp_path / "shipped-root"
 
     _write_yaml(
-        shipped_root / "styleguides" / "shipped" / "python.styleguide.yaml",
+        shipped_root / "styleguides" / "built-in" / "python.styleguide.yaml",
         {
             "schema_version": "1.0",
             "id": "python-style",
@@ -157,7 +157,7 @@ def test_service_filters_language_scoped_artifacts_when_active_languages_do_not_
         },
     )
     _write_yaml(
-        shipped_root / "styleguides" / "shipped" / "generic.styleguide.yaml",
+        shipped_root / "styleguides" / "built-in" / "generic.styleguide.yaml",
         {
             "schema_version": "1.0",
             "id": "generic-style",
@@ -167,30 +167,30 @@ def test_service_filters_language_scoped_artifacts_when_active_languages_do_not_
         },
     )
     _write_yaml(
-        shipped_root / "toolguides" / "shipped" / "python.toolguide.yaml",
+        shipped_root / "toolguides" / "built-in" / "python.toolguide.yaml",
         {
             "schema_version": "1.0",
             "id": "python-tool",
             "tool": "pytest",
             "title": "Python Tool",
-            "guide_path": "src/doctrine/toolguides/shipped/python.md",
+            "guide_path": "src/doctrine/toolguides/built-in/python.md",
             "summary": "Python tool",
             "applies_to_languages": ["python"],
         },
     )
     _write_yaml(
-        shipped_root / "toolguides" / "shipped" / "generic.toolguide.yaml",
+        shipped_root / "toolguides" / "built-in" / "generic.toolguide.yaml",
         {
             "schema_version": "1.0",
             "id": "generic-tool",
             "tool": "git",
             "title": "Generic Tool",
-            "guide_path": "src/doctrine/toolguides/shipped/generic.md",
+            "guide_path": "src/doctrine/toolguides/built-in/generic.md",
             "summary": "Generic tool",
         },
     )
     _write_yaml(
-        shipped_root / "agent_profiles" / "shipped" / "python.agent.yaml",
+        shipped_root / "agent_profiles" / "built-in" / "python.agent.yaml",
         {
             "profile-id": "python-pedro",
             "name": "Python Pedro",
@@ -206,7 +206,7 @@ def test_service_filters_language_scoped_artifacts_when_active_languages_do_not_
         },
     )
     _write_yaml(
-        shipped_root / "agent_profiles" / "shipped" / "generic.agent.yaml",
+        shipped_root / "agent_profiles" / "built-in" / "generic.agent.yaml",
         {
             "profile-id": "generic-implementer",
             "name": "Generic Implementer",
@@ -237,7 +237,7 @@ def test_service_keeps_language_scoped_artifacts_when_active_languages_are_unset
     shipped_root = tmp_path / "shipped-root"
 
     _write_yaml(
-        shipped_root / "styleguides" / "shipped" / "python.styleguide.yaml",
+        shipped_root / "styleguides" / "built-in" / "python.styleguide.yaml",
         {
             "schema_version": "1.0",
             "id": "python-style",
@@ -248,19 +248,19 @@ def test_service_keeps_language_scoped_artifacts_when_active_languages_are_unset
         },
     )
     _write_yaml(
-        shipped_root / "toolguides" / "shipped" / "python.toolguide.yaml",
+        shipped_root / "toolguides" / "built-in" / "python.toolguide.yaml",
         {
             "schema_version": "1.0",
             "id": "python-tool",
             "tool": "pytest",
             "title": "Python Tool",
-            "guide_path": "src/doctrine/toolguides/shipped/python.md",
+            "guide_path": "src/doctrine/toolguides/built-in/python.md",
             "summary": "Python tool",
             "applies_to_languages": ["python"],
         },
     )
     _write_yaml(
-        shipped_root / "agent_profiles" / "shipped" / "python.agent.yaml",
+        shipped_root / "agent_profiles" / "built-in" / "python.agent.yaml",
         {
             "profile-id": "python-pedro",
             "name": "Python Pedro",

@@ -8,6 +8,10 @@ from specify_cli.policy.audit import (
 )
 
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 class TestPolicyAuditEvent:
     def test_create_event(self):
         event = create_audit_event(

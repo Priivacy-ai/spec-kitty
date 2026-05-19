@@ -25,7 +25,7 @@ import pytest
 from specify_cli.core.mission_creation import create_mission_core
 from specify_cli.missions._substantive import is_committed, is_substantive
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 _CORE_MODULE = "specify_cli.core.mission_creation"

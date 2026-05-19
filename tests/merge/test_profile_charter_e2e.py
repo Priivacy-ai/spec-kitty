@@ -24,7 +24,7 @@ from charter.interview import (
 from charter.resolver import resolve_governance_for_profile
 
 runner = CliRunner()
-pytestmark = [pytest.mark.fast, pytest.mark.non_sandbox]  # non_sandbox: trampoline bug: subprocess
+pytestmark = [pytest.mark.non_sandbox, pytest.mark.integration, pytest.mark.git_repo]
 def _write_yaml(path: Path, data: dict[object, object]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     yaml = YAML()
@@ -38,7 +38,7 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
     output_dir = tmp_path / "repo" / ".kittify" / "charter"
 
     _write_yaml(
-        shipped_root / "directives" / "shipped" / "001-review.directive.yaml",
+        shipped_root / "directives" / "built-in" / "001-review.directive.yaml",
         {
             "schema_version": "1.0",
             "id": "REVIEW_FIRST",
@@ -51,7 +51,7 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
         },
     )
     _write_yaml(
-        shipped_root / "tactics" / "shipped" / "review-tactic.tactic.yaml",
+        shipped_root / "tactics" / "built-in" / "review-tactic.tactic.yaml",
         {
             "schema_version": "1.0",
             "id": "review-tactic",
@@ -75,7 +75,7 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
         },
     )
     _write_yaml(
-        shipped_root / "styleguides" / "shipped" / "review-style.styleguide.yaml",
+        shipped_root / "styleguides" / "built-in" / "review-style.styleguide.yaml",
         {
             "schema_version": "1.0",
             "id": "review-style",
@@ -85,7 +85,7 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
         },
     )
     _write_yaml(
-        shipped_root / "directives" / "shipped" / "002-interview.directive.yaml",
+        shipped_root / "directives" / "built-in" / "002-interview.directive.yaml",
         {
             "schema_version": "1.0",
             "id": "INTERVIEW_ONLY",
@@ -96,7 +96,7 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
         },
     )
     _write_yaml(
-        shipped_root / "agent_profiles" / "shipped" / "reviewer.agent.yaml",
+        shipped_root / "agent_profiles" / "built-in" / "reviewer.agent.yaml",
         {
             "profile-id": "reviewer",
             "name": "Reviewer",

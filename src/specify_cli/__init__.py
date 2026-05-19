@@ -201,6 +201,16 @@ register_commands(app)
 def main() -> None:
     import sys
 
+    # FR-130 / FR-131: Install the CLI logging bootstrap early — before the
+    # Typer app runs — so that warnings.warn(...) calls (including
+    # CharterCatalogMissWarning from charter._catalog_miss) are routed through
+    # the logging subsystem and appear in the operator's terminal.
+    # This is additive-only: if a handler is already attached, no second
+    # handler is installed (no double-printing).
+    from specify_cli.cli.logging_bootstrap import install_cli_logging_bootstrap
+
+    install_cli_logging_bootstrap()
+
     # Ensure UTF-8 encoding on Windows to handle Unicode characters in git output
     # Fixes: https://github.com/Priivacy-ai/spec-kitty/issues/66
     if sys.platform == "win32":

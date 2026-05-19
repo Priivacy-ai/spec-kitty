@@ -28,6 +28,8 @@ from specify_cli.runtime.bootstrap import (
 # Helpers
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.unit]
+
 FAKE_VERSION = "99.0.0-test"
 
 

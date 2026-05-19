@@ -26,6 +26,8 @@ from charter.synthesizer.interview_mapping import (
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 class TestInterviewMappingsTable:
     """Validate the static mapping table is well-formed."""
 

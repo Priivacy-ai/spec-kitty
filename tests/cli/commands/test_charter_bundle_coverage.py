@@ -1,6 +1,6 @@
 """Coverage tests for ``specify_cli.cli.commands.charter_bundle`` (A/B/C split).
 
-Tactic: function-over-form-testing (src/doctrine/tactics/shipped/testing/).
+Tactic: function-over-form-testing (src/doctrine/tactics/built-in/testing/).
 Structure: AAA (Arrange / Act / Assert).
 """
 
@@ -24,7 +24,7 @@ from specify_cli.cli.commands.charter_bundle import (
     app,
 )
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 runner = CliRunner()
 

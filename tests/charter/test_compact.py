@@ -89,7 +89,7 @@ def test_render_compact_view_reports_governance_resolution_errors(
     def _raise_resolution_error(_repo_root: Path):
         raise GovernanceResolutionError(["missing directive"])
 
-    monkeypatch.setattr("charter.compact.resolve_governance", _raise_resolution_error)
+    monkeypatch.setattr("charter.compact.resolve_project_governance", _raise_resolution_error)
 
     compact = render_compact_view(tmp_path)
 

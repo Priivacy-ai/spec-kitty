@@ -24,6 +24,11 @@ from collections.abc import Sequence
 
 from .errors import PathGuardViolation
 
+__all__ = [
+    "PathGuard",
+]
+
+
 
 # Default allowed path prefixes (relative to repo_root, resolved to absolute).
 _DEFAULT_ALLOWLIST: tuple[str, ...] = (

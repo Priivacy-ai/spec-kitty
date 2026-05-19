@@ -48,6 +48,8 @@ from tests.integration.retrospective.conftest import (
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.integration]
+
 def _setup_repo(
     tmp_path: Path,
     slug: str,

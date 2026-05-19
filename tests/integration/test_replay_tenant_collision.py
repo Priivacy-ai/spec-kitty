@@ -26,6 +26,8 @@ from specify_cli.sync.replay import (
 )
 
 
+pytestmark = [pytest.mark.integration]
+
 TARGET = ReplayTarget(tenant_id="tenant-A", project_id="proj-1")
 
 

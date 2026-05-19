@@ -1,0 +1,14 @@
+{
+  "created_at": "2026-05-16T11:25:38.374977+00:00",
+  "friendly_name": "WP-prompt governance payload completeness",
+  "mission_id": "01KRR8HS66A7NFV64HHPXG2JJE",
+  "mission_number": 119,
+  "mission_slug": "wp-prompt-governance-payload-01KRR8HS",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances WP-prompt governance payload completeness on feat/org-doctrine-layer so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "WP-prompt governance payload completeness",
+  "slug": "wp-prompt-governance-payload-01KRR8HS",
+  "target_branch": "feat/org-doctrine-layer",
+  "vcs": "git",
+  "vcs_locked_at": "2026-05-16T11:50:28.369611+00:00"
+}

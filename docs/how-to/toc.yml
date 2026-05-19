@@ -48,6 +48,8 @@
   href: setup-governance.md
 - name: Synthesize and Maintain Doctrine
   href: synthesize-doctrine.md
+- name: Create an Org Doctrine Pack
+  href: create-an-org-doctrine-pack.md
 - name: Run a Governed Mission
   href: run-governed-mission.md
 - name: Use the Retrospective Learning Loop

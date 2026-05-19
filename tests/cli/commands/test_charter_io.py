@@ -4,7 +4,7 @@ These tests call internal helper functions directly using ``tmp_path`` real
 I/O.  No patch of ``Path.read_text``, ``Path.write_text``, or
 ``os.path.exists`` — all file-system interactions use real files.
 
-Tactic: function-over-form-testing (src/doctrine/tactics/shipped/testing/).
+Tactic: function-over-form-testing (src/doctrine/tactics/built-in/testing/).
 Structure: AAA (Arrange / Act / Assert).
 """
 
@@ -31,6 +31,8 @@ from specify_cli.task_utils import TaskCliError
 # ---------------------------------------------------------------------------
 # _resolve_charter_path
 # ---------------------------------------------------------------------------
+
+pytestmark = [pytest.mark.integration]
 
 def test_resolve_charter_path_returns_path_when_file_exists(tmp_path: Path) -> None:
     """Arrange: charter.md exists at canonical location;

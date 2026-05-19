@@ -14,7 +14,7 @@ from specify_cli.cli.commands.agent.mission import (
     _get_current_branch,
 )
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 ACCEPTANCE_MODE_CHECKLIST = "checklist"
 

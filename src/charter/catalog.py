@@ -13,6 +13,13 @@ from ruamel.yaml.error import YAMLError
 from doctrine.shared.scoping import applies_to_languages_match, normalize_languages
 from kernel.paths import get_package_asset_root as _get_package_asset_root
 
+__all__ = [
+    "DoctrineCatalog",
+    "load_doctrine_catalog",
+    "resolve_doctrine_root",
+]
+
+
 _log = logging.getLogger(__name__)
 
 
@@ -266,7 +273,7 @@ def _resolve_scan_roots(
         shipped/ or _proposed/ subdirectory exists, or the directory itself is
         a valid flat layout.
     """
-    shipped_dir = directory / "shipped"
+    shipped_dir = directory / "built-in"
     proposed_dir = directory / "_proposed"
     if shipped_dir.is_dir() or proposed_dir.is_dir():
         scan_roots = [shipped_dir] if shipped_dir.is_dir() else []

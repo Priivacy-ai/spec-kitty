@@ -23,6 +23,8 @@ from specify_cli.cli.commands.init import register_init_command
 # Fixtures
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.integration]
+
 @pytest.fixture()
 def init_app() -> Typer:
     """Return a minimal Typer app with the init command registered."""

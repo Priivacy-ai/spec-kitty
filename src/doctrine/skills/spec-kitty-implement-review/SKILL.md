@@ -195,9 +195,29 @@ The prompt contains all context, acceptance criteria, and review feedback
    The most common review failure is dead code — tests pass but the feature
    is never invoked from the live command path.
 7. Run the project's declared validation command before handoff
-8. Commit: git add -A && git commit -m "feat(WP##): <description>"
-9. Mark subtasks done: spec-kitty agent tasks mark-status T001 T002 ... --status done
-10. Move to for_review: spec-kitty agent tasks move-task WP## --to for_review --note "Ready for review"
+8. **Diff-scoped lint sweep (MANDATORY before move-task to for_review)**:
+   Catches lint regressions before they reach the cycle-1 reviewer — unused-import
+   or formatting violations introduced by a WP should be caught here, scoped to the
+   diff only so the implementer does not drown in pre-existing warnings owned by
+   other WPs. Use the project's declared linter (see charter / project README for
+   the configured command and source-file extension).
+   ```bash
+   # Replace `<ext>` with the project's source-file extension (e.g. py, ts, rs, go)
+   # and `<lint-command>` with the project's configured linter invocation.
+   CHANGED_SRC=$(git diff --name-only --diff-filter=AMR HEAD | rg '\.<ext>$' || true)
+   if [ -n "$CHANGED_SRC" ]; then
+     <lint-command> $CHANGED_SRC
+   fi
+   ```
+- The command MUST exit 0. If it does not, fix or run the linter's autofix mode
+     and re-run.
+- Paste the final command + exit code into the handoff note
+     (e.g. `"<lint-command> diff-scoped check: 0 issues, exit 0"`).
+- On cycle-N re-implementation, use the WP's planning base instead of `HEAD`:
+     `git diff --name-only $(git merge-base HEAD main)`.
+9. Commit: git add -A && git commit -m "feat(WP##): <description>"
+10. Mark subtasks done: spec-kitty agent tasks mark-status T001 T002 ... --status done
+11. Move to for_review: spec-kitty agent tasks move-task WP## --to for_review --note "Ready for review"
 """,
     run_in_background=True
 )

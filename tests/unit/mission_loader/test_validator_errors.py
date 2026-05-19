@@ -24,6 +24,8 @@ from specify_cli.mission_loader import (
 from specify_cli.next._internal_runtime.discovery import DiscoveryContext
 
 
+pytestmark = [pytest.mark.unit]
+
 def _isolated_context(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> DiscoveryContext:

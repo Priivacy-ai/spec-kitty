@@ -2,3 +2,5 @@
   href: from-charter-2x.md
 - name: TeamSpace Mission-State Repair
   href: teamspace-mission-state-repair.md
+- name: Migrating Shared Doctrine to the Org Layer
+  href: doctrine-local-overlay-to-org-layer.md

@@ -27,11 +27,14 @@ class StyleguideRepository(BaseDoctrineRepository[Styleguide]):
     def __init__(
         self,
         shipped_dir: Path | None = None,
+        *,
+        org_dirs: list[Path] | None = None,
         project_dir: Path | None = None,
         active_languages: list[str] | tuple[str, ...] | None = None,
     ) -> None:
         super().__init__(
             shipped_dir=shipped_dir or self._default_shipped_dir(),
+            org_dirs=org_dirs,
             project_dir=project_dir,
             active_languages=active_languages,
         )
@@ -42,10 +45,10 @@ class StyleguideRepository(BaseDoctrineRepository[Styleguide]):
         try:
             resource = files("doctrine.styleguides")
             if hasattr(resource, "joinpath"):
-                return Path(str(resource.joinpath("shipped")))
-            return Path(str(resource)) / "shipped"
+                return Path(str(resource.joinpath("built-in")))
+            return Path(str(resource)) / "built-in"
         except (ModuleNotFoundError, TypeError):
-            return Path(__file__).parent / "shipped"
+            return Path(__file__).parent / "built-in"
 
     @property
     def _schema(self) -> type[Styleguide]:

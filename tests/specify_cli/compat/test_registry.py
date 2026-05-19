@@ -416,7 +416,7 @@ class TestValidateRegistryBranches:
 #
 # Each class below targets the survivor set from
 # docs/development/mutation-testing-findings.md, applying the patterns
-# documented in src/doctrine/styleguides/shipped/mutation-aware-test-design.
+# documented in src/doctrine/styleguides/built-in/mutation-aware-test-design.
 # Patterns cited in the docstring; specific mutant IDs cited per test.
 # ---------------------------------------------------------------------------
 

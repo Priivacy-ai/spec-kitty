@@ -16,6 +16,8 @@ from charter.evidence.code_reader import CodeReadingCollector, CodeReadingError
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 def _make_file(path, content: str = "") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content)

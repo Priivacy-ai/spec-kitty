@@ -16,6 +16,29 @@ from tests.tasks.conftest import create_mission_fast
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]  # non_sandbox: run_cli subprocess fixture
 
+
+@pytest.fixture(autouse=True)
+def _disable_saas_sync_for_planning_workflow_tests(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Opt out of the autouse ``SPEC_KITTY_ENABLE_SAAS_SYNC=1`` fixture.
+
+    The autouse fixture in ``tests/conftest.py`` flips the SAAS_SYNC
+    flag on globally so legacy sync/auth tests still exercise the
+    wired path. This module's tests exercise the planning workflow
+    (``mission create``, ``setup-plan``) end-to-end via subprocess
+    invocations; they do not exercise the sync emission path.
+    Upstream commit ``cc5e1ca9`` adds an FR-011 auth-presence gate at
+    the head of ``setup-plan`` that exits 2
+    (``SAAS_SYNC_UNAUTHENTICATED``) before the contract under test
+    runs, because the test environment has no auth scope.
+
+    Unset the flag (also for the subprocess via ``isolated_env``'s
+    ``os.environ.copy()``) so these tests exercise the
+    SAAS-sync-disabled planning path.
+    """
+    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+
 SUBSTANTIVE_PLAN_TEMPLATE = """# Implementation Plan
 
 ## Technical Context

@@ -24,6 +24,8 @@ from specify_cli.missions._legacy_aliases import (
 )
 
 
+pytestmark = [pytest.mark.integration]
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 COMMANDS_DIR = REPO_ROOT / "src" / "specify_cli" / "cli" / "commands"
 

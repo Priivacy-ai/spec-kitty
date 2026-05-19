@@ -21,6 +21,8 @@ from specify_cli.auth.loopback.state import PKCEState
 from specify_cli.auth.loopback.state_manager import StateManager
 
 
+pytestmark = [pytest.mark.integration]
+
 def test_pkce_state_create_populates_all_fields() -> None:
     verifier, challenge = generate_pkce_pair()
     state = PKCEState.create(verifier, challenge)

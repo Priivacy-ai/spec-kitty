@@ -26,6 +26,13 @@ from typing import Any
 from .errors import DuplicateTargetError, ProjectDRGValidationError
 from .request import SynthesisTarget
 
+__all__ = [
+    "build_targets",
+    "detect_duplicates",
+    "order_targets",
+]
+
+
 
 # ---------------------------------------------------------------------------
 # Constants

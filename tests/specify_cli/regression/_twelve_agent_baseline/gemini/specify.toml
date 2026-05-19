@@ -2,23 +2,23 @@ description = "Create a mission specification"
 
 prompt = """
 <!-- spec-kitty-command-version: 3.1.2a3 -->
-# /spec-kitty.specify - Create Mission<!-- glossary:glossary:mission --> Specification
+# /spec-kitty.specify - Create Mission Specification
 
 **Version**: 0.11.0+
 
-## 📍 WORKING DIRECTORY: Stay in the repository<!-- glossary:glossary:repository --> root checkout<!-- glossary:glossary:repository-root-checkout -->
+## 📍 WORKING DIRECTORY: Stay in the repository root checkout
 
 **IMPORTANT**: Specify works in the repository root checkout. NO worktrees are created.
 
 ```bash
 # Run from the repository root checkout:
-cd /path/to/project<!-- glossary:glossary:project -->/root  # Your repository root checkout
+cd /path/to/project/root  # Your repository root checkout
 
 # All planning artifacts are created in the project root and committed:
-# - kitty-specs/<mission_slug<!-- glossary:glossary:mission_slug -->>/spec.md → Created in project root
+# - kitty-specs/<mission_slug>/spec.md → Created in project root
 #   (use the mission_slug returned by `mission create`; the numeric NNN- prefix
 #    is display-only and is assigned at merge time)
-# - Committed to target branch<!-- glossary:glossary:target-branch --> (from create JSON: target_branch/base_branch)
+# - Committed to target branch (from create JSON: target_branch/base_branch)
 # - NO worktrees created
 ```
 
@@ -32,7 +32,7 @@ Before `mission create`, there is no mission handle yet.
 - Do **not** pass `--mission` to `spec-kitty agent mission create`.
 - After `create` succeeds, use `--mission <handle>` for commands that operate on
   the created mission.
-- `<handle>` can be the mission's `mission_id<!-- glossary:glossary:mission_id -->` (ULID), `mid8<!-- glossary:glossary:mid8 -->` (first 8 chars of
+- `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of
   the ULID), or `mission_slug`.
 - The resolver disambiguates by `mission_id` and returns a structured
   `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
@@ -44,6 +44,24 @@ Before `mission create`, there is no mission handle yet.
 ```
 
 You **MUST** consider the user input before proceeding (if not empty).
+
+## Primary Invariant: What Are We Building?
+
+This workflow answers "What are we building?" before it creates artifacts. The
+raw invocation text is only a starting point for discovery, not the final truth.
+
+Before `mission create`, before writing `spec.md`, and before committing
+anything, you **MUST** have one of these:
+
+- A completed discovery interview with an acknowledged Intent Summary.
+- A brief-intake summary and extracted requirement set explicitly confirmed by
+  the user.
+- An explicit user instruction to minimize or skip discovery; even then, record
+  the minimal confirmed scenario and assumptions in the Intent Summary.
+
+For non-trivial work, the confirmed Intent Summary must cover the primary actor,
+trigger, desired outcome, one rule or invariant, and any canonical domain term
+or boundary that materially affects the work.
 
 ## Branch Strategy Confirmation (MANDATORY)
 
@@ -61,13 +79,37 @@ spec-kitty agent mission branch-context --json --target-branch <intended-branch>
 
 Parse the JSON and, in your next reply, explicitly tell the user:
 
-- Current branch<!-- glossary:glossary:current-branch --> at workflow start: `current_branch`
-- Default planning/base branch if you create the mission right now: `planning_base_branch<!-- glossary:glossary:planning_base_branch -->`
-- Final merge target for completed changes: `merge_target_branch<!-- glossary:glossary:merge_target_branch -->`
+- Current branch at workflow start: `current_branch`
+- Default planning/base branch if you create the mission right now: `planning_base_branch`
+- Final merge target for completed changes: `merge_target_branch`
 - Whether `branch_matches_target` is true or false
 - If that is not the intended landing branch, stop and ask which branch should receive this feature before you run `create`
 
 Never talk generically about `main` or "the default branch". Name the actual branch values from the helper JSON. Do not shell out to git for this prompt.
+
+## Commit Boundary (issue #846)
+
+`spec-kitty agent mission create` no longer auto-commits `spec.md`. The empty
+template is written to disk untracked at create time; **you** are responsible
+for committing it after writing substantive content.
+
+"Substantive content" for `spec.md` means **at least one Functional
+Requirements row** (`FR-###`) whose description is real (not a template
+placeholder like `[NEEDS CLARIFICATION …]`, `[e.g., …]`, or a bare user-story
+scaffold). Section presence is the only signal — adding 300 bytes of arbitrary
+prose without an FR row does **not** count as substantive.
+
+Workflow:
+
+1. Run `spec-kitty agent mission create …`. Note that `spec.md` is left
+   untracked.
+2. Populate `spec.md` with real Functional / Non-Functional / Constraint rows.
+3. Commit `spec.md` yourself: `git add <feature_dir>/spec.md && git commit -m "Add spec for <slug>"`.
+4. Only then will `spec-kitty agent mission setup-plan` accept the spec phase
+   as complete; otherwise it returns `phase_complete=false` with a
+   `blocked_reason` mentioning "committed AND substantive".
+
+Reference: `kitty-specs/charter-e2e-827-followups-01KQAJA0/contracts/specify-plan-commit-boundary.md`.
 
 ## DO NOT
 
@@ -77,7 +119,7 @@ Never talk generically about `main` or "the default branch". Name the actual bra
 - Do not write non-functional requirements without measurable thresholds.
 - Do not proceed to planning with unresolved requirement quality checklist failures.
 
-## Charter<!-- glossary:glossary:charter --> Context Bootstrap (required)
+## Charter Context Bootstrap (required)
 
 Before discovery questions, load charter context for this action:
 
@@ -126,7 +168,7 @@ Check in priority order:
    | Partial (goal statement only) | 4–5 questions |
    | Empty / missing | Proceed to normal Discovery Gate below |
 
-5. **Show the extracted requirement set.** Present the full FR/NFR/C table to the user: "I extracted X functional requirements and Y non-functional requirements. Does this look right?" Wait for one round of confirmation. The user may correct or supplement before you write the spec.
+5. **Show the extracted requirement set.** Present the full FR/NFR/C table to the user: "I extracted X functional requirements and Y non-functional requirements. Does this look right?" Wait for one round of confirmation. This confirmation is the discovery gate for brief-intake mode; do not write or commit `spec.md` before it happens unless the user explicitly asks to minimize or skip discovery. The user may correct or supplement before you write the spec.
 
 6. **Write spec.md normally.** Apply the same quality checklist and readiness gate as standard specify. Brief-intake mode does NOT lower the quality bar — spec.md must still pass all validation items.
 
@@ -148,7 +190,7 @@ Check in priority order:
 
 No change to current behaviour. Continue to the Discovery Gate section below.
 
-## Decision Moment<!-- glossary:glossary:decision-moment --> Protocol
+## Decision Moment Protocol
 
 Before asking **any** interview question during this command, you MUST:
 
@@ -180,7 +222,7 @@ Before asking **any** interview question during this command, you MUST:
    [NEEDS CLARIFICATION: <brief description of what needs answering>] <!-- decision_id: <decision_id> -->
    ```
 
-5. Before declaring the interview phase<!-- glossary:glossary:phase --> complete, run:
+5. Before declaring the interview phase complete, run:
    `spec-kitty agent decision verify --mission <slug>`
    Address any findings (`DEFERRED_WITHOUT_MARKER`, `MARKER_WITHOUT_DECISION`,
    `STALE_MARKER`) before proceeding.
@@ -197,9 +239,9 @@ Before asking **any** interview question during this command, you MUST:
 
 ## Discovery Gate (mandatory)
 
-Before running any scripts or writing to disk you **must** conduct a structured discovery interview.
+Before running `mission create`, writing `spec.md`, committing, or otherwise creating planning artifacts, you **must** conduct or verify a structured discovery interview.
 
-- **Scope<!-- glossary:glossary:scope --> proportionality (CRITICAL)**: FIRST, gauge the inherent complexity of the request:
+- **Scope proportionality (CRITICAL)**: FIRST, gauge the inherent complexity of the request:
   - **Trivial/Test Features** (hello world, simple pages, proof-of-concept): Ask 1-2 questions maximum, then proceed. Examples: "a simple hello world page", "tic-tac-toe game", "basic contact form"
   - **Simple Features** (small UI additions, minor enhancements): Ask 2-3 questions covering purpose and basic constraints
   - **Complex Features** (new subsystems, integrations): Ask 3-5 questions covering goals, users, constraints, risks
@@ -247,7 +289,7 @@ Typical shapes: "rename X to Y", "the Blue feature is now the Red feature",
 "change the terminology from X to Y", "move package A to package B", "replace
 ACME with GlobalCorp everywhere in docs and UI".
 
-**If yes or uncertain**: load the `spec-kitty-bulk-edit-classification` skill<!-- glossary:glossary:skill -->
+**If yes or uncertain**: load the `spec-kitty-bulk-edit-classification` skill
 and follow it. You will set `change_mode: bulk_edit` in `meta.json` after
 `mission create` and produce an `occurrence_map.yaml` during plan. The user
 does not need to know these field names — the skill teaches you the workflow.
@@ -255,7 +297,7 @@ does not need to know these field names — the skill teaches you the workflow.
 **If clearly no** (a new feature with new identifiers, a bug fix that doesn't
 rename anything, a refactor inside one file): proceed normally.
 
-When in doubt, treat as bulk edit<!-- glossary:glossary:bulk-edit -->. The false-positive cost is drafting one map
+When in doubt, treat as bulk edit. The false-positive cost is drafting one map
 the user approves in a pass; the false-negative cost is the silent cross-file
 breakage that DIRECTIVE_035 exists to prevent.
 
@@ -281,7 +323,7 @@ After completing discovery and confirming the Intent Summary, determine the appr
 
 2. **Check for explicit mission requests** in the user's description:
    - If user mentions "research project", "investigation", "analysis" → use research
-   - If user mentions "build<!-- glossary:glossary:build -->", "implement", "create feature" → use software-dev
+   - If user mentions "build", "implement", "create feature" → use software-dev
 
 3. **Confirm with user** (unless explicit):
    > "Based on your description, this sounds like a **[software-dev/research]** project.
@@ -303,7 +345,7 @@ Store the final mission selection in your notes and include it in the spec outpu
 2. Automatically commits to target branch
 3. No worktree created during specify
 
-**Worktrees created later**: After `/spec-kitty.tasks` finishes, run: `spec-kitty next --agent <agent> --mission <handle>`. The `--mission` handle can be the mission's `mission_id` (ULID), `mid8` (first 8 chars), or `mission_slug`; the resolver disambiguates by `mission_id` and returns a structured error on ambiguity (no silent fallback). Your agent will call `spec-kitty agent action implement WP<!-- glossary:glossary:wp -->## --agent <name>` for each WP. Each lane<!-- glossary:glossary:lane --> gets exactly one worktree, for example `.worktrees/<human-slug>-<mid8>-lane-a/` (e.g. `.worktrees/my-feature-01J6XW9K-lane-a/`).
+**Worktrees created later**: After `/spec-kitty.tasks` finishes, run: `spec-kitty next --agent <agent> --mission <handle>`. The `--mission` handle can be the mission's `mission_id` (ULID), `mid8` (first 8 chars), or `mission_slug`; the resolver disambiguates by `mission_id` and returns a structured error on ambiguity (no silent fallback). Your agent will call `spec-kitty agent action implement WP## --agent <name>` for each WP. Each lane gets exactly one worktree, for example `.worktrees/<human-slug>-<mid8>-lane-a/` (e.g. `.worktrees/my-feature-01J6XW9K-lane-a/`).
 
 ## Location
 
@@ -317,7 +359,7 @@ Store the final mission selection in your notes and include it in the spec outpu
 
 - Summarize the agreed intent into a short, descriptive title (aim for ≤7 words; avoid filler like "feature" or "thing").
 - Read that title back during the Intent Summary and revise it if the user requests changes.
-- Use the confirmed title to derive the kebab-case feature slug<!-- glossary:glossary:feature-slug --> for the create command.
+- Use the confirmed title to derive the kebab-case feature slug for the create command.
 
 The text the user typed after `/spec-kitty.specify` in the triggering message **is** the initial feature description. Capture it verbatim, but treat it only as a starting point for discovery—not the final truth. Your job is to interrogate the request, surface gaps, and co-create a complete specification with the user.
 
@@ -347,10 +389,10 @@ Given that feature description, do this:
    - `result`: "success" or error message
    - `mission_id`: Canonical ULID machine identity (e.g., `01J6XW9KQT7M0YB3N4R5CQZ2EX`). Immutable.
    - `mission_slug`: Human-readable mission slug (e.g., `checkout-upsell-flow`)
-   - `mission_number<!-- glossary:glossary:mission_number -->`: **Display-only** numeric prefix, `null` pre-merge. Assigned at merge time. **Never** use this as a selector or identity.
+   - `mission_number`: **Display-only** numeric prefix, `null` pre-merge. Assigned at merge time. **Never** use this as a selector or identity.
    - `mission_type`: Mission type key (for example `software-dev`)
    - `slug`: Unnumbered mission slug (e.g., `checkout-upsell-flow`)
-   - `friendly_name<!-- glossary:glossary:friendly_name -->`: Confirmed mission title
+   - `friendly_name`: Confirmed mission title
    - `purpose_tldr`: One-line stakeholder-facing mission summary
    - `purpose_context`: Short stakeholder-facing context paragraph
    - `feature_dir`: Absolute path to the feature directory inside the repository root checkout

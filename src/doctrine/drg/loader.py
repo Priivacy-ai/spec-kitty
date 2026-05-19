@@ -14,9 +14,34 @@ from ruamel.yaml.error import YAMLError
 
 from doctrine.drg.models import DRGGraph, DRGNode
 
+__all__ = [
+    "DRGLoadError",
+    "has_graph_files",
+    "load_graph",
+    "load_graph_or_dir",
+    "merge_layers",
+]
+
 
 class DRGLoadError(Exception):
     """Raised when a graph YAML file cannot be loaded or validated."""
+
+
+def has_graph_files(path: Path) -> bool:
+    """Return True iff *path* contains a graph file the DRG loader recognises.
+
+    The DRG loader treats either ``graph.yaml`` (single-file layout) or
+    one or more ``*.graph.yaml`` fragments as a valid graph source. A
+    directory that exists but contains only sub-trees (eg ``overlays/``)
+    is NOT a valid graph source and ``load_graph_or_dir`` would raise
+    ``DRGLoadError`` on it. Callers that treat a project overlay as
+    optional should guard with this helper.
+    """
+    if not path.is_dir():
+        return False
+    if (path / "graph.yaml").is_file():
+        return True
+    return any(path.glob("*.graph.yaml"))
 
 
 def load_graph(path: Path) -> DRGGraph:
@@ -43,6 +68,40 @@ def load_graph(path: Path) -> DRGGraph:
         raise DRGLoadError(
             f"Validation error in {path}: {exc}"
         ) from exc
+
+
+def load_graph_or_dir(path: Path) -> DRGGraph:
+    """Load a ``DRGGraph`` from a file or directory.
+
+    If *path* is a file, delegates to :func:`load_graph`.
+    If *path* is a directory, loads ``graph.yaml`` when present for backward
+    compatibility; otherwise, loads ``*.graph.yaml`` fragments alphabetically
+    and merges them left-to-right with :func:`merge_layers`.
+
+    Raises :class:`DRGLoadError` if the path does not exist, is not a file or
+    directory, or if no graph file can be found in a directory.
+    """
+    if path.is_file():
+        return load_graph(path)
+
+    if not path.exists():
+        raise DRGLoadError(f"Path not found: {path}")
+
+    if not path.is_dir():
+        raise DRGLoadError(f"Path is not a file or directory: {path}")
+
+    single_graph = path / "graph.yaml"
+    if single_graph.is_file():
+        return load_graph(single_graph)
+
+    fragment_paths = sorted(path.glob("*.graph.yaml"))
+    if not fragment_paths:
+        raise DRGLoadError(f"No DRG graph files found in directory: {path}")
+
+    graph = load_graph(fragment_paths[0])
+    for fragment_path in fragment_paths[1:]:
+        graph = merge_layers(graph, load_graph(fragment_path))
+    return graph
 
 
 def merge_layers(

@@ -38,6 +38,10 @@ from specify_cli.decisions.models import DecisionStatus, OriginFlow
 # Constants / helpers
 # ---------------------------------------------------------------------------
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 MISSION_SLUG = "test-charter-e2e-mission"
 MISSION_ID = "01KCHARTERE2EMISSION0001"
 

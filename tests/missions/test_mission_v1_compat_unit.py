@@ -18,6 +18,8 @@ from specify_cli.mission_v1 import MissionProtocol, PhaseMission
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 def _make_mission_yaml(phases: list[dict[str, str]], **overrides) -> dict:
     """Build a minimal v0 mission.yaml dict."""
     config = {

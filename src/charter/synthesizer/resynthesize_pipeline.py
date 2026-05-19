@@ -36,7 +36,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from doctrine.drg.loader import load_graph
+from doctrine.drg.loader import load_graph_or_dir
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode
 
 from .artifact_naming import artifact_filename, doctrine_kind_subdir
@@ -337,7 +337,7 @@ def run(
         ``.kittify/charter/provenance/``.
     merged_drg:
         The merged shipped+project DRG graph dict.  If None, loaded from
-        ``.kittify/doctrine/graph.yaml`` and the shipped DRG.
+        ``.kittify/doctrine`` and the shipped DRG.
     interview_sections:
         Known interview section labels.  If None, inferred from
         ``request.interview_snapshot`` keys.
@@ -447,11 +447,11 @@ def run(
             spec_kitty_version=_SPEC_KITTY_VERSION,
             shipped_drg=shipped_drg,
         )
-        existing_graph_path = _repo_root / _KITTIFY_DIRNAME / "doctrine" / "graph.yaml"
+        existing_graph_dir = _repo_root / _KITTIFY_DIRNAME / "doctrine"
         project_graph = updated_overlay
-        if existing_graph_path.exists():
+        if existing_graph_dir.exists():
             project_graph = _merge_project_overlay(
-                existing_overlay=load_graph(existing_graph_path),
+                existing_overlay=load_graph_or_dir(existing_graph_dir),
                 updated_overlay=updated_overlay,
             )
         _persist_project_graph(project_graph, staged_dir.root, staged_dir.guard)
@@ -542,19 +542,15 @@ def _load_merged_drg(
 
     Falls back to ``request.drg_snapshot`` if no project graph file exists.
     """
-    from ruamel.yaml import YAML  # noqa: PLC0415
-
-    project_graph_path = repo_root / _KITTIFY_DIRNAME / "doctrine" / "graph.yaml"
-    if not project_graph_path.exists():
+    project_graph_dir = repo_root / _KITTIFY_DIRNAME / "doctrine"
+    if not project_graph_dir.exists():
         return request.drg_snapshot
 
-    yaml = YAML()
     try:
-        project_graph = yaml.load(project_graph_path.read_text(encoding="utf-8"))
-        if not isinstance(project_graph, dict):
-            return request.drg_snapshot
+        project_graph_model = load_graph_or_dir(project_graph_dir)
     except Exception:  # noqa: BLE001
         return request.drg_snapshot
+    project_graph = project_graph_model.model_dump(mode="json")
 
     # Merge: combine nodes from both graphs (project overlay + shipped snapshot)
     shipped_nodes = list(request.drg_snapshot.get("nodes", []))

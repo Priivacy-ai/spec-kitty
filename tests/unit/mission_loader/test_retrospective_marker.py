@@ -13,6 +13,10 @@ from specify_cli.next._internal_runtime.schema import (
 )
 
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 def _meta() -> MissionMeta:
     return MissionMeta(key="demo", name="Demo", version="1.0.0")
 

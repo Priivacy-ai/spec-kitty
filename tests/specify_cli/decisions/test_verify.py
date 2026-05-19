@@ -26,6 +26,10 @@ from specify_cli.decisions.verify import (
 # Shared test data
 # ---------------------------------------------------------------------------
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 ULID_A = "01AAAAAAAAAAAAAAAAAAAAAAAA"
 ULID_B = "01BBBBBBBBBBBBBBBBBBBBBBBB"
 ULID_C = "01CCCCCCCCCCCCCCCCCCCCCCCC"

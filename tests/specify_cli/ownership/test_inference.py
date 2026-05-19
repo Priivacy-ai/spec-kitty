@@ -20,6 +20,8 @@ from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 class TestInferExecutionMode:
     def test_code_change_default_no_signals(self) -> None:
         """When content has no discernible signals, default to code_change."""

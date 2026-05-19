@@ -276,3 +276,61 @@ The `--feature` → `--mission` rename has been a persistent source of regressio
 - Every PR that adds a command example in templates or docstrings MUST use `--mission`.
 - Code reviewers MUST grep for `--feature` in new/changed lines and reject any non-alias usage.
 - The upstream contract at `src/specify_cli/core/upstream_contract.json` lists `--feature` as a **forbidden CLI flag** for new code. This is authoritative.
+
+---
+
+## Charter Resolution Hints
+
+These declarations are read by `spec-kitty charter sync` (per FR-007 / FR-008 of mission
+`wp-prompt-governance-payload-01KRR8HS`). They drive the action-scoped governance
+resolver so that `spec-kitty charter context --action <name>` does not need to fall
+back to runtime defaults. Keep this block up to date as the project adopts new
+template sets, tools, or authority directories.
+
+```yaml
+template_set: software-dev-default
+available_tools: [git, spec-kitty, pytest, mypy, ruff]
+authority_paths:
+  - glossary/contexts/        # canonical terminology
+  - architecture/2.x/adr/    # 2.x-era architectural decisions (historical)
+  - architecture/adrs/        # active ADR directory (de-facto convention)
+```
+
+---
+
+## Burn-down Policy (binding per HiC §5a.2 / C-004)
+
+(a) Every mutable architectural allowlist is governed by a baseline in
+`tests/architectural/_baselines.yaml`. Growth above baseline **FAILS CI**;
+shrinkage WARNS (informational, non-fatal).
+
+(b) `test_no_dead_modules._CATEGORY_7_GRANDFATHERED` (Cat-7) shrinks by ≥2
+entries per major release; **target 0 by 4.0**.
+
+(c) Pure-shim files (`test_compat_shims._ADAPTER_FILES`) **target 0 by 4.0**.
+
+---
+
+## `__all__` Declaration Convention (binding per C-007)
+
+Every module under `src/charter/` and `src/kernel/` MUST declare `__all__`.
+The symbol-level dead-code gate (`tests/architectural/test_no_dead_symbols.py`)
+walks `__all__` and asserts every name has at least one caller in `src/`.
+
+Future expansion to other subpackages is a per-mission scope decision.
+
+---
+
+## ATDD-First Discipline (binding per C-011)
+
+Every implementation work package follows the red-green-refactor cycle.
+The WP cannot start coding until at least one failing-first ATDD test
+exists that pins the user-observable behaviour the WP delivers. The ATDD
+test is committed as a separate commit (often the first commit of the lane)
+**BEFORE** any implementation commits.
+
+The reviewer verifies red→green: the test was RED on the WP's
+`planning_base_branch` AND GREEN on the WP's final commit.
+
+This mirrors Mission B's executable-contract pattern (the 7-file ATDD spec
+at `bd95f1f5` was the canonical contract).

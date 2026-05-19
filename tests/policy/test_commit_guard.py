@@ -9,6 +9,10 @@ from specify_cli.policy.commit_guard import (
 from specify_cli.policy.config import CommitGuardConfig
 
 
+import pytest
+
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
+
 class TestBranchDetection:
     def test_lane_branch(self):
         assert is_implementation_branch("kitty/mission-057-feat-lane-a") is True

@@ -10,6 +10,8 @@ import pytest
 from specify_cli.bulk_edit.gate import GateResult, ensure_occurrence_classification_ready
 
 
+pytestmark = [pytest.mark.unit]
+
 def _write_meta(feature_dir: Path, meta: dict) -> None:
     """Helper to write a meta.json file."""
     meta_path = feature_dir / "meta.json"

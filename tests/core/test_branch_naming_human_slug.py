@@ -29,6 +29,8 @@ from specify_cli.lanes.branch_naming import (
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 @pytest.mark.parametrize(
     ("slug", "expected"),
     [

@@ -1,0 +1,91 @@
+{
+  "event_count": 75,
+  "last_event_id": "01KRQGR7X4VGK2PTZ10D82MQA7",
+  "materialized_at": "2026-05-16T04:29:44.228920+00:00",
+  "mission_number": "118",
+  "mission_slug": "layered-doctrine-org-layer-01KRNPEE",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 10,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KRQGQTNA2D20JBYWVTM7XRCD",
+      "last_transition_at": "2026-05-16T04:29:30.666304+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KRQGQW440AWBRBDRZV1XR05J",
+      "last_transition_at": "2026-05-16T04:29:32.164981+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KRQGQXHS3498Y323R2CSQAJP",
+      "last_transition_at": "2026-05-16T04:29:33.625620+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KRQGQZ2C6WEYGBZ761EZQRRV",
+      "last_transition_at": "2026-05-16T04:29:35.180931+00:00"
+    },
+    "WP05": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KRQGR0KB0W7NTBY8G7FPPPHC",
+      "last_transition_at": "2026-05-16T04:29:36.747252+00:00"
+    },
+    "WP06": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KRQGR21F3VJYGN7WAVHBPMBB",
+      "last_transition_at": "2026-05-16T04:29:38.223524+00:00"
+    },
+    "WP07": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KRQGR3H2MXK95EPQH1HDTY1B",
+      "last_transition_at": "2026-05-16T04:29:39.746249+00:00"
+    },
+    "WP08": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KRQGR4ZREXBHHRJE0MS7CKNS",
+      "last_transition_at": "2026-05-16T04:29:41.240803+00:00"
+    },
+    "WP09": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KRQGR6EJXHRYA0QBZ3F1VXGT",
+      "last_transition_at": "2026-05-16T04:29:42.738693+00:00"
+    },
+    "WP10": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KRQGR7X4VGK2PTZ10D82MQA7",
+      "last_transition_at": "2026-05-16T04:29:44.228920+00:00"
+    }
+  }
+}

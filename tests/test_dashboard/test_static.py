@@ -6,7 +6,7 @@ import pytest
 
 from specify_cli.dashboard.templates import get_dashboard_html
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.integration]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DASHBOARD_JS = REPO_ROOT / "src" / "specify_cli" / "dashboard" / "static" / "dashboard" / "dashboard.js"

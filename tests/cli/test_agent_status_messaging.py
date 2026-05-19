@@ -15,6 +15,8 @@ import pytest
 from typer.testing import CliRunner
 
 
+pytestmark = [pytest.mark.integration]
+
 @pytest.mark.windows_ci
 def test_agent_status_no_legacy_literals_on_windows() -> None:
     """``spec-kitty agent status`` output must contain no legacy path literals."""

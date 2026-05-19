@@ -28,6 +28,8 @@ from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 # Helpers
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.unit]
+
 def _make_shipped_graph(
     nodes: list[tuple[str, NodeKind]] | None = None,
     edges: list[tuple[str, str, Relation]] | None = None,

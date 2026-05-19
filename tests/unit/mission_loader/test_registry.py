@@ -30,6 +30,8 @@ from specify_cli.next._internal_runtime.schema import (
 )
 
 
+pytestmark = [pytest.mark.unit]
+
 @pytest.fixture(autouse=True)
 def _reset_registry() -> Iterator[None]:
     """Reset the singleton between tests so state never leaks."""

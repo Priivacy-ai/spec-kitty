@@ -23,6 +23,9 @@ from charter._drg_helpers import load_validated_graph
 from doctrine.drg.query import resolve_context
 
 # The 5 advancing research actions covered by the mission-runtime sidecar.
+
+pytestmark = [pytest.mark.unit]
+
 RESEARCH_ACTIONS: tuple[str, ...] = (
     "scoping",
     "methodology",

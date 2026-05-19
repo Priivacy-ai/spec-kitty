@@ -22,6 +22,10 @@ from specify_cli.decisions.verify import verify
 # Shared helpers
 # ---------------------------------------------------------------------------
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 ULID_A = "01AAAAAAAAAAAAAAAAAAAAAAAA"
 ULID_B = "01BBBBBBBBBBBBBBBBBBBBBBBB"
 ULID_C = "01CCCCCCCCCCCCCCCCCCCCCCCC"

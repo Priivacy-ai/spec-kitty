@@ -17,6 +17,14 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+__all__ = [
+    "CodeSignals",
+    "CorpusEntry",
+    "CorpusSnapshot",
+    "EvidenceBundle",
+]
+
+
 _STACK_ID_RE = re.compile(r"^[a-z][a-z0-9+]*$")
 _SNAPSHOT_ID_RE = re.compile(r"^[a-z][a-z0-9-]+-v\d+\.\d+\.\d+$")
 

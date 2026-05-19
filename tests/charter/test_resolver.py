@@ -11,8 +11,8 @@ from charter.interview import default_interview
 from charter.resolver import (
     GovernanceResolutionError,
     collect_governance_diagnostics,
-    resolve_governance,
     resolve_governance_for_profile,
+    resolve_project_governance,
 )
 
 pytestmark = pytest.mark.fast
@@ -37,12 +37,12 @@ def test_resolve_governance_reads_charter_selections_first(
     when explicitly declared and all values exist in the shipped catalog."""
     # Build a minimal doctrine root so shipped paradigm validation passes.
     doctrine_root = tmp_path / "doctrine_root"
-    (doctrine_root / "paradigms" / "shipped").mkdir(parents=True)
-    (doctrine_root / "paradigms" / "shipped" / "test-first.paradigm.yaml").write_text(
+    (doctrine_root / "paradigms" / "built-in").mkdir(parents=True)
+    (doctrine_root / "paradigms" / "built-in" / "test-first.paradigm.yaml").write_text(
         "id: test-first\n"
     )
-    (doctrine_root / "directives" / "shipped").mkdir(parents=True)
-    (doctrine_root / "agent_profiles" / "shipped").mkdir(parents=True)
+    (doctrine_root / "directives" / "built-in").mkdir(parents=True)
+    (doctrine_root / "agent_profiles" / "built-in").mkdir(parents=True)
     (doctrine_root / "missions" / "software-dev").mkdir(parents=True)
     (doctrine_root / "missions" / "software-dev" / "mission.yaml").write_text(
         "name: software-dev\n"
@@ -66,11 +66,15 @@ directives:
 """,
     )
 
-    result = resolve_governance(repo_root, tool_registry={"git", "python", "pytest"})
+    result = resolve_project_governance(repo_root, tool_registry={"git", "python", "pytest"})
 
     assert result.paradigms == ["test-first"]
     assert result.directives == ["TEST_FIRST"]
-    assert result.tools == ["git"]
+    # Tools resolve as the union of charter declaration and runtime registry
+    # (DRIFT-1 remediation): charter declares [git]; registry baseline is
+    # {git, python, pytest}; resolved set is the sorted union.
+    assert result.tools == ["git", "pytest", "python"]
+    assert result.metadata["tools_source"] == "charter+registry"
     assert result.template_set == "software-dev-default"
     assert result.metadata["template_set_source"] == "charter"
 
@@ -85,7 +89,7 @@ doctrine:
     )
 
     with pytest.raises(GovernanceResolutionError) as exc:
-        resolve_governance(tmp_path)
+        resolve_project_governance(tmp_path)
 
     assert "missing-paradigm" in str(exc.value)
 
@@ -100,12 +104,23 @@ doctrine:
     )
 
     with pytest.raises(GovernanceResolutionError) as exc:
-        resolve_governance(tmp_path)
+        resolve_project_governance(tmp_path)
 
     assert "NOT_A_DIRECTIVE" in str(exc.value)
 
 
-def test_resolve_governance_missing_tool_hard_fails(tmp_path: Path) -> None:
+def test_resolve_governance_charter_declares_tool_outside_registry_is_unioned(tmp_path: Path) -> None:
+    """Charter-declared tools not in the runtime registry are added to the resolved set.
+
+    Per the union semantic (see DRIFT-1 remediation): the runtime registry is
+    a baseline of always-available tools; the charter ``available_tools`` list
+    is an additional declaration. The effective resolved set is the union of
+    the two — declaring ``imaginary-tool`` in the charter adds it to the
+    resolved set instead of raising a GovernanceResolutionError.
+
+    A diagnostic line records which tools came from the charter declaration so
+    operators can see at a glance which tools were added beyond the baseline.
+    """
     _write_charter_files(
         tmp_path,
         governance="""
@@ -114,10 +129,16 @@ doctrine:
 """,
     )
 
-    with pytest.raises(GovernanceResolutionError) as exc:
-        resolve_governance(tmp_path, tool_registry={"git", "python"})
+    result = resolve_project_governance(tmp_path, tool_registry={"git", "python"})
 
-    assert "imaginary-tool" in str(exc.value)
+    assert "imaginary-tool" in result.tools
+    assert "git" in result.tools
+    assert "python" in result.tools
+    assert result.metadata["tools_source"] == "charter+registry"
+    assert any(
+        "imaginary-tool" in diag and "Charter declared additional tool" in diag
+        for diag in result.diagnostics
+    )
 
 
 def test_resolve_governance_missing_template_set_hard_fails(tmp_path: Path) -> None:
@@ -130,7 +151,7 @@ doctrine:
     )
 
     with pytest.raises(GovernanceResolutionError) as exc:
-        resolve_governance(tmp_path)
+        resolve_project_governance(tmp_path)
 
     assert "missing-template-set" in str(exc.value)
 
@@ -144,7 +165,7 @@ doctrine:
 """,
     )
 
-    result = resolve_governance(
+    result = resolve_project_governance(
         tmp_path,
         tool_registry={"git"},
         fallback_template_set="fallback-pack",
@@ -164,7 +185,7 @@ def test_resolver_does_not_read_mission_files(tmp_path: Path) -> None:
     mission_file.parent.mkdir(parents=True)
     mission_file.write_text("::invalid-yaml::\n\tbad")
 
-    result = resolve_governance(tmp_path, tool_registry={"git"})
+    result = resolve_project_governance(tmp_path, tool_registry={"git"})
     assert result.tools == ["git"]
 
 
@@ -195,7 +216,7 @@ directives:
 """,
     )
 
-    result = resolve_governance(
+    result = resolve_project_governance(
         tmp_path,
         tool_registry={"python", "git"},
         fallback_template_set="fallback-pack",
@@ -205,7 +226,7 @@ directives:
     assert result.directives == ["LOCAL_ONLY"]
     assert result.template_set == "fallback-pack"
     assert result.metadata == {
-        "tools_source": "registry_fallback",
+        "tools_source": "registry_only",
         "directives_source": "catalog_fallback",
         "template_set_source": "fallback",
     }
@@ -228,7 +249,7 @@ def test_resolve_governance_uses_catalog_directives_when_no_local_declarations(
         ),
     )
 
-    result = resolve_governance(tmp_path, tool_registry={"git"})
+    result = resolve_project_governance(tmp_path, tool_registry={"git"})
 
     assert result.directives == ["DIRECTIVE_003", "DIRECTIVE_010"]
     assert result.metadata["directives_source"] == "catalog_fallback"
@@ -406,14 +427,14 @@ def test_collect_governance_diagnostics_returns_success_diagnostics(
 def _make_doctrine_root(tmp_path: Path, *, with_paradigm: str | None = None) -> Path:
     """Create a minimal doctrine root for resolver tests."""
     doctrine_root = tmp_path / "doctrine_root"
-    paradigms_shipped = doctrine_root / "paradigms" / "shipped"
+    paradigms_shipped = doctrine_root / "paradigms" / "built-in"
     paradigms_shipped.mkdir(parents=True)
     if with_paradigm:
         (paradigms_shipped / f"{with_paradigm}.paradigm.yaml").write_text(
             f"id: {with_paradigm}\n"
         )
-    (doctrine_root / "directives" / "shipped").mkdir(parents=True)
-    (doctrine_root / "agent_profiles" / "shipped").mkdir(parents=True)
+    (doctrine_root / "directives" / "built-in").mkdir(parents=True)
+    (doctrine_root / "agent_profiles" / "built-in").mkdir(parents=True)
     (doctrine_root / "missions" / "software-dev").mkdir(parents=True)
     (doctrine_root / "missions" / "software-dev" / "mission.yaml").write_text("name: software-dev\n")
     return doctrine_root
@@ -431,7 +452,7 @@ def test_paradigm_failure_names_exact_offending_id(tmp_path: Path, monkeypatch) 
     )
 
     with pytest.raises(GovernanceResolutionError) as exc:
-        resolve_governance(repo_root)
+        resolve_project_governance(repo_root)
 
     error_text = str(exc.value)
     assert "my-bad-paradigm" in error_text
@@ -441,8 +462,8 @@ def test_paradigm_failure_skipped_when_shipped_dir_absent(tmp_path: Path, monkey
     """When the paradigms shipped directory does not exist, validation is skipped gracefully."""
     doctrine_root = tmp_path / "doctrine_root"
     # Do NOT create paradigms directory at all
-    (doctrine_root / "directives" / "shipped").mkdir(parents=True)
-    (doctrine_root / "agent_profiles" / "shipped").mkdir(parents=True)
+    (doctrine_root / "directives" / "built-in").mkdir(parents=True)
+    (doctrine_root / "agent_profiles" / "built-in").mkdir(parents=True)
     (doctrine_root / "missions" / "software-dev").mkdir(parents=True)
     (doctrine_root / "missions" / "software-dev" / "mission.yaml").write_text("name: software-dev\n")
     monkeypatch.setattr(catalog_module, "resolve_doctrine_root", lambda: doctrine_root)
@@ -454,7 +475,7 @@ def test_paradigm_failure_skipped_when_shipped_dir_absent(tmp_path: Path, monkey
     )
 
     # Should not raise — domain is absent so skip validation
-    result = resolve_governance(repo_root, tool_registry={"git"})
+    result = resolve_project_governance(repo_root, tool_registry={"git"})
     assert result.paradigms == ["any-value"]
 
 
@@ -470,7 +491,7 @@ def test_directive_failure_names_exact_offending_id(tmp_path: Path, monkeypatch)
     )
 
     with pytest.raises(GovernanceResolutionError) as exc:
-        resolve_governance(repo_root)
+        resolve_project_governance(repo_root)
 
     assert "GHOST_DIRECTIVE" in str(exc.value)
 
@@ -487,13 +508,20 @@ def test_template_set_failure_names_exact_offending_value(tmp_path: Path, monkey
     )
 
     with pytest.raises(GovernanceResolutionError) as exc:
-        resolve_governance(repo_root)
+        resolve_project_governance(repo_root)
 
     assert "ghost-template-set" in str(exc.value)
 
 
-def test_tool_failure_names_exact_offending_value(tmp_path: Path, monkeypatch) -> None:
-    """Error message names the exact tool name that was not in the registry."""
+def test_tool_outside_registry_appears_in_diagnostic(tmp_path: Path, monkeypatch) -> None:
+    """A charter-declared tool not in the runtime registry is unioned into the
+    resolved tools and the operator is informed via diagnostics (DRIFT-1 remediation).
+
+    The pre-remediation behaviour raised GovernanceResolutionError; the union
+    semantic treats the runtime registry as a baseline of always-available
+    tools and the charter declaration as additive. The diagnostic message
+    names the exact tool(s) that came from the charter so operators can audit.
+    """
     doctrine_root = _make_doctrine_root(tmp_path)
     monkeypatch.setattr(catalog_module, "resolve_doctrine_root", lambda: doctrine_root)
 
@@ -503,10 +531,13 @@ def test_tool_failure_names_exact_offending_value(tmp_path: Path, monkeypatch) -
         governance="doctrine:\n  available_tools: [ghost-tool]\n",
     )
 
-    with pytest.raises(GovernanceResolutionError) as exc:
-        resolve_governance(repo_root, tool_registry={"git"})
+    result = resolve_project_governance(repo_root, tool_registry={"git"})
 
-    assert "ghost-tool" in str(exc.value)
+    assert "ghost-tool" in result.tools
+    assert "git" in result.tools
+    diagnostic_text = "\n".join(result.diagnostics)
+    assert "ghost-tool" in diagnostic_text
+    assert "Charter declared additional tool" in diagnostic_text
 
 
 def test_local_support_declaration_bypasses_catalog_validation(tmp_path: Path, monkeypatch) -> None:
@@ -522,7 +553,7 @@ def test_local_support_declaration_bypasses_catalog_validation(tmp_path: Path, m
     )
 
     # Should NOT raise — LOCAL_ONLY is declared in directives.yaml
-    result = resolve_governance(repo_root, tool_registry={"git"})
+    result = resolve_project_governance(repo_root, tool_registry={"git"})
     assert "LOCAL_ONLY" in result.directives
 
 

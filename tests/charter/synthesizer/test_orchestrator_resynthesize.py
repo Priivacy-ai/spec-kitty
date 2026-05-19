@@ -39,6 +39,8 @@ from charter.synthesizer.resynthesize_pipeline import run as resynthesize_run
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 @pytest.fixture
 def fixture_root() -> Path:
     return Path(__file__).parent.parent / "fixtures" / "synthesizer"

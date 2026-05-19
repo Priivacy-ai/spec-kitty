@@ -17,6 +17,11 @@ from doctrine.resolver import (
     resolve_template,
 )
 
+__all__ = [
+    "CharterTemplateResolver",
+]
+
+
 
 class CharterTemplateResolver:
     """5-tier project-aware template resolution.

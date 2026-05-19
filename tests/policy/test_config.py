@@ -9,6 +9,10 @@ from specify_cli.policy.config import (
 )
 
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 class TestDefaults:
     def test_all_defaults(self):
         config = PolicyConfig()

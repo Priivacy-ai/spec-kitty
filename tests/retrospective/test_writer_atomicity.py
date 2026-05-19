@@ -28,6 +28,8 @@ from specify_cli.retrospective.writer import WriterError, write_record
 # Helpers
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.unit]
+
 MISSION_ID = "01KQ6YEGT4YBZ3GZF7X680KQ3V"
 MISSION_ID_2 = "01KQ6YEGT4YBZ3GZF7X680KQ4C"
 

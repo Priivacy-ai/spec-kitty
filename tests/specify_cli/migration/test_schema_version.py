@@ -29,6 +29,9 @@ from specify_cli.migration.schema_version import (
 from specify_cli.migration.gate import check_schema_version
 
 # The current production schema version (equals MIN_SUPPORTED_SCHEMA = MAX_SUPPORTED_SCHEMA = 3).
+
+pytestmark = [pytest.mark.unit]
+
 _TEST_SCHEMA_VERSION: int = MIN_SUPPORTED_SCHEMA
 
 

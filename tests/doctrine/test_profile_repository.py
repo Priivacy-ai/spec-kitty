@@ -37,7 +37,7 @@ specialization:
 @pytest.fixture
 def shipped_profiles_dir(tmp_path: Path) -> Path:
     """Create temporary shipped profiles directory with test fixtures."""
-    shipped = tmp_path / "shipped"
+    shipped = tmp_path / "built-in"
     shipped.mkdir()
 
     # Parent profile: architect
@@ -142,6 +142,50 @@ class TestAgentProfileRepositoryZero:
         repo = AgentProfileRepository(shipped_dir=Path("/nonexistent"), project_dir=None)
         assert repo.list_all() == []
 
+
+class TestAgentProfileCollisionWarning:
+    """Profile shadowing emits a DoctrineLayerCollisionWarning (MEDIUM-1)."""
+
+    def test_project_override_of_shipped_profile_warns(
+        self, shipped_profiles_dir: Path, project_profiles_dir: Path
+    ) -> None:
+        """The shipped+project fixtures define python-pedro twice; this must warn."""
+        from doctrine.base import DoctrineLayerCollisionWarning
+
+        with pytest.warns(DoctrineLayerCollisionWarning) as record:
+            AgentProfileRepository(
+                shipped_dir=shipped_profiles_dir,
+                project_dir=project_profiles_dir,
+            )
+
+        msgs = [str(w.message) for w in record]
+        pedro_msgs = [m for m in msgs if "python-pedro" in m]
+        assert pedro_msgs, msgs
+        assert any("project" in m and "builtin" in m for m in pedro_msgs)
+        assert any("agent_profile" in m for m in pedro_msgs)
+
+    def test_no_warning_for_distinct_project_profile(
+        self, shipped_profiles_dir: Path, project_profiles_dir: Path
+    ) -> None:
+        """custom-reviewer exists only in project — no collision, no warning for it."""
+        from doctrine.base import DoctrineLayerCollisionWarning
+        import warnings as _w
+
+        with _w.catch_warnings(record=True) as captured:
+            _w.simplefilter("always")
+            AgentProfileRepository(
+                shipped_dir=shipped_profiles_dir,
+                project_dir=project_profiles_dir,
+            )
+
+        msgs = [
+            str(w.message)
+            for w in captured
+            if isinstance(w.message, DoctrineLayerCollisionWarning)
+        ]
+        # custom-reviewer must NOT appear in any collision message.
+        assert not any("custom-reviewer" in m for m in msgs), msgs
+
     def test_get_nonexistent_profile_returns_none(self, shipped_profiles_dir: Path):
         """Getting nonexistent profile returns None."""
         repo = AgentProfileRepository(shipped_dir=shipped_profiles_dir, project_dir=None)
@@ -204,7 +248,7 @@ class TestAgentProfileRepositoryMany:
     def test_filters_language_scoped_profiles_when_active_languages_do_not_match(
         self, tmp_path: Path
     ) -> None:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
 
         (shipped / "python-only.agent.yaml").write_text(
@@ -241,7 +285,7 @@ specialization:
     def test_keeps_language_scoped_profiles_when_active_languages_are_unset(
         self, tmp_path: Path
     ) -> None:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
 
         (shipped / "python-only.agent.yaml").write_text(
@@ -395,7 +439,7 @@ class TestAgentProfileRepositoryExceptions:
 
     def test_cycle_detection(self, tmp_path: Path):
         """Validate hierarchy detects cycles."""
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
 
         # Create cycle: A → B → C → A
@@ -434,7 +478,7 @@ specialization:
 
     def test_orphaned_reference_warning(self, tmp_path: Path):
         """Validate hierarchy detects orphaned references."""
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
 
         (shipped / "orphan.agent.yaml").write_text("""profile-id: orphan-child
@@ -669,7 +713,7 @@ class TestAgentProfileRepositoryLoader:
 
     def test_shipped_rglob_finds_profiles_in_subdirectory(self, tmp_path: Path):
         """Shipped loader uses rglob and finds profiles nested in subdirectories."""
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
         sub = shipped / "sub"
         sub.mkdir()
@@ -698,7 +742,7 @@ class TestAgentProfileRepositoryLoader:
 
     def test_non_agent_yaml_files_are_ignored(self, tmp_path: Path):
         """Files not matching *.agent.yaml pattern are silently ignored."""
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
         (shipped / "notes.yaml").write_text("note: not a profile\n")
         (shipped / "profile.agent.yml").write_text("profile-id: wrong-ext\n")
@@ -707,7 +751,7 @@ class TestAgentProfileRepositoryLoader:
 
     def test_empty_yaml_file_is_silently_skipped(self, tmp_path: Path):
         """Empty YAML (data is None) is skipped without raising."""
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
         (shipped / "empty.agent.yaml").write_text("")
         repo = AgentProfileRepository(shipped_dir=shipped, project_dir=None)
@@ -732,7 +776,7 @@ class TestAgentProfileRepositoryLoader:
 
     def test_invalid_shipped_yaml_emits_warning(self, tmp_path: Path):
         """Shipped YAML with parse error emits UserWarning and loads other profiles."""
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
         (shipped / "good.agent.yaml").write_text(
             "profile-id: good\nname: Good\npurpose: Test\n"
@@ -746,7 +790,7 @@ class TestAgentProfileRepositoryLoader:
 
     def test_warning_fires_once_per_invalid_shipped_file(self, tmp_path: Path):
         """A single invalid shipped file produces exactly one UserWarning on load."""
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
         (shipped / "bad.agent.yaml").write_text("invalid: yaml: {")
         with pytest.warns(UserWarning) as record:
@@ -774,7 +818,7 @@ class TestResolveProfileWithExcluding:
     """resolve_profile applies excluding from the leaf profile after union merge."""
 
     def _make_shipped_dir(self, tmp_path: Path) -> Path:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
         (shipped / "base.agent.yaml").write_text(
             "profile-id: base\nname: Base\npurpose: Base profile\n"
@@ -802,7 +846,7 @@ class TestResolveProfileWithExcluding:
 
     def test_excluding_list_removes_entire_field(self, tmp_path: Path):
         """Child's excluding list removes the entire named field."""
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
         (shipped / "base2.agent.yaml").write_text(
             "profile-id: base2\nname: Base2\npurpose: Base2 profile\n"
@@ -873,7 +917,7 @@ class TestMultiLevelHierarchy:
     """Hierarchy traversal with chains longer than one level."""
 
     def _three_level_shipped(self, tmp_path: Path) -> Path:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
         (shipped / "root.agent.yaml").write_text(
             "profile-id: root\nname: Root\npurpose: Root\nroles:\n  - implementer\n"
@@ -904,7 +948,7 @@ class TestMultiLevelHierarchy:
         assert "leaf" not in [p.profile_id for p in root_children]
 
     def test_resolve_profile_inherits_through_full_chain(self, tmp_path: Path):
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
         (shipped / "root.agent.yaml").write_text(
             "profile-id: root\nname: Root\npurpose: Root\nroles:\n  - implementer\n"

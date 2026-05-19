@@ -6,7 +6,7 @@ build a minimal project tree so ``find_repo_root`` succeeds, and patches only
 the heavy external collaborators (charter library internals, saas client)
 that cannot run without live services.
 
-Tactic: function-over-form-testing (src/doctrine/tactics/shipped/testing/).
+Tactic: function-over-form-testing (src/doctrine/tactics/built-in/testing/).
 Structure: AAA (Arrange / Act / Assert).
 """
 
@@ -23,7 +23,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.charter import app
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 runner = CliRunner()
 

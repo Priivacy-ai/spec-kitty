@@ -41,6 +41,8 @@ from specify_cli.compat.planner import (
 from specify_cli.compat.provider import FakeLatestVersionProvider
 from specify_cli.compat.safety import Safety
 
+pytestmark = [pytest.mark.unit]
+
 _NOW = datetime(2026, 4, 27, 12, 0, 0, tzinfo=UTC)
 _INSTALLED = "2.0.11"
 _LATEST = "2.0.14"

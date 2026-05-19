@@ -43,6 +43,8 @@ from specify_cli.dashboard.api_types import (
 # Helpers
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.integration]
+
 _JS_PATH = Path(__file__).resolve().parents[2] / "src" / "specify_cli" / "dashboard" / "static" / "dashboard" / "dashboard.js"
 
 

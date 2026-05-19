@@ -37,6 +37,8 @@ from tests.integration.retrospective.conftest import (
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.integration]
+
 def _setup_hic_repo(tmp_path: Path, slug: str) -> tuple[Path, str]:
     """Create a minimal repo for HiC tests.
 

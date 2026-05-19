@@ -15,6 +15,10 @@ from specify_cli.bulk_edit.inference import (
 # ---------------------------------------------------------------------------
 
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 class TestScoreSpecForBulkEdit:
     def test_empty_content_scores_zero(self) -> None:
         result = score_spec_for_bulk_edit("")

@@ -3,7 +3,7 @@
 Public API: ``validate(staging_dir, shipped_drg) -> None``
 
 Flow:
-1. Load the staged project overlay from ``staging_dir/doctrine/graph.yaml``.
+1. Load the staged project overlay from ``staging_dir/doctrine``.
 2. Merge with *shipped_drg* via ``merge_layers()`` (additive semantics).
 3. Call ``validate_graph(merged)`` — dangling refs, duplicate edges, cycles.
 4. If any errors: raise ``ProjectDRGValidationError`` with structured fields
@@ -25,7 +25,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from doctrine.drg.loader import DRGLoadError, load_graph, merge_layers
+from doctrine.drg.loader import DRGLoadError, load_graph_or_dir, merge_layers
 from doctrine.drg.models import DRGGraph
 from doctrine.drg.validator import validate_graph
 
@@ -45,7 +45,7 @@ def validate(
 
     Args:
         staging_dir: Root of the staging area produced by the current run.
-            The overlay is expected at ``staging_dir/doctrine/graph.yaml``.
+            The overlay is expected under ``staging_dir/doctrine``.
         shipped_drg: The shipped-layer ``DRGGraph``.  Used as the lower layer
             in the ``merge_layers`` call.
 
@@ -58,16 +58,16 @@ def validate(
         enough for a CLI panel that names the dangling URN, the offending
         artifact, and the source reference that triggered it (US-5).
     """
-    overlay_path = staging_dir / "doctrine" / "graph.yaml"
+    overlay_doctrine_dir = staging_dir / "doctrine"
 
     # --- Step 1: Load the staged overlay -----------------------------------
     try:
-        project_overlay = load_graph(overlay_path)
+        project_overlay = load_graph_or_dir(overlay_doctrine_dir)
     except DRGLoadError as exc:
         raise ProjectDRGValidationError(
             errors=(
                 f"Could not load staged project overlay from "
-                f"{overlay_path}: {exc}",
+                f"{overlay_doctrine_dir}: {exc}",
             ),
             merged_graph_summary=(
                 f"staging_dir={staging_dir}, "
@@ -76,7 +76,7 @@ def validate(
         ) from exc
     except Exception as exc:  # noqa: BLE001
         raise ProjectDRGValidationError(
-            errors=(f"Unexpected error loading overlay {overlay_path}: {exc}",),
+            errors=(f"Unexpected error loading overlay {overlay_doctrine_dir}: {exc}",),
             merged_graph_summary=(
                 f"staging_dir={staging_dir}"
             ),

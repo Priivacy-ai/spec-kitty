@@ -47,6 +47,8 @@ from specify_cli.retrospective.writer import write_record  # noqa: F401 (used by
 # Shared test identifiers
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.integration]
+
 _MISSION_ID = "01KQ6YEGT4YBZ3GZF7X680KQ3V"
 _MID8 = "01KQ6YEG"
 _MISSION_SLUG = "test-mission"

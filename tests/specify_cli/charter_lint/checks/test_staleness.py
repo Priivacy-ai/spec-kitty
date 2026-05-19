@@ -19,6 +19,8 @@ from specify_cli.charter_lint.checks.staleness import StalenessChecker
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 def _utc_days_ago(days: int) -> str:
     """Return an ISO-8601 UTC string for *days* ago."""
     dt = datetime.now(tz=timezone.utc) - timedelta(days=days)

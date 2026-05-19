@@ -30,6 +30,8 @@ from specify_cli.widen.state import WidenPendingStore
 # Constants / helpers
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.unit]
+
 MISSION_SLUG = "test-charter-widen-wp10"
 MISSION_ID = "01KWP10CHARTERWIDENMISSION"
 

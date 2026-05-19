@@ -21,6 +21,11 @@ from specify_cli.auth.loopback.pkce import (
 # RFC 7636 §4.1 defines the code verifier alphabet. token_urlsafe uses
 # the base64url alphabet which is a strict subset (no `.` or `~`), so this
 # regex is sufficient.
+
+import pytest
+
+pytestmark = [pytest.mark.integration]
+
 _VERIFIER_RE = re.compile(r"^[A-Za-z0-9_\-]+$")
 
 

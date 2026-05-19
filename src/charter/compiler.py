@@ -23,6 +23,15 @@ from charter.interview import (
 from charter.language_scope import extract_declared_languages
 from charter.resolver import DEFAULT_TOOL_REGISTRY
 
+__all__ = [
+    "CharterReference",
+    "CompiledCharter",
+    "WriteBundleResult",
+    "compile_charter",
+    "write_compiled_charter",
+]
+
+
 
 @dataclass(frozen=True)
 class _SelectionBundle:
@@ -477,7 +486,7 @@ def _resolve_transitive_reference_graph(
 ) -> Any:
     """Resolve directive transitive closure from shipped/project DRG layers."""
     from charter._drg_helpers import load_validated_graph
-    from doctrine.drg.loader import load_graph, merge_layers
+    from doctrine.drg.loader import load_graph_or_dir
     from doctrine.drg.models import Relation
     from doctrine.drg.query import ResolveTransitiveRefsResult, resolve_transitive_refs
     from doctrine.drg.validator import assert_valid
@@ -489,12 +498,11 @@ def _resolve_transitive_reference_graph(
         if repo_root is not None:
             merged = load_validated_graph(repo_root)
         else:
-            graph_path = doctrine_root / "graph.yaml"
-            if not graph_path.exists():
+            if not doctrine_root.exists():
                 return ResolveTransitiveRefsResult(directives=sorted(directives))
-            merged = merge_layers(load_graph(graph_path), None)
+            merged = load_graph_or_dir(doctrine_root)
             assert_valid(merged)
-    except FileNotFoundError:
+    except (FileNotFoundError, Exception):
         return ResolveTransitiveRefsResult(directives=sorted(directives))
 
     return resolve_transitive_refs(
@@ -578,7 +586,7 @@ def _index_yaml_assets(directory: Path, pattern: str) -> dict[str, dict[str, obj
 
     # Doctrine artifacts live in a shipped/ subdirectory; fall back to the
     # directory itself for tests or custom flat layouts.
-    shipped = directory / "shipped"
+    shipped = directory / "built-in"
     scan_root = shipped if shipped.is_dir() else directory
 
     for path in sorted(scan_root.glob(pattern)):

@@ -18,6 +18,8 @@ from doctrine.spdd_reasons.template_renderer import (
     process_spdd_blocks,
 )
 
+pytestmark = [pytest.mark.unit]
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TEMPLATES_DIR = REPO_ROOT / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates"
 

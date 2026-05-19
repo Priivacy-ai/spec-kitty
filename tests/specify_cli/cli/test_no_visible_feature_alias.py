@@ -36,6 +36,11 @@ from specify_cli import app as _typer_app
 # ``test_doctrine_cli_removed.py``) import that Typer app directly and let
 # Typer's CliRunner handle the conversion. For introspection we want the
 # Click command tree, which Typer can give us via ``get_command``.
+
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 cli: click.Group = get_command(_typer_app)  # type: ignore[assignment]
 
 

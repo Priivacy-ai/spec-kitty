@@ -15,6 +15,10 @@ from specify_cli.skills.manifest import (
 )
 
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 def _make_entry(
     skill_name: str = "test-skill",
     source_file: str = "SKILL.md",

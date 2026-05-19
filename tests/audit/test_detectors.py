@@ -29,6 +29,10 @@ from specify_cli.audit.shape_registry import check_unknown_keys
 # ---------------------------------------------------------------------------
 
 
+import pytest
+
+pytestmark = [pytest.mark.integration]
+
 class TestDetectLegacyKeys:
     def test_detect_legacy_keys_feature_slug(self) -> None:
         """A dict with 'feature_slug' produces one LEGACY_KEY finding."""

@@ -25,6 +25,10 @@ import specify_cli.auth.token_manager as token_manager_module
 from specify_cli.auth.token_manager import TokenManager
 
 
+import pytest
+
+pytestmark = [pytest.mark.integration]
+
 class _CountingFastFileStorage(FileFallbackStorage):
     """File storage with production behavior, low KDF cost, and read counting."""
 

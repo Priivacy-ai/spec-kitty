@@ -39,6 +39,8 @@ from specify_cli.invocation.record import ProfileInvocationRecord
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 def _at(seconds: int = 0) -> _dt.datetime:
     """Build a deterministic UTC timestamp offset by ``seconds``."""
     base = _dt.datetime(2026, 4, 28, 12, 0, 0, tzinfo=_dt.timezone.utc)

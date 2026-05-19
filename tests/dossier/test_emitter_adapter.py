@@ -17,6 +17,8 @@ from specify_cli.dossier.emitter_adapter import (
 )
 from specify_cli.dossier.events import emit_artifact_indexed
 
+pytestmark = [pytest.mark.unit]
+
 VALID_HASH = "a" * 64
 
 NAMESPACE_DICT = {

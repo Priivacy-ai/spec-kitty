@@ -24,6 +24,11 @@ from pathlib import Path
 # Patterns that indicate direct meta.json writes outside the public API.
 # We look for the combination of json serialization + file write in the
 # same function / close proximity, specifically for "meta" dicts.
+
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 _WRITE_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     # json.dump(meta, fh) -- writing a meta dict directly to a file handle
     ("json.dump(meta, ...)", re.compile(r"json\.dump\s*\(\s*meta\b")),

@@ -16,6 +16,8 @@ from urllib.parse import unquote, urlparse
 
 import pytest
 
+pytestmark = [pytest.mark.unit]
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ARCH_DIR = REPO_ROOT / "architecture"
 

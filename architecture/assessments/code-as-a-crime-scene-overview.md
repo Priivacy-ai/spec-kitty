@@ -4,7 +4,7 @@
 
 **Last updated:** 2026-05-09 (after `tests/` + `kitty-specs/` scope-expansion pass).
 **Companion artefacts:**
-- Doctrine: `src/doctrine/tactics/shipped/analysis/forensic-repository-audit.tactic.yaml`, `src/doctrine/procedures/shipped/legacy-codebase-triage.procedure.yaml`
+- Doctrine: `src/doctrine/tactics/built-in/analysis/forensic-repository-audit.tactic.yaml`, `src/doctrine/procedures/built-in/legacy-codebase-triage.procedure.yaml`
 - Empirical run: `architecture/audits/2026-05-spec-kitty-caacs.md`
 - Cross-check vs issue tracker: `architecture/audits/2026-05-822-crosscheck.md`
 - Phase-3 synthesis & meta: `architecture/audits/2026-05-phase3-*.md`, `architecture/audits/2026-05-caacs-meta-assessment.md`
@@ -166,8 +166,8 @@ The audit-vs-issue-tracker crosscheck produced **zero STRONG matches** between t
 - Piechowski, *"Git commands before reading code"*
 
 **Internal artefacts** (this repo)
-- Doctrine: `src/doctrine/tactics/shipped/analysis/forensic-repository-audit.tactic.yaml`
-- Doctrine: `src/doctrine/procedures/shipped/legacy-codebase-triage.procedure.yaml`
+- Doctrine: `src/doctrine/tactics/built-in/analysis/forensic-repository-audit.tactic.yaml`
+- Doctrine: `src/doctrine/procedures/built-in/legacy-codebase-triage.procedure.yaml`
 - Audit (2026-05, two-pass): `architecture/audits/2026-05-spec-kitty-caacs.md`
 - Issue-tracker crosscheck: `architecture/audits/2026-05-822-crosscheck.md`
 - Phase-3 synthesis (issue drafts, backlog triage, F1 knowledge-capture plan, meta-assessment): `architecture/audits/2026-05-phase3-*.md` and `architecture/audits/2026-05-caacs-meta-assessment.md`

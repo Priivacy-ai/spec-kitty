@@ -41,6 +41,8 @@ from specify_cli.next._internal_runtime.discovery import DiscoveryContext
 from specify_cli.next._internal_runtime.engine import MissionRunRef
 
 
+pytestmark = [pytest.mark.slow]
+
 _FIXTURES_ROOT = Path(__file__).resolve().parent.parent / "fixtures" / "missions"
 
 

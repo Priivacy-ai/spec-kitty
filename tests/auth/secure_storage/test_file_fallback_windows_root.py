@@ -11,6 +11,8 @@ from specify_cli.auth.secure_storage import WindowsFileStorage
 from specify_cli.auth.session import StoredSession, Team
 
 
+pytestmark = [pytest.mark.integration]
+
 @pytest.mark.windows_ci
 def test_windows_file_store_round_trip(tmp_path):
     """Round-trip: store → load → delete using a temp directory."""

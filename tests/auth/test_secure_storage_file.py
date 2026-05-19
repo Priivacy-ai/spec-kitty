@@ -26,6 +26,8 @@ from specify_cli.auth.secure_storage.file_fallback import FileFallbackStorage, _
 from specify_cli.auth.session import StoredSession, Team
 
 
+pytestmark = [pytest.mark.integration]
+
 def _now() -> datetime:
     return datetime.now(UTC)
 

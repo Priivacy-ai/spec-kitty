@@ -64,7 +64,7 @@ class TestStyleguideRepository:
         assert styleguides[0].id == "test-style"
 
     def test_malformed_yaml_skipped_with_warning(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
         bad_file = shipped / "bad.styleguide.yaml"
         bad_file.write_text("not: valid: yaml: [")
@@ -108,7 +108,7 @@ class TestStyleguideRepository:
     def test_field_level_merge_with_project_override(
         self, tmp_path: Path
     ) -> None:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
         project = tmp_path / "project"
         project.mkdir()
@@ -145,7 +145,7 @@ class TestStyleguideRepository:
     def test_filters_language_scoped_styleguides_when_active_languages_do_not_match(
         self, tmp_path: Path
     ) -> None:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
 
         yaml = YAML()
@@ -184,7 +184,7 @@ class TestStyleguideRepository:
     def test_skips_project_styleguides_when_language_scope_does_not_match(
         self, tmp_path: Path
     ) -> None:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
         project = tmp_path / "project"
         project.mkdir()

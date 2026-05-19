@@ -15,6 +15,9 @@ import pytest
 from specify_cli.sync.project_identity import ProjectIdentity
 
 
+pytestmark = [pytest.mark.contract]
+
+
 def _make_project_identity() -> ProjectIdentity:
     """Construct a complete ProjectIdentity for testing."""
     return ProjectIdentity(

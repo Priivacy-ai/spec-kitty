@@ -19,6 +19,9 @@ from specify_cli.next._internal_runtime.discovery import DiscoveryContext
 
 # A minimal valid custom mission body. Every step has a profile binding and
 # the last step is the retrospective marker, so structural checks pass.
+
+pytestmark = [pytest.mark.unit]
+
 _VALID_BODY = """
 mission:
   key: {key}

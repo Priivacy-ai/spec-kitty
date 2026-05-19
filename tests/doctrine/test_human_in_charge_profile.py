@@ -10,7 +10,7 @@ from doctrine.agent_profiles.repository import AgentProfileRepository
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
-_SHIPPED_DIR = Path(__file__).parents[2] / "src" / "doctrine" / "agent_profiles" / "shipped"
+_SHIPPED_DIR = Path(__file__).parents[2] / "src" / "doctrine" / "agent_profiles" / "built-in"
 
 
 def test_human_in_charge_exists_in_shipped() -> None:

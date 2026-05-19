@@ -7,13 +7,28 @@ import re
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 from ruamel.yaml import YAML
 
 from charter._io import load_charter_file
 from charter.catalog import DoctrineCatalog, load_doctrine_catalog
 from charter.resolver import DEFAULT_TOOL_REGISTRY
+
+__all__ = [
+    "CharterInterview",
+    "LocalSupportDeclaration",
+    "MINIMAL_QUESTION_ORDER",
+    "QUESTION_ORDER",
+    "QUESTION_PROMPTS",
+    "apply_answer_overrides",
+    "apply_org_charter_pre_fill_to_answers",
+    "default_interview",
+    "read_interview_answers",
+    "validate_local_support_declarations",
+    "write_interview_answers",
+]
+
 
 # Known action values for LocalSupportDeclaration normalization.
 _KNOWN_ACTIONS: frozenset[str] = frozenset({"specify", "plan", "implement", "review"})
@@ -334,6 +349,90 @@ def write_interview_answers(path: Path, interview: CharterInterview) -> None:
     yaml.default_flow_style = False
     with path.open("w", encoding="utf-8") as handle:
         yaml.dump(interview.to_dict(), handle)
+
+
+def apply_org_charter_pre_fill_to_answers(
+    *,
+    answers_path: Path,
+    interview_defaults: dict[str, str | bool],
+    required_directives: list[str],
+) -> list[str]:
+    """Pure data side-effect: non-destructively pre-fill ``answers.yaml``.
+
+    The org-layer caller (``specify_cli.doctrine.org_charter``) loads and
+    merges org-pack policies and passes the resulting interview defaults
+    and required directives into this helper as plain Python data.  This
+    keeps the ``charter`` layer free of ``specify_cli`` imports
+    (ADR 2026-03-27-1) while letting the YAML side-effect live next to
+    the rest of the interview answer machinery.
+
+    Semantics:
+
+    * For each key in ``interview_defaults``, set the value in
+      ``answers.yaml`` **only when the key is missing**.  Existing values
+      are preserved so re-running the interview never reverts
+      project-specific choices to org defaults.
+    * For ``required_directives``, append entries that are not already
+      present in ``selected_directives`` (set-like union, order preserved).
+    * When nothing changes, ``answers.yaml`` is not written.
+
+    Returns a list of human-readable messages describing what was applied.
+    Returns an empty list when no changes were needed.
+    """
+    if not interview_defaults and not required_directives:
+        return []
+
+    yaml = YAML()
+    yaml.default_flow_style = False
+
+    existing: dict[str, Any] = {}
+    if answers_path.exists():
+        try:
+            with answers_path.open("r", encoding="utf-8") as handle:
+                loaded = yaml.load(handle)
+        except Exception:  # noqa: BLE001 — malformed YAML treated as empty
+            loaded = None
+        if isinstance(loaded, dict):
+            existing = loaded
+
+    messages: list[str] = []
+    prefilled = 0
+    for key, value in interview_defaults.items():
+        if key not in existing:
+            existing[key] = value
+            prefilled += 1
+
+    existing_directives_raw = existing.get("selected_directives")
+    if isinstance(existing_directives_raw, list):
+        existing_directives: list[str] = [
+            str(d) for d in existing_directives_raw
+        ]
+    elif isinstance(existing_directives_raw, str):
+        existing_directives = _normalize_csv(existing_directives_raw)
+    else:
+        existing_directives = []
+
+    new_required = [
+        d for d in required_directives if d not in existing_directives
+    ]
+    if new_required:
+        existing["selected_directives"] = existing_directives + new_required
+        messages.append(
+            f"Pre-selected {len(new_required)} directives from org charter "
+            "required_directives."
+        )
+
+    if prefilled:
+        messages.append(
+            f"Pre-filled {prefilled} interview defaults from org charter."
+        )
+
+    if messages:
+        answers_path.parent.mkdir(parents=True, exist_ok=True)
+        with answers_path.open("w", encoding="utf-8") as handle:
+            yaml.dump(existing, handle)
+
+    return messages
 
 
 def apply_answer_overrides(

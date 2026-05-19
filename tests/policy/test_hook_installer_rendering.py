@@ -13,6 +13,10 @@ from pathlib import Path
 from specify_cli.policy.hook_installer import HOOK_MODE, HookInstallRecord, install
 
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 def test_hook_rendering_shape(tmp_path: Path) -> None:
     """Install into a fake repo .git dir and assert the rendered hook shape."""
     # Fake repo with .git dir (not a real git repo — install() only needs the dir)

@@ -13,7 +13,7 @@ from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 _DOCTRINE_ROOT = DOCTRINE_SOURCE_ROOT
-_DIRECTIVES_DIRS = [_DOCTRINE_ROOT / "directives" / d for d in ("shipped", "_proposed")]
+_DIRECTIVES_DIRS = [_DOCTRINE_ROOT / "directives" / d for d in ("built-in", "_proposed")]
 
 
 def _multi_glob(dirs: list[Path], pattern: str) -> list[Path]:

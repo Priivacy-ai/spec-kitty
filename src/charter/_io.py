@@ -26,6 +26,12 @@ from kernel.errors import KittyInternalConsistencyError
 
 from ._diagnostics import CharterEncodingDiagnostic
 
+__all__ = [
+    "CharterEncodingError",
+    "load_charter_file",
+]
+
+
 logger = logging.getLogger(__name__)
 
 _CONFIDENCE_THRESHOLD = 0.85

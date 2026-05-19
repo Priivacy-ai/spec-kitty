@@ -28,6 +28,8 @@ from specify_cli.cli.commands.init import register_init_command
 # Helpers
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.integration]
+
 def _make_app_with_buf() -> tuple[Typer, io.StringIO]:
     """Return a minimal Typer app and the buffer backing the injected console."""
     buf = io.StringIO()

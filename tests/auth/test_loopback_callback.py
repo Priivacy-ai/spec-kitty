@@ -38,6 +38,8 @@ from specify_cli.auth.loopback.callback_server import CallbackServer
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.integration]
+
 def test_callback_handler_happy_path() -> None:
     handler = CallbackHandler(expected_state="csrf-nonce-123")
     code, state = handler.validate({"code": "auth-code-xyz", "state": "csrf-nonce-123"})

@@ -19,6 +19,10 @@ import yaml
 # ---------------------------------------------------------------------------
 
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 def test_role_hint_in_mission_template() -> None:
     """software-dev mission.yaml must have at least one task_type with agent_role."""
     from doctrine.missions import MissionTemplateRepository

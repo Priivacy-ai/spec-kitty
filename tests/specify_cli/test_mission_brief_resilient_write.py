@@ -13,6 +13,8 @@ from specify_cli.mission_brief import (
 )
 
 
+pytestmark = [pytest.mark.unit]
+
 def test_write_mission_brief_success(tmp_path):
     """Both files exist after a successful call, no temp files left."""
     brief_path, source_path = write_mission_brief(tmp_path, "# Test brief", "test.md")
