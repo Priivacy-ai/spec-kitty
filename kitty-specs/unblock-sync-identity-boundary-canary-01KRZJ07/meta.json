@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-05-19T11:56:24.473442+00:00",
+      "accepted_by": "robert",
+      "accepted_from_commit": "4863f4757090e436308b4c6b5ce69ea0d18c3f57"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-05-19T11:56:24.473442+00:00",
+  "accepted_by": "robert",
+  "accepted_from_commit": "4863f4757090e436308b4c6b5ce69ea0d18c3f57",
   "created_at": "2026-05-19T07:25:29.772025+00:00",
   "friendly_name": "Unblock Sync Identity-Boundary Canary",
   "mission_id": "01KRZJ079AYV48V0Y41EACAC79",
