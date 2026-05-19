@@ -196,20 +196,57 @@ def _parse_retry_after(value: Any) -> float:
 
 
 def _safe_extract_tar(tf: tarfile.TarFile, target_dir: Path) -> None:
+    """Extract *tf* into *target_dir* with defence against common tar attacks.
+
+    Checks performed before any bytes reach disk:
+
+    1. **Path traversal / zip-slip** — uses ``Path.relative_to`` so that a
+       sibling-prefix name (``/tmp/target-evil/x`` when base is
+       ``/tmp/target``) is correctly rejected (the old ``startswith`` check
+       was vulnerable to this bypass, P1 fix 2026-05).
+    2. **Symlinks and hardlinks** — refused unconditionally; a malicious tar
+       can create ``etc -> /etc`` then write ``etc/passwd`` through it.
+    3. **Non-regular, non-directory entries** — character/block devices,
+       FIFOs and other special files are refused.
+    """
     base = target_dir.resolve()
     for member in tf.getmembers():
+        # --- type guard (before path check) ---
+        if member.issym() or member.islnk():
+            raise tarfile.TarError(
+                f"Refusing symlink/hardlink entry: {member.name}"
+            )
+        if not member.isfile() and not member.isdir():
+            raise tarfile.TarError(
+                f"Refusing non-file/non-dir entry: {member.name} "
+                f"(type={member.type!r})"
+            )
+        # --- path traversal guard (use relative_to, not startswith) ---
         member_path = (target_dir / member.name).resolve()
-        if not str(member_path).startswith(str(base)):
-            raise tarfile.TarError(f"Refusing path traversal entry: {member.name}")
-    tf.extractall(target_dir)  # noqa: S202 - paths validated above
+        try:
+            member_path.relative_to(base)
+        except ValueError as exc:
+            raise tarfile.TarError(
+                f"Refusing path traversal entry: {member.name}"
+            ) from exc
+    tf.extractall(target_dir)  # noqa: S202 - paths and types validated above
 
 
 def _safe_extract_zip(zf: zipfile.ZipFile, target_dir: Path) -> None:
+    """Extract *zf* into *target_dir* with defence against path traversal.
+
+    Uses ``Path.relative_to`` instead of the old ``str.startswith`` check
+    which was vulnerable to the sibling-prefix bypass (P1 fix 2026-05).
+    """
     base = target_dir.resolve()
     for name in zf.namelist():
         member_path = (target_dir / name).resolve()
-        if not str(member_path).startswith(str(base)):
-            raise zipfile.BadZipFile(f"Refusing path traversal entry: {name}")
+        try:
+            member_path.relative_to(base)
+        except ValueError as exc:
+            raise zipfile.BadZipFile(
+                f"Refusing path traversal entry: {name}"
+            ) from exc
     zf.extractall(target_dir)  # noqa: S202 - paths validated above
 
 
