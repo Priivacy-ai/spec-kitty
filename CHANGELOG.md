@@ -33,6 +33,9 @@ sync-boundary follow-up window:
 - Carries review and release hygiene fixes for unsafe target-branch merge
   guidance, retrospective workflow wording, doctrine language-bias lint, fresh
   sync Sonar findings, and Windows/main CI health.
+- Aligns the release checklist with the main-branch protection workflow:
+  release PRs should be squash-merged so the resulting commit retains the PR
+  marker that `Protect Main Branch` recognizes.
 
 ## [3.2.0rc13] - 2026-05-19
 
