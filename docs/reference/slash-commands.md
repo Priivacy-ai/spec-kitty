@@ -170,9 +170,10 @@ Syntax format in this reference:
 **What it does**:
 - Executes `spec-kitty merge` with selected strategy and cleanup flags.
 - Optionally pushes to origin and deletes worktrees/branches.
-- After merge, run `/spec-kitty-mission-review`, then run the retrospective
-  workflow (`spec-kitty retrospect summary` and
-  `spec-kitty agent retrospect synthesize --mission <slug>`).
+- After merge, run `/spec-kitty-mission-review`, then review the retrospective
+  captured at the runtime terminus: `spec-kitty retrospect summary` and
+  `spec-kitty agent retrospect synthesize --mission <slug>` (dry-run by
+  default; add `--apply` to mutate).
 
 **Creates/updates**:
 - Merges mission branch into target branch.

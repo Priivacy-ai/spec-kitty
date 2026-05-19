@@ -277,12 +277,14 @@ For detailed troubleshooting including conflict resolution and error recovery, s
 
 ## After Merge
 
-Run `/spec-kitty-mission-review` in your agent, then run the retrospective
-workflow before context decays:
+Run `/spec-kitty-mission-review` in your agent. The mission's
+`retrospective.yaml` is authored earlier at the runtime terminus, not by
+`merge`. Before context decays, review what was captured and apply any staged
+proposals:
 
 ```bash
-spec-kitty retrospect summary
-spec-kitty agent retrospect synthesize --mission <slug>
+spec-kitty retrospect summary                       # cross-mission view
+spec-kitty agent retrospect synthesize --mission <slug>  # dry-run; --apply to mutate
 ```
 
 ---

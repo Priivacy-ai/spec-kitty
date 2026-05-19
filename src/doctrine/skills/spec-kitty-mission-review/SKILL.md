@@ -39,8 +39,9 @@ do not fix anything. You document.
 
 This is not the pre-merge acceptance gate. Run `spec-kitty accept --mission
 <slug>` before merge; use this skill after merge for final spec-to-code review.
-After this mission review, remind the operator to run the retrospective while
-the work is still fresh.
+After this mission review, remind the operator to review the retrospective
+that was captured at terminus (`spec-kitty retrospect summary` /
+`spec-kitty agent retrospect synthesize`) while the work is still fresh.
 
 ---
 
@@ -769,10 +770,17 @@ follow-up mission.]
 
 ## Retrospective Reminder
 
-Run the retrospective workflow now, before context decays:
+The mission's `retrospective.yaml` is authored at the runtime terminus (HiC
+prompt or autonomous facilitator), not after merge. Before context decays,
+review the captured retrospective and apply any staged proposals:
 
-- `spec-kitty retrospect summary`
-- `spec-kitty agent retrospect synthesize --mission <slug>`
+- `spec-kitty retrospect summary` — cross-mission view (read-only)
+- `spec-kitty agent retrospect synthesize --mission <slug>` — apply staged
+  proposals from the authored `retrospective.yaml` (dry-run by default;
+  add `--apply` to mutate)
+
+If the record does not exist, escalate — the terminus facilitator either did
+not run or was skipped without a recorded reason.
 ```
 
 ---
@@ -824,7 +832,9 @@ Run the retrospective workflow now, before context decays:
    contracts are the source of truth.
 
 10. **Always include the retrospective reminder.** The report must end with a
-    `## Retrospective Reminder` section that tells the human or LLM operator to
-    run `spec-kitty retrospect summary` and
-    `spec-kitty agent retrospect synthesize --mission <slug>` after the
-    post-merge mission review.
+    `## Retrospective Reminder` section that tells the operator the
+    `retrospective.yaml` was authored at the runtime terminus, and that
+    `spec-kitty retrospect summary` plus
+    `spec-kitty agent retrospect synthesize --mission <slug>` review the
+    captured record and apply staged proposals (dry-run by default). If the
+    record is missing, escalate rather than proceed.

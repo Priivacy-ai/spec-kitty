@@ -211,12 +211,17 @@ races on external side effects).
 
 ### 2i. Phase 8 — Retrospective
 
-After mission review, run the retrospective workflow every time:
+The mission's `retrospective.yaml` is captured earlier at the runtime
+terminus. After mission review, review what was captured and apply staged
+proposals every time:
 
 ```bash
-spec-kitty retrospect summary
-spec-kitty agent retrospect synthesize --mission <slug>
+spec-kitty retrospect summary                       # cross-mission view
+spec-kitty agent retrospect synthesize --mission <slug>  # dry-run; --apply to mutate
 ```
+
+If `retrospective.yaml` is missing for the mission, escalate — the terminus
+facilitator either did not run or was skipped without a recorded reason.
 
 ### 2j. Phase 9 — Post-Merge Remediation
 

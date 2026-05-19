@@ -93,8 +93,10 @@ Once Claude (and any partner agents) finish the feature:
   ```
    Run it from any checkout where the mission can be resolved; the CLI automatically performs the Git steps from the main checkout so execution workspaces stay in sync.
    The command documents merge steps, updates activity logs, and optionally removes the execution worktrees to keep the repository tidy.
-3. Run `/spec-kitty-mission-review`, then run `spec-kitty retrospect summary`
-   and `spec-kitty agent retrospect synthesize --mission <slug>`.
+3. Run `/spec-kitty-mission-review`, then review the retrospective captured at
+   the runtime terminus: `spec-kitty retrospect summary` (cross-mission view)
+   and `spec-kitty agent retrospect synthesize --mission <slug>` (dry-run by
+   default; add `--apply` to mutate).
 
 ## Beyond Claude
 

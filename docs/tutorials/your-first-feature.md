@@ -134,11 +134,12 @@ spec-kitty merge
 You should see the feature merged into the mission's target branch and the worktrees cleaned up.
 
 Before you move on, run the post-merge mission review
-(`/spec-kitty-mission-review` in your agent), then run the retrospective:
+(`/spec-kitty-mission-review` in your agent), then review the retrospective
+captured at the runtime terminus:
 
 ```bash
-spec-kitty retrospect summary
-spec-kitty agent retrospect synthesize --mission <slug>
+spec-kitty retrospect summary                       # cross-mission view
+spec-kitty agent retrospect synthesize --mission <slug>  # dry-run; --apply to mutate
 ```
 
 ## Troubleshooting

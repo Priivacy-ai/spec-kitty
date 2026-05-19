@@ -332,8 +332,8 @@ spec-kitty orchestrator-api accept-mission --mission TEXT --actor TEXT
 
 **Usage notes:**
 
-- Always call `mission-state` first to verify all WPs are done
-- This is a guard-protected operation; it will reject if any WP is not done
+- Always call `mission-state` first to verify every WP is in `approved` or `done`
+- This is a guard-protected operation; it will reject if any WP is not `approved` or `done`
 
 
 ---

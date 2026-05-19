@@ -57,13 +57,24 @@ For detailed merge options including dry-run, strategies, and cleanup flags, see
 
 ## After Merge
 
-Run the post-merge mission review (`/spec-kitty-mission-review` in your agent),
-then run the retrospective while context is fresh:
+Run the post-merge mission review (`/spec-kitty-mission-review` in your agent).
+The mission's `retrospective.yaml` is captured earlier, during the runtime
+terminus — `spec-kitty next` runs the facilitator (HiC prompt in human-in-the-
+loop mode, mandatory in autonomous mode). Post-merge, while context is fresh,
+review what was captured and apply any staged proposals:
 
 ```bash
+# Cross-mission view of captured retrospectives
 spec-kitty retrospect summary
+
+# Apply staged proposals from the authored retrospective.yaml
+# (dry-run by default; pass --apply to mutate)
 spec-kitty agent retrospect synthesize --mission <slug>
 ```
+
+If `retrospective.yaml` does not exist for the mission, it was never captured —
+see [How to Use the Retrospective Learning Loop](use-retrospective-learning.md)
+for how the facilitator runs at terminus.
 
 ## Merge Strategies
 

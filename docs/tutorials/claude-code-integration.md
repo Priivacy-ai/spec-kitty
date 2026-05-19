@@ -154,9 +154,11 @@ Spec Kitty enforces a specific sequence that prevents common AI coding failures:
 # Merges to main, copies specs to kitty-specs/, cleans up worktree
 ```
 
-After merge, run `/spec-kitty-mission-review`, then run
-`spec-kitty retrospect summary` and
-`spec-kitty agent retrospect synthesize --mission <slug>`.
+After merge, run `/spec-kitty-mission-review`, then review the retrospective
+captured at the runtime terminus: `spec-kitty retrospect summary`
+(cross-mission view) and
+`spec-kitty agent retrospect synthesize --mission <slug>` to apply staged
+proposals (dry-run by default; add `--apply` to mutate).
 
 **Why This Matters**: Git main branch stays clean. Every feature that lands has:
 spec + plan + approved WPs + acceptance validation + post-merge learning.
