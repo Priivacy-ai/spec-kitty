@@ -11,6 +11,9 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-unblock-sync-identity-boundary-canary-01KRZJ07
+base_commit: 45edd287a01e5a00dedf1d7fb7ba38183ede266e
+created_at: '2026-05-19T09:58:35.910003+00:00'
 subtasks:
 - T011
 - T012
@@ -18,7 +21,8 @@ subtasks:
 - T014
 - T015
 - T016
-agent: claude
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "62047"
 history:
 - at: '2026-05-19T08:46:23Z'
   actor: spec-kitty.tasks
@@ -244,3 +248,10 @@ See [contracts/doctor-restart-daemon.md](../contracts/doctor-restart-daemon.md) 
 - Run `spec-kitty doctor --help`; confirm `restart-daemon` appears.
 - Verify the test file uses fakes/monkeypatches and does not actually spawn daemons.
 - Confirm no rename of fields on `ForegroundIdentity` / `DaemonOwnerRecord` (Constraint C-004).
+
+## Activity Log
+
+- 2026-05-19T09:58:37Z – claude:opus:python-pedro:implementer – shell_pid=52859 – Assigned agent via action command
+- 2026-05-19T10:12:18Z – claude:opus:python-pedro:implementer – shell_pid=52859 – WP03 ready: doctor restart-daemon subcommand + hint refresh; T011-T016 done; 15/15 tests pass; mypy --strict clean on new code
+- 2026-05-19T10:13:01Z – claude:opus:reviewer-renata:reviewer – shell_pid=62047 – Started review via action command
+- 2026-05-19T10:15:52Z – claude:opus:reviewer-renata:reviewer – shell_pid=62047 – Review passed: restart-daemon subcommand is pure composition of stop_sync_daemon + ensure_sync_daemon_running; exit codes 0/1/2/3 match contract; all four restart-class hints share canonical _RESTART_DAEMON_REMEDY; auth switch fully purged; daemon_team_or_user hint expansion (logout+login+restart-daemon) is a defensible FR-008 side-find; C-004 respected; 15/15 new tests + 76/76 daemon-lifecycle regression tests green.

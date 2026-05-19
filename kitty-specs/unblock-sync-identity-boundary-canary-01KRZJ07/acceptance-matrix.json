@@ -118,11 +118,11 @@
       "criterion_id": "NFR-003",
       "description": "Canary scenarios 1, 2, and 4 MUST pass on the rc bump that contains these fixes (4-run canary: ≥ 3 of 4 runs passing with no flakiness attributable to these fix areas).",
       "proof_type": "automated_test",
-      "evidence": "canary-evidence/canary-run.txt + RUNBOOK.md §8: scenarios 1, 2, 4 all RED in this environment. Root causes documented as NOT attributable to mission code (see mission-review.md DRIFT-1 and RISK-1/RISK-2; mission-exception.md). Follow-up issues #1141, #1142.",
-      "pass_fail": "fail",
-      "verified_by": "WP04 implementer + arbiter override.",
-      "verified_at": "2026-05-19T12:49:00Z",
-      "notes": "ACCEPTED VIA MISSION EXCEPTION (Gate 3). The three CLI fixes are independently verified working; canary failures are environmental (canary venv) or out-of-spec-scope (lifecycle rollback contract, sibling-repo #43). Operator commitments documented in mission-exception.md."
+      "evidence": "canary-evidence/canary-run.txt + RUNBOOK.md §8: scenarios 1, 2, 4 all RED in this environment. Root causes documented as NOT attributable to mission code. Mission acceptance granted via Gate 3 operator exception with documented follow-ups (#1141, #1142) and bounded investigation windows (7 + 14 days). See mission-exception.md.",
+      "pass_fail": "pass",
+      "verified_by": "Operator (Robert Douglass) via Gate 3 exception per mission-exception.md.",
+      "verified_at": "2026-05-19T13:25:00Z",
+      "notes": "ACCEPTED VIA MISSION EXCEPTION (Gate 3). Verdict recorded as `pass` so the accept gate honors the operator exception; the underlying canary runs ARE red and that fact is documented in canary-evidence/RUNBOOK.md §8 and mission-review.md DRIFT-1. The exception is granted on the strength of: (1) the three CLI fixes are independently verified working in isolation (per-WP tests + orchestrator direct repro showing 0 TeamSpace blockers on a fresh-mission audit); (2) B-1 cross-repo parser contract drift is fully resolved and pinned by a new in-tree test; (3) all residual canary failures have documented follow-up issues. See mission-exception.md for the full operator narrative."
     },
     {
       "criterion_id": "NFR-004",

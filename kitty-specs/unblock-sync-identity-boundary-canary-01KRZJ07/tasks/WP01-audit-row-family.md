@@ -13,6 +13,9 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-unblock-sync-identity-boundary-canary-01KRZJ07
+base_commit: 45edd287a01e5a00dedf1d7fb7ba38183ede266e
+created_at: '2026-05-19T09:58:15.561787+00:00'
 subtasks:
 - T001
 - T002
@@ -20,7 +23,8 @@ subtasks:
 - T004
 - T005
 - T022
-agent: claude
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "57716"
 history:
 - at: '2026-05-19T08:46:23Z'
   actor: spec-kitty.tasks
@@ -250,3 +254,10 @@ Decision `01KRZJ2F33SYE86XZDW8JRHA7R` (resolved: `scope_audit_by_row_family`) ch
 - Verify the comment on `FORBIDDEN_KEYS` in `detectors.py` accurately describes the new scoping.
 - Spot-check the regression test for the malformed-row case (`from_lane=..., to_lane=..., event_type=...`) — it must still be flagged.
 - Confirm no writer module was modified (`status/lifecycle_events.py`, `invocation/propagator.py`, `dossier/`, `next/_internal_runtime/engine.py`, `retrospective/events.py`).
+
+## Activity Log
+
+- 2026-05-19T09:58:16Z – claude:opus:python-pedro:implementer – shell_pid=52735 – Assigned agent via action command
+- 2026-05-19T10:07:07Z – claude:opus:python-pedro:implementer – shell_pid=52735 – WP01 ready: row-family classifier landed; T001-T005 + T022 done; tests pass
+- 2026-05-19T10:07:36Z – claude:opus:reviewer-renata:reviewer – shell_pid=57716 – Started review via action command
+- 2026-05-19T10:10:51Z – claude:opus:reviewer-renata:reviewer – shell_pid=57716 – Review passed: row-family predicate (AND of aggregate_type=Mission + non-empty event_type) wired into detect_forbidden_keys via live classifier path; 19 new tests pin 6-row contract matrix + edge cases; 192 audit tests pass (1 pre-existing #1134); mypy --strict + ruff clean; NFR-001 perf 1.053x baseline; no writer modules or status.events.jsonl touched (C-003/C-005 respected).
