@@ -1,0 +1,10 @@
+{
+  "created_at": "1970-01-01T00:00:00+00:00",
+  "friendly_name": "teamspace-local-first-outbox",
+  "mission_id": "4BQC4TQHETMTYD9938G4ZQ878K",
+  "mission_number": null,
+  "mission_slug": "teamspace-local-first-outbox",
+  "mission_type": "software-dev",
+  "slug": "teamspace-local-first-outbox",
+  "target_branch": "main"
+}
