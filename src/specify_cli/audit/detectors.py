@@ -48,10 +48,19 @@ STATUS_EVENT_ONLY_LEGACY_KEYS: frozenset[str] = frozenset(
     }
 )
 
-# Keys that must never appear in canonical runtime artifacts.
-# Their presence indicates that an event row was written by a pre-migration
-# producer that used a ``type``/``name`` discriminator instead of canonical
-# ``to_lane`` / ``from_lane``.
+# Keys that must never appear in canonical **status-transition** rows.
+# Their presence in a status-transition row indicates it was written by a
+# pre-migration producer that used a ``type`` / ``name`` discriminator instead
+# of canonical ``to_lane`` / ``from_lane``.
+#
+# Row-family scoping (mission ``unblock-sync-identity-boundary-canary``, WP01):
+# ``status.events.jsonl`` carries two distinct row families — status-transition
+# rows and mission-lifecycle rows (``aggregate_type == "Mission"`` plus an
+# ``event_type`` discriminator). The FORBIDDEN_KEYS rule applies only to the
+# non-lifecycle family. ``detect_forbidden_keys`` consults
+# :func:`specify_cli.audit.shape_registry.is_mission_lifecycle_row` to skip
+# legitimate lifecycle rows while still flagging malformed transition rows
+# that carry ``event_type`` / ``event_name``.
 FORBIDDEN_KEYS: frozenset[str] = frozenset(
     {
         "event_type",
@@ -107,14 +116,28 @@ def detect_forbidden_keys(
 ) -> list[MissionFinding]:
     """Return one ``FORBIDDEN_KEY`` finding for each forbidden key in *obj*.
 
+    Row-family scoping: rows classified as mission-lifecycle rows by
+    :func:`specify_cli.audit.shape_registry.is_mission_lifecycle_row` are
+    skipped entirely — they legitimately carry ``event_type``. All other
+    rows are checked against :data:`FORBIDDEN_KEYS`, so a malformed
+    status-transition row that carries ``event_type`` without
+    ``aggregate_type == "Mission"`` is still flagged.
+
     Args:
         obj: Parsed artifact dict.
         artifact_path: Relative path to the artifact.
 
     Returns:
         A list of :class:`~specify_cli.audit.models.MissionFinding` objects.
-        Empty list when none are found.
+        Empty list when none are found or when *obj* is a lifecycle row.
     """
+    # Local import to avoid a module-load cycle with ``shape_registry``,
+    # which imports ``FORBIDDEN_KEYS`` / ``LEGACY_KEYS`` from this module.
+    from .shape_registry import is_mission_lifecycle_row
+
+    if is_mission_lifecycle_row(obj):
+        return []
+
     findings: list[MissionFinding] = []
     for key in obj:
         if key in FORBIDDEN_KEYS:

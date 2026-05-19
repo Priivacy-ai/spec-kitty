@@ -1,0 +1,49 @@
+{
+  "event_count": 33,
+  "last_event_id": "01KRZZZMKF09NTJMPVYQ6K945M",
+  "materialized_at": "2026-05-19T11:29:50.703178+00:00",
+  "mission_number": "",
+  "mission_slug": "unblock-sync-identity-boundary-canary-01KRZJ07",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 4,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KRZVF09VF1D887T1VAHX6MTZ",
+      "last_transition_at": "2026-05-19T10:10:51.323840+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 4,
+      "lane": "approved",
+      "last_event_id": "01KRZYS1CVGXPHS3QPNX1F52ZW",
+      "last_transition_at": "2026-05-19T11:08:45.851521+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KRZVR6HH2F7T76YYQXQKSHS0",
+      "last_transition_at": "2026-05-19T10:15:52.625617+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01KRZZZMKF09NTJMPVYQ6K945M",
+      "last_transition_at": "2026-05-19T11:29:50.703178+00:00"
+    }
+  }
+}
