@@ -98,6 +98,28 @@ class TestIsMissionLifecycleRow:
         row = {"aggregate_type": "Mission", "event_type": "SpecifyStarted"}
         assert is_mission_lifecycle_row(row) is True
 
+    def test_lifecycle_row_project_aggregate(self) -> None:
+        """Issue #1142: ``Project`` aggregate is a lifecycle row family member."""
+        row = {"aggregate_type": "Project", "event_type": "ProjectRegistered"}
+        assert is_mission_lifecycle_row(row) is True
+
+    def test_lifecycle_row_work_package_aggregate(self) -> None:
+        """Issue #1142: ``WorkPackage`` aggregate is a lifecycle row family member.
+
+        Pre-#1142 this row was mis-classified as a malformed status-transition
+        row and raised ``FORBIDDEN_KEY`` for the legitimate ``event_type`` key.
+        """
+        row = {"aggregate_type": "WorkPackage", "event_type": "WPStatusChanged"}
+        assert is_mission_lifecycle_row(row) is True
+
+    def test_lifecycle_row_mission_dossier_aggregate(self) -> None:
+        """Issue #1142: ``MissionDossier`` aggregate is a lifecycle row family member."""
+        row = {
+            "aggregate_type": "MissionDossier",
+            "event_type": "MissionDossierArtifactIndexed",
+        }
+        assert is_mission_lifecycle_row(row) is True
+
     def test_event_type_without_aggregate_is_not_lifecycle(self) -> None:
         """Either-or alone must NOT classify — both must hold (AND, not OR)."""
         row = {"event_type": "Foo"}
@@ -120,9 +142,22 @@ class TestIsMissionLifecycleRow:
         """The predicate must be conservative on garbage input — return False."""
         assert is_mission_lifecycle_row(["not", "a", "mapping"]) is False  # type: ignore[arg-type]
 
-    def test_other_aggregate_is_not_lifecycle(self) -> None:
-        """Only ``aggregate_type == "Mission"`` qualifies."""
-        row = {"aggregate_type": "WorkPackage", "event_type": "Foo"}
+    def test_unknown_aggregate_is_not_lifecycle(self) -> None:
+        """Issue #1142 regression guard: aggregate_types outside the known set still reject.
+
+        The fix accepts ``{Mission, Project, WorkPackage, MissionDossier}``.
+        Any other value (typo, drift, hand-edit) must still be rejected so the
+        ``FORBIDDEN_KEYS`` rule retains its teeth against malformed rows.
+        """
+        row = {"aggregate_type": "Foo", "event_type": "Bar"}
+        assert is_mission_lifecycle_row(row) is False
+
+    def test_none_aggregate_is_not_lifecycle(self) -> None:
+        row = {"aggregate_type": None, "event_type": "Bar"}
+        assert is_mission_lifecycle_row(row) is False
+
+    def test_empty_aggregate_is_not_lifecycle(self) -> None:
+        row = {"aggregate_type": "", "event_type": "Bar"}
         assert is_mission_lifecycle_row(row) is False
 
 
@@ -223,6 +258,49 @@ class TestDetectForbiddenKeysRowFamily:
         findings = detect_forbidden_keys(row, "status.events.jsonl")
         codes = _finding_codes(findings)
         assert codes == ["FORBIDDEN_KEY"]
+
+    def test_lifecycle_row_work_package_skipped(self) -> None:
+        """Issue #1142: ``WorkPackage`` lifecycle rows skip the FORBIDDEN_KEYS rule.
+
+        Pre-fix the audit raised ``FORBIDDEN_KEY`` against this legitimate row
+        shape, blocking the canary's scenarios 1 + 2 with a TeamSpace gate.
+        """
+        row: dict[str, object] = {
+            "aggregate_type": "WorkPackage",
+            "event_type": "WPStatusChanged",
+            "event_id": "01HXYZ",
+            "at": "2026-05-19T00:00:00+00:00",
+            "payload": {"wp_id": "WP01"},
+        }
+        findings = detect_forbidden_keys(row, "status.events.jsonl")
+        assert findings == [], (
+            "Issue #1142 regression: WorkPackage lifecycle rows must not "
+            "trigger FORBIDDEN_KEY findings."
+        )
+
+    def test_lifecycle_row_project_skipped(self) -> None:
+        """Issue #1142: ``Project`` lifecycle rows skip the FORBIDDEN_KEYS rule."""
+        row: dict[str, object] = {
+            "aggregate_type": "Project",
+            "event_type": "ProjectRegistered",
+            "event_id": "01HXYZ",
+            "at": "2026-05-19T00:00:00+00:00",
+            "payload": {},
+        }
+        findings = detect_forbidden_keys(row, "status.events.jsonl")
+        assert findings == []
+
+    def test_lifecycle_row_mission_dossier_skipped(self) -> None:
+        """Issue #1142: ``MissionDossier`` lifecycle rows skip the FORBIDDEN_KEYS rule."""
+        row: dict[str, object] = {
+            "aggregate_type": "MissionDossier",
+            "event_type": "MissionDossierArtifactIndexed",
+            "event_id": "01HXYZ",
+            "at": "2026-05-19T00:00:00+00:00",
+            "payload": {},
+        }
+        findings = detect_forbidden_keys(row, "status.events.jsonl")
+        assert findings == []
 
     def test_lifecycle_row_with_event_name_still_skipped(self) -> None:
         """Both forbidden keys are scoped out for lifecycle rows.

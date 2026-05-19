@@ -117,12 +117,35 @@ def fire_saas_fanout(**kwargs: Any) -> None:
     - Exceptions are caught per handler, logged at WARNING level, and
       never propagate to the caller.
     - If no handlers are registered, this is a no-op.
+
+    Logs an INFO-level entry breadcrumb (issue #1141) so silent fan-out
+    failures on review-rejection / backward-rewind transitions are
+    correlatable with the originating canonical event in operator logs.
+    The breadcrumb identifies the WP, lane delta, and force flag; the
+    full kwargs are NOT logged (PII / payload-size reasons).
     """
+    # Diagnostic breadcrumb (issue #1141). Cheap dict.get() calls avoid
+    # raising if the caller drops a key; the breadcrumb is best-effort and
+    # never blocks fan-out.
+    if _saas_handlers:
+        logger.info(
+            "fire_saas_fanout: wp_id=%s from=%s to=%s force=%s handlers=%d",
+            kwargs.get("wp_id"),
+            kwargs.get("from_lane"),
+            kwargs.get("to_lane"),
+            kwargs.get("force"),
+            len(_saas_handlers),
+        )
     for handler in _saas_handlers:
         try:
             handler(**kwargs)
         except Exception:
             logger.warning(
-                "SaaS fan-out handler failed; canonical status log unaffected",
+                "SaaS fan-out handler failed; canonical status log unaffected "
+                "(wp_id=%s from=%s to=%s force=%s)",
+                kwargs.get("wp_id"),
+                kwargs.get("from_lane"),
+                kwargs.get("to_lane"),
+                kwargs.get("force"),
                 exc_info=True,
             )
