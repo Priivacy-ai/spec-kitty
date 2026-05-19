@@ -9,22 +9,22 @@
 #   4. Run `pytest tests/charter/test_neutrality_lint.py` to confirm lint passes.
 schema_version: "1"
 paths:
-  - path: "src/doctrine/agent_profiles/shipped/python-pedro.agent.yaml"
+  - path: "src/doctrine/agent_profiles/built-in/python-pedro.agent.yaml"
     scope: python
     owner: "charter team"
     reason: "Shipped Python specialist agent profile (python-pedro); pytest/pip references are intentional."
     added_in: "3.2.0"
-  - path: "src/doctrine/styleguides/shipped/python-conventions.styleguide.yaml"
+  - path: "src/doctrine/styleguides/built-in/python-conventions.styleguide.yaml"
     scope: python
     owner: "charter team"
     reason: "Canonical Python conventions styleguide; Python vocabulary is the subject."
     added_in: "3.2.0"
-  - path: "src/doctrine/toolguides/shipped/python-review-checks.toolguide.yaml"
+  - path: "src/doctrine/toolguides/built-in/python-review-checks.toolguide.yaml"
     scope: python
     owner: "charter team"
     reason: "Python review-check toolguide; tool names (pytest, mypy) are the subject."
     added_in: "3.2.0"
-  - path: "src/doctrine/toolguides/shipped/PYTHON_REVIEW_CHECKS.md"
+  - path: "src/doctrine/toolguides/built-in/PYTHON_REVIEW_CHECKS.md"
     scope: python
     owner: "charter team"
     reason: "Human-readable companion to python-review-checks.toolguide.yaml."
@@ -44,27 +44,27 @@ paths:
     owner: "charter team"
     reason: "JavaScript best-practice corpus; Jest/Vitest/TypeScript references are the subject matter."
     added_in: "3.3.0"
-  - path: "src/doctrine/toolguides/shipped/PYTHON_MUTATION_TOOLS.md"
+  - path: "src/doctrine/toolguides/built-in/PYTHON_MUTATION_TOOLS.md"
     scope: python
     owner: "charter team"
     reason: "Python mutation-tools toolguide companion; pytest/python -m references are the subject matter."
     added_in: "3.3.0"
-  - path: "src/doctrine/toolguides/shipped/python-mutation-tools.toolguide.yaml"
+  - path: "src/doctrine/toolguides/built-in/python-mutation-tools.toolguide.yaml"
     scope: python
     owner: "charter team"
     reason: "Python mutation-tools toolguide; pytest is the subject matter."
     added_in: "3.3.0"
-  - path: "src/doctrine/agent_profiles/shipped/java-jenny.agent.yaml"
+  - path: "src/doctrine/agent_profiles/built-in/java-jenny.agent.yaml"
     scope: java
     owner: "charter team"
     reason: "Shipped Java specialist agent profile (java-jenny); JUnit references are intentional."
     added_in: "3.2.4"
-  - path: "src/doctrine/toolguides/shipped/MAVEN_REVIEW_CHECKS.md"
+  - path: "src/doctrine/toolguides/built-in/MAVEN_REVIEW_CHECKS.md"
     scope: java
     owner: "charter team"
     reason: "Maven review-checks toolguide companion; Maven/Java tool names are the subject matter."
     added_in: "3.2.4"
-  - path: "src/doctrine/toolguides/shipped/maven-review-checks.toolguide.yaml"
+  - path: "src/doctrine/toolguides/built-in/maven-review-checks.toolguide.yaml"
     scope: java
     owner: "charter team"
     reason: "Maven review-checks toolguide; Maven/Java tool names (pytest reference is cross-check example) are the subject matter."

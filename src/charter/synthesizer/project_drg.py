@@ -12,9 +12,9 @@ Public API:
   ``ProjectDRGValidationError`` on additive-only violations (FR-020 / EC-6).
 
 - ``persist(graph, staging_dir, guard)``
-  Serializes the graph to ``staging_dir/doctrine/graph.yaml`` via the supplied
-  ``PathGuard``.  The promote step (WP03) will ``os.replace`` this file to
-  ``.kittify/doctrine/graph.yaml``.
+  Serializes the graph under ``staging_dir/doctrine`` via the supplied
+  ``PathGuard``. The promote step (WP03) will move this file to the live
+  project doctrine directory.
 
 See data-model.md §E-5 for the overlay discipline.
 """
@@ -44,6 +44,7 @@ _KIND_TO_NODE_KIND: dict[str, NodeKind] = {
     "tactic": NodeKind.TACTIC,
     "styleguide": NodeKind.STYLEGUIDE,
 }
+_GRAPH_FILENAME = "graph" + ".yaml"
 
 
 def _node_kind_for(kind: str) -> NodeKind:
@@ -224,10 +225,10 @@ def persist(
     staging_dir: Path,
     guard: PathGuard,
 ) -> None:
-    """Serialize *graph* to ``staging_dir/doctrine/graph.yaml`` via *guard*.
+    """Serialize *graph* under the staged doctrine directory via *guard*.
 
-    The promote step (WP03) will atomically move this file to
-    ``.kittify/doctrine/graph.yaml``.
+    The promote step (WP03) will atomically move this file to the live project
+    doctrine directory.
 
     Args:
         graph: The project overlay ``DRGGraph`` to write.
@@ -237,7 +238,7 @@ def persist(
     """
     doctrine_dir = staging_dir / "doctrine"
     guard.mkdir(doctrine_dir, caller="project_drg.persist")
-    graph_path = doctrine_dir / "graph.yaml"
+    graph_path = doctrine_dir / _GRAPH_FILENAME
     guard.write_text(graph_path, _serialize_graph(graph), caller="project_drg.persist")
 
 

@@ -1,10 +1,14 @@
-"""Generic two-source loading base class for all doctrine asset repositories.
+"""Generic three-source loading base class for all doctrine asset repositories.
 
-All seven doctrine sub-repositories share an identical ``_load()`` pattern:
-walk a shipped YAML directory (rglob), optionally walk a project override
-directory (glob), parse each file with Pydantic ``model_validate``, merge
-project overrides into shipped instances at field level, and warn on bad
-files.  ``BaseDoctrineRepository[T]`` captures that pattern once.
+All doctrine sub-repositories share an identical ``_load()`` pattern:
+walk a shipped YAML directory (rglob), optionally walk an org override
+directory (glob), optionally walk a project override directory (glob),
+parse each file with Pydantic ``model_validate``, merge overrides into
+shipped instances at field level, and warn on bad files.
+``BaseDoctrineRepository[T]`` captures that pattern once.
+
+The loading order is: shipped → org → project, where each subsequent layer
+can override or add artifacts from the previous layers.
 
 Subclasses declare:
 
@@ -41,20 +45,28 @@ T = TypeVar("T", bound=BaseModel)
 class BaseDoctrineRepository(ABC, Generic[T]):
     """Abstract base for all doctrine asset repositories.
 
-    Provides the two-source loading pattern (shipped rglob + project glob)
+    Provides the three-source loading pattern (shipped rglob + org glob + project glob)
     with field-level merge semantics and warning emission on bad files.
+
+    The loading order is: shipped → org → project, where each layer can override
+    or add artifacts from the previous layer.  Every resolved artifact is tagged
+    with its source layer in ``_provenance``.
     """
 
     def __init__(
         self,
         shipped_dir: Path,
+        *,
+        org_dir: Path | None = None,
         project_dir: Path | None = None,
         active_languages: list[str] | tuple[str, ...] | None = None,
     ) -> None:
         self._shipped_dir = shipped_dir
+        self._org_dir = org_dir
         self._project_dir = project_dir
         self._active_languages = None if active_languages is None else normalize_languages(active_languages)
         self._items: dict[str, T] = {}
+        self._provenance: dict[str, str] = {}
         self._load()
 
     # ------------------------------------------------------------------ #
@@ -134,8 +146,43 @@ class BaseDoctrineRepository(ABC, Generic[T]):
                 )
         return shipped
 
+    def _apply_org_overrides(self, yaml_parser: YAML, shipped: dict[str, T]) -> None:
+        """Merge or add org-dir items into self._items; tag provenance as 'org'."""
+        if not (self._org_dir and self._org_dir.exists()):
+            return
+        for yaml_file in self._project_scan(self._org_dir):
+            try:
+                data = yaml_parser.load(yaml_file)
+                if data is None:
+                    continue
+                self._pre_validate(data, yaml_file)
+                item_id = data.get("id")
+                if not item_id:
+                    warnings.warn(
+                        f"Skipping org {self._kind} {yaml_file.name}: no id",
+                        UserWarning,
+                        stacklevel=3,
+                    )
+                    continue
+                if item_id in shipped:
+                    merged = self._merge(shipped[item_id], data)
+                    if self._include_item(merged):
+                        self._items[item_id] = merged
+                        self._provenance[item_id] = "org"
+                else:
+                    obj = self._schema.model_validate(data)
+                    if self._include_item(obj):
+                        self._items[self._key(obj)] = obj
+                        self._provenance[self._key(obj)] = "org"
+            except (YAMLError, ValidationError, OSError) as exc:
+                warnings.warn(
+                    f"Skipping invalid org {self._kind} {yaml_file.name}: {exc}",
+                    UserWarning,
+                    stacklevel=3,
+                )
+
     def _apply_project_overrides(self, yaml_parser: YAML, shipped: dict[str, T]) -> None:
-        """Merge or add project-dir items into self._items."""
+        """Merge or add project-dir items into self._items; tag provenance as 'project'."""
         if not (self._project_dir and self._project_dir.exists()):
             return
         for yaml_file in self._project_scan(self._project_dir):
@@ -156,10 +203,12 @@ class BaseDoctrineRepository(ABC, Generic[T]):
                     merged = self._merge(shipped[item_id], data)
                     if self._include_item(merged):
                         self._items[item_id] = merged
+                        self._provenance[item_id] = "project"
                 else:
                     obj = self._schema.model_validate(data)
                     if self._include_item(obj):
                         self._items[self._key(obj)] = obj
+                        self._provenance[self._key(obj)] = "project"
             except (YAMLError, ValidationError, OSError) as exc:
                 warnings.warn(
                     f"Skipping invalid project {self._kind} {yaml_file.name}: {exc}",
@@ -168,10 +217,15 @@ class BaseDoctrineRepository(ABC, Generic[T]):
                 )
 
     def _load(self) -> None:
-        """Walk shipped + project dirs, parse, merge, warn on failure."""
+        """Walk shipped + org + project dirs, parse, merge, warn on failure."""
         yaml_parser = YAML(typ="safe")
         shipped = self._load_shipped_items(yaml_parser)
         self._items = shipped.copy()
+        # Tag all shipped items as 'builtin'
+        self._provenance = {k: "builtin" for k in self._items}
+        # Org layer overrides shipped
+        self._apply_org_overrides(yaml_parser, shipped)
+        # Project layer overrides shipped + org
         self._apply_project_overrides(yaml_parser, shipped)
 
     def _merge(self, shipped: T, project_data: dict[str, Any]) -> T:
@@ -186,6 +240,14 @@ class BaseDoctrineRepository(ABC, Generic[T]):
     def get(self, item_id: str) -> T | None:
         """Get asset by ID."""
         return self._items.get(item_id)
+
+    def get_provenance(self, item_id: str) -> str | None:
+        """Return the source layer for the given artifact ID.
+
+        Returns one of ``"builtin"``, ``"org"``, or ``"project"``, or
+        ``None`` if the artifact is not loaded.
+        """
+        return self._provenance.get(item_id)
 
 
 __all__ = ["BaseDoctrineRepository"]

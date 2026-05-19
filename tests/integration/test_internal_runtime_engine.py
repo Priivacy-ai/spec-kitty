@@ -8,7 +8,7 @@ These tests focus on:
 All I/O uses ``tmp_path`` with real YAML mission fixtures.
 No subprocess invocations; pure in-process execution.
 
-Tactic: function-over-form-testing (src/doctrine/tactics/shipped/testing/).
+Tactic: function-over-form-testing (src/doctrine/tactics/built-in/testing/).
 Structure: AAA (Arrange / Act / Assert).
 """
 

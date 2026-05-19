@@ -4,7 +4,7 @@ These tests use CliRunner and patch ``find_repo_root`` plus agent-config
 helpers so tests don't require a real project.  Real filesystem I/O uses
 ``tmp_path``; no patch of Path methods.
 
-Tactic: function-over-form-testing (src/doctrine/tactics/shipped/testing/).
+Tactic: function-over-form-testing (src/doctrine/tactics/built-in/testing/).
 Structure: AAA (Arrange / Act / Assert).
 """
 

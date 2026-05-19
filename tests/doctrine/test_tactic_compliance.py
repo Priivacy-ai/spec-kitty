@@ -26,8 +26,8 @@ pytestmark = pytest.mark.doctrine
 DOCTRINE_DIR = DOCTRINE_SOURCE_ROOT
 SCHEMA_DIR = DOCTRINE_DIR / "schemas"
 
-_SOURCE_SUBDIRS = ("shipped", "_proposed")
-_SHIPPED_SUBDIRS = ("shipped",)
+_SOURCE_SUBDIRS = ("built-in", "_proposed")
+_SHIPPED_SUBDIRS = ("built-in",)
 _TACTICS_DIRS = [DOCTRINE_DIR / "tactics" / d for d in _SOURCE_SUBDIRS]
 _SHIPPED_TACTICS_DIRS = [DOCTRINE_DIR / "tactics" / d for d in _SHIPPED_SUBDIRS]
 _TEMPLATES_DIR = DOCTRINE_DIR / "templates"

@@ -567,7 +567,7 @@ def test_yaml_fallback_resolves_directives_from_shipped_subdirectory() -> None:
     """YAML fallback path must find directives stored in shipped/ subdirectory.
 
     Regression: _index_yaml_assets scanned the flat doctrine_root/directives/ dir
-    but all shipped directives live in doctrine_root/directives/shipped/.  The
+    but all shipped directives live in doctrine_root/directives/built-in/.  The
     result was every directive reference getting summary='Definition unavailable
     in bundled doctrine.' when DoctrineService was absent.
     """

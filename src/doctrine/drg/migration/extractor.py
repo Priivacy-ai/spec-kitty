@@ -102,7 +102,7 @@ def extract_artifact_edges(  # noqa: C901
             edges.append(edge)
 
     # --- Directives ---
-    directives_dir = doctrine_root / "directives" / "shipped"
+    directives_dir = doctrine_root / "directives" / "built-in"
     if directives_dir.is_dir():
         for path in sorted(directives_dir.glob("*.directive.yaml")):
             data = _load_yaml(path)
@@ -166,7 +166,7 @@ def extract_artifact_edges(  # noqa: C901
                 )
 
     # --- Tactics ---
-    tactics_dir = doctrine_root / "tactics" / "shipped"
+    tactics_dir = doctrine_root / "tactics" / "built-in"
     if tactics_dir.is_dir():
         # Include top-level *.tactic.yaml and any in subdirectories
         tactic_files = sorted(tactics_dir.rglob("*.tactic.yaml"))
@@ -221,7 +221,7 @@ def extract_artifact_edges(  # noqa: C901
                     )
 
     # --- Paradigms ---
-    paradigms_dir = doctrine_root / "paradigms" / "shipped"
+    paradigms_dir = doctrine_root / "paradigms" / "built-in"
     if paradigms_dir.is_dir():
         for path in sorted(paradigms_dir.glob("*.paradigm.yaml")):
             data = _load_yaml(path)
@@ -277,7 +277,7 @@ def extract_artifact_edges(  # noqa: C901
                 )
 
     # --- Procedures ---
-    procedures_dir = doctrine_root / "procedures" / "shipped"
+    procedures_dir = doctrine_root / "procedures" / "built-in"
     if procedures_dir.is_dir():
         for path in sorted(procedures_dir.glob("*.procedure.yaml")):
             data = _load_yaml(path)
@@ -387,9 +387,9 @@ def _discover_shipped_artifact_nodes(
     extraction passes.
     """
     scan_dirs: list[tuple[str, str, NodeKind]] = [
-        ("styleguides/shipped", "styleguide", NodeKind.STYLEGUIDE),
-        ("toolguides/shipped", "toolguide", NodeKind.TOOLGUIDE),
-        ("procedures/shipped", "procedure", NodeKind.PROCEDURE),
+        ("styleguides/built-in", "styleguide", NodeKind.STYLEGUIDE),
+        ("toolguides/built-in", "toolguide", NodeKind.TOOLGUIDE),
+        ("procedures/built-in", "procedure", NodeKind.PROCEDURE),
     ]
     for subdir, kind, node_kind in scan_dirs:
         shipped_dir = doctrine_root / subdir
@@ -407,7 +407,7 @@ def _discover_shipped_artifact_nodes(
             _ensure_node(nodes_by_urn, urn, node_kind, label or None)
 
     # Also scan writing subdirectory for styleguides
-    writing_dir = doctrine_root / "styleguides" / "shipped" / "writing"
+    writing_dir = doctrine_root / "styleguides" / "built-in" / "writing"
     if writing_dir.is_dir():
         for path in sorted(writing_dir.glob("*.styleguide.yaml")):
             data = _load_yaml(path)

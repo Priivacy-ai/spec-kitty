@@ -266,7 +266,7 @@ def _resolve_scan_roots(
         shipped/ or _proposed/ subdirectory exists, or the directory itself is
         a valid flat layout.
     """
-    shipped_dir = directory / "shipped"
+    shipped_dir = directory / "built-in"
     proposed_dir = directory / "_proposed"
     if shipped_dir.is_dir() or proposed_dir.is_dir():
         scan_roots = [shipped_dir] if shipped_dir.is_dir() else []

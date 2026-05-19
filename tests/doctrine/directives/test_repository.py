@@ -52,7 +52,7 @@ class TestDirectiveRepository:
 
     def test_malformed_yaml_skipped_with_warning(self, tmp_path: Path) -> None:
         """Malformed YAML files are skipped, not crash."""
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
         bad_file = shipped / "bad.directive.yaml"
         bad_file.write_text("not: valid: yaml: [")
@@ -96,7 +96,7 @@ class TestDirectiveRepository:
         self, tmp_path: Path
     ) -> None:
         """Project directive overrides shipped fields at field level."""
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
         project = tmp_path / "project"
         project.mkdir()

@@ -109,10 +109,10 @@ anti_patterns:
 quality_test: "Can a new contributor read one test and understand what behavior it validates, what preconditions are required, and what a failure means — without reading the production code?"
 
 references:
-  - "src/doctrine/tactics/shipped/tdd-red-green-refactor.tactic.yaml"
-  - "src/doctrine/tactics/shipped/acceptance-test-first.tactic.yaml"
-  - "src/doctrine/tactics/shipped/test-minimisation.tactic.yaml"
-  - "src/doctrine/tactics/shipped/test-boundaries-by-responsibility.tactic.yaml"
-  - "src/doctrine/tactics/shipped/test-pyramid-progression.tactic.yaml"
-  - "src/doctrine/directives/shipped/030-test-and-typecheck-quality-gate.directive.yaml"
-  - "src/doctrine/directives/shipped/034-test-first-development.directive.yaml"
+  - "src/doctrine/tactics/built-in/tdd-red-green-refactor.tactic.yaml"
+  - "src/doctrine/tactics/built-in/acceptance-test-first.tactic.yaml"
+  - "src/doctrine/tactics/built-in/test-minimisation.tactic.yaml"
+  - "src/doctrine/tactics/built-in/test-boundaries-by-responsibility.tactic.yaml"
+  - "src/doctrine/tactics/built-in/test-pyramid-progression.tactic.yaml"
+  - "src/doctrine/directives/built-in/030-test-and-typecheck-quality-gate.directive.yaml"
+  - "src/doctrine/directives/built-in/034-test-first-development.directive.yaml"

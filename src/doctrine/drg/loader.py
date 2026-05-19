@@ -45,6 +45,40 @@ def load_graph(path: Path) -> DRGGraph:
         ) from exc
 
 
+def load_graph_or_dir(path: Path) -> DRGGraph:
+    """Load a ``DRGGraph`` from a file or directory.
+
+    If *path* is a file, delegates to :func:`load_graph`.
+    If *path* is a directory, loads ``graph.yaml`` when present for backward
+    compatibility; otherwise, loads ``*.graph.yaml`` fragments alphabetically
+    and merges them left-to-right with :func:`merge_layers`.
+
+    Raises :class:`DRGLoadError` if the path does not exist, is not a file or
+    directory, or if no graph file can be found in a directory.
+    """
+    if path.is_file():
+        return load_graph(path)
+
+    if not path.exists():
+        raise DRGLoadError(f"Path not found: {path}")
+
+    if not path.is_dir():
+        raise DRGLoadError(f"Path is not a file or directory: {path}")
+
+    single_graph = path / "graph.yaml"
+    if single_graph.is_file():
+        return load_graph(single_graph)
+
+    fragment_paths = sorted(path.glob("*.graph.yaml"))
+    if not fragment_paths:
+        raise DRGLoadError(f"No DRG graph files found in directory: {path}")
+
+    graph = load_graph(fragment_paths[0])
+    for fragment_path in fragment_paths[1:]:
+        graph = merge_layers(graph, load_graph(fragment_path))
+    return graph
+
+
 def merge_layers(
     shipped: DRGGraph,
     project: DRGGraph | None,

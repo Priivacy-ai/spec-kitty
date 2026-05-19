@@ -2,7 +2,7 @@ schema_version: "1.0"
 id: plantuml-diagramming
 tool: plantuml
 title: PlantUML Diagramming
-guide_path: src/doctrine/toolguides/shipped/PLANTUML_DIAGRAMMING.md
+guide_path: src/doctrine/toolguides/built-in/PLANTUML_DIAGRAMMING.md
 summary: >
   Reference guide for using PlantUML as a diagram-as-code tool in Spec Kitty
   projects. Covers diagram types, syntax patterns, theming, CI integration,

@@ -13,7 +13,7 @@ from doctrine.directives.validation import validate_directive
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-SHIPPED_DIRECTIVES_DIR = REPO_ROOT / "src" / "doctrine" / "directives" / "shipped"
+SHIPPED_DIRECTIVES_DIR = REPO_ROOT / "src" / "doctrine" / "directives" / "built-in"
 
 
 def _load_yaml(path: Path) -> dict:

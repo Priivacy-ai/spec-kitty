@@ -74,8 +74,21 @@ def build_charter_context(
     action: str,
     mark_loaded: bool = True,
     depth: int | None = None,
+    org_root: Path | None = None,
 ) -> CharterContextResult:
-    """Build charter context by querying the Doctrine Reference Graph."""
+    """Build charter context by querying the Doctrine Reference Graph.
+
+    Parameters
+    ----------
+    org_root:
+        Optional path to the configured org doctrine snapshot.  When provided,
+        the three-layer (shipped + org + project) DRG overlay is used and the
+        ``DoctrineService`` is constructed with the org layer included.
+        Charter-layer callers leave this as ``None``; ``specify_cli`` callers
+        resolve the value via :func:`specify_cli.doctrine.config.resolve_org_roots`
+        and pass it explicitly (preserving the kernel <- doctrine <- charter <-
+        specify_cli dependency direction).
+    """
     _ = profile
 
     from charter.sync import ensure_charter_bundle_fresh
@@ -131,6 +144,7 @@ def build_charter_context(
         repo_root=repo_root,
         action=normalized,
         effective_depth=state_bundle.effective_depth,
+        org_root=org_root,
     )
     charter_content = charter_path.read_text(encoding="utf-8")
     summary = _extract_policy_summary(charter_content)
@@ -228,20 +242,18 @@ def _load_action_doctrine_bundle(
     repo_root: Path,
     action: str,
     effective_depth: int,
+    org_root: Path | None = None,
 ) -> _ActionDoctrineBundle:
     """Load DRG-backed action doctrine artifacts for bootstrap rendering."""
-    from charter.catalog import resolve_doctrine_root
+    from charter._drg_helpers import load_validated_graph
     from charter.sync import load_governance_config
-    from doctrine.drg.loader import load_graph, merge_layers
     from doctrine.drg.query import resolve_context
-    from doctrine.drg.validator import assert_valid
 
-    doctrine_root = resolve_doctrine_root()
-    shipped_graph = load_graph(doctrine_root / "graph.yaml")
-    project_graph_path = repo_root / KITTIFY_DIRNAME / "doctrine" / "graph.yaml"
-    project_graph = load_graph(project_graph_path) if project_graph_path.exists() else None
-    merged = merge_layers(shipped_graph, project_graph)
-    assert_valid(merged)
+    # WP07 T034: route the DRG load through the shared helper so the shipped +
+    # org + project three-layer overlay is honoured.  Callers in ``specify_cli``
+    # supply *org_root* explicitly; charter-internal callers pass ``None`` and
+    # get the two-layer (shipped + project) merge.
+    merged = load_validated_graph(repo_root, org_root=org_root)
 
     governance = load_governance_config(repo_root)
     mission = (governance.doctrine.template_set or "software-dev-default").removesuffix("-default")
@@ -258,7 +270,7 @@ def _load_action_doctrine_bundle(
         tactic_ids=tactic_ids,
         styleguide_ids=styleguide_ids,
         toolguide_ids=toolguide_ids,
-        service=_build_doctrine_service(repo_root),
+        service=_build_doctrine_service(repo_root, org_roots=[org_root] if org_root else None),
     )
 
 
@@ -361,7 +373,7 @@ def _extend_named_artifact_lines(
     lines.extend(formatted)
 
 
-def _build_doctrine_service(repo_root: Path) -> object:
+def _build_doctrine_service(repo_root: Path, *, org_roots: list[Path] | None = None) -> object:
     """Build a DoctrineService for the given repo root.
 
     The project-root candidate list (in priority order):
@@ -374,17 +386,28 @@ def _build_doctrine_service(repo_root: Path) -> object:
 
     Cross-reference: ``compiler._default_doctrine_service`` uses the same
     ``resolve_project_root`` helper from ``charter._doctrine_paths``.
+
+    WP07: callers in ``specify_cli`` may supply explicit *org_roots* (a list
+    of org doctrine snapshot paths) so the resulting service includes the
+    configured org layer in provenance tracking.  Charter-internal callers
+    omit the argument and get the shipped-plus-project baseline.
     """
     from doctrine.service import DoctrineService
     from charter.catalog import resolve_doctrine_root
 
     doctrine_root = resolve_doctrine_root()
     project_root = resolve_project_root(repo_root)
-    return DoctrineService(
-        shipped_root=doctrine_root,
-        project_root=project_root,
-        active_languages=infer_repo_languages(repo_root),
-    )
+    kwargs: dict[str, object] = {
+        "shipped_root": doctrine_root,
+        "project_root": project_root,
+        "active_languages": infer_repo_languages(repo_root),
+    }
+    # Only pass ``org_roots`` when it carries paths so charter-internal
+    # callers see byte-identical kwargs (preserves existing test stubs and
+    # downstream constructors that may not declare the parameter).
+    if org_roots:
+        kwargs["org_roots"] = org_roots
+    return DoctrineService(**kwargs)
 
 
 def _normalize_directive_id(raw: str) -> str:
@@ -741,3 +764,116 @@ def _mark_action_loaded(state: dict[str, object], state_path: Path, action: str)
         state["actions"] = actions_obj
     actions_obj[action] = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     _write_state(state_path, state)
+
+
+# ---------------------------------------------------------------------------
+# WP07: JSON structured data export (provenance + org charter)
+# ---------------------------------------------------------------------------
+
+
+def _artifact_to_dict(artifact: object, source: str) -> dict[str, object]:
+    """Render a single doctrine artifact for the JSON ``charter context`` output.
+
+    The returned mapping always carries an ``id`` and a ``source`` field;
+    additional fields are extracted on a best-effort basis.  Unknown layer
+    sources fall back to ``"builtin"`` (the safest default — "we don't know,
+    assume shipped").
+    """
+    item_id = getattr(artifact, "id", None)
+    title = getattr(artifact, "title", None) or getattr(artifact, "name", None)
+    summary = getattr(artifact, "intent", None) or getattr(artifact, "purpose", None)
+    out: dict[str, object] = {
+        "id": item_id if isinstance(item_id, str) else "",
+        "source": source if source in {"builtin", "org", "project"} else "builtin",
+    }
+    if isinstance(title, str) and title:
+        out["title"] = title
+    if isinstance(summary, str) and summary:
+        out["summary"] = summary
+    return out
+
+
+def _collect_typed_artifacts(
+    repository: object,
+    artifact_ids: list[str],
+) -> list[dict[str, object]]:
+    """Look up artifacts in *repository* and emit JSON entries tagged with provenance."""
+    entries: list[dict[str, object]] = []
+    for artifact_id in artifact_ids:
+        try:
+            artifact = repository.get(artifact_id)  # type: ignore[attr-defined]
+            source = repository.get_provenance(artifact_id) or "builtin"  # type: ignore[attr-defined]
+        except (AttributeError, KeyError):
+            artifact, source = None, "builtin"
+        if artifact is None:
+            entries.append({"id": artifact_id, "source": source})
+            continue
+        entries.append(_artifact_to_dict(artifact, source))
+    return entries
+
+
+_EMPTY_ORG_CHARTER: dict[str, object] = {"present": False, "packs": []}
+
+
+def build_charter_context_json(
+    repo_root: Path,
+    *,
+    action: str,
+    org_root: Path | None = None,
+    depth: int | None = None,
+    org_charter_block: dict[str, object] | None = None,
+) -> dict[str, object]:
+    """Return the structured JSON payload for ``charter context --json``.
+
+    The payload contains:
+
+    * ``action`` / ``mode`` — same surface as :class:`CharterContextResult`.
+    * ``directives`` / ``tactics`` / ``styleguides`` / ``toolguides`` — typed
+      artifact arrays, each entry carrying a ``"source"`` provenance field
+      (``"builtin"`` | ``"org"`` | ``"project"``).
+    * ``org_charter`` — additive block describing org-layer governance
+      policies (empty when no org pack ships an ``org-charter.yaml``).
+
+    The *org_charter_block* is supplied by the caller as pre-loaded data —
+    the charter layer must not import from ``specify_cli`` (ADR 2026-03-27-1),
+    so any org-charter policy loading happens in the higher layer and is
+    passed in here as a plain mapping.  Defaults to ``{"present": false,
+    "packs": []}`` when omitted.
+
+    Returns an empty-shell payload when the action is not a bootstrap action
+    (the textual ``charter context`` surface is still authoritative for
+    non-bootstrap actions).
+    """
+    normalized = action.strip().lower()
+    payload: dict[str, object] = {
+        "action": normalized,
+        "directives": [],
+        "tactics": [],
+        "styleguides": [],
+        "toolguides": [],
+        "org_charter": (
+            dict(org_charter_block) if org_charter_block is not None else dict(_EMPTY_ORG_CHARTER)
+        ),
+    }
+
+    if normalized not in BOOTSTRAP_ACTIONS:
+        payload["mode"] = "compact"
+        return payload
+
+    state_bundle = _prepare_context_state(repo_root, normalized, depth)
+    payload["mode"] = "bootstrap"
+    if state_bundle.effective_depth < _MIN_EFFECTIVE_DEPTH:
+        return payload
+
+    bundle = _load_action_doctrine_bundle(
+        repo_root=repo_root,
+        action=normalized,
+        effective_depth=state_bundle.effective_depth,
+        org_root=org_root,
+    )
+    service = bundle.service
+    payload["directives"] = _collect_typed_artifacts(service.directives, bundle.directive_ids)  # type: ignore[attr-defined]
+    payload["tactics"] = _collect_typed_artifacts(service.tactics, bundle.tactic_ids)  # type: ignore[attr-defined]
+    payload["styleguides"] = _collect_typed_artifacts(service.styleguides, bundle.styleguide_ids)  # type: ignore[attr-defined]
+    payload["toolguides"] = _collect_typed_artifacts(service.toolguides, bundle.toolguide_ids)  # type: ignore[attr-defined]
+    return payload

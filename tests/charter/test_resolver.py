@@ -37,12 +37,12 @@ def test_resolve_governance_reads_charter_selections_first(
     when explicitly declared and all values exist in the shipped catalog."""
     # Build a minimal doctrine root so shipped paradigm validation passes.
     doctrine_root = tmp_path / "doctrine_root"
-    (doctrine_root / "paradigms" / "shipped").mkdir(parents=True)
-    (doctrine_root / "paradigms" / "shipped" / "test-first.paradigm.yaml").write_text(
+    (doctrine_root / "paradigms" / "built-in").mkdir(parents=True)
+    (doctrine_root / "paradigms" / "built-in" / "test-first.paradigm.yaml").write_text(
         "id: test-first\n"
     )
-    (doctrine_root / "directives" / "shipped").mkdir(parents=True)
-    (doctrine_root / "agent_profiles" / "shipped").mkdir(parents=True)
+    (doctrine_root / "directives" / "built-in").mkdir(parents=True)
+    (doctrine_root / "agent_profiles" / "built-in").mkdir(parents=True)
     (doctrine_root / "missions" / "software-dev").mkdir(parents=True)
     (doctrine_root / "missions" / "software-dev" / "mission.yaml").write_text(
         "name: software-dev\n"
@@ -406,14 +406,14 @@ def test_collect_governance_diagnostics_returns_success_diagnostics(
 def _make_doctrine_root(tmp_path: Path, *, with_paradigm: str | None = None) -> Path:
     """Create a minimal doctrine root for resolver tests."""
     doctrine_root = tmp_path / "doctrine_root"
-    paradigms_shipped = doctrine_root / "paradigms" / "shipped"
+    paradigms_shipped = doctrine_root / "paradigms" / "built-in"
     paradigms_shipped.mkdir(parents=True)
     if with_paradigm:
         (paradigms_shipped / f"{with_paradigm}.paradigm.yaml").write_text(
             f"id: {with_paradigm}\n"
         )
-    (doctrine_root / "directives" / "shipped").mkdir(parents=True)
-    (doctrine_root / "agent_profiles" / "shipped").mkdir(parents=True)
+    (doctrine_root / "directives" / "built-in").mkdir(parents=True)
+    (doctrine_root / "agent_profiles" / "built-in").mkdir(parents=True)
     (doctrine_root / "missions" / "software-dev").mkdir(parents=True)
     (doctrine_root / "missions" / "software-dev" / "mission.yaml").write_text("name: software-dev\n")
     return doctrine_root
@@ -441,8 +441,8 @@ def test_paradigm_failure_skipped_when_shipped_dir_absent(tmp_path: Path, monkey
     """When the paradigms shipped directory does not exist, validation is skipped gracefully."""
     doctrine_root = tmp_path / "doctrine_root"
     # Do NOT create paradigms directory at all
-    (doctrine_root / "directives" / "shipped").mkdir(parents=True)
-    (doctrine_root / "agent_profiles" / "shipped").mkdir(parents=True)
+    (doctrine_root / "directives" / "built-in").mkdir(parents=True)
+    (doctrine_root / "agent_profiles" / "built-in").mkdir(parents=True)
     (doctrine_root / "missions" / "software-dev").mkdir(parents=True)
     (doctrine_root / "missions" / "software-dev" / "mission.yaml").write_text("name: software-dev\n")
     monkeypatch.setattr(catalog_module, "resolve_doctrine_root", lambda: doctrine_root)

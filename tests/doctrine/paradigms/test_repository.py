@@ -35,7 +35,7 @@ class TestParadigmRepository:
         assert paradigms[0].id == "test-first"
 
     def test_malformed_yaml_skipped_with_warning(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
         bad_file = shipped / "bad.paradigm.yaml"
         bad_file.write_text("not: valid: yaml: [")
@@ -71,7 +71,7 @@ class TestParadigmRepository:
             repo.save(paradigm)
 
     def test_field_level_merge_with_project_override(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
         project = tmp_path / "project"
         project.mkdir()

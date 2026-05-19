@@ -2,7 +2,7 @@ schema_version: "1.0"
 id: rtk-search-tooling
 tool: rtk+rg
 title: RTK Interception and Search Tooling
-guide_path: src/doctrine/toolguides/shipped/system_tools/RTK_SEARCH_TOOLING.md
+guide_path: src/doctrine/toolguides/built-in/system_tools/RTK_SEARCH_TOOLING.md
 summary: >
   Explains RTK's hook-based command interception, which commands it wraps, which
   advanced invocations break silently, and the correct search tooling patterns

@@ -2,7 +2,7 @@ schema_version: "1.0"
 id: maven-review-checks
 tool: maven-quality-stack
 title: Maven Review Checks
-guide_path: src/doctrine/toolguides/shipped/MAVEN_REVIEW_CHECKS.md
+guide_path: src/doctrine/toolguides/built-in/MAVEN_REVIEW_CHECKS.md
 applies_to_languages:
   - java
 summary: >
