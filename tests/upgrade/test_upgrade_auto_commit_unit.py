@@ -486,6 +486,69 @@ def test_upgrade_no_migrations_json_includes_auto_commit_fields(
     assert data["warnings"] == []
 
 
+def test_upgrade_no_migrations_stamps_missing_schema_version(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    """Regression for issue #1158: up-to-date semver must still repair schema metadata."""
+    import yaml
+
+    from specify_cli.migration.schema_version import (
+        REQUIRED_SCHEMA_VERSION,
+        check_compatibility,
+        get_project_schema_version,
+    )
+
+    project_path = _setup_upgrade_project(tmp_path)
+    metadata_path = project_path / ".kittify" / "metadata.yaml"
+    metadata_path.write_text(
+        "spec_kitty:\n"
+        "  version: 3.2.0rc14\n"
+        "  initialized_at: '2026-01-01T00:00:00'\n"
+        "environment:\n"
+        "  python_version: '3.14'\n"
+        "  platform: darwin\n"
+        "  platform_version: ''\n"
+        "migrations:\n"
+        "  applied:\n"
+        "  - id: 3.0.0_canonical_context\n"
+        "    applied_at: '2026-01-01T00:00:00'\n"
+        "    result: success\n"
+        "    notes: canonical context already migrated\n"
+        "  - id: 3.2.0a4_normalize_mission_lifecycle\n"
+        "    applied_at: '2026-01-01T00:00:00'\n"
+        "    result: success\n"
+        "    notes: lifecycle already normalized\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(Path, "cwd", lambda: project_path)
+    monkeypatch.setattr(upgrade_cmd, "_git_status_paths", lambda _rp: set())
+
+    assert get_project_schema_version(project_path) is None
+
+    upgrade_cmd.upgrade(
+        dry_run=False,
+        force=True,
+        target="3.2.0rc14",
+        json_output=True,
+        verbose=False,
+        no_worktrees=True,
+        cli=False,
+        project=False,
+    )
+
+    data = json.loads(capsys.readouterr().out.strip())
+    assert data["status"] == "up_to_date"
+
+    metadata = yaml.safe_load(metadata_path.read_text(encoding="utf-8"))
+    assert metadata["spec_kitty"]["schema_version"] == REQUIRED_SCHEMA_VERSION
+    assert check_compatibility(
+        get_project_schema_version(project_path),
+        REQUIRED_SCHEMA_VERSION,
+    ).is_compatible
+
+
 def test_upgrade_no_migrations_surfaces_teamspace_mission_state_prompt(
     tmp_path: Path,
     monkeypatch,

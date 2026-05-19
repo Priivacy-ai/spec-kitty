@@ -529,6 +529,12 @@ def upgrade(  # noqa: C901
             metadata.save(kittify_dir)
 
         if not dry_run:
+            from specify_cli.migration.schema_version import REQUIRED_SCHEMA_VERSION
+
+            if REQUIRED_SCHEMA_VERSION is not None:
+                MigrationRunner._stamp_schema_version(kittify_dir, REQUIRED_SCHEMA_VERSION)
+
+        if not dry_run:
             auto_committed, auto_commit_paths, auto_commit_warning = _auto_commit_upgrade_changes(
                 project_path=project_path,
                 from_version=current_version,
