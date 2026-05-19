@@ -1,16 +1,16 @@
 {
-  "event_count": 52,
-  "last_event_id": "01KS0PKA0W3S6J89H86QQNQZTP",
-  "materialized_at": "2026-05-19T18:05:03.901027+00:00",
+  "event_count": 53,
+  "last_event_id": "01KS0PKBTAF3B454TQF30W02QJ",
+  "materialized_at": "2026-05-19T18:05:05.739033+00:00",
   "mission_number": "",
   "mission_slug": "retrospective-default-policy-01KS049J",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 2,
+    "approved": 1,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 5,
+    "done": 6,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
@@ -54,10 +54,10 @@
     },
     "WP06": {
       "actor": "user",
-      "force_count": 1,
-      "lane": "approved",
-      "last_event_id": "01KS0KZVM6F7W17HH5CFK3PKR0",
-      "last_transition_at": "2026-05-19T17:19:29.414144+00:00"
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KS0PKBTAF3B454TQF30W02QJ",
+      "last_transition_at": "2026-05-19T18:05:05.739033+00:00"
     },
     "WP07": {
       "actor": "user",
