@@ -606,7 +606,8 @@ def run_sync_daemon(port: int, daemon_token: str | None) -> None:
     def _cleanup_owner_record() -> None:
         try:
             remove_owner_record()
-        except Exception:  # noqa: BLE001 — best-effort, never block exit
+        # Best-effort cleanup: never block daemon exit on owner-record removal.
+        except Exception:  # noqa: BLE001
             logger.debug("Owner record cleanup raised; continuing")
 
     atexit.register(_cleanup_owner_record)

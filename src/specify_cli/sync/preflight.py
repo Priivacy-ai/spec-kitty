@@ -36,7 +36,7 @@ import os
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Callable, Literal
 
 from rich.console import Console
 from rich.table import Table
@@ -199,20 +199,7 @@ class PreflightResult:
         )
 
         if self.mismatches:
-            table = Table(title=None, show_lines=False)
-            table.add_column("Field", style="bold")
-            table.add_column("Foreground")
-            table.add_column("Daemon")
-            # Sort by canonical order so the table is stable.
-            by_field: dict[MismatchField, OwnerMismatch] = {
-                m.field: m for m in self.mismatches
-            }
-            for fname in _CANONICAL_FIELD_ORDER:
-                m = by_field.get(fname)
-                if m is None:
-                    continue
-                table.add_row(m.field, m.foreground_value, m.daemon_value)
-            console.print(table)
+            console.print(_build_mismatch_table(self.mismatches))
 
         # Remediation bullets — compressed for the NFR-004 25-line budget
         # at 80 columns. Most daemon-field mismatches share a single
@@ -230,47 +217,13 @@ class PreflightResult:
         # ``daemon_server_url`` and ``daemon_team_or_user`` keep their own
         # bullets because their remediations differ from the simple
         # restart-daemon path (they involve auth).
-        remediation_lines: list[str] = []
-
-        mismatch_fields = {m.field for m in self.mismatches}
-        restart_class: tuple[MismatchField, ...] = (
-            "daemon_package_version",
-            "daemon_executable_path",
-            "daemon_source_path",
-            "daemon_queue_db_path",
+        remediation_lines = _build_remediation_lines(
+            self.mismatches,
+            orphan_count=n_orphan,
+            legacy_rows=k_legacy,
+            auth_required=self.auth_required,
+            auth_present=self.auth_present,
         )
-        if any(f in mismatch_fields for f in restart_class):
-            remediation_lines.append(
-                "  • Run `spec-kitty doctor restart-daemon` to restart the "
-                "daemon at the foreground version/source."
-            )
-        if "daemon_server_url" in mismatch_fields:
-            remediation_lines.append(
-                "  • Reauthenticate (`spec-kitty auth login`) or restart "
-                "the daemon against the matching server."
-            )
-        if "daemon_team_or_user" in mismatch_fields:
-            remediation_lines.append(
-                "  • Switch team/user (`spec-kitty auth switch ...`) or "
-                "restart the daemon."
-            )
-
-        if self.orphan_records:
-            remediation_lines.append(
-                f"  • Run `spec-kitty doctor orphan-daemons` to clean up "
-                f"{n_orphan} orphan daemon record(s)."
-            )
-        if k_legacy > 0:
-            remediation_lines.append(
-                f"  • Run `spec-kitty sync now` to flush {k_legacy} legacy "
-                f"rows for the current scope after the boundary is coherent."
-            )
-        if self.auth_required and not self.auth_present:
-            remediation_lines.append(
-                "  • Run `spec-kitty auth login` — SaaS sync enabled but "
-                "no authenticated identity is available."
-            )
-
         if remediation_lines:
             console.print("Remediation:")
             for line in remediation_lines:
@@ -314,6 +267,75 @@ def _orphan_record_to_dict(record: DaemonOwnerRecord) -> dict[str, Any]:
     if "token" in data:
         data["token"] = "<redacted>"
     return data
+
+
+def _build_mismatch_table(mismatches: tuple[OwnerMismatch, ...]) -> Table:
+    """Build a stable mismatch table ordered by canonical field sequence."""
+    table = Table(title=None, show_lines=False)
+    table.add_column("Field", style="bold")
+    table.add_column("Foreground")
+    table.add_column("Daemon")
+    by_field: dict[MismatchField, OwnerMismatch] = {m.field: m for m in mismatches}
+    for field_name in _CANONICAL_FIELD_ORDER:
+        mismatch = by_field.get(field_name)
+        if mismatch is None:
+            continue
+        table.add_row(
+            mismatch.field,
+            mismatch.foreground_value,
+            mismatch.daemon_value,
+        )
+    return table
+
+
+def _build_remediation_lines(
+    mismatches: tuple[OwnerMismatch, ...],
+    *,
+    orphan_count: int,
+    legacy_rows: int,
+    auth_required: bool,
+    auth_present: bool,
+) -> list[str]:
+    """Return the compressed remediation bullets for a preflight failure."""
+    remediation_lines: list[str] = []
+    mismatch_fields = {m.field for m in mismatches}
+    restart_class: tuple[MismatchField, ...] = (
+        "daemon_package_version",
+        "daemon_executable_path",
+        "daemon_source_path",
+        "daemon_queue_db_path",
+    )
+    if any(field_name in mismatch_fields for field_name in restart_class):
+        remediation_lines.append(
+            "  • Run `spec-kitty doctor restart-daemon` to restart the "
+            "daemon at the foreground version/source."
+        )
+    if "daemon_server_url" in mismatch_fields:
+        remediation_lines.append(
+            "  • Reauthenticate (`spec-kitty auth login`) or restart "
+            "the daemon against the matching server."
+        )
+    if "daemon_team_or_user" in mismatch_fields:
+        remediation_lines.append(
+            "  • Switch team/user (`spec-kitty auth switch ...`) or "
+            "restart the daemon."
+        )
+    if orphan_count:
+        remediation_lines.append(
+            f"  • Run `spec-kitty doctor orphan-daemons` to clean up "
+            f"{orphan_count} orphan daemon record(s)."
+        )
+    if legacy_rows > 0:
+        remediation_lines.append(
+            f"  • Run `spec-kitty sync now` to flush {legacy_rows} legacy "
+            f"rows for the current scope after the boundary is coherent."
+        )
+    if auth_required and not auth_present:
+        remediation_lines.append(
+            "  • Run `spec-kitty auth login` — SaaS sync enabled but "
+            "no authenticated identity is available."
+        )
+    return remediation_lines
 
 
 # ---------------------------------------------------------------------------
@@ -609,23 +631,12 @@ def _count_legacy_rows_for_scope(
         detect_legacy_rows_for_scope,
     )
 
-    # Build the scope string from the foreground identity. The legacy DB
-    # has no per-scope partitioning today, so the scope is informational;
-    # the helper still respects its API contract.
-    if foreground.server_url and foreground.team_or_user:
-        # The foreground.team_or_user is "principal[/team]" — recover the
-        # individual parts when present.
-        if "/" in foreground.team_or_user:
-            principal, team = foreground.team_or_user.split("/", 1)
-        else:
-            principal, team = foreground.team_or_user, "no-team"
-        scope = build_queue_scope(foreground.server_url, principal, team)
-    else:
-        scope = ""
+    scope = _build_legacy_scope(foreground, build_queue_scope)
 
     try:
         counts = detect_legacy_rows_for_scope(scope)
-    except Exception:  # noqa: BLE001 — defensive: never block preflight on a query error
+    # Defensive: never block preflight on a legacy-row query error.
+    except Exception:  # noqa: BLE001
         return (0, 0)
 
     # Preferred path: the structured ``LegacyRowCounts`` exposes the
@@ -650,6 +661,21 @@ def _count_legacy_rows_for_scope(
             # All other migration tables (sync_events, etc.) are event-class.
             event_rows += count
     return event_rows, body_rows
+
+
+def _build_legacy_scope(
+    foreground: ForegroundIdentity,
+    build_queue_scope: Callable[[str, str, str], str],
+) -> str:
+    """Build the scope string used for legacy-queue inspection."""
+    if not foreground.server_url or not foreground.team_or_user:
+        return ""
+
+    if "/" in foreground.team_or_user:
+        principal, team = foreground.team_or_user.split("/", 1)
+    else:
+        principal, team = foreground.team_or_user, "no-team"
+    return build_queue_scope(foreground.server_url, principal, team)
 
 
 # ---------------------------------------------------------------------------

@@ -51,6 +51,44 @@ _STATUS_LAST_SYNC_LABEL = "Last Sync"
 _UNAUTHENTICATED_SYNC_NOW_MESSAGE = (
     "not authenticated: no valid access token. Run `spec-kitty auth login`."
 )
+_WARNING_HEADER_STYLE = "bold yellow"
+_ABSENT_VALUE = "<absent>"
+_UNSET_VALUE = "<unset>"
+_ZERO_STATUS = "[green]0[/green]"
+_BOUNDARY_LABEL_PACKAGE_VERSION = "  Package version"
+_BOUNDARY_LABEL_EXECUTABLE_PATH = "  Executable path"
+_BOUNDARY_LABEL_SOURCE_PATH = "  Source path"
+_BOUNDARY_LABEL_SERVER_URL = "  Server URL"
+_BOUNDARY_LABEL_TEAM_USER = "  Team/User"
+_BOUNDARY_LABEL_QUEUE_DB_PATH = "  Queue DB path"
+_MISMATCHED_FIELDS_LABEL = "Mismatched fields"
+
+
+def _string_or(value: object | None, fallback: str) -> str:
+    """Return *fallback* when *value* is falsey, otherwise coerce to ``str``."""
+    return str(value) if value else fallback
+
+
+def _add_boundary_identity_rows(
+    table: Table,
+    rows: list[tuple[str, object | None]],
+    *,
+    fallback: str,
+) -> None:
+    """Render a flat sequence of key/value rows into the boundary table."""
+    for label, value in rows:
+        table.add_row(label, _string_or(value, fallback))
+
+
+def _add_boundary_identity_row(
+    table: Table,
+    label: str,
+    value: object | None,
+    *,
+    fallback: str,
+) -> None:
+    """Render a single key/value row into the boundary table."""
+    table.add_row(label, _string_or(value, fallback))
 
 
 def _sync_result_looks_unauthenticated(queue_size: int, result: object) -> bool:
@@ -806,7 +844,7 @@ def _display_conflicts(conflicts: list[ConflictInfo]) -> None:
     console.print(f"\n[yellow]Conflicts ({len(conflicts)} files):[/yellow]")
 
     # Create a table for better formatting
-    table = Table(show_header=True, header_style="bold yellow", show_lines=False)
+    table = Table(show_header=True, header_style=_WARNING_HEADER_STYLE, show_lines=False)
     table.add_column("File", style="cyan")
     table.add_column("Type", style="dim")
     table.add_column("Lines", style="dim")
@@ -1846,7 +1884,8 @@ def status(  # noqa: C901
             )
         finally:
             _conn.close()
-    except Exception:  # noqa: BLE001 — read-only diagnostic, never raise
+    # Read-only diagnostic: never let status rendering fail on queue inspection.
+    except Exception:  # noqa: BLE001
         body_queue_count = 0
 
     # Legacy body-upload count (read-only).
@@ -1867,52 +1906,78 @@ def status(  # noqa: C901
 
     # FR-005: Foreground identity (full field set per contract).
     boundary_table.add_row("Foreground:", "")
-    boundary_table.add_row("  Package version", str(fg.package_version or "-"))
-    boundary_table.add_row("  Executable path", str(fg.executable_path or "-"))
-    boundary_table.add_row("  Source path", str(fg.source_path or "-"))
-    boundary_table.add_row(
-        "  Server URL", fg.server_url if fg.server_url else "<unset>"
+    _add_boundary_identity_row(
+        boundary_table,
+        _BOUNDARY_LABEL_PACKAGE_VERSION,
+        fg.package_version,
+        fallback="-",
     )
-    boundary_table.add_row(
-        "  Team/User", fg.team_or_user if fg.team_or_user else "<unset>"
+    _add_boundary_identity_row(
+        boundary_table,
+        _BOUNDARY_LABEL_EXECUTABLE_PATH,
+        fg.executable_path,
+        fallback="-",
     )
-    boundary_table.add_row("  Queue DB path", str(fg.queue_db_path or "-"))
+    _add_boundary_identity_row(
+        boundary_table,
+        _BOUNDARY_LABEL_SOURCE_PATH,
+        fg.source_path,
+        fallback="-",
+    )
+    _add_boundary_identity_row(
+        boundary_table,
+        _BOUNDARY_LABEL_SERVER_URL,
+        fg.server_url,
+        fallback=_UNSET_VALUE,
+    )
+    _add_boundary_identity_row(
+        boundary_table,
+        _BOUNDARY_LABEL_TEAM_USER,
+        fg.team_or_user,
+        fallback=_UNSET_VALUE,
+    )
+    _add_boundary_identity_row(
+        boundary_table,
+        _BOUNDARY_LABEL_QUEUE_DB_PATH,
+        fg.queue_db_path,
+        fallback="-",
+    )
 
     # FR-005: Daemon owner record.
     boundary_table.add_row("Daemon owner record:", "")
     boundary_table.add_row("  Status", daemon_status_label)
     if daemon_record is None:
-        boundary_table.add_row("  PID", "<absent>")
-        boundary_table.add_row("  Port", "<absent>")
-        boundary_table.add_row("  Package version", "<absent>")
-        boundary_table.add_row("  Executable path", "<absent>")
-        boundary_table.add_row("  Source path", "<absent>")
-        boundary_table.add_row("  Server URL", "<absent>")
-        boundary_table.add_row("  Team/User", "<absent>")
-        boundary_table.add_row("  Queue DB path", "<absent>")
+        _add_boundary_identity_rows(
+            boundary_table,
+            [
+                ("  PID", None),
+                ("  Port", None),
+                (_BOUNDARY_LABEL_PACKAGE_VERSION, None),
+                (_BOUNDARY_LABEL_EXECUTABLE_PATH, None),
+                (_BOUNDARY_LABEL_SOURCE_PATH, None),
+                (_BOUNDARY_LABEL_SERVER_URL, None),
+                (_BOUNDARY_LABEL_TEAM_USER, None),
+                (_BOUNDARY_LABEL_QUEUE_DB_PATH, None),
+            ],
+            fallback=_ABSENT_VALUE,
+        )
     else:
-        boundary_table.add_row("  PID", str(daemon_record.pid))
-        boundary_table.add_row("  Port", str(daemon_record.port))
-        boundary_table.add_row(
-            "  Package version", daemon_record.package_version or "<absent>"
-        )
-        boundary_table.add_row(
-            "  Executable path", daemon_record.executable_path or "<absent>"
-        )
-        boundary_table.add_row(
-            "  Source path", daemon_record.source_checkout_path or "<absent>"
-        )
-        boundary_table.add_row(
-            "  Server URL", daemon_record.server_url or "<absent>"
-        )
         # Render daemon team_or_user as "principal[/team]" to match the
         # canonical contract field.
         daemon_team_or_user = _render_daemon_team_or_user(daemon_record)
-        boundary_table.add_row(
-            "  Team/User", daemon_team_or_user if daemon_team_or_user else "<absent>"
-        )
-        boundary_table.add_row(
-            "  Queue DB path", daemon_record.queue_db_path or "<absent>"
+        _add_boundary_identity_rows(
+            boundary_table,
+            [
+                ("  PID", daemon_record.pid),
+                ("  Port", daemon_record.port),
+                (_BOUNDARY_LABEL_PACKAGE_VERSION, daemon_record.package_version),
+                (_BOUNDARY_LABEL_EXECUTABLE_PATH, daemon_record.executable_path),
+                (_BOUNDARY_LABEL_SOURCE_PATH, daemon_record.source_checkout_path),
+                (_BOUNDARY_LABEL_SERVER_URL, daemon_record.server_url),
+                (_BOUNDARY_LABEL_TEAM_USER, daemon_team_or_user),
+                (_BOUNDARY_LABEL_QUEUE_DB_PATH, daemon_record.queue_db_path),
+            ],
+            fallback=_ABSENT_VALUE,
         )
 
     # FR-005: Active queue.
@@ -1943,13 +2008,13 @@ def status(  # noqa: C901
     n_mismatches = len(failure_set.mismatches)
     boundary_table.add_row(
         "Mismatches",
-        f"[red]{n_mismatches}[/red]" if n_mismatches else "[green]0[/green]",
+        f"[red]{n_mismatches}[/red]" if n_mismatches else _ZERO_STATUS,
     )
     boundary_table.add_row(
         "Orphan records",
         f"[yellow]{orphan_record_count}[/yellow]"
         if orphan_record_count
-        else "[green]0[/green]",
+        else _ZERO_STATUS,
     )
 
     # Preserve backward-compatible legacy-event/body summary line so
@@ -1967,21 +2032,21 @@ def status(  # noqa: C901
     if failure_set.mismatches:
         mismatch_field_names = [m.field for m in failure_set.mismatches]
         boundary_table.add_row(
-            "Mismatched fields",
+            _MISMATCHED_FIELDS_LABEL,
             f"[red]{', '.join(mismatch_field_names)}[/red]",
         )
     elif daemon_mismatched:
         boundary_table.add_row(
-            "Mismatched fields",
+            _MISMATCHED_FIELDS_LABEL,
             f"[red]{', '.join(daemon_mismatched)}[/red]",
         )
     else:
-        boundary_table.add_row("Mismatched fields", "[green]none[/green]")
+        boundary_table.add_row(_MISMATCHED_FIELDS_LABEL, "[green]none[/green]")
     boundary_table.add_row(
         "Orphan daemon records",
         f"[yellow]{orphan_record_count}[/yellow]"
         if orphan_record_count
-        else "[green]0[/green]",
+        else _ZERO_STATUS,
     )
 
     # When the canonical mismatch list is non-empty, render the detail
