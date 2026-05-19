@@ -18,8 +18,8 @@ subtasks:
 - T034
 phase: Surface
 assignee: ''
-agent: "claude:claude-sonnet-4-6:python-pedro:implementer"
-shell_pid: "57810"
+agent: "claude:claude-sonnet-4-6:reviewer-renata:reviewer"
+shell_pid: "59172"
 history:
 - timestamp: '2026-05-19T13:29:59Z'
   agent: system
@@ -277,3 +277,4 @@ No half-deleted state: both files remain fully functional as compat shims; `test
 
 - 2026-05-19T17:10:40Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=57810 – Started implementation via action command
 - 2026-05-19T17:16:31Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=57810 – Ready for review: deprecation module (100% coverage) + resolver wiring + 18 test cases across 4 classes; shim fate path (b) documented in task file and commit message; FR-016 enforced (env-mutation confined to test_env_deprecation.py for SPEC_KITTY_RETROSPECTIVE; 6 integration test files outside file use SPEC_KITTY_MODE for mode.py/detect() pathway, accepted per gate_tolerance: keep-or-refactor).
+- 2026-05-19T17:16:57Z – claude:claude-sonnet-4-6:reviewer-renata:reviewer – shell_pid=59172 – Started review via action command
