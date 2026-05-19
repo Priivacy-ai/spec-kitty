@@ -30,6 +30,10 @@ from specify_cli.skills.verifier import repair_skills, verify_installed_skills
 # ── Helpers ──────────────────────────────────────────────────────────
 
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 def _create_skill_on_disk(
     skills_root: Path,
     name: str,

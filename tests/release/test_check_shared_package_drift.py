@@ -7,6 +7,10 @@ from pathlib import Path
 from textwrap import dedent
 from types import ModuleType
 
+import pytest
+
+pytestmark = [pytest.mark.integration]
+
 SCRIPT = (
     Path(__file__).resolve().parents[2]
     / "scripts"

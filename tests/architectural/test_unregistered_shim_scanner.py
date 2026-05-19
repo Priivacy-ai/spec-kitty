@@ -6,6 +6,10 @@ from pathlib import Path
 
 from ruamel.yaml import YAML
 
+import pytest
+
+pytestmark = [pytest.mark.architectural]
+
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SRC_ROOT = _REPO_ROOT / "src" / "specify_cli"
 _REGISTRY_PATH = _REPO_ROOT / "architecture" / "2.x" / "shim-registry.yaml"

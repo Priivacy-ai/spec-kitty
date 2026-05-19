@@ -8,6 +8,12 @@ import re
 from charter.interview import read_interview_answers
 from doctrine.shared.scoping import normalize_languages
 
+__all__ = [
+    "extract_declared_languages",
+    "infer_repo_languages",
+]
+
+
 
 _LANGUAGE_PATTERNS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("python", (r"\bpython\b", r"\bpytest\b", r"\bmypy\b", r"\bruff\b")),

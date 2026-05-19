@@ -123,7 +123,7 @@ returns `POLICY_VALIDATION_FAILED`.
 | `WP_ALREADY_CLAIMED` | Another actor owns the WP |
 | `POLICY_METADATA_REQUIRED` | Policy missing on run-affecting lane |
 | `POLICY_VALIDATION_FAILED` | Policy JSON invalid or contains secrets |
-| `MISSION_NOT_READY` | Not all WPs in done lane |
+| `MISSION_NOT_READY` | Not all WPs approved or done |
 | `PREFLIGHT_FAILED` | Worktree dirty, target diverged, or missing WPs |
 | `UNSUPPORTED_STRATEGY` | Merge strategy not in {merge, squash, rebase} |
 
@@ -276,7 +276,7 @@ This is the guard condition for the `for_review → in_progress` transition.
 spec-kitty orchestrator-api append-history \
   --mission <slug> --wp WP01 --actor "ci-bot" --note "Tests passed"
 
-# Accept mission (validates all WPs in done lane via dependency graph)
+# Accept mission (validates all WPs are approved or done via dependency graph)
 spec-kitty orchestrator-api accept-mission --mission <slug> --actor "ci-bot"
 
 # Merge mission
@@ -285,7 +285,7 @@ spec-kitty orchestrator-api merge-mission \
 ```
 
 `accept-mission` returns `MISSION_NOT_READY` if any WP from the dependency
-graph is not in `done`.
+graph is not `approved` or `done`.
 
 `merge-mission` runs **4 preflight checks** before merging:
 1. All expected WPs have worktrees

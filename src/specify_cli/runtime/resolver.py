@@ -20,14 +20,17 @@ import warnings
 from pathlib import Path
 
 # Single source of truth for the resolution enum / result dataclass.
-# Re-exported from doctrine.resolver so every importer shares one class
-# identity — otherwise `ResolutionTier.X == ResolutionTier.X` fails across
-# modules and test suites that import from both paths flake on `is`/`==`.
-# Historical note: prior to 2026-04-15 this module defined its own
-# duplicate ResolutionTier/ResolutionResult, which caused ~30 CI failures
+# Re-exported via the charter.resolution facade (which itself re-exports
+# from doctrine.resolver, preserving object identity) so every importer
+# shares one class identity — otherwise `ResolutionTier.X == ResolutionTier.X`
+# fails across modules and test suites that import from both paths flake on
+# `is`/`==`. Historical note: prior to 2026-04-15 this module defined its
+# own duplicate ResolutionTier/ResolutionResult, which caused ~30 CI failures
 # on the release-readiness job where doctrine.test_resolver and
-# runtime.test_resolver_unit ran in the same session.
-from doctrine.resolver import ResolutionResult, ResolutionTier
+# runtime.test_resolver_unit ran in the same session. The charter facade
+# route was adopted in mission charter-mediated-doctrine-selection-01KRTZCA
+# (WP07) to enforce the runtime → charter → doctrine boundary.
+from charter.resolution import ResolutionResult, ResolutionTier
 
 __all__ = ["ResolutionResult", "ResolutionTier"]
 

@@ -68,10 +68,14 @@ Python auto-commits the WP frontmatter change to record the lane transition. Bef
 ### 4. Merged
 
 ```bash
+spec-kitty accept --mission 042-feature
 spec-kitty merge --mission 042-feature
 ```
 
-Python merges execution branches into the target branch in dependency order. In lane mode, it first merges lane branches into the mission branch, then merges the mission branch into the target branch. For each execution worktree:
+Acceptance validates that all WPs are approved or done before merge. Python
+then merges execution branches into the target branch in dependency order. In
+lane mode, it first merges lane branches into the mission branch, then merges
+the mission branch into the target branch. For each execution worktree:
 
 1. `git merge --no-ff <workspace-branch>` (preserving merge history)
 2. `git worktree remove` (cleaning up the directory)

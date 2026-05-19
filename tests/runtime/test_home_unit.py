@@ -19,6 +19,8 @@ from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 class TestGetKittifyHomeUnix:
     """Unix (macOS/Linux) default path resolution."""
 

@@ -26,6 +26,8 @@ from charter.synthesizer.write_pipeline import _is_generic_scoped
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 def _staged_generic_with_pytest_bias(tmp_path: Path) -> Path:
     """A generic tactic body containing 'pytest' — should trigger gate."""
     staged_dir = tmp_path / "staging" / "generic"

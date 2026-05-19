@@ -6,6 +6,8 @@ import zipfile
 
 import pytest
 
+pytestmark = [pytest.mark.integration]
+
 LEGACY_SDIST_SEGMENT = "/src/doctrine/" + "agent" + "-" + "profiles"
 
 

@@ -11,6 +11,8 @@ from pathlib import Path
 import pytest
 
 
+pytestmark = [pytest.mark.unit]
+
 @pytest.mark.windows_ci
 def test_runtime_consumers_share_single_windows_root_except_auth() -> None:
     """Tracker/sync/daemon/kernel runtime state resolves under RuntimeRoot.base."""

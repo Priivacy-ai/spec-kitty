@@ -20,6 +20,8 @@ from charter.synthesizer.resynthesize_pipeline import run as resynthesize_run
 from charter.synthesizer.orchestrator import synthesize
 
 
+pytestmark = [pytest.mark.unit]
+
 VALID_DIRECTIVE_BODY = {
     "id": "PROJECT_001",
     "schema_version": "1.0",

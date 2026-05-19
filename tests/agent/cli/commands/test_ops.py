@@ -1,8 +1,4 @@
-"""
-
-pytestmark = pytest.mark.git_repo
-
-Tests for the ops command.
+"""Tests for the ops command.
 
 Tests operation history and undo functionality for git backend.
 """
@@ -20,6 +16,8 @@ from specify_cli.core.vcs import (
     VCSBackend,
 )
 
+
+pytestmark = [pytest.mark.git_repo]
 
 
 # =============================================================================

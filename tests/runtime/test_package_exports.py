@@ -7,6 +7,8 @@ import pytest
 import specify_cli.runtime as runtime_pkg
 
 
+pytestmark = [pytest.mark.unit]
+
 def test_runtime_lazy_exports_resolve_symbols() -> None:
     assert runtime_pkg.resolve_template is not None
     assert runtime_pkg.get_kittify_home is not None

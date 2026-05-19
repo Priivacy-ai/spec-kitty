@@ -15,6 +15,8 @@ import pytest
 
 from specify_cli.saas.rollout import is_saas_sync_enabled, saas_sync_disabled_message
 
+pytestmark = [pytest.mark.integration]
+
 _ENV_VAR = "SPEC_KITTY_ENABLE_SAAS_SYNC"
 
 # ---------------------------------------------------------------------------

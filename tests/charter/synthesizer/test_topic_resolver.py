@@ -28,6 +28,8 @@ from charter.synthesizer.topic_resolver import resolve
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 @pytest.fixture
 def directive_artifact() -> SynthesisTarget:
     """Project-local directive with id=PROJECT_001, slug=mission-scope."""

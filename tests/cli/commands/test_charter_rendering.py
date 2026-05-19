@@ -4,7 +4,7 @@ These tests assert on stable message substrings in CLI output.  They use
 CliRunner to capture Rich-rendered text and check for substrings that are
 stable across Rich versions and terminal widths.  No full-snapshot assertions.
 
-Tactic: function-over-form-testing (src/doctrine/tactics/shipped/testing/).
+Tactic: function-over-form-testing (src/doctrine/tactics/built-in/testing/).
 Structure: AAA (Arrange / Act / Assert).
 """
 

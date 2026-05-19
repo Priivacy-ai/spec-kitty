@@ -15,6 +15,8 @@ import pytest
 from kernel.errors import KittyInternalConsistencyError
 
 
+pytestmark = [pytest.mark.unit]
+
 def test_is_exception_subclass() -> None:
     """The base must remain catchable as a plain Exception so older code
     that catches ``Exception`` (correctly) still surfaces it as a bug if

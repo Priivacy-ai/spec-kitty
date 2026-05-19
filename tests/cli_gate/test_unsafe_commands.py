@@ -26,6 +26,8 @@ from specify_cli.migration.gate import check_schema_version
 # Commands that are NOT in the SAFETY_REGISTRY → classified as UNSAFE.
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.integration]
+
 _UNSAFE_COMMANDS: list[str] = [
     "next",
     "merge",

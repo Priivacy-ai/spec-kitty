@@ -12,6 +12,10 @@ from unittest.mock import MagicMock, Mock, patch
 from tests.lane_test_utils import lane_branch_name, lane_worktree_path, write_single_lane_manifest
 
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 class TestValidateReadyForReview:
     """Tests for _validate_ready_for_review helper."""
 

@@ -38,7 +38,7 @@ class TestTacticRepository:
 
     def test_malformed_yaml_skipped_with_warning(self, tmp_path: Path) -> None:
         """Malformed YAML files are skipped, not crash."""
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
         bad_file = shipped / "bad.tactic.yaml"
         bad_file.write_text("not: valid: yaml: [")
@@ -82,7 +82,7 @@ class TestTacticRepository:
         self, tmp_path: Path
     ) -> None:
         """Project tactic overrides shipped fields at field level."""
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
         project = tmp_path / "project"
         project.mkdir()
@@ -169,7 +169,7 @@ class TestTacticRepository:
     def test_filters_language_scoped_tactics_when_active_languages_do_not_match(
         self, tmp_path: Path
     ) -> None:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
 
         yaml = YAML()
@@ -206,7 +206,7 @@ class TestTacticRepository:
     def test_skips_project_tactics_when_language_scope_does_not_match(
         self, tmp_path: Path
     ) -> None:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
         project = tmp_path / "project"
         project.mkdir()

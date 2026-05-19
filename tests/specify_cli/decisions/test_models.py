@@ -27,6 +27,8 @@ from specify_cli.decisions.models import (
 # Fixtures
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.unit]
+
 NOW = datetime(2026, 4, 23, 10, 0, 0, tzinfo=UTC)
 ULID = "01KPWT8PNY8683QX3WBW6VXYM7"
 MISSION = "my-mission-id"

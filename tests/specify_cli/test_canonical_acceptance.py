@@ -28,6 +28,8 @@ from specify_cli.status.store import append_event
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 def _minimal_meta() -> dict[str, Any]:
     """Return a minimal valid meta dict with all required fields."""
     return {

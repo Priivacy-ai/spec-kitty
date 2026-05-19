@@ -30,6 +30,8 @@ from specify_cli.runtime.doctor import (
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
+
 class TestDoctorCheck:
     """DoctorCheck dataclass holds name, passed, message, severity."""
 

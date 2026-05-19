@@ -13,6 +13,8 @@ import pytest
 from specify_cli.auth.loopback.browser_launcher import BrowserLauncher
 
 
+pytestmark = [pytest.mark.integration]
+
 def test_is_available_true_when_webbrowser_get_succeeds(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(webbrowser, "get", lambda *a, **kw: object())
     assert BrowserLauncher.is_available() is True

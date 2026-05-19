@@ -50,6 +50,8 @@ from specify_cli.auth.token_manager import TokenManager
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.integration]
+
 class _MembershipRehydrateAttempted(BaseException):
     """Raised when stale-grant tests accidentally enter hosted membership I/O."""
 

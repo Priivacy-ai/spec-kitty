@@ -22,6 +22,8 @@ import pytest
 # Helpers
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.architectural]
+
 _REPO_ROOT = Path(__file__).parent.parent.parent
 _ADAPTERS_DIR = _REPO_ROOT / "src" / "specify_cli" / "compat" / "_adapters"
 _FIXTURES_DIR = Path(__file__).parent / "_fixtures"

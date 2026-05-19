@@ -31,6 +31,8 @@ from charter.synthesizer.request import (
 # Shared fixture helpers
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.unit]
+
 _ADAPTER_ID = "fixture"
 _ADAPTER_VERSION = "0.1.0"
 

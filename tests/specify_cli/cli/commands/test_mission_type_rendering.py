@@ -7,6 +7,10 @@ from rich.panel import Panel
 from specify_cli.cli.commands import mission_type
 
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 def test_render_human_success_includes_warning(monkeypatch) -> None:
     captured: list[Panel] = []
     monkeypatch.setattr(mission_type.console, "print", lambda panel: captured.append(panel))

@@ -23,12 +23,22 @@ from .checks.orphan import OrphanChecker
 from .checks.contradiction import ContradictionChecker
 from .checks.staleness import StalenessChecker
 from .checks.reference_integrity import ReferenceIntegrityChecker
+from .checks.org_layer import OrgCharterDeviationChecker, OrgOverridesBuiltinChecker
 from ._drg import load_merged_drg
 
 logger = logging.getLogger(__name__)
 
+# WP07 T036 + T047 register two org-layer advisory checkers.  They live under
+# the ``org_layer`` category and always emit ``low`` severity findings.
 _ALL_CHECKS: frozenset[str] = frozenset(
-    {"orphans", "contradictions", "staleness", "reference_integrity"}
+    {
+        "orphans",
+        "contradictions",
+        "staleness",
+        "reference_integrity",
+        "org_overrides_builtin",
+        "org_charter_deviation",
+    }
 )
 
 _CHECK_MAP: dict[str, type] = {
@@ -36,6 +46,8 @@ _CHECK_MAP: dict[str, type] = {
     "contradictions": ContradictionChecker,
     "staleness": StalenessChecker,
     "reference_integrity": ReferenceIntegrityChecker,
+    "org_overrides_builtin": OrgOverridesBuiltinChecker,
+    "org_charter_deviation": OrgCharterDeviationChecker,
 }
 
 
@@ -108,6 +120,10 @@ class LintEngine:
             kwargs: dict[str, object] = {}
             if check_name == "staleness":
                 kwargs["staleness_threshold_days"] = self._staleness_days
+            elif check_name in {"org_overrides_builtin", "org_charter_deviation"}:
+                # WP07: org-layer advisory checkers need an explicit repo root
+                # because the merged DRG does not carry on-disk path metadata.
+                kwargs["repo_root"] = self._repo_root
             checker = checker_cls(**kwargs)
             try:
                 findings = checker.run(drg, feature_scope=feature_scope)

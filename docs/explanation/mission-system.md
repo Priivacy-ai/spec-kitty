@@ -142,8 +142,8 @@ discovery --> specify --> plan --> tasks_outline --> tasks_packages --> tasks_fi
 |---|---|
 | specify --> plan | `spec.md` must exist |
 | plan --> implement | `plan.md` and `tasks.md` must exist |
-| implement --> review | All WPs must be in "done" lane |
-| review --> done | Review must be approved |
+| implement --> review | All WPs must be `approved` or `done` |
+| review --> accept | Review must be approved |
 
 **Agent context:** TDD practices, library-first architecture, tests before code.
 
@@ -307,7 +307,7 @@ Guards are conditions that must be satisfied before a mission can advance to its
 | Guard | What it checks | Example |
 |---|---|---|
 | Artifact exists | A required file is present | Can't start planning until `spec.md` exists |
-| All WPs done | Every work package reached "done" lane | Can't start review until all WPs are complete |
+| All WPs approved/done | Every work package passed review or is already landed | Can't start acceptance until all WPs are review-approved |
 | Gate passed | A named event was recorded | Can't finish until review is approved |
 | Source count | Minimum number of evidence sources | Can't synthesize until at least 3 sources documented (research) |
 

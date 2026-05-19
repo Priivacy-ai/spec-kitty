@@ -25,13 +25,19 @@ from unittest.mock import patch
 import pytest
 
 from specify_cli.core.config import AGENT_COMMAND_CONFIG
-from specify_cli.runtime.agent_commands import _sync_agent_commands, get_global_command_dir
+from specify_cli.runtime.agent_commands import (
+    _sync_agent_commands,
+    ensure_global_agent_commands,
+    get_global_command_dir,
+)
 
 
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
 
+
+pytestmark = [pytest.mark.unit]
 
 def test_command_skill_agents_absent_from_command_config() -> None:
     """The loop in ``ensure_runtime`` iterates ``AGENT_COMMAND_CONFIG``.
@@ -121,3 +127,88 @@ def test_opencode_global_commands_respect_custom_config_dir(tmp_path: Path, monk
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg-config"))
 
     assert get_global_command_dir("opencode") == tmp_path / "custom-opencode" / "commands"
+
+
+def test_current_version_lock_does_not_mask_partial_global_commands(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A current lock file is not proof that every command file exists."""
+    home = tmp_path / "home"
+    kittify_home = tmp_path / "kittify"
+    claude_commands = home / ".claude" / "commands"
+    claude_commands.mkdir(parents=True)
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(kittify_home))
+    monkeypatch.delenv("OPENCODE_CONFIG_DIR", raising=False)
+    monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
+
+    from specify_cli.runtime.agent_commands import _get_cli_version
+
+    cli_version = _get_cli_version()
+    cache_dir = kittify_home / "cache"
+    cache_dir.mkdir(parents=True)
+    (cache_dir / "agent-commands.lock").write_text(cli_version, encoding="utf-8")
+
+    for command in (
+        "accept",
+        "dashboard",
+        "implement",
+        "merge",
+        "review",
+        "status",
+        "tasks-finalize",
+    ):
+        (claude_commands / f"spec-kitty.{command}.md").write_text(
+            "---\n"
+            f"description: {command}\n"
+            "---\n"
+            f"<!-- spec-kitty-command-version: {cli_version} -->\n",
+            encoding="utf-8",
+        )
+
+    ensure_global_agent_commands()
+
+    actual = sorted(path.name for path in claude_commands.glob("spec-kitty.*.md"))
+    assert actual == [
+        "spec-kitty.accept.md",
+        "spec-kitty.analyze.md",
+        "spec-kitty.charter.md",
+        "spec-kitty.dashboard.md",
+        "spec-kitty.implement.md",
+        "spec-kitty.merge.md",
+        "spec-kitty.plan.md",
+        "spec-kitty.research.md",
+        "spec-kitty.review.md",
+        "spec-kitty.specify.md",
+        "spec-kitty.status.md",
+        "spec-kitty.tasks-finalize.md",
+        "spec-kitty.tasks-outline.md",
+        "spec-kitty.tasks-packages.md",
+        "spec-kitty.tasks.md",
+    ]
+    assert (cache_dir / "agent-commands.lock").read_text(encoding="utf-8") == cli_version
+
+
+def test_partial_global_command_sync_does_not_write_current_lock(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """If templates are incomplete, retry on the next CLI invocation."""
+    home = tmp_path / "home"
+    kittify_home = tmp_path / "kittify"
+    templates_dir = tmp_path / "templates" / "software-dev" / "command-templates"
+    templates_dir.mkdir(parents=True)
+    (templates_dir / "specify.md").write_text(
+        "---\ndescription: Specify\n---\n\n# Specify\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(kittify_home))
+    monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(tmp_path / "templates"))
+    monkeypatch.delenv("OPENCODE_CONFIG_DIR", raising=False)
+    monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
+
+    ensure_global_agent_commands()
+
+    assert not (kittify_home / "cache" / "agent-commands.lock").exists()

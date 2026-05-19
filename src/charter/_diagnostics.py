@@ -6,6 +6,11 @@ code-to-docs flow envisioned in GitHub #645 ships).
 
 from enum import StrEnum
 
+__all__ = [
+    "CharterEncodingDiagnostic",
+]
+
+
 
 class CharterEncodingDiagnostic(StrEnum):
     """JSON-stable diagnostic codes emitted by src/charter/_io.py.

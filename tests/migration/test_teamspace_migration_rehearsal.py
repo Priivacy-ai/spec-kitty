@@ -16,6 +16,8 @@ from pydantic import ValidationError
 from specify_cli.migration.mission_state import FORBIDDEN_LEGACY_KEYS, repair_repo, teamspace_dry_run
 
 
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+
 def _has_events_5() -> bool:
     import spec_kitty_events
 

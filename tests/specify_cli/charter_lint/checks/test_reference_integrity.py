@@ -18,6 +18,8 @@ from specify_cli.charter_lint.checks.reference_integrity import ReferenceIntegri
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 def _make_node(urn: str, kind: str, label: str | None = None) -> SimpleNamespace:
     return SimpleNamespace(urn=urn, kind=kind, label=label)
 

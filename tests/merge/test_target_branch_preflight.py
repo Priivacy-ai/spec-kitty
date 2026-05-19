@@ -201,6 +201,10 @@ def test_merge_preflight_blocks_unsafe_target_with_non_destructive_guidance(
     )
     assert any("git fetch origin main" in line for line in remediation)
     assert any("git log --oneline --left-right" in line for line in remediation)
+    assert any("git diff --name-only origin/main...main" in line for line in remediation)
+    assert any("Recommended: use the focused PR path" in line for line in remediation)
+    assert any("Do not run 'git push origin main'" in line for line in remediation)
+    assert any("Only direct-push 'main' after reviewing" in line for line in remediation)
     assert any("git switch -c kitty/pr/release-320-workflow-reliability-01KQKV85-to-main" in line for line in remediation)
     assert all("reset" not in line.lower() or "do not use" in line.lower() for line in remediation)
     assert focused_pr_branch_name("release-320-workflow-reliability-01KQKV85", "main") in "\n".join(remediation)
@@ -240,6 +244,28 @@ def test_merge_preflight_fetches_before_detecting_remote_main_behind(
     refreshed_status = inspect_target_branch_sync(repo, "main")
     assert refreshed_status.state == "behind"
     assert refreshed_status.behind_count == 1
+
+
+def test_target_branch_preflight_behind_guidance_does_not_recommend_push(
+    synced_repo: tuple[Path, Path],
+    tmp_path: Path,
+) -> None:
+    repo, origin = synced_repo
+    updater = _configured_clone(origin, tmp_path / "updater")
+    _commit(updater, "remote.txt", "remote only\n", "remote ahead")
+    _run(["git", "push", "origin", "main"], cwd=updater)
+    _run(["git", "fetch", "origin", "main"], cwd=repo)
+
+    status = inspect_target_branch_sync(repo, "main")
+    remediation = target_branch_sync_remediation(
+        status,
+        mission_slug="release-320-workflow-reliability-01KQKV85",
+        mission_branch="kitty/mission-release-320-workflow-reliability-01KQKV85",
+    )
+
+    assert status.state == "behind"
+    assert any("Recommended: update local 'main' from 'origin/main'" in line for line in remediation)
+    assert not any("git push origin main" in line for line in remediation)
 
 
 def test_refresh_target_branch_tracking_ref_allows_repo_without_origin(tmp_path: Path) -> None:

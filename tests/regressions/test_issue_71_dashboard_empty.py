@@ -20,6 +20,8 @@ import pytest
 from typer.testing import CliRunner
 
 
+pytestmark = [pytest.mark.unit]
+
 @pytest.mark.windows_ci
 def test_dashboard_json_returns_non_empty_on_windows(tmp_path: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch) -> None:
     """``dashboard --json`` must return non-empty output on Windows.

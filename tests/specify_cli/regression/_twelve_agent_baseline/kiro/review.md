@@ -3,7 +3,7 @@ description: Review a work package implementation
 ---
 <!-- spec-kitty-command-version: 3.1.2a3 -->
 
-# /spec-kitty.review - Review Work Package<!-- glossary:glossary:work-package --> Implementation
+# /spec-kitty.review - Review Work Package Implementation
 
 **Version**: 0.12.0+
 
@@ -11,17 +11,17 @@ description: Review a work package implementation
 
 Review the implementation of a work package against its prompt file, acceptance
 criteria, and owned-file boundaries. Verify correctness, test coverage, and
-compliance with any applicable guardrails (e.g., bulk edit<!-- glossary:glossary:bulk-edit --> occurrence maps).
+compliance with any applicable guardrails (e.g., bulk edit occurrence maps).
 
 ---
 
 ## Working Directory
 
-**IMPORTANT**: This step works inside the execution workspace<!-- glossary:glossary:workspace --> (worktree)
+**IMPORTANT**: This step works inside the execution workspace (worktree)
 allocated by `spec-kitty agent action review WPxx --agent <name>`. Do NOT modify files outside
 your `owned_files` boundaries.
 
-**In repos with multiple missions, always pass `--mission<!-- glossary:glossary:mission --> <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id<!-- glossary:glossary:mission_id -->` (ULID), `mid8<!-- glossary:glossary:mid8 -->` (first 8 chars of the ULID), or `mission_slug<!-- glossary:glossary:mission_slug -->`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
+**In repos with multiple missions, always pass `--mission <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
 
 ## User Input
 
@@ -30,6 +30,59 @@ $ARGUMENTS
 ```
 
 You **MUST** consider the user input before proceeding (if not empty).
+
+## Governance Payload Contract
+
+The prompt produced by `spec-kitty agent action review` is guaranteed to carry
+the following surfaces. Trust the prompt; do not consult external governance
+sources unless explicitly cited by a fetch command + when-doing rule in the
+prompt.
+
+**Guaranteed bodies** (verbatim in the prompt when under the token budget; the
+resolver substitutes a `spec-kitty charter context --include section:<slug>`
+fetch + when-doing stanza only when the budget would otherwise be exceeded):
+
+- **Terminology Canon** — from `.kittify/charter/charter.md` — governs the
+  identifiers and term usage you assess in the diff.
+- **Code Review Checklist** — from `.kittify/charter/charter.md` — your
+  primary gate set when judging the WP.
+- **Regression Vigilance** — from `.kittify/charter/charter.md` — the
+  project's explicit drift guard; apply when the diff renames or introduces
+  identifier-bearing terms.
+- Any additional action-critical sections the mission declares are appended
+  automatically.
+
+**Guaranteed citations** (catalog IDs always present in the prompt when the
+WP frontmatter selects a reviewer `agent_profile`):
+
+- Every `DIRECTIVE_NNN` declared in the loaded reviewer profile's
+  `directive-references` list (for example, `reviewer-renata` cites
+  `DIRECTIVE_032` — Conceptual Alignment).
+- Every tactic-id declared in the loaded reviewer profile's
+  `tactic-references` list (for example, `reviewer-renata` cites the
+  `language-driven-design` tactic).
+
+When you assess a WP that renames identifiers or terms, the prompt cites
+DIRECTIVE_032 (Conceptual Alignment) by ID; consult its rule body inline or
+via the paired fetch command and apply.
+
+**Guaranteed authority pointers** (path + when-doing conditional):
+
+- `glossary/contexts/` — canonical terminology. Consult when the diff
+  introduces or renames a domain term.
+- `architecture/2.x/adr/` — architectural intent. Consult when the diff
+  changes a structural boundary (package layout, public API surface,
+  dependency edges).
+- Any additional paths declared in the charter's `authority_paths:` block are
+  emitted alongside these defaults.
+
+**Fetch commands** (the prompt may substitute these for bodies that exceed the
+token budget; whenever a fetch command appears, the accompanying
+"When you <verb>, run this and apply" line specifies the trigger):
+
+- `spec-kitty charter context --include directive:DIRECTIVE_NNN`
+- `spec-kitty charter context --include tactic:<id>`
+- `spec-kitty charter context --include section:<slug>`
 
 ## Review Steps
 
@@ -46,12 +99,13 @@ Then execute the returned `check_prerequisites` command and capture
 
 The output of `spec-kitty agent action review ...` is the authoritative work
 package prompt and review context. Do **not** separately call
-`spec-kitty charter<!-- glossary:glossary:charter --> context` or go hunting for alternate prompt files unless
-the command output tells you to.
+`spec-kitty charter context` or go hunting for alternate prompt files unless
+the command output tells you to. The **Governance Payload Contract** section
+above documents what the prompt is guaranteed to carry.
 
 ### 2. Load Work Package Prompt
 
-Read the WP<!-- glossary:glossary:wp --> prompt file from `feature_dir/tasks/WPxx-slug.md`.
+Read the WP prompt file from `feature_dir/tasks/WPxx-slug.md`.
 Parse frontmatter for:
 - `owned_files` -- only these globs should have been modified
 - `authoritative_surface` -- primary directory for this WP
@@ -62,7 +116,7 @@ Parse frontmatter for:
 ### 2a. Load Agent Profile
 
 Before proceeding with the review, load the agent profile from the WP frontmatter
-using the `/ad-hoc-profile-load` skill<!-- glossary:glossary:skill --> (or `spec-kitty agent profile list` to browse
+using the `/ad-hoc-profile-load` skill (or `spec-kitty agent profile list` to browse
 available profiles). Apply the profile's reviewer guidance and self-review gates for
 the rest of this review session.
 
@@ -81,9 +135,17 @@ For each subtask:
 ### 4. Check Quality
 
 - All tests pass
-- Code follows project<!-- glossary:glossary:project --> conventions (run linter if configured)
+- Code follows project conventions (run linter if configured)
 - No unintended side effects or regressions
 - Changes are well-documented where appropriate
+- [ ] **Error-path reachability (deletion test)**: For each test that validates
+  an error path, verify the test would fail if the implementation fix were
+  deleted. A test that validates only the *structure* of an exception handler
+  (e.g., that a `try/except` exists) without exercising the real dependency is
+  insufficient. Apply the deletion test: temporarily delete the implementation
+  change, run the test, confirm it fails. If it does not fail, the error path
+  is untested — the test validates structure, not behaviour. Restore the fix
+  before proceeding.
 
 ---
 
@@ -91,7 +153,7 @@ For each subtask:
 
 If this mission has `change_mode: bulk_edit` in `meta.json`:
 
-1. **Verify occurrence map<!-- glossary:glossary:occurrence-map --> exists**: `occurrence_map.yaml` must be present in the feature directory
+1. **Verify occurrence map exists**: `occurrence_map.yaml` must be present in the feature directory
 2. **Reference during review**: The occurrence map is the governing artifact for this bulk edit
 3. **Check category compliance**:
    - Verify changes respect `do_not_change` categories — reject if these were modified
@@ -144,4 +206,4 @@ implementer profile so the next implementation cycle starts with the right conte
 The implementing agent will then load the correct profile via `/ad-hoc-profile-load`
 and resume work with the proper persona and self-review gates.
 
-**Next step**: `spec-kitty next --agent <name>` will advance to the next phase<!-- glossary:glossary:phase -->.
+**Next step**: `spec-kitty next --agent <name>` will advance to the next phase.

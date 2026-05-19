@@ -38,6 +38,8 @@ from specify_cli.compat.safety import SAFETY_REGISTRY, Safety, classify
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.architectural]
+
 def _build_app() -> typer.Typer:
     """Return the root typer app with all commands registered.
 

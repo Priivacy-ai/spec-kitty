@@ -29,6 +29,8 @@ from charter.synthesizer.path_guard import PathGuard
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 def _make_guard(repo_root: Path, extra: tuple[str, ...] = ()) -> PathGuard:
     """Create a PathGuard with the default allowlist (+ optional extras)."""
     return PathGuard(repo_root=repo_root, extra_allowed_prefixes=extra)

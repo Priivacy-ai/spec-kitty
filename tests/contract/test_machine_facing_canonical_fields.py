@@ -25,6 +25,10 @@ from specify_cli.status.store import append_event
 from specify_cli.status.views import write_derived_views
 
 
+import pytest
+
+pytestmark = [pytest.mark.contract]
+
 runner = CliRunner()
 
 

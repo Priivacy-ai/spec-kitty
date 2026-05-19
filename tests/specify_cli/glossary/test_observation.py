@@ -27,6 +27,10 @@ from specify_cli.glossary.observation import InlineNotice, ObservationSurface
 # Helpers
 # ---------------------------------------------------------------------------
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 _EVENT_LOG_RELPATH = Path(".kittify") / "events" / "glossary" / "mission-001.events.jsonl"
 
 

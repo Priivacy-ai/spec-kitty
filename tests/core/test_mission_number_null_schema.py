@@ -26,6 +26,8 @@ from specify_cli.mission_metadata import resolve_mission_identity
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 def _write_meta(feature_dir: Path, meta: dict[str, Any]) -> None:
     """Write a meta.json for test fixtures."""
     (feature_dir / "meta.json").write_text(

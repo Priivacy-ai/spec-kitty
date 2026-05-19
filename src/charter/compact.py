@@ -21,7 +21,7 @@ from pathlib import Path
 
 from charter._doctrine_paths import resolve_project_root
 from charter.language_scope import infer_repo_languages
-from charter.resolver import GovernanceResolutionError, resolve_governance
+from charter.resolver import GovernanceResolutionError, resolve_project_governance
 
 
 __all__ = [
@@ -218,7 +218,7 @@ def _resolve_governance_summary(
     resolver_directives: list[str] = []
 
     try:
-        resolution = resolve_governance(repo_root)
+        resolution = resolve_project_governance(repo_root)
     except GovernanceResolutionError as exc:
         diagnostics.append(f"governance unresolved ({exc})")
         return template_set, paradigms, tools, diagnostics, resolver_directives

@@ -25,6 +25,8 @@ from datetime import UTC
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 class TestProtocolConformance:
     def test_fixture_adapter_isinstance_synthesis_adapter(self) -> None:
         """FixtureAdapter satisfies the SynthesisAdapter runtime-checkable Protocol."""

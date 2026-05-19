@@ -20,7 +20,7 @@ from doctrine.agent_profiles.validation import validate_agent_profile_yaml
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
-SHIPPED_DIR = Path(__file__).parent.parent.parent / "src" / "doctrine" / "agent_profiles" / "shipped"
+SHIPPED_DIR = Path(__file__).parent.parent.parent / "src" / "doctrine" / "agent_profiles" / "built-in"
 
 EXPECTED_PROFILE_IDS = {
     "architect-alphonso",

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import enum as _enum
 import json
 import os
 import sys
@@ -908,8 +909,6 @@ def _audit_fixture_root() -> Path:
 # mission_state helpers — extracted per refactoring-extract-first-order-concept
 # ---------------------------------------------------------------------------
 
-import enum as _enum
-
 
 class _MissionStateMode(_enum.Enum):
     """Dispatch mode for the mission-state command."""
@@ -1081,16 +1080,19 @@ def _run_teamspace_dry_run_mode(
         raise typer.Exit(1) from exc
 
     def _pretty_dry_run(r: object) -> None:
-        if dry_run_report.valid:
+        # The runtime contract for pretty_renderer types the report as ``object`` so the
+        # same callable shape works for the repair and dry-run reports; attribute access
+        # below is structurally valid on the concrete TeamSpaceDryRunReport type.
+        if r.valid:  # type: ignore[attr-defined]
             console.print(
                 "[green]TeamSpace dry-run valid[/green] "
-                f"({dry_run_report.envelope_count} envelopes, "
-                f"spec-kitty-events {dry_run_report.events_package_version})."
+                f"({r.envelope_count} envelopes, "  # type: ignore[attr-defined]
+                f"spec-kitty-events {r.events_package_version})."
             )
         else:
             console.print(
                 "[red]TeamSpace dry-run failed[/red] "
-                f"({len(dry_run_report.errors)} validation errors)."
+                f"({len(r.errors)} validation errors)."  # type: ignore[attr-defined]
             )
 
     _emit_mission_state(dry_run_report, json_output=json_output, pretty_renderer=_pretty_dry_run)
@@ -1373,3 +1375,652 @@ def mission_state(  # noqa: C901
         _run_teamspace_dry_run_mode(resolved_root, resolved_fixture_dir, mission, json_output)
         return
     _run_audit_mode(resolved_root, resolved_fixture_dir, mission, fail_on_severity, fail_on_teamspace_blocker, json_output)
+
+
+# ---------------------------------------------------------------------------
+# WP07 T035 + T048: `spec-kitty doctor doctrine` — org-layer snapshot health.
+# ---------------------------------------------------------------------------
+
+
+_ORG_ARTIFACT_DIRS: tuple[str, ...] = (
+    "directives",
+    "tactics",
+    "styleguides",
+    "toolguides",
+    "paradigms",
+    "procedures",
+    "agent_profiles",
+    "mission_step_contracts",
+)
+
+
+def _resolve_pack_version(snapshot_path: Path) -> tuple[str, str | None, bool]:
+    """Return ``(pack_version, fetched_at, is_git_pack)`` for an org snapshot.
+
+    For git-managed snapshots, ``pack_version`` is the ``git describe --tags
+    --always`` output; ``fetched_at`` is ``None``.  For non-git snapshots, the
+    version + timestamp are read from ``pack-manifest.yaml`` when present.
+    Falls back to ``"unknown"`` if neither source yields a value.
+    """
+    import subprocess as _sp
+
+    is_git_pack = (snapshot_path / ".git").exists()
+    if is_git_pack:
+        try:
+            version = _sp.check_output(
+                ["git", "-C", str(snapshot_path), "describe", "--tags", "--always"],
+                stderr=_sp.DEVNULL,
+                text=True,
+            ).strip()
+            return version or "git (version unavailable)", None, True
+        except (_sp.CalledProcessError, FileNotFoundError, OSError):
+            return "git (version unavailable)", None, True
+
+    manifest_path = snapshot_path / "pack-manifest.yaml"
+    if manifest_path.exists():
+        try:
+            from ruamel.yaml import YAML
+
+            yaml = YAML(typ="safe")
+            data = yaml.load(manifest_path.read_text(encoding="utf-8")) or {}
+        except Exception:  # noqa: BLE001
+            return "unknown", None, False
+        if isinstance(data, dict):
+            version = str(data.get("pack_version") or "unknown")
+            fetched_at = data.get("fetched_at")
+            return version, str(fetched_at) if fetched_at else None, False
+    return "unknown", None, False
+
+
+def _count_pack_artifacts(snapshot_path: Path) -> dict[str, int]:
+    """Return per-artifact YAML counts for an org snapshot directory."""
+    counts: dict[str, int] = {}
+    for artifact_type in _ORG_ARTIFACT_DIRS:
+        adir = snapshot_path / artifact_type
+        if adir.exists():
+            counts[artifact_type] = len(list(adir.glob("*.yaml")))
+    return counts
+
+
+def _summarize_org_charter(snapshot_path: Path) -> dict[str, object]:
+    """Inspect ``org-charter.yaml`` in *snapshot_path* and return a JSON-able summary.
+
+    Gracefully degrades when the optional
+    ``specify_cli.doctrine.org_charter`` module is not yet shipped (WP09).
+    """
+    charter_path = snapshot_path / "org-charter.yaml"
+    if not charter_path.exists():
+        return {"present": False}
+
+    try:
+        from specify_cli.doctrine.org_charter import load_org_charter_policy
+    except ImportError:
+        # Module not yet shipped — surface presence without policy details.
+        return {"present": True, "module_available": False}
+
+    try:
+        policy = load_org_charter_policy(snapshot_path)
+    except Exception:  # noqa: BLE001
+        return {"present": True, "module_available": True, "load_error": True}
+    if policy is None:
+        return {"present": False}
+
+    return {
+        "present": True,
+        "module_available": True,
+        "interview_defaults_count": len(getattr(policy, "interview_defaults", {}) or {}),
+        "required_directives_count": len(getattr(policy, "required_directives", []) or []),
+        "governance_policies_count": len(getattr(policy, "governance_policies", []) or []),
+    }
+
+
+def _render_doctrine_pack(pack_entry: dict[str, object], pack_index: int) -> None:
+    """Render one pack entry to the Rich console (human output for ``doctor doctrine``)."""
+    name = pack_entry.get("name") or f"pack#{pack_index}"
+    local_path = pack_entry.get("local_path")
+    if not pack_entry.get("snapshot_present"):
+        console.print(
+            f"[yellow]Pack:[/yellow] {name}  (snapshot missing at {local_path})"
+        )
+        return
+
+    version = pack_entry.get("pack_version", "unknown")
+    is_git = pack_entry.get("is_git_pack", False)
+    counts = pack_entry.get("artifact_counts") or {}
+    summary_parts = [f"git {version}" if is_git else f"v{version}"]
+    if isinstance(counts, dict):
+        for artifact_type, count in counts.items():
+            summary_parts.append(f"{count} {artifact_type}")
+    console.print(f"[green]Pack:[/green] {name}  ({', '.join(summary_parts)})")
+
+    charter = pack_entry.get("org_charter") or {}
+    if isinstance(charter, dict) and charter.get("present"):
+        if charter.get("module_available", True):
+            counts_msg = (
+                f"{charter.get('interview_defaults_count', 0)} interview defaults, "
+                f"{charter.get('required_directives_count', 0)} required directives, "
+                f"{charter.get('governance_policies_count', 0)} governance policies"
+            )
+            console.print(f"  org-charter.yaml: {counts_msg}")
+        else:
+            console.print(
+                "  org-charter.yaml: present (policy module not yet shipped)"
+            )
+    else:
+        console.print("  org-charter.yaml: [dim]not present[/dim]")
+
+
+@app.command(name="doctrine")
+def doctrine_check(
+    json_output: Annotated[
+        bool, typer.Option("--json", help="Machine-readable JSON output")
+    ] = False,
+) -> None:
+    """Check org doctrine snapshot status and list installed pack artifacts.
+
+    Exit code is always 0 — this surface is a diagnostic, not a gate.  It
+    enumerates each configured org pack (from ``.kittify/config.yaml``), prints
+    its on-disk version (``git describe`` for git-managed packs, otherwise the
+    ``pack-manifest.yaml`` ``pack_version``), per-artifact YAML counts, and
+    ``org-charter.yaml`` policy status when present.
+
+    Examples:
+        spec-kitty doctor doctrine
+        spec-kitty doctor doctrine --json
+    """
+    from specify_cli.doctrine.config import load_pack_registry
+
+    try:
+        repo_root = locate_project_root()
+    except Exception as exc:
+        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(1) from exc
+    if repo_root is None:
+        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(1)
+
+    registry = load_pack_registry(repo_root)
+
+    if not registry.packs:
+        # WP09 T050 / FR-018: the Selections diagnostic is independent of
+        # whether org packs are configured.  A project with built-in +
+        # project-only doctrine still has selections to audit, so emit
+        # the section in both human and JSON shapes before exiting.
+        selection_block = _build_selection_block(repo_root)
+        if json_output:
+            console.print_json(
+                json.dumps(
+                    {
+                        "org_configured": False,
+                        "packs": [],
+                        "selections": selection_block,
+                        # WP07 FR-007: always include org_drg key so callers can rely on it
+                        "org_drg": _collect_org_layer_data(repo_root),
+                    },
+                    indent=2,
+                    default=str,
+                )
+            )
+        else:
+            console.print("[yellow]No org doctrine configured.[/yellow]")
+            console.print(
+                "Add a 'doctrine.org' block to .kittify/config.yaml to register a pack."
+            )
+            console.print()
+            for line in _render_selection_block_lines(selection_block):
+                console.print(line)
+        raise typer.Exit(0)
+
+    pack_entries: list[dict[str, object]] = []
+    for pack in registry.packs:
+        snapshot_path = pack.local_path
+        entry: dict[str, object] = {
+            "name": pack.name,
+            "local_path": str(snapshot_path),
+            "source_type": pack.source_type,
+            "url": pack.url,
+            "ref": pack.ref,
+            "snapshot_present": snapshot_path.exists(),
+        }
+        if snapshot_path.exists():
+            version, fetched_at, is_git = _resolve_pack_version(snapshot_path)
+            entry["pack_version"] = version
+            entry["fetched_at"] = fetched_at
+            entry["is_git_pack"] = is_git
+            entry["artifact_counts"] = _count_pack_artifacts(snapshot_path)
+            entry["org_charter"] = _summarize_org_charter(snapshot_path)
+        pack_entries.append(entry)
+
+    # Detect override collisions across the full resolved doctrine surface
+    # (FR-003 wording + ADR 2026-05-16-1). We instantiate a DoctrineService
+    # rooted at the configured packs and trigger lazy loading of every repo,
+    # capturing DoctrineLayerCollisionWarning emissions.
+    collision_summaries = _collect_doctrine_collisions(repo_root)
+
+    # WP09 T050 / FR-018: build the Selections section so operators can audit
+    # which globally-selected artifacts are active across project + org +
+    # mission-type-profile layers, each annotated with its resolved source.
+    selection_block = _build_selection_block(repo_root)
+
+    # WP07 T037 (FR-007): collect org-layer DRG state for JSON output.
+    org_layer_data = _collect_org_layer_data(repo_root)
+
+    if json_output:
+        payload = {
+            "org_configured": True,
+            "packs": pack_entries,
+            "collisions": collision_summaries,
+            "selections": selection_block,
+            # WP07 FR-007: org-layer DRG state (configured packs, node/edge counts, collisions)
+            "org_drg": org_layer_data,
+        }
+        console.print_json(json.dumps(payload, indent=2, default=str))
+        raise typer.Exit(0)
+
+    console.print(
+        f"\n[bold]Org Doctrine[/bold] — {len(pack_entries)} pack(s) configured\n"
+    )
+    for idx, entry in enumerate(pack_entries):
+        _render_doctrine_pack(entry, idx)
+
+    if collision_summaries:
+        console.print(
+            f"\n[bold]Collisions[/bold] — {len(collision_summaries)} override(s) detected\n"
+        )
+        for collision in collision_summaries:
+            console.print(
+                f"  • [yellow]{collision['kind']}[/yellow] "
+                f"{collision['item_id']}: "
+                f"{collision['higher_layer']} shadowed {collision['lower_layer']} "
+                f"({collision['replaced']} replaced, {collision['inherited']} inherited)"
+            )
+    else:
+        console.print(
+            "\n[dim]Collisions:[/dim] none — every artifact resolves from a single layer."
+        )
+
+    # WP07 T037 (FR-007): surface org-layer DRG state in human-readable output.
+    _render_org_layer_section(repo_root, console)
+
+    # FR-018 / WP09 T050: render the Selections section verbatim so the
+    # snapshot test in tests/cli/test_doctor_doctrine_selections_snapshot.py
+    # can pin the operator-facing format byte-for-byte.
+    console.print()
+    for line in _render_selection_block_lines(selection_block):
+        console.print(line)
+    console.print()
+    raise typer.Exit(0)
+
+
+def _collect_doctrine_collisions(repo_root: Path) -> list[dict[str, object]]:
+    """Run the doctrine resolver and collect any layer-collision warnings.
+
+    Returns a list of structured collision descriptors (kind, item_id,
+    higher_layer, lower_layer, replaced, inherited) for surfacing via
+    ``doctor doctrine`` (FR-003 wording per ADR 2026-05-16-1).
+    """
+    import re
+    import warnings as _warnings
+
+    from doctrine.base import DoctrineLayerCollisionWarning
+    from doctrine.service import DoctrineService
+    from specify_cli.doctrine.config import resolve_org_roots
+
+    org_roots = resolve_org_roots(repo_root)
+    project_doctrine = repo_root / ".kittify" / "doctrine"
+    project_root = project_doctrine if project_doctrine.exists() else None
+
+    service = DoctrineService(
+        org_roots=list(org_roots),
+        project_root=project_root,
+    )
+
+    # Touch every repository so each one runs through its loader and emits
+    # any collision warnings.
+    accessors = (
+        "directives",
+        "tactics",
+        "styleguides",
+        "toolguides",
+        "paradigms",
+        "procedures",
+        "mission_step_contracts",
+        "agent_profiles",
+    )
+
+    collisions: list[dict[str, object]] = []
+    pattern = re.compile(
+        r"Doctrine override: (?P<kind>\S+) (?P<item_id>\S+) "
+        r"from (?P<higher>\S+) shadowed (?P<lower>\S+) "
+        r"\((?P<replaced>\d+) field\(s\) replaced; "
+        r"(?P<inherited>\d+) field\(s\) inherited\)\."
+    )
+
+    with _warnings.catch_warnings(record=True) as captured:
+        _warnings.simplefilter("always")
+        for name in accessors:
+            try:
+                getattr(service, name)
+            except Exception:  # noqa: BLE001, S112 — doctor must not fail on a single repo's load error
+                continue
+    for w in captured:
+        if not isinstance(w.message, DoctrineLayerCollisionWarning):
+            continue
+        m = pattern.match(str(w.message))
+        if not m:
+            continue
+        collisions.append(
+            {
+                "kind": m.group("kind"),
+                "item_id": m.group("item_id"),
+                "higher_layer": m.group("higher"),
+                "lower_layer": m.group("lower"),
+                "replaced": int(m.group("replaced")),
+                "inherited": int(m.group("inherited")),
+            }
+        )
+    return collisions
+
+
+# ---------------------------------------------------------------------------
+# WP07 T037 — Organisation Layer section (FR-007)
+# ---------------------------------------------------------------------------
+
+
+def _render_org_layer_section(repo_root: Path, console: Console) -> None:
+    """Surface organisation-tier DRG state in ``doctor doctrine`` (FR-007).
+
+    Lists each configured pack with its fetched/missing status, node/edge
+    counts, and any collision warnings from ``merge_three_layers``.
+
+    Diagnostic commands are READ-ONLY and must never crash on operator
+    misconfiguration.  All exceptions are caught and rendered as findings
+    so ``doctor doctrine`` always returns a usable report.
+    """
+    from charter.drg import (  # noqa: PLC0415
+        OrgDRGConflictError,
+        OrgPackMissingError,
+        load_org_drg,
+        merge_three_layers,
+    )
+    from charter.catalog import resolve_doctrine_root  # noqa: PLC0415
+    from doctrine.drg.loader import load_graph_or_dir  # noqa: PLC0415
+
+    console.print("\n[bold]Organisation Layer[/bold] (WP07 / FR-007)")
+
+    try:
+        fragments = load_org_drg(repo_root)
+    except OrgPackMissingError as exc:
+        console.print(f"  [red]org pack missing:[/red] {exc}")
+        return
+    except Exception as exc:  # noqa: BLE001
+        console.print(f"  [red]org-DRG load error:[/red] {exc}")
+        return
+
+    if not fragments:
+        console.print("  (no organisation packs configured)")
+        return
+
+    for frag in fragments:
+        node_count = len(frag.nodes)
+        edge_count = len(frag.edges)
+        console.print(
+            f"  - [green]{frag.pack_name}[/green] "
+            f"[{frag.source_kind}: {frag.source_ref}] "
+            f"✓ loaded ({node_count} nodes, {edge_count} edges)"
+        )
+
+    # Merge with shipped layer to surface collision warnings.
+    # Truncate to ≤3 lines per the WP07 risk table (risk 4: verbosity mitigation).
+    try:
+        shipped = load_graph_or_dir(resolve_doctrine_root())
+        merge_three_layers(shipped=shipped, org_fragments=fragments, project=None)
+        console.print("  collisions: none")
+    except OrgDRGConflictError as exc:
+        shown = exc.conflicts[:3]
+        console.print(f"  collisions: {len(exc.conflicts)} shipped-invariant override(s)")
+        for conflict in shown:
+            console.print(
+                f"    [yellow]•[/yellow] {conflict.kind} "
+                f"target={conflict.target_id} "
+                f"resolution={conflict.resolution_applied}"
+            )
+        if len(exc.conflicts) > 3:
+            console.print(f"    … and {len(exc.conflicts) - 3} more (run charter lint for details)")
+    except Exception as exc:  # noqa: BLE001 — doctor must not crash
+        console.print(f"  [yellow]collision check skipped:[/yellow] {exc}")
+
+
+def _collect_org_layer_data(repo_root: Path) -> dict[str, object]:
+    """Return structured org-layer data for ``doctor doctrine --json`` (FR-007).
+
+    Mirrors the human-readable output of :func:`_render_org_layer_section`
+    but as a dict suitable for JSON serialisation.  Always returns a dict
+    with an ``"org_drg"`` key so callers can rely on its presence.
+    """
+    from charter.drg import (  # noqa: PLC0415
+        OrgDRGConflictError,
+        OrgPackMissingError,
+        load_org_drg,
+        merge_three_layers,
+    )
+    from charter.catalog import resolve_doctrine_root  # noqa: PLC0415
+    from doctrine.drg.loader import load_graph_or_dir  # noqa: PLC0415
+
+    result: dict[str, object] = {
+        "configured_packs": [],
+        "collision_warnings": [],
+        "errors": [],
+    }
+
+    try:
+        fragments = load_org_drg(repo_root)
+    except OrgPackMissingError as exc:
+        result["errors"] = [str(exc)]  # type: ignore[assignment]
+        return result
+    except Exception as exc:  # noqa: BLE001
+        result["errors"] = [f"org-DRG load error: {exc}"]  # type: ignore[assignment]
+        return result
+
+    packs = []
+    for frag in fragments:
+        packs.append(
+            {
+                "name": frag.pack_name,
+                "source_kind": frag.source_kind,
+                "source_ref": frag.source_ref,
+                "layer_index": frag.layer_index,
+                "node_count": len(frag.nodes),
+                "edge_count": len(frag.edges),
+                "fetched": True,
+            }
+        )
+    result["configured_packs"] = packs  # type: ignore[assignment]
+
+    if not fragments:
+        return result
+
+    try:
+        shipped = load_graph_or_dir(resolve_doctrine_root())
+        merge_three_layers(shipped=shipped, org_fragments=fragments, project=None)
+    except OrgDRGConflictError as exc:
+        result["collision_warnings"] = [  # type: ignore[assignment]
+            {
+                "kind": c.kind,
+                "target_id": c.target_id,
+                "conflicting_layers": c.conflicting_layers,
+                "resolution": c.resolution_applied,
+            }
+            for c in exc.conflicts
+        ]
+    except Exception:  # noqa: BLE001
+        pass
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# WP09 T050 — Selections section (FR-018)
+# ---------------------------------------------------------------------------
+
+#: Canonical artifact-kind plurals as surfaced by ``doctor doctrine`` in the
+#: Selections section.  Ordering is the operator-facing reading order from
+#: the WP09 plan (directives first, agent_profiles last so the audit ends
+#: on the "who can drive" surface).
+_SELECTION_KIND_PLURALS: tuple[str, ...] = (
+    "directives",
+    "tactics",
+    "paradigms",
+    "styleguides",
+    "toolguides",
+    "procedures",
+    "mission_step_contracts",
+    "agent_profiles",
+)
+
+
+def _resolve_artifact_source(
+    item_id: str,
+    plural: str,
+    service: object,
+    org_required: dict[str, list[str]],
+    project_selected: set[str],
+) -> str:
+    """Return a stable ``source: <token>`` annotation for *item_id*.
+
+    The annotation tokens are deliberately compact so the snapshot test
+    can pin them byte-for-byte:
+
+    * ``built-in`` — artifact comes from the shipped doctrine layer
+    * ``project`` — artifact lives under ``.kittify/doctrine/``
+    * ``org`` — artifact lives in an org pack (per-pack attribution is
+      not yet tracked at the repository layer; see ``_collect_org_source_map``
+      in charter.context for the same limitation)
+    * ``charter`` — declared selected in the project charter but the
+      DoctrineService does not (yet) know about it (e.g. typo or
+      missing snapshot)
+    * ``org-required`` — required by an org pack's ``org-charter.yaml``
+      but not present in the resolved catalog
+    """
+    repo = getattr(service, plural, None)
+    if repo is not None:
+        try:
+            provenance = repo.get_provenance(item_id)  # type: ignore[attr-defined]
+        except (AttributeError, KeyError):
+            provenance = None
+        if provenance == "builtin":
+            return "built-in"
+        if provenance == "project":
+            return "project"
+        if provenance == "org":
+            return "org"
+    # Not loaded — distinguish "project charter declared it" vs "org pack
+    # required it" so the operator can find the right config file.
+    if item_id in project_selected:
+        return "charter"
+    if item_id in (org_required.get(plural) or []):
+        return "org-required"
+    return "unknown"
+
+
+def _build_selection_block(repo_root: Path) -> dict[str, list[dict[str, str]]]:
+    """Return ``{plural: [{"id": ..., "source": ...}, ...]}`` for FR-018.
+
+    Composes the union of project charter ``selected_<kind>`` and merged
+    org ``required_<kind>`` lists, dedupes per-kind (preserving order:
+    project-charter ids first, org-required ids appended), and tags each
+    entry with the resolved source layer.
+
+    Mission-type-profile selections are intentionally excluded here:
+    profiles apply per-mission (gated by ``meta.json mission_type``)
+    while ``doctor doctrine`` is a project-wide diagnostic.  The
+    selections block reflects the *globally* active set so the operator
+    can audit charter intent without picking a specific mission.
+    """
+    from doctrine.service import DoctrineService
+    from specify_cli.doctrine.config import resolve_org_roots
+
+    # Project charter selections (best-effort; missing/malformed → empty).
+    # We intentionally bypass ``charter.sync.load_governance_config`` here:
+    # that loader runs the charter auto-sync pipeline (and requires a git
+    # repository).  The Selections section is a diagnostic — it MUST work
+    # in any working tree, including freshly-bootstrapped tmp fixtures and
+    # non-git operator workspaces.  Reading the YAML directly preserves
+    # accuracy while keeping the diagnostic side-effect-free.
+    project_selections: dict[str, list[str]] = {kind: [] for kind in _SELECTION_KIND_PLURALS}
+    governance_yaml = repo_root / ".kittify" / "charter" / "governance.yaml"
+    if governance_yaml.exists():
+        try:
+            from ruamel.yaml import YAML as _YAML
+
+            data = _YAML(typ="safe").load(governance_yaml.read_text(encoding="utf-8"))
+            doctrine_block = (data or {}).get("doctrine") or {}
+            for kind in _SELECTION_KIND_PLURALS:
+                value = doctrine_block.get(f"selected_{kind}")
+                if isinstance(value, list):
+                    project_selections[kind] = [str(v) for v in value]
+        except Exception:  # noqa: BLE001 — diagnostics must never crash on malformed yaml
+            pass
+
+    # Merged org-charter required_<kind> (best-effort).
+    org_required: dict[str, list[str]] = {kind: [] for kind in _SELECTION_KIND_PLURALS}
+    try:
+        from specify_cli.doctrine.org_charter import load_org_charter_policies
+
+        policy = load_org_charter_policies(repo_root)
+        for kind in _SELECTION_KIND_PLURALS:
+            org_required[kind] = list(getattr(policy, f"required_{kind}", []) or [])
+    except Exception:  # noqa: BLE001 — diagnostics must never crash on missing/invalid org
+        pass
+
+    # DoctrineService instance for provenance lookup.
+    org_roots = resolve_org_roots(repo_root)
+    project_doctrine = repo_root / ".kittify" / "doctrine"
+    project_root = project_doctrine if project_doctrine.exists() else None
+    service = DoctrineService(
+        org_roots=list(org_roots),
+        project_root=project_root,
+    )
+
+    result: dict[str, list[dict[str, str]]] = {}
+    for kind in _SELECTION_KIND_PLURALS:
+        seen: set[str] = set()
+        ordered: list[str] = []
+        for item_id in project_selections[kind] + org_required[kind]:
+            if item_id in seen:
+                continue
+            seen.add(item_id)
+            ordered.append(item_id)
+        project_set = set(project_selections[kind])
+        entries: list[dict[str, str]] = []
+        for item_id in ordered:
+            entries.append({
+                "id": item_id,
+                "source": _resolve_artifact_source(
+                    item_id, kind, service, org_required, project_set
+                ),
+            })
+        result[kind] = entries
+    return result
+
+
+def _render_selection_block_lines(
+    selections: dict[str, list[dict[str, str]]],
+) -> list[str]:
+    """Render the Selections block as a list of pinned-format lines.
+
+    The exact layout is pinned by the snapshot test
+    ``tests/cli/test_doctor_doctrine_selections_snapshot.py``.  Every
+    change to spacing, punctuation, or per-kind ordering MUST update the
+    snapshot fixture in the same commit.
+    """
+    lines: list[str] = ["Selections (active globally-selected artifacts):"]
+    for kind in _SELECTION_KIND_PLURALS:
+        entries = selections.get(kind, [])
+        if not entries:
+            lines.append(f"  {kind}: (none)")
+            continue
+        lines.append(f"  {kind}:")
+        for entry in entries:
+            lines.append(f"    - {entry['id']:<24}(source: {entry['source']})")
+    return lines

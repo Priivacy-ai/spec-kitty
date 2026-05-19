@@ -51,6 +51,44 @@ _STATUS_LAST_SYNC_LABEL = "Last Sync"
 _UNAUTHENTICATED_SYNC_NOW_MESSAGE = (
     "not authenticated: no valid access token. Run `spec-kitty auth login`."
 )
+_WARNING_HEADER_STYLE = "bold yellow"
+_ABSENT_VALUE = "<absent>"
+_UNSET_VALUE = "<unset>"
+_ZERO_STATUS = "[green]0[/green]"
+_BOUNDARY_LABEL_PACKAGE_VERSION = "  Package version"
+_BOUNDARY_LABEL_EXECUTABLE_PATH = "  Executable path"
+_BOUNDARY_LABEL_SOURCE_PATH = "  Source path"
+_BOUNDARY_LABEL_SERVER_URL = "  Server URL"
+_BOUNDARY_LABEL_TEAM_USER = "  Team/User"
+_BOUNDARY_LABEL_QUEUE_DB_PATH = "  Queue DB path"
+_MISMATCHED_FIELDS_LABEL = "Mismatched fields"
+
+
+def _string_or(value: object | None, fallback: str) -> str:
+    """Return *fallback* when *value* is falsey, otherwise coerce to ``str``."""
+    return str(value) if value else fallback
+
+
+def _add_boundary_identity_rows(
+    table: Table,
+    rows: list[tuple[str, object | None]],
+    *,
+    fallback: str,
+) -> None:
+    """Render a flat sequence of key/value rows into the boundary table."""
+    for label, value in rows:
+        table.add_row(label, _string_or(value, fallback))
+
+
+def _add_boundary_identity_row(
+    table: Table,
+    label: str,
+    value: object | None,
+    *,
+    fallback: str,
+) -> None:
+    """Render a single key/value row into the boundary table."""
+    table.add_row(label, _string_or(value, fallback))
 
 
 def _sync_result_looks_unauthenticated(queue_size: int, result: object) -> bool:
@@ -806,7 +844,7 @@ def _display_conflicts(conflicts: list[ConflictInfo]) -> None:
     console.print(f"\n[yellow]Conflicts ({len(conflicts)} files):[/yellow]")
 
     # Create a table for better formatting
-    table = Table(show_header=True, header_style="bold yellow", show_lines=False)
+    table = Table(show_header=True, header_style=_WARNING_HEADER_STYLE, show_lines=False)
     table.add_column("File", style="cyan")
     table.add_column("Type", style="dim")
     table.add_column("Lines", style="dim")
@@ -1906,7 +1944,8 @@ def status(  # noqa: C901
             )
         finally:
             _conn.close()
-    except Exception:  # noqa: BLE001 — read-only diagnostic, never raise
+    # Read-only diagnostic: never let status rendering fail on queue inspection.
+    except Exception:  # noqa: BLE001
         body_queue_count = 0
 
     # Legacy body-upload count (read-only).
@@ -1952,8 +1991,8 @@ def status(  # noqa: C901
         ("Package version", str(fg.package_version or "-")),
         ("Executable path", str(fg.executable_path or "-")),
         ("Source path", str(fg.source_path or "-")),
-        ("Server URL", fg.server_url if fg.server_url else "<unset>"),
-        ("Team/User", fg.team_or_user if fg.team_or_user else "<unset>"),
+        ("Server URL", fg.server_url if fg.server_url else _UNSET_VALUE),
+        ("Team/User", fg.team_or_user if fg.team_or_user else _UNSET_VALUE),
         ("Queue DB path", str(fg.queue_db_path or "-")),
     ]
 
@@ -1962,31 +2001,33 @@ def status(  # noqa: C901
     if daemon_record is None:
         daemon_rows.extend(
             [
-                ("PID", "<absent>"),
-                ("Port", "<absent>"),
-                ("Package version", "<absent>"),
-                ("Executable path", "<absent>"),
-                ("Source path", "<absent>"),
-                ("Server URL", "<absent>"),
-                ("Team/User", "<absent>"),
-                ("Queue DB path", "<absent>"),
+                ("PID", _ABSENT_VALUE),
+                ("Port", _ABSENT_VALUE),
+                ("Package version", _ABSENT_VALUE),
+                ("Executable path", _ABSENT_VALUE),
+                ("Source path", _ABSENT_VALUE),
+                ("Server URL", _ABSENT_VALUE),
+                ("Team/User", _ABSENT_VALUE),
+                ("Queue DB path", _ABSENT_VALUE),
             ]
         )
     else:
+        # Render daemon team_or_user as "principal[/team]" to match the
+        # canonical contract field.
         daemon_team_or_user = _render_daemon_team_or_user(daemon_record)
         daemon_rows.extend(
             [
                 ("PID", str(daemon_record.pid)),
                 ("Port", str(daemon_record.port)),
-                ("Package version", daemon_record.package_version or "<absent>"),
-                ("Executable path", daemon_record.executable_path or "<absent>"),
-                ("Source path", daemon_record.source_checkout_path or "<absent>"),
-                ("Server URL", daemon_record.server_url or "<absent>"),
+                ("Package version", daemon_record.package_version or _ABSENT_VALUE),
+                ("Executable path", daemon_record.executable_path or _ABSENT_VALUE),
+                ("Source path", daemon_record.source_checkout_path or _ABSENT_VALUE),
+                ("Server URL", daemon_record.server_url or _ABSENT_VALUE),
                 (
                     "Team/User",
-                    daemon_team_or_user if daemon_team_or_user else "<absent>",
+                    daemon_team_or_user if daemon_team_or_user else _ABSENT_VALUE,
                 ),
-                ("Queue DB path", daemon_record.queue_db_path or "<absent>"),
+                ("Queue DB path", daemon_record.queue_db_path or _ABSENT_VALUE),
             ]
         )
 
@@ -2020,12 +2061,12 @@ def status(  # noqa: C901
     # picks them up from the top-level row stream by exact key match.
     n_mismatches = len(failure_set.mismatches)
     mismatches_value = (
-        f"[red]{n_mismatches}[/red]" if n_mismatches else "[green]0[/green]"
+        f"[red]{n_mismatches}[/red]" if n_mismatches else _ZERO_STATUS
     )
     orphan_value = (
         f"[yellow]{orphan_record_count}[/yellow]"
         if orphan_record_count
-        else "[green]0[/green]"
+        else _ZERO_STATUS
     )
     if failure_set.mismatches:
         mismatch_field_names = [m.field for m in failure_set.mismatches]
@@ -2049,7 +2090,7 @@ def status(  # noqa: C901
         ("Mismatches", mismatches_value),
         ("Orphan records", orphan_value),
         ("Legacy queue rows", legacy_line),
-        ("Mismatched fields", mismatched_fields_value),
+        (_MISMATCHED_FIELDS_LABEL, mismatched_fields_value),
         ("Orphan daemon records", orphan_value),
     ]
 

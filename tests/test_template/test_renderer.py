@@ -10,6 +10,10 @@ from specify_cli.template.renderer import (
 )
 
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 def test_parse_frontmatter_returns_metadata_body_and_raw() -> None:
     content = """---
 description: Demo

@@ -22,6 +22,8 @@ from typing import Any
 import pytest
 import yaml
 
+pytestmark = [pytest.mark.unit]
+
 _DOC_ACTIONS: tuple[str, ...] = (
     "discover",
     "audit",
@@ -36,7 +38,7 @@ _SHIPPED: Path = (
     / "src"
     / "doctrine"
     / "mission_step_contracts"
-    / "shipped"
+    / "built-in"
 )
 
 _ALLOWED_TOP_LEVEL_KEYS: frozenset[str] = frozenset(

@@ -19,6 +19,8 @@ from specify_cli.tracker.origin_models import (
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 class TestOriginCandidate:
     """Tests for the OriginCandidate frozen dataclass."""
 

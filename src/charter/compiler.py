@@ -17,10 +17,20 @@ from charter.catalog import DoctrineCatalog, load_doctrine_catalog, resolve_doct
 from charter.interview import (
     CharterInterview,
     LocalSupportDeclaration,
+    apply_doctrine_intent_aliases,
     validate_local_support_declarations,
 )
 from charter.language_scope import extract_declared_languages
 from charter.resolver import DEFAULT_TOOL_REGISTRY
+
+__all__ = [
+    "CharterReference",
+    "CompiledCharter",
+    "WriteBundleResult",
+    "compile_charter",
+    "write_compiled_charter",
+]
+
 
 
 @dataclass(frozen=True)
@@ -85,6 +95,7 @@ def compile_charter(
     supplied, a default service rooted at shipped doctrine (and an optional
     project overlay under *repo_root*) is constructed automatically.
     """
+    interview = apply_doctrine_intent_aliases(interview)
     active_languages = extract_declared_languages("\n".join(str(value) for value in interview.answers.values()))
     catalog = doctrine_catalog or load_doctrine_catalog(active_languages=active_languages)
     diagnostics: list[str] = []
@@ -153,6 +164,7 @@ def compile_charter(
         selected_tactics=selected_tactics,
         available_tools=available_tools,
         references=references,
+        doctrine_service=doctrine_service,
     )
 
     return CompiledCharter(
@@ -474,7 +486,7 @@ def _resolve_transitive_reference_graph(
 ) -> Any:
     """Resolve directive transitive closure from shipped/project DRG layers."""
     from charter._drg_helpers import load_validated_graph
-    from doctrine.drg.loader import load_graph, merge_layers
+    from doctrine.drg.loader import load_graph_or_dir
     from doctrine.drg.models import Relation
     from doctrine.drg.query import ResolveTransitiveRefsResult, resolve_transitive_refs
     from doctrine.drg.validator import assert_valid
@@ -486,12 +498,11 @@ def _resolve_transitive_reference_graph(
         if repo_root is not None:
             merged = load_validated_graph(repo_root)
         else:
-            graph_path = doctrine_root / "graph.yaml"
-            if not graph_path.exists():
+            if not doctrine_root.exists():
                 return ResolveTransitiveRefsResult(directives=sorted(directives))
-            merged = merge_layers(load_graph(graph_path), None)
+            merged = load_graph_or_dir(doctrine_root)
             assert_valid(merged)
-    except FileNotFoundError:
+    except (FileNotFoundError, Exception):
         return ResolveTransitiveRefsResult(directives=sorted(directives))
 
     return resolve_transitive_refs(
@@ -575,7 +586,7 @@ def _index_yaml_assets(directory: Path, pattern: str) -> dict[str, dict[str, obj
 
     # Doctrine artifacts live in a shipped/ subdirectory; fall back to the
     # directory itself for tests or custom flat layouts.
-    shipped = directory / "shipped"
+    shipped = directory / "built-in"
     scan_root = shipped if shipped.is_dir() else directory
 
     for path in sorted(scan_root.glob(pattern)):
@@ -762,6 +773,7 @@ def _render_charter_markdown(
     selected_directives: list[str],
     available_tools: list[str],
     references: list[CharterReference],
+    doctrine_service: DoctrineService,
     selected_tactics: list[str] | None = None,
 ) -> str:
     selected_tactics = selected_tactics or []
@@ -786,7 +798,7 @@ def _render_charter_markdown(
         f"- Deployment Constraints: {deployment}",
     ]
 
-    numbered_directives = _render_directives(interview, selected_directives)
+    numbered_directives = _render_directives(interview, selected_directives, doctrine_service)
 
     reference_rows = ["| Reference ID | Kind | Summary | Local Doc |", "|---|---|---|---|"]
     for reference in references:
@@ -841,12 +853,24 @@ def _render_charter_markdown(
     )
 
 
-def _render_directives(interview: CharterInterview, selected_directives: list[str]) -> str:
+def _render_directives(
+    interview: CharterInterview,
+    selected_directives: list[str],
+    doctrine_service: DoctrineService,
+) -> str:
     lines: list[str] = []
     index = 1
 
-    for directive in selected_directives:
-        lines.append(f"{index}. Apply doctrine directive `{directive}` to planning and implementation decisions.")
+    for directive_id in selected_directives:
+        directive = doctrine_service.directives.get(directive_id)
+        if directive is None or directive.id != "DIRECTIVE_039":
+            lines.append(f"{index}. Apply doctrine directive `{directive_id}` to planning and implementation decisions.")
+            index += 1
+            continue
+
+        lines.append(f"{index}. {directive.title} (`{directive.id}`): {directive.intent.strip()}")
+        for rule in directive.integrity_rules:
+            lines.append(f"   - {rule}")
         index += 1
 
     risk = interview.answers.get("risk_boundaries")

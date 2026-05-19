@@ -35,6 +35,8 @@ from specify_cli.auth import get_token_manager, reset_token_manager
 from specify_cli.auth.secure_storage.abstract import SecureStorage
 from specify_cli.auth.session import StoredSession, Team
 
+pytestmark = [pytest.mark.integration]
+
 runner = CliRunner()
 
 

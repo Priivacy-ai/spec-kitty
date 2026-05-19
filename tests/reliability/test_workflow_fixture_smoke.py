@@ -28,6 +28,10 @@ from tests.reliability.fixtures import (
 )
 
 
+import pytest
+
+pytestmark = [pytest.mark.integration]
+
 def test_workflow_reliability_fixture_shapes_are_representable(tmp_path: Path) -> None:
     branch_context = BranchContext(
         mission_branch="kitty/mission-release-320-workflow-reliability-01KQKV85",

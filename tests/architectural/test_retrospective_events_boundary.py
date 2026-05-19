@@ -8,6 +8,8 @@ See docs/migration/retrospective-events-upstream.md for the cutover runbook.
 import pytest
 
 
+pytestmark = [pytest.mark.architectural]
+
 @pytest.mark.skip(reason="pending spec_kitty_events upstream release: <TODO: WP12 issue link>")
 def test_retrospective_events_single_home_post_cutover() -> None:
     """When upstream ships, no Retrospective*Payload Pydantic models live outside spec_kitty_events.

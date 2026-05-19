@@ -24,14 +24,14 @@ Terminology note:
 
 **Commands**:
 - `init` - Initialize a new Spec Kitty project from templates
-- `accept` - Validate mission readiness before merging to main
+- `accept` - Validate an approved mission before merge
 - `config` - Display project configuration and asset resolution information
 - `dashboard` - Open or stop the Spec Kitty dashboard
 - `implement` - Create workspace for work package implementation
 - `specify` - Create a mission scaffold in kitty-specs/
 - `plan` - Scaffold plan.md for a mission
 - `tasks` - Finalize tasks metadata after task generation
-- `merge` - Merge a completed mission branch into the target branch and clean up resources
+- `merge` - Merge an accepted mission branch into the target branch and clean up resources
 - `migrate` - Migrate project .kittify/ to centralized model
 - `next` - Decide and emit the next agent action for the current mission
 - `research` - Execute Phase 0 research workflow to scaffold artifacts
@@ -163,7 +163,8 @@ spec-kitty implement WP01 --json
 
 **Synopsis**: `spec-kitty accept [OPTIONS]`
 
-**Description**: Validate mission readiness before merging to main.
+**Description**: Validate mission readiness after all WPs are approved and
+before running `spec-kitty merge`.
 
 **Options**:
 
@@ -269,7 +270,7 @@ spec-kitty merge --abort    # clear saved state and abort any in-progress git me
 - `start-review` - Move rejected WP from `for_review` back to `in_progress`
 - `transition` - Apply explicit lane transition with state-machine validation
 - `append-history` - Append activity history to a WP prompt
-- `accept-mission` - Accept a mission when all WPs are `done`
+- `accept-mission` - Accept a mission when all WPs are `approved` or `done`
 - `merge-mission` - Run preflight and land the mission into the target branch
 
 **See Also**: [Orchestrator API Reference](orchestrator-api.md)

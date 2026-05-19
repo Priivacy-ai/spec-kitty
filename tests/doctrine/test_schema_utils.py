@@ -14,6 +14,9 @@ from doctrine.shared.schema_utils import SchemaUtilities
 
 
 # All artifact type names that must have a corresponding schema.
+
+pytestmark = [pytest.mark.doctrine]
+
 _SCHEMA_NAMES = [
     "directive",
     "tactic",

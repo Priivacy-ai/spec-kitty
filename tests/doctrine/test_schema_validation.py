@@ -8,6 +8,8 @@ import pytest
 import yaml
 from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 
+pytestmark = [pytest.mark.doctrine]
+
 SCHEMA_DIR = Path(__file__).resolve().parents[2] / "src" / "doctrine" / "schemas"
 FIXTURE_DIR = Path(__file__).resolve().parent / "fixtures"
 

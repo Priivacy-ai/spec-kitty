@@ -29,6 +29,8 @@ from specify_cli.cli.commands.agent.tasks import (
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.git_repo]
+
 class TestIsPipeTableTaskRow:
     """Unit tests for _is_pipe_table_task_row()."""
 

@@ -15,6 +15,8 @@ from typer.testing import CliRunner
 import specify_cli.cli.commands.doctor as doctor_mod
 from specify_cli.cli.commands.doctor import app
 
+pytestmark = [pytest.mark.integration]
+
 runner = CliRunner()
 
 

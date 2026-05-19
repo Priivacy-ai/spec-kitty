@@ -19,6 +19,8 @@ from specify_cli.migration.mission_state import (
 )
 
 
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+
 def _has_events_5() -> bool:
     import spec_kitty_events
 

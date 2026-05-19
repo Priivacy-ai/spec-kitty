@@ -42,6 +42,8 @@ from specify_cli.diagnostics import (
 from specify_cli.sync.diagnostics import reset_emitted_codes
 
 
+pytestmark = [pytest.mark.e2e]
+
 ANSI_RED_RE = re.compile(r"\x1b\[(?:1;)?31m|\[red\]|\[bold red\]", re.IGNORECASE)
 NOT_AUTH_RE = re.compile(r"Not authenticated, skipping sync")
 

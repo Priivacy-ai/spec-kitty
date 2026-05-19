@@ -13,6 +13,10 @@ from specify_cli.cli.commands.agent.tasks import app
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event, read_events
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 runner = CliRunner()
 
 

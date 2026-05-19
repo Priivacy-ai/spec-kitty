@@ -18,6 +18,8 @@ from specify_cli.invocation.writer import EVENTS_DIR
 # Fixtures
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.unit]
+
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "profiles"
 
 _COMPACT_CTX = MagicMock()

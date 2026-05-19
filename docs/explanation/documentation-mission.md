@@ -749,7 +749,10 @@ Agent creates:
 ```bash
 /spec-kitty.review
 /spec-kitty.accept
+/spec-kitty.merge
 ```
+
+After merge, run `/spec-kitty-mission-review` and the retrospective workflow.
 
 **Result**: Complete documentation suite ready for deployment
 

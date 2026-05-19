@@ -27,6 +27,9 @@ from doctrine.drg.models import NodeKind, Relation
 from doctrine.drg.validator import validate_graph
 
 # Path to the shipped doctrine root inside the repo.
+
+pytestmark = [pytest.mark.doctrine]
+
 DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[4] / "src" / "doctrine"
 
 _yaml = YAML(typ="safe")
@@ -41,7 +44,7 @@ def _count_inline_refs(doctrine_root: Path) -> int:  # noqa: C901
     total = 0
 
     # Directives
-    directives_dir = doctrine_root / "directives" / "shipped"
+    directives_dir = doctrine_root / "directives" / "built-in"
     if directives_dir.is_dir():
         for path in sorted(directives_dir.glob("*.directive.yaml")):
             data: Any = _yaml.load(path)
@@ -56,7 +59,7 @@ def _count_inline_refs(doctrine_root: Path) -> int:  # noqa: C901
                     total += 1
 
     # Tactics
-    tactics_dir = doctrine_root / "tactics" / "shipped"
+    tactics_dir = doctrine_root / "tactics" / "built-in"
     if tactics_dir.is_dir():
         for path in sorted(tactics_dir.rglob("*.tactic.yaml")):
             data = _yaml.load(path)
@@ -71,7 +74,7 @@ def _count_inline_refs(doctrine_root: Path) -> int:  # noqa: C901
                         total += 1
 
     # Paradigms
-    paradigms_dir = doctrine_root / "paradigms" / "shipped"
+    paradigms_dir = doctrine_root / "paradigms" / "built-in"
     if paradigms_dir.is_dir():
         for path in sorted(paradigms_dir.glob("*.paradigm.yaml")):
             data = _yaml.load(path)
@@ -84,7 +87,7 @@ def _count_inline_refs(doctrine_root: Path) -> int:  # noqa: C901
                     total += 1
 
     # Procedures
-    procedures_dir = doctrine_root / "procedures" / "shipped"
+    procedures_dir = doctrine_root / "procedures" / "built-in"
     if procedures_dir.is_dir():
         for path in sorted(procedures_dir.glob("*.procedure.yaml")):
             data = _yaml.load(path)
@@ -208,7 +211,7 @@ class TestExtractArtifactEdges:
         nodes, _ = extract_artifact_edges(DOCTRINE_ROOT)
         directive_count = len(
             list(
-                (DOCTRINE_ROOT / "directives" / "shipped").glob("*.directive.yaml")
+                (DOCTRINE_ROOT / "directives" / "built-in").glob("*.directive.yaml")
             )
         )
         graph_directive_nodes = [
@@ -221,7 +224,7 @@ class TestExtractArtifactEdges:
     def test_walks_all_shipped_paradigms(self) -> None:
         nodes, _ = extract_artifact_edges(DOCTRINE_ROOT)
         paradigm_files = list(
-            (DOCTRINE_ROOT / "paradigms" / "shipped").glob("*.paradigm.yaml")
+            (DOCTRINE_ROOT / "paradigms" / "built-in").glob("*.paradigm.yaml")
         )
         graph_paradigm_nodes = [
             n for n in nodes
@@ -407,7 +410,7 @@ class TestEdgeCountCompleteness:
     def test_per_directive_edges_complete(self) -> None:
         """Each directive's inline refs should have corresponding edges."""
         _, edges = extract_artifact_edges(DOCTRINE_ROOT)
-        directives_dir = DOCTRINE_ROOT / "directives" / "shipped"
+        directives_dir = DOCTRINE_ROOT / "directives" / "built-in"
         for path in sorted(directives_dir.glob("*.directive.yaml")):
             data: Any = _yaml.load(path)
             if not data:
@@ -432,7 +435,7 @@ class TestEdgeCountCompleteness:
     def test_per_paradigm_edges_complete(self) -> None:
         """Each paradigm's inline refs should have corresponding edges."""
         _, edges = extract_artifact_edges(DOCTRINE_ROOT)
-        paradigms_dir = DOCTRINE_ROOT / "paradigms" / "shipped"
+        paradigms_dir = DOCTRINE_ROOT / "paradigms" / "built-in"
         for path in sorted(paradigms_dir.glob("*.paradigm.yaml")):
             data: Any = _yaml.load(path)
             if not data:

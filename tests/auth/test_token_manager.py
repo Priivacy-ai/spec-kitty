@@ -48,6 +48,8 @@ from specify_cli.core.file_lock import LockAcquireTimeout
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.integration]
+
 def _now() -> datetime:
     return datetime.now(UTC)
 

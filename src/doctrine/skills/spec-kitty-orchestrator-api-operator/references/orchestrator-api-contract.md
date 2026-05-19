@@ -305,7 +305,7 @@ spec-kitty orchestrator-api append-history \
 
 ## 8. accept-mission
 
-Mark a mission as accepted. All work packages must be in the `done` lane.
+Mark a mission as accepted. All work packages must be `approved` or `done`.
 
 ```bash
 spec-kitty orchestrator-api accept-mission --mission TEXT --actor TEXT
@@ -328,12 +328,12 @@ spec-kitty orchestrator-api accept-mission --mission TEXT --actor TEXT
 
 | Code | Cause |
 |------|-------|
-| `MISSION_NOT_READY` | One or more WPs are not in the `done` lane |
+| `MISSION_NOT_READY` | One or more WPs are not `approved` or `done` |
 
 **Usage notes:**
 
-- Always call `mission-state` first to verify all WPs are done
-- This is a guard-protected operation; it will reject if any WP is not done
+- Always call `mission-state` first to verify every WP is in `approved` or `done`
+- This is a guard-protected operation; it will reject if any WP is not `approved` or `done`
 
 
 ---
@@ -380,7 +380,7 @@ spec-kitty orchestrator-api merge-mission \
 |------------|----------|-------------|
 | `CONTRACT_VERSION_MISMATCH` | contract-version | Provider version too old |
 | `MISSION_NOT_FOUND` | mission-state, list-ready | Unknown mission slug |
-| `MISSION_NOT_READY` | accept-mission | Not all WPs are done |
+| `MISSION_NOT_READY` | accept-mission | Not all WPs are approved or done |
 | `POLICY_METADATA_REQUIRED` | start-implementation, start-review, transition | Missing or incomplete policy JSON |
 | `TRANSITION_REJECTED` | start-implementation, start-review, transition | Guard failure or invalid transition |
 | `WP_ALREADY_CLAIMED` | start-implementation, start-review | Another actor owns the WP |
@@ -422,7 +422,7 @@ spec-kitty orchestrator-api transition \
   --mission 017-my-mission --wp WP01 --to done --actor "reviewer-bot" \
   --force --note "Approved in PR #42"
 
-# 9. When all WPs are done, accept and merge
+# 9. When all WPs are approved or done, accept and merge
 spec-kitty orchestrator-api accept-mission --mission 017-my-mission --actor "ci-bot"
 spec-kitty orchestrator-api merge-mission --mission 017-my-mission --strategy squash --push
 ```

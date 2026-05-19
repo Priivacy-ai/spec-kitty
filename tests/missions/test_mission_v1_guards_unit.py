@@ -31,6 +31,8 @@ from specify_cli.mission_v1.schema import MissionValidationError
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
     """Seed a WP into a specific lane in the event log."""
     # Map legacy aliases to canonical lane names

@@ -28,6 +28,8 @@ from specify_cli.saas.readiness import ReadinessState, evaluate_readiness
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.integration]
+
 def test_happy_path_ready(
     rollout_enabled: None,
     fake_auth_present: None,

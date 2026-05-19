@@ -140,7 +140,7 @@ class TestDetectForbiddenKeysRowFamily:
 
     def test_status_transition_row_passes(self) -> None:
         """Row 1: canonical transition row — FORBIDDEN_KEY check runs, passes."""
-        row = {
+        row: dict[str, object] = {
             "from_lane": "planned",
             "to_lane": "claimed",
             "wp_id": "WP01",
@@ -151,7 +151,7 @@ class TestDetectForbiddenKeysRowFamily:
 
     def test_lifecycle_row_mission_created_skipped(self) -> None:
         """Row 2: lifecycle row (Mission/MissionCreated) — check SKIPPED."""
-        row = {
+        row: dict[str, object] = {
             "aggregate_type": "Mission",
             "event_type": "MissionCreated",
             "event_id": "01HXYZ",
@@ -166,7 +166,7 @@ class TestDetectForbiddenKeysRowFamily:
 
     def test_lifecycle_row_specify_started_skipped(self) -> None:
         """Row 3: lifecycle row (Mission/SpecifyStarted) — check SKIPPED."""
-        row = {
+        row: dict[str, object] = {
             "aggregate_type": "Mission",
             "event_type": "SpecifyStarted",
             "event_id": "01HXYZ",
@@ -184,7 +184,7 @@ class TestDetectForbiddenKeysRowFamily:
         aggregate marker must still surface as ``FORBIDDEN_KEY`` findings,
         otherwise the TeamSpace blocker rule loses its teeth.
         """
-        row = {"event_type": "Foo"}
+        row: dict[str, object] = {"event_type": "Foo"}
         findings = detect_forbidden_keys(row, "status.events.jsonl")
         codes = _finding_codes(findings)
         assert codes == ["FORBIDDEN_KEY"]
@@ -196,7 +196,7 @@ class TestDetectForbiddenKeysRowFamily:
         Predicate returns False (no event_type), so the FORBIDDEN_KEY check
         runs. The row has no forbidden key present, so the check passes.
         """
-        row = {"aggregate_type": "Mission"}
+        row: dict[str, object] = {"aggregate_type": "Mission"}
         findings = detect_forbidden_keys(row, "status.events.jsonl")
         assert findings == []
 
@@ -207,7 +207,7 @@ class TestDetectForbiddenKeysRowFamily:
         (lifecycle discriminator) but no ``aggregate_type=Mission``. Predicate
         returns False, check runs, ``event_type`` is flagged.
         """
-        row = {
+        row: dict[str, object] = {
             "from_lane": "planned",
             "to_lane": "claimed",
             "event_type": "X",
@@ -219,7 +219,7 @@ class TestDetectForbiddenKeysRowFamily:
 
     def test_event_name_without_aggregate_is_flagged(self) -> None:
         """Sibling regression guard for the second forbidden key (event_name)."""
-        row = {"event_name": "legacy_thing"}
+        row: dict[str, object] = {"event_name": "legacy_thing"}
         findings = detect_forbidden_keys(row, "status.events.jsonl")
         codes = _finding_codes(findings)
         assert codes == ["FORBIDDEN_KEY"]
@@ -233,7 +233,7 @@ class TestDetectForbiddenKeysRowFamily:
         ``aggregate_type``+``event_type``, and once a row is classified as
         lifecycle the entire FORBIDDEN_KEYS rule is suppressed.
         """
-        row = {
+        row: dict[str, object] = {
             "aggregate_type": "Mission",
             "event_type": "MissionCreated",
             "event_name": "legacy_alias",

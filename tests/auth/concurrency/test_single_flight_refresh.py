@@ -32,6 +32,8 @@ from specify_cli.auth.secure_storage.abstract import SecureStorage
 from specify_cli.auth.session import StoredSession, Team
 
 
+pytestmark = [pytest.mark.integration]
+
 class _MembershipRehydrateAttempted(BaseException):
     """Raised when single-flight tests accidentally enter hosted membership I/O."""
 

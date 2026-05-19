@@ -41,7 +41,7 @@ class TestProcedureRepository:
         yaml = YAML()
         yaml.default_flow_style = False
 
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
         with (shipped / "curation-interview.procedure.yaml").open("w") as f:
             yaml.dump(sample_procedure_data, f)
@@ -73,7 +73,7 @@ class TestProcedureRepository:
         from doctrine.procedures.models import Procedure
 
 
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
         project = tmp_path / "project"
 
@@ -86,7 +86,7 @@ class TestProcedureRepository:
         assert repo.get("curation-interview") is not None
 
     def test_invalid_yaml_skipped_with_warning(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
         (shipped / "bad.procedure.yaml").write_text("not: valid: yaml: [")
 
@@ -106,7 +106,7 @@ class TestProcedureRepository:
         yaml = YAML()
         yaml.default_flow_style = False
 
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         shipped.mkdir()
         with (shipped / "curation-interview.procedure.yaml").open("w", encoding="utf-8") as handle:
             yaml.dump(sample_procedure_data, handle)

@@ -3,6 +3,8 @@ from pathlib import Path
 from charter.evidence.corpus_loader import CorpusLoader, CorpusLoaderError
 
 
+pytestmark = [pytest.mark.unit]
+
 def test_exact_match_python():
     snap = CorpusLoader().load("python")
     assert snap is not None

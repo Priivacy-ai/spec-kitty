@@ -83,13 +83,20 @@ Then let the runtime choose the next action until the mission is ready:
 spec-kitty next --agent claude --mission <mission-slug>
 ```
 
-Review, accept, and merge:
+Review, accept, merge, and close the loop:
 
 ```text
 /spec-kitty.review
 /spec-kitty.accept
 /spec-kitty.merge --push
 ```
+
+After merge, run `/spec-kitty-mission-review`. The mission's
+`retrospective.yaml` is authored during the runtime terminus (HiC prompt or
+autonomous facilitator), not by `merge`. Once it exists, use
+`spec-kitty retrospect summary` for the cross-mission view and
+`spec-kitty agent retrospect synthesize --mission <mission-slug>` to apply any
+staged proposals (dry-run by default — pass `--apply` to mutate).
 
 For the full walkthrough, see [Your First Feature](docs/tutorials/your-first-feature.md).
 

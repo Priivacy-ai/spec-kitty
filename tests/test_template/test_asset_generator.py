@@ -9,6 +9,10 @@ from specify_cli.template.asset_generator import (
 )
 
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 def _write_template(path: Path, with_agent_script: bool = True) -> None:
     agent_block = "agent_scripts:\n  sh: source env\n" if with_agent_script else ""
     path.write_text(

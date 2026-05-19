@@ -3,7 +3,7 @@ description: Execute a work package implementation
 ---
 <!-- spec-kitty-command-version: 3.1.2a3 -->
 
-# /spec-kitty.implement - Execute Work Package<!-- glossary:glossary:work-package --> Implementation
+# /spec-kitty.implement - Execute Work Package Implementation
 
 **Version**: 0.12.0+
 
@@ -17,11 +17,11 @@ guardrails for bulk operations.
 
 ## Working Directory
 
-**IMPORTANT**: This step works inside the execution workspace<!-- glossary:glossary:workspace --> (worktree)
+**IMPORTANT**: This step works inside the execution workspace (worktree)
 allocated by `spec-kitty agent action implement WPxx --agent <name>`. Do NOT modify files outside
 your `owned_files` boundaries.
 
-**In repos with multiple missions, always pass `--mission<!-- glossary:glossary:mission --> <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id<!-- glossary:glossary:mission_id -->` (ULID), `mid8<!-- glossary:glossary:mid8 -->` (first 8 chars of the ULID), or `mission_slug<!-- glossary:glossary:mission_slug -->`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
+**In repos with multiple missions, always pass `--mission <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
 
 ## User Input
 
@@ -30,6 +30,53 @@ $ARGUMENTS
 ```
 
 You **MUST** consider the user input before proceeding (if not empty).
+
+## Governance Payload Contract
+
+The prompt produced by `spec-kitty agent action implement` is guaranteed to
+carry the following surfaces. Trust the prompt; do not consult external
+governance sources unless explicitly cited by a fetch command + when-doing
+rule in the prompt.
+
+**Guaranteed bodies** (verbatim in the prompt when under the token budget; the
+resolver substitutes a `spec-kitty charter context --include section:<slug>`
+fetch + when-doing stanza only when the budget would otherwise be exceeded):
+
+- **Terminology Canon** — from `.kittify/charter/charter.md` — governs every
+  identifier rename or new term you introduce.
+- **Code Review Checklist** — from `.kittify/charter/charter.md` — enumerates
+  the gates the reviewer will measure your diff against.
+- **Regression Vigilance** — from `.kittify/charter/charter.md` — the project's
+  explicit guard against terminology and structural drift.
+- Any additional action-critical sections the mission declares are appended
+  automatically.
+
+**Guaranteed citations** (catalog IDs always present in the prompt when the
+WP frontmatter selects an `agent_profile`):
+
+- Every `DIRECTIVE_NNN` declared in the loaded agent profile's
+  `directive-references` list (for example, `python-pedro` cites
+  `DIRECTIVE_010` — Specification Fidelity Requirement, `DIRECTIVE_024` —
+  Locality of Change, `DIRECTIVE_030` — Test and Typecheck Quality Gate).
+- Every tactic-id declared in the loaded agent profile's `tactic-references`
+  list.
+
+**Guaranteed authority pointers** (path + when-doing conditional):
+
+- `glossary/contexts/` — canonical terminology. Consult when you encounter a
+  domain term in the diff or are about to introduce a new one.
+- `architecture/2.x/adr/` — architectural intent. Consult when you change a
+  structural boundary (package layout, public API surface, dependency edges).
+- Any additional paths declared in the charter's `authority_paths:` block are
+  emitted alongside these defaults.
+
+**Fetch commands** (the prompt may substitute these for bodies that exceed the
+token budget; whenever a fetch command appears, the accompanying
+"When you <verb>, run this and apply" line specifies the trigger):
+
+- `spec-kitty charter context --include directive:DIRECTIVE_NNN`
+- `spec-kitty charter context --include tactic:<id>`
+- `spec-kitty charter context --include section:<slug>`
 
 ## Execution Steps
 
@@ -46,12 +93,14 @@ Then execute the returned `check_prerequisites` command and capture
 
 The output of `spec-kitty agent action implement ...` is the authoritative work
 package prompt and execution context. Do **not** separately call
-`spec-kitty charter<!-- glossary:glossary:charter --> context` or rummage through unrelated files looking for a
-"newer" prompt unless the command output tells you to.
+`spec-kitty charter context` or rummage through unrelated files looking for a
+"newer" prompt unless the command output tells you to. The
+**Governance Payload Contract** section above documents what the prompt is
+guaranteed to carry.
 
 ### 2. Load Work Package Prompt
 
-Read the WP<!-- glossary:glossary:wp --> prompt file from `feature_dir/tasks/WPxx-slug.md`.
+Read the WP prompt file from `feature_dir/tasks/WPxx-slug.md`.
 Parse frontmatter for:
 - `owned_files` -- only modify files matching these globs
 - `authoritative_surface` -- primary directory for this WP
@@ -65,7 +114,7 @@ Parse frontmatter for:
 
 ### 2a. Load Agent Profile
 
-Before proceeding, load the agent profile from the WP frontmatter using the `/ad-hoc-profile-load` skill<!-- glossary:glossary:skill --> (or `spec-kitty agent profile list` to find user-defined profiles). Apply the profile's guidance for the rest of this implementation session.
+Before proceeding, load the agent profile from the WP frontmatter using the `/ad-hoc-profile-load` skill (or `spec-kitty agent profile list` to find user-defined profiles). Apply the profile's guidance for the rest of this implementation session.
 
 If `agent_profile` is empty, run `spec-kitty agent profile list` and select the best
 available profile for the WP's `task_type` and `authoritative_surface`.
@@ -88,11 +137,27 @@ Work through each subtask in order:
 After all subtasks are complete:
 - All tests pass
 - No files outside `owned_files` were modified
-- Code follows project<!-- glossary:glossary:project --> conventions (run linter if configured)
+- Code follows project conventions (run linter if configured)
+- **Diff-scoped ruff sweep (MANDATORY before moving to `for_review`)** —
+  catches lint regressions before they reach the cycle-1 reviewer. The WP06
+  cycle-1 `textwrap` F401 in `tests/specify_cli/doctrine/test_missing_pack_policy.py`
+  would have been caught by this step. Scope is the diff only so the implementer
+  does not drown in pre-existing warnings owned by other WPs.
+  ```bash
+  CHANGED_PY=$(git diff --name-only --diff-filter=AMR HEAD | rg '\.py$' || true)
+  if [ -n "$CHANGED_PY" ]; then
+    .venv/bin/ruff check $CHANGED_PY
+  fi
+  ```
+  - The command MUST exit 0. If it does not, fix or `ruff check --fix` and re-run.
+  - Paste the final command + exit code into your handoff note
+    (e.g. `"ruff diff-scoped check: 0 issues, exit 0"`).
+  - On cycle-N re-implementation, diff against the WP's planning base instead
+    of `HEAD`: `git diff --name-only $(git merge-base HEAD main)`.
 
 ---
 
-## Bulk Edit<!-- glossary:glossary:bulk-edit --> Occurrence Classification<!-- glossary:glossary:occurrence-classification -->
+## Bulk Edit Occurrence Classification
 
 If this mission has `change_mode: bulk_edit` in its `meta.json`, an occurrence
 classification artifact is required before implementation can begin.
@@ -100,7 +165,7 @@ classification artifact is required before implementation can begin.
 **What to check**:
 1. Read `meta.json` in the feature directory — look for `"change_mode": "bulk_edit"`
 2. If present, verify `occurrence_map.yaml` exists in the same directory
-3. The occurrence map<!-- glossary:glossary:occurrence-map --> classifies the target term by semantic category with
+3. The occurrence map classifies the target term by semantic category with
    per-category actions: `rename`, `manual_review`, `do_not_change`, `rename_if_user_visible`
 
 **During implementation**:

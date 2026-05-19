@@ -8,6 +8,10 @@ from pathlib import Path
 from specify_cli.state.doctor import check_state_roots
 
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 def test_roots_resolved(tmp_path):
     """check_state_roots resolves three roots with correct names."""
     (tmp_path / ".kittify").mkdir()

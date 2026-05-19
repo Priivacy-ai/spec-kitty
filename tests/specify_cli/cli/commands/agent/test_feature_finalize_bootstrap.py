@@ -27,6 +27,8 @@ from specify_cli.status.bootstrap import BootstrapResult
 # Fixtures
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.unit]
+
 MODULE = "specify_cli.cli.commands.agent.mission"
 CORE_MODULE = "specify_cli.core.mission_creation"
 

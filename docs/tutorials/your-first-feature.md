@@ -133,6 +133,15 @@ spec-kitty merge
 
 You should see the feature merged into the mission's target branch and the worktrees cleaned up.
 
+Before you move on, run the post-merge mission review
+(`/spec-kitty-mission-review` in your agent), then review the retrospective
+captured at the runtime terminus:
+
+```bash
+spec-kitty retrospect summary                       # cross-mission view
+spec-kitty agent retrospect synthesize --mission <slug>  # dry-run; --apply to mutate
+```
+
 ## Troubleshooting
 
 - **"Planning created a worktree"**: Planning stays in the repository root checkout in `3.1.x`. If you see an unexpected planning worktree, upgrade with `spec-kitty upgrade`.

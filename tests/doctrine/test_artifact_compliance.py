@@ -48,7 +48,7 @@ def _multi_glob(dirs: list[Path], pattern: str) -> list[Path]:
     return sorted(set(results))
 
 
-_BUNDLED_SUBDIRS = ("shipped", "_proposed")
+_BUNDLED_SUBDIRS = ("built-in", "_proposed")
 
 ARTIFACT_GLOBS: dict[str, tuple[list[Path], str]] = {
     "directive": ([DOCTRINE_DIR / "directives" / d for d in _BUNDLED_SUBDIRS], "*.directive.yaml"),
@@ -81,7 +81,7 @@ def test_artifact_files_validate_schema(artifact_type: str, artifact_path: Path)
 def tactic_ids() -> set[str]:
     ids: set[str] = set()
     for tactic_path in _multi_glob(
-        [DOCTRINE_DIR / "tactics" / "shipped"], "*.tactic.yaml"
+        [DOCTRINE_DIR / "tactics" / "built-in"], "*.tactic.yaml"
     ):
         tactic = _load_yaml(tactic_path)
         tactic_id = tactic.get("id")

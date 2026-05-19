@@ -46,7 +46,7 @@ def test_catalog_filters_language_scoped_artifacts(monkeypatch: pytest.MonkeyPat
     yaml.default_flow_style = False
 
     fixtures = {
-        Path("styleguides/shipped/python.styleguide.yaml"): {
+        Path("styleguides/built-in/python.styleguide.yaml"): {
             "schema_version": "1.0",
             "id": "python-style",
             "title": "Python Style",
@@ -54,31 +54,31 @@ def test_catalog_filters_language_scoped_artifacts(monkeypatch: pytest.MonkeyPat
             "applies_to_languages": ["python"],
             "principles": ["Use Python idioms"],
         },
-        Path("styleguides/shipped/generic.styleguide.yaml"): {
+        Path("styleguides/built-in/generic.styleguide.yaml"): {
             "schema_version": "1.0",
             "id": "generic-style",
             "title": "Generic Style",
             "scope": "code",
             "principles": ["Be clear"],
         },
-        Path("toolguides/shipped/python.toolguide.yaml"): {
+        Path("toolguides/built-in/python.toolguide.yaml"): {
             "schema_version": "1.0",
             "id": "python-toolguide",
             "tool": "pytest",
             "title": "Python Toolguide",
-            "guide_path": "src/doctrine/toolguides/shipped/python.md",
+            "guide_path": "src/doctrine/toolguides/built-in/python.md",
             "summary": "Python checks",
             "applies_to_languages": ["python"],
         },
-        Path("toolguides/shipped/generic.toolguide.yaml"): {
+        Path("toolguides/built-in/generic.toolguide.yaml"): {
             "schema_version": "1.0",
             "id": "generic-toolguide",
             "tool": "git",
             "title": "Generic Toolguide",
-            "guide_path": "src/doctrine/toolguides/shipped/generic.md",
+            "guide_path": "src/doctrine/toolguides/built-in/generic.md",
             "summary": "Generic checks",
         },
-        Path("agent_profiles/shipped/python.agent.yaml"): {
+        Path("agent_profiles/built-in/python.agent.yaml"): {
             "profile-id": "python-pedro",
             "name": "Python Pedro",
             "roles": ["implementer"],
@@ -86,7 +86,7 @@ def test_catalog_filters_language_scoped_artifacts(monkeypatch: pytest.MonkeyPat
             "applies_to_languages": ["python"],
             "specialization": {"primary-focus": "python"},
         },
-        Path("agent_profiles/shipped/generic.agent.yaml"): {
+        Path("agent_profiles/built-in/generic.agent.yaml"): {
             "profile-id": "generic-implementer",
             "name": "Generic Implementer",
             "roles": ["implementer"],
@@ -125,7 +125,7 @@ def test_catalog_keeps_language_scoped_artifacts_when_active_languages_are_unset
     yaml.default_flow_style = False
 
     fixtures = {
-        Path("styleguides/shipped/python.styleguide.yaml"): {
+        Path("styleguides/built-in/python.styleguide.yaml"): {
             "schema_version": "1.0",
             "id": "python-style",
             "title": "Python Style",
@@ -133,16 +133,16 @@ def test_catalog_keeps_language_scoped_artifacts_when_active_languages_are_unset
             "applies_to_languages": ["python"],
             "principles": ["Use Python idioms"],
         },
-        Path("toolguides/shipped/python.toolguide.yaml"): {
+        Path("toolguides/built-in/python.toolguide.yaml"): {
             "schema_version": "1.0",
             "id": "python-toolguide",
             "tool": "pytest",
             "title": "Python Toolguide",
-            "guide_path": "src/doctrine/toolguides/shipped/python.md",
+            "guide_path": "src/doctrine/toolguides/built-in/python.md",
             "summary": "Python checks",
             "applies_to_languages": ["python"],
         },
-        Path("agent_profiles/shipped/python.agent.yaml"): {
+        Path("agent_profiles/built-in/python.agent.yaml"): {
             "profile-id": "python-pedro",
             "name": "Python Pedro",
             "roles": ["implementer"],
@@ -173,7 +173,7 @@ def test_catalog_keeps_language_scoped_artifacts_when_active_languages_are_unset
 
 def test_load_yaml_id_catalog_scans_proposed_when_requested(tmp_path: Path) -> None:
     doctrine_dir = tmp_path / "styleguides"
-    shipped_dir = doctrine_dir / "shipped"
+    shipped_dir = doctrine_dir / "built-in"
     proposed_dir = doctrine_dir / "_proposed"
     shipped_dir.mkdir(parents=True)
     proposed_dir.mkdir(parents=True)

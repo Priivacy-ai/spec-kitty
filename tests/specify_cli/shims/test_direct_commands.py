@@ -29,6 +29,8 @@ from specify_cli.core.execution_context import ActionName, ACTION_NAMES
 # Helpers
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.unit]
+
 def _setup_project(tmp_path: Path, agents: list[str]) -> None:
     """Create a minimal project with .kittify/config.yaml and agent dirs."""
     kittify = tmp_path / ".kittify"

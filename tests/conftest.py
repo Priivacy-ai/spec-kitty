@@ -90,6 +90,86 @@ def _enable_saas_sync_feature_flag(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
 
 
+def reset_spec_kitty_queue_state() -> None:
+    """Empty the user-scoped spec-kitty queue rows to a clean baseline.
+
+    The sync-boundary preflight added in upstream commit `cc5e1ca9` reads
+    `~/.spec-kitty/queue.db` (legacy queue) and the per-scope queue tree
+    under `~/.spec-kitty/queues/<scope>/`. When earlier tests in the same
+    shard emit events under the shared HOME, those rows accumulate and
+    the preflight refuses (exit code 2) on downstream invocations that
+    are not themselves testing the queue. This helper is the JUnit-style
+    `@After`/`@Before` reset: it brings the on-disk state back to a
+    known-empty baseline so the next test can proceed.
+
+    Important: truncates rows (DELETE FROM ...) rather than deleting the
+    SQLite file, because other readers may already hold open handles or
+    expect the schema to exist. The body-upload sibling table is also
+    truncated for the same reason.
+
+    Use via the `clean_spec_kitty_queue` fixture (pre-test wipe + post-
+    test wipe) or call directly inside a test's setup when the fixture
+    pattern doesn't fit. Idempotent: missing files/tables are silently
+    ignored.
+    """
+    import contextlib
+    import shutil
+    import sqlite3
+
+    home = Path.home() / ".spec-kitty"
+    if not home.exists():
+        return
+
+    def _truncate_db(db_path: Path) -> None:
+        if not db_path.exists():
+            return
+        try:
+            with sqlite3.connect(db_path) as conn:
+                for (table_name,) in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' "
+                    "AND name NOT LIKE 'sqlite_%'"
+                ).fetchall():
+                    with contextlib.suppress(sqlite3.OperationalError):
+                        conn.execute(f"DELETE FROM {table_name}")  # noqa: S608
+                conn.commit()
+        except sqlite3.DatabaseError:
+            # Corrupt / unreadable DB: remove so the next test reconstructs it.
+            db_path.unlink(missing_ok=True)
+
+    # Legacy queue DB (pre-cc5e1ca9 single-file layout)
+    _truncate_db(home / "queue.db")
+    # Per-scope queue DBs introduced in cc5e1ca9 (`~/.spec-kitty/queues/<scope>/`)
+    queues_dir = home / "queues"
+    if queues_dir.exists():
+        for scope_db in queues_dir.rglob("*.db"):
+            _truncate_db(scope_db)
+    # Daemon owner record (preflight inspects this for D-3 mismatches)
+    daemon_dir = home / "daemon"
+    if daemon_dir.exists():
+        shutil.rmtree(daemon_dir)
+    # Active-scope pointer (some preflight readers consult this to scope queries)
+    active_scope = home / "active-scope"
+    if active_scope.exists():
+        active_scope.unlink()
+
+
+@pytest.fixture
+def clean_spec_kitty_queue():
+    """Pre-test + post-test cleanup of the user-scoped spec-kitty queue state.
+
+    Mirrors JUnit's `@Before` + `@After` reset pattern. Wipes the queue
+    before yielding to the test and again after the test returns, so
+    cross-test pollution does not propagate in either direction. Tests
+    that touch the queue can declare this fixture explicitly:
+
+        def test_my_thing(clean_spec_kitty_queue):
+            ...
+    """
+    reset_spec_kitty_queue_state()
+    yield
+    reset_spec_kitty_queue_state()
+
+
 @pytest.fixture(autouse=True)
 def _neutralize_worktree_detection(request, monkeypatch: pytest.MonkeyPatch) -> None:
     """Prevent worktree detection from failing tests run inside a worktree.

@@ -15,6 +15,11 @@ from pathlib import Path
 
 from charter.synthesizer.evidence import CodeSignals
 
+__all__ = [
+    "CodeReadingCollector",
+]
+
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------

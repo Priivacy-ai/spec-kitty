@@ -43,3 +43,9 @@ def _stub_teamspace_gate(monkeypatch):
             "enforce_teamspace_mission_state_ready",
             stub,
         )
+
+
+# Note: the sync-boundary preflight + FR-011 auth-gate stubs that this
+# directory used to ship live in ``tests/agent/conftest.py`` now, so the
+# coverage extends to the integration tests under ``tests/agent/test_agent_feature.py``
+# without duplicating the patch logic.

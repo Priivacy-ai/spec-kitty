@@ -144,17 +144,24 @@ Spec Kitty enforces a specific sequence that prevents common AI coding failures:
 
 ### Phase 5: Accept BEFORE Merging
 
-**Why**: Final quality gate prevents half-baked features reaching main branch.
+**Why**: Final readiness checks catch mission-level gaps before merge.
 
 ```bash
 /spec-kitty.accept
-# Validates: All tasks done? Spec requirements met? Tests passing?
+# Validates: All WPs approved or done? Spec requirements met? Tests passing?
 
 /spec-kitty.merge --push
 # Merges to main, copies specs to kitty-specs/, cleans up worktree
 ```
 
-**Why This Matters**: Git main branch stays clean. Every feature that lands has: spec + plan + completed tasks + acceptance validation.
+After merge, run `/spec-kitty-mission-review`, then review the retrospective
+captured at the runtime terminus: `spec-kitty retrospect summary`
+(cross-mission view) and
+`spec-kitty agent retrospect synthesize --mission <slug>` to apply staged
+proposals (dry-run by default; add `--apply` to mutate).
+
+**Why This Matters**: Git main branch stays clean. Every feature that lands has:
+spec + plan + approved WPs + acceptance validation + post-merge learning.
 
 ---
 
@@ -471,8 +478,8 @@ spec-kitty dashboard         # Restart
 | `/spec-kitty.tasks` | After plan done | Break down → create work packages |
 | `/spec-kitty.implement` | Ready to code | Auto-pick task → implement → move lanes |
 | `/spec-kitty.review` | Code review time | Review completed work → approve or reject |
-| `/spec-kitty.accept` | Feature complete | Validate all tasks done → ready to merge |
-| `/spec-kitty.merge` | Ready to ship | Merge to mission target branch → cleanup worktree |
+| `/spec-kitty.accept` | WPs approved | Validate mission readiness → ready to merge |
+| `/spec-kitty.merge` | Accepted mission | Merge to mission target branch → cleanup worktree |
 
 ### CLI Commands (Outside Claude)
 
@@ -540,7 +547,7 @@ Encode your team's quality standards once:
 
 4. **Review before merging**
    - `/spec-kitty.accept` is your quality gate
-   - Better to catch issues before main branch
+   - Run `/spec-kitty-mission-review` and the retrospective after merge
 
 ### ❌ DON'T
 

@@ -12,6 +12,8 @@ import pytest
 # build_artifacts fixture comes from conftest.py (session-scoped, shared)
 
 
+pytestmark = [pytest.mark.integration]
+
 @pytest.mark.slow
 def test_wheel_contains_no_kittify_paths(build_artifacts: dict[str, Path]) -> None:
     """Verify wheel doesn't contain .kittify/ paths."""

@@ -193,17 +193,25 @@ class AgentProfileRepository:
     def __init__(
         self,
         shipped_dir: Path | None = None,
+        *,
+        org_dirs: list[Path] | None = None,
         project_dir: Path | None = None,
         active_languages: list[str] | tuple[str, ...] | None = None,
     ):
-        """Initialize repository with shipped and/or project directories.
+        """Initialize repository with shipped, org, and/or project directories.
 
         Args:
             shipped_dir: Directory containing shipped profiles (defaults to package data)
+            org_dirs: Ordered list of org-level profile directories. Each pack
+                overlays the previous in declaration order; later packs override
+                earlier ones for the same profile-id (FR-006, C-004).
             project_dir: Directory containing project-specific profiles (optional)
+            active_languages: Language filter; None means no filtering
         """
         self._profiles: dict[str, AgentProfile] = {}
+        self._provenance: dict[str, str] = {}
         self._shipped_dir = shipped_dir or self._default_shipped_dir()
+        self._org_dirs: list[Path] = list(org_dirs) if org_dirs else []
         self._project_dir = project_dir
         self._active_languages = None if active_languages is None else normalize_languages(active_languages)
         self._hierarchy_index: dict[str, list[str]] | None = None
@@ -215,13 +223,13 @@ class AgentProfileRepository:
         try:
             resource = files("doctrine.agent_profiles")
             if hasattr(resource, "joinpath"):
-                return Path(str(resource.joinpath("shipped")))
-            return Path(str(resource)) / "shipped"
+                return Path(str(resource.joinpath("built-in")))
+            return Path(str(resource)) / "built-in"
         except (ModuleNotFoundError, TypeError):
-            return Path(__file__).parent / "shipped"
+            return Path(__file__).parent / "built-in"
 
     def _load(self) -> None:
-        """Load profiles from shipped and project directories."""
+        """Load profiles from shipped, org, and project directories."""
         yaml = YAML(typ="safe")
         shipped_profiles: dict[str, AgentProfile] = {}
 
@@ -245,8 +253,14 @@ class AgentProfileRepository:
                         stacklevel=2,
                     )
 
-        # Start with shipped profiles
+        # Start with shipped profiles; tag all as 'builtin'
         self._profiles = shipped_profiles.copy()
+        self._provenance = dict.fromkeys(self._profiles, "builtin")
+
+        # Load and merge org profiles from each configured pack in declaration order;
+        # later packs override earlier ones (FR-006, C-004).
+        for org_dir in self._org_dirs:
+            self._load_org_profiles_from_dir(yaml, org_dir, shipped_profiles)
 
         # Load and merge project profiles
         if self._project_dir and self._project_dir.exists():
@@ -274,19 +288,118 @@ class AgentProfileRepository:
                         merged = self._merge_profiles(shipped_profiles[profile_id], data)
                         if not applies_to_languages_match(merged.applies_to_languages, self._active_languages):
                             continue
+                        self._record_profile_collision_if_present(
+                            profile_id=profile_id,
+                            higher_layer="project",
+                            higher_data=data,
+                        )
                         self._profiles[profile_id] = merged
+                        self._provenance[profile_id] = "project"
                     else:
                         # New project-only profile
                         profile = AgentProfile.model_validate(data)
                         if not applies_to_languages_match(profile.applies_to_languages, self._active_languages):
                             continue
+                        self._record_profile_collision_if_present(
+                            profile_id=profile.profile_id,
+                            higher_layer="project",
+                            higher_data=data,
+                        )
                         self._profiles[profile.profile_id] = profile
+                        self._provenance[profile.profile_id] = "project"
                 except (YAMLError, ValidationError, OSError) as e:
                     warnings.warn(
                         f"Skipping invalid project profile {yaml_file.name}: {e}",
                         UserWarning,
                         stacklevel=2,
                     )
+
+    def _load_org_profiles_from_dir(
+        self,
+        yaml: YAML,
+        org_dir: Path,
+        shipped_profiles: dict[str, AgentProfile],
+    ) -> None:
+        """Load profiles from one org pack directory; merge or add into self._profiles.
+
+        Existence check is done here so the caller can iterate ``self._org_dirs``
+        unconditionally. Each artifact loaded from this dir is tagged with
+        provenance ``"org"``; subsequent packs (later in declaration order) may
+        override the same profile-id via the caller's loop.
+        """
+        if not org_dir.exists():
+            return
+        for yaml_file in org_dir.glob("*.agent.yaml"):
+            try:
+                data = yaml.load(yaml_file)
+                if data is None:
+                    continue
+                reject_agent_profile_inline_refs(data, file_path=str(yaml_file))
+
+                profile_id = data.get("profile-id") or data.get("profile_id")
+                if not profile_id:
+                    warnings.warn(
+                        f"Skipping org profile {yaml_file.name}: no profile-id",
+                        UserWarning,
+                        stacklevel=2,
+                    )
+                    continue
+
+                if profile_id in shipped_profiles:
+                    merged = self._merge_profiles(shipped_profiles[profile_id], data)
+                    if not applies_to_languages_match(merged.applies_to_languages, self._active_languages):
+                        continue
+                    self._record_profile_collision_if_present(
+                        profile_id=profile_id,
+                        higher_layer="org",
+                        higher_data=data,
+                    )
+                    self._profiles[profile_id] = merged
+                    self._provenance[profile_id] = "org"
+                else:
+                    profile = AgentProfile.model_validate(data)
+                    if not applies_to_languages_match(profile.applies_to_languages, self._active_languages):
+                        continue
+                    self._record_profile_collision_if_present(
+                        profile_id=profile.profile_id,
+                        higher_layer="org",
+                        higher_data=data,
+                    )
+                    self._profiles[profile.profile_id] = profile
+                    self._provenance[profile.profile_id] = "org"
+            except (YAMLError, ValidationError, OSError) as e:
+                warnings.warn(
+                    f"Skipping invalid org profile {yaml_file.name}: {e}",
+                    UserWarning,
+                    stacklevel=2,
+                )
+
+    def _record_profile_collision_if_present(
+        self,
+        *,
+        profile_id: str,
+        higher_layer: str,
+        higher_data: dict[str, Any],
+    ) -> None:
+        """Emit a DoctrineLayerCollisionWarning iff ``profile_id`` is already loaded.
+
+        Called at write time so the lower-layer dump is still available for
+        field-count accounting (FR-003 wording per ADR 2026-05-16-1).
+        """
+        from doctrine.base import _emit_collision_warning
+
+        if profile_id not in self._profiles:
+            return
+        existing = self._profiles[profile_id]
+        lower_layer = self._provenance.get(profile_id, "unknown")
+        _emit_collision_warning(
+            kind="agent_profile",
+            item_id=profile_id,
+            higher_layer=higher_layer,
+            lower_layer=lower_layer,
+            higher_data=higher_data,
+            lower_dump=existing.model_dump(),
+        )
 
     def _merge_profiles(self, shipped: AgentProfile, project_data: dict[str, Any]) -> AgentProfile:
         """Merge project data into shipped profile at field level.
@@ -327,6 +440,14 @@ class AgentProfileRepository:
     def get(self, profile_id: str) -> AgentProfile | None:
         """Get profile by ID or None if not found."""
         return self._profiles.get(profile_id)
+
+    def get_provenance(self, profile_id: str) -> str | None:
+        """Return the source layer for the given profile ID.
+
+        Returns one of ``"builtin"``, ``"org"``, or ``"project"``, or
+        ``None`` if the profile is not loaded.
+        """
+        return self._provenance.get(profile_id)
 
     def find_by_role(self, role: Role | str) -> list[AgentProfile]:
         """Find all profiles that list the given role (primary or secondary position).

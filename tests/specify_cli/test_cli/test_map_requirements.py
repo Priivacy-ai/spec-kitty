@@ -12,6 +12,10 @@ from specify_cli.cli.commands.agent.mission import app as feature_app
 from specify_cli.cli.commands.agent.tasks import app as tasks_app
 from specify_cli.frontmatter import read_frontmatter
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 runner = CliRunner()
 
 SPEC_CONTENT = """\

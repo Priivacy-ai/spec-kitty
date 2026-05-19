@@ -30,6 +30,8 @@ from specify_cli.post_merge.stale_assertions import (
 # Synthetic git repo fixture helpers
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+
 def _git(args: list[str], cwd: Path) -> str:
     """Run a git command in cwd and return stdout."""
     result = subprocess.run(

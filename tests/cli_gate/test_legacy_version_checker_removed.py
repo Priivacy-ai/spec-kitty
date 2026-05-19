@@ -20,6 +20,8 @@ import pytest
 from specify_cli.migration.gate import check_schema_version
 
 
+pytestmark = [pytest.mark.integration]
+
 @pytest.fixture()
 def fixture_project_old_semver_compat_schema(tmp_path: Path) -> Path:
     """Project with stale spec_kitty.version semver but compatible schema_version."""

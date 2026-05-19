@@ -1,7 +1,5 @@
 """Integration tests for config-driven agent management migrations.
 
-pytestmark = pytest.mark.fast
-
 Tests validate that migrations respect user's agent configuration and don't
 recreate deleted agent directories.
 
@@ -26,6 +24,9 @@ from specify_cli.upgrade.migrations.m_0_9_1_complete_lane_migration import (
 from specify_cli.upgrade.migrations.m_0_11_1_improved_workflow_templates import (
     ImprovedWorkflowTemplatesMigration,
 )
+
+
+pytestmark = [pytest.mark.fast]
 
 
 @pytest.fixture

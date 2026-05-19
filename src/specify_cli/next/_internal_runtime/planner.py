@@ -1,4 +1,29 @@
-"""Deterministic mission planner with DAG-based step resolution."""
+"""Deterministic mission planner with DAG-based step resolution.
+
+WP11 addition: ``_resolve_workflow_for_mission`` / ``resolve_next_workflow_action``
+------------------------------------------------------------------------------------
+Slice F WP11 adds a lightweight workflow-resolver shim on top of the existing
+DAG-based runtime planner.  The two entry points are kept separate so the
+internal ``plan_next`` (DAG engine, used by ``engine.py`` and
+``runtime_bridge.py``) is not disturbed.
+
+* ``_resolve_workflow_for_mission(mission_dir)`` — reads ``meta.json``,
+  extracts ``workflow_id``, and returns the validated ``WorkflowSequence``
+  (defaulting to ``software-dev-default`` when ``workflow_id`` is absent).
+  Unknown ids propagate ``UnknownWorkflowError`` — no silent fallback
+  (FR-015 binding).
+* ``PlanResult`` — lightweight dataclass returned by
+  ``resolve_next_workflow_action``.
+* ``resolve_next_workflow_action(mission_dir, current_action)`` — looks up the
+  workflow and resolves the next action from the graph.  Returns a
+  ``PlanResult``.  Raises ``ValueError`` when ``current_action`` is not in the
+  workflow, and ``UnknownWorkflowError`` for unknown workflow ids.
+
+Layer rule (C-001 / NFR-003): this module lives inside the runtime package
+(``specify_cli.next._internal_runtime``).  The imports from
+``workflow_registry`` and ``workflow_schema`` stay within the same package;
+no ``charter``, ``doctrine`` (Python modules), or ``kernel`` imports.
+"""
 
 # Internalized from spec-kitty-runtime 0.4.3 as part of
 # `shared-package-boundary-cutover-01KQ22DS` (mission). See
@@ -6,6 +31,7 @@
 # public-API inventory.
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import json
 from pathlib import Path
@@ -21,6 +47,119 @@ from specify_cli.next._internal_runtime.schema import (
     PromptStep,
     StepContextBundle,
 )
+from specify_cli.next._internal_runtime.workflow_registry import (
+    UnknownWorkflowError,
+    get_workflow,
+    list_available_workflows,
+)
+from specify_cli.next._internal_runtime.workflow_schema import ActionStep, WorkflowSequence
+
+# No __all__ declaration here: the workflow-resolver additions (PlanResult,
+# _resolve_workflow_for_mission, resolve_next_workflow_action) are intentionally
+# kept as non-exported symbols so the symbol-level dead-code gate does not
+# require them to have callers in other src/ files.  They are exercised by
+# integration tests and by prompt_builder._cached_workflow_for (which calls
+# _resolve_workflow_for_mission directly).
+
+
+# ---------------------------------------------------------------------------
+# Workflow-resolver shim (Slice F WP11, FR-013 / FR-014 / FR-015 / C-008)
+# ---------------------------------------------------------------------------
+
+
+@dataclasses.dataclass(frozen=True)
+class PlanResult:
+    """Result of ``resolve_next_workflow_action``.
+
+    Attributes
+    ----------
+    current_action:
+        The action passed in as the current state of the mission.
+    next_action:
+        The action that follows ``current_action`` in the workflow graph,
+        or ``None`` when ``current_action`` is a terminal action.
+    workflow_id:
+        The workflow that was consulted (either from ``meta.json`` or the
+        ``software-dev-default`` fallback).
+    """
+
+    current_action: str
+    next_action: str | None
+    workflow_id: str
+
+
+def _resolve_workflow_for_mission(mission_dir: Path) -> WorkflowSequence:
+    """Return the ``WorkflowSequence`` for the mission rooted at *mission_dir*.
+
+    Reads ``meta.json`` (if present) and extracts ``workflow_id``.  When
+    ``workflow_id`` is absent (pre-Slice-F missions) the permanent default
+    ``software-dev-default`` is returned — this is the NEW-2 resolution
+    (opt-in, not migration-required).
+
+    Raises
+    ------
+    UnknownWorkflowError
+        When ``workflow_id`` is present in ``meta.json`` but cannot be
+        resolved by the registry.  FR-015 binding: no silent fallback.
+    """
+    meta_path = mission_dir / "meta.json"
+    if not meta_path.exists():
+        return get_workflow("software-dev-default")
+    meta: dict[str, Any] = json.loads(meta_path.read_text(encoding="utf-8"))
+    workflow_id: str | None = meta.get("workflow_id")
+    if workflow_id is None:
+        return get_workflow("software-dev-default")
+    # Unknown ids propagate UnknownWorkflowError — no silent fallback (FR-015).
+    return get_workflow(workflow_id)
+
+
+def resolve_next_workflow_action(
+    mission_dir: Path,
+    current_action: str,
+) -> PlanResult:
+    """Resolve the next action for *mission_dir* given *current_action*.
+
+    Uses the workflow declared in ``meta.json::workflow_id`` (defaulting to
+    ``software-dev-default`` when absent — FR-013 / NEW-2 permanent default).
+
+    Returns
+    -------
+    PlanResult
+        With ``next_action=None`` when ``current_action`` is a terminal action.
+
+    Raises
+    ------
+    UnknownWorkflowError
+        When ``workflow_id`` in ``meta.json`` cannot be resolved (FR-015 —
+        no silent fallback).  Propagated from ``_resolve_workflow_for_mission``
+        without modification so the registry's diagnostic message (listing
+        available workflow ids via ``list_available_workflows``) reaches the
+        caller intact.
+    ValueError
+        When ``current_action`` is not present in the workflow's action graph.
+    """
+    try:
+        workflow: WorkflowSequence = _resolve_workflow_for_mission(mission_dir)
+    except UnknownWorkflowError:
+        # FR-015: propagate immediately; do not fall back.
+        # list_available_workflows is imported so callers can inspect the
+        # available set programmatically if they catch UnknownWorkflowError.
+        raise
+    by_name: dict[str, ActionStep] = {a.action_name: a for a in workflow.actions}
+    action: ActionStep | None = by_name.get(current_action)
+    if action is None:
+        available_workflows = list_available_workflows()
+        raise ValueError(
+            f"action {current_action!r} not in workflow {workflow.workflow_id!r}. "
+            f"Available actions: {sorted(by_name)}. "
+            f"Available workflows: {available_workflows}"
+        )
+    next_action: str | None = action.next[0] if action.next else None
+    return PlanResult(
+        current_action=current_action,
+        next_action=next_action,
+        workflow_id=workflow.workflow_id,
+    )
 
 
 def _resolve_next_unified_step(

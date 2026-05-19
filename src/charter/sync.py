@@ -9,6 +9,7 @@ Provides the main sync() function that orchestrates:
 """
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
 
@@ -23,6 +24,16 @@ from charter.schemas import (
     DirectivesConfig,
     GovernanceConfig,
 )
+
+__all__ = [
+    "SyncResult",
+    "ensure_charter_bundle_fresh",
+    "load_directives_config",
+    "load_governance_config",
+    "post_save_hook",
+    "sync",
+]
+
 
 logger = logging.getLogger(__name__)
 
@@ -170,8 +181,16 @@ def sync(
                 extraction_mode="",
             )
 
-        # Extract to structured configs (using same content)
-        extractor = Extractor()
+        # Extract to structured configs (using same content). WP02 wires a
+        # tactic-registry predicate built from DoctrineService.tactics so
+        # the extractor can gate kebab-case slug citations against real
+        # tactic IDs (avoids false positives — see contract
+        # ``charter-sync-cross-link.md`` §2). Doctrine construction is
+        # best-effort: if the shipped catalog is unavailable the registry
+        # silently returns False, and only DIRECTIVE_NNN citations are
+        # picked up (contract §3, "DoctrineService cannot be constructed").
+        tactic_registry = _build_tactic_registry(charter_path.parent.parent.parent)
+        extractor = Extractor(tactic_registry=tactic_registry)
         result = extractor.extract(content)
 
         # Write YAML files
@@ -229,6 +248,43 @@ def post_save_hook(charter_path: Path) -> None:
             "Charter auto-sync failed. Run 'spec-kitty charter sync' manually.",
             exc_info=True,
         )
+
+
+def _build_tactic_registry(repo_root_candidate: Path) -> Callable[[str], bool]:
+    """Build a ``DoctrineService.tactics.get``-backed predicate.
+
+    The returned callable is what ``Extractor._detect_catalog_references``
+    consults to decide whether a kebab-case slug from a directive body is
+    a real tactic ID (per contract ``charter-sync-cross-link.md`` §2,
+    "Tactic ID detection"). When the doctrine service cannot be built —
+    for example because the shipped catalog is missing on disk — the
+    fallback is a callable that always returns False; the contract §3
+    explicitly accepts this graceful degradation so that ``charter sync``
+    does NOT error in that situation.
+    """
+    try:
+        # Reuse the same default-construction helper that the compiler
+        # uses so the shipped + project overlay match the rest of the
+        # charter pipeline.
+        from charter.compiler import _default_doctrine_service
+
+        service = _default_doctrine_service(repo_root_candidate)
+        tactics_repo = service.tactics
+
+        def _is_known_tactic(slug: str) -> bool:
+            try:
+                return tactics_repo.get(slug) is not None
+            except Exception:  # noqa: BLE001 - registry must never break sync
+                return False
+
+        return _is_known_tactic
+    except Exception as exc:  # noqa: BLE001 - graceful degradation per contract §3
+        logger.debug(
+            "DoctrineService unavailable while building tactic registry for charter sync "
+            "(%s); falling back to directive-only citation detection.",
+            exc,
+        )
+        return lambda _slug: False
 
 
 def _resolve_bundle_root(repo_root: Path, refresh_result: SyncResult | None) -> Path:

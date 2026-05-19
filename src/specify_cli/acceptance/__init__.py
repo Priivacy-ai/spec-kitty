@@ -35,6 +35,21 @@ logger = logging.getLogger(__name__)
 
 AcceptanceMode = str  # Expected values: "pr", "local", "checklist"
 
+SPEC_FILE = "spec.md"
+PLAN_FILE = "plan.md"
+TASKS_FILE = "tasks.md"
+QUICKSTART_FILE = "quickstart.md"
+DATA_MODEL_FILE = "data-model.md"
+RESEARCH_FILE = "research.md"
+PRIMARY_ARTIFACT_FILES = (
+    SPEC_FILE,
+    PLAN_FILE,
+    QUICKSTART_FILE,
+    TASKS_FILE,
+    RESEARCH_FILE,
+    DATA_MODEL_FILE,
+)
+
 
 class AcceptanceError(TaskCliError):
     """Raised when acceptance cannot complete due to outstanding issues."""
@@ -308,11 +323,11 @@ def _check_needs_clarification(files: Sequence[Path]) -> list[str]:
 
 
 def _missing_artifacts(feature_dir: Path) -> tuple[list[str], list[str]]:
-    required = [feature_dir / "spec.md", feature_dir / "plan.md", feature_dir / "tasks.md"]
+    required = [feature_dir / SPEC_FILE, feature_dir / PLAN_FILE, feature_dir / TASKS_FILE]
     optional = [
-        feature_dir / "quickstart.md",
-        feature_dir / "data-model.md",
-        feature_dir / "research.md",
+        feature_dir / QUICKSTART_FILE,
+        feature_dir / DATA_MODEL_FILE,
+        feature_dir / RESEARCH_FILE,
         feature_dir / "contracts",
     ]
     missing_required = [str(p.relative_to(feature_dir)) for p in required if not p.exists()]
@@ -347,14 +362,7 @@ def normalize_feature_encoding(repo_root: Path, feature: str) -> list[Path]:
         return []
 
     candidates: list[Path] = []
-    primary_files = [
-        feature_dir / "spec.md",
-        feature_dir / "plan.md",
-        feature_dir / "quickstart.md",
-        feature_dir / "tasks.md",
-        feature_dir / "research.md",
-        feature_dir / "data-model.md",
-    ]
+    primary_files = [feature_dir / artifact_name for artifact_name in PRIMARY_ARTIFACT_FILES]
     candidates.extend(p for p in primary_files if p.exists())
 
     for subdir in [feature_dir / "tasks", feature_dir / "research", feature_dir / "checklists"]:
@@ -700,21 +708,21 @@ def _build_acceptance_instructions(
         else:
             instructions.extend([
                 f"Review the acceptance commit on branch `{branch}`.",
-                f"Push your branch: `git push origin {branch}`",
-                "Open a pull request referencing spec/plan/tasks artifacts.",
-                "Include acceptance summary and test evidence in the PR description.",
+                f"Run the mission merge when ready: `spec-kitty merge --mission {summary.feature}`",
+                "After merge, run /spec-kitty-mission-review and the retrospective workflow.",
             ])
     elif mode == "local":
         if is_integration_branch:
             instructions.append(f"Acceptance recorded directly on `{branch}`. No merge needed.")
         else:
             instructions.extend([
-                "Switch to your integration branch (e.g., `git checkout main`).",
-                "Synchronize it (e.g., `git pull --ff-only`).",
-                f"Merge the feature: `git merge {branch}`",
+                f"Acceptance passed. Run the mission merge: `spec-kitty merge --mission {summary.feature}`",
+                "After merge, run /spec-kitty-mission-review and the retrospective workflow.",
             ])
     else:  # checklist
-        instructions.append("All checks passed. Proceed with your manual acceptance workflow.")
+        instructions.append(
+            f"All checks passed. Recommended next step: `spec-kitty merge --mission {summary.feature}`."
+        )
 
     if summary.worktree_root != summary.primary_repo_root:
         cleanup_instructions.append(f"After merging, remove the worktree: `git worktree remove {summary.worktree_root}`")

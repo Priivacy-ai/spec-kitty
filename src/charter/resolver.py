@@ -18,6 +18,16 @@ from charter.sync import (
     load_governance_config,
 )
 
+__all__ = [
+    "DEFAULT_TOOL_REGISTRY",
+    "GovernanceResolution",
+    "GovernanceResolutionError",
+    "collect_governance_diagnostics",
+    "resolve_governance_for_profile",
+    "resolve_project_governance",
+]
+
+
 if TYPE_CHECKING:
     from doctrine.drg.models import DRGGraph
     from doctrine.service import DoctrineService
@@ -78,21 +88,40 @@ def _resolve_tools_selection(
     available_tools: set[str],
     diagnostics: list[str],
 ) -> tuple[list[str], str]:
-    """Resolve tool list from charter selection or registry fallback."""
+    """Resolve tool list as the union of registry baseline and charter selection.
+
+    The runtime tool registry is the *baseline* (tools the framework guarantees
+    are present, e.g. ``git``, ``spec-kitty``). The charter's
+    ``available_tools`` list is a *declaration* of additional tools the project
+    has adopted (e.g. ``pytest``, ``mypy``, ``ruff``). The effective resolved
+    set is therefore the **union** of the two sets, not the intersection — a
+    charter that declares ``mypy`` does not need the runtime registry to
+    pre-register ``mypy`` for the declaration to take effect.
+
+    Returns ``(sorted_tools, source)`` where ``source`` is one of:
+      - ``"charter+registry"`` — charter declared one or more tools; the
+        resolved set unions them with the registry baseline.
+      - ``"registry_only"`` — charter did not declare any tools; the resolved
+        set falls back to the registry baseline alone.
+
+    A diagnostic is emitted only when the charter is silent, mirroring the
+    pre-union behaviour so operators continue to see the "fallback applied"
+    cue when their charter omits the declaration.
+    """
     selected_tools = doctrine.available_tools
     if selected_tools:
-        missing_tools = sorted(tool for tool in selected_tools if tool not in available_tools)
-        if missing_tools:
-            raise GovernanceResolutionError(
-                [
-                    "Charter selected unavailable tool(s): " + ", ".join(missing_tools),
-                    "Update charter available_tools or register those tools in the runtime tool registry.",
-                ]
+        unioned = sorted(set(selected_tools) | available_tools)
+        added_from_charter = sorted(set(selected_tools) - available_tools)
+        if added_from_charter:
+            diagnostics.append(
+                "Charter declared additional tool(s) beyond the runtime registry: "
+                + ", ".join(added_from_charter)
+                + "."
             )
-        return list(selected_tools), "charter"
+        return unioned, "charter+registry"
 
     diagnostics.append("No available_tools selection provided; using runtime tool registry fallback.")
-    return sorted(available_tools), "registry_fallback"
+    return sorted(available_tools), "registry_only"
 
 
 def _resolve_directives_selection(
@@ -151,13 +180,31 @@ def _resolve_template_set_selection(
     return fallback_template_set, "fallback"
 
 
-def resolve_governance(
+def resolve_project_governance(
     repo_root: Path,
     *,
     tool_registry: set[str] | None = None,
     fallback_template_set: str = DEFAULT_TEMPLATE_SET,
 ) -> GovernanceResolution:
-    """Resolve active governance from charter-first selection data."""
+    """Resolve active governance from project + org charter selection data.
+
+    This resolver consumes the charter-mediated **project + org** doctrine
+    selections at ``.kittify/charter/governance.yaml`` and
+    ``.kittify/charter/directives.yaml``.  It is intentionally *narrow* to
+    that surface: it does NOT read ``meta.json`` or per-mission overrides.
+
+    The companion resolver
+    :func:`charter.mission_type_profiles.resolve_mission_type_governance`
+    handles **mission-type** scoped governance (``meta.json mission_type``
+    → shipped governance profile).  The two resolvers compose at the
+    prompt-builder layer: the mission-type resolver runs first to fill
+    documentation / research / plan defaults, then this resolver fills
+    project + org selections on top.  Keeping them as two named functions
+    (rather than one umbrella) preserves the FR-011 hard-fail contract on
+    the mission-type side and the rich :class:`GovernanceResolution`
+    dataclass on the project + org side.
+
+    """
     governance = load_governance_config(repo_root)
     directives_cfg = load_directives_config(repo_root)
     doctrine_catalog = load_doctrine_catalog()
@@ -251,7 +298,7 @@ def collect_governance_diagnostics(
 ) -> list[str]:
     """Collect diagnostics for planning/runtime checks."""
     try:
-        resolution = resolve_governance(
+        resolution = resolve_project_governance(
             repo_root,
             tool_registry=tool_registry,
             fallback_template_set=fallback_template_set,
@@ -268,3 +315,4 @@ def _merge_unique(primary: list[str], secondary: list[str]) -> list[str]:
         if item and item not in merged:
             merged.append(item)
     return merged
+

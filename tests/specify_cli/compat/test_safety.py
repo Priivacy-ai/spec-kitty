@@ -19,6 +19,8 @@ from specify_cli.compat.safety import (
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 def _inv(command_path: tuple[str, ...], raw_args: tuple[str, ...] = ()) -> SimpleNamespace:
     """Build a minimal Invocation-like object for testing."""
     return SimpleNamespace(command_path=command_path, raw_args=raw_args)

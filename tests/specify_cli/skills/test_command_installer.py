@@ -40,6 +40,8 @@ from specify_cli.skills.manifest_store import ManifestEntry, SkillsManifest
 # Helpers
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.unit]
+
 _TEMPLATE_REPO_ROOT = (
     Path(__file__).parent.parent.parent.parent
 )  # tests/specify_cli/skills/../../.. → repo root
@@ -225,6 +227,19 @@ class TestIdempotentInstall:
             assert p.stat().st_mtime == mtimes_before[cmd], (
                 f"File mtime changed (unexpected write) for {cmd!r}"
             )
+
+    def test_second_call_repairs_missing_manifest_entry_file(self, repo: Path) -> None:
+        install(repo, "vibe")
+        skill_path = _skill_path(repo, "tasks")
+        rel_path = ".agents/skills/spec-kitty.tasks/SKILL.md"
+        skill_path.unlink()
+
+        report = install(repo, "vibe")
+
+        assert skill_path.exists()
+        assert rel_path in report.added
+        assert rel_path not in report.already_installed
+        assert verify(repo).gaps == []
 
 
 # ---------------------------------------------------------------------------

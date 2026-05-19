@@ -127,6 +127,41 @@ def _emit_planned_to_done(mission_dir: Path, mission_slug: str, wp_id: str, acto
     ))
 
 
+def _emit_planned_to_approved(
+    mission_dir: Path,
+    mission_slug: str,
+    wp_id: str,
+    actor: str = "test",
+) -> None:
+    """Transition a WP to approved."""
+    from specify_cli.status.emit import emit_status_transition
+    from specify_cli.status.models import ReviewResult
+
+    emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id=wp_id, to_lane="claimed", actor=actor))
+    emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id=wp_id, to_lane="in_progress", actor=actor))
+    emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id=wp_id, to_lane="for_review", actor=actor))
+    emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id=wp_id, to_lane="in_review", actor=actor))
+    emit_status_transition(TransitionRequest(
+        feature_dir=mission_dir,
+        mission_slug=mission_slug,
+        wp_id=wp_id,
+        to_lane="approved",
+        actor=actor,
+        evidence={
+            "review": {
+                "reviewer": "reviewer-agent",
+                "verdict": "approved",
+                "reference": "review-001",
+            }
+        },
+        review_result=ReviewResult(
+            reviewer="reviewer-agent",
+            verdict="approved",
+            reference="review-001",
+        ),
+    ))
+
+
 # ── contract-version ──────────────────────────────────────────────
 
 
@@ -792,6 +827,33 @@ class TestAcceptMission:
         meta = json.loads((mission_dir / "meta.json").read_text())
         assert "accepted_at" in meta
         assert meta["accepted_by"] == "claude"
+
+    def test_all_approved_accepted(self, tmp_path):
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        mission_slug = "099-test-mission"
+
+        _emit_planned_to_approved(mission_dir, mission_slug, "WP01")
+        _emit_planned_to_approved(mission_dir, mission_slug, "WP02")
+
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "accept-mission",
+                    "--mission",
+                    mission_slug,
+                    "--actor",
+                    "claude",
+                ],
+            )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)
+        assert data["success"] is True
+        assert data["data"]["accepted"] is True
 
     def test_incomplete_wps_returns_error(self, tmp_path):
         repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")

@@ -36,7 +36,7 @@ TOOLGUIDE = {
     "id": "nested-toolguide",
     "tool": "bash",
     "title": "Nested Toolguide",
-    "guide_path": "src/doctrine/toolguides/shipped/RTK_SEARCH_TOOLING.md",
+    "guide_path": "src/doctrine/toolguides/built-in/RTK_SEARCH_TOOLING.md",
     "summary": "A toolguide stored in a subdirectory.",
 }
 
@@ -109,7 +109,7 @@ AGENT_PROFILE = {
 
 class TestToolguideNestedDiscovery:
     def test_list_all_finds_artifact_in_subdirectory(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         write_yaml(shipped / "subdir" / "nested-toolguide.toolguide.yaml", TOOLGUIDE)
 
         from doctrine.toolguides.repository import ToolguideRepository
@@ -119,7 +119,7 @@ class TestToolguideNestedDiscovery:
         assert "nested-toolguide" in ids
 
     def test_get_resolves_artifact_in_subdirectory(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         write_yaml(shipped / "subdir" / "nested-toolguide.toolguide.yaml", TOOLGUIDE)
 
         from doctrine.toolguides.repository import ToolguideRepository
@@ -130,7 +130,7 @@ class TestToolguideNestedDiscovery:
 
 class TestDirectiveNestedDiscovery:
     def test_list_all_finds_artifact_in_subdirectory(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         write_yaml(shipped / "subdir" / "998-nested.directive.yaml", DIRECTIVE)
 
         from doctrine.directives.repository import DirectiveRepository
@@ -140,7 +140,7 @@ class TestDirectiveNestedDiscovery:
         assert "DIRECTIVE_998" in ids
 
     def test_get_resolves_artifact_in_subdirectory(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         write_yaml(shipped / "subdir" / "998-nested.directive.yaml", DIRECTIVE)
 
         from doctrine.directives.repository import DirectiveRepository
@@ -151,7 +151,7 @@ class TestDirectiveNestedDiscovery:
 
 class TestTacticNestedDiscovery:
     def test_list_all_finds_artifact_in_subdirectory(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         write_yaml(shipped / "subdir" / "nested-tactic.tactic.yaml", TACTIC)
 
         from doctrine.tactics.repository import TacticRepository
@@ -161,7 +161,7 @@ class TestTacticNestedDiscovery:
         assert "nested-tactic" in ids
 
     def test_get_resolves_artifact_in_subdirectory(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         write_yaml(shipped / "subdir" / "nested-tactic.tactic.yaml", TACTIC)
 
         from doctrine.tactics.repository import TacticRepository
@@ -172,7 +172,7 @@ class TestTacticNestedDiscovery:
 
 class TestStyleguideNestedDiscovery:
     def test_list_all_finds_artifact_in_subdirectory(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         write_yaml(shipped / "subdir" / "nested-styleguide.styleguide.yaml", STYLEGUIDE)
 
         from doctrine.styleguides.repository import StyleguideRepository
@@ -182,7 +182,7 @@ class TestStyleguideNestedDiscovery:
         assert "nested-styleguide" in ids
 
     def test_get_resolves_artifact_in_subdirectory(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         write_yaml(shipped / "subdir" / "nested-styleguide.styleguide.yaml", STYLEGUIDE)
 
         from doctrine.styleguides.repository import StyleguideRepository
@@ -193,7 +193,7 @@ class TestStyleguideNestedDiscovery:
 
 class TestProcedureNestedDiscovery:
     def test_list_all_finds_artifact_in_subdirectory(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         write_yaml(shipped / "subdir" / "nested-procedure.procedure.yaml", PROCEDURE)
 
         from doctrine.procedures.repository import ProcedureRepository
@@ -203,7 +203,7 @@ class TestProcedureNestedDiscovery:
         assert "nested-procedure" in ids
 
     def test_get_resolves_artifact_in_subdirectory(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         write_yaml(shipped / "subdir" / "nested-procedure.procedure.yaml", PROCEDURE)
 
         from doctrine.procedures.repository import ProcedureRepository
@@ -214,7 +214,7 @@ class TestProcedureNestedDiscovery:
 
 class TestParadigmNestedDiscovery:
     def test_list_all_finds_artifact_in_subdirectory(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         write_yaml(shipped / "subdir" / "nested-paradigm.paradigm.yaml", PARADIGM)
 
         from doctrine.paradigms.repository import ParadigmRepository
@@ -224,7 +224,7 @@ class TestParadigmNestedDiscovery:
         assert "nested-paradigm" in ids
 
     def test_get_resolves_artifact_in_subdirectory(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         write_yaml(shipped / "subdir" / "nested-paradigm.paradigm.yaml", PARADIGM)
 
         from doctrine.paradigms.repository import ParadigmRepository
@@ -235,7 +235,7 @@ class TestParadigmNestedDiscovery:
 
 class TestMissionStepContractNestedDiscovery:
     def test_list_all_finds_artifact_in_subdirectory(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         write_yaml(
             shipped / "subdir" / "nested-action.step-contract.yaml",
             MISSION_STEP_CONTRACT,
@@ -248,7 +248,7 @@ class TestMissionStepContractNestedDiscovery:
         assert "nested-action" in ids
 
     def test_get_resolves_artifact_in_subdirectory(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         write_yaml(
             shipped / "subdir" / "nested-action.step-contract.yaml",
             MISSION_STEP_CONTRACT,
@@ -262,7 +262,7 @@ class TestMissionStepContractNestedDiscovery:
 
 class TestAgentProfileNestedDiscovery:
     def test_list_all_finds_artifact_in_subdirectory(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         write_yaml(shipped / "subdir" / "nested-agent.agent.yaml", AGENT_PROFILE)
 
         from doctrine.agent_profiles.repository import AgentProfileRepository
@@ -272,7 +272,7 @@ class TestAgentProfileNestedDiscovery:
         assert "nested-agent" in ids
 
     def test_get_resolves_artifact_in_subdirectory(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "shipped"
+        shipped = tmp_path / "built-in"
         write_yaml(shipped / "subdir" / "nested-agent.agent.yaml", AGENT_PROFILE)
 
         from doctrine.agent_profiles.repository import AgentProfileRepository

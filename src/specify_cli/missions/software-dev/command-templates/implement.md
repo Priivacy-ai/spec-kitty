@@ -52,6 +52,53 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## Governance Payload Contract
+
+The prompt produced by `spec-kitty agent action implement` is guaranteed to
+carry the following surfaces. Trust the prompt; do not consult external
+governance sources unless explicitly cited by a fetch command + when-doing
+rule in the prompt.
+
+**Guaranteed bodies** (verbatim in the prompt when under the token budget; the
+resolver substitutes a `spec-kitty charter context --include section:<slug>`
+fetch + when-doing stanza only when the budget would otherwise be exceeded):
+
+- **Terminology Canon** — from `.kittify/charter/charter.md` — governs every
+  identifier rename or new term you introduce.
+- **Code Review Checklist** — from `.kittify/charter/charter.md` — enumerates
+  the gates the reviewer will measure your diff against.
+- **Regression Vigilance** — from `.kittify/charter/charter.md` — the project's
+  explicit guard against terminology and structural drift.
+- Any additional action-critical sections the mission declares are appended
+  automatically.
+
+**Guaranteed citations** (catalog IDs always present in the prompt when the
+WP frontmatter selects an `agent_profile`):
+
+- Every `DIRECTIVE_NNN` declared in the loaded agent profile's
+  `directive-references` list (for example, `python-pedro` cites
+  `DIRECTIVE_010` — Specification Fidelity Requirement, `DIRECTIVE_024` —
+  Locality of Change, `DIRECTIVE_030` — Test and Typecheck Quality Gate).
+- Every tactic-id declared in the loaded agent profile's `tactic-references`
+  list.
+
+**Guaranteed authority pointers** (path + when-doing conditional):
+
+- `glossary/contexts/` — canonical terminology. Consult when you encounter a
+  domain term in the diff or are about to introduce a new one.
+- `architecture/2.x/adr/` — architectural intent. Consult when you change a
+  structural boundary (package layout, public API surface, dependency edges).
+- Any additional paths declared in the charter's `authority_paths:` block are
+  emitted alongside these defaults.
+
+**Fetch commands** (the prompt may substitute these for bodies that exceed the
+token budget; whenever a fetch command appears, the accompanying
+"When you <verb>, run this and apply" line specifies the trigger):
+
+- `spec-kitty charter context --include directive:DIRECTIVE_NNN`
+- `spec-kitty charter context --include tactic:<id>`
+- `spec-kitty charter context --include section:<slug>`
+
 ## Execution Steps
 
 ### 1. Setup
@@ -68,7 +115,9 @@ Then execute the returned `check_prerequisites` command and capture
 The output of `spec-kitty agent action implement ...` is the authoritative work
 package prompt and execution context. Do **not** separately call
 `spec-kitty charter context` or rummage through unrelated files looking for a
-"newer" prompt unless the command output tells you to.
+"newer" prompt unless the command output tells you to. The
+**Governance Payload Contract** section above documents what the prompt is
+guaranteed to carry.
 
 ### 2. Load Work Package Prompt
 
@@ -110,6 +159,22 @@ After all subtasks are complete:
 - All tests pass
 - No files outside `owned_files` were modified
 - Code follows project conventions (run linter if configured)
+- **Diff-scoped ruff sweep (MANDATORY before moving to `for_review`)** —
+  catches lint regressions before they reach the cycle-1 reviewer. The WP06
+  cycle-1 `textwrap` F401 in `tests/specify_cli/doctrine/test_missing_pack_policy.py`
+  would have been caught by this step. Scope is the diff only so the implementer
+  does not drown in pre-existing warnings owned by other WPs.
+  ```bash
+  CHANGED_PY=$(git diff --name-only --diff-filter=AMR HEAD | rg '\.py$' || true)
+  if [ -n "$CHANGED_PY" ]; then
+    .venv/bin/ruff check $CHANGED_PY
+  fi
+  ```
+  - The command MUST exit 0. If it does not, fix or `ruff check --fix` and re-run.
+  - Paste the final command + exit code into your handoff note
+    (e.g. `"ruff diff-scoped check: 0 issues, exit 0"`).
+  - On cycle-N re-implementation, diff against the WP's planning base instead
+    of `HEAD`: `git diff --name-only $(git merge-base HEAD main)`.
 
 ---
 

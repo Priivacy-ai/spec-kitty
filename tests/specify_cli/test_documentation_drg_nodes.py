@@ -30,6 +30,9 @@ from charter._drg_helpers import load_validated_graph
 from doctrine.drg.query import resolve_context
 
 # The 6 advancing documentation actions covered by the mission-runtime sidecar.
+
+pytestmark = [pytest.mark.unit]
+
 _DOC_ACTIONS: tuple[str, ...] = (
     "discover",
     "audit",

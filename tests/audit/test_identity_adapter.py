@@ -37,6 +37,10 @@ from specify_cli.status.identity_audit import (
 # ---------------------------------------------------------------------------
 
 
+import pytest
+
+pytestmark = [pytest.mark.integration]
+
 def _make_mission_dir(
     parent: Path,
     slug: str,

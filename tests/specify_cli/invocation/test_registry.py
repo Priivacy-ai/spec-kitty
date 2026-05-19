@@ -14,6 +14,8 @@ from specify_cli.invocation.registry import ProfileRegistry
 # Helpers
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.unit]
+
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "profiles"
 
 

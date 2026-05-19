@@ -18,6 +18,8 @@ from charter.context import _build_doctrine_service
 from charter.synthesizer import FixtureAdapter, SynthesisRequest, SynthesisTarget, synthesize
 
 
+pytestmark = [pytest.mark.unit]
+
 @pytest.fixture
 def fixture_root() -> Path:
     return Path(__file__).parent.parent / "fixtures" / "synthesizer"

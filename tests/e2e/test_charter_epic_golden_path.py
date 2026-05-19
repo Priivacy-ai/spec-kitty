@@ -59,7 +59,7 @@ from tests.e2e.conftest import (
 )
 
 
-pytestmark = [pytest.mark.e2e, pytest.mark.slow]
+pytestmark = [pytest.mark.e2e, pytest.mark.slow, pytest.mark.git_repo]
 
 # Type alias for the run_cli fixture's callable shape (see tests/conftest.py:344).
 RunCli = Callable[..., subprocess.CompletedProcess[str]]

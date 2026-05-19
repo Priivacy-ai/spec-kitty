@@ -33,7 +33,7 @@ Concretely:
 2. **Scope:** `paths_to_mutate = ["src/"]` — the entire first-party source tree is in scope when a
    developer invokes `mutmut run` locally.
 3. **Doctrine:** the curated artifact set landed in
-   `src/doctrine/tactics/shipped/mutation-testing-workflow.tactic.yaml`,
+   `src/doctrine/tactics/built-in/testing/mutation-testing-workflow.tactic.yaml`,
    `src/doctrine/styleguides/shipped/mutation-aware-test-design.styleguide.yaml`, and language-specific
    toolguides for Python (`mutmut`) and TypeScript (`stryker`). The DRG graph anchors these to
    `DIRECTIVE_034` (Test-First Development).
@@ -156,7 +156,7 @@ Benefits:
 
 ## Related
 
-- Tactic: `src/doctrine/tactics/shipped/mutation-testing-workflow.tactic.yaml`
+- Tactic: `src/doctrine/tactics/built-in/testing/mutation-testing-workflow.tactic.yaml`
 - Styleguide: `src/doctrine/styleguides/shipped/mutation-aware-test-design.styleguide.yaml`
 - Toolguide: `src/doctrine/toolguides/shipped/PYTHON_MUTATION_TOOLS.md`
 - Toolguide: `src/doctrine/toolguides/shipped/TYPESCRIPT_MUTATION_TOOLS.md`

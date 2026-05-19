@@ -26,6 +26,8 @@ from specify_cli.sync.tracker_client_glue import (
 )
 
 
+pytestmark = [pytest.mark.integration]
+
 class _FakeHTTPError(RuntimeError):
     """Synthetic connector exception with HTTP-style attributes."""
 

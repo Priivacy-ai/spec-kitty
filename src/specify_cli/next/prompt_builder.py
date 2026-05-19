@@ -2,20 +2,58 @@
 
 Independent from ``workflow.py``.  Generates prompt text for each action type,
 writes it to a temp file, and returns ``(prompt_text, prompt_file_path)``.
+
+WP11 addition: ``_cached_workflow_for``
+-----------------------------------------
+Slice F WP11 adds a per-process cached workflow lookup so the workflow YAML
+is loaded at most once per mission directory per process.  This satisfies the
+NFR-001 byte-stability contract: missions without ``workflow_id`` in
+``meta.json`` always get the ``software-dev-default`` workflow (permanent
+default per NEW-2 resolution).  The cache is keyed by the stringified mission
+directory path; ``functools.lru_cache`` provides the implicit storage.
 """
 
 from __future__ import annotations
 
+import functools
 import subprocess
 import tempfile
 from pathlib import Path
 
 from charter.context import build_charter_context
-from charter.resolver import GovernanceResolutionError, resolve_governance
+from charter.scope_router import build_with_scope
+from charter.mission_type_profiles import (
+    UnknownMissionTypeError,
+    resolve_mission_type_governance,
+)
+from charter.resolver import GovernanceResolutionError, resolve_project_governance
 from specify_cli.core.paths import get_feature_target_branch
 from specify_cli.runtime.resolver import resolve_command
 from specify_cli.status.wp_metadata import read_wp_frontmatter
 from specify_cli.workspace.context import resolve_workspace_for_wp
+
+
+# ---------------------------------------------------------------------------
+# Workflow lookup cache (Slice F WP11, FR-013 / NFR-001)
+# ---------------------------------------------------------------------------
+
+
+@functools.lru_cache(maxsize=128)
+def _cached_workflow_for(mission_dir_str: str):
+    """Return the ``WorkflowSequence`` for *mission_dir_str* (cached per process).
+
+    The cache is keyed by the stringified mission directory path.  For
+    long-lived processes, the cache is invalidated by restarting the CLI;
+    operators who swap ``workflow_id`` mid-session should restart.  This is
+    documented and acceptable for the NEW-2 permanent-default use case where
+    workflow ids are stable across a mission's lifetime.
+
+    Uses ``_resolve_workflow_for_mission`` from ``planner`` so the resolver
+    logic is co-located with the DAG-based runtime engine and not duplicated.
+    """
+    from specify_cli.next._internal_runtime.planner import _resolve_workflow_for_mission
+
+    return _resolve_workflow_for_mission(Path(mission_dir_str))
 
 
 def build_prompt(
@@ -103,7 +141,7 @@ def _build_template_prompt(
     template_content = result.path.read_text(encoding="utf-8")
 
     header = _mission_context_header(mission_slug, feature_dir, agent)
-    governance = _governance_context(repo_root, action=action)
+    governance = _governance_context(repo_root, action=action, feature_dir=feature_dir)
     return f"{header}\n\n{governance}\n\n{template_content}"
 
 
@@ -125,6 +163,10 @@ def _build_wp_prompt(
         wp_meta, _ = read_wp_frontmatter(wp_files[0])
     subtask_ids = [str(item) for item in (wp_meta.subtasks if wp_meta is not None else []) if isinstance(item, str)]
     subtask_cmd = " ".join(subtask_ids) if subtask_ids else "<subtask-ids>"
+    # WP06 (FR-004) — forward the WP frontmatter ``agent_profile`` to the
+    # governance resolver so the profile's directive_references and
+    # tactic_references are rendered into the prompt the agent will read.
+    agent_profile_id = wp_meta.agent_profile if wp_meta is not None else None
 
     # Read WP file content
     wp_content = _read_wp_content(feature_dir, wp_id)
@@ -144,7 +186,8 @@ def _build_wp_prompt(
     else:
         lines.append("Workspace contract: repository root planning workspace")
     lines.append("")
-    lines.append(_governance_context(repo_root, action=action))
+    lines.extend(_mission_type_governance_lines(repo_root, feature_dir))
+    lines.append(_governance_context(repo_root, action=action, feature_dir=feature_dir, profile=agent_profile_id))
     lines.append("")
 
     # WP isolation rules
@@ -262,15 +305,106 @@ def _mission_context_header(mission_slug: str, feature_dir: Path, agent: str) ->
     return "\n".join(lines)
 
 
-def _governance_context(repo_root: Path, action: str | None = None) -> str:
+def _mission_type_governance_lines(repo_root: Path, feature_dir: Path) -> list[str]:
+    """Return the mission-type governance lines to splice into a WP prompt.
+
+    Returns an empty list when no payload is rendered.  Wrapping the
+    optionality here (instead of in the caller) keeps
+    :func:`_build_wp_prompt` under the C901 complexity ceiling.
+    """
+    payload = _mission_type_governance_payload(repo_root, feature_dir)
+    if payload is None:
+        return []
+    return [payload, ""]
+
+
+def _mission_type_governance_payload(repo_root: Path, feature_dir: Path) -> str | None:
+    """Resolve mission-type-scoped governance for a WP prompt (WP08, FR-011).
+
+    The mission-type resolver (``charter.mission_type_profiles.resolve_mission_type_governance``)
+    runs FIRST so the documentation / research / plan default selections
+    fill any gaps the project + org layers leave empty.  The hard-fail
+    contract (:class:`UnknownMissionTypeError`) is intentionally NOT
+    swallowed: a mission whose ``meta.json`` declares an unknown
+    ``mission_type`` and whose project has no ``selected_*`` overrides
+    MUST fail loudly rather than silently routing to
+    ``software-dev-default``.
+
+    Real missions write ``meta.json`` at ``finalize-tasks`` time; older
+    fixtures that predate WP08 wiring legitimately have no ``meta.json``,
+    so we return ``None`` in that case to preserve backward
+    compatibility.  Parse / I/O failures also collapse to ``None`` so the
+    project + org resolver downstream can still surface its own
+    diagnostics.
+    """
+    if not (feature_dir / "meta.json").exists():
+        return None
+    try:
+        payload = resolve_mission_type_governance(repo_root, feature_dir)
+    except UnknownMissionTypeError:
+        # FR-011 hard-fail surface: propagate so the operator sees the
+        # missing-profile diagnostic instead of a silent fallback.
+        raise
+    except Exception:
+        return None
+    return payload.text.rstrip()
+
+
+def _governance_context(
+    repo_root: Path,
+    action: str | None = None,
+    *,
+    feature_dir: Path | None = None,
+    profile: str | None = None,
+) -> str:
     """Render governance context for prompt preamble.
 
     For bootstrap actions, charter context is injected on first load.
     Falls back to compact governance rendering if charter artifacts are missing.
+
+    When *feature_dir* is supplied, charter resolution is monorepo-aware:
+    :func:`charter.scope_router.build_with_scope` resolves the nearest
+    enclosing charter for *feature_dir* before building context.  For
+    single-project repos (no ``charter_scopes:`` configured) this is a
+    pass-through — the resolved scope root equals *repo_root* and the
+    output is byte-identical to the previous behaviour (NFR-001 binding).
+    When *feature_dir* is ``None``, the call falls back to
+    :func:`charter.context.build_charter_context` with *repo_root* directly,
+    preserving backward compat with callers that do not yet supply the arg.
+
+    When *profile* is supplied (typically the WP frontmatter
+    ``agent_profile`` field forwarded by :func:`_build_wp_prompt`), it is
+    passed through so the resolver renders the profile's directive- and
+    tactic-references into the prompt the agent will read.  ``profile=None``
+    preserves the prior byte-identical output (NFR-005 contract from WP03).
+
+    HIGH-1 (post-merge remediation cycle 1): routes through
+    :func:`charter.scope_router.build_with_scope` when *feature_dir* is
+    provided so monorepo operators get the nearest-enclosing charter, not
+    always the root-project charter.
     """
     if action:
         try:
-            context = build_charter_context(repo_root, action=action, mark_loaded=True)
+            if feature_dir is not None:
+                # Monorepo-aware path: resolve the nearest enclosing charter
+                # for feature_dir, then build the context from that scope root.
+                context = build_with_scope(
+                    repo_root,
+                    feature_dir,
+                    action=action,
+                    mark_loaded=True,
+                    profile=profile,
+                )
+            else:
+                # Single-project / legacy path: call build_charter_context
+                # directly with repo_root (byte-identical to pre-HIGH-1 for
+                # callers that do not supply feature_dir).
+                context = build_charter_context(
+                    repo_root,
+                    action=action,
+                    mark_loaded=True,
+                    profile=profile,
+                )
             if context.mode != "missing":
                 return context.text
         except Exception:
@@ -283,7 +417,7 @@ def _governance_context(repo_root: Path, action: str | None = None) -> str:
 def _legacy_governance_context(repo_root: Path) -> str:
     """Render compact governance context via resolver."""
     try:
-        resolution = resolve_governance(repo_root)
+        resolution = resolve_project_governance(repo_root)
     except GovernanceResolutionError as exc:
         return f"Governance: unresolved ({exc})"
     except Exception as exc:

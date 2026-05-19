@@ -12,6 +12,8 @@ from textwrap import dedent
 
 import pytest
 
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts" / "release"))
 from validate_release import changelog_has_entry  # type: ignore[import]
 

@@ -86,14 +86,15 @@ The dependency graph has a cycle. This should have been caught by `finalize-task
 2. Break the cycle by removing one dependency that is not strictly required
 3. Re-run `spec-kitty agent mission finalize-tasks` to validate
 
-## Pattern 6: All WPs Done But Mission Not Complete
+## Pattern 6: All WPs Approved/Done But Mission Not Complete
 
-**Symptom:** All WPs are in `done` lane but `spec-kitty next` does not return `kind: "terminal"`.
+**Symptom:** All WPs are `approved` or `done`, but `spec-kitty next` does not
+return `kind: "terminal"`.
 
 **Diagnosis:**
 The mission state machine may require additional steps beyond WP completion (e.g., acceptance validation, merge).
 
 **Recovery:**
 1. Run `/spec-kitty.accept` to check acceptance criteria
-2. If acceptance passes: run `/spec-kitty.merge` to complete the mission
+2. If acceptance passes: run `/spec-kitty.merge` to close the mission
 3. If acceptance fails: create additional WPs to address gaps

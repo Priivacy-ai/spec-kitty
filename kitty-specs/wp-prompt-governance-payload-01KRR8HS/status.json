@@ -1,0 +1,70 @@
+{
+  "event_count": 49,
+  "last_event_id": "01KRRG614VMA1V040RN3X1Q22W",
+  "materialized_at": "2026-05-16T13:39:01.915755+00:00",
+  "mission_number": "119",
+  "mission_slug": "wp-prompt-governance-payload-01KRR8HS",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 7,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KRRG612FVANFGJ2J4R1RBG8K",
+      "last_transition_at": "2026-05-16T13:39:01.839619+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KRRG6139DRNC3P17ZQWC9928",
+      "last_transition_at": "2026-05-16T13:39:01.865140+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KRRG613JR28PVR1S0VHZXQFC",
+      "last_transition_at": "2026-05-16T13:39:01.874571+00:00"
+    },
+    "WP04": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KRRG613WMJ6R0DPMHVFNE19S",
+      "last_transition_at": "2026-05-16T13:39:01.884117+00:00"
+    },
+    "WP05": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KRRG614648JSAXCD8Z9D3ZM7",
+      "last_transition_at": "2026-05-16T13:39:01.894737+00:00"
+    },
+    "WP06": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KRRG614HX5PEE4WMZM3C90WC",
+      "last_transition_at": "2026-05-16T13:39:01.905198+00:00"
+    },
+    "WP07": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KRRG614VMA1V040RN3X1Q22W",
+      "last_transition_at": "2026-05-16T13:39:01.915755+00:00"
+    }
+  }
+}

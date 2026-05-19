@@ -13,11 +13,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from charter._drg_helpers import load_validated_graph
-from doctrine.artifact_kinds import ArtifactKind
-from doctrine.drg.models import DRGGraph, NodeKind
-from doctrine.drg.query import ResolvedContext, resolve_context
-from doctrine.mission_step_contracts.models import MissionStep, MissionStepContract
-from doctrine.mission_step_contracts.repository import MissionStepContractRepository
+from charter.drg import ArtifactKind, DRGGraph, NodeKind, ResolvedContext, resolve_context
+from charter.mission_steps import (
+    MissionStep,
+    MissionStepContract,
+    MissionStepContractRepository,
+)
 from specify_cli.invocation.executor import InvocationPayload, ProfileInvocationExecutor
 from specify_cli.invocation.modes import ModeOfWork
 

@@ -18,6 +18,10 @@ from specify_cli.widen.prereq import check_prereqs
 # ---------------------------------------------------------------------------
 
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 def _make_client(token: str = "tok", integrations: list[str] | None = None, health: bool = True) -> MagicMock:
     """Return a mock SaasClient with configurable behaviour."""
     client = MagicMock()

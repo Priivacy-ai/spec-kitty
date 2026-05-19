@@ -29,6 +29,8 @@ from specify_cli.glossary.entity_pages import (
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 def _make_drg_fixture(
     *,
     term_urns: list[str],

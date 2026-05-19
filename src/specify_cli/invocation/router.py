@@ -12,8 +12,7 @@ import re
 from dataclasses import dataclass
 from typing import Literal
 
-from doctrine.agent_profiles.capabilities import DEFAULT_ROLE_CAPABILITIES
-from doctrine.agent_profiles.profile import Role
+from charter.profiles import DEFAULT_ROLE_CAPABILITIES, Role
 
 from specify_cli.invocation.errors import RouterAmbiguityError
 from specify_cli.invocation.registry import ProfileRegistry

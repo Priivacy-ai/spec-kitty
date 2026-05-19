@@ -38,6 +38,8 @@ from specify_cli.dossier.snapshot import (
 # =============================================================================
 
 
+pytestmark = [pytest.mark.unit]
+
 def create_test_feature(
     tmp_path: Path,
     num_artifacts: int = 10,

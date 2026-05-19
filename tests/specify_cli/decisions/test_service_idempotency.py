@@ -20,6 +20,8 @@ from specify_cli.decisions.models import DecisionErrorCode, DecisionStatus, Orig
 from specify_cli.decisions.service import DecisionError, open_decision
 from specify_cli.decisions import store as _store
 
+pytestmark = [pytest.mark.unit]
+
 MISSION_ID = "01KTEST_MISSION_ID_000001"
 MISSION_SLUG = "test-mission"
 

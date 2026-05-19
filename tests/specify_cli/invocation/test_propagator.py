@@ -31,6 +31,8 @@ from specify_cli.invocation.record import InvocationRecord
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 def make_started_record() -> InvocationRecord:
     return InvocationRecord(
         event="started",

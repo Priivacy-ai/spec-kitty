@@ -11,6 +11,8 @@ import pytest
 from specify_cli.invocation.executor import ProfileInvocationExecutor
 
 
+pytestmark = [pytest.mark.unit]
+
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "profiles"
 
 _COMPACT_CTX = MagicMock()

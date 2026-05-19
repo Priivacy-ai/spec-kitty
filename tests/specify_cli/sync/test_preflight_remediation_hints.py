@@ -28,7 +28,7 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands import auth as auth_module
 from specify_cli.cli.commands import doctor as doctor_module
 from specify_cli.cli.commands import sync as sync_module
-from specify_cli.sync.preflight import _REMEDIATION_HINTS
+from specify_cli.sync.preflight import MismatchField, _REMEDIATION_HINTS
 
 pytestmark = pytest.mark.fast
 
@@ -45,12 +45,10 @@ _SUBAPPS = {
 
 # Commands that intentionally appear in hint strings but are not part of
 # the spec-kitty CLI surface. Each entry must have a justification.
-_NON_SPEC_KITTY_ALLOWLIST: set[str] = {
-    # No non-spec-kitty commands appear in the current hint set.
-    # (The remediation surface in ``PreflightResult.render`` may mention
-    # ``pkill -f run_sync_daemon`` for stop-failed paths, but that lives
-    # outside ``_REMEDIATION_HINTS`` and outside this test's scope.)
-}
+# No non-spec-kitty commands appear in the current hint set. The remediation
+# surface in ``PreflightResult.render`` may mention non-spec-kitty commands,
+# but that lives outside ``_REMEDIATION_HINTS`` and outside this test's scope.
+_NON_SPEC_KITTY_ALLOWLIST: set[str] = set()
 
 
 _SPEC_KITTY_COMMAND_RE = re.compile(r"`spec-kitty\s+([^`]+)`")
@@ -155,7 +153,7 @@ def test_restart_class_hints_share_canonical_phrase() -> None:
     Per the WP03 plan, the four entries point at the
     ``_RESTART_DAEMON_REMEDY`` constant so they are guaranteed identical.
     """
-    restart_class_fields = (
+    restart_class_fields: tuple[MismatchField, ...] = (
         "daemon_package_version",
         "daemon_executable_path",
         "daemon_source_path",

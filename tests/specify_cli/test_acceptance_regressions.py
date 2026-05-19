@@ -32,7 +32,7 @@ from specify_cli.status.store import StoreError, append_event
 
 # Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
 # Reason: subprocess CLI invocation
-pytestmark = pytest.mark.non_sandbox
+pytestmark = [pytest.mark.non_sandbox, pytest.mark.git_repo]
 
 
 # ---------------------------------------------------------------------------
@@ -281,14 +281,14 @@ class TestIntegrationBranchGuard:
         )
 
     def test_feature_branch_still_gets_merge_guidance(self, tmp_path: Path) -> None:
-        """A real feature branch must still get full merge + cleanup guidance."""
+        """A real feature branch must still get spec-kitty merge + cleanup guidance."""
         summary = self._make_summary_on_branch(
             tmp_path, "kitty/mission-054-my-feature-lane-a", target_branch="main"
         )
         result = perform_acceptance(summary, mode="local", actor="tester", auto_commit=False)
 
         merged = " ".join(result.instructions + result.cleanup_instructions)
-        assert "git merge kitty/mission-054-my-feature-lane-a" in merged, (
+        assert "spec-kitty merge --mission" in merged, (
             f"Feature branch should get merge guidance. instructions={result.instructions}"
         )
         assert "git branch -d kitty/mission-054-my-feature-lane-a" in merged, (

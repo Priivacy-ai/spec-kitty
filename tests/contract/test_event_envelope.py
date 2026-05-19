@@ -9,12 +9,15 @@ Run: python -m pytest tests/contract/test_event_envelope.py -v
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 
-def _make_emitter():
+pytestmark = [pytest.mark.contract]
+
+
+def _make_emitter(team_slug: str = "test-team") -> MagicMock:
     """Create an EventEmitter with mocked dependencies for isolated testing.
 
     Mocks: LamportClock, OfflineQueue, AuthClient, ProjectIdentity,
@@ -42,11 +45,14 @@ def _make_emitter():
 
     emitter = EventEmitter(
         clock=mock_clock,
-        queue=mock_queue,
+        queue=mock_queue
     )
     emitter._identity = mock_identity
     emitter._git_resolver = MagicMock()
-    emitter._git_resolver.resolve.return_value = mock_git_meta
+    emitter.git_resolver.resolve.return_value = mock_git_meta
+
+    emitter._current_team_slug = MagicMock()
+    emitter._current_team_slug.return_value = team_slug
 
     # Mock auth to return a team slug
     mock_auth = MagicMock()
@@ -84,14 +90,17 @@ class TestMissionCreatedEnvelope:
         assert event["build_id"], "build_id must be non-empty"
 
     def test_aggregate_type_is_mission(self):
-        emitter = _make_emitter()
+        emitter = _make_emitter('kitty-crew')
+
         event = emitter.emit_mission_created(
             mission_slug="064-test-mission",
             mission_number=64,
             target_branch="main",
             wp_count=3,
         )
+
         assert event is not None
+        assert event["team_slug"] == "kitty-crew"
         assert event["aggregate_type"] == "Mission"
 
     def test_aggregate_type_is_not_feature(self):
@@ -107,24 +116,28 @@ class TestMissionCreatedEnvelope:
 
     def test_event_type_is_mission_created(self):
         emitter = _make_emitter()
+
         event = emitter.emit_mission_created(
             mission_slug="064-test-mission",
             mission_number=64,
             target_branch="main",
             wp_count=3,
         )
+
         assert event is not None
         assert event["event_type"] == "MissionCreated"
 
+    """mission_slug must NOT be a top-level key in the event envelope."""
     def test_no_mission_slug_in_envelope(self, forbidden_envelope_fields):
-        """mission_slug must NOT be a top-level key in the event envelope."""
         emitter = _make_emitter()
+
         event = emitter.emit_mission_created(
             mission_slug="064-test-mission",
             mission_number=64,
             target_branch="main",
             wp_count=3,
         )
+
         assert event is not None
         # mission_slug lives in the payload, not the envelope top level
         for forbidden_field in forbidden_envelope_fields:

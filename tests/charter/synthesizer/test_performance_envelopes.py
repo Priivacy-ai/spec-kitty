@@ -33,6 +33,8 @@ from charter.synthesizer.topic_resolver import resolve as resolve_topic
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 @pytest.fixture
 def fixture_root() -> Path:
     return Path(__file__).parent.parent / "fixtures" / "synthesizer"

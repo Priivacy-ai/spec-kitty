@@ -25,6 +25,8 @@ from specify_cli.invocation.router import (
 # Fixtures: local profiles directory
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.unit]
+
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "profiles"
 
 

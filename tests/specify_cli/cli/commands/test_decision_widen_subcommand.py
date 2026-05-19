@@ -36,6 +36,10 @@ from specify_cli.saas_client.errors import SaasClientError
 # Constants / helpers
 # ---------------------------------------------------------------------------
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 DECISION_ID = "01KWIDETEST00000000001"
 MISSION_SLUG = "test-widen-mission"
 

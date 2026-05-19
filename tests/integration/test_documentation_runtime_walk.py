@@ -42,6 +42,8 @@ from specify_cli.next.runtime_bridge import (
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+
 def _init_min_repo(repo_root: Path) -> None:
     """Initialize a minimal git repo as the test mission's project root."""
     repo_root.mkdir(parents=True, exist_ok=True)

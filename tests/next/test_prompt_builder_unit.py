@@ -26,6 +26,8 @@ from specify_cli.next.prompt_builder import (
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
+
 @pytest.fixture
 def feature_dir(tmp_path: Path) -> Path:
     fd = tmp_path / "kitty-specs" / "042-test-feature"
@@ -384,7 +386,7 @@ class TestBuildPromptWP:
 
 class TestBuildPromptTemplate:
     @patch("specify_cli.next.prompt_builder.resolve_command")
-    @patch("specify_cli.next.prompt_builder.resolve_governance")
+    @patch("specify_cli.next.prompt_builder.resolve_project_governance")
     def test_template_prompt_has_header(self, mock_governance, mock_resolve, feature_with_wp: Path) -> None:
         # Mock the resolver to return a fake template
         mock_path = feature_with_wp / "fake-template.md"
@@ -507,7 +509,7 @@ references:
 
 
 class TestGovernanceContext:
-    @patch("specify_cli.next.prompt_builder.resolve_governance")
+    @patch("specify_cli.next.prompt_builder.resolve_project_governance")
     def test_governance_context_renders_resolution(self, mock_resolve, feature_dir: Path) -> None:
         mock_resolve.return_value = MagicMock(
             template_set="software-dev-default",
@@ -522,7 +524,7 @@ class TestGovernanceContext:
         assert "Paradigms: test-first" in text
         assert "Directives: TEST_FIRST" in text
 
-    @patch("specify_cli.next.prompt_builder.resolve_governance")
+    @patch("specify_cli.next.prompt_builder.resolve_project_governance")
     def test_governance_context_handles_failures(self, mock_resolve, feature_dir: Path) -> None:
         mock_resolve.side_effect = RuntimeError("boom")
         text = _governance_context(feature_dir.parent.parent)

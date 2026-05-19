@@ -29,6 +29,11 @@ from .adapter import AdapterOutput
 from .errors import GeneratedArtifactLoadError, GeneratedArtifactMissingError
 from .request import SynthesisRequest
 
+__all__ = [
+    "GeneratedArtifactAdapter",
+]
+
+
 GENERATED_ADAPTER_VERSION = "1.0.0"
 
 

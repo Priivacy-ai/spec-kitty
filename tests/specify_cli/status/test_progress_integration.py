@@ -21,6 +21,8 @@ from specify_cli.status.store import append_event
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 def _make_snapshot(
     mission_slug: str,
     wp_lanes: dict[str, str],

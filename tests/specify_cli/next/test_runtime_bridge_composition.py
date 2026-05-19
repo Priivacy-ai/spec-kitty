@@ -42,7 +42,7 @@ from specify_cli.next.runtime_bridge import (
 )
 
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 @pytest.fixture(autouse=True)

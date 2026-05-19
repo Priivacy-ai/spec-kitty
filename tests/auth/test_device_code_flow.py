@@ -36,6 +36,8 @@ from specify_cli.auth.errors import (
 from specify_cli.auth.flows.device_code import DeviceCodeFlow
 
 
+pytestmark = [pytest.mark.integration]
+
 _SAAS = "https://saas.test"
 _FUTURE_ISO = "2099-01-01T00:00:00+00:00"
 

@@ -117,7 +117,7 @@ Every call to `spec-kitty next` returns exactly one decision kind:
 | `step` | Normal action available | Read `prompt_file` and execute |
 | `decision_required` | Runtime needs input | Answer with `--answer` and `--decision-id` |
 | `blocked` | Guards failing, cannot proceed | Read `reason` + `guard_failures`, resolve blockers |
-| `terminal` | Mission complete | Run `/spec-kitty.accept`, exit loop |
+| `terminal` | Mission complete | Run `/spec-kitty.accept`; if it passes, merge and continue to mission review + retrospective |
 
 ### Decision Output Fields
 
@@ -369,7 +369,7 @@ See `references/runtime-result-taxonomy.md` for the complete taxonomy.
 | `step` | Read and execute `prompt_file` (always non-empty and resolvable on disk) |
 | `decision_required` | Answer with `--answer` and `--decision-id` |
 | `blocked` | Read `reason` + `guard_failures`, resolve blockers |
-| `terminal` | Run `/spec-kitty.accept` for final validation |
+| `terminal` | Run `/spec-kitty.accept` for final validation, then merge if acceptance passes |
 
 **Always check `guard_failures`** — this field may appear on any decision kind,
 not just `blocked`.
@@ -386,7 +386,9 @@ should never observe a `kind="step"` decision with `prompt_file == null`.
 **Always check `progress` for completion.** If `progress.done_wps` equals
 `progress.total_wps` but `kind` is not `terminal`, the mission is actually
 complete (known issue #335). The runtime may not detect completion when no
-prior run state exists. Treat this as terminal and run `/spec-kitty.accept`.
+prior run state exists. Treat this as terminal and run `/spec-kitty.accept`;
+if acceptance passes, run `/spec-kitty.merge`, then run mission review and the
+retrospective workflow.
 
 ---
 
@@ -471,7 +473,11 @@ done
 
 # 3. Handle terminal state
 if [ "$KIND" = "terminal" ] || [ "$DONE" -eq "$TOTAL" ]; then
-  # Run /spec-kitty.accept
+  # Run /spec-kitty.accept.
+  # If acceptance passes, run /spec-kitty.merge.
+  # After merge, run /spec-kitty-mission-review and:
+  #   spec-kitty retrospect summary
+  #   spec-kitty agent retrospect synthesize --mission 042-mission
 fi
 ```
 

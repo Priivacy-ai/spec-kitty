@@ -28,6 +28,8 @@ from charter._io import CharterEncodingError
 from kernel.errors import KittyInternalConsistencyError
 
 
+pytestmark = [pytest.mark.unit]
+
 def _write_ambiguous_yaml(path: Path) -> None:
     """Write bytes that the chokepoint cannot resolve confidently — the
     detector returns a ``best`` candidate whose ``chaos`` keeps the

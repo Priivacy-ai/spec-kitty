@@ -11,7 +11,7 @@ from specify_cli.upgrade.migrations.m_3_1_1_event_log_merge_driver import (
     EventLogMergeDriverMigration,
 )
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 def _git(cmd: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:

@@ -13,6 +13,8 @@ from specify_cli.policy.merge_gates import (
 )
 
 
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
+
 def _setup_feature(tmp_path, wp_ids, wp_lanes=None):
     """Create minimal feature directory with event log."""
     feature_dir = tmp_path / "kitty-specs" / "010-feat"

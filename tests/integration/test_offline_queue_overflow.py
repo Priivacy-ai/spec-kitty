@@ -24,6 +24,8 @@ from specify_cli.sync.queue import (
 )
 
 
+pytestmark = [pytest.mark.integration]
+
 CAP = 5  # tight cap keeps the test fast and deterministic
 
 

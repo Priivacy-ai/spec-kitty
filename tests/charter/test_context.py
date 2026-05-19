@@ -224,6 +224,59 @@ class TestBuildContextV2:
         assert "Tactics:" in result.text
         assert "tdd-red-green-refactor" in result.text
 
+    def test_selected_directive_closure_contributes_action_context(self, tmp_path: Path) -> None:
+        """Selected directives contribute their DRG closure even without action-scope edges."""
+        _setup_fixture_repo(tmp_path)
+        (tmp_path / ".kittify" / "charter" / "governance.yaml").write_text(
+            textwrap.dedent("""\
+                doctrine:
+                  template_set: software-dev-default
+                  selected_paradigms: []
+                  selected_directives: [DIRECTIVE_039]
+                  available_tools: []
+            """),
+            encoding="utf-8",
+        )
+
+        graph_yaml = textwrap.dedent("""\
+            schema_version: "1.0"
+            generated_at: "2026-04-13T10:00:00+00:00"
+            generated_by: "test"
+            nodes:
+              - urn: "action:software-dev/implement"
+                kind: action
+                label: implement
+              - urn: "directive:DIRECTIVE_039"
+                kind: directive
+                label: Lynn Cole Engineering Culture
+              - urn: "tactic:boring-code-review"
+                kind: tactic
+                label: Boring Code Review
+            edges:
+              - source: "directive:DIRECTIVE_039"
+                target: "tactic:boring-code-review"
+                relation: requires
+        """)
+
+        from io import StringIO
+
+        from doctrine.drg.models import DRGGraph
+        from ruamel.yaml import YAML
+
+        yaml = YAML(typ="safe")
+        mock_graph = DRGGraph.model_validate(yaml.load(StringIO(graph_yaml)))
+
+        with (
+            patch("doctrine.drg.loader.load_graph", return_value=mock_graph),
+            patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("doctrine.drg.validator.assert_valid"),
+            patch("charter.sync.ensure_charter_bundle_fresh", return_value=None),
+        ):
+            result = build_charter_context(tmp_path, action="implement", depth=2, mark_loaded=False)
+
+        assert "DIRECTIVE_039" in result.text
+        assert "boring-code-review" in result.text
+
     def test_text_contains_reference_docs(self, tmp_path: Path) -> None:
         """Output text includes Reference Docs section."""
         result = self._call(tmp_path)

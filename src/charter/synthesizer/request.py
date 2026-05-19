@@ -19,6 +19,14 @@ from collections.abc import Mapping
 
 from charter.synthesizer.evidence import EvidenceBundle
 
+__all__ = [
+    "SynthesisRequest",
+    "SynthesisTarget",
+    "compute_inputs_hash",
+    "short_hash",
+]
+
+
 
 # ---------------------------------------------------------------------------
 # Validation helpers

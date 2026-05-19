@@ -43,7 +43,7 @@ from charter.synthesizer.write_pipeline import (
 )
 
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 # ---------------------------------------------------------------------------

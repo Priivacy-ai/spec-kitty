@@ -10,6 +10,8 @@ import pytest
 # Import generator under test
 import sys
 
+pytestmark = [pytest.mark.integration]
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent / "scripts"))
 import generate_contextive_glossaries as gen
 

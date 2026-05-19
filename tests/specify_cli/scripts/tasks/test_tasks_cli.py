@@ -23,7 +23,7 @@ from specify_cli.status.wp_state import wp_state_for
 from tests.utils import REPO_ROOT, run_python_script
 
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 SRC_TASKS_CLI = REPO_ROOT / "src" / "specify_cli" / "scripts" / "tasks" / "tasks_cli.py"
 

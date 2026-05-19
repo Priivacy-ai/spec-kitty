@@ -11,6 +11,9 @@ import sys
 import pytest
 
 # Import validator functions directly from the script
+
+pytestmark = [pytest.mark.integration]
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts" / "release"))
 from validate_release import (  # type: ignore[import]
     ReleaseValidatorError,

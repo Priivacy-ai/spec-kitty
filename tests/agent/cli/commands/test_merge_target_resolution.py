@@ -13,6 +13,10 @@ from specify_cli.core.context_validation import ExecutionContext
 from tests.lane_test_utils import write_single_lane_manifest
 
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 runner = CliRunner()
 
 

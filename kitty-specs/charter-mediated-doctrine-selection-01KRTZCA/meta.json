@@ -1,0 +1,14 @@
+{
+  "created_at": "2026-05-17T12:43:05.256504+00:00",
+  "friendly_name": "Charter-Mediated Doctrine Selection (Mission B)",
+  "mission_id": "01KRTZCA58EM8RFPVDHYBZQSF8",
+  "mission_number": 120,
+  "mission_slug": "charter-mediated-doctrine-selection-01KRTZCA",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances Charter-Mediated Doctrine Selection (Mission B) on feat/org-doctrine-layer so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Charter-Mediated Doctrine Selection (Mission B)",
+  "slug": "charter-mediated-doctrine-selection-01KRTZCA",
+  "target_branch": "feat/org-doctrine-layer",
+  "vcs": "git",
+  "vcs_locked_at": "2026-05-17T16:23:49.176270+00:00"
+}

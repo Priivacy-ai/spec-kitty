@@ -8,6 +8,8 @@ from specify_cli.template import manager, get_local_repo_root
 from specify_cli.template.manager import copy_specify_base_from_local
 
 
+pytestmark = [pytest.mark.unit]
+
 def test_get_local_repo_root_prefers_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     # Manager expects src/doctrine/templates/command-templates for repo root detection
     templates_dir = tmp_path / "src" / "doctrine" / "templates" / "command-templates"

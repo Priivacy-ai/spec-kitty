@@ -15,6 +15,8 @@ from specify_cli.status.models import (
 from specify_cli.status.transition_context import TransitionContext
 
 
+pytestmark = [pytest.mark.unit]
+
 class TestTransitionContextConstruction:
     """TransitionContext construction and defaults."""
 

@@ -28,13 +28,13 @@ def _load_yaml(path: Path) -> dict[str, Any]:
 
 def test_curated_doctrine_artifacts_exist_with_expected_kinds() -> None:
     expected_paths = [
-        "procedures/shipped/disciplined-defect-diagnosis.procedure.yaml",
-        "paradigms/shipped/deep-module-design.paradigm.yaml",
-        "tactics/shipped/architecture/deepening-opportunity-assessment.tactic.yaml",
-        "tactics/shipped/architecture/interface-variation-design.tactic.yaml",
-        "procedures/shipped/domain-aware-decision-interview.procedure.yaml",
-        "procedures/shipped/issue-triage-state-machine.procedure.yaml",
-        "styleguides/shipped/deployable-skill-authoring.styleguide.yaml",
+        "procedures/built-in/disciplined-defect-diagnosis.procedure.yaml",
+        "paradigms/built-in/deep-module-design.paradigm.yaml",
+        "tactics/built-in/architecture/deepening-opportunity-assessment.tactic.yaml",
+        "tactics/built-in/architecture/interface-variation-design.tactic.yaml",
+        "procedures/built-in/domain-aware-decision-interview.procedure.yaml",
+        "procedures/built-in/issue-triage-state-machine.procedure.yaml",
+        "styleguides/built-in/deployable-skill-authoring.styleguide.yaml",
         "templates/triage/agent-brief-template.md",
         "templates/triage/out-of-scope-record-template.md",
     ]
@@ -94,7 +94,7 @@ def test_software_dev_action_indexes_expose_design_and_triage_doctrine() -> None
 
 def test_diagnosis_procedure_preserves_hypothesis_and_feedback_loop_discipline() -> None:
     procedure = _load_yaml(
-        DOCTRINE_ROOT / "procedures" / "shipped" / "disciplined-defect-diagnosis.procedure.yaml"
+        DOCTRINE_ROOT / "procedures" / "built-in" / "disciplined-defect-diagnosis.procedure.yaml"
     )
 
     step_text = "\n".join(step["title"] + " " + step.get("description", "") for step in procedure["steps"])

@@ -59,12 +59,19 @@ from .sync import (
     post_save_hook,
     sync,
 )
+from .mission_type_profiles import (
+    CANONICAL_MISSION_TYPES,
+    GovernancePayload,
+    MissionTypeProfile,
+    UnknownMissionTypeError,
+    resolve_mission_type_governance,
+)
 from .resolver import (
     GovernanceResolution,
     GovernanceResolutionError,
     collect_governance_diagnostics,
-    resolve_governance,
     resolve_governance_for_profile,
+    resolve_project_governance,
 )
 from .template_resolver import CharterTemplateResolver
 
@@ -113,8 +120,13 @@ __all__ = [
     "sync",
     "GovernanceResolution",
     "GovernanceResolutionError",
-    "resolve_governance",
     "resolve_governance_for_profile",
+    "resolve_project_governance",
     "collect_governance_diagnostics",
+    "CANONICAL_MISSION_TYPES",
+    "GovernancePayload",
+    "MissionTypeProfile",
+    "UnknownMissionTypeError",
+    "resolve_mission_type_governance",
     "CharterTemplateResolver",
 ]

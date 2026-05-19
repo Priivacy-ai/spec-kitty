@@ -36,6 +36,8 @@ from charter.synthesizer.synthesize_pipeline import canonical_yaml
 # ---------------------------------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit]
+
 def _compute_manifest_hash(
     manifest: SynthesisManifest,
 ) -> str:

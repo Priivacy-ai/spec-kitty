@@ -1,0 +1,133 @@
+# Ratchet baselines for tests/architectural/* gated allowlists.
+#
+# This file is binding per the Slice F charter pack (C-004). The
+# meta-test tests/architectural/test_ratchet_baselines.py compares each
+# entry below against the live size of the corresponding gated
+# allowlist; growth above baseline FAILS the test, shrinkage WARNS.
+#
+# Schema and per-test invariants:
+#   kitty-specs/slice-f-multi-context-extensibility-01KRX5C8/contracts/
+#   ratchet-baseline-format.md
+#
+# Per-PR edit policy:
+# - Growing a baseline requires the YAML diff in the same PR PLUS a
+#   `# justification:` comment on the changed line naming why growth
+#   is acceptable. A PR that grows category_7_grandfathered must link
+#   a follow-up tracker ticket per FR-303.
+# - Shrinkage requires no ceremony (just edit the number).
+
+# tests/architectural/test_no_dead_modules.py
+# Per-category breakdown (FR-112 refactor).
+test_no_dead_modules:
+  # justification: 71 auto-discovered migration modules under
+  # src/specify_cli/upgrade/migrations/m_*.py. Grows when a new
+  # migration ships; growth here is expected and routine.
+  category_1_auto_discovered_migrations: 71
+  # justification: 4 schema generator modules consumed by
+  # scripts/generate_schemas.py via importlib.import_module.
+  category_2_build_schema_generators: 4
+  # justification: 4 external/CLI entry points invoked outside the
+  # spec-kitty import graph (commit_guard_hook + 3 task helpers).
+  category_3_external_cli_entrypoints: 4
+  # justification: 8 documented backward-compat shim modules whose
+  # absence of static src/ callers is the point.
+  category_4_backcompat_shims: 8
+  # justification: 3 compat-shim WP-in-flight adapters. scope_router was
+  # removed (post-merge remediation cycle 1, 2026-05-19): prompt_builder now
+  # imports build_with_scope from charter.scope_router so the module has a
+  # live src/ caller. WP11 removal trigger reached for both workflow_registry
+  # (WP11 final commit) and scope_router (remediation cycle 1).
+  category_5_wp_in_flight_adapters: 3
+  # justification: 3 frozen-contract internal re-exports under
+  # next/_internal_runtime/ frozen by shared-package-boundary-cutover.
+  category_6_frozen_runtime_reexports: 3
+  # Slice F WP01 T002 inherits 10 grandfathered orphans; T005-T007
+  # delete 3 (doctrine.templates.repository,
+  # specify_cli.glossary.prompts, specify_cli.glossary.rendering)
+  # bringing the live size to 7. Per C-006 this category MUST shrink
+  # by >= 2 entries per major release; target = 0 by 4.0.
+  category_7_grandfathered_orphans: 7
+
+# tests/architectural/test_migration_chain_integrity.py
+test_migration_chain_integrity:
+  # justification: 4 historical version-line discontinuities recorded
+  # in _KNOWN_LINE_JUMPS. Pre-1.0 era (0.2->0.4, 0.4->0.6), the
+  # intentional skip of 1.x (0.14->2.0a5), and the canonical-context
+  # rewrite (2.2->3.0).
+  known_line_jumps: 4
+
+# tests/architectural/test_runtime_charter_doctrine_boundary.py
+# Empty allowlist today; C-004 caps this at 2 documented exceptions.
+test_runtime_charter_doctrine_boundary:
+  baseline_allowlist: 0
+
+# tests/architectural/test_auth_transport_singleton.py
+# NO CHANGE this mission per Slice F C-005 (auth-transport boundary
+# is owned by mission shared-package-boundary-cutover-01KQ22DS and
+# is descoped from this mission).
+test_auth_transport_singleton:
+  # justification: 3 modules permitted to instantiate httpx clients
+  # directly (auth/transport.py, auth/http/transport.py, and the
+  # temporary tracker/saas_client.py entry whose mock surface blocks
+  # migration to the centralized client). See the test file for the
+  # next-sweep TODO. C-005 binds this value for the duration of
+  # Slice F; do not edit downward in this mission.
+  allowed_direct_httpx_files: 3
+
+# tests/architectural/test_compat_shims.py
+test_compat_shims:
+  # justification: 3 pure-shim adapter files under
+  # src/specify_cli/compat/_adapters/. Per C-006 this MUST shrink to
+  # 0 by 4.0 (the compat-planner mission is the burn-down owner).
+  pure_shim_files: 3
+
+# tests/contract/test_example_round_trip.py
+# Populated by WP03 after the legacy-contract-allowlist discovery
+# sweep. WP01 pins this at 0 so the meta-test can run; WP03 edits
+# upward only if the sweep finds legitimately-excluded contracts.
+test_example_round_trip:
+  # justification: WP03 discovery sweep found 151 contracts from missions
+  # predating the Slice F frontmatter convention. These are allowlisted
+  # per FR-141 so they warn instead of failing. The baseline participates
+  # in the burn-down policy (C-004): it MUST shrink as legacy missions
+  # backfill the ``# pydantic_model:`` / ``# expect:`` frontmatter.
+  legacy_contract_allowlist: 151
+
+# tests/architectural/test_all_declarations_required.py
+# Populated by WP02 after the charter/kernel __all__ sweep. WP01
+# pins these at 0 so the meta-test can run; WP02 edits the values
+# (most likely keeps them at 0 as all modules are migrated).
+test_all_declarations_required:
+  charter_without_all: 0
+  kernel_without_all: 0
+
+# tests/architectural/test_no_dead_symbols.py
+# Symbol-level dead-code ratchet introduced by WP02. Two per-category
+# entries mirror the per-category frozensets in the test module so the
+# Cat-A (Slice F deferred, charter+kernel) ratchet can be tracked
+# separately from the Cat-B (grandfathered legacy, doctrine + specify_cli)
+# ratchet. Per C-004 / C-006, Cat-A MUST shrink by >= 2 entries per
+# major release; target = 0 by Slice G. Cat-B is informational until
+# a follow-up mission widens C-007 beyond charter+kernel.
+test_no_dead_symbols:
+  # justification: 13 pre-existing charter+kernel public symbols whose
+  # ``__all__`` membership was inherited from before WP02 and whose
+  # lack of runtime callers reflects a "library written but never
+  # wired" carry-over. WP02 left their public-API contracts intact;
+  # a future mission must wire / prune / delete each.
+  category_a_slice_f_deferred: 13
+  # justification: 276 pre-existing public symbols across doctrine +
+  # specify_cli whose ``__all__`` predates the WP02 gate. C-007 /
+  # FR-121 scopes WP02 to charter+kernel; this category is the
+  # carry-over surface for the next mission that widens the convention.
+  category_b_grandfathered_legacy: 276
+  # Removal trigger reached (post-merge remediation cycle 1, 2026-05-19):
+  # prompt_builder imports build_with_scope which pulls CharterScope*
+  # into the live src/ import graph. All four symbols now have live
+  # callers; category shrunk from 4 to 0.
+  category_c_wp_in_flight_charter_scope: 0
+  # WP11 removal trigger reached: all 4 workflow registry symbols now have
+  # live src/ callers (planner.py imports get_workflow, UnknownWorkflowError,
+  # list_available_workflows from workflow_registry, and ActionStep from
+  # workflow_schema). Category shrunk to 0.
+  category_c_wp_in_flight_workflow_registry: 0

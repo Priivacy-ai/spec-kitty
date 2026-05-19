@@ -30,6 +30,8 @@ from specify_cli.sync.orphan_sweep import (
 )
 
 
+pytestmark = [pytest.mark.unit]
+
 def _find_free_port_in_range(start: int, end: int) -> int:
     """Return the first port in ``[start, end)`` that is currently unbound."""
     for port in range(start, end):

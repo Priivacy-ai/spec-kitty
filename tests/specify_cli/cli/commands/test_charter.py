@@ -32,6 +32,10 @@ from specify_cli.decisions.service import DecisionError
 # Fixtures / helpers
 # ---------------------------------------------------------------------------
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 MISSION_SLUG = "test-charter-dm-mission"
 MISSION_ID = "01KCHARTERTESTMISSION0001"
 

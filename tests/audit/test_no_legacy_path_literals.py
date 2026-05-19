@@ -39,6 +39,11 @@ import sys
 from contextlib import redirect_stderr
 
 # Match the bare tilde-path anywhere on a line.
+
+import pytest
+
+pytestmark = [pytest.mark.integration]
+
 LITERAL = re.compile(r'~/\.(kittify|spec-kitty)')
 # Comment detector: line starts with optional whitespace then '#'.
 COMMENT = re.compile(r'^\s*#')

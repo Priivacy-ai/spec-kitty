@@ -26,6 +26,8 @@ from specify_cli.dossier.models import ArtifactRef, MissionDossier, MissionDossi
 # ============================================================================
 
 
+pytestmark = [pytest.mark.unit]
+
 @pytest.fixture
 def repo_root(tmp_path):
     """Create a temporary repo root."""

@@ -4,7 +4,7 @@ Use this guide to merge completed work packages from a Spec Kitty mission into i
 
 ## Prerequisites
 
-- All WPs have been reviewed and marked `lane: "done"` in their prompt files
+- All WPs have been reviewed and are `approved` or `done`
 - All resolved execution worktrees have no uncommitted changes
 - You have run `/spec-kitty.accept` to validate the mission is ready
 
@@ -274,6 +274,18 @@ spec-kitty merge --abort
 This removes the merge state file and lets you start fresh.
 
 For detailed troubleshooting including conflict resolution and error recovery, see [Accept and Merge](accept-and-merge.md#troubleshooting).
+
+## After Merge
+
+Run `/spec-kitty-mission-review` in your agent. The mission's
+`retrospective.yaml` is authored earlier at the runtime terminus, not by
+`merge`. Before context decays, review what was captured and apply any staged
+proposals:
+
+```bash
+spec-kitty retrospect summary                       # cross-mission view
+spec-kitty agent retrospect synthesize --mission <slug>  # dry-run; --apply to mutate
+```
 
 ---
 

@@ -6,6 +6,10 @@ from pathlib import Path
 import task_helpers as th
 
 
+import pytest
+
+pytestmark = [pytest.mark.integration]
+
 def test_set_scalar_inserts_and_updates() -> None:
     original = "agent: \"system\"\n"
     updated = th.set_scalar(original, "lane", "planned")

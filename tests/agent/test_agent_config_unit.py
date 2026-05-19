@@ -15,6 +15,8 @@ from specify_cli.core.agent_config import (
 )
 
 
+pytestmark = [pytest.mark.unit]
+
 def _write_config(tmp_path: Path, content: str) -> Path:
     kittify = tmp_path / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)

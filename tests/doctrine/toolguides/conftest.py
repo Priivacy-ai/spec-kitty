@@ -13,7 +13,7 @@ def sample_toolguide_data() -> dict:
         "id": "test-toolguide",
         "tool": "bash",
         "title": "Test Toolguide",
-        "guide_path": "src/doctrine/toolguides/shipped/POWERSHELL_SYNTAX.md",
+        "guide_path": "src/doctrine/toolguides/built-in/POWERSHELL_SYNTAX.md",
         "summary": "A sample toolguide fixture.",
     }
 
@@ -26,7 +26,7 @@ def enriched_toolguide_data() -> dict:
         "id": "enriched-toolguide",
         "tool": "git",
         "title": "Enriched Toolguide",
-        "guide_path": "src/doctrine/toolguides/shipped/POWERSHELL_SYNTAX.md",
+        "guide_path": "src/doctrine/toolguides/built-in/POWERSHELL_SYNTAX.md",
         "summary": "An enriched fixture.",
         "commands": ["git", "spec-kitty"],
     }
