@@ -21,7 +21,8 @@ subtasks:
 - T017
 phase: Foundation
 assignee: ''
-agent: claude
+agent: "claude:claude-sonnet-4-6:python-pedro:implementer"
+shell_pid: "19616"
 history:
 - timestamp: '2026-05-19T13:29:59Z'
   agent: system
@@ -309,3 +310,7 @@ Implementation command:
 ```bash
 spec-kitty agent action implement WP03 --agent claude
 ```
+
+## Activity Log
+
+- 2026-05-19T15:22:06Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=19616 – Started implementation via action command
