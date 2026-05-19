@@ -305,11 +305,11 @@ T024, T026, T027, T028 are different command implementations — can ship in par
 
 ### Included subtasks
 
-- [ ] T030 [P] Implement `DeprecationWarning` + Rich stderr notice for `SPEC_KITTY_RETROSPECTIVE` / `SPEC_KITTY_MODE` (FR-015, NFR-006: one warning per process) (WP06)
-- [ ] T031 [P] Add `SPEC_KITTY_NO_DEPRECATION_WARNINGS=1` suppression env var; documented in WP07 docs (WP06)
-- [ ] T032 [P] Refactor existing tests to prefer injected `RetrospectivePolicy` over `os.environ` mutations (FR-016) (WP06)
-- [ ] T033 [P] Resolve shim fate for `retrospective/config.py` + `retrospective/mode.py` per FR-023 — either fold+delete with reference updates, OR retain as documented compat shim with explicit retirement target (deprecation version, follow-up issue, rationale) (WP06)
-- [ ] T034 [P] Tests for deprecation behavior: one-warn-per-process, durable wins, suppression flag (WP06)
+- [x] T030 [P] Implement `DeprecationWarning` + Rich stderr notice for `SPEC_KITTY_RETROSPECTIVE` / `SPEC_KITTY_MODE` (FR-015, NFR-006: one warning per process) (WP06)
+- [x] T031 [P] Add `SPEC_KITTY_NO_DEPRECATION_WARNINGS=1` suppression env var; documented in WP07 docs (WP06)
+- [x] T032 [P] Refactor existing tests to prefer injected `RetrospectivePolicy` over `os.environ` mutations (FR-016) (WP06)
+- [x] T033 [P] Resolve shim fate for `retrospective/config.py` + `retrospective/mode.py` per FR-023 — either fold+delete with reference updates, OR retain as documented compat shim with explicit retirement target (deprecation version, follow-up issue, rationale) (WP06)
+- [x] T034 [P] Tests for deprecation behavior: one-warn-per-process, durable wins, suppression flag (WP06)
 
 ### Implementation sketch
 
