@@ -78,7 +78,22 @@ kitty-specs/*/.kittify/dossiers/*/snapshot-latest.json
 .kittify/charter/directives.yaml
 .kittify/charter/provenance/
 .kittify/charter/synthesis-manifest.yaml
-.kittify/doctrine/
+
+# Doctrine artifacts are version-controlled — that is the point of
+# `spec-kitty agent retrospect synthesize --apply` writing them. Use
+# `/**` (not the bare directory) so the doctrine directory itself stays
+# traversable for whitelists; then re-include the canonical artifact
+# subdirectories (directive/, tactic/, procedure/, overlays/). Tracked
+# upstream as Priivacy-ai/spec-kitty#1166.
+.kittify/doctrine/**
+!.kittify/doctrine/directive/
+!.kittify/doctrine/directive/**
+!.kittify/doctrine/tactic/
+!.kittify/doctrine/tactic/**
+!.kittify/doctrine/procedure/
+!.kittify/doctrine/procedure/**
+!.kittify/doctrine/overlays/
+!.kittify/doctrine/overlays/**
 
 # Generated glossary entity pages — never commit
 .kittify/charter/compiled/glossary/
