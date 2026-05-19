@@ -8,123 +8,12 @@
     {
       "lane_id": "lane-a",
       "wp_ids": [
-        "WP01"
-      ],
-      "write_scope": [
-        "src/specify_cli/retrospective/__init__.py",
-        "src/specify_cli/retrospective/policy.py",
-        "tests/retrospective/conftest.py",
-        "tests/retrospective/test_policy.py"
-      ],
-      "predicted_surfaces": [
-        "api",
-        "artifact-rendering",
-        "legacy-cleanup",
-        "workspace"
-      ],
-      "depends_on_lanes": [],
-      "parallel_group": 0
-    },
-    {
-      "lane_id": "lane-b",
-      "wp_ids": [
-        "WP02"
-      ],
-      "write_scope": [
-        "src/specify_cli/retrospective/generator.py",
-        "src/specify_cli/retrospective/schema.py",
-        "tests/retrospective/fixtures/missions/**",
-        "tests/retrospective/test_generator.py"
-      ],
-      "predicted_surfaces": [
-        "api",
-        "artifact-rendering",
-        "workspace"
-      ],
-      "depends_on_lanes": [],
-      "parallel_group": 0
-    },
-    {
-      "lane_id": "lane-c",
-      "wp_ids": [
-        "WP03"
-      ],
-      "write_scope": [
-        "src/specify_cli/retrospective/events.py",
-        "src/specify_cli/retrospective/summary.py",
-        "src/specify_cli/retrospective/writer.py",
-        "tests/retrospective/fixtures/event_logs/**",
-        "tests/retrospective/test_events.py",
-        "tests/retrospective/test_reducer_fixtures.py",
-        "tests/retrospective/test_writer.py"
-      ],
-      "predicted_surfaces": [
-        "api",
-        "artifact-rendering",
-        "tracker-integration"
-      ],
-      "depends_on_lanes": [],
-      "parallel_group": 0
-    },
-    {
-      "lane_id": "lane-d",
-      "wp_ids": [
-        "WP04"
-      ],
-      "write_scope": [
-        "src/specify_cli/next/_internal_runtime/retrospective_terminus.py",
-        "src/specify_cli/next/runtime_bridge.py",
-        "tests/integration/retrospective/**",
-        "tests/next/test_retrospective_terminus_wiring.py"
-      ],
-      "predicted_surfaces": [
-        "api",
-        "artifact-rendering",
-        "legacy-cleanup",
-        "tests"
-      ],
-      "depends_on_lanes": [],
-      "parallel_group": 0
-    },
-    {
-      "lane_id": "lane-e",
-      "wp_ids": [
-        "WP05"
-      ],
-      "write_scope": [
-        "src/specify_cli/cli/commands/agent_retrospect.py",
-        "src/specify_cli/cli/commands/retrospect.py",
-        "tests/cli/commands/test_retrospect.py"
-      ],
-      "predicted_surfaces": [
-        "api",
-        "artifact-rendering",
-        "legacy-cleanup"
-      ],
-      "depends_on_lanes": [],
-      "parallel_group": 0
-    },
-    {
-      "lane_id": "lane-f",
-      "wp_ids": [
-        "WP06"
-      ],
-      "write_scope": [
-        "src/specify_cli/retrospective/config.py",
-        "src/specify_cli/retrospective/deprecation.py",
-        "src/specify_cli/retrospective/mode.py",
-        "tests/retrospective/test_env_deprecation.py"
-      ],
-      "predicted_surfaces": [
-        "api",
-        "legacy-cleanup"
-      ],
-      "depends_on_lanes": [],
-      "parallel_group": 0
-    },
-    {
-      "lane_id": "lane-g",
-      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06",
         "WP07"
       ],
       "write_scope": [
@@ -141,20 +30,92 @@
         "src/doctrine/skills/spec-kitty-implement-review/SKILL.md",
         "src/doctrine/skills/spec-kitty-mission-review/SKILL.md",
         "src/doctrine/skills/spec-kitty-program-orchestrate/SKILL.md",
-        "src/doctrine/skills/spec-kitty-runtime-next/SKILL.md"
+        "src/doctrine/skills/spec-kitty-runtime-next/SKILL.md",
+        "src/specify_cli/cli/commands/agent_retrospect.py",
+        "src/specify_cli/cli/commands/retrospect.py",
+        "src/specify_cli/next/_internal_runtime/retrospective_terminus.py",
+        "src/specify_cli/next/runtime_bridge.py",
+        "src/specify_cli/retrospective/__init__.py",
+        "src/specify_cli/retrospective/config.py",
+        "src/specify_cli/retrospective/deprecation.py",
+        "src/specify_cli/retrospective/events.py",
+        "src/specify_cli/retrospective/generator.py",
+        "src/specify_cli/retrospective/mode.py",
+        "src/specify_cli/retrospective/policy.py",
+        "src/specify_cli/retrospective/schema.py",
+        "src/specify_cli/retrospective/summary.py",
+        "src/specify_cli/retrospective/writer.py",
+        "tests/cli/commands/test_retrospect.py",
+        "tests/integration/retrospective/**",
+        "tests/next/test_retrospective_terminus_wiring.py",
+        "tests/retrospective/conftest.py",
+        "tests/retrospective/fixtures/event_logs/**",
+        "tests/retrospective/fixtures/missions/**",
+        "tests/retrospective/test_env_deprecation.py",
+        "tests/retrospective/test_events.py",
+        "tests/retrospective/test_generator.py",
+        "tests/retrospective/test_policy.py",
+        "tests/retrospective/test_reducer_fixtures.py",
+        "tests/retrospective/test_writer.py"
       ],
       "predicted_surfaces": [
         "api",
         "artifact-rendering",
         "legacy-cleanup",
         "tests",
-        "tracker-integration"
+        "tracker-integration",
+        "workspace"
       ],
       "depends_on_lanes": [],
       "parallel_group": 0
     }
   ],
-  "computed_at": "2026-05-19T13:44:11.543612+00:00",
+  "computed_at": "2026-05-19T13:46:31.752555+00:00",
   "computed_from": "dependency_graph+ownership",
-  "planning_artifact_wps": []
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP02"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP01"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP02"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP01"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP04",
+        "rule": "dependency",
+        "evidence": "WP07 depends on WP04"
+      }
+    ],
+    "total_merges": 6,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 6
+    }
+  }
 }

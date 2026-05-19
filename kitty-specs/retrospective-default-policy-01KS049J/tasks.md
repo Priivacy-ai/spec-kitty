@@ -108,7 +108,7 @@ Internal: T001 and the test scaffolding for T006 can start in parallel once cont
 
 ### Dependencies & Risks
 
-- **Depends on**: nothing.
+- **Dependencies**: none
 - **Risks**: charter frontmatter parser must tolerate missing/empty `retrospective:` block without error. Resolver should be byte-deterministic — golden snapshot tests catch drift.
 
 ### Prompt
@@ -150,7 +150,7 @@ T007 (types) and T012 (test scaffolding + fixtures) can start in parallel. T008-
 
 ### Dependencies & Risks
 
-- **Depends on**: WP01 (uses `RetrospectivePolicy`).
+- **Dependencies**: WP01
 - **Risks**: generator quality (R-4 in spec.md) — low-signal records train users to ignore retrospectives. Mitigation: SC-004 validates against three real completed missions before merge.
 
 ### Prompt
@@ -194,7 +194,7 @@ T013 (writer) and T015 (events) can run in parallel — different files. T016 (f
 
 ### Dependencies & Risks
 
-- **Depends on**: WP02 (writes records produced by generator).
+- **Dependencies**: WP02
 - **Risks**: `spec_kitty_events` frozen surface — must confirm `RetrospectiveCaptured` is or isn't already exposed before adding. Mitigation: T015 starts with a `grep` on the consumed public surface, decisions land in WP03 review notes.
 
 ### Prompt
@@ -239,7 +239,7 @@ T018 sequential (the wiring change). T019, T020 can branch in parallel once T018
 
 ### Dependencies & Risks
 
-- **Depends on**: WP01, WP02, WP03.
+- **Dependencies**: WP01, WP02, WP03
 - **Risks**: latency budget (NFR-005 ≤ 2s). Mitigation: T023 includes a wall-clock assertion in the default-flow integration test using a representative mission size.
 
 ### Prompt
@@ -282,7 +282,7 @@ T024, T026, T027, T028 are different command implementations — can ship in par
 
 ### Dependencies & Risks
 
-- **Depends on**: WP02 (generator), WP03 (writer + events).
+- **Dependencies**: WP02, WP03
 - **Risks**: backfill at scale (≥ 100 missions) — should not OOM or hang. Mitigation: progress reporting via Rich; per-mission JSON streaming in JSON mode.
 
 ### Prompt
@@ -327,7 +327,7 @@ T030, T031, T032, T033 are different concerns and parallelizable. T034 (tests) p
 
 ### Dependencies & Risks
 
-- **Depends on**: WP01 (deprecation messages cite canonical replacement keys).
+- **Dependencies**: WP01
 - **Bulk-edit carrier**: env-var references across code, tests, and docs are the bulk-edit shape A. `occurrence_map.yaml` enumerates each occurrence with action. See [occurrence_map.yaml](./occurrence_map.yaml) (lands at finalize-tasks).
 
 ### Prompt
@@ -379,7 +379,7 @@ All seven subtasks touch different files — fully parallelizable.
 
 ### Dependencies & Risks
 
-- **Depends on**: WP04 + WP05 (must document working surfaces).
+- **Dependencies**: WP04, WP05
 - **Bulk-edit carrier**: doc semantics across docs/ and src/doctrine/skills/ is the bulk-edit shape B. Tracked in [occurrence_map.yaml](./occurrence_map.yaml).
 
 ### Prompt
