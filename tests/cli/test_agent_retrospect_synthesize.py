@@ -240,17 +240,17 @@ def test_ambiguous_handle_exit1() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Exit code 3 — missing retrospective record
+# Missing retrospective record default behavior
 # ---------------------------------------------------------------------------
 
 
-def test_missing_record_exit3() -> None:
-    """Missing retrospective.yaml → exit 3 (record not found)."""
+def test_missing_record_default_exit1() -> None:
+    """Missing retrospective.yaml → exit 1 with create-record guidance."""
     result = _patched_invoke(
         ["retrospect", "synthesize", "--mission", "01KQ6YEG"],
         read_record_side_effect=FileNotFoundError("not found"),
     )
-    assert result.exit_code == 3
+    assert result.exit_code == 1
 
 
 def test_malformed_record_exit3() -> None:
