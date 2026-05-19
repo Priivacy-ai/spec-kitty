@@ -724,7 +724,7 @@ def validate(
         spec-kitty agent status validate --mission 034-my-feature
         spec-kitty agent status validate --json
     """
-    from specify_cli.status.store import read_events_raw
+    from specify_cli.status.store import read_events, read_events_raw
     from specify_cli.status.validate import (
         ValidationResult,
         validate_done_evidence,
@@ -781,11 +781,13 @@ def validate(
             console.print("[green]Result: PASS[/green]")
         raise typer.Exit(0)
 
-    for event in raw_events:
+    status_events = [event.to_dict() for event in read_events(feature_dir)]
+
+    for event in status_events:
         result.errors.extend(validate_event_schema(event))
 
-    result.errors.extend(validate_transition_legality(raw_events))
-    result.errors.extend(validate_done_evidence(raw_events))
+    result.errors.extend(validate_transition_legality(status_events))
+    result.errors.extend(validate_done_evidence(status_events))
 
     # Drift detection: event log is sole authority, drift is always an error
     drift_findings = validate_materialization_drift(feature_dir)

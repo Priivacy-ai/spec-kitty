@@ -5,6 +5,15 @@
   "mission_number": "",
   "mission_slug": "investigate-canary-followups-1142-1141-01KS02TV",
   "mission_type": "software-dev",
+  "retrospective": {
+    "mode": null,
+    "proposals_applied": 5,
+    "proposals_pending": 0,
+    "proposals_rejected": 0,
+    "proposals_total": 0,
+    "record_path": null,
+    "status": "pending"
+  },
   "summary": {
     "approved": 0,
     "blocked": 0,

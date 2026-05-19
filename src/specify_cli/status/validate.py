@@ -194,8 +194,8 @@ def validate_materialization_drift(feature_dir: Path) -> list[str]:
     Returns findings describing any drift detected. An empty list means
     no drift.
     """
-    from .reducer import SNAPSHOT_FILENAME, reduce
-    from .store import EVENTS_FILENAME, read_events
+    from .reducer import SNAPSHOT_FILENAME, materialize_snapshot
+    from .store import EVENTS_FILENAME
 
     findings: list[str] = []
 
@@ -214,9 +214,9 @@ def validate_materialization_drift(feature_dir: Path) -> list[str]:
     # Read on-disk snapshot
     disk_data = json.loads(status_path.read_text(encoding="utf-8"))
 
-    # Compute expected snapshot from events
-    events = read_events(feature_dir)
-    expected_snapshot = reduce(events)
+    # Compute expected snapshot from all compatible event families.
+    expected_snapshot = materialize_snapshot(feature_dir)
+    expected_data = expected_snapshot.to_dict()
 
     # Compare work_packages and summary (skip materialized_at which is timestamp)
     disk_wps = disk_data.get("work_packages", {})
@@ -237,6 +237,9 @@ def validate_materialization_drift(feature_dir: Path) -> list[str]:
                 findings.append(f"Materialization drift: {wp_id} lane={disk_wp.get('lane')} in status.json but reducer says lane={expected_wp.get('lane')}")
             elif disk_wp != expected_wp:
                 findings.append(f"Materialization drift: {wp_id} state differs between status.json and reducer output")
+
+    if disk_data.get("retrospective") != expected_data.get("retrospective"):
+        findings.append("Materialization drift: retrospective snapshot differs between status.json and reducer output")
 
     # Also check event count and last_event_id
     if disk_data.get("event_count") != expected_snapshot.event_count:
