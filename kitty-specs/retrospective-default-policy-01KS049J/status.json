@@ -1,0 +1,70 @@
+{
+  "event_count": 7,
+  "last_event_id": "01KS07NMETMH4FNR0TTAEKKCN0",
+  "materialized_at": "2026-05-19T13:44:11.482206+00:00",
+  "mission_number": "",
+  "mission_slug": "retrospective-default-policy-01KS049J",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 7
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KS07NM14RTEHHBJY8Y90AFJX",
+      "last_transition_at": "2026-05-19T13:44:11.044358+00:00"
+    },
+    "WP02": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KS07NM6V6YBA95S80T79GG5Q",
+      "last_transition_at": "2026-05-19T13:44:11.227351+00:00"
+    },
+    "WP03": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KS07NM8A7VVCMQR7EK1TSC90",
+      "last_transition_at": "2026-05-19T13:44:11.274442+00:00"
+    },
+    "WP04": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KS07NMA04K7Y10J392ZX3M1N",
+      "last_transition_at": "2026-05-19T13:44:11.328985+00:00"
+    },
+    "WP05": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KS07NMBJNG2SP2KX97FZKRK1",
+      "last_transition_at": "2026-05-19T13:44:11.378096+00:00"
+    },
+    "WP06": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KS07NMD5BAERSXHTJ8S8FJ5F",
+      "last_transition_at": "2026-05-19T13:44:11.429451+00:00"
+    },
+    "WP07": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KS07NMETMH4FNR0TTAEKKCN0",
+      "last_transition_at": "2026-05-19T13:44:11.482206+00:00"
+    }
+  }
+}
