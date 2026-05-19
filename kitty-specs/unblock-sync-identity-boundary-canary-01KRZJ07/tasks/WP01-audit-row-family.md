@@ -7,6 +7,7 @@ requirement_refs:
 - FR-002
 - FR-003
 - FR-009
+- NFR-001
 - C-003
 - C-005
 planning_base_branch: main
@@ -18,6 +19,7 @@ subtasks:
 - T003
 - T004
 - T005
+- T022
 agent: claude
 history:
 - at: '2026-05-19T08:46:23Z'
@@ -45,6 +47,13 @@ Before reading anything else in this prompt, load your agent profile:
 ```
 
 The profile defines your identity, governance scope, and boundaries for this work. Apply it for the entire duration of this work package.
+
+## Pre-flight (charter compliance)
+
+Before opening any code changes:
+
+1. **Assign the tracker ticket to the Human-in-Charge.** This WP traces to GitHub issue [`Priivacy-ai/spec-kitty#1122`](https://github.com/Priivacy-ai/spec-kitty/issues/1122). Per charter rule "HiC assignment for tracker-backed work", assign that issue to the project's HiC before (or as part of) beginning implementation.
+2. **If you encounter pre-existing test failures** while running the audit suite (or any test), per charter you MUST open a GitHub issue first — record the failing command, the failure summary, and your evidence that the failure is pre-existing — before treating it as accepted baseline.
 
 ## Objective
 
@@ -205,12 +214,35 @@ Decision `01KRZJ2F33SYE86XZDW8JRHA7R` (resolved: `scope_audit_by_row_family`) ch
 - [ ] ruff clean.
 - [ ] All audit tests green.
 
+### T022 — Audit performance gate (NFR-001)
+
+**Purpose**: Confirm the new predicate consult doesn't blow up audit wall-clock. NFR-001 requires audit of a 100-mission tree completes in ≤ 2× the rc13 baseline on the same hardware.
+
+**Steps**:
+1. Build a synthetic mission tree with 100 mission directories. Reuse existing fixture helpers if any (look in `tests/specify_cli/audit/` and `tests/conftest.py`); otherwise create a tmp directory with 100 minimal `kitty-specs/<n>-stub/status.events.jsonl` files seeded with a mix of lifecycle + status-transition rows (~50 lines each).
+2. Capture the **rc13 baseline** by checking out the `3.2.0rc13` tag (or equivalent commit) in a sibling worktree, running:
+   ```bash
+   python -c "import time; from specify_cli.audit.detectors import run_audit; \
+              t=time.perf_counter(); run_audit(<tmp_tree>); print(time.perf_counter()-t)"
+   ```
+   Repeat 3 times; record the median.
+3. Switch back to this WP's branch. Re-run the same timing 3 times against the patched code; record the median.
+4. Assert `median_patched <= 2 * median_baseline`. If the gate fails, profile and investigate. If the gate passes, record both medians in the WP PR description (so reviewers can spot-check).
+5. This subtask does **not** need to live in CI as a flaky timing test. Run it locally; capture the numbers in the PR; do not commit a timing-based pytest.
+
+**Files**: none modified.
+
+**Validation**:
+- [ ] Baseline + patched medians recorded in PR description.
+- [ ] Ratio ≤ 2.0.
+
 ## Definition of Done
 
-- [ ] All five subtasks complete; each `[ ]` above checked.
+- [ ] All six subtasks complete; each `[ ]` above checked.
 - [ ] No regression on the existing audit test suite.
-- [ ] Spec-side requirements FR-001, FR-002, FR-003, FR-009 satisfied.
+- [ ] Spec-side requirements FR-001, FR-002, FR-003, FR-009, NFR-001 satisfied.
 - [ ] Constraints C-003 (no file split) and C-005 (additive against existing logs) respected — no migration code added.
+- [ ] Charter pre-flight items completed: HiC assignment recorded; any pre-existing test failures (if hit) opened as GitHub issues before continuing.
 
 ## Reviewer Guidance
 

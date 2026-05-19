@@ -7,6 +7,7 @@ requirement_refs:
 - FR-008
 - FR-009
 - NFR-002
+- C-004
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
@@ -46,6 +47,14 @@ Before reading anything else in this prompt, load your agent profile:
 ```
 
 The profile defines your identity, governance scope, and boundaries for this work. Apply it for the entire duration of this work package.
+
+## Pre-flight (charter compliance)
+
+Before opening any code changes:
+
+1. **Assign the tracker ticket to the Human-in-Charge.** This WP traces to GitHub issue [`Priivacy-ai/spec-kitty#1124`](https://github.com/Priivacy-ai/spec-kitty/issues/1124). Per charter rule "HiC assignment for tracker-backed work", assign that issue to the project's HiC before (or as part of) beginning implementation.
+2. **If you encounter pre-existing test failures** while running the doctor or sync suites (or any test), per charter you MUST open a GitHub issue first — record the failing command, the failure summary, and your evidence that the failure is pre-existing — before treating it as accepted baseline.
+3. **Respect C-004**: do NOT rename any field on `ForegroundIdentity` / `DaemonOwnerRecord`. Read these structures; do not modify the names. That rename is the responsibility of sibling issue `#43`.
 
 ## Objective
 
@@ -223,9 +232,10 @@ See [contracts/doctor-restart-daemon.md](../contracts/doctor-restart-daemon.md) 
 ## Definition of Done
 
 - [ ] All six subtasks complete; each `[ ]` above checked.
-- [ ] Spec-side requirements FR-007, FR-008, FR-009 satisfied.
+- [ ] Spec-side requirements FR-007, FR-008, FR-009, C-004 satisfied.
 - [ ] NFR-002 (≤10 s end-to-end on dev machine) confirmed in manual smoke or logged in the PR.
 - [ ] No existing daemon-lifecycle tests fail.
+- [ ] Charter pre-flight items completed: HiC assignment recorded; any pre-existing test failures (if hit) opened as GitHub issues before continuing.
 
 ## Reviewer Guidance
 

@@ -7,6 +7,7 @@ dependencies:
 - WP03
 requirement_refs:
 - NFR-003
+- NFR-004
 - C-001
 - C-002
 planning_base_branch: main
@@ -18,6 +19,7 @@ subtasks:
 - T019
 - T020
 - T021
+- T023
 agent: claude
 history:
 - at: '2026-05-19T08:46:23Z'
@@ -177,6 +179,30 @@ The canary harness lives at `Priivacy-ai/spec-kitty-end-to-end-testing` and uses
 - [ ] Scenarios 1, 2, 4: GREEN in captured artifacts.
 - [ ] Scenario 3: red is acceptable; green is a bonus.
 
+### T023 — Full pytest gate (NFR-004)
+
+**Purpose**: Confirm the rc bump (carrying WP01+WP02+WP03 fixes) does not regress any pre-existing detector, sync, doctor, or unrelated test suite.
+
+**Steps**:
+1. From the canary's perspective the rc bump is opaque, so run the full pytest from a checkout of `Priivacy-ai/spec-kitty` at the same commit that produced the rc bump (sibling clone to the one used for the canary):
+   ```bash
+   cd ../spec-kitty
+   git fetch && git checkout <rc-bump-tag-or-commit>
+   pytest tests/ -q 2>&1 | tee /tmp/full-pytest.log
+   ```
+2. Note the exit code and the failure summary. Acceptable outcomes:
+   - **0 failures** → ideal.
+   - **Failures only in test files that exist on `main` of `spec-kitty` and also failed on the same commit before this mission landed**: per charter, open a GitHub issue first (cite command + summary + evidence the failure is pre-existing). Continue.
+   - **Any new failure attributable to WP01/WP02/WP03 changes**: HALT, route back to the responsible WP, document in a GH issue, do NOT mark this WP done.
+3. Copy `/tmp/full-pytest.log` (or at least its tail) into `kitty-specs/unblock-sync-identity-boundary-canary-01KRZJ07/canary-evidence/full-pytest.log`.
+
+**Files**:
+- `kitty-specs/unblock-sync-identity-boundary-canary-01KRZJ07/canary-evidence/full-pytest.log` (new)
+
+**Validation**:
+- [ ] Log captured under `canary-evidence/`.
+- [ ] Exit code 0, OR all failures pre-existing AND a GitHub issue opened for them.
+
 ### T021 — Record final outcome summary
 
 **Purpose**: Make the canary outcome readable directly from the PR description without unzipping artifacts.
@@ -198,11 +224,12 @@ The canary harness lives at `Priivacy-ai/spec-kitty-end-to-end-testing` and uses
 
 ## Definition of Done
 
-- [ ] All five subtasks complete; each `[ ]` above checked.
+- [ ] All six subtasks complete; each `[ ]` above checked.
 - [ ] Spec-side NFR-003 satisfied (scenarios 1, 2, 4 green in captured artifacts).
+- [ ] Spec-side NFR-004 satisfied (full `pytest tests/` shows 0 new failures, or any failures pre-existing and tracked).
 - [ ] Constraint C-001 respected (no commits to the sibling repo).
 - [ ] Constraint C-002 honored (scenario 3 red is acceptable).
-- [ ] `canary-evidence/` contains `latest.json`, `run-1.json`, `canary-run.log`, `RUNBOOK.md`.
+- [ ] `canary-evidence/` contains `latest.json`, `run-1.json`, `canary-run.log`, `RUNBOOK.md`, `full-pytest.log`.
 
 ## Reviewer Guidance
 

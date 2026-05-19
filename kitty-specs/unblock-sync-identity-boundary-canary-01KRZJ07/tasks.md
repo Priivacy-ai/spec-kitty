@@ -34,12 +34,14 @@ Three CLI bug fixes (WP01–WP03) plus one cross-repo canary verification (WP04)
 | T019 | Capture `latest.json` + `run-1.json` (and optional `canary-run.log`) under `canary-evidence/` | WP04 |  |
 | T020 | Verify scenarios 1, 2, 4 are GREEN in captured artifacts; scenario 3 may remain RED | WP04 |  |
 | T021 | Record final canary outcome summary in WP04 PR description | WP04 |  |
+| T022 | Audit performance gate (≤ 2× rc13 baseline on 100-mission tree) | WP01 |  |
+| T023 | Full `pytest tests/` gate against rc bump (NFR-004 regression check) | WP04 |  |
 
 **Parallelization**: WP01, WP02, WP03 run in three independent lanes. WP04 starts only after WP01+WP02+WP03 are approved and merged.
 
 ## Work Packages
 
-### WP01 — Audit row-family classifier (#1122) — ~350 lines
+### WP01 — Audit row-family classifier (#1122) — ~430 lines
 
 **Goal**: Eliminate the `FORBIDDEN_KEY` false positive on mission-lifecycle rows so fresh missions don't auto-create TeamSpace blockers.
 
@@ -53,6 +55,7 @@ Three CLI bug fixes (WP01–WP03) plus one cross-repo canary verification (WP04)
 - [ ] T003 Per-shape regression test matrix (WP01)
 - [ ] T004 End-to-end integration test on fresh mission (WP01)
 - [ ] T005 mypy --strict + ruff + audit suite green check (WP01)
+- [ ] T022 Audit performance gate (NFR-001; ≤ 2× rc13 baseline) (WP01)
 
 **Implementation sketch**: predicate in `shape_registry.py` → detector consults it before applying `FORBIDDEN_KEYS` → test matrix per contract row → integration test confirms fresh mission yields zero findings.
 
@@ -60,7 +63,7 @@ Three CLI bug fixes (WP01–WP03) plus one cross-repo canary verification (WP04)
 
 **Risks**: classifier accidentally accepts malformed status-transition rows. Mitigated by the explicit "AND" predicate (`aggregate_type==Mission` AND `event_type`) plus the regression test for the malformed-row case.
 
-**Requirement refs**: FR-001, FR-002, FR-003, FR-009 (regression test). Constraints touched: C-003 (no file split), C-005 (additive against existing event logs).
+**Requirement refs**: FR-001, FR-002, FR-003, FR-009 (regression test), NFR-001 (audit perf ≤ 2× rc13 baseline). Constraints touched: C-003 (no file split), C-005 (additive against existing event logs).
 
 ---
 
@@ -85,7 +88,7 @@ Three CLI bug fixes (WP01–WP03) plus one cross-repo canary verification (WP04)
 
 **Risks**: visual regression on wide-TTY operator view. Mitigated by keeping the Table for non-path rows and snapshot-testing both renderings.
 
-**Requirement refs**: FR-004, FR-005, FR-006, FR-009 (regression test).
+**Requirement refs**: FR-004, FR-005, FR-006, FR-009 (regression test), C-004 (no rename of `_failure_lines_from_set` / identity field names).
 
 ---
 
@@ -111,11 +114,11 @@ Three CLI bug fixes (WP01–WP03) plus one cross-repo canary verification (WP04)
 
 **Risks**: `restart-daemon` invoked with no owner record must produce an actionable error (exit 1) not a crash. Stop-hang case must leave owner record intact (exit 3). Mitigated by per-scenario regression test matrix.
 
-**Requirement refs**: FR-007, FR-008, FR-009 (regression test). Constraints touched: NFR-002 (≤10 s end-to-end).
+**Requirement refs**: FR-007, FR-008, FR-009 (regression test), NFR-002 (≤10 s end-to-end), C-004 (no rename of identity field names — read-only consumer).
 
 ---
 
-### WP04 — Canary local verification — ~280 lines
+### WP04 — Canary local verification — ~360 lines
 
 **Goal**: Prove scenarios 1, 2, and 4 of the deployed-dev sync identity-boundary canary turn green against the rc bump that bundles WP01–WP03 fixes. Capture evidence in this repo.
 
@@ -128,6 +131,7 @@ Three CLI bug fixes (WP01–WP03) plus one cross-repo canary verification (WP04)
 - [ ] T018 Run `pytest tests/identity_boundary/` against rc bump (WP04)
 - [ ] T019 Capture canary artifacts under `canary-evidence/` (WP04)
 - [ ] T020 Verify scenarios 1, 2, 4 GREEN; scenario 3 may stay RED (WP04)
+- [ ] T023 Full `pytest tests/` gate (NFR-004 regression check) (WP04)
 - [ ] T021 Record canary outcome summary in WP04 PR description (WP04)
 
 **Implementation sketch**: clone/checkout `Priivacy-ai/spec-kitty-end-to-end-testing` next to this repo → install rc bump → run `pytest tests/identity_boundary/` → copy `artifacts/sync_identity_boundary/<rc>/{latest,run-1}.json` into `canary-evidence/` → assert scenarios 1, 2, 4 pass.
@@ -139,7 +143,7 @@ Three CLI bug fixes (WP01–WP03) plus one cross-repo canary verification (WP04)
 - Sibling-repo checkout drifts (recent commit on `main` of `spec-kitty-end-to-end-testing`). Mitigated by recording the exact `HEAD` commit of the sibling repo in the runbook.
 - `#43` not yet landed → scenario 3 red. This is **expected** per C-002 and does not gate this mission.
 
-**Requirement refs**: NFR-003. Constraints touched: C-001 (no code in sibling repo), C-002 (scenario 3 may stay red).
+**Requirement refs**: NFR-003 (canary scenarios 1, 2, 4 green), NFR-004 (no regression in existing test suites). Constraints touched: C-001 (no code in sibling repo), C-002 (scenario 3 may stay red).
 
 ## MVP Scope
 
