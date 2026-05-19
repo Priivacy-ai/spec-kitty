@@ -16,7 +16,7 @@ Tracking issues:
 
 - Primary epic: [Priivacy-ai/spec-kitty#1138](https://github.com/Priivacy-ai/spec-kitty/issues/1138) — Epic: Make retrospective learning default-on and policy-driven for 3.2.0
 - 3.2.0 release context: [#822](https://github.com/Priivacy-ai/spec-kitty/issues/822) — Epic: 3.2.0 stabilization and release readiness
-- Pytest collection blocker (in scope this mission): [#1137](https://github.com/Priivacy-ai/spec-kitty/issues/1137) — `spec_kitty_events` 5.1.0 missing `normalize_event_id`/`Event` exports
+- Pytest collection blocker (closed not-a-bug; documentation-only follow-up in scope): [#1137](https://github.com/Priivacy-ai/spec-kitty/issues/1137) — diagnosed as local PEP 420 namespace-package corruption from a partial `pip uninstall`; the published wheel is fine. Fix command: `uv sync --reinstall-package spec-kitty-events`. A code workaround in `validate.py` would violate the FR-024 frozen public-surface contract per the closing comment
 - Schema-version bootstrap papercut surfaced during specify: [#1158](https://github.com/Priivacy-ai/spec-kitty/issues/1158) — `mission create` blocked while `upgrade` reports up-to-date
 - Recent doc PR to revisit: [#1136](https://github.com/Priivacy-ai/spec-kitty/pull/1136) — Clarify accept, merge, and retrospective workflow (its post-merge guidance currently overstates what `summary`/`synthesize` capture)
 
@@ -150,7 +150,7 @@ For every completed mission under default policy:
 | FR-014 | The silent "fabricate an empty completed record when artifacts look sufficient" fallback inside `agent retrospect synthesize` is removed OR is moved behind an explicit `--fabricate-empty` flag whose use is logged as actor-attributed provenance. The default path errors with an actionable message pointing at `retrospect create`. | Required |
 | FR-015 | `SPEC_KITTY_RETROSPECTIVE` and `SPEC_KITTY_MODE` are demoted to test/developer overrides. At first use per session, the runtime emits a deprecation warning naming the durable equivalent (`retrospective.enabled` / `retrospective.timing` + `retrospective.failure_policy`). Durable policy takes precedence when both are present; deprecation warning still emits. | Required |
 | FR-016 | Tests prefer injected policy over ambient env. The retrospective unit and integration test suites MUST construct `RetrospectivePolicy` objects directly rather than mutating `os.environ`, with at most a single dedicated test module exercising the deprecation-warning path. | Required |
-| FR-017 | The pytest collection blocker tracked in [#1137](https://github.com/Priivacy-ai/spec-kitty/issues/1137) is resolved within this mission. Resolution may be (a) a fix to `spec_kitty_events` that restores `normalize_event_id` and `Event` top-level exports, (b) a local import-site fallback that uses a stable subpath import compatible with the released `spec_kitty_events` 5.1.0, or (c) a pinned compatible `spec_kitty_events` version in `pyproject.toml` with a follow-up tracking issue. The chosen approach is documented in the plan and mission-review report. | Required |
+| FR-017 | A diagnostic note is added to `CONTRIBUTING.md` (or the project's equivalent local-dev troubleshooting doc) documenting the [#1137](https://github.com/Priivacy-ai/spec-kitty/issues/1137) namespace-package corruption diagnostic (`python -c "import spec_kitty_events; print(spec_kitty_events.__file__, spec_kitty_events.__path__)"` — `None` + `_NamespacePath(...)` is the symptom) and the canonical fix command (`uv sync --reinstall-package spec-kitty-events`). NO code fallback in `validate.py` or other import sites is added; per the #1137 closing comment, that would violate the FR-024 frozen public-surface contract. | Required |
 | FR-018 | Docs are updated to reflect the post-mission CLI semantics: `summary` is read-only aggregation; `create` authors a record; `backfill` creates historical records; `synthesize` previews/applies proposals from an existing record. Affected files at minimum: `README.md`, `docs/how-to/accept-and-merge.md`, `docs/how-to/merge-feature.md`, `docs/how-to/use-retrospective-learning.md`, `docs/explanation/retrospective-learning-loop.md`, `docs/reference/cli-commands.md`, `docs/reference/slash-commands.md`, `docs/tutorials/your-first-feature.md`. PR #1136 wording is corrected as part of this update (no separate short-term doc PR is required since this mission ships before that fix would otherwise lapse). | Required |
 | FR-019 | Shipped skills are updated to reflect the same semantics. Affected at minimum: `src/doctrine/skills/spec-kitty-mission-review/SKILL.md`, `spec-kitty-implement-review/SKILL.md`, `spec-kitty-program-orchestrate/SKILL.md`, `spec-kitty-runtime-next/SKILL.md`. The post-merge guidance reads: mission review first, then create/capture retrospective, then summary or synthesize. | Required |
 | FR-020 | The retrospective-facilitator agent profile (`src/doctrine/agent_profiles/shipped/retrospective-facilitator.agent.yaml`) is reviewed and, if needed, updated so its declared boundaries and permissions match the FR-001/FR-002 policy model and the FR-010 separation between authoring and applying. | Required |
@@ -162,7 +162,7 @@ For every completed mission under default policy:
 | ID | Description | Measurable Threshold | Status |
 |---|---|---|---|
 | NFR-001 | Targeted test runtime for retrospective surfaces | `uv run pytest tests/retrospective tests/integration/retrospective tests/next/test_retrospective_terminus_wiring.py -q` completes in under 60 seconds wall-clock on a stock developer machine. | Required |
-| NFR-002 | No regression in the full test suite | `uv run pytest tests/ -q` exits 0 on `main` after the mission merges; the FR-017 fix unblocks collection. | Required |
+| NFR-002 | No regression in the full test suite | `uv run pytest tests/ -q` exits 0 on `main` after the mission merges. Collection works today in the project's uv-managed env (verified: 207 tests collected in `tests/retrospective/` in 2.4s). | Required |
 | NFR-003 | Lint and type-check gates pass | `uv run ruff check src tests` exits 0. Mypy/pyright configuration follows existing repo conventions for the touched modules. | Required |
 | NFR-004 | Coverage gate for new retrospective code paths | Combined line coverage of `src/specify_cli/retrospective/`, `src/specify_cli/next/runtime_bridge.py`, `src/specify_cli/next/_internal_runtime/retrospective_terminus.py`, and the new `retrospect create` / `backfill` CLI surface is ≥ 85% measured by `coverage` after the mission's tests run. | Required |
 | NFR-005 | Default-policy completion latency | Default-policy mission completion (post-merge path) adds at most 2 seconds wall-clock on a representative mission (≤ 5 WPs, ≤ 50 events) for retrospective generation. Measured by a focused integration test. | Required |
@@ -179,7 +179,7 @@ For every completed mission under default policy:
 | C-003 | Do not delete existing retrospective schema, event types, or historical records. All changes are additive; deprecated paths are demoted, not removed, this release cycle. | Required |
 | C-004 | Environment variables MUST NOT be the durable user-facing policy model. They remain as test/developer overrides for one release cycle and are documented as such. | Required |
 | C-005 | Auto-application of structural doctrine/DRG/glossary changes is OFF by default. Policy may explicitly enable narrow low-risk classes; structural changes always require human approval. | Required |
-| C-006 | Existing tests under `tests/` MUST continue to pass post-merge (gated by FR-017). | Required |
+| C-006 | Existing tests under `tests/` MUST continue to pass post-merge. | Required |
 | C-007 | Mission identity uses ULID + `mid8`. Mission slug is `retrospective-default-policy-01KS049J`; `mission_number` is display-only and `null` pre-merge. All cross-mission references use `mission_id` or `mid8`, never `mission_number`. | Required |
 | C-008 | The schema-version bootstrap quirk surfaced in [#1158](https://github.com/Priivacy-ai/spec-kitty/issues/1158) was worked around in-session by directly invoking `_update_schema_version()`; this mission MUST NOT depend on that workaround at production sites. If the proper fix lands in #1158 before this mission merges, depend on it; otherwise note the workaround in the mission-review report. | Required |
 
@@ -194,7 +194,7 @@ For every completed mission under default policy:
 | SC-005 | `spec-kitty retrospect backfill --since 2026-01-01` on this repo's `kitty-specs/` produces a JSON report enumerating created/skipped/failed counts that match a hand-tabulated expected count. | One-off verification table in the mission-review report. |
 | SC-006 | The deprecation warning fires exactly once per process when an env var is set, names the durable replacement key, and the durable policy still wins. | FR-015, FR-016, NFR-006 tests green. |
 | SC-007 | A reader of the updated docs can find — within 30 seconds of opening `docs/how-to/use-retrospective-learning.md` — the canonical post-merge sequence (mission review → create/capture retrospective → summary/synthesize) and the difference between `create`, `summary`, and `synthesize`. | Mission-review doc walkthrough. |
-| SC-008 | `uv run pytest tests/ -q` collects without error AND exits 0. | CI green; the FR-017 fix is the load-bearing piece. |
+| SC-008 | `uv run pytest tests/ -q` collects without error AND exits 0. | CI green. The FR-017 CONTRIBUTING note unblocks local contributor envs that hit the namespace-package corruption signature; CI itself is unaffected (already green on PR #1136). |
 
 ## Assumptions
 
@@ -208,7 +208,7 @@ For every completed mission under default policy:
 
 **Dependencies**:
 
-- [#1137](https://github.com/Priivacy-ai/spec-kitty/issues/1137) (`spec_kitty_events` 5.1.0 top-level exports) — addressed in scope per FR-017.
+- [#1137](https://github.com/Priivacy-ai/spec-kitty/issues/1137) (`spec_kitty_events` 5.1.0 top-level exports) — CLOSED not-a-bug; this mission carries only the FR-017 documentation note, no code change.
 - The canonical event-log infrastructure (`src/specify_cli/status/`) and the canonical mission-identity model (mission 083+) — both already merged.
 - The `spec-kitty merge` and mission-completion paths — load-bearing for FR-008 / FR-009.
 
@@ -238,7 +238,6 @@ Decomposition lives at `/spec-kitty.tasks` time. The brief's suggestion (to vali
 3. **WP-Runtime** — Wire generator into runtime; default post-completion best-effort + strict pre-completion gate + policy-source attribution on events (FR-005, FR-008, FR-009, FR-021, NFR-005).
 4. **WP-CLI** — `retrospect create` and `retrospect backfill` commands; tighten `synthesize` fallback (FR-011, FR-012, FR-013, FR-014).
 5. **WP-Env-Deprecate** — Deprecation warnings + test rewrites to prefer injected policy (FR-015, FR-016, NFR-006).
-6. **WP-Docs-Skills** — Docs and shipped-skills updates; PR #1136 wording fix; retrospective-facilitator profile review (FR-018, FR-019, FR-020, FR-022, NFR-008).
-7. **WP-Events-Unblock** — Resolve [#1137](https://github.com/Priivacy-ai/spec-kitty/issues/1137) pytest collection blocker (FR-017, NFR-002).
+6. **WP-Docs-Skills** — Docs and shipped-skills updates; PR #1136 wording fix; retrospective-facilitator profile review; CONTRIBUTING.md note for the #1137 namespace-package diagnostic (FR-017, FR-018, FR-019, FR-020, FR-022, NFR-008).
 
-The dependency order is roughly Policy → Generator → Runtime → CLI in parallel with Env-Deprecate, with Docs-Skills landing after the surfaces stabilize. WP-Events-Unblock should land first (or in parallel) so the test suite is honest end-to-end.
+The dependency order is roughly Policy → Generator → Runtime → CLI in parallel with Env-Deprecate, with Docs-Skills landing after the surfaces stabilize.
