@@ -345,3 +345,4 @@ spec-kitty agent action implement WP05 --agent claude
 - 2026-05-19T16:46:28Z – claude:claude-sonnet-4-6:reviewer-renata:reviewer – shell_pid=53834 – Started review via action command
 - 2026-05-19T16:54:04Z – claude:claude-sonnet-4-6:reviewer-renata:reviewer – shell_pid=53834 – Moved to planned
 - 2026-05-19T16:54:38Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=55085 – Started implementation via action command
+- 2026-05-19T17:05:31Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=55085 – Cycle 2: fixed synthesize_fabricate provenance gap AND emit-skipped dead-flag. End-to-end test verifies the written record provenance.kind; emit_skipped emits per-mission RetrospectiveSkipped events on backfill skips. 91 tests pass, retrospect.py=99% coverage.
