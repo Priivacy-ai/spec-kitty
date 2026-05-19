@@ -78,6 +78,14 @@ _CARVE_OUTS: frozenset[str] = frozenset(
         # compatibility gate that decides whether normal readers may proceed.
         "src/doctrine/versioning.py",
         "src/specify_cli/cli/commands/charter_bundle.py",
+        # Mission-type-profile resolver: ``_project_has_doctrine_overrides``
+        # performs a best-effort governance probe (any I/O or parse failure
+        # collapses to ``False``) to decide between hard-fail and skip
+        # semantics for unknown mission types. It is not a primary reader of
+        # ``governance.yaml`` — callers upstream (charter-context build) own
+        # bundle freshness. The literal ``"governance.yaml"`` lives in the
+        # ``_PROJECT_GOVERNANCE_PATH`` constant tuple used by that probe.
+        "src/charter/mission_type_profiles.py",
     }
 )
 
