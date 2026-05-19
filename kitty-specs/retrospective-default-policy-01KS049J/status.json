@@ -1,7 +1,7 @@
 {
-  "event_count": 42,
-  "last_event_id": "01KS0KZVM6F7W17HH5CFK3PKR0",
-  "materialized_at": "2026-05-19T17:19:29.414144+00:00",
+  "event_count": 44,
+  "last_event_id": "01KS0M0SJNX0EWPN7GYMKKYTCA",
+  "materialized_at": "2026-05-19T17:20:00.085129+00:00",
   "mission_number": "",
   "mission_slug": "retrospective-default-policy-01KS049J",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 1
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
@@ -60,11 +60,11 @@
       "last_transition_at": "2026-05-19T17:19:29.414144+00:00"
     },
     "WP07": {
-      "actor": "finalize-tasks",
+      "actor": "claude:claude-sonnet-4-6:curator-carla:curator",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KS07NMETMH4FNR0TTAEKKCN0",
-      "last_transition_at": "2026-05-19T13:44:11.482206+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KS0M0SJNX0EWPN7GYMKKYTCA",
+      "last_transition_at": "2026-05-19T17:20:00.085129+00:00"
     }
   }
 }

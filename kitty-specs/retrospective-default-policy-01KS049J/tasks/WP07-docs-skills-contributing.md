@@ -23,7 +23,8 @@ subtasks:
 - T041
 phase: Polish
 assignee: ''
-agent: claude
+agent: "claude:claude-sonnet-4-6:curator-carla:curator"
+shell_pid: "59674"
 history:
 - timestamp: '2026-05-19T13:29:59Z'
   agent: system
@@ -328,3 +329,7 @@ Implementation command:
 ```bash
 spec-kitty agent action implement WP07 --agent claude
 ```
+
+## Activity Log
+
+- 2026-05-19T17:20:00Z – claude:claude-sonnet-4-6:curator-carla:curator – shell_pid=59674 – Started implementation via action command
