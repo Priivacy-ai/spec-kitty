@@ -98,6 +98,9 @@ nodes:
 - urn: directive:DIRECTIVE_037
   kind: directive
   label: Living Documentation Sync
+- urn: directive:DIRECTIVE_039
+  kind: directive
+  label: Lynn Cole Engineering Culture
 - urn: paradigm:anemic-domain-model
   kind: paradigm
 - urn: paradigm:atomic-design
@@ -193,6 +196,9 @@ nodes:
 - urn: tactic:atdd-adversarial-acceptance
   kind: tactic
   label: Adversarial Acceptance Test Definition
+- urn: tactic:adversarial-qa-handoff
+  kind: tactic
+  label: Adversarial QA Handoff
 - urn: tactic:atomic-design-review-checklist
   kind: tactic
   label: Atomic Design Review Checklist
@@ -208,6 +214,9 @@ nodes:
 - urn: tactic:black-box-integration-testing
   kind: tactic
   label: Black-Box Integration Testing
+- urn: tactic:boring-code-review
+  kind: tactic
+  label: Boring Code Review
 - urn: tactic:bug-fixing-checklist
   kind: tactic
   label: Bug-Fixing Checklist
@@ -264,6 +273,12 @@ nodes:
 - urn: tactic:forensic-repository-audit
   kind: tactic
   label: Forensic Repository Audit
+- urn: tactic:focused-function-complexity-check
+  kind: tactic
+  label: Focused Function Complexity Check
+- urn: tactic:generated-code-stewardship
+  kind: tactic
+  label: Generated Code Stewardship
 - urn: tactic:glossary-curation-interview
   kind: tactic
   label: Glossary Curation Interview
@@ -927,6 +942,33 @@ edges:
   relation: requires
 - source: directive:DIRECTIVE_034
   target: tactic:zombies-tdd
+  relation: requires
+- source: directive:DIRECTIVE_039
+  target: directive:DIRECTIVE_001
+  relation: requires
+- source: directive:DIRECTIVE_039
+  target: directive:DIRECTIVE_030
+  relation: requires
+- source: directive:DIRECTIVE_039
+  target: directive:DIRECTIVE_034
+  relation: requires
+- source: directive:DIRECTIVE_039
+  target: tactic:adversarial-qa-handoff
+  relation: requires
+- source: directive:DIRECTIVE_039
+  target: tactic:avoid-gold-plating
+  relation: requires
+- source: directive:DIRECTIVE_039
+  target: tactic:boring-code-review
+  relation: requires
+- source: directive:DIRECTIVE_039
+  target: tactic:easy-to-change
+  relation: requires
+- source: directive:DIRECTIVE_039
+  target: tactic:focused-function-complexity-check
+  relation: requires
+- source: directive:DIRECTIVE_039
+  target: tactic:generated-code-stewardship
   relation: requires
 - source: paradigm:atomic-design
   target: tactic:atomic-design-review-checklist

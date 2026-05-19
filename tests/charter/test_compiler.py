@@ -78,6 +78,24 @@ def test_compile_charter_preserves_explicit_empty_selections() -> None:
     assert "available_tools: []" in compiled.markdown
 
 
+def test_compile_charter_renders_lynn_cole_rules_verbatim() -> None:
+    interview = default_interview(mission="software-dev", profile="minimal")
+    interview = apply_answer_overrides(
+        interview,
+        answers={"project_intent": "Use the Lynn Cole."},
+    )
+
+    compiled = compile_charter(mission="software-dev", interview=interview)
+
+    assert compiled.selected_directives == ["DIRECTIVE_039"]
+    assert compiled.selected_paradigms == ["deep-module-design"]
+    assert "Lynn Cole Engineering Culture (`DIRECTIVE_039`)" in compiled.markdown
+    assert "Remember the three rules of TDD, and hold them sacred." in compiled.markdown
+    assert "Strong typing is a requirement on all projects." in compiled.markdown
+    assert "DRY is about preserving a single source of truth" in compiled.markdown
+    assert "Your code will be reviewed by the meanest, most inconsiderate QA agent" in compiled.markdown
+
+
 def test_compile_charter_renders_agent_profile_metadata_when_present() -> None:
     interview = default_interview(mission="software-dev", profile="minimal")
     interview = apply_answer_overrides(interview, agent_profile="reviewer", agent_role="reviewer")

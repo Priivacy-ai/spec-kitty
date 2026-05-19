@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.resources
+import re
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -151,6 +152,20 @@ _DEFAULT_MISSION_DIRECTIVES: dict[str, tuple[str, ...]] = {}
 
 
 _UNSET = object()
+_LYNN_COLE_DIRECTIVE = "DIRECTIVE_039"
+_LYNN_COLE_PARADIGM = "deep-module-design"
+_LYNN_COLE_EXPLICIT_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"\blynn\s+cole\b"),
+)
+_LYNN_COLE_CONCERN_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"\bagents?\s+(?:write|produce|generate|create)\s+too\s+much\s+code\b"),
+    re.compile(r"\b(?:ai|llm|agentic|generated)\s+code\s+(?:is\s+)?(?:bloated|sprawling|too\s+long)\b"),
+    re.compile(r"\b(?:code|implementation)\s+bloat\b"),
+    re.compile(r"\b(?:avoid|stop|prevent|reduce)\s+(?:agentic\s+)?(?:code\s+)?bloat\b"),
+    re.compile(r"\bover[- ]?abstract(?:ion|ed|ing)?\b"),
+    re.compile(r"\bsprawling\s+(?:helpers?|functions?|code|implementation)\b"),
+    re.compile(r"\btoo\s+many\s+(?:helpers?|abstractions?|files?|layers?)\b"),
+)
 
 
 @dataclass(frozen=True)
@@ -207,7 +222,7 @@ class CharterInterview:
                 if parsed is not None:
                     local_supporting_files.append(parsed)
 
-        return cls(
+        return apply_doctrine_intent_aliases(cls(
             mission=mission,
             profile=profile,
             answers=answers,
@@ -218,7 +233,7 @@ class CharterInterview:
             agent_role=_normalize_optional_string(data.get("agent_role")),
             local_supporting_files=local_supporting_files,
             selected_tactics=_normalize_list(data.get("selected_tactics")),
-        )
+        ))
 
 
 def default_interview(
@@ -251,7 +266,7 @@ def default_interview(
         available=catalog.directives,
     )
 
-    return CharterInterview(
+    return apply_doctrine_intent_aliases(CharterInterview(
         mission=mission,
         profile=profile,
         answers=answers,
@@ -271,7 +286,7 @@ def default_interview(
             cast(Iterable[str] | None, defaults.get("selected_tactics")),
             fallback=[],
         ),
-    )
+    ))
 
 
 def read_interview_answers(path: Path, *, unsafe: bool = False) -> CharterInterview | None:
@@ -349,7 +364,7 @@ def apply_answer_overrides(
     else:
         resolved_local = list(cast(list[LocalSupportDeclaration], local_supporting_files))
 
-    return CharterInterview(
+    return apply_doctrine_intent_aliases(CharterInterview(
         mission=interview.mission,
         profile=interview.profile,
         answers=merged_answers,
@@ -372,7 +387,50 @@ def apply_answer_overrides(
             selected_tactics,
             fallback=interview.selected_tactics,
         ),
+    ))
+
+
+def apply_doctrine_intent_aliases(interview: CharterInterview) -> CharterInterview:
+    """Select doctrine implied by well-known user shorthand in interview text."""
+    if not _matches_lynn_cole_alias(interview):
+        return interview
+
+    selected_directives = _append_unique(interview.selected_directives, _LYNN_COLE_DIRECTIVE)
+    selected_paradigms = _append_unique(interview.selected_paradigms, _LYNN_COLE_PARADIGM)
+    if (
+        selected_directives == interview.selected_directives
+        and selected_paradigms == interview.selected_paradigms
+    ):
+        return interview
+
+    return CharterInterview(
+        mission=interview.mission,
+        profile=interview.profile,
+        answers=dict(interview.answers),
+        selected_paradigms=selected_paradigms,
+        selected_directives=selected_directives,
+        available_tools=list(interview.available_tools),
+        agent_profile=interview.agent_profile,
+        agent_role=interview.agent_role,
+        local_supporting_files=list(interview.local_supporting_files or []),
+        selected_tactics=list(interview.selected_tactics),
     )
+
+
+def _matches_lynn_cole_alias(interview: CharterInterview) -> bool:
+    haystack = " ".join(str(value).lower() for value in interview.answers.values())
+    if not haystack.strip():
+        return False
+    return any(pattern.search(haystack) for pattern in _LYNN_COLE_EXPLICIT_PATTERNS) or any(
+        pattern.search(haystack) for pattern in _LYNN_COLE_CONCERN_PATTERNS
+    )
+
+
+def _append_unique(values: list[str], item: str) -> list[str]:
+    result = list(values)
+    if item not in result:
+        result.append(item)
+    return result
 
 
 def _normalize_iterable(values: Iterable[str] | None, *, fallback: list[str]) -> list[str]:

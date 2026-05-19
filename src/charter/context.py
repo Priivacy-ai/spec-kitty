@@ -187,7 +187,19 @@ def _classify_artifact_urns(
     project_directives: set[str],
 ) -> tuple[list[str], list[str], list[str], list[str]]:
     """Partition resolved artifact URNs into doctrine-type buckets."""
-    from doctrine.drg.models import NodeKind
+    from doctrine.drg.models import NodeKind, Relation
+    from doctrine.drg.query import resolve_transitive_refs
+
+    selected_closure = resolve_transitive_refs(
+        merged,
+        start_urns={f"directive:{directive_id}" for directive_id in project_directives},
+        relations={Relation.REQUIRES, Relation.SUGGESTS},
+    )
+    artifact_urns = set(artifact_urns)
+    artifact_urns.update(f"directive:{directive_id}" for directive_id in selected_closure.directives)
+    artifact_urns.update(f"tactic:{tactic_id}" for tactic_id in selected_closure.tactics)
+    artifact_urns.update(f"styleguide:{styleguide_id}" for styleguide_id in selected_closure.styleguides)
+    artifact_urns.update(f"toolguide:{toolguide_id}" for toolguide_id in selected_closure.toolguides)
 
     directive_ids: list[str] = []
     tactic_ids: list[str] = []

@@ -69,11 +69,13 @@ class TestStatusInProgressLane:
     causing WPs with lane: in_progress to fall through to 'other'.
     """
 
+    @patch("specify_cli.cli.commands.agent.tasks.get_status_read_root")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     def test_in_progress_wp_appears_in_json_output(
-        self, mock_slug: Mock, mock_root: Mock, mock_branch: Mock, tmp_path: Path
+        self, mock_slug: Mock, mock_root: Mock, mock_branch: Mock,
+        mock_status_read: Mock, tmp_path: Path
     ):
         """WP with lane: in_progress must appear in by_lane count, not vanish."""
         repo_root = tmp_path
@@ -82,6 +84,7 @@ class TestStatusInProgressLane:
         tasks_dir.mkdir(parents=True)
 
         feature_dir = repo_root / "kitty-specs" / "042-test"
+        mock_status_read.return_value = repo_root
 
         # WP with canonical 'in_progress' lane (as persisted by 7-lane model)
         (tasks_dir / "WP01-alpha.md").write_text(
@@ -123,13 +126,14 @@ class TestStatusInProgressLane:
         assert wp_lanes["WP01"] == "in_progress"
         assert wp_lanes["WP02"] == "in_progress"  # 'doing' resolved to 'in_progress'
 
+    @patch("specify_cli.cli.commands.agent.tasks.get_status_read_root")
     @patch("specify_cli.core.stale_detection.check_doing_wps_for_staleness", return_value={})
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     def test_in_progress_wp_appears_in_rich_output(
         self, mock_slug: Mock, mock_root: Mock, mock_branch: Mock,
-        mock_stale: Mock, tmp_path: Path
+        mock_stale: Mock, mock_status_read: Mock, tmp_path: Path
     ):
         """WP with lane: in_progress must appear in the Doing column of the kanban board."""
         repo_root = tmp_path
@@ -138,6 +142,7 @@ class TestStatusInProgressLane:
         tasks_dir.mkdir(parents=True)
 
         feature_dir = repo_root / "kitty-specs" / "042-test"
+        mock_status_read.return_value = repo_root
 
         (tasks_dir / "WP01-alpha.md").write_text(
             '---\nwork_package_id: "WP01"\ntitle: "Alpha Task"\nlane: "in_progress"\n---\nContent\n'
