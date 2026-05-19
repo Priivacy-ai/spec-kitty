@@ -160,6 +160,64 @@ class TestLoadPackRegistry:
             registry = load_pack_registry(tmp_path)
         assert registry.packs == []
 
+    def test_canonical_config_visible_to_all_org_pack_consumers(
+        self, tmp_path: Path
+    ) -> None:
+        """One canonical config shape must drive registry, DRG, and context paths."""
+        from charter.context import _enumerate_org_pack_paths
+        from charter.drg import load_org_drg
+
+        pack_dir = tmp_path / "acme"
+        (pack_dir / "drg").mkdir(parents=True)
+        (pack_dir / "drg" / "fragment.yaml").write_text(
+            "nodes: []\nedges: []\n",
+            encoding="utf-8",
+        )
+        _write_config(
+            tmp_path,
+            f"""
+            doctrine:
+              org:
+                packs:
+                  - name: acme
+                    local_path: {pack_dir}
+            """,
+        )
+
+        assert [pack.name for pack in load_pack_registry(tmp_path).packs] == ["acme"]
+        assert [fragment.pack_name for fragment in load_org_drg(tmp_path)] == ["acme"]
+        assert [name for name, _path in _enumerate_org_pack_paths(tmp_path)] == ["acme"]
+
+    def test_legacy_top_level_config_visible_to_all_org_pack_consumers(
+        self, tmp_path: Path
+    ) -> None:
+        """Legacy ``organisation_packs`` is read through the same shared parser."""
+        from charter.context import _enumerate_org_pack_paths
+        from charter.drg import load_org_drg
+
+        pack_dir = tmp_path / "legacy-acme"
+        (pack_dir / "drg").mkdir(parents=True)
+        (pack_dir / "drg" / "fragment.yaml").write_text(
+            "nodes: []\nedges: []\n",
+            encoding="utf-8",
+        )
+        _write_config(
+            tmp_path,
+            f"""
+            organisation_packs:
+              - name: acme
+                source: local_path
+                path: {pack_dir}
+            """,
+        )
+
+        with pytest.warns(DeprecationWarning, match="organisation_packs"):
+            assert [pack.name for pack in load_pack_registry(tmp_path).packs] == ["acme"]
+        with pytest.warns(DeprecationWarning, match="organisation_packs"):
+            assert [fragment.pack_name for fragment in load_org_drg(tmp_path)] == ["acme"]
+        with pytest.warns(DeprecationWarning, match="organisation_packs"):
+            assert [name for name, _path in _enumerate_org_pack_paths(tmp_path)] == ["acme"]
+
 
 # ----------------------------------------------------------------------
 # save_pack_registry

@@ -41,7 +41,8 @@ class WorkflowSequence(BaseModel):
     * ``action_name`` values are unique within the workflow.
     * ``initial`` names an action that exists in ``actions``.
     * Every ``next`` reference names an action that exists in ``actions``.
-    * The action graph is acyclic (DAG check from ``initial``).
+    * Every action is reachable from ``initial``.
+    * The whole action graph is acyclic.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -67,7 +68,8 @@ class WorkflowSequence(BaseModel):
                     raise ValueError(
                         f"action {a.action_name!r} references unknown next: {n!r}"
                     )
-        # DAG check: BFS/DFS from initial; ensure no cycle.
+        # Reachability + DAG check over the whole graph. Hidden cycles in an
+        # unreachable island are malformed workflows, not harmless dead data.
         _check_acyclic(self.actions, self.initial)
         return self
 
@@ -75,8 +77,10 @@ class WorkflowSequence(BaseModel):
 def _check_acyclic(actions: list[ActionStep], start: str) -> None:
     """Raise ``ValueError`` if the action graph contains a cycle.
 
-    Uses an iterative DFS with a ``visiting`` (grey) set and a ``visited``
-    (black) set so it works on workflows with unreachable nodes too.
+    Uses DFS with a ``visiting`` (grey) set and a ``visited`` (black) set.
+    After walking from ``start``, any unvisited action is rejected as
+    unreachable. This closes the island-cycle bug where ``initial`` could be
+    terminal while an unreachable ``a -> b -> a`` cycle validated.
     """
     by_name = {a.action_name: a for a in actions}
     visiting: set[str] = set()
@@ -94,3 +98,6 @@ def _check_acyclic(actions: list[ActionStep], start: str) -> None:
         visited.add(node)
 
     _dfs(start)
+    unreachable = sorted(set(by_name) - visited)
+    if unreachable:
+        raise ValueError(f"unreachable workflow action(s): {unreachable}")
