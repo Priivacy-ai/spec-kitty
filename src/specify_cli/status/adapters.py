@@ -126,16 +126,16 @@ def fire_saas_fanout(**kwargs: Any) -> None:
     """
     # Diagnostic breadcrumb (issue #1141). Cheap dict.get() calls avoid
     # raising if the caller drops a key; the breadcrumb is best-effort and
-    # never blocks fan-out.
-    if _saas_handlers:
-        logger.info(
-            "fire_saas_fanout: wp_id=%s from=%s to=%s force=%s handlers=%d",
-            kwargs.get("wp_id"),
-            kwargs.get("from_lane"),
-            kwargs.get("to_lane"),
-            kwargs.get("force"),
-            len(_saas_handlers),
-        )
+    # never blocks fan-out. Log even with zero handlers; a missing handler
+    # registration is one of the states this breadcrumb is meant to reveal.
+    logger.info(
+        "fire_saas_fanout: wp_id=%s from=%s to=%s force=%s handlers=%d",
+        kwargs.get("wp_id"),
+        kwargs.get("from_lane"),
+        kwargs.get("to_lane"),
+        kwargs.get("force"),
+        len(_saas_handlers),
+    )
     for handler in _saas_handlers:
         try:
             handler(**kwargs)
