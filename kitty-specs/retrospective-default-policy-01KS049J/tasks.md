@@ -87,12 +87,12 @@ A reasonable cut for an early-feedback release: ship WP01-WP04 as a "preview" mi
 
 ### Included subtasks
 
-- [ ] T001 Define `RetrospectivePolicy` + `RetrospectivePermissions` domain models with built-in defaults (WP01)
-- [ ] T002 Implement resolver: charter → config → defaults; return `(policy, source_map)` (WP01)
-- [ ] T003 Implement charter `retrospective.precedence: config` delegation (WP01)
-- [ ] T004 Implement `PolicyResolutionError` + malformed-input handling per FR-024 (WP01)
-- [ ] T005 Wire env-var observation into `source_map` as deprecated source (never wins) (WP01)
-- [ ] T006 Unit tests for policy resolver covering FR-001/002/003/004/015/024 (WP01)
+- [x] T001 Define `RetrospectivePolicy` + `RetrospectivePermissions` domain models with built-in defaults (WP01)
+- [x] T002 Implement resolver: charter → config → defaults; return `(policy, source_map)` (WP01)
+- [x] T003 Implement charter `retrospective.precedence: config` delegation (WP01)
+- [x] T004 Implement `PolicyResolutionError` + malformed-input handling per FR-024 (WP01)
+- [x] T005 Wire env-var observation into `source_map` as deprecated source (never wins) (WP01)
+- [x] T006 Unit tests for policy resolver covering FR-001/002/003/004/015/024 (WP01)
 
 ### Implementation sketch
 
