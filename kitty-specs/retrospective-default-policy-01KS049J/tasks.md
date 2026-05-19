@@ -260,12 +260,12 @@ T018 sequential (the wiring change). T019, T020 can branch in parallel once T018
 
 ### Included subtasks
 
-- [ ] T024 [P] Implement `spec-kitty retrospect create --mission <handle>` per `contracts/retrospect-cli.contract.md` (FR-011) (WP05)
-- [ ] T025 [P] Add `--overwrite` / `--update` / `--json` flags + structured error codes for `create` (WP05)
-- [ ] T026 [P] Implement `spec-kitty retrospect backfill --since/--until --mission --dry-run --emit-skipped --emit-failures` (FR-012) (WP05)
-- [ ] T027 [P] Tighten `retrospect summary` to distinguish `has_findings` / `ran_no_findings` / `missing` / `failed` (FR-013, no semantic change) (WP05)
-- [ ] T028 [P] Tighten `agent retrospect synthesize` default-path error; add `--fabricate-empty` compat flag with actor-attributed provenance (FR-014) (WP05)
-- [ ] T029 [P] CLI tests covering all four surfaces + JSON contract assertions (WP05)
+- [x] T024 [P] Implement `spec-kitty retrospect create --mission <handle>` per `contracts/retrospect-cli.contract.md` (FR-011) (WP05)
+- [x] T025 [P] Add `--overwrite` / `--update` / `--json` flags + structured error codes for `create` (WP05)
+- [x] T026 [P] Implement `spec-kitty retrospect backfill --since/--until --mission --dry-run --emit-skipped --emit-failures` (FR-012) (WP05)
+- [x] T027 [P] Tighten `retrospect summary` to distinguish `has_findings` / `ran_no_findings` / `missing` / `failed` (FR-013, no semantic change) (WP05)
+- [x] T028 [P] Tighten `agent retrospect synthesize` default-path error; add `--fabricate-empty` compat flag with actor-attributed provenance (FR-014) (WP05)
+- [x] T029 [P] CLI tests covering all four surfaces + JSON contract assertions (WP05)
 
 ### Implementation sketch
 
