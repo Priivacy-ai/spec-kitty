@@ -171,11 +171,11 @@ T007 (types) and T012 (test scaffolding + fixtures) can start in parallel. T008-
 
 ### Included subtasks
 
-- [ ] T013 Implement `writer.write_record(record, mode)` with overwrite/update/error semantics per data-model.md (WP03)
-- [ ] T014 Enforce `synthesize_fabricate ⇒ ran_no_findings` invariant in writer validation (WP03)
-- [ ] T015 Add `RetrospectiveCaptured` + `RetrospectiveCaptureFailed` event types (reuse if existing per FR-024 frozen surface, else add additively) (WP03)
-- [ ] T016 Verify reducer no-op behavior for retrospective events; add fixture set under `tests/retrospective/fixtures/event_logs/` per FR-025 (WP03)
-- [ ] T017 Unit tests for writer + events + reducer fidelity (FR-021/025) (WP03)
+- [x] T013 Implement `writer.write_record(record, mode)` with overwrite/update/error semantics per data-model.md (WP03)
+- [x] T014 Enforce `synthesize_fabricate ⇒ ran_no_findings` invariant in writer validation (WP03)
+- [x] T015 Add `RetrospectiveCaptured` + `RetrospectiveCaptureFailed` event types (reuse if existing per FR-024 frozen surface, else add additively) (WP03)
+- [x] T016 Verify reducer no-op behavior for retrospective events; add fixture set under `tests/retrospective/fixtures/event_logs/` per FR-025 (WP03)
+- [x] T017 Unit tests for writer + events + reducer fidelity (FR-021/025) (WP03)
 
 ### Implementation sketch
 
