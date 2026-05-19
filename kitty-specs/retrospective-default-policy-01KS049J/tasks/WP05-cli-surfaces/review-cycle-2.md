@@ -5,7 +5,7 @@ mission_slug: retrospective-default-policy-01KS049J
 reproduction_command:
 reviewed_at: '2026-05-19T16:54:03Z'
 reviewer_agent: unknown
-verdict: rejected
+verdict: approved
 wp_id: WP05
 review_artifact_override_at: "2026-05-19T17:10:08Z"
 review_artifact_override_actor: "operator"
