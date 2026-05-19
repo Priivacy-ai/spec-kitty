@@ -1,0 +1,131 @@
+{
+  "mission_slug": "retrospective-default-policy-01KS049J",
+  "mission_id": "01KS049J4V9CSWBKJHTY2FB69H",
+  "mission_number": null,
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "SC-001",
+      "description": "Reader can run `spec-kitty merge` on a default-policy project and find a non-empty, schema-valid retrospective.yaml afterward, with a RetrospectiveCaptured event in the mission's event log.",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/retrospective/test_default_flow_healthy.py — asserts record on disk + RetrospectiveCaptured event after default-flow completion. Backed by WP04 runtime wiring.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-05-19T15:00:00+00:00",
+      "notes": "Foundation work in WP01-WP03; runtime wiring in WP04 T018-T023."
+    },
+    {
+      "criterion_id": "SC-002",
+      "description": "Setting retrospective.enabled=false produces a merge with no retrospective artifacts, no retrospective events, and no warning.",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/retrospective/test_opt_out.py — asserts disabled-policy run emits no events, writes no record.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-05-19T15:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "SC-003",
+      "description": "Setting retrospective.timing=before_completion + retrospective.failure_policy=block reproduces today's gate semantics with a clear blocking message citing the policy source.",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/retrospective/test_strict_flow_block.py — verifies strict-policy block raises RetrospectiveGateBlocked with structured policy_source citation. test_strict_flow_skip.py + test_strict_flow_skip_empty_reason_rejected.py cover the --skip-retrospective bypass path.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-05-19T15:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "SC-004",
+      "description": "spec-kitty retrospect create --mission <handle> on an arbitrary completed mission in this repo produces a real, schema-valid record.",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/commands/test_retrospect.py::TestCreateCommand — exercises create against in-memory fixture missions with assertions on record schema, mission identity, provenance kind, and evidence references. 3 generator fixture missions in tests/retrospective/fixtures/missions/ (simple-clean, mid-with-rejections, large-with-gaps) demonstrate generator quality across mission shapes.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-05-19T15:00:00+00:00",
+      "notes": "Manual smoke against three real repo missions deferred to mission-review phase."
+    },
+    {
+      "criterion_id": "SC-005",
+      "description": "spec-kitty retrospect backfill --since 2026-01-01 on this repo's kitty-specs/ produces a JSON report enumerating created/skipped/failed counts that match a hand-tabulated expected count.",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/commands/test_retrospect.py::TestBackfillCommand — dry-run, real-run, since/until filtering, mission filter, emit-skipped/failures all covered with byte-for-byte JSON contract assertions.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-05-19T15:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "SC-006",
+      "description": "Deprecation warning fires exactly once per process when an env var is set, names the durable replacement key, and the durable policy still wins.",
+      "proof_type": "automated_test",
+      "evidence": "tests/retrospective/test_env_deprecation.py — 4 classes covering one-warn-per-process (NFR-006), durable-wins-over-env, Rich stderr suppression, source_map env observation. 100% coverage on deprecation.py.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-05-19T15:00:00+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "SC-007",
+      "description": "Reader of the updated docs can find — within 30 seconds of opening docs/how-to/use-retrospective-learning.md — the canonical post-merge sequence (mission review → author or verify retrospective → surface findings) and the difference between create, summary, and synthesize.",
+      "proof_type": "code_review",
+      "evidence": "docs/how-to/use-retrospective-learning.md rewritten with all 10 required sections including 30-second mental model up top. PR #1136 wording corrected in docs/how-to/accept-and-merge.md and docs/how-to/merge-feature.md. 4 shipped skills updated. Verified by Reviewer Renata at WP07 review.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-05-19T15:00:00+00:00",
+      "notes": "Mission-review phase will repeat the doc walkthrough."
+    },
+    {
+      "criterion_id": "SC-008",
+      "description": "uv run pytest tests/ -q collects without error AND exits 0.",
+      "proof_type": "automated_test",
+      "evidence": "Full retrospective suite (tests/retrospective + tests/integration/retrospective + tests/next/test_retrospective_terminus_wiring.py + tests/cli/commands/test_retrospect.py) 549 tests passing as of WP07 review. NFR-001 aggregate runtime 24.78s (well under 60s budget).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-05-19T15:00:00+00:00",
+      "notes": "Cross-lane integration test on main branch deferred to post-merge validation."
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "FR-005",
+      "description": "facilitator_callback=None must not be reachable from any enabled-policy path in runtime_bridge.py.",
+      "verification_method": "grep_absence",
+      "verification_command": "grep -n 'facilitator_callback=None' src/specify_cli/next/runtime_bridge.py",
+      "result": "confirmed_absent",
+      "evidence": "tests/next/test_retrospective_terminus_wiring.py runs both an AST-level inspection (parses runtime_bridge.py, walks all Call nodes targeting run_terminus, asserts no facilitator_callback keyword has ast.Constant(None)) and a runtime mock-based assertion (patches run_terminus, captures kwargs, asserts non-None and callable). Both checks pass."
+    },
+    {
+      "invariant_id": "FR-024",
+      "description": "No imports from spec_kitty_events sub-paths (e.g. spec_kitty_events.models.*) — the frozen public surface must be respected.",
+      "verification_method": "grep_absence",
+      "verification_command": "grep -rn 'from spec_kitty_events\\.models\\|from spec_kitty_events\\.[a-z]' src/specify_cli/retrospective/",
+      "result": "confirmed_absent",
+      "evidence": "tests/architectural/test_events_tracker_public_imports.py enforces the frozen surface. WP03 confirmed at review. CONTRIBUTING.md (WP07) documents the diagnostic for #1137 without introducing a code workaround."
+    },
+    {
+      "invariant_id": "FR-014",
+      "description": "synthesize_fabricate provenance MUST imply findings_status=ran_no_findings; the fabrication path may not author a has_findings record.",
+      "verification_method": "custom_command",
+      "verification_command": "uv run pytest tests/cli/commands/test_retrospect.py::TestSynthesizeFabricateEmpty -q",
+      "result": "confirmed_absent",
+      "evidence": "Enforced by both WP02 validate_record (in schema.py) and WP03 write_record/write_gen_record (defense in depth). Test test_writer_rejects_synthesize_fabricate_with_has_findings exercises the writer rejection. Test test_fabricate_empty_writes_synthesize_fabricate_provenance_to_disk reads YAML back and asserts provenance.kind=synthesize_fabricate AND findings_status=ran_no_findings."
+    },
+    {
+      "invariant_id": "FR-016",
+      "description": "Test files outside tests/retrospective/test_env_deprecation.py must NOT mutate SPEC_KITTY_RETROSPECTIVE via monkeypatch.setenv or os.environ assignment.",
+      "verification_method": "grep_absence",
+      "verification_command": "grep -rln 'monkeypatch\\.setenv.*SPEC_KITTY_RETROSPECTIVE\\|os\\.environ\\[.*SPEC_KITTY_RETROSPECTIVE' tests/ --include='*.py' | grep -v test_env_deprecation.py",
+      "result": "confirmed_absent",
+      "evidence": "WP06 review confirmed SPEC_KITTY_RETROSPECTIVE mutation is confined to test_env_deprecation.py. The 6 integration test files that still mutate SPEC_KITTY_MODE (the legacy detector retained as compat shim per FR-023 path-b) are accepted per occurrence_map.yaml gate_tolerance: keep-or-refactor."
+    },
+    {
+      "invariant_id": "FR-021",
+      "description": "Existing event-log lane-state reductions must remain byte-identical when no retrospective events are present, AND additive when the new event types are appended.",
+      "verification_method": "custom_command",
+      "verification_command": "uv run pytest tests/retrospective/test_reducer_fixtures.py -q",
+      "result": "confirmed_absent",
+      "evidence": "WP03 T016 added two fixture pairs under tests/retrospective/fixtures/event_logs/ (historical-no-retrospective and historical-with-retrospective). Tests assert byte-identical lane/lifecycle keys between baseline and with-retrospective snapshots; the three new event types (Captured, Failed, Skipped) appear as additive top-level retrospective keys only. status/store.py _should_skip_status_event extended to treat all three as reducer no-ops."
+    }
+  ]
+}
