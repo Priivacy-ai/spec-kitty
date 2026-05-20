@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0rc18] - 2026-05-20
+
+Ships the final observed Phase 4 launch-gate payload drift fix after the
+rc17 `WPStatusChanged` envelope cleanup.
+
+- Closes `#1190` via `#1191`: `emit_mission_created_local` no longer writes
+  `actor` into the `MissionCreated` payload. The canonical
+  `spec-kitty-events` 5.1.0 schema declares `additionalProperties: false` for
+  `mission_created_payload` and does not allow `actor`, so deployed SaaS batch
+  ingest rejected every batch containing one of these events.
+- Refactors `_validate_lifecycle_payload` to delegate to
+  `spec_kitty_events.conformance.validate_event`, replacing the previous
+  hand-maintained lifecycle payload map that missed `MissionCreated` and other
+  known event types. The local guard now catches extra-property drift before
+  queue fan-out while still tolerating currently accepted missing-field
+  violations.
+- Adds regression coverage for the cleaned `MissionCreated` payload, the
+  conformance guard's extra-field rejection, valid-payload pass-through, and
+  graceful fallback for event types not recognised by the installed events
+  package.
+
 ## [3.2.0rc17] - 2026-05-20
 
 Ships the third Phase 4 launch-gate fix: the actual SaaS-side schema
