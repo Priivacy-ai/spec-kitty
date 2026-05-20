@@ -32,6 +32,20 @@ pytestmark = pytest.mark.fast
 runner = CliRunner()
 
 
+def test_move_task_help_surfaces_review_artifact_override_audit_path() -> None:
+    """Help keeps the rejected-artifact override path discoverable."""
+    result = runner.invoke(app, ["move-task", "--help"], terminal_width=160)
+
+    assert result.exit_code == 0, result.output
+    help_text = " ".join(result.output.split())
+    assert "rejected" in help_text
+    assert "review artifact" in help_text
+    assert "arbiter-approving" in help_text
+    assert "requires --note" in help_text
+    assert "records override" in help_text
+    assert "evidence" in help_text
+
+
 # ---------------------------------------------------------------------------
 # Fixtures / helpers
 # ---------------------------------------------------------------------------
@@ -245,6 +259,8 @@ class TestVerdictGuardInMoveTask:
         assert result.exit_code == 1, f"Expected exit 1, got {result.exit_code}. Output:\n{result.output}"
         assert "review-cycle-1.md" in result.output, f"Expected artifact name in output:\n{result.output}"
         assert "rejected" in result.output, f"Expected 'rejected' in output:\n{result.output}"
+        assert "--skip-review-artifact-check --note <reason>" in result.output
+        assert "arbiter override" in result.output
 
     @patch("specify_cli.cli.commands.agent.tasks.safe_commit")
     @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition")

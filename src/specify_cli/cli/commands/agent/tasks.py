@@ -1389,7 +1389,7 @@ def move_task(
         bool,
         typer.Option(
             "--skip-review-artifact-check",
-            help="Override a rejected latest review artifact; requires --note and records audit evidence.",
+            help="Override a rejected latest review artifact when arbiter-approving; requires --note and records override evidence.",
         ),
     ] = False,
     auto_commit: Annotated[
@@ -1494,9 +1494,9 @@ def move_task(
                 if not skip_review_artifact_check:
                     _output_error(
                         json_output,
-                        f"{task_id} {_artifact_path.name} has verdict: rejected.\n"
-                        "Run another review cycle, move the WP out of approved/done, "
-                        "or pass --skip-review-artifact-check with --note to record an override.",
+                        f"{task_id} has a rejected review artifact ({_artifact_path.name}). "
+                        "Re-run with --skip-review-artifact-check --note <reason> "
+                        "to record an arbiter override.",
                     )
                     raise typer.Exit(1)
                 override_reason = note.strip() if isinstance(note, str) else ""
