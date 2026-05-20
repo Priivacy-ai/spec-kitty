@@ -35,29 +35,6 @@
   --shadow-sm:    0 2px 6px rgba(0,0,0,0.08);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg:           #18222c;
-    --surface:      #1e2832;
-    --surface-hi:   #243040;
-    --border:       rgba(232,238,244,0.09);
-    --border-hi:    rgba(232,238,244,0.17);
-    --text:         #e8eef4;
-    --text-dim:     #9aacbc;
-    --text-bright:  #f0f4f8;
-    --green:        #8fc97a;
-    --green-dim:    rgba(143,201,122,0.14);
-    --green-dark:   #8fc97a;
-    --yellow:       #3a3520;
-    --yellow-dark:  #6b611a;
-    --lavender:     #b089c8;
-    --lavender-dim: rgba(176,137,200,0.14);
-    --peach:        #7a4a1e;
-    --peach-dim:    rgba(255,180,100,0.12);
-    --peach-dark:   #e8a870;
-  }
-}
-
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
@@ -129,8 +106,51 @@ body {
 .stat-pill.draft  { background: var(--lavender-dim);color: #7a4a9a;           border: 1px solid rgba(201,160,220,0.4); }
 .stat-pill.depr   { background: var(--peach-dim);   color: var(--peach-dark); border: 1px solid rgba(255,216,177,0.5); }
 
-@media (prefers-color-scheme: dark) {
-  .stat-pill.draft { color: #c9a0dc; }
+/* ── APP SHELL ───────────────────────────────────────────── */
+.dashboard-shell {
+  display: flex;
+  align-items: stretch;
+  min-height: calc(100vh - 96px);
+}
+.sidebar {
+  width: 232px;
+  flex: 0 0 232px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 16px 12px;
+  position: sticky;
+  top: 96px;
+  align-self: flex-start;
+  height: calc(100vh - 96px);
+}
+.sidebar-section-header {
+  padding: 14px 12px 8px;
+  font-size: 0.72em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.9em;
+  font-weight: 600;
+}
+.sidebar-item:hover { background: var(--green-dim); color: var(--green-dark); }
+.sidebar-item.active {
+  background: var(--green);
+  color: #fff;
+}
+.glossary-content {
+  flex: 1;
+  min-width: 0;
 }
 
 /* ── TOOLBAR ──────────────────────────────────────────────── */
@@ -318,10 +338,6 @@ body {
 .badge-draft      { background: var(--lavender-dim);color: #7a4a9a; border: 1px solid rgba(201,160,220,0.4); }
 .badge-deprecated { background: var(--peach-dim);   color: var(--peach-dark); border: 1px solid rgba(255,216,177,0.5); }
 
-@media (prefers-color-scheme: dark) {
-  .badge-draft { color: #c9a0dc; }
-}
-
 .card-def {
   font-size: 0.88em;
   color: var(--text-dim);
@@ -390,6 +406,19 @@ body {
 @media (max-width: 600px) {
   .header { padding: 14px 16px; flex-wrap: wrap; gap: 12px; }
   .header-stats { order: 3; width: 100%; }
+  .dashboard-shell { display: block; }
+  .sidebar {
+    position: static;
+    width: auto;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+  }
+  .sidebar-section-header { display: none; }
+  .sidebar-item { width: auto; white-space: nowrap; flex: 0 0 auto; }
   .toolbar { padding: 10px 16px; top: 72px; }
   .alpha-nav { padding: 8px 16px; }
   .main { padding: 18px 16px 40px; }
@@ -415,6 +444,14 @@ body {
   </div>
 </header>
 
+<div class="dashboard-shell">
+<aside class="sidebar" aria-label="Dashboard navigation">
+  <div class="sidebar-section-header">System</div>
+  <a class="sidebar-item" href="/" title="Dashboard Overview">📊 <span>Dashboard</span></a>
+  <a class="sidebar-item active" href="/glossary" title="Glossary">📖 <span>Glossary</span></a>
+</aside>
+
+<div class="glossary-content">
 <!-- TOOLBAR -->
 <div class="toolbar">
   <div class="search-wrap">
@@ -447,6 +484,8 @@ body {
   <p>Generated from <code>.kittify/glossaries/spec_kitty_core.yaml</code> &nbsp;·&nbsp;
   Sorted and maintained automatically by <a href="https://github.com/Priivacy-ai/spec-kitty" target="_blank" rel="noopener">spec-kitty</a> · <code>save_seed_file()</code></p>
 </footer>
+</div>
+</div>
 
 <script>
 let TERMS = [];
