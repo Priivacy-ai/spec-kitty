@@ -102,6 +102,7 @@ def test_mission_created_local_appended_before_any_saas_fan_out(
         mission_slug="demo-mission",
         mission_id="01ULID",
         mission_number=None,
+        mission_type="software-dev",
         target_branch="main",
         actor="test",
     )
@@ -120,6 +121,7 @@ def test_mission_created_dedupe_on_mission_slug(feature_dir: Path) -> None:
         mission_slug="demo-mission",
         mission_id=None,
         mission_number=None,
+        mission_type="software-dev",
         target_branch="main",
     )
     second = emit_mission_created_local(
@@ -127,6 +129,7 @@ def test_mission_created_dedupe_on_mission_slug(feature_dir: Path) -> None:
         mission_slug="demo-mission",
         mission_id=None,
         mission_number=None,
+        mission_type="software-dev",
         target_branch="main",
     )
     assert second is None
@@ -134,17 +137,18 @@ def test_mission_created_dedupe_on_mission_slug(feature_dir: Path) -> None:
     assert len(entries) == 1
 
 
-def test_mission_created_payload_does_not_contain_actor(feature_dir: Path) -> None:
-    """``actor`` is forbidden by the canonical MissionCreated payload
-    schema. The SaaS jsonschema validator rejects any batch that includes
-    it; we must not put it in the payload locally either. See issue
-    Priivacy-ai/spec-kitty#1190."""
+def test_mission_created_payload_contains_required_fields(feature_dir: Path) -> None:
+    """The MissionCreated payload must include all fields required by the
+    canonical events 5.1.0 schema (``mission_type`` and ``wp_count`` are
+    required; ``actor`` is forbidden). See issues #1190 and #1199."""
     envelope = emit_mission_created_local(
         feature_dir,
         mission_slug="demo-mission",
         mission_id="01J6XW9KQT7M0YB3N4R5CQZ2EX",
         mission_number=None,
+        mission_type="software-dev",
         target_branch="main",
+        wp_count=0,
         actor="spec-kitty mission create",
         friendly_name="Demo Mission",
         purpose_tldr="Demo TLDR",
@@ -152,12 +156,15 @@ def test_mission_created_payload_does_not_contain_actor(feature_dir: Path) -> No
     )
     assert envelope is not None
     payload = envelope["payload"]
+    # Forbidden: ``actor`` belongs on the envelope, not the payload (#1190).
     assert "actor" not in payload, (
         f"MissionCreated payload must not contain 'actor'; got {payload!r}. "
         "See Priivacy-ai/spec-kitty#1190."
     )
-    # Other expected keys are still present so the canonical contract
-    # isn't degraded by the drift removal.
+    # Required by the canonical schema (#1199).
+    assert payload["mission_type"] == "software-dev"
+    assert payload["wp_count"] == 0
+    # Other expected keys are still present.
     assert payload["mission_slug"] == "demo-mission"
     assert payload["mission_id"] == "01J6XW9KQT7M0YB3N4R5CQZ2EX"
     assert payload["target_branch"] == "main"
@@ -353,6 +360,7 @@ def test_has_non_bootstrap_status_history_false_when_lifecycle_event_present_wit
         mission_slug="demo-mission",
         mission_id=None,
         mission_number=None,
+        mission_type="software-dev",
         target_branch="main",
     )
     assert has_non_bootstrap_status_history(feature_dir) is False
@@ -366,6 +374,7 @@ def test_has_non_bootstrap_status_history_false_for_lifecycle_plus_bootstrap(
         mission_slug="demo-mission",
         mission_id=None,
         mission_number=None,
+        mission_type="software-dev",
         target_branch="main",
     )
     _write_jsonl(
@@ -729,15 +738,20 @@ def test_validate_lifecycle_payload_rejects_unexpected_extra_fields() -> None:
 
 
 def test_validate_lifecycle_payload_passes_when_payload_matches_schema() -> None:
-    """A cleaned MissionCreated payload (no unexpected extras) passes
-    the conformance guard. Missing required fields like ``mission_type``
-    and ``wp_count`` are intentionally tolerated (matches actual SaaS
-    enforcement at the time of this fix); see the docstring on
-    ``_validate_lifecycle_payload``."""
+    """A fully-conformant MissionCreated payload passes the validator.
+
+    The previous version of this test passed a payload missing
+    ``mission_type`` and ``wp_count`` and asserted the validator
+    tolerated them — that codified the bug from Priivacy-ai/spec-kitty#1199.
+    The widened validator now requires both fields; the test reflects the
+    correct canonical contract.
+    """
     good_payload = {
         "mission_slug": "demo",
         "mission_number": None,
+        "mission_type": "software-dev",
         "target_branch": "main",
+        "wp_count": 0,
         "mission_id": "01J6XW9KQT7M0YB3N4R5CQZ2EX",
         "created_at": "2026-05-20T00:00:00+00:00",
         "friendly_name": "Demo",
@@ -746,6 +760,28 @@ def test_validate_lifecycle_payload_passes_when_payload_matches_schema() -> None
     }
     # Should not raise.
     lifecycle._validate_lifecycle_payload("MissionCreated", good_payload)
+
+
+def test_validate_lifecycle_payload_rejects_missing_required_fields() -> None:
+    """The widened validator catches missing-required-field drift, which
+    the previous extras-only scope let through. Regression guard for
+    Priivacy-ai/spec-kitty#1199 — without the widening, a payload
+    missing ``mission_type`` would sail past the local guard and only
+    fail at the SaaS jsonschema boundary."""
+    bad_payload = {
+        "mission_slug": "demo",
+        "mission_number": None,
+        # mission_type intentionally omitted — this was the #1199 drift
+        "target_branch": "main",
+        # wp_count also intentionally omitted
+        "mission_id": "01J6XW9KQT7M0YB3N4R5CQZ2EX",
+        "created_at": "2026-05-20T00:00:00+00:00",
+        "friendly_name": "Demo",
+        "purpose_tldr": "tldr",
+        "purpose_context": "context",
+    }
+    with pytest.raises(ValueError, match="mission_type"):
+        lifecycle._validate_lifecycle_payload("MissionCreated", bad_payload)
 
 
 def test_validate_lifecycle_payload_falls_through_for_unknown_event_types() -> None:

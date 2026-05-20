@@ -195,20 +195,12 @@ def _validate_lifecycle_payload(event_type: str, payload: Mapping[str, Any]) -> 
 
     Delegates to ``spec_kitty_events.conformance.validate_event`` so every
     event type the events package recognises (lifecycle, status, dossier,
-    build, …) is checked under the same canonical rules. The previous
-    selective dispatch via a hand-maintained ``project_lifecycle`` dict
-    silently passed through event types missing from the dict, which let
-    ``MissionCreated.payload.actor`` and similar extra-property drift
-    land in the offline queue and only surface at the SaaS jsonschema
-    boundary. See issue Priivacy-ai/spec-kitty#1190.
-
-    Scope: only ``extra_forbidden`` violations are fatal here. Missing
-    required-field violations are intentionally tolerated because the
-    deployed SaaS currently accepts payloads with absent required fields
-    (e.g. ``MissionCreated`` without ``mission_type`` / ``wp_count``).
-    Tightening the local guard past what the SaaS enforces would block
-    emits that successfully sync. When the SaaS ratchets to strict
-    required-field enforcement, this can be widened in the same place.
+    build, …) is checked under the same canonical rules. Raises on **any**
+    model violation reported by the canonical validator — extra-property
+    drift (e.g. the historical ``MissionCreated.payload.actor`` of #1190)
+    *and* missing required fields (e.g. ``mission_type`` / ``wp_count``
+    of #1199). See issue Priivacy-ai/spec-kitty#1199 for the rationale
+    behind widening this beyond the previous extras-only scope.
 
     Unknown event types (e.g. ``BuildRegistered`` until the events
     package ships a schema for it) pass through quietly so unrecognised
@@ -221,16 +213,13 @@ def _validate_lifecycle_payload(event_type: str, payload: Mapping[str, Any]) -> 
         return
 
     result = validate_event(dict(payload), event_type, strict=False)
-    extra_violations = [
-        v for v in result.model_violations if v.violation_type == "extra_forbidden"
-    ]
-    if extra_violations:
+    if result.model_violations:
         details = "; ".join(
-            f"{v.field}={v.input_value!r}" for v in extra_violations
+            f"{v.field}: {v.message}" for v in result.model_violations
         )
         raise ValueError(
-            f"Lifecycle payload for {event_type!r} contains unexpected fields "
-            f"that the SaaS schema will reject: {details}"
+            f"Lifecycle payload for {event_type!r} fails canonical contract: "
+            f"{details}"
         )
 
 
@@ -445,7 +434,9 @@ def emit_mission_created_local(
     mission_slug: str,
     mission_id: str | None,
     mission_number: int | None,
+    mission_type: str,
     target_branch: str,
+    wp_count: int = 0,
     actor: str = "cli",
     project_uuid: str | None = None,
     project_slug: str | None = None,
@@ -458,23 +449,21 @@ def emit_mission_created_local(
 
     Idempotent on ``mission_slug``. The mission's
     ``status.events.jsonl`` is created on first call.
+
+    ``mission_type`` and ``wp_count`` are required by the canonical
+    ``mission_created_payload`` schema (events 5.1.0). The ``actor``
+    parameter is intentionally NOT placed in the payload — the schema
+    declares ``additionalProperties: false`` with no ``actor`` property.
+    See Priivacy-ai/spec-kitty#1199 for the full required-field surface.
     """
     log_path = mission_event_log_path(feature_dir)
-    # NOTE: the ``actor`` parameter is intentionally NOT placed in the
-    # MissionCreated payload. The canonical events 5.1.0 schema for
-    # ``mission_created_payload`` declares ``additionalProperties: false``
-    # and does not list ``actor`` — the SaaS jsonschema validator
-    # otherwise rejects batches with
-    # ``Additional properties are not allowed ('actor' was unexpected)``.
-    # See issue Priivacy-ai/spec-kitty#1190. The parameter is retained on
-    # the function signature for caller compatibility and is logically
-    # captured by the surrounding StatusEvent envelope; future cleanup
-    # may remove it entirely once all call sites are audited.
-    del actor  # mark "deliberately unused in payload" for readers
+    del actor  # captured by the surrounding StatusEvent envelope; not in payload (see #1190)
     payload: dict[str, Any] = {
         "mission_slug": mission_slug,
         "mission_number": mission_number,
+        "mission_type": mission_type,
         "target_branch": target_branch,
+        "wp_count": wp_count,
         "created_at": created_at or _now_iso(),
     }
     if mission_id is not None:
