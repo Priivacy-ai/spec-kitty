@@ -1635,11 +1635,14 @@ class OfflineQueue:
     def process_batch_results(self, results: list[_BatchEventResultLike]) -> None:
         """Process batch sync results by status.
 
-        Four buckets (see ``BatchEventResult`` for full semantics):
+        Five buckets (see ``BatchEventResult`` for full semantics):
 
         * ``success`` / ``duplicate`` / ``failed_permanent`` -> DELETE from
           queue. ``failed_permanent`` events (e.g. oversized events) are
           removed so the drain loop can continue past them without stalling.
+        * ``pending`` -> **no mutation**. Per-event ``queued`` / ``pending``
+          rows were accepted by the server but not yet materialised, so the
+          local row stays available for the next daemon tick.
         * ``rejected`` -> UPDATE ``retry_count = retry_count + 1``. This is
           for **per-event content rejections** returned by the server inside
           a 200 response body, where the server actually evaluated that
@@ -1668,14 +1671,15 @@ class OfflineQueue:
                 synced_or_duplicate.append(r.event_id)
             elif r.status == "rejected":
                 rejected.append(r.event_id)
-            elif r.status == "failed_transient":
+            elif r.status in ("pending", "failed_transient"):
                 transient.append(r.event_id)
 
         conn = sqlite3.connect(self.db_path)
         deleted = 0
         try:
-            # Wrap both operations in a single transaction. ``failed_transient``
-            # rows are intentionally left untouched (no DELETE, no UPDATE).
+            # Wrap both operations in a single transaction. ``pending`` and
+            # ``failed_transient`` rows are intentionally left untouched (no
+            # DELETE, no UPDATE).
             if synced_or_duplicate:
                 placeholders = ",".join("?" * len(synced_or_duplicate))
                 cursor = conn.execute(

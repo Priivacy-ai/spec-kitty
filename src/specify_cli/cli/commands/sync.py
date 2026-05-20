@@ -245,15 +245,25 @@ def _render_top_event_types(stats: QueueStats, target_console: Console) -> None:
 
 
 def _print_sync_summary(result: object) -> None:
-    """Render the sync summary with highlighted failure details."""
+    """Render the sync summary with highlighted failure details.
+
+    The ``Pending`` segment surfaces when the server returned per-event
+    ``queued`` / ``pending`` rows (durably accepted but not yet
+    materialised). Without it the previous summary would have classified
+    those rows as ``Errors``; see issue Priivacy-ai/spec-kitty#1182.
+    """
     from specify_cli.sync.batch import format_sync_summary
 
     summary = format_sync_summary(result)
-    header = (
-        f"[green]Synced:[/green] {getattr(result, 'synced_count', 0)}  "
-        f"[dim]Duplicates:[/dim] {getattr(result, 'duplicate_count', 0)}  "
-        f"[red]Errors:[/red] {getattr(result, 'error_count', 0)}"
-    )
+    pending_count = getattr(result, "pending_count", 0)
+    header_parts = [
+        f"[green]Synced:[/green] {getattr(result, 'synced_count', 0)}",
+        f"[dim]Duplicates:[/dim] {getattr(result, 'duplicate_count', 0)}",
+    ]
+    if isinstance(pending_count, int) and not isinstance(pending_count, bool) and pending_count > 0:
+        header_parts.append(f"[yellow]Pending:[/yellow] {pending_count}")
+    header_parts.append(f"[red]Errors:[/red] {getattr(result, 'error_count', 0)}")
+    header = "  ".join(header_parts)
     for line in summary.splitlines():
         if line.startswith("  "):
             console.print(f"  [yellow]{line.strip()}[/yellow]")
@@ -278,10 +288,17 @@ def _maybe_write_sync_report(report: Path | None, result: object) -> None:
 
 
 def _sync_result_activity(result: object) -> int:
-    """Return the total number of acknowledged sync outcomes."""
+    """Return the total number of acknowledged sync outcomes.
+
+    ``pending_count`` is included so a sync that drained only
+    ``queued`` / ``pending`` rows (server-acknowledged but not yet
+    materialised; see Priivacy-ai/spec-kitty#1182) is correctly treated
+    as progress and does not trigger the "no progress" guard below.
+    """
     counts = (
         getattr(result, "synced_count", 0),
         getattr(result, "duplicate_count", 0),
+        getattr(result, "pending_count", 0),
         getattr(result, "error_count", 0),
     )
     return sum(value for value in counts if isinstance(value, int) and not isinstance(value, bool))
