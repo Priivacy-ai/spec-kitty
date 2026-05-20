@@ -235,31 +235,38 @@ class TestOtherPayloads:
     """Validate payloads for non-WPStatusChanged event types."""
 
     def test_wp_created_valid(self):
-        """WPCreated with valid payload passes."""
+        """WPCreated with canonical payload passes.
+
+        Payload keys follow events 5.1.0 ``wp_created_payload`` schema:
+        ``wp_title`` (not ``title``), ``depends_on`` (not ``dependencies``),
+        ``actor`` required. See Priivacy-ai/spec-kitty#1203 mask 1.
+        """
         event = _make_valid_event(
             event_type="WPCreated",
             payload={
                 "wp_id": "WP01",
-                "title": "First work package",
+                "wp_title": "First work package",
                 "mission_slug": "039-test",
-                "dependencies": [],
+                "depends_on": [],
+                "actor": "cli",
             },
         )
         results = diagnose_events([event])
         assert results[0].valid is True
 
     def test_wp_created_missing_title(self):
-        """WPCreated missing title fails."""
+        """WPCreated missing wp_title fails."""
         event = _make_valid_event(
             event_type="WPCreated",
             payload={
                 "wp_id": "WP01",
                 "mission_slug": "039-test",
+                "actor": "cli",
             },
         )
         results = diagnose_events([event])
         assert results[0].valid is False
-        assert any("title" in e for e in results[0].errors)
+        assert any("wp_title" in e for e in results[0].errors)
 
     def test_mission_created_valid(self):
         """MissionCreated with valid payload passes."""
