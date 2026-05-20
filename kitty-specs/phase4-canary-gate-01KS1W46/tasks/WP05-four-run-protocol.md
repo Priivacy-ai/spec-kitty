@@ -240,3 +240,4 @@ Run `spec-kitty agent action implement WP05 --agent claude` to start this WP.
 ## Activity Log
 
 - 2026-05-20T05:26:09Z – claude:sonnet-4-6:implementer:implementer – shell_pid=64426 – Started implementation via action command
+- 2026-05-20T05:27:48Z – claude:sonnet-4-6:implementer:implementer – shell_pid=64426 – Deferred: all subtasks pending WP04 canary pass. Result document: wpwp05-*-result.md.
