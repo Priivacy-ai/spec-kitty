@@ -9,6 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0rc20] - 2026-05-20
+
+Closes the next dormant mask from epic `#1198`, surfaced by the
+rc19 canary now that the `#1202` observability fix is in place.
+
+- Closes `#1203` mask 1: `EventEmitter.emit_wp_created` in
+  `src/specify_cli/sync/emitter.py` now constructs the payload
+  matching the canonical events 5.1.0 `wp_created_payload` schema.
+  Four simultaneous violations are closed in a single change:
+  `title` renamed to `wp_title` at the payload boundary,
+  `dependencies` renamed to `depends_on`, required `actor`
+  parameter added (default `"cli"`) and placed in the payload,
+  and `mission_id` removed from the payload (the parameter is
+  still accepted for backward compatibility but is no longer
+  written to the wire — it isn't in the schema's allowed set).
+  The local emitter's per-event-type validator table is updated
+  to match the canonical required-fields contract; the
+  singleton-level `emit_wp_created` mirror in
+  `src/specify_cli/sync/events.py` gains an `actor` parameter and
+  passes it through; and the production caller in
+  `src/specify_cli/cli/commands/agent/mission.py:2448` passes
+  `actor="spec-kitty agent mission finalize-tasks"`.
+
+This was the four-violation drift P4 predicted in the differential
+matrix and that the rc19 canary surfaced in full detail thanks to
+the per-event-violation observability restored in `#1202`. The
+structural follow-up `#1200` (construct payloads via pydantic
+models across every `emit_*` site) still pending; this surgical
+close prevents the immediate canary blocker while that work
+proceeds.
+
 ## [3.2.0rc19] - 2026-05-20
 
 Ships the combined `#1199` + `#1202` surgical fix from epic `#1198`:

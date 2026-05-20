@@ -229,7 +229,15 @@ def _check_grep_absence(repo_root: Path, ni: NegativeInvariant) -> NegativeInvar
         )
 
     result = subprocess.run(
-        ["grep", "-r", ni.verification_command, "."],
+        [
+            "grep",
+            "-r",
+            "--exclude=acceptance-matrix.json",
+            "--exclude-dir=.git",
+            "--",
+            ni.verification_command,
+            ".",
+        ],
         cwd=str(repo_root),
         capture_output=True,
         text=True,

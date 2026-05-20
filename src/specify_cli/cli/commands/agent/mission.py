@@ -2451,6 +2451,7 @@ def finalize_tasks(
                     dependencies=list(cast(list[str], wp["dependencies"])),
                     mission_slug=mission_slug,
                     causation_id=causation_id,
+                    actor="spec-kitty agent mission finalize-tasks",
                 )
             except Exception as exc:
                 console.print(f"[yellow]Warning:[/yellow] WPCreated emission failed for {wp['id']}: {exc}")

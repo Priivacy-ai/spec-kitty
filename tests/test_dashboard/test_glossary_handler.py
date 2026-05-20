@@ -322,6 +322,21 @@ class TestGlossaryPage:
         handler2.wfile.seek(0)
         assert handler1.wfile.read() == handler2.wfile.read()
 
+    def test_glossary_page_uses_dashboard_shell_and_light_theme(self, tmp_path):
+        """Glossary page keeps dashboard navigation and does not leak dark mode."""
+        from specify_cli.dashboard.handlers import glossary as gloss_module
+
+        handler = _make_handler(tmp_path)
+
+        gloss_module.GlossaryHandler.handle_glossary_page(handler)
+
+        handler.wfile.seek(0)
+        body = handler.wfile.read().decode("utf-8")
+        assert 'class="sidebar"' in body
+        assert 'href="/" title="Dashboard Overview"' in body
+        assert 'class="sidebar-item active" href="/glossary"' in body
+        assert "prefers-color-scheme: dark" not in body
+
 
 class TestGlossaryHelpers:
     """Exercise helper paths that feed the glossary dashboard endpoints."""

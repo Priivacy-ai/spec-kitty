@@ -42,6 +42,8 @@ env/
 
 # Project specific
 *.log
+# Investigation mission evidence logs are first-class review artifacts.
+!kitty-specs/**/research/*.log
 .env
 .env.local
 .codex/
