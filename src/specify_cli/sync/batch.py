@@ -921,10 +921,19 @@ def _parse_error_response(
         per_event_details = details_raw
 
     if per_event_details:
-        # Structured per-event details from the server
+        # Structured per-event details from the server.
+        # The SaaS serializer ships violations under ``details[*].detail``
+        # (singular); historical CLI code only read ``error`` / ``reason``
+        # which silently collapsed every per-event line to the outer
+        # ``error_msg``, hiding the SaaS's full per-event violation set.
+        # See Priivacy-ai/spec-kitty#1202.
         for detail in per_event_details:
             eid = detail.get("event_id", "unknown")
-            reason = detail.get("error") or detail.get("reason", error_msg)
+            reason = (
+                detail.get("detail")
+                or detail.get("error")
+                or detail.get("reason", error_msg)
+            )
             category = categorize_error(reason)
             result.error_count += 1
             result.failed_ids.append(eid)

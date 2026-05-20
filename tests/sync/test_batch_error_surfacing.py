@@ -400,6 +400,51 @@ class TestParseErrorResponse:
         assert result.error_count == 1
         assert "Details: not valid {json" in result.error_messages[0]
 
+    # ────────────────────────────────────────────────────────────
+    # Issue #1202 — SaaS ships violations under details[*].detail
+    # ────────────────────────────────────────────────────────────
+
+    def test_per_event_detail_key_surfaces_distinct_violations(self):
+        """The SaaS at /api/v1/events/batch/ serialises per-event
+        violations into ``details[*].detail`` (singular). The CLI
+        historically read only ``details[*].error`` / ``.reason`` and
+        collapsed every per-event line to the outer ``error_msg``,
+        hiding the SaaS's per-event violation diversity. This is the
+        regression guard for Priivacy-ai/spec-kitty#1202."""
+        result = BatchSyncResult()
+        events = [{"event_id": "e1"}, {"event_id": "e2"}]
+        body = {
+            "error": "payload_schema_invalid",
+            "details": [
+                {
+                    "event_id": "e1",
+                    "category": "validation",
+                    "code": "model_violation",
+                    "detail": "'mission_type' is a required property",
+                },
+                {
+                    "event_id": "e2",
+                    "category": "validation",
+                    "code": "model_violation",
+                    "detail": "'wp_count' is a required property",
+                },
+            ],
+        }
+
+        _parse_error_response(body, events, result)
+
+        assert result.error_count == 2
+        assert result.event_results[0].error == (
+            "'mission_type' is a required property"
+        )
+        assert result.event_results[1].error == (
+            "'wp_count' is a required property"
+        )
+        # The two events must carry DISTINCT error strings — that is the
+        # whole point. The bug-codifying behaviour would have collapsed
+        # both to the outer "payload_schema_invalid".
+        assert result.event_results[0].error != result.event_results[1].error
+
 
 # ────────────────────────────────────────────────────────────────
 # T007: Actionable summary
