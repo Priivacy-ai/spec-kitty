@@ -7,7 +7,7 @@ requirement_refs:
 - FR-002
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: 'Planning branch: main. Merge target: main. Execution worktree allocated by finalize-tasks lanes.json.'
+branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T001
 - T002
@@ -20,10 +20,10 @@ history:
 - date: '2026-05-20'
   event: created
 agent_profile: implementer
-authoritative_surface: kitty-specs/phase4-canary-gate-01KS1W46/
+authoritative_surface: kitty-specs/phase4-canary-gate-01KS1W46/tasks/
 execution_mode: planning_artifact
 owned_files:
-- kitty-specs/phase4-canary-gate-01KS1W46/**
+- kitty-specs/phase4-canary-gate-01KS1W46/tasks/WP01-blocker-verification.md
 role: implementer
 tags: []
 ---

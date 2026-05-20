@@ -12,7 +12,7 @@ requirement_refs:
 - NFR-003
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: 'Planning branch: main. Merge target: main.'
+branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T024
 - T025
@@ -23,11 +23,12 @@ history:
 - date: '2026-05-20'
   event: created
 agent_profile: implementer
-authoritative_surface: kitty-specs/phase4-canary-gate-01KS1W46/
+authoritative_surface: kitty-specs/phase4-canary-gate-01KS1W46/tasks/
 execution_mode: planning_artifact
 owned_files:
-- kitty-specs/phase4-canary-gate-01KS1W46/**
-- spec-kitty-end-to-end-testing/artifacts/sync_identity_boundary/**
+- kitty-specs/phase4-canary-gate-01KS1W46/tasks/WP05-four-run-protocol.md
+- spec-kitty-end-to-end-testing/artifacts/sync_identity_boundary/runs/run-*.json
+- spec-kitty-end-to-end-testing/artifacts/sync_identity_boundary/latest.json
 role: implementer
 tags: []
 ---

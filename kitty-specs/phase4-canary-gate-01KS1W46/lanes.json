@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "mission_slug": "phase4-canary-gate-01KS1W46",
+  "mission_id": "01KS1W46ZAR9S9RJPQQJAMCV6P",
+  "mission_branch": "kitty/mission-phase4-canary-gate-01KS1W46",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06",
+        "WP07",
+        "WP08"
+      ],
+      "write_scope": [
+        "kitty-specs/phase4-canary-gate-01KS1W46/tasks/WP01-blocker-verification.md",
+        "kitty-specs/phase4-canary-gate-01KS1W46/tasks/WP02-rc-install.md",
+        "kitty-specs/phase4-canary-gate-01KS1W46/tasks/WP03-saas-preflight.md",
+        "kitty-specs/phase4-canary-gate-01KS1W46/tasks/WP04-single-run-canary.md",
+        "kitty-specs/phase4-canary-gate-01KS1W46/tasks/WP05-four-run-protocol.md",
+        "kitty-specs/phase4-canary-gate-01KS1W46/tasks/WP06-evidence-and-close-41.md",
+        "kitty-specs/phase4-canary-gate-01KS1W46/tasks/WP07-teamspace-canary-suite.md",
+        "kitty-specs/phase4-canary-gate-01KS1W46/tasks/WP08-release-tracker-evidence.md",
+        "spec-kitty-end-to-end-testing/artifacts/sync_identity_boundary/*-attempt*/canary-single-run.log",
+        "spec-kitty-end-to-end-testing/artifacts/sync_identity_boundary/*-attempt*/latest.json",
+        "spec-kitty-end-to-end-testing/artifacts/sync_identity_boundary/latest.json",
+        "spec-kitty-end-to-end-testing/artifacts/sync_identity_boundary/runs/run-*.json"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-05-20T05:15:47.401967+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP01",
+    "WP02",
+    "WP03",
+    "WP04",
+    "WP05",
+    "WP06",
+    "WP07",
+    "WP08"
+  ]
+}
