@@ -65,9 +65,9 @@
 **Goal**: Confirm both Phase-4 blocker issues are CLOSED and that #1141's fix is substantive (test-backed behavioral change, not diagnostic logging).
 
 **Included subtasks**:
-- [ ] T001 Query #1141 state via gh issue view (WP01)
-- [ ] T002 Query #1182 state via gh issue view (WP01)
-- [ ] T003 Gate: either OPEN → stop and report (WP01)
+- [x] T001 Query #1141 state via gh issue view (WP01)
+- [x] T002 Query #1182 state via gh issue view (WP01)
+- [x] T003 Gate: either OPEN → stop and report (WP01)
 - [ ] T004 Inspect #1141 merge commit diff (queue.py, adapters.py) (WP01)
 - [ ] T005 Verify #1141 fix has test coverage (fail-without, pass-with) (WP01)
 - [ ] T006 Inspect #1182 merge commit diff (error-classification change) (WP01)
