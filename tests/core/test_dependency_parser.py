@@ -112,6 +112,20 @@ class TestInlineDependenciesColonFormat:
         result = parse_dependencies_from_tasks_md(content)
         assert result["WP02"] == ["WP01"]
 
+    def test_metadata_line_dependencies_field_is_parsed(self) -> None:
+        content = _make_tasks_md(
+            ("WP04", "**Priority**: High | **Dependencies**: WP01, WP03 | **Subtasks**: 7\n"),
+        )
+        result = parse_dependencies_from_tasks_md(content)
+        assert result["WP04"] == ["WP01", "WP03"]
+
+    def test_metadata_line_none_with_parallelism_prose_is_empty(self) -> None:
+        content = _make_tasks_md(
+            ("WP02", "**Priority**: High | **Dependencies**: none (parallel-safe with WP01 and WP03) | **Subtasks**: 4\n"),
+        )
+        result = parse_dependencies_from_tasks_md(content)
+        assert result["WP02"] == []
+
 
 # ---------------------------------------------------------------------------
 # Format 3: bullet-list under "### Dependencies" heading

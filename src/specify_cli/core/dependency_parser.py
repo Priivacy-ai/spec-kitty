@@ -153,9 +153,9 @@ _DEPENDS_ON = re.compile(
 
 # Explicit-declaration format only (not prose inference).
 # Pattern 2: "**Dependencies**: WP01" / "Dependencies: WP01, WP02"
-# Matches a header-colon line with one or more WP IDs on the same line.
+# Matches a declaration field at the start of a line or after a pipe delimiter.
 _DEPS_COLON = re.compile(
-    r"^\s*\*?\*?Dependencies\*?\*?\s*:\s*(?P<value>.*?)\s*$",
+    r"(?:^\s*(?:[-*]\s*)?|\|\s*)\*?\*?Dependencies\*?\*?\s*:\s*(?P<value>[^|\n]*)",
     re.IGNORECASE | re.MULTILINE,
 )
 
