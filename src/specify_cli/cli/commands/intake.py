@@ -139,7 +139,7 @@ def intake(
             console.print(
                 f"[bold]Source:[/bold] {source.get('source_file', '')} "
                 f"  [bold]Ingested:[/bold] {source.get('ingested_at', '')} "
-                f"  [bold]Hash:[/bold] {source.get('brief_hash', '')[:16]}..."
+                f"  [bold]Hash:[/bold] {source.get('brief_hash', '')}"
             )
         if brief is not None:
             console.print(brief)
