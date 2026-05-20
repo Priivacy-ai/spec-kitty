@@ -19,7 +19,8 @@ subtasks:
 - T037
 - T038
 - T039
-agent: claude
+agent: "claude:sonnet-4-6:implementer:implementer"
+shell_pid: "64426"
 history:
 - date: '2026-05-20'
   event: created
@@ -233,3 +234,7 @@ If any run failed, root-cause before accepting the WP. The WP is not done until 
 Planning branch: `main`. Merge target: `main`.
 Run `spec-kitty agent action implement WP07 --agent claude` to start this WP.
 (Requires WP06 to be complete — e2e#41 must already be closed.)
+
+## Activity Log
+
+- 2026-05-20T05:26:14Z – claude:sonnet-4-6:implementer:implementer – shell_pid=64426 – Started implementation via action command
