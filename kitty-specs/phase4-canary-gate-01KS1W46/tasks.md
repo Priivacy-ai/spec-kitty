@@ -119,10 +119,10 @@
 **Goal**: Confirm the deployed SaaS environment is healthy before running any canary. Read-only checks only.
 
 **Included subtasks**:
-- [ ] T013 Check /health/ → 200 + events version (WP03)
-- [ ] T014 Check /health/ready/ → 200 (WP03)
-- [ ] T015 Check infra terminal_failed count via Fly SSH (WP03)
-- [ ] T016 Confirm business_rule_rejected_count == 22 (WP03)
+- [x] T013 Check /health/ → 200 + events version (WP03)
+- [x] T014 Check /health/ready/ → 200 (WP03)
+- [x] T015 Check infra terminal_failed count via Fly SSH (WP03)
+- [x] T016 Confirm business_rule_rejected_count == 22 (WP03)
 
 **Parallel opportunities**: T013 and T014 can run concurrently.
 
