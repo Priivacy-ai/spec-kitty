@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0rc16] - 2026-05-20
+
+Ships the Phase 4 canary launch-gate unblock: the actual root-cause fix for
+`#1141` and the parser/classification fix for `#1182`.
+
+- Closes `#1182`: `_parse_event_results` in `src/specify_cli/sync/batch.py`
+  now routes per-event `status="queued"` / `status="pending"` responses to a
+  new `pending_count` bucket on `BatchSyncResult` instead of folding them
+  into the rejected catch-all with `category=unknown`. `sync now` previously
+  reported durably-queued events as `Errors: N (unknown: N)` and exited
+  non-zero when the in-process final-sync hit its 5s timeout; pending-only
+  drains now exit 0 and surface as `Pending: N` in the summary. Queue
+  mutation policy unchanged (pending rows are left for the next daemon tick,
+  same disposition as `failed_transient`).
+- Closes `#1141` (companion fix in `spec-kitty-end-to-end-testing#45`): the
+  canary scenario 4 `move-task --to planned` invocation was omitting
+  `--review-feedback-file`, so the CLI hard-rejected the command at the
+  argument-validation layer before reaching `emit_status_transition`. The
+  rc15 diagnostic breadcrumb in `fire_saas_fanout` could never fire because
+  the codepath never reached fan-out. The e2e fix passes a structured
+  feedback markdown so the backward emit actually lands. No CLI change is
+  required; the events #32 force-required contract and the CLI's
+  review-feedback hardening are both intentional and remain in force.
+- New unit coverage in `tests/sync/test_batch_error_surfacing.py` pins the
+  contract: per-event `queued` / `pending` are not errors, never count
+  toward `success_count` (they are durable in-flight, not terminal), but
+  do count toward sync activity so the "no progress" guard does not fire
+  on a pending-only drain.
+
 ## [3.2.0rc15] - 2026-05-19
 
 Ships the Phase 4 canary unblock work landed via PR `#1180`:
