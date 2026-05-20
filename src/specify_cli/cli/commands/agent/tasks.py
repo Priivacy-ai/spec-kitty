@@ -1389,7 +1389,7 @@ def move_task(
         bool,
         typer.Option(
             "--skip-review-artifact-check",
-            help="Override a rejected latest review artifact when arbiter-approving; requires --note.",
+            help="Override a rejected latest review artifact when arbiter-approving; requires --note and records override evidence.",
         ),
     ] = False,
     auto_commit: Annotated[
