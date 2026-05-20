@@ -17,6 +17,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from typer.testing import CliRunner
+from typer.main import get_command
 
 from specify_cli.cli.commands.agent.tasks import (
     _get_latest_review_cycle_verdict,
@@ -38,12 +39,19 @@ def test_move_task_help_surfaces_review_artifact_override_audit_path() -> None:
 
     assert result.exit_code == 0, result.output
     help_text = " ".join(result.output.split())
+    click_command = get_command(app).commands["move-task"]
+    skip_review_help = next(
+        param.help
+        for param in click_command.params
+        if param.name == "skip_review_artifact_check"
+    )
+
     assert "rejected" in help_text
     assert "review artifact" in help_text
     assert "arbiter-approving" in help_text
-    assert "requires --note" in help_text
-    assert "records override" in help_text
-    assert "evidence" in help_text
+    assert "requires --note" in skip_review_help
+    assert "records override" in skip_review_help
+    assert "evidence" in skip_review_help
 
 
 # ---------------------------------------------------------------------------
