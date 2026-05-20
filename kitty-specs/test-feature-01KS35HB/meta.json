@@ -1,0 +1,12 @@
+{
+  "created_at": "2026-05-20T17:04:37.403753+00:00",
+  "friendly_name": "123 test feature",
+  "mission_id": "01KS35HBGTZD5ZJ2QPMQ94TK33",
+  "mission_number": null,
+  "mission_slug": "test-feature-01KS35HB",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances 123 test feature on release/3.2.0rc21 so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "123 test feature",
+  "slug": "test-feature-01KS35HB",
+  "target_branch": "release/3.2.0rc21"
+}

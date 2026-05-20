@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0rc21] - 2026-05-20
+
+Rolls up the minor issue-queue cleanup selected before the 3.2.0
+stable release, plus the post-merge test hardening needed to keep
+`main` green after those fixes landed.
+
+- Fixes tasking help assertions to validate Typer option metadata
+  instead of Rich-rendered, platform-truncated help text, restoring
+  the full main test sweep after the task command cleanup.
+- Refreshes the rc20 lockfile metadata so branch and release
+  validation agree on the packaged dependency graph.
+- Improves task finalization and review-state behavior: rejected
+  review overrides are described with the canonical tasking language,
+  finalize-tasks dependency prose no longer produces false positives,
+  and the main test sweep covers those edge cases.
+- Tightens CI and repository hygiene by requiring PR suffixes in the
+  protect-main check and tracking research evidence logs.
+- Hardens sync, acceptance, retrospective, and dashboard edges found
+  during the pre-3.2.0 issue sweep: doctor daemon health checks are
+  isolated, acceptance clarification markers match the canonical
+  contract, retrospective event emission is materialized, and the
+  dashboard exposes the glossary shell.
+
 ## [3.2.0rc20] - 2026-05-20
 
 Closes the next dormant mask from epic `#1198`, surfaced by the
