@@ -817,6 +817,12 @@ class EventEmitter:
             "execution_mode": execution_mode or "direct_repo",
             "evidence": evidence_payload,
         }
+        # Do NOT pass envelope_fields=...; the canonical envelope keys are
+        # already nested inside ``payload``. Duplicating them at the top
+        # level violates the SaaS schema with
+        # ``Additional properties are not allowed ('actor' was unexpected)``
+        # and rejects every WPStatusChanged batch with HTTP 400. See issue
+        # Priivacy-ai/spec-kitty#1188.
         return self._emit(
             event_type="WPStatusChanged",
             aggregate_id=wp_id,
@@ -824,16 +830,6 @@ class EventEmitter:
             payload=payload,
             causation_id=causation_id,
             occurred_at=occurred_at,
-            envelope_fields={
-                "from_lane": from_lane,
-                "to_lane": to_lane,
-                "actor": actor,
-                "force": force,
-                "reason": reason,
-                "review_ref": review_ref,
-                "execution_mode": execution_mode,
-                "evidence": evidence_payload,
-            },
         )
 
     def emit_wp_created(
