@@ -21,7 +21,6 @@ from doctrine.drg.org_pack_config import (
 __all__ = [
     "OrgPackConfig",
     "PackRegistry",
-    "SourceType",
     "assert_pack_local_paths_exist",
     "load_pack_registry",
     "resolve_org_roots",

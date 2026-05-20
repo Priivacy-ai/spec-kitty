@@ -18,6 +18,8 @@ Forbidden patterns enforced here:
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from specify_cli.next._internal_runtime.discovery import DiscoveryContext
 from specify_cli.next._internal_runtime.engine import (
     MissionRunRef,
@@ -30,6 +32,11 @@ from specify_cli.next._internal_runtime.schema import (
     MissionPolicySnapshot,
     NextDecision,
 )
+
+if TYPE_CHECKING:
+    from specify_cli.next._internal_runtime.retrospective_terminus import (
+        run_terminus as _run_retrospective_terminus,  # noqa: F401
+    )
 
 __all__ = [
     "DiscoveryContext",

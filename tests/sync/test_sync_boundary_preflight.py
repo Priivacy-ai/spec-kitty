@@ -35,6 +35,9 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+
+pytestmark = [pytest.mark.integration]
+
 from rich.console import Console
 
 # Public surface under test

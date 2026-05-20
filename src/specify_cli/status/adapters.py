@@ -25,8 +25,11 @@ DossierSyncHandler = Callable[[Path, str, Path], None]
 # Callback signature: keyword-only, mirrors emit_wp_status_changed
 SaasFanOutHandler = Callable[..., None]
 
+LifecycleSaasFanOutHandler = Callable[..., None]
+
 _dossier_handlers: list[DossierSyncHandler] = []
 _saas_handlers: list[SaasFanOutHandler] = []
+_lifecycle_saas_handlers: list[LifecycleSaasFanOutHandler] = []
 
 
 def _handler_key(cb: Callable[..., Any]) -> str:
@@ -80,10 +83,21 @@ def register_saas_fanout_handler(cb: SaasFanOutHandler) -> None:
     _saas_handlers.append(cb)
 
 
+def register_lifecycle_saas_fanout_handler(cb: LifecycleSaasFanOutHandler) -> None:
+    """Register a lifecycle SaaS fan-out callback (idempotent by qualified name)."""
+    key = _handler_key(cb)
+    for idx, existing in enumerate(_lifecycle_saas_handlers):
+        if _handler_key(existing) == key:
+            _lifecycle_saas_handlers[idx] = cb
+            return
+    _lifecycle_saas_handlers.append(cb)
+
+
 def reset_handlers() -> None:
     """Clear all registered handlers (test-only utility)."""
     _dossier_handlers.clear()
     _saas_handlers.clear()
+    _lifecycle_saas_handlers.clear()
 
 
 def fire_dossier_sync(
@@ -147,5 +161,17 @@ def fire_saas_fanout(**kwargs: Any) -> None:
                 kwargs.get("from_lane"),
                 kwargs.get("to_lane"),
                 kwargs.get("force"),
+                exc_info=True,
+            )
+
+
+def fire_lifecycle_saas_fanout(**kwargs: Any) -> None:
+    """Call all registered lifecycle SaaS fan-out handlers with **kwargs."""
+    for handler in _lifecycle_saas_handlers:
+        try:
+            handler(**kwargs)
+        except Exception:
+            logger.debug(
+                "Lifecycle SaaS fan-out handler failed; canonical lifecycle log unaffected",
                 exc_info=True,
             )

@@ -8,6 +8,10 @@ ATDD anchor
 from __future__ import annotations
 
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 # The pre-Slice-F hardcoded sequence the new YAML must match:
 _HARDCODED_SEQUENCE: list[tuple[str, str | None]] = [
     ("specify", "plan"),

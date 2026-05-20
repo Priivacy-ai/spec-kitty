@@ -10,6 +10,8 @@ from __future__ import annotations
 import pytest
 
 
+pytestmark = [pytest.mark.unit]
+
 def test_get_workflow_loads_software_dev_default():
     from specify_cli.next._internal_runtime.workflow_registry import get_workflow
 

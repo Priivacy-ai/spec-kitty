@@ -13,6 +13,9 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = [pytest.mark.unit]
+
+
 import specify_cli.status.lifecycle_events as lifecycle
 from specify_cli.status.lifecycle_events import (
     LIFECYCLE_EVENT_TYPES,

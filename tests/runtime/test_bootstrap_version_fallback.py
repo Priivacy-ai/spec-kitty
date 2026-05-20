@@ -13,6 +13,10 @@ import importlib
 import sys
 
 
+import pytest
+
+pytestmark = [pytest.mark.integration]
+
 def test_get_cli_version_returns_string_when_version_is_none(monkeypatch) -> None:
     bootstrap = importlib.import_module("specify_cli.runtime.bootstrap")
     fake_module = sys.modules["specify_cli"]

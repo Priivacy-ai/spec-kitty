@@ -49,7 +49,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 # ---------------------------------------------------------------------------
 # Constants
