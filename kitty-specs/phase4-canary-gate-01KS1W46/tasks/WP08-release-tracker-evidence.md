@@ -15,7 +15,8 @@ subtasks:
 - T041
 - T042
 - T043
-agent: claude
+agent: "claude:sonnet-4-6:implementer:implementer"
+shell_pid: "64426"
 history:
 - date: '2026-05-20'
   event: created
@@ -254,3 +255,7 @@ After T043 passes, provide the "Final Answer Expected From You" report from star
 
 Planning branch: `main`. Merge target: `main`.
 Run `spec-kitty agent action implement WP08 --agent claude` to start this WP.
+
+## Activity Log
+
+- 2026-05-20T05:26:17Z – claude:sonnet-4-6:implementer:implementer – shell_pid=64426 – Started implementation via action command
