@@ -49,6 +49,9 @@ PRIMARY_ARTIFACT_FILES = (
     RESEARCH_FILE,
     DATA_MODEL_FILE,
 )
+NEEDS_CLARIFICATION_MARKER_RE = re.compile(
+    r"\[NEEDS CLARIFICATION:[^\]\n]+\]\s*<!--\s*decision_id:\s*\S+\s*-->"
+)
 
 
 class AcceptanceError(TaskCliError):
@@ -317,7 +320,7 @@ def _check_needs_clarification(files: Sequence[Path]) -> list[str]:
     for file_path in files:
         if file_path.exists():
             text = _read_text_strict(file_path)
-            if "[NEEDS CLARIFICATION" in text:
+            if NEEDS_CLARIFICATION_MARKER_RE.search(text):
                 results.append(str(file_path))
     return results
 
