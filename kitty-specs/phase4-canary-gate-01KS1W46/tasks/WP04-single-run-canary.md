@@ -24,8 +24,8 @@ subtasks:
 - T021
 - T022
 - T023
-agent: "claude:sonnet-4-6:implementer:implementer"
-shell_pid: "63317"
+agent: "claude:sonnet-4-6:reviewer:reviewer"
+shell_pid: "64254"
 history:
 - date: '2026-05-20'
   event: created
@@ -278,3 +278,4 @@ Run `spec-kitty agent action implement WP04 --agent claude` to start this WP.
 
 - 2026-05-20T05:23:19Z – claude:sonnet-4-6:implementer:implementer – shell_pid=63317 – Started implementation via action command
 - 2026-05-20T05:25:34Z – claude:sonnet-4-6:implementer:implementer – shell_pid=63317 – T017-T020 done (env, uv sync, daemons, harness 31/33 pass). T021-T023 deferred: no post-rc15 RC. Existing rc15-attempt1 evidence unchanged.
+- 2026-05-20T05:25:38Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=64254 – Started review via action command
