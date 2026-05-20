@@ -20,6 +20,7 @@ import pytest
 from specify_cli.retrospective.events import (
     CompletedPayload,
     ProposalAppliedPayload,
+    ProposalRejectedPayload,
     RequestedPayload,
     StartedPayload,
     emit_retrospective_event,
@@ -490,6 +491,69 @@ class TestEmitRetrospectiveEvent:
         assert status_path.exists()
         status = json.loads(status_path.read_text(encoding="utf-8"))
         assert status["retrospective"]["proposals_applied"] == 1
+
+    def test_emit_materializes_rejected_proposal_status_json(self, tmp_path: Path) -> None:
+        """Conflict rejection events also refresh the derived retrospective snapshot."""
+        feature_dir = tmp_path / "kitty-specs" / "test-mission"
+        feature_dir.mkdir(parents=True)
+
+        emit_retrospective_event(
+            feature_dir=feature_dir,
+            mission_slug=_MISSION_SLUG,
+            mission_id=_MISSION_ID,
+            mid8=_MID8,
+            actor=_RUNTIME_ACTOR,
+            event_name="retrospective.proposal.rejected",
+            payload=ProposalRejectedPayload(
+                proposal_id="RP-002",
+                kind="add_glossary_term",
+                reason="conflict",
+                detail="target already changed",
+                rejected_by=_RUNTIME_ACTOR,
+            ),
+        )
+
+        status_path = feature_dir / "status.json"
+        status = json.loads(status_path.read_text(encoding="utf-8"))
+        assert status["retrospective"]["proposals_rejected"] == 1
+
+    def test_emit_keeps_appended_event_when_materialization_fails(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """The event log is authoritative; status.json refresh failure must not roll it back."""
+        feature_dir = tmp_path / "kitty-specs" / "test-mission"
+        feature_dir.mkdir(parents=True)
+
+        def fail_materialize(feature_dir: Path) -> None:
+            raise RuntimeError(f"cannot materialize {feature_dir.name}")
+
+        monkeypatch.setattr("specify_cli.status.reducer.materialize", fail_materialize)
+
+        with caplog.at_level("WARNING", logger="specify_cli.retrospective.events"):
+            event_id = emit_retrospective_event(
+                feature_dir=feature_dir,
+                mission_slug=_MISSION_SLUG,
+                mission_id=_MISSION_ID,
+                mid8=_MID8,
+                actor=_RUNTIME_ACTOR,
+                event_name="retrospective.proposal.applied",
+                payload=ProposalAppliedPayload(
+                    proposal_id="RP-001",
+                    kind="add_glossary_term",
+                    target_urn="glossary:term",
+                    provenance_ref=".kittify/glossary/.provenance/workflow_probe.yaml",
+                    applied_by=_RUNTIME_ACTOR,
+                ),
+            )
+
+        events_path = feature_dir / "status.events.jsonl"
+        events = [json.loads(line) for line in events_path.read_text(encoding="utf-8").splitlines()]
+        assert [event["event_id"] for event in events] == [event_id]
+        assert not (feature_dir / "status.json").exists()
+        assert "was appended, but status.json materialization failed" in caplog.text
 
     def test_emit_rejects_unknown_event_name(self, tmp_path: Path) -> None:
         feature_dir = tmp_path / "kitty-specs" / "test-mission"
