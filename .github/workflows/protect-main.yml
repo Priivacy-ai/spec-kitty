@@ -49,8 +49,10 @@ jobs:
 
           # Get commit message and metadata
           COMMIT_MSG="$HEAD_COMMIT_MESSAGE"
+          COMMIT_SUBJECT="${COMMIT_MSG%%$'\n'*}"
           COMMITTER="$HEAD_COMMITTER_NAME"
 
+          echo "Commit subject: $COMMIT_SUBJECT"
           echo "Commit message: $COMMIT_MSG"
           echo "Committer: $COMMITTER"
 
@@ -60,7 +62,7 @@ jobs:
           # 2. Commits from "GitHub" or "github-actions[bot]" (automated merges)
           # 3. Tag pushes (handled by release workflow, not direct commits)
 
-          if [[ "$COMMIT_MSG" =~ ^Merge\ pull\ request\ #[0-9]+ ]] || \
+          if [[ "$COMMIT_SUBJECT" =~ ^Merge\ pull\ request\ #[0-9]+ ]] || \
              [[ "$COMMITTER" == "GitHub" ]] || \
              [[ "$COMMITTER" == "github-actions[bot]" ]]; then
             echo "✅ Commit is from an approved PR merge or automated process"
@@ -70,7 +72,7 @@ jobs:
           # Check if this is a squash/rebase merge. GitHub appends the PR
           # number as an end-of-subject suffix; issue references in prose do
           # not count as PR merge evidence.
-          if [[ "$COMMIT_MSG" =~ \(#[0-9]+\)$ ]]; then
+          if [[ "$COMMIT_SUBJECT" =~ \(#[0-9]+\)$ ]]; then
             echo "✅ Commit is from a squash/rebase merge (PR reference suffix)"
             exit 0
           fi
@@ -79,9 +81,9 @@ jobs:
           # spec-kitty merge produces squash commits whose message references the
           # mission branch (kitty/mission-NNN-slug) or records mission state
           # transitions. These are the authorised automated merge path for this repo.
-          if [[ "$COMMIT_MSG" =~ kitty/mission- ]] || \
-             [[ "$COMMIT_MSG" =~ ^chore\([0-9]+-.*\):\ (record done|review feedback|Move WP|Start WP|Mark|WP.*claimed|planning artifact) ]] || \
-             [[ "$COMMIT_MSG" =~ ^chore:\ (review feedback|planning artifacts) ]]; then
+          if [[ "$COMMIT_SUBJECT" =~ kitty/mission- ]] || \
+             [[ "$COMMIT_SUBJECT" =~ ^chore\([0-9]+-.*\):\ (record done|review feedback|Move WP|Start WP|Mark|WP.*claimed|planning artifact) ]] || \
+             [[ "$COMMIT_SUBJECT" =~ ^chore:\ (review feedback|planning artifacts) ]]; then
             echo "✅ Commit is from spec-kitty mission merge workflow"
             exit 0
           fi
@@ -90,7 +92,7 @@ jobs:
           # tagged with the matching release tag. This keeps release publication
           # explicit while preventing untagged version/changelog commits from
           # bypassing the normal PR or mission merge paths.
-          if [[ "$COMMIT_MSG" =~ ^Release\ spec-kitty\ ([0-9]+\.[0-9]+\.[0-9]+((a|b|rc)[0-9]+)?)$ ]]; then
+          if [[ "$COMMIT_SUBJECT" =~ ^Release\ spec-kitty\ ([0-9]+\.[0-9]+\.[0-9]+((a|b|rc)[0-9]+)?)$ ]]; then
             RELEASE_VERSION="${BASH_REMATCH[1]}"
             RELEASE_TAG="v${RELEASE_VERSION}"
             git fetch --force --depth=1 origin "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}" || true
