@@ -67,10 +67,11 @@ jobs:
             exit 0
           fi
 
-          # Check if this is a squash/rebase merge
-          # GitHub squash merges include the PR number in the commit message
-          if [[ "$COMMIT_MSG" =~ \(#[0-9]+\) ]]; then
-            echo "✅ Commit is from a squash/rebase merge (contains PR reference)"
+          # Check if this is a squash/rebase merge. GitHub appends the PR
+          # number as an end-of-subject suffix; issue references in prose do
+          # not count as PR merge evidence.
+          if [[ "$COMMIT_MSG" =~ \(#[0-9]+\)$ ]]; then
+            echo "✅ Commit is from a squash/rebase merge (PR reference suffix)"
             exit 0
           fi
 
