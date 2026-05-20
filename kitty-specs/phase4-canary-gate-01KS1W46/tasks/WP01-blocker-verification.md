@@ -261,3 +261,4 @@ Run `spec-kitty agent action implement WP01 --agent claude` to start this WP.
 - 2026-05-20T05:20:06Z – claude:sonnet-4-6:implementer:implementer – shell_pid=59100 – Gate BLOCKED: #1141 OPEN, #1182 OPEN. Verification complete. Remaining subtasks T004-T006 are gated pending fix-agent closure.
 - 2026-05-20T05:20:15Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=60867 – Started review via action command
 - 2026-05-20T05:20:43Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=60867 – Review passed: #1141 OPEN, #1182 OPEN confirmed via live gh calls. Gate correctly blocked. T004-T006 deferred — correct per WP spec for gate-blocked execution.
+- 2026-05-20T11:47:18Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=60867 – Re-activating: blockers #1141 and #1182 closed; rc16 published
