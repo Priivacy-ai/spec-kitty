@@ -9,6 +9,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0rc17] - 2026-05-20
+
+Ships the third Phase 4 launch-gate fix: the actual SaaS-side schema
+violation that was hiding behind the parser and canary issues fixed in
+rc16.
+
+- Closes `#1188`: `emit_wp_status_changed` in
+  `src/specify_cli/sync/emitter.py` no longer passes
+  `envelope_fields=` to `_emit`. The payload-only keys (`from_lane`,
+  `to_lane`, `actor`, `force`, `reason`, `review_ref`,
+  `execution_mode`, `evidence`) were being duplicated at the envelope
+  level alongside the canonical envelope keys, and the SaaS schema at
+  `/api/v1/events/batch/` rejected every batch containing a
+  `WPStatusChanged` event with
+  `Additional properties are not allowed ('actor' was unexpected)`
+  (HTTP 400). On rc16 this surfaced as scenarios 1, 2, and 4 of the
+  deployed-dev identity-boundary canary failing with
+  `Synced: 0 Duplicates: 0 Errors: N (unknown: N)`; scenario 3 passed
+  because it never emits events through the batch endpoint.
+- Extends `envelope.forbidden_fields` in
+  `src/specify_cli/core/upstream_contract.json` to include the
+  payload-only keys, so the existing
+  `test_no_forbidden_fields_in_envelope` contract test now guards
+  against regressions.
+- Updates the unit tests in `tests/sync/test_events.py` that
+  previously asserted the top-level duplicates; the new assertions
+  pin the contract that those keys live in `payload` only.
+
+The bug has been on `main` since commit `533e47d2` (2026-04-14,
+"Harden SaaS auth and restore build sync emission"). It was masked on
+earlier RCs by the audit-predicate gap fixed in rc15
+(`#1142`), the parser misclassification fixed in rc16 (`#1182`), and
+the canary-command shape fixed in
+`spec-kitty-end-to-end-testing#45` (`#1141`). With those three out of
+the way, the underlying envelope drift was finally visible end-to-end
+and could be fixed.
+
 ## [3.2.0rc16] - 2026-05-20
 
 Ships the Phase 4 canary launch-gate unblock: the actual root-cause fix for
