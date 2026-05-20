@@ -19,8 +19,8 @@ subtasks:
 - T010
 - T011
 - T012
-agent: "claude:sonnet-4-6:implementer:implementer"
-shell_pid: "61730"
+agent: "claude:sonnet-4-6:reviewer:reviewer"
+shell_pid: "62266"
 history:
 - date: '2026-05-20'
   event: created
@@ -247,3 +247,4 @@ Run `spec-kitty agent action implement WP02 --agent claude` to start this WP.
 
 - 2026-05-20T05:21:02Z – claude:sonnet-4-6:implementer:implementer – shell_pid=61730 – Started implementation via action command
 - 2026-05-20T05:21:44Z – claude:sonnet-4-6:implementer:implementer – shell_pid=61730 – Gate BLOCKED: latest RC is v3.2.0rc15 (no new RC). T007-T008 done. T009-T012 deferred pending rc16.
+- 2026-05-20T05:21:51Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=62266 – Started review via action command
