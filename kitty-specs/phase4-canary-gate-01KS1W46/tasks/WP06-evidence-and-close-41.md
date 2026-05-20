@@ -17,7 +17,8 @@ subtasks:
 - T031
 - T032
 - T033
-agent: claude
+agent: "claude:sonnet-4-6:implementer:implementer"
+shell_pid: "64426"
 history:
 - date: '2026-05-20'
   event: created
@@ -263,3 +264,7 @@ gh issue view 41 --repo Priivacy-ai/spec-kitty-end-to-end-testing \
 
 Planning branch: `main`. Merge target: `main`.
 Run `spec-kitty agent action implement WP06 --agent claude` to start this WP.
+
+## Activity Log
+
+- 2026-05-20T05:26:11Z – claude:sonnet-4-6:implementer:implementer – shell_pid=64426 – Started implementation via action command
