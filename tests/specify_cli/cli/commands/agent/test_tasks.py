@@ -245,6 +245,8 @@ class TestVerdictGuardInMoveTask:
         assert result.exit_code == 1, f"Expected exit 1, got {result.exit_code}. Output:\n{result.output}"
         assert "review-cycle-1.md" in result.output, f"Expected artifact name in output:\n{result.output}"
         assert "rejected" in result.output, f"Expected 'rejected' in output:\n{result.output}"
+        assert "--skip-review-artifact-check --note <reason>" in result.output
+        assert "arbiter override" in result.output
 
     @patch("specify_cli.cli.commands.agent.tasks.safe_commit")
     @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition")
