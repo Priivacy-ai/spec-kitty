@@ -871,10 +871,10 @@ def _parse_event_results(
             result.event_results.append(BatchEventResult(event_id=event_id, status="duplicate"))
         elif status in ("queued", "pending"):
             # Server durably accepted the event but has not yet materialised
-            # it. The queue row is owned by the server now (so the local row
-            # is treated as resolved alongside synced/duplicate), but the
-            # event is NOT a terminal success and MUST NOT be classified as
-            # an error. See issue Priivacy-ai/spec-kitty#1182.
+            # it. Leave the local row untouched so a later daemon tick can
+            # observe the eventual success/duplicate response. The event is
+            # NOT a terminal success and MUST NOT be classified as an error.
+            # See issue Priivacy-ai/spec-kitty#1182.
             result.pending_count += 1
             result.pending_ids.append(event_id)
             result.event_results.append(BatchEventResult(event_id=event_id, status="pending"))

@@ -192,9 +192,9 @@ class TestRowCountCache:
     def test_counter_after_process_batch_results(
         self, temp_queue: OfflineQueue
     ) -> None:
-        for i in range(6):
+        for i in range(7):
             temp_queue.queue_event(_evt(f"b-{i}"))
-        assert temp_queue._row_count == 6
+        assert temp_queue._row_count == 7
 
         results = [
             _FakeBatchResult(status="success", event_id="b-0"),
@@ -202,15 +202,19 @@ class TestRowCountCache:
             _FakeBatchResult(status="failed_permanent", event_id="b-2"),
             _FakeBatchResult(status="rejected", event_id="b-3"),
             _FakeBatchResult(status="rejected", event_id="b-4"),
-            # Unknown status -> ignored by process_batch_results.
+            # Pending is accepted by the server but still in-flight, so it is
+            # intentionally ignored by process_batch_results.
             _FakeBatchResult(status="failed_transient", event_id="b-5"),
+            _FakeBatchResult(status="pending", event_id="b-6"),
         ]
         temp_queue.process_batch_results(results)
         # 3 rows deleted (success/duplicate/failed_permanent), 2 rejected
-        # rows bump retry_count but stay in queue, failed_transient is a
-        # no-op.
-        assert temp_queue._row_count == 3
-        assert temp_queue._size_from_disk() == 3
+        # rows bump retry_count but stay in queue, failed_transient and
+        # pending are no-ops.
+        assert temp_queue._row_count == 4
+        assert temp_queue._size_from_disk() == 4
+        stats = temp_queue.get_queue_stats()
+        assert stats.total_retried == 2
 
     def test_counter_after_drain_to_file(
         self, temp_queue: OfflineQueue, tmp_path: Path
