@@ -178,7 +178,7 @@ git log --oneline cc5e1ca9..$(git rev-parse v3.2.0rc16^{commit}) 2>/dev/null | h
 
 ## Subtask T012: Verify Auth-Boundary Imports
 
-**Purpose**: Confirm the auth-boundary modules are present and importable.
+**Purpose**: Confirm the auth-boundary modules are present and importable, and that `sync status --check` exposes the identity-boundary fields the canary harness parses.
 
 ```bash
 SPEC_KITTY_PY=/Users/robert/.local/pipx/venvs/spec-kitty-cli/bin/python
@@ -195,7 +195,15 @@ SPEC_KITTY_ENABLE_SAAS_SYNC=1 "$SPEC_KITTY_BIN" sync status --check --json | pyt
 SPEC_KITTY_ENABLE_SAAS_SYNC=1 "$SPEC_KITTY_BIN" sync status --check
 ```
 
-**Expected**: `"boundary imports ok"` printed; `sync status --check` shows identity-boundary fields (owner match, auth status, queue count).
+**Expected**:
+- `"boundary imports ok"` printed
+- `sync status --check --json` output contains the following keys (used by the canary harness):
+  - `owner_match` (bool): daemon record matches current auth identity
+  - `auth_status` (string): `"authenticated"` or similar
+  - `queue_count` (int): number of queued events in offline queue
+  - `daemon_pid` (int or null): PID of running sync daemon, if any
+  - Any additional identity-boundary rows added by #1115 (e.g., `identity_mismatch_detected`, `stale_owner_count`)
+- If any of these keys are absent, the canary harness will likely fail to parse the output — report which keys are missing.
 
 ---
 

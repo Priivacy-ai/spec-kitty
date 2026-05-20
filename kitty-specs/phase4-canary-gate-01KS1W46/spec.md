@@ -96,7 +96,7 @@ This mission gates the release by verifying both blockers are closed with substa
 | C-004 | Do not raise the SaaS ingress size cap to suppress 413 errors. | Required |
 | C-005 | Do not use a CLI build from a SHA before `cc5e1ca983adff4a45489ce7afe11ad3a3a26e30`. | Required |
 | C-006 | PR #42 and PR #44 are already merged to `spec-kitty-end-to-end-testing` main. The "merge PR #42" sub-step in start-here.md Phase 5 is a no-op. | Required |
-| C-007 | `Priivacy-ai/spec-kitty#1038` must not be closed by this gate. The release decision belongs to the operator. | Required |
+| C-007 | `Priivacy-ai/spec-kitty#1038` must not be closed by this gate. The release decision belongs to the operator. (Enforcement alias of FR-015; retained as a constraint to surface this rule at implementation boundaries.) | Required |
 | C-008 | Work must stay inside the prepared workspace at `/Users/robert/spec-kitty-dev/spec-kitty-20260518-205752-xgdiSS`. Do not use older local checkouts. | Required |
 
 ---

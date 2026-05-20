@@ -12,6 +12,7 @@ requirement_refs:
 - FR-009
 - FR-010
 - NFR-001
+- NFR-003
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
@@ -189,12 +190,17 @@ EOF
 
 **Purpose**: Fail safely and cleanly. Only execute this subtask if T022 found failures.
 
-**Preserve evidence first**:
+**Preserve evidence first** (auto-increments attempt number — never overwrites prior attempts):
 ```bash
 RC_TAG=$(spec-kitty --version 2>&1 | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+rc[0-9]+' | head -1)
-ATTEMPT_DIR="artifacts/sync_identity_boundary/${RC_TAG}-attempt1"
+# Auto-increment: find first unused attempt slot
+ATTEMPT_N=1
+while [ -d "artifacts/sync_identity_boundary/${RC_TAG}-attempt${ATTEMPT_N}" ]; do
+  ATTEMPT_N=$((ATTEMPT_N + 1))
+done
+ATTEMPT_DIR="artifacts/sync_identity_boundary/${RC_TAG}-attempt${ATTEMPT_N}"
 mkdir -p "$ATTEMPT_DIR"
-cp artifacts/sync_identity_boundary/latest.json "$ATTEMPT_DIR/latest.json"
+cp artifacts/sync_identity_boundary/latest.json "$ATTEMPT_DIR/latest.json" 2>/dev/null || true
 cp /tmp/canary-single-run.log "$ATTEMPT_DIR/canary-single-run.log" 2>/dev/null || true
 echo "Evidence preserved at: $ATTEMPT_DIR"
 ```
@@ -205,24 +211,24 @@ For scenario 4 failure (`from='for_review' to='in_review'`):
 ```bash
 unset GITHUB_TOKEN
 gh issue reopen 1141 --repo Priivacy-ai/spec-kitty \
-  --comment "Reopened: rc${RC_TAG} canary single run — scenario 4 still failing.
+  --comment "Reopened: ${RC_TAG} canary single run attempt ${ATTEMPT_N} — scenario 4 still failing.
 Assertion: from='in_review' to='planned'
 Got: from='for_review' to='in_review'
-Evidence: artifacts/sync_identity_boundary/${RC_TAG}-attempt1/latest.json"
+Evidence: artifacts/sync_identity_boundary/${RC_TAG}-attempt${ATTEMPT_N}/latest.json"
 ```
 
 For scenarios 1/2 failure (`sync.event_loop_unavailable` + `unknown: N`):
 ```bash
 unset GITHUB_TOKEN
 gh issue reopen 1182 --repo Priivacy-ai/spec-kitty \
-  --comment "Reopened: rc${RC_TAG} canary single run — scenarios 1/2 still failing.
+  --comment "Reopened: ${RC_TAG} canary single run attempt ${ATTEMPT_N} — scenarios 1/2 still failing.
 sync.event_loop_unavailable + unknown error classification persists.
-Evidence: artifacts/sync_identity_boundary/${RC_TAG}-attempt1/latest.json"
+Evidence: artifacts/sync_identity_boundary/${RC_TAG}-attempt${ATTEMPT_N}/latest.json"
 ```
 
 After re-opening issue(s):
 ```
-GATE BLOCKED: Single-run canary failed on rc${RC_TAG}.
+GATE BLOCKED: Single-run canary failed on ${RC_TAG} (attempt ${ATTEMPT_N}).
 Issues re-opened: [list]
 Evidence: artifacts/sync_identity_boundary/${RC_TAG}-attempt1/latest.json
 Do not proceed to WP05. Wait for new fixes and a fresh RC.
