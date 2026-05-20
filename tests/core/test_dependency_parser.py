@@ -61,6 +61,13 @@ class TestInlineDependsOnFormat:
         result = parse_dependencies_from_tasks_md(content)
         assert result["WP02"] == ["WP01"]
 
+    def test_depends_on_prose_is_not_a_declaration(self) -> None:
+        content = _make_tasks_md(
+            ("WP02", "This implementation depends on WP01 vocabulary for examples.\n"),
+        )
+        result = parse_dependencies_from_tasks_md(content)
+        assert result["WP02"] == []
+
 
 # ---------------------------------------------------------------------------
 # Format 2: "**Dependencies**: WP##" header-line colon
@@ -85,6 +92,22 @@ class TestInlineDependenciesColonFormat:
     def test_case_insensitive(self) -> None:
         content = _make_tasks_md(
             ("WP02", "DEPENDENCIES: WP01\n"),
+        )
+        result = parse_dependencies_from_tasks_md(content)
+        assert result["WP02"] == ["WP01"]
+
+    def test_none_with_parallelism_prose_does_not_extract_wp_mentions(self) -> None:
+        content = _make_tasks_md(
+            ("WP02", "**Dependencies**: none (parallel-safe with WP01 and WP03).\n"),
+            ("WP03", "**Dependencies**: none (parallel-safe with WP01 and WP02).\n"),
+        )
+        result = parse_dependencies_from_tasks_md(content)
+        assert result["WP02"] == []
+        assert result["WP03"] == []
+
+    def test_parenthetical_note_after_declared_dep_does_not_add_extra_dep(self) -> None:
+        content = _make_tasks_md(
+            ("WP02", "**Dependencies**: WP01 (review alongside WP03 docs).\n"),
         )
         result = parse_dependencies_from_tasks_md(content)
         assert result["WP02"] == ["WP01"]
