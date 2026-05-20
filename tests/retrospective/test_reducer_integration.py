@@ -19,6 +19,7 @@ import pytest
 
 from specify_cli.retrospective.events import (
     CompletedPayload,
+    ProposalAppliedPayload,
     RequestedPayload,
     StartedPayload,
     emit_retrospective_event,
@@ -463,6 +464,32 @@ class TestEmitRetrospectiveEvent:
             ),
         )
         assert len(event_id) == 26
+
+    def test_emit_materializes_status_json(self, tmp_path: Path) -> None:
+        """Retrospective emits refresh status.json so snapshots do not drift."""
+        feature_dir = tmp_path / "kitty-specs" / "test-mission"
+        feature_dir.mkdir(parents=True)
+
+        emit_retrospective_event(
+            feature_dir=feature_dir,
+            mission_slug=_MISSION_SLUG,
+            mission_id=_MISSION_ID,
+            mid8=_MID8,
+            actor=_RUNTIME_ACTOR,
+            event_name="retrospective.proposal.applied",
+            payload=ProposalAppliedPayload(
+                proposal_id="RP-001",
+                kind="add_glossary_term",
+                target_urn="glossary:term",
+                provenance_ref=".kittify/glossary/.provenance/workflow_probe.yaml",
+                applied_by=_RUNTIME_ACTOR,
+            ),
+        )
+
+        status_path = feature_dir / "status.json"
+        assert status_path.exists()
+        status = json.loads(status_path.read_text(encoding="utf-8"))
+        assert status["retrospective"]["proposals_applied"] == 1
 
     def test_emit_rejects_unknown_event_name(self, tmp_path: Path) -> None:
         feature_dir = tmp_path / "kitty-specs" / "test-mission"
