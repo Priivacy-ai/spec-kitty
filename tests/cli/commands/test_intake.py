@@ -116,6 +116,27 @@ def test_intake_show_prints_brief(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     assert "Source:" in result.output or PLAN_CONTENT in result.output
 
 
+def test_intake_show_prints_full_brief_hash(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """--show prints the full stored SHA-256 hash for integrity checks."""
+    monkeypatch.chdir(tmp_path)
+    plan_file = tmp_path / "PLAN.md"
+    plan_file.write_text(PLAN_CONTENT)
+
+    runner.invoke(app, ["intake", str(plan_file)], catch_exceptions=False)
+
+    source_text = (tmp_path / ".kittify" / BRIEF_SOURCE_FILENAME).read_text(encoding="utf-8")
+    full_hash = next(
+        line.split(": ", 1)[1].strip()
+        for line in source_text.splitlines()
+        if line.startswith("brief_hash: ")
+    )
+    result = runner.invoke(app, ["intake", "--show"], catch_exceptions=False)
+
+    assert result.exit_code == 0
+    assert full_hash in result.output
+    assert f"{full_hash[:16]}..." not in result.output
+
+
 def test_intake_show_no_brief_exits_1(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """--show exits 1 when no brief has been written."""
     monkeypatch.chdir(tmp_path)
