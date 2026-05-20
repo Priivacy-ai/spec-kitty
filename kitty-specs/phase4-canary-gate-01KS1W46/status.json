@@ -1,7 +1,7 @@
 {
-  "event_count": 40,
-  "last_event_id": "01KS1XNJ20X3PEQ91QGZ9CZF66",
-  "materialized_at": "2026-05-20T05:27:52.128296+00:00",
+  "event_count": 41,
+  "last_event_id": "01KS1XNQ41ZFT319DC8GCGPJG8",
+  "materialized_at": "2026-05-20T05:27:57.314003+00:00",
   "mission_number": "",
   "mission_slug": "phase4-canary-gate-01KS1W46",
   "mission_type": "software-dev",
@@ -11,9 +11,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 4,
+    "for_review": 3,
     "in_progress": 0,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 0
   },
   "work_packages": {
@@ -46,11 +46,11 @@
       "last_transition_at": "2026-05-20T05:26:02.588075+00:00"
     },
     "WP05": {
-      "actor": "user",
+      "actor": "claude:sonnet-4-6:reviewer:reviewer",
       "force_count": 2,
-      "lane": "for_review",
-      "last_event_id": "01KS1XNE2KKEXXJARPBWFGVSKT",
-      "last_transition_at": "2026-05-20T05:27:48.051227+00:00"
+      "lane": "in_review",
+      "last_event_id": "01KS1XNQ41ZFT319DC8GCGPJG8",
+      "last_transition_at": "2026-05-20T05:27:57.314003+00:00"
     },
     "WP06": {
       "actor": "user",
