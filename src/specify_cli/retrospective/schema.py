@@ -455,9 +455,9 @@ class RetrospectiveRecord(BaseModel):
 # Validation patterns (matching JSON Schema patterns)
 # ---------------------------------------------------------------------------
 
-_FINDING_ID_RE = re.compile(r"^[a-z]-[0-9]{3,}$")
-_PROPOSAL_ID_RE = re.compile(r"^p-[0-9]{3,}$")
-_EVIDENCE_ID_RE = re.compile(r"^e-[0-9]{3,}$")
+_FINDING_ID_RE = re.compile(r"^[a-z]-\d{3,}$")
+_PROPOSAL_ID_RE = re.compile(r"^p-\d{3,}$")
+_EVIDENCE_ID_RE = re.compile(r"^e-\d{3,}$")
 
 
 # ---------------------------------------------------------------------------

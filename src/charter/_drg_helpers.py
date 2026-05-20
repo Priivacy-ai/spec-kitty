@@ -32,7 +32,7 @@ from doctrine.drg.models import DRGGraph
 from doctrine.drg.validator import assert_valid
 
 
-def _resolve_org_root(repo_root: Path) -> Path | None:  # noqa: ARG001
+def _resolve_org_root(_repo_root: Path) -> Path | None:
     """Return the configured org doctrine snapshot path, or ``None`` if absent.
 
     The charter-layer implementation is intentionally inert — it always returns

@@ -48,7 +48,6 @@ from specify_cli.next._internal_runtime.schema import (
     StepContextBundle,
 )
 from specify_cli.next._internal_runtime.workflow_registry import (
-    UnknownWorkflowError,
     get_workflow,
     list_available_workflows,
 )
@@ -138,13 +137,7 @@ def resolve_next_workflow_action(
     ValueError
         When ``current_action`` is not present in the workflow's action graph.
     """
-    try:
-        workflow: WorkflowSequence = _resolve_workflow_for_mission(mission_dir)
-    except UnknownWorkflowError:
-        # FR-015: propagate immediately; do not fall back.
-        # list_available_workflows is imported so callers can inspect the
-        # available set programmatically if they catch UnknownWorkflowError.
-        raise
+    workflow: WorkflowSequence = _resolve_workflow_for_mission(mission_dir)
     by_name: dict[str, ActionStep] = {a.action_name: a for a in workflow.actions}
     action: ActionStep | None = by_name.get(current_action)
     if action is None:

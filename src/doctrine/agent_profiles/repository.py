@@ -28,6 +28,7 @@ from .validation import reject_agent_profile_inline_refs
 
 _MAX_LOW_WORKLOAD = 2
 _MAX_MEDIUM_WORKLOAD = 4
+_AGENT_PROFILE_GLOB = "*.agent.yaml"
 
 
 def _filter_candidates_by_role(candidates: list[AgentProfile], required_role: str | None) -> list[AgentProfile]:
@@ -234,7 +235,7 @@ class AgentProfileRepository:
         shipped_profiles: dict[str, AgentProfile] = {}
 
         if self._shipped_dir.exists():
-            for yaml_file in self._shipped_dir.rglob("*.agent.yaml"):
+            for yaml_file in self._shipped_dir.rglob(_AGENT_PROFILE_GLOB):
                 try:
                     data = yaml.load(yaml_file)
                     if data is None:
@@ -264,7 +265,7 @@ class AgentProfileRepository:
 
         # Load and merge project profiles
         if self._project_dir and self._project_dir.exists():
-            for yaml_file in self._project_dir.glob("*.agent.yaml"):
+            for yaml_file in self._project_dir.glob(_AGENT_PROFILE_GLOB):
                 try:
                     data = yaml.load(yaml_file)
                     if data is None:
@@ -329,7 +330,7 @@ class AgentProfileRepository:
         """
         if not org_dir.exists():
             return
-        for yaml_file in org_dir.glob("*.agent.yaml"):
+        for yaml_file in org_dir.glob(_AGENT_PROFILE_GLOB):
             try:
                 data = yaml.load(yaml_file)
                 if data is None:

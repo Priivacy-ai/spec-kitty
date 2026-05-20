@@ -22,31 +22,31 @@ must fetch bearer tokens via
 deletion).
 """
 
-from .clock import LamportClock, generate_node_id
-from .diagnose import emit_diagnostic
-from .events import (
-    get_emitter,
-    reset_emitter,
-    emit_wp_status_changed,
-    emit_wp_created,
-    emit_wp_assigned,
-    emit_mission_created,
-    emit_mission_closed,
-    emit_history_added,
-    emit_error_logged,
-    emit_dependency_resolved,
-    emit_token_usage_recorded,
-    emit_diff_summary_recorded,
-)
-from .queue import OfflineQueue
-from .feature_flags import (
-    SAAS_SYNC_ENV_VAR,
-    is_saas_sync_enabled,
-    saas_sync_disabled_message,
-)
-
-# Lazy-loaded names (require 'requests' or 'websockets' at runtime)
 _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
+    # Keep package init cheap. Importing a sync submodule such as
+    # ``runtime_event_emitter`` still initializes this package first, so
+    # every common export must stay lazy to avoid pulling in auth/queue/
+    # daemon machinery on unrelated startup paths like ``spec-kitty next``.
+    "LamportClock": (".clock", "LamportClock"),
+    "generate_node_id": (".clock", "generate_node_id"),
+    "emit_diagnostic": (".diagnose", "emit_diagnostic"),
+    "get_emitter": (".events", "get_emitter"),
+    "reset_emitter": (".events", "reset_emitter"),
+    "emit_wp_status_changed": (".events", "emit_wp_status_changed"),
+    "emit_wp_created": (".events", "emit_wp_created"),
+    "emit_wp_assigned": (".events", "emit_wp_assigned"),
+    "emit_mission_created": (".events", "emit_mission_created"),
+    "emit_mission_closed": (".events", "emit_mission_closed"),
+    "emit_history_added": (".events", "emit_history_added"),
+    "emit_error_logged": (".events", "emit_error_logged"),
+    "emit_dependency_resolved": (".events", "emit_dependency_resolved"),
+    "emit_token_usage_recorded": (".events", "emit_token_usage_recorded"),
+    "emit_diff_summary_recorded": (".events", "emit_diff_summary_recorded"),
+    "OfflineQueue": (".queue", "OfflineQueue"),
+    "SAAS_SYNC_ENV_VAR": (".feature_flags", "SAAS_SYNC_ENV_VAR"),
+    "is_saas_sync_enabled": (".feature_flags", "is_saas_sync_enabled"),
+    "saas_sync_disabled_message": (".feature_flags", "saas_sync_disabled_message"),
+    # Lazy-loaded names that require heavier optional/runtime dependencies.
     "BatchEventResult": (".batch", "BatchEventResult"),
     "BatchSyncResult": (".batch", "BatchSyncResult"),
     "batch_sync": (".batch", "batch_sync"),

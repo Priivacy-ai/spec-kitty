@@ -512,9 +512,10 @@ def collect_foreground_identity(repo_root: Path) -> ForegroundIdentity:
     # strings as None for robustness against credential-file edge cases.
     has_auth = bool(auth_principal) and bool(server_url_raw)
     server_url: str | None = str(server_url_raw) if has_auth else None
-    team_or_user = (
+    principal_display = (
         f"{auth_principal}/{auth_team}" if auth_team else str(auth_principal)
-    ) if has_auth else None
+    )
+    team_or_user = principal_display if has_auth else None
 
     executable_path = Path(_canonical_executable_path(sys.executable))
     source_path = _resolve_source_path()

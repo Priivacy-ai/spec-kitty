@@ -239,6 +239,30 @@ def test_fault_injection_respects_allowlist(tmp_path: Path) -> None:
     assert result.passed
 
 
+def test_setup_doctor_failure_signatures_are_allowlisted(tmp_path: Path) -> None:
+    """The setup-doctor failure catalog may mention Python recovery commands."""
+    repo_root = Path(__file__).resolve().parents[2]
+    target = repo_root / "src" / "doctrine" / "skills" / "spec-kitty-setup-doctor" / "references" / "common-failure-signatures.md"
+    project_allowlist = repo_root / "src" / "charter" / "neutrality" / "language_scoped_allowlist.yaml"
+
+    empty_allowlist = tmp_path / "allow.yaml"
+    empty_allowlist.write_text("schema_version: '1'\npaths: []\n", encoding="utf-8")
+
+    unallowlisted = run_neutrality_lint(
+        repo_root=repo_root,
+        scan_roots=[target],
+        allowlist_path=empty_allowlist,
+    )
+    assert {hit.match for hit in unallowlisted.hits} >= {"python -m", "pip install"}
+
+    allowlisted = run_neutrality_lint(
+        repo_root=repo_root,
+        scan_roots=[target],
+        allowlist_path=project_allowlist,
+    )
+    assert allowlisted.passed, f"Expected allowlist to suppress setup-doctor recovery commands; got hits={allowlisted.hits}"
+
+
 def test_stale_allowlist_entry_is_reported(tmp_path: Path) -> None:
     """An allowlist entry that resolves to zero files must be flagged as stale."""
     (tmp_path / "src" / "doctrine").mkdir(parents=True)
