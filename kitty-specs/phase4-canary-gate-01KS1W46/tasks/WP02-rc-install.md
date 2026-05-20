@@ -19,7 +19,8 @@ subtasks:
 - T010
 - T011
 - T012
-agent: claude
+agent: "claude:sonnet-4-6:implementer:implementer"
+shell_pid: "61730"
 history:
 - date: '2026-05-20'
   event: created
@@ -241,3 +242,7 @@ SPEC_KITTY_ENABLE_SAAS_SYNC=1 "$SPEC_KITTY_BIN" sync status --check
 
 Planning branch: `main`. Merge target: `main`.
 Run `spec-kitty agent action implement WP02 --agent claude` to start this WP.
+
+## Activity Log
+
+- 2026-05-20T05:21:02Z – claude:sonnet-4-6:implementer:implementer – shell_pid=61730 – Started implementation via action command
