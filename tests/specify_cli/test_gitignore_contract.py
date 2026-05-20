@@ -1,11 +1,12 @@
 """Integration tests: gitignore policy stays aligned with the state contract."""
 
+import subprocess
 from pathlib import Path
-
 
 import pytest
 
 pytestmark = [pytest.mark.unit]
+
 
 def test_repo_gitignore_covers_local_runtime():
     """Every LOCAL_RUNTIME project surface has a matching .gitignore entry."""
@@ -72,3 +73,26 @@ def test_contract_runtime_entries_complete():
     assert ".kittify/runtime/" in entries
     assert ".kittify/events/" in entries
     assert ".kittify/dossiers/" in entries
+
+
+def test_research_evidence_logs_are_trackable():
+    """Investigation evidence logs under research/ are not masked by *.log."""
+
+    repo_root = Path(__file__).resolve().parents[2]
+
+    evidence = "kitty-specs/example-mission/research/evidence.log"
+    non_research = "kitty-specs/example-mission/runtime.log"
+    generic = "tmp/dev.log"
+
+    assert not _is_ignored(repo_root, evidence)
+    assert _is_ignored(repo_root, non_research)
+    assert _is_ignored(repo_root, generic)
+
+
+def _is_ignored(repo_root: Path, path: str) -> bool:
+    result = subprocess.run(
+        ["git", "check-ignore", "--quiet", path],
+        cwd=repo_root,
+        check=False,
+    )
+    return result.returncode == 0
