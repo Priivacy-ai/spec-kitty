@@ -15,7 +15,8 @@ subtasks:
 - T004
 - T005
 - T006
-agent: claude
+agent: "claude:sonnet-4-6:implementer:implementer"
+shell_pid: "59100"
 history:
 - date: '2026-05-20'
   event: created
@@ -253,3 +254,7 @@ git show <MERGE_SHA_FOR_1182> -- \
 Planning branch: `main`. Merge target: `main`.
 This WP runs in the root repo checkout. No worktree needed.
 Run `spec-kitty agent action implement WP01 --agent claude` to start this WP.
+
+## Activity Log
+
+- 2026-05-20T05:19:00Z – claude:sonnet-4-6:implementer:implementer – shell_pid=59100 – Started implementation via action command
