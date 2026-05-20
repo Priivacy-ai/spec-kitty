@@ -40,9 +40,7 @@ class TestIsExternalSymlink:
         os.symlink(target, link)
         assert is_external_symlink(link, tmp_path) is False
 
-    def test_symlink_targeting_outside_repo_is_external(
-        self, tmp_path: Path
-    ) -> None:
+    def test_symlink_targeting_outside_repo_is_external(self, tmp_path: Path) -> None:
         external = tmp_path / "home" / "canonical.md"
         external.parent.mkdir(parents=True)
         external.write_text("canonical", encoding="utf-8")
@@ -52,6 +50,30 @@ class TestIsExternalSymlink:
         link = repo / "SKILL.md"
         os.symlink(external, link)
         assert is_external_symlink(link, repo) is True
+
+    def test_parent_directory_symlink_targeting_outside_repo_is_external(self, tmp_path: Path) -> None:
+        external_skill_dir = tmp_path / "home" / ".claude" / "skills" / "x"
+        external_skill_dir.mkdir(parents=True)
+        (external_skill_dir / "SKILL.md").write_text("canonical", encoding="utf-8")
+
+        repo = tmp_path / "repo"
+        skill_parent = repo / ".claude" / "skills"
+        skill_parent.mkdir(parents=True)
+        os.symlink(external_skill_dir, skill_parent / "x")
+
+        assert is_external_symlink(skill_parent / "x" / "SKILL.md", repo) is True
+
+    def test_parent_directory_symlink_targeting_inside_repo_is_not_external(self, tmp_path: Path) -> None:
+        repo = tmp_path / "repo"
+        target_skill_dir = repo / "shared" / "x"
+        target_skill_dir.mkdir(parents=True)
+        (target_skill_dir / "SKILL.md").write_text("canonical", encoding="utf-8")
+
+        skill_parent = repo / ".claude" / "skills"
+        skill_parent.mkdir(parents=True)
+        os.symlink(target_skill_dir, skill_parent / "x")
+
+        assert is_external_symlink(skill_parent / "x" / "SKILL.md", repo) is False
 
     def test_missing_path_is_not_external_symlink(self, tmp_path: Path) -> None:
         missing = tmp_path / "no_such_file"
@@ -66,9 +88,7 @@ class TestIsExternalSymlink:
 class TestWriteSkillTextExternalSymlink:
     """A SKILL.md symlink pointing outside the repo must be tolerated."""
 
-    def test_external_symlink_is_skipped_and_warns(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_external_symlink_is_skipped_and_warns(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         # External canonical copy (e.g. HOME-managed)
         external_home = tmp_path / "home" / ".claude" / "skills"
         external_home.mkdir(parents=True)
@@ -99,9 +119,7 @@ class TestWriteSkillTextExternalSymlink:
         # (c) a warning was emitted
         assert any("symlink" in r.message.lower() for r in caplog.records)
 
-    def test_regular_in_repo_file_is_written_normally(
-        self, tmp_path: Path
-    ) -> None:
+    def test_regular_in_repo_file_is_written_normally(self, tmp_path: Path) -> None:
         skill_dir = tmp_path / ".claude" / "skills" / "spec-kitty-glossary-context"
         skill_dir.mkdir(parents=True)
         dest = skill_dir / "SKILL.md"
@@ -131,6 +149,31 @@ class TestWriteSkillTextExternalSymlink:
         # The write went through the symlink to the in-repo target.
         assert target.read_text(encoding="utf-8") == "NEW"
 
+    def test_external_parent_directory_symlink_is_skipped(self, tmp_path: Path) -> None:
+        """A symlinked skill directory pointing outside the repo is also skipped."""
+        external_skill_dir = tmp_path / "home" / ".claude" / "skills" / "spec-kitty-runtime-next"
+        external_skill_dir.mkdir(parents=True)
+        canonical = external_skill_dir / "SKILL.md"
+        canonical.write_text("CANONICAL CONTENT", encoding="utf-8")
+        canonical_mtime = canonical.stat().st_mtime
+
+        repo = tmp_path / "repo"
+        skill_parent = repo / ".claude" / "skills"
+        skill_parent.mkdir(parents=True)
+        os.symlink(external_skill_dir, skill_parent / "spec-kitty-runtime-next")
+
+        wrote, warning = write_skill_text(
+            skill_parent / "spec-kitty-runtime-next" / "SKILL.md",
+            "NEW CONTENT",
+            repo,
+        )
+
+        assert wrote is False
+        assert warning is not None
+        assert "symlinked path" in warning
+        assert canonical.read_text(encoding="utf-8") == "CANONICAL CONTENT"
+        assert canonical.stat().st_mtime == canonical_mtime
+
 
 # ---------------------------------------------------------------------------
 # End-to-end through the glossary-context migration (#1184 reproduction)
@@ -140,18 +183,13 @@ class TestWriteSkillTextExternalSymlink:
 class TestGlossaryContextMigrationToleratesExternalSymlink:
     """Reproduces the exact rc15 failure mode from issue #1184."""
 
-    def test_external_symlink_does_not_fail_migration(
-        self, tmp_path: Path
-    ) -> None:
+    def test_external_symlink_does_not_fail_migration(self, tmp_path: Path) -> None:
         from specify_cli.upgrade.migrations.m_2_1_2_fix_glossary_context_skill import (
             FixGlossaryContextSkillMigration,
         )
 
         # HOME-managed canonical copy outside the repo
-        external = (
-            tmp_path / "home" / ".claude" / "skills"
-            / "spec-kitty-glossary-context" / "SKILL.md"
-        )
+        external = tmp_path / "home" / ".claude" / "skills" / "spec-kitty-glossary-context" / "SKILL.md"
         external.parent.mkdir(parents=True)
         # Use the OLD marker so the migration considers this file needs update.
         external.write_text(
@@ -175,6 +213,4 @@ class TestGlossaryContextMigrationToleratesExternalSymlink:
         assert result.errors == []
         # Canonical file outside the repo is NOT modified
         assert external.stat().st_mtime == external_mtime
-        assert "## Step 1: Locate Glossary Context" in external.read_text(
-            encoding="utf-8"
-        )
+        assert "## Step 1: Locate Glossary Context" in external.read_text(encoding="utf-8")
