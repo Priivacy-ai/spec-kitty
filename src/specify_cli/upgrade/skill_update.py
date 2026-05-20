@@ -27,27 +27,30 @@ See also: agent-path-matrix.md in the setup-doctor skill references.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from fnmatch import fnmatch
 from pathlib import Path
 
+logger = logging.getLogger(__name__)
+
 # All possible skill root directories from agent-path-matrix.md.
 # Covers native-root-required, shared-root-capable, and agent-specific roots.
 SKILL_ROOTS: list[str] = [
-    ".claude/skills",       # Claude Code (native-root-required)
-    ".agents/skills",       # Shared root for shared-root-capable agents
-    ".qwen/skills",         # Qwen Code (native-root-required)
-    ".kilocode/skills",     # Kilo Code (native-root-required)
-    ".github/skills",       # GitHub Copilot (agent-specific)
-    ".gemini/skills",       # Gemini CLI (agent-specific)
-    ".cursor/skills",       # Cursor (agent-specific)
-    ".opencode/skills",     # opencode (agent-specific)
-    ".windsurf/skills",     # Windsurf (agent-specific)
-    ".augment/skills",      # Auggie CLI (agent-specific)
-    ".roo/skills",          # Roo Code (agent-specific)
-    ".agent/skills",        # Google Antigravity (agent-specific)
-    ".codex/skills",        # Codex CLI (if agent-specific root exists)
+    ".claude/skills",  # Claude Code (native-root-required)
+    ".agents/skills",  # Shared root for shared-root-capable agents
+    ".qwen/skills",  # Qwen Code (native-root-required)
+    ".kilocode/skills",  # Kilo Code (native-root-required)
+    ".github/skills",  # GitHub Copilot (agent-specific)
+    ".gemini/skills",  # Gemini CLI (agent-specific)
+    ".cursor/skills",  # Cursor (agent-specific)
+    ".opencode/skills",  # opencode (agent-specific)
+    ".windsurf/skills",  # Windsurf (agent-specific)
+    ".augment/skills",  # Auggie CLI (agent-specific)
+    ".roo/skills",  # Roo Code (agent-specific)
+    ".agent/skills",  # Google Antigravity (agent-specific)
+    ".codex/skills",  # Codex CLI (if agent-specific root exists)
 ]
 
 
@@ -95,23 +98,27 @@ def find_skill_files(
             for pattern in file_patterns:
                 file_path = skill_dir / pattern
                 if file_path.is_file():
-                    found.append(SkillFileInfo(
-                        path=file_path,
-                        skill_root=root,
-                        skill_name=skill_name,
-                        relative_path=pattern,
-                    ))
+                    found.append(
+                        SkillFileInfo(
+                            path=file_path,
+                            skill_root=root,
+                            skill_name=skill_name,
+                            relative_path=pattern,
+                        )
+                    )
         else:
             for file_path in sorted(skill_dir.rglob("*")):
                 if not file_path.is_file():
                     continue
                 rel = str(file_path.relative_to(skill_dir))
-                found.append(SkillFileInfo(
-                    path=file_path,
-                    skill_root=root,
-                    skill_name=skill_name,
-                    relative_path=rel,
-                ))
+                found.append(
+                    SkillFileInfo(
+                        path=file_path,
+                        skill_root=root,
+                        skill_name=skill_name,
+                        relative_path=rel,
+                    )
+                )
 
     return found
 
@@ -195,6 +202,65 @@ def file_contains_any(file_path: Path, markers: list[str]) -> bool:
     return any(marker in content for marker in markers)
 
 
+def _has_symlink_component(dest: Path, project_root: Path) -> bool:
+    """Return True when ``dest`` or an ancestor below ``project_root`` is a symlink."""
+    try:
+        dest_abs = dest.absolute()
+        project_root_abs = project_root.absolute()
+        rel = dest_abs.relative_to(project_root_abs)
+    except ValueError:
+        return dest.is_symlink()
+
+    current = project_root_abs
+    for part in rel.parts:
+        current = current / part
+        if current.is_symlink():
+            return True
+    return False
+
+
+def is_external_symlink(dest: Path, project_root: Path) -> bool:
+    """Return True if ``dest`` reaches outside ``project_root`` through a symlink."""
+    if not _has_symlink_component(dest, project_root):
+        return False
+    try:
+        target = dest.resolve(strict=False)
+        project_root_resolved = project_root.resolve()
+        try:
+            target.relative_to(project_root_resolved)
+        except ValueError:
+            return True
+        return False
+    except OSError:
+        return False
+
+
+def write_skill_text(
+    dest: Path,
+    content: str,
+    project_root: Path,
+    *,
+    encoding: str = "utf-8",
+) -> tuple[bool, str | None]:
+    """Write ``content`` to ``dest``, skipping HOME-managed external symlinks.
+
+    Returns ``(wrote, warning)``. When ``dest`` itself or a parent directory
+    inside ``project_root`` is a symlink that resolves outside ``project_root``,
+    the write is skipped and a warning string is returned; the canonical file
+    outside the repo is never modified (see #1184).
+    """
+    if is_external_symlink(dest, project_root):
+        try:
+            rel = str(dest.relative_to(project_root))
+        except ValueError:
+            rel = str(dest)
+        warning = f"Skipped {rel}: symlinked path points outside repo (HOME-managed canonical copy)"
+        logger.warning(warning)
+        return False, warning
+    dest.write_text(content, encoding=encoding)
+    return True, None
+
+
 def replace_skill_file(
     project_path: Path,
     skill_name: str,
@@ -228,7 +294,8 @@ def replace_skill_file(
             continue
 
         if existing != new_content:
-            file_path.write_text(new_content, encoding="utf-8")
-            updated.append(str(file_path.relative_to(project_path)))
+            wrote, _warning = write_skill_text(file_path, new_content, project_path)
+            if wrote:
+                updated.append(str(file_path.relative_to(project_path)))
 
     return updated
