@@ -233,6 +233,79 @@ class TestParseEventResults:
         assert result.failed_results[0].error == "Missing field X"
         assert result.failed_results[0].error_category == "schema_mismatch"
 
+    # ────────────────────────────────────────────────────────────
+    # Issue #1182: per-event queued/pending are non-error in-flight
+    # ────────────────────────────────────────────────────────────
+
+    def test_queued_status_is_pending_not_error(self):
+        """Per-event ``status=queued`` (server-accepted, not yet materialised)
+        must not become an Unknown error (Priivacy-ai/spec-kitty#1182)."""
+        result = BatchSyncResult()
+        raw = [{"event_id": "e1", "status": "queued"}]
+        _parse_event_results(raw, result)
+
+        assert result.error_count == 0
+        assert result.pending_count == 1
+        assert result.pending_ids == ["e1"]
+        assert result.synced_count == 0
+        assert result.duplicate_count == 0
+        assert len(result.event_results) == 1
+        assert result.event_results[0].status == "pending"
+        assert result.event_results[0].error is None
+
+    def test_pending_status_is_pending_not_error(self):
+        """Per-event ``status=pending`` must not become an Unknown error
+        (Priivacy-ai/spec-kitty#1182)."""
+        result = BatchSyncResult()
+        raw = [{"event_id": "e1", "status": "pending"}]
+        _parse_event_results(raw, result)
+
+        assert result.error_count == 0
+        assert result.pending_count == 1
+        assert result.pending_ids == ["e1"]
+        assert len(result.event_results) == 1
+        assert result.event_results[0].status == "pending"
+
+    def test_mixed_with_pending_does_not_inflate_errors(self):
+        """A mixed batch with success, duplicate, queued, pending, rejected
+        accounts each into its own bucket. The previous behaviour treated
+        queued/pending as Unknown errors and bumped ``error_count``."""
+        result = BatchSyncResult()
+        raw = [
+            {"event_id": "e1", "status": "success"},
+            {"event_id": "e2", "status": "duplicate"},
+            {"event_id": "e3", "status": "queued"},
+            {"event_id": "e4", "status": "pending"},
+            {"event_id": "e5", "status": "rejected", "error_message": "Invalid"},
+        ]
+        _parse_event_results(raw, result)
+
+        assert result.synced_count == 1
+        assert result.duplicate_count == 1
+        assert result.pending_count == 2
+        assert result.pending_ids == ["e3", "e4"]
+        assert result.error_count == 1
+        assert result.failed_ids == ["e5"]
+        # The previous behaviour produced category_counts={"unknown": 2}
+        # for the two pending rows; the new behaviour categorises only the
+        # genuinely rejected row.
+        assert result.category_counts == {"schema_mismatch": 1}
+
+    def test_pending_does_not_count_toward_success_count(self):
+        """``success_count`` is terminal-success only (synced + duplicate);
+        pending events are durable but not yet materialised."""
+        result = BatchSyncResult()
+        raw = [
+            {"event_id": "e1", "status": "success"},
+            {"event_id": "e2", "status": "queued"},
+            {"event_id": "e3", "status": "pending"},
+        ]
+        _parse_event_results(raw, result)
+
+        # success_count = synced + duplicate; pending is intentionally excluded
+        assert result.success_count == 1
+        assert result.pending_count == 2
+
 
 # ────────────────────────────────────────────────────────────────
 # T005: HTTP 400 details parsing
@@ -380,6 +453,35 @@ class TestFormatSyncSummary:
         assert "server_error" in CATEGORY_ACTIONS
         assert "unknown" in CATEGORY_ACTIONS
 
+    def test_pending_segment_when_nonzero(self):
+        """``Pending: N`` segment surfaces when pending_count > 0
+        (Priivacy-ai/spec-kitty#1182)."""
+        result = BatchSyncResult()
+        result.synced_count = 5
+        result.duplicate_count = 1
+        result.pending_count = 3
+        result.error_count = 0
+
+        summary = format_sync_summary(result)
+        assert "Synced: 5" in summary
+        assert "Duplicates: 1" in summary
+        assert "Pending: 3" in summary
+        assert "Failed: 0" in summary
+
+    def test_no_pending_segment_when_zero(self):
+        """``Pending`` segment is omitted when pending_count == 0
+        (preserves the historical summary shape for the common case)."""
+        result = BatchSyncResult()
+        result.synced_count = 5
+        result.duplicate_count = 1
+        result.error_count = 2
+
+        summary = format_sync_summary(result)
+        assert "Pending" not in summary
+        assert "Synced: 5" in summary
+        assert "Duplicates: 1" in summary
+        assert "Failed: 2" in summary
+
 
 # ────────────────────────────────────────────────────────────────
 # T009: Failure report generation
@@ -410,6 +512,7 @@ class TestFailureReport:
         assert report["summary"]["total_events"] == 10
         assert report["summary"]["synced"] == 7
         assert report["summary"]["duplicates"] == 1
+        assert report["summary"]["pending"] == 0
         assert report["summary"]["failed"] == 2
         assert report["summary"]["categories"] == {
             "schema_mismatch": 1,

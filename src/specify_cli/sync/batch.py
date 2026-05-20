@@ -520,8 +520,8 @@ class BatchEventResult:
 
     Attributes:
         event_id: Unique event identifier.
-        status: One of ``"success"``, ``"duplicate"``, ``"rejected"``,
-            ``"failed_permanent"``, or ``"failed_transient"``.
+        status: One of ``"success"``, ``"duplicate"``, ``"pending"``,
+            ``"rejected"``, ``"failed_permanent"``, or ``"failed_transient"``.
 
             Queue mutation semantics (see ``OfflineQueue.process_batch_results``):
 
@@ -529,6 +529,14 @@ class BatchEventResult:
               **deleted** from the queue. Permanent failures (e.g. oversized
               events that can never be sent) are removed so the drain loop can
               continue past them without stalling.
+            * ``pending`` -- the server acknowledged the event but has not
+              yet materialised it (per-event ``status`` of ``"queued"`` or
+              ``"pending"`` inside a 200 response body). The queue row is
+              **left untouched** (same disposition as ``failed_transient``)
+              so the next daemon tick re-sends and the server's eventual
+              ``success`` / ``duplicate`` response cleans it up. The CLI
+              does **not** classify the event as a sync failure. See
+              issue Priivacy-ai/spec-kitty#1182.
             * ``rejected`` -- per-event content rejection returned by the
               server inside a 200 response body. ``retry_count`` is
               **incremented**.
@@ -544,7 +552,7 @@ class BatchEventResult:
     """
 
     event_id: str
-    status: str  # "success" | "duplicate" | "rejected" | "failed_permanent" | "failed_transient"
+    status: str  # "success" | "duplicate" | "pending" | "rejected" | "failed_permanent" | "failed_transient"
     error: str | None = None
     error_category: str | None = None
 
@@ -565,16 +573,28 @@ class BatchSyncResult:
         self.total_events: int = 0
         self.synced_count: int = 0
         self.duplicate_count: int = 0
+        # Per-event "queued"/"pending" responses from the server. The event
+        # was durably accepted but has not yet been materialised; the CLI
+        # MUST NOT classify these as sync failures. See issue
+        # Priivacy-ai/spec-kitty#1182.
+        self.pending_count: int = 0
         self.error_count: int = 0
         self.error_messages: list[str] = []
         self.synced_ids: list[str] = []
+        self.pending_ids: list[str] = []
         self.failed_ids: list[str] = []
         # NEW: per-event results for richer diagnostics
         self.event_results: list[BatchEventResult] = []
 
     @property
     def success_count(self) -> int:
-        """Events successfully processed (synced or duplicate)."""
+        """Events successfully processed (synced or duplicate).
+
+        ``pending_count`` is intentionally excluded: pending events were
+        accepted by the server but have not yet been materialised, so they
+        are durable but not yet "done". Treat ``success_count`` as the
+        terminal-success bucket and ``pending_count`` as in-flight.
+        """
         return self.synced_count + self.duplicate_count
 
     # -- Derived helpers ------------------------------------------------
@@ -751,13 +771,26 @@ def format_sync_summary(result: BatchSyncResult) -> str:
 
     Example output::
 
-        Synced: 42, Duplicates: 3, Failed: 60
+        Synced: 42, Duplicates: 3, Pending: 2, Failed: 60
           schema_mismatch: 45  -- Run `spec-kitty sync diagnose` to inspect invalid events
           auth_expired: 10  -- Run `spec-kitty auth login` to refresh credentials
           unknown: 5  -- Inspect the failure report for details: --report <file.json>
+
+    The ``Pending`` segment is included only when ``result.pending_count``
+    is non-zero (per-event ``queued`` / ``pending`` responses durably held
+    by the server pending materialisation; see issue
+    Priivacy-ai/spec-kitty#1182).
     """
     lines: list[str] = []
-    lines.append(f"Synced: {result.synced_count}, Duplicates: {result.duplicate_count}, Failed: {result.error_count}")
+    if result.pending_count:
+        lines.append(
+            f"Synced: {result.synced_count}, Duplicates: {result.duplicate_count}, "
+            f"Pending: {result.pending_count}, Failed: {result.error_count}"
+        )
+    else:
+        lines.append(
+            f"Synced: {result.synced_count}, Duplicates: {result.duplicate_count}, Failed: {result.error_count}"
+        )
 
     category_counts = result.category_counts
     if category_counts:
@@ -788,6 +821,7 @@ def generate_failure_report(result: BatchSyncResult) -> dict:
             "total_events": result.total_events,
             "synced": result.synced_count,
             "duplicates": result.duplicate_count,
+            "pending": result.pending_count,
             "failed": result.error_count,
             "categories": result.category_counts,
         },
@@ -835,8 +869,17 @@ def _parse_event_results(
             result.duplicate_count += 1
             result.synced_ids.append(event_id)
             result.event_results.append(BatchEventResult(event_id=event_id, status="duplicate"))
+        elif status in ("queued", "pending"):
+            # Server durably accepted the event but has not yet materialised
+            # it. The queue row is owned by the server now (so the local row
+            # is treated as resolved alongside synced/duplicate), but the
+            # event is NOT a terminal success and MUST NOT be classified as
+            # an error. See issue Priivacy-ai/spec-kitty#1182.
+            result.pending_count += 1
+            result.pending_ids.append(event_id)
+            result.event_results.append(BatchEventResult(event_id=event_id, status="pending"))
         else:
-            # Treat any non-success/non-duplicate status as rejected
+            # Treat any non-success/non-duplicate/non-pending status as rejected
             error_text = error_msg or "Unknown error"
             category = categorize_error(error_text)
             result.error_count += 1
