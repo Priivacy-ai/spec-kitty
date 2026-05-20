@@ -17,8 +17,8 @@ subtasks:
 - T031
 - T032
 - T033
-agent: "claude:sonnet-4-6:implementer:implementer"
-shell_pid: "64426"
+agent: "claude:sonnet-4-6:reviewer:reviewer"
+shell_pid: "65704"
 history:
 - date: '2026-05-20'
   event: created
@@ -269,3 +269,4 @@ Run `spec-kitty agent action implement WP06 --agent claude` to start this WP.
 
 - 2026-05-20T05:26:11Z – claude:sonnet-4-6:implementer:implementer – shell_pid=64426 – Started implementation via action command
 - 2026-05-20T05:27:49Z – claude:sonnet-4-6:implementer:implementer – shell_pid=64426 – Deferred: all subtasks pending WP04 canary pass. Result document: wpwp06-*-result.md.
+- 2026-05-20T05:28:00Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=65704 – Started review via action command
