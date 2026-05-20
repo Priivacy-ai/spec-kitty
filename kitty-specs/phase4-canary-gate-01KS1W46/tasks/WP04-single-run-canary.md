@@ -280,3 +280,4 @@ Run `spec-kitty agent action implement WP04 --agent claude` to start this WP.
 - 2026-05-20T05:25:34Z – claude:sonnet-4-6:implementer:implementer – shell_pid=63317 – T017-T020 done (env, uv sync, daemons, harness 31/33 pass). T021-T023 deferred: no post-rc15 RC. Existing rc15-attempt1 evidence unchanged.
 - 2026-05-20T05:25:38Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=64254 – Started review via action command
 - 2026-05-20T05:26:02Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=64254 – Review passed: T017-T020 verified. Harness 31/33. T021-T023 deferred (no rc16, no new signal from running rc15 again). Correct per gate logic.
+- 2026-05-20T11:47:25Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=64254 – Re-activating: blockers #1141 and #1182 closed; rc16 published
