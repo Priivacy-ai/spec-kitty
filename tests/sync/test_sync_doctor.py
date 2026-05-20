@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, UTC
 from io import StringIO
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -74,6 +75,8 @@ class TestFormatQueueHealthCapacity:
 class TestDoctorCommand:
     """Smoke tests for the doctor subcommand output."""
 
+    @patch("specify_cli.sync.owner.list_orphan_records", return_value=[])
+    @patch("specify_cli.sync.daemon.scan_sync_daemons")
     @patch("specify_cli.sync.diagnose.diagnose_body_queue")
     @patch("specify_cli.sync.body_queue.OfflineBodyUploadQueue")
     @patch("specify_cli.sync.queue.OfflineQueue")
@@ -88,9 +91,15 @@ class TestDoctorCommand:
         mock_queue_cls,
         mock_body_queue_cls,
         mock_body_diag,
+        mock_scan_daemons,
+        _mock_orphan_records,
         capsys,
     ):
         """Doctor reports no issues when queue is empty, auth is valid, server reachable."""
+        mock_scan_daemons.return_value = SimpleNamespace(
+            orphan_count=0,
+            orphan_processes=[],
+        )
         mock_queue = MagicMock()
         mock_queue.get_queue_stats.return_value = QueueStats(total_queued=0)
         mock_queue.db_path = "/tmp/test.db"
@@ -130,6 +139,8 @@ class TestDoctorCommand:
         captured = capsys.readouterr()
         assert "No issues detected" in captured.out
 
+    @patch("specify_cli.sync.owner.list_orphan_records", return_value=[])
+    @patch("specify_cli.sync.daemon.scan_sync_daemons")
     @patch("specify_cli.sync.diagnose.diagnose_body_queue")
     @patch("specify_cli.sync.body_queue.OfflineBodyUploadQueue")
     @patch("specify_cli.sync.queue.OfflineQueue")
@@ -144,9 +155,15 @@ class TestDoctorCommand:
         mock_queue_cls,
         mock_body_queue_cls,
         mock_body_diag,
+        mock_scan_daemons,
+        _mock_orphan_records,
         capsys,
     ):
         """Doctor reports issues when queue is full and auth is expired."""
+        mock_scan_daemons.return_value = SimpleNamespace(
+            orphan_count=0,
+            orphan_processes=[],
+        )
         mock_queue = MagicMock()
         mock_queue.get_queue_stats.return_value = QueueStats(
             total_queued=DEFAULT_MAX_QUEUE_SIZE,
