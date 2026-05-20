@@ -134,6 +134,36 @@ def test_mission_created_dedupe_on_mission_slug(feature_dir: Path) -> None:
     assert len(entries) == 1
 
 
+def test_mission_created_payload_does_not_contain_actor(feature_dir: Path) -> None:
+    """``actor`` is forbidden by the canonical MissionCreated payload
+    schema. The SaaS jsonschema validator rejects any batch that includes
+    it; we must not put it in the payload locally either. See issue
+    Priivacy-ai/spec-kitty#1190."""
+    envelope = emit_mission_created_local(
+        feature_dir,
+        mission_slug="demo-mission",
+        mission_id="01J6XW9KQT7M0YB3N4R5CQZ2EX",
+        mission_number=None,
+        target_branch="main",
+        actor="spec-kitty mission create",
+        friendly_name="Demo Mission",
+        purpose_tldr="Demo TLDR",
+        purpose_context="Demo context paragraph.",
+    )
+    assert envelope is not None
+    payload = envelope["payload"]
+    assert "actor" not in payload, (
+        f"MissionCreated payload must not contain 'actor'; got {payload!r}. "
+        "See Priivacy-ai/spec-kitty#1190."
+    )
+    # Other expected keys are still present so the canonical contract
+    # isn't degraded by the drift removal.
+    assert payload["mission_slug"] == "demo-mission"
+    assert payload["mission_id"] == "01J6XW9KQT7M0YB3N4R5CQZ2EX"
+    assert payload["target_branch"] == "main"
+    assert payload["friendly_name"] == "Demo Mission"
+
+
 # ---------------------------------------------------------------------------
 # Artifact phases (Specify / Plan / Tasks)
 # ---------------------------------------------------------------------------
@@ -670,3 +700,57 @@ def test_lifecycle_saas_outbox_suppresses_queue_failures(
         actor="test",
         artifact_path="kitty-specs/demo-mission/spec.md",
     )
+
+
+# ---------------------------------------------------------------------------
+# Canonical-conformance guard (issue Priivacy-ai/spec-kitty#1190)
+# ---------------------------------------------------------------------------
+
+
+def test_validate_lifecycle_payload_rejects_unexpected_extra_fields() -> None:
+    """The canonical-conformance guard catches extra-property drift at
+    emit time. This is the regression guard for issue
+    Priivacy-ai/spec-kitty#1190 — the exact shape that previously
+    sailed through the local validator and only failed at the SaaS
+    jsonschema boundary."""
+    bad_payload = {
+        "mission_slug": "demo",
+        "mission_number": None,
+        "target_branch": "main",
+        "mission_id": "01J6XW9KQT7M0YB3N4R5CQZ2EX",
+        "actor": "spec-kitty mission create",  # extra — schema forbids it
+        "created_at": "2026-05-20T00:00:00+00:00",
+        "friendly_name": "Demo",
+        "purpose_tldr": "tldr",
+        "purpose_context": "context",
+    }
+    with pytest.raises(ValueError, match="actor"):
+        lifecycle._validate_lifecycle_payload("MissionCreated", bad_payload)
+
+
+def test_validate_lifecycle_payload_passes_when_payload_matches_schema() -> None:
+    """A cleaned MissionCreated payload (no unexpected extras) passes
+    the conformance guard. Missing required fields like ``mission_type``
+    and ``wp_count`` are intentionally tolerated (matches actual SaaS
+    enforcement at the time of this fix); see the docstring on
+    ``_validate_lifecycle_payload``."""
+    good_payload = {
+        "mission_slug": "demo",
+        "mission_number": None,
+        "target_branch": "main",
+        "mission_id": "01J6XW9KQT7M0YB3N4R5CQZ2EX",
+        "created_at": "2026-05-20T00:00:00+00:00",
+        "friendly_name": "Demo",
+        "purpose_tldr": "tldr",
+        "purpose_context": "context",
+    }
+    # Should not raise.
+    lifecycle._validate_lifecycle_payload("MissionCreated", good_payload)
+
+
+def test_validate_lifecycle_payload_falls_through_for_unknown_event_types() -> None:
+    """Unknown event types (i.e. not yet known to the installed events
+    package) must pass through quietly so adding a new event type
+    upstream doesn't become a sudden hard failure for installed CLIs."""
+    # Should not raise even for a completely-made-up event_type.
+    lifecycle._validate_lifecycle_payload("NotARealEventType", {"foo": "bar"})

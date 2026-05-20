@@ -191,22 +191,47 @@ def _repo_root_for_lifecycle_log(log_path: Path | None) -> Path | None:
 
 
 def _validate_lifecycle_payload(event_type: str, payload: Mapping[str, Any]) -> None:
-    """Validate lifecycle payloads against the shared package when available."""
-    from spec_kitty_events import project_lifecycle
+    """Validate lifecycle payloads against the canonical events contract.
 
-    payload_models = {
-        PROJECT_INITIALIZED: project_lifecycle.ProjectInitializedPayload,
-        SPECIFY_STARTED: project_lifecycle.SpecifyStartedPayload,
-        SPECIFY_COMPLETED: project_lifecycle.SpecifyCompletedPayload,
-        PLAN_STARTED: project_lifecycle.PlanStartedPayload,
-        PLAN_COMPLETED: project_lifecycle.PlanCompletedPayload,
-        TASKS_STARTED: project_lifecycle.TasksStartedPayload,
-        TASKS_COMPLETED: project_lifecycle.TasksCompletedPayload,
-        WP_CREATED: project_lifecycle.WPCreatedPayload,
-    }
-    model = payload_models.get(event_type)
-    if model is not None:
-        model.model_validate(dict(payload))
+    Delegates to ``spec_kitty_events.conformance.validate_event`` so every
+    event type the events package recognises (lifecycle, status, dossier,
+    build, …) is checked under the same canonical rules. The previous
+    selective dispatch via a hand-maintained ``project_lifecycle`` dict
+    silently passed through event types missing from the dict, which let
+    ``MissionCreated.payload.actor`` and similar extra-property drift
+    land in the offline queue and only surface at the SaaS jsonschema
+    boundary. See issue Priivacy-ai/spec-kitty#1190.
+
+    Scope: only ``extra_forbidden`` violations are fatal here. Missing
+    required-field violations are intentionally tolerated because the
+    deployed SaaS currently accepts payloads with absent required fields
+    (e.g. ``MissionCreated`` without ``mission_type`` / ``wp_count``).
+    Tightening the local guard past what the SaaS enforces would block
+    emits that successfully sync. When the SaaS ratchets to strict
+    required-field enforcement, this can be widened in the same place.
+
+    Unknown event types (e.g. ``BuildRegistered`` until the events
+    package ships a schema for it) pass through quietly so unrecognised
+    types don't become sudden hard failures.
+    """
+    from spec_kitty_events.conformance import validate_event
+    from spec_kitty_events.conformance.validators import _EVENT_TYPE_TO_MODEL
+
+    if event_type not in _EVENT_TYPE_TO_MODEL:
+        return
+
+    result = validate_event(dict(payload), event_type, strict=False)
+    extra_violations = [
+        v for v in result.model_violations if v.violation_type == "extra_forbidden"
+    ]
+    if extra_violations:
+        details = "; ".join(
+            f"{v.field}={v.input_value!r}" for v in extra_violations
+        )
+        raise ValueError(
+            f"Lifecycle payload for {event_type!r} contains unexpected fields "
+            f"that the SaaS schema will reject: {details}"
+        )
 
 
 def _build_saas_lifecycle_event(
@@ -435,11 +460,21 @@ def emit_mission_created_local(
     ``status.events.jsonl`` is created on first call.
     """
     log_path = mission_event_log_path(feature_dir)
+    # NOTE: the ``actor`` parameter is intentionally NOT placed in the
+    # MissionCreated payload. The canonical events 5.1.0 schema for
+    # ``mission_created_payload`` declares ``additionalProperties: false``
+    # and does not list ``actor`` — the SaaS jsonschema validator
+    # otherwise rejects batches with
+    # ``Additional properties are not allowed ('actor' was unexpected)``.
+    # See issue Priivacy-ai/spec-kitty#1190. The parameter is retained on
+    # the function signature for caller compatibility and is logically
+    # captured by the surrounding StatusEvent envelope; future cleanup
+    # may remove it entirely once all call sites are audited.
+    del actor  # mark "deliberately unused in payload" for readers
     payload: dict[str, Any] = {
         "mission_slug": mission_slug,
         "mission_number": mission_number,
         "target_branch": target_branch,
-        "actor": actor,
         "created_at": created_at or _now_iso(),
     }
     if mission_id is not None:
