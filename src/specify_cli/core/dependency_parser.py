@@ -135,16 +135,16 @@ def _split_wp_sections(tasks_content: str) -> dict[str, str]:
 # Matches the literal phrase "Depends on" (or "Depend on") followed by WP IDs.
 # No free-form sentence scanning; the phrase must start with the keyword.
 _DEPENDS_ON = re.compile(
-    r"Depends?\s+on\s+(WP\d{2}(?:\s*,\s*WP\d{2})*)",
-    re.IGNORECASE,
+    r"^\s*(?:[-*]\s*)?Depends?\s+on\s+(WP\d{2}(?:\s*,\s*WP\d{2})*)\b",
+    re.IGNORECASE | re.MULTILINE,
 )
 
 # Explicit-declaration format only (not prose inference).
 # Pattern 2: "**Dependencies**: WP01" / "Dependencies: WP01, WP02"
-# Matches a header-colon line with one or more WP IDs on the same line.
+# Matches a declaration field at the start of a line or after a pipe delimiter.
 _DEPS_COLON = re.compile(
-    r"\*?\*?Dependencies\*?\*?\s*:\s*(.+)",
-    re.IGNORECASE,
+    r"(?:^\s*(?:[-*]\s*)?|\|\s*)\*?\*?Dependencies\*?\*?\s*:\s*(?P<value>[^|\n]*)",
+    re.IGNORECASE | re.MULTILINE,
 )
 
 # Explicit-declaration format only (not prose inference).
@@ -160,6 +160,32 @@ _BULLET_WP = re.compile(r"^\s*[-*]\s*(WP\d{2})")
 
 # Helper: any WP ID anywhere in a string
 _WP_ID = re.compile(r"WP\d{2}")
+
+
+def _parse_colon_dependency_value(value: str) -> list[str]:
+    """Parse the right side of a ``Dependencies:`` declaration line."""
+    stripped = value.strip()
+    normalized = stripped.lower()
+    if (
+        not stripped
+        or normalized == "[]"
+        or normalized.startswith("none")
+        or normalized.startswith("no deps")
+        or normalized.startswith("no dependencies")
+    ):
+        return []
+
+    if depends_match := _DEPENDS_ON.match(stripped):
+        return _WP_ID.findall(depends_match.group(1))
+
+    list_match = re.match(
+        r"^(WP\d{2}(?:\s*,\s*WP\d{2})*)\b(?=\s*(?:$|[.;(#]))",
+        stripped,
+        re.IGNORECASE,
+    )
+    if list_match is None:
+        return []
+    return _WP_ID.findall(list_match.group(1))
 
 
 def _parse_section_deps(section_content: str) -> list[str]:
@@ -188,7 +214,7 @@ def _parse_section_deps(section_content: str) -> list[str]:
         # don't double-count it here.
         if _DEPS_HEADING.match(line.strip()):
             continue
-        explicit_deps.extend(_WP_ID.findall(match.group(1)))
+        explicit_deps.extend(_parse_colon_dependency_value(match.group("value")))
 
     # Pattern 3 — bullet list under a "### Dependencies" heading
     for heading_match in _DEPS_HEADING.finditer(section_content):
