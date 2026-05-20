@@ -144,10 +144,10 @@
 **Goal**: Run the identity-boundary canary in `--single` mode. All four scenarios must pass. On any failure, re-open the appropriate issue and preserve evidence.
 
 **Included subtasks**:
-- [ ] T017 Export required env vars for canary (WP04)
-- [ ] T018 uv sync in spec-kitty-end-to-end-testing (WP04)
-- [ ] T019 Kill any orphan sync daemons before canary (WP04)
-- [ ] T020 Run harness unit test preflight (3 preflight test files) (WP04)
+- [x] T017 Export required env vars for canary (WP04)
+- [x] T018 uv sync in spec-kitty-end-to-end-testing (WP04)
+- [x] T019 Kill any orphan sync daemons before canary (WP04)
+- [x] T020 Run harness unit test preflight (3 preflight test files) (WP04)
 - [ ] T021 Run --single canary (WP04)
 - [ ] T022 Assert all 4 scenario statuses in latest.json (WP04)
 - [ ] T023 On failure: re-open issue(s), preserve evidence, stop (WP04)
