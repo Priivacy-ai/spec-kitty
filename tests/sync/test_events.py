@@ -252,7 +252,11 @@ class TestWPStatusChanged:
     """Test emit_wp_status_changed (SC-001, SC-002, SC-003)."""
 
     def test_basic_emission(self, emitter: EventEmitter, temp_queue):
-        """WPStatusChanged event has correct structure."""
+        """WPStatusChanged event has correct structure.
+
+        Payload-only fields must NOT be duplicated at the envelope level —
+        the SaaS schema rejects extras (issue Priivacy-ai/spec-kitty#1188).
+        """
         event = emitter.emit_wp_status_changed(
             wp_id="WP01",
             from_lane="planned",
@@ -262,12 +266,26 @@ class TestWPStatusChanged:
         assert event["event_type"] == "WPStatusChanged"
         assert event["aggregate_id"] == "WP01"
         assert event["aggregate_type"] == "WorkPackage"
-        assert event["from_lane"] == "planned"
-        assert event["to_lane"] == "in_progress"
-        assert event["actor"] == "user"
+        # Canonical placement is inside payload (issue #1188).
         assert event["payload"]["wp_id"] == "WP01"
         assert event["payload"]["from_lane"] == "planned"
         assert event["payload"]["to_lane"] == "in_progress"
+        assert event["payload"]["actor"] == "user"
+        # The envelope MUST NOT carry duplicates of payload-only fields.
+        for forbidden in (
+            "from_lane",
+            "to_lane",
+            "actor",
+            "force",
+            "reason",
+            "review_ref",
+            "execution_mode",
+            "evidence",
+        ):
+            assert forbidden not in event, (
+                f"WPStatusChanged envelope must not contain {forbidden!r}; "
+                "see Priivacy-ai/spec-kitty#1188"
+            )
 
     def test_actor_default(self, emitter: EventEmitter, temp_queue):
         """actor defaults to 'user'."""
@@ -333,7 +351,14 @@ class TestWPStatusChanged:
         assert event["payload"]["evidence"]["repos"] == [
             {"repo": "test-org/test-repo", "branch": "test-branch", "commit": "a" * 40}
         ]
-        assert event["evidence"] == event["payload"]["evidence"]
+        # Evidence (and the other payload-only keys) MUST live in payload
+        # only; a top-level copy violates the SaaS schema (issue
+        # Priivacy-ai/spec-kitty#1188).
+        assert "evidence" not in event
+        assert "force" not in event
+        assert "reason" not in event
+        assert "review_ref" not in event
+        assert "execution_mode" not in event
         assert "repos" not in evidence
 
     def test_queued_in_offline_queue(self, emitter: EventEmitter, temp_queue):

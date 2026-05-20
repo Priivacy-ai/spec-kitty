@@ -5,7 +5,7 @@
   "_schema_version": "3.0.0",
   "envelope": {
     "required_fields": ["schema_version", "build_id", "aggregate_type", "event_type"],
-    "forbidden_fields": ["feature_slug", "feature_number"],
+    "forbidden_fields": ["feature_slug", "feature_number", "from_lane", "to_lane", "actor", "force", "reason", "review_ref", "execution_mode", "evidence"],
     "aggregate_type": {
       "allowed": ["Build", "Mission", "WorkPackage", "MissionDossier"],
       "forbidden": ["Feature"]
