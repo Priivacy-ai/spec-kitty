@@ -261,3 +261,4 @@ Run `spec-kitty agent action implement WP08 --agent claude` to start this WP.
 - 2026-05-20T05:26:17Z – claude:sonnet-4-6:implementer:implementer – shell_pid=64426 – Started implementation via action command
 - 2026-05-20T05:27:52Z – claude:sonnet-4-6:implementer:implementer – shell_pid=64426 – Deferred: all subtasks pending WP04 canary pass. Result document: wpwp08-*-result.md.
 - 2026-05-20T05:28:05Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=65704 – Started review via action command
+- 2026-05-20T05:28:23Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=65704 – Review passed: deferral correctly documented with gate condition. No out-of-scope actions. Constraints respected (C-006, C-007). Re-execute when WP04 single-run canary passes.
