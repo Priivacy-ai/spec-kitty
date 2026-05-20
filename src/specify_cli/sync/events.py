@@ -257,6 +257,7 @@ def emit_wp_created(
     mission_id: str | None = None,
     dependencies: list[str] | None = None,
     causation_id: str | None = None,
+    actor: str = "cli",
     *,
     ensure_daemon: bool = True,
 ) -> dict[str, Any] | None:
@@ -270,6 +271,7 @@ def emit_wp_created(
         mission_id=resolved_mission_id,
         dependencies=dependencies,
         causation_id=causation_id,
+        actor=actor,
     )
     if event is not None:
         _publish_event_via_sync_daemon(event, repo_root)
