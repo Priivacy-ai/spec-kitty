@@ -37,8 +37,6 @@ from typing import Literal
 
 
 __all__ = [
-    "RestartResult",
-    "RestartStatus",
     "restart_daemon",
     "render_restart_result",
 ]

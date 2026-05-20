@@ -33,6 +33,10 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 from specify_cli.audit.detectors import detect_forbidden_keys
 from specify_cli.audit.engine import run_audit
 from specify_cli.audit.models import AuditOptions

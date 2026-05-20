@@ -23,6 +23,9 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = [pytest.mark.unit]
+
+
 from specify_cli.retrospective.generator import (
     GENERATOR_VERSION,
     LOW_RISK_PROPOSAL_KINDS,

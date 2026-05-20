@@ -140,6 +140,7 @@ import contextlib as _contextlib  # noqa: E402
 
 with _contextlib.suppress(ImportError):
     from specify_cli.status.adapters import (
+        register_lifecycle_saas_fanout_handler,
         register_dossier_sync_handler,
         register_saas_fanout_handler,
     )
@@ -162,8 +163,83 @@ with _contextlib.suppress(ImportError):
 
         emit_wp_status_changed(**kwargs)
 
+    def _lifecycle_saas_fanout_handler(**kwargs):  # type: ignore[no-untyped-def]
+        from collections.abc import Mapping
+
+        from spec_kitty_events import Event as EventModel
+
+        from specify_cli.core.contract_gate import validate_outbound_payload
+        from specify_cli.identity.project import ensure_identity
+        from specify_cli.status.lifecycle_events import (
+            _generate_event_id,
+            _now_iso,
+            _repo_root_for_lifecycle_log,
+            _validate_lifecycle_payload,
+        )
+        from specify_cli.sync.clock import LamportClock
+        from specify_cli.sync.feature_flags import is_saas_sync_enabled
+        from specify_cli.sync.queue import (
+            OfflineQueue,
+            read_queue_scope_from_credentials,
+            read_queue_scope_from_session,
+        )
+
+        if not is_saas_sync_enabled():
+            return
+        scope = read_queue_scope_from_session() or read_queue_scope_from_credentials()
+        if not scope:
+            return
+
+        envelope = kwargs.get("envelope")
+        log_path = kwargs.get("log_path")
+        if not isinstance(envelope, Mapping):
+            return
+
+        event_type = envelope.get("event_type")
+        payload = envelope.get("payload")
+        if not isinstance(event_type, str) or not isinstance(payload, Mapping):
+            return
+
+        aggregate_type = envelope.get("aggregate_type")
+        if not isinstance(aggregate_type, str):
+            return
+
+        repo_root = _repo_root_for_lifecycle_log(log_path)
+        if repo_root is None:
+            return
+
+        identity = ensure_identity(repo_root)
+        if not identity.project_uuid or not identity.build_id:
+            return
+
+        _validate_lifecycle_payload(event_type, payload)
+
+        clock = LamportClock.load()
+        event_id = _generate_event_id()
+        aggregate_id = envelope.get("aggregate_id") or payload.get("mission_slug") or event_id
+        event = {
+            "event_id": event_id,
+            "event_type": event_type,
+            "aggregate_id": str(aggregate_id),
+            "aggregate_type": aggregate_type,
+            "schema_version": "3.0.0",
+            "build_id": identity.build_id,
+            "payload": dict(payload),
+            "node_id": identity.node_id or clock.node_id,
+            "lamport_clock": clock.tick(),
+            "causation_id": None,
+            "correlation_id": event_id,
+            "timestamp": envelope.get("timestamp") or _now_iso(),
+            "project_uuid": str(identity.project_uuid),
+            "project_slug": identity.project_slug or envelope.get("project_slug"),
+        }
+        validate_outbound_payload(event, "envelope")
+        EventModel(**event)
+        OfflineQueue().queue_event(event)
+
     register_dossier_sync_handler(_dossier_sync_handler)
     register_saas_fanout_handler(_saas_fanout_handler)
+    register_lifecycle_saas_fanout_handler(_lifecycle_saas_fanout_handler)
 
 with _contextlib.suppress(ImportError):
     # Register dossier emitter (WP01 inversion). The wrapper routes

@@ -22,6 +22,10 @@ directly from specify_cli.retrospective.schema.
 """
 
 from specify_cli.retrospective.deprecation import warn_env_var_deprecated
+from specify_cli.retrospective.config import (
+    ModeResolutionError as ModeResolutionError,  # noqa: F401
+    is_retrospective_enabled as is_retrospective_enabled,  # noqa: F401
+)
 from specify_cli.retrospective.generator import GENERATOR_VERSION, generate_retrospective
 from specify_cli.retrospective.lifecycle_events import (
     Actor as RetrospectiveActor,
@@ -83,10 +87,7 @@ __all__ = [
     "RecordExistsError",
     # generator record schema (WP02 dataclass-based, canonical names)
     "RetrospectiveRecord",
-    "Finding",
     "Proposal",
-    "EvidenceRef",
-    "Provenance",
     "Actor",
     "RecordValidationError",
     "validate_record",

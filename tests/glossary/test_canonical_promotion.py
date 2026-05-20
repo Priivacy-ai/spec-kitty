@@ -13,7 +13,9 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-pytestmark = []  # no special marks — runs in default collection
+import pytest
+
+pytestmark = [pytest.mark.unit]
 
 SLICE_F_TERMS = [
     "Three-layer DRG",

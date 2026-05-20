@@ -285,7 +285,7 @@ class TestSpecifyCliTrackerDoesNotReexportTrackerSurface:
         tracker attribute.
         """
         cli_tracker = importlib.import_module("specify_cli.tracker")
-        tracker = importlib.import_module("spec_kitty_tracker")
+        tracker = pytest.importorskip("spec_kitty_tracker")
         aliased: list[str] = []
         for name in _TRACKER_PUBLIC_SURFACE:
             tracker_obj = getattr(tracker, name, None)

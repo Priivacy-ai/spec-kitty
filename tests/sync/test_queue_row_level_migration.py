@@ -25,6 +25,9 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = [pytest.mark.integration]
+
+
 from specify_cli.sync.queue import (
     _MIGRATION_TABLES,
     LegacyRowCounts,

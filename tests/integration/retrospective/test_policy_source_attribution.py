@@ -13,6 +13,9 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+
+pytestmark = [pytest.mark.integration]
+
 import ulid as _ulid_mod
 
 

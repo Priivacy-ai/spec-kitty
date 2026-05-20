@@ -14,6 +14,9 @@ from collections.abc import Sequence
 
 import pytest
 
+pytestmark = [pytest.mark.integration]
+
+
 from specify_cli.sync import daemon as daemon_module
 from specify_cli.sync.daemon import (
     DaemonSingletonReport,

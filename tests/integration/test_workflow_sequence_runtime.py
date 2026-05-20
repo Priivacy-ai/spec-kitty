@@ -16,6 +16,9 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = [pytest.mark.integration]
+
+
 
 @pytest.fixture
 def fixture_mission_with_workflow_id(tmp_path: Path) -> Path:

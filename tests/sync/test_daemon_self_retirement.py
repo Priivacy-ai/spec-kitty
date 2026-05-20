@@ -25,7 +25,7 @@ import pytest
 
 from specify_cli.sync import daemon
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.integration]
 
 
 @pytest.fixture

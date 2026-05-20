@@ -234,55 +234,10 @@ def _build_saas_lifecycle_event(
     queue, however, must carry the same canonical envelope fields as normal
     sync events or live ingress rejects the batch.
     """
-    from spec_kitty_events import Event as EventModel
+    from specify_cli.status.adapters import fire_lifecycle_saas_fanout
 
-    from specify_cli.core.contract_gate import validate_outbound_payload
-    from specify_cli.identity.project import ensure_identity
-    from specify_cli.sync.clock import LamportClock
-
-    event_type = envelope.get("event_type")
-    payload = envelope.get("payload")
-    if not isinstance(event_type, str) or not isinstance(payload, Mapping):
-        return None
-
-    aggregate_type = envelope.get("aggregate_type")
-    if not isinstance(aggregate_type, str):
-        return None
-
-    repo_root = _repo_root_for_lifecycle_log(log_path)
-    if repo_root is None:
-        logger.debug("Lifecycle SaaS fan-out skipped: repo root unavailable")
-        return None
-
-    identity = ensure_identity(repo_root)
-    if not identity.project_uuid or not identity.build_id:
-        logger.debug("Lifecycle SaaS fan-out skipped: project identity incomplete")
-        return None
-
-    _validate_lifecycle_payload(event_type, payload)
-
-    clock = LamportClock.load()
-    event_id = _generate_event_id()
-    aggregate_id = envelope.get("aggregate_id") or payload.get("mission_slug") or event_id
-    event = {
-        "event_id": event_id,
-        "event_type": event_type,
-        "aggregate_id": str(aggregate_id),
-        "aggregate_type": aggregate_type,
-        "schema_version": "3.0.0",
-        "build_id": identity.build_id,
-        "payload": dict(payload),
-        "node_id": identity.node_id or clock.node_id,
-        "lamport_clock": clock.tick(),
-        "causation_id": None,
-        "correlation_id": event_id,
-        "timestamp": envelope.get("timestamp") or _now_iso(),
-        "project_uuid": str(identity.project_uuid),
-        "project_slug": identity.project_slug or envelope.get("project_slug"),
-    }
-    validate_outbound_payload(event, "envelope")
-    EventModel(**event)
-    return event
+    fire_lifecycle_saas_fanout(envelope=envelope, log_path=log_path)
+    return None
 
 
 def _queue_lifecycle_event_if_enabled(
@@ -291,25 +246,7 @@ def _queue_lifecycle_event_if_enabled(
     log_path: Path | None = None,
 ) -> None:
     """Best-effort SaaS outbox fan-out for canonical lifecycle events."""
-    try:
-        from specify_cli.sync.feature_flags import is_saas_sync_enabled
-        from specify_cli.sync.queue import (
-            OfflineQueue,
-            read_queue_scope_from_credentials,
-            read_queue_scope_from_session,
-        )
-
-        if not is_saas_sync_enabled():
-            return
-        scope = read_queue_scope_from_session() or read_queue_scope_from_credentials()
-        if not scope:
-            return
-        saas_event = _build_saas_lifecycle_event(envelope, log_path=log_path)
-        if saas_event is None:
-            return
-        OfflineQueue().queue_event(saas_event)
-    except Exception as exc:  # noqa: BLE001
-        logger.debug("Lifecycle SaaS queue fan-out skipped: %s", exc)
+    _build_saas_lifecycle_event(envelope, log_path=log_path)
 
 
 def _match_lifecycle_event(

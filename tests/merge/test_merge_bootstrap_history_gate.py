@@ -13,6 +13,9 @@ import json
 from pathlib import Path
 
 import pytest
+
+pytestmark = [pytest.mark.integration]
+
 import typer
 
 from specify_cli.cli.commands.merge import _enforce_canonical_status_history

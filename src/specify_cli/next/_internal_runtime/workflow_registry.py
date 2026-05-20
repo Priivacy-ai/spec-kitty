@@ -36,7 +36,7 @@ import yaml
 
 from .workflow_schema import WorkflowSequence
 
-__all__ = ["get_workflow", "list_available_workflows", "UnknownWorkflowError"]
+__all__ = ["get_workflow", "list_available_workflows"]
 
 
 class UnknownWorkflowError(Exception):
