@@ -15,7 +15,8 @@ subtasks:
 - T014
 - T015
 - T016
-agent: claude
+agent: "claude:sonnet-4-6:implementer:implementer"
+shell_pid: "62266"
 history:
 - date: '2026-05-20'
   event: created
@@ -189,3 +190,7 @@ terminal_failed_business_rule=22
 Planning branch: `main`. Merge target: `main`.
 Run `spec-kitty agent action implement WP03 --agent claude` to start this WP.
 (Can run concurrently with WP02.)
+
+## Activity Log
+
+- 2026-05-20T05:21:51Z – claude:sonnet-4-6:implementer:implementer – shell_pid=62266 – Started implementation via action command
