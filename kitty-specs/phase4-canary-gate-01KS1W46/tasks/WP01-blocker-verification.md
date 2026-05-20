@@ -15,8 +15,8 @@ subtasks:
 - T004
 - T005
 - T006
-agent: "claude:sonnet-4-6:implementer:implementer"
-shell_pid: "59100"
+agent: "claude:sonnet-4-6:reviewer:reviewer"
+shell_pid: "60867"
 history:
 - date: '2026-05-20'
   event: created
@@ -259,3 +259,4 @@ Run `spec-kitty agent action implement WP01 --agent claude` to start this WP.
 
 - 2026-05-20T05:19:00Z – claude:sonnet-4-6:implementer:implementer – shell_pid=59100 – Started implementation via action command
 - 2026-05-20T05:20:06Z – claude:sonnet-4-6:implementer:implementer – shell_pid=59100 – Gate BLOCKED: #1141 OPEN, #1182 OPEN. Verification complete. Remaining subtasks T004-T006 are gated pending fix-agent closure.
+- 2026-05-20T05:20:15Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=60867 – Started review via action command
