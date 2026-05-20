@@ -375,10 +375,14 @@ class TestWPStatusChanged:
 
 
 class TestWPCreated:
-    """Test emit_wp_created."""
+    """Test emit_wp_created. Payload keys follow the canonical events 5.1.0
+    schema: ``wp_title`` (not ``title``), ``depends_on`` (not
+    ``dependencies``), ``actor`` (required), and NO ``mission_id``
+    (forbidden by ``additionalProperties: false``). See issue
+    Priivacy-ai/spec-kitty#1203 mask 1."""
 
     def test_basic_emission(self, emitter: EventEmitter, temp_queue):
-        """WPCreated event has correct structure."""
+        """WPCreated event has correct canonical structure."""
         event = emitter.emit_wp_created(
             wp_id="WP01",
             title="Implement sync",
@@ -388,17 +392,22 @@ class TestWPCreated:
         assert event["event_type"] == "WPCreated"
         assert event["aggregate_type"] == "WorkPackage"
         assert event["payload"]["wp_id"] == "WP01"
-        assert event["payload"]["title"] == "Implement sync"
+        assert event["payload"]["wp_title"] == "Implement sync"
         assert event["payload"]["mission_slug"] == "028-sync"
+        assert event["payload"]["actor"] == "cli"
+        # Forbidden by the canonical schema.
+        assert "title" not in event["payload"]
+        assert "dependencies" not in event["payload"]
+        assert "mission_id" not in event["payload"]
 
     def test_dependencies_default_empty(self, emitter: EventEmitter, temp_queue):
-        """Dependencies defaults to empty list."""
+        """``depends_on`` defaults to empty list."""
         event = emitter.emit_wp_created("WP01", "Title", "028-sync")
         assert event is not None
-        assert event["payload"]["dependencies"] == []
+        assert event["payload"]["depends_on"] == []
 
     def test_dependencies_list(self, emitter: EventEmitter, temp_queue):
-        """Dependencies can be a list of WP IDs."""
+        """``depends_on`` carries a list of WP IDs."""
         event = emitter.emit_wp_created(
             "WP02",
             "Title",
@@ -406,10 +415,25 @@ class TestWPCreated:
             dependencies=["WP01"],
         )
         assert event is not None
-        assert event["payload"]["dependencies"] == ["WP01"]
+        assert event["payload"]["depends_on"] == ["WP01"]
 
-    def test_canonical_mission_id_passes_through(self, emitter: EventEmitter, temp_queue):
-        """WPCreated can carry canonical mission identity alongside the slug."""
+    def test_actor_override(self, emitter: EventEmitter, temp_queue):
+        """The actor parameter is reflected in the payload."""
+        event = emitter.emit_wp_created(
+            "WP01",
+            "Title",
+            "028-sync",
+            actor="spec-kitty agent mission finalize-tasks",
+        )
+        assert event is not None
+        assert event["payload"]["actor"] == "spec-kitty agent mission finalize-tasks"
+
+    def test_mission_id_not_placed_in_payload(self, emitter: EventEmitter, temp_queue):
+        """The canonical schema does not list ``mission_id`` in the
+        WPCreated payload allowed set. The function accepts the param
+        for caller compatibility but must NOT place it in the payload —
+        otherwise the SaaS rejects with
+        ``Additional properties are not allowed ('mission_id' was unexpected)``."""
         event = emitter.emit_wp_created(
             "WP02",
             "Title",
@@ -417,7 +441,7 @@ class TestWPCreated:
             mission_id="01KTESTMISSIONID00000000001",
         )
         assert event is not None
-        assert event["payload"]["mission_id"] == "01KTESTMISSIONID00000000001"
+        assert "mission_id" not in event["payload"]
 
 
 class TestWPAssigned:
@@ -786,6 +810,7 @@ class TestConvenienceFunctions:
             mission_id="01KTESTMISSIONID00000000001",
             dependencies=None,
             causation_id=None,
+            actor="cli",
         )
 
     @patch("specify_cli.sync.events.get_emitter")

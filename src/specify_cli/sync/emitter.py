@@ -234,12 +234,16 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
         },
     },
     "WPCreated": {
-        "required": {"wp_id", "title", "mission_slug"},
+        # Aligned to canonical events 5.1.0 wp_created_payload schema
+        # (issue Priivacy-ai/spec-kitty#1203 mask 1): wp_title (not title),
+        # depends_on (not dependencies), actor required.
+        "required": {"wp_id", "wp_title", "mission_slug", "actor"},
         "validators": {
             "wp_id": lambda v: isinstance(v, str) and bool(_WP_ID_PATTERN.match(v)),
-            "title": lambda v: isinstance(v, str) and len(v) >= 1,
+            "wp_title": lambda v: isinstance(v, str) and len(v) >= 1,
             "mission_slug": lambda v: isinstance(v, str) and len(v) >= 1,
-            "dependencies": lambda v: isinstance(v, list) and all(isinstance(item, str) and _WP_ID_PATTERN.match(item) for item in v),
+            "actor": lambda v: isinstance(v, str) and len(v) >= 1,
+            "depends_on": lambda v: isinstance(v, list) and all(isinstance(item, str) and _WP_ID_PATTERN.match(item) for item in v),
         },
     },
     "WPAssigned": {
@@ -840,16 +844,28 @@ class EventEmitter:
         mission_id: str | None = None,
         dependencies: list[str] | None = None,
         causation_id: str | None = None,
+        actor: str = "cli",
     ) -> dict[str, Any] | None:
-        """Emit WPCreated event (FR-009)."""
+        """Emit WPCreated event (FR-009).
+
+        The canonical ``wp_created_payload`` schema (events 5.1.0) lists
+        ``wp_title``, ``depends_on``, ``actor`` as required and forbids
+        any extras (``additionalProperties: false``). The function keeps
+        ``title`` / ``dependencies`` as parameter names for caller
+        compatibility but **renames them at the payload boundary** to
+        ``wp_title`` / ``depends_on``. ``mission_id`` is kept on the
+        function signature but is no longer placed in the payload (it
+        isn't in the canonical allowed set). See issue
+        Priivacy-ai/spec-kitty#1203 mask 1.
+        """
+        del mission_id  # accepted for caller compatibility; not in canonical payload (#1203)
         payload = {
             "wp_id": wp_id,
-            "title": title,
-            "dependencies": dependencies or [],
+            "wp_title": title,
+            "depends_on": dependencies or [],
             "mission_slug": mission_slug,
+            "actor": actor,
         }
-        if mission_id is not None:
-            payload["mission_id"] = mission_id
         return self._emit(
             event_type="WPCreated",
             aggregate_id=wp_id,

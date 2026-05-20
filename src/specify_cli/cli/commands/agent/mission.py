@@ -898,7 +898,7 @@ def setup_plan(
     ------------------------------------------------------------------
     This command's full call graph was audited to confirm every body
     upload / queue write goes through ``default_queue_db_path()`` and
-    that no setup-plan path opens the legacy ``~/.spec-kitty/queue.db``
+    that no setup-plan path opens the legacy home-scoped queue database
     directly. The audit covered:
 
       * ``trigger_feature_dossier_sync_if_enabled()`` (this function
@@ -2451,6 +2451,7 @@ def finalize_tasks(
                     dependencies=list(cast(list[str], wp["dependencies"])),
                     mission_slug=mission_slug,
                     causation_id=causation_id,
+                    actor="spec-kitty agent mission finalize-tasks",
                 )
             except Exception as exc:
                 console.print(f"[yellow]Warning:[/yellow] WPCreated emission failed for {wp['id']}: {exc}")
