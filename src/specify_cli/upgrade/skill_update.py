@@ -27,10 +27,14 @@ See also: agent-path-matrix.md in the setup-doctor skill references.
 
 from __future__ import annotations
 
+import logging
+import os
 from collections.abc import Callable
 from dataclasses import dataclass
 from fnmatch import fnmatch
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 # All possible skill root directories from agent-path-matrix.md.
 # Covers native-root-required, shared-root-capable, and agent-specific roots.
@@ -195,6 +199,55 @@ def file_contains_any(file_path: Path, markers: list[str]) -> bool:
     return any(marker in content for marker in markers)
 
 
+def is_external_symlink(dest: Path, project_root: Path) -> bool:
+    """Return True if ``dest`` is a symlink whose target lies outside ``project_root``."""
+    if not dest.is_symlink():
+        return False
+    try:
+        target = Path(os.readlink(dest))
+        target = (
+            (dest.parent / target).resolve()
+            if not target.is_absolute()
+            else target.resolve()
+        )
+        project_root_resolved = project_root.resolve()
+        try:
+            target.relative_to(project_root_resolved)
+        except ValueError:
+            return True
+        return False
+    except OSError:
+        return False
+
+
+def write_skill_text(
+    dest: Path,
+    content: str,
+    project_root: Path,
+    *,
+    encoding: str = "utf-8",
+) -> tuple[bool, str | None]:
+    """Write ``content`` to ``dest``, skipping HOME-managed external symlinks.
+
+    Returns ``(wrote, warning)``. When ``dest`` is a symlink whose target
+    resolves outside ``project_root`` the write is skipped and a warning
+    string is returned; the canonical file outside the repo is never modified
+    (see #1184).
+    """
+    if is_external_symlink(dest, project_root):
+        try:
+            rel = str(dest.relative_to(project_root))
+        except ValueError:
+            rel = str(dest)
+        warning = (
+            f"Skipped {rel}: symlink points outside repo (HOME-managed canonical copy)"
+        )
+        logger.warning(warning)
+        return False, warning
+    dest.write_text(content, encoding=encoding)
+    return True, None
+
+
 def replace_skill_file(
     project_path: Path,
     skill_name: str,
@@ -228,7 +281,8 @@ def replace_skill_file(
             continue
 
         if existing != new_content:
-            file_path.write_text(new_content, encoding="utf-8")
-            updated.append(str(file_path.relative_to(project_path)))
+            wrote, _warning = write_skill_text(file_path, new_content, project_path)
+            if wrote:
+                updated.append(str(file_path.relative_to(project_path)))
 
     return updated

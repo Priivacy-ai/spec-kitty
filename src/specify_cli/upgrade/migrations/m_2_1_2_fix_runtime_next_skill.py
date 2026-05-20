@@ -15,7 +15,7 @@ from importlib.resources import files
 from pathlib import Path
 
 from ..registry import MigrationRegistry
-from ..skill_update import file_contains_any, find_skill_files
+from ..skill_update import file_contains_any, find_skill_files, write_skill_text
 from .base import BaseMigration, MigrationResult
 
 _SKILL_NAME = "spec-kitty-runtime-next"
@@ -87,8 +87,13 @@ class FixRuntimeNextSkillMigration(BaseMigration):
                 changes.append(f"Would replace {rel}")
             else:
                 try:
-                    info.path.write_text(new_content, encoding="utf-8")
-                    changes.append(f"Replaced {rel}")
+                    wrote, warning = write_skill_text(
+                        info.path, new_content, project_path
+                    )
+                    if wrote:
+                        changes.append(f"Replaced {rel}")
+                    elif warning is not None:
+                        changes.append(warning)
                 except OSError as e:
                     errors.append(f"Failed to write {rel}: {e}")
 
