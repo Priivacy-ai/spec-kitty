@@ -92,8 +92,8 @@
 **Goal**: Install the post-rc15 CLI RC, confirm it contains both #1141 and #1182 fixes, and verify that auth boundary imports are clean.
 
 **Included subtasks**:
-- [ ] T007 Determine latest prerelease RC tag from PyPI/GitHub (WP02)
-- [ ] T008 Gate: if latest is still rc15 → stop and report (WP02)
+- [x] T007 Determine latest prerelease RC tag from PyPI/GitHub (WP02)
+- [x] T008 Gate: if latest is still rc15 → stop and report (WP02)
 - [ ] T009 Kill any orphan sync daemons (pkill) (WP02)
 - [ ] T010 Install post-rc15 RC via pipx (WP02)
 - [ ] T011 Verify installed CLI version output (WP02)
