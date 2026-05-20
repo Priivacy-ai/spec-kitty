@@ -194,9 +194,12 @@ def _resolve_mission_id_for_terminus(feature_dir: Path) -> str:
     return feature_dir.name
 
 
+_RESOLUTION_ERROR = "<resolution_error>"
+
+
 def _build_retrospective_facilitator_callback(
     mission_slug: str,
-    repo_root: Path,  # noqa: ARG001
+    repo_root: Path,
     provenance_kind: str = "runtime_post_completion",
 ) -> Any:
     """Build the facilitator callback that wires WP01/02/03 surfaces into the terminus.
@@ -216,6 +219,7 @@ def _build_retrospective_facilitator_callback(
 
     WP04 — T018/T019/T020/T021
     """
+    del repo_root
     # Late imports to keep the module-level import graph clean and to allow
     # the terminus to remain the single import point for heavy optional deps.
     from specify_cli.retrospective.policy import (
@@ -362,9 +366,9 @@ def _build_retrospective_facilitator_callback(
 def _resolution_error_source_map() -> dict[str, str]:
     """Return a minimal policy source map for malformed policy failures."""
     return {
-        "enabled": "<resolution_error>",
-        "timing": "<resolution_error>",
-        "failure_policy": "<resolution_error>",
+        "enabled": _RESOLUTION_ERROR,
+        "timing": _RESOLUTION_ERROR,
+        "failure_policy": _RESOLUTION_ERROR,
     }
 
 
