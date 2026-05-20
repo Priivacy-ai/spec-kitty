@@ -15,8 +15,8 @@ subtasks:
 - T014
 - T015
 - T016
-agent: "claude:sonnet-4-6:implementer:implementer"
-shell_pid: "62266"
+agent: "claude:sonnet-4-6:reviewer:reviewer"
+shell_pid: "62711"
 history:
 - date: '2026-05-20'
   event: created
@@ -195,3 +195,4 @@ Run `spec-kitty agent action implement WP03 --agent claude` to start this WP.
 
 - 2026-05-20T05:21:51Z – claude:sonnet-4-6:implementer:implementer – shell_pid=62266 – Started implementation via action command
 - 2026-05-20T05:22:45Z – claude:sonnet-4-6:implementer:implementer – shell_pid=62266 – All 4 preflight checks pass. Health snapshot captured. Ready for review.
+- 2026-05-20T05:22:50Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=62711 – Started review via action command
