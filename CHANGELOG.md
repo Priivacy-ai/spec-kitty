@@ -9,6 +9,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0rc19] - 2026-05-20
+
+Ships the combined `#1199` + `#1202` surgical fix from epic `#1198`:
+the immediate Phase 4 canary blocker plus the observability fix that
+restores the SaaS's per-event violation diversity to operators.
+
+- Closes `#1199`: `emit_mission_created_local` in
+  `src/specify_cli/status/lifecycle_events.py` now accepts
+  `mission_type` (required) and `wp_count` (default 0) and places
+  both in the payload. The canonical events 5.1.0 schema for
+  `mission_created_payload` lists both as required; the deployed
+  SaaS jsonschema gate rejects payloads without them with
+  `'mission_type' is a required property`. The sibling call site in
+  `src/specify_cli/core/mission_creation.py:412` now passes both
+  fields, matching the sync-events path at `:468-470`.
+- `_validate_lifecycle_payload` widened from `extra_forbidden`-only
+  to fail on ALL model violations (extras + missing-required +
+  every other `violation_type`). The historical comment block that
+  rationalised the narrow scope as matching SaaS tolerance was
+  based on the SaaS-side `_should_validate_strict_envelope` hole
+  (`Priivacy-ai/spec-kitty-saas#217`) and is no longer true. The
+  widened validator catches MissionCreated, WPStatusChanged,
+  MissionDossierArtifactIndexed, and every other event type the
+  events package recognises, preventing the next analogous drift
+  from reaching the offline queue.
+- Closes `#1202`: `_parse_error_response` in
+  `src/specify_cli/sync/batch.py` now reads `details[*].detail`
+  (the key the SaaS actually ships) before falling back to
+  `.error` / `.reason`. Without this fix, every per-event line
+  in a SaaS rejection collapsed to the outer `error_msg` —
+  hiding the SaaS's full per-event violation diversity for the
+  entire `rc12 → rc18` drift-chain investigation. With the fix,
+  the next failed batch surfaces every distinct violation per
+  event, dramatically compressing any remaining mask-peeling.
+
+Sequenced first per epic `#1198`. The structural follow-up
+`#1200` (pydantic-construct payloads across all `emit_*` sites +
+CI conformance gate) and `#1203` (dormant masks sweep) are next,
+with `spec-kitty-saas#217` (close the strict-envelope hole)
+sequenced after.
+
 ## [3.2.0rc18] - 2026-05-20
 
 Ships the final observed Phase 4 launch-gate payload drift fix after the
