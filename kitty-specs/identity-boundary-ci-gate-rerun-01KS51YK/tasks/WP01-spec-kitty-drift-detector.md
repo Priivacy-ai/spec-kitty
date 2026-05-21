@@ -24,8 +24,8 @@ subtasks:
 - T002
 - T003
 - T004
-agent: claude
-shell_pid: '78388'
+agent: "claude"
+shell_pid: "78388"
 history: []
 agent_profile: implementer-ivan
 authoritative_surface: .github/workflows/
@@ -198,3 +198,7 @@ Reviewer (reviewer-renata) checks:
 - README section is discoverable and accurate.
 - No drift into `ci-quality.yml` or any unrelated file.
 - LOC delta within budget (~70 lines total).
+
+## Activity Log
+
+- 2026-05-21T10:57:08Z – claude – shell_pid=78388 – Assigned agent via action command
