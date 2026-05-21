@@ -26,8 +26,8 @@ subtasks:
 - T006
 - T007
 - T008
-agent: claude
-shell_pid: '81066'
+agent: "claude"
+shell_pid: "81066"
 history: []
 agent_profile: implementer-ivan
 authoritative_surface: spec-kitty-events:.github/workflows/
@@ -234,3 +234,7 @@ Reviewer checks:
 - `uv pip install -e ../events` step is present (otherwise the harness tests run against the released events, not the PR head — defeats the gate).
 - README SHA-bump procedure is complete (all four steps).
 - No drift into other workflows.
+
+## Activity Log
+
+- 2026-05-21T10:59:53Z – claude – shell_pid=81066 – Assigned agent via action command
