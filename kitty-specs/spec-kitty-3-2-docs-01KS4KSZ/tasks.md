@@ -254,9 +254,9 @@ WP07 + WP09 + WP11 + WP12 + WP13 → WP14
 - **Prompt**: [tasks/WP13-docs-freshness-orchestrator.md](./tasks/WP13-docs-freshness-orchestrator.md)
 - **Estimated size**: ~420 lines.
 - **Subtasks**:
-  - [ ] T040 Implement `check_docs_freshness.py` per contract (WP13)
-  - [ ] T041 Implement `test_check_docs_freshness.py` (WP13)
-  - [ ] T042 Wire freshness check into existing CI quality workflow (WP13)
+  - [x] T040 Implement `check_docs_freshness.py` per contract (WP13)
+  - [x] T041 Implement `test_check_docs_freshness.py` (WP13)
+  - [x] T042 Wire freshness check into existing CI quality workflow (WP13)
 
 ### WP14 — Publication checklist + final sweep
 
