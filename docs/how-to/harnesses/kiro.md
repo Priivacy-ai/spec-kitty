@@ -16,7 +16,7 @@
 
 Kiro is the rebrand-target of Amazon Q. In 3.2 the Spec Kitty installer ships a **bootstrap-only** surface for Kiro — the directory layout is in place, but the full `/spec-kitty.*` command set is not yet integration-tested end-to-end against this harness. Expect feature parity with Amazon Q at the prompt-file level; verify each command before relying on it for production missions.
 
-The promotion criteria (`partial → supported`) are documented in [`docs/development/3-2-harness-research-method.md`](../../development/3-2-harness-research-method.md) §6.
+The promotion criteria (`partial → supported`) are maintained in `docs/development/3-2-harness-research-method.md` §6.
 
 ## Where Spec Kitty installs files
 

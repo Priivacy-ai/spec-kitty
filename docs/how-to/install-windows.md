@@ -149,7 +149,7 @@ Plain `python` may resolve to a Microsoft Store stub on a fresh install; `py` al
 
 ## Next steps
 
-- [Initialize a project](install-and-upgrade.md#initialize-a-new-project)
+- [Initialize a project](non-interactive-init.md)
 - [Upgrade the CLI](upgrade-cli.md)
 - [macOS install guide](install-macos.md)
 - [Linux install guide](install-linux.md)
