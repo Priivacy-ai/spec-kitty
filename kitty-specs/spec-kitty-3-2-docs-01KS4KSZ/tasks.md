@@ -239,11 +239,11 @@ WP07 + WP09 + WP11 + WP12 + WP13 → WP14
 - **Prompt**: [tasks/WP12-install-upgrade-uninstall.md](./tasks/WP12-install-upgrade-uninstall.md)
 - **Estimated size**: ~580 lines.
 - **Subtasks**:
-  - [ ] T035 Author install-macos / install-linux / install-windows how-tos (WP12)
-  - [ ] T036 Author upgrade-cli and upgrade-project how-tos (WP12)
-  - [ ] T037 Author uninstall how-to (CLI + project files + rollback) (WP12)
-  - [ ] T038 Author pip-vs-pipx-vs-uv explanation (WP12)
-  - [ ] T039 Author init-lifecycle and upgrade-lifecycle reference pages (WP12)
+  - [x] T035 Author install-macos / install-linux / install-windows how-tos (WP12)
+  - [x] T036 Author upgrade-cli and upgrade-project how-tos (WP12)
+  - [x] T037 Author uninstall how-to (CLI + project files + rollback) (WP12)
+  - [x] T038 Author pip-vs-pipx-vs-uv explanation (WP12)
+  - [x] T039 Author init-lifecycle and upgrade-lifecycle reference pages (WP12)
 
 ### WP13 — Freshness orchestrator + tests + CI wiring
 
