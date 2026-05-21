@@ -16,7 +16,8 @@ subtasks:
 - T018
 - T019
 - T020
-agent: claude
+agent: "claude:opus-4-7:python-pedro:implementer"
+shell_pid: "41943"
 history:
 - actor: planner
   at: '2026-05-21T06:52:04Z'
@@ -169,3 +170,7 @@ Implement `tests/architectural/test_docs_cli_reference_parity.py`:
 ```bash
 spec-kitty agent action implement WP06 --agent claude
 ```
+
+## Activity Log
+
+- 2026-05-21T07:45:58Z – claude:opus-4-7:python-pedro:implementer – shell_pid=41943 – Started implementation via action command
