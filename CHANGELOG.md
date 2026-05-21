@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0rc22] - 2026-05-21
+
+Ships the `sync diagnose` canonical-allowlist fix so canary diagnostic
+output stops flagging known event types (`TasksCompleted`,
+`PlanCompleted`, `GatePassed`, etc.) as unknown. The `sync diagnose`
+allowlist is replaced with delegation to
+`spec_kitty_events.conformance.validators._EVENT_TYPE_TO_MODEL` — the
+canonical registry shared with the SaaS strict validator. A
+drift-detector regression test asserts the union remains in sync, so
+future events releases self-validate. The CLI's outbound emission
+gate (`emitter.VALID_EVENT_TYPES`) is intentionally untouched.
+
+- Fixes `spec-kitty sync diagnose` false-positive "unknown event"
+  warnings by sourcing recognised types from the canonical events
+  registry (`Priivacy-ai/spec-kitty#1222`).
+- Adds a drift-detector regression test that fails when the events
+  package adds or removes an event type without the registry being
+  re-imported.
+
 ## [3.2.0rc21] - 2026-05-20
 
 Rolls up the minor issue-queue cleanup selected before the 3.2.0
