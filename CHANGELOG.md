@@ -1166,6 +1166,51 @@ command and no new top-level runtime dependencies.
   [architecture/2.x/05_ownership_map.md](architecture/2.x/05_ownership_map.md) for the full
   charter slice entry and the reference exemplar pattern. Closes #611.
 
+## [3.1.8] - 2026-04-29
+
+### Fixed
+
+- Dashboard feature polling now tolerates `/api/features` error responses and
+  malformed payloads without crashing on an undefined `features` array, so the
+  UI no longer gets stuck loading when feature scanning fails.
+- OpenCode global command installation now targets OpenCode's config command
+  directory, honoring `OPENCODE_CONFIG_DIR` and `XDG_CONFIG_HOME` before
+  falling back to `~/.config/opencode/commands`.
+
+## [3.1.7] - 2026-04-28
+
+### Fixed
+
+- Compact charter context now preserves charter section anchors, directive IDs,
+  and tactic IDs so follow-on agent prompts keep project charter rules in LLM
+  context after bootstrap load.
+- Review claims now enter the canonical `in_review` lane while still
+  recognizing legacy review-claim events, avoiding review-loop false blocks.
+- Merge completion now keeps post-merge status transitions stable and avoids
+  duplicate done/approved emissions.
+- `spec-kitty intake` now caps oversized plan files, ignores out-of-repo and
+  symlinked auto-detected plans, and writes mission brief/provenance files
+  atomically.
+- `auth refresh` now treats `HTTP 401` responses with `invalid_grant` or
+  `session_invalid` error codes like `HTTP 400`, and clears locally stored
+  sessions after server-side refresh rejection.
+- Local dashboard mission selectors now sort by mission recency instead of
+  lexical slug order.
+- `agent config list/status/add/sync/remove` now respects global command roots
+  for slash-command agents and avoids recreating retired project-local command
+  directories.
+- Status event readers now ignore non-lane mission events in
+  `status.events.jsonl` while still failing loudly for malformed lane events.
+- Sync shutdown diagnostics are deduplicated within a process and suppressed
+  after successful JSON mission creation.
+
+### Changed
+
+- `spec-kitty-tracker` is pinned to `0.4.3` for the latest tracker-side
+  stability fixes.
+- The local `.python-version` pin now uses `3.13` instead of a patch-specific
+  interpreter version.
+
 ## [3.1.6] - 2026-04-20
 
 ### Fixed
