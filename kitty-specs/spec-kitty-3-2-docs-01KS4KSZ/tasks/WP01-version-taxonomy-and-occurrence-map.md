@@ -133,3 +133,4 @@ spec-kitty agent action implement WP01 --agent claude
 ## Activity Log
 
 - 2026-05-21T07:06:26Z – claude:opus-4-7:curator-carla:implementer – shell_pid=15990 – Assigned agent via action command
+- 2026-05-21T07:10:44Z – claude:opus-4-7:curator-carla:implementer – shell_pid=15990 – WP01 ready: 5-tag taxonomy doc + occurrence_map covering all 8 bulk-edit categories.
