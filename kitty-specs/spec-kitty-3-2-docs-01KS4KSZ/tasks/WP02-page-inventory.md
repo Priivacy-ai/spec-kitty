@@ -12,7 +12,8 @@ subtasks:
 - T004
 - T005
 - T006
-agent: claude
+agent: "claude:opus-4-7:curator-carla:implementer"
+shell_pid: "22617"
 history:
 - actor: planner
   at: '2026-05-21T06:52:04Z'
@@ -117,3 +118,7 @@ Add `notes: "MANUAL_REVIEW: <reason>"` for any page where the heuristic was ambi
 ```bash
 spec-kitty agent action implement WP02 --agent claude
 ```
+
+## Activity Log
+
+- 2026-05-21T07:16:02Z – claude:opus-4-7:curator-carla:implementer – shell_pid=22617 – Started implementation via action command
