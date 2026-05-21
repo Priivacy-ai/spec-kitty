@@ -228,6 +228,35 @@ class TestNegativeInvariants:
         results = enforce_negative_invariants(tmp_path, invariants)
         assert results[0].result == "still_present"
 
+    def test_grep_absence_ignores_matrix_file(self, tmp_path):
+        """grep_absence should not match its own acceptance-matrix definition."""
+        feature_dir = tmp_path / "kitty-specs" / "test-mission"
+        feature_dir.mkdir(parents=True)
+        pattern = "old_legacy_route"
+        (feature_dir / MATRIX_FILENAME).write_text(
+            "{\n"
+            '  "mission_slug": "test-mission",\n'
+            '  "negative_invariants": [\n'
+            f'    {{"verification_method": "grep_absence", "verification_command": "{pattern}"}}\n'
+            "  ]\n"
+            "}\n",
+            encoding="utf-8",
+        )
+
+        results = enforce_negative_invariants(
+            tmp_path,
+            [
+                NegativeInvariant(
+                    "NI-01",
+                    "No legacy route",
+                    "grep_absence",
+                    verification_command=pattern,
+                ),
+            ],
+        )
+
+        assert results[0].result == "confirmed_absent"
+
     def test_custom_command_pass(self, tmp_path):
         invariants = [
             NegativeInvariant(
