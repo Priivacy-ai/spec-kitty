@@ -53,7 +53,6 @@ _NEEDS_CLARIFICATION_RE = re.compile(r"\[NEEDS CLARIFICATION:", re.IGNORECASE)
 # Regex to detect FR references in WP task files
 _FR_REF_RE = re.compile(r"\b(FR-\d{3,})\b")
 
-# Regex to detect rejection cycles in status events (for_review → planned or in_progress)
 _WP_ID_RE = re.compile(r"^\w{2,5}\d{2,3}$")
 
 
@@ -189,23 +188,73 @@ def _next_proposal_id(counter: list[int]) -> str:
 # ---------------------------------------------------------------------------
 
 
+def _has_review_feedback(event: dict) -> bool:
+    """Return True when a lane event carries documented review feedback."""
+    if event.get("review_ref"):
+        return True
+    evidence = event.get("evidence")
+    if isinstance(evidence, dict):
+        review = evidence.get("review")
+        if isinstance(review, dict):
+            return bool(review.get("reference")) and review.get("verdict") == "changes_requested"
+    return isinstance(evidence, str) and bool(evidence.strip())
+
+
+_BACKWARD_LANE_MOVES: frozenset[tuple[str, str]] = frozenset({
+    ("for_review", "planned"),
+    ("for_review", "in_progress"),
+    ("for_review", "claimed"),
+    ("in_review", "planned"),
+    ("in_review", "in_progress"),
+    ("in_review", "claimed"),
+    ("in_progress", "planned"),
+    ("in_progress", "claimed"),
+})
+
+
+def _is_backward_lane_event(event: dict) -> bool:
+    return (event.get("from_lane", ""), event.get("to_lane", "")) in _BACKWARD_LANE_MOVES
+
+
+def _is_review_rejection_event(event: dict) -> bool:
+    return (
+        event.get("from_lane", "") == "in_review"
+        and event.get("to_lane", "") in ("planned", "in_progress", "claimed")
+        and _has_review_feedback(event)
+    )
+
+
+def _is_lane_friction_event(event: dict) -> bool:
+    return _is_backward_lane_event(event) and not _is_review_rejection_event(event)
+
+
 def _detect_rejection_cycles(events: list[dict]) -> dict[str, int]:
     """Return a mapping of wp_id -> rejection_cycle_count.
 
-    A rejection cycle is a transition from for_review back to planned (or
-    in_progress), indicating a WP was rejected during review.
+    A rejection cycle is a documented reviewer-feedback transition out of
+    in_review. Earlier for_review rewinds and force moves are lane friction, not
+    review rejections.
     """
     rejection_counts: dict[str, int] = {}
     for event in events:
-        from_lane = event.get("from_lane", "")
-        to_lane = event.get("to_lane", "")
         wp_id = event.get("wp_id", "")
         if not wp_id:
             continue
-        # A rejection is: was in for_review/in_review → went back to planned/in_progress
-        if from_lane in ("for_review", "in_review") and to_lane in ("planned", "in_progress", "claimed"):
+        if _is_review_rejection_event(event):
             rejection_counts[wp_id] = rejection_counts.get(wp_id, 0) + 1
     return rejection_counts
+
+
+def _detect_lane_friction(events: list[dict]) -> dict[str, int]:
+    """Return backward lane moves that are not documented reviewer rejections."""
+    friction_counts: dict[str, int] = {}
+    for event in events:
+        wp_id = event.get("wp_id", "")
+        if not wp_id:
+            continue
+        if _is_lane_friction_event(event):
+            friction_counts[wp_id] = friction_counts.get(wp_id, 0) + 1
+    return friction_counts
 
 
 def _detect_done_wps(events: list[dict]) -> set[str]:
@@ -248,6 +297,44 @@ def _classify_risk(suggested_action: str) -> tuple[str, bool]:
     if action_prefix in LOW_RISK_PROPOSAL_KINDS:
         return "low", False
     return "structural", False
+
+
+def _build_lane_friction_findings(
+    *,
+    events: list[dict],
+    lane_friction_counts: dict[str, int],
+    events_rel: str,
+    finding_id_counters: dict[str, list[int]],
+    ev_reg: _EvidenceRegistry,
+) -> list[GenFinding]:
+    findings: list[GenFinding] = []
+    for wp_id in sorted(lane_friction_counts.keys()):
+        count = lane_friction_counts[wp_id]
+        friction_event_ids = [
+            str(ev.get("event_id", ""))
+            for ev in events
+            if ev.get("wp_id") == wp_id
+            and _is_lane_friction_event(ev)
+        ]
+        range_str = (
+            f"{friction_event_ids[0]}..{friction_event_ids[-1]}"
+            if len(friction_event_ids) > 1
+            else (friction_event_ids[0] if friction_event_ids else "")
+        )
+        ev_id = ev_reg.add_event_range(events_rel, range_str or "lane_friction", f"lane_friction_{wp_id}")
+        findings.append(
+            GenFinding(
+                id=_next_finding_id("n", finding_id_counters),
+                category="process",
+                summary=f"{wp_id} had {count} lane bounce(s) before approval",
+                details=(
+                    f"WP {wp_id} moved backward across workflow lanes {count} time(s) "
+                    "outside the documented reviewer-feedback flow."
+                ),
+                evidence_refs=[ev_id],
+            )
+        )
+    return findings
 
 
 # ---------------------------------------------------------------------------
@@ -321,11 +408,16 @@ def _build_findings(
     proposals: list[GenProposal] = []
 
     rejection_counts = _detect_rejection_cycles(events)
+    lane_friction_counts = _detect_lane_friction(events)
     done_wps = _detect_done_wps(events)
 
     # --- Helped: WPs completed without rejection cycles (only notable by contrast)
-    clean_wps = [wp for wp in sorted(done_wps) if rejection_counts.get(wp, 0) == 0]
-    if rejection_counts:
+    clean_wps = [
+        wp
+        for wp in sorted(done_wps)
+        if rejection_counts.get(wp, 0) == 0 and lane_friction_counts.get(wp, 0) == 0
+    ]
+    if rejection_counts or lane_friction_counts:
         for wp_id in clean_wps:
             wp_file_name = f"{wp_id}.md"
             if wp_file_name in wp_evidence_ids:
@@ -371,6 +463,16 @@ def _build_findings(
                 evidence_refs=[ev_id],
             )
         )
+
+    not_helpful.extend(
+        _build_lane_friction_findings(
+            events=events,
+            lane_friction_counts=lane_friction_counts,
+            events_rel=events_rel,
+            finding_id_counters=finding_id_counters,
+            ev_reg=ev_reg,
+        )
+    )
 
     # --- Gaps: open [NEEDS CLARIFICATION:] markers in spec.md
     if spec_text:

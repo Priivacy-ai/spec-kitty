@@ -120,6 +120,78 @@ def test_valid_yaml_reads_correctly(tmp_path: Path) -> None:
     assert record.schema_version == "1"
 
 
+def _valid_generator_yaml() -> str:
+    return f"""\
+schema_version: 1
+mission_id: {MISSION_ID}
+mission_slug: test-mission
+mission_number: 7
+friendly_name: Test Mission
+mission_type: software-dev
+target_branch: main
+created_at: "2026-05-21T08:09:55+00:00"
+created_by:
+  kind: human
+  id: cli
+  display: spec-kitty retrospect
+provenance:
+  kind: explicit_create
+  invoked_at: "2026-05-21T08:09:55+00:00"
+  policy_resolved_from: {{}}
+  command: spec-kitty retrospect create
+policy_source: {{}}
+findings_status: has_findings
+helped: []
+not_helpful:
+  - id: n-001
+    category: process
+    summary: lane bounce before approval
+    evidence_refs: [e-001]
+gaps: []
+proposals: []
+evidence_refs:
+  - id: e-001
+    kind: event_range
+    path: kitty-specs/test-mission/status.events.jsonl
+    range: "event-1"
+generator_version: "1.0"
+provenance_history: []
+"""
+
+
+def test_generator_record_reads_correctly(tmp_path: Path) -> None:
+    """The generator record shape written by retrospect create is accepted."""
+    good = tmp_path / "retrospective.yaml"
+    good.write_text(_valid_generator_yaml(), encoding="utf-8")
+
+    from specify_cli.retrospective.reader import read_gen_record
+
+    record = read_gen_record(good)
+    assert record.findings_status == "has_findings"
+    assert record.mission_id == MISSION_ID
+
+
+@pytest.mark.parametrize(
+    "mutated_yaml",
+    [
+        _valid_generator_yaml().replace("schema_version: 1", "schema_version: 2"),
+        _valid_generator_yaml().replace("kind: human", "kind: alien", 1),
+        _valid_generator_yaml().replace("category: process", "category: nonsense"),
+        _valid_generator_yaml().replace("friendly_name: Test Mission\n", ""),
+        _valid_generator_yaml() + "unknown_field: no\n",
+    ],
+)
+def test_generator_record_schema_errors_are_rejected(tmp_path: Path, mutated_yaml: str) -> None:
+    """Generator reader rejects invalid enums, version drift, and extra fields."""
+    bad = tmp_path / "retrospective.yaml"
+    bad.write_text(mutated_yaml, encoding="utf-8")
+
+    from specify_cli.retrospective.reader import read_gen_record
+
+    with pytest.raises(SchemaError):
+        read_gen_record(bad)
+
+
 def test_extra_field_raises_schema_error(tmp_path: Path) -> None:
     """Extra unknown top-level field → SchemaError (extra='forbid')."""
     yaml_extra = VALID_YAML + "unknown_field: some_value\n"
