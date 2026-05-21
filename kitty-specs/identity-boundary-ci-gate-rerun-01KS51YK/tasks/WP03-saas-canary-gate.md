@@ -28,8 +28,8 @@ subtasks:
 - T010
 - T011
 - T012
-agent: claude
-shell_pid: '83157'
+agent: "claude"
+shell_pid: "83157"
 history: []
 agent_profile: implementer-ivan
 authoritative_surface: spec-kitty-saas:.github/workflows/
@@ -245,3 +245,7 @@ Reviewer checks:
 - Concurrency group is NOT keyed by ref (must be the literal string so all PRs serialize).
 - README secret-name contract is the FIRST load-bearing fact in the section.
 - LOC delta within ~120 lines budget.
+
+## Activity Log
+
+- 2026-05-21T11:02:12Z – claude – shell_pid=83157 – Assigned agent via action command
