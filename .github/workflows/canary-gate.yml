@@ -1,0 +1,63 @@
+name: Canary Gate (drift detector)
+
+# This workflow is the dedicated, named CI gate that enforces the
+# spec-kitty side of the identity-boundary canary protocol. It runs the
+# canonical-registry drift-detector test as a single, stable job so a
+# repo admin can register `drift-detector` as a required status check on
+# the branch-protection rule for `main` without coupling enforcement to
+# the broader `ci-quality` matrix.
+#
+# Tracking: https://github.com/Priivacy-ai/spec-kitty/issues/1247
+# Mission:  kitty-specs/identity-boundary-canary-ci-gate-01KS4XWV/
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'src/specify_cli/sync/**'
+      - 'tests/sync/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.github/workflows/canary-gate.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/specify_cli/sync/**'
+      - 'tests/sync/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.github/workflows/canary-gate.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: canary-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  drift-detector:
+    name: drift-detector
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Install project (dev extras)
+        run: |
+          uv sync --extra dev
+
+      - name: Run canonical-registry drift-detector test
+        run: |
+          uv run pytest \
+            tests/sync/test_diagnose.py::TestCanonicalRegistryRecognition \
+            -v --tb=short

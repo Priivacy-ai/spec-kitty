@@ -133,6 +133,51 @@ Deeper topics:
 - [External Orchestrator Runbook](docs/how-to/run-external-orchestrator.md)
 - [Hosted Sync Workspaces](docs/how-to/sync-workspaces.md)
 
+## Identity-boundary canary CI gate
+
+This repo participates in a three-repo CI gate that pins the
+identity-boundary canary protocol (closed
+[`spec-kitty-end-to-end-testing#41`](https://github.com/Priivacy-ai/spec-kitty-end-to-end-testing/issues/41))
+as a required check on every PR.
+
+**Workflow**: [`.github/workflows/canary-gate.yml`](.github/workflows/canary-gate.yml)
+**Job name (register this as the required check)**: `drift-detector`
+**What it runs**:
+
+```bash
+uv run pytest tests/sync/test_diagnose.py::TestCanonicalRegistryRecognition -v
+```
+
+**What it protects**: the canonical events registry that the sync
+diagnose path uses to recognize event types. If the registry drifts away
+from what downstream consumers (SaaS, harness) expect, this test fails
+fast at PR time instead of surfacing as a deployed-dev canary red.
+
+### Sibling-repo gates
+
+This gate is one of three for the identity-boundary canary protocol.
+The others live in:
+
+| Repo | Workflow | Job |
+|---|---|---|
+| `spec-kitty-saas` | `.github/workflows/canary-gate.yml` | `canary-gate` |
+| `spec-kitty-events` | `.github/workflows/cross-repo-harness-tests.yml` | `harness-unit-tests` |
+
+The saas and events workflows clone `spec-kitty-end-to-end-testing` at
+a pinned commit SHA. This repo's gate does not clone e2e — the drift
+detector here exercises only in-repo code.
+
+### Updating the pinned e2e SHA (when intentional contract changes ship)
+
+This repo's gate has no pinned e2e SHA — it only runs in-repo tests.
+The saas and events gates do pin an e2e SHA. When an intentional
+contract change ships in e2e, update those gates first, not this one.
+
+### Tracking
+
+- Mission: [`kitty-specs/identity-boundary-canary-ci-gate-01KS4XWV/`](kitty-specs/identity-boundary-canary-ci-gate-01KS4XWV/)
+- Tracker: [`spec-kitty#1247`](https://github.com/Priivacy-ai/spec-kitty/issues/1247)
+
 ## Development
 
 ```bash
