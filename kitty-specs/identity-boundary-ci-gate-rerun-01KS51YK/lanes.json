@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "mission_slug": "identity-boundary-ci-gate-rerun-01KS51YK",
+  "mission_id": "01KS51YKDSHF73EBDMFSFH3RMP",
+  "mission_branch": "kitty/mission-identity-boundary-ci-gate-rerun-01KS51YK",
+  "target_branch": "mission/identity-boundary-ci-gate-rerun",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        ".github/workflows/drift-detector.yml",
+        "README.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "spec-kitty-events:.github/workflows/cross-repo-harness-tests.yml",
+        "spec-kitty-events:README.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "spec-kitty-saas:.github/workflows/canary-gate.yml",
+        "spec-kitty-saas:README.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "kitty-specs/identity-boundary-ci-gate-rerun-01KS51YK/cross-repo-manifests/spec-kitty-events.md",
+        "kitty-specs/identity-boundary-ci-gate-rerun-01KS51YK/cross-repo-manifests/spec-kitty-saas.md",
+        "kitty-specs/identity-boundary-ci-gate-rerun-01KS51YK/cross-repo-manifests/spec-kitty.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-05-21T10:51:15.347116+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP04"
+  ]
+}
