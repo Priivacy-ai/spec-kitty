@@ -1,8 +1,8 @@
 """Data models for execution lanes.
 
 An ExecutionLane groups work packages that must share a single
-worktree and branch because they are sequentially dependent or
-have overlapping write scopes.
+worktree and branch because they have overlapping write scopes.
+Sequential dependencies are represented as lane-level dependencies.
 
 A LanesManifest is the complete lane assignment for a feature,
 persisted as lanes.json.
@@ -21,7 +21,7 @@ class CollapseEvent:
     Attributes:
         wp_a: First work package ID involved in the merge.
         wp_b: Second work package ID involved in the merge.
-        rule: Rule that triggered the merge. One of: "dependency",
+        rule: Rule that triggered the merge. One of:
             "write_scope_overlap", "surface_heuristic".
         evidence: Human-readable explanation of why the merge occurred.
     """
