@@ -419,6 +419,107 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "markhope",
+      "name": "Mark Hope",
+      "avatar_url": "https://avatars.githubusercontent.com/u/1227684?v=4",
+      "profile": "https://github.com/markhope",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "anastasiasimonoff-kodexai",
+      "name": "anastasiasimonoff-kodexai",
+      "avatar_url": "https://avatars.githubusercontent.com/u/272788009?v=4",
+      "profile": "https://github.com/anastasiasimonoff-kodexai",
+      "contributions": [
+        "ideas"
+      ]
+    },
+    {
+      "login": "budda",
+      "name": "Mike Carter",
+      "avatar_url": "https://avatars.githubusercontent.com/u/104929?v=4",
+      "profile": "https://github.com/budda",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "CGary",
+      "name": "Cristian Gary N. J.",
+      "avatar_url": "https://avatars.githubusercontent.com/u/3021168?v=4",
+      "profile": "https://github.com/CGary",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "grndlvl",
+      "name": "Jonathan DeLaigle",
+      "avatar_url": "https://avatars.githubusercontent.com/u/680686?v=4",
+      "profile": "http://grndlvl.com/",
+      "contributions": [
+        "ideas"
+      ]
+    },
+    {
+      "login": "kentonium3",
+      "name": "Kent Gale",
+      "avatar_url": "https://avatars.githubusercontent.com/u/182674939?v=4",
+      "profile": "https://github.com/kentonium3",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "martinezcarlos",
+      "name": "martinezcarlos",
+      "avatar_url": "https://avatars.githubusercontent.com/u/1743927?v=4",
+      "profile": "https://github.com/martinezcarlos",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "nicofirst1",
+      "name": "Nicolo' Brandizzi",
+      "avatar_url": "https://avatars.githubusercontent.com/u/17785441?v=4",
+      "profile": "https://nicofirst1.github.io/",
+      "contributions": [
+        "bug",
+        "ideas"
+      ]
+    },
+    {
+      "login": "rfay",
+      "name": "Randy Fay",
+      "avatar_url": "https://avatars.githubusercontent.com/u/112444?v=4",
+      "profile": "http://ddev.com/",
+      "contributions": [
+        "ideas"
+      ]
+    },
+    {
+      "login": "sanjarcode",
+      "name": "Sanjar Afaq",
+      "avatar_url": "https://avatars.githubusercontent.com/u/48156230?v=4",
+      "profile": "https://github.com/sanjarcode",
+      "contributions": [
+        "bug",
+        "ideas"
+      ]
+    },
+    {
+      "login": "vdgsx",
+      "name": "vdgsx",
+      "avatar_url": "https://avatars.githubusercontent.com/u/275825088?v=4",
+      "profile": "https://github.com/vdgsx",
+      "contributions": [
+        "bug"
+      ]
     }
   ]
 }
