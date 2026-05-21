@@ -20,8 +20,27 @@ class TestValidateToolguide:
         errors = validate_toolguide(data)
         assert len(errors) > 0
 
+    def test_pack_relative_guide_path_is_valid(self, sample_toolguide_data: dict) -> None:
+        """Pack-relative guide_path must pass JSON schema validation (issue #1157)."""
+        sample_toolguide_data["guide_path"] = "toolguides/my-tool.md"
+        errors = validate_toolguide(sample_toolguide_data)
+        assert errors == []
+
     def test_invalid_guide_path_pattern(self, sample_toolguide_data: dict) -> None:
-        sample_toolguide_data["guide_path"] = "docs/guide.md"
+        sample_toolguide_data["guide_path"] = "/absolute/guide.md"
         errors = validate_toolguide(sample_toolguide_data)
         assert any("guide_path" in e for e in errors)
 
+    @pytest.mark.parametrize(
+        "guide_path",
+        [
+            "../outside.md",
+            "docs/../outside.md",
+            "http://example.com/guide.md",
+            "C:/tmp/guide.md",
+        ],
+    )
+    def test_non_pack_relative_guide_path_is_invalid(self, sample_toolguide_data: dict, guide_path: str) -> None:
+        sample_toolguide_data["guide_path"] = guide_path
+        errors = validate_toolguide(sample_toolguide_data)
+        assert any("guide_path" in e for e in errors)

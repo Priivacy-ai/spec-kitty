@@ -26,7 +26,12 @@ properties:
     minLength: 1
   guide_path:
     type: string
-    pattern: ^src/doctrine/.+\.md$
+    pattern: "^[^/\\\\].*\\.md$"
+    not:
+      anyOf:
+        - pattern: "(^|[/\\\\])\\.\\.([/\\\\]|$)"
+        - pattern: "^[A-Za-z]:"
+        - pattern: "://"
   summary:
     type: string
     minLength: 1
