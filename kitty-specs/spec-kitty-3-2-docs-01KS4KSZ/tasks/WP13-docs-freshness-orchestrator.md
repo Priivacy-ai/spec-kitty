@@ -14,7 +14,8 @@ subtasks:
 - T040
 - T041
 - T042
-agent: claude
+agent: "claude:opus-4-7:python-pedro:implementer"
+shell_pid: "12277"
 history:
 - actor: planner
   at: '2026-05-21T06:52:04Z'
@@ -118,3 +119,7 @@ Create `.github/workflows/docs-freshness.yml` (new workflow) with:
 ```bash
 spec-kitty agent action implement WP13 --agent claude
 ```
+
+## Activity Log
+
+- 2026-05-21T09:07:13Z – claude:opus-4-7:python-pedro:implementer – shell_pid=12277 – Started implementation via action command
