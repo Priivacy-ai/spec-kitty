@@ -178,18 +178,57 @@ class TestFindingsClassification:
         # No proposals from a clean mission
         assert record.proposals == [], "No proposals expected"
 
-    def test_mid_with_rejections_has_not_helpful(self) -> None:
-        """mid-with-rejections: WP02 and WP03 each had 1 rejection cycle."""
+    def test_reviewer_feedback_transition_is_review_loop(self) -> None:
+        """Only documented reviewer feedback counts as a rejection cycle."""
+        from specify_cli.retrospective.generator import (
+            _detect_lane_friction,
+            _detect_rejection_cycles,
+        )
+
+        events = [
+            {
+                "wp_id": "WP01",
+                "from_lane": "for_review",
+                "to_lane": "in_progress",
+                "actor": "user",
+                "force": True,
+                "event_id": "e1",
+            },
+            {
+                "wp_id": "WP02",
+                "from_lane": "in_review",
+                "to_lane": "planned",
+                "actor": "user",
+                "review_ref": "review-cycle://mission/WP02/review-cycle-1.md",
+                "event_id": "e2",
+            },
+            {
+                "wp_id": "WP03",
+                "from_lane": "in_progress",
+                "to_lane": "planned",
+                "actor": "user",
+                "force": True,
+                "event_id": "e3",
+            },
+        ]
+
+        assert _detect_rejection_cycles(events) == {"WP02": 1}
+        assert _detect_lane_friction(events) == {"WP01": 1, "WP03": 1}
+
+    def test_mid_with_backward_moves_has_lane_friction(self) -> None:
+        """Backward moves without reviewer feedback are process friction, not rejections."""
         policy = make_policy()
         record = generate_retrospective(MID_WITH_REJECTIONS, policy, FIXTURES_ROOT)
 
         not_helpful_wps = {f.summary for f in record.not_helpful}
-        assert any("WP02" in s for s in not_helpful_wps), "WP02 rejection expected"
-        assert any("WP03" in s for s in not_helpful_wps), "WP03 rejection expected"
+        assert any("WP02" in s for s in not_helpful_wps), "WP02 lane friction expected"
+        assert any("WP03" in s for s in not_helpful_wps), "WP03 lane friction expected"
         assert len(record.not_helpful) == 2
+        assert {f.category for f in record.not_helpful} == {"process"}
+        assert all("rejection" not in f.summary.lower() for f in record.not_helpful)
 
-    def test_mid_with_rejections_clean_wps_in_helped(self) -> None:
-        """mid-with-rejections: WP01 and WP04 completed cleanly (notable by contrast)."""
+    def test_mid_with_lane_friction_clean_wps_in_helped(self) -> None:
+        """WPs with no backward movement are still notable by contrast."""
         policy = make_policy()
         record = generate_retrospective(MID_WITH_REJECTIONS, policy, FIXTURES_ROOT)
 
@@ -218,14 +257,15 @@ class TestFindingsClassification:
         assert "FR-007" in unmapped_fr_ids, "FR-007 should be flagged as unmapped"
         assert "FR-008" in unmapped_fr_ids, "FR-008 should be flagged as unmapped"
 
-    def test_large_with_gaps_has_rejections(self) -> None:
-        """large-with-gaps: WP02 and WP04 had 1 rejection cycle each."""
+    def test_large_with_gaps_has_lane_friction(self) -> None:
+        """large-with-gaps: WP02 and WP04 had backward moves without reviewer feedback."""
         policy = make_policy()
         record = generate_retrospective(LARGE_WITH_GAPS, policy, FIXTURES_ROOT)
 
         not_helpful_wps = {f.summary for f in record.not_helpful}
         assert any("WP02" in s for s in not_helpful_wps)
         assert any("WP04" in s for s in not_helpful_wps)
+        assert {f.category for f in record.not_helpful} == {"process"}
 
     def test_all_findings_have_evidence_refs(self) -> None:
         """Every finding must carry ≥1 evidence_ref that resolves to top-level evidence_refs."""

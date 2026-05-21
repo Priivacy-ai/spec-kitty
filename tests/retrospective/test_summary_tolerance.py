@@ -38,6 +38,7 @@ MISSION_ID_1 = "01KQ6YEGT4YBZ3GZF7X680KQ3V"
 MISSION_ID_2 = "01KQ6YEGT4YBZ3GZF7X680KQAA"
 MISSION_ID_3 = "01KQ6YEGT4YBZ3GZF7X680KQBB"
 MISSION_ID_4 = "01KQ6YEGT4YBZ3GZF7X680KQCC"
+MISSION_ID_5 = "01KQ6YEGT4YBZ3GZF7X680KQDD"
 
 
 def _make_completed_yaml(
@@ -133,6 +134,48 @@ provenance:
   runtime_version: "3.2.0"
   written_at: "{completed}"
   schema_version: "1"
+"""
+
+
+def _make_generator_yaml(
+    mission_id: str = MISSION_ID_5,
+    slug: str = "generator-mission",
+) -> str:
+    return f"""\
+schema_version: 1
+mission_id: {mission_id}
+mission_slug: {slug}
+mission_number: 5
+friendly_name: Generator Mission
+mission_type: software-dev
+target_branch: main
+created_at: "2026-05-21T08:09:55+00:00"
+created_by:
+  kind: human
+  id: cli
+  display: spec-kitty retrospect
+provenance:
+  kind: explicit_create
+  invoked_at: "2026-05-21T08:09:55+00:00"
+  policy_resolved_from: {{}}
+  command: spec-kitty retrospect create
+policy_source: {{}}
+findings_status: has_findings
+helped: []
+not_helpful:
+  - id: n-001
+    category: process
+    summary: lane bounce before approval
+    evidence_refs: [e-001]
+gaps: []
+proposals: []
+evidence_refs:
+  - id: e-001
+    kind: event_range
+    path: kitty-specs/{slug}/status.events.jsonl
+    range: "event-1"
+generator_version: "1.0"
+provenance_history: []
 """
 
 
@@ -358,6 +401,21 @@ class TestToleranceCategories:
         project = _build_corpus(tmp_path)
         snapshot = build_summary(project_path=project)
         assert len(snapshot.malformed) == 2
+
+    def test_generator_record_is_not_malformed(self, tmp_path: Path) -> None:
+        missions_root = tmp_path / ".kittify" / "missions"
+        missions_root.mkdir(parents=True)
+        mission_dir = missions_root / MISSION_ID_5
+        mission_dir.mkdir()
+        (mission_dir / "retrospective.yaml").write_text(
+            _make_generator_yaml(), encoding="utf-8"
+        )
+
+        snapshot = build_summary(project_path=tmp_path)
+
+        assert snapshot.completed_count == 1
+        assert snapshot.malformed == []
+        assert snapshot.not_helpful_top[0].urn == "retrospective:not_helpful:process"
 
     def test_malformed_entries_have_path_and_reason(self, tmp_path: Path) -> None:
         project = _build_corpus(tmp_path)

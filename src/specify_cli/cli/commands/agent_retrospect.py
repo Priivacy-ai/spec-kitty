@@ -33,7 +33,7 @@ from specify_cli.retrospective import (
     RetrospectiveActor,
 )
 from specify_cli.retrospective.lifecycle_events import Actor as LifecycleActor
-from specify_cli.retrospective.reader import SchemaError, YAMLParseError, read_record
+from specify_cli.retrospective.reader import SchemaError, YAMLParseError, read_gen_record, read_record
 from specify_cli.retrospective.schema import (
     ActorRef,
     GenActor,
@@ -386,6 +386,7 @@ def synthesize_cmd(
     # ------------------------------------------------------------------
     retro_file = _retro_path(repo_root, mission_id)
     outcome = "retrospective_synthesized"
+    generator_record = None
     try:
         record = read_record(retro_file)
     except FileNotFoundError as exc:
@@ -479,12 +480,26 @@ def synthesize_cmd(
             _err_console.print(f"[red]Error:[/red] {msg}")
             raise typer.Exit(3) from exc
     except (YAMLParseError, SchemaError) as exc:
-        msg = f"Retrospective record malformed: {exc}"
-        if json_only:
-            _err_console.print_json(json.dumps({"error": "record_malformed", "detail": str(exc)}))
+        try:
+            generator_record = read_gen_record(retro_file)
+            record = None
+        except (FileNotFoundError, YAMLParseError, SchemaError):
+            generator_record = None
         else:
-            _err_console.print(f"[red]Error:[/red] {msg}")
-        raise typer.Exit(3) from exc
+            outcome = "retrospective_synthesized"
+            if generator_record.proposals:
+                _err_console.print(
+                    "[yellow]Warning:[/yellow] This retrospective uses the generator record schema; "
+                    "proposal application is not available for generator-shape proposals yet, "
+                    "so synthesize will run as an empty dry-run batch."
+                )
+        if generator_record is None:
+            msg = f"Retrospective record malformed: {exc}"
+            if json_only:
+                _err_console.print_json(json.dumps({"error": "record_malformed", "detail": str(exc)}))
+            else:
+                _err_console.print(f"[red]Error:[/red] {msg}")
+            raise typer.Exit(3) from exc
     except OSError as exc:
         msg = f"I/O error reading retrospective: {exc}"
         if json_only:
@@ -502,7 +517,7 @@ def synthesize_cmd(
     # When --fabricate-empty created the record, _fabricated_empty is True and
     # record is not defined (the gen record format is incompatible with Pydantic
     # read_record). The fabricated record has no proposals by definition.
-    all_proposals = [] if locals().get("_fabricated_empty") else record.proposals
+    all_proposals = [] if locals().get("_fabricated_empty") or generator_record is not None else record.proposals
 
     if proposal_id:
         # --proposal-id filter: restrict approved_proposal_ids to those listed
