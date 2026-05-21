@@ -147,3 +147,4 @@ spec-kitty agent action implement WP04 --agent claude
 ## Activity Log
 
 - 2026-05-21T07:28:00Z – claude:opus-4-7:python-pedro:implementer – shell_pid=31268 – Started implementation via action command
+- 2026-05-21T07:37:17Z – claude:opus-4-7:python-pedro:implementer – shell_pid=31268 – WP04 ready: leakage tool + helpers + tests (mypy --strict clean, coverage 99%). All 5 rule IDs implemented; exit codes 0/1/2/3 covered.
