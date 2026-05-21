@@ -114,3 +114,4 @@ spec-kitty agent action implement WP03 --agent claude
 ## Activity Log
 
 - 2026-05-21T07:22:06Z – claude:opus-4-7:curator-carla:implementer – shell_pid=27951 – Started implementation via action command
+- 2026-05-21T07:26:10Z – claude:opus-4-7:curator-carla:implementer – shell_pid=27951 – WP03 ready: diff-shaped TOC plan with 5 nav groups; 3.1-supported conditional on decision 01KS4KTGTN4DBE60JFWKEA2FJB.
