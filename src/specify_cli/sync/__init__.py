@@ -22,6 +22,9 @@ must fetch bearer tokens via
 deletion).
 """
 
+_EVENTS_MODULE = ".events"
+_FEATURE_FLAGS_MODULE = ".feature_flags"
+
 _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     # Keep package init cheap. Importing a sync submodule such as
     # ``runtime_event_emitter`` still initializes this package first, so
@@ -30,22 +33,22 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "LamportClock": (".clock", "LamportClock"),
     "generate_node_id": (".clock", "generate_node_id"),
     "emit_diagnostic": (".diagnose", "emit_diagnostic"),
-    "get_emitter": (".events", "get_emitter"),
-    "reset_emitter": (".events", "reset_emitter"),
-    "emit_wp_status_changed": (".events", "emit_wp_status_changed"),
-    "emit_wp_created": (".events", "emit_wp_created"),
-    "emit_wp_assigned": (".events", "emit_wp_assigned"),
-    "emit_mission_created": (".events", "emit_mission_created"),
-    "emit_mission_closed": (".events", "emit_mission_closed"),
-    "emit_history_added": (".events", "emit_history_added"),
-    "emit_error_logged": (".events", "emit_error_logged"),
-    "emit_dependency_resolved": (".events", "emit_dependency_resolved"),
-    "emit_token_usage_recorded": (".events", "emit_token_usage_recorded"),
-    "emit_diff_summary_recorded": (".events", "emit_diff_summary_recorded"),
+    "get_emitter": (_EVENTS_MODULE, "get_emitter"),
+    "reset_emitter": (_EVENTS_MODULE, "reset_emitter"),
+    "emit_wp_status_changed": (_EVENTS_MODULE, "emit_wp_status_changed"),
+    "emit_wp_created": (_EVENTS_MODULE, "emit_wp_created"),
+    "emit_wp_assigned": (_EVENTS_MODULE, "emit_wp_assigned"),
+    "emit_mission_created": (_EVENTS_MODULE, "emit_mission_created"),
+    "emit_mission_closed": (_EVENTS_MODULE, "emit_mission_closed"),
+    "emit_history_added": (_EVENTS_MODULE, "emit_history_added"),
+    "emit_error_logged": (_EVENTS_MODULE, "emit_error_logged"),
+    "emit_dependency_resolved": (_EVENTS_MODULE, "emit_dependency_resolved"),
+    "emit_token_usage_recorded": (_EVENTS_MODULE, "emit_token_usage_recorded"),
+    "emit_diff_summary_recorded": (_EVENTS_MODULE, "emit_diff_summary_recorded"),
     "OfflineQueue": (".queue", "OfflineQueue"),
-    "SAAS_SYNC_ENV_VAR": (".feature_flags", "SAAS_SYNC_ENV_VAR"),
-    "is_saas_sync_enabled": (".feature_flags", "is_saas_sync_enabled"),
-    "saas_sync_disabled_message": (".feature_flags", "saas_sync_disabled_message"),
+    "SAAS_SYNC_ENV_VAR": (_FEATURE_FLAGS_MODULE, "SAAS_SYNC_ENV_VAR"),
+    "is_saas_sync_enabled": (_FEATURE_FLAGS_MODULE, "is_saas_sync_enabled"),
+    "saas_sync_disabled_message": (_FEATURE_FLAGS_MODULE, "saas_sync_disabled_message"),
     # Lazy-loaded names that require heavier optional/runtime dependencies.
     "BatchEventResult": (".batch", "BatchEventResult"),
     "BatchSyncResult": (".batch", "BatchSyncResult"),

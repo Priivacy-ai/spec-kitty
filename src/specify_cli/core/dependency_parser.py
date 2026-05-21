@@ -42,6 +42,7 @@ from collections.abc import Iterator
 
 _WP_ID_TITLE = re.compile(r"^(?:Work Package\s+)?(?P<wp_id>WP\d{2})(?:\b|:)")
 _WORK_PACKAGE_PREFIX = "Work Package "
+_METADATA_FIELD_PREFIX = r"(?:^\s*(?:[-*]\s*)?|\|\s*)"
 
 # Matches any top-level ## heading (exactly two #s).  Used by _split_wp_sections
 # to find the stop boundary for the final WP section.  Sub-headings (### or
@@ -155,7 +156,7 @@ _DEPENDS_ON = re.compile(
 # Pattern 2: "**Dependencies**: WP01" / "Dependencies: WP01, WP02"
 # Matches a declaration field at the start of a line or after a pipe delimiter.
 _DEPS_COLON = re.compile(
-    r"(?:^\s*(?:[-*]\s*)?|\|\s*)\*?\*?Dependencies\*?\*?\s*:\s*(?P<value>[^|\n]*)",
+    _METADATA_FIELD_PREFIX + r"\*?\*?Dependencies\*?\*?\s*:\s*(?P<value>[^|\n]*)",
     re.IGNORECASE | re.MULTILINE,
 )
 
