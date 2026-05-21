@@ -174,3 +174,4 @@ spec-kitty agent action implement WP06 --agent claude
 ## Activity Log
 
 - 2026-05-21T07:45:58Z – claude:opus-4-7:python-pedro:implementer – shell_pid=41943 – Started implementation via action command
+- 2026-05-21T07:59:38Z – claude:opus-4-7:python-pedro:implementer – shell_pid=41943 – WP06 ready: walker/builder/freshness/architectural test. Real Typer app smoke test passes; visible count within tolerance.
