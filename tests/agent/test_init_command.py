@@ -5,7 +5,7 @@ from __future__ import annotations
 import io
 import re
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 import yaml
@@ -237,4 +237,4 @@ def test_init_rejects_removed_agent_strategy_option(cli_app, monkeypatch: pytest
     )
     assert result.exit_code == 2
     plain_output = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
-    assert re.search(r"No such option:\s+-{1,2}agent-strategy", plain_output)
+    assert re.search(r"No such option(?::|\s+)['\"]?-{1,2}agent-strategy", plain_output)

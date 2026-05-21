@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.9] - 2026-05-21
+
+### Fixed
+
+- Acceptance matrix persistence now preserves operator-authored extension fields
+  on criteria and negative invariants, including after negative-invariant
+  enforcement rewrites results.
+- `grep_absence` negative invariants now ignore their own
+  `acceptance-matrix.json` definitions so absence checks do not self-match.
+- Acceptance now flags unresolved `NEEDS CLARIFICATION` markers in both legacy
+  and canonical forms while still ignoring descriptive prose that merely names
+  the marker syntax.
+- Task dependency parsing now avoids false-positive dependencies from ordinary
+  prose, reducing spurious work-package dependency edges.
+- `spec-kitty upgrade` now stamps the project schema version even when the
+  project semver is already current.
+- `spec-kitty intake` now shows the full mission brief hash and clears stale
+  brief artifacts more safely.
+- Doctrine toolguides now accept pack-relative Markdown paths while rejecting
+  escaping paths, URLs, and drive-qualified paths.
+
 ## [3.1.8] - 2026-04-29
 
 ### Fixed

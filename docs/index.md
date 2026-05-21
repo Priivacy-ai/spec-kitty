@@ -11,12 +11,12 @@ Spec-kitty is a spec-driven development tool that coordinates AI agents through 
 | **Reference** | Precise descriptions of CLI commands, configuration, and APIs. | [CLI Commands](reference/cli-commands.md) |
 | **Explanation** | Background concepts, architecture, and design decisions. | [Spec-Driven Development](explanation/spec-driven-development.md) |
 
-## Latest Release: 3.1.7
+## Latest Release: 3.1.9
 
-Spec Kitty 3.1.7 (released 2026-04-28) is a focused `3.1.x` stability hotfix:
+Spec Kitty 3.1.9 (released 2026-05-21) is a focused `3.1.x` stability hotfix:
 
-- **Compact charter context now keeps charter anchors in LLM context** — follow-on agent prompts retain charter section anchors plus directive and tactic IDs after bootstrap.
-- **Review, intake, auth, tracker, dashboard, and sync stability fixes** — 3.1.7 backports targeted quality fixes from HEAD without taking the larger 3.2 feature tranche.
+- **Acceptance and task parsing hotfixes** — matrix extension fields survive persistence and enforcement, negative invariants avoid self-matches, unresolved clarification markers are caught, and dependency prose no longer creates false-positive work-package edges.
+- **Upgrade, intake, and doctrine hardening** — schema stamping, mission brief hashes, and pack-relative toolguide validation are corrected on the stable 3.1 line.
 
 **Upgrading from 3.0.x?** Run `spec-kitty upgrade` — all renames happen automatically.
 
