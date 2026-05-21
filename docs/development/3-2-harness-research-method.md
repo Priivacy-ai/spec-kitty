@@ -4,14 +4,14 @@
 
 **Sources of authority:**
 - [`CLAUDE.md`](../../CLAUDE.md) §"Supported AI Agents" — canonical list of installed surfaces.
-- [`kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/start-here.md`](../../kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/start-here.md) §"Supported Harness Research" — 16 candidate subjects.
+- [`kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/start-here.md`](../../kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/start-here.md) §"Supported Harness Research" plus the current CLI agent registry — 17 candidate subjects.
 - [`data-model.md`](../../kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/data-model.md) §"HarnessEntry" — schema each row must satisfy.
 
 **Access date for all citations in this revision:** 2026-05-21.
 
 ---
 
-## 1. Subject list — 16 candidate harnesses
+## 1. Subject list — 17 candidate harnesses
 
 | # | Harness | Key |
 |---|---------|-----|
@@ -22,7 +22,7 @@
 | 5 | Google Gemini CLI | `gemini` |
 | 6 | Pi TUI | `pi` |
 | 7 | Qwen Code | `qwen` |
-| 8 | Amazon Q CLI | `amazonq` |
+| 8 | Amazon Q CLI | `q` |
 | 9 | GitHub Copilot | `copilot` |
 | 10 | Augment Code (Auggie) | `augment` |
 | 11 | Roo Cline | `roo` |
@@ -31,8 +31,9 @@
 | 14 | Windsurf | `windsurf` |
 | 15 | Mistral Vibe | `vibe` |
 | 16 | Letta Code | `letta` |
+| 17 | Google Antigravity | `antigravity` |
 
-The set is the union of (a) directories present in the repo, (b) entries in `CLAUDE.md`'s slash-command and Agent Skills tables, and (c) entries in `start-here.md` §"Supported Harness Research" (per R-003).
+The set is the union of (a) directories present in the repo, (b) entries in `CLAUDE.md`'s command-surface and command-skill tables, (c) entries in `src/specify_cli/core/config.py`'s `AI_CHOICES`, and (d) entries in `start-here.md` §"Supported Harness Research" (per R-003).
 
 ---
 
@@ -71,7 +72,7 @@ done
 | OpenCode | `.opencode/command/` | yes | `spec-kitty-standalone.md` |
 | Cursor | `.cursor/commands/` | yes | `spec-kitty-standalone.md` |
 | Gemini CLI | `.gemini/commands/` | yes | `spec-kitty-standalone.md` |
-| Pi TUI | (no installed surface) | no | — |
+| Pi TUI | `.agents/skills/spec-kitty.*` | yes (skills) | shared command-skill packages |
 | Qwen Code | `.qwen/commands/` | yes | `spec-kitty-standalone.md` |
 | Amazon Q | `.amazonq/prompts/` | yes | `spec-kitty-standalone.md` |
 | GitHub Copilot | `.github/prompts/` | yes | `spec-kitty-standalone.md` |
@@ -82,12 +83,12 @@ done
 | Windsurf | `.windsurf/workflows/` | yes | `spec-kitty-standalone.md` |
 | Google Antigravity | `.agent/workflows/` | yes | `spec-kitty-standalone.md` |
 | Vibe | `.agents/skills/` via `.vibe/config.toml` | yes (shared with Codex) | shares `.agents/skills/spec-kitty.advise` |
-| Letta Code | (no installed surface) | no | — |
+| Letta Code | `.agents/skills/spec-kitty.*` | yes (skills) | shared command-skill packages |
 
 **Notes:**
 - `spec-kitty-standalone.md` is the lane-bootstrap surface; the full `/spec-kitty.*` command set lives at the source under `src/specify_cli/missions/*/command-templates/` and is materialized by `spec-kitty agent config sync` (see `CLAUDE.md` §"Adding/Removing Agents").
-- `.agents/skills/spec-kitty.advise/` is the Agent Skills package shared between Codex CLI and Mistral Vibe (per `CLAUDE.md` §"Agent Skills Agents").
-- "Google Antigravity" (`.agent/workflows/`) is not in the 16-candidate list but is present on disk; it is noted here for completeness and excluded from the matrix.
+- `.agents/skills/spec-kitty.advise/` is the Agent Skills package shared between Codex CLI, Mistral Vibe, Pi, and Letta Code (per `CLAUDE.md` §"Agent Skills Agents").
+- Google Antigravity (`.agent/workflows/`) is present in the current CLI agent registry and is included in the matrix.
 
 ---
 
@@ -100,7 +101,7 @@ Each row in the support matrix records exactly one `mechanism` value from the `H
 | `slash_command` | The harness exposes user-typed `/...` commands. | Claude Code `.claude/commands/`, Cursor `.cursor/commands/`. |
 | `prompt` | The harness reads prompt files at runtime. | Amazon Q `.amazonq/prompts/`, Kiro `.kiro/prompts/`, GitHub Copilot `.github/prompts/`. |
 | `workflow` | The harness drives multi-step workflows defined by YAML/Markdown. | Windsurf `.windsurf/workflows/`, Kilo Code `.kilocode/workflows/`, Google Antigravity `.agent/workflows/`. |
-| `skill` | The harness loads Agent Skills packages with `SKILL.md`. | Codex CLI, Mistral Vibe (both via `.agents/skills/`). |
+| `skill` | The harness loads Agent Skills packages with `SKILL.md`. | Codex CLI, Mistral Vibe, Pi, Letta Code (via `.agents/skills/`). |
 | `command_file` | The harness reads command files outside a `commands/` directory. | reserved; no current harness uses this mode. |
 | `config` | The harness needs an additional config-file edit before commands are visible. | Vibe (`.vibe/config.toml` `skill_paths`). |
 
@@ -121,7 +122,7 @@ Every harness row at tier ≥ `supported` requires at least one current public-d
 | OpenCode | https://opencode.ai/docs |
 | Cursor | https://cursor.com/docs |
 | Gemini CLI | https://github.com/google-gemini/gemini-cli |
-| Pi TUI | (no primary public doc located — classify `partial` or lower) |
+| Pi TUI | https://pi.dev/docs/latest/skills |
 | Qwen Code | https://github.com/QwenLM/qwen-code |
 | Amazon Q CLI | https://docs.aws.amazon.com/amazonq/latest/qdeveloper-ug/ |
 | GitHub Copilot | https://docs.github.com/en/copilot/customizing-copilot/adding-custom-instructions-for-github-copilot |
@@ -130,8 +131,9 @@ Every harness row at tier ≥ `supported` requires at least one current public-d
 | Kilo Code | https://kilocode.ai/docs |
 | Kiro | https://kiro.dev/docs |
 | Windsurf | https://docs.windsurf.com/windsurf/cascade/workflows |
-| Mistral Vibe | https://github.com/openai/codex (shared-skill source; see Codex citation per `CLAUDE.md`) |
-| Letta Code | https://docs.letta.com/ (status uncertain — classify `experimental` or `archived`) |
+| Google Antigravity | https://antigravity.im/documentation |
+| Mistral Vibe | https://docs.mistral.ai/mistral-vibe/terminal/quickstart |
+| Letta Code | https://docs.letta.com/letta-code/skills |
 
 ### 4.2 Citation rule
 
@@ -156,7 +158,7 @@ Every harness row at tier ≥ `supported` requires at least one current public-d
 - `support_tier in {first_class, supported}` ⇒ `external_doc_citations` is non-empty.
 - `support_tier == archived` ⇒ `page_path` is under `docs/migration/` or absent.
 - `key` is unique across the matrix.
-- Every row's `repo_directory` matches the directory in `CLAUDE.md` or is documented as absent (Pi TUI, Letta Code).
+- Every row's `repo_directory` matches the directory in `CLAUDE.md` or is explicitly documented as a partial-tier exception.
 
 ---
 
@@ -203,16 +205,17 @@ The matrix in [`docs/reference/supported-harnesses.md`](../reference/supported-h
 | `cursor` | Cursor | slash_command | supported | https://cursor.com/docs | `.cursor/commands/` installed. |
 | `gemini` | Google Gemini CLI | slash_command | supported | https://github.com/google-gemini/gemini-cli | `.gemini/commands/` installed. |
 | `qwen` | Qwen Code | slash_command | supported | https://github.com/QwenLM/qwen-code | `.qwen/commands/` installed. |
-| `amazonq` | Amazon Q CLI | prompt | supported | https://docs.aws.amazon.com/amazonq/latest/qdeveloper-ug/ | `.amazonq/prompts/`; legacy alongside Kiro rebrand per `CLAUDE.md`. |
+| `q` | Amazon Q CLI | prompt | supported | https://docs.aws.amazon.com/amazonq/latest/qdeveloper-ug/ | `.amazonq/prompts/`; legacy alongside Kiro rebrand per `CLAUDE.md`. |
 | `copilot` | GitHub Copilot | prompt | supported | https://docs.github.com/en/copilot/customizing-copilot/adding-custom-instructions-for-github-copilot | `.github/prompts/` installed. |
 | `augment` | Augment Code (Auggie) | slash_command | supported | https://docs.augmentcode.com/auggie/overview | `.augment/commands/` installed. |
 | `roo` | Roo Cline | slash_command | supported | https://docs.roocode.com/ | `.roo/commands/` installed. |
 | `kilocode` | Kilo Code | workflow | supported | https://kilocode.ai/docs | `.kilocode/workflows/` installed. |
 | `windsurf` | Windsurf | workflow | supported | https://docs.windsurf.com/windsurf/cascade/workflows | `.windsurf/workflows/` installed. |
 | `kiro` | Kiro | prompt | partial | https://kiro.dev/docs | `.kiro/prompts/` installed but coverage is the standalone bootstrap only; promote once full `/spec-kitty.*` surface is verified. |
-| `pi` | Pi TUI | (none) | partial | (none located) | No on-disk surface; no current public doc located. |
-| `vibe` | Mistral Vibe | skill | experimental | https://github.com/openai/codex (shared-skill source per `CLAUDE.md`) | Requires `.vibe/config.toml` `skill_paths` edit; depends on Codex shared installation. |
-| `letta` | Letta Code | (none) | archived | https://docs.letta.com/ (status uncertain) | No on-disk surface; classified `archived` until upstream status is reconfirmed. |
+| `antigravity` | Google Antigravity | workflow | partial | https://antigravity.im/documentation | `.agent/workflows/` installed; keep partial until full command-set smoke evidence is recorded. |
+| `pi` | Pi TUI | skill | partial | https://pi.dev/docs/latest/skills | `.agents/skills/spec-kitty.*/SKILL.md` installed; Pi docs confirm project `.agents/skills/` discovery and `/skill:<name>` invocation. |
+| `vibe` | Mistral Vibe | skill | experimental | https://docs.mistral.ai/mistral-vibe/terminal/quickstart | Requires `.vibe/config.toml` `skill_paths` edit; depends on the shared command-skill installation. |
+| `letta` | Letta Code | skill | partial | https://docs.letta.com/letta-code/skills | `.agents/skills/spec-kitty.*/SKILL.md` installed; keep partial until full command-set smoke evidence is recorded. |
 
 ---
 

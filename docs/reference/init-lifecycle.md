@@ -19,7 +19,7 @@ spec-kitty init [PROJECT_NAME] [OPTIONS]
 
 | Option | Description |
 |---|---|
-| `--ai <keys>` | Comma-separated agent keys (`claude`, `codex`, `gemini`, `cursor`, `qwen`, `opencode`, `windsurf`, `kilocode`, `auggie`, `roo`, `copilot`, `q`, `kiro`, `pi`, `letta`). Required in non-interactive mode. |
+| `--ai <keys>` | Comma-separated agent keys (`claude`, `codex`, `gemini`, `cursor`, `qwen`, `opencode`, `windsurf`, `kilocode`, `auggie`, `roo`, `copilot`, `q`, `kiro`, `antigravity`, `vibe`, `pi`, `letta`). Required in non-interactive mode. |
 | `--non-interactive` / `--yes` / `-y` | Skip all prompts. Equivalent to setting `SPEC_KITTY_NON_INTERACTIVE=1`. |
 | `--help` | Show full help (this page is a curated summary). |
 
@@ -38,7 +38,7 @@ Holds spec-kitty's per-project configuration and runtime state. Key contents:
 | `.kittify/config.yaml` | Single source of truth for configured agents and feature flags. |
 | `.kittify/metadata.yaml` | Project schema version, used by the upgrade gate. |
 | `.kittify/memory/` | Long-lived memory used by the runtime. |
-| `.kittify/command-skills-manifest.json` | Tracks which agents reference each skill package (Codex/Vibe). |
+| `.kittify/command-skills-manifest.json` | Tracks which agents reference each command-skill package (Codex/Vibe/Pi/Letta). |
 
 ### `kitty-specs/` — mission artifacts
 
@@ -46,7 +46,7 @@ Empty at init time. Populated by `/spec-kitty.specify`, `/spec-kitty.plan`, and 
 
 ### Agent command directories
 
-One directory per agent selected via `--ai`. Spec Kitty supports 15 agents total — 13 slash-command agents and 2 Agent Skills agents:
+One directory per agent selected via `--ai`. Spec Kitty supports 17 agents total — 13 command-surface agents and 4 command-skill agents:
 
 | Agent key | Directory created | Command surface |
 |---|---|---|
@@ -62,11 +62,13 @@ One directory per agent selected via `--ai`. Spec Kitty supports 15 agents total
 | `roo` | `.roo/commands/` | `/spec-kitty.*` |
 | `q` | `.amazonq/prompts/` | `/spec-kitty.*` |
 | `kiro` | `.kiro/prompts/` | `/spec-kitty.*` |
-| `pi` (Antigravity) | `.agent/workflows/` | `/spec-kitty.*` |
+| `antigravity` | `.agent/workflows/` | `/spec-kitty.*` |
 | `codex` | `.agents/skills/spec-kitty.*/` | `$spec-kitty.<command>` |
-| `letta` (Vibe) | `.agents/skills/...` via `.vibe/config.toml` | `/spec-kitty.<command>` |
+| `vibe` | `.agents/skills/spec-kitty.*/` plus `.vibe/config.toml` | `/spec-kitty.<command>` |
+| `pi` | `.agents/skills/spec-kitty.*/` | `/skill:spec-kitty.<command>` |
+| `letta` | `.agents/skills/spec-kitty.*/` | Agent Skills |
 
-Codex and Vibe share a single installation tree under `.agents/skills/`; both are pointed at it. Only the agents you list in `--ai` get directories.
+Codex, Vibe, Pi, and Letta share a single installation tree under `.agents/skills/`; Vibe also gets a `.vibe/config.toml` `skill_paths` entry pointing at that tree. Only the agents you list in `--ai` get directories.
 
 ### Ignore files
 
