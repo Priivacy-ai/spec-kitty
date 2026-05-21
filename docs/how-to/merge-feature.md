@@ -85,6 +85,58 @@ Pre-flight failed. Fix these issues before merging:
 | Uncommitted changes in a workspace | `cd <workspace path printed by spec-kitty implement>` then commit or stash |
 | Missing workspace for WP## | `spec-kitty implement WP##` |
 | Target is behind origin | `git checkout <target-branch> && git pull` |
+| `TARGET_BRANCH_NOT_SYNCHRONIZED` while local `main` is ahead or diverged | Inspect divergence, then open a focused PR from `kitty/mission-<mission-slug>` or `kitty/pr/<mission-slug>-to-main` instead of pushing local `main` |
+
+### Focused PR for Autonomous Local Runs
+
+`spec-kitty merge` stops before mutating merge state when the target branch is
+not synchronized with its tracking branch:
+
+```text
+Error: Target branch is not synchronized with its tracking branch.
+  diagnostic_code: TARGET_BRANCH_NOT_SYNCHRONIZED
+  branch_or_work_package: main
+  violated_invariant: local_target_branch_must_match_tracking_branch
+```
+
+For autonomous local runs, local `main` may be ahead of or diverged from
+`origin/main` because the run created planning, status, review, and orchestration
+commits. Do not reset, rebase, force-push, or push local `main` as remediation
+for this diagnostic.
+
+Inspect the divergence first:
+
+```bash
+git fetch origin main
+git log --oneline --left-right --cherry-pick main...origin/main
+git diff --name-only origin/main...main
+```
+
+If the mission branch already contains the approved result, open the PR directly
+from that branch:
+
+```bash
+git push -u origin kitty/mission-<mission-slug>
+gh pr create --base main --head kitty/mission-<mission-slug> --fill
+```
+
+If you want a dedicated branch for the PR, create it from the mission branch:
+
+```bash
+git switch -c kitty/pr/<mission-slug>-to-main kitty/mission-<mission-slug>
+git push -u origin kitty/pr/<mission-slug>-to-main
+gh pr create --base main --head kitty/pr/<mission-slug>-to-main --fill
+```
+
+Prefer squash-merge for autonomous runs that accumulated many orchestration
+commits:
+
+```bash
+gh pr merge --squash --delete-branch
+```
+
+See [Run an Autonomous Mission](run-an-autonomous-mission.md) for the full
+end-to-end workflow.
 
 ## Preview with Dry-Run
 
@@ -262,6 +314,7 @@ spec-kitty merge --resume
 
 - [Keep Main Clean](keep-main-clean.md) - Choose a target branch without changing planning location
 - [Accept and Merge](accept-and-merge.md) - Shorter end-to-end merge flow
+- [Run an Autonomous Mission](run-an-autonomous-mission.md) - Autonomous run and focused-PR fallback
 
 This picks up where the merge left off, using the saved state in `.kittify/merge-state.json`.
 
@@ -332,7 +385,7 @@ Full CLI reference: [CLI Commands](../reference/cli-commands.md)
 ## See Also
 
 - [Accept and Merge](accept-and-merge.md#troubleshooting) - Recovery and conflict resolution
-- [Accept and Merge](accept-and-merge.md) - Feature validation before merge
+- [Accept and Merge](accept-and-merge.md) - Mission validation before merge
 - [Execution Lanes](../explanation/execution-lanes.md) - How worktrees work
 - [Review Work Packages](review-work-package.md) - WP review process
 

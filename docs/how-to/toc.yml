@@ -30,9 +30,11 @@
   href: implement-work-package.md
 - name: Review Work Packages
   href: review-work-package.md
+- name: Run an Autonomous Mission
+  href: run-an-autonomous-mission.md
 - name: Accept and Merge
   href: accept-and-merge.md
-- name: Merge a Feature
+- name: Merge a Mission
   href: merge-feature.md
 - name: Troubleshoot Merge Issues
   href: troubleshoot-merge.md
