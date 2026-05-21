@@ -12,8 +12,8 @@ branch_strategy: Planning artifacts for this mission were generated on main. Dur
 subtasks:
 - T007
 - T008
-agent: "claude:opus-4-7:curator-carla:implementer"
-shell_pid: "27951"
+agent: "claude:opus-4-7:reviewer-renata:reviewer"
+shell_pid: "31011"
 history:
 - actor: planner
   at: '2026-05-21T06:52:04Z'
@@ -115,3 +115,4 @@ spec-kitty agent action implement WP03 --agent claude
 
 - 2026-05-21T07:22:06Z – claude:opus-4-7:curator-carla:implementer – shell_pid=27951 – Started implementation via action command
 - 2026-05-21T07:26:10Z – claude:opus-4-7:curator-carla:implementer – shell_pid=27951 – WP03 ready: diff-shaped TOC plan with 5 nav groups; 3.1-supported conditional on decision 01KS4KTGTN4DBE60JFWKEA2FJB.
+- 2026-05-21T07:26:31Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=31011 – Started review via action command
