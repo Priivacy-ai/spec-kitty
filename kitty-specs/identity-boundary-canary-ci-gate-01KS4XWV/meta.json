@@ -1,0 +1,12 @@
+{
+  "created_at": "2026-05-21T09:29:34.356157+00:00",
+  "friendly_name": "Identity Boundary Canary CI Gate",
+  "mission_id": "01KS4XWVCK38CJF5F6MDEXX0M3",
+  "mission_number": null,
+  "mission_slug": "identity-boundary-canary-ci-gate-01KS4XWV",
+  "mission_type": "software-dev",
+  "purpose_context": "The 4-run identity-boundary canary protocol that closed e2e#41 currently runs only on demand, locally. The next PR to spec-kitty, spec-kitty-saas, or spec-kitty-events could silently break it. This mission pins the canary's enforcement into CI as a required check on each of those three repos, plus documents the human admin action needed to make the checks branch-protection-required.",
+  "purpose_tldr": "Make the identity-boundary canary a required CI check across three repos so regressions break the build, not production.",
+  "slug": "identity-boundary-canary-ci-gate-01KS4XWV",
+  "target_branch": "main"
+}
