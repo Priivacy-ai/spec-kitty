@@ -148,3 +148,4 @@ spec-kitty agent action implement WP07 --agent claude
 ## Activity Log
 
 - 2026-05-21T08:02:46Z – claude:opus-4-7:curator-carla:implementer – shell_pid=56291 – Started implementation via action command
+- 2026-05-21T08:34:26Z – claude:opus-4-7:curator-carla:implementer – shell_pid=56291 – WP07 ready: CLI reference rebuilt (hybrid); meta-issue file seeded; freshness exits 0; architectural test passes.
