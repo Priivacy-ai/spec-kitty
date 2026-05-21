@@ -12,6 +12,8 @@
           "tutorials/*.md",
           "tutorials/toc.yml",
           "how-to/*.md",
+          "how-to/harnesses/*.md",
+          "how-to/harnesses/toc.yml",
           "how-to/toc.yml",
           "reference/*.md",
           "reference/toc.yml",

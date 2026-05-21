@@ -1,5 +1,11 @@
 - name: CLI Commands
   href: cli-commands.md
+- name: Init Lifecycle
+  href: init-lifecycle.md
+- name: Upgrade Lifecycle
+  href: upgrade-lifecycle.md
+- name: Supported Harnesses
+  href: supported-harnesses.md
 - name: Charter CLI Reference
   href: charter-commands.md
 - name: Profile Invocation Reference
