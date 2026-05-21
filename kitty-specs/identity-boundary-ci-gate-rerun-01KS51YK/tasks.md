@@ -41,10 +41,10 @@ locally, and the workflow file parses as valid YAML.
 
 **Included subtasks**:
 
-- [ ] T001 Author `.github/workflows/drift-detector.yml` in spec-kitty (WP01)
-- [ ] T002 Add "Identity-Boundary CI Gate" README section to spec-kitty (WP01)
-- [ ] T003 Local sanity: `uv run pytest tests/sync/test_diagnose.py::TestCanonicalRegistryRecognition -v` (WP01)
-- [ ] T004 Validate workflow YAML syntactically (yq parse or python yaml.safe_load) (WP01)
+- [x] T001 Author `.github/workflows/drift-detector.yml` in spec-kitty (WP01)
+- [x] T002 Add "Identity-Boundary CI Gate" README section to spec-kitty (WP01)
+- [x] T003 Local sanity: `uv run pytest tests/sync/test_diagnose.py::TestCanonicalRegistryRecognition -v` (WP01)
+- [x] T004 Validate workflow YAML syntactically (yq parse or python yaml.safe_load) (WP01)
 
 **Implementation sketch**:
 1. Switch to lane worktree allocated by the runtime (per `lanes.json`).
