@@ -417,7 +417,6 @@ def create_mission_core(
             mission_type=str(meta.get("mission_type") or mission or "software-dev"),
             target_branch=planning_branch,
             wp_count=0,
-            actor="spec-kitty mission create",
             project_uuid=str(_identity.project_uuid) if _identity.project_uuid else None,
             project_slug=_identity.project_slug,
             friendly_name=normalized_friendly_name,

@@ -126,6 +126,17 @@ class TestInlineDependenciesColonFormat:
         result = parse_dependencies_from_tasks_md(content)
         assert result["WP02"] == []
 
+    def test_colon_dependencies_preserve_order_across_line_shapes(self) -> None:
+        content = _make_tasks_md(
+            (
+                "WP05",
+                "**Priority**: High | **Dependencies**: WP02 | **Subtasks**: 1\n\n"
+                "Dependencies: WP01\n",
+            ),
+        )
+        result = parse_dependencies_from_tasks_md(content)
+        assert result["WP05"] == ["WP02", "WP01"]
+
 
 # ---------------------------------------------------------------------------
 # Format 3: bullet-list under "### Dependencies" heading
