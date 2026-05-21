@@ -10,6 +10,7 @@ Structure: AAA (Arrange / Act / Assert).
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -238,6 +239,63 @@ def test_context_renders_action_name_in_output(tmp_path: Path) -> None:
     assert result.exit_code == 0
     # The context text should appear in stdout
     assert "Review context text here." in result.output or "review" in result.output.lower()
+
+
+def test_context_json_uses_same_depth_as_rendered_context(tmp_path: Path) -> None:
+    """JSON envelope must not recompute a different first-load mode than text."""
+    project = _project(tmp_path)
+
+    fake_ctx = MagicMock()
+    fake_ctx.action = "plan"
+    fake_ctx.mode = "bootstrap"
+    fake_ctx.first_load = True
+    fake_ctx.references_count = 0
+    fake_ctx.depth = 2
+    fake_ctx.text = "Action Doctrine (plan):\n  Directives:\n    - DIRECTIVE_001"
+
+    def _json_builder(
+        repo_root: Path,
+        *,
+        action: str,
+        depth: int | None,
+        org_root: Path | None,
+        org_charter_block: dict[str, object],
+    ) -> dict[str, object]:
+        assert repo_root == project
+        assert action == "plan"
+        assert depth == fake_ctx.depth
+        assert org_root is None
+        assert org_charter_block == {"present": False, "packs": []}
+        return {
+            "directives": [{"id": "DIRECTIVE_001", "source": "builtin"}],
+            "all_directives": [{"id": "DIRECTIVE_001", "source": "builtin"}],
+            "tactics": [],
+            "styleguides": [],
+            "toolguides": [],
+            "project_charter": {
+                "present": True,
+                "path": ".kittify/charter/charter.md",
+            },
+            "org_charter": {"present": False, "packs": []},
+        }
+
+    with (
+        patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
+        patch("charter.context.build_charter_context", return_value=fake_ctx),
+        patch("charter.context.build_charter_context_json", side_effect=_json_builder),
+        patch("specify_cli.doctrine.config.resolve_org_roots", return_value=[]),
+        patch(
+            "specify_cli.doctrine.org_charter_loader.load_org_charter_json_block",
+            return_value={"present": False, "packs": []},
+        ),
+    ):
+        result = runner.invoke(app, ["context", "--action", "plan", "--json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["mode"] == "bootstrap"
+    assert payload["directives"] == [{"id": "DIRECTIVE_001", "source": "builtin"}]
+    assert "DIRECTIVE_001" in payload["text"]
 
 
 def test_context_renders_error_on_task_cli_error(tmp_path: Path) -> None:
