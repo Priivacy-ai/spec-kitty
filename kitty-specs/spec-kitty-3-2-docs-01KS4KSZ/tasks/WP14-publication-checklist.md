@@ -18,7 +18,8 @@ branch_strategy: Planning artifacts for this mission were generated on main. Dur
 subtasks:
 - T043
 - T044
-agent: claude
+agent: "claude:opus-4-7:curator-carla:implementer"
+shell_pid: "16037"
 history:
 - actor: planner
   at: '2026-05-21T06:52:04Z'
@@ -103,3 +104,7 @@ Create `docs/development/3-2-publication-checklist.md` with sections:
 ```bash
 spec-kitty agent action implement WP14 --agent claude
 ```
+
+## Activity Log
+
+- 2026-05-21T09:17:20Z – claude:opus-4-7:curator-carla:implementer – shell_pid=16037 – Started implementation via action command
