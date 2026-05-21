@@ -15,7 +15,8 @@ subtasks:
 - T011
 - T012
 - T013
-agent: claude
+agent: "claude:opus-4-7:python-pedro:implementer"
+shell_pid: "31268"
 history:
 - actor: planner
   at: '2026-05-21T06:52:04Z'
@@ -142,3 +143,7 @@ Exit codes (per contract): 0 clean, 1 errors, 2 input error, 3 environmental.
 ```bash
 spec-kitty agent action implement WP04 --agent claude
 ```
+
+## Activity Log
+
+- 2026-05-21T07:28:00Z – claude:opus-4-7:python-pedro:implementer – shell_pid=31268 – Started implementation via action command

@@ -1,7 +1,7 @@
 {
-  "event_count": 29,
-  "last_event_id": "01KS4PXBB74VD07E6GEHS3PJPF",
-  "materialized_at": "2026-05-21T07:27:30.663928+00:00",
+  "event_count": 31,
+  "last_event_id": "01KS4PY7WMY14QH9NNFCGP8VK2",
+  "materialized_at": "2026-05-21T07:27:59.892426+00:00",
   "mission_number": "",
   "mission_slug": "spec-kitty-3-2-docs-01KS4KSZ",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 11
+    "planned": 10
   },
   "work_packages": {
     "WP01": {
@@ -39,11 +39,11 @@
       "last_transition_at": "2026-05-21T07:27:30.663928+00:00"
     },
     "WP04": {
-      "actor": "finalize-tasks",
+      "actor": "claude:opus-4-7:python-pedro:implementer",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KS4NCPD6A8X2KP1DPA8B939X",
-      "last_transition_at": "2026-05-21T07:00:56.358948+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KS4PY7WMY14QH9NNFCGP8VK2",
+      "last_transition_at": "2026-05-21T07:27:59.892426+00:00"
     },
     "WP05": {
       "actor": "finalize-tasks",
