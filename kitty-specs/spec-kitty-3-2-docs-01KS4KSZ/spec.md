@@ -213,6 +213,7 @@ Canonical terms for this mission (avoid synonyms in spec, plan, tasks, and docs 
 - Publishing, deploying, or regenerating the public site.
 - Running SaaS / tracker / hosted-auth / sync flows unless explicitly approved.
 - Picking the final release label for `3.2` (kept as the umbrella label per Assumption 2 until a release-cut decision lands).
+- Writing `version_tag` frontmatter into live docs pages. The page inventory at `docs/development/3-2-page-inventory.yaml` is the canonical surface during this mission; the live-page frontmatter rollout is a follow-up mission gated by the bulk-edit guardrail in `occurrence_map.yaml`.
 
 ---
 
