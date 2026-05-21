@@ -174,10 +174,10 @@ WP07 + WP09 + WP11 + WP12 + WP13 → WP14
 - **Prompt**: [tasks/WP07-rebuild-cli-reference-and-meta-issues.md](./tasks/WP07-rebuild-cli-reference-and-meta-issues.md)
 - **Estimated size**: ~380 lines.
 - **Subtasks**:
-  - [ ] T021 Run `build_cli_reference.py --mode hybrid` to rebuild reference pages (WP07)
-  - [ ] T022 Preserve existing hand-authored prose blocks across the regeneration (WP07)
-  - [ ] T023 Author meta-issue file schema and seed rows from `cli-audit-3-2.md` (WP07)
-  - [ ] T024 Confirm `check_cli_reference_freshness.py` exits 0 (WP07)
+  - [x] T021 Run `build_cli_reference.py --mode hybrid` to rebuild reference pages (WP07)
+  - [x] T022 Preserve existing hand-authored prose blocks across the regeneration (WP07)
+  - [x] T023 Author meta-issue file schema and seed rows from `cli-audit-3-2.md` (WP07)
+  - [x] T024 Confirm `check_cli_reference_freshness.py` exits 0 (WP07)
 
 ### WP08 — Divio information architecture & gap list
 
