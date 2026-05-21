@@ -132,7 +132,7 @@ pipx ensurepath
 
 ## Next steps
 
-- [Initialize a project](install-and-upgrade.md#initialize-a-new-project)
+- [Initialize a project](non-interactive-init.md)
 - [Upgrade the CLI](upgrade-cli.md)
 - [Linux install guide](install-linux.md)
 - [Windows install guide](install-windows.md)

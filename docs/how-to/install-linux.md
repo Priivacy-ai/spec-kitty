@@ -139,7 +139,7 @@ If `uv` is in `~/.cargo/bin` instead of `~/.local/bin`, add that path too.
 
 ## Next steps
 
-- [Initialize a project](install-and-upgrade.md#initialize-a-new-project)
+- [Initialize a project](non-interactive-init.md)
 - [Upgrade the CLI](upgrade-cli.md)
 - [macOS install guide](install-macos.md)
 - [Windows install guide](install-windows.md)

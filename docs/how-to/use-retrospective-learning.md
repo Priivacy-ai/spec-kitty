@@ -208,7 +208,7 @@ Durable config wins when both are present. Suppress the warning in CI with
 | `MISSION_AMBIGUOUS_SELECTOR` | Handle resolves to multiple missions | Use `mission_id` (ULID) or `mid8` instead of slug |
 | Mission completion blocks with `RETROSPECTIVE_GATE_BLOCKED` | Policy is `before_completion + block` and generation failed | Inspect `RetrospectiveCaptureFailed` event in `status.events.jsonl` for `remediation_hint`; address and retry |
 | Deprecation warning keeps firing | Env var set in shell or CI | Unset the env var; rely on `.kittify/config.yaml` |
-| `cannot import name 'normalize_event_id' from 'spec_kitty_events'` during pytest collection (locally only) | Local PEP 420 namespace-package corruption from a partial pip uninstall — NOT a wheel bug | `uv sync --reinstall-package spec-kitty-events` (see [CONTRIBUTING.md](../../CONTRIBUTING.md)) |
+| `cannot import name 'normalize_event_id' from 'spec_kitty_events'` during pytest collection (locally only) | Local PEP 420 namespace-package corruption from a partial pip uninstall — NOT a wheel bug | `uv sync --reinstall-package spec-kitty-events` (see [CONTRIBUTING.md](https://github.com/Priivacy-ai/spec-kitty/blob/main/CONTRIBUTING.md)) |
 
 ---
 
@@ -226,7 +226,7 @@ spec-kitty agent retrospect policy --json   # shows resolved policy + source map
 If `spec-kitty retrospect` reports "No such command", run `spec-kitty upgrade` and re-check.
 
 For the full operator quickstart including test-runner commands, see
-[quickstart.md](../../kitty-specs/retrospective-default-policy-01KS049J/quickstart.md).
+[quickstart.md](https://github.com/Priivacy-ai/spec-kitty/blob/main/kitty-specs/retrospective-default-policy-01KS049J/quickstart.md).
 
 ---
 
@@ -234,4 +234,4 @@ For the full operator quickstart including test-runner commands, see
 
 - [Understanding the Retrospective Learning Loop](../explanation/retrospective-learning-loop.md) — conceptual explanation
 - [Retrospective Schema Reference](../reference/retrospective-schema.md) — YAML and event schemas
-- [CLI Commands Reference](../reference/cli-commands.md#retrospect-commands) — flag reference
+- [CLI Commands Reference](../reference/cli-commands.md#spec-kitty-retrospect) — flag reference
