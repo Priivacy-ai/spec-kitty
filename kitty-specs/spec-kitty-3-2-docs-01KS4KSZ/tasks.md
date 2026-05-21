@@ -227,8 +227,8 @@ WP07 + WP09 + WP11 + WP12 + WP13 → WP14
 - **Prompt**: [tasks/WP11-per-harness-pages.md](./tasks/WP11-per-harness-pages.md)
 - **Estimated size**: ~520 lines.
 - **Subtasks**:
-  - [ ] T033 Author per-harness setup-and-usage pages for harnesses ≥ partial (WP11)
-  - [ ] T034 Add at least one external citation per harness page (WP11)
+  - [x] T033 Author per-harness setup-and-usage pages for harnesses ≥ partial (WP11)
+  - [x] T034 Add at least one external citation per harness page (WP11)
 
 ### WP12 — Install / upgrade / uninstall lifecycle
 
