@@ -146,8 +146,8 @@ WP07 + WP09 + WP11 + WP12 + WP13 → WP14
 - **Prompt**: [tasks/WP05-cli-reference-methodology.md](./tasks/WP05-cli-reference-methodology.md)
 - **Estimated size**: ~300 lines.
 - **Subtasks**:
-  - [ ] T014 `git show` the four prior CLI reference commits (WP05)
-  - [ ] T015 Author `docs/development/3-2-cli-reference-methodology.md` (WP05)
+  - [x] T014 `git show` the four prior CLI reference commits (WP05)
+  - [x] T015 Author `docs/development/3-2-cli-reference-methodology.md` (WP05)
 
 ### WP06 — CLI reference builder + freshness checker + tests
 
