@@ -1,7 +1,7 @@
 {
-  "event_count": 9,
-  "last_event_id": "01KS5317MY37HQDNY1MC2GVVBE",
-  "materialized_at": "2026-05-21T10:59:20.862402+00:00",
+  "event_count": 11,
+  "last_event_id": "01KS53261M89P4S6Z735BR62CH",
+  "materialized_at": "2026-05-21T10:59:51.987974+00:00",
   "mission_number": "",
   "mission_slug": "identity-boundary-ci-gate-rerun-01KS51YK",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 3
+    "planned": 2
   },
   "work_packages": {
     "WP01": {
@@ -25,11 +25,11 @@
       "last_transition_at": "2026-05-21T10:59:20.862402+00:00"
     },
     "WP02": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KS52JDCCAG517TB6TVAYG0DG",
-      "last_transition_at": "2026-05-21T10:51:15.212687+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KS53261M89P4S6Z735BR62CH",
+      "last_transition_at": "2026-05-21T10:59:51.987974+00:00"
     },
     "WP03": {
       "actor": "finalize-tasks",

@@ -17,14 +17,17 @@ requirement_refs:
 - C-008
 planning_base_branch: mission/identity-boundary-ci-gate-rerun
 merge_target_branch: mission/identity-boundary-ci-gate-rerun
-branch_strategy: 'Planning artifacts for this mission were generated on mission/identity-boundary-ci-gate-rerun in spec-kitty. The WP itself implements in a worktree on Priivacy-ai/spec-kitty-events (a different repo) on lane branch mission/identity-boundary-ci-gate-events-rerun. NOTE: The PR target for this WP is the sibling repo''s main (Priivacy-ai/spec-kitty-events:main), NOT this planning branch. The runtime-tracked merge_target_branch above is the in-mission state-machine target; the operational truth is the cross-repo PR.'
-created_at: '2026-05-21T10:50:00+00:00'
+branch_strategy: "Planning artifacts for this mission were generated on mission/identity-boundary-ci-gate-rerun in spec-kitty. The WP itself implements in a worktree on Priivacy-ai/spec-kitty-events (a different repo) on lane branch mission/identity-boundary-ci-gate-events-rerun. NOTE: The PR target for this WP is the sibling repo's main (Priivacy-ai/spec-kitty-events:main), NOT this planning branch. The runtime-tracked merge_target_branch above is the in-mission state-machine target; the operational truth is the cross-repo PR."
+base_branch: kitty/mission-identity-boundary-ci-gate-rerun-01KS51YK
+base_commit: 421dbc0feaadfed8cd8a30947dcef86df6a68209
+created_at: '2026-05-21T10:59:51.964252+00:00'
 subtasks:
 - T005
 - T006
 - T007
 - T008
 agent: claude
+shell_pid: '81066'
 history: []
 agent_profile: implementer-ivan
 authoritative_surface: spec-kitty-events:.github/workflows/
