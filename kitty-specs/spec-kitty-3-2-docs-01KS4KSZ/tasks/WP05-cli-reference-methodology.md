@@ -117,3 +117,4 @@ spec-kitty agent action implement WP05 --agent claude
 ## Activity Log
 
 - 2026-05-21T07:40:15Z – claude:opus-4-7:curator-carla:implementer – shell_pid=38224 – Started implementation via action command
+- 2026-05-21T07:44:16Z – claude:opus-4-7:curator-carla:implementer – shell_pid=38224 – WP05 ready: methodology note with evidence from 4 prior commits, classification, freshness-check inventory.
