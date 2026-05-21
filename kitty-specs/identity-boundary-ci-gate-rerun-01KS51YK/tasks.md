@@ -152,7 +152,7 @@ matching `contracts/check-names.md`.
 
 **Included subtasks**:
 
-- [ ] T013 Author cross-repo manifests (spec-kitty.md, spec-kitty-events.md, spec-kitty-saas.md) (WP04)
+- [x] T013 Author cross-repo manifests (spec-kitty.md, spec-kitty-events.md, spec-kitty-saas.md) (WP04)
 
 **Implementation sketch**:
 1. After WP01-03 open their PRs and the PR numbers are known, author one manifest per repo under `kitty-specs/identity-boundary-ci-gate-rerun-01KS51YK/cross-repo-manifests/`.
