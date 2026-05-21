@@ -1,16 +1,16 @@
 {
-  "event_count": 84,
-  "last_event_id": "01KS4XHH4NVDW3E5E7E4CMFB19",
-  "materialized_at": "2026-05-21T09:23:23.413439+00:00",
+  "event_count": 85,
+  "last_event_id": "01KS4XR9QVTDTYCWQP03DXJ6B1",
+  "materialized_at": "2026-05-21T09:27:05.211628+00:00",
   "mission_number": "",
   "mission_slug": "spec-kitty-3-2-docs-01KS4KSZ",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 14,
+    "approved": 13,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 0,
+    "done": 1,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
@@ -19,10 +19,10 @@
   "work_packages": {
     "WP01": {
       "actor": "user",
-      "force_count": 1,
-      "lane": "approved",
-      "last_event_id": "01KS4P1NXMX8M7ESJ8XYMBESEG",
-      "last_transition_at": "2026-05-21T07:12:23.989034+00:00"
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KS4XR9QVTDTYCWQP03DXJ6B1",
+      "last_transition_at": "2026-05-21T09:27:05.211628+00:00"
     },
     "WP02": {
       "actor": "user",

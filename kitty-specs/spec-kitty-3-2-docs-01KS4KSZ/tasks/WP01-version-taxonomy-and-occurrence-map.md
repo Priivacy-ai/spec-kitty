@@ -136,3 +136,4 @@ spec-kitty agent action implement WP01 --agent claude
 - 2026-05-21T07:10:44Z – claude:opus-4-7:curator-carla:implementer – shell_pid=15990 – WP01 ready: 5-tag taxonomy doc + occurrence_map covering all 8 bulk-edit categories.
 - 2026-05-21T07:11:07Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=19905 – Started review via action command
 - 2026-05-21T07:12:24Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=19905 – Renata review: pass. Taxonomy doc complete with all 5 tags, adoption rules, banner regex, and docs/ survey annex; occurrence_map.yaml has all 8 categories with correct actions per WP01 prompt. Branch split (lane vs main) is correct per runtime gate.
+- 2026-05-21T09:27:05Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=19905 – Moved to done
