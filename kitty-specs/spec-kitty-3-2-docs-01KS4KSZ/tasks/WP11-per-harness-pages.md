@@ -11,7 +11,8 @@ branch_strategy: Planning artifacts for this mission were generated on main. Dur
 subtasks:
 - T033
 - T034
-agent: claude
+agent: "claude:opus-4-7:researcher-robbie:researcher"
+shell_pid: "3704"
 history:
 - actor: planner
   at: '2026-05-21T06:52:04Z'
@@ -97,3 +98,7 @@ For each in-scope harness, create `docs/how-to/harnesses/<key>.md` with:
 ```bash
 spec-kitty agent action implement WP11 --agent claude
 ```
+
+## Activity Log
+
+- 2026-05-21T08:52:52Z – claude:opus-4-7:researcher-robbie:researcher – shell_pid=3704 – Started implementation via action command
