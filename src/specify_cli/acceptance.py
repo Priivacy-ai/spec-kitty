@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 AcceptanceMode = str  # Expected values: "pr", "local", "checklist"
 NEEDS_CLARIFICATION_MARKER_RE = re.compile(
-    r"\[NEEDS CLARIFICATION:[^\]\n]+\]\s*<!--\s*decision_id:\s*\S+\s*-->"
+    r"\[NEEDS CLARIFICATION:[^\]\n]+\](?:\s*<!--\s*decision_id:\s*\S+\s*-->)?"
 )
 
 

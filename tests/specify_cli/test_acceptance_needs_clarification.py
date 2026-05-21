@@ -34,3 +34,15 @@ def test_needs_clarification_flags_canonical_marker(tmp_path: Path) -> None:
     )
 
     assert _check_needs_clarification([artifact]) == [str(artifact)]
+
+
+def test_needs_clarification_flags_legacy_marker(tmp_path: Path) -> None:
+    """The 3.1.8 template marker shape is still unresolved clarification."""
+    artifact = tmp_path / "legacy-spec.md"
+    artifact.write_text(
+        "The system must choose a queue backend. "
+        "[NEEDS CLARIFICATION: choose durable queue]\n",
+        encoding="utf-8",
+    )
+
+    assert _check_needs_clarification([artifact]) == [str(artifact)]
