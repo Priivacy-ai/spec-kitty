@@ -79,6 +79,19 @@ the agent's CLI capabilities:
 **Tier 3**: GUI-only or no stable CLI. Orchestrator must run `move-task` after
 the agent completes, because the agent cannot run shell commands.
 
+### Context Boundaries
+
+Keep implement-review sessions narrowly scoped. Compact after task pivots and
+avoid combining architecture, debugging, and implementation in one long session.
+If the work changes mode, preserve the current status and start a fresh compacted
+context before continuing.
+
+Use subagents whenever a task can be done in an isolated context, even if the
+work is not part of a large parallel sprint. Good candidates include one WP in a
+separate worktree, a review pass against a fixed diff, a focused debugging
+investigation, or validation that can run independently from the orchestrator's
+next scheduling decision.
+
 ---
 
 ## The Mandatory Workflow Pattern
@@ -801,6 +814,10 @@ existing record; it does NOT author. Use `retrospect create` to author.
 9. **Never manually move WPs to `done`** -- that happens during feature merge
 10. **For Tier 3 agents**: orchestrator runs `move-task` on the agent's behalf
 11. **Parallel reviews are safe** -- each WP operates in its own worktree
+12. **Compact after task pivots** -- do not combine architecture, debugging,
+    and implementation in one long session
+13. **Use subagents for isolated work** -- dispatch focused tasks that can run
+    independently from the orchestrator's current context
 
 ---
 
