@@ -1,0 +1,30 @@
+name: docs-freshness
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  docs-freshness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+      - name: Set up Python
+        run: uv python install 3.11
+      - name: Install project
+        run: uv sync
+      - name: Docs freshness
+        env:
+          SPEC_KITTY_ENABLE_SAAS_SYNC: "1"
+          SPEC_KITTY_NO_UPGRADE_CHECK: "1"
+          PYTHONPATH: .
+        run: uv run python scripts/docs/check_docs_freshness.py --ci --report freshness.json --link-check none
+      - name: Upload freshness report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-freshness-report
+          path: freshness.json
