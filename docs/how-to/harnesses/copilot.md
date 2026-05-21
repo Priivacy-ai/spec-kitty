@@ -8,7 +8,7 @@
 - **Spec Kitty CLI installed.** See [Install Spec Kitty](../install-spec-kitty.md).
 - **Project initialized for this harness:**
   ```bash
-  spec-kitty init --agent copilot
+  spec-kitty init --ai copilot
   ```
   *(The configuration key is `copilot`; the on-disk directory is `.github/prompts/`.)*
 - **GitHub Copilot enabled in your editor** (VS Code, JetBrains, etc.) and signed in. Follow GitHub's [Copilot customization docs](https://docs.github.com/en/copilot/customizing-copilot/adding-custom-instructions-for-github-copilot) for setup.

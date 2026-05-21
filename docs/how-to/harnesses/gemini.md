@@ -8,7 +8,7 @@
 - **Spec Kitty CLI installed.** See [Install Spec Kitty](../install-spec-kitty.md).
 - **Project initialized for this harness:**
   ```bash
-  spec-kitty init --agent gemini
+  spec-kitty init --ai gemini
   ```
 - **Gemini CLI installed and authenticated.** Follow the [google-gemini/gemini-cli README](https://github.com/google-gemini/gemini-cli) for installation and login.
 

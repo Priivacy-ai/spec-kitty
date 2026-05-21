@@ -8,7 +8,7 @@
 - **Spec Kitty CLI installed.** See [Install Spec Kitty](../install-spec-kitty.md).
 - **Project initialized for this harness:**
   ```bash
-  spec-kitty init --agent auggie
+  spec-kitty init --ai auggie
   ```
   *(The configuration key is `auggie`; the on-disk directory is `.augment/`.)*
 - **Augment Code installed and signed in.** Follow the [Auggie overview](https://docs.augmentcode.com/auggie/overview) for installation and authentication.

@@ -1,3 +1,5 @@
+> Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
+
 # Cutover Runbook: Retrospective Events — Local to Upstream
 
 **Status**: Pending upstream release of `spec_kitty_events` with retrospective events.

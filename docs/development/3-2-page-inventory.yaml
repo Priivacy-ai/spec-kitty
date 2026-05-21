@@ -2815,3 +2815,222 @@
   current_target: true
   citation_refs: []
   notes: Tutorial; provisional current — confirm in WP08 IA review.
+
+# Added after PR freshness gate repair.
+- path: docs/development/3-2-archive-migration-plan.md
+  tag: internal
+  divio_type: none
+  owning_workstream: validation
+  current_target: false
+  citation_refs: []
+  notes: Internal 3.2 documentation mission planning/support artifact.
+- path: docs/development/3-2-cli-reference-audit-meta-issues.md
+  tag: internal
+  divio_type: none
+  owning_workstream: validation
+  current_target: false
+  citation_refs: []
+  notes: Internal 3.2 documentation mission planning/support artifact.
+- path: docs/development/3-2-cli-reference-methodology.md
+  tag: internal
+  divio_type: none
+  owning_workstream: validation
+  current_target: false
+  citation_refs: []
+  notes: Internal 3.2 documentation mission planning/support artifact.
+- path: docs/development/3-2-harness-research-method.md
+  tag: internal
+  divio_type: none
+  owning_workstream: validation
+  current_target: false
+  citation_refs: []
+  notes: Internal 3.2 documentation mission planning/support artifact.
+- path: docs/development/3-2-information-architecture.md
+  tag: internal
+  divio_type: none
+  owning_workstream: validation
+  current_target: false
+  citation_refs: []
+  notes: Internal 3.2 documentation mission planning/support artifact.
+- path: docs/development/3-2-navigation-plan.md
+  tag: internal
+  divio_type: none
+  owning_workstream: validation
+  current_target: false
+  citation_refs: []
+  notes: Internal 3.2 documentation mission planning/support artifact.
+- path: docs/development/3-2-publication-checklist.md
+  tag: internal
+  divio_type: none
+  owning_workstream: validation
+  current_target: false
+  citation_refs: []
+  notes: Internal 3.2 documentation mission planning/support artifact.
+- path: docs/explanation/pip-vs-pipx-vs-uv.md
+  tag: current
+  divio_type: explanation
+  owning_workstream: install-lifecycle
+  current_target: true
+  citation_refs: []
+  notes: 3.2 package-manager tradeoff explanation.
+- path: docs/how-to/harnesses/amazon-q.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: harnesses
+  current_target: true
+  citation_refs: []
+  notes: 3.2 harness setup and usage page.
+- path: docs/how-to/harnesses/augment.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: harnesses
+  current_target: true
+  citation_refs: []
+  notes: 3.2 harness setup and usage page.
+- path: docs/how-to/harnesses/claude-code.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: harnesses
+  current_target: true
+  citation_refs: []
+  notes: 3.2 harness setup and usage page.
+- path: docs/how-to/harnesses/codex.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: harnesses
+  current_target: true
+  citation_refs: []
+  notes: 3.2 harness setup and usage page.
+- path: docs/how-to/harnesses/copilot.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: harnesses
+  current_target: true
+  citation_refs: []
+  notes: 3.2 harness setup and usage page.
+- path: docs/how-to/harnesses/cursor.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: harnesses
+  current_target: true
+  citation_refs: []
+  notes: 3.2 harness setup and usage page.
+- path: docs/how-to/harnesses/gemini.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: harnesses
+  current_target: true
+  citation_refs: []
+  notes: 3.2 harness setup and usage page.
+- path: docs/how-to/harnesses/kilocode.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: harnesses
+  current_target: true
+  citation_refs: []
+  notes: 3.2 harness setup and usage page.
+- path: docs/how-to/harnesses/kiro.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: harnesses
+  current_target: true
+  citation_refs: []
+  notes: 3.2 harness setup and usage page.
+- path: docs/how-to/harnesses/opencode.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: harnesses
+  current_target: true
+  citation_refs: []
+  notes: 3.2 harness setup and usage page.
+- path: docs/how-to/harnesses/pi-tui.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: harnesses
+  current_target: true
+  citation_refs: []
+  notes: 3.2 harness setup and usage page.
+- path: docs/how-to/harnesses/qwen.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: harnesses
+  current_target: true
+  citation_refs: []
+  notes: 3.2 harness setup and usage page.
+- path: docs/how-to/harnesses/roo.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: harnesses
+  current_target: true
+  citation_refs: []
+  notes: 3.2 harness setup and usage page.
+- path: docs/how-to/harnesses/windsurf.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: harnesses
+  current_target: true
+  citation_refs: []
+  notes: 3.2 harness setup and usage page.
+- path: docs/how-to/install-linux.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: install-lifecycle
+  current_target: true
+  citation_refs: []
+  notes: 3.2 install, upgrade, or uninstall lifecycle page.
+- path: docs/how-to/install-macos.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: install-lifecycle
+  current_target: true
+  citation_refs: []
+  notes: 3.2 install, upgrade, or uninstall lifecycle page.
+- path: docs/how-to/install-windows.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: install-lifecycle
+  current_target: true
+  citation_refs: []
+  notes: 3.2 install, upgrade, or uninstall lifecycle page.
+- path: docs/how-to/uninstall.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: install-lifecycle
+  current_target: true
+  citation_refs: []
+  notes: 3.2 install, upgrade, or uninstall lifecycle page.
+- path: docs/how-to/upgrade-cli.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: install-lifecycle
+  current_target: true
+  citation_refs: []
+  notes: 3.2 install, upgrade, or uninstall lifecycle page.
+- path: docs/how-to/upgrade-project.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: install-lifecycle
+  current_target: true
+  citation_refs: []
+  notes: 3.2 install, upgrade, or uninstall lifecycle page.
+- path: docs/reference/init-lifecycle.md
+  tag: current
+  divio_type: reference
+  owning_workstream: install-lifecycle
+  current_target: true
+  citation_refs: []
+  notes: 3.2 lifecycle/support reference page.
+- path: docs/reference/supported-harnesses.md
+  tag: current
+  divio_type: reference
+  owning_workstream: install-lifecycle
+  current_target: true
+  citation_refs: []
+  notes: 3.2 lifecycle/support reference page.
+- path: docs/reference/upgrade-lifecycle.md
+  tag: current
+  divio_type: reference
+  owning_workstream: install-lifecycle
+  current_target: true
+  citation_refs: []
+  notes: 3.2 lifecycle/support reference page.

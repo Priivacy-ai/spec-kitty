@@ -8,7 +8,7 @@
 - **Spec Kitty CLI installed.** See [Install Spec Kitty](../install-spec-kitty.md).
 - **Project initialized for this harness:**
   ```bash
-  spec-kitty init --agent codex
+  spec-kitty init --ai codex
   ```
 - **Codex CLI installed and authenticated.** Follow the [openai/codex README](https://github.com/openai/codex) for installation and login.
 

@@ -8,7 +8,7 @@
 - **Spec Kitty CLI installed.** See [Install Spec Kitty](../install-spec-kitty.md).
 - **Project initialized for this harness:**
   ```bash
-  spec-kitty init --agent opencode
+  spec-kitty init --ai opencode
   ```
 - **OpenCode installed and configured.** Follow the [OpenCode documentation](https://opencode.ai/docs) for installation and authentication.
 

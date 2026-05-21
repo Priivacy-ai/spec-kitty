@@ -8,7 +8,7 @@
 - **Spec Kitty CLI installed.** See [Install Spec Kitty](../install-spec-kitty.md).
 - **Project initialized for this harness:**
   ```bash
-  spec-kitty init --agent cursor
+  spec-kitty init --ai cursor
   ```
 - **Cursor installed and signed in.** Follow the [Cursor documentation](https://cursor.com/docs) for installation and authentication.
 

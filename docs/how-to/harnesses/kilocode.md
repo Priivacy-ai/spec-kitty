@@ -8,7 +8,7 @@
 - **Spec Kitty CLI installed.** See [Install Spec Kitty](../install-spec-kitty.md).
 - **Project initialized for this harness:**
   ```bash
-  spec-kitty init --agent kilocode
+  spec-kitty init --ai kilocode
   ```
 - **Kilo Code installed and configured.** Follow the [Kilo Code documentation](https://kilocode.ai/docs) for installation and authentication.
 

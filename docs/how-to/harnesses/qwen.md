@@ -8,7 +8,7 @@
 - **Spec Kitty CLI installed.** See [Install Spec Kitty](../install-spec-kitty.md).
 - **Project initialized for this harness:**
   ```bash
-  spec-kitty init --agent qwen
+  spec-kitty init --ai qwen
   ```
 - **Qwen Code installed and authenticated.** Follow the [QwenLM/qwen-code README](https://github.com/QwenLM/qwen-code) for installation and authentication.
 

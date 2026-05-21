@@ -1,3 +1,5 @@
+> Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.x](../3x/index.md) for current docs.
+
 # 2.x Glossary System
 
 The glossary keeps terminology consistent across all mission artifacts. Every term that matters to your project -- from framework concepts like "lane" and "work package" to domain-specific jargon like "deployment" -- lives in the glossary with a precise definition, a scope, and a status. When the runtime detects a term used inconsistently in an artifact, it can flag or block generation until you resolve the inconsistency.

@@ -8,7 +8,7 @@
 - **Spec Kitty CLI installed.** See [Install Spec Kitty](../install-spec-kitty.md).
 - **Project initialized for this harness:**
   ```bash
-  spec-kitty init --agent kiro
+  spec-kitty init --ai kiro
   ```
 - **Kiro installed and configured.** Follow the [Kiro documentation](https://kiro.dev/docs) for installation and authentication.
 

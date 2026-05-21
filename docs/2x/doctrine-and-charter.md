@@ -1,3 +1,5 @@
+> Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.x](../3x/index.md) for current docs.
+
 # 2.x Doctrine and Charter
 
 The charter is the single authoritative governance document for your project. It captures policy decisions -- testing standards, quality gates, branching rules, deployment constraints -- and feeds them into every workflow action. Agents never invent governance on the fly; they read what the charter says and comply.

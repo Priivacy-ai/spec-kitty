@@ -8,7 +8,7 @@
 - **Spec Kitty CLI installed.** See [Install Spec Kitty](../install-spec-kitty.md).
 - **Project initialized for this harness:**
   ```bash
-  spec-kitty init --agent windsurf
+  spec-kitty init --ai windsurf
   ```
 - **Windsurf installed and signed in.** Follow the [Windsurf workflow docs](https://docs.windsurf.com/windsurf/cascade/workflows) for installation and configuration.
 

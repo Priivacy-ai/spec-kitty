@@ -15,7 +15,7 @@ Until a stable installer target and external citation land, this page intentiona
 ## Prerequisites
 
 - **Spec Kitty CLI installed.** See [Install Spec Kitty](../install-spec-kitty.md).
-- **Project initialized.** Note that `spec-kitty init --agent pi` is **not** a supported configuration in 3.2 — initialize with a configured harness instead (Claude Code, Codex, OpenCode, etc.), then dogfood Pi TUI against the resulting `kitty-specs/` artifacts manually.
+- **Project initialized.** Note that `spec-kitty init --ai pi` is **not** a supported configuration in 3.2 — initialize with a configured harness instead (Claude Code, Codex, OpenCode, etc.), then dogfood Pi TUI against the resulting `kitty-specs/` artifacts manually.
 
 ## Where Spec Kitty installs files
 

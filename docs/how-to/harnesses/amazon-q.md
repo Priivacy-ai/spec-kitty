@@ -8,7 +8,7 @@
 - **Spec Kitty CLI installed.** See [Install Spec Kitty](../install-spec-kitty.md).
 - **Project initialized for this harness:**
   ```bash
-  spec-kitty init --agent q
+  spec-kitty init --ai q
   ```
   *(The configuration key is `q`; the on-disk directory is `.amazonq/`.)*
 - **Amazon Q Developer CLI installed and signed in.** Follow the [Amazon Q Developer User Guide](https://docs.aws.amazon.com/amazonq/latest/qdeveloper-ug/) for installation and authentication.

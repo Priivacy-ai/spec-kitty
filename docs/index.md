@@ -32,7 +32,7 @@ See the full [CHANGELOG](../CHANGELOG.md) for complete release notes.
 | Track | Use when | Entry point |
 |---|---|---|
 | `3.x` (current) | New projects and all projects on `main` or PyPI. | This documentation |
-| `1.x` | Maintaining a deprecated legacy workflow (maintenance-only). | [Open 1.x docs](1x/index.md) |
+| `1.x` | Maintaining a deprecated legacy workflow (maintenance-only). | Archive retained under `docs/1x/` |
 
 ## Verification Notes
 

@@ -8,7 +8,7 @@
 - **Spec Kitty CLI installed.** See [Install Spec Kitty](../install-spec-kitty.md).
 - **Project initialized for this harness:**
   ```bash
-  spec-kitty init --agent roo
+  spec-kitty init --ai roo
   ```
 - **Roo Cline installed and configured** in your editor. Follow the [Roo Code documentation](https://docs.roocode.com/) for installation and authentication.
 
