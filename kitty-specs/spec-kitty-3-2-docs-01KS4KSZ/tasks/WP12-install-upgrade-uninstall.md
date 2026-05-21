@@ -136,3 +136,4 @@ spec-kitty agent action implement WP12 --agent claude
 ## Activity Log
 
 - 2026-05-21T08:59:11Z – claude:opus-4-7:curator-carla:implementer – shell_pid=6649 – Started implementation via action command
+- 2026-05-21T09:05:03Z – claude:opus-4-7:curator-carla:implementer – shell_pid=6649 – WP12 ready: 9 lifecycle pages covering pip/pipx/uv × macOS/Linux/Windows; init+upgrade reference; uninstall+rollback.
