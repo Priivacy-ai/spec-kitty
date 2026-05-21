@@ -177,3 +177,4 @@ spec-kitty agent action implement WP06 --agent claude
 - 2026-05-21T07:59:38Z – claude:opus-4-7:python-pedro:implementer – shell_pid=41943 – WP06 ready: walker/builder/freshness/architectural test. Real Typer app smoke test passes; visible count within tolerance.
 - 2026-05-21T08:00:02Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=54092 – Started review via action command
 - 2026-05-21T08:02:22Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=54092 – Renata review: pass. 64 tests pass, 2 skip until WP07; mypy --strict clean; coverage 97%; real Typer app visible=192/hidden=5/deprecated=2 matches cli-audit baseline; all 7 freshness rules implemented; read-only walker; ruff clean.
+- 2026-05-21T09:27:15Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=54092 – Moved to done
