@@ -9,6 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0rc23] - 2026-05-21
+
+Rolls up the autonomous-runtime safety sweep needed before the 3.2.0
+stable cut, plus the documentation and CI guardrails merged after rc22.
+The candidate focuses on removing operator-required workarounds from
+fully autonomous local missions.
+
+- Closes `#1255`: retrospective files written by `retrospect create`
+  are now accepted by `retrospect synthesize`, with regression coverage
+  for both dry-run and apply flows.
+- Closes `#1256`: decisions deferred during planning can be resolved
+  cleanly at terminus, and `decision verify` no longer reports resolved
+  clarification markers as drift.
+- Closes `#1235` and `#1257`: task finalization rejects
+  `kitty-specs/` paths in WP `owned_files` with a clear WP/path error,
+  while bulk-edit preflight treats WPs that author planning artifacts
+  such as `occurrence_map.yaml` as informational.
+- Closes `#1236`: lane computation now preserves parallel lanes for
+  upstream WPs with disjoint `owned_files`; fan-in WPs remain the
+  synchronization point.
+- Closes `#1258`: autonomous local mission docs now include the
+  focused-PR fallback for `TARGET_BRANCH_NOT_SYNCHRONIZED` when local
+  `main` contains orchestration commits.
+- Adds the 3.2 documentation refresh, harness/install lifecycle pages,
+  docs freshness checks, drift-detector CI, canonical-producer linting,
+  acceptance-matrix extension preservation, and charter-context envelope
+  repair merged after rc22.
+
 ## [3.2.0rc22] - 2026-05-21
 
 Ships the `sync diagnose` canonical-allowlist fix so canary diagnostic
