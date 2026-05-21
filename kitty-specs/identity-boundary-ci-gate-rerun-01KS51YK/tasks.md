@@ -114,10 +114,10 @@ mode against deployed-dev.
 
 **Included subtasks**:
 
-- [ ] T009 Create canonical-repo worktree for spec-kitty-saas on a new lane branch (WP03)
-- [ ] T010 Author `.github/workflows/canary-gate.yml` in spec-kitty-saas (WP03)
-- [ ] T011 Add "Identity-Boundary CI Gate" README section to spec-kitty-saas (incl. secrets) (WP03)
-- [ ] T012 Validate saas workflow YAML; assert no Fly-app spin-up (WP03)
+- [x] T009 Create canonical-repo worktree for spec-kitty-saas on a new lane branch (WP03)
+- [x] T010 Author `.github/workflows/canary-gate.yml` in spec-kitty-saas (WP03)
+- [x] T011 Add "Identity-Boundary CI Gate" README section to spec-kitty-saas (incl. secrets) (WP03)
+- [x] T012 Validate saas workflow YAML; assert no Fly-app spin-up (WP03)
 
 **Implementation sketch**:
 1. From canonical `Priivacy-ai/spec-kitty-saas`, run `git worktree add ../spec-kitty-saas-canary-gate -b mission/identity-boundary-ci-gate-saas-rerun origin/main`.
