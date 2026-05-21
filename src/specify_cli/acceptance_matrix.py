@@ -13,11 +13,24 @@ from __future__ import annotations
 
 import json
 import subprocess
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 from typing import Any
 
 from specify_cli.mission_metadata import mission_identity_fields, resolve_mission_identity
+
+
+def _split_known_fields(
+    cls: type[Any],
+    data: dict[str, Any],
+    *,
+    exclude: set[str] | None = None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    excluded = exclude or set()
+    known = {f.name for f in fields(cls)} - {"extras"} - excluded
+    kwargs = {key: value for key, value in data.items() if key in known}
+    extras = {key: value for key, value in data.items() if key not in known and key not in excluded}
+    return kwargs, extras
 
 
 @dataclass
@@ -32,6 +45,18 @@ class AcceptanceCriterion:
     verified_by: str | None = None
     verified_at: str | None = None
     notes: str | None = None
+    extras: dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> AcceptanceCriterion:
+        kwargs, extras = _split_known_fields(cls, data)
+        return cls(**kwargs, extras=extras)
+
+    def to_dict(self) -> dict[str, Any]:
+        data = asdict(self)
+        extras = data.pop("extras", {}) or {}
+        data.update(extras)
+        return data
 
 
 @dataclass
@@ -44,6 +69,18 @@ class NegativeInvariant:
     verification_command: str | None = None
     result: str = "pending"  # "confirmed_absent" | "still_present" | "pending"
     evidence: str | None = None
+    extras: dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> NegativeInvariant:
+        kwargs, extras = _split_known_fields(cls, data)
+        return cls(**kwargs, extras=extras)
+
+    def to_dict(self) -> dict[str, Any]:
+        data = asdict(self)
+        extras = data.pop("extras", {}) or {}
+        data.update(extras)
+        return data
 
 
 @dataclass
@@ -60,6 +97,7 @@ class AcceptanceMatrix:
     negative_invariants: list[NegativeInvariant] = field(default_factory=list)
     mission_number: str | None = None
     mission_type: str | None = None
+    extras: dict[str, Any] = field(default_factory=dict)
 
     @property
     def overall_verdict(self) -> str:
@@ -74,19 +112,22 @@ class AcceptanceMatrix:
         return "pass"
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        data = {
             **mission_identity_fields(
                 self.mission_slug,
                 self.mission_number,
                 self.mission_type,
             ),
             "overall_verdict": self.overall_verdict,
-            "criteria": [asdict(c) for c in self.criteria],
-            "negative_invariants": [asdict(ni) for ni in self.negative_invariants],
+            "criteria": [c.to_dict() for c in self.criteria],
+            "negative_invariants": [ni.to_dict() for ni in self.negative_invariants],
         }
+        data.update(self.extras)
+        return data
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> AcceptanceMatrix:
+        kwargs, extras = _split_known_fields(cls, data, exclude={"overall_verdict"})
         identity = mission_identity_fields(
             data["mission_slug"],
             data.get("mission_number"),
@@ -95,13 +136,14 @@ class AcceptanceMatrix:
         return cls(
             mission_slug=identity["mission_slug"],
             criteria=[
-                AcceptanceCriterion(**c) for c in data.get("criteria", [])
+                AcceptanceCriterion.from_dict(c) for c in data.get("criteria", [])
             ],
             negative_invariants=[
-                NegativeInvariant(**ni) for ni in data.get("negative_invariants", [])
+                NegativeInvariant.from_dict(ni) for ni in data.get("negative_invariants", [])
             ],
-            mission_number=identity["mission_number"],
-            mission_type=identity["mission_type"],
+            mission_number=kwargs.get("mission_number", identity["mission_number"]),
+            mission_type=kwargs.get("mission_type", identity["mission_type"]),
+            extras=extras,
         )
 
 
@@ -209,6 +251,7 @@ def _check_invariant(repo_root: Path, ni: NegativeInvariant) -> NegativeInvarian
             verification_command=ni.verification_command,
             result="pending",
             evidence=f"Unknown verification method: {ni.verification_method}",
+            extras=ni.extras,
         )
 
 
@@ -222,6 +265,7 @@ def _check_grep_absence(repo_root: Path, ni: NegativeInvariant) -> NegativeInvar
             verification_command=ni.verification_command,
             result="pending",
             evidence="No grep pattern specified in verification_command",
+            extras=ni.extras,
         )
 
     result = subprocess.run(
@@ -239,6 +283,7 @@ def _check_grep_absence(repo_root: Path, ni: NegativeInvariant) -> NegativeInvar
             verification_command=ni.verification_command,
             result="confirmed_absent",
             evidence="grep found zero matches",
+            extras=ni.extras,
         )
     else:
         matches = result.stdout.strip().splitlines()[:5]
@@ -249,6 +294,7 @@ def _check_grep_absence(repo_root: Path, ni: NegativeInvariant) -> NegativeInvar
             verification_command=ni.verification_command,
             result="still_present",
             evidence=f"grep found matches: {'; '.join(matches)}",
+            extras=ni.extras,
         )
 
 
@@ -262,6 +308,7 @@ def _check_custom_command(repo_root: Path, ni: NegativeInvariant) -> NegativeInv
             verification_command=ni.verification_command,
             result="pending",
             evidence="No command specified in verification_command",
+            extras=ni.extras,
         )
 
     result = subprocess.run(
@@ -279,6 +326,7 @@ def _check_custom_command(repo_root: Path, ni: NegativeInvariant) -> NegativeInv
             verification_command=ni.verification_command,
             result="confirmed_absent",
             evidence=f"Command exited 0: {result.stdout.strip()[:200]}",
+            extras=ni.extras,
         )
     else:
         return NegativeInvariant(
@@ -288,4 +336,5 @@ def _check_custom_command(repo_root: Path, ni: NegativeInvariant) -> NegativeInv
             verification_command=ni.verification_command,
             result="still_present",
             evidence=f"Command exited {result.returncode}: {result.stderr.strip()[:200]}",
+            extras=ni.extras,
         )
