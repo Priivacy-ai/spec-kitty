@@ -67,6 +67,7 @@ console = Console()
 TASKS_MD_FILENAME = "tasks.md"
 SETUP_PLAN_COMMAND_NAME = "spec-kitty agent mission setup-plan"
 FINALIZE_TASKS_COMMAND_NAME = "spec-kitty agent mission finalize-tasks"
+INVALID_WP_OWNED_FILES_KITTY_SPECS = "INVALID_WP_OWNED_FILES_KITTY_SPECS"
 
 
 def _extract_wp_ids_from_task_files(wp_files: list[Path]) -> list[str]:
@@ -103,6 +104,32 @@ def _collect_finalize_artifacts(
             artifacts.append(candidate)
             seen.add(candidate)
     return artifacts
+
+
+def _normalize_owned_file_path(path: str) -> str:
+    """Normalize a WP owned_files entry for repository-relative validation."""
+    normalized = path.strip().replace("\\", "/")
+    while normalized.startswith("./"):
+        normalized = normalized[2:]
+    return normalized
+
+
+def _is_kitty_specs_owned_file(path: str) -> bool:
+    """Return True when an owned_files entry targets mission planning artifacts."""
+    normalized = _normalize_owned_file_path(path)
+    return normalized == "kitty-specs" or normalized.startswith("kitty-specs/")
+
+
+def _invalid_kitty_specs_owned_files(
+    frontmatter_by_wp: dict[str, WPMetadata],
+) -> list[dict[str, str]]:
+    """Return structured invalid owned_files entries for finalize-tasks errors."""
+    invalid: list[dict[str, str]] = []
+    for wp_id, metadata in sorted(frontmatter_by_wp.items()):
+        for owned_file in metadata.owned_files:
+            if _is_kitty_specs_owned_file(owned_file):
+                invalid.append({"wp_id": wp_id, "path": owned_file})
+    return invalid
 
 
 def _with_cli_version(payload: dict[str, object]) -> dict[str, object]:
@@ -1934,6 +1961,7 @@ def finalize_tasks(
         # snapshots instead of re-reading the unchanged files.
         _inmemory_frontmatter: dict[str, WPMetadata] = {}
         _inmemory_bodies: dict[str, str] = {}
+        pending_frontmatter_writes: list[tuple[Path, WPMetadata, str]] = []
 
         for wp_file in wp_files:
             # Extract WP ID from filename
@@ -2045,11 +2073,7 @@ def finalize_tasks(
             if frontmatter_changed:
                 # Gate ALL file writes on validate_only (T006)
                 if not validate_only:
-                    write_frontmatter(
-                        wp_file,
-                        updated_meta.model_dump(exclude_none=True, mode="json"),
-                        body,
-                    )
+                    pending_frontmatter_writes.append((wp_file, updated_meta, body))
                 else:
                     would_modify.append({"wp_id": wp_id, "changes": changed_fields})
                 updated_count += 1
@@ -2058,6 +2082,30 @@ def finalize_tasks(
             else:
                 if wp_id not in preserved_wps:
                     unchanged_wps.append(wp_id)
+
+        invalid_owned_files = _invalid_kitty_specs_owned_files(_inmemory_frontmatter)
+        if invalid_owned_files:
+            error_msg = "WP owned_files cannot include paths under kitty-specs/"
+            payload = {
+                "error": error_msg,
+                "error_code": INVALID_WP_OWNED_FILES_KITTY_SPECS,
+                "invalid_owned_files": invalid_owned_files,
+            }
+            if json_output:
+                _emit_json(payload)
+            else:
+                console.print(f"[red]Error:[/red] {error_msg}")
+                for invalid in invalid_owned_files:
+                    console.print(f"  - {invalid['wp_id']}: {invalid['path']}")
+            raise typer.Exit(1) from None
+
+        if not validate_only:
+            for wp_file, updated_meta, body in pending_frontmatter_writes:
+                write_frontmatter(
+                    wp_file,
+                    updated_meta.model_dump(exclude_none=True, mode="json"),
+                    body,
+                )
 
         # T017: Regenerate tasks.md from wps.yaml manifest (FR-008, FR-011)
         if wps_manifest is not None:
