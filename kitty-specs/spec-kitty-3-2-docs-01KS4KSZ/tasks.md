@@ -118,8 +118,8 @@ WP07 + WP09 + WP11 + WP12 + WP13 → WP14
 - **Prompt**: [tasks/WP03-navigation-update-plan.md](./tasks/WP03-navigation-update-plan.md)
 - **Estimated size**: ~300 lines.
 - **Subtasks**:
-  - [ ] T007 Diff-shaped navigation plan covering every TOC file (WP03)
-  - [ ] T008 Explicit nav-group plan for the five visibility buckets (WP03)
+  - [x] T007 Diff-shaped navigation plan covering every TOC file (WP03)
+  - [x] T008 Explicit nav-group plan for the five visibility buckets (WP03)
 
 ### WP04 — Version leakage check tool
 
