@@ -15,8 +15,8 @@ subtasks:
 - T011
 - T012
 - T013
-agent: "claude:opus-4-7:python-pedro:implementer"
-shell_pid: "31268"
+agent: "claude:opus-4-7:reviewer-renata:reviewer"
+shell_pid: "36258"
 history:
 - actor: planner
   at: '2026-05-21T06:52:04Z'
@@ -148,3 +148,4 @@ spec-kitty agent action implement WP04 --agent claude
 
 - 2026-05-21T07:28:00Z – claude:opus-4-7:python-pedro:implementer – shell_pid=31268 – Started implementation via action command
 - 2026-05-21T07:37:17Z – claude:opus-4-7:python-pedro:implementer – shell_pid=31268 – WP04 ready: leakage tool + helpers + tests (mypy --strict clean, coverage 99%). All 5 rule IDs implemented; exit codes 0/1/2/3 covered.
+- 2026-05-21T07:37:40Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=36258 – Started review via action command
