@@ -45,6 +45,8 @@ QUICKSTART_FILE = "quickstart.md"
 DATA_MODEL_FILE = "data-model.md"
 RESEARCH_FILE = "research.md"
 WORKFLOW_EVIDENCE_FILE = "workflow-evidence.md"
+WORKFLOW_RUN_URL_RE = re.compile(r"https://github\.com/[\w.-]+/[\w.-]+/actions/runs/\d+\b")
+WORKFLOW_RUN_ID_RE = re.compile(r"(?im)^\s*(?:successful\s+)?(?:github\s+actions\s+)?run(?:\s+id)?\s*[:#-]?\s*\d{5,}\s*$")
 PRIMARY_ARTIFACT_FILES = (
     SPEC_FILE,
     PLAN_FILE,
@@ -588,7 +590,9 @@ def _workflow_evidence_missing(feature_dir: Path) -> bool:
     if not evidence_path.is_file():
         return True
     text = evidence_path.read_text(encoding="utf-8", errors="replace")
-    return not bool(text.strip())
+    if not text.strip():
+        return True
+    return WORKFLOW_RUN_URL_RE.search(text) is None and WORKFLOW_RUN_ID_RE.search(text) is None
 
 
 def _check_workflow_run_evidence(
