@@ -213,10 +213,10 @@ WP07 + WP09 + WP11 + WP12 + WP13 → WP14
 - **Prompt**: [tasks/WP10-harness-research-and-matrix.md](./tasks/WP10-harness-research-and-matrix.md)
 - **Estimated size**: ~420 lines.
 - **Subtasks**:
-  - [ ] T029 Author harness research method doc (WP10)
-  - [ ] T030 Inventory generated files for each candidate harness (WP10)
-  - [ ] T031 Verify external doc citations for each harness (WP10)
-  - [ ] T032 Populate `docs/reference/supported-harnesses.md` matrix (WP10)
+  - [x] T029 Author harness research method doc (WP10)
+  - [x] T030 Inventory generated files for each candidate harness (WP10)
+  - [x] T031 Verify external doc citations for each harness (WP10)
+  - [x] T032 Populate `docs/reference/supported-harnesses.md` matrix (WP10)
 
 ### WP11 — Per-harness setup-and-usage pages
 
