@@ -131,11 +131,11 @@ WP07 + WP09 + WP11 + WP12 + WP13 → WP14
 - **Prompt**: [tasks/WP04-version-leakage-check-tool.md](./tasks/WP04-version-leakage-check-tool.md)
 - **Estimated size**: ~520 lines.
 - **Subtasks**:
-  - [ ] T009 Implement `_inventory.py` (WP04)
-  - [ ] T010 Implement `_render.py` (WP04)
-  - [ ] T011 Implement `version_leakage_check.py` per contract (WP04)
-  - [ ] T012 Author pytest fixtures (clean + dirty + sample pages) (WP04)
-  - [ ] T013 Implement `test_version_leakage_check.py` covering exit codes 0/1/2 (WP04)
+  - [x] T009 Implement `_inventory.py` (WP04)
+  - [x] T010 Implement `_render.py` (WP04)
+  - [x] T011 Implement `version_leakage_check.py` per contract (WP04)
+  - [x] T012 Author pytest fixtures (clean + dirty + sample pages) (WP04)
+  - [x] T013 Implement `test_version_leakage_check.py` covering exit codes 0/1/2 (WP04)
 
 ### WP05 — CLI reference methodology recovery
 
