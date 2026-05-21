@@ -475,7 +475,7 @@ def test_replacement_block_constant_unchanged() -> None:
         "(everything after the skill invocation token, e.g. after "
         "`/spec-kitty.<command>` or `$spec-kitty.<command>`) is the User Input "
         "referenced elsewhere in these instructions.\n\n"
-        "You **MUST** consider this user input before proceeding (if not empty).\n"
+        "You **MUST** consider this user input before proceeding (if not empty).\n\n"
     )
     assert expected == REPLACEMENT_BLOCK, (
         "REPLACEMENT_BLOCK has drifted from its locked value. "

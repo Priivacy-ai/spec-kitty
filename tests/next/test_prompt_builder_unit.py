@@ -334,6 +334,23 @@ class TestBuildPromptWP:
         assert path.exists()
         path.unlink()
 
+    def test_review_prompt_includes_antipattern_checklist(self, feature_with_wp: Path) -> None:
+        repo_root = feature_with_wp.parent.parent
+        text, path = build_prompt(
+            action="review",
+            feature_dir=feature_with_wp,
+            mission_slug="042-test-feature",
+            wp_id="WP01",
+            agent="codex",
+            repo_root=repo_root,
+            mission_type="software-dev",
+        )
+        assert "Anti-pattern checklist (WP-level cheap version of mission-review)" in text
+        assert "PASS / FAIL / N/A" in text
+        assert "Dead code" in text
+        assert "Production fragility" in text
+        path.unlink()
+
     def test_implement_prompt_for_non_python_charter_contains_no_python_default_bias(
         self, feature_with_wp: Path
     ) -> None:
