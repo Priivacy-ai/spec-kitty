@@ -35,9 +35,9 @@ merge_target_branch: main
 **Dependencies**: none.
 
 **Included subtasks**:
-- [ ] T001 Add 4 new tests in `tests/sync/test_diagnose.py`: canonical-registry recognition, CLI-internal recognition, genuinely-unknown rejection, drift detector (WP01)
-- [ ] T002 Refactor `src/specify_cli/sync/diagnose.py`: introduce `KNOWN_EVENT_TYPES` (union of `_EVENT_TYPE_TO_MODEL.keys()` and `_PAYLOAD_RULES.keys()`), drop `VALID_EVENT_TYPES` import, update `_validate_extended_envelope` (WP01)
-- [ ] T003 Verify: run `pytest tests/sync/test_diagnose.py tests/sync/test_forward_compatibility.py tests/contract/test_handoff_fixtures.py -v`; all green (WP01)
+- [x] T001 Add 4 new tests in `tests/sync/test_diagnose.py`: canonical-registry recognition, CLI-internal recognition, genuinely-unknown rejection, drift detector (WP01)
+- [x] T002 Refactor `src/specify_cli/sync/diagnose.py`: introduce `KNOWN_EVENT_TYPES` (union of `_EVENT_TYPE_TO_MODEL.keys()` and `_PAYLOAD_RULES.keys()`), drop `VALID_EVENT_TYPES` import, update `_validate_extended_envelope` (WP01)
+- [x] T003 Verify: run `pytest tests/sync/test_diagnose.py tests/sync/test_forward_compatibility.py tests/contract/test_handoff_fixtures.py -v`; all green (WP01)
 
 **Implementation sketch**:
 1. **T001 — tests first.** Append a new `TestCanonicalRegistryRecognition` class to `tests/sync/test_diagnose.py`. Each test constructs a minimal valid envelope via the existing `_make_valid_event` helper (which already produces a canonical `Event`-shaped envelope) and varies only `event_type`. The drift-detector test uses `monkeypatch.setitem` against `spec_kitty_events.conformance.validators._EVENT_TYPE_TO_MODEL` and re-imports / re-computes `KNOWN_EVENT_TYPES` via `importlib.reload` on the diagnose module to prove the registry is genuinely the source of truth.
