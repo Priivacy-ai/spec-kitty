@@ -267,8 +267,8 @@ WP07 + WP09 + WP11 + WP12 + WP13 → WP14
 - **Prompt**: [tasks/WP14-publication-checklist.md](./tasks/WP14-publication-checklist.md)
 - **Estimated size**: ~280 lines.
 - **Subtasks**:
-  - [ ] T043 Author `docs/development/3-2-publication-checklist.md` (WP14)
-  - [ ] T044 Verify checklist covers every spec.md acceptance criterion (WP14)
+  - [x] T043 Author `docs/development/3-2-publication-checklist.md` (WP14)
+  - [x] T044 Verify checklist covers every spec.md acceptance criterion (WP14)
 
 ## MVP Scope Recommendation
 
