@@ -21,6 +21,7 @@ Files use the pattern `kebab-id.tactic.yaml` (e.g., `zombies-tdd.tactic.yaml`).
 | `tdd-red-green-refactor` | 6 | Classic Red/Green/Refactor loop with guardrails |
 | `zombies-tdd` | 7 | Z/O/M/B/I/E/S progressive test complexity |
 | `glossary-curation-interview` | 11 | Systematic glossary expansion with HiC curation rounds |
+| `five-paradigm-parallel-debugging` | 6 | Parallel recurring-bug investigation across five independent debugging paradigms |
 
 Tactics are referenced by directives and procedures via typed edges in
 `src/doctrine/graph.yaml` (relation `requires`). Inline `tactic_refs` fields
