@@ -159,11 +159,11 @@ WP07 + WP09 + WP11 + WP12 + WP13 → WP14
 - **Prompt**: [tasks/WP06-cli-reference-builder-and-freshness.md](./tasks/WP06-cli-reference-builder-and-freshness.md)
 - **Estimated size**: ~620 lines.
 - **Subtasks**:
-  - [ ] T016 Implement `_typer_walker.py` (WP06)
-  - [ ] T017 Implement `build_cli_reference.py` per contract (WP06)
-  - [ ] T018 Implement `check_cli_reference_freshness.py` per contract (WP06)
-  - [ ] T019 Author tests (unit, integration smoke, fixture-driven) (WP06)
-  - [ ] T020 Implement `tests/architectural/test_docs_cli_reference_parity.py` (WP06)
+  - [x] T016 Implement `_typer_walker.py` (WP06)
+  - [x] T017 Implement `build_cli_reference.py` per contract (WP06)
+  - [x] T018 Implement `check_cli_reference_freshness.py` per contract (WP06)
+  - [x] T019 Author tests (unit, integration smoke, fixture-driven) (WP06)
+  - [x] T020 Implement `tests/architectural/test_docs_cli_reference_parity.py` (WP06)
 
 ### WP07 — Rebuilt CLI reference + agent-subcommands + meta-issue file
 
