@@ -1,48 +1,73 @@
 # Use Spec Kitty in Pi TUI
 
-> **Tier:** **partial** — no on-disk installer surface located in 3.2, and no current canonical public documentation could be confirmed at the access date.
-> **Citation (accessed 2026-05-21):** *(none located 2026-05-21 — see [supported-harnesses matrix](../../reference/supported-harnesses.md))*
+> **Tier:** **partial** — Spec Kitty installs Pi command-skill packages in 3.2, but real-session smoke evidence is not yet recorded.
+> **Citation (accessed 2026-05-21):** <https://pi.dev/docs/latest/skills>
 
 ## Partial-tier note
 
 Pi TUI is classified `partial` in the 3.2 [support matrix](../../reference/supported-harnesses.md) because:
 
-1. The Spec Kitty installer does **not** currently produce an on-disk command surface for Pi TUI (no `.pi/` or equivalent directory is created by `spec-kitty init`).
-2. No current canonical public documentation URL could be located at the access date 2026-05-21.
+1. The Spec Kitty installer produces command-skill packages under `.agents/skills/spec-kitty.*/SKILL.md`.
+2. Pi's current skills documentation says project `.agents/skills/` directories are discovered, and that skills register as `/skill:<name>` commands.
+3. A real-session smoke test for the complete Spec Kitty command set has not yet been recorded, so the row remains `partial` instead of `supported`.
 
-Until a stable installer target and external citation land, this page intentionally does **not** prescribe an invocation syntax. Promotion to `supported` requires (a) an installer that produces a complete `/spec-kitty.*` set, (b) a current external citation, and (c) at least one documented smoke test (see [`docs/development/3-2-harness-research-method.md`](../../development/3-2-harness-research-method.md) §6).
+Promotion to `supported` requires at least one documented smoke test against a real Pi session; the full rule is maintained in `docs/development/3-2-harness-research-method.md` §6.
 
 ## Prerequisites
 
 - **Spec Kitty CLI installed.** See [Install Spec Kitty](../install-spec-kitty.md).
-- **Project initialized.** Note that `spec-kitty init --ai pi` is **not** a supported configuration in 3.2 — initialize with a configured harness instead (Claude Code, Codex, OpenCode, etc.), then dogfood Pi TUI against the resulting `kitty-specs/` artifacts manually.
+- **Project initialized for this harness:**
+  ```bash
+  spec-kitty init --ai pi
+  ```
+- **Pi installed.** Follow the Pi documentation at <https://pi.dev/docs/latest> for the current install path and authentication flow.
 
 ## Where Spec Kitty installs files
 
-**None.** Per the [supported-harnesses matrix](../../reference/supported-harnesses.md), Pi TUI has no installed surface in 3.2.
+Per the [supported-harnesses matrix](../../reference/supported-harnesses.md), Pi consumes Spec Kitty as Agent Skills. Spec Kitty installs:
+
+- **Directory:** `.agents/skills/spec-kitty.<command>/`
+- **Files:** one `SKILL.md` per command (`spec-kitty.specify/SKILL.md`, `spec-kitty.plan/SKILL.md`, `spec-kitty.tasks/SKILL.md`, `spec-kitty.implement/SKILL.md`, etc.).
+- **Manifest:** `.kittify/command-skills-manifest.json` records that Pi references each command-skill package.
 
 ## Canonical invocation
 
-**Not yet defined.** Do not fabricate a slash-command or skill syntax for Pi TUI; consult the Pi TUI project directly when a stable public reference becomes available.
+Pi's skills documentation says skills register as `/skill:<name>` commands. For Spec Kitty command-skill packages, use that form:
+
+```text
+/skill:spec-kitty.specify "<one-line mission description>"
+/skill:spec-kitty.plan
+/skill:spec-kitty.tasks
+/skill:spec-kitty.implement WP01
+```
 
 ## Worked example
 
-Until installer support lands, use Pi TUI as a **read-only** view onto Spec Kitty artifacts:
+Until full smoke evidence lands, treat Pi TUI as a **partial-tier** host and verify command behavior on a low-risk mission first:
 
-1. From your project root, drive a normal mission lifecycle through any configured harness (for example, Claude Code: `/spec-kitty.specify "a hello world page"`).
+1. From your project root, run Pi.
+2. At the prompt, type:
+   ```text
+   /skill:spec-kitty.specify "a hello world page"
+   ```
+3. Answer the Spec Kitty interview prompts inline.
+4. When asked for a kebab-case slug, supply something short, e.g. `hello-world-page`.
+5. The mission spec lands at `kitty-specs/hello-world-page-<mid8>/spec.md`.
+
+If Pi does not expose the command in your installed version, the artifacts remain harness-agnostic:
+
+1. Drive the mission lifecycle through another configured harness (for example, Claude Code: `/spec-kitty.specify "a hello world page"`).
 2. The mission spec lands at `kitty-specs/hello-world-page-<mid8>/spec.md` on disk.
 3. Open Pi TUI against the same project directory and inspect the `kitty-specs/` tree as plain files.
-
-This is the only flow we can confirm at 2026-05-21.
 
 ## Troubleshooting
 
 - **No `/spec-kitty.*` commands inside Pi TUI.**
-  Expected — Pi TUI is `partial` in 3.2 with no installer surface. Drive Spec Kitty from a supported harness (Claude Code, Codex, OpenCode, Cursor, Gemini, Qwen, Amazon Q, Copilot, Augment, Roo, Kilo, Kiro, Windsurf) and read the artifacts back from disk in Pi TUI.
+  Expected — Pi is a skill host, not a slash-command host for Spec Kitty. Use `/skill:spec-kitty.<command>` and confirm `.agents/skills/spec-kitty.*/SKILL.md` exists.
 
 - **Profile not loading.**
-  The `/ad-hoc-profile-load` workflow assumes a slash-command host. Until Pi TUI has an installer surface, use the helper from your other configured harness and reuse the same `kitty-specs/<mission>/` tree.
+  The `/ad-hoc-profile-load` workflow assumes a slash-command host. If your Pi build does not expose equivalent profile loading, use the helper from your other configured harness and reuse the same `kitty-specs/<mission>/` tree.
 
 ## Where to learn more about Pi TUI
 
-No current canonical public documentation could be located at 2026-05-21. The matrix row in [`docs/reference/supported-harnesses.md`](../../reference/supported-harnesses.md) is the authoritative tracker — promotion (and a citation) will land here when evidence is recorded.
+Authoritative documentation: <https://pi.dev/docs/latest/skills> (accessed 2026-05-21). The matrix row in [`docs/reference/supported-harnesses.md`](../../reference/supported-harnesses.md) remains the promotion tracker.
