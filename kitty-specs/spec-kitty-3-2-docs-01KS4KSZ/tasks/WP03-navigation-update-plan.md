@@ -12,7 +12,8 @@ branch_strategy: Planning artifacts for this mission were generated on main. Dur
 subtasks:
 - T007
 - T008
-agent: claude
+agent: "claude:opus-4-7:curator-carla:implementer"
+shell_pid: "27951"
 history:
 - actor: planner
   at: '2026-05-21T06:52:04Z'
@@ -109,3 +110,7 @@ Document landing-page wording for each group (one to two sentences) so the WP07 
 ```bash
 spec-kitty agent action implement WP03 --agent claude
 ```
+
+## Activity Log
+
+- 2026-05-21T07:22:06Z – claude:opus-4-7:curator-carla:implementer – shell_pid=27951 – Started implementation via action command
