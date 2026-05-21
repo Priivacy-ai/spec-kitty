@@ -91,9 +91,9 @@ WP07 + WP09 + WP11 + WP12 + WP13 → WP14
 - **Prompt**: [tasks/WP01-version-taxonomy-and-occurrence-map.md](./tasks/WP01-version-taxonomy-and-occurrence-map.md)
 - **Estimated size**: ~350 lines.
 - **Subtasks**:
-  - [ ] T001 Author 5-tag version taxonomy doc (WP01)
-  - [ ] T002 Read-only survey of `docs/**/*.md` to enumerate every page (WP01)
-  - [ ] T003 Author `occurrence_map.yaml` covering 8 bulk-edit categories (WP01)
+  - [x] T001 Author 5-tag version taxonomy doc (WP01)
+  - [x] T002 Read-only survey of `docs/**/*.md` to enumerate every page (WP01)
+  - [x] T003 Author `occurrence_map.yaml` covering 8 bulk-edit categories (WP01)
 
 ### WP02 — Page inventory (active bulk edit)
 
