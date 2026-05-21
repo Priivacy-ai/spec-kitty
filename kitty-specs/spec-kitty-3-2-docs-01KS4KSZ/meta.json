@@ -1,0 +1,12 @@
+{
+  "created_at": "2026-05-21T06:33:14.184779+00:00",
+  "friendly_name": "Spec Kitty 3.2 Documentation Refresh",
+  "mission_id": "01KS4KSZ67PMNRJ057BGT0Z8AW",
+  "mission_number": null,
+  "mission_slug": "spec-kitty-3-2-docs-01KS4KSZ",
+  "mission_type": "software-dev",
+  "purpose_context": "End users install Spec Kitty into real projects and operate it through AI harnesses such as Claude Code, Codex, OpenCode, Cursor, Gemini, and Pi TUI. Today the public docs mix 1.x, 2.x, 3.1, and 3.2 material, the CLI reference lags the live Typer tree (only 113 of 192 visible paths are covered), and there is no consistent install/upgrade/uninstall guidance across pip, pipx, and uv on macOS, Linux, and Windows. This mission produces a Divio-structured 3.2 documentation set, a generator-backed CLI reference, harness research with explicit support classification, and version-leakage validation so that adopters and existing users land on accurate, version-correct guidance for the upcoming 3.2 releases.",
+  "purpose_tldr": "Make Spec Kitty 3.x/3.2 docs the complete current source of truth, archive 1.x/2.x, rebuild the CLI reference from the live command tree, and cover every supported AI harness end-to-end.",
+  "slug": "spec-kitty-3-2-docs-01KS4KSZ",
+  "target_branch": "main"
+}
