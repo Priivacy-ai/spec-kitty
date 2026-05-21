@@ -9,6 +9,9 @@ Profile invocation is the local audit-trail mechanism used by the ad-hoc `ask`, 
 `do` commands. Each invocation receives Charter context and writes an append-only JSONL record.
 For an explanation of the model, see
 [Understanding Governed Profile Invocation](../explanation/governed-profile-invocation.md).
+For the natural-language host wrapper that turns these primitives into a
+user-facing `/spec-kitty` experience, see
+[/spec-kitty Host Skill](spec-kitty-host-skill.md).
 
 `spec-kitty next` is the canonical mission loop. In the current 3.2.x CLI it issues governed
 prompt files and separate mission-step lifecycle records; it does not open these
@@ -25,6 +28,12 @@ Three CLI commands open a governed invocation record:
 | Ask | `spec-kitty ask <profile> <request>` | Invoke a named profile directly for a query or advisory flow. The caller specifies the profile. |
 | Advise | `spec-kitty advise [--profile <profile>] <request>` | Get governance context for a request; opens an invocation record. Runtime may auto-route. |
 | Do | `spec-kitty do <request>` | Route a request to the best-matching profile for action (anonymous dispatch). |
+
+These commands are intentionally low-level. They return routing and governance
+context; they do not perform repository search, generate the final answer, edit
+files, or create git commits. A host skill such as `/spec-kitty` owns that loop:
+open the invocation, execute the work in Claude/Codex/etc., write a
+git-managed trace, and close the invocation.
 
 ---
 

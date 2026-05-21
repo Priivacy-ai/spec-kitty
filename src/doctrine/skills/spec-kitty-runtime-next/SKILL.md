@@ -531,6 +531,11 @@ Not all governed work happens inside an active mission. When a user asks for hel
 
 Spec Kitty never spawns a parallel LLM call. You are the host; Spec Kitty routes, assembles governance context, and records the trail.
 
+For user-facing `/spec-kitty` requests, hide the low-level JSON envelope from
+the user. Treat `ask` / `advise` / `do` as backend primitives: open the
+invocation, read the governance context, execute the work yourself, answer the
+user, write a git-managed trace, and close the invocation.
+
 ### When to use which command
 
 | Situation | Command |
@@ -554,15 +559,33 @@ Spec Kitty never spawns a parallel LLM call. You are the host; Spec Kitty routes
    If `governance_context_available` is `false`, note this to the user but proceed with the task.
 
 3. **Execute**:
-   Do the work. Generate the code, analysis, or plan.
+   Do the work. Generate the code, analysis, plan, or recommendation.
 
-4. **Close the record**:
+4. **Write the git-managed trace**:
+   For `/spec-kitty` host-skill usage, create:
+   ```text
+   kitty-specs/_profile-invocations/YYYY-MM-DD/
+     YYYY-MM-DDTHHMMSSZ-<slug>-<invocation_id>/
+       trace.md
+   ```
+   Include the request, answer or work summary, selected profile/action,
+   governance context hash, evidence consulted, artifacts, outcome, and content
+   commit SHA when one exists. For code or documentation changes, commit the
+   content first so the trace can reference the content SHA.
+
+5. **Close the record**:
    ```bash
    spec-kitty profile-invocation complete \
      --invocation-id <invocation_id> \
-     --outcome done
+     --outcome done \
+     --artifact <path-if-any> \
+     --commit <content-sha-if-any>
    ```
    Use `failed` or `abandoned` as appropriate.
+
+6. **Commit the trace**:
+   Commit `kitty-specs/_profile-invocations/.../trace.md` as the timestamped
+   project record. For read-only advice or research this may be the only commit.
 
 ### Trail produced
 
@@ -572,6 +595,9 @@ Every standalone invocation writes a Tier 1 JSONL file to:
 ```
 
 Viewable at any time with `spec-kitty invocations list --json`. No SaaS connection required.
+For `/spec-kitty` host-skill usage, also expect a git-tracked projection under
+`kitty-specs/_profile-invocations/` so normal git history records the user
+request and answer.
 
 For full CLI surface documentation, see `.agents/skills/spec-kitty.advise/SKILL.md`.
 

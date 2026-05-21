@@ -4,6 +4,8 @@
   href: charter-commands.md
 - name: Profile Invocation Reference
   href: profile-invocation.md
+- name: /spec-kitty Host Skill
+  href: spec-kitty-host-skill.md
 - name: Retrospective Schema Reference
   href: retrospective-schema.md
 - name: Orchestrator API

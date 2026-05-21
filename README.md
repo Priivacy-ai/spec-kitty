@@ -39,6 +39,20 @@ It is probably overkill for one-off edits, tiny scripts, or teams that do not us
 | Integrate agents | Slash commands or skills for common AI coding tools |
 | Learn from missions | Every completed mission generates a retrospective by default. Tune via `.kittify/config.yaml#retrospective` or charter; see [how-to](docs/how-to/use-retrospective-learning.md). |
 
+## Governance layer
+
+Spec Kitty also supports governed work outside a full mission. Host agents use
+`spec-kitty advise`, `spec-kitty ask`, and `spec-kitty do` to open a profile
+invocation, receive Charter context, execute the work in the host agent, and
+close the record with `spec-kitty profile-invocation complete`.
+
+The local trail model is described in [docs/trail-model.md](docs/trail-model.md).
+Supported host surfaces and their skill/command guidance are tracked in
+[docs/host-surface-parity.md](docs/host-surface-parity.md). For the
+natural-language `/spec-kitty` wrapper that turns these CLI primitives into a
+user-facing request/answer flow with a git-managed trace, see
+[docs/reference/spec-kitty-host-skill.md](docs/reference/spec-kitty-host-skill.md).
+
 ## Quick Start
 
 Install the CLI:

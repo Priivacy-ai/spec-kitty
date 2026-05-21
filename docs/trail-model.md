@@ -89,6 +89,39 @@ Both events are append-only (never mutate existing lines) and readable by a sing
 
 See ADR-001-correlation-contract.md for the design; contracts/profile-invocation-complete.md for the CLI shape.
 
+### Git-Managed Host Trace (required for `/spec-kitty`)
+
+The Tier 1 JSONL trail is runtime audit state. It proves that a governed
+invocation opened and closed, but it is not the durable project artifact that a
+reviewer expects to see in git history.
+
+Host-facing `/spec-kitty` integrations therefore must create a tracked trace
+file for every completed user-facing invocation:
+
+```
+kitty-specs/_profile-invocations/YYYY-MM-DD/
+  YYYY-MM-DDTHHMMSSZ-<slug>-<invocation_id>/
+    trace.md
+```
+
+The trace file is the git-managed projection of the local invocation. It records
+the invocation id, request, selected profile/action, governance context hash,
+answer or work summary, evidence consulted, artifact paths, outcome, and the
+primary content commit when one exists.
+
+Git cycle:
+
+1. For read-only research or advice, the host writes the trace after answering
+   and commits that trace as the timestamped project record.
+2. For code or documentation changes, the host commits the content change first,
+   closes the invocation with `--commit <content-sha>` and `--artifact <path>`,
+   then writes and commits the trace that references the content SHA.
+3. The trace commit is a history record, not the primary content commit. This
+   avoids needing a commit SHA before the trace itself has been committed.
+
+See [`docs/reference/spec-kitty-host-skill.md`](reference/spec-kitty-host-skill.md)
+for the host skill contract and acceptance examples.
+
 ### Tier 2 — Evidence Artifact (optional, caller-triggered)
 
 Created when the caller explicitly flags that the invocation produced checkable output.
