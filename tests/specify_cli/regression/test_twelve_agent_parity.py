@@ -27,6 +27,7 @@ Commit the updated baseline files alongside the template change.
 from __future__ import annotations
 
 import os
+import tomllib
 from pathlib import Path
 from unittest.mock import patch
 
@@ -146,6 +147,20 @@ def test_command_output_unchanged(agent: str, command: str) -> None:
         f"  PYTEST_UPDATE_SNAPSHOTS=1 pytest tests/specify_cli/regression/ -v\n"
         f"then commit the updated baseline files alongside the template change."
     )
+
+
+@pytest.mark.parametrize(
+    "agent",
+    tuple(agent for agent in NON_MIGRATED_AGENTS if AGENT_COMMAND_CONFIG[agent]["ext"] == "toml"),
+)
+@pytest.mark.parametrize("command", CANONICAL_COMMANDS)
+def test_toml_command_output_is_parseable(agent: str, command: str) -> None:
+    """Rendered TOML command files must remain valid TOML."""
+    produced = _render_for_agent(agent, command)
+    try:
+        tomllib.loads(produced)
+    except tomllib.TOMLDecodeError as exc:
+        raise AssertionError(f"Rendered TOML for {agent}/{command} is invalid: {exc}") from exc
 
 
 # ---------------------------------------------------------------------------

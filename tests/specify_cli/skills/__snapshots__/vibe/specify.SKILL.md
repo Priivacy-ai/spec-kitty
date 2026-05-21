@@ -43,6 +43,7 @@ Before `mission create`, there is no mission handle yet.
 The content of the user's message that invoked this skill (everything after the skill invocation token, e.g. after `/spec-kitty.<command>` or `$spec-kitty.<command>`) is the User Input referenced elsewhere in these instructions.
 
 You **MUST** consider this user input before proceeding (if not empty).
+
 ## Primary Invariant: What Are We Building?
 
 This workflow answers "What are we building?" before it creates artifacts. The

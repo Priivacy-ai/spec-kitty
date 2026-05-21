@@ -25,7 +25,7 @@ REPLACEMENT_BLOCK = (
     "(everything after the skill invocation token, e.g. after "
     "`/spec-kitty.<command>` or `$spec-kitty.<command>`) is the User Input "
     "referenced elsewhere in these instructions.\n\n"
-    "You **MUST** consider this user input before proceeding (if not empty).\n"
+    "You **MUST** consider this user input before proceeding (if not empty).\n\n"
 )
 
 # Matches the "## User Input" heading (level-2 only, optional trailing space).

@@ -59,8 +59,9 @@ from specify_cli.review.prompt_metadata import (
     validate_review_prompt_metadata,
     write_review_prompt_with_metadata,
 )
-from specify_cli.status.locking import feature_status_lock
+from specify_cli.review.antipattern_checklist import render_wp_review_antipattern_checklist
 from specify_cli.review.cycle import REVIEW_FEEDBACK_SENTINELS, resolve_review_cycle_pointer
+from specify_cli.status.locking import feature_status_lock
 from specify_cli.status.models import AgentAssignment, Lane
 from specify_cli.status.work_package_lifecycle import (
     WorkPackageClaimConflict,
@@ -1776,6 +1777,8 @@ def review(
         lines.append("")
         lines.append("Review the implementation against the requirements below.")
         lines.append("Check code quality, tests, documentation, and adherence to spec.")
+        lines.append("")
+        lines.append(render_wp_review_antipattern_checklist())
         lines.append("")
 
         # WP content marker and content

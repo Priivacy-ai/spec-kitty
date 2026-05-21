@@ -398,3 +398,26 @@ def test_review_prompt_points_to_shared_mission_artifacts(workflow_repo: Path) -
     assert "📚 SHARED MISSION ARTIFACTS:" in content
     assert f"Spec, plan, tasks, and status live in main repo: {workflow_repo}/kitty-specs/{feature_slug}/" in content
     assert "Use this lane workspace for code/tests; do not expect shared mission artifacts here" in content
+
+
+def test_review_prompt_includes_mission_review_antipattern_checklist(workflow_repo: Path) -> None:
+    _wp_path, feature_slug = _setup_review_fixture(workflow_repo)
+
+    result = CliRunner().invoke(
+        workflow.app,
+        ["review", "WP01", "--mission", feature_slug, "--agent", "test-reviewer"],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    prompt_file = _prompt_path_from_output(result.stdout)
+    content = prompt_file.read_text(encoding="utf-8")
+    assert "Anti-pattern checklist (WP-level cheap version of mission-review)" in content
+    assert "PASS / FAIL / N/A" in content
+    assert "Dead code" in content
+    assert "Synthetic-fixture test" in content
+    assert "Silent empty return" in content
+    assert "FR coverage" in content
+    assert "Frozen surface" in content
+    assert "Locked decision" in content
+    assert "Shared-file ownership" in content
+    assert "Production fragility" in content

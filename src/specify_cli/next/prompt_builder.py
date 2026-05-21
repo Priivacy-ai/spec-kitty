@@ -29,6 +29,7 @@ from charter.mission_type_profiles import (
 from charter.resolver import GovernanceResolutionError, resolve_project_governance
 from specify_cli.core.paths import get_feature_target_branch
 from specify_cli.runtime.resolver import resolve_command
+from specify_cli.review.antipattern_checklist import render_wp_review_antipattern_checklist
 from specify_cli.status.wp_metadata import read_wp_frontmatter
 from specify_cli.workspace.context import resolve_workspace_for_wp
 
@@ -266,6 +267,8 @@ def _build_wp_prompt(
         else:
             lines.append(f"  git log {review_base}..HEAD --oneline{review_paths}")
             lines.append(f"  git diff {review_base}..HEAD --stat{review_paths}")
+        lines.append("")
+        lines.append(render_wp_review_antipattern_checklist())
         lines.append("")
 
     # WP content
