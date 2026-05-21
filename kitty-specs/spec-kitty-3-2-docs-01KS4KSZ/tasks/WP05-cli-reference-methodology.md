@@ -120,3 +120,4 @@ spec-kitty agent action implement WP05 --agent claude
 - 2026-05-21T07:44:16Z – claude:opus-4-7:curator-carla:implementer – shell_pid=38224 – WP05 ready: methodology note with evidence from 4 prior commits, classification, freshness-check inventory.
 - 2026-05-21T07:44:42Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=40401 – Started review via action command
 - 2026-05-21T07:45:35Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=40401 – Renata review: pass. Methodology note covers all 4 prior commits with quoted evidence; classification=hand-authored; 1 anti-regression freshness check inventoried; decision-defer note in place.
+- 2026-05-21T09:27:13Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=40401 – Moved to done
