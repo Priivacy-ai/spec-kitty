@@ -1,7 +1,21 @@
 - name: Install & Upgrade
   href: install-spec-kitty.md
+- name: Install on macOS
+  href: install-macos.md
+- name: Install on Linux
+  href: install-linux.md
+- name: Install on Windows
+  href: install-windows.md
+- name: Upgrade the CLI
+  href: upgrade-cli.md
+- name: Upgrade a Project
+  href: upgrade-project.md
+- name: Uninstall
+  href: uninstall.md
 - name: Diagnose Installation Problems
   href: diagnose-installation.md
+- name: Harness Guides
+  href: harnesses/
 - name: Set Up Codex Launcher
   href: setup-codex-spec-kitty-launcher.md
 - name: Create a Specification

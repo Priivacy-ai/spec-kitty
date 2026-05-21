@@ -1,0 +1,28 @@
+- name: Claude Code
+  href: claude-code.md
+- name: Codex
+  href: codex.md
+- name: OpenCode
+  href: opencode.md
+- name: Cursor
+  href: cursor.md
+- name: Gemini
+  href: gemini.md
+- name: Pi TUI
+  href: pi-tui.md
+- name: Amazon Q
+  href: amazon-q.md
+- name: Augment
+  href: augment.md
+- name: GitHub Copilot
+  href: copilot.md
+- name: Kilo Code
+  href: kilocode.md
+- name: Kiro
+  href: kiro.md
+- name: Qwen
+  href: qwen.md
+- name: Roo
+  href: roo.md
+- name: Windsurf
+  href: windsurf.md
