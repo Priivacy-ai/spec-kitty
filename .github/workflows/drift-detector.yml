@@ -42,7 +42,7 @@ jobs:
           enable-cache: true
 
       - name: Install dependencies (frozen)
-        run: uv sync --frozen --extra dev
+        run: uv sync --frozen --extra test
 
       - name: Run canonical-registry drift detector
         run: uv run pytest tests/sync/test_diagnose.py::TestCanonicalRegistryRecognition -v
