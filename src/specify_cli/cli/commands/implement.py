@@ -481,10 +481,25 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
 
         # Inference warning for potentially unmarked bulk edits (FR-009)
         if gate_result.change_mode is None:
-            from specify_cli.bulk_edit.inference import scan_spec_file
+            from specify_cli.bulk_edit.inference import (
+                scan_spec_file,
+                wp_authors_bulk_edit_planning_artifact,
+            )
 
             inference = scan_spec_file(feature_dir)
-            if inference.triggered and not acknowledge_not_bulk_edit:
+            planning_wp = wp_authors_bulk_edit_planning_artifact(wp_file, mission_slug)
+            if inference.triggered and planning_wp:
+                matched = ", ".join(f"'{p}' ({w}pt)" for p, w in inference.matched_phrases)
+                console.print(Panel(
+                    f"This mission's spec contains language suggesting a bulk edit "
+                    f"(score: {inference.score}/{inference.threshold}), but {wp_id} owns "
+                    f"the occurrence-map planning artifact.\n"
+                    f"  Matched: {matched}\n\n"
+                    f"Continuing without --acknowledge-not-bulk-edit for this planning WP.",
+                    title="[bold yellow]Bulk Edit Inference Informational[/]",
+                    border_style="yellow",
+                ))
+            elif inference.triggered and not acknowledge_not_bulk_edit:
                 matched = ", ".join(f"'{p}' ({w}pt)" for p, w in inference.matched_phrases)
                 console.print(Panel(
                     f"This mission's spec contains language suggesting a bulk edit "
