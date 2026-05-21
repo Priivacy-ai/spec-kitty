@@ -26,11 +26,40 @@ from typing import TYPE_CHECKING, Any, Literal
 from pydantic import ValidationError as PydanticValidationError
 
 from spec_kitty_events import Event  # type: ignore[import-not-found]
+# Canonical event-type registry (Priivacy-ai/spec-kitty#1222).
+#
+# Diagnose recognises ANY event type the canonical events package models —
+# not just the CLI-internal subset the emitter is permitted to emit
+# (``emitter.VALID_EVENT_TYPES``).  The two contracts are deliberately
+# distinct: ``VALID_EVENT_TYPES`` gates *outbound* emission and is locked
+# by ``tests/sync/test_forward_compatibility.py``; ``KNOWN_EVENT_TYPES``
+# (below) gates *recognition* of events that may arrive in the offline
+# queue from any direction (replays, cross-product events, etc.).
+#
+# We import ``_EVENT_TYPE_TO_MODEL`` despite its leading underscore
+# because the events package does not expose a public alias as of 5.1.0;
+# the same import is already in production at
+# ``src/specify_cli/status/lifecycle_events.py:210`` and is the
+# documented contract surface used by the SaaS
+# (``spec-kitty-saas/apps/sync/cutover_contract.py``).  See
+# ``spec-kitty#1198`` for the canonical-registry doctrine.
+from spec_kitty_events.conformance.validators import (
+    _EVENT_TYPE_TO_MODEL as _CANONICAL_EVENT_TYPE_MODELS,
+)
 from .batch import categorize_error
-from .emitter import _PAYLOAD_RULES, VALID_EVENT_TYPES, VALID_AGGREGATE_TYPES
+from .emitter import _PAYLOAD_RULES, VALID_AGGREGATE_TYPES
 
 if TYPE_CHECKING:
     from .body_queue import BodyQueueStats, OfflineBodyUploadQueue
+
+
+# Recognition set used by diagnose: the union of the canonical events
+# registry and the local payload-rules.  Computed at module load and held
+# as a ``frozenset`` so lookups are O(1) and the set cannot be mutated by
+# accident.  See ``Priivacy-ai/spec-kitty#1222``.
+KNOWN_EVENT_TYPES: frozenset[str] = frozenset(
+    set(_CANONICAL_EVENT_TYPE_MODELS.keys()) | set(_PAYLOAD_RULES.keys())
+)
 
 
 # ---------------------------------------------------------------------------
@@ -247,12 +276,14 @@ def _validate_extended_envelope(
             f"got {agg_type!r}"
         )
 
-    # event_type must be a known value
+    # event_type must be a known value — either present in the canonical
+    # ``spec_kitty_events`` registry or in the local payload-rules.  See
+    # ``KNOWN_EVENT_TYPES`` above and ``Priivacy-ai/spec-kitty#1222``.
     etype = event_data.get("event_type")
-    if etype is not None and etype not in VALID_EVENT_TYPES:
+    if etype is not None and etype not in KNOWN_EVENT_TYPES:
         errors.append(
             f"event_type: unknown event type {etype!r}; "
-            f"expected one of {sorted(VALID_EVENT_TYPES)}"
+            f"not in canonical registry or local payload rules"
         )
 
 

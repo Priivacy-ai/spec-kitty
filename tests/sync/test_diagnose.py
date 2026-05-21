@@ -398,3 +398,138 @@ class TestDiagnoseResult:
         )
         assert len(r.errors) == 2
         assert r.error_category == "schema_mismatch"
+
+
+# ---------------------------------------------------------------------------
+# Canonical-registry recognition (#1222)
+# ---------------------------------------------------------------------------
+
+
+def _has_unknown_event_type_error(result) -> bool:
+    """True iff *result* has the diagnose "unknown event type" recognition
+    error (as opposed to other event_type-mentioning Pydantic envelope errors
+    such as 'event_type: Field required'). The recognition error always
+    contains the substring ``"unknown event type"``.
+    """
+    return any("unknown event type" in e for e in result.errors)
+
+
+class TestCanonicalRegistryRecognition:
+    """Diagnose recognises every event type in the canonical
+    ``spec_kitty_events.conformance.validators._EVENT_TYPE_TO_MODEL``
+    registry plus the CLI-internal types from ``emitter._PAYLOAD_RULES``.
+
+    This is the regression for Priivacy-ai/spec-kitty#1222 — before the
+    fix, ``diagnose`` only recognised the 26 types in ``_PAYLOAD_RULES``
+    (the emitter's outbound allowlist) and surfaced canonical-registry
+    types (``TasksCompleted``, ``PlanCompleted``, ``GatePassed``, etc.)
+    as ``"unknown event type"``.
+    """
+
+    def test_recognises_every_registry_type(self):
+        """FR-001 — every key in the canonical registry is recognised."""
+        from spec_kitty_events.conformance.validators import (
+            _EVENT_TYPE_TO_MODEL,
+        )
+
+        offenders: list[str] = []
+        for event_type in sorted(_EVENT_TYPE_TO_MODEL.keys()):
+            event = _make_valid_event(event_type=event_type)
+            results = diagnose_events([event])
+            if _has_unknown_event_type_error(results[0]):
+                offenders.append(event_type)
+        assert offenders == [], (
+            "diagnose flagged these canonical-registry event types as unknown: "
+            f"{offenders}"
+        )
+
+    def test_recognises_cli_internal_types(self):
+        """FR-002 — CLI-internal types (in `_PAYLOAD_RULES` but NOT in the
+        canonical registry) continue to be recognised.
+
+        These are the 7 types the CLI emits locally and validates against
+        `_PAYLOAD_RULES` even though the canonical events package has no
+        model for them (yet).
+        """
+        cli_internal_types = [
+            "BuildHeartbeat",
+            "BuildRegistered",
+            "DependencyResolved",
+            "ErrorLogged",
+            "HistoryAdded",
+            "MissionOriginBound",
+            "WPAssigned",
+        ]
+        offenders: list[str] = []
+        for event_type in cli_internal_types:
+            event = _make_valid_event(event_type=event_type)
+            results = diagnose_events([event])
+            if _has_unknown_event_type_error(results[0]):
+                offenders.append(event_type)
+        assert offenders == [], (
+            "diagnose flagged these CLI-internal event types as unknown: "
+            f"{offenders}"
+        )
+
+    def test_rejects_genuinely_unknown_type(self):
+        """FR-003 — a string in neither set is rejected with a clear error
+        that mentions the offending value.
+        """
+        sentinel = "ThisIsDefinitelyNotARealEventType_x9q3"
+        event = _make_valid_event(event_type=sentinel)
+        results = diagnose_events([event])
+        assert results[0].valid is False
+        assert _has_unknown_event_type_error(results[0])
+        assert any(sentinel in e for e in results[0].errors), (
+            "diagnose error did not mention the offending value: "
+            f"{results[0].errors!r}"
+        )
+
+    def test_drift_detector_picks_up_new_registry_entries(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """FR-004 — the recognition set is genuinely derived from the
+        canonical registry at module-load time. If the events package
+        ships a new event type, diagnose recognises it automatically
+        — no code change in this repo.
+
+        We prove this by inserting a synthetic entry into the canonical
+        registry, reloading the diagnose module (which recomputes
+        ``KNOWN_EVENT_TYPES``), and asserting the synthetic type is
+        recognised.
+        """
+        import importlib
+        from spec_kitty_events.conformance import validators as _validators
+
+        synthetic_type = "_DriftDetectorSentinelEvent"
+        # Use a placeholder model — diagnose only checks membership of the
+        # *key*, not the value. The existing Event model is a convenient
+        # placeholder that already imports cleanly.
+        from spec_kitty_events import Event as _PlaceholderModel
+
+        # Patch the canonical registry to include the synthetic type.
+        monkeypatch.setitem(
+            _validators._EVENT_TYPE_TO_MODEL,
+            synthetic_type,
+            _PlaceholderModel,
+        )
+
+        # Reload the diagnose module so it recomputes KNOWN_EVENT_TYPES
+        # from the now-patched canonical registry.
+        from specify_cli.sync import diagnose as _diagnose_mod
+
+        try:
+            importlib.reload(_diagnose_mod)
+
+            event = _make_valid_event(event_type=synthetic_type)
+            results = _diagnose_mod.diagnose_events([event])
+
+            assert not _has_unknown_event_type_error(results[0]), (
+                "drift detector: diagnose did NOT pick up the synthetic "
+                f"registry entry {synthetic_type!r} after reload. Errors: "
+                f"{results[0].errors!r}"
+            )
+        finally:
+            # Restore the original module-level state so subsequent tests
+            # in this process see the un-patched recognition set.
+            importlib.reload(_diagnose_mod)
