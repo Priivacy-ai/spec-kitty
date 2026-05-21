@@ -15,7 +15,8 @@ subtasks:
 - T011
 - T012
 - T013
-agent: claude
+agent: "claude:opus-4-7:reviewer-renata:reviewer"
+shell_pid: "36258"
 history:
 - actor: planner
   at: '2026-05-21T06:52:04Z'
@@ -142,3 +143,10 @@ Exit codes (per contract): 0 clean, 1 errors, 2 input error, 3 environmental.
 ```bash
 spec-kitty agent action implement WP04 --agent claude
 ```
+
+## Activity Log
+
+- 2026-05-21T07:28:00Z – claude:opus-4-7:python-pedro:implementer – shell_pid=31268 – Started implementation via action command
+- 2026-05-21T07:37:17Z – claude:opus-4-7:python-pedro:implementer – shell_pid=31268 – WP04 ready: leakage tool + helpers + tests (mypy --strict clean, coverage 99%). All 5 rule IDs implemented; exit codes 0/1/2/3 covered.
+- 2026-05-21T07:37:40Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=36258 – Started review via action command
+- 2026-05-21T07:39:47Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=36258 – Renata review: pass. mypy --strict clean on the 4 source files (default invocation needs --explicit-package-bases because scripts/ lacks __init__.py — env config issue, not a code issue). 51/51 tests pass, coverage 99% total (lowest module 98% on _inventory.py, all >=90% required). ruff clean. All 5 rule IDs (LEAK-CURRENT-LINKS-ARCHIVAL, LEAK-MISSING-BANNER, LEAK-FRONTMATTER-MISMATCH, LEAK-MISSING-INVENTORY, LEAK-MISSING-FILE) implemented per contract. All 5 CLI flags (--inventory, --docs-root, --banner-regex, --report, --ci) present. Exit codes 0/1/2/3 all covered. No network imports. No writes to docs/ or inventory paths (only --report JSON path, intentional). No pip dep changes. 19 committed files all within owned_files. Commit cd823d150 references WP04.

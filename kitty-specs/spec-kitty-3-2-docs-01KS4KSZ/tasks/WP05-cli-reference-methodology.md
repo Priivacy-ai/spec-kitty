@@ -10,7 +10,8 @@ branch_strategy: Planning artifacts for this mission were generated on main. Dur
 subtasks:
 - T014
 - T015
-agent: claude
+agent: "claude:opus-4-7:reviewer-renata:reviewer"
+shell_pid: "40401"
 history:
 - actor: planner
   at: '2026-05-21T06:52:04Z'
@@ -112,3 +113,10 @@ Reviewer gate only (doc-only WP).
 ```bash
 spec-kitty agent action implement WP05 --agent claude
 ```
+
+## Activity Log
+
+- 2026-05-21T07:40:15Z – claude:opus-4-7:curator-carla:implementer – shell_pid=38224 – Started implementation via action command
+- 2026-05-21T07:44:16Z – claude:opus-4-7:curator-carla:implementer – shell_pid=38224 – WP05 ready: methodology note with evidence from 4 prior commits, classification, freshness-check inventory.
+- 2026-05-21T07:44:42Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=40401 – Started review via action command
+- 2026-05-21T07:45:35Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=40401 – Renata review: pass. Methodology note covers all 4 prior commits with quoted evidence; classification=hand-authored; 1 anti-regression freshness check inventoried; decision-defer note in place.

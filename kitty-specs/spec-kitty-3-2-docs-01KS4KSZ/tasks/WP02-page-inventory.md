@@ -12,7 +12,8 @@ subtasks:
 - T004
 - T005
 - T006
-agent: claude
+agent: "claude:opus-4-7:reviewer-renata:reviewer"
+shell_pid: "25784"
 history:
 - actor: planner
   at: '2026-05-21T06:52:04Z'
@@ -117,3 +118,10 @@ Add `notes: "MANUAL_REVIEW: <reason>"` for any page where the heuristic was ambi
 ```bash
 spec-kitty agent action implement WP02 --agent claude
 ```
+
+## Activity Log
+
+- 2026-05-21T07:16:02Z – claude:opus-4-7:curator-carla:implementer – shell_pid=22617 – Started implementation via action command
+- 2026-05-21T07:19:01Z – claude:opus-4-7:curator-carla:implementer – shell_pid=22617 – WP02 ready: inventory with one row per page, all 5 tags accounted for (supported tag may be empty per plan default).
+- 2026-05-21T07:19:24Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=25784 – Started review via action command
+- 2026-05-21T07:21:43Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=25784 – Renata review: pass. 401 inventory rows = exact .md subset of WP01 survey (413 includes yml/yaml/json); tags distributed correctly (current=88, internal=288, archival=13, migration=12); supported intentionally empty per plan default with header comment naming decision 01KS4KTGTN4DBE60JFWKEA2FJB; 3 MANUAL_REVIEW notes flag ambiguous rows for WP08; invariants pass (0 violations); heuristics applied consistently; no live page edits.

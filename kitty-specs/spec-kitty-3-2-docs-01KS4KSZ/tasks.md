@@ -91,9 +91,9 @@ WP07 + WP09 + WP11 + WP12 + WP13 → WP14
 - **Prompt**: [tasks/WP01-version-taxonomy-and-occurrence-map.md](./tasks/WP01-version-taxonomy-and-occurrence-map.md)
 - **Estimated size**: ~350 lines.
 - **Subtasks**:
-  - [ ] T001 Author 5-tag version taxonomy doc (WP01)
-  - [ ] T002 Read-only survey of `docs/**/*.md` to enumerate every page (WP01)
-  - [ ] T003 Author `occurrence_map.yaml` covering 8 bulk-edit categories (WP01)
+  - [x] T001 Author 5-tag version taxonomy doc (WP01)
+  - [x] T002 Read-only survey of `docs/**/*.md` to enumerate every page (WP01)
+  - [x] T003 Author `occurrence_map.yaml` covering 8 bulk-edit categories (WP01)
 
 ### WP02 — Page inventory (active bulk edit)
 
@@ -105,9 +105,9 @@ WP07 + WP09 + WP11 + WP12 + WP13 → WP14
 - **Prompt**: [tasks/WP02-page-inventory.md](./tasks/WP02-page-inventory.md)
 - **Estimated size**: ~350 lines.
 - **Subtasks**:
-  - [ ] T004 Author `docs/development/3-2-page-inventory.yaml` (WP02)
-  - [ ] T005 Validate inventory against `PageInventoryEntry` invariants (WP02)
-  - [ ] T006 Flag manual-review pages with notes (WP02)
+  - [x] T004 Author `docs/development/3-2-page-inventory.yaml` (WP02)
+  - [x] T005 Validate inventory against `PageInventoryEntry` invariants (WP02)
+  - [x] T006 Flag manual-review pages with notes (WP02)
 
 ### WP03 — Navigation update plan
 
@@ -118,8 +118,8 @@ WP07 + WP09 + WP11 + WP12 + WP13 → WP14
 - **Prompt**: [tasks/WP03-navigation-update-plan.md](./tasks/WP03-navigation-update-plan.md)
 - **Estimated size**: ~300 lines.
 - **Subtasks**:
-  - [ ] T007 Diff-shaped navigation plan covering every TOC file (WP03)
-  - [ ] T008 Explicit nav-group plan for the five visibility buckets (WP03)
+  - [x] T007 Diff-shaped navigation plan covering every TOC file (WP03)
+  - [x] T008 Explicit nav-group plan for the five visibility buckets (WP03)
 
 ### WP04 — Version leakage check tool
 
@@ -131,11 +131,11 @@ WP07 + WP09 + WP11 + WP12 + WP13 → WP14
 - **Prompt**: [tasks/WP04-version-leakage-check-tool.md](./tasks/WP04-version-leakage-check-tool.md)
 - **Estimated size**: ~520 lines.
 - **Subtasks**:
-  - [ ] T009 Implement `_inventory.py` (WP04)
-  - [ ] T010 Implement `_render.py` (WP04)
-  - [ ] T011 Implement `version_leakage_check.py` per contract (WP04)
-  - [ ] T012 Author pytest fixtures (clean + dirty + sample pages) (WP04)
-  - [ ] T013 Implement `test_version_leakage_check.py` covering exit codes 0/1/2 (WP04)
+  - [x] T009 Implement `_inventory.py` (WP04)
+  - [x] T010 Implement `_render.py` (WP04)
+  - [x] T011 Implement `version_leakage_check.py` per contract (WP04)
+  - [x] T012 Author pytest fixtures (clean + dirty + sample pages) (WP04)
+  - [x] T013 Implement `test_version_leakage_check.py` covering exit codes 0/1/2 (WP04)
 
 ### WP05 — CLI reference methodology recovery
 
@@ -146,8 +146,8 @@ WP07 + WP09 + WP11 + WP12 + WP13 → WP14
 - **Prompt**: [tasks/WP05-cli-reference-methodology.md](./tasks/WP05-cli-reference-methodology.md)
 - **Estimated size**: ~300 lines.
 - **Subtasks**:
-  - [ ] T014 `git show` the four prior CLI reference commits (WP05)
-  - [ ] T015 Author `docs/development/3-2-cli-reference-methodology.md` (WP05)
+  - [x] T014 `git show` the four prior CLI reference commits (WP05)
+  - [x] T015 Author `docs/development/3-2-cli-reference-methodology.md` (WP05)
 
 ### WP06 — CLI reference builder + freshness checker + tests
 
@@ -159,11 +159,11 @@ WP07 + WP09 + WP11 + WP12 + WP13 → WP14
 - **Prompt**: [tasks/WP06-cli-reference-builder-and-freshness.md](./tasks/WP06-cli-reference-builder-and-freshness.md)
 - **Estimated size**: ~620 lines.
 - **Subtasks**:
-  - [ ] T016 Implement `_typer_walker.py` (WP06)
-  - [ ] T017 Implement `build_cli_reference.py` per contract (WP06)
-  - [ ] T018 Implement `check_cli_reference_freshness.py` per contract (WP06)
-  - [ ] T019 Author tests (unit, integration smoke, fixture-driven) (WP06)
-  - [ ] T020 Implement `tests/architectural/test_docs_cli_reference_parity.py` (WP06)
+  - [x] T016 Implement `_typer_walker.py` (WP06)
+  - [x] T017 Implement `build_cli_reference.py` per contract (WP06)
+  - [x] T018 Implement `check_cli_reference_freshness.py` per contract (WP06)
+  - [x] T019 Author tests (unit, integration smoke, fixture-driven) (WP06)
+  - [x] T020 Implement `tests/architectural/test_docs_cli_reference_parity.py` (WP06)
 
 ### WP07 — Rebuilt CLI reference + agent-subcommands + meta-issue file
 
@@ -174,10 +174,10 @@ WP07 + WP09 + WP11 + WP12 + WP13 → WP14
 - **Prompt**: [tasks/WP07-rebuild-cli-reference-and-meta-issues.md](./tasks/WP07-rebuild-cli-reference-and-meta-issues.md)
 - **Estimated size**: ~380 lines.
 - **Subtasks**:
-  - [ ] T021 Run `build_cli_reference.py --mode hybrid` to rebuild reference pages (WP07)
-  - [ ] T022 Preserve existing hand-authored prose blocks across the regeneration (WP07)
-  - [ ] T023 Author meta-issue file schema and seed rows from `cli-audit-3-2.md` (WP07)
-  - [ ] T024 Confirm `check_cli_reference_freshness.py` exits 0 (WP07)
+  - [x] T021 Run `build_cli_reference.py --mode hybrid` to rebuild reference pages (WP07)
+  - [x] T022 Preserve existing hand-authored prose blocks across the regeneration (WP07)
+  - [x] T023 Author meta-issue file schema and seed rows from `cli-audit-3-2.md` (WP07)
+  - [x] T024 Confirm `check_cli_reference_freshness.py` exits 0 (WP07)
 
 ### WP08 — Divio information architecture & gap list
 
@@ -188,8 +188,8 @@ WP07 + WP09 + WP11 + WP12 + WP13 → WP14
 - **Prompt**: [tasks/WP08-information-architecture.md](./tasks/WP08-information-architecture.md)
 - **Estimated size**: ~340 lines.
 - **Subtasks**:
-  - [ ] T025 Author IA doc with every planned 3.2 page (WP08)
-  - [ ] T026 Produce gap list (reuse/rewrite/new) for all four Divio directories (WP08)
+  - [x] T025 Author IA doc with every planned 3.2 page (WP08)
+  - [x] T026 Produce gap list (reuse/rewrite/new) for all four Divio directories (WP08)
 
 ### WP09 — Archive/migration plan (active bulk edit)
 
@@ -201,8 +201,8 @@ WP07 + WP09 + WP11 + WP12 + WP13 → WP14
 - **Prompt**: [tasks/WP09-archive-and-migration-plan.md](./tasks/WP09-archive-and-migration-plan.md)
 - **Estimated size**: ~360 lines.
 - **Subtasks**:
-  - [ ] T027 Author archive/migration plan with page-level disposition (WP09)
-  - [ ] T028 Cross-check every archival/migration inventory row against the plan (WP09)
+  - [x] T027 Author archive/migration plan with page-level disposition (WP09)
+  - [x] T028 Cross-check every archival/migration inventory row against the plan (WP09)
 
 ### WP10 — Harness research method + support matrix
 
@@ -213,10 +213,10 @@ WP07 + WP09 + WP11 + WP12 + WP13 → WP14
 - **Prompt**: [tasks/WP10-harness-research-and-matrix.md](./tasks/WP10-harness-research-and-matrix.md)
 - **Estimated size**: ~420 lines.
 - **Subtasks**:
-  - [ ] T029 Author harness research method doc (WP10)
-  - [ ] T030 Inventory generated files for each candidate harness (WP10)
-  - [ ] T031 Verify external doc citations for each harness (WP10)
-  - [ ] T032 Populate `docs/reference/supported-harnesses.md` matrix (WP10)
+  - [x] T029 Author harness research method doc (WP10)
+  - [x] T030 Inventory generated files for each candidate harness (WP10)
+  - [x] T031 Verify external doc citations for each harness (WP10)
+  - [x] T032 Populate `docs/reference/supported-harnesses.md` matrix (WP10)
 
 ### WP11 — Per-harness setup-and-usage pages
 
@@ -227,8 +227,8 @@ WP07 + WP09 + WP11 + WP12 + WP13 → WP14
 - **Prompt**: [tasks/WP11-per-harness-pages.md](./tasks/WP11-per-harness-pages.md)
 - **Estimated size**: ~520 lines.
 - **Subtasks**:
-  - [ ] T033 Author per-harness setup-and-usage pages for harnesses ≥ partial (WP11)
-  - [ ] T034 Add at least one external citation per harness page (WP11)
+  - [x] T033 Author per-harness setup-and-usage pages for harnesses ≥ partial (WP11)
+  - [x] T034 Add at least one external citation per harness page (WP11)
 
 ### WP12 — Install / upgrade / uninstall lifecycle
 
@@ -239,11 +239,11 @@ WP07 + WP09 + WP11 + WP12 + WP13 → WP14
 - **Prompt**: [tasks/WP12-install-upgrade-uninstall.md](./tasks/WP12-install-upgrade-uninstall.md)
 - **Estimated size**: ~580 lines.
 - **Subtasks**:
-  - [ ] T035 Author install-macos / install-linux / install-windows how-tos (WP12)
-  - [ ] T036 Author upgrade-cli and upgrade-project how-tos (WP12)
-  - [ ] T037 Author uninstall how-to (CLI + project files + rollback) (WP12)
-  - [ ] T038 Author pip-vs-pipx-vs-uv explanation (WP12)
-  - [ ] T039 Author init-lifecycle and upgrade-lifecycle reference pages (WP12)
+  - [x] T035 Author install-macos / install-linux / install-windows how-tos (WP12)
+  - [x] T036 Author upgrade-cli and upgrade-project how-tos (WP12)
+  - [x] T037 Author uninstall how-to (CLI + project files + rollback) (WP12)
+  - [x] T038 Author pip-vs-pipx-vs-uv explanation (WP12)
+  - [x] T039 Author init-lifecycle and upgrade-lifecycle reference pages (WP12)
 
 ### WP13 — Freshness orchestrator + tests + CI wiring
 
@@ -254,9 +254,9 @@ WP07 + WP09 + WP11 + WP12 + WP13 → WP14
 - **Prompt**: [tasks/WP13-docs-freshness-orchestrator.md](./tasks/WP13-docs-freshness-orchestrator.md)
 - **Estimated size**: ~420 lines.
 - **Subtasks**:
-  - [ ] T040 Implement `check_docs_freshness.py` per contract (WP13)
-  - [ ] T041 Implement `test_check_docs_freshness.py` (WP13)
-  - [ ] T042 Wire freshness check into existing CI quality workflow (WP13)
+  - [x] T040 Implement `check_docs_freshness.py` per contract (WP13)
+  - [x] T041 Implement `test_check_docs_freshness.py` (WP13)
+  - [x] T042 Wire freshness check into existing CI quality workflow (WP13)
 
 ### WP14 — Publication checklist + final sweep
 
@@ -267,8 +267,8 @@ WP07 + WP09 + WP11 + WP12 + WP13 → WP14
 - **Prompt**: [tasks/WP14-publication-checklist.md](./tasks/WP14-publication-checklist.md)
 - **Estimated size**: ~280 lines.
 - **Subtasks**:
-  - [ ] T043 Author `docs/development/3-2-publication-checklist.md` (WP14)
-  - [ ] T044 Verify checklist covers every spec.md acceptance criterion (WP14)
+  - [x] T043 Author `docs/development/3-2-publication-checklist.md` (WP14)
+  - [x] T044 Verify checklist covers every spec.md acceptance criterion (WP14)
 
 ## MVP Scope Recommendation
 

@@ -7,11 +7,15 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-spec-kitty-3-2-docs-01KS4KSZ
+base_commit: 6e81c2b186131633253426a3485ebfeebc343d8b
+created_at: '2026-05-21T07:06:24.667509+00:00'
 subtasks:
 - T001
 - T002
 - T003
-agent: claude
+agent: "claude:opus-4-7:reviewer-renata:reviewer"
+shell_pid: "19905"
 history:
 - actor: planner
   at: '2026-05-21T06:52:04Z'
@@ -125,3 +129,10 @@ Cite `spec-kitty-bulk-edit-classification` skill at the top of the file with a c
 ```bash
 spec-kitty agent action implement WP01 --agent claude
 ```
+
+## Activity Log
+
+- 2026-05-21T07:06:26Z – claude:opus-4-7:curator-carla:implementer – shell_pid=15990 – Assigned agent via action command
+- 2026-05-21T07:10:44Z – claude:opus-4-7:curator-carla:implementer – shell_pid=15990 – WP01 ready: 5-tag taxonomy doc + occurrence_map covering all 8 bulk-edit categories.
+- 2026-05-21T07:11:07Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=19905 – Started review via action command
+- 2026-05-21T07:12:24Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=19905 – Renata review: pass. Taxonomy doc complete with all 5 tags, adoption rules, banner regex, and docs/ survey annex; occurrence_map.yaml has all 8 categories with correct actions per WP01 prompt. Branch split (lane vs main) is correct per runtime gate.

@@ -11,7 +11,8 @@ branch_strategy: Planning artifacts for this mission were generated on main. Dur
 subtasks:
 - T033
 - T034
-agent: claude
+agent: "claude:opus-4-7:reviewer-renata:reviewer"
+shell_pid: "5759"
 history:
 - actor: planner
   at: '2026-05-21T06:52:04Z'
@@ -97,3 +98,10 @@ For each in-scope harness, create `docs/how-to/harnesses/<key>.md` with:
 ```bash
 spec-kitty agent action implement WP11 --agent claude
 ```
+
+## Activity Log
+
+- 2026-05-21T08:52:52Z – claude:opus-4-7:researcher-robbie:researcher – shell_pid=3704 – Started implementation via action command
+- 2026-05-21T08:57:21Z – claude:opus-4-7:researcher-robbie:researcher – shell_pid=3704 – WP11 ready: 14 harness pages with prereqs/install/invocation/example/troubleshooting/citations.
+- 2026-05-21T08:57:41Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=5759 – Started review via action command
+- 2026-05-21T08:58:47Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=5759 – Renata review: pass. 14 harness pages with consistent structure; 13 external citations + 1 partial-tier disclosure (pi-tui); paths match WP10 inventory.

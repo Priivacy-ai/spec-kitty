@@ -15,7 +15,8 @@ subtasks:
 - T022
 - T023
 - T024
-agent: claude
+agent: "claude:opus-4-7:reviewer-renata:reviewer"
+shell_pid: "92154"
 history:
 - actor: planner
   at: '2026-05-21T06:52:04Z'
@@ -143,3 +144,10 @@ uv run python scripts/docs/check_cli_reference_freshness.py \
 ```bash
 spec-kitty agent action implement WP07 --agent claude
 ```
+
+## Activity Log
+
+- 2026-05-21T08:02:46Z – claude:opus-4-7:curator-carla:implementer – shell_pid=56291 – Started implementation via action command
+- 2026-05-21T08:34:26Z – claude:opus-4-7:curator-carla:implementer – shell_pid=56291 – WP07 ready: CLI reference rebuilt (hybrid); meta-issue file seeded; freshness exits 0; architectural test passes.
+- 2026-05-21T08:34:59Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=92154 – Started review via action command
+- 2026-05-21T08:37:10Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=92154 – Renata review: pass. CLI reference rebuilt (192 visible paths: 139 top-level + 53 agent); freshness checker exits 0 (when run with PYTHONPATH=. and env vars); architectural parity test passes (2/2, no skips); meta-issue file has 6 seed rows tied to cli-audit-3-2.md; hand-authored prose preserved outside generated markers; no Typer/src edits; diff confined to owned_files.

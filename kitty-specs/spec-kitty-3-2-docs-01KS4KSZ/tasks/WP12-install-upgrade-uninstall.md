@@ -16,7 +16,8 @@ subtasks:
 - T037
 - T038
 - T039
-agent: claude
+agent: "claude:opus-4-7:reviewer-renata:reviewer"
+shell_pid: "10955"
 history:
 - actor: planner
   at: '2026-05-21T06:52:04Z'
@@ -131,3 +132,10 @@ Create `docs/how-to/install-macos.md`, `docs/how-to/install-linux.md`, `docs/how
 ```bash
 spec-kitty agent action implement WP12 --agent claude
 ```
+
+## Activity Log
+
+- 2026-05-21T08:59:11Z – claude:opus-4-7:curator-carla:implementer – shell_pid=6649 – Started implementation via action command
+- 2026-05-21T09:05:03Z – claude:opus-4-7:curator-carla:implementer – shell_pid=6649 – WP12 ready: 9 lifecycle pages covering pip/pipx/uv × macOS/Linux/Windows; init+upgrade reference; uninstall+rollback.
+- 2026-05-21T09:05:27Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=10955 – Started review via action command
+- 2026-05-21T09:06:50Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=10955 – Renata review: pass. 9 lifecycle pages; 3 tools × 3 OSes covered; PowerShell + py launcher noted; PyPI name correct; uninstall+rollback documented.

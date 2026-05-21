@@ -217,13 +217,22 @@ Re-check Charter Check after Phase 1: no new violations introduced; all new tool
 |-----------|------------|---------------------------------------|
 | (none) | — | — |
 
-## Deferred Decisions Carried Forward
+## Deferred Decisions (resolved with plan defaults during implement-review)
 
-[NEEDS CLARIFICATION: 3.1 classification — plan default is "fold 3.1 into 3.2 as migration notes only"; navigation plan and archive/migration plan are written to flip cleanly if resolved otherwise.] <!-- decision_id: 01KS4KTGTN4DBE60JFWKEA2FJB -->
+The three deferred decisions tracked at planning time were resolved with
+their documented plan defaults during the implement-review loop:
 
-[NEEDS CLARIFICATION: CLI reference generation mode — plan default is "hybrid generated body + hand-authored prose"; `build_cli_reference.py` and `check_cli_reference_freshness.py` support a HTML-comment-delimited generated block so the decision can shift to fully generated or fully hand-maintained without rewriting the tools.] <!-- decision_id: 01KS4KTM69EG2KVX5MQ54FQ939 -->
+- `01KS4KTGTN4DBE60JFWKEA2FJB` → fold 3.1 into 3.2 as migration notes only
+  (no separate 3.1 nav group). WP02/WP03/WP09 honour this default.
+- `01KS4KTM69EG2KVX5MQ54FQ939` → hybrid generated body + hand-authored
+  prose. WP06 implements; WP07 ran the inaugural hybrid rebuild.
+- `01KS4KTS4V300M9MMTS1AJEGXY` → matrix-first promotion. WP10 produces the
+  5-tier matrix; WP11 authors per-harness pages for tier ≥ partial (14 pages).
 
-[NEEDS CLARIFICATION: Harness support tiers — plan default is "matrix-first, promote pages as evidence lands"; per-harness pages are scaffolded only for harnesses classified `partial` or higher after the research method completes.] <!-- decision_id: 01KS4KTS4V300M9MMTS1AJEGXY -->
+If the user later resolves any of these decisions to a different value,
+the corresponding WP outputs must be re-run; the tools (build_cli_reference,
+check_cli_reference_freshness, check_docs_freshness) are mode-aware so the
+shift does not require code changes.
 
 ## Branch Strategy Confirmation (re-stated)
 
