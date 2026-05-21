@@ -139,3 +139,4 @@ spec-kitty agent action implement WP12 --agent claude
 - 2026-05-21T09:05:03Z – claude:opus-4-7:curator-carla:implementer – shell_pid=6649 – WP12 ready: 9 lifecycle pages covering pip/pipx/uv × macOS/Linux/Windows; init+upgrade reference; uninstall+rollback.
 - 2026-05-21T09:05:27Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=10955 – Started review via action command
 - 2026-05-21T09:06:50Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=10955 – Renata review: pass. 9 lifecycle pages; 3 tools × 3 OSes covered; PowerShell + py launcher noted; PyPI name correct; uninstall+rollback documented.
+- 2026-05-21T09:27:27Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=10955 – Moved to done
