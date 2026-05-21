@@ -3,6 +3,8 @@ title: Migrating Shared Doctrine to the Org Layer
 description: Move shared governance artifacts out of project-local `.kittify/doctrine/` and into a proper org doctrine pack, including how to deal with deprecated constitution-era paths.
 ---
 
+> Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
+
 # Migrating Shared Doctrine to the Org Layer
 
 This guide is for projects that previously shared governance content by copying it into

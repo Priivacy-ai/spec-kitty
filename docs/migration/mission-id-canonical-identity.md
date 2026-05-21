@@ -1,3 +1,5 @@
+> Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
+
 # Migration: Mission ID as Canonical Identity
 
 **Status**: Shipped with mission `083-mission-id-canonical-identity-migration`.

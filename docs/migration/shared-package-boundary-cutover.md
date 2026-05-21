@@ -1,3 +1,5 @@
+> Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
+
 # Migration: Shared Package Boundary Cutover
 
 **Mission**: `shared-package-boundary-cutover-01KQ22DS`

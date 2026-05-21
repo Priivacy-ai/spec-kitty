@@ -1,3 +1,5 @@
+> Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
+
 # Migration: `--mission` to `--mission-type`
 
 **Status**: Deprecated as of Mission `077-mission-terminology-cleanup`.
