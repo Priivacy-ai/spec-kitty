@@ -130,3 +130,4 @@ spec-kitty agent action implement WP10 --agent claude
 ## Activity Log
 
 - 2026-05-21T08:47:42Z – claude:opus-4-7:researcher-robbie:researcher – shell_pid=263 – Started implementation via action command
+- 2026-05-21T08:51:22Z – claude:opus-4-7:researcher-robbie:researcher – shell_pid=263 – WP10 ready: research method doc + 16-harness support matrix with citations and tier classification.
