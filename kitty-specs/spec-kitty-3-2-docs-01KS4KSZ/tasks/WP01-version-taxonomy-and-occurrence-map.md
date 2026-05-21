@@ -14,8 +14,8 @@ subtasks:
 - T001
 - T002
 - T003
-agent: "claude:opus-4-7:curator-carla:implementer"
-shell_pid: "15990"
+agent: "claude:opus-4-7:reviewer-renata:reviewer"
+shell_pid: "19905"
 history:
 - actor: planner
   at: '2026-05-21T06:52:04Z'
@@ -134,3 +134,4 @@ spec-kitty agent action implement WP01 --agent claude
 
 - 2026-05-21T07:06:26Z – claude:opus-4-7:curator-carla:implementer – shell_pid=15990 – Assigned agent via action command
 - 2026-05-21T07:10:44Z – claude:opus-4-7:curator-carla:implementer – shell_pid=15990 – WP01 ready: 5-tag taxonomy doc + occurrence_map covering all 8 bulk-edit categories.
+- 2026-05-21T07:11:07Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=19905 – Started review via action command
