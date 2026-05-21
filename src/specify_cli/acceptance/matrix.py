@@ -255,6 +255,7 @@ def _check_invariant(repo_root: Path, ni: NegativeInvariant) -> NegativeInvarian
             verification_command=ni.verification_command,
             result="pending",
             evidence=f"Unknown verification method: {ni.verification_method}",
+            extras=ni.extras,
         )
 
 
@@ -268,6 +269,7 @@ def _check_grep_absence(repo_root: Path, ni: NegativeInvariant) -> NegativeInvar
             verification_command=ni.verification_command,
             result="pending",
             evidence="No grep pattern specified in verification_command",
+            extras=ni.extras,
         )
 
     result = subprocess.run(
@@ -293,6 +295,7 @@ def _check_grep_absence(repo_root: Path, ni: NegativeInvariant) -> NegativeInvar
             verification_command=ni.verification_command,
             result="confirmed_absent",
             evidence="grep found zero matches",
+            extras=ni.extras,
         )
     else:
         matches = result.stdout.strip().splitlines()[:5]
@@ -303,6 +306,7 @@ def _check_grep_absence(repo_root: Path, ni: NegativeInvariant) -> NegativeInvar
             verification_command=ni.verification_command,
             result="still_present",
             evidence=f"grep found matches: {'; '.join(matches)}",
+            extras=ni.extras,
         )
 
 
@@ -316,6 +320,7 @@ def _check_custom_command(repo_root: Path, ni: NegativeInvariant) -> NegativeInv
             verification_command=ni.verification_command,
             result="pending",
             evidence="No command specified in verification_command",
+            extras=ni.extras,
         )
 
     # User-authored acceptance matrices intentionally support shell snippets.
@@ -334,6 +339,7 @@ def _check_custom_command(repo_root: Path, ni: NegativeInvariant) -> NegativeInv
             verification_command=ni.verification_command,
             result="confirmed_absent",
             evidence=f"Command exited 0: {result.stdout.strip()[:200]}",
+            extras=ni.extras,
         )
     else:
         return NegativeInvariant(
@@ -343,4 +349,5 @@ def _check_custom_command(repo_root: Path, ni: NegativeInvariant) -> NegativeInv
             verification_command=ni.verification_command,
             result="still_present",
             evidence=f"Command exited {result.returncode}: {result.stderr.strip()[:200]}",
+            extras=ni.extras,
         )

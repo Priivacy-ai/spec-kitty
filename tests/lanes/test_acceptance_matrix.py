@@ -282,3 +282,39 @@ class TestNegativeInvariants:
         ]
         results = enforce_negative_invariants(tmp_path, invariants)
         assert results[0].result == "still_present"
+
+    def test_enforcement_preserves_negative_invariant_extensions(self, tmp_path):
+        repo_root = tmp_path / "repo"
+        repo_root.mkdir()
+        (repo_root / "src").mkdir()
+        (repo_root / "src" / "app.py").write_text("def main(): pass\n")
+
+        feature_dir = tmp_path / "kitty-specs" / "010-feat"
+        feature_dir.mkdir(parents=True)
+        matrix_data = {
+            "mission_slug": "010-feat",
+            "criteria": [],
+            "negative_invariants": [
+                {
+                    "invariant_id": "NI-01",
+                    "description": "No legacy route",
+                    "verification_method": "grep_absence",
+                    "verification_command": "old_legacy_route",
+                    "result": "pending",
+                    "verification_pattern": "operator-authored extension",
+                },
+            ],
+        }
+        (feature_dir / MATRIX_FILENAME).write_text(json.dumps(matrix_data), encoding="utf-8")
+
+        matrix = read_acceptance_matrix(feature_dir)
+        assert matrix is not None
+        matrix.negative_invariants = enforce_negative_invariants(
+            repo_root,
+            matrix.negative_invariants,
+        )
+        write_acceptance_matrix(feature_dir, matrix)
+
+        restored = json.loads((feature_dir / MATRIX_FILENAME).read_text(encoding="utf-8"))
+        assert restored["negative_invariants"][0]["result"] == "confirmed_absent"
+        assert restored["negative_invariants"][0]["verification_pattern"] == "operator-authored extension"
