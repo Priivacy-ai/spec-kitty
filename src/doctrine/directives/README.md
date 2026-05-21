@@ -27,9 +27,10 @@ use plain kebab-case (e.g., `test-first.directive.yaml`).
 
 ## Shipped Directives
 
-Codes 001–019 are shipped reference directives, referenced by the 7 shipped agent
-profiles in `agent_profiles/shipped/`. A consistency test verifies that every
-directive code referenced by a shipped profile resolves to a file in this directory.
+Numbered shipped directives live in `directives/built-in/` and are referenced by
+shipped agent profiles and the doctrine reference graph. A consistency test
+verifies that every directive code referenced by a shipped profile resolves to a
+file in this directory.
 
 ## Glossary Reference
 
