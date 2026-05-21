@@ -201,8 +201,8 @@ WP07 + WP09 + WP11 + WP12 + WP13 → WP14
 - **Prompt**: [tasks/WP09-archive-and-migration-plan.md](./tasks/WP09-archive-and-migration-plan.md)
 - **Estimated size**: ~360 lines.
 - **Subtasks**:
-  - [ ] T027 Author archive/migration plan with page-level disposition (WP09)
-  - [ ] T028 Cross-check every archival/migration inventory row against the plan (WP09)
+  - [x] T027 Author archive/migration plan with page-level disposition (WP09)
+  - [x] T028 Cross-check every archival/migration inventory row against the plan (WP09)
 
 ### WP10 — Harness research method + support matrix
 
