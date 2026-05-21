@@ -14,8 +14,8 @@ subtasks:
 - T001
 - T002
 - T003
-agent: claude
-shell_pid: '15990'
+agent: "claude:opus-4-7:curator-carla:implementer"
+shell_pid: "15990"
 history:
 - actor: planner
   at: '2026-05-21T06:52:04Z'
@@ -129,3 +129,7 @@ Cite `spec-kitty-bulk-edit-classification` skill at the top of the file with a c
 ```bash
 spec-kitty agent action implement WP01 --agent claude
 ```
+
+## Activity Log
+
+- 2026-05-21T07:06:26Z – claude:opus-4-7:curator-carla:implementer – shell_pid=15990 – Assigned agent via action command
