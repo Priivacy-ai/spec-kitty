@@ -2257,6 +2257,112 @@ def _collect_typed_artifacts(
     return entries
 
 
+def _bundle_root_for_json(repo_root: Path) -> Path:
+    """Return the canonical charter bundle root, falling back to *repo_root*."""
+    try:
+        from charter.sync import ensure_charter_bundle_fresh
+
+        refresh_result = ensure_charter_bundle_fresh(repo_root)
+    except Exception:  # noqa: BLE001 - JSON metadata is best-effort
+        return repo_root
+    if refresh_result is not None and refresh_result.canonical_root is not None:
+        return refresh_result.canonical_root
+    return repo_root
+
+
+def _relative_json_path(path: Path, root: Path) -> str:
+    try:
+        return path.relative_to(root).as_posix()
+    except ValueError:
+        return str(path)
+
+
+def _project_charter_json_block(repo_root: Path) -> dict[str, object]:
+    """Describe the project-local charter loaded by the context renderer."""
+    bundle_root = _bundle_root_for_json(repo_root)
+    charter_dir = bundle_root / KITTIFY_DIRNAME / "charter"
+    charter_path = charter_dir / "charter.md"
+    metadata_path = charter_dir / "metadata.yaml"
+
+    block: dict[str, object] = {
+        "present": charter_path.exists(),
+        "path": _relative_json_path(charter_path, bundle_root),
+    }
+    if not charter_path.exists():
+        return block
+
+    block["bytes"] = charter_path.stat().st_size
+    if not metadata_path.exists():
+        return block
+
+    try:
+        data = YAML(typ="safe").load(metadata_path.read_text(encoding="utf-8")) or {}
+    except (OSError, YAMLError, ValueError):
+        return block
+    if not isinstance(data, dict):
+        return block
+
+    charter_hash = data.get("charter_hash")
+    if isinstance(charter_hash, str) and charter_hash:
+        block["hash"] = charter_hash
+    source_path = data.get("source_path")
+    if isinstance(source_path, str) and source_path:
+        block["source_path"] = source_path
+    bundle_schema_version = data.get("bundle_schema_version")
+    if isinstance(bundle_schema_version, int):
+        block["bundle_schema_version"] = bundle_schema_version
+    schema_version = data.get("schema_version")
+    if isinstance(schema_version, str) and schema_version:
+        block["schema_version"] = schema_version
+    return block
+
+
+def _project_directive_entries(repo_root: Path) -> list[dict[str, object]]:
+    """Return every directive ID that the project-governance resolver exposes."""
+    from charter.sync import load_directives_config
+
+    local_by_id: dict[str, object] = {}
+    directive_ids: list[str] = []
+    try:
+        directives_cfg = load_directives_config(repo_root)
+        local_by_id = {directive.id: directive for directive in directives_cfg.directives}
+        directive_ids = [directive.id for directive in directives_cfg.directives]
+    except Exception:  # noqa: BLE001 - fall through to resolver/catalog path
+        local_by_id = {}
+        directive_ids = []
+
+    try:
+        from charter.resolver import resolve_project_governance
+
+        resolution = resolve_project_governance(repo_root)
+        directive_ids = list(dict.fromkeys(list(resolution.directives) + directive_ids))
+    except Exception:  # noqa: BLE001 - keep any directly-loaded directive IDs
+        directive_ids = list(dict.fromkeys(directive_ids))
+
+    try:
+        service = _build_doctrine_service(repo_root)
+    except Exception:  # noqa: BLE001 - local directive IDs are still useful
+        service = None
+    entries: list[dict[str, object]] = []
+    for directive_id in directive_ids:
+        local = local_by_id.get(directive_id)
+        if local is not None:
+            entry: dict[str, object] = {"id": directive_id, "source": "project"}
+            title = getattr(local, "title", None)
+            description = getattr(local, "description", None)
+            if isinstance(title, str) and title:
+                entry["title"] = title
+            if isinstance(description, str) and description:
+                entry["summary"] = description
+            entries.append(entry)
+            continue
+        if service is None:
+            entries.append({"id": directive_id, "source": "builtin"})
+            continue
+        entries.extend(_collect_typed_artifacts(service.directives, [directive_id]))  # type: ignore[attr-defined]
+    return entries
+
+
 _EMPTY_ORG_CHARTER: dict[str, object] = {"present": False, "packs": []}
 
 
@@ -2273,9 +2379,14 @@ def build_charter_context_json(
     The payload contains:
 
     * ``action`` / ``mode`` — same surface as :class:`CharterContextResult`.
-    * ``directives`` / ``tactics`` / ``styleguides`` / ``toolguides`` — typed
-      artifact arrays, each entry carrying a ``"source"`` provenance field
-      (``"builtin"`` | ``"org"`` | ``"project"``).
+    * ``directives`` / ``tactics`` / ``styleguides`` / ``toolguides`` —
+      action-scoped typed artifact arrays, each entry carrying a ``"source"``
+      provenance field (``"builtin"`` | ``"org"`` | ``"project"``).
+    * ``all_directives`` — every directive ID exposed by the project
+      governance resolver, including directives extracted from the
+      project-local charter even when the action-scoped ``directives`` array
+      is empty.
+    * ``project_charter`` — the loaded project-local charter, when present.
     * ``org_charter`` — additive block describing org-layer governance
       policies (empty when no org pack ships an ``org-charter.yaml``).
 
@@ -2296,6 +2407,8 @@ def build_charter_context_json(
         "tactics": [],
         "styleguides": [],
         "toolguides": [],
+        "all_directives": _project_directive_entries(repo_root),
+        "project_charter": _project_charter_json_block(repo_root),
         "org_charter": (
             dict(org_charter_block) if org_charter_block is not None else dict(_EMPTY_ORG_CHARTER)
         ),

@@ -6,6 +6,7 @@ import ast
 import inspect
 import textwrap
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -13,9 +14,14 @@ import pytest
 from charter.context import (
     CharterContextResult,
     _build_doctrine_service,
+    _bundle_root_for_json,
+    _project_charter_json_block,
+    _project_directive_entries,
+    _relative_json_path,
     _render_action_scoped,
     _render_bootstrap,
     build_charter_context,
+    build_charter_context_json,
 )
 
 pytestmark = pytest.mark.fast
@@ -366,6 +372,165 @@ class TestBuildContextV2:
         for d in [1, 2, 3]:
             result = self._call(tmp_path, depth=d)
             assert result.depth == d
+
+    def test_json_compact_mode_reports_project_charter_and_all_directives(
+        self, tmp_path: Path
+    ) -> None:
+        """Compact JSON still exposes project-local charter facts."""
+        _setup_fixture_repo(tmp_path)
+        charter_dir = tmp_path / ".kittify" / "charter"
+        (charter_dir / "directives.yaml").write_text(
+            textwrap.dedent("""\
+                directives:
+                  - id: DIR-001
+                    title: First directive
+                    description: First rule
+                  - id: DIR-002
+                    title: Second directive
+                    description: Second rule
+            """),
+            encoding="utf-8",
+        )
+        (charter_dir / "metadata.yaml").write_text(
+            textwrap.dedent("""\
+                schema_version: 1.0.0
+                charter_hash: sha256:testhash
+                source_path: .kittify/charter/charter.md
+                bundle_schema_version: 2
+            """),
+            encoding="utf-8",
+        )
+
+        from charter.sync import SyncResult
+
+        sync_result = SyncResult(
+            synced=False,
+            stale_before=False,
+            files_written=[],
+            extraction_mode="",
+            canonical_root=tmp_path,
+        )
+        with patch("charter.sync.ensure_charter_bundle_fresh", return_value=sync_result):
+            payload = build_charter_context_json(tmp_path, action="plan", depth=1)
+
+        assert payload["directives"] == []
+        assert [entry["id"] for entry in payload["all_directives"]] == ["DIR-001", "DIR-002"]
+        assert payload["project_charter"] == {
+            "present": True,
+            "path": ".kittify/charter/charter.md",
+            "bytes": (charter_dir / "charter.md").stat().st_size,
+            "hash": "sha256:testhash",
+            "source_path": ".kittify/charter/charter.md",
+            "bundle_schema_version": 2,
+            "schema_version": "1.0.0",
+        }
+
+    def test_json_project_charter_metadata_fallbacks(self, tmp_path: Path) -> None:
+        """Project-charter JSON metadata degrades to explicit presence facts."""
+        assert _relative_json_path(Path("/outside/charter.md"), tmp_path) == "/outside/charter.md"
+
+        with patch("charter.sync.ensure_charter_bundle_fresh", side_effect=RuntimeError("boom")):
+            assert _bundle_root_for_json(tmp_path) == tmp_path
+
+        with patch("charter.sync.ensure_charter_bundle_fresh", return_value=None):
+            assert _bundle_root_for_json(tmp_path) == tmp_path
+
+        missing = _project_charter_json_block(tmp_path)
+        assert missing == {
+            "present": False,
+            "path": ".kittify/charter/charter.md",
+        }
+
+        charter_dir = tmp_path / ".kittify" / "charter"
+        charter_dir.mkdir(parents=True)
+        (charter_dir / "charter.md").write_text("# Charter\n", encoding="utf-8")
+        from charter.sync import SyncResult
+
+        sync_result = SyncResult(
+            synced=False,
+            stale_before=False,
+            files_written=[],
+            extraction_mode="",
+            canonical_root=tmp_path,
+        )
+
+        with patch("charter.sync.ensure_charter_bundle_fresh", return_value=sync_result):
+            no_metadata = _project_charter_json_block(tmp_path)
+        assert no_metadata["present"] is True
+        assert no_metadata["bytes"] == 10
+        assert "hash" not in no_metadata
+
+        metadata = charter_dir / "metadata.yaml"
+        metadata.write_text("[not-a-mapping]\n", encoding="utf-8")
+        with patch("charter.sync.ensure_charter_bundle_fresh", return_value=sync_result):
+            non_mapping = _project_charter_json_block(tmp_path)
+        assert "hash" not in non_mapping
+
+        with (
+            patch("charter.sync.ensure_charter_bundle_fresh", return_value=sync_result),
+            patch("charter.context.YAML") as yaml_cls,
+        ):
+            yaml_cls.side_effect = ValueError("bad yaml")
+            unreadable = _project_charter_json_block(tmp_path)
+        assert "hash" not in unreadable
+
+    def test_project_directive_entries_fallbacks(self, tmp_path: Path) -> None:
+        """Directive JSON keeps IDs when optional loaders are unavailable."""
+        with (
+            patch("charter.sync.load_directives_config", side_effect=RuntimeError("no config")),
+            patch(
+                "charter.resolver.resolve_project_governance",
+                return_value=SimpleNamespace(directives=["DIRECTIVE_001"]),
+            ),
+            patch("charter.context._build_doctrine_service", side_effect=RuntimeError("no service")),
+        ):
+            assert _project_directive_entries(tmp_path) == [
+                {"id": "DIRECTIVE_001", "source": "builtin"}
+            ]
+
+        directive = SimpleNamespace(id="DIR-LOCAL", title="Local", description="")
+        with (
+            patch(
+                "charter.sync.load_directives_config",
+                return_value=SimpleNamespace(directives=[directive]),
+            ),
+            patch("charter.resolver.resolve_project_governance", side_effect=RuntimeError("no resolver")),
+            patch("charter.context._build_doctrine_service", side_effect=RuntimeError("no service")),
+        ):
+            assert _project_directive_entries(tmp_path) == [
+                {"id": "DIR-LOCAL", "source": "project", "title": "Local"}
+            ]
+
+        repo = SimpleNamespace(
+            get=lambda artifact_id: SimpleNamespace(
+                id=artifact_id,
+                title="Catalog directive",
+                intent="Catalog intent",
+            ),
+            get_provenance=lambda _artifact_id: "builtin",
+        )
+        with (
+            patch(
+                "charter.sync.load_directives_config",
+                return_value=SimpleNamespace(directives=[]),
+            ),
+            patch(
+                "charter.resolver.resolve_project_governance",
+                return_value=SimpleNamespace(directives=["DIRECTIVE_002"]),
+            ),
+            patch(
+                "charter.context._build_doctrine_service",
+                return_value=SimpleNamespace(directives=repo),
+            ),
+        ):
+            assert _project_directive_entries(tmp_path) == [
+                {
+                    "id": "DIRECTIVE_002",
+                    "source": "builtin",
+                    "title": "Catalog directive",
+                    "summary": "Catalog intent",
+                }
+            ]
 
 
 def test_render_bootstrap_uses_fallback_labels_without_summary_or_references() -> None:
