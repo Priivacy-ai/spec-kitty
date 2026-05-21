@@ -79,10 +79,10 @@ exist at that SHA (verified at planning).
 
 **Included subtasks**:
 
-- [ ] T005 Create canonical-repo worktree for spec-kitty-events on a new lane branch (WP02)
-- [ ] T006 Author `.github/workflows/cross-repo-harness-tests.yml` in spec-kitty-events (WP02)
-- [ ] T007 Add "Identity-Boundary CI Gate" README section to spec-kitty-events (WP02)
-- [ ] T008 Validate events workflow YAML and pinned-SHA correctness (WP02)
+- [x] T005 Create canonical-repo worktree for spec-kitty-events on a new lane branch (WP02)
+- [x] T006 Author `.github/workflows/cross-repo-harness-tests.yml` in spec-kitty-events (WP02)
+- [x] T007 Add "Identity-Boundary CI Gate" README section to spec-kitty-events (WP02)
+- [x] T008 Validate events workflow YAML and pinned-SHA correctness (WP02)
 
 **Implementation sketch**:
 1. From canonical `Priivacy-ai/spec-kitty-events`, run `git worktree add ../spec-kitty-events-canary-gate -b mission/identity-boundary-ci-gate-events-rerun origin/main`.
