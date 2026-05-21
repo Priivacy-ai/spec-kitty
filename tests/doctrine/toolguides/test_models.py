@@ -43,6 +43,20 @@ class TestToolguide:
         with pytest.raises(ValidationError):
             Toolguide.model_validate(sample_toolguide_data)
 
+    @pytest.mark.parametrize(
+        "guide_path",
+        [
+            "../outside.md",
+            "docs/../outside.md",
+            "http://example.com/guide.md",
+            "C:/tmp/guide.md",
+        ],
+    )
+    def test_non_pack_relative_guide_path_rejected(self, sample_toolguide_data: dict, guide_path: str) -> None:
+        sample_toolguide_data["guide_path"] = guide_path
+        with pytest.raises(ValidationError):
+            Toolguide.model_validate(sample_toolguide_data)
+
     def test_invalid_guide_path_pattern_raises(self, sample_toolguide_data: dict) -> None:
         sample_toolguide_data["guide_path"] = "/absolute/guide.md"
         with pytest.raises(ValidationError):
@@ -52,4 +66,3 @@ class TestToolguide:
         sample_toolguide_data["schema_version"] = "2.0"
         with pytest.raises(ValidationError):
             Toolguide.model_validate(sample_toolguide_data)
-

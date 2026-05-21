@@ -31,3 +31,16 @@ class TestValidateToolguide:
         errors = validate_toolguide(sample_toolguide_data)
         assert any("guide_path" in e for e in errors)
 
+    @pytest.mark.parametrize(
+        "guide_path",
+        [
+            "../outside.md",
+            "docs/../outside.md",
+            "http://example.com/guide.md",
+            "C:/tmp/guide.md",
+        ],
+    )
+    def test_non_pack_relative_guide_path_is_invalid(self, sample_toolguide_data: dict, guide_path: str) -> None:
+        sample_toolguide_data["guide_path"] = guide_path
+        errors = validate_toolguide(sample_toolguide_data)
+        assert any("guide_path" in e for e in errors)
