@@ -11,8 +11,8 @@ branch_strategy: Planning artifacts for this mission were generated on main. Dur
 subtasks:
 - T027
 - T028
-agent: "claude:opus-4-7:curator-carla:implementer"
-shell_pid: "98108"
+agent: "claude:opus-4-7:reviewer-renata:reviewer"
+shell_pid: "99664"
 history:
 - actor: planner
   at: '2026-05-21T06:52:04Z'
@@ -104,3 +104,4 @@ spec-kitty agent action implement WP09 --agent claude
 
 - 2026-05-21T08:43:25Z – claude:opus-4-7:curator-carla:implementer – shell_pid=98108 – Started implementation via action command
 - 2026-05-21T08:46:14Z – claude:opus-4-7:curator-carla:implementer – shell_pid=98108 – WP09 ready: dispositions for 13 archival + 12 migration rows; bulk-edit compliance section; no live moves.
+- 2026-05-21T08:46:36Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=99664 – Started review via action command
