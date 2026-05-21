@@ -25,6 +25,7 @@ SHIPPED_DIR = Path(__file__).parent.parent.parent / "src" / "doctrine" / "agent_
 EXPECTED_PROFILE_IDS = {
     "architect-alphonso",
     "curator-carla",
+    "debugger-debbie",
     "designer-dagmar",
     "generic-agent",
     "human-in-charge",
