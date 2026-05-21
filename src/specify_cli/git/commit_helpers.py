@@ -65,6 +65,83 @@ class SafeCommitBackstopError(RuntimeError):
         super().__init__("\n".join(message_lines))
 
 
+class ProtectedBranchCommitError(RuntimeError):
+    """Raised when a Spec Kitty ceremony commit would land on a protected branch."""
+
+
+_DEFAULT_PROTECTED_BRANCHES = frozenset({"main", "master"})
+_PROTECTED_BRANCH_COMMIT_EXCEPTIONS = (
+    "chore: apply spec-kitty upgrade changes",
+    "chore: release ",
+    "release: ",
+)
+
+
+def _run_git_text(repo_path: Path, args: list[str]) -> str | None:
+    result = subprocess.run(
+        ["git", *args],
+        cwd=repo_path,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip() or None
+
+
+def _is_spec_kitty_project(repo_path: Path) -> bool:
+    return (repo_path / ".kittify").is_dir()
+
+
+def _current_branch(repo_path: Path) -> str | None:
+    branch = _run_git_text(repo_path, ["rev-parse", "--abbrev-ref", "HEAD"])
+    if not branch or branch == "HEAD":
+        return None
+    return branch
+
+
+def _remote_default_branch(repo_path: Path) -> str | None:
+    symbolic_ref = _run_git_text(repo_path, ["symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD"])
+    if symbolic_ref and "/" in symbolic_ref:
+        return symbolic_ref.rsplit("/", 1)[1]
+
+    remote_show = _run_git_text(repo_path, ["remote", "show", "origin"])
+    if remote_show:
+        for line in remote_show.splitlines():
+            if "HEAD branch:" in line:
+                return line.rsplit(":", 1)[1].strip() or None
+    return None
+
+
+def protected_branches(repo_path: Path) -> frozenset[str]:
+    """Return branch names that must not receive Spec Kitty ceremony commits."""
+    branches = set(_DEFAULT_PROTECTED_BRANCHES)
+    if default_branch := _remote_default_branch(repo_path):
+        branches.add(default_branch)
+    return frozenset(branches)
+
+
+def assert_not_protected_branch(repo_path: Path, *, operation: str = "commit") -> None:
+    """Fail loudly before a Spec Kitty ceremony commit can pollute local main."""
+    repo_path = repo_path.resolve()
+    if not _is_spec_kitty_project(repo_path):
+        return
+
+    branch = _current_branch(repo_path)
+    if branch and branch in protected_branches(repo_path):
+        raise ProtectedBranchCommitError(
+            f"Refusing to {operation} on protected branch '{branch}' in {repo_path}. "
+            "Run ceremony write operations from the mission lane branch/worktree."
+        )
+
+
+def _is_protected_branch_exception(commit_message: str) -> bool:
+    return commit_message.startswith(_PROTECTED_BRANCH_COMMIT_EXCEPTIONS)
+
+
 def assert_staging_area_matches_expected(
     repo_path: Path,
     expected_paths: Sequence[str],
@@ -253,6 +330,9 @@ def safe_commit(
         ... )
         True
     """
+    if not _is_protected_branch_exception(commit_message):
+        assert_not_protected_branch(repo_path, operation=f"create commit '{commit_message}'")
+
     # Normalize file paths to be relative to repo_path
     normalized_files = []
     for file in files_to_commit:

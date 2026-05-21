@@ -9,7 +9,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from specify_cli.git.commit_helpers import safe_commit
+from specify_cli.git.commit_helpers import ProtectedBranchCommitError, safe_commit
 
 import pytest
 
@@ -100,6 +100,24 @@ def test_safe_commit_preserves_unrelated_staged_files(git_repo: Path):
         check=True,
     )
     assert "Update WP01 status to doing" in log_result.stdout
+
+
+def test_safe_commit_blocks_spec_kitty_ceremony_commit_on_protected_branch(git_repo: Path):
+    """Spec Kitty ceremony commits must fail loudly before polluting local main."""
+    subprocess.run(["git", "branch", "-M", "main"], cwd=git_repo, check=True)
+    (git_repo / ".kittify").mkdir()
+    (git_repo / ".kittify" / "config.json").write_text("{}\n")
+    protected_file = git_repo / "kitty-specs" / "099-demo" / "meta.json"
+    protected_file.parent.mkdir(parents=True)
+    protected_file.write_text("{}\n")
+
+    with pytest.raises(ProtectedBranchCommitError, match="protected branch 'main'"):
+        safe_commit(
+            repo_path=git_repo,
+            files_to_commit=[protected_file],
+            commit_message="Add meta for feature 099-demo",
+            allow_empty=False,
+        )
 
 def test_safe_commit_nothing_to_commit_graceful(git_repo: Path):
     """T046: Test 'nothing to commit' graceful handling.
