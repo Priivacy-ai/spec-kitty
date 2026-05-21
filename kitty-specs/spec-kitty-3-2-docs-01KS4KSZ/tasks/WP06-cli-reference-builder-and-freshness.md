@@ -5,6 +5,7 @@ dependencies:
 - WP05
 requirement_refs:
 - FR-007
+- FR-008
 - NFR-001
 planning_base_branch: main
 merge_target_branch: main
