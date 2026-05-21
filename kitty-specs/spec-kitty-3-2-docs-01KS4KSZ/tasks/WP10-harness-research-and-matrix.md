@@ -133,3 +133,4 @@ spec-kitty agent action implement WP10 --agent claude
 - 2026-05-21T08:51:22Z – claude:opus-4-7:researcher-robbie:researcher – shell_pid=263 – WP10 ready: research method doc + 16-harness support matrix with citations and tier classification.
 - 2026-05-21T08:51:45Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=2533 – Started review via action command
 - 2026-05-21T08:52:34Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=2533 – Renata review: pass. 16 harnesses classified (2/10/2/1/1 across 5 tiers); all >=supported rows carry citations; Vibe correctly shared-skill experimental with Codex; promotion path documented; commit a15832be9 touches only owned_files.
+- 2026-05-21T09:27:23Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=2533 – Moved to done
