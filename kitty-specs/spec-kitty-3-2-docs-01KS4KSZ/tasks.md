@@ -105,9 +105,9 @@ WP07 + WP09 + WP11 + WP12 + WP13 → WP14
 - **Prompt**: [tasks/WP02-page-inventory.md](./tasks/WP02-page-inventory.md)
 - **Estimated size**: ~350 lines.
 - **Subtasks**:
-  - [ ] T004 Author `docs/development/3-2-page-inventory.yaml` (WP02)
-  - [ ] T005 Validate inventory against `PageInventoryEntry` invariants (WP02)
-  - [ ] T006 Flag manual-review pages with notes (WP02)
+  - [x] T004 Author `docs/development/3-2-page-inventory.yaml` (WP02)
+  - [x] T005 Validate inventory against `PageInventoryEntry` invariants (WP02)
+  - [x] T006 Flag manual-review pages with notes (WP02)
 
 ### WP03 — Navigation update plan
 
