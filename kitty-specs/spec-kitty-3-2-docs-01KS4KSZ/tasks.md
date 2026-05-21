@@ -188,8 +188,8 @@ WP07 + WP09 + WP11 + WP12 + WP13 → WP14
 - **Prompt**: [tasks/WP08-information-architecture.md](./tasks/WP08-information-architecture.md)
 - **Estimated size**: ~340 lines.
 - **Subtasks**:
-  - [ ] T025 Author IA doc with every planned 3.2 page (WP08)
-  - [ ] T026 Produce gap list (reuse/rewrite/new) for all four Divio directories (WP08)
+  - [x] T025 Author IA doc with every planned 3.2 page (WP08)
+  - [x] T026 Produce gap list (reuse/rewrite/new) for all four Divio directories (WP08)
 
 ### WP09 — Archive/migration plan (active bulk edit)
 
