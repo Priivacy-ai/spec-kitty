@@ -107,7 +107,6 @@ def test_mission_created_local_appended_before_any_saas_fan_out(
         mission_number=None,
         mission_type="software-dev",
         target_branch="main",
-        actor="test",
     )
 
     assert envelope is not None
@@ -152,7 +151,6 @@ def test_mission_created_payload_contains_required_fields(feature_dir: Path) -> 
         mission_type="software-dev",
         target_branch="main",
         wp_count=0,
-        actor="spec-kitty mission create",
         friendly_name="Demo Mission",
         purpose_tldr="Demo TLDR",
         purpose_context="Demo context paragraph.",

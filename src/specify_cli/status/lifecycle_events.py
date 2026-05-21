@@ -374,7 +374,6 @@ def emit_mission_created_local(
     mission_type: str,
     target_branch: str,
     wp_count: int = 0,
-    actor: str = "cli",
     project_uuid: str | None = None,
     project_slug: str | None = None,
     friendly_name: str | None = None,
@@ -388,13 +387,12 @@ def emit_mission_created_local(
     ``status.events.jsonl`` is created on first call.
 
     ``mission_type`` and ``wp_count`` are required by the canonical
-    ``mission_created_payload`` schema (events 5.1.0). The ``actor``
-    parameter is intentionally NOT placed in the payload — the schema
-    declares ``additionalProperties: false`` with no ``actor`` property.
+    ``mission_created_payload`` schema (events 5.1.0). This helper does not
+    take an actor because the payload schema declares ``additionalProperties:
+    false`` with no ``actor`` property.
     See Priivacy-ai/spec-kitty#1199 for the full required-field surface.
     """
     log_path = mission_event_log_path(feature_dir)
-    del actor  # captured by the surrounding StatusEvent envelope; not in payload (see #1190)
     payload: dict[str, Any] = {
         "mission_slug": mission_slug,
         "mission_number": mission_number,
