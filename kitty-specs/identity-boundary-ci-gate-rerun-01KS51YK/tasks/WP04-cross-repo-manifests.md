@@ -16,7 +16,7 @@ branch_strategy: Planning artifacts for this mission were generated on mission/i
 created_at: '2026-05-21T10:50:00+00:00'
 subtasks:
 - T013
-agent: claude
+agent: "claude"
 history: []
 agent_profile: curator-carla
 authoritative_surface: kitty-specs/identity-boundary-ci-gate-rerun-01KS51YK/cross-repo-manifests/
@@ -30,6 +30,7 @@ tags:
 - planning-artifact
 - cross-repo
 - documentation
+shell_pid: "85723"
 ---
 
 ## ⚡ Do This First: Load Agent Profile
@@ -133,3 +134,7 @@ Reviewer checks:
 - PR URLs resolve (manual click-through).
 - Required-check names match `contracts/check-names.md` character-for-character.
 - No drift into other parts of the mission directory.
+
+## Activity Log
+
+- 2026-05-21T11:06:54Z – claude – shell_pid=85723 – Started implementation via action command
