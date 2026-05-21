@@ -1,3 +1,5 @@
+> Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.x](../3x/index.md) for current docs.
+
 # 1.x Orchestration and API Boundary
 
 `1.x` uses a host/provider split for automated orchestration:

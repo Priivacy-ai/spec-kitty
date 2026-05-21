@@ -1,0 +1,44 @@
+# Dirty inventory: each entry is engineered to trigger exactly one rule.
+# Expected: exactly 5 findings, one per rule_id.
+#
+# - links-archival.md → LEAK-CURRENT-LINKS-ARCHIVAL
+# - banner-ok.md → no finding (archival w/ banner; target of the link above)
+# - no-banner.md → LEAK-MISSING-BANNER
+# - mismatch.md → LEAK-FRONTMATTER-MISMATCH
+# - docs/orphan/stray.md → LEAK-MISSING-INVENTORY (NOT listed below)
+# - docs/missing.md → LEAK-MISSING-FILE (listed but not on disk)
+- path: docs/current/links-archival.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: E
+  current_target: true
+  citation_refs: []
+  notes: triggers LEAK-CURRENT-LINKS-ARCHIVAL
+- path: docs/archive/banner-ok.md
+  tag: archival
+  divio_type: none
+  owning_workstream: C
+  current_target: false
+  citation_refs: []
+  notes: target of the bad link; has banner so no own finding
+- path: docs/archive/no-banner.md
+  tag: archival
+  divio_type: none
+  owning_workstream: C
+  current_target: false
+  citation_refs: []
+  notes: triggers LEAK-MISSING-BANNER
+- path: docs/current/mismatch.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: E
+  current_target: true
+  citation_refs: []
+  notes: triggers LEAK-FRONTMATTER-MISMATCH
+- path: docs/missing.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: E
+  current_target: true
+  citation_refs: []
+  notes: triggers LEAK-MISSING-FILE

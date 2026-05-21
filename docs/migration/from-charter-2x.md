@@ -3,6 +3,8 @@ title: Migrating from 2.x / Early 3.x Charter Projects
 description: What changed when upgrading from Spec Kitty 2.x or early 3.x to current Charter-era 3.x, migration steps, and known failure modes.
 ---
 
+> Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
+
 # Migrating from 2.x / Early 3.x Charter Projects
 
 This guide covers what changed when upgrading a project from Spec Kitty 2.x (or early 3.x before

@@ -1,3 +1,5 @@
+> Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
+
 # Migration — Charter ownership consolidation
 
 **Status**: Shim removed in release 3.2.0. Migration required.

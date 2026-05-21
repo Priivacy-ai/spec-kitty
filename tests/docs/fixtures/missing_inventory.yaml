@@ -1,0 +1,8 @@
+# Malformed YAML for the input-error path (exit code 2).
+- path: docs/whatever.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: E
+  current_target: true
+  citation_refs: [
+  # Unterminated flow sequence -> parser error.

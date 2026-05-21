@@ -1,3 +1,5 @@
+> Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.x](../3x/index.md) for current docs.
+
 # 2.x Runtime, Mission Types, and Missions
 
 Spec Kitty's mission system lets you choose a workflow blueprint optimized for your type of work. Each mission type defines the phases, required artifacts, validation guards, and agent context for a specific work type. You select a mission type when creating a mission, and it governs that mission for its entire lifecycle.

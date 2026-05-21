@@ -25,14 +25,14 @@ Spec Kitty 3.1.5 (released 2026-04-16) continues the `3.1.x` stable line with up
 
 **Upgrading from 3.0.x?** Run `spec-kitty upgrade` — all renames happen automatically.
 
-See the full [CHANGELOG](../CHANGELOG.md) for complete release notes.
+See the full [CHANGELOG](https://github.com/Priivacy-ai/spec-kitty/blob/main/CHANGELOG.md) for complete release notes.
 
 ## Version Tracks
 
 | Track | Use when | Entry point |
 |---|---|---|
 | `3.x` (current) | New projects and all projects on `main` or PyPI. | This documentation |
-| `1.x` | Maintaining a deprecated legacy workflow (maintenance-only). | [Open 1.x docs](1x/index.md) |
+| `1.x` | Maintaining a deprecated legacy workflow (maintenance-only). | Archive retained under `docs/1x/` |
 
 ## Verification Notes
 

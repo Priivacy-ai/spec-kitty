@@ -1,0 +1,48 @@
+# .github/workflows/drift-detector.yml
+#
+# Identity-Boundary CI Gate — spec-kitty repo
+#
+# Tracker: https://github.com/Priivacy-ai/spec-kitty/issues/1247
+# Closes the drift-class hole that took rc14 -> rc22 to peel: a PR that
+# changes the canonical registry without updating consumer recognition
+# code must fail fast at PR time, not at the next on-demand canary run.
+#
+# The single job named `drift-detector` is the contract this workflow
+# offers to branch protection. Do not rename without coordinating with
+# the admin who registered the required check.
+#
+# SHA-bump procedure: see README.md > "Identity-Boundary CI Gate" for
+# how to coordinate canonical-registry contract changes with downstream
+# consumers.
+
+name: drift-detector
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: drift-detector-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  drift-detector:
+    name: drift-detector
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Install dependencies (frozen)
+        run: uv sync --frozen --extra test
+
+      - name: Run canonical-registry drift detector
+        run: uv run pytest tests/sync/test_diagnose.py::TestCanonicalRegistryRecognition -v

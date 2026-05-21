@@ -1,0 +1,12 @@
+{
+  "created_at": "2026-05-21T10:40:26.043209+00:00",
+  "friendly_name": "Identity-Boundary CI Gate (Rerun)",
+  "mission_id": "01KS51YKDSHF73EBDMFSFH3RMP",
+  "mission_number": null,
+  "mission_slug": "identity-boundary-ci-gate-rerun-01KS51YK",
+  "mission_type": "software-dev",
+  "purpose_context": "The 4-run identity-boundary canary protocol that closed e2e#41 currently runs only on demand. This mission adds three repo-specific required-check workflows so the gate is enforced on every PR before merge, preventing silent regression of the SaaS identity-boundary contract.",
+  "purpose_tldr": "Pin the identity-boundary canary protocol as a required CI gate across spec-kitty, saas, and events repos.",
+  "slug": "identity-boundary-ci-gate-rerun-01KS51YK",
+  "target_branch": "mission/identity-boundary-ci-gate-rerun"
+}

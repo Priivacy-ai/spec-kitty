@@ -54,6 +54,10 @@ spec-kitty init .
 | `copilot` | GitHub Copilot |
 | `q` | Amazon Q Developer CLI (legacy; rebranded to Kiro) |
 | `kiro` | Kiro CLI (formerly Amazon Q Developer CLI) |
+| `antigravity` | Google Antigravity |
+| `vibe` | Mistral Vibe |
+| `pi` | Pi |
+| `letta` | Letta Code |
 
 **Case-sensitive**: Use lowercase exactly as shown
 
@@ -154,9 +158,9 @@ When you specify agents with `--ai`, spec-kitty creates:
 
 ### For `--ai codex`
 
-- `.codex/prompts/spec-kitty.*.md` (13 command files)
-- `.kittify/AGENTS.md` (auto-loaded by Codex)
-- No extra context files needed (native AGENTS.md support!)
+- `.agents/skills/spec-kitty.*/SKILL.md` (command-skill packages)
+- `.kittify/command-skills-manifest.json` (records Codex as a skill package consumer)
+- `.kittify/AGENTS.md` (project guidance used by Spec Kitty worktrees)
 
 ### For `--ai claude`
 
@@ -226,6 +230,27 @@ When you specify agents with `--ai`, spec-kitty creates:
 - `.kittify/AGENTS.md`
 - Note: May have discovery issues (known bug)
 
+### For `--ai antigravity`
+
+- `.agent/workflows/spec-kitty.*.md` (workflow files)
+- `.kittify/AGENTS.md`
+
+### For `--ai vibe`
+
+- `.agents/skills/spec-kitty.*/SKILL.md` (command-skill packages)
+- `.vibe/config.toml` with a `skill_paths` entry pointing at `.agents/skills/`
+- `.kittify/command-skills-manifest.json` (records Vibe as a skill package consumer)
+
+### For `--ai pi`
+
+- `.agents/skills/spec-kitty.*/SKILL.md` (command-skill packages)
+- `.kittify/command-skills-manifest.json` (records Pi as a skill package consumer)
+
+### For `--ai letta`
+
+- `.agents/skills/spec-kitty.*/SKILL.md` (command-skill packages)
+- `.kittify/command-skills-manifest.json` (records Letta as a skill package consumer)
+
 ## Always Created (Regardless of Agent Selection)
 
 - `.kittify/` directory structure
@@ -265,11 +290,11 @@ After non-interactive init, verify with:
 # Check what was created
 ls -la | grep -E "^(l|-).*AGENTS|rules$"
 
-# Check command files for specific agent
-ls .codex/prompts/          # Codex
+# Check command or skill files for specific agents
+ls .agents/skills/          # Codex, Vibe, Pi, Letta command skills
 ls .claude/commands/        # Claude
 ls .cursor/commands/        # Cursor
-ls .gemini/commands/        # Gemini (TOML)
+ls .gemini/commands/        # Gemini
 ```
 
 ## Troubleshooting

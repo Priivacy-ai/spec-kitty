@@ -1,3 +1,5 @@
+> Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
+
 # TeamSpace Mission-State Repair
 
 Spec Kitty can repair historical `kitty-specs/` mission state before a repository is connected to TeamSpace. The repair is deterministic and writes only repository-local mission artifacts plus a manifest under `.kittify/migrations/mission-state/`.
