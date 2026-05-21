@@ -15,7 +15,8 @@ subtasks:
 - T022
 - T023
 - T024
-agent: claude
+agent: "claude:opus-4-7:curator-carla:implementer"
+shell_pid: "56291"
 history:
 - actor: planner
   at: '2026-05-21T06:52:04Z'
@@ -143,3 +144,7 @@ uv run python scripts/docs/check_cli_reference_freshness.py \
 ```bash
 spec-kitty agent action implement WP07 --agent claude
 ```
+
+## Activity Log
+
+- 2026-05-21T08:02:46Z – claude:opus-4-7:curator-carla:implementer – shell_pid=56291 – Started implementation via action command
