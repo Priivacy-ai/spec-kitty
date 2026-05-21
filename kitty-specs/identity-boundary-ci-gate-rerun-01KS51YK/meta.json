@@ -8,5 +8,7 @@
   "purpose_context": "The 4-run identity-boundary canary protocol that closed e2e#41 currently runs only on demand. This mission adds three repo-specific required-check workflows so the gate is enforced on every PR before merge, preventing silent regression of the SaaS identity-boundary contract.",
   "purpose_tldr": "Pin the identity-boundary canary protocol as a required CI gate across spec-kitty, saas, and events repos.",
   "slug": "identity-boundary-ci-gate-rerun-01KS51YK",
-  "target_branch": "mission/identity-boundary-ci-gate-rerun"
+  "target_branch": "mission/identity-boundary-ci-gate-rerun",
+  "vcs": "git",
+  "vcs_locked_at": "2026-05-21T10:57:05.291562+00:00"
 }
