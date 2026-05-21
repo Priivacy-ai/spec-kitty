@@ -16,7 +16,8 @@ subtasks:
 - T037
 - T038
 - T039
-agent: claude
+agent: "claude:opus-4-7:curator-carla:implementer"
+shell_pid: "6649"
 history:
 - actor: planner
   at: '2026-05-21T06:52:04Z'
@@ -131,3 +132,7 @@ Create `docs/how-to/install-macos.md`, `docs/how-to/install-linux.md`, `docs/how
 ```bash
 spec-kitty agent action implement WP12 --agent claude
 ```
+
+## Activity Log
+
+- 2026-05-21T08:59:11Z – claude:opus-4-7:curator-carla:implementer – shell_pid=6649 – Started implementation via action command
