@@ -5,7 +5,12 @@ from __future__ import annotations
 import pytest
 import yaml
 from pathlib import Path
-from specify_cli.mission_brief import write_mission_brief, MISSION_BRIEF_FILENAME, BRIEF_SOURCE_FILENAME
+from specify_cli.mission_brief import (
+    BRIEF_SOURCE_FILENAME,
+    MISSION_BRIEF_FILENAME,
+    clear_mission_brief,
+    write_mission_brief,
+)
 
 
 def test_write_mission_brief_success(tmp_path):
@@ -69,3 +74,16 @@ def test_write_mission_brief_return_value(tmp_path):
     brief, source = result
     assert brief.name == MISSION_BRIEF_FILENAME
     assert source.name == BRIEF_SOURCE_FILENAME
+
+
+def test_clear_mission_brief_ignores_missing_pair_member(tmp_path):
+    """Clearing an already-partial brief state is race-safe and idempotent."""
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir()
+    (kittify / MISSION_BRIEF_FILENAME).write_text("# content", encoding="utf-8")
+
+    clear_mission_brief(tmp_path)
+    clear_mission_brief(tmp_path)
+
+    assert not (kittify / MISSION_BRIEF_FILENAME).exists()
+    assert not (kittify / BRIEF_SOURCE_FILENAME).exists()

@@ -132,5 +132,4 @@ def clear_mission_brief(repo_root: Path) -> None:
     """Remove both brief artefacts if they exist (idempotent)."""
     for filename in (MISSION_BRIEF_FILENAME, BRIEF_SOURCE_FILENAME):
         path = repo_root / ".kittify" / filename
-        if path.exists():
-            path.unlink()
+        path.unlink(missing_ok=True)
