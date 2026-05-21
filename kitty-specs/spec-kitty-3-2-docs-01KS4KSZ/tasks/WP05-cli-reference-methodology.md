@@ -10,8 +10,8 @@ branch_strategy: Planning artifacts for this mission were generated on main. Dur
 subtasks:
 - T014
 - T015
-agent: "claude:opus-4-7:curator-carla:implementer"
-shell_pid: "38224"
+agent: "claude:opus-4-7:reviewer-renata:reviewer"
+shell_pid: "40401"
 history:
 - actor: planner
   at: '2026-05-21T06:52:04Z'
@@ -118,3 +118,4 @@ spec-kitty agent action implement WP05 --agent claude
 
 - 2026-05-21T07:40:15Z – claude:opus-4-7:curator-carla:implementer – shell_pid=38224 – Started implementation via action command
 - 2026-05-21T07:44:16Z – claude:opus-4-7:curator-carla:implementer – shell_pid=38224 – WP05 ready: methodology note with evidence from 4 prior commits, classification, freshness-check inventory.
+- 2026-05-21T07:44:42Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=40401 – Started review via action command
