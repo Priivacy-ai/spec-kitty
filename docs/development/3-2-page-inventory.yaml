@@ -2437,6 +2437,13 @@
   current_target: true
   citation_refs: []
   notes: How-to; provisional current — confirm in WP08 IA review.
+- path: docs/how-to/run-an-autonomous-mission.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: C
+  current_target: true
+  citation_refs: []
+  notes: How-to; autonomous local mission workflow and focused-PR fallback.
 - path: docs/how-to/run-external-orchestrator.md
   tag: current
   divio_type: how-to

@@ -189,20 +189,23 @@ def test_resolve_idempotent_emits_no_second_event(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# T018c — resolve after defer raises TERMINAL_CONFLICT
+# T018c — resolve after defer closes the decision
 # ---------------------------------------------------------------------------
 
 
-def test_resolve_after_defer_raises_terminal_conflict(tmp_path: Path) -> None:
+def test_resolve_after_defer_transitions_to_resolved(tmp_path: Path) -> None:
     did = _open_decision(tmp_path)
     _defer(tmp_path, did)
 
-    with pytest.raises(DecisionError) as exc_info:
-        _resolve(tmp_path, did)
+    resp = _resolve(tmp_path, did, final_answer="accept plan default")
 
-    err = exc_info.value
-    assert err.code == DecisionErrorCode.TERMINAL_CONFLICT
-    assert err.details["decision_id"] == did
+    assert resp.status == DecisionStatus.RESOLVED
+    assert resp.terminal_outcome == "resolved"
+    entry = next(
+        e for e in _store.load_index(_mission_dir(tmp_path)).entries if e.decision_id == did
+    )
+    assert entry.status == DecisionStatus.RESOLVED
+    assert entry.final_answer == "accept plan default"
 
 
 # ---------------------------------------------------------------------------

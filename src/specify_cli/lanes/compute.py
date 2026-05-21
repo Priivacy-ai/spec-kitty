@@ -3,12 +3,12 @@
 Groups work packages into execution lanes using a union-find structure.
 Two WPs are placed in the same lane when:
 
-1. One depends on the other (any dependency → same lane).
-2. They have overlapping owned_files globs (write-scope conflict).
-3. They share predicted surface tags.
+1. They have overlapping owned_files globs (write-scope conflict).
+2. They share predicted surface tags and ownership is not provably disjoint.
 
-After grouping, WPs within each lane are topologically sorted,
-and lane-level dependencies and parallel groups are computed.
+Dependency edges do not collapse lanes by themselves. They are preserved as
+lane-level dependencies so disjoint upstream workstreams can run in parallel and
+fan-in WPs become the synchronization point.
 """
 
 from __future__ import annotations
@@ -137,6 +137,19 @@ def _describe_overlap(
     return "write-scope overlap"
 
 
+def _dependency_relationship_evidence(
+    wp_a: str,
+    wp_b: str,
+    dependency_graph: dict[str, list[str]],
+) -> str | None:
+    """Return direct-dependency evidence for a pair when present."""
+    if wp_b in dependency_graph.get(wp_a, []):
+        return f"{wp_a} depends on {wp_b}"
+    if wp_a in dependency_graph.get(wp_b, []):
+        return f"{wp_b} depends on {wp_a}"
+    return None
+
+
 def _are_disjoint(
     manifest_a: OwnershipManifest,
     manifest_b: OwnershipManifest,
@@ -234,9 +247,10 @@ def compute_lanes(
 
     Algorithm:
     1. Separate planning_artifact WPs from code WPs.
-    2. Union code WPs that depend on each other (rule 1).
-    3. Union code WPs with overlapping owned_files (rule 2).
-    4. Union code WPs sharing predicted surfaces (rule 3).
+    2. Union code WPs with overlapping owned_files (rule 1).
+    3. Union code WPs sharing predicted surfaces when ownership is not
+       provably disjoint (rule 2).
+    4. Preserve dependency edges as lane-level dependencies.
     5. Build ExecutionLane per disjoint set, sorted internally by topo order.
     6. Compute lane-level dependencies and parallel groups.
     7. Collect all planning_artifact WPs into a single ``lane-planning`` lane.
@@ -303,20 +317,7 @@ def compute_lanes(
     uf = _UnionFind(code_wp_ids)
     collapse_events: list[CollapseEvent] = []
 
-    # Rule 1: Dependencies → same lane.
-    for wp_id in code_wp_ids:
-        for dep in dependency_graph.get(wp_id, []):
-            if dep in uf._parent:
-                if uf.find(wp_id) != uf.find(dep):
-                    collapse_events.append(CollapseEvent(
-                        wp_a=wp_id,
-                        wp_b=dep,
-                        rule="dependency",
-                        evidence=f"{wp_id} depends on {dep}",
-                    ))
-                uf.union(wp_id, dep)
-
-    # Rule 2: Overlapping write scopes → same lane.
+    # Rule 1: Overlapping write scopes → same lane.
     code_manifests = {
         wp: ownership_manifests[wp]
         for wp in code_wp_ids
@@ -325,15 +326,17 @@ def compute_lanes(
     for wp_a, wp_b in find_overlap_pairs(code_manifests):
         if uf.find(wp_a) != uf.find(wp_b):
             overlap = _describe_overlap(code_manifests[wp_a], code_manifests[wp_b])
+            dep_evidence = _dependency_relationship_evidence(wp_a, wp_b, dependency_graph)
+            evidence = f"{overlap}; {dep_evidence}" if dep_evidence else overlap
             collapse_events.append(CollapseEvent(
                 wp_a=wp_a,
                 wp_b=wp_b,
                 rule="write_scope_overlap",
-                evidence=overlap,
+                evidence=evidence,
             ))
         uf.union(wp_a, wp_b)
 
-    # Rule 3: Shared predicted surfaces → same lane.
+    # Rule 2: Shared predicted surfaces → same lane.
     # Only merges WPs when ownership is NOT provably disjoint. If both WPs have
     # manifests and their owned_files are disjoint, skip the merge — a shared
     # surface keyword is not enough evidence of a real conflict.
@@ -505,6 +508,7 @@ def compute_lanes(
             parallel_group=lane_depth.get(PLANNING_LANE_ID, 0),
         )
         all_lanes.append(planning_lane)
+    all_lanes = sorted(all_lanes, key=lambda lane: (lane.parallel_group, lane.lane_id))
 
     # planning_artifact_wps is a derived view populated from lane-planning's wp_ids
     # for backward compatibility — do NOT use it as the authoritative source.

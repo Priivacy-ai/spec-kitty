@@ -14,6 +14,8 @@ from typing import Any
 
 from specify_cli.core.agent_config import get_auto_commit_default
 from specify_cli.core.paths import require_explicit_feature as _require_explicit_feature
+from specify_cli.decisions.models import DecisionStatus
+from specify_cli.decisions.store import load_index
 from specify_cli.mission import MissionError, get_mission_for_feature
 from specify_cli.mission_metadata import load_meta, record_acceptance, resolve_mission_identity, write_meta
 from specify_cli.status.models import Lane
@@ -50,7 +52,7 @@ PRIMARY_ARTIFACT_FILES = (
     DATA_MODEL_FILE,
 )
 NEEDS_CLARIFICATION_MARKER_RE = re.compile(
-    r"\[NEEDS CLARIFICATION:[^\]\n]+\]\s*<!--\s*decision_id:\s*\S+\s*-->"
+    r"\[NEEDS CLARIFICATION:[^\]\n]+\]\s*<!--\s*decision_id:\s*(?P<decision_id>\S+)\s*-->"
 )
 
 
@@ -320,9 +322,24 @@ def _check_needs_clarification(files: Sequence[Path]) -> list[str]:
     for file_path in files:
         if file_path.exists():
             text = _read_text_strict(file_path)
-            if NEEDS_CLARIFICATION_MARKER_RE.search(text):
+            if _has_blocking_clarification_marker(file_path, text):
                 results.append(str(file_path))
     return results
+
+
+def _has_blocking_clarification_marker(file_path: Path, text: str) -> bool:
+    markers = list(NEEDS_CLARIFICATION_MARKER_RE.finditer(text))
+    if not markers:
+        return False
+
+    index = load_index(file_path.parent)
+    entries_by_id = {entry.decision_id: entry for entry in index.entries}
+    for marker in markers:
+        decision_id = marker.group("decision_id")
+        entry = entries_by_id.get(decision_id)
+        if entry is None or entry.status in {DecisionStatus.OPEN, DecisionStatus.DEFERRED}:
+            return True
+    return False
 
 
 def _missing_artifacts(feature_dir: Path) -> tuple[list[str], list[str]]:

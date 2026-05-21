@@ -11,6 +11,8 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from specify_cli.status.wp_metadata import read_wp_frontmatter
+
 # ---------------------------------------------------------------------------
 # Weight tables
 # ---------------------------------------------------------------------------
@@ -143,3 +145,32 @@ def scan_spec_file(feature_dir: Path) -> InferenceResult:
 
     content = spec_path.read_text(encoding="utf-8")
     return score_spec_for_bulk_edit(content)
+
+
+def _normalize_owned_file(path: str) -> str:
+    normalized = path.strip().replace("\\", "/")
+    while normalized.startswith("./"):
+        normalized = normalized[2:]
+    return normalized
+
+
+def is_bulk_edit_planning_owned_file(path: str, mission_slug: str) -> bool:
+    """Return True when an owned_files entry points at planning artifacts."""
+    normalized = _normalize_owned_file(path)
+    if normalized == "occurrence_map.yaml" or normalized.endswith("/occurrence_map.yaml"):
+        return True
+
+    mission_prefix = f"kitty-specs/{mission_slug}"
+    return normalized == mission_prefix or normalized.startswith(f"{mission_prefix}/")
+
+
+def wp_authors_bulk_edit_planning_artifact(wp_file: Path, mission_slug: str) -> bool:
+    """Return True when the selected WP owns occurrence-map planning output."""
+    try:
+        metadata, _body = read_wp_frontmatter(wp_file)
+    except Exception:
+        return False
+    return any(
+        is_bulk_edit_planning_owned_file(path, mission_slug)
+        for path in metadata.owned_files
+    )

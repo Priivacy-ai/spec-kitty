@@ -94,6 +94,17 @@ def _is_terminal(status: DecisionStatus) -> bool:
     return status in _TERMINAL_STATUSES
 
 
+def _is_allowed_terminal_reopen(
+    current_status: DecisionStatus,
+    target_status: DecisionStatus,
+) -> bool:
+    """Return True for terminal states that may be explicitly closed later."""
+    return (
+        current_status == DecisionStatus.DEFERRED
+        and target_status == DecisionStatus.RESOLVED
+    )
+
+
 def _resolve_mission_id(repo_root: Path, mission_slug: str) -> str:
     """Read mission_id from kitty-specs/<slug>/meta.json.
 
@@ -311,7 +322,10 @@ def _terminal_command(
             message=f"Decision {decision_id!r} not found in index",
         )
 
-    if _is_terminal(entry.status):
+    if _is_terminal(entry.status) and not _is_allowed_terminal_reopen(
+        entry.status,
+        target_status,
+    ):
         # Already terminal — check for idempotency or conflict
         if entry.status == target_status:
             # Same outcome — check payload identity
