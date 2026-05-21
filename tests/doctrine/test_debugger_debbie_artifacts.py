@@ -60,7 +60,6 @@ def test_debugger_debbie_skill_references_exist() -> None:
     for reference in [
         "references/paradigm-prompts.md",
         "references/orthogonality-matrix.md",
-        "references/case-study-1198.md",
     ]:
         assert reference in body
         assert (skill_root / reference).is_file()

@@ -287,5 +287,3 @@ ahead:
   paradigm with worked examples
 - `references/orthogonality-matrix.md` — what each paradigm catches
   that the others structurally miss
-- `references/case-study-1198.md` — the CLI ↔ SaaS schema-drift
-  chain that motivated this skill
