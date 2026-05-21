@@ -117,3 +117,4 @@ spec-kitty agent action implement WP03 --agent claude
 - 2026-05-21T07:26:10Z – claude:opus-4-7:curator-carla:implementer – shell_pid=27951 – WP03 ready: diff-shaped TOC plan with 5 nav groups; 3.1-supported conditional on decision 01KS4KTGTN4DBE60JFWKEA2FJB.
 - 2026-05-21T07:26:31Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=31011 – Started review via action command
 - 2026-05-21T07:27:30Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=31011 – Renata review: pass. 9 TOC files covered (5 with diffs, 4 with explicit no-changes); 5 nav groups defined with landing-page wording; 3.1 conditional cites decision_id 01KS4KTGTN4DBE60JFWKEA2FJB in §Group 2 and §Flip path; DocFX confirmed via docs/docfx.json (R4); WP03 commit touches only owned file (906 insertions); member counts match WP02 inventory (88 current / 12 migration / 13 archival).
+- 2026-05-21T09:27:09Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=31011 – Moved to done
