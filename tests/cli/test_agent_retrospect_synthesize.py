@@ -192,12 +192,12 @@ def test_valid_handle_dryrun_exit0() -> None:
     assert result.exit_code == 0, result.output
 
 
-def test_generator_record_dryrun_exit0(tmp_path: Path) -> None:
-    """A record authored by retrospect create is accepted by synthesize."""
-    root = tmp_path
+def _write_generator_retrospective(root: Path) -> Path:
+    """Write the generator-shape record emitted by ``retrospect create``."""
     retro_dir = root / ".kittify" / "missions" / FAKE_MISSION_ID
     retro_dir.mkdir(parents=True)
-    (retro_dir / "retrospective.yaml").write_text(
+    retro_path = retro_dir / "retrospective.yaml"
+    retro_path.write_text(
         f"""\
 schema_version: 1
 mission_id: {FAKE_MISSION_ID}
@@ -236,6 +236,13 @@ provenance_history: []
 """,
         encoding="utf-8",
     )
+    return retro_path
+
+
+def test_generator_record_dryrun_exit0(tmp_path: Path) -> None:
+    """A record authored by retrospect create is accepted by synthesize."""
+    root = tmp_path
+    _write_generator_retrospective(root)
 
     with (
         patch(
@@ -259,6 +266,37 @@ provenance_history: []
 
     assert result.exit_code == 0, result.output
     assert apply_mock.call_args.kwargs["proposals"] == []
+    assert apply_mock.call_args.kwargs["dry_run"] is True
+
+
+def test_generator_record_apply_exit0(tmp_path: Path) -> None:
+    """A create-authored record is also accepted by the --apply path."""
+    root = tmp_path
+    _write_generator_retrospective(root)
+
+    with (
+        patch(
+            "specify_cli.cli.commands.agent_retrospect.locate_project_root",
+            return_value=root,
+        ),
+        patch(
+            "specify_cli.cli.commands.agent_retrospect.resolve_mission_handle",
+            return_value=_make_resolved_mission(tmp_path=root),
+        ),
+        patch(
+            "specify_cli.cli.commands.agent_retrospect.apply_proposals",
+            return_value=_good_result(dry_run=False),
+        ) as apply_mock,
+    ):
+        result = runner.invoke(
+            app,
+            ["retrospect", "synthesize", "--mission", FAKE_SLUG, "--apply"],
+            catch_exceptions=False,
+        )
+
+    assert result.exit_code == 0, result.output
+    assert apply_mock.call_args.kwargs["proposals"] == []
+    assert apply_mock.call_args.kwargs["dry_run"] is False
 
 
 def test_dryrun_is_default() -> None:
