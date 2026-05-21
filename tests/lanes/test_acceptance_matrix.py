@@ -1,5 +1,7 @@
 """Tests for acceptance matrix, evidence validation, and negative invariants."""
 
+import json
+
 import pytest
 
 from specify_cli.acceptance_matrix import (
@@ -96,6 +98,73 @@ class TestPersistence:
 
     def test_missing_returns_none(self, tmp_path):
         assert read_acceptance_matrix(tmp_path) is None
+
+    def test_preserves_extension_fields_on_round_trip(self, tmp_path):
+        matrix_data = {
+            "mission_slug": "010-feat",
+            "narrowed_acceptance_counter": 23,
+            "substitutions": [
+                {
+                    "criterion_id": "AC-01",
+                    "substitute_evidence": "vitest contract coverage",
+                },
+            ],
+            "criteria": [
+                {
+                    "criterion_id": "AC-01",
+                    "description": "Test passes",
+                    "proof_type": "automated_test",
+                    "pass_fail": "pass",
+                    "scope_note": "Narrowed acceptance rationale",
+                    "deferred_findings_ref": "docs/backlog/follow-ups.md",
+                },
+            ],
+            "negative_invariants": [
+                {
+                    "invariant_id": "NI-01",
+                    "description": "No legacy route",
+                    "verification_method": "grep_absence",
+                    "verification_command": "/old-route",
+                    "result": "confirmed_absent",
+                    "verification_pattern": "operator-authored extension",
+                },
+            ],
+        }
+        (tmp_path / MATRIX_FILENAME).write_text(json.dumps(matrix_data), encoding="utf-8")
+
+        matrix = read_acceptance_matrix(tmp_path)
+        assert matrix is not None
+        write_acceptance_matrix(tmp_path, matrix)
+
+        restored = json.loads((tmp_path / MATRIX_FILENAME).read_text(encoding="utf-8"))
+        assert restored["narrowed_acceptance_counter"] == 23
+        assert restored["substitutions"] == matrix_data["substitutions"]
+        assert restored["criteria"][0]["scope_note"] == "Narrowed acceptance rationale"
+        assert restored["criteria"][0]["deferred_findings_ref"] == "docs/backlog/follow-ups.md"
+        assert restored["negative_invariants"][0]["verification_pattern"] == "operator-authored extension"
+
+    def test_round_trip_without_extensions_does_not_emit_extras_key(self, tmp_path):
+        matrix = AcceptanceMatrix(
+            mission_slug="010-feat",
+            criteria=[
+                AcceptanceCriterion("AC-01", "Test passes", "automated_test", pass_fail="pass"),
+            ],
+            negative_invariants=[
+                NegativeInvariant("NI-01", "No legacy route", "grep_absence", result="confirmed_absent"),
+            ],
+        )
+
+        write_acceptance_matrix(tmp_path, matrix)
+        first_write = (tmp_path / MATRIX_FILENAME).read_text(encoding="utf-8")
+        restored = read_acceptance_matrix(tmp_path)
+        assert restored is not None
+        write_acceptance_matrix(tmp_path, restored)
+
+        assert (tmp_path / MATRIX_FILENAME).read_text(encoding="utf-8") == first_write
+        data = json.loads((tmp_path / MATRIX_FILENAME).read_text(encoding="utf-8"))
+        assert "extras" not in data
+        assert "extras" not in data["criteria"][0]
+        assert "extras" not in data["negative_invariants"][0]
 
 
 class TestManualEvidence:
