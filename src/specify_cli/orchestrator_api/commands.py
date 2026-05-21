@@ -12,6 +12,7 @@ Error codes used:
   TRANSITION_REJECTED         -- transition not allowed by state machine
   WP_ALREADY_CLAIMED          -- WP claimed by a different actor
   MISSION_NOT_READY           -- not all WPs approved/done (for accept-mission)
+  WORKFLOW_EVIDENCE_REQUIRED  -- workflow files changed without runner proof
   PREFLIGHT_FAILED            -- preflight checks failed (for merge-mission)
   CONTRACT_VERSION_MISMATCH   -- provider version is below MIN_PROVIDER_VERSION
   UNSUPPORTED_STRATEGY        -- merge strategy not implemented
@@ -988,6 +989,24 @@ def accept_mission(
             {
                 **_mission_identity_payload(mission_dir),
                 "incomplete_wps": sorted(incomplete),
+            },
+        )
+        return
+
+    from specify_cli.acceptance import collect_feature_summary
+
+    summary = collect_feature_summary(main_repo_root, mission)
+    workflow_evidence_issues = [
+        issue for issue in summary.activity_issues if issue.startswith("Workflow run evidence required:")
+    ]
+    if workflow_evidence_issues:
+        _fail(
+            cmd,
+            "WORKFLOW_EVIDENCE_REQUIRED",
+            workflow_evidence_issues[0],
+            {
+                **_mission_identity_payload(mission_dir),
+                "required_evidence_path": str(mission_dir / "workflow-evidence.md"),
             },
         )
         return

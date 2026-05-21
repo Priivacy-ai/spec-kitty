@@ -16,6 +16,7 @@ from specify_cli.core.agent_config import get_auto_commit_default
 from specify_cli.core.paths import require_explicit_feature as _require_explicit_feature
 from specify_cli.decisions.models import DecisionStatus
 from specify_cli.decisions.store import load_index
+from specify_cli.git.commit_helpers import assert_not_protected_branch
 from specify_cli.mission import MissionError, get_mission_for_feature
 from specify_cli.mission_metadata import load_meta, record_acceptance, resolve_mission_identity, write_meta
 from specify_cli.status.models import Lane
@@ -43,6 +44,7 @@ TASKS_FILE = "tasks.md"
 QUICKSTART_FILE = "quickstart.md"
 DATA_MODEL_FILE = "data-model.md"
 RESEARCH_FILE = "research.md"
+WORKFLOW_EVIDENCE_FILE = "workflow-evidence.md"
 PRIMARY_ARTIFACT_FILES = (
     SPEC_FILE,
     PLAN_FILE,
@@ -540,6 +542,70 @@ def _check_lane_gates(
         activity_issues.append("Acceptance matrix verdict is 'pending' — criteria or invariants have not been verified")
 
 
+def _target_branch_for_feature(feature_dir: Path) -> str | None:
+    meta = load_meta(feature_dir) or {}
+    value = meta.get("target_branch")
+    return str(value) if value else None
+
+
+def _git_ref_exists(repo_root: Path, ref: str) -> bool:
+    return run_git(["rev-parse", "--verify", "--quiet", ref], cwd=repo_root, check=False).returncode == 0
+
+
+def _changed_workflow_files(repo_root: Path, feature_dir: Path, branch: str | None) -> list[str]:
+    """Return workflow files changed by the current mission branch."""
+    target_branch = _target_branch_for_feature(feature_dir)
+    if not target_branch or branch == target_branch:
+        return []
+
+    base_ref = target_branch if _git_ref_exists(repo_root, target_branch) else f"origin/{target_branch}"
+    if not _git_ref_exists(repo_root, base_ref):
+        return []
+
+    merge_base = run_git(["merge-base", "HEAD", base_ref], cwd=repo_root, check=False)
+    if merge_base.returncode != 0 or not merge_base.stdout.strip():
+        return []
+
+    diff = run_git(
+        [
+            "diff",
+            "--name-only",
+            "--diff-filter=AMR",
+            f"{merge_base.stdout.strip()}...HEAD",
+            "--",
+            ".github/workflows",
+        ],
+        cwd=repo_root,
+        check=False,
+    )
+    if diff.returncode != 0:
+        return []
+    return sorted({line.strip() for line in diff.stdout.splitlines() if line.strip()})
+
+
+def _workflow_evidence_missing(feature_dir: Path) -> bool:
+    evidence_path = feature_dir / WORKFLOW_EVIDENCE_FILE
+    if not evidence_path.is_file():
+        return True
+    text = evidence_path.read_text(encoding="utf-8", errors="replace")
+    return not bool(text.strip())
+
+
+def _check_workflow_run_evidence(
+    repo_root: Path,
+    feature_dir: Path,
+    branch: str | None,
+    activity_issues: list[str],
+) -> None:
+    changed = _changed_workflow_files(repo_root, feature_dir, branch)
+    if changed and _workflow_evidence_missing(feature_dir):
+        activity_issues.append(
+            "Workflow run evidence required: this mission changes "
+            + ", ".join(changed)
+            + f". Add a successful real GitHub Actions run ID or URL to {feature_dir.name}/{WORKFLOW_EVIDENCE_FILE}."
+        )
+
+
 def collect_feature_summary(
     repo_root: Path,
     feature: str,
@@ -635,6 +701,7 @@ def collect_feature_summary(
         warnings.append("Path conventions not satisfied.")
 
     _check_lane_gates(repo_root, feature_dir, branch, activity_issues)
+    _check_workflow_run_evidence(repo_root, feature_dir, branch, activity_issues)
 
     return AcceptanceSummary(
         feature=feature,
@@ -679,6 +746,8 @@ def _commit_acceptance_meta(
     mode: AcceptanceMode,
 ) -> tuple[str | None, str | None, bool]:
     """Record acceptance in meta.json and commit; return (parent_commit, accept_commit, commit_created)."""
+    assert_not_protected_branch(summary.repo_root, operation="record acceptance")
+
     try:
         parent_commit: str | None = run_git(["rev-parse", "HEAD"], cwd=summary.repo_root, check=False).stdout.strip() or None
     except TaskCliError:
