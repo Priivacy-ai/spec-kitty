@@ -122,3 +122,4 @@ spec-kitty agent action implement WP02 --agent claude
 ## Activity Log
 
 - 2026-05-21T07:16:02Z – claude:opus-4-7:curator-carla:implementer – shell_pid=22617 – Started implementation via action command
+- 2026-05-21T07:19:01Z – claude:opus-4-7:curator-carla:implementer – shell_pid=22617 – WP02 ready: inventory with one row per page, all 5 tags accounted for (supported tag may be empty per plan default).
