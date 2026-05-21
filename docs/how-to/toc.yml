@@ -1,7 +1,21 @@
 - name: Install & Upgrade
   href: install-spec-kitty.md
+- name: Install on macOS
+  href: install-macos.md
+- name: Install on Linux
+  href: install-linux.md
+- name: Install on Windows
+  href: install-windows.md
+- name: Upgrade the CLI
+  href: upgrade-cli.md
+- name: Upgrade a Project
+  href: upgrade-project.md
+- name: Uninstall
+  href: uninstall.md
 - name: Diagnose Installation Problems
   href: diagnose-installation.md
+- name: Harness Guides
+  href: harnesses/
 - name: Set Up Codex Launcher
   href: setup-codex-spec-kitty-launcher.md
 - name: Create a Specification
@@ -16,9 +30,11 @@
   href: implement-work-package.md
 - name: Review Work Packages
   href: review-work-package.md
+- name: Run an Autonomous Mission
+  href: run-an-autonomous-mission.md
 - name: Accept and Merge
   href: accept-and-merge.md
-- name: Merge a Feature
+- name: Merge a Mission
   href: merge-feature.md
 - name: Troubleshoot Merge Issues
   href: troubleshoot-merge.md

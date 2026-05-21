@@ -92,13 +92,13 @@ def test_mixed_state_drift(tmp_path: Path) -> None:
             index.json   (3 entries)
             DM-<A>.md    (DEFERRED — has matching marker in spec.md)
             DM-<B>.md    (DEFERRED — no marker anywhere → DEFERRED_WITHOUT_MARKER)
-            DM-<C>.md    (RESOLVED — has stale marker in plan.md → STALE_MARKER)
+            DM-<C>.md    (CANCELED — has stale marker in plan.md → STALE_MARKER)
         spec.md          (sentinel for A)
         plan.md          (stale sentinel for C)
     """
     entry_a = _entry(ULID_A, DecisionStatus.DEFERRED, T0)
     entry_b = _entry(ULID_B, DecisionStatus.DEFERRED, T1)
-    entry_c = _entry(ULID_C, DecisionStatus.RESOLVED, T2)
+    entry_c = _entry(ULID_C, DecisionStatus.CANCELED, T2)
 
     spec_content = f"# Mission spec\n\n{_sentinel(ULID_A)}\n"
     plan_content = f"# Plan\n\n{_sentinel(ULID_C)}\n"
@@ -131,7 +131,7 @@ def test_mixed_state_drift(tmp_path: Path) -> None:
     assert stale.decision_id_or_ref == ULID_C
     assert stale.location is not None
     assert stale.location.startswith("plan.md:L")
-    assert "resolved" in (stale.detail or "")
+    assert "canceled" in (stale.detail or "")
 
 
 # ---------------------------------------------------------------------------
@@ -153,6 +153,21 @@ def test_all_resolved_no_markers(tmp_path: Path) -> None:
     assert result.findings == ()
     assert result.deferred_count == 0
     assert result.marker_count == 0
+
+
+def test_resolved_decision_marker_is_not_drift(tmp_path: Path) -> None:
+    """Resolved decision with a remaining marker is accepted as closed."""
+    entry_a = _entry(ULID_A, DecisionStatus.RESOLVED, T0)
+    spec_content = f"# Spec\n\n{_sentinel(ULID_A)}\n"
+
+    _build_mission(tmp_path, [entry_a], spec_content)
+
+    result = verify(tmp_path, MISSION_SLUG)
+
+    assert result.status == "clean"
+    assert result.findings == ()
+    assert result.deferred_count == 0
+    assert result.marker_count == 1
 
 
 # ---------------------------------------------------------------------------

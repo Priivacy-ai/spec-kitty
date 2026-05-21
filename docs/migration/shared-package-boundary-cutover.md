@@ -1,3 +1,5 @@
+> Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
+
 # Migration: Shared Package Boundary Cutover
 
 **Mission**: `shared-package-boundary-cutover-01KQ22DS`
@@ -77,12 +79,12 @@ The repo's CI runs an automated equivalent of this check on every PR
 If you work across `spec-kitty-cli` and `spec-kitty-events` /
 `spec-kitty-tracker` simultaneously (e.g. testing an unreleased events
 contract change), see
-[`docs/development/local-overrides.md`](../development/local-overrides.md)
+[`docs/development/local-overrides.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/development/local-overrides.md)
 for editable-install patterns that don't pollute committed config.
 
 ## Why this happened
 
-See [ADR 2026-04-25-1: Shared Package Boundary](../../architecture/2.x/adr/2026-04-25-1-shared-package-boundary.md)
+See [ADR 2026-04-25-1: Shared Package Boundary](https://github.com/Priivacy-ai/spec-kitty/blob/main/architecture/2.x/adr/2026-04-25-1-shared-package-boundary.md)
 for the full decision rationale and the alternatives considered.
 
 ## Supersedes

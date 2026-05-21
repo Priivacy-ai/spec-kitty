@@ -1,7 +1,9 @@
+> Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
+
 # Migration: Mission ID as Canonical Identity
 
 **Status**: Shipped with mission `083-mission-id-canonical-identity-migration`.
-**ADR**: [2026-04-09-1](../../architecture/adrs/2026-04-09-1-mission-identity-uses-ulid-not-sequential-prefix.md)
+**ADR**: [2026-04-09-1](https://github.com/Priivacy-ai/spec-kitty/blob/main/architecture/adrs/2026-04-09-1-mission-identity-uses-ulid-not-sequential-prefix.md)
 **Issue**: [Priivacy-ai/spec-kitty#557](https://github.com/Priivacy-ai/spec-kitty/issues/557)
 **Audience**: Operators upgrading existing Spec Kitty projects to the 3.x line
 that ships the `mission_id` identity model.
@@ -246,9 +248,9 @@ any event log entries keyed off the original ULID will become orphaned.
 
 ## Related Documentation
 
-- [Mission Identity Model in `CLAUDE.md`](../../CLAUDE.md#mission-identity-model-083) — developer-facing contract summary.
+- [Mission Identity Model in `CLAUDE.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/CLAUDE.md#mission-identity-model-083) — developer-facing contract summary.
 - [Event Envelope Reference](../reference/event-envelope.md) — how `mission_id` flows into the machine contract.
 - [Orchestrator API Reference](../reference/orchestrator-api.md) — `--mission` selector semantics.
 - [Execution Lanes](../explanation/execution-lanes.md) — lane branch and worktree naming.
-- [Feature Detection architecture note](../architecture/feature-detection.md) — historical context for the pre-083 selector.
+- [Feature Detection architecture note](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/architecture/feature-detection.md) — historical context for the pre-083 selector.
 - [Feature Flag Deprecation](feature-flag-deprecation.md) — the earlier `--feature` → `--mission` migration.

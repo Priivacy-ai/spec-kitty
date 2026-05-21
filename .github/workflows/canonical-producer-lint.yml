@@ -1,0 +1,68 @@
+# Canonical Producer Lint
+#
+# Enforces the canonical-producer non-negotiable (C-007 in
+# spec-kitty-mission-workflow.md) at PR time. Detects hand-rolled event
+# dicts that bypass the spec_kitty_events.lifecycle.*Payload pydantic
+# models. The rc14->rc22 release-candidate chain happened because doctrine
+# alone (reviewer attention) failed seven times in eight releases; CI
+# enforcement closes that gap.
+#
+# Source of truth: scripts/lint_canonical_producers.py in THIS repo.
+# Sibling producer repos (spec-kitty-saas, spec-kitty-end-to-end-testing)
+# clone spec-kitty at a pinned SHA and invoke the same script -- there is
+# exactly one rule, in one place, applied everywhere.
+#
+# Issue: Priivacy-ai/spec-kitty#1248
+# Index: Priivacy-ai/spec-kitty#1247
+# Drift-class epic: Priivacy-ai/spec-kitty#1198
+#
+# Baseline:
+#   The repo's pre-existing violations are captured in
+#   scripts/canonical_producer_lint_baseline.txt. CI invokes the lint with
+#   --baseline so the existing surface is silenced; NEW additions (new
+#   files, or new violation codes in existing files) still fail. To shrink
+#   the baseline after a refactor, run:
+#     python scripts/lint_canonical_producers.py \
+#       --paths src scripts tests \
+#       --update-baseline scripts/canonical_producer_lint_baseline.txt
+
+name: canonical-producer-lint
+
+on:
+  pull_request:
+    paths:
+      - "**/*.py"
+      - "scripts/lint_canonical_producers.py"
+      - "scripts/canonical_producer_lint_baseline.txt"
+      - ".github/workflows/canonical-producer-lint.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "**/*.py"
+      - "scripts/lint_canonical_producers.py"
+      - "scripts/canonical_producer_lint_baseline.txt"
+      - ".github/workflows/canonical-producer-lint.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: AST lint -- canonical producers
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run canonical-producer lint
+        run: |
+          python scripts/lint_canonical_producers.py \
+            --paths src scripts tests \
+            --baseline scripts/canonical_producer_lint_baseline.txt

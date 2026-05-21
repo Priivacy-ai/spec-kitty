@@ -1,0 +1,23 @@
+# Happy-path inventory for the version_leakage_check tests.
+# Maps to tests/docs/fixtures/sample_pages/clean/docs/**.
+- path: docs/current/index.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: E
+  current_target: true
+  citation_refs: []
+  notes: clean current page
+- path: docs/archive/legacy.md
+  tag: archival
+  divio_type: none
+  owning_workstream: C
+  current_target: false
+  citation_refs: []
+  notes: archived 1.x page with banner
+- path: docs/migration/from-2x.md
+  tag: migration
+  divio_type: how-to
+  owning_workstream: C
+  current_target: false
+  citation_refs: []
+  notes: migration guide with banner

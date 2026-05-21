@@ -1565,7 +1565,15 @@ def generate(
 def context(
     action: str = typer.Option(..., "--action", help="Workflow action (specify|plan|implement|review)"),
     mark_loaded: bool = typer.Option(True, "--mark-loaded/--no-mark-loaded", help="Persist first-load state"),
-    json_output: bool = typer.Option(False, "--json", help="Output JSON"),
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help=(
+            "Output JSON. `directives` is action-scoped; `all_directives` and "
+            "`project_charter` describe the project-local charter, while "
+            "`org_charter` describes imported org packs."
+        ),
+    ),
 ) -> None:
     """Render charter context for a specific workflow action."""
     from charter.context import (
@@ -1601,6 +1609,7 @@ def context(
             structured = build_charter_context_json(
                 repo_root,
                 action=action,
+                depth=result.depth,
                 org_root=org_root,
                 org_charter_block=org_charter_block,
             )
@@ -1616,9 +1625,17 @@ def context(
                         "context": result.text,
                         "text": result.text,
                         "directives": structured.get("directives", []),
+                        "all_directives": structured.get("all_directives", []),
                         "tactics": structured.get("tactics", []),
                         "styleguides": structured.get("styleguides", []),
                         "toolguides": structured.get("toolguides", []),
+                        "project_charter": structured.get(
+                            "project_charter",
+                            {
+                                "present": False,
+                                "path": ".kittify/charter/charter.md",
+                            },
+                        ),
                         "org_charter": structured.get(
                             "org_charter", {"present": False, "packs": []}
                         ),

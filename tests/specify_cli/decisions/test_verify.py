@@ -163,10 +163,23 @@ def test_marker_without_decision(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_stale_marker(tmp_path: Path) -> None:
-    """Marker references resolved decision → STALE_MARKER with status detail."""
+def test_resolved_marker_is_clean(tmp_path: Path) -> None:
+    """Marker references resolved decision → clean."""
     resolved = _entry(ULID_A, status=DecisionStatus.RESOLVED)
     _write_index(tmp_path, resolved)
+    _write_spec(tmp_path, f"{_sentinel(ULID_A)}\n")
+
+    result = verify(tmp_path, MISSION_SLUG)
+
+    assert result.status == "clean"
+    assert result.findings == ()
+    assert result.marker_count == 1
+
+
+def test_stale_marker(tmp_path: Path) -> None:
+    """Marker references canceled decision → STALE_MARKER with status detail."""
+    canceled = _entry(ULID_A, status=DecisionStatus.CANCELED)
+    _write_index(tmp_path, canceled)
     _write_spec(tmp_path, f"{_sentinel(ULID_A)}\n")
 
     result = verify(tmp_path, MISSION_SLUG)
@@ -176,7 +189,7 @@ def test_stale_marker(tmp_path: Path) -> None:
     f = result.findings[0]
     assert f.kind == "STALE_MARKER"
     assert f.decision_id_or_ref == ULID_A
-    assert "resolved" in (f.detail or "")
+    assert "canceled" in (f.detail or "")
 
 
 # ---------------------------------------------------------------------------
@@ -188,8 +201,8 @@ def test_mixed_findings(tmp_path: Path) -> None:
     """Two deferred (one has marker, one does not) plus one stale → 2 findings."""
     deferred_with = _entry(ULID_A)
     deferred_without = _entry(ULID_B, created_at=T1)
-    resolved = _entry(ULID_C, status=DecisionStatus.RESOLVED, created_at=T2)
-    _write_index(tmp_path, deferred_with, deferred_without, resolved)
+    canceled = _entry(ULID_C, status=DecisionStatus.CANCELED, created_at=T2)
+    _write_index(tmp_path, deferred_with, deferred_without, canceled)
     # spec.md: marker for ULID_A (clean) and ULID_C (stale)
     _write_spec(tmp_path, f"{_sentinel(ULID_A)}\n{_sentinel(ULID_C)}\n")
 
@@ -258,8 +271,8 @@ def test_empty_mission(tmp_path: Path) -> None:
 
 def test_location_format(tmp_path: Path) -> None:
     """STALE_MARKER location is 'spec.md:L<N>' with the correct line number."""
-    resolved = _entry(ULID_A, status=DecisionStatus.RESOLVED)
-    _write_index(tmp_path, resolved)
+    canceled = _entry(ULID_A, status=DecisionStatus.CANCELED)
+    _write_index(tmp_path, canceled)
     # Marker on line 3
     _write_spec(tmp_path, "line one\nline two\n" + _sentinel(ULID_A) + "\n")
 

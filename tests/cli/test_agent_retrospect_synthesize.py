@@ -192,6 +192,113 @@ def test_valid_handle_dryrun_exit0() -> None:
     assert result.exit_code == 0, result.output
 
 
+def _write_generator_retrospective(root: Path) -> Path:
+    """Write the generator-shape record emitted by ``retrospect create``."""
+    retro_dir = root / ".kittify" / "missions" / FAKE_MISSION_ID
+    retro_dir.mkdir(parents=True)
+    retro_path = retro_dir / "retrospective.yaml"
+    retro_path.write_text(
+        f"""\
+schema_version: 1
+mission_id: {FAKE_MISSION_ID}
+mission_slug: {FAKE_SLUG}
+mission_number: 1
+friendly_name: Test Mission
+mission_type: software-dev
+target_branch: main
+created_at: "2026-05-21T08:09:55+00:00"
+created_by:
+  kind: human
+  id: cli
+  display: spec-kitty retrospect
+provenance:
+  kind: explicit_create
+  invoked_at: "2026-05-21T08:09:55+00:00"
+  policy_resolved_from: {{}}
+  command: spec-kitty retrospect create
+policy_source: {{}}
+findings_status: has_findings
+helped: []
+not_helpful:
+  - id: n-001
+    category: process
+    summary: lane bounce before approval
+    evidence_refs: [e-001]
+gaps: []
+proposals: []
+evidence_refs:
+  - id: e-001
+    kind: event_range
+    path: kitty-specs/{FAKE_SLUG}/status.events.jsonl
+    range: "event-1"
+generator_version: "1.0"
+provenance_history: []
+""",
+        encoding="utf-8",
+    )
+    return retro_path
+
+
+def test_generator_record_dryrun_exit0(tmp_path: Path) -> None:
+    """A record authored by retrospect create is accepted by synthesize."""
+    root = tmp_path
+    _write_generator_retrospective(root)
+
+    with (
+        patch(
+            "specify_cli.cli.commands.agent_retrospect.locate_project_root",
+            return_value=root,
+        ),
+        patch(
+            "specify_cli.cli.commands.agent_retrospect.resolve_mission_handle",
+            return_value=_make_resolved_mission(tmp_path=root),
+        ),
+        patch(
+            "specify_cli.cli.commands.agent_retrospect.apply_proposals",
+            return_value=_good_result(),
+        ) as apply_mock,
+    ):
+        result = runner.invoke(
+            app,
+            ["retrospect", "synthesize", "--mission", FAKE_SLUG],
+            catch_exceptions=False,
+        )
+
+    assert result.exit_code == 0, result.output
+    assert apply_mock.call_args.kwargs["proposals"] == []
+    assert apply_mock.call_args.kwargs["dry_run"] is True
+
+
+def test_generator_record_apply_exit0(tmp_path: Path) -> None:
+    """A create-authored record is also accepted by the --apply path."""
+    root = tmp_path
+    _write_generator_retrospective(root)
+
+    with (
+        patch(
+            "specify_cli.cli.commands.agent_retrospect.locate_project_root",
+            return_value=root,
+        ),
+        patch(
+            "specify_cli.cli.commands.agent_retrospect.resolve_mission_handle",
+            return_value=_make_resolved_mission(tmp_path=root),
+        ),
+        patch(
+            "specify_cli.cli.commands.agent_retrospect.apply_proposals",
+            return_value=_good_result(dry_run=False),
+        ) as apply_mock,
+    ):
+        result = runner.invoke(
+            app,
+            ["retrospect", "synthesize", "--mission", FAKE_SLUG, "--apply"],
+            catch_exceptions=False,
+        )
+
+    assert result.exit_code == 0, result.output
+    assert apply_mock.call_args.kwargs["proposals"] == []
+    assert apply_mock.call_args.kwargs["dry_run"] is False
+
+
 def test_dryrun_is_default() -> None:
     """Default (no --apply flag) is dry-run."""
     result = _patched_invoke(

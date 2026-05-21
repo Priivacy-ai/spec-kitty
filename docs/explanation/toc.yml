@@ -20,6 +20,8 @@
   href: multi-agent-orchestration.md
 - name: Runtime Loop
   href: runtime-loop.md
+- name: Pip vs pipx vs uv
+  href: pip-vs-pipx-vs-uv.md
 - name: "Understanding Charter: Synthesis, DRG, and Governed Context"
   href: charter-synthesis-drg.md
 - name: Understanding the Org Doctrine Layer

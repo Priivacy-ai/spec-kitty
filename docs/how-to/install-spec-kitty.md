@@ -201,7 +201,7 @@ rm gcm-linux_amd64.2.6.1.deb
 
 - [`spec-kitty init`](../reference/cli-commands.md#spec-kitty-init)
 - [`spec-kitty upgrade`](../reference/cli-commands.md#spec-kitty-upgrade)
-- [`spec-kitty verify-setup`](../reference/cli-commands.md#spec-kitty-verify-setup)
+- [`spec-kitty verify-setup`](../reference/cli-commands.md#spec-kitty-verify_setup)
 
 ## See Also
 

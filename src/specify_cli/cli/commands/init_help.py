@@ -22,13 +22,13 @@ Non-Interactive Mode:
 
 What Gets Created:
 - .kittify/ - Project scaffold (memory, config)
-- Agent commands (.claude/commands/, .codex/prompts/, etc.)
+- Agent command and skill surfaces (.claude/commands/, .agents/skills/, etc.)
 - .gitignore and .claudeignore
 
 Specifying AI Assistants (--ai flag):
 Use comma-separated agent keys (no spaces). Valid keys include:
 codex, claude, gemini, cursor, qwen, opencode, windsurf, kilocode,
-auggie, roo, copilot, q, kiro, pi, letta.
+auggie, roo, copilot, q, kiro, antigravity, vibe, pi, letta.
 
 Template Discovery (Development Mode):
 Set SPEC_KITTY_TEMPLATE_ROOT to override bundled templates for local development.

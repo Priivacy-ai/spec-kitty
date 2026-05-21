@@ -29,8 +29,8 @@ def _manifest(owned_files: list[str], mode: str = "code_change") -> OwnershipMan
 
 
 class TestDependenciesGrouping:
-    def test_sequential_chain_single_lane(self):
-        """A→B→C: all three must be in the same lane."""
+    def test_sequential_chain_uses_lane_dependencies(self):
+        """A→B→C with disjoint ownership: three ordered lanes."""
         graph = {"WP01": [], "WP02": ["WP01"], "WP03": ["WP02"]}
         manifests = {
             "WP01": _manifest(["src/a/**"]),
@@ -38,11 +38,16 @@ class TestDependenciesGrouping:
             "WP03": _manifest(["src/c/**"]),
         }
         result = compute_lanes(graph, manifests, "test-feat")
-        assert len(result.lanes) == 1
-        assert result.lanes[0].wp_ids == ("WP01", "WP02", "WP03")
+        assert len(result.lanes) == 3
+        by_wp = {lane.wp_ids[0]: lane for lane in result.lanes}
+        assert by_wp["WP02"].depends_on_lanes == (by_wp["WP01"].lane_id,)
+        assert by_wp["WP03"].depends_on_lanes == (by_wp["WP02"].lane_id,)
+        assert by_wp["WP01"].parallel_group == 0
+        assert by_wp["WP02"].parallel_group == 1
+        assert by_wp["WP03"].parallel_group == 2
 
-    def test_diamond_dag_single_lane(self):
-        """A→B, A→C, B→D, C→D: all connected by deps → single lane."""
+    def test_diamond_dag_keeps_middle_parallel(self):
+        """A→B, A→C, B→D, C→D: B and C can run in parallel."""
         graph = {
             "WP01": [],
             "WP02": ["WP01"],
@@ -56,11 +61,18 @@ class TestDependenciesGrouping:
             "WP04": _manifest(["src/d/**"]),
         }
         result = compute_lanes(graph, manifests, "test-feat")
-        assert len(result.lanes) == 1
-        assert set(result.lanes[0].wp_ids) == {"WP01", "WP02", "WP03", "WP04"}
+        assert len(result.lanes) == 4
+        by_wp = {lane.wp_ids[0]: lane for lane in result.lanes}
+        assert by_wp["WP02"].depends_on_lanes == (by_wp["WP01"].lane_id,)
+        assert by_wp["WP03"].depends_on_lanes == (by_wp["WP01"].lane_id,)
+        assert set(by_wp["WP04"].depends_on_lanes) == {
+            by_wp["WP02"].lane_id,
+            by_wp["WP03"].lane_id,
+        }
+        assert by_wp["WP02"].parallel_group == by_wp["WP03"].parallel_group
 
-    def test_two_independent_chains_two_lanes(self):
-        """A→B and C→D with no overlap → two lanes."""
+    def test_two_independent_chains_keep_parallel_starts(self):
+        """A→B and C→D with no overlap → four lanes across two depths."""
         graph = {
             "WP01": [],
             "WP02": ["WP01"],
@@ -74,10 +86,12 @@ class TestDependenciesGrouping:
             "WP04": _manifest(["src/d/**"]),
         }
         result = compute_lanes(graph, manifests, "test-feat")
-        assert len(result.lanes) == 2
-        lane_wp_sets = [set(lane.wp_ids) for lane in result.lanes]
-        assert {"WP01", "WP02"} in lane_wp_sets
-        assert {"WP03", "WP04"} in lane_wp_sets
+        assert len(result.lanes) == 4
+        by_wp = {lane.wp_ids[0]: lane for lane in result.lanes}
+        assert by_wp["WP01"].parallel_group == by_wp["WP03"].parallel_group == 0
+        assert by_wp["WP02"].parallel_group == by_wp["WP04"].parallel_group == 1
+        assert by_wp["WP02"].depends_on_lanes == (by_wp["WP01"].lane_id,)
+        assert by_wp["WP04"].depends_on_lanes == (by_wp["WP03"].lane_id,)
 
 
 # ---------------------------------------------------------------------------
@@ -107,8 +121,8 @@ class TestWriteScopeGrouping:
         result = compute_lanes(graph, manifests, "test-feat")
         assert len(result.lanes) == 2
 
-    def test_chain_plus_overlap_merges_all(self):
-        """A→B + independent C overlapping B's files → all three in one lane."""
+    def test_chain_plus_overlap_merges_only_overlapping_scope(self):
+        """A→B + independent C overlapping B's files → B/C lane depends on A."""
         graph = {"WP01": [], "WP02": ["WP01"], "WP03": []}
         manifests = {
             "WP01": _manifest(["src/a/**"]),
@@ -116,8 +130,13 @@ class TestWriteScopeGrouping:
             "WP03": _manifest(["src/b/utils/**"]),
         }
         result = compute_lanes(graph, manifests, "test-feat")
-        assert len(result.lanes) == 1
-        assert set(result.lanes[0].wp_ids) == {"WP01", "WP02", "WP03"}
+        assert len(result.lanes) == 2
+        lane_wp_sets = [set(lane.wp_ids) for lane in result.lanes]
+        assert {"WP01"} in lane_wp_sets
+        assert {"WP02", "WP03"} in lane_wp_sets
+        wp01_lane = next(lane for lane in result.lanes if lane.wp_ids == ("WP01",))
+        overlap_lane = next(lane for lane in result.lanes if set(lane.wp_ids) == {"WP02", "WP03"})
+        assert overlap_lane.depends_on_lanes == (wp01_lane.lane_id,)
 
 
 # ---------------------------------------------------------------------------
@@ -254,14 +273,15 @@ class TestPlanningArtifactLane:
 
 class TestLaneOrdering:
     def test_topo_order_within_lane(self):
-        """WPs within a lane are topologically ordered."""
+        """WPs collapsed by overlap within a lane are topologically ordered."""
         graph = {"WP01": [], "WP02": ["WP01"], "WP03": ["WP02"]}
         manifests = {
-            "WP01": _manifest(["src/a/**"]),
-            "WP02": _manifest(["src/b/**"]),
-            "WP03": _manifest(["src/c/**"]),
+            "WP01": _manifest(["src/core/**"]),
+            "WP02": _manifest(["src/core/api/**"]),
+            "WP03": _manifest(["src/core/api/routes/**"]),
         }
         result = compute_lanes(graph, manifests, "test-feat")
+        assert len(result.lanes) == 1
         assert result.lanes[0].wp_ids == ("WP01", "WP02", "WP03")
 
     def test_parallel_groups_independent_lanes(self):
@@ -286,15 +306,7 @@ class TestLaneOrdering:
 class TestLaneLevelDependencies:
     def test_lane_deps_from_write_scope_grouping(self):
         """Lane B depends on Lane A when a WP in B depends on a WP in A
-        and they ended up in different lanes (via write-scope grouping only).
-
-        Note: with rule 1 (deps → same lane), inter-lane deps only arise
-        when WPs are in the same lane due to overlap with a THIRD WP,
-        creating a scenario where the dep chain crosses lanes indirectly.
-
-        In practice with rule 1, all directly-dependent WPs are in the same
-        lane, so lane-level deps are empty unless overlap grouping causes
-        indirect separation. This test verifies the no-lane-deps case.
+        and they ended up in different lanes.
         """
         # A→B, C→D — two independent chains, no overlap
         graph = {
@@ -310,9 +322,23 @@ class TestLaneLevelDependencies:
             "WP04": _manifest(["src/d/**"]),
         }
         result = compute_lanes(graph, manifests, "test-feat")
-        assert len(result.lanes) == 2
-        for lane in result.lanes:
-            assert lane.depends_on_lanes == ()
+        assert len(result.lanes) == 4
+        by_wp = {lane.wp_ids[0]: lane for lane in result.lanes}
+        assert by_wp["WP02"].depends_on_lanes == (by_wp["WP01"].lane_id,)
+        assert by_wp["WP04"].depends_on_lanes == (by_wp["WP03"].lane_id,)
+
+    def test_lanes_are_ordered_by_dependency_depth(self):
+        """Persisted lane order keeps upstream lanes before downstream lanes."""
+        graph = {"WP01": ["WP02"], "WP02": []}
+        manifests = {
+            "WP01": _manifest(["src/downstream/**"]),
+            "WP02": _manifest(["src/upstream/**"]),
+        }
+        result = compute_lanes(graph, manifests, "test-feat")
+
+        assert result.lanes[0].wp_ids == ("WP02",)
+        assert result.lanes[1].wp_ids == ("WP01",)
+        assert result.lanes[1].depends_on_lanes == (result.lanes[0].lane_id,)
 
 
 # ---------------------------------------------------------------------------
@@ -534,8 +560,8 @@ class TestPlanningArtifactDiagnostic:
 
 
 class TestCollapseEvents:
-    def test_dependency_rule_records_event(self):
-        """Dep-based merge → CollapseEvent with rule='dependency'."""
+    def test_disjoint_dependency_records_no_collapse_event(self):
+        """Dependency-only edges become lane dependencies, not collapse events."""
         graph = {"WP01": [], "WP02": ["WP01"]}
         manifests = {
             "WP01": _manifest(["src/a/**"]),
@@ -543,22 +569,22 @@ class TestCollapseEvents:
         }
         result = compute_lanes(graph, manifests, "test-feat")
         assert result.collapse_report is not None
-        rules = [e.rule for e in result.collapse_report.events]
-        assert "dependency" in rules
-        dep_events = [e for e in result.collapse_report.events if e.rule == "dependency"]
-        assert any(e.wp_a == "WP02" and e.wp_b == "WP01" for e in dep_events)
+        assert result.collapse_report.events == []
+        by_wp = {lane.wp_ids[0]: lane for lane in result.lanes}
+        assert by_wp["WP02"].depends_on_lanes == (by_wp["WP01"].lane_id,)
 
-    def test_dependency_event_evidence_format(self):
-        """Dependency event evidence is '{wp_id} depends on {dep}'."""
+    def test_overlap_event_evidence_includes_dependency_when_present(self):
+        """Overlap collapse evidence includes direct dependency context."""
         graph = {"WP01": [], "WP02": ["WP01"]}
         manifests = {
-            "WP01": _manifest(["src/a/**"]),
-            "WP02": _manifest(["src/b/**"]),
+            "WP01": _manifest(["src/core/**"]),
+            "WP02": _manifest(["src/core/api/**"]),
         }
         result = compute_lanes(graph, manifests, "test-feat")
         assert result.collapse_report is not None
-        dep_events = [e for e in result.collapse_report.events if e.rule == "dependency"]
-        assert dep_events[0].evidence == "WP02 depends on WP01"
+        ws_events = [e for e in result.collapse_report.events if e.rule == "write_scope_overlap"]
+        assert len(ws_events) == 1
+        assert "WP02 depends on WP01" in ws_events[0].evidence
 
     def test_write_scope_rule_records_event(self):
         """Overlap-based merge → CollapseEvent with rule='write_scope_overlap'."""
@@ -642,7 +668,7 @@ class TestCollapseEvents:
         assert result.collapse_report.independent_wps_collapsed == 0
 
     def test_no_duplicate_events_for_same_pair(self):
-        """When Rule 1 and Rule 2 both fire for the same pair, only one event is recorded per trigger."""
+        """Dependency plus overlap records one collapse event for the pair."""
         graph = {"WP01": [], "WP02": ["WP01"]}
         manifests = {
             "WP01": _manifest(["src/core/**"]),
@@ -651,11 +677,10 @@ class TestCollapseEvents:
         result = compute_lanes(graph, manifests, "test-feat")
         assert result.collapse_report is not None
         dep_events = [e for e in result.collapse_report.events if e.rule == "dependency"]
-        # Only one dep event for WP02→WP01
-        assert len(dep_events) == 1
-        # Rule 2 fires but uf.find(WP01) == uf.find(WP02) already → no write_scope event
+        assert len(dep_events) == 0
         ws_events = [e for e in result.collapse_report.events if e.rule == "write_scope_overlap"]
-        assert len(ws_events) == 0
+        assert len(ws_events) == 1
+        assert "WP02 depends on WP01" in ws_events[0].evidence
 
 
 # ---------------------------------------------------------------------------

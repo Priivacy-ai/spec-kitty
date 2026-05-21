@@ -1,3 +1,5 @@
+> Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.x](../3x/index.md) for current docs.
+
 # 1.x Documentation (Legacy Track)
 
 `1.x` is deprecated overall and now retained only as `1.x-maintenance` for critical maintenance work.

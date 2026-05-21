@@ -9,6 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0rc23] - 2026-05-21
+
+Rolls up the autonomous-runtime safety sweep needed before the 3.2.0
+stable cut, plus the documentation and CI guardrails merged after rc22.
+The candidate focuses on removing operator-required workarounds from
+fully autonomous local missions.
+
+- Closes `#1255`: retrospective files written by `retrospect create`
+  are now accepted by `retrospect synthesize`, with regression coverage
+  for both dry-run and apply flows.
+- Closes `#1256`: decisions deferred during planning can be resolved
+  cleanly at terminus, and `decision verify` no longer reports resolved
+  clarification markers as drift.
+- Closes `#1235` and `#1257`: task finalization rejects
+  `kitty-specs/` paths in WP `owned_files` with a clear WP/path error,
+  while bulk-edit preflight treats WPs that author planning artifacts
+  such as `occurrence_map.yaml` as informational.
+- Closes `#1236`: lane computation now preserves parallel lanes for
+  upstream WPs with disjoint `owned_files`; fan-in WPs remain the
+  synchronization point.
+- Closes `#1258`: autonomous local mission docs now include the
+  focused-PR fallback for `TARGET_BRANCH_NOT_SYNCHRONIZED` when local
+  `main` contains orchestration commits.
+- Adds the 3.2 documentation refresh, harness/install lifecycle pages,
+  docs freshness checks, drift-detector CI, canonical-producer linting,
+  acceptance-matrix extension preservation, and charter-context envelope
+  repair merged after rc22.
+
 ## [3.2.0rc22] - 2026-05-21
 
 Ships the `sync diagnose` canonical-allowlist fix so canary diagnostic
@@ -1165,6 +1193,51 @@ command and no new top-level runtime dependencies.
   `from charter import <name>`. See
   [architecture/2.x/05_ownership_map.md](architecture/2.x/05_ownership_map.md) for the full
   charter slice entry and the reference exemplar pattern. Closes #611.
+
+## [3.1.8] - 2026-04-29
+
+### Fixed
+
+- Dashboard feature polling now tolerates `/api/features` error responses and
+  malformed payloads without crashing on an undefined `features` array, so the
+  UI no longer gets stuck loading when feature scanning fails.
+- OpenCode global command installation now targets OpenCode's config command
+  directory, honoring `OPENCODE_CONFIG_DIR` and `XDG_CONFIG_HOME` before
+  falling back to `~/.config/opencode/commands`.
+
+## [3.1.7] - 2026-04-28
+
+### Fixed
+
+- Compact charter context now preserves charter section anchors, directive IDs,
+  and tactic IDs so follow-on agent prompts keep project charter rules in LLM
+  context after bootstrap load.
+- Review claims now enter the canonical `in_review` lane while still
+  recognizing legacy review-claim events, avoiding review-loop false blocks.
+- Merge completion now keeps post-merge status transitions stable and avoids
+  duplicate done/approved emissions.
+- `spec-kitty intake` now caps oversized plan files, ignores out-of-repo and
+  symlinked auto-detected plans, and writes mission brief/provenance files
+  atomically.
+- `auth refresh` now treats `HTTP 401` responses with `invalid_grant` or
+  `session_invalid` error codes like `HTTP 400`, and clears locally stored
+  sessions after server-side refresh rejection.
+- Local dashboard mission selectors now sort by mission recency instead of
+  lexical slug order.
+- `agent config list/status/add/sync/remove` now respects global command roots
+  for slash-command agents and avoids recreating retired project-local command
+  directories.
+- Status event readers now ignore non-lane mission events in
+  `status.events.jsonl` while still failing loudly for malformed lane events.
+- Sync shutdown diagnostics are deduplicated within a process and suppressed
+  after successful JSON mission creation.
+
+### Changed
+
+- `spec-kitty-tracker` is pinned to `0.4.3` for the latest tracker-side
+  stability fixes.
+- The local `.python-version` pin now uses `3.13` instead of a patch-specific
+  interpreter version.
 
 ## [3.1.6] - 2026-04-20
 

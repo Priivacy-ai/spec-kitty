@@ -28,6 +28,7 @@ from pydantic import BaseModel, ConfigDict
 from specify_cli.retrospective.reader import (
     SchemaError,
     YAMLParseError,
+    read_gen_record,
     read_record,
 )
 from specify_cli.retrospective.schema import MissionId
@@ -389,6 +390,39 @@ def build_summary(
         try:
             record = read_record(retro_path)
         except (YAMLParseError, SchemaError) as exc:
+            try:
+                gen_record = read_gen_record(retro_path)
+            except (YAMLParseError, SchemaError):
+                pass
+            else:
+                if since is not None:
+                    try:
+                        created_dt = datetime.fromisoformat(gen_record.created_at)
+                        if created_dt.date() < since:
+                            continue
+                    except (ValueError, AttributeError):
+                        pass
+
+                mission_count += 1
+                completed_count += 1
+
+                for finding in gen_record.not_helpful:
+                    not_helpful_counter[f"retrospective:not_helpful:{finding.category}"] += 1
+
+                for finding in gen_record.gaps:
+                    if finding.category == "doc":
+                        missing_terms_counter[finding.summary] += 1
+                    elif finding.category == "spec_quality":
+                        under_inclusion_counter[f"retrospective:gaps:{finding.category}"] += 1
+
+                total_proposals += len(gen_record.proposals)
+                pending_proposals += len(gen_record.proposals)
+
+                slug = gen_record.mission_slug
+                gen_evt, app_evt, rej_evt = _read_proposal_events(project_path, slug)
+                _ = (gen_evt, app_evt, rej_evt)
+                continue
+
             # Try to extract mission_id from raw YAML for the error entry
             try:
                 from ruamel.yaml import YAML as _YAML

@@ -101,6 +101,9 @@ nodes:
 - urn: directive:DIRECTIVE_039
   kind: directive
   label: Lynn Cole Engineering Culture
+- urn: directive:DIRECTIVE_040
+  kind: directive
+  label: Recurring-Bug Structural-Intervention Discipline
 - urn: paradigm:anemic-domain-model
   kind: paradigm
 - urn: paradigm:atomic-design
@@ -273,6 +276,9 @@ nodes:
 - urn: tactic:forensic-repository-audit
   kind: tactic
   label: Forensic Repository Audit
+- urn: tactic:five-paradigm-parallel-debugging
+  kind: tactic
+  label: Five-Paradigm Parallel Debugging
 - urn: tactic:focused-function-complexity-check
   kind: tactic
   label: Focused Function Complexity Check
@@ -540,6 +546,9 @@ nodes:
 - urn: agent_profile:curator-carla
   kind: agent_profile
   label: Curator Carla
+- urn: agent_profile:debugger-debbie
+  kind: agent_profile
+  label: Debugger Debbie
 - urn: agent_profile:designer-dagmar
   kind: agent_profile
   label: Designer Dagmar
@@ -969,6 +978,15 @@ edges:
   relation: requires
 - source: directive:DIRECTIVE_039
   target: tactic:generated-code-stewardship
+  relation: requires
+- source: directive:DIRECTIVE_040
+  target: directive:DIRECTIVE_003
+  relation: requires
+- source: directive:DIRECTIVE_040
+  target: directive:DIRECTIVE_030
+  relation: requires
+- source: directive:DIRECTIVE_040
+  target: tactic:five-paradigm-parallel-debugging
   relation: requires
 - source: paradigm:atomic-design
   target: tactic:atomic-design-review-checklist
@@ -1550,6 +1568,18 @@ edges:
 - source: tactic:forensic-repository-audit
   target: directive:DIRECTIVE_001
   relation: suggests
+- source: tactic:five-paradigm-parallel-debugging
+  target: agent_profile:debugger-debbie
+  relation: suggests
+  when: Use the persona when the investigation should be run as an explicit agent identity.
+- source: tactic:five-paradigm-parallel-debugging
+  target: tactic:code-review-incremental
+  relation: suggests
+  when: Apply during convergence synthesis before writing the structural fix plan.
+- source: tactic:five-paradigm-parallel-debugging
+  target: tactic:review-intent-and-risk-first
+  relation: suggests
+  when: Evaluate whether the structural fix plan closes the class and what blast radius it carries.
 - source: directive:DIRECTIVE_035
   target: tactic:occurrence-classification-workflow
   relation: requires
@@ -1885,6 +1915,34 @@ edges:
   target: tactic:analysis-extract-before-interpret
   relation: requires
   when: Separating observations from judgments in review feedback
+
+# debugger agent profile
+- source: agent_profile:debugger-debbie
+  target: directive:DIRECTIVE_001
+  relation: requires
+- source: agent_profile:debugger-debbie
+  target: directive:DIRECTIVE_003
+  relation: requires
+- source: agent_profile:debugger-debbie
+  target: directive:DIRECTIVE_030
+  relation: requires
+- source: agent_profile:debugger-debbie
+  target: directive:DIRECTIVE_032
+  relation: requires
+- source: agent_profile:debugger-debbie
+  target: directive:DIRECTIVE_040
+  relation: requires
+- source: agent_profile:debugger-debbie
+  target: tactic:five-paradigm-parallel-debugging
+  relation: requires
+- source: agent_profile:debugger-debbie
+  target: tactic:code-review-incremental
+  relation: suggests
+  when: Review each paradigm verdict before convergence synthesis.
+- source: agent_profile:debugger-debbie
+  target: tactic:review-intent-and-risk-first
+  relation: suggests
+  when: Evaluate the structural fix plan before handoff to the implementer.
 
 # review action scope edges for new reviewer tactics
 - source: action:software-dev/review

@@ -9,6 +9,7 @@ with the language name) extend the base `implementer-ivan` role for polyglot pro
 |------|------------|------|
 | `architect-alphonso.agent.yaml` | `architect-alphonso` | architect |
 | `curator-carla.agent.yaml` | `curator-carla` | curator |
+| `debugger-debbie.agent.yaml` | `debugger-debbie` | investigator |
 | `designer-dagmar.agent.yaml` | `designer-dagmar` | designer |
 | `generic-agent.agent.yaml` | `generic-agent` | implementer |
 | `human-in-charge.agent.yaml` | `human-in-charge` | human-in-charge |

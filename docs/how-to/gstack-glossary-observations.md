@@ -91,11 +91,11 @@ produce no `glossary_checked` line.
 Readers that encounter `"event": "glossary_checked"` in a trail file and do not
 recognise the event type may safely skip it.
 
-See [Trail Model — Glossary Check Event](../trail-model.md#glossary-check-event-conditional-tier-1)
+See [Trail Model — Glossary Check Event](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/trail-model.md#glossary-check-event-conditional-tier-1)
 for the full event schema.
 
 ## See Also
 
 - [Set Up a Codex Launcher for Spec Kitty](setup-codex-spec-kitty-launcher.md)
-- [Trail Model](../trail-model.md)
+- [Trail Model](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/trail-model.md)
 - [CLI Commands](../reference/cli-commands.md)

@@ -293,7 +293,7 @@ apply the following rendering contract:
 
 A `glossary_checked` event is appended to the Tier 1 JSONL trail **only** when
 `all_conflicts` is non-empty OR `error_msg` is set. Clean invocations produce no
-`glossary_checked` line. See [Trail Model](../trail-model.md) for the full event
+`glossary_checked` line. See [Trail Model](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/trail-model.md) for the full event
 taxonomy.
 
 ## Command Reference

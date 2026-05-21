@@ -1,19 +1,15 @@
-"""WP01/T005 — Dependent-WP scheduler regression pin (FR-005).
+"""Dependent-WP lane dependency regression pins.
 
-A WP that depends on another WP must land in a lane whose base contains the
-dependency, OR sequentially in the same lane. The simplest correct rule is:
-if WPb has any depends_on entry, place it in the lane that already holds the
-latest dependency, sequentially after that dependency.
+A WP that depends on another WP must either share a lane because their write
+scopes overlap, or carry an explicit lane-level dependency when their write
+scopes are disjoint.
 
 These tests pin that contract against ``compute_lanes`` so a future refactor
 cannot quietly fan out a dependent WP into a parallel lane whose base does not
 contain the dependency.
 
-Negative case: every dependency edge of every WP must live in the same
-ExecutionLane as that WP — no cross-lane dependency edges are tolerated for
-code WPs. (Lane-planning lanes are intentionally separate; they only carry
-planning-artifact WPs and never appear as dependencies of code WPs in fixtures
-that use this contract.)
+Negative case: every cross-lane WP dependency must be represented in
+``depends_on_lanes`` so the downstream lane cannot run before its upstreams.
 """
 
 from __future__ import annotations
@@ -44,14 +40,10 @@ def _wp_to_lane(result) -> dict[str, str]:
 
 
 class TestDependentWpScheduler:
-    """The planner must place WPb in the same lane as its dependency WPa."""
+    """The planner must sequence dependent lanes without unnecessary collapse."""
 
-    def test_simple_dependency_lands_in_same_lane(self):
-        """WPa -> WPb: planner must place them in the same lane in dep order.
-
-        This is the core contract of FR-005. Dependent WPs cannot be split
-        across lanes whose bases do not include each other.
-        """
+    def test_simple_dependency_creates_lane_dependency(self):
+        """WPa -> WPb with disjoint ownership: separate lanes, ordered by dep."""
         graph = {"WPa": [], "WPb": ["WPa"]}
         manifests = {
             "WPa": _manifest(["src/a/**"]),
@@ -60,20 +52,13 @@ class TestDependentWpScheduler:
         result = compute_lanes(graph, manifests, "test-feat")
 
         wp_to_lane = _wp_to_lane(result)
-        assert wp_to_lane["WPa"] == wp_to_lane["WPb"], (
-            f"WPb depends on WPa but landed in a different lane "
-            f"({wp_to_lane['WPa']!r} vs {wp_to_lane['WPb']!r}). "
-            "This regresses FR-005."
-        )
+        assert wp_to_lane["WPa"] != wp_to_lane["WPb"]
+        wpb_lane = next(ln for ln in result.lanes if ln.lane_id == wp_to_lane["WPb"])
+        assert wpb_lane.depends_on_lanes == (wp_to_lane["WPa"],)
+        assert wpb_lane.parallel_group == 1
 
-        same_lane = next(ln for ln in result.lanes if ln.lane_id == wp_to_lane["WPa"])
-        assert same_lane.wp_ids.index("WPa") < same_lane.wp_ids.index("WPb"), (
-            "Dependency order must be preserved within the lane "
-            f"(got: {same_lane.wp_ids})."
-        )
-
-    def test_dependency_chain_lands_in_one_lane(self):
-        """WPa -> WPb -> WPc: a transitive chain stays in a single lane."""
+    def test_dependency_chain_creates_ordered_lanes(self):
+        """WPa -> WPb -> WPc with disjoint ownership: depth 0, 1, 2."""
         graph = {"WPa": [], "WPb": ["WPa"], "WPc": ["WPb"]}
         manifests = {
             "WPa": _manifest(["src/a/**"]),
@@ -82,7 +67,11 @@ class TestDependentWpScheduler:
         }
         result = compute_lanes(graph, manifests, "test-feat")
         wp_to_lane = _wp_to_lane(result)
-        assert wp_to_lane["WPa"] == wp_to_lane["WPb"] == wp_to_lane["WPc"]
+        assert wp_to_lane["WPa"] != wp_to_lane["WPb"] != wp_to_lane["WPc"]
+        by_lane = {lane.lane_id: lane for lane in result.lanes}
+        assert by_lane[wp_to_lane["WPb"]].depends_on_lanes == (wp_to_lane["WPa"],)
+        assert by_lane[wp_to_lane["WPc"]].depends_on_lanes == (wp_to_lane["WPb"],)
+        assert by_lane[wp_to_lane["WPc"]].parallel_group == 2
 
     def test_independent_wps_can_fan_out(self):
         """WPa and WPb with no dep relationship and disjoint scopes → parallel."""
@@ -101,15 +90,8 @@ class TestDependentWpScheduler:
             "fan-out for genuinely independent work."
         )
 
-    def test_no_cross_lane_dependency_edges(self):
-        """For every WP, every dependency must be in the same lane.
-
-        This is the *negative* case from the WP description: the planner must
-        never place a dependent WP into a lane whose base does not contain its
-        dependency. Because ``compute_lanes`` materializes lanes from a single
-        target_branch, the only way to honor "lane(b)'s base contains lane(a)'s
-        tip" is to put them in the same lane. We assert that invariant here.
-        """
+    def test_cross_lane_dependency_edges_are_explicit(self):
+        """For every cross-lane WP dependency, the lane has a dependency edge."""
         graph = {
             "WPa": [],
             "WPb": ["WPa"],
@@ -124,14 +106,13 @@ class TestDependentWpScheduler:
         }
         result = compute_lanes(graph, manifests, "test-feat")
         wp_to_lane = _wp_to_lane(result)
+        lanes_by_id = {lane.lane_id: lane for lane in result.lanes}
 
         for wp_id, deps in graph.items():
             for dep in deps:
-                assert wp_to_lane[wp_id] == wp_to_lane[dep], (
-                    f"Cross-lane dependency edge: {wp_id} (lane {wp_to_lane[wp_id]}) "
-                    f"depends on {dep} (lane {wp_to_lane[dep]}). The planner must "
-                    "place dependent WPs in the same lane to satisfy FR-005."
-                )
+                if wp_to_lane[wp_id] == wp_to_lane[dep]:
+                    continue
+                assert wp_to_lane[dep] in lanes_by_id[wp_to_lane[wp_id]].depends_on_lanes
 
         # And the two independent chains should still fan out.
         assert wp_to_lane["WPa"] != wp_to_lane["WPc"], (

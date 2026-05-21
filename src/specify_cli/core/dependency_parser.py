@@ -42,7 +42,9 @@ from collections.abc import Iterator
 
 _WP_ID_TITLE = re.compile(r"^(?:Work Package\s+)?(?P<wp_id>WP\d{2})(?:\b|:)")
 _WORK_PACKAGE_PREFIX = "Work Package "
-_METADATA_FIELD_PREFIX = r"(?:^\s*(?:[-*]\s*)?|\|\s*)"
+_METADATA_LINE_PREFIX = r"^\s*(?:[-*]\s*)?"
+_METADATA_PIPE_PREFIX = r"\|\s*"
+_DEPS_COLON_VALUE_PATTERN = r"\*?\*?Dependencies\*?\*?\s*:\s*(?P<value>[^|\n]*)"
 
 # Matches any top-level ## heading (exactly two #s).  Used by _split_wp_sections
 # to find the stop boundary for the final WP section.  Sub-headings (### or
@@ -154,10 +156,16 @@ _DEPENDS_ON = re.compile(
 
 # Explicit-declaration format only (not prose inference).
 # Pattern 2: "**Dependencies**: WP01" / "Dependencies: WP01, WP02"
-# Matches a declaration field at the start of a line or after a pipe delimiter.
-_DEPS_COLON = re.compile(
-    _METADATA_FIELD_PREFIX + r"\*?\*?Dependencies\*?\*?\s*:\s*(?P<value>[^|\n]*)",
-    re.IGNORECASE | re.MULTILINE,
+# Match either a standalone declaration line or a pipe-delimited metadata field.
+_DEPS_COLON_PATTERNS = (
+    re.compile(
+        _METADATA_LINE_PREFIX + _DEPS_COLON_VALUE_PATTERN,
+        re.IGNORECASE | re.MULTILINE,
+    ),
+    re.compile(
+        _METADATA_PIPE_PREFIX + _DEPS_COLON_VALUE_PATTERN,
+        re.IGNORECASE,
+    ),
 )
 
 # Explicit-declaration format only (not prose inference).
@@ -221,7 +229,15 @@ def _parse_section_deps(section_content: str) -> list[str]:
 
     # Pattern 2 — "**Dependencies**: WP01, WP02"
     # Skip lines that are *only* a heading (those are Pattern 3 territory).
-    for match in _DEPS_COLON.finditer(section_content):
+    colon_matches = sorted(
+        (
+            match
+            for pattern in _DEPS_COLON_PATTERNS
+            for match in pattern.finditer(section_content)
+        ),
+        key=lambda match: match.start(),
+    )
+    for match in colon_matches:
         line = match.group(0)
         # If the line also matches _DEPS_HEADING it is a bullet-list heading —
         # don't double-count it here.

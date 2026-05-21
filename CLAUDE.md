@@ -34,7 +34,7 @@ src/specify_cli/missions/*/command-templates/*.md  (SOURCE - edit here!)
 
 ## Supported AI Agents
 
-Spec Kitty supports **15 AI agents** total: 13 use the slash-command pipeline (Amazon Q/`q` retained as legacy alongside its rebrand Kiro) and 2 use the Agent Skills pipeline. When adding features that affect slash commands, migrations, or templates, ensure all command-layer agents are updated.
+Spec Kitty supports **17 AI agents** total: 13 use the slash-command pipeline (Amazon Q/`q` retained as legacy alongside its rebrand Kiro) and 4 use the Agent Skills pipeline. When adding features that affect slash commands, migrations, or templates, ensure all command-layer agents are updated.
 
 ### Slash-Command Agents (13)
 
@@ -54,14 +54,16 @@ Spec Kitty supports **15 AI agents** total: 13 use the slash-command pipeline (A
 | Kiro | `.kiro/` | `prompts/` | `/spec-kitty.*` |
 | Google Antigravity | `.agent/` | `workflows/` | `/spec-kitty.*` |
 
-### Agent Skills Agents (2)
+### Agent Skills Agents (4)
 
 | Agent | Skills Root | Command Surface | Key |
 |-------|-------------|-----------------|-----|
 | Codex CLI | `.agents/skills/` | `$spec-kitty.<command>` | `codex` |
 | Mistral Vibe | `.agents/skills/` via `.vibe/config.toml` `skill_paths` | `/spec-kitty.<command>` | `vibe` |
+| Pi | `.agents/skills/` | `/skill:spec-kitty.<command>` | `pi` |
+| Letta Code | `.agents/skills/` | Agent Skills | `letta` |
 
-Codex and Vibe share a single installation under `.agents/skills/spec-kitty.<command>/SKILL.md`. Codex reads that tree directly; Vibe is configured to read it via `.vibe/config.toml`. The manifest at `.kittify/command-skills-manifest.json` tracks which agents reference each skill package.
+Codex, Vibe, Pi, and Letta share a single installation under `.agents/skills/spec-kitty.<command>/SKILL.md`. Codex, Pi, and Letta read that tree directly; Vibe is configured to read it via `.vibe/config.toml`. The manifest at `.kittify/command-skills-manifest.json` tracks which agents reference each skill package.
 
 **New modules (mission 083):**
 - `src/specify_cli/skills/command_renderer.py` — renders source templates into Agent Skills format
