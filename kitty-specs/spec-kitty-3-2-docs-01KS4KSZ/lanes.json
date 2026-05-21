@@ -1,0 +1,180 @@
+{
+  "version": 1,
+  "mission_slug": "spec-kitty-3-2-docs-01KS4KSZ",
+  "mission_id": "01KS4KSZ67PMNRJ057BGT0Z8AW",
+  "mission_branch": "kitty/mission-spec-kitty-3-2-docs-01KS4KSZ",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06",
+        "WP07",
+        "WP08",
+        "WP09",
+        "WP10",
+        "WP11",
+        "WP12",
+        "WP13",
+        "WP14"
+      ],
+      "write_scope": [
+        ".github/workflows/docs-freshness.yml",
+        "docs/development/3-2-archive-migration-plan.md",
+        "docs/development/3-2-cli-reference-audit-meta-issues.md",
+        "docs/development/3-2-cli-reference-methodology.md",
+        "docs/development/3-2-harness-research-method.md",
+        "docs/development/3-2-information-architecture.md",
+        "docs/development/3-2-navigation-plan.md",
+        "docs/development/3-2-page-inventory.yaml",
+        "docs/development/3-2-publication-checklist.md",
+        "docs/development/3-2-version-taxonomy.md",
+        "docs/explanation/pip-vs-pipx-vs-uv.md",
+        "docs/how-to/harnesses/**",
+        "docs/how-to/install-linux.md",
+        "docs/how-to/install-macos.md",
+        "docs/how-to/install-windows.md",
+        "docs/how-to/uninstall.md",
+        "docs/how-to/upgrade-cli.md",
+        "docs/how-to/upgrade-project.md",
+        "docs/reference/agent-subcommands.md",
+        "docs/reference/cli-commands.md",
+        "docs/reference/init-lifecycle.md",
+        "docs/reference/supported-harnesses.md",
+        "docs/reference/upgrade-lifecycle.md",
+        "kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/occurrence_map.yaml",
+        "scripts/docs/__init__.py",
+        "scripts/docs/_inventory.py",
+        "scripts/docs/_render.py",
+        "scripts/docs/_typer_walker.py",
+        "scripts/docs/build_cli_reference.py",
+        "scripts/docs/check_cli_reference_freshness.py",
+        "scripts/docs/check_docs_freshness.py",
+        "scripts/docs/version_leakage_check.py",
+        "tests/architectural/test_docs_cli_reference_parity.py",
+        "tests/docs/__init__.py",
+        "tests/docs/conftest.py",
+        "tests/docs/fixtures/__init__.py",
+        "tests/docs/fixtures/clean_inventory.yaml",
+        "tests/docs/fixtures/dirty_inventory.yaml",
+        "tests/docs/fixtures/missing_inventory.yaml",
+        "tests/docs/fixtures/sample_cli_reference.md",
+        "tests/docs/fixtures/sample_cli_reference_extra.md",
+        "tests/docs/fixtures/sample_cli_reference_missing.md",
+        "tests/docs/fixtures/sample_cli_reference_no_saas.md",
+        "tests/docs/fixtures/sample_pages/**",
+        "tests/docs/test_build_cli_reference.py",
+        "tests/docs/test_check_cli_reference_freshness.py",
+        "tests/docs/test_check_docs_freshness.py",
+        "tests/docs/test_version_leakage_check.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-05-21T07:00:56.893633+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP02"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP02"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP05",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP05"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP06",
+        "rule": "dependency",
+        "evidence": "WP07 depends on WP06"
+      },
+      {
+        "wp_a": "WP08",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP08 depends on WP02"
+      },
+      {
+        "wp_a": "WP08",
+        "wp_b": "WP05",
+        "rule": "dependency",
+        "evidence": "WP08 depends on WP05"
+      },
+      {
+        "wp_a": "WP09",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP09 depends on WP02"
+      },
+      {
+        "wp_a": "WP11",
+        "wp_b": "WP10",
+        "rule": "dependency",
+        "evidence": "WP11 depends on WP10"
+      },
+      {
+        "wp_a": "WP13",
+        "wp_b": "WP04",
+        "rule": "dependency",
+        "evidence": "WP13 depends on WP04"
+      },
+      {
+        "wp_a": "WP14",
+        "wp_b": "WP07",
+        "rule": "dependency",
+        "evidence": "WP14 depends on WP07"
+      },
+      {
+        "wp_a": "WP14",
+        "wp_b": "WP11",
+        "rule": "dependency",
+        "evidence": "WP14 depends on WP11"
+      },
+      {
+        "wp_a": "WP14",
+        "wp_b": "WP12",
+        "rule": "dependency",
+        "evidence": "WP14 depends on WP12"
+      }
+    ],
+    "total_merges": 13,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 13
+    }
+  }
+}

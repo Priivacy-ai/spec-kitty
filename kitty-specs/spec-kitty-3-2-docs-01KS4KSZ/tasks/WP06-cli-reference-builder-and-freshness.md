@@ -8,7 +8,7 @@ requirement_refs:
 - NFR-001
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: lane-based; one worktree per lane allocated at implement time
+branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T016
 - T017
@@ -18,7 +18,7 @@ subtasks:
 agent: claude
 history:
 - actor: planner
-  at: 2026-05-21T06:52:04Z
+  at: '2026-05-21T06:52:04Z'
   action: wp_authored
   notes: Initial authorship by tasks phase.
 agent_profile: python-pedro
