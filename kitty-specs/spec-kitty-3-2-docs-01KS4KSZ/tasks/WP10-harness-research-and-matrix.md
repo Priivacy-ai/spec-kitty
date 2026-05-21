@@ -15,7 +15,8 @@ subtasks:
 - T030
 - T031
 - T032
-agent: claude
+agent: "claude:opus-4-7:researcher-robbie:researcher"
+shell_pid: "263"
 history:
 - actor: planner
   at: '2026-05-21T06:52:04Z'
@@ -125,3 +126,7 @@ Create `docs/reference/supported-harnesses.md` with:
 ```bash
 spec-kitty agent action implement WP10 --agent claude
 ```
+
+## Activity Log
+
+- 2026-05-21T08:47:42Z – claude:opus-4-7:researcher-robbie:researcher – shell_pid=263 – Started implementation via action command
