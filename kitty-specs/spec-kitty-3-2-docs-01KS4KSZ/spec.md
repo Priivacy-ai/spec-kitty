@@ -143,13 +143,31 @@ Canonical terms for this mission (avoid synonyms in spec, plan, tasks, and docs 
 
 ---
 
-## Open Questions (deferred via Decision Moments)
+## Open Questions (resolved with plan defaults during implement-review)
 
-[NEEDS CLARIFICATION: Whether the public 3.x docs expose 3.1 as a separately navigable supported version, or fold 3.1 pages into 3.2 as migration notes only.] <!-- decision_id: 01KS4KTGTN4DBE60JFWKEA2FJB -->
+The three open questions from the original brief were tracked via Decision
+Moments (01KS4KTGTN4DBE60JFWKEA2FJB / 01KS4KTM69EG2KVX5MQ54FQ939 /
+01KS4KTS4V300M9MMTS1AJEGXY) and recorded as `deferred` during the planning
+phase. During implement-review they were resolved with the plan defaults
+documented in `plan.md` and `research.md`. The original decision records
+remain in `decisions/` for audit.
 
-[NEEDS CLARIFICATION: Whether the CLI reference is hand-maintained markdown, fully generator-backed with a committed script and freshness test, or hybrid (generated body with hand-authored prose).] <!-- decision_id: 01KS4KTM69EG2KVX5MQ54FQ939 -->
-
-[NEEDS CLARIFICATION: Which AI harnesses ship as first-class vs supported vs opportunistic for 3.2, and whether the per-harness page set is canonical or only the support matrix is.] <!-- decision_id: 01KS4KTS4V300M9MMTS1AJEGXY -->
+- **3.1 classification** (decision_id `01KS4KTGTN4DBE60JFWKEA2FJB`) →
+  **Resolved with plan default**: 3.1 pages fold into 3.2 as migration notes
+  only. No separate `3.1 (supported)` nav group. Implemented across WP02
+  inventory (12 migration rows, 0 supported rows), WP03 navigation plan, and
+  WP09 archive/migration plan.
+- **CLI reference generation mode** (decision_id `01KS4KTM69EG2KVX5MQ54FQ939`) →
+  **Resolved with plan default**: Hybrid (generated body with hand-authored
+  prose). Implemented in WP06 (`build_cli_reference.py --mode hybrid` with
+  `<!-- BEGIN/END GENERATED -->` markers) and WP07 (initial rebuild ran
+  `--mode hybrid --force`; subsequent runs preserve outside-marker prose).
+- **Harness support tiers** (decision_id `01KS4KTS4V300M9MMTS1AJEGXY`) →
+  **Resolved with plan default**: Matrix-first; promote per-harness pages
+  based on classification. WP10 produces the 5-tier matrix
+  (`docs/reference/supported-harnesses.md`: first_class=2 / supported=10 /
+  partial=2 / experimental=1 / archived=1). WP11 author one setup-and-usage
+  page per harness classified `partial` or higher (14 pages).
 
 ---
 
