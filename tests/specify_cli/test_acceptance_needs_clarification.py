@@ -56,6 +56,17 @@ def test_needs_clarification_flags_malformed_decision_marker(tmp_path: Path) -> 
     assert _check_needs_clarification([artifact]) == [str(artifact)]
 
 
+def test_needs_clarification_handles_long_non_matching_line(tmp_path: Path) -> None:
+    """Long prose near the marker syntax should not require regex backtracking."""
+    artifact = tmp_path / "spec.md"
+    artifact.write_text(
+        "[NEEDS CLARIFICATION: " + ("x" * 20000) + "] <!-- not-a-decision marker -->\n",
+        encoding="utf-8",
+    )
+
+    assert _check_needs_clarification([artifact]) == []
+
+
 def test_needs_clarification_ignores_closed_decision_marker(tmp_path: Path) -> None:
     """A stale marker for a closed decision no longer blocks acceptance."""
     decision_id = "01KS0ABCDEF0123456789ABCDE"

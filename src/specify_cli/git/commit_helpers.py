@@ -75,6 +75,7 @@ _PROTECTED_BRANCH_COMMIT_EXCEPTIONS = (
     "chore: release ",
     "release: ",
 )
+_MERGED_WP_DONE_COMMIT_SUFFIX = ": record done transitions for merged WPs"
 
 
 def _run_git_text(repo_path: Path, args: list[str]) -> str | None:
@@ -139,7 +140,9 @@ def assert_not_protected_branch(repo_path: Path, *, operation: str = "commit") -
 
 
 def _is_protected_branch_exception(commit_message: str) -> bool:
-    return commit_message.startswith(_PROTECTED_BRANCH_COMMIT_EXCEPTIONS)
+    return commit_message.startswith(_PROTECTED_BRANCH_COMMIT_EXCEPTIONS) or commit_message.endswith(
+        _MERGED_WP_DONE_COMMIT_SUFFIX
+    )
 
 
 def assert_staging_area_matches_expected(
