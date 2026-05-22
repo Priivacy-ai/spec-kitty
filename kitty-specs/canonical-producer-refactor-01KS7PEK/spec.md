@@ -28,8 +28,10 @@ the lint baseline.
   - `emit_project_initialized()`, `emit_mission_created_local()`,
     `emit_artifact_phase()`, `emit_wp_created_local()`: construct via
     canonical pydantic payload models (`spec_kitty_events.project_lifecycle`).
-  - Started/Completed split for `emit_artifact_phase`: refuse Completed-only
-    extras on Started events.
+  - Started/Completed split for `emit_artifact_phase`: refuse true
+    Completed-only extras on Started events while preserving local
+    `artifact_path` metadata for lifecycle replay; SaaS fan-out projects
+    Started payloads to the strict canonical wire shape.
 - `src/specify_cli/sync/emitter.py`
   - `emit_wp_status_changed`, `emit_wp_created`, `emit_wp_assigned`,
     `emit_build_registered`, `emit_build_heartbeat`, `emit_history_added`,
@@ -52,8 +54,7 @@ the lint baseline.
 
 - Any changes in `spec-kitty-events`, `spec-kitty-saas`,
   `spec-kitty-end-to-end-testing`.
-- Bumping `pyproject.toml` to a pinned `spec-kitty-events` version
-  (Phase 5 cross-repo bump).
+- Cross-repo SaaS release/pin bump and deployed-dev rollout (Phase 5).
 - The 4-run identity-boundary canary on deployed-dev (Phase 4/5).
 - `#1038` / `#1112` evidence comments (orchestrator).
 
@@ -70,13 +71,18 @@ the lint baseline.
    known event types. Local-only events may keep permissive behavior
    only if explicitly classified.
 4. The `emit_artifact_phase()` Started/Completed split rejects
-   Completed-only extras on Started variants.
+   Completed-only extras on Started variants. Local Started events still
+   retain `artifact_path` when known so mission replay can identify the
+   opened artifact; SaaS-bound lifecycle fan-out strips that local metadata
+   before strict canonical validation.
 5. `reset_handlers()` test-order pollution is fixed:
    `tests/status/test_emit_backward_transition.py` then
    `tests/status/test_lifecycle_events.py` passes deterministically.
 6. New producer conformance tests enumerate the actual `emit_*` paths,
-   capture each emitted envelope, and assert it passes strict canonical
-   validation via the Phase-1 `validate_event(..., strict=True)`.
+   capture each emitted envelope, and assert SaaS-bound payloads pass strict
+   canonical validation via the Phase-1 `validate_event(..., strict=True)`.
+   Transitional build lifecycle payloads validate the canonical subset while
+   preserving the legacy wire shape until the SaaS adapter lands.
 7. `scripts/canonical_producer_lint_baseline.txt` is materially reduced.
    Each remaining entry must (a) be in a local-only/internal/test-only
    path, (b) carry an inline `# canonical-producer-exempt: <issue-ref>

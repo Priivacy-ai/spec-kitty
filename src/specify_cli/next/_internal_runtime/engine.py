@@ -105,7 +105,7 @@ def _runtime_runs_dir(run_store: Path | None = None) -> Path:
 
 def _append_event(run_dir: Path, event_type: str, payload: dict[str, Any]) -> None:
     event_file = run_dir / "run.events.jsonl"
-    event = {  # canonical-producer-exempt: #1198 — internal runtime ``run.events.jsonl`` local-only log; payload arrives pre-built from canonical mission_next models in the caller
+    event = {
         "event_type": event_type,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "payload": payload,

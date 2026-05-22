@@ -43,6 +43,12 @@ def _strict_validate(event_type: str, payload: dict[str, Any]) -> None:
     )
 
 
+def _strict_validate_saas_projection(event_type: str, payload: dict[str, Any]) -> None:
+    from specify_cli.status.lifecycle_events import _canonical_lifecycle_payload_for_saas
+
+    _strict_validate(event_type, _canonical_lifecycle_payload_for_saas(event_type, payload))
+
+
 def test_emit_project_initialized_payload_passes_strict_validation(tmp_path: Path) -> None:
     from specify_cli.status.lifecycle_events import emit_project_initialized
 
@@ -99,7 +105,7 @@ def test_emit_artifact_phase_started_payload_passes_strict_validation(
         actor="cli",
     )
     assert envelope is not None
-    _strict_validate(event_type, envelope["payload"])
+    _strict_validate_saas_projection(event_type, envelope["payload"])
 
 
 def test_emit_artifact_phase_specify_completed_payload_passes_strict_validation(
@@ -162,20 +168,15 @@ def test_emit_artifact_phase_tasks_completed_payload_passes_strict_validation(
     _strict_validate("TasksCompleted", envelope["payload"])
 
 
-def test_emit_artifact_phase_started_rejects_completed_only_extras(
+def test_emit_artifact_phase_started_keeps_local_artifact_path_but_saas_projection_is_strict(
     tmp_path: Path,
 ) -> None:
-    """Dormant-mask fix (issue #1203): Started variants must reject
-    Completed-only payload extras."""
+    """Started events keep local artifact metadata without leaking it to SaaS."""
     from specify_cli.status.lifecycle_events import emit_artifact_phase
 
     feature_dir = tmp_path / "kitty-specs" / "demo-mission"
     feature_dir.mkdir(parents=True)
 
-    # ``artifact_path`` is a Completed-only extra; the producer must drop
-    # it on Started variants so the canonical model's ``extra="forbid"``
-    # does not even see it. The producer succeeds and the payload does
-    # NOT contain artifact_path.
     envelope = emit_artifact_phase(
         feature_dir,
         event_type="SpecifyStarted",
@@ -184,7 +185,8 @@ def test_emit_artifact_phase_started_rejects_completed_only_extras(
         artifact_path="kitty-specs/demo-mission/spec.md",
     )
     assert envelope is not None
-    assert "artifact_path" not in envelope["payload"]
+    assert envelope["payload"]["artifact_path"] == "kitty-specs/demo-mission/spec.md"
+    _strict_validate_saas_projection("SpecifyStarted", envelope["payload"])
 
 
 def test_emit_wp_created_local_payload_passes_strict_validation(tmp_path: Path) -> None:

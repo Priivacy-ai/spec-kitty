@@ -125,11 +125,13 @@ if result.model_violations or result.schema_violations:
 ### `emit_artifact_phase` Started/Completed split
 
 Started events (`SpecifyStarted`, `PlanStarted`, `TasksStarted`) must
-reject Completed-only extras (`artifact_path`, `summary`, `wp_count`).
-The cleanest approach: refuse to populate them in the payload at all
-when `event_type.endswith("Started")`. The canonical pydantic models
-(`SpecifyStartedPayload` etc.) already enforce this; we just need to
-not pass the extras through.
+reject true Completed-only extras (`summary`, `wp_count`) while preserving
+local `artifact_path` when callers know which artifact has been opened.
+That path is local lifecycle metadata used by mission replay and dashboards,
+not part of the canonical SaaS wire payload. The SaaS fan-out handler must
+therefore project Started payloads through a small canonicalization step that
+strips local-only `artifact_path` before calling
+`validate_event(..., strict=True)`.
 
 ## Test strategy
 

@@ -237,6 +237,23 @@ def _validate_lifecycle_payload(event_type: str, payload: Mapping[str, Any]) -> 
         )
 
 
+def _canonical_lifecycle_payload_for_saas(
+    event_type: str,
+    payload: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Project a local lifecycle payload to the strict SaaS wire shape.
+
+    Local Started events keep ``artifact_path`` so local replay and dashboards
+    can identify the artifact opened by the phase transition. The canonical
+    ``spec-kitty-events`` Started payloads intentionally do not expose that
+    field, so the SaaS fan-out strips it before strict validation and queueing.
+    """
+    projected = dict(payload)
+    if event_type.endswith("Started"):
+        projected.pop("artifact_path", None)
+    return projected
+
+
 def _build_saas_lifecycle_event(
     envelope: Mapping[str, Any],
     *,
@@ -274,7 +291,18 @@ def _match_lifecycle_event(
     payload = candidate.get("payload") or {}
     if not isinstance(payload, Mapping):
         return False
-    return all(payload.get(key) == expected for key, expected in dedup_keys.items())
+    return all(
+        _dedup_value_matches(key, payload.get(key), expected)
+        for key, expected in dedup_keys.items()
+    )
+
+
+def _dedup_value_matches(key: str, actual: Any, expected: Any) -> bool:
+    if actual == expected:
+        return True
+    if key == "artifact_path" and isinstance(actual, str) and isinstance(expected, str):
+        return Path(actual).name == Path(expected).name
+    return False
 
 
 def has_lifecycle_event(
@@ -478,19 +506,18 @@ def emit_artifact_phase(
 ) -> dict[str, Any] | None:
     """Append a Specify/Plan/Tasks lifecycle event for the mission.
 
-    Started events dedupe on ``(event_type, mission_slug)``; completed
-    events dedupe on ``(event_type, mission_slug, artifact_path)`` so
-    that re-running a phase with a different artifact path is recorded
-    as a new completed event.
+    Started and completed events dedupe on
+    ``(event_type, mission_slug, artifact_path)`` when an artifact path is
+    known, falling back to ``(event_type, mission_slug)`` for legacy callers.
+    The local log keeps ``artifact_path`` on Started events so dashboards and
+    mission-creation replay know which artifact was opened.
 
     Started/Completed split (issues Priivacy-ai/spec-kitty#1198 / #1203
     "dormant mask"): the canonical pydantic payload models in
     ``spec_kitty_events.project_lifecycle`` declare ``extra="forbid"``,
-    so passing ``artifact_path`` / ``summary`` / ``wp_count`` on a
-    Started variant (``SpecifyStarted`` / ``PlanStarted`` /
-    ``TasksStarted``) will now raise at the producer boundary instead
-    of silently shipping a malformed payload. The dispatch table below
-    picks the right typed model per ``event_type``.
+    so ``summary`` / ``wp_count`` remain Completed-only. ``artifact_path`` is
+    local lifecycle metadata for Started events; the SaaS fan-out path strips
+    it before strict canonical validation.
     """
     from spec_kitty_events.project_lifecycle import (
         PlanCompletedPayload,
@@ -535,9 +562,11 @@ def emit_artifact_phase(
     payload: dict[str, Any] = payload_model_cls(**fields).model_dump(
         mode="json", exclude_none=False
     )
+    if event_type.endswith("Started") and artifact_path is not None:
+        payload["artifact_path"] = artifact_path
 
     dedup: dict[str, Any] = {"mission_slug": mission_slug}
-    if artifact_path is not None and event_type.endswith("Completed"):
+    if artifact_path is not None:
         dedup["artifact_path"] = artifact_path
 
     log_path = mission_event_log_path(feature_dir)

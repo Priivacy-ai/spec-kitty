@@ -190,6 +190,7 @@ def _lifecycle_saas_fanout_handler(**kwargs):  # type: ignore[no-untyped-def]
     from specify_cli.core.contract_gate import validate_outbound_payload
     from specify_cli.identity.project import ensure_identity
     from specify_cli.status.lifecycle_events import (
+        _canonical_lifecycle_payload_for_saas,
         _generate_event_id,
         _now_iso,
         _repo_root_for_lifecycle_log,
@@ -231,7 +232,8 @@ def _lifecycle_saas_fanout_handler(**kwargs):  # type: ignore[no-untyped-def]
     if not identity.project_uuid or not identity.build_id:
         return
 
-    _validate_lifecycle_payload(event_type, payload)
+    saas_payload = _canonical_lifecycle_payload_for_saas(event_type, payload)
+    _validate_lifecycle_payload(event_type, saas_payload)
 
     clock = LamportClock.load()
     event_id = _generate_event_id()
@@ -243,7 +245,7 @@ def _lifecycle_saas_fanout_handler(**kwargs):  # type: ignore[no-untyped-def]
         "aggregate_type": aggregate_type,
         "schema_version": "3.0.0",
         "build_id": identity.build_id,
-        "payload": dict(payload),
+        "payload": saas_payload,
         "node_id": identity.node_id or clock.node_id,
         "lamport_clock": clock.tick(),
         "causation_id": None,
