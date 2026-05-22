@@ -619,3 +619,4 @@ def callback(ctx: typer.Context) -> None:
 ## Activity Log
 
 - 2026-05-22T10:38:41Z – claude:opus:python-pedro:implementer – shell_pid=62483 – Assigned agent via action command
+- 2026-05-22T10:41:46Z – claude:opus:python-pedro:implementer – shell_pid=62483 – WP01 ready for review: readiness package + callback hook landed. mypy --strict on readiness/ clean. helpers.py mypy error pre-exists on main (line 301 not touched by this WP). Existing tests/cli_gate/test_ci_determinism.py 20/20 pass.
