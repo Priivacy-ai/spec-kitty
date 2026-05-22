@@ -484,3 +484,4 @@ def test_E_get_readiness_non_dict_ctx_obj_returns_noop_default() -> None:
 ## Activity Log
 
 - 2026-05-22T10:42:30Z – claude:opus:python-pedro:implementer – shell_pid=65358 – Assigned agent via action command
+- 2026-05-22T10:44:27Z – claude:opus:python-pedro:implementer – shell_pid=65358 – WP02 ready: 13/13 tests pass (8 suppression matrix rows + 5 caching cases). FR-011 no-Teamspace-leakage invariant verified across the full matrix.
