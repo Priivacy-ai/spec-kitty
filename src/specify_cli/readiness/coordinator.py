@@ -21,10 +21,13 @@ from enum import StrEnum
 
 import typer
 
-# WS2 (Workstream 2, issue #1094): auth probe wiring — imported as a typed
-# stub seam, not exercised in this mission. The next mission will call this
-# from inside ``_evaluate_uncached`` on the enabled path; this import keeps
-# the symbol type-checked and grep-able as a hand-off marker.
+# WS2 (Workstream 2, issue #1094): auth probe wiring landed. The probe in
+# ``specify_cli.readiness.auth.probe_auth_status`` wraps
+# ``detect_logged_out_with_connected_teamspace`` and the renderer in
+# ``specify_cli.readiness.render.render_auth_guidance`` produces the
+# per-output-policy guidance. The import below is retained as the Wave 1
+# hand-off marker; it remains a grep target for the symbol and ensures any
+# future refactor of ``_auth_recovery`` cannot silently delete the helper.
 from specify_cli.cli.commands._auth_recovery import (  # noqa: F401
     detect_logged_out_with_connected_teamspace,
 )
@@ -46,13 +49,26 @@ class OutputPolicy(StrEnum):
 class AuthStatus(StrEnum):
     """Coordinator's record of Teamspace-auth state.
 
-    This mission ships only ``NOT_CHECKED`` and ``DISABLED``. WS2 (issue
-    #1094) widens this enum with values like ``AUTHENTICATED`` and
-    ``LOGGED_OUT_ON_CONNECTED_TEAMSPACE``.
+    Wave 1 (issue #1093) shipped ``NOT_CHECKED`` and ``DISABLED``. WS2
+    (issue #1094) extends this enum with the authoritative values produced
+    by the readiness auth probe
+    (``specify_cli.readiness.auth.probe_auth_status``):
+    ``AUTHENTICATED``, ``LOGGED_OUT_IN_TEAMSPACE``, ``NOT_IN_TEAMSPACE``,
+    ``UNKNOWN``.
+
+    ``NOT_CHECKED`` is preserved for backward compatibility with the Wave 1
+    public contract but is no longer produced by the coordinator: on the
+    hosted-enabled path the probe always sets one of the four authoritative
+    values (or ``UNKNOWN`` on internal error). On the hosted-disabled path
+    the coordinator continues to set ``DISABLED``.
     """
 
     NOT_CHECKED = "not_checked"
     DISABLED = "disabled"
+    AUTHENTICATED = "authenticated"
+    LOGGED_OUT_IN_TEAMSPACE = "logged_out_in_teamspace"
+    NOT_IN_TEAMSPACE = "not_in_teamspace"
+    UNKNOWN = "unknown"
 
 
 @dataclass(frozen=True, slots=True)
@@ -203,15 +219,42 @@ def _evaluate_uncached(ctx: typer.Context) -> ReadinessResult:
             nag_invoked=True,
         )
 
-    # WS2: auth probe wiring — the next mission will call
-    # detect_logged_out_with_connected_teamspace() here and translate the
-    # result into the appropriate AuthStatus value.
+    # WS2 (issue #1094): auth probe + renderer. Each step is independently
+    # exception-wrapped: a probe failure degrades to ``UNKNOWN`` rather than
+    # collapsing the whole ReadinessResult to ``_NOOP_DISABLED`` (which is
+    # what ``evaluate_readiness``'s outer ``except`` would do). The renderer
+    # is then gated on the verdict + output policy.
+    try:
+        from specify_cli.readiness.auth import probe_auth_status  # noqa: PLC0415 — lazy
+        auth_status, teamspace_handle = probe_auth_status()
+    except Exception:  # noqa: BLE001 — coordinator must never raise; degrade to UNKNOWN.
+        auth_status = AuthStatus.UNKNOWN
+        teamspace_handle = None
+
+    if (
+        auth_status == AuthStatus.LOGGED_OUT_IN_TEAMSPACE
+        and output_policy != OutputPolicy.MACHINE_OUTPUT
+    ):
+        try:
+            from specify_cli.readiness.render import render_auth_guidance  # noqa: PLC0415 — lazy
+            command_name = ctx.invoked_subcommand or "spec-kitty"
+            render_auth_guidance(
+                status=auth_status,
+                teamspace=teamspace_handle,
+                command_name=command_name,
+                output_policy=output_policy,
+            )
+        except Exception:  # noqa: BLE001 — render must never raise out of the coordinator
+            pass
+
+    # Nag fires after auth guidance, preserving Wave 1's "_invoke_nag runs
+    # exactly once per evaluation" invariant.
     _invoke_nag(ctx)
     return ReadinessResult(
         enabled=True,
         ran=True,
         output_policy=output_policy,
-        auth_status=AuthStatus.NOT_CHECKED,
+        auth_status=auth_status,
         nag_invoked=True,
     )
 

@@ -149,6 +149,18 @@ def test_suppression_matrix_no_teamspace_leakage(
     # WP03 nag passthrough tests).
     monkeypatch.setattr(coord_module, "_invoke_nag", lambda ctx: None)
 
+    # WS2 (issue #1094): the readiness auth probe now runs on the
+    # hosted-enabled path. Stub it to a Teamspace-free verdict so this
+    # Wave 1 suppression matrix continues to assert the "no leakage"
+    # invariant deterministically — independent of any local repo state.
+    from specify_cli.readiness import auth as auth_module
+
+    monkeypatch.setattr(
+        auth_module,
+        "probe_auth_status",
+        lambda **_kw: (AuthStatus.NOT_IN_TEAMSPACE, None),
+    )
+
     # Arrange argv
     monkeypatch.setattr(sys, "argv", ["spec-kitty", *row.argv])
 
@@ -166,9 +178,16 @@ def test_suppression_matrix_no_teamspace_leakage(
         result.output_policy == row.expected_policy
     ), f"row={row.name}: policy mismatch ({result.output_policy})"
     if row.expected_enabled:
-        assert (
-            result.auth_status == AuthStatus.NOT_CHECKED
-        ), f"row={row.name}: enabled rows expect NOT_CHECKED (WS2 stub)"
+        # WS2 (issue #1094) widened AuthStatus. The probe now produces one of
+        # the authoritative values; the Wave 1 ``NOT_CHECKED`` sentinel is no
+        # longer emitted by the coordinator. The Wave 1 readiness API
+        # contract explicitly permits this enum widening.
+        assert result.auth_status in {
+            AuthStatus.AUTHENTICATED,
+            AuthStatus.LOGGED_OUT_IN_TEAMSPACE,
+            AuthStatus.NOT_IN_TEAMSPACE,
+            AuthStatus.UNKNOWN,
+        }, f"row={row.name}: enabled rows expect an authoritative auth status, got {result.auth_status!r}"
         assert result.ran is True
     else:
         assert (
