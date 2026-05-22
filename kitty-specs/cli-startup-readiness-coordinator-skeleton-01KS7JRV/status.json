@@ -1,7 +1,7 @@
 {
-  "event_count": 6,
-  "last_event_id": "01KS7MDS478TJ3F2W6X75JS6MR",
-  "materialized_at": "2026-05-22T10:41:46.631989+00:00",
+  "event_count": 7,
+  "last_event_id": "01KS7ME0P0ND19H2CPEDT650AB",
+  "materialized_at": "2026-05-22T10:41:54.368955+00:00",
   "mission_number": "",
   "mission_slug": "cli-startup-readiness-coordinator-skeleton-01KS7JRV",
   "mission_type": "software-dev",
@@ -11,18 +11,18 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 0,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 2
   },
   "work_packages": {
     "WP01": {
-      "actor": "user",
+      "actor": "claude:opus:reviewer-renata:reviewer",
       "force_count": 1,
-      "lane": "for_review",
-      "last_event_id": "01KS7MDS478TJ3F2W6X75JS6MR",
-      "last_transition_at": "2026-05-22T10:41:46.631989+00:00"
+      "lane": "in_review",
+      "last_event_id": "01KS7ME0P0ND19H2CPEDT650AB",
+      "last_transition_at": "2026-05-22T10:41:54.368955+00:00"
     },
     "WP02": {
       "actor": "finalize-tasks",
