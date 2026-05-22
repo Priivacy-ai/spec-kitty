@@ -82,6 +82,14 @@ export SPEC_KITTY_ENABLE_SAAS_SYNC=1
 spec-kitty auth login
 ```
 
+**See also**:
+- [Internal Hosted-Readiness (Pre-Launch)](../how-to/internal-hosted-readiness.md)
+  for the full operator walkthrough of the hidden hosted-readiness
+  mode this flag enables today.
+- [Launch-Readiness Behavior (Coming Soon)](../explanation/launch-readiness-future.md)
+  for how this variable's meaning changes at the public Teamspace
+  launch.
+
 ### SPEC_KITTY_SAAS_URL
 
 Override the Spec Kitty SaaS base URL.
@@ -93,6 +101,14 @@ Override the Spec Kitty SaaS base URL.
 export SPEC_KITTY_SAAS_URL=https://spec-kitty-dev.fly.dev
 spec-kitty auth login
 ```
+
+**See also**:
+- [Internal Hosted-Readiness (Pre-Launch)](../how-to/internal-hosted-readiness.md)
+  -- this URL override is a dev / staging tool used by internal
+  operators, not user behavior.
+- [Launch-Readiness Behavior (Coming Soon)](../explanation/launch-readiness-future.md)
+  -- the override remains internal-only after launch; only the
+  user-facing default URL changes.
 
 ---
 

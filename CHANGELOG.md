@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add pre-launch and launch-readiness operator docs for hosted SaaS
+  sync (#1095). Public docs remain local-first; hosted readiness
+  stays opt-in via `SPEC_KITTY_ENABLE_SAAS_SYNC=1`. The new
+  `docs/how-to/internal-hosted-readiness.md` covers the dogfooding
+  workflow for internal / pre-launch operators, and the new
+  `docs/explanation/launch-readiness-future.md` stages the launch-day
+  behavior shift behind an explicit "Status: pre-launch" banner.
+
 ## [3.2.0rc23] - 2026-05-21
 
 Rolls up the autonomous-runtime safety sweep needed before the 3.2.0

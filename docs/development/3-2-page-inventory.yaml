@@ -2227,6 +2227,13 @@
   current_target: true
   citation_refs: []
   notes: "MANUAL_REVIEW: explanation page kanban-workflow.md may quote 2.x material; WP08 IA review must reclassify current/supported/migration."
+- path: docs/explanation/launch-readiness-future.md
+  tag: current
+  divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  citation_refs: []
+  notes: "Future-launch behavior delta for Teamspace readiness; explicitly labeled pre-launch."
 - path: docs/explanation/mission-system.md
   tag: current
   divio_type: explanation
@@ -2374,6 +2381,13 @@
   current_target: true
   citation_refs: []
   notes: Install/lifecycle how-to; provisional current — confirm install matrix in WP10/WP11.
+- path: docs/how-to/internal-hosted-readiness.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  citation_refs: []
+  notes: "Internal/pre-launch dogfooding playbook for SPEC_KITTY_ENABLE_SAAS_SYNC=1; intentionally not surfaced in public IA."
 - path: docs/how-to/keep-main-clean.md
   tag: current
   divio_type: how-to
