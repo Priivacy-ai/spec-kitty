@@ -1,0 +1,26 @@
+{
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-05-22T10:54:20.038143+00:00",
+      "accepted_by": "robert",
+      "accepted_from_commit": "9e9c4562acf5684c5542409dbe987132c48e729e"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-05-22T10:54:20.038143+00:00",
+  "accepted_by": "robert",
+  "accepted_from_commit": "9e9c4562acf5684c5542409dbe987132c48e729e",
+  "created_at": "2026-05-22T10:12:52.656808+00:00",
+  "friendly_name": "CLI Startup Readiness Coordinator Skeleton",
+  "mission_id": "01KS7JRVSFFBWPD2XZ7B8162E6",
+  "mission_number": null,
+  "mission_slug": "cli-startup-readiness-coordinator-skeleton-01KS7JRV",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission introduces the central CLI startup readiness coordinator referenced by Priivacy-ai/spec-kitty#1093. It establishes the seam that downstream missions (auth, upgrade UX, tracker, docs) plug into. Until the SaaS gate flips at launch, the coordinator no-ops; existing upgrade-nag behavior is preserved by routing it through the coordinator.",
+  "purpose_tldr": "Single coordinator owns Teamspace-aware CLI readiness, dormant until hosted mode is on.",
+  "slug": "cli-startup-readiness-coordinator-skeleton-01KS7JRV",
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-05-22T10:38:38.669851+00:00"
+}
