@@ -46,7 +46,6 @@ DATA_MODEL_FILE = "data-model.md"
 RESEARCH_FILE = "research.md"
 WORKFLOW_EVIDENCE_FILE = "workflow-evidence.md"
 WORKFLOW_RUN_URL_RE = re.compile(r"https://github\.com/[\w.-]+/[\w.-]+/actions/runs/\d+\b")
-WORKFLOW_RUN_ID_RE = re.compile(r"(?im)^\s*(?:successful\s+)?(?:github\s+actions\s+)?run(?:\s+id)?\s*[:#-]?\s*\d{5,}\s*$")
 PRIMARY_ARTIFACT_FILES = (
     SPEC_FILE,
     PLAN_FILE,
@@ -612,7 +611,33 @@ def _workflow_evidence_missing(feature_dir: Path) -> bool:
     text = evidence_path.read_text(encoding="utf-8", errors="replace")
     if not text.strip():
         return True
-    return WORKFLOW_RUN_URL_RE.search(text) is None and WORKFLOW_RUN_ID_RE.search(text) is None
+    return WORKFLOW_RUN_URL_RE.search(text) is None and not _contains_workflow_run_id(text)
+
+
+def _contains_workflow_run_id(text: str) -> bool:
+    """Return True when evidence text includes a standalone GitHub Actions run id."""
+
+    optional_prefixes = ("successful ", "github actions ")
+
+    for raw_line in text.splitlines():
+        normalized = " ".join(raw_line.strip().lower().split())
+        if not normalized:
+            continue
+        for prefix in optional_prefixes:
+            if normalized.startswith(prefix):
+                normalized = normalized[len(prefix) :]
+        if normalized.startswith("run id"):
+            remainder = normalized[len("run id") :]
+        elif normalized.startswith("run"):
+            remainder = normalized[len("run") :]
+        else:
+            continue
+        remainder = remainder.lstrip()
+        if remainder[:1] in ":#-":
+            remainder = remainder[1:].lstrip()
+        if remainder.isdigit() and len(remainder) >= 5:
+            return True
+    return False
 
 
 def _check_workflow_run_evidence(
