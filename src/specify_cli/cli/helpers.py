@@ -271,8 +271,16 @@ def callback(ctx: typer.Context) -> None:
         console.print(Align.center("[dim]Run 'spec-kitty --help' for usage information[/dim]"))
         console.print()
 
-    # WP08: render upgrade nag through planner if needed.
-    _render_nag_if_needed(ctx)
+    # Teamspace CLI auth/upgrade readiness coordinator
+    # (Priivacy-ai/spec-kitty#1093). First-gated on is_saas_sync_enabled();
+    # no-ops when hosted mode is disabled. The coordinator owns the call to
+    # _render_nag_if_needed() so downstream missions (WS2 auth, WS3 upgrade
+    # UX) can extend behavior through one seam. Lazy import to avoid
+    # module-load circularity (readiness/coordinator.py imports
+    # _render_nag_if_needed back from this module at call time).
+    from specify_cli.readiness import evaluate_readiness  # noqa: PLC0415
+
+    evaluate_readiness(ctx)
 
     # WP09 (FR-007): emit "no upgrade available" notice when warranted.
     # Reuses should_check_version() — no parallel gate. The notifier itself
