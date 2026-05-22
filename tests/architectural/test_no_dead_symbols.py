@@ -153,7 +153,9 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
         "specify_cli.cli.commands.review::review_mission",
         "specify_cli.cli.commands.sync::app",
         "specify_cli.cli.commands.verify::verify_setup",
-        "specify_cli.cli.helpers::_render_nag_if_needed",
+        # _render_nag_if_needed removed from allowlist: now has a live
+        # caller (specify_cli.readiness.coordinator._invoke_nag) introduced
+        # by the CLI startup readiness coordinator (Priivacy-ai/spec-kitty#1093).
         "specify_cli.cli.helpers::_should_suppress_nag",
         "specify_cli.compat._adapters.detector::VersionDetector",
         "specify_cli.compat._adapters.gate::_EXEMPT_COMMANDS",
