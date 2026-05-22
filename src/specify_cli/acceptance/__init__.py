@@ -55,9 +55,7 @@ PRIMARY_ARTIFACT_FILES = (
     RESEARCH_FILE,
     DATA_MODEL_FILE,
 )
-NEEDS_CLARIFICATION_MARKER_RE = re.compile(
-    r"\[NEEDS CLARIFICATION:[^\]\n]+\]\s*<!--\s*decision_id:\s*(?P<decision_id>\S+)\s*-->"
-)
+_DECISION_ID_MARKER = "decision_id:"
 
 
 class AcceptanceError(TaskCliError):
@@ -332,18 +330,40 @@ def _check_needs_clarification(files: Sequence[Path]) -> list[str]:
 
 
 def _has_blocking_clarification_marker(file_path: Path, text: str) -> bool:
-    markers = list(NEEDS_CLARIFICATION_MARKER_RE.finditer(text))
+    markers = list(_iter_clarification_decision_ids(text))
     if not markers:
         return False
 
     index = load_index(file_path.parent)
     entries_by_id = {entry.decision_id: entry for entry in index.entries}
-    for marker in markers:
-        decision_id = marker.group("decision_id")
+    for decision_id in markers:
         entry = entries_by_id.get(decision_id)
         if entry is None or entry.status in {DecisionStatus.OPEN, DecisionStatus.DEFERRED}:
             return True
     return False
+
+
+def _iter_clarification_decision_ids(text: str) -> Iterable[str]:
+    for line in text.splitlines():
+        marker_start = line.find("[NEEDS CLARIFICATION:")
+        if marker_start == -1:
+            continue
+        marker_end = line.find("]", marker_start)
+        if marker_end == -1:
+            continue
+        comment_start = line.find("<!--", marker_end)
+        if comment_start == -1:
+            continue
+        comment_end = line.find("-->", comment_start + 4)
+        if comment_end == -1:
+            continue
+        comment_body = line[comment_start + 4 : comment_end]
+        decision_id_index = comment_body.find(_DECISION_ID_MARKER)
+        if decision_id_index == -1:
+            continue
+        decision_id_text = comment_body[decision_id_index + len(_DECISION_ID_MARKER) :].strip()
+        if decision_id_text:
+            yield decision_id_text.split(maxsplit=1)[0]
 
 
 def _missing_artifacts(feature_dir: Path) -> tuple[list[str], list[str]]:

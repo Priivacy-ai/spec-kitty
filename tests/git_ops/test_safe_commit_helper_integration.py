@@ -119,6 +119,25 @@ def test_safe_commit_blocks_spec_kitty_ceremony_commit_on_protected_branch(git_r
             allow_empty=False,
         )
 
+
+def test_safe_commit_allows_merged_wp_done_commit_on_protected_branch(git_repo: Path):
+    """The merge workflow may persist done transitions after merging onto main."""
+    subprocess.run(["git", "branch", "-M", "main"], cwd=git_repo, check=True)
+    (git_repo / ".kittify").mkdir()
+    (git_repo / ".kittify" / "config.json").write_text("{}\n")
+    status_file = git_repo / "kitty-specs" / "099-demo" / "status.events.jsonl"
+    status_file.parent.mkdir(parents=True)
+    status_file.write_text("{\"to_lane\":\"done\"}\n")
+
+    result = safe_commit(
+        repo_path=git_repo,
+        files_to_commit=[status_file],
+        commit_message="chore(099-demo): record done transitions for merged WPs",
+        allow_empty=False,
+    )
+
+    assert result is True
+
 def test_safe_commit_nothing_to_commit_graceful(git_repo: Path):
     """T046: Test 'nothing to commit' graceful handling.
 
