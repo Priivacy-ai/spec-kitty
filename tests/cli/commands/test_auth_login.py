@@ -24,7 +24,6 @@ import re
 from unittest.mock import AsyncMock, patch
 
 import pytest
-import typer
 from typer.testing import CliRunner
 
 from specify_cli.auth import reset_token_manager
@@ -46,10 +45,6 @@ def _reset_tm(monkeypatch):
     missing-config path delete the env var explicitly.
     """
     monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://saas.test")
-    monkeypatch.setattr(
-        "specify_cli.cli.commands._auth_login.enforce_teamspace_mission_state_ready",
-        lambda **_kwargs: None,
-    )
     reset_token_manager()
     yield
     reset_token_manager()
@@ -110,18 +105,37 @@ class TestAuthLoginHelp:
 
 
 class TestAuthLoginDispatch:
-    def test_blocks_login_when_teamspace_mission_state_migration_pending(self):
+    def test_login_no_longer_calls_teamspace_mission_state_gate(self):
+        """Phase 6 (issue #1288): identity acquisition is decoupled from
+        TeamSpace mission-state readiness. The gate symbol must not be
+        imported into the auth-login module and the command must not
+        consult it. Sync / tracker / connect commands continue to gate
+        themselves — that's their job, not auth's."""
+        import specify_cli.cli.commands._auth_login as auth_login_module
+
+        # The gate symbol must not be importable from the auth-login
+        # module: even an indirect re-export would re-create the wrong
+        # coupling.
+        assert not hasattr(auth_login_module, "enforce_teamspace_mission_state_ready")
+
+    def test_login_proceeds_even_if_teamspace_mission_state_is_blocked(self):
+        """Belt-and-suspenders for the structural guarantee above: even
+        if the gate were called somehow, blocking it must not block
+        identity acquisition. Patches the gate to raise, then verifies
+        the login impl never invokes it."""
+        async def _noop_browser_flow(*_args, **_kwargs):
+            return None
+
         with patch(
-            "specify_cli.cli.commands._auth_login.enforce_teamspace_mission_state_ready",
-            side_effect=typer.Exit(1),
-        ) as mock_gate, patch(
-            "specify_cli.cli.commands._auth_login.get_saas_base_url"
-        ) as mock_config:
+            "specify_cli.cli.commands._teamspace_mission_state_gate.enforce_teamspace_mission_state_ready",
+            side_effect=AssertionError("auth login must not invoke the TeamSpace gate"),
+        ), patch(
+            "specify_cli.cli.commands._auth_login._run_browser_flow",
+            new=AsyncMock(side_effect=_noop_browser_flow),
+        ):
             result = runner.invoke(app, ["login"])
 
-        assert result.exit_code == 1
-        mock_gate.assert_called_once()
-        mock_config.assert_not_called()
+        assert result.exit_code == 0, result.stdout
 
     def test_default_dispatches_to_browser_flow(self):
         async def _noop(*args, **kwargs):
