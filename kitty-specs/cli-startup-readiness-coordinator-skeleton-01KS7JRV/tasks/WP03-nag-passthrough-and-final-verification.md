@@ -382,3 +382,4 @@ If errors appear:
 ## Activity Log
 
 - 2026-05-22T10:44:58Z – claude:opus:python-pedro:implementer – shell_pid=66649 – Assigned agent via action command
+- 2026-05-22T10:47:23Z – claude:opus:python-pedro:implementer – shell_pid=66649 – WP03 ready: 3/3 nag passthrough tests pass. 36/36 full suite pass. tests/cli_gate/test_ci_determinism.py byte-identical to main. mypy --strict on readiness/ clean. 94% coverage on readiness package (>=90% target). Diff scope confirmed within AC #9 surfaces.
