@@ -83,16 +83,16 @@ WP01 is intentionally a single WP rather than a scaffold+wiring split because th
 **Estimated prompt size**: ~700 lines (10 subtasks × ~65 lines plus header/context). Within the maximum-size guideline because each subtask has tight, code-snippet-anchored guidance.
 
 **Included subtasks**:
-- [ ] T001 Create `src/specify_cli/readiness/__init__.py`
-- [ ] T002 Create `coordinator.py` types
-- [ ] T003 Implement `_derive_output_policy`
-- [ ] T004 Implement `_read_cached` / `_write_cached`
-- [ ] T005 Implement `_invoke_nag` (lazy)
-- [ ] T006 Implement `_evaluate_uncached` (disabled + enabled paths)
-- [ ] T007 Implement public `evaluate_readiness`
-- [ ] T008 Implement public `get_readiness`
-- [ ] T009 Modify `helpers.py` `callback()` hook
-- [ ] T010 Verification: mypy, imports, smoke
+- [x] T001 Create `src/specify_cli/readiness/__init__.py`
+- [x] T002 Create `coordinator.py` types
+- [x] T003 Implement `_derive_output_policy`
+- [x] T004 Implement `_read_cached` / `_write_cached`
+- [x] T005 Implement `_invoke_nag` (lazy)
+- [x] T006 Implement `_evaluate_uncached` (disabled + enabled paths)
+- [x] T007 Implement public `evaluate_readiness`
+- [x] T008 Implement public `get_readiness`
+- [x] T009 Modify `helpers.py` `callback()` hook
+- [x] T010 Verification: mypy, imports, smoke
 
 **Prompt**: [`tasks/WP01-coordinator-package-and-hook.md`](tasks/WP01-coordinator-package-and-hook.md)
 
