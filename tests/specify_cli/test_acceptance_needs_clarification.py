@@ -99,3 +99,37 @@ def test_needs_clarification_ignores_closed_decision_marker(tmp_path: Path) -> N
     )
 
     assert _check_needs_clarification([artifact]) == []
+
+
+def test_needs_clarification_accepts_trailing_comment_metadata(tmp_path: Path) -> None:
+    """Decision IDs keep the previous first-token parsing semantics."""
+    decision_id = "01KS0ABCDEF0123456789ABCDE"
+    artifact = tmp_path / "spec.md"
+    artifact.write_text(
+        "The system accepted the plan default. "
+        f"[NEEDS CLARIFICATION: choose durable queue] <!-- decision_id: {decision_id} source: specify -->\n",
+        encoding="utf-8",
+    )
+    save_index(
+        tmp_path,
+        DecisionIndex(
+            mission_id="mission-id",
+            entries=(
+                IndexEntry(
+                    decision_id=decision_id,
+                    origin_flow=OriginFlow.SPECIFY,
+                    step_id="specify.queue",
+                    input_key="queue",
+                    question="Which queue?",
+                    status=DecisionStatus.RESOLVED,
+                    final_answer="accept plan default",
+                    created_at=datetime(2026, 5, 21, tzinfo=UTC),
+                    resolved_at=datetime(2026, 5, 21, tzinfo=UTC),
+                    mission_id="mission-id",
+                    mission_slug="mission-slug",
+                ),
+            ),
+        ),
+    )
+
+    assert _check_needs_clarification([artifact]) == []

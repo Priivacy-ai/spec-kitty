@@ -361,9 +361,9 @@ def _iter_clarification_decision_ids(text: str) -> Iterable[str]:
         decision_id_index = comment_body.find(_DECISION_ID_MARKER)
         if decision_id_index == -1:
             continue
-        decision_id = comment_body[decision_id_index + len(_DECISION_ID_MARKER) :].strip()
-        if decision_id:
-            yield decision_id
+        decision_id_text = comment_body[decision_id_index + len(_DECISION_ID_MARKER) :].strip()
+        if decision_id_text:
+            yield decision_id_text.split(maxsplit=1)[0]
 
 
 def _missing_artifacts(feature_dir: Path) -> tuple[list[str], list[str]]:
