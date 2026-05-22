@@ -988,6 +988,13 @@ def test_status_readiness_missing_auth_message(monkeypatch, tmp_path) -> None:
         "specify_cli.cli.commands.tracker._resolve_active_feature_slug",
         lambda _repo_root: None,
     )
+    # WS5 (issue #18): force INTERACTIVE policy so the 2-line human wording
+    # is rendered under pytest (where stdout is not a TTY → would otherwise
+    # default to NON_INTERACTIVE).
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker._resolve_output_policy_for_tracker",
+        lambda: "interactive",
+    )
 
     result = runner.invoke(tracker_module.app, ["status"])
     assert result.exit_code == 1
@@ -1423,3 +1430,155 @@ def test_tracker_keeps_readiness_imports_at_module_level() -> None:
         "tests can inspect the daemon policy decision."
     )
     assert tracker_module.BackgroundDaemonPolicy is config_module.BackgroundDaemonPolicy
+
+
+# ---------------------------------------------------------------------------
+# WS5 (mission tracker-readiness-alignment-01KS7PZ7, issue #18):
+# Tracker readiness output is aligned with the central coordinator's
+# OutputPolicy buckets. The 6-row test matrix from spec.md is covered below.
+# ---------------------------------------------------------------------------
+
+
+def _ws5_failing_missing_auth_result():
+    """Return a synthetic MISSING_AUTH ReadinessResult using the canonical wording."""
+    from specify_cli.saas.readiness import _WORDING  # noqa: PLC2701
+
+    msg, action = _WORDING[ReadinessState.MISSING_AUTH]
+    return ReadinessResult(
+        state=ReadinessState.MISSING_AUTH,
+        message=msg,
+        next_action=action,
+    )
+
+
+def _ws5_install_failing_readiness(monkeypatch, tmp_path):
+    """Wire the tracker module so ``status`` will land on a MISSING_AUTH render."""
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker.evaluate_readiness",
+        lambda **_kwargs: _ws5_failing_missing_auth_result(),
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker.require_repo_root",
+        lambda: tmp_path,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker._resolve_active_feature_slug",
+        lambda _repo_root: None,
+    )
+
+
+@pytest.mark.no_readiness_stub
+def test_ws5_hosted_no_auth_interactive_two_line_human_format(monkeypatch, tmp_path) -> None:
+    """AC#6 row 1: INTERACTIVE policy → 2-line human format unchanged."""
+    _ws5_install_failing_readiness(monkeypatch, tmp_path)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker._resolve_output_policy_for_tracker",
+        lambda: "interactive",
+    )
+
+    from specify_cli.cli.commands import tracker as tracker_module
+    from specify_cli.saas.readiness import _WORDING  # noqa: PLC2701
+
+    msg, action = _WORDING[ReadinessState.MISSING_AUTH]
+    result = runner.invoke(tracker_module.app, ["status"])
+    assert result.exit_code == 1
+    assert msg in result.output
+    assert action in result.output
+
+
+@pytest.mark.no_readiness_stub
+def test_ws5_hosted_no_auth_machine_output_single_line_stderr(monkeypatch, tmp_path) -> None:
+    """AC#6 row 2: MACHINE_OUTPUT (--json/--quiet) → single line stderr, stdout untouched.
+
+    With CliRunner's mixed-output capture we cannot perfectly separate stdout
+    from stderr, but we can assert (a) the canonical remediation appears
+    exactly once in ``output`` and (b) the long human ``message`` does NOT
+    appear (because MACHINE_OUTPUT writes only the next_action line).
+    """
+    _ws5_install_failing_readiness(monkeypatch, tmp_path)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker._resolve_output_policy_for_tracker",
+        lambda: "machine_output",
+    )
+
+    from specify_cli.cli.commands import tracker as tracker_module
+    from specify_cli.saas.readiness import _WORDING  # noqa: PLC2701
+
+    msg, action = _WORDING[ReadinessState.MISSING_AUTH]
+    result = runner.invoke(tracker_module.app, ["status"])
+
+    assert result.exit_code == 1
+    # next_action is present (single-line stderr).
+    assert action in result.output
+    # The long human message is NOT echoed in machine_output mode.
+    assert msg not in result.output
+    # Single line: exactly one non-empty line in the captured output.
+    non_empty_lines = [ln for ln in result.output.splitlines() if ln.strip()]
+    assert len(non_empty_lines) == 1, non_empty_lines
+
+
+@pytest.mark.no_readiness_stub
+def test_ws5_hosted_no_auth_non_interactive_stable_machine_line(monkeypatch, tmp_path) -> None:
+    """AC#6 row 3: NON_INTERACTIVE → stable single-line machine-readable stderr."""
+    _ws5_install_failing_readiness(monkeypatch, tmp_path)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker._resolve_output_policy_for_tracker",
+        lambda: "non_interactive",
+    )
+
+    from specify_cli.cli.commands import tracker as tracker_module
+
+    result = runner.invoke(tracker_module.app, ["status"])
+    assert result.exit_code == 1
+
+    expected = "spec-kitty tracker: readiness=missing_auth next=spec-kitty-auth-login"
+    assert expected in result.output, result.output
+    # Exactly one non-empty line emitted.
+    non_empty_lines = [ln for ln in result.output.splitlines() if ln.strip()]
+    assert len(non_empty_lines) == 1, non_empty_lines
+
+
+@pytest.mark.no_readiness_stub
+def test_ws5_local_tracker_skips_hosted_readiness_probe(monkeypatch, tmp_path) -> None:
+    """AC#3/6: a local binding (``fp``/``beads``) does NOT invoke the hosted readiness probe.
+
+    Drive ``_check_binding_readiness`` directly with ``_is_local_binding``
+    forced to True; assert ``evaluate_readiness`` is never called.
+    """
+    from specify_cli.cli.commands import tracker as tracker_module
+
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+
+    def _spy_evaluate(**_kwargs):
+        raise AssertionError("evaluate_readiness MUST NOT be called for local bindings")
+
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker.evaluate_readiness",
+        _spy_evaluate,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker._is_local_binding",
+        lambda: True,
+    )
+
+    # Should return without raising.
+    tracker_module._check_binding_readiness(probe_reachability=False)
+    tracker_module._check_sync_readiness()
+
+
+@pytest.mark.no_readiness_stub
+def test_ws5_remediation_string_matches_saas_readiness_source(monkeypatch) -> None:
+    """AC#2/7: the remediation string is sourced from ``_WORDING`` (single source of truth).
+
+    A regression guardrail: if anyone duplicates a literal ``Run \\`spec-kitty
+    auth login\\`.`` string into tracker.py or another module, this test still
+    passes — but any drift in the canonical source would immediately surface
+    in every test that asserts the rendered output. Asserts the exact byte
+    sequence expected by the WS2 auth-recovery probe.
+    """
+    from specify_cli.saas.readiness import _WORDING  # noqa: PLC2701
+
+    _msg, action = _WORDING[ReadinessState.MISSING_AUTH]
+    assert action == "Run `spec-kitty auth login`."
+

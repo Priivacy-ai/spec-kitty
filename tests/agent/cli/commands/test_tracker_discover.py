@@ -339,6 +339,13 @@ def test_discover_readiness_failure(state, expected_message, monkeypatch, tmp_pa
         "specify_cli.cli.commands.tracker._resolve_active_feature_slug",
         lambda _repo_root: None,
     )
+    # WS5 (issue #18): force INTERACTIVE policy so the human wording is rendered
+    # under pytest (otherwise NON_INTERACTIVE single-line format kicks in,
+    # which is covered separately in test_tracker.py::test_ws5_*).
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker._resolve_output_policy_for_tracker",
+        lambda: "interactive",
+    )
 
     result = runner.invoke(tracker_module.app, ["discover", "--provider", "linear"])
     assert result.exit_code == 1

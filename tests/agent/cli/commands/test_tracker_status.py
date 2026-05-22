@@ -287,6 +287,14 @@ def test_status_readiness_failure_messages(state, expected_message, monkeypatch,
         "specify_cli.cli.commands.tracker._resolve_active_feature_slug",
         lambda _repo_root: None,
     )
+    # WS5 (issue #18): force INTERACTIVE policy so the human wording is rendered
+    # under pytest (which otherwise classifies as NON_INTERACTIVE because stdout
+    # is not a TTY). The single-line NON_INTERACTIVE / MACHINE_OUTPUT formats
+    # have their own dedicated coverage in test_tracker.py::test_ws5_*.
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker._resolve_output_policy_for_tracker",
+        lambda: "interactive",
+    )
 
     result = runner.invoke(tracker_module.app, ["status"])
     assert result.exit_code == 1
@@ -319,6 +327,11 @@ def test_status_host_unreachable_message(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(
         "specify_cli.cli.commands.tracker._resolve_active_feature_slug",
         lambda _repo_root: None,
+    )
+    # WS5 (issue #18): force INTERACTIVE so the human wording is rendered.
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker._resolve_output_policy_for_tracker",
+        lambda: "interactive",
     )
 
     result = runner.invoke(tracker_module.app, ["status"])
