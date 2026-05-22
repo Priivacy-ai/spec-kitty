@@ -20,6 +20,7 @@ runner = CliRunner()
 @pytest.fixture(autouse=True)
 def _skip_root_project_schema_gate(monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep command-unit tests isolated from the checkout's project metadata."""
+    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
     monkeypatch.setattr("specify_cli.locate_project_root", lambda: None)
 
 
