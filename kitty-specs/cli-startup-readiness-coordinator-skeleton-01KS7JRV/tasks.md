@@ -109,9 +109,9 @@ WP01 is intentionally a single WP rather than a scaffold+wiring split because th
 **Estimated prompt size**: ~320 lines.
 
 **Included subtasks**:
-- [ ] T011 Create `tests/readiness/__init__.py`
-- [ ] T012 Write the 7-row + 1-enabled suppression-matrix parameterized test
-- [ ] T013 Write the 5-case caching test
+- [x] T011 Create `tests/readiness/__init__.py`
+- [x] T012 Write the 7-row + 1-enabled suppression-matrix parameterized test
+- [x] T013 Write the 5-case caching test
 
 **Dependencies**: WP01.
 
