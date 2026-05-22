@@ -93,6 +93,50 @@ def _create_git_resolver() -> GitMetadataResolver:
     )
 
 
+def _build_payload_via_model(
+    model_cls: type,
+    /,
+    *,
+    keep_none_fields: tuple[str, ...] = (),
+    **fields: Any,
+) -> dict[str, Any] | None:
+    """Construct a payload dict via a canonical pydantic model.
+
+    Returns ``None`` on validation failure so the producer can preserve
+    its historical contract of "invalid input -> silently skip emission"
+    rather than raising. The warning emitted via the console mirrors the
+    pre-refactor behavior in :func:`EventEmitter._validate_payload`.
+
+    Phase 2 of issues Priivacy-ai/spec-kitty#1198 / #1200 — routes every
+    producer's payload through the canonical model so schema drift
+    becomes an emit-time error, while preserving the historical
+    return-None contract for callers that test invalid-input rejection.
+
+    ``keep_none_fields`` enumerates Optional fields whose ``None`` value
+    must remain in the wire payload (e.g. ``MissionCreated.mission_number``
+    where the canonical contract distinguishes pre-merge nullity from
+    field absence). All other ``None``-valued optionals are dropped to
+    preserve the historical "field absent when not set" shape.
+    """
+    from pydantic import ValidationError
+
+    try:
+        instance = model_cls(**fields)
+    except ValidationError as exc:
+        _console.print(
+            f"[yellow]Warning: {model_cls.__name__} payload validation failed: {exc}[/yellow]"
+        )
+        return None
+    payload = instance.model_dump(mode="json", exclude_none=True)
+    if keep_none_fields:
+        # Re-emit Optional-but-required-in-wire fields whose value is None.
+        full = instance.model_dump(mode="json", exclude_none=False)
+        for name in keep_none_fields:
+            if name in full and name not in payload:
+                payload[name] = full[name]
+    return payload
+
+
 # Load the contract schema once for payload-level validation
 _SCHEMA: dict | None = None
 _SCHEMA_PATH = Path(__file__).resolve().parent / "_events_schema.json"
@@ -723,15 +767,39 @@ class EventEmitter:
         self,
         causation_id: str | None = None,
     ) -> dict[str, Any] | None:
-        """Emit BuildRegistered for the current project/build identity."""
+        """Emit BuildRegistered for the current project/build identity.
+
+        Phase 1 of issues Priivacy-ai/spec-kitty#1198 / #1200 ships the
+        canonical :class:`spec_kitty_events.build_lifecycle.BuildRegisteredPayload`
+        with a restrictive surface (``repo_slug``, ``git_branch``,
+        ``head_commit_sha``) — build/node identity moves to the envelope.
+        The legacy payload shape (build_id, node_id, project_uuid, …)
+        is preserved on the wire for SaaS materializer compatibility
+        until the Phase 3 SaaS adapter lands; canonical fields are
+        additionally validated through the model so producer-time drift
+        of any of the three canonical fields is caught here.
+        """
+        from spec_kitty_events.build_lifecycle import BuildRegisteredPayload
+
         identity = self._get_identity()
-        payload = self._build_lifecycle_payload()
+        base = self._build_lifecycle_payload()
+        # Canonical-payload validation: catches drift on the three
+        # fields the Phase-1 contract owns. Done strictly via the
+        # pydantic model so any future tightening on these fields is
+        # an emit-time error.
+        if _build_payload_via_model(
+            BuildRegisteredPayload,
+            repo_slug=base.get("repo_slug"),
+            git_branch=base.get("branch"),
+            head_commit_sha=base.get("head_commit"),
+        ) is None:
+            return None
         aggregate_id = identity.build_id or identity.node_id or "build"
         return self._emit(
             event_type="BuildRegistered",
             aggregate_id=aggregate_id,
             aggregate_type="Build",
-            payload=payload,
+            payload=base,
             causation_id=causation_id,
         )
 
@@ -743,24 +811,46 @@ class EventEmitter:
         recent_commits: list[str] | None = None,
         causation_id: str | None = None,
     ) -> dict[str, Any] | None:
-        """Emit BuildHeartbeat for the current project/build identity."""
-        identity = self._get_identity()
-        payload = self._build_lifecycle_payload()
-        if remote_head is not None:
-            payload["remote_head"] = remote_head
-        if ahead_of_remote is not None:
-            payload["ahead_of_remote"] = ahead_of_remote
-        if behind_remote is not None:
-            payload["behind_remote"] = behind_remote
-        if recent_commits is not None:
-            payload["recent_commits"] = recent_commits
+        """Emit BuildHeartbeat for the current project/build identity.
 
+        Phase 1 canonical model is
+        :class:`spec_kitty_events.build_lifecycle.BuildHeartbeatPayload`
+        — see ``emit_build_registered`` for the canonical-vs-wire
+        envelope discussion. Validation of the canonical fields runs
+        through the model; the wire payload preserves the historical
+        identity fields until Phase 3.
+        """
+        from spec_kitty_events.build_lifecycle import BuildHeartbeatPayload
+
+        identity = self._get_identity()
+        base = self._build_lifecycle_payload()
+        if remote_head is not None:
+            base["remote_head"] = remote_head
+        if ahead_of_remote is not None:
+            base["ahead_of_remote"] = ahead_of_remote
+        if behind_remote is not None:
+            base["behind_remote"] = behind_remote
+        if recent_commits is not None:
+            base["recent_commits"] = recent_commits
+
+        # Canonical-payload validation on the seven fields Phase 1 owns.
+        if _build_payload_via_model(
+            BuildHeartbeatPayload,
+            repo_slug=base.get("repo_slug"),
+            git_branch=base.get("branch"),
+            head_commit_sha=base.get("head_commit"),
+            remote_head=remote_head,
+            ahead_of_remote=ahead_of_remote,
+            behind_remote=behind_remote,
+            recent_commits=recent_commits,
+        ) is None:
+            return None
         aggregate_id = identity.build_id or identity.node_id or "build"
         return self._emit(
             event_type="BuildHeartbeat",
             aggregate_id=aggregate_id,
             aggregate_type="Build",
-            payload=payload,
+            payload=base,
             causation_id=causation_id,
         )
 
@@ -808,19 +898,30 @@ class EventEmitter:
                     }
                 ],
             }
+        from spec_kitty_events.status import StatusTransitionPayload
+
         resolved_mission_slug = mission_slug or "unknown-mission"
-        payload = {
-            "wp_id": wp_id,
-            "from_lane": from_lane,
-            "to_lane": to_lane,
-            "actor": actor,
-            "mission_slug": resolved_mission_slug,
-            "force": force,
-            "reason": reason,
-            "review_ref": review_ref,
-            "execution_mode": execution_mode or "direct_repo",
-            "evidence": evidence_payload,
-        }
+        # Construct via canonical StatusTransitionPayload (Phase 1
+        # already covers this type and now enforces semantic
+        # validation for review-rejection transitions). The model
+        # accepts string lanes via alias resolution and validates
+        # ``force`` / ``reason`` invariants. Invalid input -> return
+        # None (preserved historical contract).
+        payload = _build_payload_via_model(
+            StatusTransitionPayload,
+            wp_id=wp_id,
+            from_lane=from_lane,
+            to_lane=to_lane,
+            actor=actor,
+            mission_slug=resolved_mission_slug,
+            force=force,
+            reason=reason,
+            review_ref=review_ref,
+            execution_mode=execution_mode or "direct_repo",
+            evidence=evidence_payload,
+        )
+        if payload is None:
+            return None
         # Do NOT pass envelope_fields=...; the canonical envelope keys are
         # already nested inside ``payload``. Duplicating them at the top
         # level violates the SaaS schema with
@@ -858,14 +959,19 @@ class EventEmitter:
         isn't in the canonical allowed set). See issue
         Priivacy-ai/spec-kitty#1203 mask 1.
         """
+        from spec_kitty_events.project_lifecycle import WPCreatedPayload
+
         del mission_id  # accepted for caller compatibility; not in canonical payload (#1203)
-        payload = {
-            "wp_id": wp_id,
-            "wp_title": title,
-            "depends_on": dependencies or [],
-            "mission_slug": mission_slug,
-            "actor": actor,
-        }
+        payload = _build_payload_via_model(
+            WPCreatedPayload,
+            wp_id=wp_id,
+            wp_title=title,
+            depends_on=list(dependencies or []),
+            mission_slug=mission_slug,
+            actor=actor,
+        )
+        if payload is None:
+            return None
         return self._emit(
             event_type="WPCreated",
             aggregate_id=wp_id,
@@ -882,13 +988,23 @@ class EventEmitter:
         retry_count: int = 0,
         causation_id: str | None = None,
     ) -> dict[str, Any] | None:
-        """Emit WPAssigned event (FR-010)."""
-        payload = {
-            "wp_id": wp_id,
-            "agent_id": agent_id,
-            "phase": phase,
-            "retry_count": retry_count,
-        }
+        """Emit WPAssigned event (FR-010).
+
+        Payload constructed via canonical
+        :class:`spec_kitty_events.project_lifecycle.WPAssignedPayload`
+        (Phase 1 of issues Priivacy-ai/spec-kitty#1198 / #1200).
+        """
+        from spec_kitty_events.project_lifecycle import WPAssignedPayload
+
+        payload = _build_payload_via_model(
+            WPAssignedPayload,
+            wp_id=wp_id,
+            agent_id=agent_id,
+            phase=phase,
+            retry_count=retry_count,
+        )
+        if payload is None:
+            return None
         return self._emit(
             event_type="WPAssigned",
             aggregate_id=wp_id,
@@ -922,24 +1038,32 @@ class EventEmitter:
           - ``mission_slug``   — human display string (never used as join key)
           - ``mission_number`` — int | None (None for pre-merge, int for post-merge)
         """
+        from spec_kitty_events.lifecycle import MissionCreatedPayload
+
         display_name = (friendly_name or "").strip() or _default_mission_display_name(mission_slug)
         summary_tldr = (purpose_tldr or "").strip() or display_name
         summary_context = (purpose_context or "").strip() or _default_mission_purpose_context(display_name, target_branch)
-        payload: dict[str, Any] = {
-            "mission_slug": mission_slug,
-            "mission_number": mission_number,
-            "mission_type": mission_type,
-            "target_branch": target_branch,
-            "wp_count": wp_count,
-            "friendly_name": display_name,
-            "purpose_tldr": summary_tldr,
-            "purpose_context": summary_context,
-        }
-        if created_at is not None:
-            payload["created_at"] = created_at
+        payload = _build_payload_via_model(
+            MissionCreatedPayload,
+            # mission_number is wire-required (FR-024) but logically
+            # nullable for pre-merge missions; preserve the explicit
+            # ``null`` rather than dropping the field.
+            keep_none_fields=("mission_number",),
+            mission_id=mission_id,
+            mission_slug=mission_slug,
+            mission_number=mission_number,
+            mission_type=mission_type,
+            target_branch=target_branch,
+            wp_count=wp_count,
+            friendly_name=display_name,
+            purpose_tldr=summary_tldr,
+            purpose_context=summary_context,
+            created_at=created_at,
+        )
+        if payload is None:
+            return None
         effective_aggregate_id = mission_slug
         if mission_id is not None:
-            payload["mission_id"] = mission_id
             effective_aggregate_id = mission_id
 
         return self._emit(
@@ -970,15 +1094,24 @@ class EventEmitter:
         Historical close details such as ``total_wps`` and close timestamps are
         intentionally not emitted in the TeamSpace payload.
         """
+        from spec_kitty_events.lifecycle import MissionClosedPayload
+
         del total_wps, completed_at, total_duration
         resolved_number = mission_number if mission_number is not None else mission_number_from_slug(mission_slug)
-        if resolved_number is None:
-            resolved_number = 0
-        payload: dict[str, Any] = {
-            "mission_slug": mission_slug,
-            "mission_number": resolved_number,
-            "mission_type": mission_type,
-        }
+        if resolved_number is None or resolved_number < 1:
+            # MissionClosedPayload requires ge=1; legacy callers pass 0
+            # for pre-merge missions. Coerce to 1 — Phase 3 (SaaS adapter)
+            # will tighten this when canonical-only mission_number
+            # propagation lands across all repos.
+            resolved_number = 1
+        payload = _build_payload_via_model(
+            MissionClosedPayload,
+            mission_slug=mission_slug,
+            mission_number=resolved_number,
+            mission_type=mission_type,
+        )
+        if payload is None:
+            return None
         # mission_id is the aggregate identity (FR-024).
         effective_aggregate_id = mission_slug
         if mission_id is not None:
@@ -1321,13 +1454,23 @@ class EventEmitter:
         author: str = "user",
         causation_id: str | None = None,
     ) -> dict[str, Any] | None:
-        """Emit HistoryAdded event (FR-013)."""
-        payload = {
-            "wp_id": wp_id,
-            "entry_type": entry_type,
-            "entry_content": entry_content,
-            "author": author,
-        }
+        """Emit HistoryAdded event (FR-013).
+
+        Payload constructed via canonical
+        :class:`spec_kitty_events.project_lifecycle.HistoryAddedPayload`
+        (Phase 1 of issues Priivacy-ai/spec-kitty#1198 / #1200).
+        """
+        from spec_kitty_events.project_lifecycle import HistoryAddedPayload
+
+        payload = _build_payload_via_model(
+            HistoryAddedPayload,
+            wp_id=wp_id,
+            entry_type=entry_type,
+            entry_content=entry_content,
+            author=author,
+        )
+        if payload is None:
+            return None
         return self._emit(
             event_type="HistoryAdded",
             aggregate_id=wp_id,
@@ -1345,17 +1488,24 @@ class EventEmitter:
         agent_id: str | None = None,
         causation_id: str | None = None,
     ) -> dict[str, Any] | None:
-        """Emit ErrorLogged event (FR-014)."""
-        payload: dict[str, Any] = {
-            "error_type": error_type,
-            "error_message": error_message,
-        }
-        if wp_id is not None:
-            payload["wp_id"] = wp_id
-        if stack_trace is not None:
-            payload["stack_trace"] = stack_trace
-        if agent_id is not None:
-            payload["agent_id"] = agent_id
+        """Emit ErrorLogged event (FR-014).
+
+        Payload constructed via canonical
+        :class:`spec_kitty_events.project_lifecycle.ErrorLoggedPayload`
+        (Phase 1 of issues Priivacy-ai/spec-kitty#1198 / #1200).
+        """
+        from spec_kitty_events.project_lifecycle import ErrorLoggedPayload
+
+        payload = _build_payload_via_model(
+            ErrorLoggedPayload,
+            error_type=error_type,
+            error_message=error_message,
+            wp_id=wp_id,
+            stack_trace=stack_trace,
+            agent_id=agent_id,
+        )
+        if payload is None:
+            return None
 
         aggregate_id = wp_id if wp_id is not None else "error"
         aggregate_type = "WorkPackage" if wp_id is not None else "Mission"
@@ -1374,12 +1524,22 @@ class EventEmitter:
         resolution_type: str,
         causation_id: str | None = None,
     ) -> dict[str, Any] | None:
-        """Emit DependencyResolved event (FR-015)."""
-        payload = {
-            "wp_id": wp_id,
-            "dependency_wp_id": dependency_wp_id,
-            "resolution_type": resolution_type,
-        }
+        """Emit DependencyResolved event (FR-015).
+
+        Payload constructed via canonical
+        :class:`spec_kitty_events.project_lifecycle.DependencyResolvedPayload`
+        (Phase 1 of issues Priivacy-ai/spec-kitty#1198 / #1200).
+        """
+        from spec_kitty_events.project_lifecycle import DependencyResolvedPayload
+
+        payload = _build_payload_via_model(
+            DependencyResolvedPayload,
+            wp_id=wp_id,
+            dependency_wp_id=dependency_wp_id,
+            resolution_type=resolution_type,
+        )
+        if payload is None:
+            return None
         return self._emit(
             event_type="DependencyResolved",
             aggregate_id=wp_id,
@@ -1408,18 +1568,23 @@ class EventEmitter:
           - ``mission_id``   — ULID primary key (when present)
           - ``mission_slug`` — human display string (backward compat)
         """
-        payload: dict[str, Any] = {
-            "mission_slug": mission_slug,
-            "provider": provider,
-            "external_issue_id": external_issue_id,
-            "external_issue_key": external_issue_key,
-            "external_issue_url": external_issue_url,
-            "title": title,
-        }
+        from spec_kitty_events.lifecycle import MissionOriginBoundPayload
+
+        payload = _build_payload_via_model(
+            MissionOriginBoundPayload,
+            mission_slug=mission_slug,
+            provider=provider,
+            external_issue_id=external_issue_id,
+            external_issue_key=external_issue_key,
+            external_issue_url=external_issue_url,
+            title=title,
+            mission_id=mission_id,
+        )
+        if payload is None:
+            return None
         # mission_id is the aggregate identity (FR-024).
         effective_aggregate_id = mission_slug
         if mission_id is not None:
-            payload["mission_id"] = mission_id
             effective_aggregate_id = mission_id
         return self._emit(
             event_type="MissionOriginBound",
@@ -1526,7 +1691,7 @@ class EventEmitter:
             event_id = _generate_ulid()
 
             # Build event dict with identity fields.
-            event: dict[str, Any] = {
+            event: dict[str, Any] = {  # canonical-producer-exempt: #1248 — central CLI wire-envelope assembly; payload itself is already canonical via per-producer pydantic models (Phase 2 / #1198 / #1200)
                 "event_id": event_id,
                 "event_type": event_type,
                 "aggregate_id": aggregate_id,
@@ -1614,7 +1779,7 @@ class EventEmitter:
             # spec-kitty-events 4.0.0 added build_id, project_uuid, correlation_id
             # as required fields; fall back to safe defaults for events emitted
             # under 3.x schema that lack these fields.
-            model_data = {
+            model_data = {  # canonical-producer-exempt: #1248 — kwargs dict immediately consumed by ``EventModel(**model_data)`` on next line; this IS the canonical-model construction
                 "event_id": event["event_id"],
                 "event_type": event["event_type"],
                 "aggregate_id": event["aggregate_id"],

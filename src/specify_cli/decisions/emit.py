@@ -143,7 +143,7 @@ def emit_decision_opened(
         recorded_at=now,
     )
 
-    event_dict = {
+    event_dict = {  # canonical-producer-exempt: #1198 — payload is already a canonical pydantic model (see DecisionPointOpenedPayload above); this is a local-only JSONL envelope written to per-mission decisions.events.jsonl, not the SaaS wire envelope
         "event_id": _generate_ulid(),
         "at": now.isoformat(),
         "event_type": DECISION_POINT_OPENED,
@@ -221,7 +221,7 @@ def emit_decision_resolved(
             recorded_at=now,
         )
 
-    event_dict = {
+    event_dict = {  # canonical-producer-exempt: #1198 — payload is already a canonical pydantic model (see DecisionPointResolvedInterviewPayload above); local-only decisions JSONL envelope
         "event_id": _generate_ulid(),
         "at": now.isoformat(),
         "event_type": DECISION_POINT_RESOLVED,

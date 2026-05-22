@@ -1,0 +1,10 @@
+{
+  "mission_id": "01KS7PEKD6GXAFFZHN8P7M0SFB",
+  "mission_slug": "canonical-producer-refactor",
+  "mission_type": "software-dev",
+  "friendly_name": "CLI producer refactor (#1198 / #1200)",
+  "purpose_tldr": "Burn down hand-rolled event dicts in CLI producers; route through canonical spec-kitty-events models; strict lifecycle validation; fix reset_handlers test pollution; reduce lint baseline.",
+  "purpose_context": "Phase 2 of #1198. Phase 1 (events repo, PR #39 on branch kitty/pr/1198-canonical-producer-contracts) ships canonical models for all seven previously-uncontracted event types; this mission converts the CLI producers to construct via those models, tightens validation, and adds producer conformance tests.",
+  "target_branch": "main",
+  "mission_number": null
+}

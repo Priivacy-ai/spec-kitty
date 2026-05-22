@@ -763,7 +763,7 @@ def _load_events_contract() -> tuple[type[Any], Any, str]:
     return Event, validate_event, str(package_version)
 
 
-def _status_event_to_teamspace_envelope(
+def _status_event_to_teamspace_envelope(  # canonical-producer-exempt: #1198 — historical migration-replay envelope builder; this is the TeamSpace dry-run rehearsal path, not a live producer (payload is then validated downstream via spec_kitty_events.conformance.validate_event)
     status_event: StatusEvent,
     *,
     project_uuid: uuid.UUID,
@@ -792,7 +792,7 @@ def _status_event_to_teamspace_envelope(
         "review_ref": status_event.review_ref,
         "evidence": evidence,
     }
-    return {
+    return {  # canonical-producer-exempt: #1198 — see function-level comment
         "event_id": status_event.event_id,
         "event_type": "WPStatusChanged",
         "aggregate_id": status_event.wp_id,

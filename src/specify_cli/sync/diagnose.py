@@ -238,7 +238,7 @@ def _validate_envelope(event_data: dict[str, Any], errors: list[str]) -> None:
     # spec-kitty-events 4.0.0 added build_id, project_uuid, correlation_id as
     # required fields; fall back to safe defaults for events emitted under 3.x
     # schema that lack these fields.
-    model_fields = {
+    model_fields = {  # canonical-producer-exempt: #1198 — kwargs dict immediately fed to ``Event(**model_fields)`` two lines below; this IS the canonical-model construction
         "event_id": event_data.get("event_id"),
         "event_type": event_data.get("event_type"),
         "aggregate_id": event_data.get("aggregate_id"),

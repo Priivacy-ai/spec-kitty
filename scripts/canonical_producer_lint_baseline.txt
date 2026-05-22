@@ -3,17 +3,37 @@
 # Each line is `<path>::<code>` for a known violation site that
 # pre-dates the lint. Refactor sites individually; re-run
 # --update-baseline to keep this file lean. See issue #1248.
+#
+# Phase 2 of Priivacy-ai/spec-kitty#1198 / #1200 refactored every
+# SaaS-bound CLI producer to construct payloads via canonical
+# spec-kitty-events pydantic models. The src/ side is now lint-clean
+# (or has tracker-backed inline exemptions for documented local-only
+# wire-envelope assembly sites; see #1248 inline-exempt comments).
+#
+# The remaining baseline entries (all test/benchmarks) are:
+#
+# - tests/sync/test_*.py — synthetic envelopes built by test fixtures
+#   to feed the OfflineQueue/router directly without invoking the
+#   producer surface (we're testing the queue/drain, not the producer).
+#   Refactoring each to use ``EventEmitter.emit_*`` would change the
+#   units under test. Tracked under #1200.
+#
+# - tests/contract/test_handoff_fixtures.py — handoff-fixture builders
+#   intentionally construct adversarial / contract-edge events that the
+#   canonical producers refuse to emit (the canonical models forbid
+#   these inputs). Tracked under #1203 (dormant payload-schema drift).
+#
+# - tests/audit/ tests/migration/ tests/retrospective/ — historical
+#   migration-replay fixtures. These build legacy envelope shapes on
+#   purpose to verify the migration code path. Tracked under #1200.
+#
+# - tests/status/test_lifecycle_events.py — local JSONL roundtrip
+#   tests; the synthesized envelopes are local-only and the test
+#   asserts the canonical reader tolerates them. Tracked under #1200.
+#
+# - scripts/benchmarks/bench_queue_enqueue.py — micro-bench harness;
+#   not a real producer. Tracked under #1200.
 scripts/benchmarks/bench_queue_enqueue.py::CP001
-src/specify_cli/decisions/emit.py::CP001
-src/specify_cli/glossary/events.py::CP002
-src/specify_cli/migration/mission_state.py::CP001
-src/specify_cli/migration/mission_state.py::CP002
-src/specify_cli/next/_internal_runtime/engine.py::CP001
-src/specify_cli/status/lifecycle_events.py::CP001
-src/specify_cli/status/lifecycle_events.py::CP002
-src/specify_cli/sync/__init__.py::CP001
-src/specify_cli/sync/diagnose.py::CP001
-src/specify_cli/sync/emitter.py::CP001
 tests/audit/test_audit_classifiers.py::CP001
 tests/contract/test_handoff_fixtures.py::CP001
 tests/dossier/test_events.py::CP001
