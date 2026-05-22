@@ -130,10 +130,10 @@ WP01 is intentionally a single WP rather than a scaffold+wiring split because th
 **Estimated prompt size**: ~300 lines.
 
 **Included subtasks**:
-- [ ] T014 Write nag-passthrough tests (3 cases)
-- [ ] T015 Verify existing CI-determinism tests pass unchanged
-- [ ] T016 Verify mypy --strict passes for both modified module surfaces
-- [ ] T017 Verify coverage ≥ 90% and diff scope matches AC #9
+- [x] T014 Write nag-passthrough tests (3 cases)
+- [x] T015 Verify existing CI-determinism tests pass unchanged
+- [x] T016 Verify mypy --strict passes for both modified module surfaces
+- [x] T017 Verify coverage ≥ 90% and diff scope matches AC #9
 
 **Dependencies**: WP02.
 
