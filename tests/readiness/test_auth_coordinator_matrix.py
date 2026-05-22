@@ -176,6 +176,35 @@ MATRIX: list[AuthMatrixRow] = [
         stdout_assert=_empty,
         stderr_assert=_empty,
     ),
+    # Scenario 8b — hosted ON, logged-out-in-teamspace, --help: still silent.
+    # Even though the probe records LOGGED_OUT_IN_TEAMSPACE, ``--help`` is a
+    # "user wants help text only" signal and the coordinator MUST NOT render
+    # auth guidance for it.
+    AuthMatrixRow(
+        name="hosted_on_logged_out_help",
+        argv=["--help"],
+        ci_env=False,
+        isatty=True,
+        hosted_enabled=True,
+        probe_return=(AuthStatus.LOGGED_OUT_IN_TEAMSPACE, _TEAMSPACE),
+        expected_status=AuthStatus.LOGGED_OUT_IN_TEAMSPACE,
+        expected_policy=OutputPolicy.NON_INTERACTIVE,
+        stdout_assert=_empty,
+        stderr_assert=_stderr_no_teamspace,
+    ),
+    # Scenario 8c — hosted ON, logged-out-in-teamspace, --version: silent.
+    AuthMatrixRow(
+        name="hosted_on_logged_out_version",
+        argv=["--version"],
+        ci_env=False,
+        isatty=True,
+        hosted_enabled=True,
+        probe_return=(AuthStatus.LOGGED_OUT_IN_TEAMSPACE, _TEAMSPACE),
+        expected_status=AuthStatus.LOGGED_OUT_IN_TEAMSPACE,
+        expected_policy=OutputPolicy.NON_INTERACTIVE,
+        stdout_assert=_empty,
+        stderr_assert=_stderr_no_teamspace,
+    ),
 ]
 
 

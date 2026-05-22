@@ -231,9 +231,19 @@ def _evaluate_uncached(ctx: typer.Context) -> ReadinessResult:
         auth_status = AuthStatus.UNKNOWN
         teamspace_handle = None
 
+    # Gate the renderer per the suppression contract:
+    # - LOGGED_OUT_IN_TEAMSPACE is the only verdict that produces visible
+    #   guidance.
+    # - MACHINE_OUTPUT (``--json``/``--quiet``) is always silent.
+    # - ``--help``/``--version`` is always silent: users asking for help
+    #   text or a version number are not asking to be told about auth.
+    help_or_version = any(
+        tok in {"--help", "-h", "--version", "-v"} for tok in sys.argv[1:]
+    )
     if (
         auth_status == AuthStatus.LOGGED_OUT_IN_TEAMSPACE
         and output_policy != OutputPolicy.MACHINE_OUTPUT
+        and not help_or_version
     ):
         try:
             from specify_cli.readiness.render import render_auth_guidance  # noqa: PLC0415 — lazy
