@@ -56,7 +56,7 @@ from specify_cli.merge.state import (
     release_merge_lock,
     save_state,
 )
-from specify_cli.mission_metadata import resolve_mission_identity, write_meta
+from specify_cli.mission_metadata import load_meta, resolve_mission_identity, write_meta
 from specify_cli.merge.workspace import _worktree_removal_delay, cleanup_merge_workspace, get_merge_runtime_dir
 from specify_cli.post_merge.review_artifact_consistency import (
     REJECTED_REVIEW_ARTIFACT_CONFLICT,
@@ -787,6 +787,49 @@ def _emit_merge_diff_summary(
     )
 
 
+def _record_baseline_merge_commit(
+    feature_dir: Path,
+    baseline_commit: str | None,
+) -> Path | None:
+    """Persist the post-merge review baseline in mission meta.json.
+
+    ``baseline_merge_commit`` anchors post-merge review diffs. It should point
+    at the target-branch baseline before the mission lands, not at the final
+    housekeeping commit produced by merge.
+    """
+    if not baseline_commit or not baseline_commit.strip():
+        return None
+
+    meta_path = feature_dir / "meta.json"
+    if not meta_path.exists():
+        logger.warning(
+            "Cannot record baseline_merge_commit for %s: meta.json is missing",
+            feature_dir.name,
+        )
+        return None
+
+    try:
+        meta = load_meta(feature_dir)
+    except ValueError as exc:
+        logger.warning(
+            "Cannot record baseline_merge_commit for %s: %s",
+            feature_dir.name,
+            exc,
+        )
+        return None
+
+    if meta is None:
+        return None
+
+    existing = meta.get("baseline_merge_commit")
+    if existing and str(existing).strip():
+        return None
+
+    meta["baseline_merge_commit"] = baseline_commit.strip()
+    write_meta(feature_dir, meta, validate=False)
+    return meta_path
+
+
 def _validate_target_branch(
     repo_root: Path,
     mission_slug: str | None,
@@ -1223,14 +1266,14 @@ def _run_lane_based_merge_locked(
                     console.print(f"  [red]✗[/red] {lane.lane_id}: {error}")
                 raise typer.Exit(1)
 
-    # -- Capture merge-base SHA for post-merge stale-assertion check (T013) --
-    _ret, merge_base_sha, _err = run_command(
-        ["git", "merge-base", "HEAD", lanes_manifest.target_branch],
+    # -- Capture target baseline SHA for post-merge diff/review checks (T013) --
+    _ret, target_baseline_sha, _err = run_command(
+        ["git", "rev-parse", lanes_manifest.target_branch],
         capture=True,
         check_return=False,
         cwd=main_repo,
     )
-    merge_base_sha = merge_base_sha.strip() if _ret == 0 else "HEAD~1"
+    target_baseline_sha = target_baseline_sha.strip() if _ret == 0 else "HEAD~1"
 
     # -- WP10/T053/T055: assign dense integer mission_number on mission branch --
     # Inside the global merge lock (acquire_merge_lock("__global_merge__"))
@@ -1306,6 +1349,11 @@ def _run_lane_based_merge_locked(
             (_out_refresh or _err_refresh or "").strip(),
         )
 
+    baseline_meta_path = _record_baseline_merge_commit(
+        feature_dir,
+        target_baseline_sha,
+    )
+
     # -- T001: Mark WPs done with per-WP state tracking --
     console.print("  [dim]Recording merged work packages as done...[/dim]")
     for lane in lanes_manifest.lanes:
@@ -1343,6 +1391,8 @@ def _run_lane_based_merge_locked(
             f"kitty-specs/{mission_slug}/status.events.jsonl",
             f"kitty-specs/{mission_slug}/status.json",
         }
+        if baseline_meta_path is not None:
+            expected_paths.add(str(baseline_meta_path.relative_to(main_repo)))
         offending_lines, _skipped_untracked = _classify_porcelain_lines(
             (_out_status or "").splitlines(),
             expected_paths,
@@ -1377,12 +1427,16 @@ def _run_lane_based_merge_locked(
         )
 
     # -- T012: FR-019 — Persist done events to git BEFORE any worktree removal --
+    files_to_commit = [
+        feature_dir / "status.events.jsonl",
+        feature_dir / "status.json",
+    ]
+    if baseline_meta_path is not None:
+        files_to_commit.append(baseline_meta_path)
+
     safe_commit(
         repo_path=main_repo,
-        files_to_commit=[
-            feature_dir / "status.events.jsonl",
-            feature_dir / "status.json",
-        ],
+        files_to_commit=files_to_commit,
         commit_message=f"chore({mission_slug}): record done transitions for merged WPs",
         allow_empty=False,
     )
@@ -1398,7 +1452,7 @@ def _run_lane_based_merge_locked(
     console.print("  [dim]Running stale-assertion check...[/dim]")
     try:
         stale_report: StaleAssertionReport = run_check(
-            base_ref=merge_base_sha,
+            base_ref=target_baseline_sha,
             head_ref="HEAD",
             repo_root=main_repo,
         )
@@ -1490,7 +1544,7 @@ def _run_lane_based_merge_locked(
     _emit_merge_diff_summary(
         repo_root=main_repo,
         mission_id=canonical_id,
-        base_ref=merge_base_sha,
+        base_ref=target_baseline_sha,
     )
 
     emit_mission_closed(

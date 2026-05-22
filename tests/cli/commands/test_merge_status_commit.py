@@ -19,7 +19,11 @@ from unittest.mock import MagicMock, patch, call
 
 import pytest
 
-from specify_cli.cli.commands.merge import _mark_wp_merged_done, _run_lane_based_merge
+from specify_cli.cli.commands.merge import (
+    _mark_wp_merged_done,
+    _record_baseline_merge_commit,
+    _run_lane_based_merge,
+)
 from specify_cli.merge.config import MergeStrategy
 
 pytestmark = pytest.mark.git_repo
@@ -86,6 +90,49 @@ def _seed_status_event(feature_dir: Path, mission_slug: str, wp_id: str, to_lane
     jsonl_path = feature_dir / "status.events.jsonl"
     with jsonl_path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(event, sort_keys=True) + "\n")
+
+
+def _write_meta(feature_dir: Path, mission_slug: str, **overrides: object) -> None:
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    meta: dict[str, object] = {
+        "created_at": "2026-04-07T00:00:00+00:00",
+        "friendly_name": mission_slug.replace("-", " "),
+        "mission_id": "01KTESTMISSIONID00000000000",
+        "mission_number": None,
+        "mission_slug": mission_slug,
+        "mission_type": "software-dev",
+        "slug": mission_slug,
+        "target_branch": "main",
+    }
+    meta.update(overrides)
+    (feature_dir / "meta.json").write_text(
+        json.dumps(meta, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
+class TestBaselineMergeCommitMetadata:
+    def test_record_baseline_merge_commit_fills_blank_field(self, tmp_path: Path) -> None:
+        mission_slug = "068-baseline-meta"
+        feature_dir = tmp_path / "kitty-specs" / mission_slug
+        _write_meta(feature_dir, mission_slug, baseline_merge_commit=None)
+
+        result = _record_baseline_merge_commit(feature_dir, "abc123def456")
+
+        assert result == feature_dir / "meta.json"
+        data = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+        assert data["baseline_merge_commit"] == "abc123def456"
+
+    def test_record_baseline_merge_commit_preserves_existing_value(self, tmp_path: Path) -> None:
+        mission_slug = "068-baseline-preserve"
+        feature_dir = tmp_path / "kitty-specs" / mission_slug
+        _write_meta(feature_dir, mission_slug, baseline_merge_commit="already-set")
+
+        result = _record_baseline_merge_commit(feature_dir, "new-value")
+
+        assert result is None
+        data = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+        assert data["baseline_merge_commit"] == "already-set"
 
 
 # ---------------------------------------------------------------------------
@@ -239,6 +286,74 @@ class TestSafeCommitCalledAfterMarkDoneLoop:
             )
 
         mock_dossier.assert_called_once_with(feature_dir, mission_slug, tmp_path)
+
+    def test_merge_commits_baseline_merge_commit_metadata(self, tmp_path: Path) -> None:
+        mission_slug = "068-test-baseline"
+        feature_dir = tmp_path / "kitty-specs" / mission_slug
+        feature_dir.mkdir(parents=True)
+        _write_meta(feature_dir, mission_slug, baseline_merge_commit=None)
+        _seed_mission_branch(tmp_path, mission_slug)
+
+        manifest = MagicMock()
+        manifest.target_branch = "main"
+        manifest.mission_branch = f"kitty/mission-{mission_slug}"
+
+        lane_a = MagicMock()
+        lane_a.lane_id = "lane-a"
+        lane_a.wp_ids = ["WP01"]
+        manifest.lanes = [lane_a]
+
+        lane_result = MagicMock(success=True, errors=[])
+        mission_result = MagicMock(success=True, commit="merged123", errors=[])
+
+        with (
+            patch("specify_cli.cli.commands.merge.require_lanes_json", return_value=manifest),
+            patch("specify_cli.cli.commands.merge.load_state", return_value=None),
+            patch("specify_cli.cli.commands.merge.save_state"),
+            patch("specify_cli.cli.commands.merge.get_main_repo_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.merge._enforce_target_branch_sync_preflight"),
+            patch("specify_cli.status.lane_reader.get_wp_lane", return_value="done"),
+            patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result),
+            patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result),
+            patch("specify_cli.cli.commands.merge._mark_wp_merged_done"),
+            patch("specify_cli.cli.commands.merge.safe_commit", return_value=True) as mock_safe_commit,
+            patch("specify_cli.post_merge.stale_assertions.run_check") as mock_run_check,
+            patch("specify_cli.policy.merge_gates.evaluate_merge_gates") as mock_gates,
+            patch("specify_cli.policy.config.load_policy_config") as mock_policy,
+            patch("specify_cli.cli.commands.merge.run_command", return_value=(0, "base123", "")),
+            patch("specify_cli.cli.commands.merge.has_remote", return_value=False),
+            patch("specify_cli.cli.commands.merge.cleanup_merge_workspace"),
+            patch("specify_cli.cli.commands.merge.clear_state"),
+            patch("specify_cli.cli.commands.merge.emit_mission_closed"),
+            patch("specify_cli.merge.state.MergeState"),
+            patch("specify_cli.cli.commands.merge.trigger_feature_dossier_sync_if_enabled"),
+        ):
+            stale_report = MagicMock()
+            stale_report.findings = []
+            mock_run_check.return_value = stale_report
+
+            gate_eval = MagicMock()
+            gate_eval.overall_pass = True
+            gate_eval.gates = []
+            mock_gates.return_value = gate_eval
+
+            policy = MagicMock()
+            policy.merge_gates = []
+            mock_policy.return_value = policy
+
+            _run_lane_based_merge(
+                repo_root=tmp_path,
+                mission_slug=mission_slug,
+                push=False,
+                delete_branch=False,
+                remove_worktree=False,
+                strategy=MergeStrategy.SQUASH,
+            )
+
+        data = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+        assert data["baseline_merge_commit"] == "base123"
+        files = mock_safe_commit.call_args.kwargs["files_to_commit"]
+        assert feature_dir / "meta.json" in files
 
 
 class TestMergeDoneTransitions:
