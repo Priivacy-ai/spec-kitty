@@ -107,6 +107,114 @@ def _resolve_active_feature_slug(repo_root: Path) -> str | None:
         return None
 
 
+def _resolve_output_policy_for_tracker() -> str:
+    """Return the active coordinator OutputPolicy value for tracker rendering.
+
+    Mission ``tracker-readiness-alignment-01KS7PZ7`` (WS5, issue #18): route
+    hosted tracker readiness output through the same suppression buckets as
+    the rest of the CLI.
+
+    Strategy:
+    1. Try the cached ``ReadinessResult`` on ``ctx.obj`` first via the central
+       coordinator's ``get_readiness``. When the coordinator has run (it runs
+       once per CLI invocation from the root callback) this gives us the
+       authoritative bucket without re-deriving from argv.
+    2. When no Click/Typer context is reachable (defensive — direct test
+       invocation of ``_check_readiness`` outside a CLI run), fall back to
+       deriving the policy from ``sys.argv`` via the coordinator's helper.
+
+    Lazy-imports the coordinator to avoid an import cycle with
+    ``specify_cli.saas.readiness``.
+    """
+    import click  # noqa: PLC0415 — keep coordinator import-time cheap
+    from specify_cli.readiness.coordinator import (  # noqa: PLC0415
+        OutputPolicy,
+        _derive_output_policy,
+        get_readiness,
+    )
+
+    try:
+        click_ctx = click.get_current_context(silent=True)
+    except Exception:  # noqa: BLE001 — defensive: never raise out of the readiness renderer
+        click_ctx = None
+
+    if click_ctx is not None:
+        try:
+            readiness = get_readiness(click_ctx)  # type: ignore[arg-type]
+            if readiness.ran:
+                return readiness.output_policy.value
+        except Exception:  # noqa: BLE001
+            pass
+
+    # Fallback: derive from argv directly. This is the same logic the
+    # coordinator uses on its enabled path; consulting it here keeps tracker
+    # output buckets aligned with coordinator output buckets even when ctx is
+    # unreachable.
+    try:
+        return _derive_output_policy().value
+    except Exception:  # noqa: BLE001
+        return OutputPolicy.INTERACTIVE.value
+
+
+def _render_readiness_failure(result: Any) -> None:
+    """Render a non-READY ``ReadinessResult`` per the active OutputPolicy.
+
+    Mission ``tracker-readiness-alignment-01KS7PZ7`` (WS5, issue #18) AC#5/6:
+    suppression rules from the central coordinator apply to hosted tracker
+    readiness output too.
+
+    - ``INTERACTIVE`` → existing 2-line human format (message + next_action).
+    - ``MACHINE_OUTPUT`` (``--json`` / ``--quiet``) → single stderr line carrying
+      the remediation only (or the message if no remediation is present).
+      Stdout is untouched so the caller's JSON / quiet contract is preserved.
+    - ``NON_INTERACTIVE`` (help / version / CI / non-TTY) → single stable
+      machine-parseable line ``spec-kitty tracker: readiness=<state>
+      next=spec-kitty-auth-login`` for the MISSING_AUTH state; for other states
+      we slugify the remediation phrase.
+
+    Always exits with ``typer.Exit(1)`` after writing.
+    """
+    policy = _resolve_output_policy_for_tracker()
+    state_value = getattr(getattr(result, "state", None), "value", None) or "unknown"
+    next_action = getattr(result, "next_action", None) or ""
+    message = getattr(result, "message", None) or ""
+
+    if policy == "interactive":
+        # Existing 2-line human format — preserved verbatim for backward compat.
+        typer.secho(message, fg=typer.colors.RED, err=True)
+        if next_action:
+            typer.echo(next_action, err=True)
+        raise typer.Exit(1)
+
+    if policy == "machine_output":
+        # Stdout untouched. Single stderr line, plain (no colour) so JSON
+        # callers piping stderr don't get ANSI escapes.
+        if next_action:
+            typer.echo(next_action, err=True)
+        else:
+            typer.echo(message, err=True)
+        raise typer.Exit(1)
+
+    # NON_INTERACTIVE: stable single-line machine-readable format.
+    if state_value == "missing_auth":
+        next_token = "spec-kitty-auth-login"
+    else:
+        # Deterministic slug from the remediation phrase; fallback to "unknown".
+        next_token = (
+            "-".join(
+                tok.strip("`.,").lower()
+                for tok in next_action.split()
+                if tok.strip("`.,")
+            )
+            or "unknown"
+        )
+    typer.echo(
+        f"spec-kitty tracker: readiness={state_value} next={next_token}",
+        err=True,
+    )
+    raise typer.Exit(1)
+
+
 def _check_readiness(
     *,
     require_mission_binding: bool,
@@ -115,7 +223,10 @@ def _check_readiness(
     """Check hosted readiness; raise typer.Exit(1) with actionable message on failure.
 
     Calls evaluate_readiness with the supplied flags and the current repo root.
-    On non-READY results, prints message + next_action to stderr and exits 1.
+    On non-READY results, the renderer (``_render_readiness_failure``) consults
+    the central coordinator's ``OutputPolicy`` so suppression buckets stay
+    aligned with the rest of the CLI (see issue #18, mission
+    ``tracker-readiness-alignment-01KS7PZ7``).
     """
     if require_mission_binding:
         try:
@@ -142,10 +253,7 @@ def _check_readiness(
         probe_reachability=probe_reachability,
     )
     if not result.is_ready:
-        typer.secho(result.message, fg=typer.colors.RED, err=True)
-        if result.next_action:
-            typer.echo(result.next_action, err=True)
-        raise typer.Exit(1)
+        _render_readiness_failure(result)
 
 
 def _check_daemon_policy(*, is_sync_run: bool = False) -> None:
