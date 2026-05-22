@@ -133,6 +133,13 @@ Deeper topics:
 - [External Orchestrator Runbook](docs/how-to/run-external-orchestrator.md)
 - [Hosted Sync Workspaces](docs/how-to/sync-workspaces.md)
 
+Hosted auth, sync, and tracker flows remain opt-in today. Internal /
+pre-launch operators dogfooding the hidden hosted-readiness mode behind
+`SPEC_KITTY_ENABLE_SAAS_SYNC=1` should read
+[Internal Hosted-Readiness (Pre-Launch)](docs/how-to/internal-hosted-readiness.md).
+The launch-day behavior that will replace today's defaults is staged
+under [Launch-Readiness Behavior (Coming Soon)](docs/explanation/launch-readiness-future.md).
+
 ## Development
 
 ```bash
