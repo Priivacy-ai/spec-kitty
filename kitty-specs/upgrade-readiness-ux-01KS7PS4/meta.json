@@ -1,0 +1,16 @@
+{
+  "acceptance_history": [],
+  "acceptance_mode": "pr",
+  "created_at": "2026-05-22T11:59:58+00:00",
+  "friendly_name": "Upgrade Readiness UX",
+  "mission_id": "01KS7PS4TBG7RF79CKAJTC2Q8A",
+  "mission_number": null,
+  "mission_slug": "upgrade-readiness-ux-01KS7PS4",
+  "mission_type": "software-dev",
+  "purpose_context": "Workstream 3 / Priivacy-ai/spec-kitty#1092. Extend the upgrade-nag UX into a real prompt with snooze cadence, opt-out, never-ask-again, and safe auto-upgrade gated on installer detection. Layers through the readiness coordinator from mission #1093; never mutates output in machine-output contexts; hidden behind is_saas_sync_enabled() unless the existing non-Teamspace upgrade nag already applies.",
+  "purpose_tldr": "Real upgrade-nag UX with snooze cadence and safe auto-upgrade for known installers.",
+  "slug": "upgrade-readiness-ux-01KS7PS4",
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-05-22T11:59:58+00:00"
+}

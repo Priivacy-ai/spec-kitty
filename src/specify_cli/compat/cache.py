@@ -40,6 +40,10 @@ _CACHE_FILE_NAME: str = "upgrade-nag.json"
 # ---------------------------------------------------------------------------
 
 
+SnoozeStep = Literal["24h", "48h", "7d"]
+_VALID_SNOOZE_STEPS: frozenset[str] = frozenset({"24h", "48h", "7d"})
+
+
 @dataclass(frozen=True)
 class NagCacheRecord:
     """One persisted upgrade-nag cache entry.
@@ -55,10 +59,29 @@ class NagCacheRecord:
         fetched_at: UTC datetime when the latest-version lookup completed.
         last_shown_at: UTC datetime when the nag was last displayed to the
             user, or ``None`` if it has never been shown.
+        remote_version_seen: Remote version that anchors the snooze cadence.
+            When this differs from the planner's current latest_version, the
+            cadence resets.
+        snooze_step: Current position in the cadence ladder
+            (``"24h" → "48h" → "7d"``).  ``None`` means no snooze active.
+        snoozed_until: UTC datetime; while ``now < snoozed_until`` the
+            prompt is suppressed.  ``None`` means no snooze active.
+        always_upgrade: User picked "Always keep me up to date".  When True
+            the coordinator attempts auto-upgrade on every invocation iff
+            the installer is on the safe whitelist.
+        never_ask: User picked "Never ask again".  Suppresses the prompt
+            indefinitely until a new ``remote_version_seen`` is observed.
 
     No PII is stored in this record (CHK007, CHK048, CHK050).  In particular,
     no user paths, project slugs, hostnames, or other user-identifying
     information is included.
+
+    Backward read-compat (WS3 / mission upgrade-readiness-ux-01KS7PS4):
+    The new fields (``remote_version_seen``, ``snooze_step``,
+    ``snoozed_until``, ``always_upgrade``, ``never_ask``) are all optional
+    at deserialisation time.  ``from_dict`` accepts legacy JSON that
+    contains only the original five fields and assigns safe defaults
+    (None / False).  Readers MUST NOT crash on legacy entries.
     """
 
     cli_version_key: str
@@ -66,6 +89,11 @@ class NagCacheRecord:
     latest_source: Literal["pypi", "none"]
     fetched_at: datetime
     last_shown_at: datetime | None
+    remote_version_seen: str | None = None
+    snooze_step: SnoozeStep | None = None
+    snoozed_until: datetime | None = None
+    always_upgrade: bool = False
+    never_ask: bool = False
 
     def to_dict(self) -> dict[str, object]:
         """Serialise the record to a JSON-compatible dict with ISO-8601 UTC strings."""
@@ -75,11 +103,18 @@ class NagCacheRecord:
             "latest_source": self.latest_source,
             "fetched_at": _dt_to_iso(self.fetched_at),
             "last_shown_at": _dt_to_iso(self.last_shown_at) if self.last_shown_at is not None else None,
+            "remote_version_seen": self.remote_version_seen,
+            "snooze_step": self.snooze_step,
+            "snoozed_until": _dt_to_iso(self.snoozed_until) if self.snoozed_until is not None else None,
+            "always_upgrade": self.always_upgrade,
+            "never_ask": self.never_ask,
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, object]) -> NagCacheRecord:
         """Deserialise a record from a JSON-compatible dict.
+
+        Accepts legacy JSON that omits the WS3 fields and assigns defaults.
 
         Args:
             data: Mapping as returned by ``json.loads``.
@@ -88,7 +123,7 @@ class NagCacheRecord:
             A new :class:`NagCacheRecord`.
 
         Raises:
-            KeyError: If a required field is absent.
+            KeyError: If a required (legacy) field is absent.
             ValueError: If a field has an unexpected type or value.
         """
         cli_version_key = _require_str(data, "cli_version_key")
@@ -108,12 +143,63 @@ class NagCacheRecord:
             if not isinstance(last_shown_at_raw, str):
                 raise ValueError(f"last_shown_at must be str or null, got {type(last_shown_at_raw)}")
             last_shown_at = _iso_to_dt(last_shown_at_raw)
+
+        # WS3 extensions — all optional with safe defaults for legacy files.
+        remote_version_seen_raw = data.get("remote_version_seen")
+        if remote_version_seen_raw is not None and not isinstance(remote_version_seen_raw, str):
+            raise ValueError(
+                f"remote_version_seen must be str or null, got {type(remote_version_seen_raw)}"
+            )
+        remote_version_seen = (
+            remote_version_seen_raw if isinstance(remote_version_seen_raw, str) else None
+        )
+
+        snooze_step_raw = data.get("snooze_step")
+        snooze_step: SnoozeStep | None
+        if snooze_step_raw is None:
+            snooze_step = None
+        elif isinstance(snooze_step_raw, str) and snooze_step_raw in _VALID_SNOOZE_STEPS:
+            if snooze_step_raw == "24h":
+                snooze_step = "24h"
+            elif snooze_step_raw == "48h":
+                snooze_step = "48h"
+            else:
+                snooze_step = "7d"
+        else:
+            raise ValueError(
+                f"snooze_step must be one of {sorted(_VALID_SNOOZE_STEPS)} or null, got {snooze_step_raw!r}"
+            )
+
+        snoozed_until_raw = data.get("snoozed_until")
+        snoozed_until: datetime | None = None
+        if snoozed_until_raw is not None:
+            if not isinstance(snoozed_until_raw, str):
+                raise ValueError(
+                    f"snoozed_until must be str or null, got {type(snoozed_until_raw)}"
+                )
+            snoozed_until = _iso_to_dt(snoozed_until_raw)
+
+        always_upgrade_raw = data.get("always_upgrade", False)
+        if not isinstance(always_upgrade_raw, bool):
+            raise ValueError(f"always_upgrade must be bool, got {type(always_upgrade_raw)}")
+        always_upgrade = always_upgrade_raw
+
+        never_ask_raw = data.get("never_ask", False)
+        if not isinstance(never_ask_raw, bool):
+            raise ValueError(f"never_ask must be bool, got {type(never_ask_raw)}")
+        never_ask = never_ask_raw
+
         return cls(
             cli_version_key=cli_version_key,
             latest_version=latest_version,
             latest_source=latest_source,
             fetched_at=fetched_at,
             last_shown_at=last_shown_at,
+            remote_version_seen=remote_version_seen,
+            snooze_step=snooze_step,
+            snoozed_until=snoozed_until,
+            always_upgrade=always_upgrade,
+            never_ask=never_ask,
         )
 
 

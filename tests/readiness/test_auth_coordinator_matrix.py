@@ -357,8 +357,10 @@ def test_nag_still_fires_after_auth_guidance(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Nag must still be invoked exactly once on the hosted-enabled path,
-    regardless of auth verdict. Wave 1 invariant preserved."""
+    """Upgrade UX (WS3) must be invoked exactly once on the hosted-enabled
+    path, regardless of auth verdict. The Wave 1 invariant is preserved
+    through the upgrade UX seam, which subsumes the legacy nag on the
+    hosted-enabled path (#1092)."""
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     monkeypatch.delenv("CI", raising=False)
     monkeypatch.setattr(sys, "argv", ["spec-kitty"])
@@ -366,10 +368,10 @@ def test_nag_still_fires_after_auth_guidance(
 
     call_count = {"n": 0}
 
-    def _counting_nag(_ctx: typer.Context) -> None:
+    def _counting_upgrade_ux(_ctx: typer.Context) -> None:
         call_count["n"] += 1
 
-    monkeypatch.setattr(coord_module, "_invoke_nag", _counting_nag)
+    monkeypatch.setattr(coord_module, "_invoke_upgrade_ux", _counting_upgrade_ux)
 
     from specify_cli.readiness import auth as auth_module
 
@@ -386,6 +388,6 @@ def test_nag_still_fires_after_auth_guidance(
     assert result.nag_invoked is True
     assert result.auth_status == AuthStatus.LOGGED_OUT_IN_TEAMSPACE
 
-    # Second call uses cache: nag must NOT fire again.
+    # Second call uses cache: upgrade UX must NOT fire again.
     evaluate_readiness(ctx)
     assert call_count["n"] == 1
