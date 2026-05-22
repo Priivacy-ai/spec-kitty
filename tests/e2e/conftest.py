@@ -20,6 +20,7 @@ from tests.test_isolation_helpers import get_installed_version, run_cli_subproce
 from specify_cli.migration.schema_version import MAX_SUPPORTED_SCHEMA, SCHEMA_CAPABILITIES
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+E2E_CEREMONY_BRANCH = "e2e-ceremony"
 
 
 @pytest.fixture(autouse=True)
@@ -185,6 +186,16 @@ def format_subprocess_failure(
     )
 
 
+def _checkout_e2e_ceremony_branch(project: Path) -> None:
+    """Run ceremony-writing E2E workflows away from protected main/master."""
+    subprocess.run(
+        ["git", "checkout", "-b", E2E_CEREMONY_BRANCH],
+        cwd=project,
+        check=True,
+        capture_output=True,
+    )
+
+
 @pytest.fixture()
 def e2e_project(tmp_path: Path) -> Path:
     """Create a temporary Spec Kitty project with git and .kittify initialized.
@@ -193,6 +204,7 @@ def e2e_project(tmp_path: Path) -> Path:
     - Copies .kittify from the real repo root
     - Copies missions from src/specify_cli/missions/
     - Initializes git with main branch and initial commit
+    - Checks out an E2E ceremony branch for workflow write operations
     - Aligns metadata version with source to avoid mismatch errors
     """
     project = tmp_path / "e2e-project"
@@ -280,6 +292,7 @@ def e2e_project(tmp_path: Path) -> Path:
         check=True,
         capture_output=True,
     )
+    _checkout_e2e_ceremony_branch(project)
 
     return project
 
@@ -354,5 +367,6 @@ def fresh_e2e_project(tmp_path: Path) -> Path:
         check=True,
         capture_output=True,
     )
+    _checkout_e2e_ceremony_branch(project)
 
     return project
