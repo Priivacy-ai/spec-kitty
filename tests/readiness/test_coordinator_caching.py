@@ -40,22 +40,37 @@ def _make_ctx(obj: Any = None) -> typer.Context:
 def test_A_hosted_enabled_cached_after_first_call(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """With SAAS sync enabled, calling evaluate_readiness twice invokes the nag once."""
+    """With SAAS sync enabled, calling evaluate_readiness twice invokes the upgrade UX once.
+
+    WS3 (issue #1092) routed the hosted-enabled path through the new
+    ``_invoke_upgrade_ux`` seam instead of the legacy ``_invoke_nag``
+    renderer. Caching invariants are unchanged: a second call returns
+    the same cached ReadinessResult instance and the seam fires exactly
+    once.
+    """
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     monkeypatch.setattr(sys, "argv", ["spec-kitty", "status"])
 
     call_count = {"n": 0}
 
-    def _spy_invoke_nag(ctx: typer.Context) -> None:
+    def _spy_invoke(ctx: typer.Context) -> None:
         call_count["n"] += 1
 
-    monkeypatch.setattr(coord_module, "_invoke_nag", _spy_invoke_nag)
+    monkeypatch.setattr(coord_module, "_invoke_upgrade_ux", _spy_invoke)
+    # Belt-and-suspenders: legacy _invoke_nag MUST NOT fire on hosted-enabled.
+    monkeypatch.setattr(
+        coord_module,
+        "_invoke_nag",
+        lambda ctx: pytest.fail(
+            "legacy _invoke_nag should not fire on hosted-enabled path"
+        ),
+    )
 
     ctx = _make_ctx()
     first = evaluate_readiness(ctx)
     second = evaluate_readiness(ctx)
 
-    assert call_count["n"] == 1, f"expected 1 nag call, got {call_count['n']}"
+    assert call_count["n"] == 1, f"expected 1 upgrade-ux call, got {call_count['n']}"
     assert first is second, "second call should return cached result instance"
     assert first.enabled is True
 

@@ -292,3 +292,38 @@ def detect_install_method(
 
     # 7. Fallback.
     return InstallMethod.UNKNOWN
+
+
+# ---------------------------------------------------------------------------
+# Auto-upgrade safety whitelist (WS3 mission upgrade-readiness-ux-01KS7PS4)
+# ---------------------------------------------------------------------------
+
+_SAFE_AUTO_UPGRADE_METHODS: frozenset[InstallMethod] = frozenset(
+    {
+        InstallMethod.PIPX,
+        InstallMethod.BREW,
+        InstallMethod.PIP_USER,
+        InstallMethod.PIP_SYSTEM,
+    }
+)
+
+
+def is_safe_for_auto_upgrade(method: InstallMethod) -> bool:
+    """Return True iff the detected install method is on the auto-upgrade whitelist.
+
+    Safe (the standard ``spec-kitty upgrade --yes`` flow is expected to
+    operate without breaking the installer's own bookkeeping):
+
+    - PIPX
+    - BREW
+    - PIP_USER
+    - PIP_SYSTEM
+
+    Unsafe (auto-upgrade is refused; the coordinator falls back to printing
+    guidance instead of mutating anything):
+
+    - SOURCE         (editable / dev install)
+    - SYSTEM_PACKAGE (distro package manager owns the binary)
+    - UNKNOWN        (fail closed)
+    """
+    return method in _SAFE_AUTO_UPGRADE_METHODS

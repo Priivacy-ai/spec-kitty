@@ -188,6 +188,27 @@ def _invoke_nag(ctx: typer.Context) -> None:
     _render_nag_if_needed(ctx)
 
 
+def _invoke_upgrade_ux(ctx: typer.Context) -> None:
+    """Run the hosted-mode upgrade-readiness UX (WS3, issue #1092).
+
+    Suppression is delegated to the canonical
+    ``cli.helpers._should_suppress_nag`` predicate; when that predicate
+    returns True this function passes ``suppressed=True`` into the UX
+    layer so the UX MUST NOT prompt, MUST NOT invoke a subprocess, and
+    MUST NOT mutate the cache.
+
+    Exceptions are swallowed — the coordinator must never raise out of
+    the CLI startup path.
+    """
+    try:
+        from specify_cli.cli.helpers import _should_suppress_nag  # noqa: PLC0415
+        from specify_cli.readiness.upgrade_ux import run_upgrade_ux  # noqa: PLC0415
+
+        run_upgrade_ux(ctx, suppressed=_should_suppress_nag())
+    except Exception:  # noqa: BLE001 — UX must never crash the CLI
+        pass
+
+
 def _evaluate_uncached(ctx: typer.Context) -> ReadinessResult:
     """Compute a fresh ``ReadinessResult`` for the current invocation.
 
@@ -257,9 +278,11 @@ def _evaluate_uncached(ctx: typer.Context) -> ReadinessResult:
         except Exception:  # noqa: BLE001 — render must never raise out of the coordinator
             pass
 
-    # Nag fires after auth guidance, preserving Wave 1's "_invoke_nag runs
-    # exactly once per evaluation" invariant.
-    _invoke_nag(ctx)
+    # WS3 (issue #1092): on the hosted-enabled path the upgrade UX
+    # subsumes the legacy nag. It owns prompt cadence, choice
+    # persistence, and auto-upgrade gating, and applies its own
+    # suppression checks via ``_should_suppress_nag``.
+    _invoke_upgrade_ux(ctx)
     return ReadinessResult(
         enabled=True,
         ran=True,
