@@ -1,0 +1,185 @@
+{
+  "mission_slug": "cli-startup-readiness-coordinator-skeleton-01KS7JRV",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "specify_cli.readiness package exports AuthStatus, OutputPolicy, ReadinessResult, evaluate_readiness, get_readiness from __init__.py",
+      "proof_type": "automated_test",
+      "evidence": "tests/readiness/test_coordinator_suppression_matrix.py imports the 5 symbols at module scope; verified by smoke-import in WP01 T010.",
+      "pass_fail": "pass",
+      "verified_by": "WP01 implementer + reviewer-renata.",
+      "verified_at": "2026-05-22T10:42:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "evaluate_readiness(ctx) is called exactly once from the root CLI callback() in src/specify_cli/cli/helpers.py, replacing the previous inline _render_nag_if_needed(ctx) call.",
+      "proof_type": "code_review",
+      "evidence": "src/specify_cli/cli/helpers.py callback() at lines 274-282 calls evaluate_readiness(ctx); the prior inline _render_nag_if_needed(ctx) call site is removed (verified by grep).",
+      "pass_fail": "pass",
+      "verified_by": "WP01 reviewer-renata; mission-review.",
+      "verified_at": "2026-05-22T10:42:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Coordinator's first gate is is_saas_sync_enabled(). When False, returns no-op result immediately and emits no output.",
+      "proof_type": "automated_test",
+      "evidence": "tests/readiness/test_coordinator_caching.py::test_B_hosted_disabled_cached_after_first_call and 7 rows of the suppression matrix assert disabled-path semantics; src/specify_cli/readiness/coordinator.py::_evaluate_uncached branches on is_saas_sync_enabled() first.",
+      "pass_fail": "pass",
+      "verified_by": "WP01+WP02 reviewer-renata; mission-review.",
+      "verified_at": "2026-05-22T10:42:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Coordinator records an output_policy field on ReadinessResult derived from the same suppression signals _should_suppress_nag() consults.",
+      "proof_type": "automated_test",
+      "evidence": "tests/readiness/test_coordinator_suppression_matrix.py parameterized over 8 rows asserts result.output_policy matches expected bucket (MACHINE_OUTPUT > NON_INTERACTIVE > INTERACTIVE precedence).",
+      "pass_fail": "pass",
+      "verified_by": "WP02 reviewer-renata.",
+      "verified_at": "2026-05-22T10:42:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Coordinator composes an auth-readiness stub field; _auth_recovery.detect_logged_out_with_connected_teamspace is imported but NOT called this mission, marked # WS2: auth probe wiring.",
+      "proof_type": "code_review",
+      "evidence": "src/specify_cli/readiness/coordinator.py lines 22-26 import the symbol with # noqa: F401 and # WS2: auth probe wiring marker. Test matrix asserts auth_status == NOT_CHECKED on enabled rows, DISABLED on disabled rows. The function is never called in this mission's diff (verified by grep).",
+      "pass_fail": "pass",
+      "verified_by": "WP01 reviewer-renata; mission-review.",
+      "verified_at": "2026-05-22T10:42:00Z",
+      "notes": "Hand-off seam for WS2 (Priivacy-ai/spec-kitty#1094)."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Coordinator wraps existing _render_nag_if_needed(ctx) byte-for-byte. The function is unchanged; only the call site moved from helpers.callback into coordinator._invoke_nag.",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli_gate/test_ci_determinism.py is byte-identical to main (git diff origin/main shows 0 lines) and 20/20 tests still pass. tests/readiness/test_coordinator_nag_passthrough.py 3 cases prove the wrapper preserves render/suppress/exception-swallow behavior.",
+      "pass_fail": "pass",
+      "verified_by": "WP01+WP03 reviewer-renata; mission-review.",
+      "verified_at": "2026-05-22T10:42:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Coordinator stores its result on ctx.obj under key 'readiness'. Initializes ctx.obj to {} if None. Coexists with existing 'compat_plan_result' key.",
+      "proof_type": "automated_test",
+      "evidence": "tests/readiness/test_coordinator_caching.py cases A/B/C verify cache lookup; src/specify_cli/readiness/coordinator.py::_write_cached handles None/dict/non-dict ctx.obj defensively.",
+      "pass_fail": "pass",
+      "verified_by": "WP02 reviewer-renata.",
+      "verified_at": "2026-05-22T10:42:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "get_readiness(ctx) reads from cache; returns _NOOP_DISABLED if missing. Never raises, never re-runs coordinator.",
+      "proof_type": "automated_test",
+      "evidence": "tests/readiness/test_coordinator_caching.py cases C (cached identity), D (fresh-ctx default), E (non-dict ctx.obj default) — all 3 do not raise.",
+      "pass_fail": "pass",
+      "verified_by": "WP02 reviewer-renata.",
+      "verified_at": "2026-05-22T10:42:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Double-invocation on the same ctx returns the cached result without re-evaluating signals.",
+      "proof_type": "automated_test",
+      "evidence": "tests/readiness/test_coordinator_caching.py cases A/B spy on _invoke_nag; assert call count == 1 across 2 evaluate_readiness(ctx) calls; assert first is second by identity.",
+      "pass_fail": "pass",
+      "verified_by": "WP02 reviewer-renata.",
+      "verified_at": "2026-05-22T10:42:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Coordinator never raises. Internal exceptions are swallowed and replaced with _NOOP_DISABLED.",
+      "proof_type": "automated_test",
+      "evidence": "tests/readiness/test_coordinator_nag_passthrough.py case C: planner mocked to raise; evaluate_readiness(ctx) does not raise; returns ReadinessResult. src/specify_cli/readiness/coordinator.py::evaluate_readiness has try/except → _NOOP_DISABLED.",
+      "pass_fail": "pass",
+      "verified_by": "WP03 reviewer-renata.",
+      "verified_at": "2026-05-22T10:42:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "With SPEC_KITTY_ENABLE_SAAS_SYNC unset, no string containing 'teamspace' (case-insensitive) appears in stdout or stderr for any of: --help, --version, plain invocation, --json, --quiet, CI=1, non-TTY.",
+      "proof_type": "automated_test",
+      "evidence": "tests/readiness/test_coordinator_suppression_matrix.py parameterized over 7 disabled-mode rows + 1 enabled-mode row asserts 'teamspace' not in captured.out.lower() and not in captured.err.lower() for every row. All 8 pass.",
+      "pass_fail": "pass",
+      "verified_by": "WP02 reviewer-renata; mission-review.",
+      "verified_at": "2026-05-22T10:42:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Tests under tests/readiness/ cover the 7-row suppression matrix and the once-per-invocation caching invariant.",
+      "proof_type": "automated_test",
+      "evidence": "tests/readiness/ contains __init__.py + 3 test files with 16 tests total; pytest -q tests/readiness/ tests/cli_gate/test_ci_determinism.py → 36/36 pass.",
+      "pass_fail": "pass",
+      "verified_by": "WP02+WP03 reviewer-renata.",
+      "verified_at": "2026-05-22T10:42:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "NFR-001",
+      "description": "Coordinator overhead ≤ 1ms p50 when disabled / ≤ 2ms p50 when enabled.",
+      "proof_type": "inspection",
+      "evidence": "No benchmark test ships per spec NFR-001 wording (inspection-only by design). Coordinator only does in-memory env lookup + argv parse + isatty check; no I/O.",
+      "pass_fail": "pass",
+      "verified_by": "Mission-review inspection.",
+      "verified_at": "2026-05-22T10:42:00Z",
+      "notes": "Per-spec inspection-only; no automated threshold enforcement."
+    },
+    {
+      "criterion_id": "NFR-002",
+      "description": "No network I/O in startup path.",
+      "proof_type": "inspection",
+      "evidence": "grep -n 'httpx\\|socket\\|requests' src/specify_cli/readiness/ → no hits.",
+      "pass_fail": "pass",
+      "verified_by": "Mission-review inspection.",
+      "verified_at": "2026-05-22T10:42:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "NFR-003",
+      "description": "No new disk reads beyond what wrapped nag already does.",
+      "proof_type": "inspection",
+      "evidence": "grep -n 'open(\\|Path(\\|os\\.path' src/specify_cli/readiness/ → no hits.",
+      "pass_fail": "pass",
+      "verified_by": "Mission-review inspection.",
+      "verified_at": "2026-05-22T10:42:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "NFR-004",
+      "description": "≥90% line coverage on src/specify_cli/readiness/.",
+      "proof_type": "automated_test",
+      "evidence": "pytest --cov=src/specify_cli/readiness tests/readiness/ → 94% line coverage (81 stmts, 5 missed — all defensive paths: isatty exception, ctx exception fallback).",
+      "pass_fail": "pass",
+      "verified_by": "WP03 reviewer-renata.",
+      "verified_at": "2026-05-22T10:42:00Z",
+      "notes": "Exceeds threshold by 4 percentage points."
+    },
+    {
+      "criterion_id": "NFR-005",
+      "description": "mypy --strict passes on new + modified files.",
+      "proof_type": "automated_test",
+      "evidence": "mypy --strict src/specify_cli/readiness/ → 'Success: no issues found in 2 source files'. helpers.py mypy error on line 309 (Returning Any from function declared to return Path) is pre-existing on main; not introduced by this mission.",
+      "pass_fail": "pass",
+      "verified_by": "WP01+WP03 reviewer-renata; mission-review.",
+      "verified_at": "2026-05-22T10:42:00Z",
+      "notes": "helpers.py pre-existing mypy issue documented; readiness package is clean."
+    }
+  ],
+  "extra_evidence": {
+    "tests_summary": "tests/readiness/ + tests/cli_gate/test_ci_determinism.py + tests/architectural/ → 274 passed, 2 skipped, 0 failed.",
+    "diff_scope": "git diff origin/main --stat: changes confined to src/specify_cli/readiness/ (new), src/specify_cli/cli/helpers.py (8 LOC delta), tests/readiness/ (new), tests/architectural/test_no_dead_symbols.py (1-line allowlist removal as direct consequence of FR-006), kitty-specs/cli-startup-readiness-coordinator-skeleton-01KS7JRV/ (mission artifacts). No file outside the declared surfaces is modified.",
+    "rejection_cycles": "0 across all 3 WPs.",
+    "forced_transitions": "0",
+    "operating_rules_compliance": "All honored: pre-launch hidden mode (FR-003 + C-002), suppression contract (FR-004/FR-011), no SaaS DB/queue/readiness mutation (C-004), canonical producer lint (0 violations), no new pip deps (C-001), spec-kitty next only entry point (C-008), no direct push to main (C-010)."
+  }
+}
