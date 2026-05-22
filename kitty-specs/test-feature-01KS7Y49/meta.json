@@ -1,0 +1,12 @@
+{
+  "created_at": "2026-05-22T13:31:20.982716+00:00",
+  "friendly_name": "123 test feature",
+  "mission_id": "01KS7Y490NMY5SVMW3PF48Y0WG",
+  "mission_number": null,
+  "mission_slug": "test-feature-01KS7Y49",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances 123 test feature on fix/auth-login-removes-teamspace-gate so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "123 test feature",
+  "slug": "test-feature-01KS7Y49",
+  "target_branch": "fix/auth-login-removes-teamspace-gate"
+}
