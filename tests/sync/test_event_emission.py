@@ -83,8 +83,19 @@ class TestMergeEmitsWPStatusChanged:
         assert event["payload"]["to_lane"] == "for_review"
 
 
+_DONE_EVIDENCE: dict[str, object] = {
+    "review": {"reviewer": "r1", "verdict": "approved", "reference": "review:1"},
+    "repos": [{"repo": "test-org/test-repo", "branch": "main", "commit": "a" * 40}],
+}
+
+
 class TestAcceptEmitsWPStatusChanged:
-    """SC-003: accept emits WPStatusChanged(for_review→done)."""
+    """SC-003: accept emits WPStatusChanged(for_review→done).
+
+    Done transitions require ``evidence`` per the canonical
+    :class:`StatusTransitionPayload` semantic validator (Phase 1 of
+    issues Priivacy-ai/spec-kitty#1198 / #1200).
+    """
 
     def test_for_review_to_done(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """accept: WP moves from for_review to done."""
@@ -92,6 +103,7 @@ class TestAcceptEmitsWPStatusChanged:
             wp_id="WP01",
             from_lane="for_review",
             to_lane="done",
+            evidence=_DONE_EVIDENCE,
         )
         assert event is not None
         assert event["payload"]["from_lane"] == "for_review"
@@ -103,6 +115,7 @@ class TestAcceptEmitsWPStatusChanged:
             wp_id="WP01",
             from_lane="for_review",
             to_lane="done",
+            evidence=_DONE_EVIDENCE,
         )
         assert event is not None
         assert event["git_branch"] == "test-branch"
@@ -540,6 +553,7 @@ class TestNoDuplicateEmissions:
                 from_lane="for_review",
                 to_lane="done",
                 actor="user",
+                evidence=_DONE_EVIDENCE,
             )
 
         # Verify exactly 3 events (one per WP, not 6)

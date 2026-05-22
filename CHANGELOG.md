@@ -17,6 +17,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `docs/explanation/launch-readiness-future.md` stages the launch-day
   behavior shift behind an explicit "Status: pre-launch" banner.
 
+## [3.2.0rc24] - 2026-05-22
+
+Ships the canonical SaaS-bound producer refactor for CLI lifecycle,
+sync, decision, glossary, and migration emitters.
+
+- Routes known SaaS-bound CLI payloads through the `spec-kitty-events`
+  5.2 canonical models where those contracts exist, while preserving
+  transitional legacy wire payloads required by current SaaS consumers.
+- Preserves local `artifact_path` metadata on artifact-phase Started
+  events and projects those payloads to the strict canonical SaaS wire
+  shape before queueing.
+- Adds producer conformance coverage, strict lifecycle validation,
+  handler-reset isolation, and a documented canonical-producer lint
+  baseline for remaining local-only/test producers.
+
 ## [3.2.0rc23] - 2026-05-21
 
 Rolls up the autonomous-runtime safety sweep needed before the 3.2.0

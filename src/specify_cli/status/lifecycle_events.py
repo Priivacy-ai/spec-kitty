@@ -153,7 +153,7 @@ def _atomic_append(path: Path, line: str) -> None:
             os.fsync(fh.fileno())
 
 
-def _build_envelope(
+def _build_envelope(  # canonical-producer-exempt: #1198 — local lifecycle JSONL envelope (distinct from SaaS wire envelope); payload is already constructed via canonical pydantic models in the emit_* helpers above
     event_type: str,
     payload: Mapping[str, Any],
     *,
@@ -163,7 +163,7 @@ def _build_envelope(
     project_slug: str | None = None,
     schema_version: str = "5.0.0",
 ) -> dict[str, Any]:
-    return {
+    return {  # canonical-producer-exempt: #1198 — see function-level comment above
         "event_id": _generate_event_id(),
         "event_type": event_type,
         "aggregate_id": aggregate_id,
@@ -195,32 +195,63 @@ def _validate_lifecycle_payload(event_type: str, payload: Mapping[str, Any]) -> 
 
     Delegates to ``spec_kitty_events.conformance.validate_event`` so every
     event type the events package recognises (lifecycle, status, dossier,
-    build, …) is checked under the same canonical rules. Raises on **any**
-    model violation reported by the canonical validator — extra-property
-    drift (e.g. the historical ``MissionCreated.payload.actor`` of #1190)
-    *and* missing required fields (e.g. ``mission_type`` / ``wp_count``
-    of #1199). See issue Priivacy-ai/spec-kitty#1199 for the rationale
-    behind widening this beyond the previous extras-only scope.
+    build, …) is checked under the same canonical rules.
 
-    Unknown event types (e.g. ``BuildRegistered`` until the events
-    package ships a schema for it) pass through quietly so unrecognised
-    types don't become sudden hard failures.
+    Phase-2 widening (issues Priivacy-ai/spec-kitty#1198 / #1200): we now
+    pass ``strict=True`` and raise on both ``model_violations`` and
+    ``schema_violations`` for known event types. The previous behavior
+    raised only on model violations, which let JSON-schema-level drift
+    (missing required fields, additionalProperties=false breaches) reach
+    the SaaS boundary as a runtime canary failure instead of a producer
+    emit-time error.
+
+    Local-only event types (``spec_kitty_events.LOCAL_ONLY_EVENT_TYPES``)
+    skip strict validation by design — the set is currently empty but
+    reserved for future internal-only event types.
+
+    Unknown event types (event_type not in ``_EVENT_TYPE_TO_MODEL``) pass
+    through quietly so unrecognised types don't become sudden hard
+    failures. The producer lint catches the corresponding hand-rolled
+    dict at static analysis time.
     """
+    from spec_kitty_events import LOCAL_ONLY_EVENT_TYPES
     from spec_kitty_events.conformance import validate_event
     from spec_kitty_events.conformance.validators import _EVENT_TYPE_TO_MODEL
+
+    if event_type in LOCAL_ONLY_EVENT_TYPES:
+        return
 
     if event_type not in _EVENT_TYPE_TO_MODEL:
         return
 
-    result = validate_event(dict(payload), event_type, strict=False)
-    if result.model_violations:
-        details = "; ".join(
-            f"{v.field}: {v.message}" for v in result.model_violations
-        )
+    result = validate_event(dict(payload), event_type, strict=True)
+    if result.model_violations or result.schema_violations:
+        model_details = [f"{v.field}: {v.message}" for v in result.model_violations]
+        schema_details = [
+            f"{v.json_path}: {v.message}" for v in result.schema_violations
+        ]
+        details = "; ".join((*model_details, *schema_details))
         raise ValueError(
             f"Lifecycle payload for {event_type!r} fails canonical contract: "
             f"{details}"
         )
+
+
+def _canonical_lifecycle_payload_for_saas(
+    event_type: str,
+    payload: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Project a local lifecycle payload to the strict SaaS wire shape.
+
+    Local Started events keep ``artifact_path`` so local replay and dashboards
+    can identify the artifact opened by the phase transition. The canonical
+    ``spec-kitty-events`` Started payloads intentionally do not expose that
+    field, so the SaaS fan-out strips it before strict validation and queueing.
+    """
+    projected = dict(payload)
+    if event_type.endswith("Started"):
+        projected.pop("artifact_path", None)
+    return projected
 
 
 def _build_saas_lifecycle_event(
@@ -260,7 +291,18 @@ def _match_lifecycle_event(
     payload = candidate.get("payload") or {}
     if not isinstance(payload, Mapping):
         return False
-    return all(payload.get(key) == expected for key, expected in dedup_keys.items())
+    return all(
+        _dedup_value_matches(key, payload.get(key), expected)
+        for key, expected in dedup_keys.items()
+    )
+
+
+def _dedup_value_matches(key: str, actual: Any, expected: Any) -> bool:
+    if actual == expected:
+        return True
+    if key == "artifact_path" and isinstance(actual, str) and isinstance(expected, str):
+        return Path(actual).name == Path(expected).name
+    return False
 
 
 def has_lifecycle_event(
@@ -344,15 +386,22 @@ def emit_project_initialized(
 
     Idempotent on ``project_uuid``: re-running ``spec-kitty init`` (or any
     bootstrap flow) on an already-initialized project is a no-op.
+
+    The payload is constructed via the canonical
+    :class:`spec_kitty_events.project_lifecycle.ProjectInitializedPayload`
+    so producer-time validation rejects any field that drifts from the
+    contract (issues Priivacy-ai/spec-kitty#1198 / #1200).
     """
+    from spec_kitty_events.project_lifecycle import ProjectInitializedPayload
+
     log_path = project_event_log_path(repo_root)
-    payload = {
-        "project_uuid": project_uuid,
-        "project_slug": project_slug,
-        "actor": actor,
-        "runtime_version": runtime_version,
-        "initialized_at": initialized_at or _now_iso(),
-    }
+    payload = ProjectInitializedPayload(
+        project_uuid=project_uuid,
+        project_slug=project_slug,
+        actor=actor,
+        runtime_version=runtime_version,
+        initialized_at=initialized_at or _now_iso(),
+    ).model_dump(mode="json", exclude_none=False)
     return append_lifecycle_event(
         log_path,
         PROJECT_INITIALIZED,
@@ -391,24 +440,43 @@ def emit_mission_created_local(
     take an actor because the payload schema declares ``additionalProperties:
     false`` with no ``actor`` property.
     See Priivacy-ai/spec-kitty#1199 for the full required-field surface.
+
+    The payload is constructed via the canonical
+    :class:`spec_kitty_events.lifecycle.MissionCreatedPayload` so
+    producer-time validation rejects extras / missing required fields
+    (issues Priivacy-ai/spec-kitty#1198 / #1200).
     """
+    from spec_kitty_events.lifecycle import MissionCreatedPayload
+
     log_path = mission_event_log_path(feature_dir)
-    payload: dict[str, Any] = {
-        "mission_slug": mission_slug,
-        "mission_number": mission_number,
-        "mission_type": mission_type,
-        "target_branch": target_branch,
-        "wp_count": wp_count,
-        "created_at": created_at or _now_iso(),
-    }
-    if mission_id is not None:
-        payload["mission_id"] = mission_id
-    if friendly_name is not None:
-        payload["friendly_name"] = friendly_name
-    if purpose_tldr is not None:
-        payload["purpose_tldr"] = purpose_tldr
-    if purpose_context is not None:
-        payload["purpose_context"] = purpose_context
+
+    # MissionCreatedPayload requires friendly_name / purpose_tldr /
+    # purpose_context (min_length=1). Fall back to mission_slug-derived
+    # defaults so this helper never raises on legitimate callers that
+    # omit them — see the local-first semantics in
+    # ``spec-kitty agent mission create``.
+    effective_friendly_name = (friendly_name or "").strip() or mission_slug
+    effective_purpose_tldr = (purpose_tldr or "").strip() or effective_friendly_name
+    effective_purpose_context = (
+        (purpose_context or "").strip()
+        or f"Local mission for {effective_friendly_name} (target branch: {target_branch})."
+    )
+
+    payload_model = MissionCreatedPayload(
+        mission_id=mission_id,
+        mission_slug=mission_slug,
+        mission_number=mission_number,
+        mission_type=mission_type,
+        target_branch=target_branch,
+        wp_count=wp_count,
+        friendly_name=effective_friendly_name,
+        purpose_tldr=effective_purpose_tldr,
+        purpose_context=effective_purpose_context,
+        created_at=created_at or _now_iso(),
+    )
+    payload: dict[str, Any] = payload_model.model_dump(
+        mode="json", exclude_none=False
+    )
 
     return append_lifecycle_event(
         log_path,
@@ -438,37 +506,67 @@ def emit_artifact_phase(
 ) -> dict[str, Any] | None:
     """Append a Specify/Plan/Tasks lifecycle event for the mission.
 
-    Started events dedupe on ``(event_type, mission_slug)``; completed
-    events dedupe on ``(event_type, mission_slug, artifact_path)`` so
-    that re-running a phase with a different artifact path is recorded
-    as a new completed event.
+    Started and completed events dedupe on
+    ``(event_type, mission_slug, artifact_path)`` when an artifact path is
+    known, falling back to ``(event_type, mission_slug)`` for legacy callers.
+    The local log keeps ``artifact_path`` on Started events so dashboards and
+    mission-creation replay know which artifact was opened.
+
+    Started/Completed split (issues Priivacy-ai/spec-kitty#1198 / #1203
+    "dormant mask"): the canonical pydantic payload models in
+    ``spec_kitty_events.project_lifecycle`` declare ``extra="forbid"``,
+    so ``summary`` / ``wp_count`` remain Completed-only. ``artifact_path`` is
+    local lifecycle metadata for Started events; the SaaS fan-out path strips
+    it before strict canonical validation.
     """
-    if event_type not in {
-        SPECIFY_STARTED,
-        SPECIFY_COMPLETED,
-        PLAN_STARTED,
-        PLAN_COMPLETED,
-        TASKS_STARTED,
-        TASKS_COMPLETED,
-    }:
+    from spec_kitty_events.project_lifecycle import (
+        PlanCompletedPayload,
+        PlanStartedPayload,
+        SpecifyCompletedPayload,
+        SpecifyStartedPayload,
+        TasksCompletedPayload,
+        TasksStartedPayload,
+    )
+
+    _PAYLOAD_MODEL_FOR_EVENT_TYPE: dict[str, type] = {
+        SPECIFY_STARTED: SpecifyStartedPayload,
+        SPECIFY_COMPLETED: SpecifyCompletedPayload,
+        PLAN_STARTED: PlanStartedPayload,
+        PLAN_COMPLETED: PlanCompletedPayload,
+        TASKS_STARTED: TasksStartedPayload,
+        TASKS_COMPLETED: TasksCompletedPayload,
+    }
+
+    payload_model_cls = _PAYLOAD_MODEL_FOR_EVENT_TYPE.get(event_type)
+    if payload_model_cls is None:
         raise ValueError(f"Unsupported artifact phase event_type: {event_type!r}")
 
-    payload: dict[str, Any] = {
+    # Common fields all six payloads share.
+    fields: dict[str, Any] = {
         "mission_slug": mission_slug,
+        "mission_number": mission_number,
         "actor": actor,
         "at": at or _now_iso(),
     }
-    if mission_number is not None:
-        payload["mission_number"] = mission_number
-    if artifact_path is not None:
+    # Completed-only fields. Passing these on Started variants is
+    # rejected by ``extra="forbid"`` on the typed model — the dormant
+    # mask is now closed.
+    if event_type.endswith("Completed"):
+        if artifact_path is not None:
+            fields["artifact_path"] = artifact_path
+        if summary is not None:
+            fields["summary"] = summary
+        if event_type == TASKS_COMPLETED and wp_count is not None:
+            fields["wp_count"] = wp_count
+
+    payload: dict[str, Any] = payload_model_cls(**fields).model_dump(
+        mode="json", exclude_none=False
+    )
+    if event_type.endswith("Started") and artifact_path is not None:
         payload["artifact_path"] = artifact_path
-    if summary is not None:
-        payload["summary"] = summary
-    if wp_count is not None:
-        payload["wp_count"] = wp_count
 
     dedup: dict[str, Any] = {"mission_slug": mission_slug}
-    if artifact_path is not None and event_type.endswith("Completed"):
+    if artifact_path is not None:
         dedup["artifact_path"] = artifact_path
 
     log_path = mission_event_log_path(feature_dir)
@@ -498,19 +596,28 @@ def emit_wp_created_local(
     project_uuid: str | None = None,
     project_slug: str | None = None,
 ) -> dict[str, Any] | None:
-    """Record a local ``WPCreated`` event keyed by ``(mission_slug, wp_id)``."""
-    payload: dict[str, Any] = {
-        "mission_slug": mission_slug,
-        "wp_id": wp_id,
-        "wp_title": wp_title,
-        "depends_on": list(depends_on or []),
-        "actor": actor,
-        "created_at": created_at or _now_iso(),
-    }
-    if mission_number is not None:
-        payload["mission_number"] = mission_number
-    if wp_path is not None:
-        payload["wp_path"] = wp_path
+    """Record a local ``WPCreated`` event keyed by ``(mission_slug, wp_id)``.
+
+    Payload is constructed via the canonical
+    :class:`spec_kitty_events.project_lifecycle.WPCreatedPayload` so
+    schema drift is rejected at the producer boundary
+    (issues Priivacy-ai/spec-kitty#1198 / #1200).
+    """
+    from spec_kitty_events.project_lifecycle import WPCreatedPayload
+
+    payload_model = WPCreatedPayload(
+        mission_slug=mission_slug,
+        mission_number=mission_number,
+        wp_id=wp_id,
+        wp_title=wp_title,
+        wp_path=wp_path,
+        depends_on=list(depends_on or []),
+        actor=actor,
+        created_at=created_at or _now_iso(),
+    )
+    payload: dict[str, Any] = payload_model.model_dump(
+        mode="json", exclude_none=False
+    )
 
     log_path = mission_event_log_path(feature_dir)
     return append_lifecycle_event(

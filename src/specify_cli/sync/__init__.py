@@ -123,6 +123,7 @@ __all__ = [
     "is_saas_sync_enabled",
     "saas_sync_disabled_message",
     "emit_diagnostic",
+    "register_default_handlers",
 ]
 
 
@@ -141,108 +142,153 @@ __all__ = [
 # stubs); anything else is a defect.
 import contextlib as _contextlib  # noqa: E402
 
-with _contextlib.suppress(ImportError):
-    from specify_cli.status.adapters import (
-        register_lifecycle_saas_fanout_handler,
-        register_dossier_sync_handler,
-        register_saas_fanout_handler,
+
+# Module-level handler functions so they can be re-registered after a
+# test-only ``adapters.reset_handlers()`` call. Defining them at the
+# top level (instead of nested inside the original ``with`` block)
+# means ``register_default_handlers()`` can be called from anywhere
+# in the test suite to restore the registry after a wipe — fixing the
+# order-dependent test pollution where ``reset_handlers()`` in one test
+# left subsequent lifecycle-fan-out tests with an empty registry
+# (issues Priivacy-ai/spec-kitty#1198 / #1200).
+def _dossier_sync_handler(feature_dir, mission_slug, repo_root):  # type: ignore[no-untyped-def]
+    """Default dossier-sync handler, registered by ``register_default_handlers``.
+
+    Late-binding wrapper: looks up the sync target at call time so that
+    tests which patch the underlying module attribute observe the patch
+    on every invocation. Registering the target directly would capture
+    the original function reference and bypass such patches.
+    """
+    from specify_cli.sync.dossier_pipeline import (
+        trigger_feature_dossier_sync_if_enabled,
     )
 
-    # Late-binding wrappers: look up sync targets at call time so that
-    # tests which patch the underlying module attributes (e.g.
-    # ``patch("specify_cli.sync.events.emit_wp_status_changed")``)
-    # observe the patch on every invocation. Registering the targets
-    # directly would capture the original function reference and bypass
-    # such patches.
-    def _dossier_sync_handler(feature_dir, mission_slug, repo_root):  # type: ignore[no-untyped-def]
-        from specify_cli.sync.dossier_pipeline import (
-            trigger_feature_dossier_sync_if_enabled,
+    trigger_feature_dossier_sync_if_enabled(feature_dir, mission_slug, repo_root)
+
+
+def _saas_fanout_handler(**kwargs):  # type: ignore[no-untyped-def]
+    """Default WPStatusChanged SaaS fan-out handler."""
+    from specify_cli.sync.events import emit_wp_status_changed
+
+    emit_wp_status_changed(**kwargs)
+
+
+def _lifecycle_saas_fanout_handler(**kwargs):  # type: ignore[no-untyped-def]
+    """Default lifecycle SaaS fan-out handler.
+
+    Constructs the SaaS wire envelope from the local lifecycle event and
+    queues it into the offline outbox when sync is enabled and a valid
+    Teamspace scope is available. Strict canonical-payload validation
+    runs here (see ``_validate_lifecycle_payload``) so schema-drift
+    becomes an emit-time error, not an RC-canary failure
+    (issues Priivacy-ai/spec-kitty#1198 / #1200).
+    """
+    from collections.abc import Mapping
+
+    from spec_kitty_events import Event as EventModel
+
+    from specify_cli.core.contract_gate import validate_outbound_payload
+    from specify_cli.identity.project import ensure_identity
+    from specify_cli.status.lifecycle_events import (
+        _canonical_lifecycle_payload_for_saas,
+        _generate_event_id,
+        _now_iso,
+        _repo_root_for_lifecycle_log,
+        _validate_lifecycle_payload,
+    )
+    from specify_cli.sync.clock import LamportClock
+    from specify_cli.sync.feature_flags import is_saas_sync_enabled
+    from specify_cli.sync.queue import (
+        OfflineQueue,
+        read_queue_scope_from_credentials,
+        read_queue_scope_from_session,
+    )
+
+    if not is_saas_sync_enabled():
+        return
+    scope = read_queue_scope_from_session() or read_queue_scope_from_credentials()
+    if not scope:
+        return
+
+    envelope = kwargs.get("envelope")
+    log_path = kwargs.get("log_path")
+    if not isinstance(envelope, Mapping):
+        return
+
+    event_type = envelope.get("event_type")
+    payload = envelope.get("payload")
+    if not isinstance(event_type, str) or not isinstance(payload, Mapping):
+        return
+
+    aggregate_type = envelope.get("aggregate_type")
+    if not isinstance(aggregate_type, str):
+        return
+
+    repo_root = _repo_root_for_lifecycle_log(log_path)
+    if repo_root is None:
+        return
+
+    identity = ensure_identity(repo_root)
+    if not identity.project_uuid or not identity.build_id:
+        return
+
+    saas_payload = _canonical_lifecycle_payload_for_saas(event_type, payload)
+    _validate_lifecycle_payload(event_type, saas_payload)
+
+    clock = LamportClock.load()
+    event_id = _generate_event_id()
+    aggregate_id = envelope.get("aggregate_id") or payload.get("mission_slug") or event_id
+    event = {  # canonical-producer-exempt: #1198 — lifecycle-to-SaaS wire envelope; payload itself is canonical-validated above via _validate_lifecycle_payload (strict for known types)
+        "event_id": event_id,
+        "event_type": event_type,
+        "aggregate_id": str(aggregate_id),
+        "aggregate_type": aggregate_type,
+        "schema_version": "3.0.0",
+        "build_id": identity.build_id,
+        "payload": saas_payload,
+        "node_id": identity.node_id or clock.node_id,
+        "lamport_clock": clock.tick(),
+        "causation_id": None,
+        "correlation_id": event_id,
+        "timestamp": envelope.get("timestamp") or _now_iso(),
+        "project_uuid": str(identity.project_uuid),
+        "project_slug": identity.project_slug or envelope.get("project_slug"),
+    }
+    validate_outbound_payload(event, "envelope")
+    EventModel(**event)
+    OfflineQueue().queue_event(event)
+
+
+def register_default_handlers() -> None:
+    """Register the default sync handlers into ``specify_cli.status.adapters``.
+
+    Idempotent: ``adapters.register_*`` functions de-duplicate by qualified
+    name, so calling this repeatedly is safe. Tests that wipe the registry
+    via ``adapters.reset_handlers()`` should call this immediately after
+    (or use the autouse fixture in ``tests/status/conftest.py``) so the
+    next lifecycle event still has a fan-out target.
+
+    See issues Priivacy-ai/spec-kitty#1198 / #1200 — without this hook,
+    ``test_emit_backward_transition.py`` (which calls ``reset_handlers``
+    in its teardown) poisoned subsequent ``test_lifecycle_events.py``
+    tests that depend on the lifecycle SaaS fan-out being registered.
+    """
+    with _contextlib.suppress(ImportError):
+        from specify_cli.status.adapters import (
+            register_dossier_sync_handler,
+            register_lifecycle_saas_fanout_handler,
+            register_saas_fanout_handler,
         )
 
-        trigger_feature_dossier_sync_if_enabled(feature_dir, mission_slug, repo_root)
+        register_dossier_sync_handler(_dossier_sync_handler)
+        register_saas_fanout_handler(_saas_fanout_handler)
+        register_lifecycle_saas_fanout_handler(_lifecycle_saas_fanout_handler)
 
-    def _saas_fanout_handler(**kwargs):  # type: ignore[no-untyped-def]
-        from specify_cli.sync.events import emit_wp_status_changed
 
-        emit_wp_status_changed(**kwargs)
-
-    def _lifecycle_saas_fanout_handler(**kwargs):  # type: ignore[no-untyped-def]
-        from collections.abc import Mapping
-
-        from spec_kitty_events import Event as EventModel
-
-        from specify_cli.core.contract_gate import validate_outbound_payload
-        from specify_cli.identity.project import ensure_identity
-        from specify_cli.status.lifecycle_events import (
-            _generate_event_id,
-            _now_iso,
-            _repo_root_for_lifecycle_log,
-            _validate_lifecycle_payload,
-        )
-        from specify_cli.sync.clock import LamportClock
-        from specify_cli.sync.feature_flags import is_saas_sync_enabled
-        from specify_cli.sync.queue import (
-            OfflineQueue,
-            read_queue_scope_from_credentials,
-            read_queue_scope_from_session,
-        )
-
-        if not is_saas_sync_enabled():
-            return
-        scope = read_queue_scope_from_session() or read_queue_scope_from_credentials()
-        if not scope:
-            return
-
-        envelope = kwargs.get("envelope")
-        log_path = kwargs.get("log_path")
-        if not isinstance(envelope, Mapping):
-            return
-
-        event_type = envelope.get("event_type")
-        payload = envelope.get("payload")
-        if not isinstance(event_type, str) or not isinstance(payload, Mapping):
-            return
-
-        aggregate_type = envelope.get("aggregate_type")
-        if not isinstance(aggregate_type, str):
-            return
-
-        repo_root = _repo_root_for_lifecycle_log(log_path)
-        if repo_root is None:
-            return
-
-        identity = ensure_identity(repo_root)
-        if not identity.project_uuid or not identity.build_id:
-            return
-
-        _validate_lifecycle_payload(event_type, payload)
-
-        clock = LamportClock.load()
-        event_id = _generate_event_id()
-        aggregate_id = envelope.get("aggregate_id") or payload.get("mission_slug") or event_id
-        event = {
-            "event_id": event_id,
-            "event_type": event_type,
-            "aggregate_id": str(aggregate_id),
-            "aggregate_type": aggregate_type,
-            "schema_version": "3.0.0",
-            "build_id": identity.build_id,
-            "payload": dict(payload),
-            "node_id": identity.node_id or clock.node_id,
-            "lamport_clock": clock.tick(),
-            "causation_id": None,
-            "correlation_id": event_id,
-            "timestamp": envelope.get("timestamp") or _now_iso(),
-            "project_uuid": str(identity.project_uuid),
-            "project_slug": identity.project_slug or envelope.get("project_slug"),
-        }
-        validate_outbound_payload(event, "envelope")
-        EventModel(**event)
-        OfflineQueue().queue_event(event)
-
-    register_dossier_sync_handler(_dossier_sync_handler)
-    register_saas_fanout_handler(_saas_fanout_handler)
-    register_lifecycle_saas_fanout_handler(_lifecycle_saas_fanout_handler)
+# Initial registration at import time. Subsequent code (production or
+# tests) can call ``register_default_handlers()`` again to repair the
+# registry after a wipe.
+register_default_handlers()
 
 with _contextlib.suppress(ImportError):
     # Register dossier emitter (WP01 inversion). The wrapper routes

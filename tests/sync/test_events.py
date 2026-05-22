@@ -11,6 +11,7 @@ Covers:
 
 from __future__ import annotations
 
+from typing import Any
 from unittest.mock import MagicMock, patch
 from pathlib import Path
 
@@ -367,10 +368,28 @@ class TestWPStatusChanged:
         assert temp_queue.size() == 1
 
     def test_all_valid_status_transitions(self, emitter: EventEmitter, temp_queue):
-        """All canonical lane values pass validation."""
+        """All canonical lane values pass validation.
+
+        Approved/done transitions require ``evidence`` per the canonical
+        :class:`StatusTransitionPayload` (Phase 1 of issues #1198/#1200);
+        we pass minimal evidence for those lanes.
+        """
+        evidence_for_terminal = {
+            "review": {
+                "reviewer": "test-reviewer",
+                "verdict": "approved",
+                "reference": "review:test",
+            },
+            "repos": [
+                {"repo": "test/repo", "branch": "main", "commit": "a" * 40}
+            ],
+        }
         lanes = ["planned", "claimed", "in_progress", "for_review", "approved", "done", "blocked", "canceled"]
         for lane in lanes:
-            event = emitter.emit_wp_status_changed("WP01", "planned", lane)
+            kwargs: dict[str, Any] = {}
+            if lane in {"approved", "done"}:
+                kwargs["evidence"] = evidence_for_terminal
+            event = emitter.emit_wp_status_changed("WP01", "planned", lane, **kwargs)
             assert event is not None, f"Failed for to_lane={lane}"
 
 

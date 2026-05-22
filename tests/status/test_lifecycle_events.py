@@ -211,12 +211,14 @@ def test_artifact_phase_records_optional_metadata(feature_dir: Path) -> None:
         event_type=TASKS_COMPLETED,
         mission_slug="demo-mission",
         mission_number=7,
+        artifact_path="kitty-specs/demo-mission/tasks.md",
         summary="Created three work packages",
         wp_count=3,
     )
 
     payload = read_lifecycle_events(mission_event_log_path(feature_dir))[0]["payload"]
     assert payload["mission_number"] == 7
+    assert payload["artifact_path"] == "kitty-specs/demo-mission/tasks.md"
     assert payload["summary"] == "Created three work packages"
     assert payload["wp_count"] == 3
 

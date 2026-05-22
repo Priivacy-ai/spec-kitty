@@ -33,6 +33,7 @@ from specify_cli.cli.commands._auth_recovery import (  # noqa: F401
 )
 
 _READINESS_CTX_KEY = "readiness"
+_PROTOCOL_OUTPUT_SUBCOMMANDS = frozenset({"next"})
 
 
 class OutputPolicy(StrEnum):
@@ -96,7 +97,11 @@ _NOOP_DISABLED: ReadinessResult = ReadinessResult(
 )
 
 
-def _derive_output_policy(argv: list[str] | None = None) -> OutputPolicy:
+def _derive_output_policy(
+    argv: list[str] | None = None,
+    *,
+    ctx: typer.Context | None = None,
+) -> OutputPolicy:
     """Classify the active suppression conditions into the 3-bucket policy.
 
     Precedence (highest first):
@@ -113,6 +118,9 @@ def _derive_output_policy(argv: list[str] | None = None) -> OutputPolicy:
     ``_render_nag_if_needed``; this function records the bucket for
     downstream consumers (WS2 auth, WS3 upgrade UX).
     """
+    if ctx is not None and ctx.invoked_subcommand in _PROTOCOL_OUTPUT_SUBCOMMANDS:
+        return OutputPolicy.MACHINE_OUTPUT
+
     if argv is None:
         argv = sys.argv[1:]
 
@@ -228,7 +236,7 @@ def _evaluate_uncached(ctx: typer.Context) -> ReadinessResult:
     """
     from specify_cli.saas.rollout import is_saas_sync_enabled  # noqa: PLC0415
 
-    output_policy = _derive_output_policy()
+    output_policy = _derive_output_policy(ctx=ctx)
 
     if not is_saas_sync_enabled():
         _invoke_nag(ctx)

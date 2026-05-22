@@ -219,6 +219,12 @@ def _make_ctx() -> typer.Context:
     return typer.Context(cmd)
 
 
+def _make_ctx_for_subcommand(name: str) -> typer.Context:
+    ctx = _make_ctx()
+    ctx.invoked_subcommand = name
+    return ctx
+
+
 @pytest.mark.parametrize("row", MATRIX, ids=[r.name for r in MATRIX])
 def test_auth_matrix(
     row: AuthMatrixRow,
@@ -315,6 +321,34 @@ def test_coordinator_swallows_probe_exception(
     assert captured.out == ""
     # No teamspace text leaks when probe failed → no handle to render.
     assert "teamspace" not in captured.err.lower()
+
+
+def test_protocol_subcommand_suppresses_logged_out_guidance(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Agent protocol commands must not have readiness guidance prepended."""
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    monkeypatch.delenv("CI", raising=False)
+    monkeypatch.setattr(sys, "argv", ["pytest"])
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    monkeypatch.setattr(coord_module, "_invoke_nag", lambda ctx: None)
+
+    from specify_cli.readiness import auth as auth_module
+
+    monkeypatch.setattr(
+        auth_module,
+        "probe_auth_status",
+        lambda **_kw: (AuthStatus.LOGGED_OUT_IN_TEAMSPACE, _TEAMSPACE),
+    )
+
+    result = evaluate_readiness(_make_ctx_for_subcommand("next"))
+
+    assert result.output_policy == OutputPolicy.MACHINE_OUTPUT
+    assert result.auth_status == AuthStatus.LOGGED_OUT_IN_TEAMSPACE
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == ""
 
 
 def test_coordinator_swallows_render_exception(
