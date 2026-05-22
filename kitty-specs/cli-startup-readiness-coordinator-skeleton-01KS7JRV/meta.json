@@ -8,5 +8,7 @@
   "purpose_context": "This mission introduces the central CLI startup readiness coordinator referenced by Priivacy-ai/spec-kitty#1093. It establishes the seam that downstream missions (auth, upgrade UX, tracker, docs) plug into. Until the SaaS gate flips at launch, the coordinator no-ops; existing upgrade-nag behavior is preserved by routing it through the coordinator.",
   "purpose_tldr": "Single coordinator owns Teamspace-aware CLI readiness, dormant until hosted mode is on.",
   "slug": "cli-startup-readiness-coordinator-skeleton-01KS7JRV",
-  "target_branch": "main"
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-05-22T10:38:38.669851+00:00"
 }

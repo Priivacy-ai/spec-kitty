@@ -17,6 +17,9 @@ requirement_refs:
 planning_base_branch: kitty/mission-cli-startup-readiness-coordinator-skeleton-01KS7JRV
 merge_target_branch: kitty/mission-cli-startup-readiness-coordinator-skeleton-01KS7JRV
 branch_strategy: Planning artifacts for this mission were generated on kitty/mission-cli-startup-readiness-coordinator-skeleton-01KS7JRV. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into kitty/mission-cli-startup-readiness-coordinator-skeleton-01KS7JRV unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-cli-startup-readiness-coordinator-skeleton-01KS7JRV
+base_commit: 0a2039b99964e4109827baa635e397da5c57e39b
+created_at: '2026-05-22T10:38:40.128947+00:00'
 subtasks:
 - T001
 - T002
@@ -28,6 +31,7 @@ subtasks:
 - T008
 - T009
 - T010
+shell_pid: '62483'
 history: []
 agent_profile: python-pedro
 authoritative_surface: src/specify_cli/readiness/
