@@ -1,7 +1,7 @@
 {
-  "event_count": 8,
-  "last_event_id": "01KS7MESTZ9BXNS508FTM7252Y",
-  "materialized_at": "2026-05-22T10:42:20.127779+00:00",
+  "event_count": 10,
+  "last_event_id": "01KS7MF26RF9MPF21E9D4C667B",
+  "materialized_at": "2026-05-22T10:42:28.696049+00:00",
   "mission_number": "",
   "mission_slug": "cli-startup-readiness-coordinator-skeleton-01KS7JRV",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 2
+    "planned": 1
   },
   "work_packages": {
     "WP01": {
@@ -25,11 +25,11 @@
       "last_transition_at": "2026-05-22T10:42:20.127779+00:00"
     },
     "WP02": {
-      "actor": "finalize-tasks",
+      "actor": "claude:opus:python-pedro:implementer",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KS7M2DP67A3E44F36P448W3X",
-      "last_transition_at": "2026-05-22T10:35:34.470159+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KS7MF26RF9MPF21E9D4C667B",
+      "last_transition_at": "2026-05-22T10:42:28.696049+00:00"
     },
     "WP03": {
       "actor": "finalize-tasks",
