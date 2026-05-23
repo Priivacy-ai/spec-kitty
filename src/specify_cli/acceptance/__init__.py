@@ -617,27 +617,39 @@ def _workflow_evidence_missing(feature_dir: Path) -> bool:
 def _contains_workflow_run_id(text: str) -> bool:
     """Return True when evidence text includes a standalone GitHub Actions run id."""
 
-    optional_prefixes = ("successful ", "github actions ")
-
     for raw_line in text.splitlines():
-        normalized = " ".join(raw_line.strip().lower().split())
-        if not normalized:
+        normalized = _normalize_workflow_evidence_line(raw_line)
+        if normalized is None:
             continue
-        for prefix in optional_prefixes:
-            if normalized.startswith(prefix):
-                normalized = normalized[len(prefix) :]
-        if normalized.startswith("run id"):
-            remainder = normalized[len("run id") :]
-        elif normalized.startswith("run"):
-            remainder = normalized[len("run") :]
-        else:
+        remainder = _extract_workflow_run_remainder(normalized)
+        if remainder is None:
             continue
-        remainder = remainder.lstrip()
-        if remainder[:1] in ":#-":
-            remainder = remainder[1:].lstrip()
         if remainder.isdigit() and len(remainder) >= 5:
             return True
     return False
+
+
+def _normalize_workflow_evidence_line(raw_line: str) -> str | None:
+    normalized = " ".join(raw_line.strip().lower().split())
+    if not normalized:
+        return None
+    for prefix in ("successful ", "github actions "):
+        if normalized.startswith(prefix):
+            normalized = normalized[len(prefix) :]
+    return normalized
+
+
+def _extract_workflow_run_remainder(normalized: str) -> str | None:
+    if normalized.startswith("run id"):
+        remainder = normalized[len("run id") :]
+    elif normalized.startswith("run"):
+        remainder = normalized[len("run") :]
+    else:
+        return None
+    remainder = remainder.lstrip()
+    if remainder[:1] in ":#-":
+        remainder = remainder[1:].lstrip()
+    return remainder
 
 
 def _check_workflow_run_evidence(
