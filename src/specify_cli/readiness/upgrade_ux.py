@@ -27,15 +27,30 @@ from __future__ import annotations
 
 import os
 import subprocess  # noqa: S404 — required to invoke the existing `spec-kitty upgrade` binary
-import sys
 from collections.abc import Callable
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
     import typer
+
+    from specify_cli.compat.cache import NagCacheRecord
+
+
+class _CliStatusLike(Protocol):
+    installed_version: str
+    latest_version: str | None
+    latest_source: str
+
+
+class _PlanResultLike(Protocol):
+    cli_status: _CliStatusLike
+
+
+class _NagCacheLike(Protocol):
+    def write(self, record: NagCacheRecord) -> None: ...
 
 # Public env keys (WS3 acceptance criterion 4).
 ENV_UPGRADE_AUTO = "SPEC_KITTY_UPGRADE_AUTO"
@@ -338,6 +353,128 @@ class UpgradeUxOutcome:
     guidance_only: bool  # unsafe installer → printed guidance, no mutation
 
 
+def _inactive_outcome() -> UpgradeUxOutcome:
+    return UpgradeUxOutcome(False, False, None, False, None, False)
+
+
+def _noop_active_outcome() -> UpgradeUxOutcome:
+    return UpgradeUxOutcome(True, False, None, False, None, False)
+
+
+def _stash_plan_result(ctx: typer.Context | None, result: object) -> None:
+    if ctx is not None and ctx.obj is None:
+        ctx.obj = {}
+    if ctx is not None and isinstance(ctx.obj, dict):
+        ctx.obj["compat_plan_result"] = result
+
+
+def _build_record_kwargs(
+    result: _PlanResultLike,
+    existing: NagCacheRecord | None,
+    now: datetime,
+) -> dict[str, object]:
+    return {
+        "cli_version_key": result.cli_status.installed_version,
+        "latest_version": result.cli_status.latest_version,
+        "latest_source": result.cli_status.latest_source,
+        "fetched_at": now,
+        "last_shown_at": existing.last_shown_at if existing is not None else None,
+        "remote_version_seen": existing.remote_version_seen if existing is not None else None,
+        "snooze_step": existing.snooze_step if existing is not None else None,
+        "snoozed_until": existing.snoozed_until if existing is not None else None,
+        "always_upgrade": existing.always_upgrade if existing is not None else False,
+        "never_ask": existing.never_ask if existing is not None else False,
+    }
+
+
+def _optional_str_value(value: object) -> str | None:
+    return value if isinstance(value, str) else None
+
+
+def _optional_datetime_value(value: object) -> datetime | None:
+    return value if isinstance(value, datetime) else None
+
+
+def _reset_anchor_if_needed(kwargs: dict[str, object], current_latest: str | None) -> None:
+    if needs_reset(
+        record_remote_version=_optional_str_value(kwargs.get("remote_version_seen")),
+        current_latest=current_latest,
+    ):
+        kwargs["snooze_step"] = None
+        kwargs["snoozed_until"] = None
+        kwargs["never_ask"] = False
+        kwargs["remote_version_seen"] = current_latest
+
+
+def _persist_and_return(cache: _NagCacheLike, kwargs: dict[str, object], outcome: UpgradeUxOutcome) -> UpgradeUxOutcome:
+    _persist(cache, kwargs)
+    return outcome
+
+
+def _run_auto_upgrade_if_safe(
+    *,
+    safe: bool,
+    method: object,
+    upgrade_runner: Callable[[], int],
+) -> tuple[bool, int | None, bool]:
+    if safe:
+        return True, upgrade_runner(), False
+    _print_unsafe_installer_guidance(str(method))
+    return False, None, True
+
+
+def _handle_always_preference(
+    *,
+    cache: _NagCacheLike,
+    kwargs: dict[str, object],
+    safe: bool,
+    method: object,
+    upgrade_runner: Callable[[], int],
+) -> UpgradeUxOutcome:
+    attempted, exit_code, guidance_only = _run_auto_upgrade_if_safe(
+        safe=safe,
+        method=method,
+        upgrade_runner=upgrade_runner,
+    )
+    if exit_code == 0:
+        kwargs["snooze_step"] = None
+        kwargs["snoozed_until"] = None
+    return _persist_and_return(
+        cache,
+        kwargs,
+        UpgradeUxOutcome(True, False, UpgradeChoice.UPGRADE_NOW if attempted else None, attempted, exit_code, guidance_only),
+    )
+
+
+def _handle_prompt_choice(
+    *,
+    cache: _NagCacheLike,
+    kwargs: dict[str, object],
+    choice: UpgradeChoice,
+    current_latest: str | None,
+    now: datetime,
+    safe: bool,
+    method: object,
+    upgrade_runner: Callable[[], int],
+) -> UpgradeUxOutcome:
+    kwargs["last_shown_at"] = now
+    new_kwargs = apply_choice(kwargs, choice=choice, current_latest=current_latest, now=now)
+    auto_upgrade_attempted = False
+    exit_code: int | None = None
+    guidance_only = False
+    if choice in (UpgradeChoice.UPGRADE_NOW, UpgradeChoice.ALWAYS):
+        auto_upgrade_attempted, exit_code, guidance_only = _run_auto_upgrade_if_safe(
+            safe=safe,
+            method=method,
+            upgrade_runner=upgrade_runner,
+        )
+    return _persist_and_return(
+        cache,
+        new_kwargs,
+        UpgradeUxOutcome(True, True, choice, auto_upgrade_attempted, exit_code, guidance_only),
+    )
+
+
 def run_upgrade_ux(  # noqa: C901,PLR0911,PLR0912,PLR0913,PLR0915 — orchestrator with many short-circuit branches
     ctx: typer.Context | None,
     *,
@@ -374,14 +511,14 @@ def run_upgrade_ux(  # noqa: C901,PLR0911,PLR0912,PLR0913,PLR0915 — orchestrat
     and recorded as ``ran=False`` outcomes.
     """
     if suppressed:
-        return UpgradeUxOutcome(False, False, None, False, None, False)
+        return _inactive_outcome()
 
     if now is None:
         now = datetime.now(UTC)
     if env is None:
         env = dict(os.environ)
     if prompt is None:
-        prompt = _default_prompt  # type: ignore[assignment]
+        prompt = _default_prompt
     if upgrade_runner is None:
         upgrade_runner = _default_upgrade_runner
 
@@ -400,58 +537,33 @@ def run_upgrade_ux(  # noqa: C901,PLR0911,PLR0912,PLR0913,PLR0915 — orchestrat
         )
 
         if installer_detector is None:
-            installer_detector = detect_install_method  # type: ignore[assignment]
+            installer_detector = detect_install_method
 
         # Kill switch (env-only; not persisted).
         if _truthy(env.get(ENV_UPGRADE_DISABLED)):
-            return UpgradeUxOutcome(False, False, None, False, None, False)
+            return _inactive_outcome()
 
         # Build invocation & planner output.
         inv = Invocation.from_argv()
         if inv.suppresses_nag():
             # Defence-in-depth — caller already supplied `suppressed`.
-            return UpgradeUxOutcome(False, False, None, False, None, False)
+            return _inactive_outcome()
 
         result = compat_plan(inv)
-
-        # Stash on ctx.obj so subcommands can read the planner output.
-        if ctx is not None and ctx.obj is None:
-            ctx.obj = {}
-        if ctx is not None and isinstance(ctx.obj, dict):
-            ctx.obj["compat_plan_result"] = result
+        _stash_plan_result(ctx, result)
 
         if result.decision != Decision.ALLOW_WITH_NAG:
-            return UpgradeUxOutcome(False, False, None, False, None, False)
+            return _inactive_outcome()
 
         # Load cache.
         cache = NagCache.default()
         existing = cache.read()
-
-        # Snapshot record kwargs we'll mutate.
-        kwargs: dict[str, object] = {
-            "cli_version_key": result.cli_status.installed_version,
-            "latest_version": result.cli_status.latest_version,
-            "latest_source": result.cli_status.latest_source,
-            "fetched_at": now,
-            "last_shown_at": existing.last_shown_at if existing is not None else None,
-            "remote_version_seen": existing.remote_version_seen if existing is not None else None,
-            "snooze_step": existing.snooze_step if existing is not None else None,
-            "snoozed_until": existing.snoozed_until if existing is not None else None,
-            "always_upgrade": existing.always_upgrade if existing is not None else False,
-            "never_ask": existing.never_ask if existing is not None else False,
-        }
+        kwargs = _build_record_kwargs(result, existing, now)
 
         current_latest = result.cli_status.latest_version
 
         # Anchor reset: a new remote version clears snooze + never_ask.
-        if needs_reset(
-            record_remote_version=kwargs.get("remote_version_seen"),  # type: ignore[arg-type]
-            current_latest=current_latest,
-        ):
-            kwargs["snooze_step"] = None
-            kwargs["snoozed_until"] = None
-            kwargs["never_ask"] = False  # bound to specific remote version
-            kwargs["remote_version_seen"] = current_latest
+        _reset_anchor_if_needed(kwargs, current_latest)
 
         # Resolve effective preferences (env can elevate but never demote).
         pref = resolve_effective_preference(
@@ -463,74 +575,45 @@ def run_upgrade_ux(  # noqa: C901,PLR0911,PLR0912,PLR0913,PLR0915 — orchestrat
         if pref.never_ask:
             # Honour preference; do not prompt.  Persist the anchor so a
             # new remote version naturally re-prompts.
-            _persist(cache, kwargs)
-            return UpgradeUxOutcome(True, False, None, False, None, False)
+            return _persist_and_return(cache, kwargs, _noop_active_outcome())
 
         # Active snooze?
         if is_currently_snoozed(
-            snoozed_until=kwargs.get("snoozed_until"),  # type: ignore[arg-type]
+            snoozed_until=_optional_datetime_value(kwargs.get("snoozed_until")),
             now=now,
         ):
-            _persist(cache, kwargs)
-            return UpgradeUxOutcome(True, False, None, False, None, False)
+            return _persist_and_return(cache, kwargs, _noop_active_outcome())
 
         method = installer_detector()
         safe = is_safe_for_auto_upgrade(method) if isinstance(method, InstallMethod) else False
 
         # Always-upgrade path: short-circuit the prompt.
         if pref.always_upgrade:
-            if safe:
-                exit_code = upgrade_runner()
-                # On success, clear cadence so a new remote restarts cleanly.
-                if exit_code == 0:
-                    kwargs["snooze_step"] = None
-                    kwargs["snoozed_until"] = None
-                _persist(cache, kwargs)
-                return UpgradeUxOutcome(
-                    True, False, UpgradeChoice.UPGRADE_NOW, True, exit_code, False
-                )
-            # Unsafe installer → guidance only.  Do NOT mutate beyond the
-            # anchor we set above.
-            _print_unsafe_installer_guidance(str(method))
-            _persist(cache, kwargs)
-            return UpgradeUxOutcome(True, False, None, False, None, True)
+            return _handle_always_preference(
+                cache=cache,
+                kwargs=kwargs,
+                safe=safe,
+                method=method,
+                upgrade_runner=upgrade_runner,
+            )
 
         # Interactive prompt path.
         choice = prompt()
-        kwargs["last_shown_at"] = now
-        new_kwargs = apply_choice(
-            kwargs, choice=choice, current_latest=current_latest, now=now
-        )
-
-        auto_upgrade_attempted = False
-        exit_code: int | None = None
-        guidance_only = False
-
-        if choice == UpgradeChoice.UPGRADE_NOW:
-            if safe:
-                auto_upgrade_attempted = True
-                exit_code = upgrade_runner()
-            else:
-                _print_unsafe_installer_guidance(str(method))
-                guidance_only = True
-        elif choice == UpgradeChoice.ALWAYS:
-            # If safe, eagerly upgrade in the same invocation.
-            if safe:
-                auto_upgrade_attempted = True
-                exit_code = upgrade_runner()
-            else:
-                _print_unsafe_installer_guidance(str(method))
-                guidance_only = True
-
-        _persist(cache, new_kwargs)
-        return UpgradeUxOutcome(
-            True, True, choice, auto_upgrade_attempted, exit_code, guidance_only
+        return _handle_prompt_choice(
+            cache=cache,
+            kwargs=kwargs,
+            choice=choice,
+            current_latest=current_latest,
+            now=now,
+            safe=safe,
+            method=method,
+            upgrade_runner=upgrade_runner,
         )
     except Exception:  # noqa: BLE001 — UX path must never raise out of the CLI.
-        return UpgradeUxOutcome(False, False, None, False, None, False)
+        return _inactive_outcome()
 
 
-def _persist(cache: object, kwargs: dict[str, object]) -> None:
+def _persist(cache: _NagCacheLike, kwargs: dict[str, object]) -> None:
     """Best-effort write of a NagCacheRecord to disk.
 
     Swallows any exception — cache mutation failure must not block the CLI.
@@ -539,8 +622,8 @@ def _persist(cache: object, kwargs: dict[str, object]) -> None:
         from specify_cli.compat import NagCacheRecord  # noqa: PLC0415
 
         # Defensive copy: ensure literal type for snooze_step.
-        record = NagCacheRecord(**kwargs)  # type: ignore[arg-type]
-        cache.write(record)  # type: ignore[attr-defined]
+        record = NagCacheRecord(**kwargs)
+        cache.write(record)
     except Exception:  # noqa: BLE001
         pass
 
@@ -560,8 +643,3 @@ __all__ = [
     "resolve_effective_preference",
     "run_upgrade_ux",
 ]
-
-
-# Keep import-time noise low.
-_ = replace  # ruff: re-export to acknowledge the deliberate import
-_ = sys  # ruff: avoid unused if all dependencies are deferred

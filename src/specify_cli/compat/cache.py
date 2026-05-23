@@ -33,6 +33,7 @@ _LOG = logging.getLogger(__name__)
 
 _MAX_FILE_BYTES: int = 65_536  # 64 KiB defensive bound
 _CACHE_FILE_NAME: str = "upgrade-nag.json"
+_VALID_LATEST_SOURCES: frozenset[str] = frozenset({"pypi", "none"})
 
 
 # ---------------------------------------------------------------------------
@@ -127,67 +128,22 @@ class NagCacheRecord:
             ValueError: If a field has an unexpected type or value.
         """
         cli_version_key = _require_str(data, "cli_version_key")
-        latest_version_raw = data.get("latest_version")
-        if latest_version_raw is not None and not isinstance(latest_version_raw, str):
-            raise ValueError(f"latest_version must be str or null, got {type(latest_version_raw)}")
-        # latest_version_raw is str after the isinstance check above (or None).
-        latest_version = latest_version_raw if isinstance(latest_version_raw, str) else None
+        latest_version = _optional_str(data, "latest_version")
         latest_source_raw = _require_str(data, "latest_source")
-        if latest_source_raw not in ("pypi", "none"):
+        if latest_source_raw not in _VALID_LATEST_SOURCES:
             raise ValueError(f"latest_source must be 'pypi' or 'none', got {latest_source_raw!r}")
         latest_source: Literal["pypi", "none"] = "pypi" if latest_source_raw == "pypi" else "none"
         fetched_at = _iso_to_dt(_require_str(data, "fetched_at"))
-        last_shown_at_raw = data.get("last_shown_at")
-        last_shown_at: datetime | None = None
-        if last_shown_at_raw is not None:
-            if not isinstance(last_shown_at_raw, str):
-                raise ValueError(f"last_shown_at must be str or null, got {type(last_shown_at_raw)}")
-            last_shown_at = _iso_to_dt(last_shown_at_raw)
+        last_shown_at_raw = _optional_str(data, "last_shown_at")
+        last_shown_at = _iso_to_dt(last_shown_at_raw) if last_shown_at_raw is not None else None
 
         # WS3 extensions — all optional with safe defaults for legacy files.
-        remote_version_seen_raw = data.get("remote_version_seen")
-        if remote_version_seen_raw is not None and not isinstance(remote_version_seen_raw, str):
-            raise ValueError(
-                f"remote_version_seen must be str or null, got {type(remote_version_seen_raw)}"
-            )
-        remote_version_seen = (
-            remote_version_seen_raw if isinstance(remote_version_seen_raw, str) else None
-        )
-
-        snooze_step_raw = data.get("snooze_step")
-        snooze_step: SnoozeStep | None
-        if snooze_step_raw is None:
-            snooze_step = None
-        elif isinstance(snooze_step_raw, str) and snooze_step_raw in _VALID_SNOOZE_STEPS:
-            if snooze_step_raw == "24h":
-                snooze_step = "24h"
-            elif snooze_step_raw == "48h":
-                snooze_step = "48h"
-            else:
-                snooze_step = "7d"
-        else:
-            raise ValueError(
-                f"snooze_step must be one of {sorted(_VALID_SNOOZE_STEPS)} or null, got {snooze_step_raw!r}"
-            )
-
-        snoozed_until_raw = data.get("snoozed_until")
-        snoozed_until: datetime | None = None
-        if snoozed_until_raw is not None:
-            if not isinstance(snoozed_until_raw, str):
-                raise ValueError(
-                    f"snoozed_until must be str or null, got {type(snoozed_until_raw)}"
-                )
-            snoozed_until = _iso_to_dt(snoozed_until_raw)
-
-        always_upgrade_raw = data.get("always_upgrade", False)
-        if not isinstance(always_upgrade_raw, bool):
-            raise ValueError(f"always_upgrade must be bool, got {type(always_upgrade_raw)}")
-        always_upgrade = always_upgrade_raw
-
-        never_ask_raw = data.get("never_ask", False)
-        if not isinstance(never_ask_raw, bool):
-            raise ValueError(f"never_ask must be bool, got {type(never_ask_raw)}")
-        never_ask = never_ask_raw
+        remote_version_seen = _optional_str(data, "remote_version_seen")
+        snooze_step = _parse_snooze_step(data.get("snooze_step"))
+        snoozed_until_raw = _optional_str(data, "snoozed_until")
+        snoozed_until = _iso_to_dt(snoozed_until_raw) if snoozed_until_raw is not None else None
+        always_upgrade = _require_bool(data, "always_upgrade", default=False)
+        never_ask = _require_bool(data, "never_ask", default=False)
 
         return cls(
             cli_version_key=cli_version_key,
@@ -201,6 +157,36 @@ class NagCacheRecord:
             always_upgrade=always_upgrade,
             never_ask=never_ask,
         )
+
+
+def _optional_str(data: dict[str, object], key: str) -> str | None:
+    raw_value = data.get(key)
+    if raw_value is None:
+        return None
+    if isinstance(raw_value, str):
+        return raw_value
+    raise ValueError(f"{key} must be str or null, got {type(raw_value)}")
+
+
+def _parse_snooze_step(raw_value: object) -> SnoozeStep | None:
+    if raw_value is None:
+        return None
+    if raw_value not in _VALID_SNOOZE_STEPS:
+        raise ValueError(
+            f"snooze_step must be one of {sorted(_VALID_SNOOZE_STEPS)} or null, got {raw_value!r}"
+        )
+    if raw_value == "24h":
+        return "24h"
+    if raw_value == "48h":
+        return "48h"
+    return "7d"
+
+
+def _require_bool(data: dict[str, object], key: str, *, default: bool) -> bool:
+    raw_value = data.get(key, default)
+    if isinstance(raw_value, bool):
+        return raw_value
+    raise ValueError(f"{key} must be bool, got {type(raw_value)}")
 
 
 # ---------------------------------------------------------------------------
