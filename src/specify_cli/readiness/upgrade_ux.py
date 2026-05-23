@@ -27,15 +27,30 @@ from __future__ import annotations
 
 import os
 import subprocess  # noqa: S404 — required to invoke the existing `spec-kitty upgrade` binary
-import sys
 from collections.abc import Callable
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
     import typer
+
+    from specify_cli.compat.cache import NagCacheRecord
+
+
+class _CliStatusLike(Protocol):
+    installed_version: str
+    latest_version: str | None
+    latest_source: str
+
+
+class _PlanResultLike(Protocol):
+    cli_status: _CliStatusLike
+
+
+class _NagCacheLike(Protocol):
+    def write(self, record: NagCacheRecord) -> None: ...
 
 # Public env keys (WS3 acceptance criterion 4).
 ENV_UPGRADE_AUTO = "SPEC_KITTY_UPGRADE_AUTO"
@@ -353,7 +368,11 @@ def _stash_plan_result(ctx: typer.Context | None, result: object) -> None:
         ctx.obj["compat_plan_result"] = result
 
 
-def _build_record_kwargs(result: object, existing: object, now: datetime) -> dict[str, object]:
+def _build_record_kwargs(
+    result: _PlanResultLike,
+    existing: NagCacheRecord | None,
+    now: datetime,
+) -> dict[str, object]:
     return {
         "cli_version_key": result.cli_status.installed_version,
         "latest_version": result.cli_status.latest_version,
@@ -368,9 +387,17 @@ def _build_record_kwargs(result: object, existing: object, now: datetime) -> dic
     }
 
 
+def _optional_str_value(value: object) -> str | None:
+    return value if isinstance(value, str) else None
+
+
+def _optional_datetime_value(value: object) -> datetime | None:
+    return value if isinstance(value, datetime) else None
+
+
 def _reset_anchor_if_needed(kwargs: dict[str, object], current_latest: str | None) -> None:
     if needs_reset(
-        record_remote_version=kwargs.get("remote_version_seen"),  # type: ignore[arg-type]
+        record_remote_version=_optional_str_value(kwargs.get("remote_version_seen")),
         current_latest=current_latest,
     ):
         kwargs["snooze_step"] = None
@@ -379,7 +406,7 @@ def _reset_anchor_if_needed(kwargs: dict[str, object], current_latest: str | Non
         kwargs["remote_version_seen"] = current_latest
 
 
-def _persist_and_return(cache: object, kwargs: dict[str, object], outcome: UpgradeUxOutcome) -> UpgradeUxOutcome:
+def _persist_and_return(cache: _NagCacheLike, kwargs: dict[str, object], outcome: UpgradeUxOutcome) -> UpgradeUxOutcome:
     _persist(cache, kwargs)
     return outcome
 
@@ -398,7 +425,7 @@ def _run_auto_upgrade_if_safe(
 
 def _handle_always_preference(
     *,
-    cache: object,
+    cache: _NagCacheLike,
     kwargs: dict[str, object],
     safe: bool,
     method: object,
@@ -421,7 +448,7 @@ def _handle_always_preference(
 
 def _handle_prompt_choice(
     *,
-    cache: object,
+    cache: _NagCacheLike,
     kwargs: dict[str, object],
     choice: UpgradeChoice,
     current_latest: str | None,
@@ -491,7 +518,7 @@ def run_upgrade_ux(  # noqa: C901,PLR0911,PLR0912,PLR0913,PLR0915 — orchestrat
     if env is None:
         env = dict(os.environ)
     if prompt is None:
-        prompt = _default_prompt  # type: ignore[assignment]
+        prompt = _default_prompt
     if upgrade_runner is None:
         upgrade_runner = _default_upgrade_runner
 
@@ -510,7 +537,7 @@ def run_upgrade_ux(  # noqa: C901,PLR0911,PLR0912,PLR0913,PLR0915 — orchestrat
         )
 
         if installer_detector is None:
-            installer_detector = detect_install_method  # type: ignore[assignment]
+            installer_detector = detect_install_method
 
         # Kill switch (env-only; not persisted).
         if _truthy(env.get(ENV_UPGRADE_DISABLED)):
@@ -552,7 +579,7 @@ def run_upgrade_ux(  # noqa: C901,PLR0911,PLR0912,PLR0913,PLR0915 — orchestrat
 
         # Active snooze?
         if is_currently_snoozed(
-            snoozed_until=kwargs.get("snoozed_until"),  # type: ignore[arg-type]
+            snoozed_until=_optional_datetime_value(kwargs.get("snoozed_until")),
             now=now,
         ):
             return _persist_and_return(cache, kwargs, _noop_active_outcome())
@@ -586,7 +613,7 @@ def run_upgrade_ux(  # noqa: C901,PLR0911,PLR0912,PLR0913,PLR0915 — orchestrat
         return _inactive_outcome()
 
 
-def _persist(cache: object, kwargs: dict[str, object]) -> None:
+def _persist(cache: _NagCacheLike, kwargs: dict[str, object]) -> None:
     """Best-effort write of a NagCacheRecord to disk.
 
     Swallows any exception — cache mutation failure must not block the CLI.
@@ -595,8 +622,8 @@ def _persist(cache: object, kwargs: dict[str, object]) -> None:
         from specify_cli.compat import NagCacheRecord  # noqa: PLC0415
 
         # Defensive copy: ensure literal type for snooze_step.
-        record = NagCacheRecord(**kwargs)  # type: ignore[arg-type]
-        cache.write(record)  # type: ignore[attr-defined]
+        record = NagCacheRecord(**kwargs)
+        cache.write(record)
     except Exception:  # noqa: BLE001
         pass
 
@@ -616,8 +643,3 @@ __all__ = [
     "resolve_effective_preference",
     "run_upgrade_ux",
 ]
-
-
-# Keep import-time noise low.
-_ = replace  # ruff: re-export to acknowledge the deliberate import
-_ = sys  # ruff: avoid unused if all dependencies are deferred
