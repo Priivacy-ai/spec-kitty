@@ -17,6 +17,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `docs/explanation/launch-readiness-future.md` stages the launch-day
   behavior shift behind an explicit "Status: pre-launch" banner.
 
+## [3.2.0rc25] - 2026-05-23
+
+Rolls up the post-rc24 static-analysis and upgrade UX type-boundary fixes.
+
+- Tightens acceptance package imports, compatibility cache typing, and
+  readiness upgrade UX helper boundaries after the overnight Sonar sweep.
+- Keeps the 3.2.0 stable release candidate line current with `main`
+  after `#1293`.
+
 ## [3.2.0rc24] - 2026-05-22
 
 Ships the canonical SaaS-bound producer refactor for CLI lifecycle,
