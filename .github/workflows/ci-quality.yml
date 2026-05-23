@@ -1849,10 +1849,15 @@ jobs:
       # on the established 90% floor and use the full-diff step as advisory.
       - name: "diff-coverage (critical-path, enforced)"
         run: |
-          # Full fetch (no --depth) so diff-cover can compute the merge-base
-          # between HEAD and origin/<base>. A shallow fetch breaks
-          # `origin/<base>...HEAD` with "no merge base".
-          git fetch origin "${{ github.base_ref }}"
+          # actions/checkout@v6 already performs a full fetch here. Only
+          # hydrate the remote-tracking base ref when it is missing, and do
+          # that fetch with the workflow token so PR jobs do not fail on an
+          # unauthenticated HTTPS remote.
+          if ! git show-ref --verify --quiet "refs/remotes/origin/${{ github.base_ref }}"; then
+            git -c http.extraheader="AUTHORIZATION: bearer ${{ github.token }}" \
+              fetch origin \
+              "${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}"
+          fi
 
           critical_paths=(
             'src/kernel/*'
