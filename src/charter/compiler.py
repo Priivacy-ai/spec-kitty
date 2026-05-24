@@ -502,7 +502,7 @@ def _resolve_transitive_reference_graph(
                 return ResolveTransitiveRefsResult(directives=sorted(directives))
             merged = load_graph_or_dir(doctrine_root)
             assert_valid(merged)
-    except (FileNotFoundError, Exception):
+    except Exception:
         return ResolveTransitiveRefsResult(directives=sorted(directives))
 
     return resolve_transitive_refs(

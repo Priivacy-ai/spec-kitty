@@ -2321,46 +2321,59 @@ def _project_directive_entries(repo_root: Path) -> list[dict[str, object]]:
     """Return every directive ID that the project-governance resolver exposes."""
     from charter.sync import load_directives_config
 
-    local_by_id: dict[str, object] = {}
-    directive_ids: list[str] = []
-    try:
-        directives_cfg = load_directives_config(repo_root)
-        local_by_id = {directive.id: directive for directive in directives_cfg.directives}
-        directive_ids = [directive.id for directive in directives_cfg.directives]
-    except Exception:  # noqa: BLE001 - fall through to resolver/catalog path
-        local_by_id = {}
-        directive_ids = []
-
-    try:
-        from charter.resolver import resolve_project_governance
-
-        resolution = resolve_project_governance(repo_root)
-        directive_ids = list(dict.fromkeys(list(resolution.directives) + directive_ids))
-    except Exception:  # noqa: BLE001 - keep any directly-loaded directive IDs
-        directive_ids = list(dict.fromkeys(directive_ids))
-
-    try:
-        service = _build_doctrine_service(repo_root)
-    except Exception:  # noqa: BLE001 - local directive IDs are still useful
-        service = None
+    local_by_id, directive_ids = _load_project_directives(repo_root, load_directives_config)
+    service = _maybe_build_doctrine_service(repo_root)
     entries: list[dict[str, object]] = []
     for directive_id in directive_ids:
         local = local_by_id.get(directive_id)
         if local is not None:
-            entry: dict[str, object] = {"id": directive_id, "source": "project"}
-            title = getattr(local, "title", None)
-            description = getattr(local, "description", None)
-            if isinstance(title, str) and title:
-                entry["title"] = title
-            if isinstance(description, str) and description:
-                entry["summary"] = description
-            entries.append(entry)
+            entries.append(_local_directive_entry(directive_id, local))
             continue
         if service is None:
             entries.append({"id": directive_id, "source": "builtin"})
             continue
         entries.extend(_collect_typed_artifacts(service.directives, [directive_id]))  # type: ignore[attr-defined]
     return entries
+
+
+def _load_project_directives(
+    repo_root: Path,
+    load_directives_config: object,
+) -> tuple[dict[str, object], list[str]]:
+    try:
+        directives_cfg = load_directives_config(repo_root)
+    except Exception:  # noqa: BLE001 - fall through to resolver/catalog path
+        local_by_id: dict[str, object] = {}
+        directive_ids: list[str] = []
+    else:
+        local_by_id = {directive.id: directive for directive in directives_cfg.directives}
+        directive_ids = [directive.id for directive in directives_cfg.directives]
+
+    try:
+        from charter.resolver import resolve_project_governance
+
+        resolution = resolve_project_governance(repo_root)
+    except Exception:  # noqa: BLE001 - keep any directly-loaded directive IDs
+        return local_by_id, list(dict.fromkeys(directive_ids))
+    return local_by_id, list(dict.fromkeys(list(resolution.directives) + directive_ids))
+
+
+def _maybe_build_doctrine_service(repo_root: Path) -> object | None:
+    try:
+        return _build_doctrine_service(repo_root)
+    except Exception:  # noqa: BLE001 - local directive IDs are still useful
+        return None
+
+
+def _local_directive_entry(directive_id: str, local: object) -> dict[str, object]:
+    entry: dict[str, object] = {"id": directive_id, "source": "project"}
+    title = getattr(local, "title", None)
+    description = getattr(local, "description", None)
+    if isinstance(title, str) and title:
+        entry["title"] = title
+    if isinstance(description, str) and description:
+        entry["summary"] = description
+    return entry
 
 
 _EMPTY_ORG_CHARTER: dict[str, object] = {"present": False, "packs": []}

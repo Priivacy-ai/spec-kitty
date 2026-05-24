@@ -233,7 +233,8 @@ def _detect_persisted_drift(tm: Any, in_memory: Any) -> bool:
     """
     try:
         persisted = tm._storage.read()
-    except Exception:  # noqa: BLE001 - storage read failure makes drift check inconclusive, not fatal
+    except Exception:  # noqa: BLE001
+        # Storage read failure makes drift check inconclusive rather than fatal.
         return False
     if persisted is None:
         return False
