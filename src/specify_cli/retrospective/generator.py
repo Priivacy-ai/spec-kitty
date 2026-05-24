@@ -316,11 +316,12 @@ def _build_lane_friction_findings(
             if ev.get("wp_id") == wp_id
             and _is_lane_friction_event(ev)
         ]
-        range_str = (
-            f"{friction_event_ids[0]}..{friction_event_ids[-1]}"
-            if len(friction_event_ids) > 1
-            else (friction_event_ids[0] if friction_event_ids else "")
-        )
+        if len(friction_event_ids) > 1:
+            range_str = f"{friction_event_ids[0]}..{friction_event_ids[-1]}"
+        elif friction_event_ids:
+            range_str = friction_event_ids[0]
+        else:
+            range_str = ""
         ev_id = ev_reg.add_event_range(events_rel, range_str or "lane_friction", f"lane_friction_{wp_id}")
         findings.append(
             GenFinding(
