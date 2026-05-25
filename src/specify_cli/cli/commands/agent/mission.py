@@ -120,6 +120,36 @@ def _is_kitty_specs_owned_file(path: str) -> bool:
     return normalized == "kitty-specs" or normalized.startswith("kitty-specs/")
 
 
+_EXPLICIT_EMPTY_OWNED_FILES_RE = re.compile(
+    r"^owned_files:\s*\[\s*\]\s*$",
+    re.MULTILINE,
+)
+
+
+def _owned_files_yaml_is_explicit_empty_list(wp_raw_content: str) -> bool:
+    """Return True when WP frontmatter explicitly declares ``owned_files: []``.
+
+    Distinguishes the operator's intent ("this WP owns no files") from the
+    "field absent / default to empty" case, where the inference layer should
+    populate owned_files from body text. Authored as part of the
+    test-stabilization-and-debt-pass mission (Slice Q follow-up): without
+    this distinction, planning-artifact WPs that legitimately own nothing
+    in ``src/`` or ``tests/`` get their owned_files clobbered by inferred
+    paths every time finalize-tasks runs, which then trips the ownership
+    overlap validator.
+
+    Only inspects the frontmatter region (between the first two ``---`` lines).
+    """
+    if not wp_raw_content.startswith("---"):
+        return False
+    # Frontmatter region is between the first two '---' lines.
+    parts = wp_raw_content.split("---", 2)
+    if len(parts) < 3:
+        return False
+    frontmatter = parts[1]
+    return bool(_EXPLICIT_EMPTY_OWNED_FILES_RE.search(frontmatter))
+
+
 def _invalid_kitty_specs_owned_files(
     frontmatter_by_wp: dict[str, WPMetadata],
 ) -> list[dict[str, str]]:
@@ -2044,16 +2074,31 @@ def finalize_tasks(
                 bld.set(requirement_refs=requirement_refs)
                 frontmatter_changed = True
 
-            # Ownership manifest: infer missing fields, write to frontmatter
-            if not wp_meta.execution_mode or not wp_meta.owned_files:
-                wp_raw_content = wp_file.read_text(encoding="utf-8")
+            # Ownership manifest: infer missing fields, write to frontmatter.
+            #
+            # The infer-then-write step OVERWRITES an empty owned_files list
+            # with paths extracted from the WP body text. This is the right
+            # behaviour when the operator never authored owned_files at all,
+            # but it surprises an operator who explicitly set ``owned_files: []``
+            # (e.g. for a triage / planning-artifact WP that legitimately owns
+            # nothing in source/tests). Respect an explicit empty list by
+            # peeking at the raw frontmatter before inference fires.
+            wp_raw_content = wp_file.read_text(encoding="utf-8")
+            owned_files_explicitly_empty = _owned_files_yaml_is_explicit_empty_list(
+                wp_raw_content
+            )
+            need_execution_mode_inference = not wp_meta.execution_mode
+            need_owned_files_inference = (
+                not wp_meta.owned_files and not owned_files_explicitly_empty
+            )
+            if need_execution_mode_inference or need_owned_files_inference:
                 ownership, infer_warnings = infer_ownership(wp_raw_content, mission_slug)
                 all_ownership_warnings.extend(infer_warnings)
-                if not wp_meta.execution_mode:
+                if need_execution_mode_inference:
                     changed_fields["execution_mode"] = str(ownership.execution_mode)
                     bld.set(execution_mode=str(ownership.execution_mode))
                     frontmatter_changed = True
-                if not wp_meta.owned_files:
+                if need_owned_files_inference:
                     changed_fields["owned_files"] = list(ownership.owned_files)
                     bld.set(owned_files=list(ownership.owned_files))
                     frontmatter_changed = True
