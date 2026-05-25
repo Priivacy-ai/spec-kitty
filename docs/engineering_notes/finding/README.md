@@ -19,11 +19,12 @@ It is the sibling of [`reflections/`](../reflections/). Both directories are rea
 - Strong opinions about how Spec Kitty *should* work — those are RFC-style proposals.
 - Per-WP-implementation diary entries — the WPs themselves are the record.
 
-## Difference from `reflections/`
+## Difference from `reflections/` and `architectural-review/`
 
-Loose rule of thumb:
-- **`reflections/`**: my own (the orchestrator's) failure modes during a mission. "I should have done X earlier."
+Loose rules of thumb:
+- **`reflections/`**: the orchestrator's own failure modes during a mission. "I should have done X earlier."
 - **`finding/`**: the system's failure modes during a mission. "When the operator does X, the CLI does Y, but only after Z."
+- **`architectural-review/`**: deep-dive code/structure audits done by architect-profile agents. "Module X and Y duplicate the same concept under different names."
 
 When in doubt, write the note as a finding. Curators can promote/demote later.
 

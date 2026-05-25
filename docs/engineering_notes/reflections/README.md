@@ -12,6 +12,13 @@ It is intentionally **not** a place for architectural decisions (those go to `ar
 - Observations about how Spec Kitty's own ceremony surfaces interact with the project's protected-branch / pre-commit / CI configuration.
 - Friction or surprise notes from dogfooding the toolchain.
 
+## Difference from `finding/` and `architectural-review/`
+
+Loose rules of thumb:
+- **`reflections/`** (this dir): the orchestrator's own failure modes during a mission. "I should have done X earlier."
+- **`finding/`**: the system's failure modes during a mission. "When the operator does X, the CLI does Y, but only after Z."
+- **`architectural-review/`**: deep-dive code/structure audits done by architect-profile agents. "Module X and Y duplicate the same concept under different names."
+
 ## What does NOT belong here
 
 - **Architectural decisions.** Use ADRs.
