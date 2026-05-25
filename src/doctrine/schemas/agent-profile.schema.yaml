@@ -296,6 +296,14 @@ properties:
   specializes-from:
     type: string
     description: Parent profile ID this agent specializes from (for hierarchy)
+  overrides:
+    type: string
+    pattern: ^[a-z][a-z0-9-]*$
+    description: ID of a built-in agent profile this artifact replaces in full.
+  enhances:
+    type: string
+    pattern: ^[a-z][a-z0-9-]*$
+    description: ID of a built-in agent profile this artifact augments via field-merge.
   routing-priority:
     type: integer
     description: Priority for routing tasks to this agent (0-100, higher is more preferred)

@@ -53,7 +53,7 @@ def list_profiles(
         # collaboration.canonical_verbs also carries per-profile verbs
         collab = getattr(p, "collaboration", None)
         collab_verbs = list(collab.canonical_verbs) if collab and collab.canonical_verbs else []
-        source = "project_local" if getattr(p, "_source", None) == "project" else "shipped"
+        source = "project_local" if getattr(p, "_source", None) == "project" else "built-in"
         descriptors.append(
             {
                 "profile_id": p.profile_id,

@@ -1,13 +1,13 @@
 """Generic three-source loading base class for all doctrine asset repositories.
 
 All doctrine sub-repositories share an identical ``_load()`` pattern:
-walk a shipped YAML directory (rglob), optionally walk an org override
+walk a built-in YAML directory (rglob), optionally walk an org override
 directory (glob), optionally walk a project override directory (glob),
 parse each file with Pydantic ``model_validate``, merge overrides into
-shipped instances at field level, and warn on bad files.
+built-in instances at field level, and warn on bad files.
 ``BaseDoctrineRepository[T]`` captures that pattern once.
 
-The loading order is: shipped → org → project, where each subsequent layer
+The loading order is: built-in → org → project, where each subsequent layer
 can override or add artifacts from the previous layers.
 
 Subclasses declare:
@@ -81,23 +81,23 @@ def _emit_collision_warning(
 class BaseDoctrineRepository(ABC, Generic[T]):
     """Abstract base for all doctrine asset repositories.
 
-    Provides the three-source loading pattern (shipped rglob + org glob + project glob)
+    Provides the three-source loading pattern (built-in rglob + org glob + project glob)
     with field-level merge semantics and warning emission on bad files.
 
-    The loading order is: shipped → org → project, where each layer can override
+    The loading order is: built-in → org → project, where each layer can override
     or add artifacts from the previous layer.  Every resolved artifact is tagged
     with its source layer in ``_provenance``.
     """
 
     def __init__(
         self,
-        shipped_dir: Path,
+        built_in_dir: Path,
         *,
         org_dirs: list[Path] | None = None,
         project_dir: Path | None = None,
         active_languages: list[str] | tuple[str, ...] | None = None,
     ) -> None:
-        self._shipped_dir = shipped_dir
+        self._built_in_dir = built_in_dir
         self._org_dirs: list[Path] = list(org_dirs) if org_dirs else []
         self._project_dir = project_dir
         self._active_languages = None if active_languages is None else normalize_languages(active_languages)
@@ -159,12 +159,12 @@ class BaseDoctrineRepository(ABC, Generic[T]):
         """Human-readable asset kind derived from the class name."""
         return type(self).__name__.removesuffix("Repository").lower()
 
-    def _load_shipped_items(self, yaml_parser: YAML) -> dict[str, T]:
-        """Parse all shipped YAML files and return a keyed dict."""
-        shipped: dict[str, T] = {}
-        if not self._shipped_dir.exists():
-            return shipped
-        for yaml_file in sorted(self._shipped_dir.rglob(self._glob)):
+    def _load_built_in_items(self, yaml_parser: YAML) -> dict[str, T]:
+        """Parse all built-in YAML files and return a keyed dict."""
+        built_in: dict[str, T] = {}
+        if not self._built_in_dir.exists():
+            return built_in
+        for yaml_file in sorted(self._built_in_dir.rglob(self._glob)):
             try:
                 data = yaml_parser.load(yaml_file)
                 if data is None:
@@ -173,14 +173,14 @@ class BaseDoctrineRepository(ABC, Generic[T]):
                 obj = self._schema.model_validate(data)
                 if not self._include_item(obj):
                     continue
-                shipped[self._key(obj)] = obj
+                built_in[self._key(obj)] = obj
             except (YAMLError, ValidationError, OSError) as exc:
                 warnings.warn(
-                    f"Skipping invalid shipped {self._kind} {yaml_file.name}: {exc}",
+                    f"Skipping invalid built-in {self._kind} {yaml_file.name}: {exc}",
                     UserWarning,
                     stacklevel=3,
                 )
-        return shipped
+        return built_in
 
     def _record_collision_if_present(
         self,
@@ -207,7 +207,7 @@ class BaseDoctrineRepository(ABC, Generic[T]):
             lower_dump=existing.model_dump(),
         )
 
-    def _apply_org_overrides(self, yaml_parser: YAML, shipped: dict[str, T]) -> None:
+    def _apply_org_overrides(self, yaml_parser: YAML, built_in: dict[str, T]) -> None:
         """Merge or add items from each configured org dir into self._items.
 
         Iterates ``self._org_dirs`` in declaration order; later packs override
@@ -235,8 +235,8 @@ class BaseDoctrineRepository(ABC, Generic[T]):
                             stacklevel=3,
                         )
                         continue
-                    if item_id in shipped:
-                        merged = self._merge(shipped[item_id], data)
+                    if item_id in built_in:
+                        merged = self._merge(built_in[item_id], data)
                         if self._include_item(merged):
                             self._record_collision_if_present(
                                 item_id=item_id,
@@ -263,7 +263,7 @@ class BaseDoctrineRepository(ABC, Generic[T]):
                         stacklevel=3,
                     )
 
-    def _apply_project_overrides(self, yaml_parser: YAML, shipped: dict[str, T]) -> None:
+    def _apply_project_overrides(self, yaml_parser: YAML, built_in: dict[str, T]) -> None:
         """Merge or add project-dir items into self._items; tag provenance as 'project'.
 
         Emits a ``DoctrineLayerCollisionWarning`` whenever a project artifact
@@ -286,8 +286,8 @@ class BaseDoctrineRepository(ABC, Generic[T]):
                         stacklevel=3,
                     )
                     continue
-                if item_id in shipped:
-                    merged = self._merge(shipped[item_id], data)
+                if item_id in built_in:
+                    merged = self._merge(built_in[item_id], data)
                     if self._include_item(merged):
                         self._record_collision_if_present(
                             item_id=item_id,
@@ -315,21 +315,21 @@ class BaseDoctrineRepository(ABC, Generic[T]):
                 )
 
     def _load(self) -> None:
-        """Walk shipped + org + project dirs, parse, merge, warn on failure."""
+        """Walk built-in + org + project dirs, parse, merge, warn on failure."""
         yaml_parser = YAML(typ="safe")
-        shipped = self._load_shipped_items(yaml_parser)
-        self._items = shipped.copy()
-        # Tag all shipped items as 'builtin'
+        built_in = self._load_built_in_items(yaml_parser)
+        self._items = built_in.copy()
+        # Tag all built-in items as 'builtin'
         self._provenance = dict.fromkeys(self._items, "builtin")
-        # Org layer overrides shipped
-        self._apply_org_overrides(yaml_parser, shipped)
-        # Project layer overrides shipped + org
-        self._apply_project_overrides(yaml_parser, shipped)
+        # Org layer overrides built-in
+        self._apply_org_overrides(yaml_parser, built_in)
+        # Project layer overrides built-in + org
+        self._apply_project_overrides(yaml_parser, built_in)
 
-    def _merge(self, shipped: T, project_data: dict[str, Any]) -> T:
-        """Merge project override into a shipped instance at field level."""
-        merged = {**shipped.model_dump(), **project_data}
-        return type(shipped).model_validate(merged)
+    def _merge(self, built_in: T, project_data: dict[str, Any]) -> T:
+        """Merge project override into a built-in instance at field level."""
+        merged = {**built_in.model_dump(), **project_data}
+        return type(built_in).model_validate(merged)
 
     def list_all(self) -> list[T]:
         """Return all loaded assets sorted by key."""

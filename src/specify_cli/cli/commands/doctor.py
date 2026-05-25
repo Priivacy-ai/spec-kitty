@@ -1770,15 +1770,15 @@ def _render_org_layer_section(repo_root: Path, console: Console) -> None:
             f"✓ loaded ({node_count} nodes, {edge_count} edges)"
         )
 
-    # Merge with shipped layer to surface collision warnings.
+    # Merge with built-in layer to surface collision warnings.
     # Truncate to ≤3 lines per the WP07 risk table (risk 4: verbosity mitigation).
     try:
-        shipped = load_graph_or_dir(resolve_doctrine_root())
-        merge_three_layers(shipped=shipped, org_fragments=fragments, project=None)
+        built_in = load_graph_or_dir(resolve_doctrine_root())
+        merge_three_layers(built_in=built_in, org_fragments=fragments, project=None)
         console.print("  collisions: none")
     except OrgDRGConflictError as exc:
         shown = exc.conflicts[:3]
-        console.print(f"  collisions: {len(exc.conflicts)} shipped-invariant override(s)")
+        console.print(f"  collisions: {len(exc.conflicts)} built-in invariant override(s)")
         for conflict in shown:
             console.print(
                 f"    [yellow]•[/yellow] {conflict.kind} "
@@ -1841,8 +1841,8 @@ def _collect_org_layer_data(repo_root: Path) -> dict[str, object]:
         return result
 
     try:
-        shipped = load_graph_or_dir(resolve_doctrine_root())
-        merge_three_layers(shipped=shipped, org_fragments=fragments, project=None)
+        built_in = load_graph_or_dir(resolve_doctrine_root())
+        merge_three_layers(built_in=built_in, org_fragments=fragments, project=None)
     except OrgDRGConflictError as exc:
         result["collision_warnings"] = [  # type: ignore[assignment]
             {
@@ -1891,7 +1891,7 @@ def _resolve_artifact_source(
     The annotation tokens are deliberately compact so the snapshot test
     can pin them byte-for-byte:
 
-    * ``built-in`` — artifact comes from the shipped doctrine layer
+    * ``built-in`` — artifact comes from the built-in doctrine layer
     * ``project`` — artifact lives under ``.kittify/doctrine/``
     * ``org`` — artifact lives in an org pack (per-pack attribution is
       not yet tracked at the repository layer; see ``_collect_org_source_map``

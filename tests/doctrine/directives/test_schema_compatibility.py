@@ -15,7 +15,7 @@ from doctrine.directives.validation import validate_directive
 pytestmark = [pytest.mark.doctrine]
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-SHIPPED_DIRECTIVES_DIR = REPO_ROOT / "src" / "doctrine" / "directives" / "built-in"
+BUILT_IN_DIRECTIVES_DIR = REPO_ROOT / "src" / "doctrine" / "directives" / "built-in"
 
 
 def _load_yaml(path: Path) -> dict:
@@ -29,10 +29,10 @@ def _load_yaml(path: Path) -> dict:
 class TestDirectiveSchemaCompatibility:
     @pytest.mark.parametrize(
         "directive_path",
-        sorted(SHIPPED_DIRECTIVES_DIR.glob("*.directive.yaml")),
+        sorted(BUILT_IN_DIRECTIVES_DIR.glob("*.directive.yaml")),
         ids=lambda p: p.name,
     )
-    def test_existing_shipped_directives_still_validate(self, directive_path: Path) -> None:
+    def test_existing_built_in_directives_still_validate(self, directive_path: Path) -> None:
         """Backward compatibility: all shipped directives remain valid."""
         data = _load_yaml(directive_path)
         errors = validate_directive(data)
@@ -178,14 +178,14 @@ class TestDirectiveSchemaCompatibility:
         directive = Directive.model_validate(directive_data)
 
         project_dir = tmp_path / "project"
-        empty_shipped = tmp_path / "empty-shipped"
-        empty_shipped.mkdir()
+        empty_built_in = tmp_path / "empty-shipped"
+        empty_built_in.mkdir()
 
-        repo = DirectiveRepository(shipped_dir=empty_shipped, project_dir=project_dir)
+        repo = DirectiveRepository(built_in_dir=empty_built_in, project_dir=project_dir)
         path = repo.save(directive)
         assert path.exists()
 
-        reloaded_repo = DirectiveRepository(shipped_dir=empty_shipped, project_dir=project_dir)
+        reloaded_repo = DirectiveRepository(built_in_dir=empty_built_in, project_dir=project_dir)
         reloaded = reloaded_repo.get("DIRECTIVE_TEST_ROUNDTRIP")
         assert reloaded is not None
         assert reloaded.scope == directive.scope

@@ -15,7 +15,7 @@ _SHIPPED_DIR = Path(__file__).parents[2] / "src" / "doctrine" / "agent_profiles"
 
 def test_human_in_charge_exists_in_shipped() -> None:
     """AgentProfileRepository.get('human-in-charge') returns a non-None profile."""
-    repo = AgentProfileRepository(shipped_dir=_SHIPPED_DIR)
+    repo = AgentProfileRepository(built_in_dir=_SHIPPED_DIR)
 
     profile = repo.get("human-in-charge")
 
@@ -25,7 +25,7 @@ def test_human_in_charge_exists_in_shipped() -> None:
 
 def test_human_in_charge_sentinel_true() -> None:
     """profile.sentinel is True for the human-in-charge profile."""
-    repo = AgentProfileRepository(shipped_dir=_SHIPPED_DIR)
+    repo = AgentProfileRepository(built_in_dir=_SHIPPED_DIR)
 
     profile = repo.get("human-in-charge")
 
@@ -56,7 +56,7 @@ def test_kanban_shows_hic_marker(tmp_path: Path) -> None:
     assert "👤" in marker, f"Expected '👤' marker for human-in-charge (lazy), got: {repr(marker)}"
 
     # --- pre-built repo path ---
-    pre_built = AgentProfileRepository(shipped_dir=_SHIPPED_DIR)
+    pre_built = AgentProfileRepository(built_in_dir=_SHIPPED_DIR)
     marker_prebuilt = _get_hic_marker("human-in-charge", repo_root, repo=pre_built)
     assert "👤" in marker_prebuilt, (
         f"Expected '👤' marker for human-in-charge (pre-built), got: {repr(marker_prebuilt)}"

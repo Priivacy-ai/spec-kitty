@@ -96,7 +96,7 @@ def tmp_repo_without_org_pack(tmp_path: Path) -> Path:
 # ---------------------------------------------------------------------------
 
 
-def test_charter_status_reports_shipped_org_and_project(
+def test_charter_status_reports_built_in_org_and_project(
     tmp_repo_with_org_pack: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

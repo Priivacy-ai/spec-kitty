@@ -1,8 +1,10 @@
 """Internal DRG loading helper for charter_lint.
 
 Wraps the doctrine DRG package behind a thin, exception-safe façade.
-Callers receive a duck-typed DRG object or ``None`` when the DRG is
-unavailable (package not installed, file missing, etc.).
+Callers receive a duck-typed DRG object plus a :class:`GraphState` tag that
+explains *which* graph was loaded (project / built-in / none). The tag is
+the canonical input to the lint engine's tri-state freshness model
+(see ADR ``2026-05-24-1-charter-freshness-ux-contract.md``).
 """
 
 from __future__ import annotations
@@ -12,42 +14,109 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from .findings import GraphState
+
 logger = logging.getLogger(__name__)
 
 
-def load_merged_drg(repo_root: Path) -> Any | None:
-    """Load the merged DRG from ``.kittify/doctrine/``.
+def _load_graph_file(path: Path) -> Any | None:
+    """Load a DRG graph file (``.yaml``/``.yml``/``.json``) into a ``DRGGraph``.
 
-    Returns a ``DRGGraph`` instance, or ``None`` when:
-
-    - the ``doctrine`` package is not importable, or
-    - no recognised graph file exists under ``.kittify/doctrine/``, or
-    - any other error occurs during loading.
-
-    The search order matches the one used by ``entity_pages.py``::
-
-        graph.yaml > merged_drg.json > drg.json > compiled_drg.json
+    Returns ``None`` when the doctrine package is not importable, the file
+    cannot be parsed, or validation against ``DRGGraph`` fails.
     """
     try:
         from doctrine.drg.models import DRGGraph
         from ruamel.yaml import YAML
 
-        drg_dir = repo_root / ".kittify" / "doctrine"
-        candidates = ["graph.yaml", "merged_drg.json", "drg.json", "compiled_drg.json"]
-        for name in candidates:
-            p = drg_dir / name
-            if p.exists():
-                text = p.read_text(encoding="utf-8")
-                if name.endswith((".yaml", ".yml")):
-                    yaml = YAML()
-                    raw = yaml.load(text)
-                else:
-                    raw = json.loads(text)
-                return DRGGraph.model_validate(raw)
-        return None
+        text = path.read_text(encoding="utf-8")
+        if path.suffix in {".yaml", ".yml"}:
+            yaml = YAML()
+            raw = yaml.load(text)
+        else:
+            raw = json.loads(text)
+        return DRGGraph.model_validate(raw)
     except Exception:  # noqa: BLE001
-        logger.debug("charter_lint._drg: DRG not available", exc_info=True)
+        logger.debug("charter_lint._drg: failed to load %s", path, exc_info=True)
         return None
+
+
+def _load_project_drg(repo_root: Path) -> Any | None:
+    """Try to load the project DRG from ``.kittify/doctrine/``.
+
+    Search order matches the one used by ``entity_pages.py``::
+
+        graph.yaml > merged_drg.json > drg.json > compiled_drg.json
+    """
+    drg_dir = repo_root / ".kittify" / "doctrine"
+    candidates = ["graph.yaml", "merged_drg.json", "drg.json", "compiled_drg.json"]
+    for name in candidates:
+        path = drg_dir / name
+        if path.exists():
+            graph = _load_graph_file(path)
+            if graph is not None:
+                return graph
+    return None
+
+
+def _load_built_in_drg() -> Any | None:
+    """Try to load the built-in DRG shipped under ``src/doctrine/``.
+
+    Uses a lazy import of :func:`charter.catalog.resolve_doctrine_root` to
+    avoid creating an import cycle between ``charter_lint`` and ``charter``.
+    Returns ``None`` when the catalog cannot be resolved or the file is
+    missing.
+    """
+    try:
+        from charter.catalog import resolve_doctrine_root
+    except Exception:  # noqa: BLE001
+        logger.debug("charter_lint._drg: charter.catalog not importable", exc_info=True)
+        return None
+
+    try:
+        built_in_root = resolve_doctrine_root()
+    except Exception:  # noqa: BLE001
+        logger.debug("charter_lint._drg: resolve_doctrine_root() failed", exc_info=True)
+        return None
+
+    if built_in_root is None:
+        return None
+
+    candidate = Path(built_in_root) / "graph.yaml"
+    if not candidate.exists():
+        return None
+    return _load_graph_file(candidate)
+
+
+def load_merged_drg(repo_root: Path) -> tuple[Any | None, GraphState]:
+    """Load the most-specific DRG available for *repo_root*.
+
+    Resolution order (deterministic — locked by ADR
+    ``2026-05-24-1-charter-freshness-ux-contract.md``):
+
+    1. Project DRG under ``.kittify/doctrine/`` →
+       ``(graph, GraphState.MERGED)``. The "merged" label reflects the
+       contract that a synthesized project DRG already incorporates the
+       built-in and any org-pack layers; callers do not need to merge
+       again.
+    2. Built-in DRG shipped under ``src/doctrine/`` via
+       :func:`charter.catalog.resolve_doctrine_root` →
+       ``(graph, GraphState.BUILT_IN_ONLY)``.
+    3. Nothing loadable → ``(None, GraphState.MISSING)``.
+
+    The return shape is always a tuple. Earlier callers that expected a
+    single ``Any | None`` value must be updated; the engine and CLI banner
+    use the :class:`GraphState` tag to choose user-visible behaviour.
+    """
+    project_graph = _load_project_drg(repo_root)
+    if project_graph is not None:
+        return project_graph, GraphState.MERGED
+
+    built_in_graph = _load_built_in_drg()
+    if built_in_graph is not None:
+        return built_in_graph, GraphState.BUILT_IN_ONLY
+
+    return None, GraphState.MISSING
 
 
 def get_nodes_by_kind(drg: Any, kind_str: str) -> list[Any]:

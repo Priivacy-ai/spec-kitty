@@ -93,9 +93,9 @@ def _write_project_graph(repo_root: Path) -> None:
     )
 
 
-def _write_fixture_contract(shipped_dir: Path) -> None:
+def _write_fixture_contract(built_in_dir: Path) -> None:
     _write_yaml(
-        shipped_dir / "fixture.step-contract.yaml",
+        built_in_dir / "fixture.step-contract.yaml",
         {
             "schema_version": "1.0",
             "id": "fixture-composer",
@@ -140,9 +140,9 @@ def test_three_delegated_steps_execute_end_to_end_via_profile_invocation_executo
     _setup_fixture_profiles(repo_root)
     _write_project_graph(repo_root)
 
-    shipped_dir = tmp_path / "contracts"
-    _write_fixture_contract(shipped_dir)
-    contract_repo = MissionStepContractRepository(shipped_dir=shipped_dir)
+    built_in_dir = tmp_path / "contracts"
+    _write_fixture_contract(built_in_dir)
+    contract_repo = MissionStepContractRepository(built_in_dir=built_in_dir)
 
     context_result = SimpleNamespace(mode="compact", text="fixture governance context")
     with patch("specify_cli.invocation.executor.build_charter_context", return_value=context_result):
@@ -197,14 +197,14 @@ def test_command_step_is_declared_not_shell_executed(tmp_path: Path) -> None:
             }
         ],
     }
-    shipped_dir = tmp_path / "contracts"
-    _write_yaml(shipped_dir / "command.step-contract.yaml", contract)
+    built_in_dir = tmp_path / "contracts"
+    _write_yaml(built_in_dir / "command.step-contract.yaml", contract)
 
     context_result = SimpleNamespace(mode="compact", text="fixture governance context")
     with patch("specify_cli.invocation.executor.build_charter_context", return_value=context_result):
         result = StepContractExecutor(
             repo_root=repo_root,
-            contract_repository=MissionStepContractRepository(shipped_dir=shipped_dir),
+            contract_repository=MissionStepContractRepository(built_in_dir=built_in_dir),
         ).execute(
             StepContractExecutionContext(
                 repo_root=repo_root,
@@ -244,14 +244,14 @@ def test_directive_slug_candidate_resolves_to_drg_urn(tmp_path: Path) -> None:
             }
         ],
     }
-    shipped_dir = tmp_path / "contracts"
-    _write_yaml(shipped_dir / "directive.step-contract.yaml", contract)
+    built_in_dir = tmp_path / "contracts"
+    _write_yaml(built_in_dir / "directive.step-contract.yaml", contract)
 
     context_result = SimpleNamespace(mode="compact", text="fixture governance context")
     with patch("specify_cli.invocation.executor.build_charter_context", return_value=context_result):
         result = StepContractExecutor(
             repo_root=repo_root,
-            contract_repository=MissionStepContractRepository(shipped_dir=shipped_dir),
+            contract_repository=MissionStepContractRepository(built_in_dir=built_in_dir),
         ).execute(
             StepContractExecutionContext(
                 repo_root=repo_root,
@@ -270,13 +270,13 @@ def test_profile_hint_required_when_no_action_default_exists(tmp_path: Path) -> 
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
     _write_project_graph(repo_root)
-    shipped_dir = tmp_path / "contracts"
-    _write_fixture_contract(shipped_dir)
+    built_in_dir = tmp_path / "contracts"
+    _write_fixture_contract(built_in_dir)
 
     with pytest.raises(StepContractExecutionError, match="profile_hint is required"):
         StepContractExecutor(
             repo_root=repo_root,
-            contract_repository=MissionStepContractRepository(shipped_dir=shipped_dir),
+            contract_repository=MissionStepContractRepository(built_in_dir=built_in_dir),
         ).execute(
             StepContractExecutionContext(
                 repo_root=repo_root,

@@ -114,7 +114,7 @@ def build_charter_context(
     ----------
     org_root:
         Optional path to the configured org doctrine snapshot.  When provided,
-        the three-layer (shipped + org + project) DRG overlay is used and the
+        the three-layer (built-in + org + project) DRG overlay is used and the
         ``DoctrineService`` is constructed with the org layer included.
         Charter-layer callers leave this as ``None``; ``specify_cli`` callers
         resolve the value via :func:`doctrine.drg.org_pack_config.resolve_org_roots`
@@ -209,7 +209,7 @@ def build_charter_context(
     # fall back to the first existing pack path discovered via the
     # charter-layer enumeration of ``.kittify/config.yaml``.  This keeps
     # callers that go through ``build_charter_context`` directly (e.g.
-    # ATDD tests) on the same three-layer (shipped + org + project)
+    # ATDD tests) on the same three-layer (built-in + org + project)
     # service shape that the ``specify_cli``-wrapped callers get.
     effective_org_root = org_root
     if effective_org_root is None:
@@ -489,10 +489,10 @@ def _load_action_doctrine_bundle(
     mission = (governance.doctrine.template_set or "software-dev-default").removesuffix("-default")
     project_directives = {_normalize_directive_id(d) for d in governance.doctrine.selected_directives}
 
-    # WP07 T034: route the DRG load through the shared helper so the shipped +
+    # WP07 T034: route the DRG load through the shared helper so the built-in +
     # org + project three-layer overlay is honoured.  Callers in ``specify_cli``
     # supply *org_root* explicitly; charter-internal callers pass ``None`` and
-    # get the two-layer (shipped + project) merge.
+    # get the two-layer (built-in + project) merge.
     #
     # WP04 (charter-mediated-doctrine-selection): a project that authors a
     # user doctrine artifact (e.g. ``.kittify/doctrine/styleguides/foo.yaml``)
@@ -856,7 +856,7 @@ def _build_action_org_source_map(
     merged graph.  The merge monkey-patches a ``source`` sidecar attribute onto
     DRGEdge objects that already have a ``source`` field (the URN endpoint), which
     causes Pydantic validation failures when the returned DRGGraph is reconstructed
-    with the real shipped graph (hundreds of edges).  Reading fragment nodes directly
+    with the real built-in graph (hundreds of edges).  Reading fragment nodes directly
     is simpler and sufficient for building the id → pack_name map.
     """
     if not artifact_ids:
@@ -895,7 +895,7 @@ def _build_doctrine_service(repo_root: Path, *, org_roots: list[Path] | None = N
 
     The project-root candidate list (in priority order):
     1. ``.kittify/doctrine/``  — Phase 3 synthesis target (FR-009 / T025).
-    2. ``src/doctrine/``       — code-local shipped-layer path.
+    2. ``src/doctrine/``       — code-local built-in-layer path.
     3. ``doctrine/``           — flat fallback.
 
     Discovery is conditional on directory presence so legacy (pre-synthesis)
@@ -907,7 +907,7 @@ def _build_doctrine_service(repo_root: Path, *, org_roots: list[Path] | None = N
     WP07: callers in ``specify_cli`` may supply explicit *org_roots* (a list
     of org doctrine snapshot paths) so the resulting service includes the
     configured org layer in provenance tracking.  Charter-internal callers
-    omit the argument and get the shipped-plus-project baseline.
+    omit the argument and get the built-in-plus-project baseline.
     """
     from doctrine.service import DoctrineService
     from charter.catalog import resolve_doctrine_root
@@ -915,7 +915,7 @@ def _build_doctrine_service(repo_root: Path, *, org_roots: list[Path] | None = N
     doctrine_root = resolve_doctrine_root()
     project_root = resolve_project_root(repo_root)
     kwargs: dict[str, object] = {
-        "shipped_root": doctrine_root,
+        "built_in_root": doctrine_root,
         "project_root": project_root,
         "active_languages": infer_repo_languages(repo_root),
     }
@@ -2222,7 +2222,7 @@ def _artifact_to_dict(artifact: object, source: str) -> dict[str, object]:
     The returned mapping always carries an ``id`` and a ``source`` field;
     additional fields are extracted on a best-effort basis.  Unknown layer
     sources fall back to ``"builtin"`` (the safest default — "we don't know,
-    assume shipped").
+    assume "built-in"").
     """
     item_id = getattr(artifact, "id", None)
     title = getattr(artifact, "title", None) or getattr(artifact, "name", None)

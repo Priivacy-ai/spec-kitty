@@ -13,21 +13,21 @@ pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 class TestStyleguideRepository:
     def test_list_all_from_shipped(self, tmp_styleguide_dir: Path) -> None:
         """list_all returns all styleguides from the given directory."""
-        repo = StyleguideRepository(shipped_dir=tmp_styleguide_dir)
+        repo = StyleguideRepository(built_in_dir=tmp_styleguide_dir)
         styleguides = repo.list_all()
         assert len(styleguides) == 1
         assert styleguides[0].id == "test-style"
 
     def test_get_by_id(self, tmp_styleguide_dir: Path) -> None:
         """get() returns styleguide by ID."""
-        repo = StyleguideRepository(shipped_dir=tmp_styleguide_dir)
+        repo = StyleguideRepository(built_in_dir=tmp_styleguide_dir)
         sg = repo.get("test-style")
         assert sg is not None
         assert sg.scope.value == "code"
         assert sg.title == "Test Styleguide"
 
     def test_get_returns_none_for_unknown(self, tmp_styleguide_dir: Path) -> None:
-        repo = StyleguideRepository(shipped_dir=tmp_styleguide_dir)
+        repo = StyleguideRepository(built_in_dir=tmp_styleguide_dir)
         assert repo.get("nonexistent-style") is None
 
     def test_recursive_scan_finds_subdirectory_files(self, tmp_path: Path) -> None:
@@ -51,14 +51,14 @@ class TestStyleguideRepository:
         with (subdir / "sub-style.styleguide.yaml").open("w") as f:
             y.dump(data, f)
 
-        repo = StyleguideRepository(shipped_dir=shipped)
+        repo = StyleguideRepository(built_in_dir=shipped)
         ids = [sg.id for sg in repo.list_all()]
         assert "sub-style" in ids
 
     def test_load_from_custom_shipped_dir(
         self, tmp_styleguide_dir: Path
     ) -> None:
-        repo = StyleguideRepository(shipped_dir=tmp_styleguide_dir)
+        repo = StyleguideRepository(built_in_dir=tmp_styleguide_dir)
         styleguides = repo.list_all()
         assert len(styleguides) == 1
         assert styleguides[0].id == "test-style"
@@ -70,7 +70,7 @@ class TestStyleguideRepository:
         bad_file.write_text("not: valid: yaml: [")
 
         with pytest.warns(UserWarning, match="Skipping invalid"):
-            repo = StyleguideRepository(shipped_dir=shipped)
+            repo = StyleguideRepository(built_in_dir=shipped)
 
         assert repo.list_all() == []
 
@@ -81,7 +81,7 @@ class TestStyleguideRepository:
 
         project_dir = tmp_path / "project"
         repo = StyleguideRepository(
-            shipped_dir=tmp_path / "empty", project_dir=project_dir
+            built_in_dir=tmp_path / "empty", project_dir=project_dir
         )
 
         sg = Styleguide.model_validate(sample_styleguide_data)
@@ -100,7 +100,7 @@ class TestStyleguideRepository:
         from doctrine.styleguides.models import Styleguide
 
 
-        repo = StyleguideRepository(shipped_dir=tmp_path / "empty")
+        repo = StyleguideRepository(built_in_dir=tmp_path / "empty")
         sg = Styleguide.model_validate(sample_styleguide_data)
         with pytest.raises(ValueError, match="project_dir not configured"):
             repo.save(sg)
@@ -136,7 +136,7 @@ class TestStyleguideRepository:
         with (project / "merge-test.styleguide.yaml").open("w") as f:
             yaml.dump(override, f)
 
-        repo = StyleguideRepository(shipped_dir=shipped, project_dir=project)
+        repo = StyleguideRepository(built_in_dir=shipped, project_dir=project)
         sg = repo.get("merge-test")
         assert sg is not None
         assert sg.title == "Overridden Title"
@@ -175,7 +175,7 @@ class TestStyleguideRepository:
                 handle,
             )
 
-        repo = StyleguideRepository(shipped_dir=shipped, active_languages=["typescript"])
+        repo = StyleguideRepository(built_in_dir=shipped, active_languages=["typescript"])
         styleguide_ids = {styleguide.id for styleguide in repo.list_all()}
 
         assert "generic-style" in styleguide_ids
@@ -229,7 +229,7 @@ class TestStyleguideRepository:
             )
 
         repo = StyleguideRepository(
-            shipped_dir=shipped,
+            built_in_dir=shipped,
             project_dir=project,
             active_languages=["typescript"],
         )

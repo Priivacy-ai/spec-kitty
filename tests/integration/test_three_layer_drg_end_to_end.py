@@ -81,7 +81,7 @@ def test_org_drg_fragment_merges_through_three_layers_with_provenance(
 
     # Build a minimal shipped DRG with one node (so merge has something to
     # tag as ``built-in``).
-    shipped = DRGGraph(
+    built_in = DRGGraph(
         schema_version="1.0",
         generated_at="2026-05-18T00:00:00Z",
         generated_by="test-fixture",
@@ -89,7 +89,7 @@ def test_org_drg_fragment_merges_through_three_layers_with_provenance(
         edges=[],
     )
 
-    merged = merge_three_layers(shipped=shipped, org_fragments=fragments, project=None)
+    merged = merge_three_layers(built_in=built_in, org_fragments=fragments, project=None)
 
     # Every node carries provenance. ``provenance`` is a sidecar attribute
     # threaded by the merge (renamed from ``source`` in P0 fix, 2026-05).
@@ -129,14 +129,14 @@ def test_charter_lint_lints_all_three_layers_with_provenance(
     # is exercised in the sibling integration test.
     from charter.drg import DRGGraph  # noqa: PLC0415
 
-    shipped = DRGGraph(
+    built_in = DRGGraph(
         schema_version="1.0",
         generated_at="2026-05-18T00:00:00Z",
         generated_by="test-fixture",
         nodes=[],
         edges=[],
     )
-    merged = merge_three_layers(shipped=shipped, org_fragments=fragments, project=None)
+    merged = merge_three_layers(built_in=built_in, org_fragments=fragments, project=None)
     org_tagged = [
         n for n in merged.nodes if getattr(n, "provenance", None) == "org:example-org"
     ]

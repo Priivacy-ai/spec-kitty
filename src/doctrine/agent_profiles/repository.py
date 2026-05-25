@@ -1,8 +1,8 @@
 """
-Agent profile repository with two-source loading (shipped + project).
+Agent profile repository with two-source loading (built-in + project).
 
 Provides:
-- Two-source YAML loading (shipped package data + project filesystem)
+- Two-source YAML loading (built-in package data + project filesystem)
 - Field-level merge semantics for project overrides
 - Query methods (list_all, get, find_by_role)
 - Hierarchy traversal (get_children, get_ancestors, get_hierarchy_tree)
@@ -193,16 +193,16 @@ class AgentProfileRepository:
 
     def __init__(
         self,
-        shipped_dir: Path | None = None,
+        built_in_dir: Path | None = None,
         *,
         org_dirs: list[Path] | None = None,
         project_dir: Path | None = None,
         active_languages: list[str] | tuple[str, ...] | None = None,
     ):
-        """Initialize repository with shipped, org, and/or project directories.
+        """Initialize repository with built-in, org, and/or project directories.
 
         Args:
-            shipped_dir: Directory containing shipped profiles (defaults to package data)
+            built_in_dir: Directory containing built-in profiles (defaults to package data)
             org_dirs: Ordered list of org-level profile directories. Each pack
                 overlays the previous in declaration order; later packs override
                 earlier ones for the same profile-id (FR-006, C-004).
@@ -211,7 +211,7 @@ class AgentProfileRepository:
         """
         self._profiles: dict[str, AgentProfile] = {}
         self._provenance: dict[str, str] = {}
-        self._shipped_dir = shipped_dir or self._default_shipped_dir()
+        self._built_in_dir = built_in_dir or self._default_built_in_dir()
         self._org_dirs: list[Path] = list(org_dirs) if org_dirs else []
         self._project_dir = project_dir
         self._active_languages = None if active_languages is None else normalize_languages(active_languages)
@@ -219,8 +219,8 @@ class AgentProfileRepository:
         self._load()
 
     @staticmethod
-    def _default_shipped_dir() -> Path:
-        """Get default shipped profiles directory from package data."""
+    def _default_built_in_dir() -> Path:
+        """Get default built-in profiles directory from package data."""
         try:
             resource = files("doctrine.agent_profiles")
             if hasattr(resource, "joinpath"):
@@ -230,12 +230,12 @@ class AgentProfileRepository:
             return Path(__file__).parent / "built-in"
 
     def _load(self) -> None:
-        """Load profiles from shipped, org, and project directories."""
+        """Load profiles from built-in, org, and project directories."""
         yaml = YAML(typ="safe")
-        shipped_profiles: dict[str, AgentProfile] = {}
+        built_in_profiles: dict[str, AgentProfile] = {}
 
-        if self._shipped_dir.exists():
-            for yaml_file in self._shipped_dir.rglob(_AGENT_PROFILE_GLOB):
+        if self._built_in_dir.exists():
+            for yaml_file in self._built_in_dir.rglob(_AGENT_PROFILE_GLOB):
                 try:
                     data = yaml.load(yaml_file)
                     if data is None:
@@ -246,22 +246,22 @@ class AgentProfileRepository:
                     profile = AgentProfile.model_validate(data)
                     if not applies_to_languages_match(profile.applies_to_languages, self._active_languages):
                         continue
-                    shipped_profiles[profile.profile_id] = profile
+                    built_in_profiles[profile.profile_id] = profile
                 except (YAMLError, ValidationError, OSError) as e:
                     warnings.warn(
-                        f"Skipping invalid shipped profile {yaml_file.name}: {e}",
+                        f"Skipping invalid built-in profile {yaml_file.name}: {e}",
                         UserWarning,
                         stacklevel=2,
                     )
 
-        # Start with shipped profiles; tag all as 'builtin'
-        self._profiles = shipped_profiles.copy()
+        # Start with built-in profiles; tag all as 'builtin'
+        self._profiles = built_in_profiles.copy()
         self._provenance = dict.fromkeys(self._profiles, "builtin")
 
         # Load and merge org profiles from each configured pack in declaration order;
         # later packs override earlier ones (FR-006, C-004).
         for org_dir in self._org_dirs:
-            self._load_org_profiles_from_dir(yaml, org_dir, shipped_profiles)
+            self._load_org_profiles_from_dir(yaml, org_dir, built_in_profiles)
 
         # Load and merge project profiles
         if self._project_dir and self._project_dir.exists():
@@ -284,9 +284,9 @@ class AgentProfileRepository:
                         continue
 
                     # Check if this is an override or new profile
-                    if profile_id in shipped_profiles:
-                        # Merge with shipped profile
-                        merged = self._merge_profiles(shipped_profiles[profile_id], data)
+                    if profile_id in built_in_profiles:
+                        # Merge with built-in profile
+                        merged = self._merge_profiles(built_in_profiles[profile_id], data)
                         if not applies_to_languages_match(merged.applies_to_languages, self._active_languages):
                             continue
                         self._record_profile_collision_if_present(
@@ -319,7 +319,7 @@ class AgentProfileRepository:
         self,
         yaml: YAML,
         org_dir: Path,
-        shipped_profiles: dict[str, AgentProfile],
+        built_in_profiles: dict[str, AgentProfile],
     ) -> None:
         """Load profiles from one org pack directory; merge or add into self._profiles.
 
@@ -346,8 +346,8 @@ class AgentProfileRepository:
                     )
                     continue
 
-                if profile_id in shipped_profiles:
-                    merged = self._merge_profiles(shipped_profiles[profile_id], data)
+                if profile_id in built_in_profiles:
+                    merged = self._merge_profiles(built_in_profiles[profile_id], data)
                     if not applies_to_languages_match(merged.applies_to_languages, self._active_languages):
                         continue
                     self._record_profile_collision_if_present(
@@ -402,20 +402,20 @@ class AgentProfileRepository:
             lower_dump=existing.model_dump(),
         )
 
-    def _merge_profiles(self, shipped: AgentProfile, project_data: dict[str, Any]) -> AgentProfile:
-        """Merge project data into shipped profile at field level.
+    def _merge_profiles(self, built_in: AgentProfile, project_data: dict[str, Any]) -> AgentProfile:
+        """Merge project data into built-in profile at field level.
 
         Uses exclude_unset=True to detect explicitly set fields in project data.
 
         Args:
-            shipped: Shipped profile to use as base
+            built_in: Built-in profile to use as base
             project_data: Project profile data (dict from YAML)
 
         Returns:
-            Merged profile with project fields overriding shipped fields
+            Merged profile with project fields overriding built-in fields
         """
-        # Get shipped profile as dict (with by_alias to use kebab-case)
-        shipped_dict = shipped.model_dump(by_alias=True)
+        # Get built-in profile as dict (with by_alias to use kebab-case)
+        built_in_dict = built_in.model_dump(by_alias=True)
 
         # Normalize project data keys to match YAML format (kebab-case)
         def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
@@ -430,7 +430,7 @@ class AgentProfileRepository:
                     result[key] = value
             return result
 
-        merged_dict = deep_merge(shipped_dict, project_data)
+        merged_dict = deep_merge(built_in_dict, project_data)
 
         return AgentProfile.model_validate(merged_dict)
 
@@ -650,7 +650,7 @@ class AgentProfileRepository:
             if parent is None:
                 raise KeyError(
                     f"Profile '{profile_id}' references missing parent '{parent_id}'. "
-                    "Ensure the parent profile exists in shipped/ or _proposed/ before resolving."
+                    "Ensure the parent profile exists in built-in/ or _proposed/ before resolving."
                 )
 
             visited.add(parent.profile_id)
@@ -705,8 +705,8 @@ class AgentProfileRepository:
     def delete(self, profile_id: str) -> bool:
         """Delete profile from project directory.
 
-        Only deletes from project_dir (cannot delete shipped profiles).
-        If profile exists in shipped, reverts to shipped version.
+        Only deletes from project_dir (cannot delete built-in profiles).
+        If profile exists in built-in, reverts to built-in version.
 
         Args:
             profile_id: Profile ID to delete
@@ -728,21 +728,21 @@ class AgentProfileRepository:
         # Remove file
         yaml_file.unlink()
 
-        # Check if profile exists in shipped
-        shipped_profile = None
-        if self._shipped_dir.exists():
-            shipped_yaml = self._shipped_dir / f"{profile_id}.agent.yaml"
-            if shipped_yaml.exists():
+        # Check if profile exists in built-in
+        built_in_profile = None
+        if self._built_in_dir.exists():
+            built_in_yaml = self._built_in_dir / f"{profile_id}.agent.yaml"
+            if built_in_yaml.exists():
                 try:
                     yaml = YAML(typ="safe")
-                    data = yaml.load(shipped_yaml)
-                    shipped_profile = AgentProfile.model_validate(data)
+                    data = yaml.load(built_in_yaml)
+                    built_in_profile = AgentProfile.model_validate(data)
                 except (YAMLError, ValidationError, TypeError):
-                    pass  # silently skip invalid shipped YAML during revert
+                    pass  # silently skip invalid built-in YAML during revert
 
-        if shipped_profile:
-            # Revert to shipped version
-            self._profiles[profile_id] = shipped_profile
+        if built_in_profile:
+            # Revert to built-in version
+            self._profiles[profile_id] = built_in_profile
         else:
             # Remove from profiles (was project-only)
             self._profiles.pop(profile_id, None)

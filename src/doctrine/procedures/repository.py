@@ -1,5 +1,5 @@
 """
-Procedure repository with two-source loading (shipped + project).
+Procedure repository with two-source loading (built-in + project).
 """
 
 from pathlib import Path
@@ -18,22 +18,22 @@ class ProcedureRepository(BaseDoctrineRepository[Procedure]):
 
     def __init__(
         self,
-        shipped_dir: Path | None = None,
+        built_in_dir: Path | None = None,
         *,
         org_dirs: list[Path] | None = None,
         project_dir: Path | None = None,
         active_languages: list[str] | tuple[str, ...] | None = None,
     ) -> None:
         super().__init__(
-            shipped_dir=shipped_dir or self._default_shipped_dir(),
+            built_in_dir=built_in_dir or self._default_built_in_dir(),
             org_dirs=org_dirs,
             project_dir=project_dir,
             active_languages=active_languages,
         )
 
     @staticmethod
-    def _default_shipped_dir() -> Path:
-        """Get default shipped procedures directory from package data."""
+    def _default_built_in_dir() -> Path:
+        """Get default built-in procedures directory from package data."""
         try:
             resource = files("doctrine.procedures")
             if hasattr(resource, "joinpath"):

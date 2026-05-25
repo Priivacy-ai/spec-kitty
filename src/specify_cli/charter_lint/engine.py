@@ -18,7 +18,7 @@ import logging
 import time
 from pathlib import Path
 
-from .findings import DecayReport, LintFinding
+from .findings import DecayReport, GraphState, LintFinding
 from .checks.orphan import OrphanChecker
 from .checks.contradiction import ContradictionChecker
 from .checks.staleness import StalenessChecker
@@ -98,9 +98,12 @@ class LintEngine:
         if unknown:
             raise ValueError(f"Unknown check categories: {sorted(unknown)}")
 
-        drg = load_merged_drg(self._repo_root)
-        if drg is None:
-            logger.warning("LintEngine: merged DRG not found — returning empty report")
+        drg, graph_state = load_merged_drg(self._repo_root)
+        if drg is None or graph_state is GraphState.MISSING:
+            logger.warning(
+                "LintEngine: no lintable graph found (state=%s) — returning empty report",
+                graph_state.value,
+            )
             empty = DecayReport(
                 findings=[],
                 scanned_at=datetime.datetime.now(datetime.UTC).isoformat(),
@@ -108,6 +111,7 @@ class LintEngine:
                 duration_seconds=0.0,
                 drg_node_count=0,
                 drg_edge_count=0,
+                graph_state=GraphState.MISSING,
             )
             self._persist(empty)
             return empty
@@ -140,6 +144,7 @@ class LintEngine:
             duration_seconds=round(duration, 3),
             drg_node_count=len(list(getattr(drg, "nodes", []))),
             drg_edge_count=len(list(getattr(drg, "edges", []))),
+            graph_state=graph_state,
         )
 
         if min_severity != "low":

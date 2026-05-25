@@ -5,7 +5,7 @@ bounded set of ``SynthesisTarget`` objects to regenerate.
 
 Resolution order (contracts/topic-selector.md §1.4):
     1. ``<kind>:<slug>`` where kind ∈ synthesizable → project-local artifact set.
-    2. ``<node-kind>:<identifier>`` → merged shipped+project DRG graph.
+    2. ``<node-kind>:<identifier>`` → merged built-in+project DRG graph.
     3. ``<section-label>`` (no colon) → interview section labels.
     4. No hit → ``TopicSelectorUnresolvedError``.
 
@@ -217,7 +217,7 @@ def _resolve_drg_urn(
     merged_drg: Mapping[str, Any],
     project_artifacts: Sequence[SynthesisTarget],
 ) -> list[SynthesisTarget] | None:
-    """Tier-2: DRG URN lookup in the merged shipped+project graph.
+    """Tier-2: DRG URN lookup in the merged built-in+project graph.
 
     Returns the list of project-local artifacts whose provenance contains
     this URN in their source_urns.  Returns None if the URN is not found
@@ -309,7 +309,7 @@ def resolve(
         Sequence of all project-local SynthesisTarget objects (from provenance
         sidecars or a live tree scan).
     merged_drg:
-        The merged shipped+project DRG graph as a dict with a ``nodes`` list.
+        The merged built-in+project DRG graph as a dict with a ``nodes`` list.
         Each node should have a ``urn`` key/attribute.
     interview_sections:
         Ordered sequence of known interview section label strings.

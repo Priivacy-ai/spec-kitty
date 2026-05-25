@@ -1,8 +1,8 @@
 """
-MissionStepContract repository with two-source loading (shipped + project).
+MissionStepContract repository with two-source loading (built-in + project).
 
 Provides:
-- Two-source YAML loading (shipped package data + project filesystem)
+- Two-source YAML loading (built-in package data + project filesystem)
 - Field-level merge semantics for project overrides
 - Query methods (list_all, get, get_by_action)
 - Save for project step contracts
@@ -24,20 +24,20 @@ class MissionStepContractRepository(BaseDoctrineRepository[MissionStepContract])
 
     def __init__(
         self,
-        shipped_dir: Path | None = None,
+        built_in_dir: Path | None = None,
         *,
         org_dirs: list[Path] | None = None,
         project_dir: Path | None = None,
     ) -> None:
         super().__init__(
-            shipped_dir=shipped_dir or self._default_shipped_dir(),
+            built_in_dir=built_in_dir or self._default_built_in_dir(),
             org_dirs=org_dirs,
             project_dir=project_dir,
         )
 
     @staticmethod
-    def _default_shipped_dir() -> Path:
-        """Get default shipped directory from package data."""
+    def _default_built_in_dir() -> Path:
+        """Get default built-in directory from package data."""
         try:
             resource = files("doctrine.mission_step_contracts")
             if hasattr(resource, "joinpath"):

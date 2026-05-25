@@ -345,10 +345,10 @@ def test_case_2_org_styleguide_collision_with_builtin_warns(tmp_path: Path) -> N
         consumer, pack_name="very-serious-developers", local_path=pack_path
     )
 
-    shipped_root = Path(__file__).resolve().parents[2] / "src" / "doctrine"
+    built_in_root = Path(__file__).resolve().parents[2] / "src" / "doctrine"
     with pytest.warns(DoctrineLayerCollisionWarning) as warning_records:
         service = DoctrineService(
-            shipped_root=shipped_root,
+            built_in_root=built_in_root,
             project_root=consumer / ".kittify" / "doctrine",
             org_roots=[pack_path],
         )

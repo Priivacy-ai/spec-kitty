@@ -66,6 +66,8 @@ pyproject.local.toml
 .kittify/dossiers/
 .kittify/workspaces/
 .kittify/merge-state.json
+.kittify/lint-report.json
+.kittify/preflight-warning.json
 .kittify/.migration-backup/
 .kittify/encoding-provenance/
 .kittify/migrations/mission-state/

@@ -14,8 +14,8 @@ gate. Run it when:
 
 See [ADR 2026-04-20-1](https://github.com/Priivacy-ai/spec-kitty/blob/main/architecture/2.x/adr/2026-04-20-1-mutation-testing-as-local-only-quality-gate.md)
 for the decision to ship it local-only, and the curated doctrine set in
-`src/doctrine/tactics/shipped/mutation-testing-workflow.tactic.yaml` and
-`src/doctrine/styleguides/shipped/mutation-aware-test-design.styleguide.yaml` for
+`src/doctrine/tactics/built-in/mutation-testing-workflow.tactic.yaml` and
+`src/doctrine/styleguides/built-in/mutation-aware-test-design.styleguide.yaml` for
 how to write tests that kill mutants.
 
 ## Quick start
@@ -79,7 +79,7 @@ For each surviving mutant, classify it using the four-bucket taxonomy from
 
 For **Survived** mutants, the kill strategy depends on the mutation family. The
 full operator table lives in
-[`src/doctrine/toolguides/shipped/PYTHON_MUTATION_TOOLS.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/src/doctrine/toolguides/shipped/PYTHON_MUTATION_TOOLS.md).
+[`src/doctrine/toolguides/built-in/PYTHON_MUTATION_TOOLS.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/src/doctrine/toolguides/built-in/PYTHON_MUTATION_TOOLS.md).
 Short version: comparison flips need boundary-value tests, arithmetic swaps need
 non-identity inputs (never `0` for `+`, never `1` for `*`), logical operator swaps
 need bi-directional cases (exactly one operand true/false).
@@ -208,11 +208,11 @@ mode:
 - [ADR 2026-04-20-1](https://github.com/Priivacy-ai/spec-kitty/blob/main/architecture/2.x/adr/2026-04-20-1-mutation-testing-as-local-only-quality-gate.md)
   — the decision record covering scope, doctrine, and the `non_sandbox`/`flaky`
   marker taxonomy.
-- [`src/doctrine/tactics/shipped/mutation-testing-workflow.tactic.yaml`](https://github.com/Priivacy-ai/spec-kitty/blob/main/src/doctrine/tactics/shipped/mutation-testing-workflow.tactic.yaml)
+- [`src/doctrine/tactics/built-in/mutation-testing-workflow.tactic.yaml`](https://github.com/Priivacy-ai/spec-kitty/blob/main/src/doctrine/tactics/built-in/mutation-testing-workflow.tactic.yaml)
   — the five-step kill-the-survivor workflow.
-- [`src/doctrine/styleguides/shipped/mutation-aware-test-design.styleguide.yaml`](https://github.com/Priivacy-ai/spec-kitty/blob/main/src/doctrine/styleguides/shipped/mutation-aware-test-design.styleguide.yaml)
+- [`src/doctrine/styleguides/built-in/mutation-aware-test-design.styleguide.yaml`](https://github.com/Priivacy-ai/spec-kitty/blob/main/src/doctrine/styleguides/built-in/mutation-aware-test-design.styleguide.yaml)
   — boundary-pair, non-identity-inputs, bi-directional-logic patterns.
-- [`src/doctrine/toolguides/shipped/PYTHON_MUTATION_TOOLS.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/src/doctrine/toolguides/shipped/PYTHON_MUTATION_TOOLS.md)
+- [`src/doctrine/toolguides/built-in/PYTHON_MUTATION_TOOLS.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/src/doctrine/toolguides/built-in/PYTHON_MUTATION_TOOLS.md)
   — full Python operator reference.
-- [`src/doctrine/toolguides/shipped/TYPESCRIPT_MUTATION_TOOLS.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/src/doctrine/toolguides/shipped/TYPESCRIPT_MUTATION_TOOLS.md)
+- [`src/doctrine/toolguides/built-in/TYPESCRIPT_MUTATION_TOOLS.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/src/doctrine/toolguides/built-in/TYPESCRIPT_MUTATION_TOOLS.md)
   — parallel guide for TypeScript projects using Stryker.

@@ -5,9 +5,31 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from datetime import datetime, UTC
+from enum import StrEnum
 from typing import Any
 
 SEVERITY_ORDER: dict[str, int] = {"low": 0, "medium": 1, "high": 2, "critical": 3}
+
+
+class GraphState(StrEnum):
+    """Tri-state identity of the graph that :class:`LintEngine` scanned.
+
+    The value is set by :class:`~specify_cli.charter_lint.engine.LintEngine` on
+    every :class:`DecayReport` instance and surfaced both in the human banner
+    (``charter lint``) and in the ``--json`` payload (top-level
+    ``graph_state`` key). The vocabulary is fixed by the charter-freshness UX
+    contract (ADR ``2026-05-24-1-charter-freshness-ux-contract.md``); add new
+    values only via an amendment to that ADR.
+    """
+
+    MERGED = "merged"
+    """Built-in DRG plus optional org-pack fragments plus project DRG."""
+
+    BUILT_IN_ONLY = "built_in_only"
+    """Project DRG absent; lint scanned the built-in DRG only."""
+
+    MISSING = "missing"
+    """No DRG loadable (neither project nor built-in resolvable)."""
 
 
 @dataclass
@@ -49,7 +71,14 @@ class LintFinding:
 
 @dataclass
 class DecayReport:
-    """Aggregated output from all charter lint checkers."""
+    """Aggregated output from all charter lint checkers.
+
+    The ``graph_state`` field carries the tri-state graph identity defined by
+    :class:`GraphState`. It is always populated by ``LintEngine.run()``; the
+    dataclass default of :attr:`GraphState.MISSING` is a safety net for
+    callers that construct a :class:`DecayReport` directly (for example, the
+    empty-report path on a fresh-checkout repo).
+    """
 
     findings: list[LintFinding] = field(default_factory=list)
     scanned_at: str = field(
@@ -59,6 +88,7 @@ class DecayReport:
     duration_seconds: float = 0.0
     drg_node_count: int = 0
     drg_edge_count: int = 0
+    graph_state: GraphState = GraphState.MISSING
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -67,6 +97,7 @@ class DecayReport:
             "duration_seconds": self.duration_seconds,
             "drg_node_count": self.drg_node_count,
             "drg_edge_count": self.drg_edge_count,
+            "graph_state": self.graph_state.value,
             "finding_count": len(self.findings),
             "findings": [f.to_dict() for f in self.findings],
         }
@@ -87,4 +118,5 @@ class DecayReport:
             duration_seconds=self.duration_seconds,
             drg_node_count=self.drg_node_count,
             drg_edge_count=self.drg_edge_count,
+            graph_state=self.graph_state,
         )

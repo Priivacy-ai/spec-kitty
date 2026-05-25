@@ -20,19 +20,19 @@ class TestProcedureRepository:
         assert procedure.name == "Migrate Project Guidance to Spec Kitty Charter"
 
     def test_list_all_from_shipped(self, tmp_procedure_dir: Path) -> None:
-        repo = ProcedureRepository(shipped_dir=tmp_procedure_dir)
+        repo = ProcedureRepository(built_in_dir=tmp_procedure_dir)
         procedures = repo.list_all()
         assert len(procedures) == 1
         assert procedures[0].id == "curation-interview"
 
     def test_get_by_id(self, tmp_procedure_dir: Path) -> None:
-        repo = ProcedureRepository(shipped_dir=tmp_procedure_dir)
+        repo = ProcedureRepository(built_in_dir=tmp_procedure_dir)
         p = repo.get("curation-interview")
         assert p is not None
         assert p.name == "Doctrine Curation Interview"
 
     def test_get_missing_returns_none(self, tmp_procedure_dir: Path) -> None:
-        repo = ProcedureRepository(shipped_dir=tmp_procedure_dir)
+        repo = ProcedureRepository(built_in_dir=tmp_procedure_dir)
         assert repo.get("nonexistent") is None
 
     def test_project_override_merges(
@@ -52,7 +52,7 @@ class TestProcedureRepository:
         with (project / "curation-interview.procedure.yaml").open("w") as f:
             yaml.dump(override, f)
 
-        repo = ProcedureRepository(shipped_dir=shipped, project_dir=project)
+        repo = ProcedureRepository(built_in_dir=shipped, project_dir=project)
         p = repo.get("curation-interview")
         assert p is not None
         assert p.name == "Overridden Name"
@@ -62,7 +62,7 @@ class TestProcedureRepository:
     ) -> None:
         from doctrine.procedures.models import Procedure
 
-        repo = ProcedureRepository(shipped_dir=tmp_procedure_dir)
+        repo = ProcedureRepository(built_in_dir=tmp_procedure_dir)
         procedure = Procedure.model_validate(sample_procedure_data)
         with pytest.raises(ValueError, match="project_dir not configured"):
             repo.save(procedure)
@@ -77,7 +77,7 @@ class TestProcedureRepository:
         shipped.mkdir()
         project = tmp_path / "project"
 
-        repo = ProcedureRepository(shipped_dir=shipped, project_dir=project)
+        repo = ProcedureRepository(built_in_dir=shipped, project_dir=project)
         procedure = Procedure.model_validate(sample_procedure_data)
         path = repo.save(procedure)
 
@@ -90,14 +90,14 @@ class TestProcedureRepository:
         shipped.mkdir()
         (shipped / "bad.procedure.yaml").write_text("not: valid: yaml: [")
 
-        with pytest.warns(UserWarning, match="Skipping invalid shipped procedure"):
-            repo = ProcedureRepository(shipped_dir=shipped)
+        with pytest.warns(UserWarning, match="Skipping invalid built-in procedure"):
+            repo = ProcedureRepository(built_in_dir=shipped)
         assert repo.list_all() == []
 
     def test_empty_shipped_dir(self, tmp_path: Path) -> None:
         shipped = tmp_path / "empty"
         shipped.mkdir()
-        repo = ProcedureRepository(shipped_dir=shipped)
+        repo = ProcedureRepository(built_in_dir=shipped)
         assert repo.list_all() == []
 
     def test_skips_project_procedures_when_language_scope_does_not_match(
@@ -127,7 +127,7 @@ class TestProcedureRepository:
             )
 
         repo = ProcedureRepository(
-            shipped_dir=shipped,
+            built_in_dir=shipped,
             project_dir=project,
             active_languages=["typescript"],
         )

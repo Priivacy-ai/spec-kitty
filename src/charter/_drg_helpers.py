@@ -3,10 +3,10 @@
 Introduced in WP03 of the
 ``excise-doctrine-curation-and-inline-references-01KP54J6`` mission so that
 ``src/charter/resolver.py`` and ``src/charter/compiler.py`` no longer
-duplicate the shipped+project merge/validate sequence.
+duplicate the built-in+project merge/validate sequence.
 
 Updated in WP03 of ``layered-doctrine-org-layer-01KRNPEE`` to add
-``_resolve_org_root()`` and perform three-layer (shipped → org → project)
+``_resolve_org_root()`` and perform three-layer (built-in → org → project)
 DRG merging in ``load_validated_graph()``.
 
 Architectural note
@@ -49,11 +49,11 @@ def _resolve_org_root(_repo_root: Path) -> Path | None:
 
 
 def load_validated_graph(repo_root: Path, org_root: Path | None = None) -> DRGGraph:
-    """Load the shipped + org + project DRG overlay and validate the result.
+    """Load the built-in + org + project DRG overlay and validate the result.
 
     Performs a three-layer merge:
 
-    1. **shipped** — built-in graph bundled with the ``doctrine`` package.
+    1. **built-in** — bundled graph bundled with the ``doctrine`` package.
     2. **org** — optional organisation-level snapshot supplied via *org_root*.
        When *org_root* is ``None``, :func:`_resolve_org_root` is called; the
        charter-layer implementation returns ``None`` (no-op).  Callers in
@@ -67,7 +67,7 @@ def load_validated_graph(repo_root: Path, org_root: Path | None = None) -> DRGGr
             ``<repo_root>/.kittify/doctrine``.
         org_root: Explicit org doctrine root.  Pass the path returned by the
             ``specify_cli``-layer org-root resolver when calling from higher
-            layers.  Defaults to ``None`` (two-layer shipped+project merge).
+            layers.  Defaults to ``None`` (two-layer built-in+project merge).
 
     Returns:
         A validated :class:`DRGGraph`.
@@ -80,7 +80,7 @@ def load_validated_graph(repo_root: Path, org_root: Path | None = None) -> DRGGr
     if org_root is None:
         org_root = _resolve_org_root(repo_root)
 
-    shipped = load_graph_or_dir(doctrine_root)
+    built_in = load_graph_or_dir(doctrine_root)
     org = load_graph_or_dir(org_root) if org_root and org_root.exists() else None
     project_dir = repo_root / ".kittify" / "doctrine"
     project = (
@@ -89,7 +89,7 @@ def load_validated_graph(repo_root: Path, org_root: Path | None = None) -> DRGGr
         else None
     )
 
-    merged = merge_layers(merge_layers(shipped, org), project)
+    merged = merge_layers(merge_layers(built_in, org), project)
     assert_valid(merged)
     return merged
 

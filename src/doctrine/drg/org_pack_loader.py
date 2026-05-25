@@ -66,6 +66,23 @@ _ORG_DRG_CANONICAL_KINDS: frozenset[str] = frozenset(
 
 
 # ---------------------------------------------------------------------------
+# Auto-emit configuration (FR-014, mission
+# charter-ux-and-org-pack-vocabulary-01KSAF14, WP06 T036)
+# ---------------------------------------------------------------------------
+# Map plural artifact directory -> (filename glob, singular URN kind).
+# Only the 5 kinds that gained `enhances` / `overrides` fields in WP05 are
+# scanned for auto-emission; other kinds carry no augmentation vocabulary.
+
+_AUGMENTATION_PLURAL_TO_KIND: dict[str, tuple[str, str]] = {
+    "tactics": ("*.tactic.yaml", "tactic"),
+    "styleguides": ("*.styleguide.yaml", "styleguide"),
+    "paradigms": ("*.paradigm.yaml", "paradigm"),
+    "procedures": ("*.procedure.yaml", "procedure"),
+    "agent_profiles": ("*.agent.yaml", "agent_profile"),
+}
+
+
+# ---------------------------------------------------------------------------
 # Exceptions
 # ---------------------------------------------------------------------------
 
@@ -150,7 +167,9 @@ class _OrgDRGEdge(BaseModel):
     Mirrors the contract YAML example shape: ``source`` + ``target`` +
     ``relation`` (free-form string label; the merge bridges to
     ``doctrine.drg.models.Relation`` when possible, handled in
-    ``charter.drg``).
+    ``charter.drg``). The optional ``reason`` field captures provenance for
+    auto-emitted edges (FR-014, WP06 T036) and is accepted on hand-authored
+    edges for audit purposes.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -158,6 +177,7 @@ class _OrgDRGEdge(BaseModel):
     source: str
     target: str
     relation: str
+    reason: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -256,9 +276,88 @@ def load_org_pack(
     fragment_data["source_ref"] = str(pack_root)
     fragment_data["layer_index"] = layer_index
 
+    # FR-014 (WP06 T036): auto-emit ENHANCES / OVERRIDES edges from
+    # per-artifact declarative fields. Edges are appended to whatever the pack
+    # author already wrote in fragment.yaml; duplicates (same source, target,
+    # relation) are deduplicated so hand-authored copies do not collide with
+    # the auto-emission.
+    auto_edges = _collect_augmentation_edges(pack_root)
+    if auto_edges:
+        existing_edges = fragment_data.setdefault("edges", []) or []
+        seen: set[tuple[str, str, str]] = set()
+        for edge in existing_edges:
+            if isinstance(edge, dict):
+                key = (
+                    str(edge.get("source", "")),
+                    str(edge.get("target", "")),
+                    str(edge.get("relation", "")),
+                )
+                seen.add(key)
+        for auto_edge in auto_edges:
+            key = (auto_edge["source"], auto_edge["target"], auto_edge["relation"])
+            if key in seen:
+                continue
+            existing_edges.append(auto_edge)
+            seen.add(key)
+        fragment_data["edges"] = existing_edges
+
     try:
         return OrgDRGFragment.model_validate(fragment_data)
     except Exception as exc:  # noqa: BLE001
         raise OrgPackSchemaError(
             f"Org pack {pack_name!r}: schema validation error in {fragment_yaml}: {exc}"
         ) from exc
+
+
+# ---------------------------------------------------------------------------
+# Auto-emit helper (FR-014, WP06 T036)
+# ---------------------------------------------------------------------------
+
+
+def _collect_augmentation_edges(pack_root: Path) -> list[dict[str, str]]:
+    """Scan pack artifact directories for ``enhances`` / ``overrides`` fields.
+
+    Returns a list of edge dicts ready to drop into an ``OrgDRGFragment``'s
+    ``edges`` list. Each entry has ``source``, ``target``, ``relation``, and
+    ``reason`` keys. The function is best-effort: malformed YAML or files
+    missing required keys are silently skipped (the pack validator surfaces
+    those errors via its own paths).
+    """
+    edges: list[dict[str, str]] = []
+    for plural, (glob, urn_kind) in _AUGMENTATION_PLURAL_TO_KIND.items():
+        type_dir = pack_root / plural
+        if not type_dir.is_dir():
+            continue
+        # Use rglob for styleguides (nested) and plain glob for the rest, to
+        # mirror the pack validator's file-discovery rules.
+        files = (
+            sorted(type_dir.rglob(glob))
+            if plural == "styleguides"
+            else sorted(type_dir.glob(glob))
+        )
+        for yaml_file in files:
+            try:
+                data = yaml.safe_load(yaml_file.read_text(encoding="utf-8"))
+            except (OSError, yaml.YAMLError):
+                continue
+            if not isinstance(data, dict):
+                continue
+            art_id = data.get("id")
+            if not isinstance(art_id, str) or not art_id:
+                continue
+            for field_name, relation in (
+                ("enhances", "enhances"),
+                ("overrides", "overrides"),
+            ):
+                target = data.get(field_name)
+                if not isinstance(target, str) or not target:
+                    continue
+                edges.append(
+                    {
+                        "source": f"{urn_kind}:{art_id}",
+                        "target": f"{urn_kind}:{target}",
+                        "relation": relation,
+                        "reason": f"declared via {urn_kind}.{field_name} field",
+                    }
+                )
+    return edges

@@ -54,7 +54,7 @@ def _validate_directive_id(artifact_id: str) -> None:
         raise ValueError(
             f"Directive artifact_id '{artifact_id}' must not start with "
             f"'{_SHIPPED_DIRECTIVE_PREFIX}' — that namespace is reserved for "
-            f"shipped directives. Use PROJECT_<NNN> or a semantic prefix."
+            f"built-in directives. Use PROJECT_<NNN> or a semantic prefix."
         )
 
 
@@ -72,7 +72,7 @@ class SynthesisTarget:
     Invariants enforced in __post_init__:
     - slug matches ^[a-z][a-z0-9-]*$
     - for kind=="directive", artifact_id matches ^[A-Z][A-Z0-9_-]*$ and must
-      not start with DIRECTIVE_ (shipped namespace)
+      not start with DIRECTIVE_ (built-in namespace)
     - at least one of source_section / source_urns is non-empty
     """
 

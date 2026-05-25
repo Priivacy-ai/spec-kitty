@@ -26,6 +26,31 @@ def _skip_root_project_schema_gate(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("specify_cli.locate_project_root", lambda: None)
 
 
+@pytest.fixture(autouse=True)
+def _stub_charter_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Neutralise the charter-preflight session hook for these contract tests.
+
+    The next-command preflight gate calls into the live charter-freshness
+    runner; in `tmp_path` test fixtures with no `.kittify/` the runner
+    blocks with `passed=False`. The contract under test here is the
+    `result is None` query-vs-advance routing, not the preflight gate
+    itself (see `tests/specify_cli/charter_preflight/` for that surface).
+    """
+    from specify_cli.charter_preflight.result import (
+        CharterPreflightResult,
+    )
+
+    def _ok(*_args, **_kwargs):
+        return CharterPreflightResult(passed=True, checks=(), blocked_reason=None)
+
+    monkeypatch.setattr(
+        "specify_cli.charter_preflight.hook.run_preflight_or_abort", _ok
+    )
+    monkeypatch.setattr(
+        "specify_cli.charter_preflight.hook.run_preflight_for_dashboard", _ok
+    )
+
+
 def _make_query_decision(mission_state: str = "specify"):
     from specify_cli.next.decision import Decision, DecisionKind
 

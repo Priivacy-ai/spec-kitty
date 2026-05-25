@@ -666,17 +666,17 @@ def test_build_doctrine_service_prefers_repo_src_overlay(
     calls: dict[str, object] = {}
 
     class StubDoctrineService:
-        def __init__(self, *, shipped_root: Path, project_root: Path | None, active_languages: list[str]) -> None:
-            calls["shipped_root"] = shipped_root
+        def __init__(self, *, built_in_root: Path, project_root: Path | None, active_languages: list[str]) -> None:
+            calls["built_in_root"] = built_in_root
             calls["project_root"] = project_root
             calls["active_languages"] = active_languages
 
-    shipped_root = tmp_path / "shipped-doctrine"
-    shipped_root.mkdir()
+    built_in_root = tmp_path / "shipped-doctrine"
+    built_in_root.mkdir()
     project_root = tmp_path / "src" / "doctrine"
     project_root.mkdir(parents=True)
 
-    monkeypatch.setattr("charter.catalog.resolve_doctrine_root", lambda: shipped_root)
+    monkeypatch.setattr("charter.catalog.resolve_doctrine_root", lambda: built_in_root)
     monkeypatch.setattr("charter.context.infer_repo_languages", lambda repo_root: ["python", "typescript"])
     monkeypatch.setattr("doctrine.service.DoctrineService", StubDoctrineService)
 
@@ -684,7 +684,7 @@ def test_build_doctrine_service_prefers_repo_src_overlay(
 
     assert isinstance(service, StubDoctrineService)
     assert calls == {
-        "shipped_root": shipped_root,
+        "built_in_root": built_in_root,
         "project_root": project_root,
         "active_languages": ["python", "typescript"],
     }

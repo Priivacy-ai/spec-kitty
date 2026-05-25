@@ -69,7 +69,7 @@ class SynthesisResult:
     """adapter_version_override if set; else adapter.version."""
 
 
-def _shipped_drg_from_snapshot(snapshot: object) -> object:
+def _built_in_drg_from_snapshot(snapshot: object) -> object:
     """Normalize a request DRG snapshot into a validate-able DRGGraph payload."""
     if not isinstance(snapshot, dict):
         return snapshot
@@ -131,6 +131,7 @@ def synthesize(
         from importlib.metadata import version as _pkg_version  # noqa: PLC0415
         _SPEC_KITTY_VERSION = _pkg_version("spec-kitty-cli")
         from .interview_mapping import resolve_sections as _resolve_sections  # noqa: PLC0415
+        from .project_drg import apply_post_condition as _apply_post_condition  # noqa: PLC0415
         from .project_drg import emit_project_layer as _emit_project_layer  # noqa: PLC0415
         from .project_drg import persist as _persist_project_graph  # noqa: PLC0415
         from .synthesize_pipeline import run_all as _run_all  # noqa: PLC0415
@@ -149,7 +150,7 @@ def synthesize(
     # --- In-memory pipeline (WP02) ---
     results = _run_all(request, adapter=adapter)
 
-    shipped_drg = _DRGGraph.model_validate(_shipped_drg_from_snapshot(request.drg_snapshot))
+    built_in_drg = _DRGGraph.model_validate(_built_in_drg_from_snapshot(request.drg_snapshot))
     sections = _resolve_sections(dict(request.interview_snapshot))
     targets = _build_targets(
         interview_snapshot=dict(request.interview_snapshot),
@@ -161,14 +162,21 @@ def synthesize(
     if not targets:
         targets = [request.target]
 
+    # Track whether a project DRG was emitted; the post-condition uses this
+    # to decide between "built_in_only=true" and "graph.yaml on disk" states
+    # (FR-009).
+    emitted_project_graph: dict[str, bool] = {"value": False}
+
     def _validation_callback(staged_dir: _StagingDir) -> None:
         project_graph = _emit_project_layer(
             targets=targets,
             spec_kitty_version=_SPEC_KITTY_VERSION,
-            shipped_drg=shipped_drg,
+            built_in_drg=built_in_drg,
         )
-        _persist_project_graph(project_graph, staged_dir.root, staged_dir.guard)
-        _validate_project_graph(staged_dir.root, shipped_drg)
+        if project_graph.nodes:
+            _persist_project_graph(project_graph, staged_dir.root, staged_dir.guard)
+            emitted_project_graph["value"] = True
+        _validate_project_graph(staged_dir.root, built_in_drg)
 
     # --- Stage and promote to disk (WP03, T018) ---
     _repo_root = repo_root if repo_root is not None else _Path.cwd()
@@ -179,6 +187,12 @@ def synthesize(
             results,
             _validation_callback,
         )
+
+    # --- FR-009 post-condition: graph.yaml XOR built_in_only=True ---
+    _apply_post_condition(
+        _repo_root,
+        has_project_graph=emitted_project_graph["value"],
+    )
 
     # --- Reconstruct SynthesisResult for the primary target ---
     from datetime import datetime  # noqa: PLC0415

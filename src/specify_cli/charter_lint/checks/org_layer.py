@@ -50,11 +50,11 @@ def _find_repo_root_from_drg(drg: Any) -> Path | None:
 
 
 class OrgOverridesBuiltinChecker:
-    """Advisory: the org layer overrides a built-in (shipped) artifact.
+    """Advisory: the org layer overrides a built-in artifact.
 
     Walks every configured org pack and reports any artifact ID whose
     on-disk provenance resolves to ``"org"`` *and* whose ID also exists in
-    the shipped doctrine repository.  These overrides are advisory — they
+    the built-in doctrine repository.  These overrides are advisory — they
     are a legitimate org-policy lever — but operators should know that the
     built-in version has been shadowed.
     """
@@ -82,16 +82,16 @@ class OrgOverridesBuiltinChecker:
         if service is None:
             return []
 
-        # Build a shipped-only baseline to detect which IDs exist in built-in.
-        shipped_only = _build_shipped_only_service(repo_root)
-        if shipped_only is None:
+        # Build a built-in-only baseline to detect which IDs exist in built-in.
+        built_in_only = _build_built_in_only_service(repo_root)
+        if built_in_only is None:
             return []
 
         findings: list[LintFinding] = []
         for artifact_type in _OVERRIDABLE_ARTIFACT_TYPES:
             org_repo = getattr(service, artifact_type, None)
-            shipped_repo = getattr(shipped_only, artifact_type, None)
-            if org_repo is None or shipped_repo is None:
+            built_in_repo = getattr(built_in_only, artifact_type, None)
+            if org_repo is None or built_in_repo is None:
                 continue
             try:
                 items = org_repo.list_all()
@@ -108,7 +108,7 @@ class OrgOverridesBuiltinChecker:
                 if provenance != "org":
                     continue
                 try:
-                    builtin_match = shipped_repo.get(item_id)
+                    builtin_match = built_in_repo.get(item_id)
                 except Exception:  # noqa: BLE001
                     builtin_match = None
                 if builtin_match is None:
@@ -125,7 +125,7 @@ class OrgOverridesBuiltinChecker:
                         ),
                         remediation_hint=(
                             "Verify the override is intentional; remove the org pack "
-                            "copy if the shipped artifact already meets policy."
+                            "copy if the built-in artifact already meets policy."
                         ),
                     )
                 )
@@ -202,7 +202,7 @@ class OrgCharterDeviationChecker:
 
 
 def _build_service_with_org_layer(repo_root: Path, registry: Any) -> Any:
-    """Construct a ``DoctrineService`` rooted at shipped + project + configured org packs."""
+    """Construct a ``DoctrineService`` rooted at built-in + project + configured org packs."""
     try:
         from charter._doctrine_paths import resolve_project_root
         from charter.catalog import resolve_doctrine_root
@@ -216,14 +216,14 @@ def _build_service_with_org_layer(repo_root: Path, registry: Any) -> Any:
     if not org_roots:
         return None
     return DoctrineService(
-        shipped_root=doctrine_root,
+        built_in_root=doctrine_root,
         project_root=project_root,
         org_roots=org_roots,
     )
 
 
-def _build_shipped_only_service(repo_root: Path) -> Any:
-    """Construct a ``DoctrineService`` rooted at shipped + project only (no org)."""
+def _build_built_in_only_service(repo_root: Path) -> Any:
+    """Construct a ``DoctrineService`` rooted at built-in + project only (no org)."""
     try:
         from charter._doctrine_paths import resolve_project_root
         from charter.catalog import resolve_doctrine_root
@@ -233,7 +233,7 @@ def _build_shipped_only_service(repo_root: Path) -> Any:
 
     doctrine_root = resolve_doctrine_root()
     project_root = resolve_project_root(repo_root)
-    return DoctrineService(shipped_root=doctrine_root, project_root=project_root)
+    return DoctrineService(built_in_root=doctrine_root, project_root=project_root)
 
 
 def _load_project_charter_fields(repo_root: Path) -> dict[str, Any]:

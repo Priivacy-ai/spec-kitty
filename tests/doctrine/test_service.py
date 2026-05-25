@@ -24,42 +24,42 @@ def _write_yaml(path: Path, data: dict) -> None:
         yaml.dump(data, handle)
 
 
-def test_service_loads_all_repositories_from_shipped_defaults(tmp_path: Path) -> None:
-    shipped_root = tmp_path / "shipped-root"
+def test_service_loads_all_repositories_from_built_in_defaults(tmp_path: Path) -> None:
+    built_in_root = tmp_path / "shipped-root"
 
     _write_yaml(
-        shipped_root / "directives" / "built-in" / "001-test.directive.yaml",
+        built_in_root / "directives" / "built-in" / "001-test.directive.yaml",
         {"schema_version": "1.0", "id": "DIRECTIVE_001", "title": "Test",
          "intent": "Test intent.", "enforcement": "required"},
     )
     _write_yaml(
-        shipped_root / "tactics" / "built-in" / "test-tactic.tactic.yaml",
+        built_in_root / "tactics" / "built-in" / "test-tactic.tactic.yaml",
         {"schema_version": "1.0", "id": "test-tactic", "name": "Test Tactic",
          "steps": [{"title": "Step 1"}]},
     )
     _write_yaml(
-        shipped_root / "styleguides" / "built-in" / "test-style.styleguide.yaml",
+        built_in_root / "styleguides" / "built-in" / "test-style.styleguide.yaml",
         {"schema_version": "1.0", "id": "test-style", "title": "Test Style",
          "scope": "code", "principles": ["Be clear"]},
     )
     _write_yaml(
-        shipped_root / "toolguides" / "built-in" / "test-tool.toolguide.yaml",
+        built_in_root / "toolguides" / "built-in" / "test-tool.toolguide.yaml",
         {"schema_version": "1.0", "id": "test-tool", "tool": "bash",
          "title": "Test Tool", "guide_path": "src/doctrine/test-tool.md", "summary": "Test."},
     )
     _write_yaml(
-        shipped_root / "paradigms" / "built-in" / "test-paradigm.paradigm.yaml",
+        built_in_root / "paradigms" / "built-in" / "test-paradigm.paradigm.yaml",
         {"schema_version": "1.0", "id": "test-paradigm", "name": "Test Paradigm",
          "summary": "Test."},
     )
     _write_yaml(
-        shipped_root / "procedures" / "built-in" / "test-proc.procedure.yaml",
+        built_in_root / "procedures" / "built-in" / "test-proc.procedure.yaml",
         {"schema_version": "1.0", "id": "test-proc", "name": "Test Procedure",
          "purpose": "Test.", "entry_condition": "Always.",
          "exit_condition": "Done.", "steps": [{"title": "Step 1"}]},
     )
     _write_yaml(
-        shipped_root / "agent_profiles" / "built-in" / "test.agent.yaml",
+        built_in_root / "agent_profiles" / "built-in" / "test.agent.yaml",
         {"profile-id": "test-agent", "name": "Test Agent", "roles": ["implementer"],
          "personality-traits": ["diligent"], "directive-references": [],
          "purpose": "Test agent for unit tests.",
@@ -71,7 +71,7 @@ def test_service_loads_all_repositories_from_shipped_defaults(tmp_path: Path) ->
          }},
     )
 
-    service = DoctrineService(shipped_root=shipped_root)
+    service = DoctrineService(built_in_root=built_in_root)
 
     assert len(service.directives.list_all()) == 1
     assert service.tactics.get("test-tactic") is not None
@@ -97,11 +97,11 @@ def test_service_repositories_are_lazily_cached() -> None:
     assert "tactics" in service._cache
 
 
-def test_service_honors_custom_shipped_and_project_roots(tmp_path: Path) -> None:
-    shipped_root = tmp_path / "shipped-root"
+def test_service_honors_custom_built_in_and_project_roots(tmp_path: Path) -> None:
+    built_in_root = tmp_path / "shipped-root"
     project_root = tmp_path / "project-root"
 
-    shipped_directive = {
+    built_in_directive = {
         "schema_version": "1.0",
         "id": "DIRECTIVE_CUSTOM",
         "title": "Base Directive",
@@ -117,15 +117,15 @@ def test_service_honors_custom_shipped_and_project_roots(tmp_path: Path) -> None
     }
 
     _write_yaml(
-        shipped_root / "directives" / "built-in" / "001-custom.directive.yaml",
-        shipped_directive,
+        built_in_root / "directives" / "built-in" / "001-custom.directive.yaml",
+        built_in_directive,
     )
     _write_yaml(
         project_root / "directives" / "custom.directive.yaml",
         project_override,
     )
 
-    service = DoctrineService(shipped_root=shipped_root, project_root=project_root)
+    service = DoctrineService(built_in_root=built_in_root, project_root=project_root)
     directive = service.directives.get("DIRECTIVE_CUSTOM")
     assert directive is not None
     assert directive.title == "Overridden Directive"
@@ -143,10 +143,10 @@ def test_service_honors_custom_shipped_and_project_roots(tmp_path: Path) -> None
 def test_service_filters_language_scoped_artifacts_when_active_languages_do_not_match(
     tmp_path: Path,
 ) -> None:
-    shipped_root = tmp_path / "shipped-root"
+    built_in_root = tmp_path / "shipped-root"
 
     _write_yaml(
-        shipped_root / "styleguides" / "built-in" / "python.styleguide.yaml",
+        built_in_root / "styleguides" / "built-in" / "python.styleguide.yaml",
         {
             "schema_version": "1.0",
             "id": "python-style",
@@ -157,7 +157,7 @@ def test_service_filters_language_scoped_artifacts_when_active_languages_do_not_
         },
     )
     _write_yaml(
-        shipped_root / "styleguides" / "built-in" / "generic.styleguide.yaml",
+        built_in_root / "styleguides" / "built-in" / "generic.styleguide.yaml",
         {
             "schema_version": "1.0",
             "id": "generic-style",
@@ -167,7 +167,7 @@ def test_service_filters_language_scoped_artifacts_when_active_languages_do_not_
         },
     )
     _write_yaml(
-        shipped_root / "toolguides" / "built-in" / "python.toolguide.yaml",
+        built_in_root / "toolguides" / "built-in" / "python.toolguide.yaml",
         {
             "schema_version": "1.0",
             "id": "python-tool",
@@ -179,7 +179,7 @@ def test_service_filters_language_scoped_artifacts_when_active_languages_do_not_
         },
     )
     _write_yaml(
-        shipped_root / "toolguides" / "built-in" / "generic.toolguide.yaml",
+        built_in_root / "toolguides" / "built-in" / "generic.toolguide.yaml",
         {
             "schema_version": "1.0",
             "id": "generic-tool",
@@ -190,7 +190,7 @@ def test_service_filters_language_scoped_artifacts_when_active_languages_do_not_
         },
     )
     _write_yaml(
-        shipped_root / "agent_profiles" / "built-in" / "python.agent.yaml",
+        built_in_root / "agent_profiles" / "built-in" / "python.agent.yaml",
         {
             "profile-id": "python-pedro",
             "name": "Python Pedro",
@@ -206,7 +206,7 @@ def test_service_filters_language_scoped_artifacts_when_active_languages_do_not_
         },
     )
     _write_yaml(
-        shipped_root / "agent_profiles" / "built-in" / "generic.agent.yaml",
+        built_in_root / "agent_profiles" / "built-in" / "generic.agent.yaml",
         {
             "profile-id": "generic-implementer",
             "name": "Generic Implementer",
@@ -221,7 +221,7 @@ def test_service_filters_language_scoped_artifacts_when_active_languages_do_not_
         },
     )
 
-    service = DoctrineService(shipped_root=shipped_root, active_languages=["typescript"])
+    service = DoctrineService(built_in_root=built_in_root, active_languages=["typescript"])
 
     assert service.styleguides.get("generic-style") is not None
     assert service.styleguides.get("python-style") is None
@@ -234,10 +234,10 @@ def test_service_filters_language_scoped_artifacts_when_active_languages_do_not_
 def test_service_keeps_language_scoped_artifacts_when_active_languages_are_unset(
     tmp_path: Path,
 ) -> None:
-    shipped_root = tmp_path / "shipped-root"
+    built_in_root = tmp_path / "shipped-root"
 
     _write_yaml(
-        shipped_root / "styleguides" / "built-in" / "python.styleguide.yaml",
+        built_in_root / "styleguides" / "built-in" / "python.styleguide.yaml",
         {
             "schema_version": "1.0",
             "id": "python-style",
@@ -248,7 +248,7 @@ def test_service_keeps_language_scoped_artifacts_when_active_languages_are_unset
         },
     )
     _write_yaml(
-        shipped_root / "toolguides" / "built-in" / "python.toolguide.yaml",
+        built_in_root / "toolguides" / "built-in" / "python.toolguide.yaml",
         {
             "schema_version": "1.0",
             "id": "python-tool",
@@ -260,7 +260,7 @@ def test_service_keeps_language_scoped_artifacts_when_active_languages_are_unset
         },
     )
     _write_yaml(
-        shipped_root / "agent_profiles" / "built-in" / "python.agent.yaml",
+        built_in_root / "agent_profiles" / "built-in" / "python.agent.yaml",
         {
             "profile-id": "python-pedro",
             "name": "Python Pedro",
@@ -276,7 +276,7 @@ def test_service_keeps_language_scoped_artifacts_when_active_languages_are_unset
         },
     )
 
-    service = DoctrineService(shipped_root=shipped_root)
+    service = DoctrineService(built_in_root=built_in_root)
 
     assert service.styleguides.get("python-style") is not None
     assert service.toolguides.get("python-tool") is not None

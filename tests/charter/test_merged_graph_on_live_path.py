@@ -21,9 +21,9 @@ pytestmark = pytest.mark.fast
 def test_load_validated_graph_invokes_assert_valid(tmp_path: Path) -> None:
     """Loading the validated DRG via the shared helper must call
     :func:`assert_valid`."""
-    shipped_root = tmp_path / "doctrine"
-    shipped_root.mkdir()
-    (shipped_root / "graph.yaml").write_text(
+    built_in_root = tmp_path / "doctrine"
+    built_in_root.mkdir()
+    (built_in_root / "graph.yaml").write_text(
         "schema_version: '1.0'\n"
         "generated_at: '2026-04-14T00:00:00Z'\n"
         "generated_by: test\n"
@@ -34,7 +34,7 @@ def test_load_validated_graph_invokes_assert_valid(tmp_path: Path) -> None:
 
     with patch(
         "charter._drg_helpers.resolve_doctrine_root",
-        return_value=shipped_root,
+        return_value=built_in_root,
     ), patch("charter._drg_helpers.assert_valid") as mock_validator:
         load_validated_graph(tmp_path)
     assert mock_validator.called, "assert_valid() was not called"
@@ -43,9 +43,9 @@ def test_load_validated_graph_invokes_assert_valid(tmp_path: Path) -> None:
 def test_load_validated_graph_overlays_project_graph(tmp_path: Path) -> None:
     """When a project-overlay ``.kittify/doctrine/graph.yaml`` exists, the
     helper merges it onto the shipped graph before validating."""
-    shipped_root = tmp_path / "doctrine"
-    shipped_root.mkdir()
-    (shipped_root / "graph.yaml").write_text(
+    built_in_root = tmp_path / "doctrine"
+    built_in_root.mkdir()
+    (built_in_root / "graph.yaml").write_text(
         "schema_version: '1.0'\n"
         "generated_at: '2026-04-14T00:00:00Z'\n"
         "generated_by: test\n"
@@ -69,7 +69,7 @@ def test_load_validated_graph_overlays_project_graph(tmp_path: Path) -> None:
 
     with patch(
         "charter._drg_helpers.resolve_doctrine_root",
-        return_value=shipped_root,
+        return_value=built_in_root,
     ):
         graph = load_validated_graph(tmp_path)
 
@@ -81,10 +81,10 @@ def test_load_validated_graph_overlays_project_graph(tmp_path: Path) -> None:
 def test_load_validated_graph_rejects_invalid_merge(tmp_path: Path) -> None:
     """A corrupted (e.g. duplicate-edge) merged graph must raise via
     :func:`assert_valid`."""
-    shipped_root = tmp_path / "doctrine"
-    shipped_root.mkdir()
+    built_in_root = tmp_path / "doctrine"
+    built_in_root.mkdir()
     # Dangling edge target -> should fail validation.
-    (shipped_root / "graph.yaml").write_text(
+    (built_in_root / "graph.yaml").write_text(
         "schema_version: '1.0'\n"
         "generated_at: '2026-04-14T00:00:00Z'\n"
         "generated_by: test\n"
@@ -96,7 +96,7 @@ def test_load_validated_graph_rejects_invalid_merge(tmp_path: Path) -> None:
     )
     with patch(
         "charter._drg_helpers.resolve_doctrine_root",
-        return_value=shipped_root,
+        return_value=built_in_root,
     ):
         with pytest.raises(Exception):  # noqa: B017, assert_valid may raise a variety
             load_validated_graph(tmp_path)

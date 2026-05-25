@@ -16,11 +16,12 @@ from specify_cli.charter_lint.checks.orphan import OrphanChecker
 from specify_cli.charter_lint.checks.reference_integrity import ReferenceIntegrityChecker
 from specify_cli.charter_lint.checks.staleness import StalenessChecker
 from specify_cli.charter_lint.engine import LintEngine
-from specify_cli.charter_lint.findings import DecayReport, LintFinding
+from specify_cli.charter_lint.findings import DecayReport, GraphState, LintFinding
 
 __all__ = [
     "LintFinding",
     "DecayReport",
+    "GraphState",
     "LintEngine",
     "OrphanChecker",
     "ContradictionChecker",

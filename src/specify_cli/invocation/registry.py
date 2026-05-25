@@ -13,8 +13,8 @@ class ProfileRegistry:
     """Thin wrapper over AgentProfileRepository with invocation-friendly API.
 
     When ``.kittify/profiles/`` does not exist, ``project_dir=None`` causes
-    the repo to fall back to shipped profiles gracefully (no exception).
-    If shipped profiles also produce an empty list, ``has_profiles()``
+    the repo to fall back to built-in profiles gracefully (no exception).
+    If built-in profiles also produce an empty list, ``has_profiles()``
     returns False — the executor uses this to produce the
     "run charter synthesize" error message.
     """

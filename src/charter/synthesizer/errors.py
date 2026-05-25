@@ -98,7 +98,7 @@ class PathGuardViolation(SynthesisError):
 
 @dataclass(frozen=True)
 class SynthesisSchemaError(SynthesisError):
-    """AdapterOutput.body fails shipped-layer Pydantic schema validation (FR-019).
+    """AdapterOutput.body fails built-in-layer Pydantic schema validation (FR-019).
 
     Raised before any provenance or DRG writes occur.
     """
@@ -117,7 +117,7 @@ class SynthesisSchemaError(SynthesisError):
 
 @dataclass(frozen=True)
 class ProjectDRGValidationError(SynthesisError):
-    """validate_graph() returned ≥1 errors on the merged (shipped + project) graph (FR-008).
+    """validate_graph() returned ≥1 errors on the merged (built-in + project) graph (FR-008).
 
     Raised before promote; no files land in the live tree.
     """

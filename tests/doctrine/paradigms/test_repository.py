@@ -13,23 +13,23 @@ pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 class TestParadigmRepository:
     def test_list_all_from_shipped(self, tmp_paradigm_dir: Path) -> None:
         """list_all returns all paradigms from the given directory."""
-        repo = ParadigmRepository(shipped_dir=tmp_paradigm_dir)
+        repo = ParadigmRepository(built_in_dir=tmp_paradigm_dir)
         paradigms = repo.list_all()
         assert len(paradigms) == 1
 
     def test_get_by_id(self, tmp_paradigm_dir: Path) -> None:
         """get() returns paradigm by ID."""
-        repo = ParadigmRepository(shipped_dir=tmp_paradigm_dir)
+        repo = ParadigmRepository(built_in_dir=tmp_paradigm_dir)
         paradigm = repo.get("test-first")
         assert paradigm is not None
         assert paradigm.name == "Test-First Doctrine"
 
     def test_get_returns_none_for_unknown(self, tmp_paradigm_dir: Path) -> None:
-        repo = ParadigmRepository(shipped_dir=tmp_paradigm_dir)
+        repo = ParadigmRepository(built_in_dir=tmp_paradigm_dir)
         assert repo.get("nonexistent-paradigm") is None
 
     def test_load_from_custom_shipped_dir(self, tmp_paradigm_dir: Path) -> None:
-        repo = ParadigmRepository(shipped_dir=tmp_paradigm_dir)
+        repo = ParadigmRepository(built_in_dir=tmp_paradigm_dir)
         paradigms = repo.list_all()
         assert len(paradigms) == 1
         assert paradigms[0].id == "test-first"
@@ -41,7 +41,7 @@ class TestParadigmRepository:
         bad_file.write_text("not: valid: yaml: [")
 
         with pytest.warns(UserWarning, match="Skipping invalid"):
-            repo = ParadigmRepository(shipped_dir=shipped)
+            repo = ParadigmRepository(built_in_dir=shipped)
 
         assert repo.list_all() == []
 
@@ -49,7 +49,7 @@ class TestParadigmRepository:
         from doctrine.paradigms.models import Paradigm
 
         project_dir = tmp_path / "project"
-        repo = ParadigmRepository(shipped_dir=tmp_path / "empty", project_dir=project_dir)
+        repo = ParadigmRepository(built_in_dir=tmp_path / "empty", project_dir=project_dir)
 
         paradigm = Paradigm.model_validate(sample_paradigm_data)
         path = repo.save(paradigm)
@@ -65,7 +65,7 @@ class TestParadigmRepository:
         from doctrine.paradigms.models import Paradigm
 
 
-        repo = ParadigmRepository(shipped_dir=tmp_path / "empty")
+        repo = ParadigmRepository(built_in_dir=tmp_path / "empty")
         paradigm = Paradigm.model_validate(sample_paradigm_data)
         with pytest.raises(ValueError, match="project_dir not configured"):
             repo.save(paradigm)
@@ -97,7 +97,7 @@ class TestParadigmRepository:
         with (project / "merge-test.paradigm.yaml").open("w") as f:
             yaml.dump(override, f)
 
-        repo = ParadigmRepository(shipped_dir=shipped, project_dir=project)
+        repo = ParadigmRepository(built_in_dir=shipped, project_dir=project)
         paradigm = repo.get("merge-test")
         assert paradigm is not None
         assert paradigm.name == "Overridden Name"

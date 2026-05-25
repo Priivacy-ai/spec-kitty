@@ -10,8 +10,9 @@ multi-step flows that can be paused, resumed, and validated.
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Self
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from doctrine.artifact_kinds import ArtifactKind
 
@@ -80,6 +81,14 @@ class Procedure(BaseModel):
     id: str = Field(pattern=r"^[a-z][a-z0-9-]*$")
     name: str
     purpose: str
+    overrides: str | None = Field(
+        default=None,
+        description="ID of a built-in procedure this artifact replaces in full.",
+    )
+    enhances: str | None = Field(
+        default=None,
+        description="ID of a built-in procedure this artifact augments via field-merge.",
+    )
     entry_condition: str
     exit_condition: str
     steps: list[ProcedureStep] = Field(min_length=1)
@@ -87,3 +96,11 @@ class Procedure(BaseModel):
     applies_to_languages: list[str] = Field(default_factory=list)
     notes: str | None = None
     references: list[ProcedureReference] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _augmentation_intent_is_exclusive(self) -> Self:
+        if self.overrides is not None and self.enhances is not None:
+            raise ValueError(
+                f"overrides and enhances are mutually exclusive on procedure {self.id}"
+            )
+        return self

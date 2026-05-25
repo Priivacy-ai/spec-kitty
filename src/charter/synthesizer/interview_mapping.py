@@ -1,12 +1,12 @@
 """Interview section → synthesis target mapping.
 
-INVARIANT (R-9): The mappings in this module use **shipped-only DRG** for any
+INVARIANT (R-9): The mappings in this module use **built-in-only DRG** for any
 resolution during the interview phase. The project-layer DRG (if any) is NOT
 merged in during interview-time target selection. This prevents stale or
 circular project-layer entries from skewing interview defaults.
 
 This invariant is enforced by ``resolve_sections()`` and locked by
-``tests/charter/synthesizer/test_interview_mapping.py::test_r9_shipped_only_drg``.
+``tests/charter/synthesizer/test_interview_mapping.py::test_r9_built_in_only_drg``.
 
 ---
 
@@ -238,7 +238,7 @@ def _append_language_scope_results(
 def resolve_sections(
     interview_snapshot: dict[str, Any],
     *,
-    _use_shipped_only_drg: bool = True,  # R-9 invariant — always True at interview time
+    _use_built_in_only_drg: bool = True,  # R-9 invariant — always True at interview time
 ) -> list[tuple[str, dict[str, Any]]]:
     """Map interview answers to a list of (section_label, answer_context) pairs.
 
@@ -250,7 +250,7 @@ def resolve_sections(
     ----------
     interview_snapshot:
         The frozen interview answers dict from ``SynthesisRequest.interview_snapshot``.
-    _use_shipped_only_drg:
+    _use_built_in_only_drg:
         Internal sentinel documenting the R-9 invariant. Must never be set to
         ``False`` during interview-time resolution. Tests assert on this.
 
@@ -261,11 +261,11 @@ def resolve_sections(
         ``answer_context`` carries the section's answer(s) and any
         DRG URN references relevant to the target.
     """
-    # R-9: this function must never read from a merged (project + shipped) DRG.
-    # The _use_shipped_only_drg sentinel documents and enforces this invariant.
-    if not _use_shipped_only_drg:
+    # R-9: this function must never read from a merged (project + built-in) DRG.
+    # The _use_built_in_only_drg sentinel documents and enforces this invariant.
+    if not _use_built_in_only_drg:
         raise ValueError(
-            "resolve_sections() requires _use_shipped_only_drg=True (R-9 invariant). "
+            "resolve_sections() requires _use_built_in_only_drg=True (R-9 invariant). "
             "Do not merge the project-layer DRG during interview-time resolution."
         )
 

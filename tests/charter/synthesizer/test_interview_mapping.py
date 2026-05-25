@@ -3,7 +3,7 @@
 Covers:
 - Every INTERVIEW_MAPPINGS entry has the expected section_label and kinds.
 - resolve_sections() emits the right (section, context) pairs for a full snapshot.
-- R-9 invariant: resolve_sections() refuses _use_shipped_only_drg=False.
+- R-9 invariant: resolve_sections() refuses _use_built_in_only_drg=False.
 - Expanded sections: selected_directives and language_scope produce per-item results.
 - requires_nonempty gating: blank answers are skipped.
 - Missing answer keys: absence is treated as blank.
@@ -110,15 +110,15 @@ class TestR9ShippedOnlyDrgInvariant:
         assert isinstance(result, list)
 
     def test_r9_shipped_only_drg_false_raises(self) -> None:
-        """Passing _use_shipped_only_drg=False raises ValueError (R-9 guard)."""
+        """Passing _use_built_in_only_drg=False raises ValueError (R-9 guard)."""
         snapshot = {"testing_philosophy": "tdd"}
         with pytest.raises(ValueError, match="R-9"):
-            resolve_sections(snapshot, _use_shipped_only_drg=False)
+            resolve_sections(snapshot, _use_built_in_only_drg=False)
 
     def test_r9_error_message_mentions_invariant(self) -> None:
         """Error message contains the invariant name."""
         with pytest.raises(ValueError) as exc_info:
-            resolve_sections({}, _use_shipped_only_drg=False)
+            resolve_sections({}, _use_built_in_only_drg=False)
         assert "R-9" in str(exc_info.value)
 
 

@@ -12,19 +12,19 @@ pytestmark = pytest.mark.fast
 
 class TestMissionStepContractRepository:
     def test_list_all_from_shipped(self, tmp_contract_dir: Path) -> None:
-        repo = MissionStepContractRepository(shipped_dir=tmp_contract_dir)
+        repo = MissionStepContractRepository(built_in_dir=tmp_contract_dir)
         contracts = repo.list_all()
         assert len(contracts) == 1
         assert contracts[0].id == "test-implement"
 
     def test_get_by_id(self, tmp_contract_dir: Path) -> None:
-        repo = MissionStepContractRepository(shipped_dir=tmp_contract_dir)
+        repo = MissionStepContractRepository(built_in_dir=tmp_contract_dir)
         contract = repo.get("test-implement")
         assert contract is not None
         assert contract.action == "implement"
 
     def test_get_returns_none_for_unknown(self, tmp_contract_dir: Path) -> None:
-        repo = MissionStepContractRepository(shipped_dir=tmp_contract_dir)
+        repo = MissionStepContractRepository(built_in_dir=tmp_contract_dir)
         assert repo.get("nonexistent") is None
 
     def test_malformed_yaml_skipped_with_warning(self, tmp_path: Path) -> None:
@@ -34,7 +34,7 @@ class TestMissionStepContractRepository:
         bad_file.write_text("not: valid: yaml: [")
 
         with pytest.warns(UserWarning, match="Skipping invalid"):
-            repo = MissionStepContractRepository(shipped_dir=shipped)
+            repo = MissionStepContractRepository(built_in_dir=shipped)
 
         assert repo.list_all() == []
 
@@ -42,7 +42,7 @@ class TestMissionStepContractRepository:
         from doctrine.mission_step_contracts.models import MissionStepContract
 
         project_dir = tmp_path / "project"
-        repo = MissionStepContractRepository(shipped_dir=tmp_path / "empty", project_dir=project_dir)
+        repo = MissionStepContractRepository(built_in_dir=tmp_path / "empty", project_dir=project_dir)
 
         contract = MissionStepContract.model_validate(minimal_step_contract_data)
         path = repo.save(contract)
@@ -57,7 +57,7 @@ class TestMissionStepContractRepository:
     def test_save_raises_without_project_dir(self, tmp_path: Path, minimal_step_contract_data: dict) -> None:
         from doctrine.mission_step_contracts.models import MissionStepContract
 
-        repo = MissionStepContractRepository(shipped_dir=tmp_path / "empty")
+        repo = MissionStepContractRepository(built_in_dir=tmp_path / "empty")
         contract = MissionStepContract.model_validate(minimal_step_contract_data)
         with pytest.raises(ValueError, match="project_dir not configured"):
             repo.save(contract)
@@ -94,7 +94,7 @@ class TestMissionStepContractRepository:
         with (project / "merge-test.step-contract.yaml").open("w") as f:
             yaml.dump(override, f)
 
-        repo = MissionStepContractRepository(shipped_dir=shipped, project_dir=project)
+        repo = MissionStepContractRepository(built_in_dir=shipped, project_dir=project)
         contract = repo.get("merge-test")
         assert contract is not None
         assert len(contract.steps) == 2
@@ -105,12 +105,12 @@ class TestMissionStepContractRepository:
         from doctrine.mission_step_contracts.models import MissionStepContract
 
         project_dir = tmp_path / "project"
-        repo = MissionStepContractRepository(shipped_dir=tmp_path / "empty", project_dir=project_dir)
+        repo = MissionStepContractRepository(built_in_dir=tmp_path / "empty", project_dir=project_dir)
 
         contract = MissionStepContract.model_validate(full_step_contract_data)
         repo.save(contract)
 
-        repo2 = MissionStepContractRepository(shipped_dir=tmp_path / "empty", project_dir=project_dir)
+        repo2 = MissionStepContractRepository(built_in_dir=tmp_path / "empty", project_dir=project_dir)
         loaded = repo2.get("implement")
         assert loaded is not None
         assert loaded.action == contract.action
@@ -148,7 +148,7 @@ class TestMissionStepContractRepositoryLookup:
             with (shipped / f"{action}.step-contract.yaml").open("w") as f:
                 yaml.dump(data, f)
 
-        repo = MissionStepContractRepository(shipped_dir=shipped)
+        repo = MissionStepContractRepository(built_in_dir=shipped)
         contract = repo.get_by_action("software-dev", "implement")
         assert contract is not None
         assert contract.action == "implement"

@@ -336,8 +336,8 @@ def run(
         If None, loaded from provenance sidecars under
         ``.kittify/charter/provenance/``.
     merged_drg:
-        The merged shipped+project DRG graph dict.  If None, loaded from
-        ``.kittify/doctrine`` and the shipped DRG.
+        The merged built-in+project DRG graph dict.  If None, loaded from
+        ``.kittify/doctrine`` and the built-in DRG.
     interview_sections:
         Known interview section labels.  If None, inferred from
         ``request.interview_snapshot`` keys.
@@ -439,13 +439,13 @@ def run(
     # ------------------------------------------------------------------
     # Step 6: Stage + promote bounded artifacts
     # ------------------------------------------------------------------
-    shipped_drg = _shipped_drg_from_request(request)
+    built_in_drg = _built_in_drg_from_request(request)
 
     def _validation_callback(staged_dir: _StagingDir) -> None:
         updated_overlay = _emit_project_layer(
             targets=resolved.targets,
             spec_kitty_version=_SPEC_KITTY_VERSION,
-            shipped_drg=shipped_drg,
+            built_in_drg=built_in_drg,
         )
         existing_graph_dir = _repo_root / _KITTIFY_DIRNAME / "doctrine"
         project_graph = updated_overlay
@@ -455,7 +455,7 @@ def run(
                 updated_overlay=updated_overlay,
             )
         _persist_project_graph(project_graph, staged_dir.root, staged_dir.guard)
-        _validate_project_graph(staged_dir.root, shipped_drg)
+        _validate_project_graph(staged_dir.root, built_in_drg)
 
     with _StagingDir.create(_repo_root, run_id) as staging_dir:
         _write_pipeline.promote(
@@ -538,7 +538,7 @@ def _load_merged_drg(
     repo_root: Path,
     request: SynthesisRequest,
 ) -> Mapping[str, Any]:
-    """Load the merged DRG graph: project overlay + shipped DRG snapshot.
+    """Load the merged DRG graph: project overlay + built-in DRG snapshot.
 
     Falls back to ``request.drg_snapshot`` if no project graph file exists.
     """
@@ -552,21 +552,21 @@ def _load_merged_drg(
         return request.drg_snapshot
     project_graph = project_graph_model.model_dump(mode="json")
 
-    # Merge: combine nodes from both graphs (project overlay + shipped snapshot)
-    shipped_nodes = list(request.drg_snapshot.get("nodes", []))
+    # Merge: combine nodes from both graphs (project overlay + built-in snapshot)
+    built_in_nodes = list(request.drg_snapshot.get("nodes", []))
     project_nodes = list(project_graph.get("nodes", []))
-    shipped_edges = list(request.drg_snapshot.get("edges", []))
+    built_in_edges = list(request.drg_snapshot.get("edges", []))
     project_edges = list(project_graph.get("edges", []))
 
     return {
-        "nodes": shipped_nodes + project_nodes,
-        "edges": shipped_edges + project_edges,
+        "nodes": built_in_nodes + project_nodes,
+        "edges": built_in_edges + project_edges,
         "schema_version": project_graph.get("schema_version", "1"),
     }
 
 
-def _shipped_drg_from_request(request: SynthesisRequest) -> DRGGraph:
-    """Build the shipped-layer DRGGraph from the request snapshot."""
+def _built_in_drg_from_request(request: SynthesisRequest) -> DRGGraph:
+    """Build the built-in-layer DRGGraph from the request snapshot."""
     snapshot = dict(request.drg_snapshot)
     snapshot.setdefault("nodes", [])
     snapshot.setdefault("edges", [])

@@ -19,12 +19,12 @@ from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 
-SHIPPED_ROOT = DOCTRINE_SOURCE_ROOT
+BUILT_IN_ROOT = DOCTRINE_SOURCE_ROOT
 
 
 @pytest.fixture(scope="module")
 def service() -> DoctrineService:
-    return DoctrineService(shipped_root=SHIPPED_ROOT)
+    return DoctrineService(built_in_root=BUILT_IN_ROOT)
 
 
 def test_paradigm_loads_with_required_shape(service: DoctrineService) -> None:
@@ -36,7 +36,7 @@ def test_paradigm_loads_with_required_shape(service: DoctrineService) -> None:
     assert paradigm.summary
 
     shipped_path = (
-        SHIPPED_ROOT
+        BUILT_IN_ROOT
         / "paradigms"
         / "built-in"
         / "structured-prompt-driven-development.paradigm.yaml"
@@ -57,7 +57,7 @@ def test_tactic_loads_with_required_shape(
     for step in tactic.steps:
         assert getattr(step, "title", None), f"every step in {tactic_id} requires a title"
 
-    shipped_path = SHIPPED_ROOT / "tactics" / "built-in" / f"{tactic_id}.tactic.yaml"
+    shipped_path = BUILT_IN_ROOT / "tactics" / "built-in" / f"{tactic_id}.tactic.yaml"
     assert shipped_path.is_file(), f"tactic must live in shipped/: {shipped_path}"
 
 
@@ -71,7 +71,7 @@ def test_styleguide_loads_with_required_shape(service: DoctrineService) -> None:
     assert styleguide.principles, "styleguide must declare principles"
 
     shipped_path = (
-        SHIPPED_ROOT
+        BUILT_IN_ROOT
         / "styleguides"
         / "built-in"
         / "reasons-canvas-writing.styleguide.yaml"
@@ -98,7 +98,7 @@ def test_directive_038_lenient_adherence_with_four_allowances(
     )
 
     shipped_path = (
-        SHIPPED_ROOT
+        BUILT_IN_ROOT
         / "directives"
         / "built-in"
         / "038-structured-prompt-boundary.directive.yaml"
@@ -108,7 +108,7 @@ def test_directive_038_lenient_adherence_with_four_allowances(
 
 def test_template_fragment_has_all_seven_canvas_sections() -> None:
     fragment_path = (
-        SHIPPED_ROOT / "templates" / "fragments" / "reasons-canvas-template.md"
+        BUILT_IN_ROOT / "templates" / "fragments" / "reasons-canvas-template.md"
     )
     assert fragment_path.is_file(), f"template fragment missing at {fragment_path}"
     body = fragment_path.read_text(encoding="utf-8")

@@ -173,14 +173,14 @@ def test_catalog_keeps_language_scoped_artifacts_when_active_languages_are_unset
 
 def test_load_yaml_id_catalog_scans_proposed_when_requested(tmp_path: Path) -> None:
     doctrine_dir = tmp_path / "styleguides"
-    shipped_dir = doctrine_dir / "built-in"
+    built_in_dir = doctrine_dir / "built-in"
     proposed_dir = doctrine_dir / "_proposed"
-    shipped_dir.mkdir(parents=True)
+    built_in_dir.mkdir(parents=True)
     proposed_dir.mkdir(parents=True)
 
     yaml = YAML()
     yaml.default_flow_style = False
-    with (shipped_dir / "shipped.styleguide.yaml").open("w", encoding="utf-8") as handle:
+    with (built_in_dir / "shipped.styleguide.yaml").open("w", encoding="utf-8") as handle:
         yaml.dump(
             {"schema_version": "1.0", "id": "shipped-style", "title": "Shipped", "scope": "code"},
             handle,

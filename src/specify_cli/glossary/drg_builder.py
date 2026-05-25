@@ -222,7 +222,7 @@ def build_glossary_drg_layer(
     ``NodeKind.GLOSSARY`` per unique active sense surface in
     *applicable_scopes*, then adds a
     ``Relation.VOCABULARY`` :class:`~doctrine.drg.models.DRGEdge` for every
-    (action URN, glossary URN) pair found in the shipped + project DRG graph.
+    (action URN, glossary URN) pair found in the built-in + project DRG graph.
 
     Args:
         store: Populated :class:`~specify_cli.glossary.store.GlossaryStore`.
@@ -260,7 +260,7 @@ def build_glossary_drg_layer(
                     )
                     seen_urns.add(urn)
 
-    # 2. Load shipped action URNs
+    # 2. Load built-in action URNs
     merged_graph = load_validated_graph(repo_root)
     action_urns = [n.urn for n in merged_graph.nodes if n.kind == NodeKind.ACTION]
 

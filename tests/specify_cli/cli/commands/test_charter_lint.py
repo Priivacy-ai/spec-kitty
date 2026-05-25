@@ -13,7 +13,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
-from specify_cli.charter_lint.findings import DecayReport, LintFinding
+from specify_cli.charter_lint.findings import DecayReport, GraphState, LintFinding
 from specify_cli.cli.commands.charter import app
 
 pytestmark = [pytest.mark.unit]
@@ -46,7 +46,17 @@ def _make_finding(
     )
 
 
-def _make_report(findings: list[LintFinding] | None = None) -> DecayReport:
+def _make_report(
+    findings: list[LintFinding] | None = None,
+    *,
+    graph_state: GraphState = GraphState.MERGED,
+) -> DecayReport:
+    """Build a mock :class:`DecayReport` for CLI banner tests.
+
+    Defaults to :attr:`GraphState.MERGED` so existing tests describe the
+    healthy-project path. Tests that exercise the FR-001..FR-004 branches
+    pass a different ``graph_state``.
+    """
     return DecayReport(
         findings=findings or [],
         scanned_at="2026-04-22T12:00:00+00:00",
@@ -54,6 +64,7 @@ def _make_report(findings: list[LintFinding] | None = None) -> DecayReport:
         duration_seconds=0.123,
         drg_node_count=5,
         drg_edge_count=3,
+        graph_state=graph_state,
     )
 
 

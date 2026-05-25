@@ -1,4 +1,4 @@
-"""DRG migration -- extract inline refs from shipped doctrine into graph.yaml."""
+"""DRG migration -- extract inline refs from built-in doctrine into graph.yaml."""
 
 from __future__ import annotations
 

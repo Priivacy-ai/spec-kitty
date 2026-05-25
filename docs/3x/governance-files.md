@@ -22,7 +22,7 @@ commands that own them.
 |---|---|---|---|
 | `.kittify/charter/charter.md` | **Human** via interview/generate, then direct edits | Mission vision, directives, doctrine selections, policy decisions | Yes |
 | `.kittify/charter/interview/answers.yaml` | `charter interview` | Captured answers used by `charter generate` | Prefer re-running `charter interview` |
-| `.kittify/charter/references.yaml` | `charter generate` | Reference manifest for shipped doctrine and local support files | No |
+| `.kittify/charter/references.yaml` | `charter generate` | Reference manifest for built-in doctrine and local support files | No |
 | `.kittify/charter/governance.yaml` | `charter sync` / `charter generate` | Testing, quality, performance, branch, and doctrine-selection config | No |
 | `.kittify/charter/directives.yaml` | `charter sync` / `charter generate` | Extracted directives with IDs, descriptions, and severity | No |
 | `.kittify/charter/metadata.yaml` | `charter sync` / `charter generate` | Charter hash, extraction timestamp, source path, parser stats | No |
@@ -31,12 +31,12 @@ commands that own them.
 | `.kittify/charter/synthesis-manifest.yaml` | `charter synthesize` / `charter resynthesize` | Manifest of promoted synthesized artifacts and content hashes | No |
 | `.kittify/charter/provenance/*.yaml` | `charter synthesize` / `charter resynthesize` | Provenance sidecars for project-local doctrine artifacts | No |
 | `.kittify/charter/.staging/` | Synthesizer | Temporary validation/promote workspace; `.failed` dirs may remain for diagnosis | No |
-| `.kittify/doctrine/` | `charter synthesize` / `charter resynthesize` | Project-local doctrine overlay used with shipped doctrine | No |
+| `.kittify/doctrine/` | `charter synthesize` / `charter resynthesize` | Project-local doctrine overlay used with built-in doctrine | No |
 | `.kittify/doctrine/PROVENANCE.md` | `charter synthesize` fresh-project path | Human-readable provenance for the minimal fresh-project doctrine seed | No |
 
 Current `charter generate` writes `charter.md` and `references.yaml`, then runs `charter sync`.
 It no longer materializes doctrine library pages as authoritative `library/*.md` files; doctrine
-content is resolved through `references.yaml` and the shipped/project doctrine service.
+content is resolved through `references.yaml` and the built-in/project doctrine service.
 
 ---
 
@@ -86,7 +86,7 @@ Run it after generation and synthesis before relying on governed mission prompts
 `charter lint` performs graph-native decay checks — it detects orphaned directives (directives
 that appear in the DRG but have no referencing tactic), contradictions (two directives with
 conflicting instructions), and staleness (a directive whose provenance references a deleted or
-superseded shipped directive).
+superseded built-in directive).
 
 ---
 

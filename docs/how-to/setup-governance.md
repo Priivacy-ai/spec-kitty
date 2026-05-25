@@ -30,7 +30,7 @@ Machine-readable config derived deterministically from your charter. These files
 
 ### Layer 3: Doctrine References and Project Doctrine
 
-`references.yaml` records the shipped and local doctrine references selected by the charter.
+`references.yaml` records the built-in and local doctrine references selected by the charter.
 `charter synthesize` can then promote project-local doctrine artifacts into `.kittify/doctrine/`.
 Current `charter generate` does not copy doctrine pages into an authoritative `library/*.md`
 tree; runtime context resolves doctrine through the reference manifest and doctrine service.

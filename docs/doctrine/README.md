@@ -5,7 +5,7 @@ description: Index of optional Spec Kitty doctrine packs that activate through c
 
 # Doctrine Packs
 
-A **doctrine pack** is a bundle of related shipped doctrine artifacts
+A **doctrine pack** is a bundle of related built-in doctrine artifacts
 (paradigm, tactics, styleguide, directive, template fragment, skill, and
 docs) that a project can activate as a unit through charter selection.
 

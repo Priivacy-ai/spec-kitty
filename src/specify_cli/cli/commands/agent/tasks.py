@@ -368,8 +368,8 @@ def _get_hic_marker(
 
         profile_repo = repo
         if profile_repo is None:
-            shipped_dir = repo_root / "src" / "doctrine" / "agent_profiles" / "built-in"
-            profile_repo = AgentProfileRepository(shipped_dir=shipped_dir)
+            built_in_dir = repo_root / "src" / "doctrine" / "agent_profiles" / "built-in"
+            profile_repo = AgentProfileRepository(built_in_dir=built_in_dir)
 
         profile = profile_repo.get(agent_profile)
         if profile and profile.sentinel:
@@ -3499,7 +3499,7 @@ def status(
         try:
             from doctrine.agent_profiles.repository import AgentProfileRepository
 
-            profile_repo = AgentProfileRepository(shipped_dir=main_repo_root / "src" / "doctrine" / "agent_profiles" / "built-in")
+            profile_repo = AgentProfileRepository(built_in_dir=main_repo_root / "src" / "doctrine" / "agent_profiles" / "built-in")
         except Exception:
             profile_repo = None
 

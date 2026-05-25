@@ -107,7 +107,7 @@ artifacts to `.kittify/doctrine/`.
 
 On a fresh project where `.kittify/charter/generated/` is missing or empty, this command
 materializes the minimal artifact set (directory marker and `PROVENANCE.md`) without running the
-full adapter pipeline. The runtime falls back to shipped doctrine until a full synthesis run
+full adapter pipeline. The runtime falls back to built-in doctrine until a full synthesis run
 completes.
 
 | Flag | Description | Default |
@@ -144,12 +144,12 @@ never touched.
 Selector forms:
 - `directive:PROJECT_001` — regenerate a specific project directive
 - `tactic:how-we-apply-directive-003` — regenerate one tactic
-- `directive:DIRECTIVE_003` — regenerate every artifact whose provenance references the shipped DIRECTIVE_003 URN
+- `directive:DIRECTIVE_003` — regenerate every artifact whose provenance references the built-in DIRECTIVE_003 URN
 - `testing-philosophy` — regenerate all artifacts from that interview section
 
 | Flag | Description | Default |
 |---|---|---|
-| `--topic TEXT` | Structured topic selector: `<kind>:<slug>` (project-local), `<drg-urn>` (shipped+project graph), or `<interview-section-label>` | — |
+| `--topic TEXT` | Structured topic selector: `<kind>:<slug>` (project-local), `<drg-urn>` (built-in+project graph), or `<interview-section-label>` | — |
 | `--list-topics` | List valid structured topic selectors and exit | — |
 | `--adapter TEXT` | Adapter to use (`generated` or `fixture`) | `generated` |
 | `--skip-code-evidence` | Skip code-reading evidence collection | — |
@@ -161,7 +161,7 @@ Selector forms:
 # Resynthesize a single tactic
 uv run spec-kitty charter resynthesize --topic tactic:how-we-apply-directive-003
 
-# Resynthesize all artifacts referencing a shipped directive
+# Resynthesize all artifacts referencing a built-in directive
 uv run spec-kitty charter resynthesize --topic directive:DIRECTIVE_003
 
 # List valid topic selectors
@@ -219,7 +219,7 @@ uv run spec-kitty charter sync --force --json
 
 **Description**: Detect decay in charter artifacts via graph-native checks. Checks for orphaned
 artifacts, contradictions between directives, and staleness (provenance points to a deleted
-or superseded shipped directive).
+or superseded built-in directive).
 
 | Flag | Description | Default |
 |---|---|---|

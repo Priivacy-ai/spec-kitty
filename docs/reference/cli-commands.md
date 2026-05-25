@@ -203,6 +203,7 @@ _Charter management commands_
 │ resynthesize  Regenerate a bounded set of project-local doctrine artifacts   │
 │               (partial resynthesis).                                         │
 │ lint          Detect decay in charter artifacts via graph-native checks.     │
+│ preflight     Verify charter-derived state before a governed session begins. │
 │ bundle        Charter bundle validation commands.                            │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -346,6 +347,33 @@ _Charter bundle validation commands._
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty charter preflight
+
+```
+ Usage: spec-kitty charter preflight [OPTIONS]
+
+ Verify charter-derived state before a governed session begins.
+
+ Pipeline:
+
+ 1. Resolve the repo root (same logic as the rest of the ``charter``
+    subcommand group).
+ 2. Invoke ``run_charter_preflight``.
+ 3. Render JSON or a Rich summary, then exit per the contract.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json                        Emit the result as JSON (binding shape, see    │
+│                               contracts/charter-preflight-json.md).          │
+│ --auto-refresh                When checks fail and the worktree has no       │
+│                               uncommitted generated artifacts, run the safe  │
+│                               refresh sequence (charter sync -> synthesize   │
+│                               -> bundle validate).                           │
+│ --strict                      Exit non-zero on any non-fresh state (default: │
+│                               exit zero unless a hard error occurs).         │
+│ --help                        Show this message and exit.                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty charter resynthesize
 
 ```
@@ -359,7 +387,7 @@ _Charter bundle validation commands._
  - ``directive:PROJECT_001`` — regenerate a specific project directive.
  - ``tactic:how-we-apply-directive-003`` — regenerate one tactic.
  - ``directive:DIRECTIVE_003`` — regenerate every artifact whose provenance
-   references the shipped DIRECTIVE_003 URN.
+   references the built-in DIRECTIVE_003 URN.
  - ``testing-philosophy`` — regenerate all artifacts from that interview
  section.
 
@@ -371,14 +399,14 @@ _Charter bundle validation commands._
 
      spec-kitty charter resynthesize --topic tactic:how-we-apply-directive-003
 
- Resynthesize all artifacts referencing a shipped directive::
+ Resynthesize all artifacts referencing a built-in directive::
 
      spec-kitty charter resynthesize --topic directive:DIRECTIVE_003
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --topic                     TEXT  Structured topic selector: <kind>:<slug>   │
 │                                   (project-local), <drg-urn>                 │
-│                                   (shipped+project graph), or                │
+│                                   (built-in+project graph), or               │
 │                                   <interview-section-label>.                 │
 │ --list-topics                     List valid structured topic selectors and  │
 │                                   exit.                                      │
@@ -449,7 +477,7 @@ _Charter bundle validation commands._
  2. ``.kittify/doctrine/PROVENANCE.md`` — human-readable record of the
     fresh-project seed path, citing #839.
 
- The runtime falls back to the shipped doctrine (``src/doctrine/``) for
+ The runtime falls back to the built-in doctrine (``src/doctrine/``) for
  all artifact lookups until the harness writes per-target YAML and the
  operator re-runs ``synthesize`` (which then takes the normal adapter
  path). The fresh-project path is **idempotent**: re-running produces

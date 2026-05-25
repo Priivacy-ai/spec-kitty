@@ -42,9 +42,9 @@ def test_styleguide_org_collision_warning_names_id_and_kind(
 ) -> None:
     from doctrine.styleguides.repository import StyleguideRepository
 
-    shipped = tmp_path / "shipped"
+    built_in = tmp_path / "shipped"
     org = tmp_path / "org"
-    shipped_styleguide = """
+    built_in_styleguide = """
         schema_version: "1.0"
         id: collision-id
         title: Shipped baseline
@@ -62,11 +62,11 @@ def test_styleguide_org_collision_warning_names_id_and_kind(
         principles:
           - "Org principle."
     """
-    _write(shipped / "collision-id.styleguide.yaml", shipped_styleguide)
+    _write(built_in / "collision-id.styleguide.yaml", built_in_styleguide)
     _write(org / "collision-id.styleguide.yaml", org_styleguide)
 
     with pytest.warns(DoctrineLayerCollisionWarning) as records:
-        StyleguideRepository(shipped_dir=shipped, org_dirs=[org])
+        StyleguideRepository(built_in_dir=built_in, org_dirs=[org])
 
     matched = [str(r.message) for r in records if "collision-id" in str(r.message)]
     assert matched, "Styleguide org override MUST raise a collision warning."
@@ -87,7 +87,7 @@ def test_procedure_org_collision_warning_names_id_and_kind(
 ) -> None:
     from doctrine.procedures.repository import ProcedureRepository
 
-    shipped = tmp_path / "shipped"
+    built_in = tmp_path / "shipped"
     org = tmp_path / "org"
     procedure_body = """
         schema_version: "1.0"
@@ -100,11 +100,11 @@ def test_procedure_org_collision_warning_names_id_and_kind(
           - title: First step
             description: Do the thing.
     """
-    _write(shipped / "proc-collide.procedure.yaml", procedure_body)
+    _write(built_in / "proc-collide.procedure.yaml", procedure_body)
     _write(org / "proc-collide.procedure.yaml", procedure_body)
 
     with pytest.warns(DoctrineLayerCollisionWarning) as records:
-        ProcedureRepository(shipped_dir=shipped, org_dirs=[org])
+        ProcedureRepository(built_in_dir=built_in, org_dirs=[org])
 
     matched = [str(r.message) for r in records if "proc-collide" in str(r.message)]
     assert matched, "Procedure org override MUST raise a collision warning."
@@ -123,7 +123,7 @@ def test_toolguide_org_collision_warning_names_id_and_kind(
 ) -> None:
     from doctrine.toolguides.repository import ToolguideRepository
 
-    shipped = tmp_path / "shipped"
+    built_in = tmp_path / "shipped"
     org = tmp_path / "org"
     tg_body = """
         schema_version: "1.0"
@@ -135,11 +135,11 @@ def test_toolguide_org_collision_warning_names_id_and_kind(
         commands:
           - ruff
     """
-    _write(shipped / "tool-collide.toolguide.yaml", tg_body)
+    _write(built_in / "tool-collide.toolguide.yaml", tg_body)
     _write(org / "tool-collide.toolguide.yaml", tg_body)
 
     with pytest.warns(DoctrineLayerCollisionWarning) as records:
-        ToolguideRepository(shipped_dir=shipped, org_dirs=[org])
+        ToolguideRepository(built_in_dir=built_in, org_dirs=[org])
 
     matched = [str(r.message) for r in records if "tool-collide" in str(r.message)]
     assert matched, "Toolguide org override MUST raise a collision warning."

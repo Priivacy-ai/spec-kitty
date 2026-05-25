@@ -1,8 +1,8 @@
 """
-Tactic repository with two-source loading (shipped + project).
+Tactic repository with two-source loading (built-in + project).
 
 Provides:
-- Two-source YAML loading (shipped package data + project filesystem)
+- Two-source YAML loading (built-in package data + project filesystem)
 - Field-level merge semantics for project overrides
 - Query methods (list_all, get)
 - Save for project tactics
@@ -24,22 +24,22 @@ class TacticRepository(BaseDoctrineRepository[Tactic]):
 
     def __init__(
         self,
-        shipped_dir: Path | None = None,
+        built_in_dir: Path | None = None,
         *,
         org_dirs: list[Path] | None = None,
         project_dir: Path | None = None,
         active_languages: list[str] | tuple[str, ...] | None = None,
     ) -> None:
         super().__init__(
-            shipped_dir=shipped_dir or self._default_shipped_dir(),
+            built_in_dir=built_in_dir or self._default_built_in_dir(),
             org_dirs=org_dirs,
             project_dir=project_dir,
             active_languages=active_languages,
         )
 
     @staticmethod
-    def _default_shipped_dir() -> Path:
-        """Get default shipped tactics directory from package data."""
+    def _default_built_in_dir() -> Path:
+        """Get default built-in tactics directory from package data."""
         try:
             resource = files("doctrine.tactics")
             if hasattr(resource, "joinpath"):

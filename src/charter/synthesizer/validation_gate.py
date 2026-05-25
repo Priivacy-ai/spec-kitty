@@ -1,10 +1,10 @@
 """Pre-synthesis validation gate (FR-008 / NFR-004 / US-5).
 
-Public API: ``validate(staging_dir, shipped_drg) -> None``
+Public API: ``validate(staging_dir, built_in_drg) -> None``
 
 Flow:
 1. Load the staged project overlay from ``staging_dir/doctrine``.
-2. Merge with *shipped_drg* via ``merge_layers()`` (additive semantics).
+2. Merge with *built_in_drg* via ``merge_layers()`` (additive semantics).
 3. Call ``validate_graph(merged)`` — dangling refs, duplicate edges, cycles.
 4. If any errors: raise ``ProjectDRGValidationError`` with structured fields
    that carry enough information for a ``rich``-rendered CLI panel (US-5).
@@ -39,14 +39,14 @@ from .errors import ProjectDRGValidationError
 
 def validate(
     staging_dir: Path,
-    shipped_drg: DRGGraph,
+    built_in_drg: DRGGraph,
 ) -> None:
-    """Validate the staged project DRG overlay against *shipped_drg*.
+    """Validate the staged project DRG overlay against *built_in_drg*.
 
     Args:
         staging_dir: Root of the staging area produced by the current run.
             The overlay is expected under ``staging_dir/doctrine``.
-        shipped_drg: The shipped-layer ``DRGGraph``.  Used as the lower layer
+        built_in_drg: The built-in-layer ``DRGGraph``.  Used as the lower layer
             in the ``merge_layers`` call.
 
     Raises:
@@ -71,7 +71,7 @@ def validate(
             ),
             merged_graph_summary=(
                 f"staging_dir={staging_dir}, "
-                f"shipped_nodes={len(shipped_drg.nodes)}"
+                f"built_in_nodes={len(built_in_drg.nodes)}"
             ),
         ) from exc
     except Exception as exc:  # noqa: BLE001
@@ -83,7 +83,7 @@ def validate(
         ) from exc
 
     # --- Step 2: Merge layers (additive) -----------------------------------
-    merged = merge_layers(shipped_drg, project_overlay)
+    merged = merge_layers(built_in_drg, project_overlay)
 
     # --- Step 3: Validate merged graph -------------------------------------
     errors = validate_graph(merged)
@@ -94,7 +94,7 @@ def validate(
     # Build a human-readable summary that names specific problem artifacts.
     project_urns = frozenset(n.urn for n in project_overlay.nodes)
     summary = (
-        f"shipped_nodes={len(shipped_drg.nodes)}, "
+        f"built_in_nodes={len(built_in_drg.nodes)}, "
         f"project_nodes={len(project_overlay.nodes)}, "
         f"merged_nodes={len(merged.nodes)}, "
         f"merged_edges={len(merged.edges)}, "

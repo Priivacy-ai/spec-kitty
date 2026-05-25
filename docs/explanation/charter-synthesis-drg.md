@@ -114,7 +114,7 @@ Charter governance is built on a strict read/write boundary:
   `references.yaml`, `context-state.json`, synthesis manifests, and provenance sidecars — owned
   by their respective CLI commands.
 - **Project-local doctrine overlay**: `.kittify/doctrine/` — promoted by `charter synthesize` and
-  read alongside shipped doctrine.
+  read alongside built-in doctrine.
 - **Agent-generated synthesis input**: `.kittify/charter/generated/` — written by the harness and
   validated by `charter synthesize`.
 
@@ -137,7 +137,7 @@ after charter edits.
 
 2. **Fresh-project synthesis**: On a project where `.kittify/charter/generated/` is missing or
    empty (no agent-generated artifacts), `charter synthesize` produces only the minimal artifact
-   set (directory marker and PROVENANCE.md). The runtime falls back to shipped doctrine until a
+   set (directory marker and PROVENANCE.md). The runtime falls back to built-in doctrine until a
    full synthesis run with agent-generated content completes.
 
 3. **Synthesis requires `charter.md`**: `charter synthesize` will exit non-zero if `charter.md`

@@ -105,31 +105,31 @@ def load_graph_or_dir(path: Path) -> DRGGraph:
 
 
 def merge_layers(
-    shipped: DRGGraph,
+    built_in: DRGGraph,
     project: DRGGraph | None,
 ) -> DRGGraph:
-    """Merge *shipped* and *project* graph layers.
+    """Merge *built_in* and *project* graph layers.
 
     Semantics (additive only):
 
-    * All nodes from *shipped* are kept.
+    * All nodes from *built_in* are kept.
     * Nodes in *project* with new URNs are added.
-    * Nodes in *project* whose URN already exists in *shipped* override the
-      label (but kind is retained from shipped).
+    * Nodes in *project* whose URN already exists in *built_in* override the
+      label (but kind is retained from built-in).
     * All edges from both layers are combined (additive, no removal).
 
     Returns a new ``DRGGraph`` (not yet validated -- the caller should run
     ``validate_graph()`` on the result).
     """
     if project is None:
-        return shipped
+        return built_in
 
     # Build node index keyed by URN
-    node_index: dict[str, DRGNode] = {n.urn: n for n in shipped.nodes}
+    node_index: dict[str, DRGNode] = {n.urn: n for n in built_in.nodes}
 
     for pn in project.nodes:
         if pn.urn in node_index:
-            # Override label only -- keep shipped kind
+            # Override label only -- keep built-in kind
             existing = node_index[pn.urn]
             node_index[pn.urn] = existing.model_copy(
                 update={"label": pn.label} if pn.label is not None else {}
@@ -138,12 +138,12 @@ def merge_layers(
             node_index[pn.urn] = pn
 
     # Combine edges (additive)
-    merged_edges = list(shipped.edges) + list(project.edges)
+    merged_edges = list(built_in.edges) + list(project.edges)
 
     return DRGGraph(
-        schema_version=shipped.schema_version,
-        generated_at=shipped.generated_at,
-        generated_by=shipped.generated_by,
+        schema_version=built_in.schema_version,
+        generated_at=built_in.generated_at,
+        generated_by=built_in.generated_by,
         nodes=list(node_index.values()),
         edges=merged_edges,
     )

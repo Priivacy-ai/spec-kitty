@@ -5,7 +5,7 @@ validated ``WorkflowSequence`` instances.
 
 Search precedence
 -----------------
-1. ``src/doctrine/workflows/<workflow_id>.workflow.yaml`` (shipped defaults)
+1. ``src/doctrine/workflows/<workflow_id>.workflow.yaml`` (built-in defaults)
 2. ``src/doctrine/workflows/_fixtures/<workflow_id>.workflow.yaml`` (test fixtures)
 
 Operator override at ``.kittify/workflows/<workflow_id>.workflow.yaml`` is
@@ -91,7 +91,7 @@ _SEARCH_ROOTS: tuple[Path, ...] = (
 def get_workflow(workflow_id: str) -> WorkflowSequence:
     """Return the validated ``WorkflowSequence`` for *workflow_id*.
 
-    Search order: shipped defaults first, then test fixtures (see module
+    Search order: built-in defaults first, then test fixtures (see module
     docstring for the full precedence list).
 
     Raises

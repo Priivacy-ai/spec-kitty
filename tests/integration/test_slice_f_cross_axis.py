@@ -164,7 +164,7 @@ def test_org_pack_in_monorepo_with_custom_workflow(tmp_complex_setup: Path) -> N
         f"Axis 1 failure: wrong pack name {fragments[0].pack_name!r}"
     )
 
-    shipped = DRGGraph(
+    built_in = DRGGraph(
         schema_version="1.0",
         generated_at="2026-05-18T00:00:00Z",
         generated_by="cross-axis-test",
@@ -172,7 +172,7 @@ def test_org_pack_in_monorepo_with_custom_workflow(tmp_complex_setup: Path) -> N
         edges=[],
     )
     merged = merge_three_layers(
-        shipped=shipped, org_fragments=fragments, project=None
+        built_in=built_in, org_fragments=fragments, project=None
     )
     assert merged is not None, "Axis 1 failure: merge_three_layers returned None"
 

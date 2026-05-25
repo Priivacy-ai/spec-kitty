@@ -44,6 +44,14 @@ properties:
   summary:
     type: string
     minLength: 1
+  overrides:
+    type: string
+    pattern: ^[a-z][a-z0-9-]*$
+    description: ID of a built-in paradigm this artifact replaces in full.
+  enhances:
+    type: string
+    pattern: ^[a-z][a-z0-9-]*$
+    description: ID of a built-in paradigm this artifact augments via field-merge.
   directive_refs:
     type: array
     items:

@@ -1,0 +1,147 @@
+# Bulk-edit occurrence map — `shipped` → `built-in`
+#
+# Mission: charter-ux-and-org-pack-vocabulary-01KSAF14
+# Change mode: bulk_edit (declared in meta.json)
+# Source: epic #1111 directive (HiC at handoff).
+# Spec: FR-015, FR-016, FR-017.
+#
+# Valid action vocabulary (enforced by the bulk-edit gate):
+#   - rename                  : straight rename of the literal `shipped` token
+#   - rename_if_user_visible  : rename only when the occurrence is on a public CLI / JSON / docs surface
+#   - manual_review           : implementer must inspect and decide per occurrence
+#   - do_not_change           : preserve as-is (historical text, dead-code candidates that need a delete decision)
+#
+# Counts (from research/mission-brief.md §2 Thread C):
+#   - 63 Python files / ~459 line occurrences
+#   - 90 test files
+#   - 48 doc/YAML files
+
+schema_version: "1.0"
+mission: charter-ux-and-org-pack-vocabulary-01KSAF14
+
+target:
+  term: "shipped"
+  operation: rename
+  replacement: "built-in"
+  scope_notes: |
+    Targets the user-facing layer label and its surface in code/identifiers/
+    docs/tests. The word "shipped" remains acceptable in generic English
+    elsewhere (e.g. "the v3.2 release shipped on YYYY-MM-DD") — only its use
+    as a doctrine layer label is in scope.
+
+categories:
+
+  code_symbols:
+    description: >
+      Python identifiers, parameter names, variable names, function/method
+      names, Pydantic field aliases, docstrings and comments that name the
+      layer.
+    action: rename
+    examples:
+      - "src/doctrine/base.py: _shipped_dir -> _built_in_dir, _load_shipped_items -> _load_built_in_items"
+      - "src/doctrine/base.py: _apply_org_overrides(..., shipped) parameter -> built_in"
+      - "src/doctrine/base.py: docstring 'shipped → org → project' -> 'built-in → org → project'"
+
+  import_paths:
+    description: >
+      Python module / package paths that contain the word `shipped`.
+    action: do_not_change
+    notes: |
+      Source-tree directories already use `built-in/`. The only `shipped`
+      paths are in `.mypy_cache/` which regenerates automatically.
+
+  filesystem_paths:
+    description: >
+      Source-tree paths and on-disk file/directory names.
+    action: do_not_change
+    notes: |
+      `built-in/` directory layout already in place; nothing to rename.
+
+  serialized_keys:
+    description: >
+      JSON keys and string values emitted by public CLI surfaces (charter
+      status --json, charter lint --json, agent profile list --json,
+      doctrine pack validate --json) and persisted YAML metadata.
+    action: rename_if_user_visible
+    examples:
+      - "src/specify_cli/cli/commands/profiles_cmd.py:56 — return value 'shipped' -> 'built-in' (agent profile source label)"
+      - "src/charter/drg.py:328 — layer_label = 'shipped' if existing_provenance == 'built-in' (delete the conversion entirely; emit 'built-in')"
+    changelog_entry: |
+      CLI JSON surfaces now report `built-in` instead of `shipped` as the
+      doctrine layer label, matching the on-disk `built-in/` directory
+      layout. External tooling that pattern-matched the string `"shipped"`
+      MUST be updated.
+
+  cli_commands:
+    description: >
+      Slash-command / CLI subcommand strings.
+    action: do_not_change
+    notes: |
+      No CLI command name contains `shipped`. Vocabulary lives in argument
+      values, not command names.
+
+  user_facing_strings:
+    description: >
+      Console banners, advisory text, error messages.
+    action: rename
+    examples:
+      - "src/specify_cli/doctrine/pack_validator.py:451 — 'overrides a shipped tactic' (subsumed by Wave 3 advisory rework)"
+      - "src/charter/drg.py: log line 'Project doctrine overrides %s node' — layer label uses 'built-in'"
+    coordination_note: |
+      Wave 3 (FR-013) already reformats the same-ID collision advisory. The
+      vocabulary cutover MUST land after Wave 3 so the rewritten advisory is
+      authored with the correct term from the start.
+
+  tests_fixtures:
+    description: >
+      Test files asserting `"shipped"` as a string literal, plus YAML/JSON
+      fixtures that bake the term into expected outputs.
+    action: rename
+    examples:
+      - "tests/integration/test_charter_status_reports_three_layers.py — assert layer label 'shipped' -> 'built-in'"
+      - "tests/specify_cli/cli/commands/test_charter_lint.py — banner assertions"
+      - "tests/specify_cli/doctrine/test_pack_validator.py — advisory message assertions (interacts with Wave 3 rewording)"
+      - "tests/test_dashboard/test_api_charter.py — dashboard layer label rendering"
+    notes: |
+      ~90 test files mention `shipped`. The WP that performs the rename MUST
+      run the full pytest suite to zero before merge (NFR-003).
+
+  logs_telemetry:
+    description: >
+      Structured log fields, telemetry events, status-event payloads.
+    action: rename
+    examples:
+      - "src/charter/drg.py:_warn_project_override — log warning emits the layer label"
+      - "src/specify_cli/charter_lint/engine.py log line on 'merged DRG not found' — layer name reference"
+    notes: |
+      No external telemetry pipeline currently pattern-matches the term;
+      changes are internal log readability only.
+
+historical_preservation:
+  description: >
+    Places where the word "shipped" MUST be preserved because it records
+    history, not current behaviour. These are NOT in the rename set.
+  action: do_not_change
+  paths:
+    - "CHANGELOG.md (entries dated before mission merge)"
+    - "architecture/3.x/adr/2026-05-16-1-doctrine-layer-merge-semantics.md (historical decision text)"
+    - "kitty-specs/*/spec.md committed before this mission (frozen historical records)"
+
+dead_code_candidates:
+  description: >
+    Occurrences that should be DELETED outright rather than renamed (e.g.
+    dead fallback branches, vestigial back-compat shims).
+  action: manual_review
+  examples:
+    - "src/charter/drg.py:328 — the `layer_label = 'shipped' if ... else ...` conversion itself is dead once everything else emits 'built-in'; delete the conversion (do not merely rename it)."
+
+acceptance_check:
+  command: |
+    grep -rn '"shipped"\|'\''shipped'\''' src/ tests/ docs/ 2>/dev/null \
+      | grep -v -E "(\\.mypy_cache|CHANGELOG\\.md|architecture/.*/adr/|kitty-specs/)" \
+      | wc -l
+  expected: 0
+  notes: |
+    The architectural test `tests/architectural/test_no_shipped_layer_label.py`
+    (FR-016) operationalises this check on every CI run. Operators can run the
+    shell snippet above as a quick local check during Wave 4.

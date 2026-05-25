@@ -30,7 +30,7 @@ pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 # ---------------------------------------------------------------------------
 
 SHIPPED_GRAPH = Path(__file__).resolve().parents[2] / "src" / "doctrine" / "graph.yaml"
-SHIPPED_DIR = Path(__file__).resolve().parents[2] / "src" / "doctrine" / "agent_profiles" / "built-in"
+BUILT_IN_DIR = Path(__file__).resolve().parents[2] / "src" / "doctrine" / "agent_profiles" / "built-in"
 
 # All three built-in missions that own a retrospect action (FR-002)
 _RETROSPECT_ACTION_URNS = [
@@ -229,7 +229,7 @@ def test_retrospective_facilitator_resolves_through_profile_repository() -> None
     path (AgentProfileRepository.get()), not just as a DRG node.  This is the
     path exercised by ProfileRegistry.resolve() at invocation time.
     """
-    repo = AgentProfileRepository(shipped_dir=SHIPPED_DIR)
+    repo = AgentProfileRepository(built_in_dir=BUILT_IN_DIR)
     profile = repo.get("retrospective-facilitator")
     assert profile is not None, (
         "AgentProfileRepository.get('retrospective-facilitator') must return a profile. "

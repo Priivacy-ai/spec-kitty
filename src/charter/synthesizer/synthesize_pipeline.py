@@ -200,7 +200,7 @@ def _get_schema_by_kind() -> dict[str, Any]:
 
 
 def _assert_schema(target: SynthesisTarget, output: AdapterOutput) -> None:
-    """Validate ``output.body`` against the shipped Pydantic schema for ``target.kind``.
+    """Validate ``output.body`` against the built-in Pydantic schema for ``target.kind``.
 
     Raises ``SynthesisSchemaError`` on failure, before any provenance assembly
     or downstream write (FR-019, NFR-005).
@@ -331,7 +331,7 @@ def run(
     3. Order targets deterministically; detect duplicates.
     4. Construct a per-target ``SynthesisRequest`` (cloning shared snapshots).
     5. Dispatch adapter (batch-capable if available; else sequential).
-    6. Validate each ``AdapterOutput.body`` against the shipped Pydantic schema.
+    6. Validate each ``AdapterOutput.body`` against the built-in Pydantic schema.
     7. Assemble ``ProvenanceEntry`` objects in memory.
     8. Return a ``SynthesisResult`` for the **first** target (the orchestrator
        entry point is per-request; multi-target flows use ``run_all()``).

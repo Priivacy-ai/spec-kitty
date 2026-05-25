@@ -207,7 +207,7 @@ class TestExtractArtifactEdges:
         assert "template:agent-brief-template" in targets
         assert "template:out-of-scope-record-template" in targets
 
-    def test_walks_all_shipped_directives(self) -> None:
+    def test_walks_all_built_in_directives(self) -> None:
         nodes, _ = extract_artifact_edges(DOCTRINE_ROOT)
         directive_count = len(
             list(

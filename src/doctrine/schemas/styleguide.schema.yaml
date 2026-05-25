@@ -69,6 +69,14 @@ properties:
     - testing
     - operations
     - glossary
+  overrides:
+    type: string
+    pattern: ^[a-z][a-z0-9-]*$
+    description: ID of a built-in styleguide this artifact replaces in full.
+  enhances:
+    type: string
+    pattern: ^[a-z][a-z0-9-]*$
+    description: ID of a built-in styleguide this artifact augments via field-merge.
   principles:
     type: array
     minItems: 1

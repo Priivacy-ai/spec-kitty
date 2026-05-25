@@ -9,8 +9,8 @@ Candidate ordering (FR-009 / T024 / T025):
 
 1. ``.kittify/doctrine/``   — Phase 3 synthesis target; present only after a
                               successful ``spec-kitty charter synthesize`` run.
-2. ``src/doctrine/``        — code-local shipped-layer path (legacy 3.x default).
-3. ``doctrine/``            — flat shipped-layer fallback.
+2. ``src/doctrine/``        — code-local built-in-layer path (legacy 3.x default).
+3. ``doctrine/``            — flat built-in-layer fallback.
 
 Discovery is **conditional on directory presence**: if ``.kittify/doctrine/``
 does not exist the resolver returns the next matching candidate, preserving
@@ -23,13 +23,13 @@ from pathlib import Path
 
 
 # ---------------------------------------------------------------------------
-# Candidate list (ordered: synthesis-aware first, shipped-layer fallbacks after)
+# Candidate list (ordered: synthesis-aware first, built-in-layer fallbacks after)
 # ---------------------------------------------------------------------------
 
 _PROJECT_ROOT_CANDIDATES: tuple[str, ...] = (
     ".kittify/doctrine",   # NEW — Phase 3 synthesis target (FR-009)
-    "src/doctrine",        # existing — code-local shipped-layer path
-    "doctrine",            # existing — flat shipped-layer fallback
+    "src/doctrine",        # existing — code-local built-in-layer path
+    "doctrine",            # existing — flat built-in-layer fallback
 )
 
 
@@ -37,13 +37,13 @@ def resolve_project_root(repo_root: Path) -> Path | None:
     """Return the first existing project-doctrine directory for *repo_root*.
 
     Returns ``None`` when none of the candidates exist on disk, which means
-    ``DoctrineService`` will be constructed with ``project_root=None`` (shipped
+    ``DoctrineService`` will be constructed with ``project_root=None`` (built-in
     layer only — identical to the pre-Phase-3 default).
 
     The function is intentionally a thin directory-presence check: it does
     **not** inspect the directory's contents.  An empty ``.kittify/doctrine/``
     directory is still a valid candidate (the ``DoctrineService`` will simply
-    surface an empty project layer with no shipped-layer impact).
+    surface an empty project layer with no built-in-layer impact).
 
     Args:
         repo_root: Absolute path to the repository root.

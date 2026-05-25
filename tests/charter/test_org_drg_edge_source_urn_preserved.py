@@ -33,7 +33,7 @@ pytestmark = [pytest.mark.unit]
 # ---------------------------------------------------------------------------
 
 
-def _shipped_with_edge(source_urn: str, target_urn: str) -> DRGGraph:
+def _built_in_with_edge(source_urn: str, target_urn: str) -> DRGGraph:
     return DRGGraph(
         schema_version="1.0",
         generated_at="2026-05-19T00:00:00Z",
@@ -46,7 +46,7 @@ def _shipped_with_edge(source_urn: str, target_urn: str) -> DRGGraph:
     )
 
 
-def _empty_shipped() -> DRGGraph:
+def _empty_built_in() -> DRGGraph:
     return DRGGraph(
         schema_version="1.0",
         generated_at="2026-05-19T00:00:00Z",
@@ -66,8 +66,8 @@ class TestShippedEdgeSourceUrnPreservedAfterMerge:
 
     def test_shipped_edge_source_urn_preserved_after_merge(self) -> None:
         """The shipped edge.source URN survives merge_three_layers (no org, no project)."""
-        shipped = _shipped_with_edge("directive:alpha", "directive:beta")
-        merged = merge_three_layers(shipped=shipped, org_fragments=[], project=None)
+        built_in = _built_in_with_edge("directive:alpha", "directive:beta")
+        merged = merge_three_layers(built_in=built_in, org_fragments=[], project=None)
 
         assert len(merged.edges) == 1, "edge must survive the merge"
         edge = merged.edges[0]
@@ -88,8 +88,8 @@ class TestShippedEdgeSourceUrnPreservedAfterMerge:
     def test_shipped_graph_with_edge_validates_after_merge(self) -> None:
         """The merged graph must be Pydantic-valid (no corrupted enum fields)."""
 
-        shipped = _shipped_with_edge("directive:a", "directive:b")
-        merged = merge_three_layers(shipped=shipped, org_fragments=[], project=None)
+        built_in = _built_in_with_edge("directive:a", "directive:b")
+        merged = merge_three_layers(built_in=built_in, org_fragments=[], project=None)
 
         # Re-validate the merged graph through the Pydantic model.  Before the
         # fix, ``DRGEdge.source`` was set to the string ``"built-in"`` which
@@ -106,7 +106,7 @@ class TestOrgBridgeEdgeSourceUrnPreserved:
     def test_org_bridge_edge_source_urn_is_a_urn(self) -> None:
         """An org edge resolved through _bridge_org_edge_to_drg_edge must
         carry a URN (not a pack name) in edge.source."""
-        shipped = _empty_shipped()
+        built_in = _empty_built_in()
         fragment = OrgDRGFragment.model_validate(
             {
                 "pack_name": "acme",
@@ -128,7 +128,7 @@ class TestOrgBridgeEdgeSourceUrnPreserved:
             }
         )
         merged = merge_three_layers(
-            shipped=shipped, org_fragments=[fragment], project=None
+            built_in=built_in, org_fragments=[fragment], project=None
         )
 
         org_edges = list(merged.edges)
@@ -161,8 +161,8 @@ class TestDanglingSourceValidatorOnMergedGraph:
             ReferenceIntegrityChecker,
         )
 
-        shipped = _shipped_with_edge("directive:x", "directive:y")
-        merged = merge_three_layers(shipped=shipped, org_fragments=[], project=None)
+        built_in = _built_in_with_edge("directive:x", "directive:y")
+        merged = merge_three_layers(built_in=built_in, org_fragments=[], project=None)
 
         checker = ReferenceIntegrityChecker()
         findings = checker.run(merged, feature_scope=None)

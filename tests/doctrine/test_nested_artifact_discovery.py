@@ -1,6 +1,6 @@
 """Integration tests for nested subdirectory discovery across all doctrine repositories.
 
-Acceptance criterion: artifacts stored in subdirectories of `shipped/` are resolved
+Acceptance criterion: artifacts stored in subdirectories of `built_in /` are resolved
 when calling `list_all()` or `get()` on any doctrine repository.
 
 These tests use a temporary filesystem — they do not depend on real shipped artifacts.
@@ -109,173 +109,173 @@ AGENT_PROFILE = {
 
 class TestToolguideNestedDiscovery:
     def test_list_all_finds_artifact_in_subdirectory(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "built-in"
-        write_yaml(shipped / "subdir" / "nested-toolguide.toolguide.yaml", TOOLGUIDE)
+        built_in = tmp_path / "built-in"
+        write_yaml(built_in / "subdir" / "nested-toolguide.toolguide.yaml", TOOLGUIDE)
 
         from doctrine.toolguides.repository import ToolguideRepository
 
-        repo = ToolguideRepository(shipped_dir=shipped)
+        repo = ToolguideRepository(built_in_dir=built_in)
         ids = [t.id for t in repo.list_all()]
         assert "nested-toolguide" in ids
 
     def test_get_resolves_artifact_in_subdirectory(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "built-in"
-        write_yaml(shipped / "subdir" / "nested-toolguide.toolguide.yaml", TOOLGUIDE)
+        built_in = tmp_path / "built-in"
+        write_yaml(built_in / "subdir" / "nested-toolguide.toolguide.yaml", TOOLGUIDE)
 
         from doctrine.toolguides.repository import ToolguideRepository
 
-        repo = ToolguideRepository(shipped_dir=shipped)
+        repo = ToolguideRepository(built_in_dir=built_in)
         assert repo.get("nested-toolguide") is not None
 
 
 class TestDirectiveNestedDiscovery:
     def test_list_all_finds_artifact_in_subdirectory(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "built-in"
-        write_yaml(shipped / "subdir" / "998-nested.directive.yaml", DIRECTIVE)
+        built_in = tmp_path / "built-in"
+        write_yaml(built_in / "subdir" / "998-nested.directive.yaml", DIRECTIVE)
 
         from doctrine.directives.repository import DirectiveRepository
 
-        repo = DirectiveRepository(shipped_dir=shipped)
+        repo = DirectiveRepository(built_in_dir=built_in)
         ids = [d.id for d in repo.list_all()]
         assert "DIRECTIVE_998" in ids
 
     def test_get_resolves_artifact_in_subdirectory(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "built-in"
-        write_yaml(shipped / "subdir" / "998-nested.directive.yaml", DIRECTIVE)
+        built_in = tmp_path / "built-in"
+        write_yaml(built_in / "subdir" / "998-nested.directive.yaml", DIRECTIVE)
 
         from doctrine.directives.repository import DirectiveRepository
 
-        repo = DirectiveRepository(shipped_dir=shipped)
+        repo = DirectiveRepository(built_in_dir=built_in)
         assert repo.get("DIRECTIVE_998") is not None
 
 
 class TestTacticNestedDiscovery:
     def test_list_all_finds_artifact_in_subdirectory(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "built-in"
-        write_yaml(shipped / "subdir" / "nested-tactic.tactic.yaml", TACTIC)
+        built_in = tmp_path / "built-in"
+        write_yaml(built_in / "subdir" / "nested-tactic.tactic.yaml", TACTIC)
 
         from doctrine.tactics.repository import TacticRepository
 
-        repo = TacticRepository(shipped_dir=shipped)
+        repo = TacticRepository(built_in_dir=built_in)
         ids = [t.id for t in repo.list_all()]
         assert "nested-tactic" in ids
 
     def test_get_resolves_artifact_in_subdirectory(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "built-in"
-        write_yaml(shipped / "subdir" / "nested-tactic.tactic.yaml", TACTIC)
+        built_in = tmp_path / "built-in"
+        write_yaml(built_in / "subdir" / "nested-tactic.tactic.yaml", TACTIC)
 
         from doctrine.tactics.repository import TacticRepository
 
-        repo = TacticRepository(shipped_dir=shipped)
+        repo = TacticRepository(built_in_dir=built_in)
         assert repo.get("nested-tactic") is not None
 
 
 class TestStyleguideNestedDiscovery:
     def test_list_all_finds_artifact_in_subdirectory(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "built-in"
-        write_yaml(shipped / "subdir" / "nested-styleguide.styleguide.yaml", STYLEGUIDE)
+        built_in = tmp_path / "built-in"
+        write_yaml(built_in / "subdir" / "nested-styleguide.styleguide.yaml", STYLEGUIDE)
 
         from doctrine.styleguides.repository import StyleguideRepository
 
-        repo = StyleguideRepository(shipped_dir=shipped)
+        repo = StyleguideRepository(built_in_dir=built_in)
         ids = [s.id for s in repo.list_all()]
         assert "nested-styleguide" in ids
 
     def test_get_resolves_artifact_in_subdirectory(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "built-in"
-        write_yaml(shipped / "subdir" / "nested-styleguide.styleguide.yaml", STYLEGUIDE)
+        built_in = tmp_path / "built-in"
+        write_yaml(built_in / "subdir" / "nested-styleguide.styleguide.yaml", STYLEGUIDE)
 
         from doctrine.styleguides.repository import StyleguideRepository
 
-        repo = StyleguideRepository(shipped_dir=shipped)
+        repo = StyleguideRepository(built_in_dir=built_in)
         assert repo.get("nested-styleguide") is not None
 
 
 class TestProcedureNestedDiscovery:
     def test_list_all_finds_artifact_in_subdirectory(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "built-in"
-        write_yaml(shipped / "subdir" / "nested-procedure.procedure.yaml", PROCEDURE)
+        built_in = tmp_path / "built-in"
+        write_yaml(built_in / "subdir" / "nested-procedure.procedure.yaml", PROCEDURE)
 
         from doctrine.procedures.repository import ProcedureRepository
 
-        repo = ProcedureRepository(shipped_dir=shipped)
+        repo = ProcedureRepository(built_in_dir=built_in)
         ids = [p.id for p in repo.list_all()]
         assert "nested-procedure" in ids
 
     def test_get_resolves_artifact_in_subdirectory(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "built-in"
-        write_yaml(shipped / "subdir" / "nested-procedure.procedure.yaml", PROCEDURE)
+        built_in = tmp_path / "built-in"
+        write_yaml(built_in / "subdir" / "nested-procedure.procedure.yaml", PROCEDURE)
 
         from doctrine.procedures.repository import ProcedureRepository
 
-        repo = ProcedureRepository(shipped_dir=shipped)
+        repo = ProcedureRepository(built_in_dir=built_in)
         assert repo.get("nested-procedure") is not None
 
 
 class TestParadigmNestedDiscovery:
     def test_list_all_finds_artifact_in_subdirectory(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "built-in"
-        write_yaml(shipped / "subdir" / "nested-paradigm.paradigm.yaml", PARADIGM)
+        built_in = tmp_path / "built-in"
+        write_yaml(built_in / "subdir" / "nested-paradigm.paradigm.yaml", PARADIGM)
 
         from doctrine.paradigms.repository import ParadigmRepository
 
-        repo = ParadigmRepository(shipped_dir=shipped)
+        repo = ParadigmRepository(built_in_dir=built_in)
         ids = [p.id for p in repo.list_all()]
         assert "nested-paradigm" in ids
 
     def test_get_resolves_artifact_in_subdirectory(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "built-in"
-        write_yaml(shipped / "subdir" / "nested-paradigm.paradigm.yaml", PARADIGM)
+        built_in = tmp_path / "built-in"
+        write_yaml(built_in / "subdir" / "nested-paradigm.paradigm.yaml", PARADIGM)
 
         from doctrine.paradigms.repository import ParadigmRepository
 
-        repo = ParadigmRepository(shipped_dir=shipped)
+        repo = ParadigmRepository(built_in_dir=built_in)
         assert repo.get("nested-paradigm") is not None
 
 
 class TestMissionStepContractNestedDiscovery:
     def test_list_all_finds_artifact_in_subdirectory(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "built-in"
+        built_in = tmp_path / "built-in"
         write_yaml(
-            shipped / "subdir" / "nested-action.step-contract.yaml",
+            built_in / "subdir" / "nested-action.step-contract.yaml",
             MISSION_STEP_CONTRACT,
         )
 
         from doctrine.mission_step_contracts.repository import MissionStepContractRepository
 
-        repo = MissionStepContractRepository(shipped_dir=shipped)
+        repo = MissionStepContractRepository(built_in_dir=built_in)
         ids = [c.id for c in repo.list_all()]
         assert "nested-action" in ids
 
     def test_get_resolves_artifact_in_subdirectory(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "built-in"
+        built_in = tmp_path / "built-in"
         write_yaml(
-            shipped / "subdir" / "nested-action.step-contract.yaml",
+            built_in / "subdir" / "nested-action.step-contract.yaml",
             MISSION_STEP_CONTRACT,
         )
 
         from doctrine.mission_step_contracts.repository import MissionStepContractRepository
 
-        repo = MissionStepContractRepository(shipped_dir=shipped)
+        repo = MissionStepContractRepository(built_in_dir=built_in)
         assert repo.get("nested-action") is not None
 
 
 class TestAgentProfileNestedDiscovery:
     def test_list_all_finds_artifact_in_subdirectory(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "built-in"
-        write_yaml(shipped / "subdir" / "nested-agent.agent.yaml", AGENT_PROFILE)
+        built_in = tmp_path / "built-in"
+        write_yaml(built_in / "subdir" / "nested-agent.agent.yaml", AGENT_PROFILE)
 
         from doctrine.agent_profiles.repository import AgentProfileRepository
 
-        repo = AgentProfileRepository(shipped_dir=shipped)
+        repo = AgentProfileRepository(built_in_dir=built_in)
         ids = [p.profile_id for p in repo.list_all()]
         assert "nested-agent" in ids
 
     def test_get_resolves_artifact_in_subdirectory(self, tmp_path: Path) -> None:
-        shipped = tmp_path / "built-in"
-        write_yaml(shipped / "subdir" / "nested-agent.agent.yaml", AGENT_PROFILE)
+        built_in = tmp_path / "built-in"
+        write_yaml(built_in / "subdir" / "nested-agent.agent.yaml", AGENT_PROFILE)
 
         from doctrine.agent_profiles.repository import AgentProfileRepository
 
-        repo = AgentProfileRepository(shipped_dir=shipped)
+        repo = AgentProfileRepository(built_in_dir=built_in)
         assert repo.get("nested-agent") is not None

@@ -1,7 +1,7 @@
 """Charter Synthesizer — public package API.
 
 This package delivers Phase 3 of the Charter EPIC: turning interview answers,
-shipped doctrine, and the shipped DRG into project-local directives, tactics,
+built-in doctrine, and the built-in DRG into project-local directives, tactics,
 and styleguides stored under .kittify/doctrine/ (content) and
 .kittify/charter/ (provenance bookkeeping).
 
@@ -25,7 +25,7 @@ Orchestrator (WP01 skeleton, WP02/WP05 populate):
 Error taxonomy (WP01, frozen):
     SynthesisError                  — base exception
     PathGuardViolation              — write outside allowlist
-    SynthesisSchemaError            — adapter output fails shipped schema
+    SynthesisSchemaError            — adapter output fails built-in schema
     ProjectDRGValidationError       — merged DRG validation failure
     DuplicateTargetError            — two targets share (kind, slug)
     TopicSelectorUnresolvedError    — --topic selector unresolvable

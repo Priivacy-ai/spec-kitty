@@ -31,7 +31,7 @@ pytestmark = [pytest.mark.unit]
 # ---------------------------------------------------------------------------
 
 
-def _shipped_with_node(urn: str) -> DRGGraph:
+def _built_in_with_node(urn: str) -> DRGGraph:
     return DRGGraph(
         schema_version="1.0",
         generated_at="2026-05-19T00:00:00Z",
@@ -41,7 +41,7 @@ def _shipped_with_node(urn: str) -> DRGGraph:
     )
 
 
-def _empty_shipped() -> DRGGraph:
+def _empty_built_in() -> DRGGraph:
     return DRGGraph(
         schema_version="1.0",
         generated_at="2026-05-19T00:00:00Z",
@@ -79,12 +79,12 @@ class TestProjectNodeOverridesShippedAndEmitsWarning:
     def test_project_node_overrides_shipped_node(self, caplog: pytest.LogCaptureFixture) -> None:
         """Project wins; merged graph carries the project node."""
         urn = "directive:shared-policy"
-        shipped = _shipped_with_node(urn)
+        built_in = _built_in_with_node(urn)
         project = _project_with_node(urn)
 
         with caplog.at_level(logging.WARNING, logger="charter.drg"):
             merged = merge_three_layers(
-                shipped=shipped, org_fragments=[], project=project
+                built_in=built_in, org_fragments=[], project=project
             )
 
         # Project node must be in the merged graph.
@@ -101,14 +101,14 @@ class TestProjectNodeOverridesShippedAndEmitsWarning:
     ) -> None:
         """A WARNING must name the URN when project overrides shipped."""
         urn = "directive:shared-policy"
-        shipped = _shipped_with_node(urn)
+        built_in = _built_in_with_node(urn)
         project = _project_with_node(urn)
 
         with caplog.at_level(logging.WARNING, logger="charter.drg"):
-            merge_three_layers(shipped=shipped, org_fragments=[], project=project)
+            merge_three_layers(built_in=built_in, org_fragments=[], project=project)
 
         warning_records = [r for r in caplog.records if r.levelno == logging.WARNING]
-        assert warning_records, "at least one WARNING must be emitted on shipped override"
+        assert warning_records, "at least one WARNING must be emitted on built_in override"
         combined = " ".join(r.getMessage() for r in warning_records)
         assert urn in combined, f"WARNING must mention the URN {urn!r}; got: {combined!r}"
 
@@ -135,7 +135,7 @@ class TestProjectNodeOverridesOrgAndEmitsWarning:
 
         with caplog.at_level(logging.WARNING, logger="charter.drg"):
             merged = merge_three_layers(
-                shipped=_empty_shipped(), org_fragments=[fragment], project=project
+                built_in=_empty_built_in(), org_fragments=[fragment], project=project
             )
 
         matching = [n for n in merged.nodes if n.urn == urn]
@@ -161,7 +161,7 @@ class TestProjectNodeOverridesOrgAndEmitsWarning:
 
         with caplog.at_level(logging.WARNING, logger="charter.drg"):
             merge_three_layers(
-                shipped=_empty_shipped(), org_fragments=[fragment], project=project
+                built_in=_empty_built_in(), org_fragments=[fragment], project=project
             )
 
         warning_records = [r for r in caplog.records if r.levelno == logging.WARNING]
@@ -176,12 +176,12 @@ class TestNoWarningWhenProjectIntroducesNewUrn:
     def test_no_warning_for_new_project_urn(
         self, caplog: pytest.LogCaptureFixture
     ) -> None:
-        shipped = _shipped_with_node("directive:existing")
-        project = _project_with_node("directive:brand-new")  # not in shipped or org
+        built_in = _built_in_with_node("directive:existing")
+        project = _project_with_node("directive:brand-new")  # not in built_in or org
 
         with caplog.at_level(logging.WARNING, logger="charter.drg"):
             merged = merge_three_layers(
-                shipped=shipped, org_fragments=[], project=project
+                built_in=built_in, org_fragments=[], project=project
             )
 
         warning_records = [r for r in caplog.records if r.levelno == logging.WARNING]

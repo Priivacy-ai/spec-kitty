@@ -32,7 +32,7 @@ _TOOLGUIDES_DIRS = [_DOCTRINE_ROOT / "toolguides" / d for d in ("built-in", "_pr
 _PROCEDURES_DIRS = [_DOCTRINE_ROOT / "procedures" / d for d in ("built-in", "_proposed")]
 _TEMPLATES_DIR = _DOCTRINE_ROOT / "templates"
 _SHIPPED_DIRECTIVES_DIR = _DOCTRINE_ROOT / "directives" / "built-in"
-_SHIPPED_TACTICS_DIR = _DOCTRINE_ROOT / "tactics" / "built-in"
+_BUILT_IN_TACTICS_DIR = _DOCTRINE_ROOT / "tactics" / "built-in"
 _SHIPPED_PARADIGMS_DIR = _DOCTRINE_ROOT / "paradigms" / "built-in"
 
 
@@ -117,7 +117,7 @@ def test_lenient_adherence_directives_declare_explicit_allowances() -> None:
 
 def _shipped_tactic_ids() -> set[str]:
     tactic_ids: set[str] = set()
-    for path in _multi_glob([_SHIPPED_TACTICS_DIR], "*.tactic.yaml"):
+    for path in _multi_glob([_BUILT_IN_TACTICS_DIR], "*.tactic.yaml"):
         data = _load_yaml(path)
         tactic_id = str(data.get("id", "")).strip()
         if tactic_id:
@@ -235,7 +235,7 @@ def _build_tactic_ref_graph() -> dict[str, list[str]]:
     Only shipped tactics are included; _proposed tactics may have dangling refs.
     """
     graph: dict[str, list[str]] = {}
-    for path in _multi_glob([_SHIPPED_TACTICS_DIR], "*.tactic.yaml"):
+    for path in _multi_glob([_BUILT_IN_TACTICS_DIR], "*.tactic.yaml"):
         data = _load_yaml(path)
         tactic_id = str(data.get("id", "")).strip()
         if not tactic_id:
@@ -299,7 +299,7 @@ def test_tactic_references_resolve_to_known_tactics() -> None:
     """
     tactic_ids = _shipped_tactic_ids()
     unresolved: list[str] = []
-    for path in _multi_glob([_SHIPPED_TACTICS_DIR], "*.tactic.yaml"):
+    for path in _multi_glob([_BUILT_IN_TACTICS_DIR], "*.tactic.yaml"):
         data = _load_yaml(path)
         tactic_id = str(data.get("id", "")).strip()
         for ref in data.get("references", []) or []:
@@ -381,7 +381,7 @@ def test_tactic_opposed_by_refs_resolve() -> None:
     id_map = {"directive": directive_ids, "tactic": tactic_ids, "paradigm": paradigm_ids}
 
     unresolved: list[str] = []
-    for path in _multi_glob([_SHIPPED_TACTICS_DIR], "*.tactic.yaml"):
+    for path in _multi_glob([_BUILT_IN_TACTICS_DIR], "*.tactic.yaml"):
         data = _load_yaml(path)
         source_id = str(data.get("id", "")).strip()
         for entry in data.get("opposed_by", []) or []:

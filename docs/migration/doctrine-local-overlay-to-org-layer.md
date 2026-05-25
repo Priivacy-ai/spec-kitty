@@ -70,7 +70,7 @@ on each developer machine.
 |-------|-----------------|------------------------------|
 | Project (`.kittify/doctrine/`) | Always (if non-empty) | Org and built-in |
 | Org (configured packs) | When `doctrine.org` is set in config | Built-in |
-| Built-in (shipped with CLI) | Always | — |
+| Built-in (bundled with CLI) | Always | — |
 
 Project still wins. Your project-only exceptions continue to override anything the org
 layer ships.
@@ -110,7 +110,7 @@ Run `pack validate` to catch schema issues before you publish:
 uv run spec-kitty doctrine pack validate ~/work/acme-doctrine
 ```
 
-Fix any errors reported. Advisories about ID collisions with shipped artifacts mean
+Fix any errors reported. Advisories about ID collisions with built-in artifacts mean
 the pack will override built-in defaults — usually a sign you should rename to a
 namespaced ID like `acme-001-...`.
 

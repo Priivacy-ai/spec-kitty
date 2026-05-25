@@ -443,7 +443,7 @@ def _collect_org_layer_status(repo_root: Path) -> dict[str, Any]:
     DRG packs, their fetched/missing state, node/edge counts, and any
     collision warnings surfaced by ``merge_three_layers``.
 
-    When no packs are configured, returns ``{"packs": [], "has_shipped": True}``.
+    When no packs are configured, returns ``{"packs": [], "has_built_in": True}``.
     The caller (``status``) always emits this key in JSON output so operators
     and ATDD assertions can rely on its presence.
 
@@ -466,7 +466,7 @@ def _collect_org_layer_status(repo_root: Path) -> dict[str, Any]:
     from doctrine.drg.loader import load_graph_or_dir  # noqa: PLC0415
 
     result: dict[str, Any] = {
-        "has_shipped": True,  # shipped (built-in) layer is always present
+        "has_built_in": True,  # built-in layer is always present
         "packs": [],
         "collision_warnings": [],
         "errors": [],
@@ -498,8 +498,8 @@ def _collect_org_layer_status(repo_root: Path) -> dict[str, Any]:
 
     # Run merge to surface collision warnings (best-effort).
     try:
-        shipped = load_graph_or_dir(resolve_doctrine_root())
-        merge_three_layers(shipped=shipped, org_fragments=fragments, project=None)
+        built_in = load_graph_or_dir(resolve_doctrine_root())
+        merge_three_layers(built_in=built_in, org_fragments=fragments, project=None)
     except OrgDRGConflictError as exc:
         for conflict in exc.conflicts:
             result["collision_warnings"].append(
@@ -1288,7 +1288,7 @@ def interview(  # noqa: C901
 
 
 def _build_doctrine_service_with_org_layer(repo_root: Path) -> Any:
-    """Return a ``DoctrineService`` rooted at shipped doctrine + project + configured org packs.
+    """Return a ``DoctrineService`` rooted at built-in doctrine + project + configured org packs.
 
     The org-layer roots are resolved from ``.kittify/config.yaml`` via
     :func:`specify_cli.doctrine.config.resolve_org_roots`.  Packs missing from
@@ -1310,7 +1310,7 @@ def _build_doctrine_service_with_org_layer(repo_root: Path) -> Any:
     org_roots = [p for p in resolve_org_roots(repo_root) if p.exists()]
 
     return DoctrineService(
-        shipped_root=doctrine_root,
+        built_in_root=doctrine_root,
         project_root=project_root,
         org_roots=org_roots,
     )
@@ -1720,6 +1720,8 @@ def status(  # noqa: C901
         charter_dir = repo_root / ".kittify" / "charter"
         if (charter_dir / METADATA_FILENAME).exists():
             _assert_bundle_compatible(charter_dir)
+        from specify_cli.charter_freshness import compute_freshness
+
         payload: dict[str, Any] = {
             "result": "success",
             "charter_sync": _collect_charter_sync_status(repo_root),
@@ -1727,10 +1729,12 @@ def status(  # noqa: C901
                 repo_root,
                 include_provenance=provenance,
             ),
-            # WP07 FR-002: org-layer state (shipped + org packs + project).
+            # WP07 FR-002: org-layer state (built-in + org packs + project).
             # Always present in JSON output; packs list is empty when no org
             # packs are configured (NFR-001 — no spurious empty section).
             "org_layer": _collect_org_layer_status(repo_root),
+            # WP02 FR-005: freshness sub-payload (charter -> bundle -> DRG).
+            "freshness": compute_freshness(repo_root).to_dict(),
         }
 
         if json_output:
@@ -1901,7 +1905,7 @@ def status(  # noqa: C901
         org_layer = payload["org_layer"]
         org_packs = org_layer.get("packs", [])
         console.print("\n[bold]Organisation Layer[/bold]")
-        console.print("  [dim]shipped (built-in)[/dim]: [green]present[/green]")
+        console.print("  [dim]built-in[/dim]: [green]present[/green]")
         if org_packs:
             for pack in org_packs:
                 pack_name = pack.get("name", "unknown")
@@ -1931,6 +1935,35 @@ def status(  # noqa: C901
         if org_layer.get("errors"):
             for err in org_layer["errors"]:
                 console.print(f"  [red]Error:[/red] {err}")
+
+        # WP02 FR-005 — Freshness section (human-readable output only).
+        freshness = payload["freshness"]
+        console.print("\n[bold]Freshness[/bold]")
+        _freshness_style = {
+            "fresh": "green",
+            "stale": "yellow",
+            "missing": "blue",
+            "built_in_only": "cyan",
+            "invalid": "red",
+        }
+        for layer_label, layer_key in (
+            ("Charter source ", "charter_source"),
+            ("Synced bundle  ", "synced_bundle"),
+            ("Synthesized DRG", "synthesized_drg"),
+        ):
+            sub = freshness[layer_key]
+            state = sub["state"]
+            colour = _freshness_style.get(state, "white")
+            line = (
+                f"  {layer_label}: [{colour}]{state.upper()}[/{colour}]"
+            )
+            if sub.get("last_change"):
+                line += f"  [dim]last_change={sub['last_change']}[/dim]"
+            console.print(line)
+            if sub.get("detail"):
+                console.print(f"    [dim]{sub['detail']}[/dim]")
+            if sub.get("remediation"):
+                console.print(f"    [dim]Run: {sub['remediation']}[/dim]")
 
     except TaskCliError as e:
         console.print(f"[red]Error:[/red] {e}")
@@ -1985,7 +2018,7 @@ def _build_synthesis_request(
         "styleguides": {},
     }
 
-    # Build a minimal DRG snapshot with shipped directives as nodes
+    # Build a minimal DRG snapshot with built-in directives as nodes
     drg_nodes = []
     for directive_id in interview_data.selected_directives:
         drg_nodes.append({
@@ -2073,13 +2106,13 @@ def _build_synthesis_validation_callback(request: Any) -> Any:
     from importlib.metadata import version as pkg_version
 
     from charter.synthesizer.interview_mapping import resolve_sections
-    from charter.synthesizer.orchestrator import _shipped_drg_from_snapshot
+    from charter.synthesizer.orchestrator import _built_in_drg_from_snapshot
     from charter.synthesizer.project_drg import emit_project_layer, persist as persist_project_graph
     from charter.synthesizer.targets import build_targets, detect_duplicates, order_targets
     from charter.synthesizer.validation_gate import validate as validate_project_graph
 
     spec_kitty_version = pkg_version("spec-kitty-cli")
-    shipped_drg = DRGGraph.model_validate(_shipped_drg_from_snapshot(request.drg_snapshot))
+    built_in_drg = DRGGraph.model_validate(_built_in_drg_from_snapshot(request.drg_snapshot))
     sections = resolve_sections(dict(request.interview_snapshot))
     targets = build_targets(
         interview_snapshot=dict(request.interview_snapshot),
@@ -2095,10 +2128,10 @@ def _build_synthesis_validation_callback(request: Any) -> Any:
         project_graph = emit_project_layer(
             targets=targets,
             spec_kitty_version=spec_kitty_version,
-            shipped_drg=shipped_drg,
+            built_in_drg=built_in_drg,
         )
         persist_project_graph(project_graph, staged_dir.root, staged_dir.guard)
-        validate_project_graph(staged_dir.root, shipped_drg)
+        validate_project_graph(staged_dir.root, built_in_drg)
 
     return _validation_callback
 
@@ -2398,7 +2431,7 @@ def _has_generated_artifacts(repo_root: Path) -> bool:
 # via ``DoctrineService(project_root=...)``. The candidate-list resolver in
 # ``src/charter/_doctrine_paths.py::resolve_project_root`` treats project-root
 # discovery as **directory-presence only** — an empty ``.kittify/doctrine/`` is
-# a valid candidate, and the shipped layer (``src/doctrine/``) supplies content
+# a valid candidate, and the built-in layer (``src/doctrine/``) supplies content
 # until the project layer is populated. The minimal artifact set
 # ``charter synthesize`` must produce on a fresh project to unblock the runtime
 # is therefore:
@@ -2420,7 +2453,7 @@ synthesize` running against a **fresh project** (no LLM-authored YAML under
 `.kittify/charter/generated/`). It exists so `DoctrineService` discovers a
 project layer and the runtime can advance; it is intentionally empty.
 
-The runtime falls back to the in-package shipped doctrine
+The runtime falls back to the in-package built-in doctrine
 (`src/doctrine/`) for all artifact lookups until the LLM harness writes
 project-local artifacts under `.kittify/charter/generated/` and you re-run
 `spec-kitty charter synthesize`.
@@ -2532,7 +2565,7 @@ def charter_synthesize(  # noqa: C901
     2. ``.kittify/doctrine/PROVENANCE.md`` — human-readable record of the
        fresh-project seed path, citing #839.
 
-    The runtime falls back to the shipped doctrine (``src/doctrine/``) for
+    The runtime falls back to the built-in doctrine (``src/doctrine/``) for
     all artifact lookups until the harness writes per-target YAML and the
     operator re-runs ``synthesize`` (which then takes the normal adapter
     path). The fresh-project path is **idempotent**: re-running produces
@@ -2576,7 +2609,7 @@ def charter_synthesize(  # noqa: C901
         # charter.md to exist (the upstream chain produced it) AND no
         # agent-authored YAMLs to be present. When both signals fire, we
         # materialize the minimal .kittify/doctrine/ artifact set documented in
-        # T031 so the runtime can advance via the shipped-doctrine fallback.
+        # T031 so the runtime can advance via the built-in doctrine fallback.
         #
         # When charter.md is absent we fall through to the existing pipeline so
         # callers that mock charter.synthesizer.synthesize (legacy unit tests)
@@ -2895,7 +2928,7 @@ def charter_resynthesize(  # noqa: C901
         help=(
             "Structured topic selector: "
             "<kind>:<slug> (project-local), "
-            "<drg-urn> (shipped+project graph), "
+            "<drg-urn> (built-in+project graph), "
             "or <interview-section-label>."
         ),
     ),
@@ -2931,7 +2964,7 @@ def charter_resynthesize(  # noqa: C901
     - ``directive:PROJECT_001`` — regenerate a specific project directive.
     - ``tactic:how-we-apply-directive-003`` — regenerate one tactic.
     - ``directive:DIRECTIVE_003`` — regenerate every artifact whose provenance
-      references the shipped DIRECTIVE_003 URN.
+      references the built-in DIRECTIVE_003 URN.
     - ``testing-philosophy`` — regenerate all artifacts from that interview section.
 
     Unrelated artifacts are never touched (FR-017).
@@ -2942,7 +2975,7 @@ def charter_resynthesize(  # noqa: C901
 
         spec-kitty charter resynthesize --topic tactic:how-we-apply-directive-003
 
-    Resynthesize all artifacts referencing a shipped directive::
+    Resynthesize all artifacts referencing a built-in directive::
 
         spec-kitty charter resynthesize --topic directive:DIRECTIVE_003
     """
@@ -3079,6 +3112,64 @@ def charter_resynthesize(  # noqa: C901
         raise typer.Exit(code=1) from e
 
 
+def _print_charter_lint_banner(
+    report: Any,
+    org_layer_summary: list[str],
+) -> bool:
+    """Print the human-readable banner block for ``charter lint``.
+
+    Implements the FR-003 / ``contracts/charter-lint-json.md`` human-banner
+    mapping table:
+
+    - ``GraphState.MISSING`` → one terse "no lintable graph" line and
+      return ``True`` to signal the caller to short-circuit.
+    - ``GraphState.BUILT_IN_ONLY`` → per-layer block with ``[built-in]``
+      and a "no project overlay" qualifier; on empty findings, the
+      "No decay detected" line carries a dim ``(in built-in graph)``
+      qualifier; return ``True`` only when findings are empty.
+    - ``GraphState.MERGED`` → existing per-layer block with org markers
+      and ``[project]``; on empty findings, the unchanged
+      "No decay detected" line; return ``True`` only when findings are
+      empty.
+
+    Returns ``True`` when the caller should not print the per-finding
+    list (i.e., the banner already conveyed the full result).
+    """
+    from specify_cli.charter_lint import GraphState as _GraphState  # local alias
+
+    if report.graph_state is _GraphState.MISSING:
+        console.print(
+            "[bold]Charter Lint:[/bold] no lintable graph found — "
+            "run `spec-kitty charter synthesize`"
+        )
+        return True
+
+    console.print("[bold]Charter Lint - layers:[/bold]")
+    console.print(r"  [dim]\[built-in][/dim]")
+    if report.graph_state is _GraphState.BUILT_IN_ONLY:
+        console.print(
+            r"  [dim]\[no project overlay — run `spec-kitty charter synthesize`][/dim]"
+        )
+    else:
+        for org_marker in org_layer_summary:
+            console.print(rf"  [dim]\[{org_marker}][/dim]")
+        console.print(r"  [dim]\[project][/dim]")
+
+    if report.findings:
+        return False
+
+    if report.graph_state is _GraphState.BUILT_IN_ONLY:
+        console.print(
+            "[green]No decay detected[/green] [dim](in built-in graph)[/dim]"
+        )
+    else:
+        console.print("[green]No decay detected[/green]")
+    console.print(
+        f"[dim]Scanned {report.drg_node_count} nodes in {report.duration_seconds:.2f}s[/dim]"
+    )
+    return True
+
+
 @app.command("lint")
 def charter_lint(
     mission: str | None = typer.Option(None, "--mission", help="Scope lint to a specific mission slug"),
@@ -3153,8 +3244,8 @@ def charter_lint(
         )
 
     # When org packs are configured, exercise ``merge_three_layers``
-    # against an empty shipped graph so any pack-level conflict (layer
-    # rule violation, shipped-invariant override) surfaces here at lint
+    # against an empty built-in graph so any pack-level conflict (layer
+    # rule violation, built-in invariant override) surfaces here at lint
     # time rather than at first-use of the merged DRG. The merge result
     # itself is not consumed by the human-readable banner — the engine's
     # existing graph load remains authoritative for findings — but the
@@ -3169,7 +3260,7 @@ def charter_lint(
             merge_three_layers,
         )
 
-        empty_shipped = DRGGraph(
+        empty_built_in = DRGGraph(
             schema_version="1.0",
             generated_at=_dt.datetime.now(_dt.UTC).isoformat(),
             generated_by="charter-lint",
@@ -3178,7 +3269,7 @@ def charter_lint(
         )
         try:
             merge_three_layers(
-                shipped=empty_shipped, org_fragments=org_fragments, project=None
+                built_in=empty_built_in, org_fragments=org_fragments, project=None
             )
         except OrgDRGConflictError as exc:
             # ``exc.conflicts`` is a list of ``OrgDRGConflict`` records;
@@ -3201,23 +3292,11 @@ def charter_lint(
         sys.stdout.write("\n")
         return
 
-    # Per-layer banner (FR-003): always include built-in; org packs when
-    # configured; project layer is implicit (the engine's merged graph
-    # already covers it). Names match the ``source`` markers threaded by
-    # ``merge_three_layers``. Square brackets are escaped (``\\[``) so
-    # Rich does not interpret them as console markup tags.
-    console.print("[bold]Charter Lint - layers:[/bold]")
-    console.print(r"  [dim]\[built-in][/dim]")
-    for org_marker in org_layer_summary:
-        console.print(rf"  [dim]\[{org_marker}][/dim]")
-    console.print(r"  [dim]\[project][/dim]")
-
-    # Human-readable output
-    if not report.findings:
-        console.print("[green]No decay detected[/green]")
-        console.print(
-            f"[dim]Scanned {report.drg_node_count} nodes in {report.duration_seconds:.2f}s[/dim]"
-        )
+    # FR-003 / charter-lint-json.md "Human-banner mapping" table: the
+    # human-readable banner branches on ``report.graph_state``. We delegate
+    # to ``_print_charter_lint_banner`` so the outer command stays under
+    # the cyclomatic-complexity gate.
+    if _print_charter_lint_banner(report, org_layer_summary):
         return
 
     console.print(
@@ -3238,3 +3317,12 @@ def charter_lint(
         console.print(f"    {finding.message}")
         if finding.remediation_hint:
             console.print(f"    [dim]→ {finding.remediation_hint}[/dim]")
+
+
+# WP03 (FR-006, FR-007, FR-008): register the new ``charter preflight``
+# command.  The implementation lives in ``specify_cli.charter_preflight``
+# (own package, per data-model §4) and is registered here at module load
+# so it joins the rest of the ``charter`` subcommand surface.
+from specify_cli.charter_preflight.cli import charter_preflight as _charter_preflight  # noqa: E402
+
+app.command("preflight")(_charter_preflight)
