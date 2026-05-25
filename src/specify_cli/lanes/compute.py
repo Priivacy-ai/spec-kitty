@@ -579,17 +579,37 @@ def _compute_lane_depths(
 
     Lanes with no dependencies get depth 0. A lane's depth is one plus
     the maximum depth of its dependencies.
+
+    Self-loops and cycles in ``lane_deps`` are detected via the
+    ``in_progress`` guard and treated as depth-0 anchors rather than
+    recursing infinitely. Cycle detection is best-effort: the depth value
+    returned for a cycle's lanes may not reflect graph reality, but the
+    function will not blow the recursion stack. Callers that need cycle-
+    accurate depths should validate the lane graph before invoking.
     """
     depths: dict[str, int] = {}
+    in_progress: set[str] = set()
 
     def _depth(lane_id: str) -> int:
         if lane_id in depths:
             return depths[lane_id]
-        deps = lane_deps.get(lane_id, set())
-        if not deps:
-            depths[lane_id] = 0
-        else:
-            depths[lane_id] = 1 + max(_depth(d) for d in deps)
+        if lane_id in in_progress:
+            # Cycle (or self-loop) detected: break the recursion by treating
+            # the current lane as a depth-0 anchor. The cycle is logged via
+            # ``compute_lanes``'s validation; here we just stop the infinite
+            # recursion so the caller can surface a clean diagnostic.
+            return 0
+        in_progress.add(lane_id)
+        try:
+            deps = lane_deps.get(lane_id, set())
+            # Filter out self-references to prevent depth(L) = 1 + depth(L).
+            non_self_deps = {d for d in deps if d != lane_id}
+            if not non_self_deps:
+                depths[lane_id] = 0
+            else:
+                depths[lane_id] = 1 + max(_depth(d) for d in non_self_deps)
+        finally:
+            in_progress.discard(lane_id)
         return depths[lane_id]
 
     for lane in lanes:
