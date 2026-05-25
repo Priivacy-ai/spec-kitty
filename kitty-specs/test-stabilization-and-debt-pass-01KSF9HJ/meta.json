@@ -1,0 +1,14 @@
+{
+  "created_at": "2026-05-25T10:05:31.887869+00:00",
+  "friendly_name": "Test Stabilization & Architectural Debt Pass",
+  "mission_id": "01KSF9HJBFKRBC617JVHKZXNE2",
+  "mission_number": null,
+  "mission_slug": "test-stabilization-and-debt-pass-01KSF9HJ",
+  "mission_type": "software-dev",
+  "purpose_context": "Intermediate remediation mission addressing two parallel concerns surfaced by the post-merge audit of mission 01KSAF14: (1) the 242 remaining test failures tracked under #1298 across the sync/dashboard/tasks subsystems, and (2) the small architectural debts identified in the architect's deep-dive review (LD-1 logical duplication in doctrine/base.py, MS-1 the 3328-line charter.py, plus #1163 issue-matrix scaffolding and a handful of follow-ups from the 01KSAF14 engineering notes). Bounded as a deliberate ~6-8 WP pass — NOT a full re-architecture, just the lowest-risk debt repayments before continuing onto 3.3.0 feature work.",
+  "purpose_tldr": "Close #1298 test failures + LD-1/MS-1 architectural debts + 4 small quality fixes from the 01KSAF14 engineering notes.",
+  "slug": "test-stabilization-and-debt-pass-01KSF9HJ",
+  "source_description": "Architect Alphonso's deep-dive review at docs/engineering_notes/architectural-review/2026-05-25-deep-dive-architectural-review.md §6 — recommended next-mission scope (slices T / A / Q).",
+  "target_branch": "main",
+  "vcs": "git"
+}
