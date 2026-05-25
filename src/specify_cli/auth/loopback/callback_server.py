@@ -10,8 +10,11 @@ after the user consents. This module implements a tiny HTTP server that:
 - exposes an ``async wait_for_callback()`` that the main login loop awaits
 - times out after 5 minutes with :class:`CallbackTimeoutError`
 
-The server deliberately avoids any external dependency; the stdlib
-``http.server.BaseHTTPRequestHandler`` is plenty for a single callback.
+The server deliberately uses HTTP on loopback because OAuth native-app
+callbacks cannot terminate TLS on a local ephemeral port. Binding is
+restricted to ``127.0.0.1`` only, matching RFC 8252 loopback guidance.
+The stdlib ``http.server.BaseHTTPRequestHandler`` is plenty for a single
+callback.
 """
 
 from __future__ import annotations
@@ -112,7 +115,7 @@ class CallbackServer:
     @property
     def callback_url(self) -> str:
         """The full ``http://127.0.0.1:<port>/callback`` URL."""
-        return f"http://{_HOST}:{self.port}/callback"
+        return f"http://{_HOST}:{self.port}/callback"  # NOSONAR -- OAuth loopback redirect URI is localhost-only by design
 
     def start(self) -> str:
         """Start the HTTP server on an available port.
@@ -121,7 +124,7 @@ class CallbackServer:
             The full callback URL (``http://127.0.0.1:<port>/callback``).
         """
         self._port = self._find_port()
-        self._server = HTTPServer((_HOST, self._port), _CallbackHTTPHandler)
+        self._server = HTTPServer((_HOST, self._port), _CallbackHTTPHandler)  # NOSONAR -- binds to 127.0.0.1 only for OAuth loopback callback
         self._server.callback_params = None  # type: ignore[attr-defined]
         self._thread = Thread(
             target=self._server.serve_forever,
