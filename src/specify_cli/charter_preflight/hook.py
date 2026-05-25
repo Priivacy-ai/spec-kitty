@@ -17,6 +17,7 @@ The runner itself stays framework-free.
 from __future__ import annotations
 
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -63,6 +64,21 @@ def run_preflight_or_abort(
     Raises:
         typer.Exit: Exit code 1 when ``passed`` is ``False``.
     """
+    # Honour SPEC_KITTY_TEST_MODE=1 (test fixtures) and a dedicated opt-out
+    # SPEC_KITTY_SKIP_PREFLIGHT=1 (solo operators who own the charter freshness
+    # state externally). Either bypass returns a synthetic "passed" result so
+    # callers see uniform shape but skip the freshness-state check. Matches the
+    # protected-branch guard's bypass convention.
+    _truthy = ("1", "true", "yes")
+    if (
+        os.environ.get("SPEC_KITTY_TEST_MODE", "").lower() in _truthy
+        or os.environ.get("SPEC_KITTY_SKIP_PREFLIGHT", "").lower() in _truthy
+    ):
+        _logger.info(
+            "charter preflight bypassed via env (consumer=%s)", consumer
+        )
+        return CharterPreflightResult(passed=True, checks=[])
+
     cfg = load_preflight_config(repo_root)
     result = run_charter_preflight(
         repo_root=repo_root,
