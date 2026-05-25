@@ -1823,7 +1823,7 @@ def status(  # noqa: C901
     table.add_row("Auth", auth_text)
 
     # Server URL
-    table.add_row("Server URL", server_url)
+    table.add_row(_BOUNDARY_LABEL_SERVER_URL.strip(), server_url)
     table.add_row("Config File", str(config.config_file))
 
     # Optionally test connection if --check flag is provided.
@@ -2005,12 +2005,12 @@ def status(  # noqa: C901
 
     # ---- Foreground section ------------------------------------------------
     foreground_rows: list[tuple[str, str]] = [
-        ("Package version", str(fg.package_version or "-")),
-        ("Executable path", str(fg.executable_path or "-")),
-        ("Source path", str(fg.source_path or "-")),
-        ("Server URL", fg.server_url if fg.server_url else _UNSET_VALUE),
-        ("Team/User", fg.team_or_user if fg.team_or_user else _UNSET_VALUE),
-        ("Queue DB path", str(fg.queue_db_path or "-")),
+        (_BOUNDARY_LABEL_PACKAGE_VERSION.strip(), str(fg.package_version or "-")),
+        (_BOUNDARY_LABEL_EXECUTABLE_PATH.strip(), str(fg.executable_path or "-")),
+        (_BOUNDARY_LABEL_SOURCE_PATH.strip(), str(fg.source_path or "-")),
+        (_BOUNDARY_LABEL_SERVER_URL.strip(), fg.server_url if fg.server_url else _UNSET_VALUE),
+        (_BOUNDARY_LABEL_TEAM_USER.strip(), fg.team_or_user if fg.team_or_user else _UNSET_VALUE),
+        (_BOUNDARY_LABEL_QUEUE_DB_PATH.strip(), str(fg.queue_db_path or "-")),
     ]
 
     # ---- Daemon owner record section --------------------------------------
@@ -2020,12 +2020,12 @@ def status(  # noqa: C901
             [
                 ("PID", _ABSENT_VALUE),
                 ("Port", _ABSENT_VALUE),
-                ("Package version", _ABSENT_VALUE),
-                ("Executable path", _ABSENT_VALUE),
-                ("Source path", _ABSENT_VALUE),
-                ("Server URL", _ABSENT_VALUE),
-                ("Team/User", _ABSENT_VALUE),
-                ("Queue DB path", _ABSENT_VALUE),
+                (_BOUNDARY_LABEL_PACKAGE_VERSION.strip(), _ABSENT_VALUE),
+                (_BOUNDARY_LABEL_EXECUTABLE_PATH.strip(), _ABSENT_VALUE),
+                (_BOUNDARY_LABEL_SOURCE_PATH.strip(), _ABSENT_VALUE),
+                (_BOUNDARY_LABEL_SERVER_URL.strip(), _ABSENT_VALUE),
+                (_BOUNDARY_LABEL_TEAM_USER.strip(), _ABSENT_VALUE),
+                (_BOUNDARY_LABEL_QUEUE_DB_PATH.strip(), _ABSENT_VALUE),
             ]
         )
     else:
@@ -2036,15 +2036,15 @@ def status(  # noqa: C901
             [
                 ("PID", str(daemon_record.pid)),
                 ("Port", str(daemon_record.port)),
-                ("Package version", daemon_record.package_version or _ABSENT_VALUE),
-                ("Executable path", daemon_record.executable_path or _ABSENT_VALUE),
-                ("Source path", daemon_record.source_checkout_path or _ABSENT_VALUE),
-                ("Server URL", daemon_record.server_url or _ABSENT_VALUE),
+                (_BOUNDARY_LABEL_PACKAGE_VERSION.strip(), daemon_record.package_version or _ABSENT_VALUE),
+                (_BOUNDARY_LABEL_EXECUTABLE_PATH.strip(), daemon_record.executable_path or _ABSENT_VALUE),
+                (_BOUNDARY_LABEL_SOURCE_PATH.strip(), daemon_record.source_checkout_path or _ABSENT_VALUE),
+                (_BOUNDARY_LABEL_SERVER_URL.strip(), daemon_record.server_url or _ABSENT_VALUE),
                 (
-                    "Team/User",
+                    _BOUNDARY_LABEL_TEAM_USER.strip(),
                     daemon_team_or_user if daemon_team_or_user else _ABSENT_VALUE,
                 ),
-                ("Queue DB path", daemon_record.queue_db_path or _ABSENT_VALUE),
+                (_BOUNDARY_LABEL_QUEUE_DB_PATH.strip(), daemon_record.queue_db_path or _ABSENT_VALUE),
             ]
         )
 
@@ -2127,8 +2127,8 @@ def status(  # noqa: C901
         for m in failure_set.mismatches:
             mismatch_detail.add_row(
                 m.field,
-                m.foreground_value or "<unset>",
-                m.daemon_value or "<unset>",
+                m.foreground_value or _UNSET_VALUE,
+                m.daemon_value or _UNSET_VALUE,
             )
 
     # WP02 cycle 1 (B-1): emit the Identity Boundary view as plain

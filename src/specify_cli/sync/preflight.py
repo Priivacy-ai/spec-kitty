@@ -745,11 +745,11 @@ def build_boundary_failure_set(
     """
     # ``collect_foreground_identity`` doesn't actually use repo_root today; we
     # pass through what we have so a future refactor can read repo-relative config.
-    fg = (
-        collect_foreground_identity(repo_root if repo_root is not None else Path.cwd())
-        if foreground is None
-        else foreground
-    )
+    if foreground is None:
+        repo_root_for_identity = repo_root if repo_root is not None else Path.cwd()
+        fg = collect_foreground_identity(repo_root_for_identity)
+    else:
+        fg = foreground
 
     # 1. Owner record lookup.
     record: DaemonOwnerRecord | None = (

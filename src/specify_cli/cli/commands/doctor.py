@@ -1413,7 +1413,7 @@ def _resolve_pack_version(snapshot_path: Path) -> tuple[str, str | None, bool]:
                 text=True,
             ).strip()
             return version or "git (version unavailable)", None, True
-        except (_sp.CalledProcessError, FileNotFoundError, OSError):
+        except (_sp.CalledProcessError, OSError):
             return "git (version unavailable)", None, True
 
     manifest_path = snapshot_path / "pack-manifest.yaml"
