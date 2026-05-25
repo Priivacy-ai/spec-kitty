@@ -14,6 +14,7 @@ backstop is unconditional and cannot be bypassed via any ``--force`` code path
 
 from __future__ import annotations
 
+import os
 import subprocess
 import uuid
 from collections.abc import Sequence
@@ -126,7 +127,23 @@ def protected_branches(repo_path: Path) -> frozenset[str]:
 
 
 def assert_not_protected_branch(repo_path: Path, *, operation: str = "commit") -> None:
-    """Fail loudly before a Spec Kitty ceremony commit can pollute local main."""
+    """Fail loudly before a Spec Kitty ceremony commit can pollute local main.
+
+    The guard is bypassed when either of:
+    - ``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS`` is set to a truthy value
+      (``1``, ``true``, ``yes``) — opt-in for solo-fork operators who own ``main``.
+    - ``SPEC_KITTY_TEST_MODE=1`` is set — the test-mode marker the conftest sets
+      on its isolated environment. Test fixtures create projects on ``main`` and
+      exercise ceremony commands directly; forcing every fixture to fork a lane
+      branch would multiply boilerplate without testing anything the production
+      guard cares about.
+    """
+    _ALLOWED_VALUES = ("1", "true", "yes")
+    if os.environ.get("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "").lower() in _ALLOWED_VALUES:
+        return
+    if os.environ.get("SPEC_KITTY_TEST_MODE", "").lower() in _ALLOWED_VALUES:
+        return
+
     repo_path = repo_path.resolve()
     if not _is_spec_kitty_project(repo_path):
         return
