@@ -588,7 +588,7 @@ def run_sync_daemon(port: int, daemon_token: str | None) -> None:
         (SyncDaemonHandler,),
         {"daemon_token": daemon_token},
     )
-    server = HTTPServer(("127.0.0.1", port), handler_class)
+    server = HTTPServer(("127.0.0.1", port), handler_class)  # NOSONAR -- sync daemon control plane binds to localhost only
 
     # Bind succeeded — record ownership BEFORE accepting traffic so any
     # health probe that arrives in the first scheduling slice already sees

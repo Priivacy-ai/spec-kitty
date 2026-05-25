@@ -71,7 +71,7 @@ def run_dashboard_server(project_dir: Path, port: int, project_token: str | None
         logger.warning("Global sync daemon check failed: %s", exc)
 
     handler_class = _build_handler_class(project_dir, project_token)
-    server = HTTPServer(('127.0.0.1', port), handler_class)
+    server = HTTPServer(('127.0.0.1', port), handler_class)  # NOSONAR -- dashboard control plane binds to localhost only
     server.serve_forever()
 
 
