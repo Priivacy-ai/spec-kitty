@@ -27,8 +27,8 @@ This mission addresses both concerns in a single deliberate pass. It is **not** 
 ### Scenario T — Triaged test stabilization (FR-001..FR-005)
 An operator runs `pytest tests/ -q` on `main`. The current failure baseline drops from 242 to a documented sub-set, with each remaining failure either fixed in this mission, traced to a sub-mission-worthy follow-up issue, or explicitly marked `@pytest.mark.skip` with a documented rationale.
 
-### Scenario A — Logical-duplication consolidation (FR-006..FR-008)
-A future contributor reading `src/doctrine/base.py` sees ONE overlay-application method instead of two near-identical ones. A future contributor wiring a new `spec-kitty charter ...` subcommand opens ONE file (the new subcommand-specific module under `cli/commands/charter/`) rather than appending to a 3,328-line monolith.
+### Scenario A — Architectural debt consolidation (FR-006..FR-008, FR-013, FR-014)
+A future contributor reading `src/doctrine/base.py` sees ONE overlay-application method instead of two near-identical ones (FR-006 / LD-1). A future contributor wiring a new `spec-kitty charter ...` subcommand opens ONE file (the new subcommand-specific module under `cli/commands/charter/`) rather than appending to a 3,328-line monolith (FR-007 / MS-1). A reader inspecting how freshness is computed sees it route through the canonical chokepoint, not duplicate the manifest-read logic (FR-013 / LD-3). And the four charter-runtime concerns (lint, freshness, preflight, facade) live under one umbrella package rather than spelled four times as siblings under `specify_cli/` (FR-014 / LD-5).
 
 ### Scenario Q — Small quality follow-ups (FR-009..FR-012)
 - `/spec-kitty.tasks` scaffolds `issue-matrix.md` when the mission references GitHub issues (#1163).
@@ -54,6 +54,8 @@ A future contributor reading `src/doctrine/base.py` sees ONE overlay-application
 | **FR-010** | The retrospective auto-generator at `spec-kitty retrospect create` mines `status.events.jsonl` for `--force` transitions, arbiter overrides, and rejection cycles. Each becomes a finding entry. (Closes F-04 of mission 01KSAF14.) | Draft | F-04 |
 | **FR-011** | `WPMetadata` Pydantic model gains an optional `tracker_refs: list[str]` field. The `map-requirements` and `move-task` commands accept the field. (Closes F-10 of mission 01KSAF14.) | Draft | F-10 |
 | **FR-012** | The bulk-edit gate's allowed action vocabulary (`do_not_change`, `manual_review`, `rename`, `rename_if_user_visible`) and required top-level `target:` block are documented in a discoverable location (a `docs/reference/bulk-edit-gate.md` or equivalent). The `spec-kitty-bulk-edit-classification` skill prose is updated to match. (Closes F-01 of mission 01KSAF14.) | Draft | F-01 |
+| **FR-013** | Route `src/specify_cli/charter_freshness/computer.py` manifest + graph reads through `charter.compiler.ensure_charter_bundle_fresh` (or a read-only sibling) so the chokepoint's refresh semantics apply to freshness reporting under concurrent invocation. Preserves the existing public `compute_freshness(repo_root) -> CharterFreshness` API. (Closes LD-3 / RISK-2 from the mission-review.) | Draft | review §2 LD-3 |
+| **FR-014** | Group `charter_lint/`, `charter_freshness/`, `charter_preflight/` (and the existing `charter/` facade) under a single `src/specify_cli/charter_runtime/` umbrella package. Each becomes a submodule (`charter_runtime.lint`, `charter_runtime.freshness`, `charter_runtime.preflight`, `charter_runtime.facade`). Existing imports survive via top-level re-export shims for one release. (Closes LD-5.) | Draft | review §2 LD-5 |
 
 ## Non-Functional Requirements
 
@@ -62,7 +64,7 @@ A future contributor reading `src/doctrine/base.py` sees ONE overlay-application
 | **NFR-001** | Final `pytest tests/ -q` failure count on `main` after this mission lands. | ≤ 75 failures (from the current 242) | Draft |
 | **NFR-002** | FR-006 and FR-007 MUST be behaviour-preserving. The doctrine layer-merge integration tests + the charter-subcommand integration tests MUST be green at HEAD before and after. | 0 behavioural regressions | Draft |
 | **NFR-003** | Every new public symbol introduced by FR-009..FR-012 MUST be documented in user-visible reference docs (matching the NFR-002 of the predecessor mission). | 100% public-symbol coverage | Draft |
-| **NFR-004** | Mission total work packages ≤ 8. If scope creeps past 8 WPs during planning, the stretch items (FR-008, FR-012) are dropped from this mission and re-filed as separate sub-missions. | ≤ 8 WPs | Locked |
+| **NFR-004** | Mission total work packages ≤ 10. With LD-3 (FR-013) and LD-5 (FR-014) pulled in-scope per HiC direction, the original 8-WP ceiling was raised by 2. If scope creeps past 10 WPs during planning, the stretch items (FR-008 test parametrisation, FR-012 bulk-edit-gate docs) are dropped from this mission and re-filed as separate sub-missions. FR-013 and FR-014 are NOT droppable — they were promoted to mission scope by explicit HiC direction. | ≤ 10 WPs | Locked |
 
 ## Constraints
 
@@ -74,15 +76,19 @@ A future contributor reading `src/doctrine/base.py` sees ONE overlay-application
 | **C-004** | A `triage.md` (FR-001) is the FIRST WP. Without the triage document, the rest of the test-fix WPs cannot scope their work. | Locked |
 | **C-005** | Linked GitHub issues (#1298, #1163) MUST be assigned to the HiC per DIR-012 when their respective WPs start implementing. | Locked |
 | **C-006** | Any failure NOT closed in this mission MUST land in a follow-up issue with a non-trivial root-cause hypothesis. "Failure too broad — defer" is not an acceptable hypothesis. | Locked |
+| **C-007** | FR-013 (chokepoint routing) MUST preserve the existing public API of `charter_freshness.compute_freshness`. Existing tests under `tests/specify_cli/charter_freshness/` MUST continue to pass without modification. The change is internal: the function delegates its reads instead of duplicating them. | Locked |
+| **C-008** | FR-014 (charter_runtime/ umbrella) MUST leave top-level shim re-exports at the old paths (`src/specify_cli/charter_lint/__init__.py`, etc.) for one release cycle so external importers do not break in lock-step with the mission merge. A CHANGELOG entry MUST flag the canonical new import path AND the deprecation window for the shims. | Locked |
 
 ---
 
 ## Success criteria (measurable)
 
 1. **Test-suite recovery.** `pytest tests/ -q` on `main` post-mission reports ≤ 75 failures (NFR-001). Each remaining failure has a follow-up issue linked from `triage.md`.
-2. **Logical duplication closed.** `git grep "def _apply_.*_overrides" src/doctrine/base.py` returns at most one definition. (LD-1)
-3. **Module-scope improved.** `wc -l src/specify_cli/cli/commands/charter.py` returns 0 (file removed) OR ≤ 150 (kept only as the typer-app wiring shim). The new per-subcommand modules under `src/specify_cli/cli/commands/charter/` are each ≤ 500 lines. (MS-1)
+2. **Logical duplication closed (LD-1).** `git grep "def _apply_.*_overrides" src/doctrine/base.py` returns at most one definition.
+3. **Module-scope improved (MS-1).** `wc -l src/specify_cli/cli/commands/charter.py` returns 0 (file removed) OR ≤ 150 (kept only as the typer-app wiring shim). The new per-subcommand modules under `src/specify_cli/cli/commands/charter/` are each ≤ 500 lines.
 4. **Quality fixes verified.** Each of FR-009..FR-012 has a regression test exercising the new behaviour.
+5. **Chokepoint routing closed (LD-3 / RISK-2).** `git grep -n "_safe_load_yaml\|.kittify/charter/synthesis-manifest\|.kittify/doctrine/graph.yaml" src/specify_cli/charter_freshness/` returns no direct reads outside the chokepoint adapter. The conflict-resolution rule (data-model §6) still surfaces correctly.
+6. **Package umbrella landed (LD-5).** `ls -d src/specify_cli/charter_runtime/*/` shows the three submodules; the shim `__init__.py` files at the old paths re-export the new canonical paths; existing imports of `from specify_cli.charter_lint import ...` continue to resolve.
 
 ---
 
@@ -93,9 +99,9 @@ A future contributor reading `src/doctrine/base.py` sees ONE overlay-application
 
 ## Out of scope
 
-- LD-3 (charter_freshness chokepoint bypass) — flagged for a separate mission since it touches the `charter.compiler` boundary.
+- LD-3 (charter_freshness chokepoint bypass) — **pulled IN scope per HiC direction (2026-05-25); see FR-013.**
+- LD-5 (charter_runtime/ umbrella) — **pulled IN scope per HiC direction (2026-05-25); see FR-014.**
 - LD-4 (unified `PreflightResult` base) — too design-y for this debt-pass; flagged for 3.3.0.
-- LD-5 (charter_runtime/ umbrella) — large move; defer to a planning workspace mission.
 - MS-2 (specify_cli/ over-decomposition) — moratorium-pattern, not in-pass code change.
 - The `Beads state` epic (#1168) and the schema-versioning launch-blocker cluster (#1200/#1203/#1281) — separate epics.
 
