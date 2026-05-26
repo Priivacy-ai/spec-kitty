@@ -26,6 +26,20 @@ pytestmark = pytest.mark.git_repo
 
 runner = CliRunner()
 
+
+@pytest.fixture(autouse=True)
+def _bypass_charter_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Bypass the charter preflight gate for these integration tests.
+
+    The fixtures stage minimal mission state and do not run
+    ``spec-kitty charter sync``, so the preflight gate would return
+    ``Error: charter_source missing`` before reaching the dispatch /
+    exit-code logic these tests exercise. The bypass contract is
+    documented in ``src/specify_cli/charter_preflight/hook.py``.
+    """
+    monkeypatch.setenv("SPEC_KITTY_TEST_MODE", "1")
+    monkeypatch.setenv("SPEC_KITTY_SKIP_PREFLIGHT", "1")
+
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
