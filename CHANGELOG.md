@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0rc26] - 2026-05-26
+
+Rolls up the charter preflight, built-in vocabulary, and CI stabilization
+guardrails merged after rc25.
+
 ### Breaking changes
 
 - **`shipped` → `built-in` vocabulary rename.** Public CLI JSON surfaces that
