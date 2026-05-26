@@ -13,23 +13,23 @@ pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 class TestToolguideRepository:
     def test_list_all_from_shipped(self, tmp_toolguide_dir: Path) -> None:
         """list_all returns all toolguides from the given directory."""
-        repo = ToolguideRepository(shipped_dir=tmp_toolguide_dir)
+        repo = ToolguideRepository(built_in_dir=tmp_toolguide_dir)
         toolguides = repo.list_all()
         assert len(toolguides) == 1
 
     def test_get_by_id(self, tmp_toolguide_dir: Path) -> None:
         """get() returns toolguide by ID."""
-        repo = ToolguideRepository(shipped_dir=tmp_toolguide_dir)
+        repo = ToolguideRepository(built_in_dir=tmp_toolguide_dir)
         toolguide = repo.get("test-toolguide")
         assert toolguide is not None
         assert toolguide.tool == "bash"
 
     def test_get_returns_none_for_unknown(self, tmp_toolguide_dir: Path) -> None:
-        repo = ToolguideRepository(shipped_dir=tmp_toolguide_dir)
+        repo = ToolguideRepository(built_in_dir=tmp_toolguide_dir)
         assert repo.get("nonexistent-toolguide") is None
 
     def test_load_from_custom_shipped_dir(self, tmp_toolguide_dir: Path) -> None:
-        repo = ToolguideRepository(shipped_dir=tmp_toolguide_dir)
+        repo = ToolguideRepository(built_in_dir=tmp_toolguide_dir)
         toolguides = repo.list_all()
         assert len(toolguides) == 1
         assert toolguides[0].id == "test-toolguide"
@@ -41,7 +41,7 @@ class TestToolguideRepository:
         bad_file.write_text("not: valid: yaml: [")
 
         with pytest.warns(UserWarning, match="Skipping invalid"):
-            repo = ToolguideRepository(shipped_dir=shipped)
+            repo = ToolguideRepository(built_in_dir=shipped)
 
         assert repo.list_all() == []
 
@@ -49,7 +49,7 @@ class TestToolguideRepository:
         from doctrine.toolguides.models import Toolguide
 
         project_dir = tmp_path / "project"
-        repo = ToolguideRepository(shipped_dir=tmp_path / "empty", project_dir=project_dir)
+        repo = ToolguideRepository(built_in_dir=tmp_path / "empty", project_dir=project_dir)
 
         toolguide = Toolguide.model_validate(sample_toolguide_data)
         path = repo.save(toolguide)
@@ -65,7 +65,7 @@ class TestToolguideRepository:
         from doctrine.toolguides.models import Toolguide
 
 
-        repo = ToolguideRepository(shipped_dir=tmp_path / "empty")
+        repo = ToolguideRepository(built_in_dir=tmp_path / "empty")
         toolguide = Toolguide.model_validate(sample_toolguide_data)
         with pytest.raises(ValueError, match="project_dir not configured"):
             repo.save(toolguide)
@@ -102,7 +102,7 @@ class TestToolguideRepository:
         with (project / "merge-test.toolguide.yaml").open("w") as f:
             yaml.dump(override, f)
 
-        repo = ToolguideRepository(shipped_dir=shipped, project_dir=project)
+        repo = ToolguideRepository(built_in_dir=shipped, project_dir=project)
         toolguide = repo.get("merge-test")
         assert toolguide is not None
         assert toolguide.tool == "powershell"
@@ -144,7 +144,7 @@ class TestToolguideRepository:
                 handle,
             )
 
-        repo = ToolguideRepository(shipped_dir=shipped, active_languages=["typescript"])
+        repo = ToolguideRepository(built_in_dir=shipped, active_languages=["typescript"])
         toolguide_ids = {toolguide.id for toolguide in repo.list_all()}
 
         assert "generic-toolguide" in toolguide_ids
@@ -201,7 +201,7 @@ class TestToolguideRepository:
             )
 
         repo = ToolguideRepository(
-            shipped_dir=shipped,
+            built_in_dir=shipped,
             project_dir=project,
             active_languages=["typescript"],
         )

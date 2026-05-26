@@ -17,6 +17,22 @@ from specify_cli.lanes.persistence import write_lanes_json
 pytestmark = pytest.mark.fast
 
 
+@pytest.fixture(autouse=True)
+def _bypass_charter_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
+    """These unit tests do not stage a charter; bypass the preflight gate.
+
+    Without this, ``spec-kitty implement`` returns ``Error: charter_source
+    missing`` before the bulk-edit planning code under test runs.
+    """
+    from specify_cli.charter_runtime.preflight.result import CharterPreflightResult
+
+    result = CharterPreflightResult(passed=True, checks=[])
+    monkeypatch.setattr(
+        "specify_cli.charter_runtime.preflight.hook.run_preflight_or_abort",
+        lambda *_args, **_kwargs: result,
+    )
+
+
 def _write_meta(feature_dir: Path) -> None:
     feature_dir.mkdir(parents=True, exist_ok=True)
     (feature_dir / "meta.json").write_text(

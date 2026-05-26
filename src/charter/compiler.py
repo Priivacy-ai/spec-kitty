@@ -92,7 +92,7 @@ def compile_charter(
 
     Artifact loading and transitive reference resolution always prefer the
     typed repository API and DRG-backed path. When *doctrine_service* is not
-    supplied, a default service rooted at shipped doctrine (and an optional
+    supplied, a default service rooted at built-in doctrine (and an optional
     project overlay under *repo_root*) is constructed automatically.
     """
     interview = apply_doctrine_intent_aliases(interview)
@@ -147,10 +147,10 @@ def compile_charter(
     )
 
     # Build additive local support references.
-    shipped_ids = _build_shipped_concept_ids(references)
+    built_in_ids = _build_built_in_concept_ids(references)
     local_references = _build_local_support_references(
         valid_local,
-        shipped_ids=shipped_ids,
+        built_in_ids=built_in_ids,
         diagnostics=diagnostics,
     )
     references = references + local_references
@@ -262,17 +262,17 @@ def _sanitize_catalog_selection(
         return seen
 
     # Explicitly empty selections remain empty. We do not broaden charter
-    # doctrine or tool choices just because the interview provided no shipped
+    # doctrine or tool choices just because the interview provided no built-in
     # match.
     return []
 
 
 def _default_doctrine_service(repo_root: Path | None) -> DoctrineService:
-    """Build a DoctrineService rooted at shipped doctrine plus optional project overlay.
+    """Build a DoctrineService rooted at built-in doctrine plus optional project overlay.
 
     The project-root candidate list (in priority order):
     1. ``.kittify/doctrine/``  — Phase 3 synthesis target (FR-009 / T024).
-    2. ``src/doctrine/``       — code-local shipped-layer path.
+    2. ``src/doctrine/``       — code-local built-in-layer path.
     3. ``doctrine/``           — flat fallback.
 
     Discovery is conditional on directory presence: legacy projects (pre-
@@ -285,7 +285,7 @@ def _default_doctrine_service(repo_root: Path | None) -> DoctrineService:
     project_root: Path | None = None
     if repo_root is not None:
         project_root = resolve_project_root(repo_root)
-    return DoctrineService(shipped_root=doctrine_root, project_root=project_root)
+    return DoctrineService(built_in_root=doctrine_root, project_root=project_root)
 
 
 def _build_references(
@@ -484,7 +484,7 @@ def _resolve_transitive_reference_graph(
     directives: list[str],
     repo_root: Path | None,
 ) -> Any:
-    """Resolve directive transitive closure from shipped/project DRG layers."""
+    """Resolve directive transitive closure from built-in/project DRG layers."""
     from charter._drg_helpers import load_validated_graph
     from doctrine.drg.loader import load_graph_or_dir
     from doctrine.drg.models import Relation
@@ -512,8 +512,8 @@ def _resolve_transitive_reference_graph(
     )
 
 
-def _build_shipped_concept_ids(references: list[CharterReference]) -> frozenset[str]:
-    """Return a set of '<kind>:<id>' keys for shipped (non-local) references."""
+def _build_built_in_concept_ids(references: list[CharterReference]) -> frozenset[str]:
+    """Return a set of '<kind>:<id>' keys for built-in (non-local) references."""
     result: set[str] = set()
     for ref in references:
         if ref.kind != "local_support":
@@ -524,7 +524,7 @@ def _build_shipped_concept_ids(references: list[CharterReference]) -> frozenset[
 def _build_local_support_references(
     declarations: list[LocalSupportDeclaration],
     *,
-    shipped_ids: frozenset[str],
+    built_in_ids: frozenset[str],
     diagnostics: list[str],
 ) -> list[CharterReference]:
     """Build CharterReference entries for local support file declarations."""
@@ -533,10 +533,10 @@ def _build_local_support_references(
         warning: str | None = None
         if decl.target_kind and decl.target_id:
             overlap_key = f"{decl.target_kind.upper()}:{decl.target_id.upper()}"
-            if overlap_key in {k.upper() for k in shipped_ids}:
+            if overlap_key in {k.upper() for k in built_in_ids}:
                 warning = (
-                    f"Local support file overlaps shipped {decl.target_kind} "
-                    f"{decl.target_id}; shipped content remains primary."
+                    f"Local support file overlaps built-in {decl.target_kind} "
+                    f"{decl.target_id}; built-in content remains primary."
                 )
                 diagnostics.append(
                     f"local_supporting_files '{decl.path}': {warning}"
@@ -584,10 +584,10 @@ def _index_yaml_assets(directory: Path, pattern: str) -> dict[str, dict[str, obj
     if not directory.is_dir():
         return index
 
-    # Doctrine artifacts live in a shipped/ subdirectory; fall back to the
+    # Doctrine artifacts live in a built-in/ subdirectory; fall back to the
     # directory itself for tests or custom flat layouts.
-    shipped = directory / "built-in"
-    scan_root = shipped if shipped.is_dir() else directory
+    built_in = directory / "built-in"
+    scan_root = built_in if built_in.is_dir() else directory
 
     for path in sorted(scan_root.glob(pattern)):
         loaded = _load_yaml_asset(path)

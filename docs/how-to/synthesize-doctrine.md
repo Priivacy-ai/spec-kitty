@@ -46,7 +46,7 @@ uv run spec-kitty charter lint
 Lint detects:
 - **Orphans**: artifacts referenced in the DRG but without a backing definition
 - **Contradictions**: two directives with conflicting instructions for the same action
-- **Staleness**: artifacts whose provenance references a deleted or superseded shipped directive
+- **Staleness**: artifacts whose provenance references a deleted or superseded built-in directive
 
 Filter by severity to focus on critical issues:
 
@@ -120,7 +120,7 @@ just the affected artifacts without touching unrelated ones:
 # Regenerate a specific tactic
 uv run spec-kitty charter resynthesize --topic tactic:how-we-apply-directive-003
 
-# Regenerate all artifacts referencing a shipped directive
+# Regenerate all artifacts referencing a built-in directive
 uv run spec-kitty charter resynthesize --topic directive:DIRECTIVE_003
 
 # Regenerate all artifacts from a specific interview section

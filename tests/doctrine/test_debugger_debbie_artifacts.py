@@ -12,12 +12,12 @@ from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 
-SHIPPED_ROOT = DOCTRINE_SOURCE_ROOT
+BUILT_IN_ROOT = DOCTRINE_SOURCE_ROOT
 
 
 @pytest.fixture(scope="module")
 def service() -> DoctrineService:
-    return DoctrineService(shipped_root=SHIPPED_ROOT)
+    return DoctrineService(built_in_root=BUILT_IN_ROOT)
 
 
 def test_debugger_debbie_profile_loads(service: DoctrineService) -> None:
@@ -52,7 +52,7 @@ def test_directive_040_loads(service: DoctrineService) -> None:
 
 
 def test_debugger_debbie_skill_references_exist() -> None:
-    skill_root = SHIPPED_ROOT / "skills" / "debugger-debbie"
+    skill_root = BUILT_IN_ROOT / "skills" / "debugger-debbie"
     skill_path = skill_root / "SKILL.md"
 
     assert skill_path.is_file()
@@ -66,7 +66,7 @@ def test_debugger_debbie_skill_references_exist() -> None:
 
 
 def test_debugger_debbie_graph_nodes_and_edges_exist() -> None:
-    graph = load_graph(SHIPPED_ROOT / "graph.yaml")
+    graph = load_graph(BUILT_IN_ROOT / "graph.yaml")
     nodes = graph.node_urns()
 
     assert "directive:DIRECTIVE_040" in nodes

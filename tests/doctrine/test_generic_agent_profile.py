@@ -15,7 +15,7 @@ _SHIPPED_DIR = Path(__file__).parents[2] / "src" / "doctrine" / "agent_profiles"
 
 def test_generic_agent_exists_in_shipped() -> None:
     """generic-agent profile must be loadable from shipped/."""
-    repo = AgentProfileRepository(shipped_dir=_SHIPPED_DIR)
+    repo = AgentProfileRepository(built_in_dir=_SHIPPED_DIR)
 
     profile = repo.get("generic-agent")
 
@@ -25,7 +25,7 @@ def test_generic_agent_exists_in_shipped() -> None:
 
 def test_generic_agent_references_directive_028() -> None:
     """Resolved profile has exactly one directive reference to DIRECTIVE_028 (code='028')."""
-    repo = AgentProfileRepository(shipped_dir=_SHIPPED_DIR)
+    repo = AgentProfileRepository(built_in_dir=_SHIPPED_DIR)
 
     profile = repo.get("generic-agent")
     assert profile is not None

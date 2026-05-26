@@ -12,7 +12,6 @@ from pathlib import Path
 from doctrine.drg.org_pack_config import (
     OrgPackConfig,
     PackRegistry,
-    SourceType,
     load_pack_registry,
     resolve_org_roots,
     save_pack_registry,

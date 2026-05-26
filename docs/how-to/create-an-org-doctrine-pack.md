@@ -104,7 +104,7 @@ organisation-specific code:
 | Agent profiles | `*.agent.yaml` | `<org>-<role>` |
 | Mission step contracts | `*.contract.yaml` | `<org>-msc-<seq>` |
 
-Collisions with shipped IDs are **permitted** but produce a full-replace advisory at
+Collisions with built-in IDs are **permitted** but produce a full-replace advisory at
 resolution time — keep them intentional and rare.
 
 ### DRG extensions
@@ -122,7 +122,7 @@ edges:
 ```
 
 DRG fragments are **additive only**. They may add new edges and nodes but must not
-remove or modify shipped graph state. Multiple fragment files in `drg/` merge in
+remove or modify built-in graph state. Multiple fragment files in `drg/` merge in
 alphabetical filename order, so name them with numeric prefixes when ordering matters
 (`010-`, `020-`, ...).
 
@@ -392,7 +392,7 @@ Resolved artifacts will have a `source` field of `builtin`, `org`, or `project`.
 
 ## Troubleshooting
 
-### Advisory: "org layer overrides shipped artifact"
+### Advisory: "org layer overrides built-in artifact"
 
 You wrote an artifact whose `id` collides with a built-in id. The override applies as
 intended (full-replace), but `charter lint` and `pack validate` warn because the

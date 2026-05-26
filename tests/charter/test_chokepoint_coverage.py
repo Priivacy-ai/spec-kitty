@@ -86,6 +86,12 @@ _CARVE_OUTS: frozenset[str] = frozenset(
         # bundle freshness. The literal ``"governance.yaml"`` lives in the
         # ``_PROJECT_GOVERNANCE_PATH`` constant tuple used by that probe.
         "src/charter/mission_type_profiles.py",
+        # Constants-only module that exports ``METADATA_FILENAME`` for the
+        # other ``charter/`` subcommand modules to import. No I/O — the
+        # literal ``"metadata.yaml"`` is a name binding, not a reader site.
+        # Originally lived in the pre-WP06 monolithic ``charter.py`` (which
+        # was carved out by virtue of containing the whole charter surface).
+        "src/specify_cli/cli/commands/charter/_app.py",
     }
 )
 

@@ -1,4 +1,4 @@
-"""charter.neutrality — Language-neutrality lint for shipped doctrine artifacts.
+"""charter.neutrality — Language-neutrality lint for built-in doctrine artifacts.
 
 Public API (importable directly from this package):
 

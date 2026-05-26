@@ -96,6 +96,7 @@ def _make_v2_manifest(
         "adapter_version": adapter_version,
         "synthesizer_version": "3.2.0a5",
         "artifacts": [a.model_dump(mode="python") for a in artifacts],
+        "built_in_only": False,
     }
     manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()
     return SynthesisManifest(

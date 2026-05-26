@@ -39,7 +39,7 @@ pytestmark = [pytest.mark.fast]
 # ---------------------------------------------------------------------------
 
 
-def _empty_shipped() -> DRGGraph:
+def _empty_built_in() -> DRGGraph:
     return DRGGraph(
         schema_version="1.0",
         generated_at="2026-05-18T00:00:00Z",
@@ -49,7 +49,7 @@ def _empty_shipped() -> DRGGraph:
     )
 
 
-def _shipped_with_node(urn: str = "directive:caveman-comments") -> DRGGraph:
+def _built_in_with_node(urn: str = "directive:caveman-comments") -> DRGGraph:
     return DRGGraph(
         schema_version="1.0",
         generated_at="2026-05-18T00:00:00Z",
@@ -353,20 +353,20 @@ class TestLoadOrgDrg:
 
 class TestMergeThreeLayers:
     def test_empty_inputs_round_trip(self) -> None:
-        shipped = _empty_shipped()
-        merged = merge_three_layers(shipped=shipped, org_fragments=[], project=None)
+        built_in = _empty_built_in()
+        merged = merge_three_layers(built_in=built_in, org_fragments=[], project=None)
         assert merged.nodes == []
         assert merged.edges == []
 
     def test_every_shipped_node_tagged_built_in(self) -> None:
-        shipped = _shipped_with_node("directive:foo")
-        merged = merge_three_layers(shipped=shipped, org_fragments=[], project=None)
+        built_in = _built_in_with_node("directive:foo")
+        merged = merge_three_layers(built_in=built_in, org_fragments=[], project=None)
         assert all(
             getattr(n, "provenance", None) == "built-in" for n in merged.nodes
         )
 
     def test_org_fragment_nodes_tagged_with_pack_name(self) -> None:
-        shipped = _empty_shipped()
+        built_in = _empty_built_in()
         fragment = OrgDRGFragment.model_validate(
             {
                 "pack_name": "acme",
@@ -381,14 +381,14 @@ class TestMergeThreeLayers:
             }
         )
         merged = merge_three_layers(
-            shipped=shipped, org_fragments=[fragment], project=None
+            built_in=built_in, org_fragments=[fragment], project=None
         )
         assert any(
             getattr(n, "provenance", None) == "org:acme" for n in merged.nodes
         )
 
     def test_project_layer_nodes_tagged_project(self) -> None:
-        shipped = _empty_shipped()
+        built_in = _empty_built_in()
         project = DRGGraph(
             schema_version="1.0",
             generated_at="2026-05-18T00:00:00Z",
@@ -397,13 +397,13 @@ class TestMergeThreeLayers:
             edges=[],
         )
         merged = merge_three_layers(
-            shipped=shipped, org_fragments=[], project=project
+            built_in=built_in, org_fragments=[], project=project
         )
         assert any(getattr(n, "provenance", None) == "project" for n in merged.nodes)
 
     def test_shipped_invariant_override_hard_fails(self) -> None:
         """FR-005: an org pack cannot shadow a shipped node URN."""
-        shipped = _shipped_with_node("directive:caveman-comments")
+        built_in = _built_in_with_node("directive:caveman-comments")
         fragment = OrgDRGFragment.model_validate(
             {
                 "pack_name": "rogue",
@@ -423,7 +423,7 @@ class TestMergeThreeLayers:
         )
         with pytest.raises(OrgDRGConflictError) as exc_info:
             merge_three_layers(
-                shipped=shipped, org_fragments=[fragment], project=None
+                built_in=built_in, org_fragments=[fragment], project=None
             )
         conflicts = exc_info.value.conflicts
         assert any(
@@ -436,7 +436,7 @@ class TestMergeThreeLayers:
     def test_layer_rule_violation_hard_fails(self) -> None:
         """FR-005 / C-001: org node body_path into ``src/specify_cli/`` is
         a layer-rule violation regardless of any shipped collision."""
-        shipped = _empty_shipped()
+        built_in = _empty_built_in()
         fragment = OrgDRGFragment.model_validate(
             {
                 "pack_name": "smuggler",
@@ -457,14 +457,14 @@ class TestMergeThreeLayers:
         )
         with pytest.raises(OrgDRGConflictError) as exc_info:
             merge_three_layers(
-                shipped=shipped, org_fragments=[fragment], project=None
+                built_in=built_in, org_fragments=[fragment], project=None
             )
         assert any(
             c.kind == "layer_rule_violation" for c in exc_info.value.conflicts
         )
 
     def test_org_edge_tagged_with_pack_name(self) -> None:
-        shipped = _empty_shipped()
+        built_in = _empty_built_in()
         fragment = OrgDRGFragment.model_validate(
             {
                 "pack_name": "edge-pack",
@@ -482,7 +482,7 @@ class TestMergeThreeLayers:
             }
         )
         merged = merge_three_layers(
-            shipped=shipped, org_fragments=[fragment], project=None
+            built_in=built_in, org_fragments=[fragment], project=None
         )
         org_edges = [
             e for e in merged.edges if getattr(e, "provenance", None) == "org:edge-pack"
@@ -493,7 +493,7 @@ class TestMergeThreeLayers:
     def test_org_to_shipped_edge_targets_synthesized_urn(self) -> None:
         """Edges from an org fragment may point at shipped artefacts; the
         merge synthesises a URN for the target so the edge isn't dropped."""
-        shipped = _empty_shipped()
+        built_in = _empty_built_in()
         fragment = OrgDRGFragment.model_validate(
             {
                 "pack_name": "cross-pack",
@@ -516,7 +516,7 @@ class TestMergeThreeLayers:
             }
         )
         merged = merge_three_layers(
-            shipped=shipped, org_fragments=[fragment], project=None
+            built_in=built_in, org_fragments=[fragment], project=None
         )
         cross_edges = [
             e for e in merged.edges if e.target == "directive:caveman-comments"
@@ -526,7 +526,7 @@ class TestMergeThreeLayers:
     def test_edge_with_unknown_relation_dropped_silently(self) -> None:
         """Unknown relation labels are dropped (the lint pipeline handles
         them as advisory findings); they do NOT raise."""
-        shipped = _empty_shipped()
+        built_in = _empty_built_in()
         fragment = OrgDRGFragment.model_validate(
             {
                 "pack_name": "rel-pack",
@@ -544,14 +544,14 @@ class TestMergeThreeLayers:
             }
         )
         merged = merge_three_layers(
-            shipped=shipped, org_fragments=[fragment], project=None
+            built_in=built_in, org_fragments=[fragment], project=None
         )
         assert merged.edges == []
 
     def test_multiple_conflict_kinds_reported_together(self) -> None:
         """``OrgDRGConflictError.conflicts`` lists every conflict so
         operators see the full picture in one hard-fail."""
-        shipped = _shipped_with_node("directive:invariant-x")
+        built_in = _built_in_with_node("directive:invariant-x")
         fragment = OrgDRGFragment.model_validate(
             {
                 "pack_name": "bad-pack",
@@ -577,7 +577,7 @@ class TestMergeThreeLayers:
         )
         with pytest.raises(OrgDRGConflictError) as exc_info:
             merge_three_layers(
-                shipped=shipped, org_fragments=[fragment], project=None
+                built_in=built_in, org_fragments=[fragment], project=None
             )
         kinds = {c.kind for c in exc_info.value.conflicts}
         assert {"node_override", "layer_rule_violation"} <= kinds

@@ -28,16 +28,16 @@ simpler node/edge shape than ``doctrine.drg.models.DRGNode`` /
 the YAML example in
 ``kitty-specs/<mission>/contracts/org-drg-schema.md`` which uses plural
 kinds (``kind: directives``) and human-friendly fields (``id``, ``title``,
-``body_path``). The shipped DRGNode uses URNs and singular enum kinds. To
+``body_path``). The built-in DRGNode uses URNs and singular enum kinds. To
 satisfy both surfaces:
 
 * Fragment-side parsing uses private node/edge models declared in
   ``doctrine.drg.org_pack_loader``. Their ``kind`` field is constrained
   to the Mission B 8-kind plural universe (C-009 binding).
-* ``merge_three_layers`` bridges fragment nodes onto the shipped DRG by
+* ``merge_three_layers`` bridges fragment nodes onto the built-in DRG by
   minting URNs of the form ``<singular_kind>:<id>`` (e.g. ``directive:sox-controls``).
 * Provenance is threaded by attaching a ``provenance`` sidecar attribute to
-  each merged node/edge. Because the shipped models are frozen
+  each merged node/edge. Because the built-in models are frozen
   ``BaseModel`` instances, the merge returns a ``DRGGraph`` whose node /
   edge objects carry a ``provenance`` attribute monkey-set after
   construction; consumers read it with ``getattr(node, 'provenance', None)``.
@@ -132,12 +132,12 @@ _PLURAL_TO_SINGULAR: dict[str, str] = {
 
 @dataclass(frozen=True)
 class OrgDRGConflict:
-    """A typed conflict report for shipped/org/project layer disagreements.
+    """A typed conflict report for built-in/org/project layer disagreements.
 
     Per data-model §3:
 
-    * ``edge_override`` — an org fragment edge collides with a shipped edge.
-    * ``node_override`` — an org fragment node collides with a shipped node.
+    * ``edge_override`` — an org fragment edge collides with a built-in edge.
+    * ``node_override`` — an org fragment node collides with a built-in node.
     * ``kind_mismatch`` — an org fragment node declares a kind not in the
       8-kind universe (in practice this is caught at validation time by
       ``_OrgDRGNode`` in ``doctrine.drg.org_pack_loader``).
@@ -147,7 +147,7 @@ class OrgDRGConflict:
     ``resolution_applied`` values:
 
     * ``hard_fail`` — the merge raises :class:`OrgDRGConflictError`.
-    * ``shipped_wins`` — silent precedence (the shipped value is retained).
+    * ``built_in_wins`` — silent precedence (the built-in value is retained).
     * ``project_wins`` — silent precedence (the project value is retained).
     """
 
@@ -156,15 +156,15 @@ class OrgDRGConflict:
     ]
     conflicting_layers: list[str]
     target_id: str
-    shipped_value: Any | None
+    built_in_value: Any | None
     org_value: Any
     project_value: Any | None
-    resolution_applied: Literal["hard_fail", "shipped_wins", "project_wins"]
+    resolution_applied: Literal["hard_fail", "built_in_wins", "project_wins"]
 
 
 class OrgDRGConflictError(Exception):
     """Raised when an org-DRG fragment violates the layer rule or
-    overrides a shipped invariant in a non-recoverable way.
+    overrides a built-in invariant in a non-recoverable way.
 
     Carries one or more :class:`OrgDRGConflict` records. The message is
     operator-actionable and lists each conflict's kind, target, layers,
@@ -185,7 +185,7 @@ class OrgDRGConflictError(Exception):
             )
         lines.append(
             "Remediation: remove the override from the org pack, OR escalate "
-            "the shipped invariant change via a spec-kitty governance proposal."
+            "the built-in invariant change via a spec-kitty governance proposal."
         )
         return "\n".join(lines)
 
@@ -245,7 +245,7 @@ def _tag_source(obj: BaseModel, source: str) -> BaseModel:
 
     DRGNode / DRGEdge are :class:`BaseModel` instances with no native
     ``provenance`` field. We need to thread provenance through the merged
-    graph without changing the shipped model shape, so we monkey-set a
+    graph without changing the built-in model shape, so we monkey-set a
     plain attribute. Consumers read with ``getattr(node, 'provenance', None)``.
 
     .. note::
@@ -284,7 +284,7 @@ def _merge_org_fragment(
                     kind="layer_rule_violation",
                     conflicting_layers=[source_marker],
                     target_id=node.id,
-                    shipped_value=None,
+                    built_in_value=None,
                     org_value=node.model_dump(),
                     project_value=None,
                     resolution_applied="hard_fail",
@@ -303,7 +303,7 @@ def _merge_org_fragment(
                     kind="node_override",
                     conflicting_layers=["built-in", source_marker],
                     target_id=urn,
-                    shipped_value=merged_nodes[urn].model_dump(),
+                    built_in_value=merged_nodes[urn].model_dump(),
                     org_value=node.model_dump(),
                     project_value=None,
                     resolution_applied="hard_fail",
@@ -320,17 +320,16 @@ def _merge_org_fragment(
 
 
 def _warn_project_override(urn: str, existing_provenance: str) -> None:
-    """Emit a WARNING when the project layer overrides a shipped/org node.
+    """Emit a WARNING when the project layer overrides a built-in/org node.
 
     Called from :func:`merge_three_layers` only.  Extracted to keep the
     merge function's cyclomatic complexity within the ruff C901 threshold.
     """
-    layer_label = "shipped" if existing_provenance == "built-in" else existing_provenance
     _logger.warning(
         "Project doctrine overrides %s node %r (was provenance=%r). "
-        "This is allowed by design (project > org > shipped precedence); "
+        "This is allowed by design (project > org > built-in precedence); "
         "flag here for operator visibility.",
-        layer_label,
+        existing_provenance,
         urn,
         existing_provenance,
     )
@@ -357,17 +356,17 @@ def _violates_layer_rule(node: Any) -> bool:
     )
 
 
-def _shipped_invariant_ids(shipped: DRGGraph) -> frozenset[str]:
+def _built_in_invariant_ids(built_in: DRGGraph) -> frozenset[str]:
     """The set of URNs that org packs cannot override.
 
-    Mission policy (FR-005): every shipped node is treated as an
+    Mission policy (FR-005): every built-in node is treated as an
     invariant. Org packs may only add new nodes or refine relations; they
-    may not collide with shipped node URNs. Refining over time is fine
+    may not collide with built-in node URNs. Refining over time is fine
     (this set is intentionally broad), and an operator who needs to
-    override a shipped invariant must escalate via a governance proposal
+    override a built-in invariant must escalate via a governance proposal
     rather than ship a silently-overriding org pack.
     """
-    return frozenset(n.urn for n in shipped.nodes)
+    return frozenset(n.urn for n in built_in.nodes)
 
 
 def _bridge_org_node_to_drg_node(
@@ -406,7 +405,7 @@ def _bridge_org_edge_to_drg_edge(
     Returns ``None`` only when the source endpoint cannot be resolved to a
     URN in the fragment-local node index (i.e. the org pack wrote an edge
     whose ``source:`` does not name a node it declared). Targets MAY point
-    outside the fragment — they typically refer to shipped or project
+    outside the fragment — they typically refer to built-in or project
     artefacts. In that case the bridge synthesises a target URN using the
     same ``<singular_kind>:<id>`` convention, defaulting to the
     ``directive`` kind when the target is not in the fragment-local index.
@@ -441,43 +440,43 @@ def _bridge_org_edge_to_drg_edge(
 
 
 def merge_three_layers(
-    shipped: DRGGraph,
+    built_in: DRGGraph,
     org_fragments: list[OrgDRGFragment],
     project: DRGGraph | None,
 ) -> DRGGraph:
-    """Overlay shipped → org → project layers (FR-001, FR-005).
+    """Overlay built-in → org → project layers (FR-001, FR-005).
 
-    Precedence: project > org > shipped. Operator-authored project doctrine
-    may override both shipped and org tiers. When the project layer overrides
-    a shipped or org node, a ``logging.warning`` is emitted with the URN +
+    Precedence: project > org > built-in. Operator-authored project doctrine
+    may override both built-in and org tiers. When the project layer overrides
+    a built-in or org node, a ``logging.warning`` is emitted with the URN +
     original layer so the override is visible in operator output but does
     not block the merge. Use :class:`OrgDRGConflict` records to query overrides
     programmatically.
 
-    Org-tier nodes that collide with a shipped node raise
+    Org-tier nodes that collide with a built-in node raise
     :class:`OrgDRGConflictError` (``resolution_applied='hard_fail'``). Layer-rule
     violations (org nodes reaching into ``src/specify_cli/``) always hard-fail.
 
     Every node and edge in the returned graph carries a ``provenance``
     sidecar attribute readable via ``getattr(node, 'provenance', None)``:
 
-    * ``"built-in"`` — shipped layer (Mission A);
+    * ``"built-in"`` — built-in layer (Mission A);
     * ``"org:<pack_name>"`` — contributed by an :class:`OrgDRGFragment`;
     * ``"project"`` — contributed by the project layer.
 
     Parameters
     ----------
-    shipped:
-        The shipped (built-in) DRG. Treated as the source of truth for
+    built_in:
+        The built-in DRG. Treated as the source of truth for
         invariants.
     org_fragments:
         Loaded org-tier fragments in declaration order. Earlier
         fragments take precedence over later ones for org-vs-org
-        collisions (but a shipped node always wins regardless).
+        collisions (but a built-in node always wins regardless).
     project:
         Optional project-tier DRG (``.kittify/doctrine/graph.yaml`` loaded
         and merged elsewhere). When ``None``, the merge collapses to the
-        shipped+org case.
+        built-in+org case.
 
     Returns
     -------
@@ -488,21 +487,21 @@ def merge_three_layers(
     Raises
     ------
     OrgDRGConflictError:
-        On layer-rule violation OR shipped-invariant override. The error
+        On layer-rule violation OR built-in invariant override. The error
         carries the full conflict list; the caller can inspect
         ``exc.conflicts``.
     """
     conflicts: list[OrgDRGConflict] = []
 
-    # Seed the merged maps with the shipped layer.
+    # Seed the merged maps with the built-in layer.
     merged_nodes: dict[str, DRGNode] = {
-        n.urn: _tag_source(n.model_copy(), "built-in") for n in shipped.nodes
+        n.urn: _tag_source(n.model_copy(), "built-in") for n in built_in.nodes
     }
     merged_edges: list[DRGEdge] = [
-        _tag_source(e.model_copy(), "built-in") for e in shipped.edges
+        _tag_source(e.model_copy(), "built-in") for e in built_in.edges
     ]
 
-    invariant_urns = _shipped_invariant_ids(shipped)
+    invariant_urns = _built_in_invariant_ids(built_in)
 
     for fragment in org_fragments:
         _merge_org_fragment(
@@ -524,9 +523,9 @@ def merge_three_layers(
             merged_edges.append(_tag_source(edge.model_copy(), "project"))
 
     return DRGGraph(
-        schema_version=shipped.schema_version,
-        generated_at=shipped.generated_at,
-        generated_by=shipped.generated_by,
+        schema_version=built_in.schema_version,
+        generated_at=built_in.generated_at,
+        generated_by=built_in.generated_by,
         nodes=list(merged_nodes.values()),
         edges=merged_edges,
     )

@@ -65,6 +65,24 @@ def dashboard(
         console.print()
         raise typer.Exit(1)
 
+    # FR-006 caller contract (T025): charter preflight runs before the
+    # dashboard starts. On failure we STILL launch the server so the
+    # operator can see the running state, but we persist the
+    # ``blocked_reason`` so the API surface can expose it as a critical
+    # banner. On success we clear any stale warning from a previous run.
+    from specify_cli.charter_runtime.preflight.dashboard_warning import (
+        clear_preflight_warning,
+        write_preflight_warning,
+    )
+    from specify_cli.charter_runtime.preflight.hook import run_preflight_for_dashboard
+
+    preflight_result = run_preflight_for_dashboard(project_root)
+    if not preflight_result.passed and preflight_result.blocked_reason:
+        write_preflight_warning(project_root, preflight_result.blocked_reason)
+        console.print(f"[yellow]⚠ Charter preflight warning:[/yellow] {preflight_result.blocked_reason}")
+    else:
+        clear_preflight_warning(project_root)
+
     try:
         dashboard_url, active_port, started = ensure_dashboard_running(project_root, preferred_port=port)
     except FileNotFoundError as exc:  # Missing .kittify directory

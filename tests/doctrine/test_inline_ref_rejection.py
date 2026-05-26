@@ -186,7 +186,7 @@ def test_directive_repository_rejects_project_inline_refs(tmp_path: Path) -> Non
 
     with pytest.raises(InlineReferenceRejectedError) as excinfo:
         DirectiveRepository(
-            shipped_dir=tmp_path / "nonexistent_shipped",
+            built_in_dir=tmp_path / "nonexistent_shipped",
             project_dir=project_dir,
         )
     err = excinfo.value
@@ -199,14 +199,14 @@ def test_tactic_repository_rejects_shipped_inline_refs(tmp_path: Path) -> None:
     """Shipped tactics with forbidden inline refs must raise at load time."""
     from doctrine.tactics.repository import TacticRepository
 
-    shipped_dir = tmp_path / "tactics_shipped"
+    built_in_dir = tmp_path / "tactics_shipped"
     _write_yaml(
-        shipped_dir / "bad.tactic.yaml",
+        built_in_dir / "bad.tactic.yaml",
         "id: bad-tactic\nname: bad\npurpose: test\nparadigm_refs: [p1]\n",
     )
 
     with pytest.raises(InlineReferenceRejectedError) as excinfo:
-        TacticRepository(shipped_dir=shipped_dir, project_dir=None)
+        TacticRepository(built_in_dir=built_in_dir, project_dir=None)
     assert excinfo.value.artifact_kind == "tactic"
     assert excinfo.value.forbidden_field == "paradigm_refs"
 
@@ -214,14 +214,14 @@ def test_tactic_repository_rejects_shipped_inline_refs(tmp_path: Path) -> None:
 def test_paradigm_repository_rejects_inline_refs(tmp_path: Path) -> None:
     from doctrine.paradigms.repository import ParadigmRepository
 
-    shipped_dir = tmp_path / "paradigms_shipped"
+    built_in_dir = tmp_path / "paradigms_shipped"
     _write_yaml(
-        shipped_dir / "bad.paradigm.yaml",
+        built_in_dir / "bad.paradigm.yaml",
         "id: bad-paradigm\nname: bad\nsummary: test\ntactic_refs: [t1]\n",
     )
 
     with pytest.raises(InlineReferenceRejectedError) as excinfo:
-        ParadigmRepository(shipped_dir=shipped_dir, project_dir=None)
+        ParadigmRepository(built_in_dir=built_in_dir, project_dir=None)
     assert excinfo.value.artifact_kind == "paradigm"
     assert excinfo.value.forbidden_field == "tactic_refs"
 
@@ -229,14 +229,14 @@ def test_paradigm_repository_rejects_inline_refs(tmp_path: Path) -> None:
 def test_styleguide_repository_rejects_inline_refs(tmp_path: Path) -> None:
     from doctrine.styleguides.repository import StyleguideRepository
 
-    shipped_dir = tmp_path / "styleguides_shipped"
+    built_in_dir = tmp_path / "styleguides_shipped"
     _write_yaml(
-        shipped_dir / "bad.styleguide.yaml",
+        built_in_dir / "bad.styleguide.yaml",
         "id: bad-style\ntitle: bad\nprinciples: [x]\napplies_to: [y]\n",
     )
 
     with pytest.raises(InlineReferenceRejectedError) as excinfo:
-        StyleguideRepository(shipped_dir=shipped_dir, project_dir=None)
+        StyleguideRepository(built_in_dir=built_in_dir, project_dir=None)
     assert excinfo.value.artifact_kind == "styleguide"
     assert excinfo.value.forbidden_field == "applies_to"
 
@@ -244,14 +244,14 @@ def test_styleguide_repository_rejects_inline_refs(tmp_path: Path) -> None:
 def test_toolguide_repository_rejects_inline_refs(tmp_path: Path) -> None:
     from doctrine.toolguides.repository import ToolguideRepository
 
-    shipped_dir = tmp_path / "toolguides_shipped"
+    built_in_dir = tmp_path / "toolguides_shipped"
     _write_yaml(
-        shipped_dir / "bad.toolguide.yaml",
+        built_in_dir / "bad.toolguide.yaml",
         "id: bad-tool\ntitle: bad\nsummary: x\ntactic_refs: [t1]\n",
     )
 
     with pytest.raises(InlineReferenceRejectedError) as excinfo:
-        ToolguideRepository(shipped_dir=shipped_dir, project_dir=None)
+        ToolguideRepository(built_in_dir=built_in_dir, project_dir=None)
     assert excinfo.value.artifact_kind == "toolguide"
     assert excinfo.value.forbidden_field == "tactic_refs"
 
@@ -259,14 +259,14 @@ def test_toolguide_repository_rejects_inline_refs(tmp_path: Path) -> None:
 def test_procedure_repository_rejects_top_level_inline_refs(tmp_path: Path) -> None:
     from doctrine.procedures.repository import ProcedureRepository
 
-    shipped_dir = tmp_path / "procedures_shipped"
+    built_in_dir = tmp_path / "procedures_shipped"
     _write_yaml(
-        shipped_dir / "bad.procedure.yaml",
+        built_in_dir / "bad.procedure.yaml",
         "id: bad-proc\nname: bad\npurpose: x\nsteps: []\napplies_to: [y]\n",
     )
 
     with pytest.raises(InlineReferenceRejectedError) as excinfo:
-        ProcedureRepository(shipped_dir=shipped_dir, project_dir=None)
+        ProcedureRepository(built_in_dir=built_in_dir, project_dir=None)
     assert excinfo.value.artifact_kind == "procedure"
     assert excinfo.value.forbidden_field == "applies_to"
 
@@ -278,9 +278,9 @@ def test_procedure_repository_rejects_step_level_inline_refs(tmp_path: Path) -> 
     """
     from doctrine.procedures.repository import ProcedureRepository
 
-    shipped_dir = tmp_path / "procedures_shipped"
+    built_in_dir = tmp_path / "procedures_shipped"
     _write_yaml(
-        shipped_dir / "bad-step.procedure.yaml",
+        built_in_dir / "bad-step.procedure.yaml",
         "id: bad-step-proc\n"
         "name: bad-step\n"
         "purpose: x\n"
@@ -292,7 +292,7 @@ def test_procedure_repository_rejects_step_level_inline_refs(tmp_path: Path) -> 
     )
 
     with pytest.raises(InlineReferenceRejectedError) as excinfo:
-        ProcedureRepository(shipped_dir=shipped_dir, project_dir=None)
+        ProcedureRepository(built_in_dir=built_in_dir, project_dir=None)
     err = excinfo.value
     assert err.artifact_kind == "procedure"
     assert err.forbidden_field == "tactic_refs"
@@ -302,17 +302,17 @@ def test_procedure_repository_rejects_step_level_inline_refs(tmp_path: Path) -> 
 def test_agent_profile_repository_rejects_inline_refs(tmp_path: Path) -> None:
     from doctrine.agent_profiles.repository import AgentProfileRepository
 
-    shipped_dir = tmp_path / "agent_profiles_shipped"
+    built_in_dir = tmp_path / "agent_profiles_shipped"
     # agent profile YAMLs use kebab-case keys; the rejection scan is for
     # extra top-level fields, so ``applies_to`` is unambiguous.
     _write_yaml(
-        shipped_dir / "bad.agent.yaml",
+        built_in_dir / "bad.agent.yaml",
         "profile-id: bad-profile\n"
         "role: implementer\n"
         "applies_to: [software-dev]\n",
     )
 
     with pytest.raises(InlineReferenceRejectedError) as excinfo:
-        AgentProfileRepository(shipped_dir=shipped_dir, project_dir=None)
+        AgentProfileRepository(built_in_dir=built_in_dir, project_dir=None)
     assert excinfo.value.artifact_kind == "agent_profile"
     assert excinfo.value.forbidden_field == "applies_to"

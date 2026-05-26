@@ -28,12 +28,13 @@ that reads the environment directly still lands under ``tmp_path``.
 from __future__ import annotations
 
 import ast
+import contextlib
 import pathlib
 import sqlite3
 import sys
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -224,15 +225,11 @@ class TestAuthenticatedSetupPlanLandsInScoped:
             ),
         }
 
-        started = {k: p.start() for k, p in patches.items()}
+        for p in patches.values():
+            p.start()
         try:
-            try:
+            with contextlib.suppress(typer.Exit, SystemExit):
                 setup_plan(feature=mission_slug, json_output=True)
-            except (typer.Exit, SystemExit):
-                # setup-plan may exit for a variety of plan-substantive / git
-                # reasons after running the dossier pipeline; that's fine —
-                # we only care about queue-write evidence.
-                pass
         finally:
             for p in patches.values():
                 p.stop()
@@ -585,7 +582,8 @@ class TestSetupPlanPreflightIntegration:
         legacy_path = _legacy_queue_db_path()
 
         patches = _patches_for_setup_plan(tmp_path, feature_dir)
-        started = {k: p.start() for k, p in patches.items()}
+        for p in patches.values():
+            p.start()
         try:
             with pytest.raises((typer.Exit, SystemExit)) as exc_info:
                 setup_plan(feature=mission_slug, json_output=False)
@@ -712,7 +710,7 @@ class TestSetupPlanPreflightIntegration:
         from specify_cli.cli.commands.agent.mission import setup_plan
 
         mission_slug = "wp04-auth-order-test"
-        feature_dir = _build_minimal_repo(tmp_path, mission_slug)
+        _build_minimal_repo(tmp_path, mission_slug)
 
         with pytest.raises((typer.Exit, SystemExit)) as exc_info:
             setup_plan(feature=mission_slug, json_output=False)
@@ -776,8 +774,8 @@ class TestSetupPlanPreflightIntegration:
                 # purposes of this test (we just want past the gate).
                 code = getattr(exc, "exit_code", None) or getattr(exc, "code", None)
                 assert code != 2, (
-                    f"Coherent host should pass preflight; got exit 2 "
-                    f"(preflight refusal) instead."
+                    "Coherent host should pass preflight; got exit 2 "
+                    "(preflight refusal) instead."
                 )
         finally:
             for p in patches.values():
@@ -835,14 +833,8 @@ class TestSetupPlanNeverWritesLegacyQueue:
         for p in patches.values():
             p.start()
         try:
-            try:
+            with contextlib.suppress(typer.Exit, SystemExit):
                 setup_plan(feature=mission_slug, json_output=True)
-            except (typer.Exit, SystemExit):
-                # As in test A, setup-plan may exit for downstream
-                # plan-template / git reasons after running the dossier
-                # pipeline. That's fine — we only care about queue
-                # routing evidence below.
-                pass
         finally:
             for p in patches.values():
                 p.stop()
@@ -905,4 +897,5 @@ class TestSetupPlanNeverWritesLegacyQueue:
 
 def test_module_is_importable() -> None:
     """Smoke check so the regression file fails loudly if imports break."""
-    assert "specify_cli.cli.commands.agent.mission" in sys.modules or True
+    __import__(MODULE)
+    assert MODULE in sys.modules

@@ -107,7 +107,7 @@ def _detect_catalog_references(
     ``tactic_registry`` is injected by the caller (``charter.sync.sync``)
     rather than constructed here — the extractor stays decoupled from
     ``DoctrineService`` construction. If the caller cannot build a
-    registry (e.g. the shipped catalog is unavailable), it MUST pass a
+    registry (e.g. the built-in catalog is unavailable), it MUST pass a
     callable that always returns False; the directive detector still
     runs as a result.
     """

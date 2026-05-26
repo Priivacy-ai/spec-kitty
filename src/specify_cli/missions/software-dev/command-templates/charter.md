@@ -68,7 +68,7 @@ generation. Action context is loaded iteratively at the actual action boundary.
 
 ## Doctrine Gaps
 
-If no shipped paradigm or directive cleanly fits the user's needs:
+If no built-in paradigm or directive cleanly fits the user's needs:
 
 - Do **not** force a near-match just to populate selections.
 - Keep `selected_paradigms` and `selected_directives` narrow and truthful.

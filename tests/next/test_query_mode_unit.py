@@ -22,6 +22,19 @@ def _skip_root_project_schema_gate(monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep command-unit tests isolated from the checkout's project metadata."""
     monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
     monkeypatch.setattr("specify_cli.locate_project_root", lambda: None)
+    # These unit tests do not stage a charter; patch the hook boundary so the
+    # argument-validation / dispatch paths remain isolated.
+    from specify_cli.charter_runtime.preflight.result import CharterPreflightResult
+
+    result = CharterPreflightResult(passed=True, checks=[])
+    monkeypatch.setattr(
+        "specify_cli.charter_runtime.preflight.hook.run_preflight_or_abort",
+        lambda *_args, **_kwargs: result,
+    )
+    monkeypatch.setattr(
+        "specify_cli.charter_runtime.preflight.hook.run_preflight_for_dashboard",
+        lambda *_args, **_kwargs: result,
+    )
 
 
 def test_derive_mission_state_imports_legacy_events_lazily(tmp_path: Path) -> None:

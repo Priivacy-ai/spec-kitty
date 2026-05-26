@@ -92,6 +92,20 @@ class APIHandler(DashboardHandler):
         if token:
             response_data["token"] = token
 
+        # FR-006 caller contract (T025): surface the persisted charter
+        # preflight blocked_reason so the SPA can render a critical
+        # banner. The field is omitted entirely on success.
+        try:
+            from specify_cli.charter_runtime.preflight.dashboard_warning import (
+                read_preflight_warning,
+            )
+
+            warning = read_preflight_warning(Path(self.project_dir))
+            if warning:
+                response_data["preflight_warning"] = warning
+        except Exception:  # pragma: no cover - never break /api/health
+            pass
+
         self.wfile.write(json.dumps(response_data).encode())
 
     def handle_shutdown(self) -> None:

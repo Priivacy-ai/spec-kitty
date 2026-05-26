@@ -84,6 +84,28 @@ def next_step(
         print("Error: Could not locate project root", file=sys.stderr)
         raise typer.Exit(1)
 
+    # FR-006 caller contract: charter preflight runs BEFORE any state
+    # mutation. On failure, print blocked_reason and exit 1 — the runtime
+    # decision engine is never entered. Query mode (result is None) is
+    # read-only and follows the dashboard's "log + warn + continue" path
+    # so that operators can inspect mission state in repos whose charter
+    # has not yet been synthesized (e.g., fresh clones, test envs).
+    from pathlib import Path as _Path
+
+    if result is not None:
+        from specify_cli.charter_runtime.preflight.hook import run_preflight_or_abort
+
+        run_preflight_or_abort(_Path(str(repo_root)), consumer="next")
+    else:
+        from specify_cli.charter_runtime.preflight.hook import run_preflight_for_dashboard
+
+        # Query mode: warn-and-continue. The dashboard helper logs at
+        # warning level on failure and returns without raising. We
+        # explicitly ignore the result here because query mode does not
+        # mutate state and the operator is only asking "what is my
+        # mission state?".
+        run_preflight_for_dashboard(_Path(str(repo_root)))
+
     mission_slug = _resolve_mission_slug(mission, feature)
     _validate_result_and_answer(result, answer, json_output)
     answered_id = _maybe_handle_answer(agent, mission_slug, answer, decision_id, repo_root, json_output)

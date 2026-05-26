@@ -90,7 +90,7 @@ uv run spec-kitty charter lint
 
 `charter lint` detects orphaned directives (referenced in the DRG but without a backing tactic),
 contradictions between directives, and staleness (directives whose provenance points to a deleted
-or superseded shipped directive). A clean lint means the bundle graph is internally consistent.
+or superseded built-in directive). A clean lint means the bundle graph is internally consistent.
 
 ### 2b. Validate the bundle schema
 
@@ -139,7 +139,7 @@ uv run spec-kitty charter synthesize
 
 On a fresh project where `.kittify/charter/generated/` is missing or empty (i.e., the LLM harness
 has not yet written agent artifacts), synthesize creates the minimal artifact set: a `.kittify/doctrine/`
-directory marker and a `PROVENANCE.md` record. The runtime falls back to shipped doctrine for all
+directory marker and a `PROVENANCE.md` record. The runtime falls back to built-in doctrine for all
 artifact lookups until a full synthesis run with agent-generated content completes.
 
 ### 3c. Confirm status

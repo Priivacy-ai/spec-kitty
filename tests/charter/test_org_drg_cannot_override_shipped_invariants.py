@@ -21,7 +21,7 @@ import pytest
 pytestmark = [pytest.mark.fast]
 
 
-def _shipped_graph_with_node(urn: str):
+def _built_in_graph_with_node(urn: str):
     from charter.drg import DRGGraph, DRGNode, NodeKind  # noqa: PLC0415
 
     return DRGGraph(
@@ -65,12 +65,12 @@ def test_org_pack_overriding_shipped_invariant_hard_fails() -> None:
         merge_three_layers,
     )
 
-    shipped = _shipped_graph_with_node("directive:caveman-comments")
+    built_in = _built_in_graph_with_node("directive:caveman-comments")
     org_fragment = _fragment_overriding("caveman-comments")
 
     with pytest.raises(OrgDRGConflictError) as exc_info:
         merge_three_layers(
-            shipped=shipped,
+            built_in=built_in,
             org_fragments=[org_fragment],
             project=None,
         )
@@ -98,7 +98,7 @@ def test_org_pack_body_path_referencing_specify_cli_is_layer_rule_violation() ->
         merge_three_layers,
     )
 
-    shipped = DRGGraph(
+    built_in = DRGGraph(
         schema_version="1.0",
         generated_at="2026-05-18T00:00:00Z",
         generated_by="test-fixture",
@@ -126,7 +126,7 @@ def test_org_pack_body_path_referencing_specify_cli_is_layer_rule_violation() ->
 
     with pytest.raises(OrgDRGConflictError) as exc_info:
         merge_three_layers(
-            shipped=shipped,
+            built_in=built_in,
             org_fragments=[org_fragment],
             project=None,
         )

@@ -13,25 +13,25 @@ pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 class TestTacticRepository:
     def test_list_all_from_shipped(self, tmp_tactic_dir: Path) -> None:
         """list_all returns all tactics from the given directory."""
-        repo = TacticRepository(shipped_dir=tmp_tactic_dir)
+        repo = TacticRepository(built_in_dir=tmp_tactic_dir)
         tactics = repo.list_all()
         assert len(tactics) == 1
         assert tactics[0].id == "test-tactic"
 
     def test_get_by_id(self, tmp_tactic_dir: Path) -> None:
         """get() with kebab-case ID returns the tactic."""
-        repo = TacticRepository(shipped_dir=tmp_tactic_dir)
+        repo = TacticRepository(built_in_dir=tmp_tactic_dir)
         tactic = repo.get("test-tactic")
         assert tactic is not None
         assert tactic.name == "Test Tactic"
         assert len(tactic.steps) == 1
 
     def test_get_returns_none_for_unknown(self, tmp_tactic_dir: Path) -> None:
-        repo = TacticRepository(shipped_dir=tmp_tactic_dir)
+        repo = TacticRepository(built_in_dir=tmp_tactic_dir)
         assert repo.get("nonexistent-tactic") is None
 
     def test_load_from_custom_shipped_dir(self, tmp_tactic_dir: Path) -> None:
-        repo = TacticRepository(shipped_dir=tmp_tactic_dir)
+        repo = TacticRepository(built_in_dir=tmp_tactic_dir)
         tactics = repo.list_all()
         assert len(tactics) == 1
         assert tactics[0].id == "test-tactic"
@@ -44,7 +44,7 @@ class TestTacticRepository:
         bad_file.write_text("not: valid: yaml: [")
 
         with pytest.warns(UserWarning, match="Skipping invalid"):
-            repo = TacticRepository(shipped_dir=shipped)
+            repo = TacticRepository(built_in_dir=shipped)
 
         assert repo.list_all() == []
 
@@ -55,7 +55,7 @@ class TestTacticRepository:
 
         project_dir = tmp_path / "project"
         repo = TacticRepository(
-            shipped_dir=tmp_path / "empty", project_dir=project_dir
+            built_in_dir=tmp_path / "empty", project_dir=project_dir
         )
 
         tactic = Tactic.model_validate(sample_tactic_data)
@@ -73,7 +73,7 @@ class TestTacticRepository:
     ) -> None:
         from doctrine.tactics.models import Tactic
 
-        repo = TacticRepository(shipped_dir=tmp_path / "empty")
+        repo = TacticRepository(built_in_dir=tmp_path / "empty")
         tactic = Tactic.model_validate(sample_tactic_data)
         with pytest.raises(ValueError, match="project_dir not configured"):
             repo.save(tactic)
@@ -109,7 +109,7 @@ class TestTacticRepository:
         with (project / "merge-test.tactic.yaml").open("w") as f:
             yaml.dump(override, f)
 
-        repo = TacticRepository(shipped_dir=shipped, project_dir=project)
+        repo = TacticRepository(built_in_dir=shipped, project_dir=project)
         tactic = repo.get("merge-test")
         assert tactic is not None
         assert tactic.name == "Overridden Name"
@@ -135,7 +135,7 @@ class TestTacticRepository:
         with (shipped / "nested-test.tactic.yaml").open("w") as f:
             y.dump(data, f)
 
-        repo = TacticRepository(shipped_dir=shipped)
+        repo = TacticRepository(built_in_dir=shipped)
         tactic = repo.get("nested-test")
         assert tactic is not None
         assert tactic.steps[0].title == "Step A"
@@ -150,14 +150,14 @@ class TestTacticRepository:
 
         project_dir = tmp_path / "project"
         repo = TacticRepository(
-            shipped_dir=tmp_path / "empty", project_dir=project_dir
+            built_in_dir=tmp_path / "empty", project_dir=project_dir
         )
 
         tactic = Tactic.model_validate(enriched_tactic_data)
         repo.save(tactic)
 
         repo2 = TacticRepository(
-            shipped_dir=tmp_path / "empty", project_dir=project_dir
+            built_in_dir=tmp_path / "empty", project_dir=project_dir
         )
         loaded = repo2.get("enriched-tactic")
         assert loaded is not None
@@ -197,7 +197,7 @@ class TestTacticRepository:
                 handle,
             )
 
-        repo = TacticRepository(shipped_dir=shipped, active_languages=["typescript"])
+        repo = TacticRepository(built_in_dir=shipped, active_languages=["typescript"])
         tactic_ids = {tactic.id for tactic in repo.list_all()}
 
         assert "generic-tactic" in tactic_ids
@@ -248,7 +248,7 @@ class TestTacticRepository:
             )
 
         repo = TacticRepository(
-            shipped_dir=shipped,
+            built_in_dir=shipped,
             project_dir=project,
             active_languages=["typescript"],
         )

@@ -44,7 +44,14 @@ class NodeKind(StrEnum):
 
 
 class Relation(StrEnum):
-    """Typed edge relations in the DRG."""
+    """Typed edge relations in the DRG.
+
+    ``ENHANCES`` and ``OVERRIDES`` form the augmentation pair (FR-014, mission
+    ``charter-ux-and-org-pack-vocabulary-01KSAF14``): a pack artifact declares
+    ``enhances: <id>`` to field-merge into a built-in, or ``overrides: <id>``
+    to declare a full replacement. ``REPLACES`` is retained for backward
+    compatibility with existing hand-authored fragments (R-2).
+    """
 
     REQUIRES = "requires"
     SUGGESTS = "suggests"
@@ -54,6 +61,8 @@ class Relation(StrEnum):
     INSTANTIATES = "instantiates"
     REPLACES = "replaces"
     DELEGATES_TO = "delegates_to"
+    ENHANCES = "enhances"
+    OVERRIDES = "overrides"
 
 
 # ---------------------------------------------------------------------------

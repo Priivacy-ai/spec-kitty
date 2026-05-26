@@ -84,7 +84,7 @@ def test_status_check_includes_daemon_pid_and_port(monkeypatch, tmp_path):
             return_value=DaemonSingletonReport(
                 state_pid=12345,
                 state_file_present=True,
-                orphan_processes=tuple(),
+                orphan_processes=(),
             ),
         ),
         patch.object(

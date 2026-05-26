@@ -37,6 +37,8 @@ from scripts.docs.version_leakage_check import (
 )
 
 
+pytestmark = [pytest.mark.architectural]
+
 # --- helpers ----------------------------------------------------------------
 
 

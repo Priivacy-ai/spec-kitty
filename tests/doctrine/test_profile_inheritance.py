@@ -73,7 +73,7 @@ specialization:
         encoding="utf-8",
     )
 
-    return AgentProfileRepository(shipped_dir=shipped, project_dir=None)
+    return AgentProfileRepository(built_in_dir=shipped, project_dir=None)
 
 
 def test_resolve_profile_inherits_missing_fields(inheritance_repo: AgentProfileRepository) -> None:
@@ -110,7 +110,7 @@ specialization:
         encoding="utf-8",
     )
 
-    repo = AgentProfileRepository(shipped_dir=shipped, project_dir=None)
+    repo = AgentProfileRepository(built_in_dir=shipped, project_dir=None)
 
     with pytest.raises(KeyError, match="missing-parent"):
         repo.resolve_profile("orphan")
@@ -144,7 +144,7 @@ specialization:
         encoding="utf-8",
     )
 
-    repo = AgentProfileRepository(shipped_dir=shipped, project_dir=None)
+    repo = AgentProfileRepository(built_in_dir=shipped, project_dir=None)
 
     with pytest.raises(ValueError, match="Cycle detected"):
         repo.resolve_profile("a")
@@ -252,7 +252,7 @@ excluding:
         encoding="utf-8",
     )
 
-    return AgentProfileRepository(shipped_dir=shipped, project_dir=None)
+    return AgentProfileRepository(built_in_dir=shipped, project_dir=None)
 
 
 def test_unspecified_fields_inherited(us6_repo: AgentProfileRepository) -> None:
@@ -334,7 +334,7 @@ specialization:
         encoding="utf-8",
     )
 
-    repo = AgentProfileRepository(shipped_dir=shipped, project_dir=None)
+    repo = AgentProfileRepository(built_in_dir=shipped, project_dir=None)
 
     with pytest.raises(KeyError, match="nonexistent-parent"):
         repo.resolve_profile("orphan")
@@ -352,7 +352,7 @@ _SHIPPED_PROFILE_DIR = (
 @pytest.fixture(scope="module")
 def shipped_repo() -> AgentProfileRepository:
     """Load the real shipped profiles — used for tactic-inheritance invariant checks."""
-    return AgentProfileRepository(shipped_dir=_SHIPPED_PROFILE_DIR, project_dir=None)
+    return AgentProfileRepository(built_in_dir=_SHIPPED_PROFILE_DIR, project_dir=None)
 
 
 @pytest.mark.doctrine
@@ -433,7 +433,7 @@ specialization:
         encoding="utf-8",
     )
 
-    repo = AgentProfileRepository(shipped_dir=shipped, project_dir=None)
+    repo = AgentProfileRepository(built_in_dir=shipped, project_dir=None)
     profiles = {p.profile_id: p for p in repo.list_all()}
 
     violations = []
@@ -491,7 +491,7 @@ tactic-references:
         encoding="utf-8",
     )
 
-    repo = AgentProfileRepository(shipped_dir=shipped, project_dir=None)
+    repo = AgentProfileRepository(built_in_dir=shipped, project_dir=None)
     resolved = repo.resolve_profile("specialist-impl")
 
     merged_tactic_ids = {ref.id for ref in resolved.tactic_references}

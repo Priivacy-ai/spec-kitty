@@ -527,7 +527,7 @@ def test_compile_local_support_overlap_emits_warning_diagnostic() -> None:
 
     compiled = compile_charter(mission="software-dev", interview=interview)
 
-    assert any("shipped content remains primary" in d for d in compiled.diagnostics), (
+    assert any("built-in content remains primary" in d for d in compiled.diagnostics), (
         f"Expected overlap warning; diagnostics: {compiled.diagnostics}"
     )
 
@@ -540,7 +540,7 @@ def test_compile_local_support_no_warning_when_no_overlap() -> None:
 
     compiled = compile_charter(mission="software-dev", interview=interview)
 
-    assert not any("shipped content remains primary" in d for d in compiled.diagnostics)
+    assert not any("built-in content remains primary" in d for d in compiled.diagnostics)
 
 
 def test_compile_invalid_local_support_paths_emit_diagnostics() -> None:

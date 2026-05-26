@@ -153,10 +153,9 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
         "specify_cli.cli.commands.review::review_mission",
         "specify_cli.cli.commands.sync::app",
         "specify_cli.cli.commands.verify::verify_setup",
-        # _render_nag_if_needed removed from allowlist: now has a live
-        # caller (specify_cli.readiness.coordinator._invoke_nag) introduced
-        # by the CLI startup readiness coordinator (Priivacy-ai/spec-kitty#1093).
-        "specify_cli.cli.helpers::_should_suppress_nag",
+        # _render_nag_if_needed and _should_suppress_nag removed from
+        # allowlist: both now have live callers in the CLI startup readiness
+        # coordinator path (Priivacy-ai/spec-kitty#1093).
         "specify_cli.compat._adapters.detector::VersionDetector",
         "specify_cli.compat._adapters.gate::_EXEMPT_COMMANDS",
         "specify_cli.compat._adapters.gate::check_schema_version",
@@ -403,6 +402,18 @@ _CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE: frozenset[str] = frozenset()
 # All four symbols have live src/ callers; the allowlist entry is removed.
 _CATEGORY_C_WP_IN_FLIGHT_WORKFLOW_REGISTRY: frozenset[str] = frozenset()
 
+# ---------- C. Charter command split legacy patch surface ----------
+# WP06 split ``cli.commands.charter`` from a monolithic module into a package.
+# These two package-level exports intentionally support legacy
+# package-level mock patch targets in tests and downstream
+# consumers while submodules resolve the values dynamically from the package.
+_CATEGORY_C_CHARTER_SPLIT_LEGACY_PATCH_SURFACE: frozenset[str] = frozenset(
+    {
+        "specify_cli.cli.commands.charter::_dm_service",
+        "specify_cli.cli.commands.charter::find_repo_root",
+    }
+)
+
 
 # Aggregate. The gate consults this; the per-category frozensets are
 # the surface introspected by the ratchet-baseline meta-test
@@ -412,6 +423,7 @@ _SYMBOL_ALLOWLIST: frozenset[str] = (
     | _CATEGORY_B_GRANDFATHERED_LEGACY
     | _CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE
     | _CATEGORY_C_WP_IN_FLIGHT_WORKFLOW_REGISTRY
+    | _CATEGORY_C_CHARTER_SPLIT_LEGACY_PATCH_SURFACE
 )
 
 

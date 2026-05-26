@@ -498,3 +498,26 @@ terms:
     definition: The WP08 scan + normalize-or-fail-loud flow that brings existing missions' charter content into compliance with the WP06 chokepoint contract.
     confidence: 0.95
     status: active
+
+  # --- WP05 (mission charter-ux-and-org-pack-vocabulary-01KSAF14): pack-augmentation vocabulary ---
+
+  - surface: enhances
+    definition: >
+      Declarative field on a doctrine pack artifact (tactic, styleguide, paradigm,
+      procedure, agent profile) that asserts the artifact augments a built-in
+      artifact with the same ID via field-merge. Suppresses the same-ID-collision
+      advisory and auto-emits an `ENHANCES` DRG edge.
+    synonyms_to_avoid: [augments, extends]
+    introduced_in_mission: charter-ux-and-org-pack-vocabulary-01KSAF14
+    confidence: 0.95
+    status: active
+
+  - surface: overrides
+    definition: >
+      Declarative field on a doctrine pack artifact that asserts the artifact
+      fully replaces a built-in artifact with the same ID. Suppresses the same-ID
+      advisory and auto-emits an `OVERRIDES` DRG edge.
+    synonyms_to_avoid: [replaces, supersedes]
+    introduced_in_mission: charter-ux-and-org-pack-vocabulary-01KSAF14
+    confidence: 0.95
+    status: active

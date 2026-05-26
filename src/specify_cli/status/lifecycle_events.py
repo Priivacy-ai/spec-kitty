@@ -153,7 +153,8 @@ def _atomic_append(path: Path, line: str) -> None:
             os.fsync(fh.fileno())
 
 
-def _build_envelope(  # canonical-producer-exempt: #1198 — local lifecycle JSONL envelope (distinct from SaaS wire envelope); payload is already constructed via canonical pydantic models in the emit_* helpers above
+# canonical-producer-exempt: #1198 -- local lifecycle JSONL envelope.
+def _build_envelope(
     event_type: str,
     payload: Mapping[str, Any],
     *,

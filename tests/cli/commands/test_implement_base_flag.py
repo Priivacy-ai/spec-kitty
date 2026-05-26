@@ -22,6 +22,25 @@ from specify_cli.lanes.persistence import write_lanes_json
 pytestmark = pytest.mark.git_repo
 
 
+@pytest.fixture(autouse=True)
+def _bypass_charter_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Bypass the charter preflight gate for these integration tests.
+
+    The tests exercise lane-workspace creation in ``spec-kitty implement``;
+    without the bypass the preflight blocks dispatch before
+    ``create_lane_workspace`` is reached, so the assertion target never
+    fires. Patch the hook boundary directly instead of relying on a production
+    environment bypass.
+    """
+    from specify_cli.charter_runtime.preflight.result import CharterPreflightResult
+
+    result = CharterPreflightResult(passed=True, checks=[])
+    monkeypatch.setattr(
+        "specify_cli.charter_runtime.preflight.hook.run_preflight_or_abort",
+        lambda *_args, **_kwargs: result,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

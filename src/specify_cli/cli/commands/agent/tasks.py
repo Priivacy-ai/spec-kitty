@@ -368,8 +368,8 @@ def _get_hic_marker(
 
         profile_repo = repo
         if profile_repo is None:
-            shipped_dir = repo_root / "src" / "doctrine" / "agent_profiles" / "built-in"
-            profile_repo = AgentProfileRepository(shipped_dir=shipped_dir)
+            built_in_dir = repo_root / "src" / "doctrine" / "agent_profiles" / "built-in"
+            profile_repo = AgentProfileRepository(built_in_dir=built_in_dir)
 
         profile = profile_repo.get(agent_profile)
         if profile and profile.sentinel:
@@ -1385,6 +1385,16 @@ def move_task(
         typer.Option("--done-override-reason", help="Required when --to done and merge ancestry cannot be verified; recorded in history/event reason"),
     ] = None,
     force: Annotated[bool, typer.Option("--force", help="Force move even with unchecked subtasks (does not bypass planned rollback feedback requirement)")] = False,
+    tracker_ref: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--tracker-ref",
+            help=(
+                "External tracker reference (e.g., '#1298' or 'JIRA-123'). "
+                "Repeatable; appended to the WP frontmatter tracker_refs."
+            ),
+        ),
+    ] = None,
     skip_review_artifact_check: Annotated[
         bool,
         typer.Option(
@@ -1916,6 +1926,29 @@ def move_task(
                         console.print(f"[yellow]Warning:[/yellow] Auto-commit skipped: {e}")
             else:
                 write_text_within_directory(wp.path, updated_doc, root=main_repo_root, encoding="utf-8")
+
+            # T040 / FR-011 (F-10): persist --tracker-ref values into the WP frontmatter.
+            # Done AFTER the standard frontmatter write so we operate on the latest
+            # on-disk content via the typed Pydantic model.
+            tracker_ref_values = [t.strip() for t in (tracker_ref or []) if t and t.strip()]
+            if tracker_ref_values:
+                try:
+                    from specify_cli.frontmatter import write_frontmatter as _write_fm
+                    from specify_cli.status.wp_metadata import (
+                        read_wp_frontmatter as _read_wp_fm,
+                    )
+
+                    _wp_meta, _body = _read_wp_fm(wp.path)
+                    _existing = list(_wp_meta.tracker_refs or [])
+                    _merged = sorted(set(_existing) | set(tracker_ref_values))
+                    if _merged != _existing:
+                        _updated = _wp_meta.update(tracker_refs=_merged)
+                        _write_fm(wp.path, _updated.model_dump(exclude_none=True), _body)
+                except Exception as _tr_exc:  # pragma: no cover - defensive
+                    if not json_output:
+                        console.print(
+                            f"[yellow]Warning:[/yellow] Failed to persist --tracker-ref: {_tr_exc}"
+                        )
 
         # FR-017 / FR-018: Release the review lock whenever review terminates
         # (approve to APPROVED, reject back to PLANNED, or any other transition
@@ -2932,6 +2965,16 @@ def map_requirements(
             help="Replace existing refs instead of merging (default: merge/union)",
         ),
     ] = False,
+    tracker_ref: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--tracker-ref",
+            help=(
+                "External tracker reference (e.g., '#1298' or 'JIRA-123'). "
+                "Repeatable; requires --wp. Persists to the WP frontmatter as tracker_refs."
+            ),
+        ),
+    ] = None,
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug")] = None,
     feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
@@ -2956,15 +2999,31 @@ def map_requirements(
         validate_refs,
     )
 
+    # T040 / FR-011 (F-10): tracker_ref values are persisted alongside
+    # requirement_refs.  --tracker-ref is repeatable and requires --wp.
+    tracker_ref_values: list[str] = [t.strip() for t in (tracker_ref or []) if t and t.strip()]
+
     try:
         if batch and (wp or refs):
             _output_error(json_output, "Cannot combine --batch with --wp/--refs. Use one mode.")
             raise typer.Exit(1)
 
-        if not batch and not (wp and refs):
+        if tracker_ref_values and (batch or wp is None):
             _output_error(
                 json_output,
-                "Provide either --wp + --refs (individual) or --batch (batch mode).",
+                "--tracker-ref requires --wp (cannot be combined with --batch).",
+            )
+            raise typer.Exit(1)
+
+        # When only --tracker-ref is supplied (no --refs), allow the persistence
+        # of tracker refs without changing requirement_refs.  This is the
+        # primary usage shape per the WP10 spec.
+        tracker_only_mode = bool(tracker_ref_values and wp is not None and not refs)
+
+        if not batch and not (wp and refs) and not tracker_only_mode:
+            _output_error(
+                json_output,
+                "Provide either --wp + --refs (individual), --batch, or --wp + --tracker-ref.",
             )
             raise typer.Exit(1)
 
@@ -3012,6 +3071,11 @@ def map_requirements(
                     )
                     raise typer.Exit(1)
                 new_mappings[wp_id.upper()] = [ref.upper() for ref in ref_list]
+        elif tracker_only_mode:
+            # Only --wp + --tracker-ref: no requirement refs to validate, but we
+            # still register the WP key so the persistence loop visits it.
+            assert wp is not None  # narrowed by tracker_only_mode
+            new_mappings[wp.upper()] = []
         else:
             if wp is None or refs is None:
                 _output_error(json_output, "Both --wp and --refs are required in individual mode.")
@@ -3093,15 +3157,32 @@ def map_requirements(
                 continue
 
             wp_meta, body = read_wp_frontmatter(wp_file)
-            if replace:
-                merged_refs = sorted(set(new_refs))
-            else:
-                existing_fm = normalize_requirement_refs_value(wp_meta.requirement_refs)
-                if not existing_fm:
-                    existing_fm = tasks_md_refs.get(wp_id, [])
-                merged_refs = sorted(set(existing_fm) | set(new_refs))
-            updated_meta = wp_meta.update(requirement_refs=merged_refs)
-            write_frontmatter(wp_file, updated_meta.model_dump(exclude_none=True), body)
+            update_kwargs: dict[str, list[str]] = {}
+
+            # Only update requirement_refs when refs were supplied; preserves
+            # backward compatibility for the tracker-only invocation.
+            if not tracker_only_mode:
+                if replace:
+                    merged_refs = sorted(set(new_refs))
+                else:
+                    existing_fm = normalize_requirement_refs_value(wp_meta.requirement_refs)
+                    if not existing_fm:
+                        existing_fm = tasks_md_refs.get(wp_id, [])
+                    merged_refs = sorted(set(existing_fm) | set(new_refs))
+                update_kwargs["requirement_refs"] = merged_refs
+
+            # T040 / FR-011 (F-10): merge tracker_refs (or replace if --replace).
+            if tracker_ref_values and wp is not None and wp_id == wp.upper():
+                if replace:
+                    merged_trackers = sorted(set(tracker_ref_values))
+                else:
+                    existing_trackers = list(wp_meta.tracker_refs or [])
+                    merged_trackers = sorted(set(existing_trackers) | set(tracker_ref_values))
+                update_kwargs["tracker_refs"] = merged_trackers
+
+            if update_kwargs:
+                updated_meta = wp_meta.update(**update_kwargs)
+                write_frontmatter(wp_file, updated_meta.model_dump(exclude_none=True), body)
 
         # Hard-fail on stale/invalid refs across all WPs.  This gate
         # prevents the tasks phase from advancing with a mapping-invalid
@@ -3499,7 +3580,7 @@ def status(
         try:
             from doctrine.agent_profiles.repository import AgentProfileRepository
 
-            profile_repo = AgentProfileRepository(shipped_dir=main_repo_root / "src" / "doctrine" / "agent_profiles" / "built-in")
+            profile_repo = AgentProfileRepository(built_in_dir=main_repo_root / "src" / "doctrine" / "agent_profiles" / "built-in")
         except Exception:
             profile_repo = None
 

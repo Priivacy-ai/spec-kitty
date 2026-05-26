@@ -34,11 +34,11 @@ def _write_yaml(path: Path, data: dict[object, object]) -> None:
 
 
 def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_path: Path) -> None:
-    shipped_root = tmp_path / "doctrine"
+    built_in_root = tmp_path / "doctrine"
     output_dir = tmp_path / "repo" / ".kittify" / "charter"
 
     _write_yaml(
-        shipped_root / "directives" / "built-in" / "001-review.directive.yaml",
+        built_in_root / "directives" / "built-in" / "001-review.directive.yaml",
         {
             "schema_version": "1.0",
             "id": "REVIEW_FIRST",
@@ -51,7 +51,7 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
         },
     )
     _write_yaml(
-        shipped_root / "tactics" / "built-in" / "review-tactic.tactic.yaml",
+        built_in_root / "tactics" / "built-in" / "review-tactic.tactic.yaml",
         {
             "schema_version": "1.0",
             "id": "review-tactic",
@@ -75,7 +75,7 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
         },
     )
     _write_yaml(
-        shipped_root / "styleguides" / "built-in" / "review-style.styleguide.yaml",
+        built_in_root / "styleguides" / "built-in" / "review-style.styleguide.yaml",
         {
             "schema_version": "1.0",
             "id": "review-style",
@@ -85,7 +85,7 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
         },
     )
     _write_yaml(
-        shipped_root / "directives" / "built-in" / "002-interview.directive.yaml",
+        built_in_root / "directives" / "built-in" / "002-interview.directive.yaml",
         {
             "schema_version": "1.0",
             "id": "INTERVIEW_ONLY",
@@ -96,7 +96,7 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
         },
     )
     _write_yaml(
-        shipped_root / "agent_profiles" / "built-in" / "reviewer.agent.yaml",
+        built_in_root / "agent_profiles" / "built-in" / "reviewer.agent.yaml",
         {
             "profile-id": "reviewer",
             "name": "Reviewer",
@@ -114,7 +114,7 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
         },
     )
     _write_yaml(
-        shipped_root / "missions" / "software-dev" / "mission.yaml",
+        built_in_root / "missions" / "software-dev" / "mission.yaml",
         {
             "name": "software-dev",
             "description": "Software development mission.",
@@ -125,7 +125,7 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
     # pre-WP02 inline topology (REVIEW_FIRST -> review-tactic; review-tactic
     # -> review-style).
     _write_yaml(
-        shipped_root / "graph.yaml",
+        built_in_root / "graph.yaml",
         {
             "schema_version": "1.0",
             "generated_at": "2026-04-14T00:00:00Z",
@@ -151,7 +151,7 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
         },
     )
 
-    doctrine_service = DoctrineService(shipped_root=shipped_root)
+    doctrine_service = DoctrineService(built_in_root=built_in_root)
     doctrine_catalog = DoctrineCatalog(
         paradigms=frozenset(),
         directives=frozenset({"REVIEW_FIRST", "INTERVIEW_ONLY"}),
@@ -174,7 +174,7 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
     from doctrine.drg.loader import load_graph, merge_layers
     from doctrine.drg.validator import assert_valid
 
-    drg = merge_layers(load_graph(shipped_root / "graph.yaml"), None)
+    drg = merge_layers(load_graph(built_in_root / "graph.yaml"), None)
     assert_valid(drg)
 
     resolution = resolve_governance_for_profile(
@@ -185,12 +185,12 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
         graph=drg,
     )
     # Monkey-patch resolve_doctrine_root so the compiler's DRG lookup
-    # targets the same synthetic shipped_root as the resolver. The
+    # targets the same synthetic built_in_root as the resolver. The
     # compiler imports the function into its own namespace, so we patch
     # the binding there.
     with patch(
         "charter.compiler.resolve_doctrine_root",
-        return_value=shipped_root,
+        return_value=built_in_root,
     ):
         compiled = compile_charter(
             mission="software-dev",
@@ -304,7 +304,7 @@ def test_local_support_declarations_end_to_end(tmp_path: Path) -> None:
         assert ctx2_data["context"]  # non-empty
 
 
-def test_local_support_additive_warning_when_overlapping_shipped_concept(tmp_path: Path) -> None:
+def test_local_support_additive_warning_when_overlapping_built_in_concept(tmp_path: Path) -> None:
     """Local file targeting a shipped concept produces an additive warning diagnostic."""
     output_dir = tmp_path / ".kittify" / "charter"
 
@@ -327,7 +327,7 @@ def test_local_support_additive_warning_when_overlapping_shipped_concept(tmp_pat
     compiled = compile_charter(mission="software-dev", interview=interview)
 
     # Must have exactly one additive warning diagnostic
-    overlap_warnings = [d for d in compiled.diagnostics if "overlaps shipped" in d]
+    overlap_warnings = [d for d in compiled.diagnostics if "overlaps built-in" in d]
     assert overlap_warnings, "Expected an additive-overlap diagnostic when local file targets a shipped directive"
     assert "DIRECTIVE_003" in overlap_warnings[0]
 

@@ -17,7 +17,7 @@ the Charter era) to the current Charter-era 3.x.
 | Area | 2.x behavior | 3.x Charter behavior |
 |---|---|---|
 | Governance file location | `.kittify/charter/charter.md` — same location, but no DRG-backed synthesis | `.kittify/charter/charter.md` — same file, now drives the full synthesis pipeline |
-| Doctrine layer | Repository-native doctrine artifacts in `src/doctrine/` (directives, tactics, styleguides) | Project-local doctrine in `.kittify/doctrine/` promoted by `charter synthesize`; shipped doctrine in `src/doctrine/` is the fallback |
+| Doctrine layer | Repository-native doctrine artifacts in `src/doctrine/` (directives, tactics, styleguides) | Project-local doctrine in `.kittify/doctrine/` promoted by `charter synthesize`; built-in doctrine in `src/doctrine/` is the fallback |
 | Synthesis command | `charter sync` (sync only — charter.md to YAML config) | `charter synthesize` (full DRG-backed doctrine promotion) + `charter bundle validate` |
 | Partial synthesis | Not available | `charter resynthesize --topic <selector>` |
 | Bundle validation | Not available | `charter bundle validate` |
@@ -144,7 +144,7 @@ uv run spec-kitty charter synthesize
 ```
 
 If `.kittify/charter/generated/` is also empty (no agent-generated artifacts), synthesize will
-create only the minimal artifact set. The runtime falls back to shipped doctrine until you run
+create only the minimal artifact set. The runtime falls back to built-in doctrine until you run
 a full synthesis with agent-generated content.
 
 ### 5. compact-context warnings in agent prompts

@@ -43,6 +43,9 @@ from specify_cli.readiness.upgrade_ux import (
 )
 
 
+pytestmark = [pytest.mark.unit]
+
+
 # ---------------------------------------------------------------------------
 # Pure-function unit tests
 # ---------------------------------------------------------------------------

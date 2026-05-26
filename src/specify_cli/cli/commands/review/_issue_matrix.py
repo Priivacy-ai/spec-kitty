@@ -183,7 +183,7 @@ def _normalize_header(raw: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-def validate_issue_matrix(path: Path) -> IssueMatrixValidationResult:
+def validate_issue_matrix(path: Path) -> IssueMatrixValidationResult:  # noqa: C901
     """Validate an issue-matrix.md file against the closed-set schema.
 
     Parameters

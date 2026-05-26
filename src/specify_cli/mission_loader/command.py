@@ -211,7 +211,7 @@ def _resolve_contract_refs(
 
     The on-disk repository is loaded with the same ``project_dir``
     layout the runtime executor uses
-    (``<repo_root>/.kittify/doctrine/mission_step_contracts``); shipped
+    (``<repo_root>/.kittify/doctrine/mission_step_contracts``); built-in
     contracts come from the package data. This keeps loader semantics
     aligned with the runtime so an id that resolves here will resolve
     at runtime too.

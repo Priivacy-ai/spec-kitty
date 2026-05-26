@@ -151,8 +151,6 @@ def _run_bake(
 
 def _read_mission_number(repo: Path, mission_slug: str) -> int | None:
     """Read mission_number from the working-tree meta.json of the mission branch."""
-    # Check out the mission branch to inspect its meta.json.
-    branch = f"kitty/mission-{mission_slug}"
     feature_dir = repo / "kitty-specs" / mission_slug
     meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
     return meta.get("mission_number")

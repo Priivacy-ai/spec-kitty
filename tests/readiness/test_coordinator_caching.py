@@ -23,6 +23,9 @@ from specify_cli.readiness import (
 from specify_cli.readiness import coordinator as coord_module
 
 
+pytestmark = [pytest.mark.unit]
+
+
 def _make_ctx(obj: Any = None) -> typer.Context:
     """Build a minimal typer.Context with a settable ctx.obj."""
     app = typer.Typer()

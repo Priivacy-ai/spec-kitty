@@ -147,14 +147,14 @@ def _validate_source_urns(
 
     This is the EC-2 / FR-008 early-gate check: synthesis fails closed before
     any adapter call or write if the interview answers reference a URN that
-    does not exist in the (shipped-only) DRG snapshot.
+    does not exist in the (built-in-only) DRG snapshot.
 
     Parameters
     ----------
     source_urns:
         URNs from the answer context or derived from interview selections.
     drg_snapshot:
-        The frozen shipped-only DRG snapshot from ``SynthesisRequest.drg_snapshot``.
+        The frozen built-in-only DRG snapshot from ``SynthesisRequest.drg_snapshot``.
     target_label:
         Human-readable label for the target being built (for error messages).
     """
@@ -172,7 +172,7 @@ def _validate_source_urns(
         raise ProjectDRGValidationError(
             errors=tuple(
                 f"Source URN '{u}' referenced by target '{target_label}' "
-                f"does not exist in the shipped DRG snapshot."
+                f"does not exist in the built-in DRG snapshot."
                 for u in dangling
             ),
             merged_graph_summary=(
@@ -204,7 +204,7 @@ def build_targets(
         Output of ``interview_mapping.resolve_sections(interview_snapshot)``.
         Each element is ``(section_label, answer_context)``.
     drg_snapshot:
-        Frozen shipped-only DRG snapshot for source-URN validation (EC-2).
+        Frozen built-in-only DRG snapshot for source-URN validation (EC-2).
 
     Returns
     -------

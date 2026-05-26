@@ -169,7 +169,7 @@ they merge additively:
 DRG fragments from the org layer are **additive only** — they may add new nodes and
 new edges, but they must not remove or modify nodes from a lower layer. `spec-kitty
 doctrine pack validate` enforces this and rejects packs whose DRG references dangle
-or whose extensions try to delete shipped graph state.
+or whose extensions try to delete built-in graph state.
 
 This rule is what keeps the three-layer composition safe: org packs cannot
 silently weaken the built-in graph, and projects cannot accidentally weaken org
@@ -201,7 +201,7 @@ uv run spec-kitty doctor doctrine --json
 
 When you see an artifact tagged `source: org`, it tells you the artifact resolved
 from one of the packs in your `doctrine.org.packs` config — not from the project
-overlay or the shipped defaults. That signal is what lets a team lead audit "is our
+overlay or the built-in defaults. That signal is what lets a team lead audit "is our
 security directive actually live in this project?" without having to grep file trees.
 
 ---
@@ -348,7 +348,7 @@ Yes — and that is the recommended pattern. `doctrine fetch` is the install ste
 treating the snapshot as cache rather than source-controlled artifacts keeps the
 repository small and ensures all consumers pull the same way.
 
-**Does the org layer change how shipped doctrine is loaded?**
+**Does the org layer change how built-in doctrine is loaded?**
 No. The built-in layer is unchanged. The org layer composes on top.
 
 **Where do I see which layer an artifact came from?**

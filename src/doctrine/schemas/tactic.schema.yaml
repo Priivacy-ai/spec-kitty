@@ -92,6 +92,14 @@ properties:
   name:
     type: string
     minLength: 1
+  overrides:
+    type: string
+    pattern: ^[a-z][a-z0-9-]*$
+    description: ID of a built-in tactic this artifact replaces in full.
+  enhances:
+    type: string
+    pattern: ^[a-z][a-z0-9-]*$
+    description: ID of a built-in tactic this artifact augments via field-merge.
   purpose:
     type: string
   steps:

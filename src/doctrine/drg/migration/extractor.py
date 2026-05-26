@@ -1,4 +1,4 @@
-"""Extract inline reference fields from shipped doctrine into DRG nodes + edges.
+"""Extract inline reference fields from built-in doctrine into DRG nodes + edges.
 
 Public API:
     extract_artifact_edges(doctrine_root) -> (nodes, edges)
@@ -86,7 +86,7 @@ def _kind_for_type(ref_type: str) -> NodeKind | None:
 def extract_artifact_edges(  # noqa: C901
     doctrine_root: Path,
 ) -> tuple[list[DRGNode], list[DRGEdge]]:
-    """Walk shipped directives, tactics, paradigms, and procedures; return (nodes, edges).
+    """Walk built-in directives, tactics, paradigms, and procedures; return (nodes, edges).
 
     Every inline reference field is converted to a typed DRG edge.
     Nodes are deduplicated by URN.
@@ -376,11 +376,11 @@ def extract_action_edges(
 # ---------------------------------------------------------------------------
 
 
-def _discover_shipped_artifact_nodes(
+def _discover_built_in_artifact_nodes(
     doctrine_root: Path,
     nodes_by_urn: dict[str, DRGNode],
 ) -> None:
-    """Scan shipped directories for artifacts not yet tracked as nodes.
+    """Scan built-in directories for artifacts not yet tracked as nodes.
 
     This catches styleguides, toolguides, procedures, and agent profiles that
     are referenced in edges but were not walked as part of the primary
@@ -392,10 +392,10 @@ def _discover_shipped_artifact_nodes(
         ("procedures/built-in", "procedure", NodeKind.PROCEDURE),
     ]
     for subdir, kind, node_kind in scan_dirs:
-        shipped_dir = doctrine_root / subdir
-        if not shipped_dir.is_dir():
+        built_in_dir = doctrine_root / subdir
+        if not built_in_dir.is_dir():
             continue
-        for path in sorted(shipped_dir.glob(f"*.{kind}.yaml")):
+        for path in sorted(built_in_dir.glob(f"*.{kind}.yaml")):
             data = _load_yaml(path)
             if data is None:
                 continue
@@ -450,8 +450,8 @@ def generate_graph(
     for node in artifact_nodes + action_nodes:
         _ensure_node(nodes_by_urn, node.urn, node.kind, node.label)
 
-    # Step 4: Discover shipped artifacts not yet tracked
-    _discover_shipped_artifact_nodes(doctrine_root, nodes_by_urn)
+    # Step 4: Discover built-in artifacts not yet tracked
+    _discover_built_in_artifact_nodes(doctrine_root, nodes_by_urn)
 
     # Step 5: Merge all edges
     all_edges = artifact_edges + action_edges

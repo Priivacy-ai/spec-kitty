@@ -10,13 +10,13 @@ For each step in the mission, the walker:
 Required-scope map (inline):
     Keys are ``(mission_key, action_urn)`` pairs.
     Values are frozenset[str] of the *directly scoped* artifact URNs (i.e. the
-    direct ``scope`` edges from the action node in the shipped graph).  The
+    direct ``scope`` edges from the action node in the built-in graph).  The
     resolver produces a strictly larger set via transitive ``requires`` /
     ``suggests`` traversal; those extras are tolerated as ``known_irrelevant``.
 
 Overlay loading:
     The walker loads ``.kittify/doctrine/overlays/calibration-<mission>.yaml``
-    (if present) alongside the shipped ``src/doctrine/graph.yaml``.  Overlay
+    (if present) alongside the built-in ``src/doctrine/graph.yaml``.  Overlay
     ``add_edge`` and ``remove_edge`` mutations are applied before resolution.
 """
 
@@ -86,7 +86,7 @@ class CalibrationFinding:
 #
 # Keys: (mission_key, action_urn)
 # Values: frozenset of URNs that the step *directly requires*
-#         (matches the direct ``scope`` edges in the shipped graph, plus any
+#         (matches the direct ``scope`` edges in the built-in graph, plus any
 #          URNs the step semantically needs that may be missing from those edges).
 #
 # Rationale: determined by inspection of each action's semantic intent per R-005.
@@ -416,16 +416,16 @@ def _apply_remove_edges(graph: DRGGraph, repo_root: Path, mission_key: str) -> D
 # ---------------------------------------------------------------------------
 
 
-def _shipped_graph_path(repo_root: Path) -> Path:
-    """Return the path to the shipped ``src/doctrine/graph.yaml``."""
+def _built_in_graph_path(repo_root: Path) -> Path:
+    """Return the path to the built-in ``src/doctrine/graph.yaml``."""
     return repo_root / "src" / "doctrine" / "graph.yaml"
 
 
 def _build_graph(repo_root: Path, mission_key: str) -> DRGGraph:
-    """Load shipped graph, apply overlay (add + remove), return merged graph."""
-    shipped = load_graph(_shipped_graph_path(repo_root))
+    """Load built-in graph, apply overlay (add + remove), return merged graph."""
+    built_in = load_graph(_built_in_graph_path(repo_root))
     overlay = _load_overlay_graph(repo_root, mission_key)
-    merged = merge_layers(shipped, overlay)
+    merged = merge_layers(built_in, overlay)
     merged = _apply_remove_edges(merged, repo_root, mission_key)
     return merged
 
@@ -477,7 +477,7 @@ def walk_mission(
 
     Raises:
         KeyError: If *mission_key* is not in the built-in step registry.
-        ``doctrine.drg.DRGLoadError``: If the shipped graph cannot be loaded.
+        ``doctrine.drg.DRGLoadError``: If the built-in graph cannot be loaded.
     """
     steps = _MISSION_STEPS[mission_key]
     graph = _build_graph(repo_root, mission_key)

@@ -33,7 +33,7 @@ Invoke the command with a profile name:
 
 The agent loads its profile — role, doctrine, specialization context, and initialization declaration — and introduces itself. From that point on, you are in a live advisory session.
 
-**Available profiles** (shipped): `architect`, `designer`, `implementer`, `planner`, `researcher`, `reviewer`, `curator`, `manager`
+**Available profiles** (built-in): `architect`, `designer`, `implementer`, `planner`, `researcher`, `reviewer`, `curator`, `manager`
 
 ---
 

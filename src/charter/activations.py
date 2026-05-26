@@ -20,7 +20,7 @@ MUST expose the byte-identical ``ALLOWED_ACTIONS`` and
 ``REGISTERED_TRIGGERS`` re-exports so runtime callers (resolvers,
 prompt builders, validators) never copy/paste a divergent literal.
 
-WP01 shipped a *local* definition of the vocabulary (the runtime
+WP01 introduced a *local* definition of the vocabulary (the runtime
 contract is byte-identical equality, not re-export through a particular
 import path).  WP05 landed ``_ALLOWED_ACTIONS`` /
 ``_REGISTERED_TRIGGERS`` in ``test_trigger_registry_coverage.py``

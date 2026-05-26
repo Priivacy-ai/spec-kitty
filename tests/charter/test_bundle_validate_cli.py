@@ -135,6 +135,7 @@ def _add_synthesis_manifest(
                 "content_hash": stored_hash,
             }
         ],
+        "built_in_only": False,
     }
     real_manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()
     manifest_hash = "e" * 64 if corrupt_manifest_hash else real_manifest_hash

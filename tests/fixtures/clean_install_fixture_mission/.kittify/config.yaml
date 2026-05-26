@@ -10,3 +10,7 @@ charter:
   pointers: []
 merge:
   strategy: squash
+# Clean-install verification measures wheel/runtime cutover latency, not
+# charter freshness enforcement. Use durable project config, not env bypass.
+preflight:
+  enabled: false

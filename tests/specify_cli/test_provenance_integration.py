@@ -60,9 +60,9 @@ class TestProvenanceServiceIntegration:
     def test_org_overrides_builtin_provenance_resolves_to_org(self, tmp_path: Path) -> None:
         """An org pack that ships the same directive ID as built-in surfaces ``source=org``."""
         # Built-in (shipped) layer
-        shipped_root = tmp_path / "built-in"
+        built_in_root = tmp_path / "built-in"
         _write_yaml(
-            shipped_root / "directives" / "built-in" / "DIRECTIVE_001.directive.yaml",
+            built_in_root / "directives" / "built-in" / "DIRECTIVE_001.directive.yaml",
             _directive("DIRECTIVE_001", "Built-in Title"),
         )
 
@@ -79,7 +79,7 @@ class TestProvenanceServiceIntegration:
 
         from doctrine.service import DoctrineService
 
-        service = DoctrineService(shipped_root=shipped_root, org_roots=[org_root])
+        service = DoctrineService(built_in_root=built_in_root, org_roots=[org_root])
 
         assert service.directives.get_provenance("DIRECTIVE_001") == "org"
         assert service.directives.get_provenance("ORG-001") == "org"
@@ -164,9 +164,9 @@ class TestLintOrgOverridesAdvisory:
     def test_org_overrides_checker_emits_advisory(self, tmp_path: Path, monkeypatch) -> None:
         """Patch ``DoctrineService`` factories to point at controllable directories."""
         # Build the shipped + org snapshots used by both services.
-        shipped_root = tmp_path / "built-in"
+        built_in_root = tmp_path / "built-in"
         _write_yaml(
-            shipped_root / "directives" / "built-in" / "DIRECTIVE_001.directive.yaml",
+            built_in_root / "directives" / "built-in" / "DIRECTIVE_001.directive.yaml",
             _directive("DIRECTIVE_001", "Built-in Title"),
         )
         org_root = tmp_path / "org"
@@ -188,7 +188,7 @@ class TestLintOrgOverridesAdvisory:
         from specify_cli.charter_lint.checks import org_layer
 
         def _fake_resolve_doctrine_root() -> Path:
-            return shipped_root
+            return built_in_root
 
         def _fake_resolve_project_root(_root: Path) -> Path | None:
             return None

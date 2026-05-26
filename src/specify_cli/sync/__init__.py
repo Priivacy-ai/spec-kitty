@@ -238,7 +238,8 @@ def _lifecycle_saas_fanout_handler(**kwargs):  # type: ignore[no-untyped-def]
     clock = LamportClock.load()
     event_id = _generate_event_id()
     aggregate_id = envelope.get("aggregate_id") or payload.get("mission_slug") or event_id
-    event = {  # canonical-producer-exempt: #1198 — lifecycle-to-SaaS wire envelope; payload itself is canonical-validated above via _validate_lifecycle_payload (strict for known types)
+    # canonical-producer-exempt: #1198 -- lifecycle-to-SaaS wire envelope.
+    event = {
         "event_id": event_id,
         "event_type": event_type,
         "aggregate_id": str(aggregate_id),

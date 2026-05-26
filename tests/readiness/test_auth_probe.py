@@ -17,6 +17,9 @@ from specify_cli.readiness.auth import probe_auth_status
 from specify_cli.readiness.coordinator import AuthStatus
 
 
+pytestmark = [pytest.mark.unit]
+
+
 class _FakeTokenManager:
     def __init__(self, authenticated: bool, raise_on_authenticated: bool = False) -> None:
         self._authenticated = authenticated

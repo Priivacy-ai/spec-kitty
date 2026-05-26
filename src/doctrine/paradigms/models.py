@@ -6,7 +6,9 @@ Cross-artifact relationships (paradigm → tactic, paradigm → directive) live 
 ``tactic_refs`` / ``paradigm_refs`` fields have been removed from this model.
 """
 
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Self
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from doctrine.shared.models import Contradiction
 
@@ -24,5 +26,21 @@ class Paradigm(BaseModel):
     id: str = Field(pattern=r"^[a-z][a-z0-9-]*$")
     name: str
     summary: str
+    overrides: str | None = Field(
+        default=None,
+        description="ID of a built-in paradigm this artifact replaces in full.",
+    )
+    enhances: str | None = Field(
+        default=None,
+        description="ID of a built-in paradigm this artifact augments via field-merge.",
+    )
     directive_refs: list[str] = Field(default_factory=list)
     opposed_by: list[Contradiction] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _augmentation_intent_is_exclusive(self) -> Self:
+        if self.overrides is not None and self.enhances is not None:
+            raise ValueError(
+                f"overrides and enhances are mutually exclusive on paradigm {self.id}"
+            )
+        return self

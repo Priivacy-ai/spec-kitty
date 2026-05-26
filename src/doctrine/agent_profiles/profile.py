@@ -10,7 +10,7 @@ and directive adherence.
 from __future__ import annotations
 
 import warnings
-from typing import Annotated, Any, ClassVar
+from typing import Annotated, Any, ClassVar, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from pydantic.functional_validators import BeforeValidator
@@ -220,6 +220,14 @@ class AgentProfile(BaseModel):
     avatar_image: str | None = Field(default=None, alias="avatar-image")
     capabilities: list[str] = Field(default_factory=list)
     specializes_from: str | None = Field(default=None, alias="specializes-from")
+    overrides: str | None = Field(
+        default=None,
+        description="ID of a built-in agent profile this artifact replaces in full.",
+    )
+    enhances: str | None = Field(
+        default=None,
+        description="ID of a built-in agent profile this artifact augments via field-merge.",
+    )
     routing_priority: int = Field(default=50, ge=0, le=100, alias="routing-priority")
     max_concurrent_tasks: int = Field(default=5, gt=0, alias="max-concurrent-tasks")
 
@@ -290,6 +298,15 @@ class AgentProfile(BaseModel):
         if v <= 0:
             raise ValueError("max_concurrent_tasks must be greater than 0")
         return v
+
+    @model_validator(mode="after")
+    def _augmentation_intent_is_exclusive(self) -> Self:
+        """Reject pack artifacts that set both ``overrides`` and ``enhances``."""
+        if self.overrides is not None and self.enhances is not None:
+            raise ValueError(
+                f"overrides and enhances are mutually exclusive on agent profile {self.profile_id}"
+            )
+        return self
 
 
 # Task Context (input for matching)

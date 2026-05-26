@@ -106,6 +106,10 @@ class TestBackportReadiness:
         try:
             # Force reimport of the status module
             saved_target = sys.modules.pop(module_name) if module_name in sys.modules else None
+            parent_name, _, child_name = module_name.rpartition(".")
+            parent_module = sys.modules.get(parent_name) if parent_name else None
+            missing = object()
+            saved_parent_attr = getattr(parent_module, child_name, missing) if parent_module is not None else missing
 
             try:
                 mod = importlib.import_module(module_name)
@@ -113,6 +117,14 @@ class TestBackportReadiness:
             finally:
                 if saved_target is not None:
                     sys.modules[module_name] = saved_target
+                elif module_name in sys.modules:
+                    del sys.modules[module_name]
+                if parent_module is not None:
+                    if saved_parent_attr is missing:
+                        if hasattr(parent_module, child_name):
+                            delattr(parent_module, child_name)
+                    else:
+                        setattr(parent_module, child_name, saved_parent_attr)
         finally:
             # Restore sync modules
             if saved_sync is not None:

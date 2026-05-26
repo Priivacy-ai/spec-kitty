@@ -97,9 +97,7 @@ def _module_has_pytestmark(tree: ast.Module) -> bool:
                 return len(value.elts) > 0
             # Singleton form (e.g. `pytestmark = pytest.mark.foo`).
             # Treat any non-None, non-empty-container expression as valid.
-            if isinstance(value, ast.Constant) and value.value is None:
-                return False
-            return True
+            return not (isinstance(value, ast.Constant) and value.value is None)
     return False
 
 

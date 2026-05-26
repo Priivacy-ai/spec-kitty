@@ -1,0 +1,241 @@
+{
+  "version": 1,
+  "mission_slug": "test-stabilization-and-debt-pass-01KSF9HJ",
+  "mission_id": "01KSF9HJBFKRBC617JVHKZXNE2",
+  "mission_branch": "kitty/mission-test-stabilization-and-debt-pass-01KSF9HJ",
+  "target_branch": "kitty/mission-test-stabilization-and-debt-pass-01KSF9HJ",
+  "lanes": [
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/doctrine/base.py",
+        "tests/doctrine/test_doctrine_layer_collision_warnings.py",
+        "tests/doctrine/test_doctrine_layered_resolution.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/tasks_finalize.py",
+        "src/specify_cli/tasks/issue_matrix.py",
+        "tests/specify_cli/tasks/test_issue_matrix_scaffold.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP10"
+      ],
+      "write_scope": [
+        ".kittify/doctrine/skills/spec-kitty-bulk-edit-classification/SKILL.md",
+        "docs/reference/bulk-edit-gate.md",
+        "src/specify_cli/cli/commands/tasks_move.py",
+        "src/specify_cli/retrospect/generator.py",
+        "src/specify_cli/tasks/metadata.py",
+        "tests/specify_cli/retrospect/test_event_log_mining.py",
+        "tests/specify_cli/tasks/test_tracker_refs_field.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP11"
+      ],
+      "write_scope": [
+        "tests/doctrine/test_agent_profile_augmentation_fields.py",
+        "tests/doctrine/test_augmentation_fields.py",
+        "tests/doctrine/test_paradigm_augmentation_fields.py",
+        "tests/doctrine/test_procedure_augmentation_fields.py",
+        "tests/doctrine/test_styleguide_augmentation_fields.py",
+        "tests/doctrine/test_tactic_augmentation_fields.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-j",
+      "wp_ids": [
+        "WP12"
+      ],
+      "write_scope": [
+        "docs/reference/finalize-tasks-internals.md",
+        "tests/specify_cli/cli/commands/test_finalize_tasks_explicit_empty_owned_files.py",
+        "tests/specify_cli/lanes/test_compute_lane_depths_cycle_safety.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/dashboard/scanner.py",
+        "src/specify_cli/tasks/move_task.py",
+        "tests/tasks/test_move_task_git_validation_unit.py",
+        "tests/test_dashboard/test_scanner.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "dashboard",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-planning"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/charter.py",
+        "src/specify_cli/cli/commands/charter/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "src/specify_cli/charter_freshness/computer.py",
+        "tests/specify_cli/charter_freshness/test_computer.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-d"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/01KSF9HJ-closeout/triage-closeout.md",
+        "docs/01KSF9HJ-triage/triage.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/spec_kitty_events/**",
+        "tests/sync/test_events.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-planning"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "CHANGELOG.md",
+        "src/specify_cli/charter/__init__.py",
+        "src/specify_cli/charter_freshness/__init__.py",
+        "src/specify_cli/charter_lint/__init__.py",
+        "src/specify_cli/charter_preflight/__init__.py",
+        "src/specify_cli/charter_runtime/**",
+        "tests/architectural/test_charter_runtime_shim_paths.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-e"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-05-25T14:30:18.631908+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP01",
+    "WP04"
+  ]
+}

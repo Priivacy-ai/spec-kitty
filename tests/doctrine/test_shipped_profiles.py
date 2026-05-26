@@ -20,7 +20,7 @@ from doctrine.agent_profiles.validation import validate_agent_profile_yaml
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
-SHIPPED_DIR = Path(__file__).parent.parent.parent / "src" / "doctrine" / "agent_profiles" / "built-in"
+BUILT_IN_DIR = Path(__file__).parent.parent.parent / "src" / "doctrine" / "agent_profiles" / "built-in"
 
 EXPECTED_PROFILE_IDS = {
     "architect-alphonso",
@@ -49,7 +49,7 @@ _AGENT_PROFILE_IDS = EXPECTED_PROFILE_IDS - _SENTINEL_PROFILES
 @pytest.fixture(scope="module")
 def repo() -> AgentProfileRepository:
     """Load repository from the actual shipped profiles directory."""
-    return AgentProfileRepository(shipped_dir=SHIPPED_DIR, project_dir=None)
+    return AgentProfileRepository(built_in_dir=BUILT_IN_DIR, project_dir=None)
 
 
 @pytest.fixture(scope="module")
@@ -63,8 +63,8 @@ class TestShippedProfilesLoad:
 
     def test_shipped_dir_exists(self):
         """Shipped profiles directory exists."""
-        assert SHIPPED_DIR.exists(), f"Shipped directory not found: {SHIPPED_DIR}"
-        assert SHIPPED_DIR.is_dir()
+        assert BUILT_IN_DIR.exists(), f"Shipped directory not found: {BUILT_IN_DIR}"
+        assert BUILT_IN_DIR.is_dir()
 
     def test_all_profiles_load(self, all_profiles: list[AgentProfile]):
         """All expected profiles are loaded."""
@@ -139,7 +139,7 @@ class TestShippedProfilesRoles:
         from ruamel.yaml import YAML as _YAML
 
         yaml = _YAML(typ="safe")
-        yaml_file = SHIPPED_DIR / f"{profile_id}.agent.yaml"
+        yaml_file = BUILT_IN_DIR / f"{profile_id}.agent.yaml"
         with yaml_file.open() as f:
             data = yaml.load(f)
 
@@ -244,7 +244,7 @@ class TestShippedProfilesSchemaValidation:
     @pytest.mark.parametrize("profile_id", sorted(EXPECTED_PROFILE_IDS))
     def test_profile_passes_schema_validation(self, profile_id: str):
         """Each shipped profile passes the agent-profile JSON schema validation."""
-        yaml_file = SHIPPED_DIR / f"{profile_id}.agent.yaml"
+        yaml_file = BUILT_IN_DIR / f"{profile_id}.agent.yaml"
         assert yaml_file.exists(), f"Profile file not found: {yaml_file}"
 
         yaml = YAML(typ="safe")
@@ -335,7 +335,7 @@ class TestShippedProfilesPerformance:
         import time
 
         start = time.perf_counter()
-        repo = AgentProfileRepository(shipped_dir=SHIPPED_DIR, project_dir=None)
+        repo = AgentProfileRepository(built_in_dir=BUILT_IN_DIR, project_dir=None)
         profiles = repo.list_all()
         elapsed = time.perf_counter() - start
 

@@ -45,7 +45,7 @@ class AdapterOutput:
     """
 
     body: Mapping[str, Any]
-    """Artifact body matching the shipped-layer Pydantic schema for the target kind."""
+    """Artifact body matching the built-in-layer Pydantic schema for the target kind."""
 
     generated_at: datetime
     """When the adapter produced this output. Must be timezone-aware UTC."""

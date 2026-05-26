@@ -18,7 +18,7 @@ Confirm your governance is ready before running a mission:
 1. Charter bundle is current: `uv run spec-kitty charter status`
 2. Bundle validates: `uv run spec-kitty charter bundle validate`
 3. Doctrine is synthesized: check that `.kittify/doctrine/` is present. Fresh projects may only
-   have `PROVENANCE.md`; in that state the runtime falls back to shipped doctrine until
+   have `PROVENANCE.md`; in that state the runtime falls back to built-in doctrine until
    agent-generated artifacts are promoted.
 
 If the bundle is stale, run the synthesis flow first. See

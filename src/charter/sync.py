@@ -186,7 +186,7 @@ def sync(
         # the extractor can gate kebab-case slug citations against real
         # tactic IDs (avoids false positives — see contract
         # ``charter-sync-cross-link.md`` §2). Doctrine construction is
-        # best-effort: if the shipped catalog is unavailable the registry
+        # best-effort: if the built-in catalog is unavailable the registry
         # silently returns False, and only DIRECTIVE_NNN citations are
         # picked up (contract §3, "DoctrineService cannot be constructed").
         tactic_registry = _build_tactic_registry(charter_path.parent.parent.parent)
@@ -257,14 +257,14 @@ def _build_tactic_registry(repo_root_candidate: Path) -> Callable[[str], bool]:
     consults to decide whether a kebab-case slug from a directive body is
     a real tactic ID (per contract ``charter-sync-cross-link.md`` §2,
     "Tactic ID detection"). When the doctrine service cannot be built —
-    for example because the shipped catalog is missing on disk — the
+    for example because the built-in catalog is missing on disk — the
     fallback is a callable that always returns False; the contract §3
     explicitly accepts this graceful degradation so that ``charter sync``
     does NOT error in that situation.
     """
     try:
         # Reuse the same default-construction helper that the compiler
-        # uses so the shipped + project overlay match the rest of the
+        # uses so the built-in + project overlay match the rest of the
         # charter pipeline.
         from charter.compiler import _default_doctrine_service
 

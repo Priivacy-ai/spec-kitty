@@ -11,7 +11,7 @@ Fixture layout
 where <short_hash> is the first 12 hex chars of the SHA-256 digest computed
 by request.compute_inputs_hash() over the normalized SynthesisRequest.
 
-The .<kind>.yaml suffix matches the shipped repository glob so fixtures
+The .<kind>.yaml suffix matches the built-in repository glob so fixtures
 round-trip through the same loaders WP02-WP05 use.
 
 On generate(request):

@@ -18,6 +18,10 @@ from pathlib import Path
 
 import pytest
 
+
+pytestmark = [pytest.mark.architectural]
+
+
 # Load the lint module by file path. The script lives in scripts/ which is
 # not a Python package on PYTHONPATH; importlib lets us treat it as a module
 # without polluting sys.path semantics.

@@ -31,13 +31,14 @@ Design notes
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
 import sys
 import tempfile
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
@@ -198,10 +199,8 @@ def write_owner_record(record: DaemonOwnerRecord) -> Path:
         os.replace(tmp_path, target)
     except Exception:
         # Best-effort cleanup; never leak temp siblings into the daemon dir.
-        try:
+        with contextlib.suppress(FileNotFoundError):
             tmp_path.unlink()
-        except FileNotFoundError:
-            pass
         raise
     return target
 
@@ -475,7 +474,7 @@ def build_record_for_current_process(
     plus the supplied PID/port/token and the current UTC timestamp.
     """
     identity = compute_foreground_identity()
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+    now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S+00:00")
     return DaemonOwnerRecord(
         pid=pid,
         port=port,

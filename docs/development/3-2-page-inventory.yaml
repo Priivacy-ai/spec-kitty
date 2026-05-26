@@ -2164,6 +2164,76 @@
   current_target: true
   citation_refs: []
   notes: Doctrine explanation; provisional current — confirm in WP08 IA review.
+- path: docs/engineering_notes/architectural-review/2026-05-25-deep-dive-architectural-review.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Post-#122 deep-dive architectural review (LD-1/LD-3/LD-5/MS-1 findings).
+- path: docs/engineering_notes/architectural-review/README.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Index for the architectural-review notes directory.
+- path: docs/engineering_notes/finding/2026-05-24-mission-01KSAF14-orchestration-findings.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Mission #122 orchestration findings (process misalignments + remediation).
+- path: docs/engineering_notes/finding/README.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Index for engineering finding notes (process inaccuracies + idiosyncratic mismatches).
+- path: docs/engineering_notes/reflections/2026-05-24-drg-profile-routing-missed-first-pass.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Reflection on DRG profile routing missed on the first orchestration pass.
+- path: docs/engineering_notes/reflections/README.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Index for engineering reflection notes.
+- path: docs/engineering_notes/triage/2026-05-25-01KSF9HJ-dir013-sub-issues.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: DIR-013 sub-issues table for mission test-stabilization-and-debt-pass-01KSF9HJ (#1301-#1310).
+- path: docs/engineering_notes/triage/2026-05-25-01KSF9HJ-test-failure-triage.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Root-cause clustering of the 249-failure pytest baseline for #1298.
+- path: docs/engineering_notes/triage/2026-05-26-01KSF9HJ-post-mission-summary.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Post-mission pytest delta + WP landing summary + acceptance criteria roll-up.
+- path: docs/engineering_notes/triage/README.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Index for mission-scoped triage artifacts.
 - path: docs/explanation/ai-agent-architecture.md
   tag: current
   divio_type: explanation
@@ -2675,6 +2745,13 @@
   current_target: true
   citation_refs: []
   notes: CLI reference; canonical surface for WP05 CLI-reference audit.
+- path: docs/reference/bulk-edit-gate.md
+  tag: current
+  divio_type: reference
+  owning_workstream: none
+  current_target: true
+  citation_refs: []
+  notes: 4-action occurrence_map.yaml vocabulary for bulk-edit gate (added by mission #122 / WP10).
 - path: docs/reference/charter-commands.md
   tag: current
   divio_type: reference
@@ -2710,6 +2787,13 @@
   current_target: true
   citation_refs: []
   notes: Reference; provisional current — confirm owning workstream in WP08 IA review.
+- path: docs/reference/finalize-tasks-internals.md
+  tag: current
+  divio_type: reference
+  owning_workstream: none
+  current_target: true
+  citation_refs: []
+  notes: Explicit empty owned_files semantics + lane-depth cycle safety (added by mission 01KSF9HJ / WP12).
 - path: docs/reference/file-structure.md
   tag: current
   divio_type: reference

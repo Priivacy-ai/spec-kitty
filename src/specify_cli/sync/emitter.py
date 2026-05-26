@@ -1691,7 +1691,8 @@ class EventEmitter:
             event_id = _generate_ulid()
 
             # Build event dict with identity fields.
-            event: dict[str, Any] = {  # canonical-producer-exempt: #1248 — central CLI wire-envelope assembly; payload itself is already canonical via per-producer pydantic models (Phase 2 / #1198 / #1200)
+            # canonical-producer-exempt: #1248 -- central CLI wire-envelope assembly.
+            event: dict[str, Any] = {
                 "event_id": event_id,
                 "event_type": event_type,
                 "aggregate_id": aggregate_id,
@@ -1779,7 +1780,8 @@ class EventEmitter:
             # spec-kitty-events 4.0.0 added build_id, project_uuid, correlation_id
             # as required fields; fall back to safe defaults for events emitted
             # under 3.x schema that lack these fields.
-            model_data = {  # canonical-producer-exempt: #1248 — kwargs dict immediately consumed by ``EventModel(**model_data)`` on next line; this IS the canonical-model construction
+            # canonical-producer-exempt: #1248 -- kwargs fed to canonical EventModel.
+            model_data = {
                 "event_id": event["event_id"],
                 "event_type": event["event_type"],
                 "aggregate_id": event["aggregate_id"],

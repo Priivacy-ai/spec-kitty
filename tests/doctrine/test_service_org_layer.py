@@ -78,9 +78,9 @@ class TestNoOrgRoot:
     def test_repositories_load_without_error_when_no_org_root(self, tmp_path: Path) -> None:
         """Service with no org roots and empty shipped dir loads cleanly."""
         # Use a tmp shipped root so we don't pick up the real shipped directives
-        empty_shipped = tmp_path / "empty-shipped"
-        empty_shipped.mkdir()
-        service = DoctrineService(shipped_root=empty_shipped, org_roots=[])
+        empty_built_in = tmp_path / "empty-shipped"
+        empty_built_in.mkdir()
+        service = DoctrineService(built_in_root=empty_built_in, org_roots=[])
         # Accessing the repository must not raise
         repo = service.directives
         assert repo is not None
@@ -136,15 +136,15 @@ class TestOrgRootMissingOnDisk:
 
     def test_repository_loads_without_error_for_nonexistent_org_dir(self, tmp_path: Path) -> None:
         """DirectiveRepository handles a non-existent org_dir gracefully."""
-        shipped_root = tmp_path / "shipped-root"
+        built_in_root = tmp_path / "shipped-root"
         _write_yaml(
-            shipped_root / "directives" / "built-in" / "001.directive.yaml",
+            built_in_root / "directives" / "built-in" / "001.directive.yaml",
             _directive_yaml("DIRECTIVE_001"),
         )
 
         nonexistent_org = tmp_path / "no-such-org"
         service = DoctrineService(
-            shipped_root=shipped_root,
+            built_in_root=built_in_root,
             org_roots=[nonexistent_org],
         )
 
@@ -154,14 +154,14 @@ class TestOrgRootMissingOnDisk:
 
     def test_shipped_artifacts_accessible_when_org_dir_missing(self, tmp_path: Path) -> None:
         """Shipped items load normally even when org dir does not exist on disk."""
-        shipped_root = tmp_path / "shipped-root"
+        built_in_root = tmp_path / "shipped-root"
         _write_yaml(
-            shipped_root / "directives" / "built-in" / "001.directive.yaml",
+            built_in_root / "directives" / "built-in" / "001.directive.yaml",
             _directive_yaml("DIRECTIVE_001", title="Shipped Only"),
         )
 
         service = DoctrineService(
-            shipped_root=shipped_root,
+            built_in_root=built_in_root,
             org_roots=[tmp_path / "nonexistent"],
         )
 
@@ -173,12 +173,12 @@ class TestOrgRootArtifactsResolved:
     """When the org dir contains valid artifacts they are merged above shipped."""
 
     def test_org_directive_visible_via_service(self, tmp_path: Path) -> None:
-        shipped_root = tmp_path / "shipped-root"
+        built_in_root = tmp_path / "shipped-root"
         org_root = tmp_path / "org-root"
 
         # Shipped baseline
         _write_yaml(
-            shipped_root / "directives" / "built-in" / "001.directive.yaml",
+            built_in_root / "directives" / "built-in" / "001.directive.yaml",
             _directive_yaml("DIRECTIVE_001", title="Shipped Title"),
         )
         # Org adds a new directive
@@ -188,7 +188,7 @@ class TestOrgRootArtifactsResolved:
         )
 
         service = DoctrineService(
-            shipped_root=shipped_root,
+            built_in_root=built_in_root,
             org_roots=[org_root],
         )
 
@@ -197,12 +197,12 @@ class TestOrgRootArtifactsResolved:
         assert org_directive.title == "Org Title"
         assert service.directives.get_provenance("DIRECTIVE_ORG") == "org"
 
-    def test_org_overrides_shipped_directive(self, tmp_path: Path) -> None:
-        shipped_root = tmp_path / "shipped-root"
+    def test_org_overrides_built_in_directive(self, tmp_path: Path) -> None:
+        built_in_root = tmp_path / "shipped-root"
         org_root = tmp_path / "org-root"
 
         _write_yaml(
-            shipped_root / "directives" / "built-in" / "001.directive.yaml",
+            built_in_root / "directives" / "built-in" / "001.directive.yaml",
             _directive_yaml("DIRECTIVE_001", title="Shipped Title"),
         )
         _write_yaml(
@@ -211,7 +211,7 @@ class TestOrgRootArtifactsResolved:
         )
 
         service = DoctrineService(
-            shipped_root=shipped_root,
+            built_in_root=built_in_root,
             org_roots=[org_root],
         )
 
@@ -221,12 +221,12 @@ class TestOrgRootArtifactsResolved:
         assert service.directives.get_provenance("DIRECTIVE_001") == "org"
 
     def test_project_overrides_org(self, tmp_path: Path) -> None:
-        shipped_root = tmp_path / "shipped-root"
+        built_in_root = tmp_path / "shipped-root"
         org_root = tmp_path / "org-root"
         project_root = tmp_path / "project-root"
 
         _write_yaml(
-            shipped_root / "directives" / "built-in" / "001.directive.yaml",
+            built_in_root / "directives" / "built-in" / "001.directive.yaml",
             _directive_yaml("DIRECTIVE_001", title="Shipped"),
         )
         _write_yaml(
@@ -239,7 +239,7 @@ class TestOrgRootArtifactsResolved:
         )
 
         service = DoctrineService(
-            shipped_root=shipped_root,
+            built_in_root=built_in_root,
             org_roots=[org_root],
             project_root=project_root,
         )
@@ -251,11 +251,11 @@ class TestOrgRootArtifactsResolved:
 
     def test_cache_is_invalidated_between_service_instances(self, tmp_path: Path) -> None:
         """Two separate service instances with the same paths produce independent caches."""
-        shipped_root = tmp_path / "shipped-root"
+        built_in_root = tmp_path / "shipped-root"
         org_root = tmp_path / "org-root"
 
         _write_yaml(
-            shipped_root / "directives" / "built-in" / "001.directive.yaml",
+            built_in_root / "directives" / "built-in" / "001.directive.yaml",
             _directive_yaml("DIRECTIVE_001"),
         )
         _write_yaml(
@@ -263,8 +263,8 @@ class TestOrgRootArtifactsResolved:
             _directive_yaml("DIRECTIVE_ORG"),
         )
 
-        svc_a = DoctrineService(shipped_root=shipped_root, org_roots=[org_root])
-        svc_b = DoctrineService(shipped_root=shipped_root, org_roots=[org_root])
+        svc_a = DoctrineService(built_in_root=built_in_root, org_roots=[org_root])
+        svc_b = DoctrineService(built_in_root=built_in_root, org_roots=[org_root])
 
         assert svc_a.directives is not svc_b.directives
 
@@ -273,11 +273,11 @@ class TestDeterminism:
     """Identical inputs produce identical resolved sets on repeated accesses."""
 
     def test_same_inputs_produce_identical_sets(self, tmp_path: Path) -> None:
-        shipped_root = tmp_path / "shipped-root"
+        built_in_root = tmp_path / "shipped-root"
         org_root = tmp_path / "org-root"
 
         _write_yaml(
-            shipped_root / "directives" / "built-in" / "001.directive.yaml",
+            built_in_root / "directives" / "built-in" / "001.directive.yaml",
             _directive_yaml("DIRECTIVE_001", title="Shipped"),
         )
         _write_yaml(
@@ -285,8 +285,8 @@ class TestDeterminism:
             _directive_yaml("DIRECTIVE_002", title="Org"),
         )
 
-        service_a = DoctrineService(shipped_root=shipped_root, org_roots=[org_root])
-        service_b = DoctrineService(shipped_root=shipped_root, org_roots=[org_root])
+        service_a = DoctrineService(built_in_root=built_in_root, org_roots=[org_root])
+        service_b = DoctrineService(built_in_root=built_in_root, org_roots=[org_root])
 
         ids_a = {d.id for d in service_a.directives.list_all()}
         ids_b = {d.id for d in service_b.directives.list_all()}
@@ -305,14 +305,14 @@ class TestDeterminism:
 
     def test_org_roots_empty_matches_no_org_roots_behavior(self, tmp_path: Path) -> None:
         """org_roots=[] is equivalent to not passing org_roots at all."""
-        shipped_root = tmp_path / "shipped-root"
+        built_in_root = tmp_path / "shipped-root"
         _write_yaml(
-            shipped_root / "directives" / "built-in" / "001.directive.yaml",
+            built_in_root / "directives" / "built-in" / "001.directive.yaml",
             _directive_yaml("DIRECTIVE_001"),
         )
 
-        svc_explicit = DoctrineService(shipped_root=shipped_root, org_roots=[])
-        svc_default = DoctrineService(shipped_root=shipped_root)
+        svc_explicit = DoctrineService(built_in_root=built_in_root, org_roots=[])
+        svc_default = DoctrineService(built_in_root=built_in_root)
 
         ids_explicit = {d.id for d in svc_explicit.directives.list_all()}
         ids_default = {d.id for d in svc_default.directives.list_all()}
@@ -325,12 +325,12 @@ class TestMultiplePackPrecedence:
 
     def test_later_pack_overrides_earlier_for_same_id(self, tmp_path: Path) -> None:
         """When two org packs declare the same directive ID, the later pack wins."""
-        shipped_root = tmp_path / "shipped-root"
+        built_in_root = tmp_path / "shipped-root"
         pack_a = tmp_path / "pack-a"
         pack_b = tmp_path / "pack-b"
 
         _write_yaml(
-            shipped_root / "directives" / "built-in" / "001.directive.yaml",
+            built_in_root / "directives" / "built-in" / "001.directive.yaml",
             _directive_yaml("DIRECTIVE_001", title="Shipped"),
         )
         _write_yaml(
@@ -342,7 +342,7 @@ class TestMultiplePackPrecedence:
             _directive_yaml("DIRECTIVE_001", title="Pack B"),
         )
 
-        service = DoctrineService(shipped_root=shipped_root, org_roots=[pack_a, pack_b])
+        service = DoctrineService(built_in_root=built_in_root, org_roots=[pack_a, pack_b])
 
         directive = service.directives.get("DIRECTIVE_001")
         assert directive is not None
@@ -351,12 +351,12 @@ class TestMultiplePackPrecedence:
 
     def test_distinct_artifacts_from_each_pack_all_visible(self, tmp_path: Path) -> None:
         """Distinct artifacts from each org pack are unioned into the resolved set."""
-        shipped_root = tmp_path / "shipped-root"
+        built_in_root = tmp_path / "shipped-root"
         pack_security = tmp_path / "pack-security"
         pack_compliance = tmp_path / "pack-compliance"
 
         _write_yaml(
-            shipped_root / "directives" / "built-in" / "001.directive.yaml",
+            built_in_root / "directives" / "built-in" / "001.directive.yaml",
             _directive_yaml("DIRECTIVE_001", title="Shipped"),
         )
         _write_yaml(
@@ -369,7 +369,7 @@ class TestMultiplePackPrecedence:
         )
 
         service = DoctrineService(
-            shipped_root=shipped_root,
+            built_in_root=built_in_root,
             org_roots=[pack_security, pack_compliance],
         )
 
@@ -381,13 +381,13 @@ class TestMultiplePackPrecedence:
 
     def test_three_pack_chain_last_wins(self, tmp_path: Path) -> None:
         """With three packs declaring the same ID, the third pack wins (declaration order = precedence)."""
-        shipped_root = tmp_path / "shipped-root"
+        built_in_root = tmp_path / "shipped-root"
         pack1 = tmp_path / "pack1"
         pack2 = tmp_path / "pack2"
         pack3 = tmp_path / "pack3"
 
         _write_yaml(
-            shipped_root / "directives" / "built-in" / "001.directive.yaml",
+            built_in_root / "directives" / "built-in" / "001.directive.yaml",
             _directive_yaml("DIRECTIVE_001", title="Shipped"),
         )
         for pack, label in [(pack1, "First"), (pack2, "Second"), (pack3, "Third")]:
@@ -397,7 +397,7 @@ class TestMultiplePackPrecedence:
             )
 
         service = DoctrineService(
-            shipped_root=shipped_root,
+            built_in_root=built_in_root,
             org_roots=[pack1, pack2, pack3],
         )
 
@@ -407,13 +407,13 @@ class TestMultiplePackPrecedence:
 
     def test_project_layer_still_overrides_all_org_packs(self, tmp_path: Path) -> None:
         """The project layer keeps full-replace precedence over every org pack."""
-        shipped_root = tmp_path / "shipped-root"
+        built_in_root = tmp_path / "shipped-root"
         pack_a = tmp_path / "pack-a"
         pack_b = tmp_path / "pack-b"
         project_root = tmp_path / "project-root"
 
         _write_yaml(
-            shipped_root / "directives" / "built-in" / "001.directive.yaml",
+            built_in_root / "directives" / "built-in" / "001.directive.yaml",
             _directive_yaml("DIRECTIVE_001", title="Shipped"),
         )
         _write_yaml(
@@ -430,7 +430,7 @@ class TestMultiplePackPrecedence:
         )
 
         service = DoctrineService(
-            shipped_root=shipped_root,
+            built_in_root=built_in_root,
             org_roots=[pack_a, pack_b],
             project_root=project_root,
         )
@@ -442,12 +442,12 @@ class TestMultiplePackPrecedence:
 
     def test_missing_pack_on_disk_does_not_break_others(self, tmp_path: Path) -> None:
         """A non-existent pack path is silently skipped; remaining packs still resolve."""
-        shipped_root = tmp_path / "shipped-root"
+        built_in_root = tmp_path / "shipped-root"
         pack_real = tmp_path / "pack-real"
         pack_missing = tmp_path / "no-such-pack"
 
         _write_yaml(
-            shipped_root / "directives" / "built-in" / "001.directive.yaml",
+            built_in_root / "directives" / "built-in" / "001.directive.yaml",
             _directive_yaml("DIRECTIVE_001", title="Shipped"),
         )
         _write_yaml(
@@ -456,7 +456,7 @@ class TestMultiplePackPrecedence:
         )
 
         service = DoctrineService(
-            shipped_root=shipped_root,
+            built_in_root=built_in_root,
             org_roots=[pack_missing, pack_real],
         )
 

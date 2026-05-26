@@ -15,7 +15,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from specify_cli.charter_lint.engine import LintEngine
-from specify_cli.charter_lint.findings import DecayReport
+from specify_cli.charter_lint.findings import DecayReport, GraphState
 
 
 # ---------------------------------------------------------------------------
@@ -100,7 +100,10 @@ class TestLintEngineAllChecks:
 
     def test_all_four_categories_detected(self, tmp_path: Path) -> None:
         drg = _build_four_decay_drg()
-        with patch("specify_cli.charter_lint.engine.load_merged_drg", return_value=drg):
+        with patch(
+            "specify_cli.charter_lint.engine.load_merged_drg",
+            return_value=(drg, GraphState.MERGED),
+        ):
             report = LintEngine(tmp_path).run()
 
         assert len(report.findings) >= 4, (
@@ -115,13 +118,19 @@ class TestLintEngineAllChecks:
 
     def test_duration_within_limit(self, tmp_path: Path) -> None:
         drg = _build_four_decay_drg()
-        with patch("specify_cli.charter_lint.engine.load_merged_drg", return_value=drg):
+        with patch(
+            "specify_cli.charter_lint.engine.load_merged_drg",
+            return_value=(drg, GraphState.MERGED),
+        ):
             report = LintEngine(tmp_path).run()
         assert report.duration_seconds < 5.0
 
     def test_drg_node_count_nonzero(self, tmp_path: Path) -> None:
         drg = _build_four_decay_drg()
-        with patch("specify_cli.charter_lint.engine.load_merged_drg", return_value=drg):
+        with patch(
+            "specify_cli.charter_lint.engine.load_merged_drg",
+            return_value=(drg, GraphState.MERGED),
+        ):
             report = LintEngine(tmp_path).run()
         assert report.drg_node_count > 0
 
@@ -131,7 +140,10 @@ class TestLintReportWritten:
 
     def test_report_json_written(self, tmp_path: Path) -> None:
         drg = _build_four_decay_drg()
-        with patch("specify_cli.charter_lint.engine.load_merged_drg", return_value=drg):
+        with patch(
+            "specify_cli.charter_lint.engine.load_merged_drg",
+            return_value=(drg, GraphState.MERGED),
+        ):
             LintEngine(tmp_path).run()
 
         report_path = tmp_path / ".kittify" / "lint-report.json"
@@ -142,7 +154,10 @@ class TestLintReportWritten:
 
     def test_report_json_written_on_empty_drg(self, tmp_path: Path) -> None:
         """lint-report.json is written even when DRG is missing."""
-        with patch("specify_cli.charter_lint.engine.load_merged_drg", return_value=None):
+        with patch(
+            "specify_cli.charter_lint.engine.load_merged_drg",
+            return_value=(None, GraphState.MISSING),
+        ):
             LintEngine(tmp_path).run()
 
         report_path = tmp_path / ".kittify" / "lint-report.json"
@@ -156,7 +171,10 @@ class TestSingleCheckFilter:
 
     def test_only_orphan_findings_returned(self, tmp_path: Path) -> None:
         drg = _build_four_decay_drg()
-        with patch("specify_cli.charter_lint.engine.load_merged_drg", return_value=drg):
+        with patch(
+            "specify_cli.charter_lint.engine.load_merged_drg",
+            return_value=(drg, GraphState.MERGED),
+        ):
             report = LintEngine(tmp_path).run(checks={"orphans"})
 
         assert all(f.category == "orphan" for f in report.findings), (
@@ -172,7 +190,10 @@ class TestSeverityFilter:
 
     def test_low_medium_findings_excluded(self, tmp_path: Path) -> None:
         drg = _build_four_decay_drg()
-        with patch("specify_cli.charter_lint.engine.load_merged_drg", return_value=drg):
+        with patch(
+            "specify_cli.charter_lint.engine.load_merged_drg",
+            return_value=(drg, GraphState.MERGED),
+        ):
             report = LintEngine(tmp_path).run(min_severity="high")
 
         low_or_medium = [f for f in report.findings if f.severity in {"low", "medium"}]
@@ -185,7 +206,10 @@ class TestMissingDRG:
     """T036-S5+S6: missing DRG returns empty DecayReport without raising."""
 
     def test_missing_drg_returns_empty_report(self, tmp_path: Path) -> None:
-        with patch("specify_cli.charter_lint.engine.load_merged_drg", return_value=None):
+        with patch(
+            "specify_cli.charter_lint.engine.load_merged_drg",
+            return_value=(None, GraphState.MISSING),
+        ):
             report = LintEngine(tmp_path).run()
 
         assert isinstance(report, DecayReport)
@@ -193,10 +217,95 @@ class TestMissingDRG:
         assert report.drg_node_count == 0
 
     def test_missing_drg_does_not_raise(self, tmp_path: Path) -> None:
-        with patch("specify_cli.charter_lint.engine.load_merged_drg", return_value=None):
+        with patch(
+            "specify_cli.charter_lint.engine.load_merged_drg",
+            return_value=(None, GraphState.MISSING),
+        ):
             # Must not raise any exception
             report = LintEngine(tmp_path).run()
         assert report is not None
+
+
+class TestGraphStateTriState:
+    """WP01 / FR-001..FR-004: ``DecayReport.graph_state`` carries the
+    tri-state graph identity and is wired through to the JSON payload.
+
+    These tests pin the contract from
+    ``architecture/3.x/adr/2026-05-24-1-charter-freshness-ux-contract.md``.
+    """
+
+    def test_lint_merged_state_unchanged(self, tmp_path: Path) -> None:
+        """FR-001: when the project DRG resolves, ``graph_state == merged``."""
+        drg = _build_four_decay_drg()
+        with patch(
+            "specify_cli.charter_lint.engine.load_merged_drg",
+            return_value=(drg, GraphState.MERGED),
+        ):
+            report = LintEngine(tmp_path).run()
+        assert report.graph_state is GraphState.MERGED
+
+    def test_lint_built_in_only_returns_built_in_only_state(
+        self, tmp_path: Path
+    ) -> None:
+        """FR-002: when the project DRG is absent but the built-in graph
+        resolves, the engine scans the built-in graph and the report carries
+        ``graph_state == built_in_only``.
+        """
+        drg = _build_four_decay_drg()
+        with patch(
+            "specify_cli.charter_lint.engine.load_merged_drg",
+            return_value=(drg, GraphState.BUILT_IN_ONLY),
+        ):
+            report = LintEngine(tmp_path).run()
+        assert report.graph_state is GraphState.BUILT_IN_ONLY
+        # The checkers ran against the built-in graph, so the manufactured
+        # decay surfaces here too — the engine does NOT short-circuit on
+        # built_in_only.
+        assert len(report.findings) >= 1
+        assert report.drg_node_count > 0
+
+    def test_lint_missing_graph_returns_missing_state(self, tmp_path: Path) -> None:
+        """FR-001: when no graph is loadable, the report is empty and
+        ``graph_state == missing``.
+        """
+        with patch(
+            "specify_cli.charter_lint.engine.load_merged_drg",
+            return_value=(None, GraphState.MISSING),
+        ):
+            report = LintEngine(tmp_path).run()
+        assert report.graph_state is GraphState.MISSING
+        assert report.findings == []
+        assert report.drg_node_count == 0
+
+    def test_lint_json_includes_graph_state(self, tmp_path: Path) -> None:
+        """FR-004: ``report.to_json()`` emits ``graph_state`` at the top level
+        and the value is one of the three contract strings.
+        """
+        drg = _build_four_decay_drg()
+        with patch(
+            "specify_cli.charter_lint.engine.load_merged_drg",
+            return_value=(drg, GraphState.BUILT_IN_ONLY),
+        ):
+            report = LintEngine(tmp_path).run()
+        payload = json.loads(report.to_json())
+        assert "graph_state" in payload, (
+            "FR-004: top-level 'graph_state' key MUST be present"
+        )
+        assert payload["graph_state"] == "built_in_only"
+
+    def test_decay_report_default_graph_state_is_missing(self) -> None:
+        """Dataclass default for ``graph_state`` is :attr:`GraphState.MISSING`."""
+        report = DecayReport()
+        assert report.graph_state is GraphState.MISSING
+        # Round-trip through JSON preserves the contract string.
+        payload = json.loads(report.to_json())
+        assert payload["graph_state"] == "missing"
+
+    def test_filter_by_severity_preserves_graph_state(self) -> None:
+        """``filter_by_severity`` MUST carry ``graph_state`` to the new report."""
+        report = DecayReport(graph_state=GraphState.BUILT_IN_ONLY)
+        filtered = report.filter_by_severity("high")
+        assert filtered.graph_state is GraphState.BUILT_IN_ONLY
 
 
 class TestNoLLMCalls:
@@ -256,7 +365,10 @@ class TestPerformance:
 
     def test_large_drg_completes_in_time(self, tmp_path: Path) -> None:
         drg = self._build_large_drg(500)
-        with patch("specify_cli.charter_lint.engine.load_merged_drg", return_value=drg):
+        with patch(
+            "specify_cli.charter_lint.engine.load_merged_drg",
+            return_value=(drg, GraphState.MERGED),
+        ):
             report = LintEngine(tmp_path).run()
         assert report.duration_seconds < 5.0
         assert report.drg_node_count == 500

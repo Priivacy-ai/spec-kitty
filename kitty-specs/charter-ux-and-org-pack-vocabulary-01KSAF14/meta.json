@@ -1,0 +1,15 @@
+{
+  "change_mode": "bulk_edit",
+  "created_at": "2026-05-23T13:05:12.809002+00:00",
+  "friendly_name": "Charter UX and Org-Pack Vocabulary",
+  "mission_id": "01KSAF14K8FZ56MHYT45EGWHHC",
+  "mission_number": 122,
+  "mission_slug": "charter-ux-and-org-pack-vocabulary-01KSAF14",
+  "mission_type": "software-dev",
+  "purpose_context": "Land Slice A (charter freshness UX: #1099, #1100, #1101, #1104) and the Slice F authoring-vocabulary gap (#1291) of epic #1111 in a single mission, and unify the doctrine vocabulary by renaming the user-facing layer label `shipped` to `built-in` consistently across code, tests, JSON surfaces, and documentation. Bundled because both slices touch the same charter CLI surfaces and the doctrine schema/validator pipeline; landing them together avoids merge conflicts and keeps the 3.2.0 release contract coherent.",
+  "purpose_tldr": "Charter freshness UX + first-class `overrides`/`enhances` schema fields + `shipped→built-in` rename, shipped as one coherent doctrine release cut.",
+  "slug": "charter-ux-and-org-pack-vocabulary-01KSAF14",
+  "source_description": "Bundle of slices A & F of epic #1111 plus the `shipped→built-in` vocabulary unification.",
+  "target_branch": "main",
+  "vcs": "git"
+}

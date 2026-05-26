@@ -87,7 +87,10 @@ __all__ = [
     "RecordExistsError",
     # generator record schema (WP02 dataclass-based, canonical names)
     "RetrospectiveRecord",
+    "EvidenceRef",
     "Proposal",
+    "Finding",
+    "Provenance",
     "Actor",
     "RecordValidationError",
     "validate_record",

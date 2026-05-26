@@ -18,6 +18,9 @@ import typer
 from specify_cli.readiness import ReadinessResult, evaluate_readiness
 
 
+pytestmark = [pytest.mark.unit]
+
+
 def _make_ctx() -> typer.Context:
     app = typer.Typer()
 
@@ -77,7 +80,7 @@ def test_A_nag_renders_on_stderr_under_allow_with_nag(
 
     class _NoopCache:
         @staticmethod
-        def default() -> "_NoopCache":
+        def default() -> _NoopCache:
             return _NoopCache()
 
         def read(self) -> Any:

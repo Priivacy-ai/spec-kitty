@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import sys
 from dataclasses import dataclass
-from unittest.mock import patch
 
 import pytest
 import typer
@@ -22,6 +21,9 @@ from specify_cli.readiness import (
     evaluate_readiness,
 )
 from specify_cli.readiness import coordinator as coord_module
+
+
+pytestmark = [pytest.mark.unit]
 
 
 @dataclass(frozen=True)

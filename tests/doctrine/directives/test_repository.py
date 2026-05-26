@@ -13,31 +13,31 @@ pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 class TestDirectiveRepository:
     def test_list_all_from_shipped(self, tmp_directive_dir: Path) -> None:
         """list_all returns all directives from the given directory."""
-        repo = DirectiveRepository(shipped_dir=tmp_directive_dir)
+        repo = DirectiveRepository(built_in_dir=tmp_directive_dir)
         directives = repo.list_all()
         assert len(directives) == 1
         assert directives[0].id == "DIRECTIVE_999"
 
     def test_get_by_full_id(self, tmp_directive_dir: Path) -> None:
         """get() with full ID returns the directive."""
-        repo = DirectiveRepository(shipped_dir=tmp_directive_dir)
+        repo = DirectiveRepository(built_in_dir=tmp_directive_dir)
         directive = repo.get("DIRECTIVE_999")
         assert directive is not None
         assert directive.title == "Test Directive"
 
     def test_get_by_numeric_shorthand(self, tmp_directive_dir: Path) -> None:
         """get() with numeric shorthand normalizes and returns."""
-        repo = DirectiveRepository(shipped_dir=tmp_directive_dir)
+        repo = DirectiveRepository(built_in_dir=tmp_directive_dir)
         directive = repo.get("999")
         assert directive is not None
         assert directive.id == "DIRECTIVE_999"
 
     def test_get_returns_none_for_unknown(self, tmp_directive_dir: Path) -> None:
-        repo = DirectiveRepository(shipped_dir=tmp_directive_dir)
+        repo = DirectiveRepository(built_in_dir=tmp_directive_dir)
         assert repo.get("888") is None
 
     def test_get_numeric_and_full_return_same(self, tmp_directive_dir: Path) -> None:
-        repo = DirectiveRepository(shipped_dir=tmp_directive_dir)
+        repo = DirectiveRepository(built_in_dir=tmp_directive_dir)
         by_num = repo.get("999")
         by_full = repo.get("DIRECTIVE_999")
         assert by_num is not None
@@ -45,7 +45,7 @@ class TestDirectiveRepository:
         assert by_num.id == by_full.id
 
     def test_load_from_custom_shipped_dir(self, tmp_directive_dir: Path) -> None:
-        repo = DirectiveRepository(shipped_dir=tmp_directive_dir)
+        repo = DirectiveRepository(built_in_dir=tmp_directive_dir)
         directives = repo.list_all()
         assert len(directives) == 1
         assert directives[0].id == "DIRECTIVE_999"
@@ -58,7 +58,7 @@ class TestDirectiveRepository:
         bad_file.write_text("not: valid: yaml: [")
 
         with pytest.warns(UserWarning, match="Skipping invalid"):
-            repo = DirectiveRepository(shipped_dir=shipped)
+            repo = DirectiveRepository(built_in_dir=shipped)
 
         assert repo.list_all() == []
 
@@ -68,7 +68,7 @@ class TestDirectiveRepository:
         from doctrine.directives.models import Directive
 
         project_dir = tmp_path / "project"
-        repo = DirectiveRepository(shipped_dir=tmp_path / "empty", project_dir=project_dir)
+        repo = DirectiveRepository(built_in_dir=tmp_path / "empty", project_dir=project_dir)
 
         directive = Directive.model_validate(sample_directive_data)
         path = repo.save(directive)
@@ -87,7 +87,7 @@ class TestDirectiveRepository:
         from doctrine.directives.models import Directive
 
 
-        repo = DirectiveRepository(shipped_dir=tmp_path / "empty")
+        repo = DirectiveRepository(built_in_dir=tmp_path / "empty")
         directive = Directive.model_validate(sample_directive_data)
         with pytest.raises(ValueError, match="project_dir not configured"):
             repo.save(directive)
@@ -124,7 +124,7 @@ class TestDirectiveRepository:
         with (project / "100-base.directive.yaml").open("w") as f:
             yaml.dump(override, f)
 
-        repo = DirectiveRepository(shipped_dir=shipped, project_dir=project)
+        repo = DirectiveRepository(built_in_dir=shipped, project_dir=project)
         directive = repo.get("DIRECTIVE_100")
         assert directive is not None
         assert directive.title == "Overridden Title"

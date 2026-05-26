@@ -67,7 +67,7 @@ class TestShippedOnlyProvenance:
         shipped = tmp_path / "built-in"
         _write_directive(shipped, "001.directive.yaml", _directive_data("DIRECTIVE_001"))
 
-        repo = DirectiveRepository(shipped_dir=shipped)
+        repo = DirectiveRepository(built_in_dir=shipped)
 
         assert repo.get("DIRECTIVE_001") is not None
         assert repo.get_provenance("DIRECTIVE_001") == "builtin"
@@ -76,7 +76,7 @@ class TestShippedOnlyProvenance:
         shipped = tmp_path / "built-in"
         _write_directive(shipped, "001.directive.yaml", _directive_data("DIRECTIVE_001"))
 
-        repo = DirectiveRepository(shipped_dir=shipped)
+        repo = DirectiveRepository(built_in_dir=shipped)
 
         assert repo.get_provenance("DIRECTIVE_999") is None
 
@@ -95,7 +95,7 @@ class TestOrgOverridesShipped:
             _directive_data("DIRECTIVE_001", title="Org Title"),
         )
 
-        repo = DirectiveRepository(shipped_dir=shipped, org_dirs=[org])
+        repo = DirectiveRepository(built_in_dir=shipped, org_dirs=[org])
 
         directive = repo.get("DIRECTIVE_001")
         assert directive is not None
@@ -120,7 +120,7 @@ class TestOrgOverridesShipped:
         }
         _write_directive(org, "001.directive.yaml", org_data)
 
-        repo = DirectiveRepository(shipped_dir=shipped, org_dirs=[org])
+        repo = DirectiveRepository(built_in_dir=shipped, org_dirs=[org])
 
         directive = repo.get("DIRECTIVE_001")
         assert directive is not None
@@ -138,7 +138,7 @@ class TestOrgAddsNewArtifact:
         _write_directive(shipped, "001.directive.yaml", _directive_data("DIRECTIVE_001"))
         _write_directive(org, "002.directive.yaml", _directive_data("DIRECTIVE_002", title="Org New"))
 
-        repo = DirectiveRepository(shipped_dir=shipped, org_dirs=[org])
+        repo = DirectiveRepository(built_in_dir=shipped, org_dirs=[org])
 
         assert repo.get("DIRECTIVE_001") is not None
         assert repo.get_provenance("DIRECTIVE_001") == "builtin"
@@ -153,7 +153,7 @@ class TestOrgAddsNewArtifact:
         _write_directive(shipped, "001.directive.yaml", _directive_data("DIRECTIVE_001"))
         _write_directive(org, "002.directive.yaml", _directive_data("DIRECTIVE_002"))
 
-        repo = DirectiveRepository(shipped_dir=shipped, org_dirs=[org])
+        repo = DirectiveRepository(built_in_dir=shipped, org_dirs=[org])
 
         ids = {d.id for d in repo.list_all()}
         assert "DIRECTIVE_001" in ids
@@ -172,7 +172,7 @@ class TestProjectOverridesOrg:
         _write_directive(org, "001.directive.yaml", _directive_data("DIRECTIVE_001", title="Org Title"))
         _write_directive(project, "001.directive.yaml", _directive_data("DIRECTIVE_001", title="Project Title"))
 
-        repo = DirectiveRepository(shipped_dir=shipped, org_dirs=[org], project_dir=project)
+        repo = DirectiveRepository(built_in_dir=shipped, org_dirs=[org], project_dir=project)
 
         directive = repo.get("DIRECTIVE_001")
         assert directive is not None
@@ -190,7 +190,7 @@ class TestProjectOverridesShippedNoOrg:
         _write_directive(shipped, "001.directive.yaml", _directive_data("DIRECTIVE_001", title="Shipped Title"))
         _write_directive(project, "001.directive.yaml", _directive_data("DIRECTIVE_001", title="Project Title"))
 
-        repo = DirectiveRepository(shipped_dir=shipped, project_dir=project)
+        repo = DirectiveRepository(built_in_dir=shipped, project_dir=project)
 
         directive = repo.get("DIRECTIVE_001")
         assert directive is not None
@@ -205,7 +205,7 @@ class TestProjectOverridesShippedNoOrg:
         _write_directive(shipped, "002.directive.yaml", _directive_data("DIRECTIVE_002"))
         _write_directive(project, "001.directive.yaml", _directive_data("DIRECTIVE_001", title="Project Title"))
 
-        repo = DirectiveRepository(shipped_dir=shipped, project_dir=project)
+        repo = DirectiveRepository(built_in_dir=shipped, project_dir=project)
 
         assert repo.get_provenance("DIRECTIVE_001") == "project"
         assert repo.get_provenance("DIRECTIVE_002") == "builtin"
@@ -224,7 +224,7 @@ class TestBadOrgFileSkipped:
         _write_directive(org, "002.directive.yaml", _directive_data("DIRECTIVE_002", title="Org New"))
 
         with pytest.warns(UserWarning, match="Skipping invalid"):
-            repo = DirectiveRepository(shipped_dir=shipped, org_dirs=[org])
+            repo = DirectiveRepository(built_in_dir=shipped, org_dirs=[org])
 
         # Shipped item intact
         assert repo.get("DIRECTIVE_001") is not None
@@ -250,7 +250,7 @@ class TestBadOrgFileSkipped:
         _write_directive(org, "002.directive.yaml", _directive_data("DIRECTIVE_002"))
 
         with pytest.warns(UserWarning, match="no id"):
-            repo = DirectiveRepository(shipped_dir=shipped, org_dirs=[org])
+            repo = DirectiveRepository(built_in_dir=shipped, org_dirs=[org])
 
         assert repo.get("DIRECTIVE_002") is not None
         assert repo.get_provenance("DIRECTIVE_002") == "org"
@@ -300,7 +300,7 @@ class TestLanguageScopeAfterOrgMerge:
         )
 
         # Active language: java → org artifact should be excluded
-        repo = TacticRepository(shipped_dir=shipped, org_dirs=[org], active_languages=["java"])
+        repo = TacticRepository(built_in_dir=shipped, org_dirs=[org], active_languages=["java"])
 
         assert repo.get("my-tactic") is not None, "All-language shipped item should be present"
         assert repo.get("python-tactic") is None, "Python-only org item should be excluded for java"
@@ -317,7 +317,7 @@ class TestLanguageScopeAfterOrgMerge:
         )
 
         # Active language: python → org artifact should be included
-        repo = TacticRepository(shipped_dir=shipped, org_dirs=[org], active_languages=["python"])
+        repo = TacticRepository(built_in_dir=shipped, org_dirs=[org], active_languages=["python"])
 
         assert repo.get("python-tactic") is not None
         assert repo.get_provenance("python-tactic") == "org"
@@ -333,7 +333,7 @@ class TestProjectNewArtifactProvenance:
         _write_directive(shipped, "001.directive.yaml", _directive_data("DIRECTIVE_001"))
         _write_directive(project, "002.directive.yaml", _directive_data("DIRECTIVE_002", title="Project Only"))
 
-        repo = DirectiveRepository(shipped_dir=shipped, project_dir=project)
+        repo = DirectiveRepository(built_in_dir=shipped, project_dir=project)
 
         assert repo.get("DIRECTIVE_001") is not None
         assert repo.get_provenance("DIRECTIVE_001") == "builtin"
@@ -350,7 +350,7 @@ class TestProjectNewArtifactProvenance:
         _write_directive(org, "002.directive.yaml", _directive_data("DIRECTIVE_002", title="Org New"))
         _write_directive(project, "003.directive.yaml", _directive_data("DIRECTIVE_003", title="Project New"))
 
-        repo = DirectiveRepository(shipped_dir=shipped, org_dirs=[org], project_dir=project)
+        repo = DirectiveRepository(built_in_dir=shipped, org_dirs=[org], project_dir=project)
 
         assert repo.get_provenance("DIRECTIVE_001") == "builtin"
         assert repo.get_provenance("DIRECTIVE_002") == "org"
@@ -368,7 +368,7 @@ class TestProjectNewArtifactProvenance:
         # Project also defines DIRECTIVE_002 (not in shipped → full replace)
         _write_directive(project, "002.directive.yaml", _directive_data("DIRECTIVE_002", title="Project Title"))
 
-        repo = DirectiveRepository(shipped_dir=shipped, org_dirs=[org], project_dir=project)
+        repo = DirectiveRepository(built_in_dir=shipped, org_dirs=[org], project_dir=project)
 
         directive = repo.get("DIRECTIVE_002")
         assert directive is not None
@@ -385,7 +385,7 @@ class TestOrgDirNotExists:
 
         _write_directive(shipped, "001.directive.yaml", _directive_data("DIRECTIVE_001"))
 
-        repo = DirectiveRepository(shipped_dir=shipped, org_dirs=[nonexistent_org])
+        repo = DirectiveRepository(built_in_dir=shipped, org_dirs=[nonexistent_org])
 
         assert repo.get("DIRECTIVE_001") is not None
         assert repo.get_provenance("DIRECTIVE_001") == "builtin"
@@ -412,7 +412,7 @@ class TestDoctrineLayerCollisionWarning:
         )
 
         with pytest.warns(DoctrineLayerCollisionWarning) as record:
-            DirectiveRepository(shipped_dir=shipped, org_dirs=[org])
+            DirectiveRepository(built_in_dir=shipped, org_dirs=[org])
 
         messages = [str(w.message) for w in record]
         # Exactly one collision warning, with the expected payload.
@@ -450,7 +450,7 @@ class TestDoctrineLayerCollisionWarning:
 
         with pytest.warns(DoctrineLayerCollisionWarning) as record:
             DirectiveRepository(
-                shipped_dir=shipped, org_dirs=[org], project_dir=project
+                built_in_dir=shipped, org_dirs=[org], project_dir=project
             )
 
         messages = [str(w.message) for w in record]
@@ -476,7 +476,7 @@ class TestDoctrineLayerCollisionWarning:
         )
 
         with pytest.warns(DoctrineLayerCollisionWarning) as record:
-            DirectiveRepository(shipped_dir=shipped, project_dir=project)
+            DirectiveRepository(built_in_dir=shipped, project_dir=project)
 
         messages = [str(w.message) for w in record]
         assert any("project" in m and "builtin" in m for m in messages)
@@ -500,7 +500,7 @@ class TestDoctrineLayerCollisionWarning:
 
         # New org artifact is not a collision; no warning expected.
         with warnings_capture() as captured:
-            DirectiveRepository(shipped_dir=shipped, org_dirs=[org])
+            DirectiveRepository(built_in_dir=shipped, org_dirs=[org])
 
         collision_msgs = [
             str(w.message)
@@ -528,7 +528,7 @@ class TestDoctrineLayerCollisionWarning:
         )
 
         with pytest.warns(DoctrineLayerCollisionWarning) as record:
-            DirectiveRepository(shipped_dir=shipped, org_dirs=[org])
+            DirectiveRepository(built_in_dir=shipped, org_dirs=[org])
 
         msg = next(str(w.message) for w in record if "DIRECTIVE_001" in str(w.message))
         # Format includes both counts

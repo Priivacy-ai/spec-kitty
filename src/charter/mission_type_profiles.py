@@ -1,6 +1,6 @@
 """Mission-type-scoped governance profile loader and resolver.
 
-Mission-type profiles are shipped doctrine-side YAML files at
+Mission-type profiles are built-in doctrine-side YAML files at
 ``src/doctrine/missions/<mission_type>/governance-profile.yaml``.  Each
 profile declares the default selections and activations for missions of
 that type.  The charter resolver reads ``meta.json mission_type``, picks
@@ -14,9 +14,9 @@ The four canonical mission types are:
 * ``research``
 * ``plan``
 
-Profiles for other mission_type values are not shipped; the resolver
+Profiles for other mission_type values are not part of the built-in profile set; the resolver
 hard-fails (``UnknownMissionTypeError``) when ``meta.json mission_type``
-matches no shipped profile AND the project charter has not declared its
+matches no built-in profile AND the project charter has not declared its
 own ``selected_<kind>`` overrides.  Silent fallback to
 ``software-dev-default`` is explicitly forbidden by FR-011 / journey 4 of
 the ``charter-mediated-doctrine-selection-01KRTZCA`` mission.
@@ -126,7 +126,7 @@ class GovernancePayload:
 
 
 class UnknownMissionTypeError(ValueError):
-    """Raised when ``meta.json mission_type`` matches no shipped profile.
+    """Raised when ``meta.json mission_type`` matches no built-in profile.
 
     The hard-fail behaviour is the FR-011 / journey 4 contract: there
     MUST NOT be a silent ``software-dev-default`` fallback for
@@ -142,7 +142,7 @@ class UnknownMissionTypeError(ValueError):
 
 
 def load_profile(mission_type: str) -> MissionTypeProfile | None:
-    """Load the shipped governance profile for ``mission_type``.
+    """Load the built-in governance profile for ``mission_type``.
 
     Reads ``src/doctrine/missions/<mission_type>/governance-profile.yaml``
     and validates it against :class:`MissionTypeProfile`.
@@ -198,7 +198,7 @@ def resolve_mission_type_governance(repo_root: Path, feature_dir: Path) -> Gover
     """Resolve the governance payload for the mission at ``feature_dir``.
 
     Reads ``feature_dir / "meta.json"``, looks up its ``mission_type``,
-    loads the matching shipped profile, and renders a
+    loads the matching built-in profile, and renders a
     :class:`GovernancePayload` carrying the rendered text plus the
     resolved ``mission_type``.
 
@@ -207,7 +207,7 @@ def resolve_mission_type_governance(repo_root: Path, feature_dir: Path) -> Gover
     Raises :class:`UnknownMissionTypeError` when:
 
     * ``meta.json`` is missing the ``mission_type`` key, OR
-    * ``meta.json mission_type`` matches no shipped profile AND the
+    * ``meta.json mission_type`` matches no built-in profile AND the
       project charter declares no ``selected_<kind>`` overrides of its
       own.
 
@@ -338,7 +338,7 @@ def _render_profile_payload(
     lines: list[str] = []
     lines.append(f"Mission-Type Governance Profile: {mission_type}")
     if profile is None:
-        lines.append("  - No shipped profile; project overrides apply.")
+        lines.append("  - No built-in profile; project overrides apply.")
         return "\n".join(lines) + "\n"
 
     if profile.template_set is not None:

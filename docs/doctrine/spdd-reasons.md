@@ -151,7 +151,7 @@ output.
 ## Generating and updating the canvas
 
 The canvas is authored by the agent skill
-`spec-kitty-spdd-reasons` (shipped at
+`spec-kitty-spdd-reasons` (built-in at
 `src/doctrine/skills/spec-kitty-spdd-reasons/SKILL.md`). The skill is
 triggered by any of the following phrases in user input:
 
@@ -369,11 +369,11 @@ All artifacts ship under `src/doctrine/`:
 
 | Kind | Path |
 |---|---|
-| Paradigm | `src/doctrine/paradigms/shipped/structured-prompt-driven-development.paradigm.yaml` |
-| Tactic — fill | `src/doctrine/tactics/shipped/reasons-canvas-fill.tactic.yaml` |
-| Tactic — review | `src/doctrine/tactics/shipped/reasons-canvas-review.tactic.yaml` |
-| Styleguide | `src/doctrine/styleguides/shipped/reasons-canvas-writing.styleguide.yaml` |
-| Directive | `src/doctrine/directives/shipped/038-structured-prompt-boundary.directive.yaml` |
+| Paradigm | `src/doctrine/paradigms/built-in/structured-prompt-driven-development.paradigm.yaml` |
+| Tactic — fill | `src/doctrine/tactics/built-in/reasons-canvas-fill.tactic.yaml` |
+| Tactic — review | `src/doctrine/tactics/built-in/reasons-canvas-review.tactic.yaml` |
+| Styleguide | `src/doctrine/styleguides/built-in/reasons-canvas-writing.styleguide.yaml` |
+| Directive | `src/doctrine/directives/built-in/038-structured-prompt-boundary.directive.yaml` |
 | Template fragment | `src/doctrine/templates/fragments/reasons-canvas-template.md` |
 | Skill | `src/doctrine/skills/spec-kitty-spdd-reasons/SKILL.md` |
 

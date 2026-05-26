@@ -123,7 +123,7 @@ compact-context mode, causing agents to receive less detail.
 | `.kittify/charter/governance.yaml` | Auto-generated (`charter sync`) | Testing, quality, performance, branch, and doctrine-selection config |
 | `.kittify/charter/directives.yaml` | Auto-generated (`charter sync`) | Extracted directive list |
 | `.kittify/charter/metadata.yaml` | Auto-generated (`charter sync`) | Charter hash, extraction timestamp, and parser metadata |
-| `.kittify/charter/references.yaml` | Auto-generated (`charter generate`) | Reference manifest for shipped and local doctrine content |
+| `.kittify/charter/references.yaml` | Auto-generated (`charter generate`) | Reference manifest for built-in and local doctrine content |
 | `.kittify/charter/generated/` | Agent harness | Candidate doctrine YAML consumed by `charter synthesize` |
 | `.kittify/charter/synthesis-manifest.yaml` | Auto-generated (`charter synthesize`) | Manifest for promoted project-local doctrine artifacts |
 | `.kittify/charter/provenance/*.yaml` | Auto-generated (`charter synthesize`) | Provenance sidecars for synthesized doctrine artifacts |

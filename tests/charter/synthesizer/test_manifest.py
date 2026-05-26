@@ -72,6 +72,7 @@ def _make_manifest(run_id: str = "01KPE222TESTRUNID0000000001") -> SynthesisMani
         "adapter_version": "1.0.0",
         "synthesizer_version": "3.2.0a5",
         "artifacts": [a.model_dump(mode="python") for a in artifacts],
+        "built_in_only": False,
     }
     manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()
     return SynthesisManifest(
@@ -100,6 +101,7 @@ def _make_manifest_for_artifacts(
         "adapter_version": "1.0.0",
         "synthesizer_version": "3.2.0a5",
         "artifacts": [a.model_dump(mode="python") for a in artifacts],
+        "built_in_only": False,
     }
     manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()
     return SynthesisManifest(
@@ -184,6 +186,7 @@ def test_manifest_with_mission_id(tmp_path: Path, guard: PathGuard) -> None:
         "adapter_version": "1.0.0",
         "synthesizer_version": "3.2.0a5",
         "artifacts": [],
+        "built_in_only": False,
     }
     manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()
     manifest = SynthesisManifest(
@@ -236,6 +239,7 @@ def test_verify_passes_when_hashes_match(tmp_path: Path, guard: PathGuard) -> No
         "adapter_version": "1.0.0",
         "synthesizer_version": "3.2.0a5",
         "artifacts": [a.model_dump(mode="python") for a in artifacts],
+        "built_in_only": False,
     }
     manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()
     manifest = SynthesisManifest(
@@ -278,6 +282,7 @@ def test_verify_raises_on_hash_mismatch(tmp_path: Path) -> None:
         "adapter_version": "1.0.0",
         "synthesizer_version": "3.2.0a5",
         "artifacts": [a.model_dump(mode="python") for a in artifacts],
+        "built_in_only": False,
     }
     manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()
     manifest = SynthesisManifest(
@@ -317,6 +322,7 @@ def test_verify_raises_on_missing_artifact(tmp_path: Path) -> None:
         "adapter_version": "1.0.0",
         "synthesizer_version": "3.2.0a5",
         "artifacts": [a.model_dump(mode="python") for a in artifacts],
+        "built_in_only": False,
     }
     manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()
     manifest = SynthesisManifest(
@@ -454,6 +460,7 @@ def test_manifest_artifact_ordering(tmp_path: Path, guard: PathGuard) -> None:
         "adapter_version": "1.0.0",
         "synthesizer_version": "3.2.0a5",
         "artifacts": [a.model_dump(mode="python") for a in artifacts],
+        "built_in_only": False,
     }
     manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()
     manifest = SynthesisManifest(
@@ -503,6 +510,7 @@ def test_manifest_synthesizer_version_empty_raises() -> None:
         "adapter_version": "1.0.0",
         "synthesizer_version": "valid",
         "artifacts": [],
+        "built_in_only": False,
     }
     manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()
     with pytest.raises(ValidationError):

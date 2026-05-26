@@ -203,7 +203,7 @@ class TestValidatePack:
         ]
         assert advisories
 
-    def test_shipped_id_collision_advisory(self, tmp_path: Path) -> None:
+    def test_built_in_id_collision_advisory(self, tmp_path: Path) -> None:
         # Use a known shipped directive id so the advisory fires.  If shipped
         # doctrine is absent in this environment, the test simply has no
         # advisory to assert (validation should still pass) — keep the test
@@ -214,9 +214,14 @@ class TestValidatePack:
 
         assert result.ok is True, result.errors
         # Advisory presence depends on whether shipped doctrine is on disk.
+        # FR-013 (WP06): reworded message uses "field-merge" wording and
+        # surfaces both ``enhances`` and ``overrides`` recommendations.
         for advisory in result.advisories:
             if advisory.artifact_id == "DIRECTIVE_001":
-                assert "shipped" in advisory.message
+                assert advisory.category == "same_id_collision"
+                assert "field-merge" in advisory.message
+                assert "enhances: DIRECTIVE_001" in advisory.message
+                assert "overrides: DIRECTIVE_001" in advisory.message
                 break
 
     def test_returns_validation_result_type(self, tmp_path: Path) -> None:
@@ -225,6 +230,235 @@ class TestValidatePack:
         # ``to_dict`` is part of the public surface used by the CLI.
         payload = result.to_dict()
         assert set(payload.keys()) == {"ok", "errors", "advisories"}
+
+
+# ---------------------------------------------------------------------------
+# WP06: intent-aware collision message tests (FR-011, FR-012, FR-013)
+# ---------------------------------------------------------------------------
+
+
+# A canonical shipped tactic id used by the WP06 test matrix. The auto-emit
+# and intent-aware passes resolve against the live shipped doctrine on disk,
+# so the id must point at an actual built-in tactic.
+_BUILT_IN_TACTIC_ID = "adversarial-qa-handoff"
+
+
+def _write_tactic(
+    pack_dir: Path,
+    *,
+    artifact_id: str,
+    overrides: str | None = None,
+    enhances: str | None = None,
+) -> Path:
+    """Write a minimal, schema-valid tactic YAML file with optional augmentation fields."""
+    tactics = pack_dir / "tactics"
+    tactics.mkdir(parents=True, exist_ok=True)
+    body_lines = [
+        'schema_version: "1.0"',
+        f"id: {artifact_id}",
+        f"name: {artifact_id.title().replace('-', ' ')}",
+    ]
+    if overrides is not None:
+        body_lines.append(f"overrides: {overrides}")
+    if enhances is not None:
+        body_lines.append(f"enhances: {enhances}")
+    body_lines.extend(
+        [
+            "steps:",
+            "  - title: Single test step",
+        ]
+    )
+    path = tactics / f"{artifact_id}.tactic.yaml"
+    path.write_text("\n".join(body_lines) + "\n", encoding="utf-8")
+    return path
+
+
+@pytest.mark.unit
+class TestIntentAwareCollision:
+    """WP06 precedence table — `enhances` / `overrides` advisory + error logic.
+
+    Tests assume the live shipped doctrine is on disk (the worktree's
+    ``src/doctrine/.../built-in`` tree). The shared fixture
+    :data:`_BUILT_IN_TACTIC_ID` points at a known built-in. When the shipped
+    root cannot be resolved the intent-aware pass degrades to a no-op and the
+    tests skip themselves explicitly.
+    """
+
+    def _has_built_in_doctrine(self) -> bool:
+        try:
+            from charter.catalog import resolve_doctrine_root
+        except ModuleNotFoundError:
+            return False
+        try:
+            return (resolve_doctrine_root() / "tactics" / "built-in").is_dir()
+        except (RuntimeError, OSError):
+            return False
+
+    def test_enhances_suppresses_collision_advisory(self, tmp_path: Path) -> None:
+        """Case 4: declared `enhances` against a valid built-in -> no advisory."""
+        if not self._has_built_in_doctrine():
+            pytest.skip("shipped doctrine not on disk in this environment")
+
+        _write_tactic(
+            tmp_path,
+            artifact_id=_BUILT_IN_TACTIC_ID,
+            enhances=_BUILT_IN_TACTIC_ID,
+        )
+
+        result = validate_pack(tmp_path)
+
+        assert result.ok is True, result.errors
+        collision_advisories = [
+            a
+            for a in result.advisories
+            if a.artifact_id == _BUILT_IN_TACTIC_ID
+            and a.category == "same_id_collision"
+        ]
+        assert collision_advisories == [], (
+            "Declared `enhances` must suppress same_id_collision advisory."
+        )
+
+    def test_overrides_suppresses_collision_advisory(self, tmp_path: Path) -> None:
+        """Case 4: declared `overrides` against a valid built-in -> no advisory."""
+        if not self._has_built_in_doctrine():
+            pytest.skip("shipped doctrine not on disk in this environment")
+
+        _write_tactic(
+            tmp_path,
+            artifact_id=_BUILT_IN_TACTIC_ID,
+            overrides=_BUILT_IN_TACTIC_ID,
+        )
+
+        result = validate_pack(tmp_path)
+
+        assert result.ok is True, result.errors
+        collision_advisories = [
+            a
+            for a in result.advisories
+            if a.artifact_id == _BUILT_IN_TACTIC_ID
+            and a.category == "same_id_collision"
+        ]
+        assert collision_advisories == [], (
+            "Declared `overrides` must suppress same_id_collision advisory."
+        )
+
+    def test_same_id_collision_uses_reworded_wording(self, tmp_path: Path) -> None:
+        """Case 5: same-ID collision, no declaration -> reworded advisory.
+
+        Message MUST mention `field-merge` and recommend BOTH
+        `enhances: <id>` and `overrides: <id>`.
+        """
+        if not self._has_built_in_doctrine():
+            pytest.skip("shipped doctrine not on disk in this environment")
+
+        _write_tactic(tmp_path, artifact_id=_BUILT_IN_TACTIC_ID)
+
+        result = validate_pack(tmp_path)
+
+        matched = [
+            a
+            for a in result.advisories
+            if a.artifact_id == _BUILT_IN_TACTIC_ID
+            and a.category == "same_id_collision"
+        ]
+        assert matched, (
+            "Same-ID collision without declared intent MUST produce an "
+            f"advisory. Saw advisories: {result.advisories}"
+        )
+        msg = matched[0].message
+        assert "field-merge" in msg, msg
+        assert f"enhances: {_BUILT_IN_TACTIC_ID}" in msg, msg
+        assert f"overrides: {_BUILT_IN_TACTIC_ID}" in msg, msg
+
+    def test_intent_conflict_when_both_fields_set(self, tmp_path: Path) -> None:
+        """Case 1: both `overrides` and `enhances` declared -> `intent_conflict` ERROR."""
+        _write_tactic(
+            tmp_path,
+            artifact_id="rogue-tactic",
+            overrides="foo",
+            enhances="bar",
+        )
+
+        result = validate_pack(tmp_path)
+
+        assert result.ok is False
+        conflict_errors = [
+            e for e in result.errors if e.category == "intent_conflict"
+        ]
+        assert conflict_errors, (
+            f"Both-fields-set MUST emit `intent_conflict`. Errors: {result.errors}"
+        )
+        assert conflict_errors[0].artifact_id == "rogue-tactic"
+        assert "mutually exclusive" in conflict_errors[0].message
+
+    def test_enhances_unknown_target_errors(self, tmp_path: Path) -> None:
+        """Case 3: `enhances` references unknown built-in -> `unknown_target` ERROR."""
+        if not self._has_built_in_doctrine():
+            pytest.skip("shipped doctrine not on disk in this environment")
+
+        _write_tactic(
+            tmp_path,
+            artifact_id="org-only-tactic",
+            enhances="totally-bogus-id",
+        )
+
+        result = validate_pack(tmp_path)
+
+        assert result.ok is False
+        unknown_errors = [
+            e for e in result.errors if e.category == "unknown_target"
+        ]
+        assert unknown_errors, (
+            f"Unknown `enhances` target MUST emit `unknown_target`. "
+            f"Errors: {result.errors}"
+        )
+        assert "totally-bogus-id" in unknown_errors[0].message
+        assert "enhances" in unknown_errors[0].message
+
+    def test_overrides_unknown_target_errors(self, tmp_path: Path) -> None:
+        """Case 2: `overrides` references unknown built-in -> `unknown_target` ERROR."""
+        if not self._has_built_in_doctrine():
+            pytest.skip("shipped doctrine not on disk in this environment")
+
+        _write_tactic(
+            tmp_path,
+            artifact_id="org-only-tactic",
+            overrides="totally-bogus-id",
+        )
+
+        result = validate_pack(tmp_path)
+
+        assert result.ok is False
+        unknown_errors = [
+            e for e in result.errors if e.category == "unknown_target"
+        ]
+        assert unknown_errors, (
+            f"Unknown `overrides` target MUST emit `unknown_target`. "
+            f"Errors: {result.errors}"
+        )
+        assert "totally-bogus-id" in unknown_errors[0].message
+        assert "overrides" in unknown_errors[0].message
+
+    def test_json_output_includes_new_categories(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """T038: `category` field surfaces in JSON output for the new error kinds."""
+        _write_tactic(
+            tmp_path,
+            artifact_id="rogue-tactic",
+            overrides="a",
+            enhances="b",
+        )
+
+        result = validate_pack(tmp_path)
+        render_validation_result(result, json_output=True)
+        captured = capsys.readouterr().out
+        import json as _json
+
+        payload = _json.loads(captured.strip())
+        assert payload["ok"] is False
+        categories = {e.get("category") for e in payload["errors"]}
+        assert "intent_conflict" in categories, payload
 
 
 class TestRenderValidationResult:

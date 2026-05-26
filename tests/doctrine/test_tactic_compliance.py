@@ -27,9 +27,9 @@ DOCTRINE_DIR = DOCTRINE_SOURCE_ROOT
 SCHEMA_DIR = DOCTRINE_DIR / "schemas"
 
 _SOURCE_SUBDIRS = ("built-in", "_proposed")
-_SHIPPED_SUBDIRS = ("built-in",)
+_BUILT_IN_SUBDIRS = ("built-in",)
 _TACTICS_DIRS = [DOCTRINE_DIR / "tactics" / d for d in _SOURCE_SUBDIRS]
-_SHIPPED_TACTICS_DIRS = [DOCTRINE_DIR / "tactics" / d for d in _SHIPPED_SUBDIRS]
+_BUILT_IN_TACTICS_DIRS = [DOCTRINE_DIR / "tactics" / d for d in _BUILT_IN_SUBDIRS]
 _TEMPLATES_DIR = DOCTRINE_DIR / "templates"
 
 # Artifact type → (directory, glob pattern) for resolution scanning.
@@ -38,14 +38,14 @@ ARTIFACT_DIRS: dict[str, list[tuple[Path, str]]] = {
     "tactic": [(d, "**/*.tactic.yaml") for d in _TACTICS_DIRS],
     "styleguide": [
         (DOCTRINE_DIR / "styleguides" / d, pat)
-        for d in _SHIPPED_SUBDIRS
+        for d in _BUILT_IN_SUBDIRS
         for pat in ("*.styleguide.yaml", "**/*.styleguide.yaml")
     ],
-    "directive": [(DOCTRINE_DIR / "directives" / d, "*.directive.yaml") for d in _SHIPPED_SUBDIRS],
-    "toolguide": [(DOCTRINE_DIR / "toolguides" / d, "*.toolguide.yaml") for d in _SHIPPED_SUBDIRS],
+    "directive": [(DOCTRINE_DIR / "directives" / d, "*.directive.yaml") for d in _BUILT_IN_SUBDIRS],
+    "toolguide": [(DOCTRINE_DIR / "toolguides" / d, "*.toolguide.yaml") for d in _BUILT_IN_SUBDIRS],
     "template": [(_TEMPLATES_DIR, "**/*.md")],
-    "procedure": [(DOCTRINE_DIR / "procedures" / d, "*.procedure.yaml") for d in _SHIPPED_SUBDIRS],
-    "paradigm": [(DOCTRINE_DIR / "paradigms" / d, "*.paradigm.yaml") for d in _SHIPPED_SUBDIRS],
+    "procedure": [(DOCTRINE_DIR / "procedures" / d, "*.procedure.yaml") for d in _BUILT_IN_SUBDIRS],
+    "paradigm": [(DOCTRINE_DIR / "paradigms" / d, "*.paradigm.yaml") for d in _BUILT_IN_SUBDIRS],
 }
 
 # Threshold: if a reference appears in this fraction of steps or more,

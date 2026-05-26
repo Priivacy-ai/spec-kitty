@@ -30,8 +30,8 @@ DEFAULT_TEMPLATE_SET = "software-dev-default"
 class DoctrineCatalog:
     """Deterministic doctrine catalog derived from on-disk doctrine assets.
 
-    ``domains_present`` records which shipped-artifact domains have a ``shipped/``
-    subdirectory on disk.  A domain that is present but has an empty ``shipped/``
+    ``domains_present`` records which built-in artifact domains have a ``built-in/``
+    subdirectory on disk.  A domain that is present but has an empty ``built-in/``
     directory contributes an *empty* frozenset to the corresponding field — which
     means every selection against that domain is invalid.  A domain that is
     completely absent (directory does not exist) is *not* included in
@@ -55,14 +55,14 @@ def load_doctrine_catalog(
 ) -> DoctrineCatalog:
     """Load doctrine catalogs from package assets with development fallbacks.
 
-    By default, only canonised ``shipped/`` artifacts participate in the catalog.
+    By default, only canonised ``built-in/`` artifacts participate in the catalog.
     Callers may opt into ``_proposed/`` artifacts explicitly to support curation
     flows that need visibility into pre-canonisation content.
 
     ``DoctrineCatalog.domains_present`` records which artifact domains have a
-    ``shipped/`` directory on disk.  The resolver uses this to distinguish between
+    ``built-in/`` directory on disk.  The resolver uses this to distinguish between
     "domain not deployed in this install" (safe to skip validation) and "domain
-    present but shipped set is empty" (every selection is invalid).
+    present but built-in set is empty" (every selection is invalid).
     """
     doctrine_root = resolve_doctrine_root()
     normalized_languages = None if active_languages is None else normalize_languages(active_languages)
@@ -200,7 +200,7 @@ def _load_yaml_id_catalog(
         id_field: YAML key containing the artifact ID. Defaults to ``"id"``.
                   Use ``"profile-id"`` for agent profile files.
         include_proposed: Whether `_proposed/` artifacts should be included in
-                  addition to `shipped/` artifacts. Defaults to shipped-only.
+                  addition to `built-in/` artifacts. Defaults to built-in-only.
     """
     ids, _ = _load_yaml_id_catalog_with_presence(
         directory,
@@ -244,7 +244,7 @@ def _collect_ids_from_roots(
     """Collect artifact IDs from one or more scan roots.
 
     Args:
-        scan_roots: Directories to scan (shipped/ and/or _proposed/).
+        scan_roots: Directories to scan (built-in/ and/or _proposed/).
         pattern: Glob pattern for artifact files (supports ``**``).
         id_field: YAML key containing the artifact ID.
 
@@ -270,13 +270,13 @@ def _resolve_scan_roots(
 
     Returns:
         Tuple of (scan_roots, present).  ``present`` is ``True`` whenever the
-        shipped/ or _proposed/ subdirectory exists, or the directory itself is
+        built-in/ or _proposed/ subdirectory exists, or the directory itself is
         a valid flat layout.
     """
-    shipped_dir = directory / "built-in"
+    built_in_dir = directory / "built-in"
     proposed_dir = directory / "_proposed"
-    if shipped_dir.is_dir() or proposed_dir.is_dir():
-        scan_roots = [shipped_dir] if shipped_dir.is_dir() else []
+    if built_in_dir.is_dir() or proposed_dir.is_dir():
+        scan_roots = [built_in_dir] if built_in_dir.is_dir() else []
         if include_proposed and proposed_dir.is_dir():
             scan_roots.append(proposed_dir)
         return scan_roots, True
@@ -297,8 +297,8 @@ def _load_yaml_id_catalog_with_presence(
 
     Returns:
         Tuple of (ids, present) where ``present`` is ``True`` when the artifact
-        directory exists and has a recognisable ``shipped/`` or flat layout.
-        A ``True`` ``present`` value with an empty id set means the shipped
+        directory exists and has a recognisable ``built-in/`` or flat layout.
+        A ``True`` ``present`` value with an empty id set means the built-in
         catalog is explicitly empty — every selection against this domain is
         invalid.  A ``False`` ``present`` value means the domain is not
         deployed in this install and validation should be skipped.
@@ -309,7 +309,7 @@ def _load_yaml_id_catalog_with_presence(
         id_field: YAML key containing the artifact ID. Defaults to ``"id"``.
                   Use ``"profile-id"`` for agent profile files.
         include_proposed: Whether `_proposed/` artifacts should be included in
-                  addition to ``shipped/`` artifacts. Defaults to shipped-only.
+                  addition to ``built-in/`` artifacts. Defaults to built-in-only.
     """
     if not directory.is_dir():
         return set(), False

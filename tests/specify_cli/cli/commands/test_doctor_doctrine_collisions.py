@@ -58,10 +58,10 @@ def _write_kittify_config_with_pack(repo_root: Path, pack_path: Path) -> None:
     )
 
 
-def _resolve_shipped_directive_id(repo_root: Path) -> str:
+def _resolve_built_in_directive_id(repo_root: Path) -> str:
     """Pick a known shipped directive id so we can collide against it."""
-    shipped_dir = repo_root / "src" / "doctrine" / "directives" / "built-in"
-    for path in sorted(shipped_dir.glob("*.directive.yaml")):
+    built_in_dir = repo_root / "src" / "doctrine" / "directives" / "built-in"
+    for path in sorted(built_in_dir.glob("*.directive.yaml")):
         text = path.read_text(encoding="utf-8")
         for line in text.splitlines():
             if line.startswith("id:"):
@@ -72,12 +72,12 @@ def _resolve_shipped_directive_id(repo_root: Path) -> str:
 def test_doctor_doctrine_text_shows_collisions(tmp_path: Path) -> None:
     """When an org pack shadows a shipped directive, `doctor doctrine` lists it."""
     real_repo = Path(__file__).resolve().parents[4]
-    shipped_id = _resolve_shipped_directive_id(real_repo)
+    built_in_id = _resolve_built_in_directive_id(real_repo)
 
     pack_dir = tmp_path / "pack"
     _write_directive(
         pack_dir / "directives" / "override.directive.yaml",
-        item_id=shipped_id,
+        item_id=built_in_id,
         title="Org Override Title",
     )
     _write_kittify_config_with_pack(tmp_path, pack_dir)
@@ -92,7 +92,7 @@ def test_doctor_doctrine_text_shows_collisions(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.stdout
     # The Collisions section must appear and include the shadowed id.
     assert "Collisions" in result.stdout
-    assert shipped_id in result.stdout
+    assert built_in_id in result.stdout
     assert "shadowed" in result.stdout
 
 
@@ -120,12 +120,12 @@ def test_doctor_doctrine_text_reports_no_collisions_when_pack_disjoint(tmp_path:
 def test_doctor_doctrine_json_emits_collisions_array(tmp_path: Path) -> None:
     """The --json output includes a `collisions` array describing each shadowed id."""
     real_repo = Path(__file__).resolve().parents[4]
-    shipped_id = _resolve_shipped_directive_id(real_repo)
+    built_in_id = _resolve_built_in_directive_id(real_repo)
 
     pack_dir = tmp_path / "pack"
     _write_directive(
         pack_dir / "directives" / "override.directive.yaml",
-        item_id=shipped_id,
+        item_id=built_in_id,
         title="Org Override Title",
     )
     _write_kittify_config_with_pack(tmp_path, pack_dir)
@@ -142,9 +142,9 @@ def test_doctor_doctrine_json_emits_collisions_array(tmp_path: Path) -> None:
     assert payload["org_configured"] is True
     assert isinstance(payload["collisions"], list)
     ids = [c["item_id"] for c in payload["collisions"]]
-    assert shipped_id in ids
+    assert built_in_id in ids
     # Schema sanity: each entry carries the expected fields.
-    match = next(c for c in payload["collisions"] if c["item_id"] == shipped_id)
+    match = next(c for c in payload["collisions"] if c["item_id"] == built_in_id)
     assert match["higher_layer"] == "org"
     assert match["lower_layer"] == "builtin"
     assert match["kind"] == "directive"

@@ -97,6 +97,15 @@ class SynthesisManifest(BaseModel):
     artifacts: list[ManifestArtifactEntry] = Field(default_factory=list)
     """One entry per committed artifact, in deterministic order."""
 
+    built_in_only: bool = False
+    """When True the synthesizer legitimately produced no project DRG
+    (FR-009 / data-model §6).  Downstream readers MUST treat this as the
+    authoritative state and ignore any stale ``.kittify/doctrine/graph.yaml``.
+
+    Default ``False`` preserves backward compatibility — manifests written by
+    pre-WP02 synthesizers parse unchanged.
+    """
+
 
 # ---------------------------------------------------------------------------
 # IO helpers

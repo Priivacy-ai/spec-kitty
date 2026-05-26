@@ -268,6 +268,115 @@ def _detect_done_wps(events: list[dict]) -> set[str]:
     return done_wps
 
 
+# ---------------------------------------------------------------------------
+# T039 / FR-010 (F-04): --force transitions, arbiter overrides, implementation cycles
+# ---------------------------------------------------------------------------
+
+# Bootstrap actors emit force=True legitimately (e.g., finalize-tasks creating
+# the initial planned→planned synthetic event).  They are not "force overrides"
+# in the retrospective sense and must be excluded.
+_BOOTSTRAP_ACTORS: frozenset[str] = frozenset({
+    "finalize-tasks",
+    "bootstrap",
+    "migrate",
+})
+
+# Arbiter override markers in the `note` / `reason` fields.  Case-insensitive
+# substring match keeps the heuristic simple while staying generous toward
+# operator phrasing.
+_ARBITER_MARKERS: tuple[str, ...] = (
+    "arbiter",
+    "arbiter-override",
+    "arbiter override",
+    "override arbiter",
+)
+
+
+def _is_force_override_event(event: dict) -> bool:
+    """Return True if this event is a meaningful operator-driven --force override.
+
+    Excludes finalize-tasks / bootstrap synthetic events whose force=True is a
+    structural artifact, not an override.  Also excludes no-op transitions
+    (from_lane == to_lane) which carry no signal.
+    """
+    if not event.get("force"):
+        return False
+    actor = str(event.get("actor", "")).lower()
+    if actor in _BOOTSTRAP_ACTORS:
+        return False
+    return event.get("from_lane") != event.get("to_lane")
+
+
+def _detect_force_overrides(events: list[dict]) -> dict[str, int]:
+    """Count operator-driven --force transitions per WP."""
+    counts: dict[str, int] = {}
+    for event in events:
+        wp_id = event.get("wp_id", "")
+        if not wp_id:
+            continue
+        if _is_force_override_event(event):
+            counts[wp_id] = counts.get(wp_id, 0) + 1
+    return counts
+
+
+def _event_note(event: dict) -> str:
+    """Return the human-readable note/reason text from an event, lower-cased."""
+    parts: list[str] = []
+    reason = event.get("reason")
+    if isinstance(reason, str) and reason.strip():
+        parts.append(reason)
+    evidence = event.get("evidence")
+    if isinstance(evidence, dict):
+        for key in ("note", "reason"):
+            value = evidence.get(key)
+            if isinstance(value, str) and value.strip():
+                parts.append(value)
+    return " ".join(parts).lower()
+
+
+def _is_arbiter_event(event: dict) -> bool:
+    """Return True if event note/reason contains an arbiter override marker."""
+    note = _event_note(event)
+    if not note:
+        return False
+    return any(marker in note for marker in _ARBITER_MARKERS)
+
+
+def _detect_arbiter_overrides(events: list[dict]) -> dict[str, int]:
+    """Count arbiter-override events per WP."""
+    counts: dict[str, int] = {}
+    for event in events:
+        wp_id = event.get("wp_id", "")
+        if not wp_id:
+            continue
+        if _is_arbiter_event(event):
+            counts[wp_id] = counts.get(wp_id, 0) + 1
+    return counts
+
+
+def _detect_implementation_cycles(events: list[dict]) -> dict[str, int]:
+    """Count distinct planned→in_progress (or claimed→in_progress) cycles per WP.
+
+    A WP that needs >1 implementation cycle indicates rework that didn't
+    surface as a documented review rejection.  Bootstrap and synthetic
+    transitions are excluded.
+    """
+    counts: dict[str, int] = {}
+    for event in events:
+        wp_id = event.get("wp_id", "")
+        if not wp_id:
+            continue
+        actor = str(event.get("actor", "")).lower()
+        if actor in _BOOTSTRAP_ACTORS:
+            continue
+        from_lane = event.get("from_lane", "")
+        to_lane = event.get("to_lane", "")
+        if from_lane in ("planned", "claimed") and to_lane == "in_progress":
+            counts[wp_id] = counts.get(wp_id, 0) + 1
+    # Only WPs with MORE THAN ONE cycle are interesting (the first cycle is normal).
+    return {wp: n for wp, n in counts.items() if n > 1}
+
+
 def _collect_fr_references(wp_files: list[tuple[str, str]]) -> dict[str, set[str]]:
     """Return mapping of FR-id -> set of WP filenames that reference it."""
     fr_to_wps: dict[str, set[str]] = {}
@@ -297,6 +406,88 @@ def _classify_risk(suggested_action: str) -> tuple[str, bool]:
     if action_prefix in LOW_RISK_PROPOSAL_KINDS:
         return "low", False
     return "structural", False
+
+
+def _event_id_range_for(events: list[dict], wp_id: str, predicate) -> str:  # type: ignore[no-untyped-def]
+    """Return ``first..last`` (or single id) for events matching ``predicate`` on a WP."""
+    ids = [
+        str(ev.get("event_id", ""))
+        for ev in events
+        if ev.get("wp_id") == wp_id and predicate(ev)
+    ]
+    if len(ids) > 1:
+        return f"{ids[0]}..{ids[-1]}"
+    return ids[0] if ids else ""
+
+
+def _build_event_mining_findings(
+    *,
+    events: list[dict],
+    events_rel: str,
+    finding_id_counters: dict[str, list[int]],
+    ev_reg: _EvidenceRegistry,
+) -> tuple[list[GenFinding], list[GenFinding]]:
+    """Build T039 / FR-010 (F-04) findings — force, arbiter, implementation cycles.
+
+    Returns ``(not_helpful_additions, gaps_additions)``.
+    """
+    not_helpful: list[GenFinding] = []
+    gaps: list[GenFinding] = []
+
+    # Force overrides → not_helpful
+    for wp_id, count in sorted(_detect_force_overrides(events).items()):
+        range_str = _event_id_range_for(events, wp_id, _is_force_override_event)
+        ev_id = ev_reg.add_event_range(events_rel, range_str or "force_override", f"force_override_{wp_id}")
+        not_helpful.append(
+            GenFinding(
+                id=_next_finding_id("n", finding_id_counters),
+                category="process",
+                summary=f"{wp_id} required {count} --force override(s) during workflow",
+                details=(
+                    f"WP {wp_id} required {count} operator-driven --force lane transition(s). "
+                    "Force overrides typically indicate the runtime guard failed or "
+                    "the operator routed around it; investigate the underlying cause."
+                ),
+                evidence_refs=[ev_id],
+            )
+        )
+
+    # Arbiter overrides → gaps
+    for wp_id, count in sorted(_detect_arbiter_overrides(events).items()):
+        range_str = _event_id_range_for(events, wp_id, _is_arbiter_event)
+        ev_id = ev_reg.add_event_range(events_rel, range_str or "arbiter", f"arbiter_{wp_id}")
+        gaps.append(
+            GenFinding(
+                id=_next_finding_id("g", finding_id_counters),
+                category="process",
+                summary=f"Arbiter override needed for {wp_id} ({count}x)",
+                details=(
+                    f"WP {wp_id} required {count} arbiter override(s). Arbiter overrides "
+                    "are an escape hatch; recurring use suggests the normal review path is "
+                    "blocked and the underlying policy/guard may need adjustment."
+                ),
+                evidence_refs=[ev_id],
+            )
+        )
+
+    # Multi-cycle implementations → not_helpful
+    for wp_id, count in sorted(_detect_implementation_cycles(events).items()):
+        ev_id = ev_reg.add_event_range(events_rel, "implementation_cycles", f"impl_cycles_{wp_id}")
+        not_helpful.append(
+            GenFinding(
+                id=_next_finding_id("n", finding_id_counters),
+                category="implementation",
+                summary=f"{wp_id} needed {count} implementation cycles",
+                details=(
+                    f"WP {wp_id} entered in_progress {count} times. Multiple implementation "
+                    "cycles suggest rework not captured as a documented review rejection; "
+                    "the WP scope or contract may need refinement."
+                ),
+                evidence_refs=[ev_id],
+            )
+        )
+
+    return not_helpful, gaps
 
 
 def _build_lane_friction_findings(
@@ -474,6 +665,16 @@ def _build_findings(
             ev_reg=ev_reg,
         )
     )
+
+    # --- T039 / FR-010 (F-04): force-override, arbiter, and impl-cycle findings
+    _new_not_helpful, _new_gaps = _build_event_mining_findings(
+        events=events,
+        events_rel=events_rel,
+        finding_id_counters=finding_id_counters,
+        ev_reg=ev_reg,
+    )
+    not_helpful.extend(_new_not_helpful)
+    gaps.extend(_new_gaps)
 
     # --- Gaps: open [NEEDS CLARIFICATION:] markers in spec.md
     if spec_text:

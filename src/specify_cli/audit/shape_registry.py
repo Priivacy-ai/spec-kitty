@@ -105,6 +105,7 @@ KNOWN_TOP_LEVEL_KEYS_BY_ARTIFACT: dict[str, frozenset[str]] = {
             "model",
             "history",
             "requirement_refs",
+            "tracker_refs",
             # older shapes:
             "id",
             "status",

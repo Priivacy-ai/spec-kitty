@@ -9,7 +9,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Add pre-launch and launch-readiness operator docs for hosted SaaS
+### Breaking changes
+
+- **`shipped` → `built-in` vocabulary rename.** Public CLI JSON surfaces that
+  previously emitted `"shipped"` as a doctrine layer label now emit `"built-in"`.
+  This aligns user-facing terminology with the on-disk `built-in/` directory
+  layout that already existed. Affected commands:
+  - `spec-kitty charter status --json`
+  - `spec-kitty charter lint --json`
+  - `spec-kitty charter preflight --json` (new in this release)
+  - `spec-kitty agent profile list --json`
+  - `spec-kitty doctrine pack validate --json`
+
+  External tooling that pattern-matched the string `"shipped"` MUST be updated.
+  No deprecation period: the rename is mechanical and the architectural test
+  `tests/architectural/test_no_shipped_layer_label.py` prevents regression.
+
+  Related: ADR `architecture/3.x/adr/2026-05-24-3-shipped-to-built-in-cutover.md`.
+
+### Changed
+
+- **Deprecated paths:** `specify_cli.charter_lint`, `specify_cli.charter_freshness`,
+  and `specify_cli.charter_preflight` now re-export from
+  `specify_cli.charter_runtime.{lint,freshness,preflight}` under a shared
+  charter-runtime umbrella (LD-5 / FR-014). The old paths emit no
+  `DeprecationWarning` yet; they will in the next minor release. External
+  importers should update to the new paths during this deprecation window
+  (spec C-008). The `charter_runtime.facade` slot is reserved for a future
+  charter-facade consolidation.
+
+### Added
+
+- **`spec-kitty charter preflight` command.** Caller-facing preflight contract
+  for governance freshness (FR-006, FR-007, FR-008). Returns a structured JSON
+  report that `next`, `implement`, and the dashboard consume to decide whether
+  to proceed, prompt for `charter synthesize`, or block. See
+  `docs/reference/charter-commands.md` and ADR
+  `architecture/3.x/adr/2026-05-24-1-charter-freshness-ux-contract.md`.
+
+- Pre-launch and launch-readiness operator docs for hosted SaaS
   sync (#1095). Public docs remain local-first; hosted readiness
   stays opt-in via `SPEC_KITTY_ENABLE_SAAS_SYNC=1`. The new
   `docs/how-to/internal-hosted-readiness.md` covers the dogfooding

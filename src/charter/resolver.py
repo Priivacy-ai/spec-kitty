@@ -68,7 +68,7 @@ def _validate_paradigm_selection(
     selected_paradigms: list[str],
     doctrine_catalog: DoctrineCatalog,
 ) -> None:
-    """Raise GovernanceResolutionError if any selected paradigm is not in the shipped catalog."""
+    """Raise GovernanceResolutionError if any selected paradigm is not in the built-in catalog."""
     if not selected_paradigms or "paradigms" not in doctrine_catalog.domains_present:
         return
     missing = sorted(p for p in selected_paradigms if p not in doctrine_catalog.paradigms)
@@ -76,9 +76,9 @@ def _validate_paradigm_selection(
         raise GovernanceResolutionError(
             [
                 "Charter selected unavailable paradigm(s): " + ", ".join(missing),
-                "Available shipped paradigms: "
+                "Available built-in paradigms: "
                 + (", ".join(sorted(doctrine_catalog.paradigms)) or "(none)"),
-                "Update charter selected_paradigms to values present in doctrine/paradigms/shipped/.",
+                "Update charter selected_paradigms to values present in doctrine/paradigms/built-in/.",
             ]
         )
 
@@ -141,7 +141,7 @@ def _resolve_directives_selection(
             raise GovernanceResolutionError(
                 [
                     "Charter selected unavailable directive(s): " + ", ".join(missing),
-                    "Declare these IDs in directives.yaml or add them to doctrine/directives/shipped/.",
+                    "Declare these IDs in directives.yaml or add them to doctrine/directives/built-in/.",
                 ]
             )
         return list(doctrine.selected_directives), "charter"
@@ -196,7 +196,7 @@ def resolve_project_governance(
     The companion resolver
     :func:`charter.mission_type_profiles.resolve_mission_type_governance`
     handles **mission-type** scoped governance (``meta.json mission_type``
-    → shipped governance profile).  The two resolvers compose at the
+    → built-in governance profile).  The two resolvers compose at the
     prompt-builder layer: the mission-type resolver runs first to fill
     documentation / research / plan defaults, then this resolver fills
     project + org selections on top.  Keeping them as two named functions
