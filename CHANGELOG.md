@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0rc27] - 2026-05-26
+
+3.2.0rc27 fixes a charter freshness/preflight false positive found in the
+post-rc26 mainline checks.
+
+### Fixed
+
+- Charter freshness now uses the same canonical hash semantics as
+  `charter sync`, so whitespace-normalized stored hashes do not falsely mark a
+  project stale.
+- Fresh built-in doctrine seeds now produce the charter synthesis manifest
+  expected by preflight, preventing new projects from failing with
+  `charter_source stale` before any local charter exists.
+- Synced charter bundles no longer become stale from source mtime drift when
+  metadata hashes and required bundle files already prove the source is fresh.
+
 ## [3.2.0rc26] - 2026-05-26
 
 Rolls up the charter preflight, built-in vocabulary, and CI stabilization
