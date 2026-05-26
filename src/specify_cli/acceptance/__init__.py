@@ -309,7 +309,7 @@ def _read_file(path: Path) -> str:
 
 def _find_unchecked_tasks(tasks_file: Path) -> list[str]:
     if not tasks_file.exists():
-        return ["tasks.md missing"]
+        return [f"{TASKS_FILE} missing"]
 
     unchecked: list[str] = []
     for line in _read_text_strict(tasks_file).splitlines():
@@ -730,13 +730,13 @@ def collect_feature_summary(
 
     _validate_wp_readiness(expected_wp_ids, snapshot_wps, feature_dir / EVENTS_FILENAME, activity_issues)
 
-    unchecked_tasks = _find_unchecked_tasks(feature_dir / "tasks.md")
+    unchecked_tasks = _find_unchecked_tasks(feature_dir / TASKS_FILE)
     needs_clarification = _check_needs_clarification(
         [
             feature_dir / "spec.md",
             feature_dir / "plan.md",
             feature_dir / "quickstart.md",
-            feature_dir / "tasks.md",
+            feature_dir / TASKS_FILE,
             feature_dir / "research.md",
             feature_dir / "data-model.md",
         ]
@@ -776,7 +776,7 @@ def collect_feature_summary(
         work_packages=work_packages,
         metadata_issues=metadata_issues,
         activity_issues=activity_issues,
-        unchecked_tasks=unchecked_tasks if unchecked_tasks != ["tasks.md missing"] else [],
+        unchecked_tasks=unchecked_tasks if unchecked_tasks != [f"{TASKS_FILE} missing"] else [],
         needs_clarification=needs_clarification,
         missing_artifacts=missing_required,
         optional_missing=missing_optional,

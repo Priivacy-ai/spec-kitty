@@ -308,7 +308,7 @@ def _build_lane_friction_findings(
     ev_reg: _EvidenceRegistry,
 ) -> list[GenFinding]:
     findings: list[GenFinding] = []
-    for wp_id in sorted(lane_friction_counts.keys()):
+    for wp_id in sorted(lane_friction_counts):
         count = lane_friction_counts[wp_id]
         friction_event_ids = [
             str(ev.get("event_id", ""))
