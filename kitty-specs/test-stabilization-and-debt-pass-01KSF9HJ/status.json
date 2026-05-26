@@ -1,0 +1,105 @@
+{
+  "event_count": 80,
+  "last_event_id": "01KSH87MMKXYECG9HD1SB0BB8E",
+  "materialized_at": "2026-05-26T04:21:06.836004+00:00",
+  "mission_number": "",
+  "mission_slug": "test-stabilization-and-debt-pass-01KSF9HJ",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 12,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KSFVKN4CBAYEXS1QVD8XEYJ3",
+      "last_transition_at": "2026-05-25T15:21:14.636815+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KSFX9G4ZHJ51SW8DAR99VJ7A",
+      "last_transition_at": "2026-05-25T15:50:39.007105+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KSFWDE5085AZ733V4RHXHYKR",
+      "last_transition_at": "2026-05-25T15:35:19.456948+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KSH87MMKXYECG9HD1SB0BB8E",
+      "last_transition_at": "2026-05-26T04:21:06.836004+00:00"
+    },
+    "WP05": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KSFSDJYRF3325MWGH3W5EXDT",
+      "last_transition_at": "2026-05-25T14:42:58.648576+00:00"
+    },
+    "WP06": {
+      "actor": "user",
+      "force_count": 5,
+      "lane": "approved",
+      "last_event_id": "01KSFX45Y0VBT5F52S2X8NQAQS",
+      "last_transition_at": "2026-05-25T15:47:44.704182+00:00"
+    },
+    "WP07": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KSFXRA1G2KVNYN54CH3BNP3E",
+      "last_transition_at": "2026-05-25T15:58:44.272260+00:00"
+    },
+    "WP08": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KSH83D4HSJR6N8VR4CW4XRM4",
+      "last_transition_at": "2026-05-26T04:18:48.081735+00:00"
+    },
+    "WP09": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KSFTC38N2C4WYG899HFTSFPV",
+      "last_transition_at": "2026-05-25T14:59:38.389799+00:00"
+    },
+    "WP10": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KSFTXB2CEVD4K75XK48Q6VM1",
+      "last_transition_at": "2026-05-25T15:09:03.436845+00:00"
+    },
+    "WP11": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KSFT15QF8J3WDQCW7JMR9RDQ",
+      "last_transition_at": "2026-05-25T14:53:40.463636+00:00"
+    },
+    "WP12": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KSFSK2BQ5S68SMG2JP6V09JH",
+      "last_transition_at": "2026-05-25T14:45:58.263124+00:00"
+    }
+  }
+}

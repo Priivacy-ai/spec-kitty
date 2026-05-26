@@ -1,25 +1,12 @@
-"""Charter freshness computation — public API.
+"""Deprecated path; re-exports from charter_runtime.freshness for one cycle (C-008)."""
 
-Detects whether the canonical charter source, the synced bundle, and the
-synthesized project DRG are mutually fresh, or whether downstream artifacts
-have drifted from upstream changes.
+import importlib
+import sys
 
-Used by ``spec-kitty charter status --json`` to surface a ``freshness``
-sub-payload (FR-005) and to surface the ``built_in_only`` synthesis state
-(FR-009).
+from specify_cli.charter_runtime.freshness import *  # noqa: F401,F403
+from specify_cli.charter_runtime.freshness import __all__  # noqa: F401
 
-Zero LLM calls. All logic is filesystem stat + SHA-256 hash comparison +
-YAML field inspection.
-"""
-
-from specify_cli.charter_freshness.computer import (
-    CharterFreshness,
-    FreshnessSubState,
-    compute_freshness,
-)
-
-__all__ = [
-    "CharterFreshness",
-    "FreshnessSubState",
-    "compute_freshness",
-]
+for _sub in ("computer",):
+    sys.modules[f"{__name__}.{_sub}"] = importlib.import_module(
+        f"specify_cli.charter_runtime.freshness.{_sub}"
+    )

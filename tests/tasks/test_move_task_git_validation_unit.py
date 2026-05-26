@@ -25,9 +25,22 @@ runner = CliRunner()
 
 @pytest.fixture(autouse=True)
 def _disable_move_task_sync_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Keep command unit tests hermetic even when global SaaS test flag is on."""
+    """Keep command unit tests hermetic even when global SaaS test flag is on.
+
+    Also sets ``SPEC_KITTY_TEST_MODE=1`` so the protected-branch guard at
+    ``assert_not_protected_branch`` allows the ``chore: Move WPxx`` status
+    auto-commit to land on ``main`` inside the in-process test repos. The
+    guard's docstring explicitly designates this env var as the test-mode
+    bypass; without it, ``safe_commit`` silently raises on every move-task
+    run here because the fixture's repo is on ``main`` (a protected branch).
+    The bypass is required to test the auto-commit contract at all -- the
+    guard otherwise turns the commit into a no-op that the
+    ``test_move_for_review_from_worktree_does_not_mirror_commit_to_lane_branch``
+    contract assertion cannot observe. See commit ``93546d0e2``.
+    """
     import specify_cli.status.emit as status_emit
 
+    monkeypatch.setenv("SPEC_KITTY_TEST_MODE", "1")
     monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
     monkeypatch.setattr(status_emit, "fire_dossier_sync", lambda *args, **kwargs: None)
     monkeypatch.setattr(

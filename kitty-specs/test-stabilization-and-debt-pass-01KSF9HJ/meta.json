@@ -1,8 +1,22 @@
 {
+  "accept_commit": "90c291bd472a8a3430655539c4abb53973994d5f",
+  "acceptance_history": [
+    {
+      "accept_commit": "90c291bd472a8a3430655539c4abb53973994d5f",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-05-26T04:22:46.444327+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "81c728d47c0d77863ae59863bb88fb8d01982a03"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-05-26T04:22:46.444327+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "81c728d47c0d77863ae59863bb88fb8d01982a03",
   "created_at": "2026-05-25T10:05:31.887869+00:00",
   "friendly_name": "Test Stabilization & Architectural Debt Pass",
   "mission_id": "01KSF9HJBFKRBC617JVHKZXNE2",
-  "mission_number": null,
+  "mission_number": 123,
   "mission_slug": "test-stabilization-and-debt-pass-01KSF9HJ",
   "mission_type": "software-dev",
   "purpose_context": "Intermediate remediation mission addressing two parallel concerns surfaced by the post-merge audit of mission 01KSAF14: (1) the 242 remaining test failures tracked under #1298 across the sync/dashboard/tasks subsystems, and (2) the small architectural debts identified in the architect's deep-dive review (LD-1 logical duplication in doctrine/base.py, MS-1 the 3328-line charter.py, plus #1163 issue-matrix scaffolding and a handful of follow-ups from the 01KSAF14 engineering notes). Bounded as a deliberate ~6-8 WP pass — NOT a full re-architecture, just the lowest-risk debt repayments before continuing onto 3.3.0 feature work.",

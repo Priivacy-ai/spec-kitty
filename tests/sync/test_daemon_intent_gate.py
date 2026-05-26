@@ -233,6 +233,10 @@ ALLOWED_CALL_SITES: set[str] = {
     "src/specify_cli/sync/events.py",
     "src/specify_cli/sync/daemon.py",  # the definition itself
     "src/specify_cli/cli/commands/tracker.py",  # added by WP05
+    # `spec-kitty doctor restart-daemon`: composes stop + ensure_sync_daemon_running
+    # to respawn the daemon at the foreground executable. Authorized caller; the
+    # WP04 caller-audit row covers this surface.
+    "src/specify_cli/sync/restart.py",
 }
 
 

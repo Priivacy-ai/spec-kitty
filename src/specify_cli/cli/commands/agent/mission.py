@@ -1791,6 +1791,32 @@ def finalize_tasks(
         all_spec_requirement_ids = set(spec_requirement_ids["all"])
         functional_spec_requirement_ids = set(spec_requirement_ids["functional"])
 
+        # FR-009 / WP09 (closes #1163): scaffold ``issue-matrix.md`` whenever
+        # ``spec.md`` references one or more GitHub issues (e.g. ``#1298``).
+        # The helper is idempotent — existing files are preserved — so it is
+        # safe to run on every ``finalize-tasks`` invocation. The matrix is a
+        # planning artifact, so we skip it in ``--validate-only`` mode.
+        if not validate_only:
+            try:
+                from specify_cli.tasks.issue_matrix import scaffold_issue_matrix
+
+                issue_matrix_path = scaffold_issue_matrix(feature_dir, spec_md)
+            except Exception as _issue_matrix_exc:
+                # Never block finalize-tasks on a scaffold failure — this is a
+                # convenience artifact, not a correctness gate.
+                if not json_output:
+                    console.print(
+                        "[yellow]Warning:[/yellow] could not scaffold "
+                        f"issue-matrix.md: {_issue_matrix_exc}"
+                    )
+            else:
+                if issue_matrix_path is not None and not json_output:
+                    try:
+                        rel = issue_matrix_path.relative_to(repo_root)
+                    except ValueError:
+                        rel = issue_matrix_path
+                    console.print(f"[info] Scaffolded {rel}")
+
         # ─── TIER 0: wps.yaml manifest ────────────────────────────────────────
         try:
             wps_manifest = load_wps_manifest(feature_dir)

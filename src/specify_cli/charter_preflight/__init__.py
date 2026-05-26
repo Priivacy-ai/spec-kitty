@@ -1,32 +1,12 @@
-"""Charter preflight — verify charter-derived state before a governed session.
+"""Deprecated path; re-exports from charter_runtime.preflight for one cycle (C-008)."""
 
-This package implements ``spec-kitty charter preflight`` (FR-006, FR-007,
-FR-008) and the matching callable ``run_charter_preflight(...)`` consumed
-by ``spec-kitty next``, ``spec-kitty implement``, and the dashboard.
+import importlib
+import sys
 
-Public surface:
+from specify_cli.charter_runtime.preflight import *  # noqa: F401,F403
+from specify_cli.charter_runtime.preflight import __all__  # noqa: F401
 
-* :class:`CharterPreflightCheck` — one row of the preflight result.
-* :class:`CharterPreflightResult` — aggregate result + JSON serialisation.
-* :func:`run_charter_preflight` — entry point; never raises.
-
-Performance contract (NFR-001): < 300 ms warm, < 1 s cold.
-"""
-
-from specify_cli.charter_preflight.config import (
-    PreflightConfig,
-    load_preflight_config,
-)
-from specify_cli.charter_preflight.result import (
-    CharterPreflightCheck,
-    CharterPreflightResult,
-)
-from specify_cli.charter_preflight.runner import run_charter_preflight
-
-__all__ = [
-    "CharterPreflightCheck",
-    "CharterPreflightResult",
-    "PreflightConfig",
-    "load_preflight_config",
-    "run_charter_preflight",
-]
+for _sub in ("cli", "config", "dashboard_warning", "hook", "result", "runner"):
+    sys.modules[f"{__name__}.{_sub}"] = importlib.import_module(
+        f"specify_cli.charter_runtime.preflight.{_sub}"
+    )

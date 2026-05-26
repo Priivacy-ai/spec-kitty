@@ -210,6 +210,10 @@ class WPMetadata(BaseModel):
     merge_target_branch: str | None = None
     branch_strategy: str | None = None
     requirement_refs: list[str] = Field(default_factory=list)
+    tracker_refs: list[str] = Field(
+        default_factory=list,
+        description="External tracker issue references (e.g., '#1298', 'JIRA-123').",
+    )
     priority: str | None = None
 
     # ── Optional: execution context ────────────────────────────
@@ -287,6 +291,11 @@ class WPMetadata(BaseModel):
         refs = data.get("requirement_refs")
         if isinstance(refs, str):
             data["requirement_refs"] = [s.strip() for s in refs.split(",") if s.strip()]
+
+        # T040 / FR-011 (F-10): tracker_refs may also be stored as a scalar string
+        tracker_refs_val = data.get("tracker_refs")
+        if isinstance(tracker_refs_val, str):
+            data["tracker_refs"] = [s.strip() for s in tracker_refs_val.split(",") if s.strip()]
 
         return data
 

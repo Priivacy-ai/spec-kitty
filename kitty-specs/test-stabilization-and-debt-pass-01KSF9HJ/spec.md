@@ -30,11 +30,12 @@ An operator runs `pytest tests/ -q` on `main`. The current failure baseline drop
 ### Scenario A — Architectural debt consolidation (FR-006..FR-008, FR-013, FR-014)
 A future contributor reading `src/doctrine/base.py` sees ONE overlay-application method instead of two near-identical ones (FR-006 / LD-1). A future contributor wiring a new `spec-kitty charter ...` subcommand opens ONE file (the new subcommand-specific module under `cli/commands/charter/`) rather than appending to a 3,328-line monolith (FR-007 / MS-1). A reader inspecting how freshness is computed sees it route through the canonical chokepoint, not duplicate the manifest-read logic (FR-013 / LD-3). And the four charter-runtime concerns (lint, freshness, preflight, facade) live under one umbrella package rather than spelled four times as siblings under `specify_cli/` (FR-014 / LD-5).
 
-### Scenario Q — Small quality follow-ups (FR-009..FR-012)
+### Scenario Q — Small quality follow-ups (FR-009..FR-012, FR-015)
 - `/spec-kitty.tasks` scaffolds `issue-matrix.md` when the mission references GitHub issues (#1163).
 - The retrospective auto-generator mines `status.events.jsonl` for `--force` / arbiter transitions and surfaces them as `helped` / `not_helpful` entries (closes the F-04 finding from 01KSAF14).
 - `WPMetadata` gains an optional `tracker_refs: list[str]` field that the orchestrator can populate per DIR-012 (closes F-10).
 - The bulk-edit gate's allowed action vocabulary is documented in a discoverable place (closes F-01).
+- **Two finalize-tasks fixes landed during this mission's own scaffolding** (commits `0f4e1a383` linter + `72ff0d723` lane-depth) get regression test coverage so they don't regress (FR-015). Surfaced when running `finalize-tasks` against this very mission.
 
 ---
 
@@ -56,6 +57,7 @@ A future contributor reading `src/doctrine/base.py` sees ONE overlay-application
 | **FR-012** | The bulk-edit gate's allowed action vocabulary (`do_not_change`, `manual_review`, `rename`, `rename_if_user_visible`) and required top-level `target:` block are documented in a discoverable location (a `docs/reference/bulk-edit-gate.md` or equivalent). The `spec-kitty-bulk-edit-classification` skill prose is updated to match. (Closes F-01 of mission 01KSAF14.) | Draft | F-01 |
 | **FR-013** | Route `src/specify_cli/charter_freshness/computer.py` manifest + graph reads through `charter.compiler.ensure_charter_bundle_fresh` (or a read-only sibling) so the chokepoint's refresh semantics apply to freshness reporting under concurrent invocation. Preserves the existing public `compute_freshness(repo_root) -> CharterFreshness` API. (Closes LD-3 / RISK-2 from the mission-review.) | Draft | review §2 LD-3 |
 | **FR-014** | Group `charter_lint/`, `charter_freshness/`, `charter_preflight/` (and the existing `charter/` facade) under a single `src/specify_cli/charter_runtime/` umbrella package. Each becomes a submodule (`charter_runtime.lint`, `charter_runtime.freshness`, `charter_runtime.preflight`, `charter_runtime.facade`). Existing imports survive via top-level re-export shims for one release. (Closes LD-5.) | Draft | review §2 LD-5 |
+| **FR-015** | Lock the finalize-tasks linter+lane-depth fixes (commits `0f4e1a383` and `72ff0d723` on `main`) with regression tests: (a) a unit test asserting that a WP frontmatter with explicit `owned_files: []` does NOT trigger body-text inference; (b) a unit test for `_compute_lane_depths` against a deliberately-cycle lane-deps graph asserts no recursion blow-up and produces a deterministic depth dict. Document the two fixes in `docs/reference/finalize-tasks-internals.md` (NEW). | Draft | self-surface (Slice Q escalation) |
 
 ## Non-Functional Requirements
 

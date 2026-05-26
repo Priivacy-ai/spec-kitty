@@ -27,6 +27,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   Related: ADR `architecture/3.x/adr/2026-05-24-3-shipped-to-built-in-cutover.md`.
 
+### Changed
+
+- **Deprecated paths:** `specify_cli.charter_lint`, `specify_cli.charter_freshness`,
+  and `specify_cli.charter_preflight` now re-export from
+  `specify_cli.charter_runtime.{lint,freshness,preflight}` under a shared
+  charter-runtime umbrella (LD-5 / FR-014). The old paths emit no
+  `DeprecationWarning` yet; they will in the next minor release. External
+  importers should update to the new paths during this deprecation window
+  (spec C-008). The `charter_runtime.facade` slot is reserved for a future
+  charter-facade consolidation.
+
 ### Added
 
 - **`spec-kitty charter preflight` command.** Caller-facing preflight contract

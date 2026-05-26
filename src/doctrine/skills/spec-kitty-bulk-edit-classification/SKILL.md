@@ -295,6 +295,20 @@ Dismissing carelessly defeats the guardrail. When in doubt, upgrade.
 | `kitty-specs/<mission>/spec.md` | Name the rename target explicitly |
 | `kitty-specs/<mission>/plan.md` | Note the classification workflow was run |
 
+## Reference
+
+The schema for `occurrence_map.yaml` — the required top-level `target:` block,
+the eight categories, and the four-value `action` vocabulary
+(`do_not_change`, `manual_review`, `rename`, `rename_if_user_visible`) — is
+documented in [`docs/reference/bulk-edit-gate.md`](../../../docs/reference/bulk-edit-gate.md).
+Consult that file when:
+
+- You need to look up exactly what an `action` value means.
+- The gate prints `Bulk Edit Gate: BLOCKED` and the failure mode lists in
+  this skill don't match the message verbatim.
+- You're authoring a new `occurrence_map.yaml` and need the canonical
+  category-to-action cookbook.
+
 ## Related skills
 
 - `spec-kitty-runtime-next` — the loop that runs implement/review; this skill

@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import warnings
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Generic, TypeVar
 
@@ -207,21 +208,37 @@ class BaseDoctrineRepository(ABC, Generic[T]):
             lower_dump=existing.model_dump(),
         )
 
-    def _apply_org_overrides(self, yaml_parser: YAML, built_in: dict[str, T]) -> None:
-        """Merge or add items from each configured org dir into self._items.
+    def _apply_overlay_layer(
+        self,
+        dirs: Sequence[Path],
+        layer_name: str,
+        *,
+        yaml_parser: YAML,
+        built_in: dict[str, T],
+    ) -> None:
+        """Apply a stack of overlay directories to ``self._items`` with the given provenance.
 
-        Iterates ``self._org_dirs`` in declaration order; later packs override
-        earlier ones for the same artifact ID (FR-006, C-004). Each artifact
-        sourced from any org pack is tagged with provenance ``"org"``.
+        Used for both the org and project layers. Mirrors the field-merge semantics
+        ratified by ADR 2026-05-16-1: for each YAML file in each dir, parse + validate
+        + merge-or-insert against ``built_in``. Tag every resulting item with the given
+        layer_name as provenance.
 
-        Emits a ``DoctrineLayerCollisionWarning`` whenever an org artifact
+        Emits a ``DoctrineLayerCollisionWarning`` whenever an overlay artifact
         shadows an already-loaded artifact from a lower layer (FR-003 wording
         per ADR 2026-05-16-1).
+
+        Args:
+            dirs: ordered list of overlay directories. Later dirs override earlier
+                  ones for the same artifact ID (FR-006, C-004 of the org-layer
+                  mission).
+            layer_name: provenance string ("org" or "project").
+            yaml_parser: pre-configured YAML loader.
+            built_in: the resolved built-in items map (target of merge-on-collision).
         """
-        for org_dir in self._org_dirs:
-            if not org_dir.exists():
+        for overlay_dir in dirs:
+            if not overlay_dir.exists():
                 continue
-            for yaml_file in self._project_scan(org_dir):
+            for yaml_file in self._project_scan(overlay_dir):
                 try:
                     data = yaml_parser.load(yaml_file)
                     if data is None:
@@ -230,7 +247,7 @@ class BaseDoctrineRepository(ABC, Generic[T]):
                     item_id = data.get("id")
                     if not item_id:
                         warnings.warn(
-                            f"Skipping org {self._kind} {yaml_file.name}: no id",
+                            f"Skipping {layer_name} {self._kind} {yaml_file.name}: no id",
                             UserWarning,
                             stacklevel=3,
                         )
@@ -240,79 +257,28 @@ class BaseDoctrineRepository(ABC, Generic[T]):
                         if self._include_item(merged):
                             self._record_collision_if_present(
                                 item_id=item_id,
-                                higher_layer="org",
+                                higher_layer=layer_name,
                                 higher_data=data,
                             )
                             self._items[item_id] = merged
-                            self._provenance[item_id] = "org"
+                            self._provenance[item_id] = layer_name
                     else:
                         obj = self._schema.model_validate(data)
                         if self._include_item(obj):
                             key = self._key(obj)
                             self._record_collision_if_present(
                                 item_id=key,
-                                higher_layer="org",
+                                higher_layer=layer_name,
                                 higher_data=data,
                             )
                             self._items[key] = obj
-                            self._provenance[key] = "org"
+                            self._provenance[key] = layer_name
                 except (YAMLError, ValidationError, OSError) as exc:
                     warnings.warn(
-                        f"Skipping invalid org {self._kind} {yaml_file.name}: {exc}",
+                        f"Skipping invalid {layer_name} {self._kind} {yaml_file.name}: {exc}",
                         UserWarning,
                         stacklevel=3,
                     )
-
-    def _apply_project_overrides(self, yaml_parser: YAML, built_in: dict[str, T]) -> None:
-        """Merge or add project-dir items into self._items; tag provenance as 'project'.
-
-        Emits a ``DoctrineLayerCollisionWarning`` whenever a project artifact
-        shadows an already-loaded artifact from a lower layer (FR-003 wording
-        per ADR 2026-05-16-1).
-        """
-        if not (self._project_dir and self._project_dir.exists()):
-            return
-        for yaml_file in self._project_scan(self._project_dir):
-            try:
-                data = yaml_parser.load(yaml_file)
-                if data is None:
-                    continue
-                self._pre_validate(data, yaml_file)
-                item_id = data.get("id")
-                if not item_id:
-                    warnings.warn(
-                        f"Skipping project {self._kind} {yaml_file.name}: no id",
-                        UserWarning,
-                        stacklevel=3,
-                    )
-                    continue
-                if item_id in built_in:
-                    merged = self._merge(built_in[item_id], data)
-                    if self._include_item(merged):
-                        self._record_collision_if_present(
-                            item_id=item_id,
-                            higher_layer="project",
-                            higher_data=data,
-                        )
-                        self._items[item_id] = merged
-                        self._provenance[item_id] = "project"
-                else:
-                    obj = self._schema.model_validate(data)
-                    if self._include_item(obj):
-                        key = self._key(obj)
-                        self._record_collision_if_present(
-                            item_id=key,
-                            higher_layer="project",
-                            higher_data=data,
-                        )
-                        self._items[key] = obj
-                        self._provenance[key] = "project"
-            except (YAMLError, ValidationError, OSError) as exc:
-                warnings.warn(
-                    f"Skipping invalid project {self._kind} {yaml_file.name}: {exc}",
-                    UserWarning,
-                    stacklevel=3,
-                )
 
     def _load(self) -> None:
         """Walk built-in + org + project dirs, parse, merge, warn on failure."""
@@ -322,9 +288,16 @@ class BaseDoctrineRepository(ABC, Generic[T]):
         # Tag all built-in items as 'builtin'
         self._provenance = dict.fromkeys(self._items, "builtin")
         # Org layer overrides built-in
-        self._apply_org_overrides(yaml_parser, built_in)
+        self._apply_overlay_layer(
+            self._org_dirs, "org", yaml_parser=yaml_parser, built_in=built_in
+        )
         # Project layer overrides built-in + org
-        self._apply_project_overrides(yaml_parser, built_in)
+        self._apply_overlay_layer(
+            [self._project_dir] if self._project_dir else [],
+            "project",
+            yaml_parser=yaml_parser,
+            built_in=built_in,
+        )
 
     def _merge(self, built_in: T, project_data: dict[str, Any]) -> T:
         """Merge project override into a built-in instance at field level."""

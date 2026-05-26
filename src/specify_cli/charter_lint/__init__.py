@@ -1,32 +1,23 @@
-"""Charter lint pipeline — public API.
+"""Deprecated path; re-exports from charter_runtime.lint for one cycle (C-008)."""
 
-Provides data models and checker classes for detecting charter decay in
-the Doctrine Reference Graph (DRG).
+import importlib
+import sys
 
-Zero LLM calls.  All logic is graph traversal, hash comparison, and
-timestamp arithmetic.
-"""
+from specify_cli.charter_runtime.lint import *  # noqa: F401,F403
+from specify_cli.charter_runtime.lint import __all__  # noqa: F401
 
-from specify_cli.charter_lint.checks.contradiction import ContradictionChecker
-from specify_cli.charter_lint.checks.org_layer import (
-    OrgCharterDeviationChecker,
-    OrgOverridesBuiltinChecker,
-)
-from specify_cli.charter_lint.checks.orphan import OrphanChecker
-from specify_cli.charter_lint.checks.reference_integrity import ReferenceIntegrityChecker
-from specify_cli.charter_lint.checks.staleness import StalenessChecker
-from specify_cli.charter_lint.engine import LintEngine
-from specify_cli.charter_lint.findings import DecayReport, GraphState, LintFinding
-
-__all__ = [
-    "LintFinding",
-    "DecayReport",
-    "GraphState",
-    "LintEngine",
-    "OrphanChecker",
-    "ContradictionChecker",
-    "StalenessChecker",
-    "ReferenceIntegrityChecker",
-    "OrgOverridesBuiltinChecker",
-    "OrgCharterDeviationChecker",
-]
+for _sub in ("_drg", "engine", "findings", "checks"):
+    sys.modules[f"{__name__}.{_sub}"] = importlib.import_module(
+        f"specify_cli.charter_runtime.lint.{_sub}"
+    )
+# Also alias nested checks submodules
+for _sub in (
+    "contradiction",
+    "org_layer",
+    "orphan",
+    "reference_integrity",
+    "staleness",
+):
+    sys.modules[f"{__name__}.checks.{_sub}"] = importlib.import_module(
+        f"specify_cli.charter_runtime.lint.checks.{_sub}"
+    )

@@ -20,6 +20,16 @@ Terminology note:
 - [Use the Dashboard](../how-to/use-dashboard.md)
 - [Upgrade to 0.11.0](../how-to/install-and-upgrade.md)
 
+## Command Internals
+
+For non-obvious runtime behaviour an operator may encounter:
+
+- [`finalize-tasks` internals](finalize-tasks-internals.md) — explicit empty `owned_files` semantics and lane-depth cycle safety.
+
+## Schema references
+
+- [Bulk-edit gate (`occurrence_map.yaml`)](bulk-edit-gate.md)
+
 <!-- BEGIN GENERATED -->
 # CLI Command Reference
 
