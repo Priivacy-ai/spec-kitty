@@ -152,6 +152,14 @@ def test_synthesize_on_fresh_project_via_public_cli(tmp_path: Path) -> None:
     assert payload.get("success") is True
     assert payload.get("mode") == "fresh_project_seed"
     assert ".kittify/doctrine/PROVENANCE.md" in payload.get("files_written", [])
+    assert ".kittify/charter/synthesis-manifest.yaml" in payload.get("files_written", [])
+
+    manifest_path = tmp_path / ".kittify" / "charter" / "synthesis-manifest.yaml"
+    assert manifest_path.is_file(), (
+        "fresh-project synthesize must write the built-in-only manifest "
+        "that charter preflight uses as its freshness marker"
+    )
+    assert "built_in_only: true" in manifest_path.read_text(encoding="utf-8")
 
     # WP02 / FR-002: the four contracted envelope fields are present
     # unconditionally — even on the fresh-project seed code path
@@ -232,6 +240,7 @@ def test_synthesize_dry_run_on_fresh_project_does_not_fall_through(
     assert payload.get("success") is True
     assert payload.get("mode") == "fresh_project_seed_dry_run"
     assert ".kittify/doctrine/PROVENANCE.md" in payload.get("files_planned", [])
+    assert ".kittify/charter/synthesis-manifest.yaml" in payload.get("files_planned", [])
 
     # WP02 / FR-002 contracted-fields presence:
     assert "adapter" in payload

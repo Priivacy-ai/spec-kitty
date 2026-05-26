@@ -16,7 +16,6 @@ Covers each documented sub-state:
 
 from __future__ import annotations
 
-import hashlib
 import time
 from pathlib import Path
 from textwrap import dedent
@@ -28,6 +27,7 @@ from specify_cli.charter_freshness import (
     FreshnessSubState,
     compute_freshness,
 )
+from charter.hasher import hash_content
 
 
 pytestmark = [pytest.mark.fast]
@@ -47,7 +47,7 @@ def _seed_charter(repo: Path, body: str = "# Charter\n\nHello") -> tuple[Path, P
 
 
 def _write_metadata(metadata_path: Path, charter_path: Path, *, mismatched: bool = False) -> None:
-    digest = hashlib.sha256(charter_path.read_bytes()).hexdigest()
+    digest = hash_content(charter_path.read_text(encoding="utf-8")).split(":", 1)[1]
     if mismatched:
         digest = "0" * 64
     metadata_path.write_text(
@@ -176,6 +176,28 @@ def test_synced_bundle_stale_when_charter_is_newer(tmp_path: Path) -> None:
     assert result.synced_bundle.state == "stale"
 
 
+def test_charter_source_uses_sync_hash_normalization(tmp_path: Path) -> None:
+    charter_path, metadata_path = _seed_charter(tmp_path, "# Charter\n\nHello\n\n")
+    _write_metadata(metadata_path, charter_path)
+
+    result = compute_freshness(tmp_path)
+
+    assert result.charter_source.state == "fresh"
+
+
+def test_synced_bundle_fresh_when_matching_hash_but_bundle_mtime_older(tmp_path: Path) -> None:
+    charter_path, metadata_path = _seed_charter(tmp_path)
+    _write_metadata(metadata_path, charter_path)
+    _seed_bundle_files(tmp_path)
+
+    time.sleep(0.01)
+    charter_path.write_text("# Charter\n\nHello\n\n", encoding="utf-8")
+    result = compute_freshness(tmp_path)
+
+    assert result.charter_source.state == "fresh"
+    assert result.synced_bundle.state == "fresh"
+
+
 def test_synthesized_drg_missing_when_no_graph_no_manifest(tmp_path: Path) -> None:
     charter_path, metadata_path = _seed_charter(tmp_path)
     _write_metadata(metadata_path, charter_path)
@@ -191,6 +213,24 @@ def test_synthesized_drg_built_in_only_when_manifest_declares_it(tmp_path: Path)
     _seed_bundle_files(tmp_path)
     _seed_manifest(tmp_path, built_in_only=True)
     result = compute_freshness(tmp_path)
+    assert result.synthesized_drg.state == "built_in_only"
+    assert result.synthesized_drg.remediation is None
+
+
+def test_synthesized_drg_built_in_only_for_legacy_fresh_seed(tmp_path: Path) -> None:
+    charter_path, metadata_path = _seed_charter(tmp_path)
+    _write_metadata(metadata_path, charter_path)
+    _seed_bundle_files(tmp_path)
+    provenance = tmp_path / ".kittify" / "doctrine" / "PROVENANCE.md"
+    provenance.parent.mkdir(parents=True, exist_ok=True)
+    provenance.write_text(
+        "# Spec Kitty Doctrine — Fresh Project Seed\n\n"
+        "No LLM-authored YAML was present; using built-in doctrine.\n",
+        encoding="utf-8",
+    )
+
+    result = compute_freshness(tmp_path)
+
     assert result.synthesized_drg.state == "built_in_only"
     assert result.synthesized_drg.remediation is None
 
