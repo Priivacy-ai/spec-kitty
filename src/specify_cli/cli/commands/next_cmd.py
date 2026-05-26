@@ -93,11 +93,11 @@ def next_step(
     from pathlib import Path as _Path
 
     if result is not None:
-        from specify_cli.charter_preflight.hook import run_preflight_or_abort
+        from specify_cli.charter_runtime.preflight.hook import run_preflight_or_abort
 
         run_preflight_or_abort(_Path(str(repo_root)), consumer="next")
     else:
-        from specify_cli.charter_preflight.hook import run_preflight_for_dashboard
+        from specify_cli.charter_runtime.preflight.hook import run_preflight_for_dashboard
 
         # Query mode: warn-and-continue. The dashboard helper logs at
         # warning level on failure and returns without raising. We

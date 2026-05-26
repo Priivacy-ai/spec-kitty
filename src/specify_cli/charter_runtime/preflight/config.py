@@ -1,6 +1,7 @@
 """Preflight configuration loader (T022 / FR-006 caller contract).
 
-Reads ``preflight.auto_refresh`` from ``.kittify/config.yaml``. The contract
+Reads ``preflight.enabled`` and ``preflight.auto_refresh`` from
+``.kittify/config.yaml``. The contract
 in ``contracts/charter-preflight-json.md`` § "Hook caller contract" says
 every consumer (``next``, ``implement``, ``dashboard``) MUST read this flag
 and pass it to :func:`run_charter_preflight`. A consumer MUST NOT pass
@@ -9,12 +10,13 @@ and pass it to :func:`run_charter_preflight`. A consumer MUST NOT pass
 
 Behaviour:
 
-* Missing ``.kittify/config.yaml`` → default config (``auto_refresh=False``).
+* Missing ``.kittify/config.yaml`` → default config
+  (``enabled=True``, ``auto_refresh=False``).
   Pre-existing projects without a ``preflight`` section continue to load.
 * Missing ``preflight`` section → default config.
 * Corrupt YAML / unreadable file → default config (best-effort; we never
   break unrelated commands because the config is malformed).
-* Non-bool value for ``preflight.auto_refresh`` → coerced via ``bool()``,
+* Non-bool values for ``preflight.enabled`` / ``preflight.auto_refresh`` → coerced via ``bool()``,
   matching the lenient policy of the merge-config loader.
 """
 
@@ -31,11 +33,14 @@ class PreflightConfig:
     """Project-level preflight configuration.
 
     Attributes:
+        enabled: When ``False``, callers skip preflight and proceed. This is a
+            project policy knob, not an environment bypass.
         auto_refresh: When ``True`` and the worktree is clean, consumers
             MAY run the safe refresh sequence automatically. Default is
             ``False`` so adoption is opt-in.
     """
 
+    enabled: bool = True
     auto_refresh: bool = False
 
 
@@ -46,7 +51,7 @@ def load_preflight_config(repo_root: Path) -> PreflightConfig:
         repo_root: Repository root containing ``.kittify/config.yaml``.
 
     Returns:
-        :class:`PreflightConfig` with ``auto_refresh`` populated.
+        :class:`PreflightConfig` with ``enabled`` and ``auto_refresh`` populated.
     """
     config_path = repo_root / ".kittify" / "config.yaml"
     if not config_path.exists():
@@ -67,5 +72,9 @@ def load_preflight_config(repo_root: Path) -> PreflightConfig:
     if not isinstance(section, dict):
         return PreflightConfig()
 
-    raw = section.get("auto_refresh", False)
-    return PreflightConfig(auto_refresh=bool(raw))
+    raw_enabled = section.get("enabled", True)
+    raw_auto_refresh = section.get("auto_refresh", False)
+    return PreflightConfig(
+        enabled=bool(raw_enabled),
+        auto_refresh=bool(raw_auto_refresh),
+    )

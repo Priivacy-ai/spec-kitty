@@ -450,7 +450,7 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         # FR-006 caller contract (T024): charter preflight runs BEFORE
         # any worktree allocation or .kittify/ modification. On failure
         # we exit 1 with the blocked_reason — no state mutation.
-        from specify_cli.charter_preflight.hook import run_preflight_or_abort
+        from specify_cli.charter_runtime.preflight.hook import run_preflight_or_abort
 
         run_preflight_or_abort(repo_root, consumer="implement")
         if auto_commit is None:

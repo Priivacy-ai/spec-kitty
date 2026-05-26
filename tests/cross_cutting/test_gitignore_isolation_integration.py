@@ -35,6 +35,12 @@ def _write_compatible_project_metadata(repo_root: Path) -> None:
 """,
         encoding="utf-8",
     )
+    config_path = repo_root / ".kittify" / "config.yaml"
+    existing_config = config_path.read_text(encoding="utf-8") if config_path.exists() else ""
+    config_path.write_text(
+        f"{existing_config.rstrip()}\npreflight:\n  enabled: false\n",
+        encoding="utf-8",
+    )
 
 
 def _write_valid_meta(feature_dir: Path, slug: str, target_branch: str) -> None:
@@ -57,18 +63,7 @@ def _write_valid_meta(feature_dir: Path, slug: str, target_branch: str) -> None:
 
 
 def _run_checkout_cli(project_dir: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    env = os.environ.copy()
-    src_root = str(REPO_ROOT / "src")
-    existing = env.get("PYTHONPATH")
-    env["PYTHONPATH"] = src_root if not existing else f"{src_root}:{existing}"
-    # These fixtures run a synthetic mission outside a real spec-kitty workspace,
-    # so the auth + charter preflight gates do not apply. Bypass them explicitly
-    # — matches the documented test-mode contract in
-    # ``src/specify_cli/charter_preflight/hook.py`` and
-    # ``src/specify_cli/git/commit_helpers.py``.
-    env.setdefault("SPEC_KITTY_TEST_MODE", "1")
-    env.setdefault("SPEC_KITTY_SKIP_PREFLIGHT", "1")
-    env.setdefault("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
+    env = _subprocess_env()
     return subprocess.run(
         [sys.executable, "-m", "specify_cli.__init__", *args],
         cwd=project_dir,
@@ -76,6 +71,20 @@ def _run_checkout_cli(project_dir: Path, *args: str) -> subprocess.CompletedProc
         text=True,
         env=env,
     )
+
+
+def _subprocess_env() -> dict[str, str]:
+    """Return env needed by subprocesses that may trigger local git hooks."""
+    env = os.environ.copy()
+    src_root = str(REPO_ROOT / "src")
+    existing = env.get("PYTHONPATH")
+    env["PYTHONPATH"] = src_root if not existing else f"{src_root}:{existing}"
+    # These fixtures run a synthetic mission outside a fully governed workspace.
+    # Commit helpers still need test-mode, while charter preflight is disabled
+    # via project config written by ``_write_compatible_project_metadata``.
+    env.setdefault("SPEC_KITTY_TEST_MODE", "1")
+    env.setdefault("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
+    return env
 
 
 def _current_branch(repo_root: Path) -> str:
@@ -300,6 +309,7 @@ dependencies: []
         cwd=worktree_path,
         check=True,
         capture_output=True,
+        env=_subprocess_env(),
     )
 
     # Merge the lane branch back to the repository default branch

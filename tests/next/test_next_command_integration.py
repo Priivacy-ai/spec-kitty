@@ -35,10 +35,20 @@ def _bypass_charter_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
     ``spec-kitty charter sync``, so the preflight gate would return
     ``Error: charter_source missing`` before reaching the dispatch /
     exit-code logic these tests exercise. The bypass contract is
-    documented in ``src/specify_cli/charter_preflight/hook.py``.
+    These tests do not exercise charter freshness, so patch the hook boundary
+    directly instead of relying on production environment bypasses.
     """
-    monkeypatch.setenv("SPEC_KITTY_TEST_MODE", "1")
-    monkeypatch.setenv("SPEC_KITTY_SKIP_PREFLIGHT", "1")
+    from specify_cli.charter_runtime.preflight.result import CharterPreflightResult
+
+    result = CharterPreflightResult(passed=True, checks=[])
+    monkeypatch.setattr(
+        "specify_cli.charter_runtime.preflight.hook.run_preflight_or_abort",
+        lambda *_args, **_kwargs: result,
+    )
+    monkeypatch.setattr(
+        "specify_cli.charter_runtime.preflight.hook.run_preflight_for_dashboard",
+        lambda *_args, **_kwargs: result,
+    )
 
 # ---------------------------------------------------------------------------
 # Fixtures

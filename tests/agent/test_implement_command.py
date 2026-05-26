@@ -28,11 +28,16 @@ def _bypass_charter_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
     None of these fixtures stage a charter; without the bypass the gate
     returns ``Error: charter_source missing`` before reaching the
     lane-workspace creation / JSON-output paths the tests exercise.
-    Bypass contract documented in
-    ``src/specify_cli/charter_preflight/hook.py``.
+    Patch the hook boundary directly instead of relying on a production
+    environment bypass.
     """
-    monkeypatch.setenv("SPEC_KITTY_TEST_MODE", "1")
-    monkeypatch.setenv("SPEC_KITTY_SKIP_PREFLIGHT", "1")
+    from specify_cli.charter_runtime.preflight.result import CharterPreflightResult
+
+    result = CharterPreflightResult(passed=True, checks=[])
+    monkeypatch.setattr(
+        "specify_cli.charter_runtime.preflight.hook.run_preflight_or_abort",
+        lambda *_args, **_kwargs: result,
+    )
 
 
 def create_meta_json(feature_dir: Path, vcs: str = "git") -> Path:

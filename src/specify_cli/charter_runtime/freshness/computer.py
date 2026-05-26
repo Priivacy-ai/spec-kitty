@@ -116,21 +116,24 @@ class CharterFreshness:
 
 
 _CHARTER_DIR = Path(".kittify") / "charter"
-# LD-3 / NFR-003 trade-off: the canonical declaration lives in
-# ``charter.bundle.DOCTRINE_DIR`` but importing that pulls in the doctrine
-# stack at module-load time. The on-disk path is stable; the constant is
-# duplicated here with a back-reference rather than imported eagerly.
-_DOCTRINE_DIR = Path(".kittify") / "doctrine"
 _CHARTER_FILENAME = "charter.md"
 _METADATA_FILENAME = "metadata.yaml"
-# LD-3 / NFR-003 trade-off: same rationale as ``_DOCTRINE_DIR``. The
-# canonical declaration is ``charter.synthesizer.manifest.MANIFEST_PATH``;
-# duplicated here with a back-reference to keep the import lazy. The
-# chokepoint *read* still flows through ``_chokepoint_load_manifest``
-# inside ``_load_synthesis_manifest_via_chokepoint``.
-_SYNTHESIS_MANIFEST = Path(".kittify") / "charter" / "synthesis-manifest.yaml"
 _GRAPH_FILENAME = "graph.yaml"
 _BUNDLE_FILES = ("governance.yaml", "directives.yaml", "references.yaml", _METADATA_FILENAME)
+
+
+def _synthesis_manifest_path(repo_root: Path) -> Path:
+    """Return the canonical synthesis manifest path via lazy chokepoint import."""
+    from charter.synthesizer.manifest import MANIFEST_PATH  # noqa: PLC0415
+
+    return repo_root / MANIFEST_PATH
+
+
+def _doctrine_graph_path(repo_root: Path) -> Path:
+    """Return the canonical doctrine graph path via lazy chokepoint import."""
+    from charter.bundle import DOCTRINE_DIR  # noqa: PLC0415
+
+    return repo_root / DOCTRINE_DIR / _GRAPH_FILENAME
 
 
 def _safe_load_yaml(path: Path) -> dict[str, object] | None:
@@ -170,7 +173,7 @@ def _load_synthesis_manifest_via_chokepoint(repo_root: Path) -> SynthesisManifes
     from inside the observer would both break NFR-001 (preflight perf budget)
     and defeat the staleness report it produces.
     """
-    manifest_path = repo_root / _SYNTHESIS_MANIFEST
+    manifest_path = _synthesis_manifest_path(repo_root)
     if not manifest_path.exists():
         return None
     # NFR-003: defer the chokepoint import until first call so module-import
@@ -346,8 +349,8 @@ def _compute_synthesized_drg(
     # for the typed manifest; ``charter.bundle.DOCTRINE_DIR`` for the graph
     # location). No direct ``_safe_load_yaml`` reads of either file from this
     # module — see module docstring for the FR-013 routing contract.
-    manifest_path = repo_root / _SYNTHESIS_MANIFEST
-    graph_path = repo_root / _DOCTRINE_DIR / _GRAPH_FILENAME
+    manifest_path = _synthesis_manifest_path(repo_root)
+    graph_path = _doctrine_graph_path(repo_root)
     manifest = _load_synthesis_manifest_via_chokepoint(repo_root)
 
     built_in_only = bool(manifest.built_in_only) if manifest is not None else False

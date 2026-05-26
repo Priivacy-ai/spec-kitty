@@ -85,7 +85,7 @@ The session-start hook callable `run_charter_preflight(...)` is consumed by thre
 | `spec-kitty implement WP##` | log + continue. | abort with exit code 1 before creating or reusing any worktree; do not modify `.kittify/`. |
 | `dashboard serve` / `dashboard start` | log + continue. | start the server but render a top-of-page banner (severity=critical) carrying `result.blocked_reason` and the exact remediation command. Do NOT silently fall back to stale doctrine. |
 
-Each consumer MUST call `run_charter_preflight(auto_refresh=<config>)` where `<config>` reads the project-level `preflight.auto_refresh` flag (default `false`). A consumer MUST NOT pass `auto_refresh=True` unconditionally.
+Each consumer MUST load project-level preflight policy from `.kittify/config.yaml`. `preflight.enabled` defaults to `true`; when set to `false`, consumers skip the gate and return a synthetic passing result. `preflight.auto_refresh` defaults to `false` and is forwarded to `run_charter_preflight(auto_refresh=<config>)`. A consumer MUST NOT pass `auto_refresh=True` unconditionally.
 
 ## Exit codes
 

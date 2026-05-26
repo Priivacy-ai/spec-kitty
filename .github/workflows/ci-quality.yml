@@ -149,7 +149,14 @@ jobs:
               - 'tests/tasks/**'
             charter:
               - 'src/charter/**'
+              - 'src/specify_cli/charter_runtime/**'
+              - 'src/specify_cli/charter_freshness/**'
+              - 'src/specify_cli/charter_lint/**'
+              - 'src/specify_cli/charter_preflight/**'
               - 'tests/charter/**'
+              - 'tests/specify_cli/charter_freshness/**'
+              - 'tests/specify_cli/charter_lint/**'
+              - 'tests/specify_cli/charter_preflight/**'
             agent:
               - 'src/specify_cli/agent_utils/**'
               - 'tests/agent/**'

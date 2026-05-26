@@ -96,7 +96,7 @@ class APIHandler(DashboardHandler):
         # preflight blocked_reason so the SPA can render a critical
         # banner. The field is omitted entirely on success.
         try:
-            from specify_cli.charter_preflight.dashboard_warning import (
+            from specify_cli.charter_runtime.preflight.dashboard_warning import (
                 read_preflight_warning,
             )
 

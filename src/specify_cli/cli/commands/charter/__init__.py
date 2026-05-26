@@ -117,7 +117,7 @@ from specify_cli.cli.commands.charter.lint import _print_charter_lint_banner  # 
 # lives in its own package (``specify_cli.charter_preflight``); we plug the
 # handler into the typer app here so the subcommand appears alongside the
 # rest of the ``charter`` surface.
-from specify_cli.charter_preflight.cli import charter_preflight as _charter_preflight  # noqa: E402
+from specify_cli.charter_runtime.preflight.cli import charter_preflight as _charter_preflight  # noqa: E402
 
 charter_app.command("preflight")(_charter_preflight)
 

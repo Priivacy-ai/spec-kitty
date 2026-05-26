@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 from specify_cli.frontmatter import write_frontmatter
@@ -143,7 +143,6 @@ class TestMapRequirementsTrackerRef:
         runner = CliRunner()
         # Bypass live-CI guards.
         monkeypatch.setenv("SPEC_KITTY_TEST_MODE", "1")
-        monkeypatch.setenv("SPEC_KITTY_SKIP_PREFLIGHT", "1")
 
         result = runner.invoke(
             app,

@@ -146,11 +146,11 @@ Add under `[Unreleased]` in `CHANGELOG.md`:
   - `from specify_cli.charter_runtime.freshness import compute_freshness, CharterFreshness`
   - `from specify_cli.charter_runtime.preflight import run_charter_preflight, CharterPreflightResult`
   - `from specify_cli.charter_runtime.facade import ...`
-  
+
   The old import paths continue to resolve via re-export shims for one
   release cycle. Migrate to the canonical paths before the next major
   release; the shims will be removed in 3.3.0.
-  
+
   Related: architectural review LD-5 in
   `docs/engineering_notes/architectural-review/2026-05-25-deep-dive-architectural-review.md`.
 ```

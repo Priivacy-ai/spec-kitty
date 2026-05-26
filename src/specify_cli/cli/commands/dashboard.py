@@ -70,11 +70,11 @@ def dashboard(
     # operator can see the running state, but we persist the
     # ``blocked_reason`` so the API surface can expose it as a critical
     # banner. On success we clear any stale warning from a previous run.
-    from specify_cli.charter_preflight.dashboard_warning import (
+    from specify_cli.charter_runtime.preflight.dashboard_warning import (
         clear_preflight_warning,
         write_preflight_warning,
     )
-    from specify_cli.charter_preflight.hook import run_preflight_for_dashboard
+    from specify_cli.charter_runtime.preflight.hook import run_preflight_for_dashboard
 
     preflight_result = run_preflight_for_dashboard(project_root)
     if not preflight_result.passed and preflight_result.blocked_reason:
