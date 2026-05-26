@@ -54,20 +54,20 @@ def _scoped_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 def _build_record(**overrides: Any):
     from specify_cli.sync.owner import DaemonOwnerRecord
 
-    defaults: dict[str, Any] = dict(
-        pid=os.getpid(),
-        port=9400,
-        token="deadbeefcafebabe",
-        package_version="3.2.0",
-        executable_path=sys.executable,
-        source_checkout_path=str(Path(__file__).resolve().parents[2]),
-        server_url="https://spec-kitty-dev.fly.dev",
-        auth_principal="tester@example.com",
-        auth_team="t-private",
-        auth_scope="https://spec-kitty-dev.fly.dev|tester@example.com|t-private",
-        queue_db_path=str(Path.home() / ".spec-kitty" / "queues" / "queue-aaaaaaaa.db"),
-        started_at="2026-05-17T16:42:00+00:00",
-    )
+    defaults: dict[str, Any] = {
+        "pid": os.getpid(),
+        "port": 9400,
+        "token": "deadbeefcafebabe",
+        "package_version": "3.2.0",
+        "executable_path": sys.executable,
+        "source_checkout_path": str(Path(__file__).resolve().parents[2]),
+        "server_url": "https://spec-kitty-dev.fly.dev",
+        "auth_principal": "tester@example.com",
+        "auth_team": "t-private",
+        "auth_scope": "https://spec-kitty-dev.fly.dev|tester@example.com|t-private",
+        "queue_db_path": str(Path.home() / ".spec-kitty" / "queues" / "queue-aaaaaaaa.db"),
+        "started_at": "2026-05-17T16:42:00+00:00",
+    }
     defaults.update(overrides)
     return DaemonOwnerRecord(**defaults)
 
@@ -175,7 +175,6 @@ def test_health_endpoint_excludes_token(_scoped_home: Path) -> None:
     on the handler MUST appear in the top-level ``token`` field (existing
     health contract) but the ``owner.token`` field MUST be redacted.
     """
-    import io
 
     from specify_cli.sync import daemon as daemon_mod
     from specify_cli.sync.owner import write_owner_record

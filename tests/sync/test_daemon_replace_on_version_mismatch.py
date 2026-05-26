@@ -15,7 +15,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 import pytest
 
@@ -33,7 +32,7 @@ class _FakeKillableProcess:
     pid: int
     alive: bool = True
     kill_called: bool = False
-    wait_calls: list[Optional[float]] = field(default_factory=list)
+    wait_calls: list[float | None] = field(default_factory=list)
     exit_on_wait: bool = True
 
     def kill(self) -> None:

@@ -24,6 +24,8 @@ from specify_cli.charter_preflight import run_charter_preflight
 from ._fixtures import make_fresh_repo
 
 
+pytestmark = [pytest.mark.integration]
+
 @pytest.mark.integration
 def test_warm_path_under_300ms(tmp_path: Path) -> None:
     """Fresh-cached repo: ``run_charter_preflight`` must complete in <300 ms."""

@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import os
 import sqlite3
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -119,20 +118,20 @@ def _build_owner_record(**overrides: Any):
     from specify_cli.sync.owner import DaemonOwnerRecord, compute_foreground_identity
 
     identity = compute_foreground_identity()
-    defaults: dict[str, Any] = dict(
-        pid=os.getpid(),
-        port=9400,
-        token="deadbeefcafebabe",
-        package_version=str(identity["package_version"]),
-        executable_path=str(identity["executable_path"]),
-        source_checkout_path=str(identity["source_checkout_path"]),
-        server_url=str(identity["server_url"]),
-        auth_principal=identity.get("auth_principal"),
-        auth_team=identity.get("auth_team"),
-        auth_scope=identity.get("auth_scope"),
-        queue_db_path=str(identity["queue_db_path"]),
-        started_at="2026-05-17T16:42:00+00:00",
-    )
+    defaults: dict[str, Any] = {
+        "pid": os.getpid(),
+        "port": 9400,
+        "token": "deadbeefcafebabe",
+        "package_version": str(identity["package_version"]),
+        "executable_path": str(identity["executable_path"]),
+        "source_checkout_path": str(identity["source_checkout_path"]),
+        "server_url": str(identity["server_url"]),
+        "auth_principal": identity.get("auth_principal"),
+        "auth_team": identity.get("auth_team"),
+        "auth_scope": identity.get("auth_scope"),
+        "queue_db_path": str(identity["queue_db_path"]),
+        "started_at": "2026-05-17T16:42:00+00:00",
+    }
     defaults.update(overrides)
     return DaemonOwnerRecord(**defaults)
 

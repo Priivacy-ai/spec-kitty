@@ -405,7 +405,7 @@ _CATEGORY_C_WP_IN_FLIGHT_WORKFLOW_REGISTRY: frozenset[str] = frozenset()
 # ---------- C. Charter command split legacy patch surface ----------
 # WP06 split ``cli.commands.charter`` from a monolithic module into a package.
 # These two package-level exports intentionally support legacy
-# ``patch("specify_cli.cli.commands.charter.X", ...)`` tests and downstream
+# package-level mock patch targets in tests and downstream
 # consumers while submodules resolve the values dynamically from the package.
 _CATEGORY_C_CHARTER_SPLIT_LEGACY_PATCH_SURFACE: frozenset[str] = frozenset(
     {

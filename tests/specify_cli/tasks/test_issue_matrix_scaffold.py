@@ -4,11 +4,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from specify_cli.tasks.issue_matrix import (
     detect_issue_references,
     scaffold_issue_matrix,
 )
 
+
+pytestmark = [pytest.mark.fast]
 
 def _write_spec(tmp_path: Path, body: str) -> tuple[Path, Path]:
     feature_dir = tmp_path / "kitty-specs" / "099-demo"

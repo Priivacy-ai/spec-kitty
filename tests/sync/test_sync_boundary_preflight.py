@@ -125,20 +125,20 @@ def _make_foreground(
 def _write_record(**overrides: Any) -> DaemonOwnerRecord:
     """Write a :class:`DaemonOwnerRecord` to disk and return it."""
     foreground = _make_foreground()
-    defaults: dict[str, Any] = dict(
-        pid=os.getpid(),
-        port=9400,
-        token="deadbeefcafebabe",
-        package_version=foreground.package_version,
-        executable_path=str(foreground.executable_path),
-        source_checkout_path=str(foreground.source_path),
-        server_url=foreground.server_url or "",
-        auth_principal="tester@example.com",
-        auth_team="t-private",
-        auth_scope="https://spec-kitty-dev.fly.dev|tester@example.com|t-private",
-        queue_db_path=str(foreground.queue_db_path),
-        started_at="2026-05-18T08:00:00+00:00",
-    )
+    defaults: dict[str, Any] = {
+        "pid": os.getpid(),
+        "port": 9400,
+        "token": "deadbeefcafebabe",
+        "package_version": foreground.package_version,
+        "executable_path": str(foreground.executable_path),
+        "source_checkout_path": str(foreground.source_path),
+        "server_url": foreground.server_url or "",
+        "auth_principal": "tester@example.com",
+        "auth_team": "t-private",
+        "auth_scope": "https://spec-kitty-dev.fly.dev|tester@example.com|t-private",
+        "queue_db_path": str(foreground.queue_db_path),
+        "started_at": "2026-05-18T08:00:00+00:00",
+    }
     defaults.update(overrides)
     record = DaemonOwnerRecord(**defaults)
     write_owner_record(record)

@@ -24,7 +24,6 @@ import typer
 
 from specify_cli.charter_runtime.preflight.config import load_preflight_config
 from specify_cli.charter_runtime.preflight.result import CharterPreflightResult
-from specify_cli.charter_runtime.preflight.runner import run_charter_preflight
 
 __all__ = [
     "run_preflight_or_abort",
@@ -33,6 +32,13 @@ __all__ = [
 
 
 _logger = logging.getLogger(__name__)
+
+
+def run_charter_preflight(**kwargs) -> CharterPreflightResult:
+    """Patchable lazy wrapper for the framework-free preflight runner."""
+    from specify_cli.charter_runtime.preflight.runner import run_charter_preflight as _run
+
+    return _run(**kwargs)
 
 
 def run_preflight_or_abort(

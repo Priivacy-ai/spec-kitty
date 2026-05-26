@@ -56,6 +56,27 @@ def test_hook_returns_result_when_preflight_passes(
     assert result.passed is True
 
 
+def test_hook_disabled_by_project_config_does_not_load_runner(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Project config disables the heavy runner without an env bypass."""
+    from specify_cli.charter_preflight import hook as hook_mod
+
+    config_path = tmp_path / ".kittify" / "config.yaml"
+    config_path.parent.mkdir()
+    config_path.write_text("preflight:\n  enabled: false\n", encoding="utf-8")
+    monkeypatch.setattr(
+        hook_mod,
+        "run_charter_preflight",
+        lambda **_: pytest.fail("disabled preflight must not invoke runner"),
+    )
+
+    result = hook_mod.run_preflight_or_abort(tmp_path, consumer="next")
+
+    assert result.passed is True
+
+
 def test_hook_aborts_with_exit_1_when_preflight_fails(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

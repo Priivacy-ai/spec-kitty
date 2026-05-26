@@ -197,7 +197,7 @@ def _render_readiness_failure(result: Any) -> None:
 
     # NON_INTERACTIVE: stable single-line machine-readable format.
     if state_value == "missing_auth":
-        next_token = "spec-kitty-auth-login"
+        next_token = "spec-kitty-auth-login"  # noqa: S105 - command token, not a secret.
     else:
         # Deterministic slug from the remediation phrase; fallback to "unknown".
         next_token = (

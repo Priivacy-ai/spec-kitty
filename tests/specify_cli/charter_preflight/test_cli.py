@@ -27,6 +27,8 @@ from ._fixtures import (
 )
 
 
+pytestmark = [pytest.mark.integration]
+
 _runner = CliRunner()
 
 

@@ -1165,9 +1165,17 @@ jobs:
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — charter"
         run: |
-          python -m pytest tests/charter \
+          python -m pytest \
+            tests/charter \
+            tests/specify_cli/charter_freshness \
+            tests/specify_cli/charter_lint \
+            tests/specify_cli/charter_preflight \
             -m "fast and not windows_ci" -q --tb=short \
             --cov=src/charter \
+            --cov=src/specify_cli/charter_runtime \
+            --cov=src/specify_cli/charter_freshness \
+            --cov=src/specify_cli/charter_lint \
+            --cov=src/specify_cli/charter_preflight \
             --cov-fail-under=55 \
             --cov-report=xml:out/reports/coverage/coverage-fast-charter.xml
       - name: "Upload fast-charter coverage"
@@ -1288,6 +1296,45 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: integration-test-doctrine-reports
+          path: out/reports/
+
+  integration-tests-charter:
+    runs-on: ubuntu-latest
+    needs: [changes, fast-tests-charter]
+    if: >-
+      always() &&
+      needs.changes.outputs.charter == 'true' &&
+      needs.fast-tests-charter.result == 'success'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+      - run: mkdir -p out/reports/coverage
+      - name: "Run integration tests — charter"
+        run: |
+          python -m pytest \
+            tests/charter \
+            tests/specify_cli/charter_freshness \
+            tests/specify_cli/charter_lint \
+            tests/specify_cli/charter_preflight \
+            -m 'not windows_ci and (git_repo or integration)' \
+            -q --tb=short \
+            --cov=src/charter \
+            --cov=src/specify_cli/charter_runtime \
+            --cov=src/specify_cli/charter_freshness \
+            --cov=src/specify_cli/charter_lint \
+            --cov=src/specify_cli/charter_preflight \
+            --cov-report=xml:out/reports/coverage/coverage-integration-charter.xml
+      - name: "Upload integration-charter coverage"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: integration-test-charter-reports
           path: out/reports/
 
   integration-tests-sync:
@@ -1983,6 +2030,7 @@ jobs:
       - fast-tests-charter
       - fast-tests-agent
       - integration-tests-doctrine
+      - integration-tests-charter
       - integration-tests-sync
       - integration-tests-merge
       - integration-tests-missions
@@ -2416,6 +2464,7 @@ jobs:
             "${{ needs.fast-tests-charter.result }}" \
             "${{ needs.fast-tests-agent.result }}" \
             "${{ needs.integration-tests-doctrine.result }}" \
+            "${{ needs.integration-tests-charter.result }}" \
             "${{ needs.integration-tests-sync.result }}" \
             "${{ needs.integration-tests-merge.result }}" \
             "${{ needs.integration-tests-missions.result }}" \

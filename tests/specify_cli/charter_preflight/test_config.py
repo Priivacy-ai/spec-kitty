@@ -4,8 +4,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from specify_cli.charter_preflight.config import load_preflight_config
 
+
+pytestmark = [pytest.mark.fast]
 
 def test_missing_config_defaults_to_enabled_without_auto_refresh(tmp_path: Path) -> None:
     cfg = load_preflight_config(tmp_path)

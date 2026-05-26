@@ -1,3 +1,4 @@
+import contextlib
 import hashlib
 import json
 import sqlite3
@@ -593,7 +594,7 @@ def _format_key(key_columns: tuple[str, ...], key_values: tuple[Any, ...]) -> st
     Only column names and the values that make up the unique key appear here.
     No payload columns (event bodies, JSON blobs) are ever logged.
     """
-    return ",".join(f"{col}={val!r}" for col, val in zip(key_columns, key_values))
+    return ",".join(f"{col}={val!r}" for col, val in zip(key_columns, key_values, strict=True))
 
 
 def _scoped_dst_schema(dst: sqlite3.Connection) -> None:
@@ -756,14 +757,10 @@ def _migrate_legacy_queue_to_scope(scoped_db_path: Path) -> int:
             # the legacy DB partially mutated. SQLite holds the writes
             # inside an implicit transaction until commit(), so
             # rollback() unwinds them.
-            try:
+            with contextlib.suppress(sqlite3.Error):
                 dst.rollback()
-            except sqlite3.Error:
-                pass
-            try:
+            with contextlib.suppress(sqlite3.Error):
                 src.rollback()
-            except sqlite3.Error:
-                pass
             raise
     finally:
         dst.close()

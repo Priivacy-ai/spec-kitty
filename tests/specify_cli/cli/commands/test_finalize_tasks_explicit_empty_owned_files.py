@@ -10,10 +10,14 @@ Regression test for FR-015 of mission test-stabilization-and-debt-pass-01KSF9HJ.
 """
 from __future__ import annotations
 
+import pytest
+
 from specify_cli.cli.commands.agent.mission import (
     _owned_files_yaml_is_explicit_empty_list,
 )
 
+
+pytestmark = [pytest.mark.fast]
 
 def test_explicit_empty_list_detected():
     """``owned_files: []`` literal returns True."""

@@ -10,9 +10,13 @@ Regression test for FR-015 of mission test-stabilization-and-debt-pass-01KSF9HJ.
 """
 from __future__ import annotations
 
+import pytest
+
 from specify_cli.lanes.compute import _compute_lane_depths
 from specify_cli.lanes.models import ExecutionLane
 
+
+pytestmark = [pytest.mark.fast]
 
 def _make_lane(lane_id: str) -> ExecutionLane:
     """Minimal ExecutionLane factory for tests.

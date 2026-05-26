@@ -102,9 +102,8 @@ def test_gate_refuses_on_mismatch_naming_field() -> None:
     with patch(
         "specify_cli.sync.preflight.run_preflight",
         return_value=_make_preflight_result(ok=False, mismatches=mismatches),
-    ):
-        with pytest.raises(typer.Exit) as exc_info:
-            sync_module._require_daemon_owner_coherence("spec-kitty sync now")
+    ), pytest.raises(typer.Exit) as exc_info:
+        sync_module._require_daemon_owner_coherence("spec-kitty sync now")
     assert exc_info.value.exit_code == 2
 
 
@@ -130,9 +129,8 @@ def test_gate_refuses_on_multiple_mismatches() -> None:
     with patch(
         "specify_cli.sync.preflight.run_preflight",
         return_value=_make_preflight_result(ok=False, mismatches=mismatches),
-    ):
-        with pytest.raises(typer.Exit) as exc_info:
-            sync_module._require_daemon_owner_coherence("spec-kitty sync share")
+    ), pytest.raises(typer.Exit) as exc_info:
+        sync_module._require_daemon_owner_coherence("spec-kitty sync share")
     assert exc_info.value.exit_code == 2
 
 

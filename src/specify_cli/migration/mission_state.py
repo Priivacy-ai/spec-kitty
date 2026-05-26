@@ -763,7 +763,8 @@ def _load_events_contract() -> tuple[type[Any], Any, str]:
     return Event, validate_event, str(package_version)
 
 
-def _status_event_to_teamspace_envelope(  # canonical-producer-exempt: #1198 — historical migration-replay envelope builder; this is the TeamSpace dry-run rehearsal path, not a live producer (payload is then validated downstream via spec_kitty_events.conformance.validate_event)
+# canonical-producer-exempt: #1198 -- historical migration-replay envelope builder.
+def _status_event_to_teamspace_envelope(
     status_event: StatusEvent,
     *,
     project_uuid: uuid.UUID,

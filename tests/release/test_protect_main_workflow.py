@@ -9,6 +9,8 @@ from pathlib import Path
 import pytest
 
 
+pytestmark = [pytest.mark.fast]
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW_PATH = REPO_ROOT / ".github" / "workflows" / "protect-main.yml"
 

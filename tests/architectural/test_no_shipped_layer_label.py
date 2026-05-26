@@ -30,6 +30,8 @@ from typer.testing import CliRunner
 from specify_cli import app as spec_kitty_app
 
 
+pytestmark = [pytest.mark.architectural]
+
 FORBIDDEN_LAYER_LABEL = "shipped"
 
 # Keys whose string values denote a doctrine layer. Scanning only these keys

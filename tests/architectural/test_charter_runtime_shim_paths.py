@@ -16,6 +16,11 @@ from __future__ import annotations
 
 import importlib
 
+import pytest
+
+
+pytestmark = [pytest.mark.architectural]
+
 
 def test_canonical_paths_import() -> None:
     """All four umbrella sub-packages exist at the new canonical paths."""

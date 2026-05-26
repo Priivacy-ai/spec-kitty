@@ -229,7 +229,8 @@ def build_glossary_scope_activated(
     Returns:
         JSON-serializable event dict
     """
-    return {  # canonical-producer-exempt: #1200 -- local-only glossary JSONL fallback shape; see module docstring (fallback persisted under .kittify/events/glossary/)
+    # canonical-producer-exempt: #1200 -- local-only glossary JSONL fallback.
+    return {
         "event_type": "GlossaryScopeActivated",
         "scope_id": scope_id,
         "glossary_version_id": glossary_version_id,
@@ -266,7 +267,8 @@ def build_term_candidate_observed(
     Returns:
         JSON-serializable event dict
     """
-    return {  # canonical-producer-exempt: #1200 -- local-only glossary JSONL fallback shape; see module docstring (fallback persisted under .kittify/events/glossary/)
+    # canonical-producer-exempt: #1200 -- local-only glossary JSONL fallback.
+    return {
         "event_type": "TermCandidateObserved",
         "term": term,
         "source_step": source_step,
@@ -309,7 +311,8 @@ def build_semantic_check_evaluated(
     Returns:
         JSON-serializable event dict
     """
-    return {  # canonical-producer-exempt: #1200 -- local-only glossary JSONL fallback shape; see module docstring (fallback persisted under .kittify/events/glossary/)
+    # canonical-producer-exempt: #1200 -- local-only glossary JSONL fallback.
+    return {
         "event_type": "SemanticCheckEvaluated",
         "step_id": step_id,
         "mission_id": mission_id,
@@ -347,7 +350,8 @@ def build_generation_blocked(
     Returns:
         JSON-serializable event dict
     """
-    return {  # canonical-producer-exempt: #1200 -- local-only glossary JSONL fallback shape; see module docstring (fallback persisted under .kittify/events/glossary/)
+    # canonical-producer-exempt: #1200 -- local-only glossary JSONL fallback.
+    return {
         "event_type": "GenerationBlockedBySemanticConflict",
         "step_id": step_id,
         "mission_id": mission_id,
@@ -386,7 +390,8 @@ def build_clarification_requested(
     Returns:
         JSON-serializable event dict
     """
-    return {  # canonical-producer-exempt: #1200 -- local-only glossary JSONL fallback shape; see module docstring (fallback persisted under .kittify/events/glossary/)
+    # canonical-producer-exempt: #1200 -- local-only glossary JSONL fallback.
+    return {
         "event_type": "GlossaryClarificationRequested",
         "question": question,
         "term": term,
@@ -423,7 +428,8 @@ def build_clarification_resolved(
     Returns:
         JSON-serializable event dict
     """
-    return {  # canonical-producer-exempt: #1200 -- local-only glossary JSONL fallback shape; see module docstring (fallback persisted under .kittify/events/glossary/)
+    # canonical-producer-exempt: #1200 -- local-only glossary JSONL fallback.
+    return {
         "event_type": "GlossaryClarificationResolved",
         "conflict_id": conflict_id,
         "term_surface": term_surface,
@@ -458,7 +464,8 @@ def build_sense_updated(
     Returns:
         JSON-serializable event dict
     """
-    return {  # canonical-producer-exempt: #1200 -- local-only glossary JSONL fallback shape; see module docstring (fallback persisted under .kittify/events/glossary/)
+    # canonical-producer-exempt: #1200 -- local-only glossary JSONL fallback.
+    return {
         "event_type": "GlossarySenseUpdated",
         "term_surface": term_surface,
         "scope": scope,
@@ -497,7 +504,8 @@ def build_step_checkpointed(
     Returns:
         JSON-serializable event dict
     """
-    return {  # canonical-producer-exempt: #1200 -- local-only glossary JSONL fallback shape; see module docstring (fallback persisted under .kittify/events/glossary/)
+    # canonical-producer-exempt: #1200 -- local-only glossary JSONL fallback.
+    return {
         "event_type": "StepCheckpointed",
         "mission_id": mission_id,
         "run_id": run_id,
