@@ -36,6 +36,11 @@ on:
         required: false
         default: false
         type: boolean
+      run_all:
+        description: 'Run full pipeline (skip applicability checks; forces every per-module job to run regardless of path filters)'
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: ci-quality-${{ github.ref }}
@@ -51,24 +56,29 @@ jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
-      sync: ${{ steps.filter.outputs.sync }}
-      merge: ${{ steps.filter.outputs.merge }}
-      missions: ${{ steps.filter.outputs.missions }}
-      post_merge: ${{ steps.filter.outputs.post_merge }}
-      release: ${{ steps.filter.outputs.release }}
-      status: ${{ steps.filter.outputs.status }}
-      review: ${{ steps.filter.outputs.review }}
-      next: ${{ steps.filter.outputs.next }}
-      lanes: ${{ steps.filter.outputs.lanes }}
-      dashboard: ${{ steps.filter.outputs.dashboard }}
-      upgrade: ${{ steps.filter.outputs.upgrade }}
-      cli: ${{ steps.filter.outputs.cli }}
-      orchestrator_api: ${{ steps.filter.outputs.orchestrator_api }}
-      core_misc: ${{ steps.filter.outputs.core_misc }}
-      charter: ${{ steps.filter.outputs.charter }}
-      agent: ${{ steps.filter.outputs.agent }}
-      kernel: ${{ steps.filter.outputs.kernel }}
-      doctrine: ${{ steps.filter.outputs.doctrine }}
+      # ``run_all`` (workflow_dispatch input) forces every per-module job to
+      # run regardless of which paths changed. Evaluates to 'true' only when
+      # the workflow was manually dispatched with the flag enabled; for
+      # ``push`` / ``schedule`` events the expression collapses to the
+      # path-filter value because ``inputs.run_all`` is null/false there.
+      sync: ${{ inputs.run_all && 'true' || steps.filter.outputs.sync }}
+      merge: ${{ inputs.run_all && 'true' || steps.filter.outputs.merge }}
+      missions: ${{ inputs.run_all && 'true' || steps.filter.outputs.missions }}
+      post_merge: ${{ inputs.run_all && 'true' || steps.filter.outputs.post_merge }}
+      release: ${{ inputs.run_all && 'true' || steps.filter.outputs.release }}
+      status: ${{ inputs.run_all && 'true' || steps.filter.outputs.status }}
+      review: ${{ inputs.run_all && 'true' || steps.filter.outputs.review }}
+      next: ${{ inputs.run_all && 'true' || steps.filter.outputs.next }}
+      lanes: ${{ inputs.run_all && 'true' || steps.filter.outputs.lanes }}
+      dashboard: ${{ inputs.run_all && 'true' || steps.filter.outputs.dashboard }}
+      upgrade: ${{ inputs.run_all && 'true' || steps.filter.outputs.upgrade }}
+      cli: ${{ inputs.run_all && 'true' || steps.filter.outputs.cli }}
+      orchestrator_api: ${{ inputs.run_all && 'true' || steps.filter.outputs.orchestrator_api }}
+      core_misc: ${{ inputs.run_all && 'true' || steps.filter.outputs.core_misc }}
+      charter: ${{ inputs.run_all && 'true' || steps.filter.outputs.charter }}
+      agent: ${{ inputs.run_all && 'true' || steps.filter.outputs.agent }}
+      kernel: ${{ inputs.run_all && 'true' || steps.filter.outputs.kernel }}
+      doctrine: ${{ inputs.run_all && 'true' || steps.filter.outputs.doctrine }}
     steps:
       - uses: actions/checkout@v6
       - uses: dorny/paths-filter@v4
@@ -1687,7 +1697,7 @@ jobs:
       - fast-tests-core-misc
       - fast-tests-charter
       - fast-tests-agent
-    if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.run_extended))
+    if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && (inputs.run_extended || inputs.run_all)))
     timeout-minutes: 30
 
     steps:
@@ -1753,7 +1763,7 @@ jobs:
       - fast-tests-core-misc
       - fast-tests-charter
       - fast-tests-agent
-    if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.run_extended))
+    if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && (inputs.run_extended || inputs.run_all)))
     timeout-minutes: 40
 
     steps:
