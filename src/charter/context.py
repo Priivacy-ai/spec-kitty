@@ -5,10 +5,11 @@ from __future__ import annotations
 import json
 import logging
 import re
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime, UTC
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
     from charter.scope import CharterScope
@@ -96,6 +97,18 @@ class _ActionDoctrineBundle:
     styleguide_ids: list[str]
     toolguide_ids: list[str]
     service: object
+
+
+class _DirectiveLike(Protocol):
+    """Minimal directive shape used by project directive helpers."""
+
+    id: str
+
+
+class _DirectivesConfigLike(Protocol):
+    """Minimal directives config contract returned by charter.sync."""
+
+    directives: Sequence[_DirectiveLike]
 
 
 def build_charter_context(
@@ -2338,7 +2351,7 @@ def _project_directive_entries(repo_root: Path) -> list[dict[str, object]]:
 
 def _load_project_directives(
     repo_root: Path,
-    load_directives_config: object,
+    load_directives_config: Callable[[Path], _DirectivesConfigLike],
 ) -> tuple[dict[str, object], list[str]]:
     try:
         directives_cfg = load_directives_config(repo_root)
