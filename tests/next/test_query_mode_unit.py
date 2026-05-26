@@ -22,6 +22,13 @@ def _skip_root_project_schema_gate(monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep command-unit tests isolated from the checkout's project metadata."""
     monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
     monkeypatch.setattr("specify_cli.locate_project_root", lambda: None)
+    # These unit tests do not stage a charter; bypass the preflight gate via
+    # the documented test-mode contract (see
+    # ``src/specify_cli/charter_preflight/hook.py``). Without this, the
+    # ``next`` CLI returns ``Error: charter_source missing`` before reaching
+    # the argument-validation / dispatch paths the tests are exercising.
+    monkeypatch.setenv("SPEC_KITTY_TEST_MODE", "1")
+    monkeypatch.setenv("SPEC_KITTY_SKIP_PREFLIGHT", "1")
 
 
 def test_derive_mission_state_imports_legacy_events_lazily(tmp_path: Path) -> None:

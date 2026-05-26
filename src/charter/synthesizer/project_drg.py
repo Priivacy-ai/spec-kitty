@@ -258,10 +258,12 @@ def apply_post_condition(
             when synthesis produced no project artifacts and the result is
             built-in-only.
     """
-    import os  # noqa: PLC0415 — local import keeps module-level surface small
+    import io  # noqa: PLC0415 — local import keeps module-level surface small
+    import os  # noqa: PLC0415
     import tempfile  # noqa: PLC0415
 
     from .manifest import MANIFEST_PATH, SynthesisManifest, dump_yaml, load_yaml  # noqa: PLC0415
+    from .path_guard import PathGuard  # noqa: PLC0415
 
     manifest_path = repo_root / MANIFEST_PATH
     graph_path = repo_root / ".kittify" / "doctrine" / _GRAPH_FILENAME
@@ -294,8 +296,11 @@ def apply_post_condition(
         built_in_only=desired_built_in_only,
     )
 
-    # Serialise to a sibling temp file first, then atomic-rename.  This
-    # guarantees readers never observe a half-written manifest.
+    # All writes go through PathGuard (R-10). The tmp file is a sibling of
+    # ``manifest_path`` (same ``.kittify/charter/`` directory, which is in
+    # the default allowlist), so both the staging write and the atomic
+    # ``replace`` are sanctioned.
+    guard = PathGuard(repo_root=repo_root)
     fd, tmp_path_str = tempfile.mkstemp(
         prefix=manifest_path.name + ".",
         suffix=".tmp",
@@ -305,24 +310,24 @@ def apply_post_condition(
     tmp_path = Path(tmp_path_str)
 
     try:
-        # PathGuard would refuse the tmp file (outside the allowlist), so we
-        # bypass it for this scratch write — the final replace lands inside
-        # the manifest's normal location.
         from ruamel.yaml import YAML  # noqa: PLC0415
 
         yaml = YAML()
         yaml.default_flow_style = False
         data = new_manifest.model_dump(mode="python")
-        with tmp_path.open("w", encoding="utf-8") as fh:
-            yaml.dump(data, fh)
+        # Serialise via an in-memory buffer so the on-disk write flows
+        # through ``guard.write_text`` instead of a raw ``open(..., "w")``.
+        buffer = io.StringIO()
+        yaml.dump(data, buffer)
+        guard.write_text(tmp_path, buffer.getvalue(), caller="project_drg.apply_post_condition")
 
-        # Atomic mutations: delete stale graph and atomically replace
-        # manifest. POSIX guarantees os.replace is atomic; if the unlink
-        # succeeds but the replace fails the manifest is unchanged on
-        # disk -- never half-written.
+        # Atomic mutations: delete stale graph and atomically replace the
+        # manifest. POSIX guarantees the ``replace`` is atomic; if the
+        # unlink succeeds but the replace fails the manifest is unchanged
+        # on disk -- never half-written.
         if desired_built_in_only:
             graph_path.unlink(missing_ok=True)
-        os.replace(tmp_path, manifest_path)
+        guard.replace(tmp_path, manifest_path, caller="project_drg.apply_post_condition")
     except Exception:
         # Clean up the staged temp file on failure.
         import contextlib  # noqa: PLC0415
