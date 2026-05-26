@@ -61,6 +61,14 @@ def _run_checkout_cli(project_dir: Path, *args: str) -> subprocess.CompletedProc
     src_root = str(REPO_ROOT / "src")
     existing = env.get("PYTHONPATH")
     env["PYTHONPATH"] = src_root if not existing else f"{src_root}:{existing}"
+    # These fixtures run a synthetic mission outside a real spec-kitty workspace,
+    # so the auth + charter preflight gates do not apply. Bypass them explicitly
+    # — matches the documented test-mode contract in
+    # ``src/specify_cli/charter_preflight/hook.py`` and
+    # ``src/specify_cli/git/commit_helpers.py``.
+    env.setdefault("SPEC_KITTY_TEST_MODE", "1")
+    env.setdefault("SPEC_KITTY_SKIP_PREFLIGHT", "1")
+    env.setdefault("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
     return subprocess.run(
         [sys.executable, "-m", "specify_cli.__init__", *args],
         cwd=project_dir,
