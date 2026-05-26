@@ -2,7 +2,7 @@
   "event_count": 80,
   "last_event_id": "01KSH87MMKXYECG9HD1SB0BB8E",
   "materialized_at": "2026-05-26T04:21:06.836004+00:00",
-  "mission_number": "",
+  "mission_number": "123",
   "mission_slug": "test-stabilization-and-debt-pass-01KSF9HJ",
   "mission_type": "software-dev",
   "summary": {
