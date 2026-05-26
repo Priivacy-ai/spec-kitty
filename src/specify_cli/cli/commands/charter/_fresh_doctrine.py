@@ -7,6 +7,7 @@ LLM-authored YAMLs are present (see issue #839 / WP06 T031-T033).
 """
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
 # T031 (#839 minimal artifact set): the runtime consumes ``.kittify/doctrine/``
@@ -22,10 +23,13 @@ from pathlib import Path
 #   2. ``.kittify/doctrine/PROVENANCE.md``    — human-readable provenance note
 #                                                  describing the seed source
 #                                                  (REQUIRED for auditability)
+#   3. ``.kittify/charter/synthesis-manifest.yaml`` — machine-readable marker
+#                                                  declaring built_in_only=true
 #
-# Anything beyond this set (per-directive YAML, project-layer DRG graph,
-# provenance sidecars, synthesis manifest) is produced ONLY when an LLM-authored
-# corpus exists under ``.kittify/charter/generated/`` and is out of WP06 scope.
+# Project-layer DRG graph artifacts are produced ONLY when an LLM-authored
+# corpus exists under ``.kittify/charter/generated/``. The fresh-seed manifest
+# is the authoritative "built-in doctrine fallback is intended" marker used by
+# charter freshness/preflight.
 # See spec.md FR-015 / Spec Assumption A2 / GitHub issue #839.
 _MINIMAL_FRESH_DOCTRINE_PROVENANCE_TEMPLATE = """\
 # Spec Kitty Doctrine — Fresh Project Seed
@@ -48,6 +52,36 @@ References
 """
 
 
+def _fresh_seed_manifest_text() -> str:
+    """Build the deterministic built-in-only synthesis manifest text."""
+    from importlib.metadata import version as _pkg_version
+
+    from charter.synthesizer.manifest import SynthesisManifest
+    from charter.synthesizer.synthesize_pipeline import canonical_yaml
+
+    try:
+        synthesizer_version = _pkg_version("spec-kitty-cli")
+    except Exception:
+        synthesizer_version = "unknown"
+
+    without_hash = {
+        "schema_version": "2",
+        "mission_id": None,
+        "created_at": "1970-01-01T00:00:00+00:00",
+        "run_id": "fresh-project-seed",
+        "adapter_id": "fresh-seed",
+        "adapter_version": synthesizer_version,
+        "synthesizer_version": synthesizer_version,
+        "artifacts": [],
+        "built_in_only": True,
+    }
+    manifest_hash = hashlib.sha256(canonical_yaml(without_hash)).hexdigest()
+    manifest = SynthesisManifest.model_validate(
+        {**without_hash, "manifest_hash": manifest_hash}
+    )
+    return canonical_yaml(manifest.model_dump(mode="python")).decode("utf-8")
+
+
 def _materialize_fresh_doctrine(repo_root: Path) -> list[str]:
     """Materialize the minimal ``.kittify/doctrine/`` artifact set.
 
@@ -60,7 +94,9 @@ def _materialize_fresh_doctrine(repo_root: Path) -> list[str]:
     list of repo-relative paths written.
     """
     doctrine_dir = repo_root / ".kittify" / "doctrine"
+    charter_dir = repo_root / ".kittify" / "charter"
     doctrine_dir.mkdir(parents=True, exist_ok=True)
+    charter_dir.mkdir(parents=True, exist_ok=True)
 
     provenance_path = doctrine_dir / "PROVENANCE.md"
     # Idempotency: only write if content differs (avoids needless mtime churn,
@@ -69,8 +105,14 @@ def _materialize_fresh_doctrine(repo_root: Path) -> list[str]:
     if not provenance_path.exists() or provenance_path.read_bytes() != new_bytes:
         provenance_path.write_bytes(new_bytes)
 
+    manifest_path = charter_dir / "synthesis-manifest.yaml"
+    manifest_text = _fresh_seed_manifest_text()
+    if not manifest_path.exists() or manifest_path.read_text(encoding="utf-8") != manifest_text:
+        manifest_path.write_text(manifest_text, encoding="utf-8")
+
     return [
         str(provenance_path.relative_to(repo_root)),
+        str(manifest_path.relative_to(repo_root)),
     ]
 
 
@@ -82,6 +124,8 @@ def _planned_fresh_doctrine_paths(repo_root: Path) -> list[str]:
     output of :func:`_materialize_fresh_doctrine` exactly.
     """
     doctrine_dir = repo_root / ".kittify" / "doctrine"
+    charter_dir = repo_root / ".kittify" / "charter"
     return [
         str((doctrine_dir / "PROVENANCE.md").relative_to(repo_root)),
+        str((charter_dir / "synthesis-manifest.yaml").relative_to(repo_root)),
     ]

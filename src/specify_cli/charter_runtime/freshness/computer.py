@@ -33,7 +33,6 @@ report it produces).
 
 from __future__ import annotations
 
-import hashlib
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -136,6 +135,13 @@ def _doctrine_graph_path(repo_root: Path) -> Path:
     return repo_root / DOCTRINE_DIR / _GRAPH_FILENAME
 
 
+def _doctrine_dir() -> Path:
+    """Return the canonical project doctrine directory via lazy chokepoint import."""
+    from charter.bundle import DOCTRINE_DIR  # noqa: PLC0415
+
+    return DOCTRINE_DIR
+
+
 def _safe_load_yaml(path: Path) -> dict[str, object] | None:
     """Load a YAML file as a dict; return None when missing or unreadable.
 
@@ -185,12 +191,17 @@ def _load_synthesis_manifest_via_chokepoint(repo_root: Path) -> SynthesisManifes
         return None
 
 
-def _sha256_of(path: Path) -> str | None:
-    """Return SHA-256 hex digest of a file, or None when missing."""
+def _charter_hash_of(path: Path) -> str | None:
+    """Return the canonical charter-content hash hex digest, or None when missing."""
     if not path.exists():
         return None
     try:
-        return hashlib.sha256(path.read_bytes()).hexdigest()
+        from charter.hasher import hash_content  # noqa: PLC0415
+
+        hashed = hash_content(path.read_text(encoding="utf-8"))
+        if hashed.startswith("sha256:"):
+            return hashed.split(":", 1)[1]
+        return hashed
     except OSError:
         return None
 
@@ -219,19 +230,6 @@ def _latest_mtime(paths: list[Path]) -> str | None:
     return datetime.fromtimestamp(max(stamps), tz=UTC).isoformat()
 
 
-def _oldest_mtime(paths: list[Path]) -> float | None:
-    stamps: list[float] = []
-    for p in paths:
-        if p.exists():
-            try:
-                stamps.append(p.stat().st_mtime)
-            except OSError:
-                continue
-    if not stamps:
-        return None
-    return min(stamps)
-
-
 # ---------------------------------------------------------------------------
 # Sub-state computers
 # ---------------------------------------------------------------------------
@@ -248,7 +246,7 @@ def _compute_charter_source(repo_root: Path) -> FreshnessSubState:
             remediation="spec-kitty charter sync",
         )
 
-    current_hash = _sha256_of(charter_path)
+    current_hash = _charter_hash_of(charter_path)
     last_change = _mtime_iso(charter_path)
 
     metadata = _safe_load_yaml(metadata_path)
@@ -316,27 +314,10 @@ def _compute_synced_bundle(
             remediation="spec-kitty charter sync",
         )
 
-    # charter_source is fresh → require every bundle file's mtime to be at
-    # least as recent as charter_source.last_change.
-    charter_last = charter_source.last_change
-    if charter_last is None:
-        return FreshnessSubState(state="fresh", last_change=last_change, remediation=None)
-
-    oldest_bundle = _oldest_mtime(existing)
-    try:
-        charter_ts = datetime.fromisoformat(charter_last).timestamp()
-    except ValueError:
-        return FreshnessSubState(state="fresh", last_change=last_change, remediation=None)
-
-    # Allow a tiny epsilon to tolerate single-call sync that writes charter
-    # and metadata within the same second.
-    if oldest_bundle is not None and oldest_bundle + 1.0 < charter_ts:
-        return FreshnessSubState(
-            state="stale",
-            last_change=last_change,
-            remediation="spec-kitty charter sync",
-        )
-
+    # charter_source already proves the canonical charter hash matches
+    # metadata.yaml.  Treat the bundle as fresh once required files exist;
+    # mtimes can move independently when git checks out or restages identical
+    # content, and must not make a synced bundle fail preflight.
     return FreshnessSubState(state="fresh", last_change=last_change, remediation=None)
 
 
@@ -356,6 +337,8 @@ def _compute_synthesized_drg(
     built_in_only = bool(manifest.built_in_only) if manifest is not None else False
     graph_exists = graph_path.exists()
     manifest_exists = manifest is not None
+
+    legacy_fresh_seed = repo_root / _doctrine_dir() / "PROVENANCE.md"
 
     # Conflict resolution (data-model §6): built_in_only=true AND graph.yaml
     # present is an inconsistent stale-residue state.
@@ -379,6 +362,13 @@ def _compute_synthesized_drg(
         )
 
     if not graph_exists:
+        if _looks_like_legacy_fresh_seed(legacy_fresh_seed):
+            return FreshnessSubState(
+                state="built_in_only",
+                last_change=_mtime_iso(legacy_fresh_seed),
+                remediation=None,
+                detail="legacy fresh-project seed marker; re-run `spec-kitty charter synthesize` to write synthesis-manifest.yaml",
+            )
         # No graph + manifest does not opt into built_in_only → missing.
         return FreshnessSubState(
             state="missing",
@@ -431,6 +421,22 @@ def _compute_synthesized_drg(
         )
 
     return FreshnessSubState(state="fresh", last_change=graph_mtime_iso, remediation=None)
+
+
+def _looks_like_legacy_fresh_seed(path: Path) -> bool:
+    """Return True for pre-manifest fresh-seed provenance files."""
+    if not path.exists():
+        return False
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return False
+    lowered = text.lower()
+    return (
+        "fresh project seed" in lowered
+        and "llm-authored yaml" in lowered
+        and "built-in doctrine" in lowered
+    )
 
 
 # ---------------------------------------------------------------------------

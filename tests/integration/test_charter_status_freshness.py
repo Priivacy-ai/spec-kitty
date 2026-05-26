@@ -13,7 +13,6 @@ Covers four canonical scenarios:
 
 from __future__ import annotations
 
-import hashlib
 import json
 from pathlib import Path
 from textwrap import dedent
@@ -21,6 +20,8 @@ from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
+
+from charter.hasher import hash_content
 
 pytestmark = [pytest.mark.integration]
 
@@ -63,7 +64,7 @@ def _write_charter_and_metadata(
     charter_path = charter_dir / "charter.md"
     metadata_path = charter_dir / "metadata.yaml"
     charter_path.write_text("# Charter\n", encoding="utf-8")
-    digest = hashlib.sha256(charter_path.read_bytes()).hexdigest()
+    digest = hash_content(charter_path.read_text(encoding="utf-8")).split(":", 1)[1]
     if mismatched_hash:
         digest = "0" * 64
     # NOTE: omit ``timestamp_utc`` — ruamel's safe loader parses ISO
