@@ -42,14 +42,15 @@ def test_legacy_paths_still_import() -> None:
 
 
 def test_legacy_submodules_resolve_via_shim() -> None:
-    """Legacy dotted-path submodule imports load the canonical sources.
+    """Legacy dotted-path submodule imports resolve to the SAME canonical module.
 
-    The legacy shim shares ``__path__`` with the canonical package, so
-    ``import specify_cli.charter_preflight.cli`` finds and loads ``cli.py``
-    from the canonical directory. Python registers the loaded module under
-    the legacy dotted name; the underlying code object is the same as the
-    canonical module's, but the two ``__name__`` strings differ — so we
-    assert symbol equivalence rather than module-object identity.
+    The legacy shim eagerly aliases canonical submodules in ``sys.modules``
+    under the legacy dotted names, so both ``import legacy.submod`` and
+    ``from legacy import submod`` return the identical module object as
+    ``import canonical.submod``. Module-object identity is critical for
+    ``mock.patch`` correctness — a test that patches
+    ``specify_cli.charter_preflight.hook.X`` must see the patch take
+    effect inside production code that imports via that same dotted path.
     """
     cases: list[tuple[str, str, str]] = [
         (
@@ -91,19 +92,11 @@ def test_legacy_submodules_resolve_via_shim() -> None:
     for legacy_path, canonical_path, sentinel in cases:
         legacy_mod = importlib.import_module(legacy_path)
         canonical_mod = importlib.import_module(canonical_path)
-        # Both module objects must load from the SAME source file on disk —
-        # this is the equivalence the deprecation contract really needs.
-        # Module-object identity differs because Python's dotted-import
-        # registers them under separate names (PEP 420-style ``__path__``
-        # sharing).
-        assert legacy_mod.__file__ == canonical_mod.__file__, (
-            f"shim source-file mismatch: "
-            f"{legacy_path}.__file__={legacy_mod.__file__!r} vs "
-            f"{canonical_path}.__file__={canonical_mod.__file__!r}"
+        assert legacy_mod is canonical_mod, (
+            f"shim identity mismatch: {legacy_path} is not {canonical_path} "
+            f"(legacy id={id(legacy_mod)}, canonical id={id(canonical_mod)}). "
+            f"This breaks ``mock.patch('{legacy_path}.X', ...)`` contracts."
         )
         assert hasattr(legacy_mod, sentinel), (
             f"{legacy_path} missing sentinel symbol {sentinel!r}"
-        )
-        assert hasattr(canonical_mod, sentinel), (
-            f"{canonical_path} missing sentinel symbol {sentinel!r}"
         )

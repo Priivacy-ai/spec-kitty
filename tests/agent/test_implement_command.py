@@ -21,6 +21,20 @@ from specify_cli.lanes.persistence import write_lanes_json
 pytestmark = pytest.mark.fast
 
 
+@pytest.fixture(autouse=True)
+def _bypass_charter_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Bypass the charter preflight gate for these implement-flow tests.
+
+    None of these fixtures stage a charter; without the bypass the gate
+    returns ``Error: charter_source missing`` before reaching the
+    lane-workspace creation / JSON-output paths the tests exercise.
+    Bypass contract documented in
+    ``src/specify_cli/charter_preflight/hook.py``.
+    """
+    monkeypatch.setenv("SPEC_KITTY_TEST_MODE", "1")
+    monkeypatch.setenv("SPEC_KITTY_SKIP_PREFLIGHT", "1")
+
+
 def create_meta_json(feature_dir: Path, vcs: str = "git") -> Path:
     meta_path = feature_dir / "meta.json"
     feature_dir.mkdir(parents=True, exist_ok=True)
