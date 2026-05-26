@@ -37,14 +37,21 @@ import hashlib
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
+
+if TYPE_CHECKING:
+    from charter.synthesizer.manifest import SynthesisManifest
 
 from ruamel.yaml import YAML
 
-from charter.bundle import DOCTRINE_DIR as _BUNDLE_DOCTRINE_DIR
-from charter.synthesizer.manifest import MANIFEST_PATH as _CHOKEPOINT_MANIFEST_PATH
-from charter.synthesizer.manifest import SynthesisManifest
-from charter.synthesizer.manifest import load_yaml as _chokepoint_load_manifest
+# LD-3 chokepoint imports are kept LAZY (inside
+# ``_load_synthesis_manifest_via_chokepoint``) to preserve NFR-003 latency.
+# Eagerly importing ``charter.bundle`` / ``charter.synthesizer.manifest``
+# at module-load time pulls in the full ``doctrine.service``,
+# ``jsonschema``, and ``rfc3987_syntax`` graph (>500 ms) onto the
+# ``spec-kitty next`` startup hot path. The architectural intent of LD-3
+# (consume reads through the chokepoint API, not raw YAML loads) is
+# preserved — only the *binding* is deferred.
 
 __all__ = [
     "CharterFreshness",
@@ -109,18 +116,19 @@ class CharterFreshness:
 
 
 _CHARTER_DIR = Path(".kittify") / "charter"
-# LD-3: anchor doctrine path to the canonical declaration in ``charter.bundle``
-# rather than re-declaring it locally. Pre-WP07 hardcoded
-# ``Path(".kittify") / "doctrine"``; both resolve to the same on-disk path,
-# but the imported constant ensures any future relocation in the chokepoint
-# module propagates automatically.
-_DOCTRINE_DIR = _BUNDLE_DOCTRINE_DIR
+# LD-3 / NFR-003 trade-off: the canonical declaration lives in
+# ``charter.bundle.DOCTRINE_DIR`` but importing that pulls in the doctrine
+# stack at module-load time. The on-disk path is stable; the constant is
+# duplicated here with a back-reference rather than imported eagerly.
+_DOCTRINE_DIR = Path(".kittify") / "doctrine"
 _CHARTER_FILENAME = "charter.md"
 _METADATA_FILENAME = "metadata.yaml"
-# LD-3: synthesis manifest path is the canonical constant exported by the
-# chokepoint module (``charter.synthesizer.manifest.MANIFEST_PATH``); see
-# module docstring for rationale (chokepoint routing without refresh semantics).
-_SYNTHESIS_MANIFEST = _CHOKEPOINT_MANIFEST_PATH
+# LD-3 / NFR-003 trade-off: same rationale as ``_DOCTRINE_DIR``. The
+# canonical declaration is ``charter.synthesizer.manifest.MANIFEST_PATH``;
+# duplicated here with a back-reference to keep the import lazy. The
+# chokepoint *read* still flows through ``_chokepoint_load_manifest``
+# inside ``_load_synthesis_manifest_via_chokepoint``.
+_SYNTHESIS_MANIFEST = Path(".kittify") / "charter" / "synthesis-manifest.yaml"
 _GRAPH_FILENAME = "graph.yaml"
 _BUNDLE_FILES = ("governance.yaml", "directives.yaml", "references.yaml", _METADATA_FILENAME)
 
@@ -165,6 +173,9 @@ def _load_synthesis_manifest_via_chokepoint(repo_root: Path) -> SynthesisManifes
     manifest_path = repo_root / _SYNTHESIS_MANIFEST
     if not manifest_path.exists():
         return None
+    # NFR-003: defer the chokepoint import until first call so module-import
+    # of ``charter_freshness`` stays off the ``spec-kitty next`` hot path.
+    from charter.synthesizer.manifest import load_yaml as _chokepoint_load_manifest  # noqa: PLC0415
     try:
         return _chokepoint_load_manifest(manifest_path)
     except Exception:  # noqa: BLE001 — manifest validation/parse errors are non-fatal here
