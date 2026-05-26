@@ -15,6 +15,7 @@ from charter.context import (
     CharterContextResult,
     _build_doctrine_service,
     _bundle_root_for_json,
+    _load_project_directives,
     _project_charter_json_block,
     _project_directive_entries,
     _relative_json_path,
@@ -531,6 +532,22 @@ class TestBuildContextV2:
                     "summary": "Catalog intent",
                 }
             ]
+
+    def test_load_project_directives_accepts_callable_loader(self, tmp_path: Path) -> None:
+        """Helper keeps local directives and resolver directives in stable order."""
+        local = SimpleNamespace(id="DIR-LOCAL")
+
+        with patch(
+            "charter.resolver.resolve_project_governance",
+            side_effect=RuntimeError("no resolver"),
+        ):
+            local_by_id, directive_ids = _load_project_directives(
+                tmp_path,
+                lambda _repo_root: SimpleNamespace(directives=[local]),
+            )
+
+        assert local_by_id == {"DIR-LOCAL": local}
+        assert directive_ids == ["DIR-LOCAL"]
 
 
 def test_render_bootstrap_uses_fallback_labels_without_summary_or_references() -> None:
