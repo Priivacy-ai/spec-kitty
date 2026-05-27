@@ -7,7 +7,7 @@ requirement_refs:
 tracker_refs: []
 planning_base_branch: feat/pre-doctrine-stabilization-remediation
 merge_target_branch: feat/pre-doctrine-stabilization-remediation
-branch_strategy: lane-based
+branch_strategy: Planning artifacts for this mission were generated on feat/pre-doctrine-stabilization-remediation. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/pre-doctrine-stabilization-remediation unless the human explicitly redirects the landing branch.
 subtasks:
 - T032
 - T033

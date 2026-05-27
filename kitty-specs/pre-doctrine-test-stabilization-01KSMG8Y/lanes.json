@@ -1,0 +1,234 @@
+{
+  "version": 1,
+  "mission_slug": "pre-doctrine-test-stabilization-01KSMG8Y",
+  "mission_id": "01KSMG8Y0V5V2ZM4YEQMKFWN2K",
+  "mission_branch": "kitty/mission-pre-doctrine-test-stabilization-01KSMG8Y",
+  "target_branch": "feat/pre-doctrine-stabilization-remediation",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/missions/software-dev/command-templates/implement.md",
+        "tests/specify_cli/regression/_twelve_agent_baseline/**",
+        "tests/specify_cli/regression/test_twelve_agent_parity.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tests"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "README.md",
+        "src/specify_cli/audit/classifiers/wp_files.py",
+        "src/specify_cli/cli/commands/__init__.py",
+        "tests/specify_cli/audit/test_wp_files_classifier.py",
+        "tests/specify_cli/docs/test_readme_governance.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/doctrine/glossary/**",
+        "src/doctrine/tactics/built-in/five-paradigm-parallel-debugging.tactic.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/implement.py",
+        "src/specify_cli/core/mission_creation.py",
+        "src/specify_cli/git/**",
+        "src/specify_cli/status/emit.py",
+        "src/specify_cli/tasks/move_task.py",
+        "tests/specify_cli/status/test_atomic_status_commits_unit.py",
+        "tests/specify_cli/tasks/test_move_task_git_validation_unit.py",
+        "tests/specify_cli/test_mission_creation_specify_started.py",
+        "tests/specify_cli/test_status_emit_on_alloc_failure.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tests"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/charter_lint/**",
+        "src/specify_cli/charter_preflight/**",
+        "src/specify_cli/cli/commands/charter/synthesize.py",
+        "src/specify_cli/cli/commands/specify.py",
+        "tests/integration/test_charter_lint_lints_all_layers.py",
+        "tests/integration/test_charter_synthesize_fresh.py",
+        "tests/integration/test_documentation_runtime_walk.py",
+        "tests/integration/test_implement_review_retrospect_smoke.py",
+        "tests/integration/test_rejection_cycle.py",
+        "tests/integration/test_specify_plan_commit_boundary.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tests"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/next/runtime_bridge.py",
+        "tests/next/test_next_command_integration.py",
+        "tests/next/test_query_mode_unit.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tests"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "src/specify_cli/spec_kitty_events/",
+        "src/specify_cli/sync/**",
+        "src/specify_cli/sync/restart.py",
+        "tests/contract/**",
+        "tests/sync/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "src/charter/synthesizer/**",
+        "tests/charter/synthesizer/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tests"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "src/specify_cli/auth/**",
+        "src/specify_cli/cli/commands/invocations_cmd.py",
+        "src/specify_cli/mission_step_contracts/executor.py",
+        "tests/auth/**",
+        "tests/cross_cutting/test_mypy_strict_mission_step_contracts.py",
+        "tests/missions/test_mission_switching_integration.py",
+        "tests/specify_cli/invocation/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-j",
+      "wp_ids": [
+        "WP10"
+      ],
+      "write_scope": [
+        "tests/agent/test_context_unit.py",
+        "tests/specify_cli/test_lane_regression_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c",
+        "lane-d",
+        "lane-e",
+        "lane-f",
+        "lane-g",
+        "lane-h",
+        "lane-i"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP11"
+      ],
+      "write_scope": [
+        "docs/01KSMG8Y-closeout/baseline.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-j"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-05-27T11:40:07.568821+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP11"
+  ]
+}
