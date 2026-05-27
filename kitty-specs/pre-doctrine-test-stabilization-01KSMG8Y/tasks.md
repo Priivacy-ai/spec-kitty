@@ -319,10 +319,10 @@
 **Profile**: `curator-carla`  
 
 **Included subtasks:**
-- [ ] T042 Audit all WP01-WP09 touched test directories for missing pytestmark (WP10)
-- [ ] T043 Add pytestmark to tests/agent/test_context_unit.py (WP10)
-- [ ] T044 Add category mark to tests/specify_cli/test_lane_regression_guard.py (WP10)
-- [ ] T045 Verify existing architectural guard passes without modification (WP10)
+- [x] T042 Audit all WP01-WP09 touched test directories for missing pytestmark (WP10)
+- [x] T043 Add pytestmark to tests/agent/test_context_unit.py (WP10)
+- [x] T044 Add category mark to tests/specify_cli/test_lane_regression_guard.py (WP10)
+- [x] T045 Verify existing architectural guard passes without modification (WP10)
 
 **Implementation notes:**
 1. **Pre-condition**: WP01–WP09 must all be merged before this WP begins
