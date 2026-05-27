@@ -1,7 +1,7 @@
 {
-  "event_count": 13,
-  "last_event_id": "01KSMNZAQ0NZNJ3STM3AN5ENX6",
-  "materialized_at": "2026-05-27T12:18:57.888273+00:00",
+  "event_count": 15,
+  "last_event_id": "01KSMNZHNRSHJ3YHFEJD1DEB00",
+  "materialized_at": "2026-05-27T12:19:05.016057+00:00",
   "mission_number": "",
   "mission_slug": "pre-doctrine-test-stabilization-01KSMG8Y",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 2,
     "in_review": 0,
-    "planned": 10
+    "planned": 9
   },
   "work_packages": {
     "WP01": {
@@ -25,11 +25,11 @@
       "last_transition_at": "2026-05-27T12:18:57.888273+00:00"
     },
     "WP02": {
-      "actor": "finalize-tasks",
+      "actor": "claude:claude-sonnet-4-6:python-pedro:implementer",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KSMKR6TJW2FXWKZ09G4RE6ET",
-      "last_transition_at": "2026-05-27T11:40:07.378217+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KSMNZHNRSHJ3YHFEJD1DEB00",
+      "last_transition_at": "2026-05-27T12:19:05.016057+00:00"
     },
     "WP03": {
       "actor": "finalize-tasks",
