@@ -129,23 +129,44 @@ WP10 depends on WP01–WP09 being merged; WP11 depends on WP10.
 ### WP01 — TOML escape fix + snapshot refresh (FR-001 / #1302)
 
 **Write scope:**
-- `src/specify_cli/missions/software-dev/command-templates/implement.md` — escape `\.py$` in the `rg` command at line 168 (use `'[.]py$'` or `grep -E '\.py$'` to avoid the unescaped backslash in TOML-format rendered output)
+- `src/specify_cli/missions/software-dev/command-templates/implement.md` — replace `rg '\.py$'` at line 168 with `grep -E '[.]py$'` (character-class form avoids any backslash in the rendered TOML string; `grep -E` is universally available without requiring `rg`). Do NOT use `grep -E '\.py$'` — that form still contains a backslash and will fail the same TOML parse check.
 - `tests/specify_cli/regression/_twelve_agent_baseline/` — regenerate all affected agent snapshots via `PYTEST_UPDATE_SNAPSHOTS=1 pytest tests/specify_cli/regression/ -v`
 
-**Acceptance:** `test_toml_command_output_is_parseable[implement-gemini]` and `[implement-qwen]` pass; snapshot diff contains only the template change.
+**Pre-condition check:** Before regenerating, run `ls tests/specify_cli/regression/_twelve_agent_baseline/implement/` to confirm whether the baseline covers 12 or 13 agents. The test file is `test_twelve_agent_parity.py` but CLAUDE.md documents 13 slash-command agents. Name the exact count in the WP handoff note so the reviewer can confirm the diff scope.
+
+**Acceptance:** `test_toml_command_output_is_parseable[implement-gemini]` and `[implement-qwen]` pass; snapshot diff contains only the `rg`→`grep` substitution; all other snapshot assertions still pass.
 
 **Test marks required:** `pytest.mark.unit` + `pytest.mark.fast` (parity test already has `pytestmark = [pytest.mark.unit]`)
 
 ### WP02 — README Governance + chokepoint guards (FR-002, FR-003, FR-004 / #1308, #1309, #1310-partial)
 
 **Write scope:**
-- `README.md` — add `## Governance layer` section with links to `docs/trail-model.md` and `docs/host-surface-parity.md`
-- `src/specify_cli/audit/classifiers/wp_files.py:92` — replace `frontmatter.get("lane")` with `specify_cli.status.lane_reader.get_wp_lane()` call; update imports
-- `src/specify_cli/cli/commands/__init__.py:40,78` — remove `doctrine` import and `add_typer` registration
+- `README.md` — add `## Governance layer` section. The section must satisfy all **six** assertions in `tests/specify_cli/docs/test_readme_governance.py`:
+  1. Heading `## Governance layer` present
+  2. Link to `docs/trail-model.md`
+  3. Link to `docs/host-surface-parity.md`
+  4. Substrings `spec-kitty advise`, `spec-kitty ask`, `spec-kitty do` all appear within the section
+  5. Every relative `.md` link in `.agents/skills/spec-kitty.advise/SKILL.md` resolves to an existing file (read this file first; fix any broken links if found)
+  6. Every relative `.md` link in `src/doctrine/skills/spec-kitty-runtime-next/SKILL.md` resolves to an existing file (read this file first; fix any broken links if found)
+- `src/specify_cli/audit/classifiers/wp_files.py:92` — replace the direct frontmatter lane read with `specify_cli.status.lane_reader.get_wp_lane()`, but **wrapped in a guard**. The required pattern:
+  ```python
+  from specify_cli.status.lane_reader import get_wp_lane, has_event_log
+  # ...
+  if has_event_log(mission_dir):
+      lane = get_wp_lane(mission_dir, wp_path.stem)
+  else:
+      lane = None  # pre-3.0 / unfinalized mission — skip terminal-lane evidence check
+  ```
+  The `classify_wp_files()` function has a "never raises" contract; do NOT call `get_wp_lane()` without the guard — it will raise `CanonicalStatusNotFoundError` on any mission without `status.events.jsonl`. Update imports accordingly.
+- `src/specify_cli/cli/commands/__init__.py:40,78` — remove `doctrine` import and `add_typer` registration. The `charter` group (registered separately) must remain untouched. Verify that no test imports `doctrine_module` via `register_commands` and then checks the root app's command list before deleting the lines.
 
-**Acceptance:** All four `test_readme_governance` assertions pass; `test_lane_regression_guard[src/specify_cli/audit/classifiers/wp_files.py]` passes; all three `test_doctrine_cli_removed` assertions pass.
+**Acceptance:**
+- All **six** `test_readme_governance` assertions pass
+- `test_lane_regression_guard[src/specify_cli/audit/classifiers/wp_files.py]` passes
+- New test confirms `classify_wp_files(path_without_event_log)` does not raise (verifies the guard)
+- All three `test_doctrine_cli_removed` assertions pass
 
-**Test marks required:** existing tests already tagged; no new tests needed (pure production fix)
+**Test marks required:** new guard-fallback test must carry `[pytest.mark.unit, pytest.mark.fast]`
 
 ### WP03 — Doctrine / glossary anchor + tactic repair (FR-005 / #1304)
 
@@ -164,7 +185,7 @@ WP10 depends on WP01–WP09 being merged; WP11 depends on WP10.
 **Write scope (four independent fixes):**
 1. `SpecifyStarted` event not emitted at mission-create (#1067 regression) — surface: `src/specify_cli/core/mission_creation.py` or `src/specify_cli/status/emit.py`
 2. Atomic commit flow leaves status artifacts dirty after `move_task` — surface: `src/specify_cli/git/` (atomic commit helpers)
-3. Wrong commit message bubbled to lane branch — surface: `src/specify_cli/tasks/move_task.py`
+3. Wrong commit message bubbled to lane branch — surface: `src/specify_cli/tasks/move_task.py` (**exclusive ownership**: WP05 must not touch `move_task.py`; if WP05 item 5 is rooted in the same function, fold it into WP04 rather than editing `move_task.py` from two parallel lanes)
 4. `implement` does not block on alloc failure — surface: `src/specify_cli/cli/commands/implement.py` or related
 
 **Investigation required:** read each failing test to identify the exact call path before editing production code.
@@ -185,17 +206,25 @@ WP10 depends on WP01–WP09 being merged; WP11 depends on WP10.
 
 **Investigation required:** run each failing integration test individually with `--tb=short` to identify the minimal reproduction before touching production code.
 
+**Write-scope constraint — `runtime_bridge.py`:** Item 3 ("discover action blocks despite `spec.md` authored") may require editing `src/specify_cli/next/runtime_bridge.py`. This file is also the primary target of WP06. Before editing it, the WP05 implementer MUST determine whether item 3 is rooted in the charter preflight logic (`src/specify_cli/charter_preflight/`) rather than `runtime_bridge.py`. If the fix is in `runtime_bridge.py`, WP05 must not begin that edit until WP06 has been reviewed and merged, or the two fixes must be coordinated in the same lane.
+
+**Write-scope constraint — `move_task.py`:** Item 5 ("wrong branch in rejection-cycle handoff") may touch `src/specify_cli/tasks/move_task.py`. WP04 has exclusive ownership of `move_task.py`. If item 5 is rooted in `move_task.py`, fold it into WP04 rather than editing from two parallel lanes.
+
 **Acceptance:** All six integration tests in `test_charter_lint_lints_all_layers`, `test_charter_synthesize_fresh`, `test_documentation_runtime_walk`, `test_implement_review_retrospect_smoke`, `test_rejection_cycle`, `test_specify_plan_commit_boundary` pass.
 
 **Test marks required:** integration tests already carry `[pytest.mark.integration, pytest.mark.git_repo]`; any new tests follow the same pattern
 
 ### WP06 — `next` CLI exit-code regressions (FR-008 / #1305)
 
-**Write scope:**
-- `src/specify_cli/next/runtime_bridge.py` or `src/specify_cli/next/decision.py` — restore exit-0 for terminal states and exit-1 for blocked states
-- `src/specify_cli/cli/commands/next_cmd.py` — verify exit-code propagation from `decide_next_via_runtime`
+**Fix architecture:** The exit-code mapping is already correct in `src/specify_cli/cli/commands/next_cmd.py` (`if decision.kind == "blocked": raise typer.Exit(1)`; all other kinds exit 0). The fix target is `src/specify_cli/next/runtime_bridge.py::decide_next_via_runtime` — it is returning a `Decision` with the wrong `kind` for terminal states. The implementer must NOT change `next_cmd.py`'s exit-code mapping; instead restore correct `kind` values from `decide_next_via_runtime`.
 
-**Investigation required:** run `pytest tests/next/ -v --tb=short` to identify where exit codes diverge from the expected contract.
+The `test_query_mode_unit` mock failure (`decide_next` mock not invoked) indicates a call-path bypass — the mock was likely patching the old entry point before the `decide_next_via_runtime` delegation was introduced. Investigate whether the test needs to patch `runtime_bridge.decide_next_via_runtime` directly.
+
+**Write scope:**
+- `src/specify_cli/next/runtime_bridge.py` — restore correct `Decision.kind` for terminal and blocked states
+- `tests/next/test_query_mode_unit.py` — update mock target if the patching path changed
+
+**Investigation required:** run `pytest tests/next/ -v --tb=long` to identify the divergence point. Confirm the current mock patch target vs. the actual import path.
 
 **Acceptance:** All four failing tests in `test_next_command_integration` (exit codes, advancing mode) and `test_query_mode_unit` (mock invoked) pass.
 
@@ -218,12 +247,14 @@ WP10 depends on WP01–WP09 being merged; WP11 depends on WP10.
 
 ### WP08 — Charter synthesizer determinism (FR-010 / #1303)
 
-**Write scope:**
-- `src/specify_cli/charter/` (synthesizer) — fix manifest hash determinism (sort keys before hashing, or use content-addressed deterministic ordering)
-- `src/specify_cli/charter/path_guard.py` — block direct write primitives from bypassing chokepoint
-- Test fixtures — refresh stored manifest hashes after fix
+**Correct source path:** The charter synthesizer lives at `src/charter/synthesizer/` (not `src/specify_cli/charter/`). WP05 item 2 ("wrong error class from `synthesize_without_charter_md`") touches the CLI adapter in `src/specify_cli/cli/commands/charter/synthesize.py` — NOT `src/charter/synthesizer/errors.py`. WP08 must not touch the CLI adapter; WP05 must not touch `src/charter/synthesizer/errors.py`. This separation prevents parallel-lane conflict.
 
-**Investigation required:** run `pytest tests/charter/synthesizer/ -v --tb=long` to identify the exact hash computation path.
+**Write scope:**
+- `src/charter/synthesizer/manifest.py` (or equivalent) — fix manifest hash determinism (sort file lists before hashing to produce deterministic traversal order)
+- `src/charter/synthesizer/path_guard.py` — enforce the chokepoint so direct write primitives cannot bypass it
+- Test fixtures — refresh stored manifest hashes after the determinism fix
+
+**Investigation required:** run `pytest tests/charter/synthesizer/ -v --tb=long` to identify the exact hash computation path and confirm the `path_guard.py` chokepoint location.
 
 **Acceptance:** All five `test_bundle_validate_extension` assertions pass.
 
@@ -232,30 +263,40 @@ WP10 depends on WP01–WP09 being merged; WP11 depends on WP10.
 ### WP09 — Misc debt — auth / invocation / mypy / mission switching (FR-011 / #1310)
 
 **Write scope (in-scope items):**
-- `src/specify_cli/auth/` — fix auth integration exit-code returning 2 instead of expected value
-- `src/specify_cli/cli/commands/invocations_cmd.py` (or related) — prevent `logged_out_on_connected_teamspace` noise from leaking into JSON output
-- `src/specify_cli/mission_step_contracts/executor.py` — fix mypy --strict failures
-- Legacy `kitty-specs/` WP files — fix or exclude from Pydantic validation the 6 WP files failing `test_all_kitty_specs_wp_files_validate`
-- Mission-switching tests — identify and fix the blocking condition in `test_mission_switching_integration`
+- `src/specify_cli/auth/` — fix auth integration exit-code returning 2 instead of expected value; identified test: `tests.auth.integration.test_refresh_through_transport`
+- `src/specify_cli/cli/commands/invocations_cmd.py` (or related) — prevent `logged_out_on_connected_teamspace` noise from leaking into JSON output; identified tests: `tests.specify_cli.invocation.cli.test_do`, `test_profiles`, `test_record`
+- `src/specify_cli/mission_step_contracts/executor.py` — fix mypy --strict failures; identified test: `tests.cross_cutting.test_mypy_strict_mission_step_contracts::test_mission_step_contracts_executor_is_mypy_strict_clean`
+- Legacy `kitty-specs/` WP files — fix or exclude from Pydantic validation the 6 WP files failing `tests.specify_cli.status.test_wp_metadata::test_all_kitty_specs_wp_files_validate`. **Self-referential trap**: by the time WP09 runs, this mission's own WP files will also be checked by the glob. Before attempting fixes, run the test to see the current failure list and confirm this mission's own WP files pass. If they do not, fix them first.
+- Mission-switching tests — identify and fix the blocking condition; identified tests: `tests.missions.test_mission_switching_integration` ×2
 
 **Re-defer (per C-008):**
-- `spec-kitty.checklist` skill package restoration (#1310 item) — file a new sub-issue; this requires dedicated template work outside this mission's scope
-- Schema-version wording drift — minor UX; file a new issue for CHANGELOG-tracked fix
+- `spec-kitty.checklist` skill package restoration — file a new sub-issue; this requires dedicated template work outside this mission's scope
+- Schema-version wording drift — file a new sub-issue for a CHANGELOG-tracked fix
 
-**Acceptance:** Five of the ~15 `#1310` failures resolved in-scope; re-deferred items each have a new GitHub issue filed before WP09 is declared complete.
+**Acceptance (specific test IDs):**
+- `tests.auth.integration.test_refresh_through_transport` passes
+- `tests.specify_cli.invocation.cli.test_do`, `test_profiles`, `test_record` pass
+- `tests.cross_cutting.test_mypy_strict_mission_step_contracts::test_mission_step_contracts_executor_is_mypy_strict_clean` passes
+- `tests.specify_cli.status.test_wp_metadata::test_all_kitty_specs_wp_files_validate` passes (or pre-existing failures are reduced to those owned by re-deferred items)
+- `tests.missions.test_mission_switching_integration` (both parameterizations) pass
+- Two new GitHub issues filed for re-deferred items before WP09 is closed
 
 **Test marks required:** new tests carry `[pytest.mark.fast, pytest.mark.unit]` or `[pytest.mark.integration]` as appropriate
 
-### WP10 — CI test-mark audit + guard test (FR-012)
+### WP10 — CI test-mark audit (FR-012)
+
+**Pre-condition:** WP01–WP09 must all be merged into the feature branch before WP10 begins; this WP touches every module directory that any earlier WP touched.
 
 **Write scope:**
 - All test files in modules touched by WP01–WP09: verify each has a `pytestmark` with at least one canonical CI-quality mark
-- `tests/agent/test_context_unit.py` — add missing `pytestmark`
-- New guard test (location TBD — likely `tests/specify_cli/test_codebase_sweep.py` or a new `tests/architectural/test_test_mark_coverage.py`) — asserts that every `test_*.py` file in the directories touched by this mission has a module-level `pytestmark`
+- `tests/agent/test_context_unit.py` — add missing `pytestmark` (likely `pytest.mark.fast`)
+- `tests/specify_cli/test_lane_regression_guard.py` — add a category mark (e.g. `pytest.mark.unit`) alongside the existing `pytest.mark.non_sandbox`; the existing mark is not a CI-quality split mark and will be excluded from fast runs without a second mark
 
-**Acceptance:** No test file in a touched directory is missing `pytestmark`; the new guard test passes; `tests/agent/test_context_unit.py` is tagged.
+**Acceptance:** No test file in a touched directory is missing a CI-quality `pytestmark`; the existing guard `tests/architectural/test_pytest_marker_convention.py::test_every_test_file_declares_a_pytestmark_marker` passes without modification; `tests/agent/test_context_unit.py` is tagged.
 
-**Test marks required:** guard test itself carries `[pytest.mark.architectural, pytest.mark.fast]`
+**No new guard test file.** The architectural guard already exists at `tests/architectural/test_pytest_marker_convention.py`. Do not create a new file for this.
+
+**Test marks required:** no new test files added in this WP; only `pytestmark` additions to existing files.
 
 ### WP11 — Full-suite re-baseline + issue closeout (FR-013) — planning lane
 

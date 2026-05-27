@@ -27,12 +27,14 @@ CHANGED_PY=$(git diff --name-only --diff-filter=AMR HEAD | rg '\.py$' || true)
 The `\.` in the `rg` pattern contains a literal backslash. When rendered into a TOML
 multi-line basic string (used by gemini and qwen formats), unescaped backslashes are invalid.
 
-**Fix**: Replace `rg '\.py$'` with `grep -E '\.py$'` (no backslash in the regex) or
-use `rg '[.]py$'` (character class avoids the backslash entirely).
+**Fix**: Replace `rg '\.py$'` with `grep -E '[.]py$'` (character class avoids the backslash entirely).
 
-**Rationale**: `grep -E '\.py$'` is universally available without backslash-in-TOML issues.
-`rg` is not universally installed; the fallback `|| true` already handles the case where it
-is absent. Switching to `grep -E` removes the dependency and the TOML escape problem.
+**Rationale**: `grep -E '[.]py$'` is universally available and contains no backslash character,
+eliminating the TOML escape problem. The `\.` form — even with `grep -E` — still contains a
+literal backslash which is illegal in a TOML multi-line basic string. The character-class form
+`[.]` matches exactly the same input but avoids the backslash entirely. `rg` is also not
+universally installed; the fallback `|| true` already handles the case where a command is
+absent. Switching to `grep -E '[.]py$'` removes both the dependency and the TOML escape problem.
 
 **Alternatives considered**:
 - Double-escape in template (`rg '\\\\.py$'`) — rejected: produces correct TOML but breaks
@@ -55,15 +57,21 @@ across all agents (only the `rg` → `grep -E` substitution).
 
 **Root cause confirmed**: `grep '## Governance' README.md` → 0 matches.
 
-**Test expectations** (from `tests/specify_cli/docs/test_readme_governance.py`):
-1. `## Governance layer` heading must be present
-2. `docs/trail-model.md` must be linked within the section
-3. `docs/host-surface-parity.md` must be linked within the section
-4. (fourth assertion — read test for exact text; likely a section-present check)
+**Test expectations** — all six tests in `tests/specify_cli/docs/test_readme_governance.py`:
+1. `test_governance_section_exists` — heading `## Governance layer` present in README.md
+2. `test_trail_model_linked` — `docs/trail-model.md` linked within the section
+3. `test_host_surface_parity_linked` — `docs/host-surface-parity.md` linked within the section
+4. `test_governance_section_mentions_commands` — the substrings `spec-kitty advise`, `spec-kitty ask`, and `spec-kitty do` all appear within the section
+5. `test_advise_skill_links_resolve` — every relative `.md` link in `.agents/skills/spec-kitty.advise/SKILL.md` resolves to an existing file
+6. `test_runtime_next_skill_links_resolve` — every relative `.md` link in `src/doctrine/skills/spec-kitty-runtime-next/SKILL.md` resolves to an existing file
 
-**Content guidance**: The section should reference the trail model and host-surface parity
-docs. The section content does not need to be lengthy — two or three sentences with the two
-required links is sufficient to satisfy all four test assertions.
+**Content guidance**: The section must reference the trail model and host-surface parity docs
+AND include the three command references (`spec-kitty advise`, `spec-kitty ask`, `spec-kitty do`).
+Tests 5 and 6 are link-integrity checks on existing skill files — they pass as long as those
+files have no broken relative links, independently of what is written in README.md.
+Implementer must verify tests 5 and 6 by running them before and after editing README.md;
+if they fail before the edit, there is a pre-existing link-rot in a skill file that must be
+fixed separately (file a DIR-013 issue).
 
 ---
 
@@ -79,12 +87,39 @@ lane = frontmatter.get("lane") or frontmatter.get("status")
 This is a Phase-2 regression — frontmatter `lane` was retired as the authority in 3.0 /
 mission 060. The canonical read is `specify_cli.status.lane_reader.get_wp_lane()`.
 
-**Fix surface**: `wp_files.py:92` — replace the two `frontmatter.get()` calls with a call
-to `get_wp_lane(feature_dir, wp_id)`. The `feature_dir` and `wp_id` must be derivable from
-the file path context already available in the classifier.
+**Fix surface**: `wp_files.py:92` — replace the two `frontmatter.get()` calls with a guarded
+call to `get_wp_lane(feature_dir, wp_id)`. The `feature_dir` and `wp_id` must be derivable
+from the file path context already available in the classifier.
 
-**Test**: `tests/specify_cli/test_lane_regression_guard.py` parameterises over source files;
-`wp_files.py` must be clean after the fix.
+**Critical**: `classify_wp_files()` has a "never raises" contract. `get_wp_lane()` raises
+`CanonicalStatusNotFoundError` for missions that have no `status.events.jsonl` (pre-3.0
+missions, or missions that have not yet run `finalize-tasks`). The fix must guard against
+this. Recommended pattern:
+
+```python
+from specify_cli.status.lane_reader import get_wp_lane
+from specify_cli.status.store import has_event_log
+from specify_cli.status.models import CanonicalStatusNotFoundError
+
+# inside classify_wp_files():
+if has_event_log(feature_dir):
+    try:
+        lane = get_wp_lane(feature_dir, wp_id)
+    except CanonicalStatusNotFoundError:
+        lane = None
+else:
+    lane = None
+```
+
+An alternative using only `try/except` (without the `has_event_log` pre-check) is also
+acceptable, as long as `CanonicalStatusNotFoundError` is caught and lane falls back to `None`.
+
+**Tests**:
+- `tests/specify_cli/test_lane_regression_guard.py` parameterises over source files;
+  `wp_files.py` must be clean after the fix.
+- A new test must verify that `classify_wp_files()` does **not** raise when called on a
+  mission directory that contains WP files but has no `status.events.jsonl` (simulating a
+  pre-3.0 or unfinalised mission). This directly tests the "never raises" contract.
 
 ---
 
@@ -165,14 +200,24 @@ Integration tests are slow; use `-x` (fail-fast) when debugging one at a time.
 
 **Decision**: Fix exit-code propagation in the runtime bridge; do not change the `Decision` model.
 
-**Root cause** (per 01KSF9HJ triage): `decide_next_via_runtime` in `src/specify_cli/next/runtime_bridge.py`
-returns `1` where it previously returned `0` for terminal states. Mocks for `decide_next`
-are no longer being invoked, suggesting a call-path bypass.
+**Root cause** (per 01KSF9HJ triage): `decide_next_via_runtime` in
+`src/specify_cli/next/runtime_bridge.py` returns a `Decision` object; the exit-code
+mapping (`if decision.kind == "blocked": raise typer.Exit(1)`) lives in
+`src/specify_cli/cli/commands/next_cmd.py`. The exit-code mapping itself is not broken;
+the regression is that `decide_next_via_runtime` returns a wrong `Decision.kind` value
+for terminal states, OR that mocks for `decide_next` are no longer invoked (call-path
+bypass). The implementer must not change the exit-code mapping in `next_cmd.py` —
+fix only the return value of `decide_next_via_runtime` in `runtime_bridge.py` and/or
+the mock target.
 
 **Investigation needed** (WP06 implementer):
 ```bash
 pytest tests/next/test_next_command_integration.py tests/next/test_query_mode_unit.py -v --tb=long
 ```
+Read the mock setup in each test to identify the current patch target and confirm whether
+the mock is actually being hit. If the mock target is `runtime_bridge.decide_next`, it
+may need to be changed to `runtime_bridge.decide_next_via_runtime` or the internal
+function it delegates to.
 
 ---
 
