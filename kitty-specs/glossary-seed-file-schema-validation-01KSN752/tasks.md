@@ -89,11 +89,11 @@
 **Goal**: Wire the Pydantic validation into the existing `load_seed_file()` and `save_seed_file()` functions so all runtime load/save paths enforce the schema.
 
 **Subtasks**:
-- [ ] T011 Update `validate_seed_file()` in scope.py to delegate to `validate_seed_file_data()` (WP03)
-- [ ] T012 Update `load_seed_file()` to validate via Pydantic before constructing `TermSurface` objects (WP03)
-- [ ] T013 Update `save_seed_file()` to validate term data before writing to disk (WP03)
-- [ ] T014 Update scope.py imports for new modules (WP03)
-- [ ] T015 Update `tests/specify_cli/glossary/test_scope.py` for new validation behavior (WP03)
+- [x] T011 Update `validate_seed_file()` in scope.py to delegate to `validate_seed_file_data()` (WP03)
+- [x] T012 Update `load_seed_file()` to validate via Pydantic before constructing `TermSurface` objects (WP03)
+- [x] T013 Update `save_seed_file()` to validate term data before writing to disk (WP03)
+- [x] T014 Update scope.py imports for new modules (WP03)
+- [x] T015 Update `tests/specify_cli/glossary/test_scope.py` for new validation behavior (WP03)
 
 **Implementation sketch**: Replace the minimal `validate_seed_file(data)` call in `load_seed_file()` with `validate_seed_file_data(data, seed_path)`. The validated `GlossarySeedFile` object's data feeds into `TermSurface`/`TermSense` construction (guaranteed valid). For `save_seed_file()`, construct a validation dict from the `TermSense` list and validate before writing.
 
@@ -111,10 +111,10 @@
 **Goal**: Add `spec-kitty glossary validate <path>` CLI command for manual validation and CI integration.
 
 **Subtasks**:
-- [ ] T016 Add `validate` subcommand to glossary CLI typer app in `src/specify_cli/cli/commands/glossary.py` (WP04)
-- [ ] T017 Implement single-file validation mode (WP04)
-- [ ] T018 Implement directory validation mode with scope filename check (WP04)
-- [ ] T019 Write CLI validate command integration tests in `tests/specify_cli/cli/commands/test_glossary_validate.py` (WP04)
+- [x] T016 Add `validate` subcommand to glossary CLI typer app in `src/specify_cli/cli/commands/glossary.py` (WP04)
+- [x] T017 Implement single-file validation mode (WP04)
+- [x] T018 Implement directory validation mode with scope filename check (WP04)
+- [x] T019 Write CLI validate command integration tests in `tests/specify_cli/cli/commands/test_glossary_validate.py` (WP04)
 
 **Implementation sketch**: Add `@app.command("validate")` to existing glossary typer app. Accepts `path` argument (file or dir) and `--json` flag. File mode calls `validate_seed_file_data()`. Directory mode iterates `*.yaml`, validates filenames against scopes, validates each file. Rich output for human mode, JSON for `--json`. Exit code 1 on failure.
 
