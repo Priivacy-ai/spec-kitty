@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 
 import pytest
+
+pytestmark = pytest.mark.fast
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.glossary import app

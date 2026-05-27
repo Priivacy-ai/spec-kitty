@@ -1262,6 +1262,7 @@ _Glossary management commands_
 │ conflicts  Display conflict history from event log.                          │
 │ resolve    Resolve a conflict asynchronously.                                │
 │ show       Render the entity page for a glossary term.                       │
+│ validate   Validate glossary seed file(s) against the schema.                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1328,6 +1329,23 @@ _Glossary management commands_
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty glossary validate
+
+```
+ Usage: spec-kitty glossary validate [OPTIONS] PATH
+
+ Validate glossary seed file(s) against the schema.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    path      PATH  Path to a glossary seed file (.yaml) or directory of   │
+│                      seed files [required]                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Output validation results as JSON                         │
+│ --help            Show this message and exit.                               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

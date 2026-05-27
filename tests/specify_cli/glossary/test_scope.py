@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.fast
+
 from specify_cli.glossary.exceptions import (
     GlossaryError,
     SeedFileValidationError,

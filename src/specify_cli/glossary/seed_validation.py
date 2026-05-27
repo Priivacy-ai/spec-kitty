@@ -19,7 +19,6 @@ from .scope import GlossaryScope
 from .seed_schema import GlossarySeedFile
 
 __all__ = [
-    "VALID_SCOPE_FILENAMES",
     "validate_scope_filename",
     "validate_seed_file_data",
 ]

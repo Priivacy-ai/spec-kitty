@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+
+pytestmark = pytest.mark.fast
 from pydantic import ValidationError
 
 from specify_cli.glossary.exceptions import (
