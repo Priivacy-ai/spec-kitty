@@ -13,6 +13,9 @@ tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-glossary-seed-file-schema-validation-01KSN752
+base_commit: efec054539979268c404cee54726d746657776c4
+created_at: '2026-05-27T17:42:27.293034+00:00'
 subtasks:
 - T001
 - T002
@@ -20,7 +23,8 @@ subtasks:
 - T004
 - T005
 - T006
-agent: claude
+agent: "claude:opus:implementer-ivan:implementer"
+shell_pid: "63810"
 history:
 - at: '2026-05-27T17:32:55+00:00'
   event: created
@@ -276,3 +280,7 @@ __all__ = ["GlossarySeedFile", "GlossarySeedTerm"]
 - Check error messages are actionable: each should name the field and explain what's wrong
 - Confirm `extra="forbid"` is tested
 - Verify the bad data fix doesn't introduce other issues
+
+## Activity Log
+
+- 2026-05-27T17:42:27Z – claude:opus:implementer-ivan:implementer – shell_pid=63810 – Assigned agent via action command

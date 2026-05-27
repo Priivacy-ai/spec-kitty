@@ -1,7 +1,7 @@
 {
-  "event_count": 5,
-  "last_event_id": "01KSN89FWK3G5J3YGPNBBN2338",
-  "materialized_at": "2026-05-27T17:39:05.235576+00:00",
+  "event_count": 7,
+  "last_event_id": "01KSN8FN7E0SKJYRSXQ1ZR0NQJ",
+  "materialized_at": "2026-05-27T17:42:27.310693+00:00",
   "mission_number": "",
   "mission_slug": "glossary-seed-file-schema-validation-01KSN752",
   "mission_type": "software-dev",
@@ -12,17 +12,17 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 5
+    "planned": 4
   },
   "work_packages": {
     "WP01": {
-      "actor": "finalize-tasks",
+      "actor": "claude:opus:implementer-ivan:implementer",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KSN89FMBVBARY8ZJ731AE5YB",
-      "last_transition_at": "2026-05-27T17:39:04.971187+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KSN8FN7E0SKJYRSXQ1ZR0NQJ",
+      "last_transition_at": "2026-05-27T17:42:27.310693+00:00"
     },
     "WP02": {
       "actor": "finalize-tasks",
