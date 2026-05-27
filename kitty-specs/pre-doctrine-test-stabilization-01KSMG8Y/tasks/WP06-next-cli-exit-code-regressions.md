@@ -16,7 +16,8 @@ subtasks:
 - T024
 - T025
 
-shell_pid: '39129'
+shell_pid: "39129"
+agent: "claude:claude-sonnet-4-6:debugger-debbie:investigator"
 history:
 - date: '2026-05-27'
   event: created
@@ -209,3 +210,7 @@ spec-kitty agent action implement WP06 --agent claude
 3. Confirm mock assertion passes in `test_query_mode_unit` (mock IS called, not bypassed)
 4. Check `runtime_bridge.py` diff — only `decide_next_via_runtime` return value should change
 </content>
+
+## Activity Log
+
+- 2026-05-27T12:19:27Z – claude:claude-sonnet-4-6:debugger-debbie:investigator – shell_pid=39129 – Assigned agent via action command
