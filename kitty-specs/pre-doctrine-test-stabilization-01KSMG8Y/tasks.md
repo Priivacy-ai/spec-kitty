@@ -264,10 +264,10 @@
 **Profile**: `python-pedro`  
 
 **Included subtasks:**
-- [ ] T032 Run charter synthesizer tests to identify exact hash computation path (WP08)
-- [ ] T033 Sort file lists before hashing in synthesizer manifest to ensure determinism (WP08)
-- [ ] T034 Enforce path_guard.py chokepoint for direct write primitives (WP08)
-- [ ] T035 Refresh stored manifest hashes in test fixtures (WP08)
+- [x] T032 Run charter synthesizer tests to identify exact hash computation path (WP08)
+- [x] T033 Sort file lists before hashing in synthesizer manifest to ensure determinism (WP08)
+- [x] T034 Enforce path_guard.py chokepoint for direct write primitives (WP08)
+- [x] T035 Refresh stored manifest hashes in test fixtures (WP08)
 
 **Implementation notes:**
 1. Source path: `src/charter/synthesizer/` (not `src/specify_cli/charter/`)
