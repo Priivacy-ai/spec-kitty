@@ -17,7 +17,8 @@ subtasks:
 - T011
 - T012
 
-shell_pid: '37654'
+shell_pid: "37654"
+agent: "claude:claude-sonnet-4-6:curator-carla:implementer"
 history:
 - date: '2026-05-27'
   event: created
@@ -244,3 +245,7 @@ spec-kitty agent action implement WP03 --agent claude
 2. Confirm the tactic YAML parses without errors
 3. Confirm all four originally-failing tests pass and no new failures were introduced
 </content>
+
+## Activity Log
+
+- 2026-05-27T12:19:13Z – claude:claude-sonnet-4-6:curator-carla:implementer – shell_pid=37654 – Assigned agent via action command
