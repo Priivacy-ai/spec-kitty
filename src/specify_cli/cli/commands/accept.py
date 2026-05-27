@@ -23,6 +23,7 @@ from specify_cli.acceptance.closing import (
 from specify_cli.cli import StepTracker
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.cli.helpers import console, show_banner
+from specify_cli.git.commit_helpers import assert_not_protected_branch
 from specify_cli.task_utils import LANES, TaskCliError, find_repo_root
 
 
@@ -225,6 +226,17 @@ def accept(
 
     acceptance_tests = list(test)
     actor_name = resolve_acceptance_actor(actor)
+
+    if commit_required:
+        try:
+            assert_not_protected_branch(repo_root, operation="record acceptance")
+        except Exception as exc:
+            _safe_emit_error_logged(str(exc))
+            if json_output:
+                print(json.dumps({"error": str(exc)}))
+            else:
+                console.print(f"[red]Error:[/red] {exc}")
+            raise typer.Exit(1)
 
     try:
         if commit_required and not json_output:

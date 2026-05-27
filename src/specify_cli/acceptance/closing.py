@@ -8,7 +8,7 @@ from typing import Any
 
 from specify_cli.status.history_parser import extract_done_evidence
 from specify_cli.status.lane_reader import get_wp_lane
-from specify_cli.status.models import DoneEvidence, Lane, ReviewApproval
+from specify_cli.status.models import DoneEvidence, Lane
 from specify_cli.status.store import EVENTS_FILENAME, read_events
 from specify_cli.status.transitions import resolve_lane_alias
 from specify_cli.status.wp_metadata import read_wp_frontmatter
@@ -44,14 +44,7 @@ def _latest_approval_evidence(feature_dir: Path, wp_id: str) -> DoneEvidence | N
     return None
 
 
-def _reviewer_from_metadata(metadata: Any, actor: str) -> str:
-    agent = getattr(metadata, "agent", None)
-    if isinstance(agent, str) and agent.strip():
-        return agent.strip()
-    return actor.strip() or "unknown"
-
-
-def _done_evidence(summary: Any, wp_id: str, actor: str) -> DoneEvidence:
+def _done_evidence(summary: Any, wp_id: str) -> DoneEvidence:
     event_evidence = _latest_approval_evidence(summary.feature_dir, wp_id)
     if event_evidence is not None:
         return event_evidence
@@ -62,12 +55,15 @@ def _done_evidence(summary: Any, wp_id: str, actor: str) -> DoneEvidence:
     if frontmatter_evidence is not None:
         return frontmatter_evidence
 
-    return DoneEvidence(
-        review=ReviewApproval(
-            reviewer=_reviewer_from_metadata(metadata, actor),
-            verdict="approved",
-            reference=f"accept-approved:{wp_id}",
-        )
+    raise _missing_evidence_error(wp_id)
+
+
+def _missing_evidence_error(wp_id: str) -> Exception:
+    from specify_cli.acceptance import AcceptanceError
+
+    return AcceptanceError(
+        f"{wp_id}: no review evidence found in event log or frontmatter. "
+        f"Cannot close without real review approval."
     )
 
 
@@ -118,7 +114,7 @@ def close_approved_wps_for_acceptance(
             raise AcceptanceError(
                 f"{wp_id}: canonical lane is '{lane.value}', expected 'approved' before acceptance closure"
             )
-        closure_evidence.append((wp_id, _done_evidence(summary, wp_id, actor)))
+        closure_evidence.append((wp_id, _done_evidence(summary, wp_id)))
 
     closed_wps: list[str] = []
     for wp_id, evidence in closure_evidence:
@@ -133,6 +129,7 @@ def close_approved_wps_for_acceptance(
                 evidence=evidence.to_dict(),
                 workspace_context=f"accept:{summary.repo_root}",
                 repo_root=summary.repo_root,
+                ensure_sync_daemon=False,
                 sync_dossier=False,
             )
         except TransitionError as exc:

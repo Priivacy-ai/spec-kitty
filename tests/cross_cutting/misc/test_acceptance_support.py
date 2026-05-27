@@ -216,6 +216,96 @@ def test_accept_no_commit_reports_would_close_without_mutation(feature_repo: Pat
     assert summary.lanes["approved"] == ["WP01"]
 
 
+def test_accept_rejects_approved_wp_without_evidence(feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Accept must refuse to close a WP that reached approved without review evidence."""
+    import specify_cli.status.emit as status_emit
+    from specify_cli.status.emit import emit_status_transition
+    from specify_cli.status.store import read_events
+    from tests.utils import run
+
+    monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
+    _write_acceptance_meta(feature_repo, mission_slug)
+    run(["git", "add", "."], cwd=feature_repo)
+    run(["git", "commit", "-m", "Add meta"], cwd=feature_repo)
+
+    feature_dir = feature_repo / "kitty-specs" / mission_slug
+    for lane in ("claimed", "in_progress", "for_review", "in_review"):
+        emit_status_transition(
+            feature_dir=feature_dir,
+            mission_slug=mission_slug,
+            wp_id="WP01",
+            to_lane=lane,
+            actor="test-agent",
+            repo_root=feature_repo,
+            ensure_sync_daemon=False,
+            sync_dossier=False,
+        )
+    emit_status_transition(
+        feature_dir=feature_dir,
+        mission_slug=mission_slug,
+        wp_id="WP01",
+        to_lane="approved",
+        actor="force-user",
+        force=True,
+        reason="Expedited approval without review",
+        repo_root=feature_repo,
+        ensure_sync_daemon=False,
+        sync_dossier=False,
+    )
+    run(["git", "add", "."], cwd=feature_repo)
+    run(["git", "commit", "-m", "Force-approve WP01"], cwd=feature_repo)
+
+    before_events = len(read_events(feature_dir))
+    monkeypatch.chdir(feature_repo)
+    result = runner.invoke(
+        cli_app,
+        ["accept", "--mission", mission_slug, "--mode", "local", "--actor", "tester", "--json"],
+    )
+
+    assert result.exit_code == 1
+    assert "no review evidence" in result.output
+    assert len(read_events(feature_dir)) == before_events
+
+
+def test_accept_protected_branch_no_mutation(feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Protected-branch guard must reject BEFORE any status mutation."""
+    import specify_cli.status.emit as status_emit
+    from specify_cli.git.commit_helpers import assert_not_protected_branch, ProtectedBranchCommitError
+    from specify_cli.status.store import read_events
+    from tests.utils import run
+
+    monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
+    _write_acceptance_meta(feature_repo, mission_slug)
+    run(["git", "add", "."], cwd=feature_repo)
+    run(["git", "commit", "-m", "Add meta"], cwd=feature_repo)
+
+    _approve_wp(feature_repo, mission_slug, "WP01")
+    run(["git", "add", "."], cwd=feature_repo)
+    run(["git", "commit", "-m", "Approve WP01"], cwd=feature_repo)
+
+    feature_dir = feature_repo / "kitty-specs" / mission_slug
+    before_events = len(read_events(feature_dir))
+
+    def _always_reject(repo_path, *, operation="commit"):
+        raise ProtectedBranchCommitError(
+            f"Refusing to {operation} on protected branch 'main'"
+        )
+
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.accept.assert_not_protected_branch",
+        _always_reject,
+    )
+    monkeypatch.chdir(feature_repo)
+    result = runner.invoke(
+        cli_app,
+        ["accept", "--mission", mission_slug, "--mode", "local", "--actor", "tester", "--json"],
+    )
+
+    assert result.exit_code == 1
+    assert "Refusing" in result.output or "protected branch" in result.output.lower()
+    assert len(read_events(feature_dir)) == before_events
+
+
 def test_collect_feature_summary_encoding_error(feature_repo: Path, mission_slug: str) -> None:
     plan_path = feature_repo / "kitty-specs" / mission_slug / "plan.md"
     data = plan_path.read_bytes() + b"\x92"
