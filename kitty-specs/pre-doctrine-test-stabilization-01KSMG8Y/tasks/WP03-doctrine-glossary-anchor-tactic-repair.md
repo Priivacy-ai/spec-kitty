@@ -249,3 +249,4 @@ spec-kitty agent action implement WP03 --agent claude
 ## Activity Log
 
 - 2026-05-27T12:19:13Z – claude:claude-sonnet-4-6:curator-carla:implementer – shell_pid=37654 – Assigned agent via action command
+- 2026-05-27T12:25:49Z – claude:claude-sonnet-4-6:curator-carla:implementer – shell_pid=37654 – T009-T012 complete: glossary anchors added, platform link fixed, tactic YAML schema violation removed. All 4 doctrine tests pass (1688 total passing).
