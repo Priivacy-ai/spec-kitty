@@ -8,5 +8,6 @@
   "purpose_context": "The 01KSF9HJ triage mission identified and filed 10 DIR-013 sub-issues covering confirmed pre-existing failures across charter, doctrine, status, sync, next-CLI, and architectural-guard surfaces. None of those fixes landed in upstream/main. This mission resolves all 10 clusters in four ordered waves (quick fixes → structural fixes → shared-package fixes → re-baseline closeout), adds a mandatory test-mark audit to ensure every new and existing test in touched directories is correctly tagged for the CI-quality workflow's fast/integration/e2e split, and declares the test suite stable enough for follow-on doctrine and charter work to proceed.",
   "purpose_tldr": "Fix the 10 confirmed pre-existing test failure clusters (#1301–#1310) and enforce CI test-mark hygiene so the repo has a ≤75-failure baseline before doctrine/charter feature work resumes.",
   "slug": "pre-doctrine-test-stabilization-01KSMG8Y",
-  "target_branch": "feat/pre-doctrine-stabilization-remediation"
+  "target_branch": "feat/pre-doctrine-stabilization-remediation",
+  "vcs": "git"
 }
