@@ -13,7 +13,8 @@ subtasks:
 - T033
 - T034
 - T035
-agent: claude
+
+model: claude-sonnet-4-6
 history:
 - date: '2026-05-27'
   event: created

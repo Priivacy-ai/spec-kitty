@@ -15,7 +15,8 @@ subtasks:
 - T039
 - T040
 - T041
-agent: claude
+
+model: claude-opus-4-7
 history:
 - date: '2026-05-27'
   event: created
