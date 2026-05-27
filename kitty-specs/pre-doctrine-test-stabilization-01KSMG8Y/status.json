@@ -1,19 +1,19 @@
 {
-  "event_count": 41,
-  "last_event_id": "01KSMPFXJKY8P2WDM6RZ878EKT",
-  "materialized_at": "2026-05-27T12:28:01.491502+00:00",
+  "event_count": 42,
+  "last_event_id": "01KSMPG383D0S2VKQK0QJP3677",
+  "materialized_at": "2026-05-27T12:28:07.299190+00:00",
   "mission_number": "",
   "mission_slug": "pre-doctrine-test-stabilization-01KSMG8Y",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 3,
+    "approved": 4,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 1,
     "in_progress": 4,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 2
   },
   "work_packages": {
@@ -53,11 +53,11 @@
       "last_transition_at": "2026-05-27T12:19:22.897272+00:00"
     },
     "WP06": {
-      "actor": "claude:claude-sonnet-4-6:curator-carla:reviewer",
+      "actor": "user",
       "force_count": 1,
-      "lane": "in_review",
-      "last_event_id": "01KSMPC6BF5WRJC6WF8DQJS5FB",
-      "last_transition_at": "2026-05-27T12:25:59.407565+00:00"
+      "lane": "approved",
+      "last_event_id": "01KSMPG383D0S2VKQK0QJP3677",
+      "last_transition_at": "2026-05-27T12:28:07.299190+00:00"
     },
     "WP07": {
       "actor": "claude:claude-sonnet-4-6:debugger-debbie:investigator",
