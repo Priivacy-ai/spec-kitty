@@ -1,7 +1,7 @@
 {
-  "event_count": 51,
-  "last_event_id": "01KSMQ7874SWEPFRJP1SQK8VTP",
-  "materialized_at": "2026-05-27T12:40:46.052768+00:00",
+  "event_count": 52,
+  "last_event_id": "01KSMQ7RNQ54PD9PGMDY6P4C62",
+  "materialized_at": "2026-05-27T12:41:02.903802+00:00",
   "mission_number": "",
   "mission_slug": "pre-doctrine-test-stabilization-01KSMG8Y",
   "mission_type": "software-dev",
@@ -11,9 +11,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 2,
+    "for_review": 1,
     "in_progress": 0,
-    "in_review": 1,
+    "in_review": 2,
     "planned": 2
   },
   "work_packages": {
@@ -74,11 +74,11 @@
       "last_transition_at": "2026-05-27T12:28:28.381180+00:00"
     },
     "WP09": {
-      "actor": "user",
+      "actor": "claude:claude-sonnet-4-6:curator-carla:reviewer",
       "force_count": 1,
-      "lane": "for_review",
-      "last_event_id": "01KSMQ4QYXPX2HD04HWR4NWBRX",
-      "last_transition_at": "2026-05-27T12:39:23.869413+00:00"
+      "lane": "in_review",
+      "last_event_id": "01KSMQ7RNQ54PD9PGMDY6P4C62",
+      "last_transition_at": "2026-05-27T12:41:02.903802+00:00"
     },
     "WP10": {
       "actor": "finalize-tasks",
