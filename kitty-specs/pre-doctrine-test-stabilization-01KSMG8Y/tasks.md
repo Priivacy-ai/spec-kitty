@@ -133,10 +133,10 @@
 **Profile**: `curator-carla`  
 
 **Included subtasks:**
-- [ ] T009 Run failing doctrine/glossary tests to identify exact missing anchors (WP03)
-- [ ] T010 Add `doctrine-pack` anchor to correct glossary context YAML (WP03)
-- [ ] T011 Add `platform-darwin--platform-linux` anchor to correct context YAML (WP03)
-- [ ] T012 Fix five-paradigm-parallel-debugging.tactic.yaml schema + unresolved refs (WP03)
+- [x] T009 Run failing doctrine/glossary tests to identify exact missing anchors (WP03)
+- [x] T010 Add `doctrine-pack` anchor to correct glossary context YAML (WP03)
+- [x] T011 Add `platform-darwin--platform-linux` anchor to correct context YAML (WP03)
+- [x] T012 Fix five-paradigm-parallel-debugging.tactic.yaml schema + unresolved refs (WP03)
 
 **Implementation notes:**
 1. Always run tests first: `pytest tests/doctrine/ -v --tb=long` — output names the exact files
