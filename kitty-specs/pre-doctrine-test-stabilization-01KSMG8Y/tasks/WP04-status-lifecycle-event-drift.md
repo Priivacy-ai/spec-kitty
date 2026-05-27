@@ -17,7 +17,8 @@ subtasks:
 - T015
 - T016
 
-shell_pid: '37654'
+shell_pid: "37654"
+agent: "claude:claude-opus-4-7:debugger-debbie:investigator"
 history:
 - date: '2026-05-27'
   event: created
@@ -247,3 +248,7 @@ spec-kitty agent action implement WP04 --agent claude
 3. No `meta.json` writes bypass `mission_metadata.py`
 4. Status events appear in `status.events.jsonl` (not frontmatter) after the operations
 </content>
+
+## Activity Log
+
+- 2026-05-27T12:19:16Z – claude:claude-opus-4-7:debugger-debbie:investigator – shell_pid=37654 – Assigned agent via action command
