@@ -157,10 +157,10 @@
 **Profile**: `debugger-debbie`  
 
 **Included subtasks:**
-- [ ] T013 Fix SpecifyStarted event not emitted at mission create (WP04)
-- [ ] T014 Fix atomic commit leaving dirty status artifacts after move_task (WP04)
-- [ ] T015 Fix wrong commit message on lane branch in move_task.py (WP04)
-- [ ] T016 Fix implement not blocking on alloc failure (WP04)
+- [x] T013 Fix SpecifyStarted event not emitted at mission create (WP04)
+- [x] T014 Fix atomic commit leaving dirty status artifacts after move_task (WP04)
+- [x] T015 Fix wrong commit message on lane branch in move_task.py (WP04)
+- [x] T016 Fix implement not blocking on alloc failure (WP04)
 
 **Implementation notes:**
 1. Run each failing test in isolation with `--tb=long` before editing production code
