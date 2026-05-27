@@ -79,9 +79,9 @@
 **Profile**: `implementer-ivan`  
 
 **Included subtasks:**
-- [ ] T001 Fix `rg '\.py$'` → `grep -E '[.]py$'` in implement.md:168 (WP01)
-- [ ] T002 Regenerate twelve-agent snapshots (PYTEST_UPDATE_SNAPSHOTS=1) (WP01)
-- [ ] T003 Verify gemini/qwen parity tests pass; confirm snapshot diff scope (WP01)
+- [x] T001 Fix `rg '\.py$'` → `grep -E '[.]py$'` in implement.md:168 (WP01)
+- [x] T002 Regenerate twelve-agent snapshots (PYTEST_UPDATE_SNAPSHOTS=1) (WP01)
+- [x] T003 Verify gemini/qwen parity tests pass; confirm snapshot diff scope (WP01)
 
 **Implementation notes:**
 1. Edit `src/specify_cli/missions/software-dev/command-templates/implement.md` line 168
