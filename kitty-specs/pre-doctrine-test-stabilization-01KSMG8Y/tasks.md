@@ -288,13 +288,13 @@
 **Profile**: `debugger-debbie`  
 
 **Included subtasks:**
-- [ ] T036 Fix auth integration exit-code returning wrong value (WP09)
-- [ ] T037 Prevent logged_out_on_connected_teamspace noise from JSON CLI output (WP09)
-- [ ] T038 Fix mypy --strict failures in mission_step_contracts/executor.py (WP09)
-- [ ] T039 Fix or exclude legacy kitty-specs/ WP files failing Pydantic validation (WP09)
-- [ ] T040 Investigate and fix mission-switching blocking condition (WP09)
-- [ ] T041 File GitHub issues for re-deferred items (checklist skill, schema-version wording) (WP09)
-- [ ] T050 Delete all stray test-feature-* dirs from kitty-specs/ + add pytest teardown + .gitignore guard (WP09)
+- [x] T036 Fix auth integration exit-code returning wrong value (WP09)
+- [x] T037 Prevent logged_out_on_connected_teamspace noise from JSON CLI output (WP09)
+- [x] T038 Fix mypy --strict failures in mission_step_contracts/executor.py (WP09)
+- [x] T039 Fix or exclude legacy kitty-specs/ WP files failing Pydantic validation (WP09)
+- [x] T040 Investigate and fix mission-switching blocking condition (WP09)
+- [x] T041 File GitHub issues for re-deferred items (checklist skill, schema-version wording) (WP09)
+- [x] T050 Delete all stray test-feature-* dirs from kitty-specs/ + add pytest teardown + .gitignore guard (WP09)
 
 **Implementation notes:**
 1. T039 self-referential trap: run validator first to see current failures; this mission's own WP files are included in the glob
