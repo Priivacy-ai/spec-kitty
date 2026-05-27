@@ -195,6 +195,9 @@ class AcceptanceResult:
     instructions: list[str]
     cleanup_instructions: list[str]
     notes: list[str] = field(default_factory=list)
+    closed_wps: list[str] = field(default_factory=list)
+    already_done_wps: list[str] = field(default_factory=list)
+    would_close_wps: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -207,6 +210,9 @@ class AcceptanceResult:
             "instructions": self.instructions,
             "cleanup_instructions": self.cleanup_instructions,
             "notes": self.notes,
+            "closed_wps": self.closed_wps,
+            "already_done_wps": self.already_done_wps,
+            "would_close_wps": self.would_close_wps,
             "summary": self.summary.to_dict(),
         }
 
@@ -798,6 +804,10 @@ def choose_mode(preference: str | None, repo_root: Path) -> AcceptanceMode:
     return "local"
 
 
+def resolve_acceptance_actor(actor: str | None) -> str:
+    return (actor or os.getenv("USER") or os.getenv("USERNAME") or "system").strip()
+
+
 _WELL_KNOWN_INTEGRATION_BRANCHES = frozenset({"main", "master", "develop", "development", "2.x", "3.x"})
 
 
@@ -896,7 +906,7 @@ def perform_acceptance(
     if mode != "checklist" and not summary.ok:
         raise AcceptanceError("Acceptance checks failed; run verify to see outstanding issues.")
 
-    actor_name = (actor or os.getenv("USER") or os.getenv("USERNAME") or "system").strip()
+    actor_name = resolve_acceptance_actor(actor)
     timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     parent_commit: str | None = None
@@ -948,4 +958,5 @@ __all__ = [
     "detect_mission_slug",
     "normalize_feature_encoding",
     "perform_acceptance",
+    "resolve_acceptance_actor",
 ]

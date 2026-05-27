@@ -537,20 +537,12 @@ class TestNoDuplicateEmissions:
         assert events[0]["payload"]["to_lane"] == "in_progress"
 
     def test_accept_emits_once_per_wp(self, emitter: EventEmitter, temp_queue: OfflineQueue):
-        """accept command should emit exactly one WPStatusChanged per WP.
-
-        Regression test: Previously accept.py emitted twice per WP:
-        - Once via _emit_acceptance_events() (correct)
-        - Once in a separate loop after json_output check (duplicate)
-
-        After fix: Only the _emit_acceptance_events() call remains.
-        """
-        # Simulate what accept.py should do: one emission per WP
+        """accept-style approved -> done fanout emits exactly one event per WP."""
         wp_ids = ["WP01", "WP02", "WP03"]
         for wp_id in wp_ids:
             emitter.emit_wp_status_changed(
                 wp_id=wp_id,
-                from_lane="for_review",
+                from_lane="approved",
                 to_lane="done",
                 actor="user",
                 evidence=_DONE_EVIDENCE,
@@ -563,7 +555,7 @@ class TestNoDuplicateEmissions:
         events = temp_queue.drain_queue()
         for event in events:
             assert event["event_type"] == "WPStatusChanged"
-            assert event["payload"]["from_lane"] == "for_review"
+            assert event["payload"]["from_lane"] == "approved"
             assert event["payload"]["to_lane"] == "done"
 
 

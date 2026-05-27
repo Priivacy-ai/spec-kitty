@@ -1,16 +1,82 @@
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
 import pytest
+from typer.testing import CliRunner
 
 import acceptance_support as acc
 import task_helpers as th
+from specify_cli import app as cli_app
 
 pytestmark = [pytest.mark.integration]
 
 ACCEPTANCE_MODE_CHECKLIST = "checklist"
+runner = CliRunner()
+
+
+def _write_acceptance_meta(feature_repo: Path, mission_slug: str) -> None:
+    feature_dir = feature_repo / "kitty-specs" / mission_slug
+    (feature_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_id": "01KNXQS9ATWWFXS3K5ZJ9E5008",
+                "mission_slug": mission_slug,
+                "mission_number": 1,
+                "slug": mission_slug,
+                "friendly_name": "Demo Feature",
+                "mission_type": "software-dev",
+                "target_branch": "main",
+                "created_at": "2026-05-27T00:00:00+00:00",
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def _approve_wp(feature_repo: Path, mission_slug: str, wp_id: str) -> None:
+    from specify_cli.status.emit import emit_status_transition
+    from specify_cli.status.models import ReviewResult
+
+    feature_dir = feature_repo / "kitty-specs" / mission_slug
+    for lane in ("claimed", "in_progress", "for_review", "in_review"):
+        emit_status_transition(
+            feature_dir=feature_dir,
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+            to_lane=lane,
+            actor="test-agent",
+            repo_root=feature_repo,
+            ensure_sync_daemon=False,
+            sync_dossier=False,
+        )
+    emit_status_transition(
+        feature_dir=feature_dir,
+        mission_slug=mission_slug,
+        wp_id=wp_id,
+        to_lane="approved",
+        actor="reviewer-agent",
+        evidence={
+            "review": {
+                "reviewer": "reviewer-agent",
+                "verdict": "approved",
+                "reference": f"review:{wp_id}",
+            }
+        },
+        review_result=ReviewResult(
+            reviewer="reviewer-agent",
+            verdict="approved",
+            reference=f"review:{wp_id}",
+        ),
+        repo_root=feature_repo,
+        ensure_sync_daemon=False,
+        sync_dossier=False,
+    )
 
 
 def test_collect_feature_summary_reports_metadata_issue(feature_repo: Path, mission_slug: str) -> None:
@@ -65,6 +131,89 @@ def test_perform_acceptance_without_commit(feature_repo: Path, mission_slug: str
     payload = result.to_dict()
     assert payload["accepted_by"] == "Tester"
     assert payload["mode"] == ACCEPTANCE_MODE_CHECKLIST
+
+
+def test_accept_command_closes_approved_wps(feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    import specify_cli.status.emit as status_emit
+    from tests.utils import run, write_wp
+
+    monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
+    _write_acceptance_meta(feature_repo, mission_slug)
+    write_wp(feature_repo, mission_slug, "planned", "WP02")
+    run(["git", "add", "."], cwd=feature_repo)
+    run(["git", "commit", "-m", "Add second WP and meta"], cwd=feature_repo)
+
+    _approve_wp(feature_repo, mission_slug, "WP01")
+    _approve_wp(feature_repo, mission_slug, "WP02")
+    run(["git", "add", "."], cwd=feature_repo)
+    run(["git", "commit", "-m", "Approve WPs"], cwd=feature_repo)
+
+    monkeypatch.chdir(feature_repo)
+    result = runner.invoke(
+        cli_app,
+        [
+            "accept",
+            "--mission",
+            mission_slug,
+            "--mode",
+            "local",
+            "--actor",
+            "tester",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "to_lane in {'approved', 'done'} requires evidence" not in result.output
+    payload = json.loads(result.output)
+    assert payload["closed_wps"] == ["WP01", "WP02"]
+    assert payload["already_done_wps"] == []
+    assert payload["summary"]["lanes"]["approved"] == []
+    assert payload["summary"]["lanes"]["done"] == ["WP01", "WP02"]
+
+    summary = acc.collect_feature_summary(feature_repo, mission_slug, strict_metadata=True)
+    assert summary.lanes["approved"] == []
+    assert summary.lanes["done"] == ["WP01", "WP02"]
+
+
+def test_accept_no_commit_reports_would_close_without_mutation(feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    import specify_cli.status.emit as status_emit
+    from specify_cli.status.store import read_events
+    from tests.utils import run
+
+    monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
+    _write_acceptance_meta(feature_repo, mission_slug)
+    run(["git", "add", "."], cwd=feature_repo)
+    run(["git", "commit", "-m", "Add meta"], cwd=feature_repo)
+    _approve_wp(feature_repo, mission_slug, "WP01")
+    run(["git", "add", "."], cwd=feature_repo)
+    run(["git", "commit", "-m", "Approve WP01"], cwd=feature_repo)
+
+    feature_dir = feature_repo / "kitty-specs" / mission_slug
+    before_events = len(read_events(feature_dir))
+    monkeypatch.chdir(feature_repo)
+    result = runner.invoke(
+        cli_app,
+        [
+            "accept",
+            "--mission",
+            mission_slug,
+            "--mode",
+            "local",
+            "--actor",
+            "tester",
+            "--json",
+            "--no-commit",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["closed_wps"] == []
+    assert payload["would_close_wps"] == ["WP01"]
+    assert len(read_events(feature_dir)) == before_events
+    summary = acc.collect_feature_summary(feature_repo, mission_slug, strict_metadata=True)
+    assert summary.lanes["approved"] == ["WP01"]
 
 
 def test_collect_feature_summary_encoding_error(feature_repo: Path, mission_slug: str) -> None:

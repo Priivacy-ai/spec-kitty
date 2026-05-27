@@ -822,6 +822,8 @@ class TestAcceptMission:
         assert data["success"] is True
         assert data["data"]["mission_slug"] == mission_slug
         assert data["data"]["accepted"] is True
+        assert data["data"]["closed_wps"] == []
+        assert data["data"]["already_done_wps"] == ["WP01", "WP02"]
 
         # Verify meta.json was written
         meta = json.loads((mission_dir / "meta.json").read_text())
@@ -854,6 +856,13 @@ class TestAcceptMission:
         data = json.loads(result.output)
         assert data["success"] is True
         assert data["data"]["accepted"] is True
+        assert data["data"]["closed_wps"] == ["WP01", "WP02"]
+
+        from specify_cli.status.reducer import materialize
+
+        snapshot = materialize(mission_dir)
+        assert snapshot.work_packages["WP01"]["lane"] == "done"
+        assert snapshot.work_packages["WP02"]["lane"] == "done"
 
     def test_incomplete_wps_returns_error(self, tmp_path):
         repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
