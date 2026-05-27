@@ -15,7 +15,7 @@ subtasks:
 - T020
 - T021
 - T022
-
+
 model: claude-opus-4-7
 history:
 - date: '2026-05-27'

@@ -226,7 +226,7 @@
       "parallel_group": 2
     }
   ],
-  "computed_at": "2026-05-27T11:40:07.568821+00:00",
+  "computed_at": "2026-05-27T11:52:03.394846+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": [
     "WP11"

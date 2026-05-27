@@ -15,7 +15,7 @@ subtasks:
 - T029
 - T030
 - T031
-
+
 model: claude-sonnet-4-6
 history:
 - date: '2026-05-27'

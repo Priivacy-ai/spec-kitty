@@ -22,7 +22,7 @@ subtasks:
 - T043
 - T044
 - T045
-
+
 model: claude-sonnet-4-6
 history:
 - date: '2026-05-27'
