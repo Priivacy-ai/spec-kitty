@@ -333,3 +333,4 @@ spec-kitty agent action implement WP02 --agent claude
 ## Activity Log
 
 - 2026-05-27T12:19:05Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=36710 – Assigned agent via action command
+- 2026-05-27T12:25:50Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=36710 – T004-T008 complete: README governance, wp_files lane guard, doctrine CLI removed
