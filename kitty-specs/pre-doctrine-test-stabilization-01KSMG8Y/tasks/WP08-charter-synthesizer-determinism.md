@@ -17,7 +17,8 @@ subtasks:
 - T034
 - T035
 
-shell_pid: '40565'
+shell_pid: "40565"
+agent: "claude:claude-sonnet-4-6:python-pedro:implementer"
 history:
 - date: '2026-05-27'
   event: created
@@ -248,3 +249,7 @@ spec-kitty agent action implement WP08 --agent claude
 3. No `src/specify_cli/` files were modified
 4. Hash sort key uses string comparison (not OS path ordering)
 </content>
+
+## Activity Log
+
+- 2026-05-27T12:19:37Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=40565 – Assigned agent via action command
