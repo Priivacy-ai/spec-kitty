@@ -21,7 +21,8 @@ subtasks:
 - T041
 - T050
 
-shell_pid: '42001'
+shell_pid: "42001"
+agent: "claude:claude-opus-4-7:debugger-debbie:investigator"
 history:
 - date: '2026-05-27'
   event: created
@@ -395,3 +396,7 @@ spec-kitty agent action implement WP09 --agent claude
 3. T038: confirm `mypy --strict executor.py` exits with 0 errors
 4. All five in-scope test clusters pass; two items have filed follow-on issues
 </content>
+
+## Activity Log
+
+- 2026-05-27T12:19:44Z – claude:claude-opus-4-7:debugger-debbie:investigator – shell_pid=42001 – Assigned agent via action command
