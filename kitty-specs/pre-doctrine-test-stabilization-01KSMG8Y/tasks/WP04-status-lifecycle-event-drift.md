@@ -17,8 +17,8 @@ subtasks:
 - T015
 - T016
 
-shell_pid: "37654"
-agent: "claude:claude-opus-4-7:debugger-debbie:investigator"
+shell_pid: "279296"
+agent: "claude:claude-sonnet-4-6:curator-carla:reviewer"
 history:
 - date: '2026-05-27'
   event: created
@@ -253,3 +253,4 @@ spec-kitty agent action implement WP04 --agent claude
 
 - 2026-05-27T12:19:16Z – claude:claude-opus-4-7:debugger-debbie:investigator – shell_pid=37654 – Assigned agent via action command
 - 2026-05-27T12:32:38Z – claude:claude-opus-4-7:debugger-debbie:investigator – shell_pid=37654 – T013-T016 complete: all 4 status/lifecycle event tests pass
+- 2026-05-27T12:33:07Z – claude:claude-sonnet-4-6:curator-carla:reviewer – shell_pid=279296 – Started review via action command
