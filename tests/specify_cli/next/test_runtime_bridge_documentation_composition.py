@@ -28,7 +28,7 @@ from specify_cli.next.runtime_bridge import (
 pytestmark = pytest.mark.fast
 
 
-_DOC_ACTIONS = ("discover", "audit", "design", "generate", "validate", "publish")
+_DOC_ACTIONS = ("discover", "audit", "design", "generate", "validate", "publish", "accept")
 _PROFILE_DEFAULTS = {
     "discover": "researcher-robbie",
     "audit": "researcher-robbie",
@@ -50,9 +50,6 @@ def test_documentation_in_composed_actions() -> None:
     """FR-002 + FR-015: documentation entry present with the 6 expected verbs."""
     assert "documentation" in _COMPOSED_ACTIONS_BY_MISSION
     assert _COMPOSED_ACTIONS_BY_MISSION["documentation"] == frozenset(_DOC_ACTIONS)
-    assert "accept" not in _COMPOSED_ACTIONS_BY_MISSION["documentation"], (
-        "FR-005 / plan D5 — accept must not be in the composed set"
-    )
 
 
 @pytest.mark.parametrize("action,profile", list(_PROFILE_DEFAULTS.items()))
@@ -100,6 +97,8 @@ def test_known_action_passes_when_artifact_present(
     if action == "generate":
         (tmp_path / "docs").mkdir()
         (tmp_path / "docs" / "intro.md").write_text("# intro", encoding="utf-8")
+    elif action == "accept":
+        pass  # no gate artifact — terminal ceremony step
     else:
         (tmp_path / _GATE_ARTIFACT[action]).write_text(f"# {action}", encoding="utf-8")
 

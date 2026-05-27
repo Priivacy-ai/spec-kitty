@@ -1177,6 +1177,8 @@ def _check_composed_action_guard(  # noqa: C901
         elif action == "publish":
             if not (feature_dir / "release.md").is_file():
                 failures.append("Required artifact missing: release.md")
+        elif action == "accept":
+            pass  # terminal ceremony step; publish gate is sufficient
         else:
             failures.append(
                 f"No guard registered for documentation action: {action}"

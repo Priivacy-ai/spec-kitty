@@ -570,7 +570,7 @@ def _build_prompt_or_error(
     # lightweight marker file and return its path so callers can emit a
     # ``kind=step`` Decision without hitting the ``if prompt_file is None``
     # blocked branch in ``_map_runtime_decision``.
-    if action in _COMPOSED_ACTIONS_FOR_PROMPT.get(mission_type, frozenset()):
+    if wp_id is None and action in _COMPOSED_ACTIONS_FOR_PROMPT.get(mission_type, frozenset()):
         composed_prompt = (
             f"# {mission_type} — {action}\n\n"
             f"This step is dispatched via composition.\n"
