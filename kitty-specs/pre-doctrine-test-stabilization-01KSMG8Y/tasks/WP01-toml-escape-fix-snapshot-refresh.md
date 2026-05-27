@@ -208,3 +208,4 @@ spec-kitty agent action implement WP01 --agent claude
 ## Activity Log
 
 - 2026-05-27T12:18:58Z – claude:claude-sonnet-4-6:implementer-ivan:implementer – shell_pid=35769 – Assigned agent via action command
+- 2026-05-27T12:22:22Z – claude:claude-sonnet-4-6:implementer-ivan:implementer – shell_pid=35769 – T001-T003 complete: implement.md line 168 uses grep -E '[.]py$', 13 agent snapshots refreshed (rg->grep in implement; stale charter/tasks baselines also updated), parity tests pass (208/208 including implement-gemini and implement-qwen TOML parse tests). ruff diff-scoped check: 0 issues, exit 0.
