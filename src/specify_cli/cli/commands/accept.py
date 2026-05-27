@@ -11,6 +11,7 @@ from specify_cli.acceptance import (
     AcceptanceError,
     AcceptanceResult,
     AcceptanceSummary,
+    acceptance_lane_derivations,
     choose_mode,
     collect_feature_summary,
     perform_acceptance,
@@ -100,12 +101,7 @@ def _print_acceptance_result(result: AcceptanceResult) -> None:
 
 def _summary_payload(summary: AcceptanceSummary) -> dict[str, object]:
     payload = summary.to_dict()
-    approved_wps = list(summary.lanes.get("approved", []))
-    done_wps = list(summary.lanes.get("done", []))
-    payload["accepted_wps"] = [*approved_wps, *done_wps]
-    payload["approved_wps"] = approved_wps
-    payload["done_wps"] = done_wps
-    payload["merge_pending_wps"] = approved_wps
+    payload.update(acceptance_lane_derivations(summary))
     return payload
 
 

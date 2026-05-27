@@ -22,11 +22,14 @@ from typing import Tuple
 
 import pytest
 
-from specify_cli.acceptance import (    AcceptanceError,
+from specify_cli.acceptance import (
+    AcceptanceError,
     AcceptanceSummary,
+    acceptance_lane_derivations,
     collect_feature_summary,
     perform_acceptance,
 )
+from specify_cli.task_utils import LANES
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import StoreError, append_event
 
@@ -40,6 +43,49 @@ pytestmark = [pytest.mark.non_sandbox, pytest.mark.git_repo]
 # ---------------------------------------------------------------------------
 
 _FEATURE_SLUG = "099-test-feature"
+
+
+def _summary_with_lanes(tmp_path: Path, lanes: dict[str, list[str]]) -> AcceptanceSummary:
+    full_lanes = {lane: list(lanes.get(lane, [])) for lane in LANES}
+    return AcceptanceSummary(
+        feature=_FEATURE_SLUG,
+        repo_root=tmp_path,
+        feature_dir=tmp_path,
+        tasks_dir=tmp_path,
+        branch="test",
+        worktree_root=tmp_path,
+        primary_repo_root=tmp_path,
+        lanes=full_lanes,
+        work_packages=[],
+        metadata_issues=[],
+        activity_issues=[],
+        unchecked_tasks=[],
+        needs_clarification=[],
+        missing_artifacts=[],
+        optional_missing=[],
+        git_dirty=[],
+        path_violations=[],
+        warnings=[],
+    )
+
+
+@pytest.mark.parametrize("lane", ["in_review", "blocked", "canceled"])
+def test_acceptance_summary_all_done_rejects_non_accepted_ready_lanes(tmp_path: Path, lane: str) -> None:
+    summary = _summary_with_lanes(tmp_path, {"approved": ["WP01"], lane: ["WP02"]})
+
+    assert summary.all_done is False
+    assert summary.ok is False
+
+
+def test_acceptance_lane_derivations_are_shared(tmp_path: Path) -> None:
+    summary = _summary_with_lanes(tmp_path, {"approved": ["WP01"], "done": ["WP02"]})
+
+    assert acceptance_lane_derivations(summary) == {
+        "accepted_wps": ["WP01", "WP02"],
+        "approved_wps": ["WP01"],
+        "done_wps": ["WP02"],
+        "merge_pending_wps": ["WP01"],
+    }
 
 
 def _create_test_feature(

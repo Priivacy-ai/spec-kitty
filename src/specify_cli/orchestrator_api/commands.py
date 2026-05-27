@@ -23,7 +23,7 @@ from __future__ import annotations
 import json
 import re
 import uuid
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 from pathlib import Path
 from dataclasses import dataclass
 
@@ -43,8 +43,14 @@ from .envelope import (
     policy_to_dict,
 )
 
-import click
+from typer import core as typer_core
 from typer.core import TyperGroup
+
+
+_CLICK = typer_core._click if hasattr(typer_core, "_click") else typer_core.click
+_USAGE_ERROR = getattr(_CLICK, "UsageError", _CLICK.exceptions.UsageError)
+_ABORT = getattr(_CLICK, "Abort", _CLICK.exceptions.Abort)
+_EXIT = getattr(_CLICK, "Exit", _CLICK.exceptions.Exit)
 
 
 class _JSONErrorGroup(TyperGroup):
@@ -100,7 +106,7 @@ class _JSONErrorGroup(TyperGroup):
         """
         try:
             return super().make_context(info_name, args, parent=parent, **extra)
-        except click.UsageError as exc:
+        except _USAGE_ERROR as exc:
             self._emit_error(exc.format_message())
             raise SystemExit(2) from exc
 
@@ -114,10 +120,10 @@ class _JSONErrorGroup(TyperGroup):
         """
         try:
             return super().invoke(ctx)
-        except click.UsageError as exc:
+        except _USAGE_ERROR as exc:
             self._emit_error(exc.format_message())
             ctx.exit(2)
-        except click.Abort:
+        except _ABORT:
             self._emit_error("Command aborted")
             ctx.exit(2)
 
@@ -130,12 +136,14 @@ class _JSONErrorGroup(TyperGroup):
             if isinstance(rv, int) and rv != 0:
                 raise SystemExit(rv)
             return rv
-        except click.UsageError as exc:
+        except _USAGE_ERROR as exc:
             self._emit_error(exc.format_message())
             raise SystemExit(2) from exc
-        except click.Abort:
+        except _ABORT:
             self._emit_error("Command aborted")
             raise SystemExit(2)
+        except _EXIT as exc:
+            raise SystemExit(exc.exit_code) from exc
         except SystemExit:
             raise
 
@@ -1014,12 +1022,12 @@ def accept_mission(
     # Write acceptance record via centralized metadata writer
     from specify_cli.mission_metadata import record_acceptance
 
-    accepted_at = datetime.now(UTC).isoformat()
-    record_acceptance(
+    meta = record_acceptance(
         mission_dir,
         accepted_by=actor,
         mode="orchestrator",
     )
+    accepted_at = str(meta["accepted_at"])
     approved_wps = list(summary.lanes.get("approved", []))
     done_wps = list(summary.lanes.get("done", []))
 

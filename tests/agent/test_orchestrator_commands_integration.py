@@ -830,6 +830,7 @@ class TestAcceptMission:
         # Verify meta.json was written
         meta = json.loads((mission_dir / "meta.json").read_text())
         assert "accepted_at" in meta
+        assert data["data"]["accepted_at"] == meta["accepted_at"]
         assert meta["accepted_by"] == "claude"
 
     def test_all_approved_accepted(self, tmp_path):
