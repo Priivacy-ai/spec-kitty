@@ -58,7 +58,7 @@ Claude will use the template metadata to understand scope, file boundaries, and 
 
 ## Dashboard Integration
 
-- Lane transitions triggered by action commands (`spec-kitty agent action implement/review`) surface instantly on the kanban dashboard. The full lane model is: `planned`, `claimed`, `in_progress` (alias: `doing`), `for_review`, `done`, `blocked`, and `canceled`.
+- Lane transitions triggered by action commands (`spec-kitty agent action implement/review`) surface instantly on the kanban dashboard. The full lane model is: `planned`, `claimed`, `in_progress` (alias: `doing`), `for_review`, `in_review`, `approved`, `done`, `blocked`, and `canceled`; `approved` means review passed and merge pending, while `done` means merged/integrated.
 - Each lane move records `agent`, `assignee`, and `shell_pid` in prompt frontmatter—Claude should add an ISO 8601 entry to the **Activity Log** summarizing what changed.
 - When Claude finishes a work package, use the workflow command to move it to `for_review` so the dashboard and reviewers stay in sync:
   ```bash

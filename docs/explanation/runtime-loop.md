@@ -151,14 +151,14 @@ The loop continues until the runtime returns `terminal` or the agent hits a bloc
 
 ### WP iteration within a single step
 
-During the implementation phase, multiple calls to `spec-kitty next` will return different `wp_id` values but the **same `step_id`** ("implement"). The runtime stays on the "implement" step while cycling through work packages. It only advances to the next mission step (such as "review") when all WPs have reached a terminal or handoff lane (done, approved, or for_review).
+During the implementation phase, multiple calls to `spec-kitty next` will return different `wp_id` values but the **same `step_id`** ("implement"). The runtime stays on the "implement" step while cycling through work packages. It only advances to the next mission step (such as "review") when all WPs have reached a terminal or handoff lane (`done`, `approved`, or `for_review`).
 
 This means that in a mission with WP01 through WP09, successive calls might return:
 
 - `step_id: "implement"`, `wp_id: "WP01"`
 - `step_id: "implement"`, `wp_id: "WP02"`
 - `step_id: "implement"`, `wp_id: "WP03"`
-- ...and so on until all WPs are done
+- ...and so on until all WPs are accepted-ready
 
 The same behavior applies to the review step.
 

@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0rc28] - 2026-05-27
+
+3.2.0rc28 fixes acceptance lane ownership and a clean-install dependency gap.
+
+### Changed
+
+- `accept` and orchestrator-api `accept-mission` now keep `approved` and
+  `done` distinct: acceptance reports accepted-ready, approved,
+  merge-pending, and already-merged WPs without closing approved WPs. Merge
+  remains the owner of the `approved -> done` integration transition.
+- Software-dev mission guards now treat `approved` and `done` as
+  accepted-ready for mission advancement.
+
+### Fixed
+
+- Declared `click` as a direct runtime dependency because CLI modules import it
+  directly. This fixes pipx/Windows clean-install import failures.
+
 ## [3.2.0rc27] - 2026-05-26
 
 3.2.0rc27 fixes a charter freshness/preflight false positive found in the

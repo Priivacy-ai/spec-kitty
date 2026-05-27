@@ -105,11 +105,11 @@ Spec Kitty enforces a specific sequence that prevents common AI coding failures:
    - Clear objective
    - Implementation steps
    - Testing requirements
-4. Work packages organized in kanban lanes (planned → doing → review → done)
+4. Work packages organized in kanban lanes (planned → doing → for_review → in_review → approved → done)
 
 **Why This Matters**:
 - Claude focuses on ONE thing at a time
-- Progress is visible (dashboard shows 3/10 tasks done)
+- Progress is visible (dashboard shows review-passed and merged task counts separately)
 - You can pause/resume without losing context
 
 ---
@@ -124,7 +124,7 @@ Spec Kitty enforces a specific sequence that prevents common AI coding failures:
 # When done, moves to "for_review"
 
 /spec-kitty.review
-# Claude reviews WP01, provides feedback or approves (moves to "done")
+# Claude reviews WP01, provides feedback or approves (moves to "approved")
 
 /spec-kitty.implement
 # Auto-picks WP02, repeats process
@@ -133,7 +133,7 @@ Spec Kitty enforces a specific sequence that prevents common AI coding failures:
 **What You See:**
 - Dashboard updates in real-time as tasks move through lanes
 - Activity log shows: "WP01 moved planned → doing (by Claude Code)"
-- Clear visibility into progress (3 done, 2 in review, 5 planned)
+- Clear visibility into progress (3 approved, 2 in review, 5 planned)
 
 **Why This Matters**:
 - Systematic completion (no orphaned code)
@@ -301,7 +301,7 @@ and WebSocket for live reload. Dark mode toggle.
 
 # When done:
 /spec-kitty.review
-# Claude reviews WP01, moves to "done"
+# Claude reviews WP01, moves to "approved"
 
 # Repeat for WP02-WP07
 ```
@@ -344,7 +344,7 @@ spec-kitty dashboard --open
 ```
 15:23 - WP01 moved planned → doing (Claude Code, shell 12345)
 15:31 - WP01 moved doing → for_review (Claude Code)
-15:35 - WP01 moved for_review → done (Claude Code)
+15:35 - WP01 moved in_review → approved (Claude Code)
 ```
 
 **Agent Tracking:**
@@ -371,7 +371,7 @@ claude
 cd .worktrees/001-auth-system  # Same worktree!
 cursor
 # Inside: /spec-kitty.review (WP01-WP04)
-# Cursor reviews each, moves to "done" or back to "planned"
+# Cursor reviews each, moves to "approved" or back to "planned"
 ```
 
 **Why This Works:**
@@ -401,7 +401,7 @@ claude
 /spec-kitty.implement
 # After implementation:
 spec-kitty agent action review WP01
-# Review workflow moves to done when there is no feedback
+# Review workflow moves to approved when there is no feedback; merge later records done
 ```
 
 ### Pattern 3: Parallel Features

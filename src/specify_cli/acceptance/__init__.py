@@ -108,9 +108,8 @@ class AcceptanceSummary:
     @property
     def all_done(self) -> bool:
         """True when all WPs are approved or done (no WPs still in progress or review)."""
-        return not (
-            self.lanes.get("planned") or self.lanes.get("claimed") or self.lanes.get("doing") or self.lanes.get("in_progress") or self.lanes.get("for_review")
-        )
+        accepted_ready_lanes = {"approved", "done"}
+        return not any(wp_ids for lane, wp_ids in self.lanes.items() if lane not in accepted_ready_lanes)
 
     @property
     def ok(self) -> bool:
@@ -195,6 +194,10 @@ class AcceptanceResult:
     instructions: list[str]
     cleanup_instructions: list[str]
     notes: list[str] = field(default_factory=list)
+    accepted_wps: list[str] = field(default_factory=list)
+    approved_wps: list[str] = field(default_factory=list)
+    done_wps: list[str] = field(default_factory=list)
+    merge_pending_wps: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -207,6 +210,10 @@ class AcceptanceResult:
             "instructions": self.instructions,
             "cleanup_instructions": self.cleanup_instructions,
             "notes": self.notes,
+            "accepted_wps": self.accepted_wps,
+            "approved_wps": self.approved_wps,
+            "done_wps": self.done_wps,
+            "merge_pending_wps": self.merge_pending_wps,
             "summary": self.summary.to_dict(),
         }
 
@@ -798,6 +805,21 @@ def choose_mode(preference: str | None, repo_root: Path) -> AcceptanceMode:
     return "local"
 
 
+def resolve_acceptance_actor(actor: str | None) -> str:
+    return (actor or os.getenv("USER") or os.getenv("USERNAME") or "system").strip()
+
+
+def acceptance_lane_derivations(summary: AcceptanceSummary) -> dict[str, list[str]]:
+    approved_wps = list(summary.lanes.get("approved", []))
+    done_wps = list(summary.lanes.get("done", []))
+    return {
+        "accepted_wps": [*approved_wps, *done_wps],
+        "approved_wps": approved_wps,
+        "done_wps": done_wps,
+        "merge_pending_wps": approved_wps,
+    }
+
+
 _WELL_KNOWN_INTEGRATION_BRANCHES = frozenset({"main", "master", "develop", "development", "2.x", "3.x"})
 
 
@@ -896,7 +918,7 @@ def perform_acceptance(
     if mode != "checklist" and not summary.ok:
         raise AcceptanceError("Acceptance checks failed; run verify to see outstanding issues.")
 
-    actor_name = (actor or os.getenv("USER") or os.getenv("USERNAME") or "system").strip()
+    actor_name = resolve_acceptance_actor(actor)
     timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     parent_commit: str | None = None
@@ -922,6 +944,8 @@ def perform_acceptance(
         notes.append("Validation commands:")
         notes.extend(f"  - {cmd}" for cmd in tests)
 
+    lane_derivations = acceptance_lane_derivations(summary)
+
     return AcceptanceResult(
         summary=summary,
         mode=mode,
@@ -933,6 +957,10 @@ def perform_acceptance(
         instructions=instructions,
         cleanup_instructions=cleanup_instructions,
         notes=notes,
+        accepted_wps=lane_derivations["accepted_wps"],
+        approved_wps=lane_derivations["approved_wps"],
+        done_wps=lane_derivations["done_wps"],
+        merge_pending_wps=lane_derivations["merge_pending_wps"],
     )
 
 
@@ -941,6 +969,7 @@ __all__ = [
     "AcceptanceMode",
     "AcceptanceResult",
     "AcceptanceSummary",
+    "acceptance_lane_derivations",
     "ArtifactEncodingError",
     "WorkPackageState",
     "choose_mode",
@@ -948,4 +977,5 @@ __all__ = [
     "detect_mission_slug",
     "normalize_feature_encoding",
     "perform_acceptance",
+    "resolve_acceptance_actor",
 ]

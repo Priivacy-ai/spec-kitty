@@ -822,10 +822,15 @@ class TestAcceptMission:
         assert data["success"] is True
         assert data["data"]["mission_slug"] == mission_slug
         assert data["data"]["accepted"] is True
+        assert data["data"]["accepted_wps"] == ["WP01", "WP02"]
+        assert data["data"]["approved_wps"] == []
+        assert data["data"]["done_wps"] == ["WP01", "WP02"]
+        assert data["data"]["merge_pending_wps"] == []
 
         # Verify meta.json was written
         meta = json.loads((mission_dir / "meta.json").read_text())
         assert "accepted_at" in meta
+        assert data["data"]["accepted_at"] == meta["accepted_at"]
         assert meta["accepted_by"] == "claude"
 
     def test_all_approved_accepted(self, tmp_path):
@@ -854,6 +859,16 @@ class TestAcceptMission:
         data = json.loads(result.output)
         assert data["success"] is True
         assert data["data"]["accepted"] is True
+        assert data["data"]["accepted_wps"] == ["WP01", "WP02"]
+        assert data["data"]["approved_wps"] == ["WP01", "WP02"]
+        assert data["data"]["done_wps"] == []
+        assert data["data"]["merge_pending_wps"] == ["WP01", "WP02"]
+
+        from specify_cli.status.reducer import materialize
+
+        snapshot = materialize(mission_dir)
+        assert snapshot.work_packages["WP01"]["lane"] == "approved"
+        assert snapshot.work_packages["WP02"]["lane"] == "approved"
 
     def test_incomplete_wps_returns_error(self, tmp_path):
         repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")

@@ -55,7 +55,7 @@ discover → audit → design → generate → validate → publish
 |---|---|
 | specify → plan | `artifact_exists("spec.md")` |
 | plan → implement | `artifact_exists("plan.md")` AND `artifact_exists("tasks.md")` |
-| implement → review | `all_wp_status("done")` |
+| implement → review | `all_wp_status("approved_or_done")` |
 | review → done | `gate_passed("review_approved")` |
 
 ### research

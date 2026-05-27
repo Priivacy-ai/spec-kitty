@@ -48,7 +48,7 @@ transitions:
     source: implement
     dest: review
     conditions:
-      - 'all_wp_status("done")'
+      - 'all_wp_status("approved_or_done")'
   - trigger: advance
     source: review
     dest: done
@@ -68,9 +68,9 @@ guards:
   has_tasks:
     description: "Task breakdown must exist"
     check: 'artifact_exists("tasks.md")'
-  all_wps_done:
-    description: "All work packages must be complete"
-    check: 'all_wp_status("done")'
+  all_wps_accepted:
+    description: "All work packages must be review-approved or already merged"
+    check: 'all_wp_status("approved_or_done")'
   review_passed:
     description: "Review must be approved"
     check: 'gate_passed("review_approved")'

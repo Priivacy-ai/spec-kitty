@@ -159,7 +159,27 @@ terms:
     status: active
 
   - surface: lane
-    definition: Kanban status for work packages (planned, doing, for_review, done)
+    definition: Work package lifecycle state. Canonical lanes are planned, claimed, in_progress, for_review, in_review, approved, done, blocked, and canceled. The alias doing means in_progress. approved means review passed and merge pending; done means merged/integrated.
+    confidence: 1.0
+    status: active
+
+  - surface: approved
+    definition: Work package lane meaning review passed, feedback resolved, and the WP is ready to merge. approved is not integrated and must not be treated as done. The merge workflow owns the approved -> done transition.
+    confidence: 1.0
+    status: active
+
+  - surface: done
+    definition: Work package lane meaning the WP has been merged/integrated into the mission target branch, or explicitly force-marked as integrated with evidence. Review approval alone is not done.
+    confidence: 1.0
+    status: active
+
+  - surface: accepted work package
+    definition: A WP counted by mission acceptance readiness because its lane is approved or done. Accepted does not imply done; approved accepted work packages remain merge-pending.
+    confidence: 1.0
+    status: active
+
+  - surface: merge-pending work package
+    definition: An approved WP that mission acceptance may count as accepted-ready but that has not yet been merged/integrated. Merge-pending WPs stay in the approved lane until the merge workflow records done.
     confidence: 1.0
     status: active
 

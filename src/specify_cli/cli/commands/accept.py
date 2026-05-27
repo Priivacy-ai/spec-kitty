@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from typing import List, Optional
 
 import typer
 from rich.table import Table
@@ -12,15 +11,17 @@ from specify_cli.acceptance import (
     AcceptanceError,
     AcceptanceResult,
     AcceptanceSummary,
+    acceptance_lane_derivations,
     choose_mode,
     collect_feature_summary,
     perform_acceptance,
+    resolve_acceptance_actor,
 )
 from specify_cli.cli import StepTracker
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.cli.helpers import console, show_banner
+from specify_cli.git.commit_helpers import assert_not_protected_branch
 from specify_cli.task_utils import LANES, TaskCliError, find_repo_root
-from specify_cli.sync.events import emit_wp_status_changed
 
 
 def _safe_emit_error_logged(message: str) -> None:
@@ -75,6 +76,12 @@ def _print_acceptance_result(result: AcceptanceResult) -> None:
         console.print(f"• Parent commit: {result.parent_commit}")
     if not result.commit_created:
         console.print("• Commit status: no changes were committed (dry-run)")
+    if result.accepted_wps:
+        console.print(f"• Accepted WPs: {', '.join(result.accepted_wps)}")
+    if result.merge_pending_wps:
+        console.print(f"• Merge-pending WPs: {', '.join(result.merge_pending_wps)}")
+    if result.done_wps:
+        console.print(f"• Already merged WPs: {', '.join(result.done_wps)}")
 
     if result.instructions:
         console.print("\n[bold]Next steps[/bold]")
@@ -92,27 +99,10 @@ def _print_acceptance_result(result: AcceptanceResult) -> None:
             console.print(f"  - {note}")
 
 
-def _emit_acceptance_events(mission_slug: str, wp_ids: list[str]) -> None:
-    """Emit done transitions for accepted WPs.
-
-    Acceptance transitions WPs from approved → done (not for_review → done).
-    The reviewer moves WPs to approved; acceptance proves integration is complete.
-    """
-    if not wp_ids:
-        return
-    for wp_id in wp_ids:
-        try:
-            emit_wp_status_changed(
-                wp_id=wp_id,
-                from_lane="approved",
-                to_lane="done",
-                actor="user",
-                mission_slug=mission_slug,
-            )
-        except Exception as exc:
-            console.print(
-                f"[yellow]Warning:[/yellow] Failed to emit WPStatusChanged for {wp_id}: {exc}"
-            )
+def _summary_payload(summary: AcceptanceSummary) -> dict[str, object]:
+    payload = summary.to_dict()
+    payload.update(acceptance_lane_derivations(summary))
+    return payload
 
 
 def accept(
@@ -132,7 +122,7 @@ def accept(
     test: list[str] = typer.Option([], "--test", help="Validation command executed (repeatable)", show_default=False),
     json_output: bool = typer.Option(False, "--json", help="Emit JSON instead of formatted text"),
     lenient: bool = typer.Option(False, "--lenient", help="Skip strict metadata validation"),
-    no_commit: bool = typer.Option(False, "--no-commit", help="Skip auto-commit; report only"),
+    no_commit: bool = typer.Option(False, "--no-commit", help="Report acceptance readiness without writing metadata or status changes"),
     allow_fail: bool = typer.Option(False, "--allow-fail", help="Return checklist even when issues remain"),
 ) -> None:
     """Validate mission readiness before merging to main."""
@@ -206,7 +196,12 @@ def accept(
 
     if actual_mode == "checklist":
         if json_output:
-            print(json.dumps(summary.to_dict(), indent=2))
+            print(
+                json.dumps(
+                    _summary_payload(summary),
+                    indent=2,
+                )
+            )
         else:
             _print_acceptance_summary(summary)
         raise typer.Exit(0 if summary.ok else 1)
@@ -226,17 +221,38 @@ def accept(
         raise typer.Exit(1)
 
     acceptance_tests = list(test)
+    actor_name = resolve_acceptance_actor(actor)
+
+    if commit_required:
+        try:
+            assert_not_protected_branch(repo_root, operation="record acceptance")
+        except Exception as exc:
+            _safe_emit_error_logged(str(exc))
+            if json_output:
+                print(json.dumps({"error": str(exc)}))
+            else:
+                console.print(f"[red]Error:[/red] {exc}")
+            raise typer.Exit(1)
 
     try:
         if commit_required and not json_output:
             tracker.start("commit")
-        result = perform_acceptance(
-            summary,
-            mode=actual_mode,
-            actor=actor,
-            tests=acceptance_tests,
-            auto_commit=commit_required,
-        )
+        if no_commit:
+            result = perform_acceptance(
+                summary,
+                mode=actual_mode,
+                actor=actor_name,
+                tests=acceptance_tests,
+                auto_commit=False,
+            )
+        else:
+            result = perform_acceptance(
+                summary,
+                mode=actual_mode,
+                actor=actor_name,
+                tests=acceptance_tests,
+                auto_commit=commit_required,
+            )
         if commit_required and not json_output:
             detail = "commit created" if result.commit_created else "no changes"
             tracker.complete("commit", detail)
@@ -250,9 +266,6 @@ def accept(
                 console.print(tracker.render())
             console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
-
-    # Move approved WPs to done. Acceptance transitions approved → done.
-    _emit_acceptance_events(mission_slug, result.summary.lanes.get("approved", []))
 
     if json_output:
         print(json.dumps(result.to_dict(), indent=2))

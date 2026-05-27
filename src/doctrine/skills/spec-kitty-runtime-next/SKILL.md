@@ -158,7 +158,7 @@ Guards block step transitions by returning failure descriptions:
 |---|---|---|
 | `artifact_exists` | `artifact_exists("spec.md")` | File exists relative to mission dir |
 | `gate_passed` | `gate_passed("review_gate")` | Gate event in mission-events.jsonl |
-| `all_wp_status` | `all_wp_status("done")` | All WPs in specific lane |
+| `all_wp_status` | `all_wp_status("approved_or_done")` | All WPs in a specific lane or named accepted-ready set |
 | `any_wp_status` | `any_wp_status("for_review")` | At least one WP in lane |
 | `input_provided` | `input_provided("architecture")` | Input exists in runtime model |
 | `event_count` | `event_count("review", 1)` | Minimum event count threshold |
@@ -330,7 +330,7 @@ spec-kitty agent context resolve --action implement --mission <mission-slug> --j
 **What to look for:**
 
 - Active mission slug and mission type
-- Current WP lane status (planned, claimed, in_progress, for_review, approved, done, blocked, canceled)
+- Current WP lane status (planned, claimed, in_progress, for_review, in_review, approved, done, blocked, canceled)
 - Whether there are WPs ready for implementation or review
 - Any blocked WPs that need attention first
 

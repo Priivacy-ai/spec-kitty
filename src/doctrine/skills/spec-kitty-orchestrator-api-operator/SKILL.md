@@ -72,7 +72,7 @@ results. No command returns prose or mixed text/JSON.
 | `start-review` | Reviewer rollback (for_review → in_progress) | Yes |
 | `transition` | Explicit single lane change | Yes |
 | `append-history` | Add note to WP activity log | Yes |
-| `accept-mission` | Mark mission as accepted | Yes |
+| `accept-mission` | Mark mission as accepted without closing approved WPs | Yes |
 | `merge-mission` | Merge lane branches into the mission branch, then land the mission branch | Yes |
 
 ### Policy Metadata (Required for Run-Affecting Lanes)
@@ -286,6 +286,10 @@ spec-kitty orchestrator-api merge-mission \
 
 `accept-mission` returns `MISSION_NOT_READY` if any WP from the dependency
 graph is not `approved` or `done`.
+
+`accept-mission` reports `accepted_wps`, `approved_wps`, `done_wps`, and
+`merge_pending_wps`. It does not move WPs from `approved` to `done`; merge owns
+that transition.
 
 `merge-mission` runs **4 preflight checks** before merging:
 1. All expected WPs have worktrees

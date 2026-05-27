@@ -259,6 +259,30 @@ class TestAllWpStatusGuard:
         model = _make_model(feature_dir=tmp_path)
         assert guard(_make_event(model)) is False
 
+    def test_approved_or_done_accepts_mixed_review_passed_and_merged(self, tmp_path: Path) -> None:
+        tasks_dir = tmp_path / "tasks"
+        tasks_dir.mkdir()
+        (tasks_dir / "WP01.md").write_text("---\nlane: approved\n---\n# WP01\n")
+        (tasks_dir / "WP02.md").write_text("---\nlane: done\n---\n# WP02\n")
+        _seed_wp_lane(tmp_path, "WP01", "approved")
+        _seed_wp_lane(tmp_path, "WP02", "done")
+        factory = GUARD_REGISTRY["all_wp_status"]
+        guard = factory(["approved_or_done"])
+        model = _make_model(feature_dir=tmp_path)
+        assert guard(_make_event(model)) is True
+
+    def test_approved_or_done_rejects_incomplete_wp(self, tmp_path: Path) -> None:
+        tasks_dir = tmp_path / "tasks"
+        tasks_dir.mkdir()
+        (tasks_dir / "WP01.md").write_text("---\nlane: approved\n---\n# WP01\n")
+        (tasks_dir / "WP02.md").write_text("---\nlane: for_review\n---\n# WP02\n")
+        _seed_wp_lane(tmp_path, "WP01", "approved")
+        _seed_wp_lane(tmp_path, "WP02", "for_review")
+        factory = GUARD_REGISTRY["all_wp_status"]
+        guard = factory(["approved_or_done"])
+        model = _make_model(feature_dir=tmp_path)
+        assert guard(_make_event(model)) is False
+
     def test_no_tasks_dir(self, tmp_path: Path) -> None:
         factory = GUARD_REGISTRY["all_wp_status"]
         guard = factory(["done"])

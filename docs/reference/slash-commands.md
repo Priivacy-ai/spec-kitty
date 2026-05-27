@@ -122,7 +122,7 @@ Syntax format in this reference:
 - Loads the WP prompt, supporting artifacts, and code changes.
 - Performs structured review and records feedback via `--review-feedback-file`.
 - Persists feedback in shared git common-dir and writes frontmatter `review_feedback` pointer (`feedback://...`) in the WP file.
-- Moves the WP to `done` (approved) or back to `planned` (needs changes).
+- Moves the WP to `approved` (review passed, merge pending) or back to `planned` (needs changes). The merge workflow later records `done`.
 - Updates `tasks.md` status when approved.
 
 **Creates/updates**:

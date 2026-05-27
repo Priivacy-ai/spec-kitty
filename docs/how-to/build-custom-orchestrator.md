@@ -21,7 +21,7 @@ Your orchestrator must:
 2. Poll for ready WPs.
 3. Start implementation for selected WPs.
 4. Transition WPs through review/complete loops.
-5. Accept and optionally merge when all WPs are done.
+5. Accept when all WPs are accepted-ready (`approved` or `done`), then merge to record `done`.
 
 ### 1. Check compatibility
 
@@ -58,7 +58,7 @@ spec-kitty orchestrator-api transition \
   --subtasks-complete --implementation-evidence-present
 # review approved
 spec-kitty orchestrator-api transition \
-  --mission <slug> --wp WP01 --to done \
+  --mission <slug> --wp WP01 --to approved \
   --actor reviewer-bot \
   --review-ref review/WP01/attempt-1 \
   --evidence-json '{"review":{"reviewer":"reviewer-bot","verdict":"approved","reference":"review/WP01/attempt-1"}}'
@@ -108,13 +108,13 @@ Common retry-relevant failures:
 ```text
 while true:
   ready = list-ready(feature)
-  if no ready and all terminal: break
+  if no ready and all accepted-ready: break
   for wp in ready up to concurrency limit:
     start-implementation(wp)
     run implementation agent
     transition(wp, for_review)
     run reviewer
-    if approved: transition(wp, done)
+    if approved: transition(wp, approved)
     else: start-review(wp, review_ref)
 accept-mission(mission)
 merge-mission(mission)

@@ -151,8 +151,9 @@ def _make_gate_passed_guard(args: list[Any]) -> Callable[..., bool]:
 
 
 def _make_all_wp_status_guard(args: list[Any]) -> Callable[..., bool]:
-    """Guard: True when ALL WP task files have ``lane`` equal to *status*."""
+    """Guard: True when ALL WP task files have acceptable lanes."""
     status = str(args[0])
+    allowed_statuses = {"approved", "done"} if status == "approved_or_done" else {status}
 
     def guard(event_data: Any) -> bool:
         model = event_data.model
@@ -167,7 +168,7 @@ def _make_all_wp_status_guard(args: list[Any]) -> Callable[..., bool]:
             return False
         for wp_file in wp_files:
             lane = _read_lane_from_frontmatter(wp_file)
-            if lane != status:
+            if lane not in allowed_statuses:
                 return False
         return True
 

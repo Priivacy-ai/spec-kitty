@@ -154,8 +154,6 @@ def test_assert_merged_wps_reached_done_raises_when_wp_not_done(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """WP not in done → typer.Exit(1) raised."""
-    import click
-
     mission_slug = "080-test-feature"
     feature_dir = tmp_path / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)
@@ -176,7 +174,7 @@ def test_assert_merged_wps_reached_done_raises_when_wp_not_done(
     )
     append_event(feature_dir, event)
 
-    with pytest.raises(click.exceptions.Exit):
+    with pytest.raises(typer.Exit):
         _assert_merged_wps_reached_done(tmp_path, mission_slug, ["WP01", "WP02"])
 
 
@@ -184,8 +182,6 @@ def test_assert_merged_wps_reached_done_includes_lane_value_in_error(
     tmp_path: Path, capsys: pytest.CaptureFixture
 ) -> None:
     """Error message includes WP id and current lane value (not raw string)."""
-    import click
-
     mission_slug = "080-test-feature"
     feature_dir = tmp_path / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)
@@ -204,7 +200,7 @@ def test_assert_merged_wps_reached_done_includes_lane_value_in_error(
     )
     append_event(feature_dir, event)
 
-    with pytest.raises(click.exceptions.Exit):
+    with pytest.raises(typer.Exit):
         _assert_merged_wps_reached_done(tmp_path, mission_slug, ["WP01"])
 
 

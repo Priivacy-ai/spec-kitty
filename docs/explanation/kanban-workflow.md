@@ -89,12 +89,12 @@ canceled   (reachable from planned, claimed, in_progress, for_review, in_review,
 **What happens**:
 - Reviewer examines the implementation against spec and acceptance criteria
 - All outbound transitions require a `ReviewResult` in the transition context
-- Either approves (`-> approved` or `-> done`) or requests changes (`-> in_progress` or `-> planned` with feedback)
+- Either approves (`-> approved`) or requests changes (`-> in_progress` or `-> planned` with feedback)
 - Can also be blocked (`-> blocked`) or canceled (`-> canceled`)
 
 #### approved
 
-**Meaning**: Work package has passed review and is approved for completion.
+**Meaning**: Work package has passed review and is merge-pending.
 
 **How it gets here**:
 - Reviewer approves: `spec-kitty agent tasks move-task WP01 --to approved --approval-ref PR#42`
@@ -102,22 +102,22 @@ canceled   (reachable from planned, claimed, in_progress, for_review, in_review,
 - Guard: requires reviewer approval evidence (reviewer identity + approval reference)
 
 **What happens**:
-- WP is approved and ready to be marked done
+- WP is approved and ready for acceptance and merge
 - Can still be sent back for rework if issues arise (`-> in_progress` or `-> planned`)
 
 #### done
 
-**Meaning**: Work package is complete and accepted.
+**Meaning**: Work package has been merged/integrated into the mission target branch.
 
 **How it gets here**:
-- From `approved` or `for_review` with reviewer approval evidence
-- Guard: requires reviewer approval evidence
+- From `approved` after merge/integration, or via forced override with audit evidence
+- Guard: requires merge/integration evidence or an explicit force reason
 
 **What happens**:
-- Lane branch content is ready for merge orchestration
+- Lane branch content has already landed
 - No further changes expected
 - `approved` unblocks dependent WPs immediately
-- `done` is recorded by merge/acceptance bookkeeping after approved work lands
+- `done` is recorded by merge bookkeeping after approved work lands
 - Once all WPs are `approved` or `done`, run `/spec-kitty.accept` to validate
   the entire mission before merge
 
@@ -158,9 +158,9 @@ The state machine enforces exactly 27 legal transitions. Any transition not in t
 | in_progress | for_review | Subtasks complete + evidence (or force) |
 | for_review | in_review | Actor identity required (conflict detection) |
 | in_review | approved | ReviewResult required |
-| in_review | done | ReviewResult required |
+| in_review | done | Legacy direct-completion path; prefer in_review -> approved, then merge records done |
 | in_progress | approved | Reviewer approval evidence |
-| approved | done | Reviewer approval evidence |
+| approved | done | Merge/integration evidence |
 
 ### Rework / rollback (5)
 
@@ -259,7 +259,7 @@ When review finds issues:
    lane: claimed -> in_progress -> for_review
 
 4. Reviewer re-reviews (claims again: for_review -> in_review)
-   If good: lane: approved -> done
+   If good: lane: in_review -> approved
    If issues remain: repeat
 ```
 
@@ -423,10 +423,10 @@ spec-kitty agent tasks move-task WP01 --to for_review --note "Implementation com
 Reviewers are responsible for:
 - `for_review -> in_review` - Claiming a WP for active review
 - `in_review -> approved` - Approving work (requires ReviewResult)
-- `in_review -> done` - Approving and completing in one step (requires ReviewResult)
 - `in_review -> planned` - Requesting changes with feedback (requires ReviewResult)
 - `in_review -> in_progress` - Requesting minor changes, keeps workspace (requires ReviewResult)
-- `approved -> done` - Marking an approved WP as complete
+
+Merge is responsible for `approved -> done` after integration.
 
 Commands:
 ```bash
@@ -479,9 +479,9 @@ spec-kitty agent action implement WP02 --agent <name>  # Ensures WP01 code is av
 ### Review Before Done
 
 WPs cannot skip directly from `in_progress` to `done`:
-- Must pass through `for_review` or `approved` first
-- Guard requires reviewer approval evidence for done transitions
-- This ensures all work is validated
+- Must pass through `for_review`, `in_review`, and `approved` first
+- Review approval records `approved`; merge/integration records `done`
+- This ensures all work is validated before it lands
 
 ### Subtask Validation
 

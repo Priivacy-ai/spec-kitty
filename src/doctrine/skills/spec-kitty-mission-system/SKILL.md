@@ -384,7 +384,7 @@ Guards block step transitions until conditions are met:
 |---|---|---|
 | `artifact_exists` | `artifact_exists("spec.md")` | File exists in mission dir |
 | `gate_passed` | `gate_passed("review_approved")` | Event exists in mission event log |
-| `all_wp_status` | `all_wp_status("done")` | Every WP is in the specified lane |
+| `all_wp_status` | `all_wp_status("approved_or_done")` | Every WP is in the specified lane, or in any lane in a named accepted-ready set |
 | `any_wp_status` | `any_wp_status("for_review")` | At least one WP is in the lane |
 | `input_provided` | `input_provided("architecture")` | Input was provided to runtime |
 | `event_count` | `event_count("source_documented", 3)` | Minimum event count in log |
@@ -455,7 +455,7 @@ Managed by `mission-runtime.yaml` DAG and `spec-kitty next`.
 
 **WP status** — where is each work package in its lifecycle?
 ```
-planned → claimed → in_progress → for_review → approved → done
+planned → claimed → in_progress → for_review → in_review → approved → done
                                                     ↕
                                                  blocked / canceled
 ```

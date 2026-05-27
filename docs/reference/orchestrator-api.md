@@ -90,7 +90,7 @@ Forbidden at the CLI boundary:
 | `start-review` | Claim review for a WP |
 | `transition` | Emit one explicit lane transition |
 | `append-history` | Append a WP activity-log note |
-| `accept-mission` | Record mission acceptance |
+| `accept-mission` | Record mission acceptance without closing approved WPs |
 | `merge-mission` | Merge the mission into its target branch |
 
 Legacy command names such as `feature-state`, `accept-feature`, and
@@ -115,6 +115,20 @@ Run-affecting commands also require `--policy`, whose JSON object must include:
 - `dangerous_flags`
 
 Secret-like values in `--policy` are rejected.
+
+## Acceptance Payload
+
+`accept-mission` requires every WP to be `approved` or `done`. It returns:
+
+| Field | Meaning |
+|---|---|
+| `accepted_wps` | WPs counted by mission acceptance (`approved` plus `done`) |
+| `approved_wps` | Review-passed WPs still awaiting merge/integration |
+| `done_wps` | WPs already merged/integrated |
+| `merge_pending_wps` | Alias of `approved_wps`; WPs accepted-ready but not done |
+
+`accept-mission` does not move WPs from `approved` to `done`; merge owns that
+transition.
 
 ## Example Commands
 

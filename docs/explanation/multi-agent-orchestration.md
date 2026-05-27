@@ -53,7 +53,7 @@ Provider loop responsibilities:
 1. Discover ready WPs via host API.
 2. Start implementation and run agents in worktrees.
 3. Transition WPs through review cycles.
-4. Accept and merge when done.
+4. Accept when WPs are accepted-ready (`approved` or `done`), then merge.
 
 ## Host API boundary
 
@@ -75,6 +75,8 @@ Public API lanes:
 - `planned`
 - `in_progress`
 - `for_review`
+- `in_review`
+- `approved`
 - `done`
 - `blocked`
 - `canceled`
@@ -82,7 +84,7 @@ Public API lanes:
 Compatibility mapping:
 
 - API `in_progress` maps to internal `doing`.
-- `planned`, `for_review`, and `done` map directly.
+- `planned`, `for_review`, `in_review`, `approved`, and `done` map directly.
 
 ## Policy metadata and mutation authority
 
