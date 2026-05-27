@@ -6,6 +6,7 @@ flow does not need raw ``git add`` / ``git commit`` instructions.
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 import typer
@@ -26,6 +27,22 @@ _CHARTER_COMMIT_CANDIDATES = (
     Path(".kittify/charter/references.yaml"),
     Path(".gitignore"),
 )
+
+
+def _has_candidate_changes(repo_root: Path, files_to_commit: list[Path]) -> bool:
+    rel_paths = [str(path.relative_to(repo_root)) for path in files_to_commit]
+    result = subprocess.run(
+        ["git", "status", "--porcelain", "--untracked-files=all", "--", *rel_paths],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError("Unable to inspect charter files before commit.")
+    return bool(result.stdout.strip())
 
 
 @charter_app.command(name="commit")
@@ -49,12 +66,15 @@ def commit(
         if not files_to_commit:
             raise ValueError("No charter files exist to commit.")
 
+        had_changes = _has_candidate_changes(repo_root, files_to_commit)
         committed = safe_commit(
             repo_path=repo_root,
             files_to_commit=files_to_commit,
             commit_message=message,
             allow_empty=False,
         )
+        if had_changes and not committed:
+            raise RuntimeError("Charter files changed but no commit was created.")
         payload = {
             "result": "success",
             "success": True,

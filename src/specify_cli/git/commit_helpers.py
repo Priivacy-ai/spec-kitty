@@ -99,6 +99,10 @@ def _is_spec_kitty_project(repo_path: Path) -> bool:
 
 
 def _current_branch(repo_path: Path) -> str | None:
+    branch = _run_git_text(repo_path, ["symbolic-ref", "--quiet", "--short", "HEAD"])
+    if branch:
+        return branch
+
     branch = _run_git_text(repo_path, ["rev-parse", "--abbrev-ref", "HEAD"])
     if not branch or branch == "HEAD":
         return None
@@ -258,6 +262,50 @@ def _stage_requested_files(repo_path: Path, normalized_files: list[str]) -> bool
     return True
 
 
+def _unstage_requested_files(repo_path: Path, normalized_files: list[str]) -> None:
+    """Remove requested paths from the index before saving unrelated staging."""
+    if not normalized_files:
+        return
+
+    staged_result = subprocess.run(
+        ["git", "diff", "--cached", "--name-only", "--", *normalized_files],
+        cwd=repo_path,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if staged_result.returncode != 0:
+        return
+    staged_requested = [line.strip() for line in staged_result.stdout.splitlines() if line.strip()]
+    if not staged_requested:
+        return
+
+    has_head = _run_git_text(repo_path, ["rev-parse", "--verify", "HEAD"]) is not None
+    if has_head:
+        subprocess.run(
+            ["git", "restore", "--staged", "--", *staged_requested],
+            cwd=repo_path,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+        return
+
+    subprocess.run(
+        ["git", "rm", "--cached", "--ignore-unmatch", "-q", "--", *staged_requested],
+        cwd=repo_path,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+
+
 def _run_commit(repo_path: Path, commit_message: str, allow_empty: bool) -> bool:
     """Run ``git commit`` and classify its result."""
     commit_result = subprocess.run(
@@ -365,6 +413,10 @@ def safe_commit(
         normalized_files.append(str(file))
 
     stash_message = f"spec-kitty-safe-commit:{uuid.uuid4()}"
+
+    # If a previous command already staged the requested files, keep treating
+    # them as the files to commit rather than as unrelated operator staging.
+    _unstage_requested_files(repo_path, normalized_files)
 
     # Save current staging area (only staged changes, not working tree)
     stash_result = subprocess.run(

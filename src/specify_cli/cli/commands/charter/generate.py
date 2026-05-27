@@ -96,13 +96,19 @@ def _stage_charter_files(repo_root: Path, files: list[Path]) -> None:
         if not (repo_root / file_path).exists():
             continue
         rel = file_path.as_posix()
-        subprocess.run(
+        result = subprocess.run(
             ["git", "add", "--force", "--", rel],
             cwd=str(repo_root),
             capture_output=True,
             text=True,
             check=False,
         )
+        if result.returncode != 0:
+            detail = (result.stderr or result.stdout or "").strip()
+            raise RuntimeError(
+                f"Failed to stage charter file {rel}. "
+                f"{detail or 'git add returned a non-zero exit code.'}"
+            )
 
 
 def _ensure_gitignore_entries(repo_root: Path, required: list[str]) -> None:

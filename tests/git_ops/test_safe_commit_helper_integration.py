@@ -120,6 +120,29 @@ def test_safe_commit_blocks_spec_kitty_status_commit_on_protected_branch(git_rep
         )
 
 
+def test_safe_commit_blocks_status_commit_on_unborn_protected_branch(tmp_path: Path):
+    """Unborn main is still a protected branch."""
+    repo = tmp_path / "unborn"
+    repo.mkdir()
+    subprocess.run(
+        ["git", "init", "--initial-branch=main"],
+        cwd=repo, check=True, capture_output=True,
+    )
+    (repo / ".kittify").mkdir()
+    (repo / ".kittify" / "config.json").write_text("{}\n")
+    protected_file = repo / "kitty-specs" / "099-demo" / "meta.json"
+    protected_file.parent.mkdir(parents=True)
+    protected_file.write_text("{}\n")
+
+    with pytest.raises(ProtectedBranchCommitError, match="protected branch 'main'"):
+        safe_commit(
+            repo_path=repo,
+            files_to_commit=[protected_file],
+            commit_message="Add meta for feature 099-demo",
+            allow_empty=False,
+        )
+
+
 def test_safe_commit_allows_merged_wp_done_commit_on_protected_branch(git_repo: Path):
     """The merge workflow may persist done transitions after merging onto main."""
     subprocess.run(["git", "branch", "-M", "main"], cwd=git_repo, check=True)

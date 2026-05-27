@@ -52,6 +52,19 @@ def _git_init(repo: Path) -> None:
     )
 
 
+def _git_initial_commit(repo: Path) -> None:
+    readme = repo / "README.md"
+    readme.write_text("# Test Repo\n", encoding="utf-8")
+    subprocess.run(
+        ["git", "add", "README.md"],
+        cwd=repo, check=True, capture_output=True, text=True,
+    )
+    subprocess.run(
+        ["git", "commit", "-m", "Initial commit"],
+        cwd=repo, check=True, capture_output=True, text=True,
+    )
+
+
 def _write_minimal_interview(repo: Path) -> None:
     """Place a minimal interview answers.yaml so charter generate can run.
 
@@ -216,6 +229,26 @@ def test_generate_from_interview_fails_when_answers_missing(tmp_path: Path) -> N
     assert not (tmp_path / ".kittify" / "charter" / "charter.md").exists()
 
 
+def test_generate_fails_when_auto_stage_fails(tmp_path: Path) -> None:
+    """Auto-track failures must not be reported as successful generation."""
+    _git_init(tmp_path)
+    _write_minimal_interview(tmp_path)
+    (tmp_path / ".git" / "index.lock").write_text("locked\n", encoding="utf-8")
+
+    old_cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+        result = runner.invoke(
+            charter_app, ["generate", "--from-interview", "--json"],
+            catch_exceptions=False,
+        )
+    finally:
+        os.chdir(old_cwd)
+
+    assert result.exit_code != 0
+    assert "Failed to stage charter file" in result.stdout
+
+
 # ---------------------------------------------------------------------------
 # Additional safety: pre-existing staging area not corrupted by generate
 # ---------------------------------------------------------------------------
@@ -259,6 +292,7 @@ def test_generate_does_not_disturb_unrelated_staged_changes(
 def test_charter_commit_uses_safe_commit_for_generated_files(tmp_path: Path) -> None:
     """``charter commit`` creates the charter commit without raw git commit."""
     _git_init(tmp_path)
+    _git_initial_commit(tmp_path)
     _write_minimal_interview(tmp_path)
     subprocess.run(
         ["git", "switch", "-c", "charter/update"],
@@ -279,6 +313,7 @@ def test_charter_commit_uses_safe_commit_for_generated_files(tmp_path: Path) -> 
             catch_exceptions=False,
         )
         assert committed.exit_code == 0, f"commit failed: {committed.stdout!r}"
+        assert '"committed": true' in committed.stdout
     finally:
         os.chdir(old_cwd)
 
@@ -287,6 +322,11 @@ def test_charter_commit_uses_safe_commit_for_generated_files(tmp_path: Path) -> 
         cwd=tmp_path, check=True, capture_output=True, text=True,
     ).stdout.strip()
     assert log == "chore: generate project charter"
+    stash_list = subprocess.run(
+        ["git", "stash", "list"],
+        cwd=tmp_path, check=True, capture_output=True, text=True,
+    ).stdout
+    assert "spec-kitty-safe-commit" not in stash_list
 
 
 def test_charter_template_uses_safe_commit_command() -> None:
