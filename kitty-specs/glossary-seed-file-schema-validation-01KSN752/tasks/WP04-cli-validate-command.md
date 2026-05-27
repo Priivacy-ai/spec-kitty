@@ -11,12 +11,16 @@ tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-glossary-seed-file-schema-validation-01KSN752
+base_commit: efec054539979268c404cee54726d746657776c4
+created_at: '2026-05-27T17:55:39.143075+00:00'
 subtasks:
 - T016
 - T017
 - T018
 - T019
-agent: claude
+agent: "claude:opus:implementer-ivan:implementer"
+shell_pid: "69303"
 history:
 - at: '2026-05-27T17:32:55+00:00'
   event: created
@@ -328,3 +332,7 @@ def test_validate_valid_file(tmp_path):
 - Check JSON output structure matches the contract
 - Verify scope filename warning is a warning (yellow), not an error (red)
 - Confirm the command integrates with the existing glossary typer app (no new app registration needed)
+
+## Activity Log
+
+- 2026-05-27T17:55:39Z – claude:opus:implementer-ivan:implementer – shell_pid=69303 – Assigned agent via action command
