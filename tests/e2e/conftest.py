@@ -12,15 +12,40 @@ import subprocess
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
+from textwrap import dedent
 
 import pytest
 import yaml
 
 from tests.test_isolation_helpers import get_installed_version, run_cli_subprocess
 from specify_cli.migration.schema_version import MAX_SUPPORTED_SCHEMA, SCHEMA_CAPABILITIES
+from charter.sync import sync as sync_charter
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 E2E_CEREMONY_BRANCH = "e2e-ceremony"
+
+
+def _write_built_in_only_manifest(project: Path) -> None:
+    """Seed fresh-project doctrine state for local workflow E2E fixtures."""
+    manifest_path = project / ".kittify" / "charter" / "synthesis-manifest.yaml"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(
+        dedent(
+            """\
+            schema_version: '2'
+            mission_id: null
+            created_at: '2099-01-01T00:00:00+00:00'
+            run_id: 01JTESTRUNIDXXXXXXXXXXXXXX
+            adapter_id: test
+            adapter_version: '0.0.0'
+            synthesizer_version: '0.0.0'
+            manifest_hash: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+            artifacts: []
+            built_in_only: true
+            """
+        ),
+        encoding="utf-8",
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -216,6 +241,10 @@ def e2e_project(tmp_path: Path) -> Path:
         project / ".kittify",
         symlinks=True,
     )
+    charter_path = project / ".kittify" / "charter" / "charter.md"
+    if charter_path.exists():
+        sync_charter(charter_path, charter_path.parent, force=True)
+    _write_built_in_only_manifest(project)
 
     # Copy missions from source location
     missions_src = REPO_ROOT / "src" / "specify_cli" / "missions"

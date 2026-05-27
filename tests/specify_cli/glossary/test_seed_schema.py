@@ -114,6 +114,22 @@ class TestGlossarySeedTermConfidenceValidation:
         with pytest.raises(ValidationError, match="confidence must be 0.0..1.0"):
             GlossarySeedTerm(surface="term", definition="Def", confidence=1.01)
 
+    def test_string_confidence_rejected(self) -> None:
+        with pytest.raises(ValidationError, match="confidence must be a number"):
+            GlossarySeedTerm(
+                surface="term",
+                definition="Def",
+                confidence="0.5",  # type: ignore[arg-type]
+            )
+
+    def test_bool_confidence_rejected(self) -> None:
+        with pytest.raises(ValidationError, match="confidence must be a number"):
+            GlossarySeedTerm(
+                surface="term",
+                definition="Def",
+                confidence=True,  # type: ignore[arg-type]
+            )
+
 
 class TestGlossarySeedTermStatusValidation:
     """Status enum validator tests."""

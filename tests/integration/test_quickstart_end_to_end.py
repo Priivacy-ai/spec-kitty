@@ -31,7 +31,6 @@ Runtime budget: <30s on a typical dev laptop. Skips are explicit and named.
 
 from __future__ import annotations
 
-import hashlib
 import json
 from pathlib import Path
 from textwrap import dedent
@@ -40,6 +39,8 @@ from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
+
+from charter.hasher import hash_content
 
 
 pytestmark = [pytest.mark.integration, pytest.mark.slow]
@@ -87,13 +88,13 @@ def _write_charter_and_metadata(repo: Path) -> None:
     charter_path = charter_dir / "charter.md"
     metadata_path = charter_dir / "metadata.yaml"
     charter_path.write_text("# Charter\n", encoding="utf-8")
-    digest = hashlib.sha256(charter_path.read_bytes()).hexdigest()
+    digest = hash_content(charter_path.read_text(encoding="utf-8"))
     # Use a plain-string timestamp to dodge the ruamel-->datetime
     # serialisation issue called out by test_charter_status_freshness.py.
     metadata_path.write_text(
         dedent(
             f"""\
-            charter_hash: sha256:{digest}
+            charter_hash: {digest}
             extracted_at: "2026-01-01T00:00:00+00:00"
             """
         ),
