@@ -2072,6 +2072,7 @@ version = "3.2.0rc27"
 source = { editable = "." }
 dependencies = [
     { name = "charset-normalizer" },
+    { name = "click" },
     { name = "cryptography" },
     { name = "filelock" },
     { name = "google-re2" },
@@ -2138,6 +2139,7 @@ requires-dist = [
     { name = "build", marker = "extra == 'test'", specifier = ">=1.0.0" },
     { name = "chardet", marker = "extra == 'test'", specifier = ">=3.0.4,<6" },
     { name = "charset-normalizer", specifier = ">=3.4,<4" },
+    { name = "click", specifier = ">=8.2.1" },
     { name = "cryptography", specifier = ">=42.0" },
     { name = "cyclonedx-bom", marker = "extra == 'lint'", specifier = ">=4.0" },
     { name = "diff-cover", marker = "extra == 'test'", specifier = ">=10.0.0" },
