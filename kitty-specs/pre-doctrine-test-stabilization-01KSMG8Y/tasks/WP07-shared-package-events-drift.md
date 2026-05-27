@@ -19,7 +19,7 @@ agent: claude
 history:
 - date: '2026-05-27'
   event: created
-agent_profile: implementer-ivan
+agent_profile: debugger-debbie
 authoritative_surface: src/specify_cli/sync/
 execution_mode: code_change
 owned_files:
@@ -28,14 +28,14 @@ owned_files:
 - src/specify_cli/spec_kitty_events/
 - tests/sync/**
 - tests/contract/**
-role: implementer
+role: investigator
 tags: []
 ---
 
 ## ⚡ Do This First: Load Agent Profile
 
 ```
-/ad-hoc-profile-load implementer-ivan
+/ad-hoc-profile-load debugger-debbie
 ```
 
 ---

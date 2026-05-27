@@ -20,7 +20,7 @@ agent: claude
 history:
 - date: '2026-05-27'
   event: created
-agent_profile: implementer-ivan
+agent_profile: python-pedro
 authoritative_surface: src/specify_cli/audit/classifiers/
 execution_mode: code_change
 owned_files:
@@ -36,7 +36,7 @@ tags: []
 ## ⚡ Do This First: Load Agent Profile
 
 ```
-/ad-hoc-profile-load implementer-ivan
+/ad-hoc-profile-load python-pedro
 ```
 
 ---
