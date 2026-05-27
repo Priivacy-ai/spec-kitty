@@ -20,8 +20,8 @@ subtasks:
 - T007
 - T008
 
-shell_pid: "36710"
-agent: "claude:claude-sonnet-4-6:python-pedro:implementer"
+shell_pid: "183415"
+agent: "claude:claude-sonnet-4-6:curator-carla:reviewer"
 history:
 - date: '2026-05-27'
   event: created
@@ -334,3 +334,4 @@ spec-kitty agent action implement WP02 --agent claude
 
 - 2026-05-27T12:19:05Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=36710 – Assigned agent via action command
 - 2026-05-27T12:25:50Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=36710 – T004-T008 complete: README governance, wp_files lane guard, doctrine CLI removed
+- 2026-05-27T12:26:19Z – claude:claude-sonnet-4-6:curator-carla:reviewer – shell_pid=183415 – Started review via action command
