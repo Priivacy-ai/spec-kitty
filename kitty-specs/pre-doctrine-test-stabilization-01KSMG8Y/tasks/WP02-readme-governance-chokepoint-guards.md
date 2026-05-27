@@ -20,7 +20,8 @@ subtasks:
 - T007
 - T008
 
-shell_pid: '36710'
+shell_pid: "36710"
+agent: "claude:claude-sonnet-4-6:python-pedro:implementer"
 history:
 - date: '2026-05-27'
   event: created
@@ -328,3 +329,7 @@ spec-kitty agent action implement WP02 --agent claude
 3. New test must exercise the NO-event-log path specifically (not just any classifier test)
 4. `commands/__init__.py` must have zero doctrine references; charter must remain
 </content>
+
+## Activity Log
+
+- 2026-05-27T12:19:05Z – claude:claude-sonnet-4-6:python-pedro:implementer – shell_pid=36710 – Assigned agent via action command
