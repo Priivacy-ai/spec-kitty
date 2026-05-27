@@ -16,7 +16,8 @@ subtasks:
 - T002
 - T003
 
-shell_pid: '35769'
+shell_pid: "35769"
+agent: "claude:claude-sonnet-4-6:implementer-ivan:implementer"
 history:
 - date: '2026-05-27'
   event: created
@@ -203,3 +204,7 @@ spec-kitty agent action implement WP01 --agent claude
 3. Confirm both gemini and qwen parity tests pass
 4. Confirm C-009 is satisfied: template fix and snapshot refresh are in the same commit
 </content>
+
+## Activity Log
+
+- 2026-05-27T12:18:58Z – claude:claude-sonnet-4-6:implementer-ivan:implementer – shell_pid=35769 – Assigned agent via action command
