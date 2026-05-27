@@ -210,9 +210,9 @@
 **Profile**: `debugger-debbie`  
 
 **Included subtasks:**
-- [ ] T023 Investigate decide_next_via_runtime return value for terminal states (WP06)
-- [ ] T024 Fix Decision.kind return for terminal states in runtime_bridge.py (WP06)
-- [ ] T025 Update mock target in test_query_mode_unit.py if patch path changed (WP06)
+- [x] T023 Investigate decide_next_via_runtime return value for terminal states (WP06)
+- [x] T024 Fix Decision.kind return for terminal states in runtime_bridge.py (WP06)
+- [x] T025 Update mock target in test_query_mode_unit.py if patch path changed (WP06)
 
 **Implementation notes:**
 1. Run `pytest tests/next/ -v --tb=long` first to identify divergence point
