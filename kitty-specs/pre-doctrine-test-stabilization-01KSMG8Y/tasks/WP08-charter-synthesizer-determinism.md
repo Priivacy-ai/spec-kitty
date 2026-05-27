@@ -8,19 +8,23 @@ tracker_refs: []
 planning_base_branch: feat/pre-doctrine-stabilization-remediation
 merge_target_branch: feat/pre-doctrine-stabilization-remediation
 branch_strategy: Planning artifacts for this mission were generated on feat/pre-doctrine-stabilization-remediation. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/pre-doctrine-stabilization-remediation unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-pre-doctrine-test-stabilization-01KSMG8Y
+base_commit: fcec446d1be3c2c67d5ce9f0bc36a40133fe6684
+created_at: '2026-05-27T12:19:36.655895+00:00'
 subtasks:
 - T032
 - T033
 - T034
 - T035
 
-model: claude-sonnet-4-6
+shell_pid: '40565'
 history:
 - date: '2026-05-27'
   event: created
 agent_profile: python-pedro
 authoritative_surface: src/charter/synthesizer/
 execution_mode: code_change
+model: claude-sonnet-4-6
 owned_files:
 - src/charter/synthesizer/**
 - tests/charter/synthesizer/**
