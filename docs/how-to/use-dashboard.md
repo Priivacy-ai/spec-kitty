@@ -29,7 +29,7 @@ Spec Kitty records the active dashboard URL in `.kittify/.dashboard`. If the bro
 
 ### Kanban Board
 
-The kanban board mirrors the lane workflow (`planned -> doing -> for_review -> done`).
+The kanban board mirrors the lane workflow (`planned -> doing -> for_review -> in_review -> approved -> done`). `approved` means review passed and merge pending; `done` means merged/integrated.
 
 ![Spec Kitty Dashboard - Kanban Board View](../assets/images/dashboard-kanban.png)
 

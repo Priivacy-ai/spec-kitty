@@ -117,11 +117,11 @@ Managed by the mission type's step DAG and `spec-kitty next`.
 
 **WP status** -- where is each work package in its lifecycle?
 ```
-planned --> claimed --> in_progress --> for_review --> approved --> done
+planned --> claimed --> in_progress --> for_review --> in_review --> approved --> done
 ```
 Managed by the status model (append-only event log).
 
-Together they determine what `spec-kitty next` returns: "We're in the implement action, WP01 is done, WP02 is in_progress, WP03 is planned -- your next action is implement WP03."
+Together they determine what `spec-kitty next` returns: "We're in the implement action, WP01 is approved, WP02 is in_progress, WP03 is planned -- your next action is implement WP03."
 
 ## The Four Built-In Missions
 

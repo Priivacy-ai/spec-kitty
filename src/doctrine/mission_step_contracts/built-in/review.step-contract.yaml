@@ -52,8 +52,8 @@ steps:
         - stopping-conditions
 
   - id: status_transition
-    description: Move WP to done or request changes
-    command: "spec-kitty agent tasks move-task {wp_id} --to done"
+    description: Move WP to approved or request changes
+    command: "spec-kitty agent tasks move-task {wp_id} --to approved"
     guidance: >
       If changes are needed, move to in_progress with a reason.
-      If approved, move to done with evidence.
+      If review passes, move to approved with evidence. Merge later records done.

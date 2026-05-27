@@ -323,6 +323,10 @@ spec-kitty orchestrator-api accept-mission --mission TEXT --actor TEXT
 | Field | Type | Description |
 |-------|------|-------------|
 | `accepted` | bool | True if mission was accepted |
+| `accepted_wps` | list[string] | WPs counted by mission acceptance (`approved` plus `done`) |
+| `approved_wps` | list[string] | Review-passed WPs still awaiting merge/integration |
+| `done_wps` | list[string] | WPs already merged/integrated |
+| `merge_pending_wps` | list[string] | Alias of `approved_wps`; WPs accepted-ready but not done |
 
 **Error codes:**
 
@@ -334,6 +338,7 @@ spec-kitty orchestrator-api accept-mission --mission TEXT --actor TEXT
 
 - Always call `mission-state` first to verify every WP is in `approved` or `done`
 - This is a guard-protected operation; it will reject if any WP is not `approved` or `done`
+- `accept-mission` does not move WPs from `approved` to `done`; merge owns that transition
 
 
 ---

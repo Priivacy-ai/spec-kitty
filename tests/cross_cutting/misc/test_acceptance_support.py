@@ -133,7 +133,9 @@ def test_perform_acceptance_without_commit(feature_repo: Path, mission_slug: str
     assert payload["mode"] == ACCEPTANCE_MODE_CHECKLIST
 
 
-def test_accept_command_closes_approved_wps(feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_accept_command_reports_approved_wps_without_closing(
+    feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
     import specify_cli.status.emit as status_emit
     from tests.utils import run, write_wp
 
@@ -166,17 +168,21 @@ def test_accept_command_closes_approved_wps(feature_repo: Path, mission_slug: st
     assert result.exit_code == 0, result.output
     assert "to_lane in {'approved', 'done'} requires evidence" not in result.output
     payload = json.loads(result.output)
-    assert payload["closed_wps"] == ["WP01", "WP02"]
-    assert payload["already_done_wps"] == []
-    assert payload["summary"]["lanes"]["approved"] == []
-    assert payload["summary"]["lanes"]["done"] == ["WP01", "WP02"]
+    assert payload["accepted_wps"] == ["WP01", "WP02"]
+    assert payload["approved_wps"] == ["WP01", "WP02"]
+    assert payload["done_wps"] == []
+    assert payload["merge_pending_wps"] == ["WP01", "WP02"]
+    assert payload["summary"]["lanes"]["approved"] == ["WP01", "WP02"]
+    assert payload["summary"]["lanes"]["done"] == []
 
     summary = acc.collect_feature_summary(feature_repo, mission_slug, strict_metadata=True)
-    assert summary.lanes["approved"] == []
-    assert summary.lanes["done"] == ["WP01", "WP02"]
+    assert summary.lanes["approved"] == ["WP01", "WP02"]
+    assert summary.lanes["done"] == []
 
 
-def test_accept_no_commit_reports_would_close_without_mutation(feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_accept_no_commit_reports_merge_pending_without_mutation(
+    feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
     import specify_cli.status.emit as status_emit
     from specify_cli.status.store import read_events
     from tests.utils import run
@@ -209,15 +215,19 @@ def test_accept_no_commit_reports_would_close_without_mutation(feature_repo: Pat
 
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
-    assert payload["closed_wps"] == []
-    assert payload["would_close_wps"] == ["WP01"]
+    assert payload["accepted_wps"] == ["WP01"]
+    assert payload["approved_wps"] == ["WP01"]
+    assert payload["done_wps"] == []
+    assert payload["merge_pending_wps"] == ["WP01"]
     assert len(read_events(feature_dir)) == before_events
     summary = acc.collect_feature_summary(feature_repo, mission_slug, strict_metadata=True)
     assert summary.lanes["approved"] == ["WP01"]
 
 
-def test_accept_rejects_approved_wp_without_evidence(feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Accept must refuse to close a WP that reached approved without review evidence."""
+def test_accept_does_not_require_done_evidence_for_approved_wp(
+    feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Accept records mission acceptance; merge owns approved -> done closure."""
     import specify_cli.status.emit as status_emit
     from specify_cli.status.emit import emit_status_transition
     from specify_cli.status.store import read_events
@@ -262,9 +272,15 @@ def test_accept_rejects_approved_wp_without_evidence(feature_repo: Path, mission
         ["accept", "--mission", mission_slug, "--mode", "local", "--actor", "tester", "--json"],
     )
 
-    assert result.exit_code == 1
-    assert "no review evidence" in result.output
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["accepted_wps"] == ["WP01"]
+    assert payload["approved_wps"] == ["WP01"]
+    assert payload["done_wps"] == []
+    assert payload["merge_pending_wps"] == ["WP01"]
     assert len(read_events(feature_dir)) == before_events
+    summary = acc.collect_feature_summary(feature_repo, mission_slug, strict_metadata=True)
+    assert summary.lanes["approved"] == ["WP01"]
 
 
 def test_accept_protected_branch_no_mutation(feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch) -> None:

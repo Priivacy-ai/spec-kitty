@@ -195,9 +195,10 @@ class AcceptanceResult:
     instructions: list[str]
     cleanup_instructions: list[str]
     notes: list[str] = field(default_factory=list)
-    closed_wps: list[str] = field(default_factory=list)
-    already_done_wps: list[str] = field(default_factory=list)
-    would_close_wps: list[str] = field(default_factory=list)
+    accepted_wps: list[str] = field(default_factory=list)
+    approved_wps: list[str] = field(default_factory=list)
+    done_wps: list[str] = field(default_factory=list)
+    merge_pending_wps: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -210,9 +211,10 @@ class AcceptanceResult:
             "instructions": self.instructions,
             "cleanup_instructions": self.cleanup_instructions,
             "notes": self.notes,
-            "closed_wps": self.closed_wps,
-            "already_done_wps": self.already_done_wps,
-            "would_close_wps": self.would_close_wps,
+            "accepted_wps": self.accepted_wps,
+            "approved_wps": self.approved_wps,
+            "done_wps": self.done_wps,
+            "merge_pending_wps": self.merge_pending_wps,
             "summary": self.summary.to_dict(),
         }
 
@@ -932,6 +934,9 @@ def perform_acceptance(
         notes.append("Validation commands:")
         notes.extend(f"  - {cmd}" for cmd in tests)
 
+    approved_wps = list(summary.lanes.get("approved", []))
+    done_wps = list(summary.lanes.get("done", []))
+
     return AcceptanceResult(
         summary=summary,
         mode=mode,
@@ -943,6 +948,10 @@ def perform_acceptance(
         instructions=instructions,
         cleanup_instructions=cleanup_instructions,
         notes=notes,
+        accepted_wps=[*approved_wps, *done_wps],
+        approved_wps=approved_wps,
+        done_wps=done_wps,
+        merge_pending_wps=approved_wps,
     )
 
 

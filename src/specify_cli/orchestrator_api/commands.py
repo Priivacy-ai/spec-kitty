@@ -994,7 +994,6 @@ def accept_mission(
         return
 
     from specify_cli.acceptance import collect_feature_summary
-    from specify_cli.acceptance.closing import close_approved_wps_for_acceptance
 
     summary = collect_feature_summary(main_repo_root, mission)
     workflow_evidence_issues = [
@@ -1012,21 +1011,6 @@ def accept_mission(
         )
         return
 
-    try:
-        closure = close_approved_wps_for_acceptance(
-            summary,
-            actor=actor,
-            stage_for_commit=False,
-        )
-    except Exception as exc:
-        _fail(
-            cmd,
-            "ACCEPTANCE_CLOSURE_FAILED",
-            str(exc),
-            _mission_identity_payload(mission_dir),
-        )
-        return
-
     # Write acceptance record via centralized metadata writer
     from specify_cli.mission_metadata import record_acceptance
 
@@ -1036,14 +1020,18 @@ def accept_mission(
         accepted_by=actor,
         mode="orchestrator",
     )
+    approved_wps = list(summary.lanes.get("approved", []))
+    done_wps = list(summary.lanes.get("done", []))
 
     data = {
         **_mission_identity_payload(mission_dir),
         "accepted": True,
         "mode": "auto",
         "accepted_at": accepted_at,
-        "closed_wps": closure.closed_wps,
-        "already_done_wps": closure.already_done_wps,
+        "accepted_wps": [*approved_wps, *done_wps],
+        "approved_wps": approved_wps,
+        "done_wps": done_wps,
+        "merge_pending_wps": approved_wps,
     }
     validate_outbound_payload(data, "orchestrator_api")
     envelope = make_envelope(

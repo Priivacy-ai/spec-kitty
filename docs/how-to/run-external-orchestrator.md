@@ -50,8 +50,8 @@ The orchestrator loop will typically:
 
 1. Read ready WPs via `list-ready`.
 2. Claim/start via `start-implementation`.
-3. Transition through `for_review` and `done` via host API calls.
-4. Continue until all WPs are terminal.
+3. Transition through `for_review`, `in_review`, and `approved` via host API calls.
+4. Continue until all WPs are accepted-ready (`approved` or `done`); merge later records `done`.
 
 ## 4. Monitor or Recover
 

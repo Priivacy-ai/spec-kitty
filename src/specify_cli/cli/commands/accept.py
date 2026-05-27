@@ -16,10 +16,6 @@ from specify_cli.acceptance import (
     perform_acceptance,
     resolve_acceptance_actor,
 )
-from specify_cli.acceptance.closing import (
-    close_approved_wps_for_acceptance,
-    summary_with_closed_wps,
-)
 from specify_cli.cli import StepTracker
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.cli.helpers import console, show_banner
@@ -79,12 +75,12 @@ def _print_acceptance_result(result: AcceptanceResult) -> None:
         console.print(f"• Parent commit: {result.parent_commit}")
     if not result.commit_created:
         console.print("• Commit status: no changes were committed (dry-run)")
-    if result.closed_wps:
-        console.print(f"• Closed WPs: {', '.join(result.closed_wps)}")
-    if result.already_done_wps:
-        console.print(f"• Already done WPs: {', '.join(result.already_done_wps)}")
-    if result.would_close_wps:
-        console.print(f"• Would close WPs: {', '.join(result.would_close_wps)}")
+    if result.accepted_wps:
+        console.print(f"• Accepted WPs: {', '.join(result.accepted_wps)}")
+    if result.merge_pending_wps:
+        console.print(f"• Merge-pending WPs: {', '.join(result.merge_pending_wps)}")
+    if result.done_wps:
+        console.print(f"• Already merged WPs: {', '.join(result.done_wps)}")
 
     if result.instructions:
         console.print("\n[bold]Next steps[/bold]")
@@ -102,10 +98,14 @@ def _print_acceptance_result(result: AcceptanceResult) -> None:
             console.print(f"  - {note}")
 
 
-def _summary_payload(summary: AcceptanceSummary, *, would_close_wps: list[str] | None = None) -> dict[str, object]:
+def _summary_payload(summary: AcceptanceSummary) -> dict[str, object]:
     payload = summary.to_dict()
-    if would_close_wps is not None:
-        payload["would_close_wps"] = would_close_wps
+    approved_wps = list(summary.lanes.get("approved", []))
+    done_wps = list(summary.lanes.get("done", []))
+    payload["accepted_wps"] = [*approved_wps, *done_wps]
+    payload["approved_wps"] = approved_wps
+    payload["done_wps"] = done_wps
+    payload["merge_pending_wps"] = approved_wps
     return payload
 
 
@@ -202,7 +202,7 @@ def accept(
         if json_output:
             print(
                 json.dumps(
-                    _summary_payload(summary, would_close_wps=summary.lanes.get("approved", [])),
+                    _summary_payload(summary),
                     indent=2,
                 )
             )
@@ -249,23 +249,14 @@ def accept(
                 tests=acceptance_tests,
                 auto_commit=False,
             )
-            result.would_close_wps = list(summary.lanes.get("approved", []))
         else:
-            closure = close_approved_wps_for_acceptance(
-                summary,
-                actor=actor_name,
-                stage_for_commit=commit_required,
-            )
-            closed_summary = summary_with_closed_wps(summary, closure.closed_wps)
             result = perform_acceptance(
-                closed_summary,
+                summary,
                 mode=actual_mode,
                 actor=actor_name,
                 tests=acceptance_tests,
                 auto_commit=commit_required,
             )
-            result.closed_wps = closure.closed_wps
-            result.already_done_wps = closure.already_done_wps
         if commit_required and not json_output:
             detail = "commit created" if result.commit_created else "no changes"
             tracker.complete("commit", detail)

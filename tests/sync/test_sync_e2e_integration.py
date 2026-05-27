@@ -444,7 +444,7 @@ class TestNoDuplicateEmissions:
         emitter.emit_wp_status_changed("WP01", "in_progress", "for_review")
         assert mock_queue.size() == 2
 
-        # Simulate accept (for_review -> done). Done transitions require
+        # Simulate legacy direct completion (for_review -> done). Done transitions require
         # ``evidence`` per the canonical ``StatusTransitionPayload``
         # semantic validator (Phase 1 of #1198/#1200).
         emitter.emit_wp_status_changed(
@@ -586,7 +586,7 @@ class TestFullWorkflowIntegration:
         # 5. Submit for review (doing -> for_review)
         emitter.emit_wp_status_changed("WP01", "in_progress", "for_review")
 
-        # 6. Accept (for_review -> done). Done requires ``evidence`` per
+        # 6. Legacy direct completion (for_review -> done). Done requires ``evidence`` per
         # the canonical ``StatusTransitionPayload`` semantic validator
         # (Phase 1 of #1198/#1200).
         emitter.emit_wp_status_changed(

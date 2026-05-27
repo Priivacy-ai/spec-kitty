@@ -24,6 +24,6 @@ These guidelines govern the quality and correctness standards for work package r
 
 ## Outcome Actions
 
-- Approve: move WP to `done` with a summary note.
+- Approve: move WP to `approved` with a summary note. Merge later records `done`.
 - Reject: write structured feedback to the temp file path shown in the prompt, then move WP back to `planned`.
 - Use the exact temp file path provided by the prompt to avoid conflicts with other review agents.

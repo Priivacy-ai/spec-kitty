@@ -536,8 +536,8 @@ class TestNoDuplicateEmissions:
         assert events[0]["payload"]["from_lane"] == "planned"
         assert events[0]["payload"]["to_lane"] == "in_progress"
 
-    def test_accept_emits_once_per_wp(self, emitter: EventEmitter, temp_queue: OfflineQueue):
-        """accept-style approved -> done fanout emits exactly one event per WP."""
+    def test_merge_emits_once_per_wp(self, emitter: EventEmitter, temp_queue: OfflineQueue):
+        """merge-style approved -> done fanout emits exactly one event per WP."""
         wp_ids = ["WP01", "WP02", "WP03"]
         for wp_id in wp_ids:
             emitter.emit_wp_status_changed(
@@ -551,7 +551,7 @@ class TestNoDuplicateEmissions:
         # Verify exactly 3 events (one per WP, not 6)
         assert temp_queue.size() == 3, f"Expected 3 emissions (one per WP), got {temp_queue.size()}"
 
-        # Verify all events are for_review -> done
+        # Verify all events are approved -> done
         events = temp_queue.drain_queue()
         for event in events:
             assert event["event_type"] == "WPStatusChanged"

@@ -171,9 +171,9 @@ class TestGuardConditions:
         assert 'artifact_exists("plan.md")' in conditions
         assert 'artifact_exists("tasks.md")' in conditions
 
-    def test_implement_to_review_requires_all_wp_done(self, software_dev_config: dict) -> None:
+    def test_implement_to_review_requires_all_wp_accepted_ready(self, software_dev_config: dict) -> None:
         t = self._get_transition(software_dev_config, "implement", "advance")
-        assert 'all_wp_status("done")' in t["conditions"]
+        assert 'all_wp_status("approved_or_done")' in t["conditions"]
 
     def test_review_to_done_requires_review_approved(self, software_dev_config: dict) -> None:
         t = self._get_transition(software_dev_config, "review", "advance")
@@ -201,7 +201,7 @@ class TestGuardsSection:
         assert len(guards) == 5
 
     def test_guard_names(self, software_dev_config: dict) -> None:
-        expected = {"has_spec", "has_plan", "has_tasks", "all_wps_done", "review_passed"}
+        expected = {"has_spec", "has_plan", "has_tasks", "all_wps_accepted", "review_passed"}
         assert set(software_dev_config["guards"].keys()) == expected
 
     def test_each_guard_has_description_and_check(self, software_dev_config: dict) -> None:

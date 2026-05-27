@@ -63,9 +63,9 @@ Different missions in the same project can use different mission types simultane
 The loop works with two orthogonal state machines:
 
 - **Mission action state** -- which outer lifecycle action are we in? (`specify`, `plan`, `implement`, ...)
-- **WP status** -- where is each work package in its lifecycle? (planned, claimed, in_progress, for_review, done)
+- **WP status** -- where is each work package in its lifecycle? (planned, claimed, in_progress, for_review, in_review, approved, done)
 
-Together they determine the next action. For example: "We are in the implement phase, WP01 is done, WP02 is in_progress, WP03 is planned -- your next action is implement WP03."
+Together they determine the next action. For example: "We are in the implement phase, WP01 is approved, WP02 is in_progress, WP03 is planned -- your next action is implement WP03."
 
 Agents call `spec-kitty next` in a loop, executing whatever it returns until the mission is complete. This keeps agent behavior deterministic and auditable -- the runtime decides what happens next, not the agent.
 

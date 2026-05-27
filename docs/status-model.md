@@ -206,7 +206,7 @@ spec-kitty agent tasks move-task WP01 --to doing
 | `for_review` | Implementation complete, awaiting review | No |
 | `in_review` | Reviewer actively examining implementation | No |
 | `approved` | Review passed, awaiting merge | No |
-| `done` | Merged and accepted | Yes (unless forced) |
+| `done` | Merged/integrated into the mission target branch | Yes (unless forced) |
 | `blocked` | Blocked by external dependency or issue | No |
 | `canceled` | Permanently abandoned | Yes |
 
@@ -269,7 +269,7 @@ blocked     -> canceled
 | `in_progress -> approved` | Reviewer approval evidence required | "Missing review approval evidence" |
 | `for_review -> in_review` | Actor identity required (conflict detection) | "Transition for_review -> in_review requires actor identity" |
 | `in_review -> *` (all outbound) | ReviewResult required in TransitionContext | "in_review outbound transitions require ReviewResult" |
-| `approved -> done` | Reviewer approval evidence required | "Missing review approval evidence" |
+| `approved -> done` | Merge/integration evidence required | "Missing merge evidence" |
 | `approved -> in_progress` | Review feedback reference required | "Missing review feedback reference" |
 | `approved -> planned` | Review feedback reference required | "Missing review feedback reference" |
 | `in_progress -> planned` | Reason required | "Transition in_progress -> planned requires reason" |

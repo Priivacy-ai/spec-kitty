@@ -33,7 +33,7 @@ It is probably overkill for one-off edits, tiny scripts, or teams that do not us
 | --- | --- |
 | Start from intent | Guided `specify`, `plan`, and `tasks` workflows |
 | Keep agents aligned | Repository-native mission artifacts under `kitty-specs/` |
-| Split implementation | Work packages with lifecycle lanes such as `planned`, `in_progress`, `for_review`, and `done` |
+| Split implementation | Work packages with lifecycle lanes such as `planned`, `in_progress`, `for_review`, `approved`, and `done` |
 | Avoid branch chaos | Isolated git worktrees under `.worktrees/` |
 | See progress | Optional local kanban dashboard with `spec-kitty dashboard` |
 | Integrate agents | Slash commands or skills for common AI coding tools |
