@@ -11,12 +11,16 @@ tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-glossary-seed-file-schema-validation-01KSN752
+base_commit: efec054539979268c404cee54726d746657776c4
+created_at: '2026-05-27T17:50:19.061553+00:00'
 subtasks:
 - T007
 - T008
 - T009
 - T010
-agent: claude
+agent: "claude:opus:implementer-ivan:implementer"
+shell_pid: "67262"
 history:
 - at: '2026-05-27T17:32:55+00:00'
   event: created
@@ -250,3 +254,7 @@ The translation must handle:
 - Verify error translation handles all Pydantic `loc` shapes (file-level, term-level, field-level)
 - Check that term_surface is extracted from input data for context, not from the error itself
 - Confirm `validate_seed_file_data` is a pure function with no side effects (no file I/O)
+
+## Activity Log
+
+- 2026-05-27T17:50:19Z – claude:opus:implementer-ivan:implementer – shell_pid=67262 – Assigned agent via action command
