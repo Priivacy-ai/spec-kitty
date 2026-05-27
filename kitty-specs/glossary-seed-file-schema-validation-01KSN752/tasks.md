@@ -68,10 +68,10 @@
 **Goal**: Build the validation orchestration layer that translates Pydantic errors into structured `SeedValidationError` lists and validates scope filenames.
 
 **Subtasks**:
-- [ ] T007 Create `validate_seed_file_data()` in `src/specify_cli/glossary/seed_validation.py` (WP02)
-- [ ] T008 Add `validate_scope_filename()` in `src/specify_cli/glossary/seed_validation.py` (WP02)
-- [ ] T009 Implement Pydantic `ValidationError` → `SeedValidationError` translation logic (WP02)
-- [ ] T010 Write unit tests in `tests/specify_cli/glossary/test_seed_validation.py` (WP02)
+- [x] T007 Create `validate_seed_file_data()` in `src/specify_cli/glossary/seed_validation.py` (WP02)
+- [x] T008 Add `validate_scope_filename()` in `src/specify_cli/glossary/seed_validation.py` (WP02)
+- [x] T009 Implement Pydantic `ValidationError` → `SeedValidationError` translation logic (WP02)
+- [x] T010 Write unit tests in `tests/specify_cli/glossary/test_seed_validation.py` (WP02)
 
 **Implementation sketch**: Create seed_validation.py. The main fn parses YAML dict via `GlossarySeedFile.model_validate()`, catches `ValidationError`, translates each error's `loc` tuple into file/term/field context. Scope filename validator maps against `GlossaryScope` enum values.
 
