@@ -76,7 +76,7 @@
     "globalMetadata": {
       "_appTitle": "Spec Kitty Documentation",
       "_appName": "Spec Kitty",
-      "_appFooter": "Spec Kitty documentation — tutorials, how-to guides, reference, and explanations",
+      "_appFooter": "Spec Kitty documentation — tutorials, how-to guides, reference, and explanations · <a href=\"https://docs.spec-kitty.ai/1x/\">1.x docs</a> · <a href=\"https://docs.spec-kitty.ai/2x/\">2.x docs</a>",
       "_enableSearch": true,
       "_disableContribution": false,
       "_gitContribute": {
