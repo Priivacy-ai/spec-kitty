@@ -205,6 +205,8 @@ _Charter management commands_
 │ interview     Capture charter interview answers for later generation.        │
 │ generate      Generate charter bundle from interview answers + doctrine      │
 │               references.                                                    │
+│ commit        Commit generated charter files via the shared safe-commit      │
+│               path.                                                          │
 │ context       Render charter context for a specific workflow action.         │
 │ sync          Sync charter.md to structured YAML config files.               │
 │ status        Display charter sync status plus synthesis/operator state.     │
@@ -270,6 +272,21 @@ _Charter bundle validation commands._
 │                                               `org_charter` describes        │
 │                                               imported org packs.            │
 │    --help                                     Show this message and exit.    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter commit
+
+```
+ Usage: spec-kitty charter commit [OPTIONS]
+
+ Commit generated charter files via the shared safe-commit path.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --message  -m      TEXT  Commit message for charter changes.                 │
+│                          [default: chore: generate project charter]          │
+│ --json                   Output JSON                                         │
+│ --help                   Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
