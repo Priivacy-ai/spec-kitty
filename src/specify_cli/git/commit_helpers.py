@@ -67,7 +67,7 @@ class SafeCommitBackstopError(RuntimeError):
 
 
 class ProtectedBranchCommitError(RuntimeError):
-    """Raised when a Spec Kitty ceremony commit would land on a protected branch."""
+    """Raised when a Spec Kitty status commit would land on a protected branch."""
 
 
 _DEFAULT_PROTECTED_BRANCHES = frozenset({"main", "master"})
@@ -119,7 +119,7 @@ def _remote_default_branch(repo_path: Path) -> str | None:
 
 
 def protected_branches(repo_path: Path) -> frozenset[str]:
-    """Return branch names that must not receive Spec Kitty ceremony commits."""
+    """Return branch names that must not receive Spec Kitty status commits."""
     branches = set(_DEFAULT_PROTECTED_BRANCHES)
     if default_branch := _remote_default_branch(repo_path):
         branches.add(default_branch)
@@ -127,14 +127,14 @@ def protected_branches(repo_path: Path) -> frozenset[str]:
 
 
 def assert_not_protected_branch(repo_path: Path, *, operation: str = "commit") -> None:
-    """Fail loudly before a Spec Kitty ceremony commit can pollute local main.
+    """Fail loudly before a Spec Kitty status commit can pollute local main.
 
     The guard is bypassed when either of:
     - ``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS`` is set to a truthy value
       (``1``, ``true``, ``yes``) — opt-in for solo-fork operators who own ``main``.
     - ``SPEC_KITTY_TEST_MODE=1`` is set — the test-mode marker the conftest sets
       on its isolated environment. Test fixtures create projects on ``main`` and
-      exercise ceremony commands directly; forcing every fixture to fork a lane
+      exercise status-writing commands directly; forcing every fixture to fork a lane
       branch would multiply boilerplate without testing anything the production
       guard cares about.
     """
@@ -152,7 +152,7 @@ def assert_not_protected_branch(repo_path: Path, *, operation: str = "commit") -
     if branch and branch in protected_branches(repo_path):
         raise ProtectedBranchCommitError(
             f"Refusing to {operation} on protected branch '{branch}' in {repo_path}. "
-            "Run ceremony write operations from the mission lane branch/worktree."
+            "Run status-writing operations from the mission lane branch/worktree."
         )
 
 

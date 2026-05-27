@@ -102,8 +102,8 @@ def test_safe_commit_preserves_unrelated_staged_files(git_repo: Path):
     assert "Update WP01 status to doing" in log_result.stdout
 
 
-def test_safe_commit_blocks_spec_kitty_ceremony_commit_on_protected_branch(git_repo: Path):
-    """Spec Kitty ceremony commits must fail loudly before polluting local main."""
+def test_safe_commit_blocks_spec_kitty_status_commit_on_protected_branch(git_repo: Path):
+    """Spec Kitty status commits must fail loudly before polluting local main."""
     subprocess.run(["git", "branch", "-M", "main"], cwd=git_repo, check=True)
     (git_repo / ".kittify").mkdir()
     (git_repo / ".kittify" / "config.json").write_text("{}\n")

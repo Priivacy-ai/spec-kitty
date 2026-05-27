@@ -167,7 +167,7 @@ def test_generate_in_non_git_dir_fails_fast(tmp_path: Path) -> None:
 
 def test_generate_stages_produced_files(tmp_path: Path) -> None:
     """After ``charter generate`` succeeds, ``git ls-files --stage`` MUST
-    include ``.kittify/charter/charter.md`` (the manifest's tracked file).
+    include the generated charter commit inputs.
     """
     _git_init(tmp_path)
     _write_minimal_interview(tmp_path)
@@ -186,10 +186,34 @@ def test_generate_stages_produced_files(tmp_path: Path) -> None:
     finally:
         os.chdir(old_cwd)
 
-    assert ".kittify/charter/charter.md" in staged, (
-        f"charter.md must be auto-staged after generate; "
-        f"got staged paths: {staged!r}"
+    expected = {
+        ".gitignore",
+        ".kittify/charter/charter.md",
+        ".kittify/charter/references.yaml",
+    }
+    assert expected.issubset(set(staged)), (
+        f"generated charter commit inputs must be auto-staged after generate; "
+        f"expected={expected!r}, got staged paths: {staged!r}"
     )
+
+
+def test_generate_from_interview_fails_when_answers_missing(tmp_path: Path) -> None:
+    """``--from-interview`` must not silently fall back to defaults."""
+    _git_init(tmp_path)
+
+    old_cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+        result = runner.invoke(
+            charter_app, ["generate", "--from-interview"],
+            catch_exceptions=False,
+        )
+    finally:
+        os.chdir(old_cwd)
+
+    assert result.exit_code != 0
+    assert "No charter interview answers found" in result.stdout
+    assert not (tmp_path / ".kittify" / "charter" / "charter.md").exists()
 
 
 # ---------------------------------------------------------------------------
@@ -230,3 +254,53 @@ def test_generate_does_not_disturb_unrelated_staged_changes(
         f"pre-staged README.md must remain staged; got {staged!r}"
     )
     assert ".kittify/charter/charter.md" in staged
+
+
+def test_charter_commit_uses_safe_commit_for_generated_files(tmp_path: Path) -> None:
+    """``charter commit`` creates the charter commit without raw git commit."""
+    _git_init(tmp_path)
+    _write_minimal_interview(tmp_path)
+    subprocess.run(
+        ["git", "switch", "-c", "charter/update"],
+        cwd=tmp_path, check=True, capture_output=True, text=True,
+    )
+
+    old_cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+        gen = runner.invoke(
+            charter_app, ["generate", "--from-interview"],
+            catch_exceptions=False,
+        )
+        assert gen.exit_code == 0, f"generate failed: {gen.stdout!r}"
+
+        committed = runner.invoke(
+            charter_app, ["commit", "--message", "chore: generate project charter", "--json"],
+            catch_exceptions=False,
+        )
+        assert committed.exit_code == 0, f"commit failed: {committed.stdout!r}"
+    finally:
+        os.chdir(old_cwd)
+
+    log = subprocess.run(
+        ["git", "log", "-1", "--pretty=%s"],
+        cwd=tmp_path, check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    assert log == "chore: generate project charter"
+
+
+def test_charter_template_uses_safe_commit_command() -> None:
+    """Slash prompt must route commits through Spec Kitty, not raw git commit."""
+    import specify_cli
+
+    template = (
+        Path(specify_cli.__file__).parent
+        / "missions"
+        / "software-dev"
+        / "command-templates"
+        / "charter.md"
+    ).read_text(encoding="utf-8")
+
+    assert "spec-kitty charter commit" in template
+    assert "git commit" not in template
+    assert "Listen intently" in template
