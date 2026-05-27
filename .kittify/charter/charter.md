@@ -113,6 +113,19 @@ The former `2.x` branch was merged into `main` when the SaaS transformation reac
 
 **Rule for agents:** When CI shows "Protect Main Branch: failure" after `spec-kitty merge`, ignore it. Monitor **CI Quality** only — that is the authoritative signal for code correctness.
 
+### Agent Push Authorization (binding)
+
+Agents are **not allowed** to push directly to `origin/main` during normal spec-kitty mission workflows. The protected-branch guard in `safe_commit` exists to prevent status commits from landing on local `main`; agents must not bypass it with raw `git commit` and `git push`.
+
+**Authorized push paths to `origin/main`:**
+- `spec-kitty merge` — the merge command pushes the final squash-merged result to `origin/main` as part of its atomic merge flow. This is the only automated path.
+- Express HiC (Human in Charge) authorization — if the human explicitly instructs the agent to push to `origin/main`, the agent may do so for that specific instruction only. Standing authorization does not carry across sessions or missions.
+
+**When `safe_commit` refuses on a protected branch, agents must:**
+1. Use the mission lane branch/worktree as intended by the workflow.
+2. If planning artifacts need to land on `main`, ask the HiC whether to set `SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1` or create a PR branch.
+3. Never silently work around the guard with raw git commands.
+
 ### Historical Context
 
 The 1.x/2.x branch split was originally documented in [ADR-12: Two-Branch Strategy for SaaS Transformation](../../architecture/adrs/2026-01-27-12-two-branch-strategy-for-saas-transformation.md). That strategy served its purpose during the SaaS transformation and is now superseded by single-branch development on `main`.
