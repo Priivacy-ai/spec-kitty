@@ -64,8 +64,12 @@ from .exceptions import (
     BlockedByConflict,
     DeferredToAsync,
     AbortResume,
+    SeedValidationError,
+    SeedFileValidationError,
 )
 from .scope import GlossaryScope, load_seed_file, save_seed_file
+from .seed_schema import GlossarySeedFile, GlossarySeedTerm
+from .seed_validation import validate_seed_file_data, validate_scope_filename
 from .store import GlossaryStore
 from .resolution import resolve_term
 from .extraction import ExtractedTerm, extract_all_terms
@@ -139,10 +143,17 @@ __all__ = [
     "BlockedByConflict",
     "DeferredToAsync",
     "AbortResume",
+    "SeedValidationError",
+    "SeedFileValidationError",
     # Scopes & Resolution
     "GlossaryScope",
     "load_seed_file",
     "save_seed_file",
+    # Seed Schema & Validation
+    "GlossarySeedFile",
+    "GlossarySeedTerm",
+    "validate_seed_file_data",
+    "validate_scope_filename",
     "GlossaryStore",
     "resolve_term",
     # Extraction

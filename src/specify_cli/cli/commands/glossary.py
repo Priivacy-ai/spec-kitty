@@ -24,11 +24,13 @@ from specify_cli.glossary.events import (
     get_event_log_path,
     read_events,
 )
+from specify_cli.glossary.exceptions import SeedFileValidationError
 from specify_cli.glossary.models import (
     TermSense,
     TermSurface,
 )
 from specify_cli.glossary.scope import GlossaryScope, _parse_sense_status, load_seed_file
+from specify_cli.glossary.seed_validation import validate_scope_filename, validate_seed_file_data
 from specify_cli.glossary.store import GlossaryStore
 from specify_cli.glossary.strictness import Strictness
 
@@ -739,3 +741,188 @@ def show(
 
     content = page_path.read_text(encoding="utf-8")
     console.print(Markdown(content))
+
+
+# ---------------------------------------------------------------------------
+# validate command
+# ---------------------------------------------------------------------------
+
+
+def _validate_single_file(file_path: Path, json_output: bool) -> None:
+    """Validate a single glossary seed file."""
+    from ruamel.yaml import YAML
+
+    yaml = YAML()
+    yaml.preserve_quotes = True
+
+    try:
+        data = yaml.load(file_path)
+    except Exception as exc:
+        if json_output:
+            result = {
+                "files": [{"path": str(file_path), "valid": False, "term_count": 0,
+                           "errors": [{"term_index": None, "term_surface": None,
+                                       "field": None, "message": f"YAML parse error: {exc}"}]}],
+                "total_files": 1, "valid_files": 0, "invalid_files": 1,
+            }
+            print(json_lib.dumps(result, indent=2))
+        else:
+            console.print(f"[red]YAML parse error in {file_path}: {exc}[/red]")
+        raise typer.Exit(1)
+
+    try:
+        validated = validate_seed_file_data(data, file_path)
+        term_count = len(validated.terms)
+        if json_output:
+            result = {
+                "files": [{"path": str(file_path), "valid": True,
+                           "term_count": term_count, "errors": []}],
+                "total_files": 1, "valid_files": 1, "invalid_files": 0,
+            }
+            print(json_lib.dumps(result, indent=2))
+        else:
+            console.print(f"[green]✓[/green] {file_path} — Valid ({term_count} terms)")
+    except SeedFileValidationError as exc:
+        if json_output:
+            errors = [
+                {
+                    "term_index": e.term_index,
+                    "term_surface": e.term_surface,
+                    "field": e.field,
+                    "message": e.message,
+                }
+                for e in exc.errors
+            ]
+            result = {
+                "files": [{"path": str(file_path), "valid": False,
+                           "term_count": 0, "errors": errors}],
+                "total_files": 1, "valid_files": 0, "invalid_files": 1,
+            }
+            print(json_lib.dumps(result, indent=2))
+        else:
+            console.print(f"\n[red]Validating {file_path}...[/red]\n")
+            for e in exc.errors:
+                loc_parts: list[str] = []
+                if e.term_index is not None:
+                    surface_label = f" '{e.term_surface}'" if e.term_surface else ""
+                    loc_parts.append(f"term[{e.term_index}]{surface_label}")
+                if e.field:
+                    loc_parts.append(e.field)
+                loc = " → ".join(loc_parts) if loc_parts else "file"
+                console.print(f"  [red]✗[/red] {loc}: {e.message}")
+            console.print(f"\n{len(exc.errors)} error(s) in {file_path}")
+        raise typer.Exit(1)
+
+
+def _validate_directory(dir_path: Path, json_output: bool) -> None:
+    """Validate all glossary seed files in a directory."""
+    from ruamel.yaml import YAML
+
+    yaml_files = sorted(dir_path.glob("*.yaml"))
+    if not yaml_files:
+        if json_output:
+            print(json_lib.dumps({"files": [], "total_files": 0,
+                                  "valid_files": 0, "invalid_files": 0}, indent=2))
+        else:
+            console.print(f"[yellow]No .yaml files found in {dir_path}[/yellow]")
+        return
+
+    yaml = YAML()
+    yaml.preserve_quotes = True
+    file_results: list[dict] = []
+    invalid_count = 0
+
+    for yaml_file in yaml_files:
+        # Check scope filename
+        scope = validate_scope_filename(yaml_file)
+        if scope is None and not json_output:
+            console.print(
+                f"[yellow]⚠ {yaml_file.name}: not a recognized scope filename "
+                f"(expected one of: {', '.join(f'{s.value}.yaml' for s in GlossaryScope)})[/yellow]"
+            )
+
+        try:
+            data = yaml.load(yaml_file)
+        except Exception as exc:
+            file_results.append({
+                "path": str(yaml_file), "valid": False, "term_count": 0,
+                "errors": [{"term_index": None, "term_surface": None,
+                            "field": None, "message": f"YAML parse error: {exc}"}],
+            })
+            invalid_count += 1
+            if not json_output:
+                console.print(f"[red]✗ {yaml_file.name}: YAML parse error: {exc}[/red]")
+            continue
+
+        try:
+            validated = validate_seed_file_data(data, yaml_file)
+            file_results.append({
+                "path": str(yaml_file), "valid": True,
+                "term_count": len(validated.terms), "errors": [],
+            })
+            if not json_output:
+                console.print(f"[green]✓[/green] {yaml_file.name} — Valid ({len(validated.terms)} terms)")
+        except SeedFileValidationError as exc:
+            errors = [
+                {"term_index": e.term_index, "term_surface": e.term_surface,
+                 "field": e.field, "message": e.message}
+                for e in exc.errors
+            ]
+            file_results.append({
+                "path": str(yaml_file), "valid": False,
+                "term_count": 0, "errors": errors,
+            })
+            invalid_count += 1
+            if not json_output:
+                console.print(f"\n[red]✗ {yaml_file.name}:[/red]")
+                for e in exc.errors:
+                    loc_parts: list[str] = []
+                    if e.term_index is not None:
+                        surface_label = f" '{e.term_surface}'" if e.term_surface else ""
+                        loc_parts.append(f"term[{e.term_index}]{surface_label}")
+                    if e.field:
+                        loc_parts.append(e.field)
+                    loc = " → ".join(loc_parts) if loc_parts else "file"
+                    console.print(f"    {loc}: {e.message}")
+
+    valid_count = len(file_results) - invalid_count
+
+    if json_output:
+        print(json_lib.dumps({
+            "files": file_results,
+            "total_files": len(file_results),
+            "valid_files": valid_count,
+            "invalid_files": invalid_count,
+        }, indent=2))
+    else:
+        console.print(
+            f"\nSummary: {invalid_count} of {len(file_results)} file(s) failed validation."
+            if invalid_count
+            else f"\nAll {len(file_results)} file(s) valid."
+        )
+
+    if invalid_count:
+        raise typer.Exit(1)
+
+
+@app.command("validate")
+def validate_cmd(
+    path: Path = typer.Argument(
+        ...,
+        help="Path to a glossary seed file (.yaml) or directory of seed files",
+        exists=True,
+    ),
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Output validation results as JSON",
+    ),
+) -> None:
+    """Validate glossary seed file(s) against the schema."""
+    if path.is_file():
+        _validate_single_file(path, json_output)
+    elif path.is_dir():
+        _validate_directory(path, json_output)
+    else:
+        console.print(f"[red]Error: {path} is not a file or directory[/red]")
+        raise typer.Exit(1)

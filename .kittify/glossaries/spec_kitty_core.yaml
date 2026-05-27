@@ -382,7 +382,7 @@ terms:
     confidence: 0.95
     status: active
 
-  - surface: Sonar quality gate
+  - surface: sonar quality gate
     definition: |
       The SonarCloud project-level pass/fail evaluation for `Priivacy-ai_spec-kitty` on the
       new-code window. Aggregates six conditions (reliability rating, security rating,

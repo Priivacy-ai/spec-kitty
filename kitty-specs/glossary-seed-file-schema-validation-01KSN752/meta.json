@@ -2,7 +2,7 @@
   "created_at": "2026-05-27T17:19:11.622882+00:00",
   "friendly_name": "Glossary Seed File Schema Validation",
   "mission_id": "01KSN75286D6P9X62N2ZYPD5QG",
-  "mission_number": null,
+  "mission_number": 124,
   "mission_slug": "glossary-seed-file-schema-validation-01KSN752",
   "mission_type": "software-dev",
   "purpose_context": "A non-normalized surface value in glossary seed YAML causes load_seed_file() to throw ValueError, which dashboard handlers catch silently — resulting in zero glossary terms shown. This mission adds schema-backed validation with DDD aggregate modeling at all write/edit/load/CI boundaries, following the existing doctrine schema validation pattern.",

@@ -281,6 +281,7 @@ class GlossaryHealthResponse(TypedDict, total=False):
     entity_pages_generated: bool
     entity_pages_path: str | None
     last_conflict_at: str | None
+    validation_errors: list[dict[str, Any]] | None
 
 
 # ---------------------------------------------------------------------------

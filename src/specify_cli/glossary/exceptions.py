@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -66,3 +68,36 @@ class AbortResume(GlossaryError):
     def __init__(self, reason: str):
         self.reason = reason
         super().__init__(f"Resume aborted: {reason}")
+
+
+@dataclass(frozen=True)
+class SeedValidationError:
+    """A single validation error with location context."""
+
+    file_path: Path
+    term_index: int | None
+    term_surface: str | None
+    field: str | None
+    message: str
+
+
+class SeedFileValidationError(GlossaryError):
+    """Aggregated validation failure for a glossary seed file."""
+
+    def __init__(self, file_path: Path, errors: list[SeedValidationError]):
+        self.file_path = file_path
+        self.errors = errors
+        super().__init__(self._format_message())
+
+    def _format_message(self) -> str:
+        lines = [f"{len(self.errors)} validation error(s) in {self.file_path}:"]
+        for err in self.errors:
+            loc_parts: list[str] = []
+            if err.term_index is not None:
+                surface_label = f" '{err.term_surface}'" if err.term_surface else ""
+                loc_parts.append(f"term[{err.term_index}]{surface_label}")
+            if err.field:
+                loc_parts.append(err.field)
+            loc = " → ".join(loc_parts) if loc_parts else "file"
+            lines.append(f"  - {loc}: {err.message}")
+        return "\n".join(lines)

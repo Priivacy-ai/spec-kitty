@@ -7,6 +7,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from specify_cli.glossary.exceptions import SeedFileValidationError
 from specify_cli.glossary.semantic_events import iter_semantic_conflicts
 
 from ..api_types import GlossaryHealthResponse, GlossaryTermRecord
@@ -67,6 +68,7 @@ def _collect_all_senses(repo_root: Path) -> list[Any]:
     """Load all TermSense objects from seed files across all scopes.
 
     Returns a flat list of TermSense objects, or an empty list on any error.
+    Raises ``SeedFileValidationError`` if any scope has an invalid seed file.
     """
     try:
         from specify_cli.glossary.scope import GlossaryScope, load_seed_file
@@ -75,9 +77,13 @@ def _collect_all_senses(repo_root: Path) -> list[Any]:
         for scope in GlossaryScope:
             try:
                 senses.extend(load_seed_file(scope, repo_root))
+            except SeedFileValidationError:
+                raise  # Let validation errors propagate to handler
             except Exception as exc:
                 logger.debug("Skipping scope %s: %s", scope.value, exc)
         return senses
+    except SeedFileValidationError:
+        raise  # Re-raise through outer try
     except Exception as exc:
         logger.debug("Could not load glossary senses: %s", exc)
         return []
@@ -125,6 +131,30 @@ class GlossaryHandler(DashboardHandler):
                 "entity_pages_generated": entity_pages_generated,
                 "entity_pages_path": str(entity_pages_dir) if entity_pages_dir.exists() else None,
                 "last_conflict_at": last_at,
+                "validation_errors": None,
+            }
+        except SeedFileValidationError as exc:
+            logger.warning("glossary health: validation error in %s: %s", exc.file_path, exc)
+            response = {
+                "total_terms": 0,
+                "active_count": 0,
+                "draft_count": 0,
+                "deprecated_count": 0,
+                "high_severity_drift_count": 0,
+                "orphaned_term_count": 0,
+                "entity_pages_generated": False,
+                "entity_pages_path": None,
+                "last_conflict_at": None,
+                "validation_errors": [
+                    {
+                        "file": str(e.file_path),
+                        "term_index": e.term_index,
+                        "term_surface": e.term_surface,
+                        "field": e.field,
+                        "message": e.message,
+                    }
+                    for e in exc.errors
+                ],
             }
         except Exception as exc:
             logger.exception("glossary health error: %s", exc)
@@ -138,6 +168,7 @@ class GlossaryHandler(DashboardHandler):
                 "entity_pages_generated": False,
                 "entity_pages_path": None,
                 "last_conflict_at": None,
+                "validation_errors": None,
             }
 
         self.wfile.write(json.dumps(response).encode())
@@ -162,6 +193,12 @@ class GlossaryHandler(DashboardHandler):
                 }
                 for t in senses
             ]
+        except SeedFileValidationError as exc:
+            logger.warning(
+                "glossary terms: validation error in %s: %s",
+                exc.file_path, exc,
+            )
+            records = []
         except Exception as exc:
             logger.exception("glossary terms error: %s", exc)
             records = []

@@ -61,24 +61,20 @@ def should_use_scope(scope: GlossaryScope, configured_scopes: list[GlossaryScope
     return scope in configured_scopes
 
 
-def validate_seed_file(data: dict[str, Any]) -> None:
-    """
-    Validate seed file schema.
+def validate_seed_file(data: dict[str, Any], file_path: Path | None = None) -> None:
+    """Validate seed file schema using Pydantic models.
+
+    Raises ``SeedFileValidationError`` on invalid data.
 
     Args:
         data: Parsed YAML data
-
-    Raises:
-        ValueError: If seed file schema is invalid
+        file_path: Optional path for richer error context. When ``None``
+            a placeholder is used (backward compatibility).
     """
-    if "terms" not in data:
-        raise ValueError("Seed file must have 'terms' key")
+    from .seed_validation import validate_seed_file_data
 
-    for term in data.get("terms") or []:
-        if "surface" not in term:
-            raise ValueError("Term must have 'surface' key")
-        if "definition" not in term:
-            raise ValueError("Term must have 'definition' key")
+    effective_path = file_path or Path("<unknown>")
+    validate_seed_file_data(data, effective_path)
 
 
 _STATUS_MAP = {
@@ -124,7 +120,10 @@ def load_seed_file(scope: GlossaryScope, repo_root: Path) -> list[TermSense]:
     yaml.preserve_quotes = True
     data = yaml.load(seed_path)
 
-    validate_seed_file(data)
+    # Full Pydantic validation — raises SeedFileValidationError on failure
+    from .seed_validation import validate_seed_file_data
+
+    validate_seed_file_data(data, seed_path)
 
     senses = []
     for term_data in data.get("terms") or []:
@@ -176,6 +175,22 @@ def save_seed_file(
     """
     seed_path = repo_root / ".kittify" / "glossaries" / f"{scope.value}.yaml"
     seed_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Validate the data that will be written
+    from .seed_validation import validate_seed_file_data
+
+    validation_data = {
+        "terms": [
+            {
+                "surface": t.surface.surface_text,
+                "definition": t.definition,
+                "confidence": t.confidence,
+                "status": t.status.value,
+            }
+            for t in terms
+        ]
+    }
+    validate_seed_file_data(validation_data, seed_path)
 
     # Preserve existing header comment lines; fall back to a generated one.
     if seed_path.exists():

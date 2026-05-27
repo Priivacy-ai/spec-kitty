@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from specify_cli.glossary.exceptions import SeedFileValidationError, SeedValidationError
 from specify_cli.glossary.models import Provenance, SenseStatus, TermSense, TermSurface
 
 pytestmark = pytest.mark.fast
@@ -190,8 +191,79 @@ class TestGlossaryHealth:
             "total_terms", "active_count", "draft_count", "deprecated_count",
             "high_severity_drift_count", "orphaned_term_count",
             "entity_pages_generated", "entity_pages_path", "last_conflict_at",
+            "validation_errors",
         }
         assert required_keys.issubset(data.keys())
+
+    def test_health_valid_data_has_null_validation_errors(self, tmp_path):
+        """When data is valid, validation_errors is None."""
+        from specify_cli.dashboard.handlers import glossary as gloss_module
+
+        terms = [_make_term("alpha", "def a", "active", 1.0)]
+        handler = _make_handler(tmp_path)
+
+        with patch.object(gloss_module, "_collect_all_senses", return_value=terms):
+            gloss_module.GlossaryHandler.handle_glossary_health(handler)
+
+        data = _read_response(handler)
+        assert data["validation_errors"] is None
+        assert data["total_terms"] == 1
+
+    def test_health_surfaces_validation_errors(self, tmp_path):
+        """When SeedFileValidationError is raised, validation_errors contains error details."""
+        from specify_cli.dashboard.handlers import glossary as gloss_module
+
+        seed_errors = [
+            SeedValidationError(
+                file_path=Path("/fake/seed.yaml"),
+                term_index=2,
+                term_surface="badterm",
+                field="definition",
+                message="Field required",
+            ),
+            SeedValidationError(
+                file_path=Path("/fake/seed.yaml"),
+                term_index=None,
+                term_surface=None,
+                field="terms",
+                message="List should have at least 1 item",
+            ),
+        ]
+        exc = SeedFileValidationError(Path("/fake/seed.yaml"), seed_errors)
+
+        handler = _make_handler(tmp_path)
+
+        with patch.object(gloss_module, "_collect_all_senses", side_effect=exc):
+            gloss_module.GlossaryHandler.handle_glossary_health(handler)
+
+        data = _read_response(handler)
+        assert data["total_terms"] == 0
+        assert data["validation_errors"] is not None
+        assert len(data["validation_errors"]) == 2
+
+        err0 = data["validation_errors"][0]
+        assert err0["file"] == "/fake/seed.yaml"
+        assert err0["term_index"] == 2
+        assert err0["term_surface"] == "badterm"
+        assert err0["field"] == "definition"
+        assert err0["message"] == "Field required"
+
+        err1 = data["validation_errors"][1]
+        assert err1["term_index"] is None
+        assert err1["term_surface"] is None
+
+    def test_health_generic_error_has_null_validation_errors(self, tmp_path):
+        """Generic Exception path still sets validation_errors to None."""
+        from specify_cli.dashboard.handlers import glossary as gloss_module
+
+        handler = _make_handler(tmp_path)
+
+        with patch.object(gloss_module, "_collect_all_senses", side_effect=RuntimeError("boom")):
+            gloss_module.GlossaryHandler.handle_glossary_health(handler)
+
+        data = _read_response(handler)
+        assert data["total_terms"] == 0
+        assert data["validation_errors"] is None
 
 
 class TestGlossaryTerms:
@@ -252,6 +324,62 @@ class TestGlossaryTerms:
         assert len(records) == 1
         rec = records[0]
         assert set(rec.keys()) == {"surface", "definition", "status", "confidence"}
+
+    def test_terms_returns_empty_on_validation_error(self, tmp_path):
+        """Returns [] and logs warning when SeedFileValidationError is raised."""
+        from specify_cli.dashboard.handlers import glossary as gloss_module
+
+        exc = SeedFileValidationError(
+            Path("/fake/seed.yaml"),
+            [SeedValidationError(
+                file_path=Path("/fake/seed.yaml"),
+                term_index=0,
+                term_surface="bad",
+                field="status",
+                message="Invalid enum value",
+            )],
+        )
+        handler = _make_handler(tmp_path)
+
+        with patch.object(gloss_module, "_collect_all_senses", side_effect=exc):
+            gloss_module.GlossaryHandler.handle_glossary_terms(handler)
+
+        handler.send_response.assert_called_once_with(200)
+        records = _read_response(handler)
+        assert records == []
+
+
+class TestCollectAllSenses:
+    """Tests for _collect_all_senses propagation behavior."""
+
+    def test_propagates_seed_file_validation_error(self, tmp_path):
+        """SeedFileValidationError from load_seed_file propagates out of _collect_all_senses."""
+        from specify_cli.dashboard.handlers.glossary import _collect_all_senses
+
+        exc = SeedFileValidationError(
+            Path("/fake/seed.yaml"),
+            [SeedValidationError(
+                file_path=Path("/fake/seed.yaml"),
+                term_index=0,
+                term_surface="x",
+                field="surface",
+                message="bad",
+            )],
+        )
+
+        with patch("specify_cli.dashboard.handlers.glossary.SeedFileValidationError", SeedFileValidationError):
+            with patch("specify_cli.glossary.scope.load_seed_file", side_effect=exc):
+                with pytest.raises(SeedFileValidationError):
+                    _collect_all_senses(tmp_path)
+
+    def test_other_exceptions_are_swallowed(self, tmp_path):
+        """Non-validation exceptions are caught, returning empty list."""
+        from specify_cli.dashboard.handlers.glossary import _collect_all_senses
+
+        with patch("specify_cli.glossary.scope.load_seed_file", side_effect=RuntimeError("oops")):
+            result = _collect_all_senses(tmp_path)
+
+        assert result == []
 
 
 class TestGlossaryPage:
