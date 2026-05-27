@@ -19,7 +19,8 @@ subtasks:
 - T021
 - T022
 
-shell_pid: '39129'
+shell_pid: "39129"
+agent: "claude:claude-opus-4-7:debugger-debbie:investigator"
 history:
 - date: '2026-05-27'
   event: created
@@ -318,3 +319,7 @@ spec-kitty agent action implement WP05 --agent claude
 2. No files owned by WP04 (`move_task.py`) or WP08 (`src/charter/synthesizer/`) were modified
 3. If `runtime_bridge.py` was modified, confirm WP06 was already merged
 </content>
+
+## Activity Log
+
+- 2026-05-27T12:19:23Z – claude:claude-opus-4-7:debugger-debbie:investigator – shell_pid=39129 – Assigned agent via action command
