@@ -19,8 +19,8 @@ subtasks:
 - T030
 - T031
 
-shell_pid: "40565"
-agent: "claude:claude-sonnet-4-6:debugger-debbie:investigator"
+shell_pid: "243192"
+agent: "claude:claude-sonnet-4-6:curator-carla:reviewer"
 history:
 - date: '2026-05-27'
   event: created
@@ -305,3 +305,4 @@ spec-kitty agent action implement WP07 --agent claude
 
 - 2026-05-27T12:19:33Z – claude:claude-sonnet-4-6:debugger-debbie:investigator – shell_pid=40565 – Assigned agent via action command
 - 2026-05-27T12:29:20Z – claude:claude-sonnet-4-6:debugger-debbie:investigator – shell_pid=40565 – T026-T031 complete: all sync/contract tests pass, vendored events tree removed if present. T026/T027/T028 already passing pre-impl; T029 WPCreated fixture fixed (wp_title/depends_on/actor); T031 check_docs_freshness.md added to legacy allowlist with baseline bump to 152.
+- 2026-05-27T12:29:47Z – claude:claude-sonnet-4-6:curator-carla:reviewer – shell_pid=243192 – Started review via action command
