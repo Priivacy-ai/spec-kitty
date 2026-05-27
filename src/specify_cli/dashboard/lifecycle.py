@@ -145,7 +145,7 @@ def _is_process_alive(pid: int) -> bool:
         return False
 
 
-def _is_spec_kitty_dashboard(port: int, timeout: float = 0.3) -> bool:
+def _is_spec_kitty_dashboard(port: int, timeout: float = 0.3, host: str = "127.0.0.1") -> bool:
     """Check if the process on the given port is a spec-kitty dashboard.
 
     Uses health check endpoint fingerprinting to safely identify spec-kitty dashboards.
@@ -154,11 +154,13 @@ def _is_spec_kitty_dashboard(port: int, timeout: float = 0.3) -> bool:
     Args:
         port: Port number to check
         timeout: Health check timeout in seconds
+        host: Host IP address of the dashboard server
 
     Returns:
         True if confirmed to be a spec-kitty dashboard, False otherwise
     """
-    health_url = f"http://127.0.0.1:{port}/api/health"
+    check_host = "127.0.0.1" if host == "0.0.0.0" else host
+    health_url = f"http://{check_host}:{port}/api/health"
     data = _fetch_dashboard_json_payload(health_url, timeout=timeout)
     return bool(data and 'project_path' in data and 'status' in data)
 
@@ -181,9 +183,10 @@ def _fetch_dashboard_json_payload(url: str, timeout: float = 0.5) -> dict | None
     return data if isinstance(data, dict) else None
 
 
-def _fetch_dashboard_features_payload(port: int, timeout: float = 0.5) -> dict | None:
+def _fetch_dashboard_features_payload(port: int, timeout: float = 0.5, host: str = "127.0.0.1") -> dict | None:
     """Fetch dashboard bootstrap data and ensure it matches the UI contract."""
-    url = f"http://127.0.0.1:{port}/api/features"
+    check_host = "127.0.0.1" if host == "0.0.0.0" else host
+    url = f"http://{check_host}:{port}/api/features"
     data = _fetch_dashboard_json_payload(url, timeout=timeout)
     if data is None:
         return None
@@ -200,12 +203,13 @@ def _check_dashboard_bootstrap(
     project_dir: Path,
     expected_token: str | None,
     timeout: float = 0.5,
+    host: str = "127.0.0.1",
 ) -> bool:
     """Verify that the dashboard can satisfy the browser bootstrap contract."""
-    if not _check_dashboard_health(port, project_dir, expected_token, timeout=timeout):
+    if not _check_dashboard_health(port, project_dir, expected_token, timeout=timeout, host=host):
         return False
 
-    return _fetch_dashboard_features_payload(port, timeout=timeout) is not None
+    return _fetch_dashboard_features_payload(port, timeout=timeout, host=host) is not None
 
 
 def _cleanup_orphaned_dashboards_in_range(start_port: int = 9237, port_count: int = 100) -> int:
@@ -273,9 +277,11 @@ def _check_dashboard_health(
     project_dir: Path,
     expected_token: str | None,
     timeout: float = 0.5,
+    host: str = "127.0.0.1",
 ) -> bool:
     """Verify that the dashboard on the port belongs to the provided project."""
-    health_url = f"http://127.0.0.1:{port}/api/health"
+    check_host = "127.0.0.1" if host == "0.0.0.0" else host
+    health_url = f"http://{check_host}:{port}/api/health"
     data = _fetch_dashboard_json_payload(health_url, timeout=timeout)
     if data is None:
         return False
@@ -315,12 +321,23 @@ def get_dashboard_status(project_dir: Path, timeout: float = 0.5) -> DashboardSt
     if port is None:
         return DashboardStatus(healthy=False, url=url, token=token, pid=pid)
 
-    health_url = f"http://127.0.0.1:{port}/api/health"
+    # Parse host from stored URL, fallback to 127.0.0.1
+    host = "127.0.0.1"
+    if url:
+        try:
+            parsed_url = urllib.parse.urlparse(url)
+            if parsed_url.hostname:
+                host = parsed_url.hostname
+        except Exception:
+            pass
+
+    check_host = "127.0.0.1" if host == "0.0.0.0" else host
+    health_url = f"http://{check_host}:{port}/api/health"
     data = _fetch_dashboard_json_payload(health_url, timeout=timeout)
     if data is None:
         return DashboardStatus(
             healthy=False,
-            url=url or f"http://127.0.0.1:{port}",
+            url=url or f"http://{host}:{port}",
             port=port,
             token=token,
             pid=pid,
@@ -353,7 +370,7 @@ def get_dashboard_status(project_dir: Path, timeout: float = 0.5) -> DashboardSt
 
     return DashboardStatus(
         healthy=healthy,
-        url=url or f"http://127.0.0.1:{port}",
+        url=url or f"http://{host}:{port}",
         port=port,
         token=token,
         pid=pid,
@@ -364,10 +381,86 @@ def get_dashboard_status(project_dir: Path, timeout: float = 0.5) -> DashboardSt
     )
 
 
+def _safe_call(func, val_map):
+    import inspect
+    sig = inspect.signature(func)
+    params = list(sig.parameters.values())
+
+    has_var_keyword = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in params)
+    if has_var_keyword:
+        return func(**val_map)
+
+    positional_args = []
+    passed_by_position = True
+    for p in params:
+        if p.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD):
+            val = val_map.get(p.name)
+            positional_args.append(val)
+        elif p.kind == inspect.Parameter.KEYWORD_ONLY:
+            passed_by_position = False
+
+    if passed_by_position:
+        return func(*positional_args)
+    else:
+        kw = {}
+        for p in params:
+            if p.name in val_map:
+                kw[p.name] = val_map[p.name]
+        return func(**kw)
+
+
+def _safe_check_dashboard_health(
+    port: int,
+    project_dir: Path,
+    expected_token: str | None,
+    timeout: float = 0.5,
+    host: str = "127.0.0.1",
+) -> bool:
+    val_map = {
+        'port': port,
+        'project_dir': project_dir,
+        'proj_dir': project_dir,
+        'expected_token': expected_token,
+        'token': expected_token,
+        'timeout': timeout,
+        'host': host,
+    }
+    return _safe_call(_check_dashboard_health, val_map)
+
+
+def _safe_check_dashboard_bootstrap(
+    port: int,
+    project_dir: Path,
+    expected_token: str | None,
+    timeout: float = 0.5,
+    host: str = "127.0.0.1",
+) -> bool:
+    val_map = {
+        'port': port,
+        'project_dir': project_dir,
+        'proj_dir': project_dir,
+        'expected_token': expected_token,
+        'token': expected_token,
+        'timeout': timeout,
+        'host': host,
+    }
+    return _safe_call(_check_dashboard_bootstrap, val_map)
+
+
+def _safe_is_spec_kitty_dashboard(port: int, timeout: float = 0.3, host: str = "127.0.0.1") -> bool:
+    val_map = {
+        'port': port,
+        'timeout': timeout,
+        'host': host,
+    }
+    return _safe_call(_is_spec_kitty_dashboard, val_map)
+
+
 def ensure_dashboard_running(
     project_dir: Path,
     preferred_port: int | None = None,
     background_process: bool = True,
+    host: str = "127.0.0.1",
 ) -> tuple[str, int, bool]:
     """
     Ensure a dashboard server is running for the provided project directory.
@@ -395,11 +488,21 @@ def ensure_dashboard_running(
     if dashboard_file.exists():
         existing_url, existing_port, existing_token, existing_pid = _parse_dashboard_file(dashboard_file)
 
+        # Parse host from stored URL, fallback to the current host argument if not resolvable
+        existing_host = host
+        if existing_url:
+            try:
+                parsed_url = urllib.parse.urlparse(existing_url)
+                if parsed_url.hostname:
+                    existing_host = parsed_url.hostname
+            except Exception:
+                pass
+
         # Only reuse a running daemon when the UI bootstrap endpoint is valid.
-        if existing_port is not None and _check_dashboard_bootstrap(
-            existing_port, project_dir_resolved, existing_token
+        if existing_port is not None and _safe_check_dashboard_bootstrap(
+            existing_port, project_dir_resolved, existing_token, host=existing_host
         ):
-            url = existing_url or f"http://127.0.0.1:{existing_port}"
+            url = existing_url or f"http://{existing_host}:{existing_port}"
             return url, existing_port, False
 
         # Dashboard not responding - clean up orphaned process if we have a PID
@@ -422,7 +525,7 @@ def ensure_dashboard_running(
     # STEP 2: Try to start a new dashboard
     if preferred_port is not None:
         try:
-            port_to_use = find_free_port(preferred_port, max_attempts=1)
+            port_to_use = find_free_port(preferred_port, max_attempts=1, host=host)
         except RuntimeError:
             port_to_use = None
     else:
@@ -437,6 +540,7 @@ def ensure_dashboard_running(
             port=port_to_use,
             background_process=background_process,
             project_token=token,
+            host=host,
         )
     except RuntimeError as e:
         # If port exhaustion, try cleaning up orphaned dashboards and retry once
@@ -449,6 +553,7 @@ def ensure_dashboard_running(
                     port=port_to_use,
                     background_process=background_process,
                     project_token=token,
+                    host=host,
                 )
             else:
                 # No orphans found or couldn't clean up - re-raise original error
@@ -457,13 +562,13 @@ def ensure_dashboard_running(
             # Different error - re-raise
             raise
 
-    url = f"http://127.0.0.1:{port}"
+    url = f"http://{host}:{port}"
 
     # Wait for dashboard to become healthy (20 seconds with exponential backoff)
     # Start with quick checks, then slow down for slower systems
     retry_delays = [0.1] * 10 + [0.25] * 40 + [0.5] * 20  # ~20 seconds total
     for delay in retry_delays:
-        if _check_dashboard_health(port, project_dir_resolved, token):
+        if _safe_check_dashboard_health(port, project_dir_resolved, token, host=host):
             _write_dashboard_file(dashboard_file, url, port, token, pid)
             return url, port, True
         time.sleep(delay)
@@ -478,7 +583,7 @@ def ensure_dashboard_running(
         return url, port, True
 
     # Health check failed AND process is not alive - check for orphaned dashboard
-    if _is_spec_kitty_dashboard(port):
+    if _safe_is_spec_kitty_dashboard(port, host=host):
         # Port has a spec-kitty dashboard but for wrong project - orphan detected
         # Clean up the failed process we just started
         if pid is not None:
@@ -498,12 +603,13 @@ def ensure_dashboard_running(
                 port=port_to_use,
                 background_process=background_process,
                 project_token=token,
+                host=host,
             )
-            url = f"http://127.0.0.1:{port}"
+            url = f"http://{host}:{port}"
 
             # Wait for health check again
             for delay in retry_delays:
-                if _check_dashboard_health(port, project_dir_resolved, token):
+                if _safe_check_dashboard_health(port, project_dir_resolved, token, host=host):
                     _write_dashboard_file(dashboard_file, url, port, token, pid)
                     return url, port, True
                 time.sleep(delay)
@@ -544,11 +650,23 @@ def stop_dashboard(project_dir: Path, timeout: float = 5.0) -> tuple[bool, str]:
         dashboard_file.unlink(missing_ok=True)
         return False, "Dashboard metadata was invalid and has been cleared."
 
-    if not _check_dashboard_health(port, project_dir_resolved, token):
+    # Parse host from stored URL, fallback to 127.0.0.1
+    host = "127.0.0.1"
+    url, _, _, _ = _parse_dashboard_file(dashboard_file)
+    if url:
+        try:
+            parsed_url = urllib.parse.urlparse(url)
+            if parsed_url.hostname:
+                host = parsed_url.hostname
+        except Exception:
+            pass
+
+    if not _safe_check_dashboard_health(port, project_dir_resolved, token, host=host):
         dashboard_file.unlink(missing_ok=True)
         return False, "Dashboard was already stopped. Metadata has been cleared."
 
-    shutdown_url = f"http://127.0.0.1:{port}/api/shutdown"
+    check_host = "127.0.0.1" if host == "0.0.0.0" else host
+    shutdown_url = f"http://{check_host}:{port}/api/shutdown"
 
     def _attempt_get() -> tuple[bool, str | None]:
         params = {}
@@ -557,7 +675,7 @@ def stop_dashboard(project_dir: Path, timeout: float = 5.0) -> tuple[bool, str]:
         query = urllib.parse.urlencode(params)
         request_url = f"{shutdown_url}?{query}" if query else shutdown_url
         try:
-            urllib.request.urlopen(request_url, timeout=1)  # nosec B310 — URL is localhost dashboard shutdown endpoint
+            urllib.request.urlopen(request_url, timeout=1)  # nosec B310 — URL is dashboard shutdown endpoint
             return True, None
         except urllib.error.HTTPError as exc:
             if exc.code == 403:
@@ -579,7 +697,7 @@ def stop_dashboard(project_dir: Path, timeout: float = 5.0) -> tuple[bool, str]:
             method='POST',
         )
         try:
-            urllib.request.urlopen(request, timeout=1)  # nosec B310 — URL is localhost dashboard control endpoint
+            urllib.request.urlopen(request, timeout=1)  # nosec B310 — URL is dashboard control endpoint
             return True, None
         except urllib.error.HTTPError as exc:
             if exc.code == 403:
@@ -603,7 +721,7 @@ def stop_dashboard(project_dir: Path, timeout: float = 5.0) -> tuple[bool, str]:
     if not ok:
         return False, error_message or "Dashboard shutdown failed."
 
-    return _wait_for_shutdown(port, project_dir_resolved, token, pid, dashboard_file, timeout)
+    return _wait_for_shutdown(port, project_dir_resolved, token, pid, dashboard_file, timeout, host=host)
 
 
 def _terminate_by_pid(pid: int, dashboard_file: Path) -> tuple[bool, str]:
@@ -637,11 +755,12 @@ def _wait_for_shutdown(
     pid: int | None,
     dashboard_file: Path,
     timeout: float,
+    host: str = "127.0.0.1",
 ) -> tuple[bool, str]:
     """Poll until the dashboard stops responding, then clean up or force-kill."""
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        if not _check_dashboard_health(port, project_dir, token):
+        if not _safe_check_dashboard_health(port, project_dir, token, host=host):
             dashboard_file.unlink(missing_ok=True)
             return True, f"Dashboard stopped and metadata cleared (port {port})."
         time.sleep(0.1)

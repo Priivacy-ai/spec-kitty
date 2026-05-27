@@ -202,3 +202,54 @@ def test_ensure_dashboard_running_restarts_stale_reused_daemon(monkeypatch, tmp_
     assert stored_port == 9345
     assert stored_token == "fresh-token"
     assert stored_pid == 5151
+
+
+def test_dashboard_custom_host_binding(monkeypatch, tmp_path):
+    project_dir = tmp_path
+    dashboard_meta = project_dir / ".kittify" / ".dashboard"
+    dashboard_meta.parent.mkdir(parents=True, exist_ok=True)
+
+    # 1. Test starting dashboard with custom host (e.g. 0.0.0.0)
+    check_calls = []
+
+    def fake_check(port, proj_dir, token, host="127.0.0.1"):
+        check_calls.append(host)
+        return True
+
+    monkeypatch.setattr(lifecycle, "_check_dashboard_health", fake_check)
+    monkeypatch.setattr(lifecycle, "start_dashboard", lambda *args, **kwargs: (34567, None))
+
+    url, port, started = lifecycle.ensure_dashboard_running(
+        project_dir, preferred_port=34567, background_process=False, host="0.0.0.0"
+    )
+
+    assert started
+    assert port == 34567
+    assert url == "http://0.0.0.0:34567"
+    assert "0.0.0.0" in check_calls
+
+    # 2. Test reading stored custom host in get_dashboard_status
+    def fake_urlopen(request, timeout=0.5):
+        class Response:
+            status = 200
+            def __enter__(self): return self
+            def __exit__(self, *exc): return False
+            def read(self):
+                payload = {
+                    "status": "ok",
+                    "project_path": str(project_dir.resolve()),
+                    "token": "fresh-token",
+                    "sync": {"running": False},
+                }
+                return json.dumps(payload).encode("utf-8")
+        return Response()
+
+    monkeypatch.setattr(lifecycle.urllib.request, "urlopen", fake_urlopen)
+
+    # Write state file with custom host
+    lifecycle._write_dashboard_file(dashboard_meta, "http://0.0.0.0:34567", 34567, "fresh-token", pid=123)
+
+    status = lifecycle.get_dashboard_status(project_dir)
+    assert status.healthy is True
+    assert status.url == "http://0.0.0.0:34567"
+    assert status.port == 34567

@@ -17,6 +17,11 @@ def dashboard(
         "--port",
         help="Preferred port for the dashboard (falls back to the first available port).",
     ),
+    host: str = typer.Option(
+        "127.0.0.1",
+        "--host",
+        help="Host IP address to bind the dashboard server to (e.g. 127.0.0.1 or 0.0.0.0).",
+    ),
     kill: bool = typer.Option(
         False,
         "--kill",
@@ -84,7 +89,7 @@ def dashboard(
         clear_preflight_warning(project_root)
 
     try:
-        dashboard_url, active_port, started = ensure_dashboard_running(project_root, preferred_port=port)
+        dashboard_url, active_port, started = ensure_dashboard_running(project_root, preferred_port=port, host=host)
     except FileNotFoundError as exc:  # Missing .kittify directory
         console.print("[red]❌ Dashboard metadata not found[/red]")
         console.print(f"   {exc}")

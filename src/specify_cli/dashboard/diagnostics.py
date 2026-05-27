@@ -126,10 +126,20 @@ def _collect_dashboard_health(
 
     try:
         from ..dashboard.lifecycle import _check_dashboard_health, _is_process_alive, _parse_dashboard_file
+        import urllib.parse
         url, port, token, pid = _parse_dashboard_file(dashboard_file)
         health.update({"url": url, "port": port, "pid": pid, "has_pid": pid is not None})
         if port:
-            is_healthy = _check_dashboard_health(port, project_dir, token)
+            # Parse host from stored URL, fallback to 127.0.0.1
+            host = "127.0.0.1"
+            if url:
+                try:
+                    parsed_url = urllib.parse.urlparse(url)
+                    if parsed_url.hostname:
+                        host = parsed_url.hostname
+                except Exception:
+                    pass
+            is_healthy = _check_dashboard_health(port, project_dir, token, host=host)
             health["responding"] = is_healthy
             if not is_healthy:
                 diagnostics["issues"].append(f"Dashboard metadata exists but not responding on port {port}")

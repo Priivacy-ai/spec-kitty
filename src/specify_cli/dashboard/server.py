@@ -19,17 +19,18 @@ __all__ = ["find_free_port", "start_dashboard", "run_dashboard_server"]
 logger = logging.getLogger(__name__)
 
 
-def find_free_port(start_port: int = 9237, max_attempts: int = 100) -> int:
+def find_free_port(start_port: int = 9237, max_attempts: int = 100, host: str = "127.0.0.1") -> int:
     """
     Find an available port starting from start_port.
 
     Uses a dual check (connect + bind) to avoid collisions with busy ports.
     """
+    check_host = "127.0.0.1" if host == "0.0.0.0" else host
     for port in range(start_port, start_port + max_attempts):
         try:
             test_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             test_sock.settimeout(0.1)
-            if test_sock.connect_ex(('127.0.0.1', port)) == 0:
+            if test_sock.connect_ex((check_host, port)) == 0:
                 test_sock.close()
                 continue
             test_sock.close()
@@ -39,7 +40,7 @@ def find_free_port(start_port: int = 9237, max_attempts: int = 100) -> int:
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                 sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                sock.bind(('127.0.0.1', port))
+                sock.bind((host, port))
                 return port
         except OSError:
             continue
@@ -58,7 +59,7 @@ def _build_handler_class(project_dir: Path, project_token: str | None) -> type[D
     )
 
 
-def run_dashboard_server(project_dir: Path, port: int, project_token: str | None) -> None:
+def run_dashboard_server(project_dir: Path, port: int, project_token: str | None, host: str = "127.0.0.1") -> None:
     """Run the dashboard server forever (used by detached child processes)."""
     try:
         from specify_cli.sync.daemon import DaemonIntent, ensure_sync_daemon_running
@@ -71,11 +72,11 @@ def run_dashboard_server(project_dir: Path, port: int, project_token: str | None
         logger.warning("Global sync daemon check failed: %s", exc)
 
     handler_class = _build_handler_class(project_dir, project_token)
-    server = HTTPServer(('127.0.0.1', port), handler_class)  # NOSONAR -- dashboard control plane binds to localhost only
+    server = HTTPServer((host, port), handler_class)  # NOSONAR -- dashboard control plane binds to configured host
     server.serve_forever()
 
 
-def _background_script(project_dir: Path, port: int, project_token: str | None) -> str:
+def _background_script(project_dir: Path, port: int, project_token: str | None, host: str = "127.0.0.1") -> str:
     repo_root = Path(__file__).resolve().parents[2]
     return textwrap.dedent(
         f"""
@@ -86,7 +87,7 @@ def _background_script(project_dir: Path, port: int, project_token: str | None) 
         # over any other paths in PYTHONPATH or .pth files
         sys.path.insert(0, str(repo_root))
         from specify_cli.dashboard.server import run_dashboard_server
-        run_dashboard_server(Path({repr(str(project_dir))}), {port}, {repr(project_token)})
+        run_dashboard_server(Path({repr(str(project_dir))}), {port}, {repr(project_token)}, {repr(host)})
         """
     )
 
@@ -96,6 +97,7 @@ def start_dashboard(
     port: int | None = None,
     background_process: bool = False,
     project_token: str | None = None,
+    host: str = "127.0.0.1",
 ) -> tuple[int, int | None]:
     """
     Start the dashboard server.
@@ -108,17 +110,18 @@ def start_dashboard(
         port: Port number (auto-selected if None)
         background_process: If True, run as detached subprocess; if False, run in thread
         project_token: Security token for the dashboard
+        host: Host IP address to bind the dashboard server to
 
     Returns:
         Tuple[port, pid]: Port number and process ID (None if threaded mode)
     """
     if port is None:
-        port = find_free_port()
+        port = find_free_port(host=host)
 
     project_dir_abs = project_dir.resolve()
 
     if background_process:
-        script = _background_script(project_dir_abs, port, project_token)
+        script = _background_script(project_dir_abs, port, project_token, host=host)
         proc = subprocess.Popen(
             [sys.executable, '-c', script],
             stdout=subprocess.DEVNULL,
@@ -129,7 +132,7 @@ def start_dashboard(
         return port, proc.pid
 
     handler_class = _build_handler_class(project_dir_abs, project_token)
-    server = HTTPServer(('127.0.0.1', port), handler_class)
+    server = HTTPServer((host, port), handler_class)
 
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
