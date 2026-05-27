@@ -52,6 +52,7 @@
 | T039 | Fix or exclude legacy kitty-specs/ WP files failing Pydantic validation | WP09 | [P] |
 | T040 | Investigate and fix mission-switching blocking condition | WP09 | [P] |
 | T041 | File GitHub issues for re-deferred items (checklist skill, schema-version wording) | WP09 | |
+| T050 | Delete all stray test-feature-* dirs from kitty-specs/ + add pytest teardown + .gitignore guard | WP09 | |
 | T042 | Audit all WP01-WP09 touched test directories for missing pytestmark | WP10 | |
 | T043 | Add pytestmark to tests/agent/test_context_unit.py | WP10 | [P] |
 | T044 | Add category mark to tests/specify_cli/test_lane_regression_guard.py | WP10 | [P] |
@@ -293,6 +294,7 @@
 - [ ] T039 Fix or exclude legacy kitty-specs/ WP files failing Pydantic validation (WP09)
 - [ ] T040 Investigate and fix mission-switching blocking condition (WP09)
 - [ ] T041 File GitHub issues for re-deferred items (checklist skill, schema-version wording) (WP09)
+- [ ] T050 Delete all stray test-feature-* dirs from kitty-specs/ + add pytest teardown + .gitignore guard (WP09)
 
 **Implementation notes:**
 1. T039 self-referential trap: run validator first to see current failures; this mission's own WP files are included in the glob

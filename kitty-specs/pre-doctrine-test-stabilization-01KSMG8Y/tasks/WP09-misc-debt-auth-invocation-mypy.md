@@ -4,6 +4,7 @@ title: Misc debt — auth / invocation / mypy / mission switching
 dependencies: []
 requirement_refs:
 - FR-011
+- FR-014
 tracker_refs: []
 planning_base_branch: feat/pre-doctrine-stabilization-remediation
 merge_target_branch: feat/pre-doctrine-stabilization-remediation
@@ -15,7 +16,8 @@ subtasks:
 - T039
 - T040
 - T041
-
+- T050
+
 model: claude-opus-4-7
 history:
 - date: '2026-05-27'
@@ -283,6 +285,66 @@ Record the new issue numbers in the WP09 commit message.
 - [ ] Two new GitHub issues filed
 - [ ] Issue numbers recorded in commit message
 - [ ] Issues reference #1310 and the mission slug
+
+---
+
+## Subtask T050 — Delete stray test-feature-* missions and enforce teardown hygiene (FR-014)
+
+**Purpose**: Ten stray `test-feature-*` mission directories exist in `kitty-specs/` from test runs that did not clean up after themselves. FR-014 requires (a) immediate deletion of all existing stray directories, (b) fixture-level teardown in every test that creates a mission directory, and (c) a `.gitignore` safety net.
+
+**Steps**:
+
+1. Delete all existing stray directories:
+   ```bash
+   git rm -r kitty-specs/test-feature-01KRR081 \
+              kitty-specs/test-feature-01KRZEQE \
+              kitty-specs/test-feature-01KSETQZ \
+              kitty-specs/test-feature-01KSFS15 \
+              kitty-specs/test-feature-01KSFSQ7 \
+              kitty-specs/test-feature-01KSFTAC \
+              kitty-specs/test-feature-01KSFXEV \
+              kitty-specs/test-feature-01KSFXTT \
+              kitty-specs/test-feature-01KSHPPB \
+              kitty-specs/test-feature-01KSHQ1R
+   ```
+   Confirm: `find kitty-specs/ -maxdepth 1 -name "test-feature-*" | wc -l` → must print `0`.
+
+2. Add a `.gitignore` rule so future test-created missions cannot be accidentally staged:
+   ```bash
+   echo "kitty-specs/test-feature-*/" >> .gitignore
+   ```
+   Verify: `grep "test-feature" .gitignore` shows the rule.
+
+3. Find all tests that create mission directories during execution:
+   ```bash
+   grep -rn "mission create\|mission_create\|MissionCreate\|kitty-specs.*test" tests/ \
+     --include="*.py" -l
+   ```
+   For each identified file, locate the creation call and ensure a `yield`-based fixture cleans up:
+   ```python
+   @pytest.fixture
+   def tmp_mission(tmp_path, monkeypatch):
+       monkeypatch.setenv("SPEC_KITTY_SPECS_DIR", str(tmp_path))
+       yield tmp_path
+       # cleanup happens automatically via tmp_path isolation
+   ```
+   Preferred: redirect `SPEC_KITTY_SPECS_DIR` (or equivalent env var) to `tmp_path` so missions are created outside `kitty-specs/`. If the code does not support redirection, add explicit `shutil.rmtree` teardown in a `yield` fixture.
+
+4. Run `test_all_kitty_specs_wp_files_validate` and `test_mission_switching_integration` to confirm no regression from the directory removals.
+
+5. Confirm `kitty-specs/` has no `test-feature-*` directories:
+   ```bash
+   find kitty-specs/ -maxdepth 1 -name "test-feature-*"
+   ```
+   Must return empty.
+
+**Files**: `.gitignore`, `tests/` (fixture changes in whichever test files create mission dirs)
+
+**Validation**:
+- [ ] `find kitty-specs/ -maxdepth 1 -name "test-feature-*"` returns empty
+- [ ] `.gitignore` contains `kitty-specs/test-feature-*/`
+- [ ] Every test that creates a mission directory has unconditional teardown (pass AND fail)
+- [ ] `test_all_kitty_specs_wp_files_validate` still passes after deletions
 
 ---
 
