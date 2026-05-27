@@ -114,6 +114,9 @@ def test_implement_blocks_without_claiming_when_alloc_fails(
             return_value=tmp_path,
         ),
         patch(
+            "specify_cli.charter_runtime.preflight.hook.run_preflight_or_abort",
+        ),
+        patch(
             "specify_cli.cli.commands.implement.detect_feature_context",
             return_value=("010", feature_slug),
         ),

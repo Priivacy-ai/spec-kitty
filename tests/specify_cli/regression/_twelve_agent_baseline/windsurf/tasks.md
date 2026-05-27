@@ -535,7 +535,7 @@ List available profiles:
 spec-kitty agent profile list --json
 ```
 
-> If this command is unavailable, look for profiles under `src/doctrine/agent_profiles/shipped/` and any user-defined profiles in `.kittify/agent_profiles/` or equivalent.
+> If this command is unavailable, look for profiles under `src/doctrine/agent_profiles/built-in/` and any user-defined profiles in `.kittify/agent_profiles/` or equivalent.
 
 For each work package, select the best-matching profile based on:
 - `task_type` (implement / review / plan / specify / research)

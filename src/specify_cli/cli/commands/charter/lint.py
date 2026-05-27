@@ -50,14 +50,15 @@ def _print_charter_lint_banner(
 
     console.print("[bold]Charter Lint - layers:[/bold]")
     console.print(r"  [dim]\[built-in][/dim]")
-    if report.graph_state is _GraphState.BUILT_IN_ONLY:
+    if report.graph_state is _GraphState.BUILT_IN_ONLY and not org_layer_summary:
         console.print(
             r"  [dim]\[no project overlay — run `spec-kitty charter synthesize`][/dim]"
         )
     else:
         for org_marker in org_layer_summary:
             console.print(rf"  [dim]\[{org_marker}][/dim]")
-        console.print(r"  [dim]\[project][/dim]")
+        if report.graph_state is not _GraphState.BUILT_IN_ONLY:
+            console.print(r"  [dim]\[project][/dim]")
 
     if report.findings:
         return False

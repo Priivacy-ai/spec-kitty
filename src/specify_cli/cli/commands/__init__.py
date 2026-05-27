@@ -57,7 +57,6 @@ def register_commands(app: typer.Typer) -> None:
     from . import dashboard as dashboard_module
     from . import do_cmd as do_cmd_module
     from . import doctor as doctor_module
-    from . import doctrine as doctrine_module
     from . import glossary as glossary_module
     from . import implement as implement_module
     from . import intake as intake_module
@@ -96,7 +95,6 @@ def register_commands(app: typer.Typer) -> None:
     app.add_typer(context_module.app, name="context")
     app.command()(dashboard_module.dashboard)
     app.add_typer(doctor_module.app, name="doctor", help="Project health diagnostics")
-    app.add_typer(doctrine_module.app, name="doctrine", help="Manage org-layer doctrine packs")
     app.add_typer(glossary_module.app, name="glossary", help="Glossary management commands")
     app.command()(implement_module.implement)
     app.command()(intake_module.intake)

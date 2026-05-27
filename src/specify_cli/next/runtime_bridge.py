@@ -827,7 +827,7 @@ def _has_raw_dependencies_field(wp_file: Path) -> bool:
 _COMPOSED_ACTIONS_BY_MISSION: dict[str, frozenset[str]] = {
     "software-dev": frozenset({"specify", "plan", "tasks", "implement", "review"}),
     "research": frozenset({"scoping", "methodology", "gathering", "synthesis", "output"}),
-    "documentation": frozenset({"discover", "audit", "design", "generate", "validate", "publish"}),
+    "documentation": frozenset({"discover", "audit", "design", "generate", "validate", "publish", "accept"}),
 }
 
 # Legacy run snapshots and project-local templates may still contain the old
@@ -2786,7 +2786,18 @@ def _map_runtime_decision(
     progress: dict | None,
     origin: dict,
 ) -> Decision:
-    """Convert runtime NextDecision to CLI Decision dataclass."""
+    """Convert runtime NextDecision to CLI Decision dataclass.
+
+    Exit-code contract (FR-008):
+    - ``kind="terminal"`` → ``DecisionKind.terminal`` → ``next_cmd`` exits 0
+    - ``kind="blocked"``  → ``DecisionKind.blocked``  → ``next_cmd`` exits 1
+    - ``kind="step"``     → ``DecisionKind.step``     → ``next_cmd`` exits 0
+
+    ``next_cmd.py`` maps the kind to exit code; this function must not change
+    the kind semantics. Verified by:
+    - ``tests/next/test_next_command_integration.py::TestNextCommandCLI::test_terminal_state_exit_code_zero``
+    - ``tests/next/test_next_command_integration.py::TestNextCommandCLI::test_blocked_result_exit_code``
+    """
     step_id = decision.step_id
     run_id = decision.run_id
 

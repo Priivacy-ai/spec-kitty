@@ -260,6 +260,8 @@ def _run_setup_plan(repo: Path, mission_handle: str) -> dict[str, object]:
     detection helpers so the command treats ``repo`` as the project root and
     finds the feature directly under ``kitty-specs/``.
     """
+    import os
+
     from specify_cli.cli.commands.agent import mission as mission_module
     from typer.testing import CliRunner
 
@@ -271,30 +273,40 @@ def _run_setup_plan(repo: Path, mission_handle: str) -> dict[str, object]:
     ) -> tuple[str, str]:
         return ("main", "main")
 
-    with (
-        patch.object(mission_module, "locate_project_root", return_value=repo),
-        patch.object(mission_module, "_enforce_git_preflight"),
-        patch.object(
-            mission_module,
-            "_find_feature_directory",
-            return_value=feature_dir,
-        ),
-        patch.object(
-            mission_module,
-            "_show_branch_context",
-            side_effect=_fake_show_branch_context,
-        ),
-        patch.object(mission_module, "get_current_branch", return_value="main"),
-        patch.object(mission_module, "_resolve_feature_target_branch", return_value="main"),
-        patch(
-            "specify_cli.sync.dossier_pipeline.trigger_feature_dossier_sync_if_enabled"
-        ),
-    ):
-        result = runner.invoke(
-            mission_module.app,
-            ["setup-plan", "--json", "--mission", mission_handle],
-            catch_exceptions=False,
-        )
+    # The protected-branch guard checks for SPEC_KITTY_TEST_MODE to bypass
+    # the 'main' branch protection for test fixtures.
+    _prev_test_mode = os.environ.get("SPEC_KITTY_TEST_MODE")
+    os.environ["SPEC_KITTY_TEST_MODE"] = "1"
+    try:
+        with (
+            patch.object(mission_module, "locate_project_root", return_value=repo),
+            patch.object(mission_module, "_enforce_git_preflight"),
+            patch.object(
+                mission_module,
+                "_find_feature_directory",
+                return_value=feature_dir,
+            ),
+            patch.object(
+                mission_module,
+                "_show_branch_context",
+                side_effect=_fake_show_branch_context,
+            ),
+            patch.object(mission_module, "get_current_branch", return_value="main"),
+            patch.object(mission_module, "_resolve_feature_target_branch", return_value="main"),
+            patch(
+                "specify_cli.sync.dossier_pipeline.trigger_feature_dossier_sync_if_enabled"
+            ),
+        ):
+            result = runner.invoke(
+                mission_module.app,
+                ["setup-plan", "--json", "--mission", mission_handle],
+                catch_exceptions=False,
+            )
+    finally:
+        if _prev_test_mode is None:
+            os.environ.pop("SPEC_KITTY_TEST_MODE", None)
+        else:
+            os.environ["SPEC_KITTY_TEST_MODE"] = _prev_test_mode
     assert result.exit_code in (0, 1), f"unexpected exit {result.exit_code}: {result.output}"
     # Locate the JSON envelope in the output (commands print plain JSON).
     output = result.output.strip()

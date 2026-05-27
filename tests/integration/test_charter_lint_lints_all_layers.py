@@ -67,12 +67,17 @@ def test_charter_lint_lists_all_three_layers_with_named_provenance(
     # ImportError, keeping the test RED.
     from charter.drg import load_org_drg  # noqa: PLC0415, F401
 
+    import os
+
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(_REPO_ROOT / "src")
     result = subprocess.run(
         [sys.executable, "-m", "specify_cli", "charter", "lint"],
         cwd=tmp_repo_with_org_pack,
         capture_output=True,
         text=True,
         timeout=60,
+        env=env,
     )
     combined = (result.stdout or "") + (result.stderr or "")
     # The lint output must reference the org-layer source name. The

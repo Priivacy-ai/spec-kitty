@@ -373,9 +373,9 @@ class TestDoNeverUsesProfileHint:
 
         original_invoke = ProfileInvocationExecutor.invoke
 
-        def _spy_invoke(self: object, request_text: str, profile_hint: object = None, actor: str = "unknown") -> object:  # type: ignore[misc]
+        def _spy_invoke(self: object, request_text: str, profile_hint: object = None, actor: str = "unknown", **kwargs: object) -> object:  # type: ignore[misc]
             captured_hints.append(profile_hint)
-            return original_invoke(self, request_text, profile_hint=profile_hint, actor=actor)  # type: ignore[misc]
+            return original_invoke(self, request_text, profile_hint=profile_hint, actor=actor, **kwargs)  # type: ignore[misc]
 
         with (
             patch("specify_cli.cli.commands.do_cmd.find_repo_root", return_value=project),

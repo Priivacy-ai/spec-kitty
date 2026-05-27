@@ -2,7 +2,7 @@
   "created_at": "2026-05-27T10:39:21.115628+00:00",
   "friendly_name": "Pre-Doctrine Test Stabilization",
   "mission_id": "01KSMG8Y0V5V2ZM4YEQMKFWN2K",
-  "mission_number": null,
+  "mission_number": 124,
   "mission_slug": "pre-doctrine-test-stabilization-01KSMG8Y",
   "mission_type": "software-dev",
   "purpose_context": "The 01KSF9HJ triage mission identified and filed 10 DIR-013 sub-issues covering confirmed pre-existing failures across charter, doctrine, status, sync, next-CLI, and architectural-guard surfaces. None of those fixes landed in upstream/main. This mission resolves all 10 clusters in four ordered waves (quick fixes → structural fixes → shared-package fixes → re-baseline closeout), adds a mandatory test-mark audit to ensure every new and existing test in touched directories is correctly tagged for the CI-quality workflow's fast/integration/e2e split, and declares the test suite stable enough for follow-on doctrine and charter work to proceed.",

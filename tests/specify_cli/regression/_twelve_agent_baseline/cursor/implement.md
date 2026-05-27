@@ -144,7 +144,7 @@ After all subtasks are complete:
   would have been caught by this step. Scope is the diff only so the implementer
   does not drown in pre-existing warnings owned by other WPs.
   ```bash
-  CHANGED_PY=$(git diff --name-only --diff-filter=AMR HEAD | rg '\.py$' || true)
+  CHANGED_PY=$(git diff --name-only --diff-filter=AMR HEAD | grep -E '[.]py$' || true)
   if [ -n "$CHANGED_PY" ]; then
     .venv/bin/ruff check $CHANGED_PY
   fi
@@ -285,6 +285,16 @@ persona automatically.
 
 3. Commit the updated frontmatter together with your implementation changes **before**
    running `spec-kitty agent tasks move-task WPxx --to for_review`.
+
+### GitHub Actions Workflow Changes
+
+If this WP adds or modifies `.github/workflows/*`, use a draft PR before review hand-off:
+
+1. Push the WP branch.
+2. Open a draft PR so the workflow runs on a real GitHub Actions runner.
+3. Iterate on the draft PR until the changed workflow has a successful run.
+4. Record the successful run ID or Actions URL in `kitty-specs/<mission>/workflow-evidence.md`.
+5. Only then move the WP to `for_review`.
 
 The reviewer will then use `/ad-hoc-profile-load` with the reviewer profile and apply
 its self-review gates automatically.

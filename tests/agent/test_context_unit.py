@@ -6,3 +6,7 @@ Only the 'resolve' command remains, which delegates to execution_context.
 """
 
 from __future__ import annotations
+
+import pytest
+
+pytestmark = [pytest.mark.fast]

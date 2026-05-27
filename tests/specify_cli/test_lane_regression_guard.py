@@ -28,7 +28,7 @@ import pytest
 
 # Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
 # Reason: scans repo-root scripts/ not in sandbox
-pytestmark = pytest.mark.non_sandbox
+pytestmark = [pytest.mark.unit, pytest.mark.non_sandbox]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 

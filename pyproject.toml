@@ -50,7 +50,7 @@ classifiers = [
 ]
 dependencies = [
     "typer>=0.24.1",
-    "click>=8.2.1",
+    "click>=8.2.1",  # Used directly in cli/helpers.py, selector_resolution.py, orchestrator_api, widen/review; typer>=0.26 no longer re-exports click
     "rich>=14.3.3",
     "pygments>=2.20.0",  # CVE-2026-4539 fix; transitive dep of rich, pinned explicitly
     "charset-normalizer>=3.4,<4",  # encoding detection for charter chokepoint (FR-016; was transitive via requests)

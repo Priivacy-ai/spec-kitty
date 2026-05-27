@@ -3,6 +3,8 @@ description: Validate dependencies, finalize WP metadata, and commit all task ar
 ---
 <!-- spec-kitty-command-version: 3.1.2a3 -->
 
+
+
 # /spec-kitty.tasks-finalize - Finalize Tasks
 
 **Version**: 3.2.0

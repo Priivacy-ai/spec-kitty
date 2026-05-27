@@ -70,10 +70,6 @@ failure_modes:
   - "Using the skill for a one-line bug — token cost dominates and the team learns to ignore the skill."
   - "Allowing a paradigm to communicate with the others before synthesis — collapses to a single epistemology."
 references:
-  - name: Debugger Debbie persona
-    type: agent_profile
-    id: debugger-debbie
-    when: Use this tactic as the procedural backbone of any Debugger Debbie dispatch
   - name: Recurring-Bug Structural-Intervention Discipline
     type: directive
     id: DIRECTIVE_040

@@ -110,6 +110,22 @@ staged proposals (dry-run by default — pass `--apply` to mutate).
 
 For the full walkthrough, see [Your First Feature](docs/tutorials/your-first-feature.md).
 
+## Governance layer
+
+Spec Kitty includes a governance layer that advises, queries, and acts on your project's
+architectural conventions. Three primary commands drive this layer:
+
+- `spec-kitty advise` — surfaces relevant doctrine, guidelines, and warnings for the current context
+- `spec-kitty ask` — queries the knowledge base for specific guidance
+- `spec-kitty do` — executes governed actions, ensuring compliance with the trail model
+
+The governance layer is anchored by two key reference documents:
+
+- [Trail model](docs/trail-model.md) — defines how spec-kitty traces mission provenance and
+  decision history through the project lifecycle
+- [Host surface parity](docs/host-surface-parity.md) — describes the contract between
+  spec-kitty and the host project's agent integration surfaces
+
 ## Everyday Commands
 
 | Command | Purpose |

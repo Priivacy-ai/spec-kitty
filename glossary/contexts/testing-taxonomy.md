@@ -203,7 +203,7 @@ The categories below are listed by the question they answer.
 | **Context** | Testing Taxonomy |
 | **Status** | canonical |
 | **Applicable to** | `2.x` |
-| **Related terms** | [Platform Darwin / Platform Linux](#platform-darwin--platform-linux) |
+| **Related terms** | [Platform Darwin / Platform Linux](#platform-darwin-platform-linux) |
 
 ---
 

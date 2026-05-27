@@ -20,7 +20,9 @@ from __future__ import annotations
 
 import contextlib
 import io
+import os
 import re
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import SimpleNamespace
@@ -521,6 +523,24 @@ def _build_prompt_safe(
     return path
 
 
+# Composed-action registry: actions dispatched via the composition layer rather
+# than file-based prompt templates. ``_build_prompt_or_error`` uses this to
+# emit a marker prompt file (satisfying the ``Decision.__post_init__`` invariant
+# that kind=step requires a non-empty, on-disk ``prompt_file``) without trying
+# to resolve a template that does not exist.
+#
+# Note: this mirrors ``_COMPOSED_ACTIONS_BY_MISSION`` in ``runtime_bridge`` —
+# the two must stay in sync. ``runtime_bridge`` cannot be imported here
+# (circular dependency), so a minimal read-only copy lives here.
+_COMPOSED_ACTIONS_FOR_PROMPT: dict[str, frozenset[str]] = {
+    "software-dev": frozenset({"specify", "plan", "tasks", "implement", "review"}),
+    "research": frozenset({"scoping", "methodology", "gathering", "synthesis", "output"}),
+    "documentation": frozenset(
+        {"discover", "audit", "design", "generate", "validate", "publish", "accept"}
+    ),
+}
+
+
 def _build_prompt_or_error(
     action: str,
     feature_dir: Path,
@@ -538,7 +558,32 @@ def _build_prompt_or_error(
 
     The path is also verified to exist on disk; if ``build_prompt`` returned a
     path that does not resolve, ``error`` is populated and ``path`` is ``None``.
+
+    For composed actions (documentation ``discover``, ``audit``, … and their
+    equivalents in research / software-dev missions), no file-based prompt
+    template exists — dispatch happens through the composition layer.  Rather
+    than returning ``(None, error)`` and causing ``_map_runtime_decision`` to
+    emit a ``blocked`` decision, this function writes a minimal marker file so
+    the ``kind=step`` invariant is satisfied (FR-007 / T019).
     """
+    # Fast path: composed actions do not use file-based templates.  Write a
+    # lightweight marker file and return its path so callers can emit a
+    # ``kind=step`` Decision without hitting the ``if prompt_file is None``
+    # blocked branch in ``_map_runtime_decision``.
+    if action in _COMPOSED_ACTIONS_FOR_PROMPT.get(mission_type, frozenset()):
+        composed_prompt = (
+            f"# {mission_type} — {action}\n\n"
+            f"This step is dispatched via composition.\n"
+            f"Run `spec-kitty next --agent <name>` to advance.\n"
+        )
+        marker_fd, marker_path = tempfile.mkstemp(
+            prefix=f"spec-kitty-composed-{action}-",
+            suffix=".md",
+        )
+        os.write(marker_fd, composed_prompt.encode("utf-8"))
+        os.close(marker_fd)
+        return marker_path, None
+
     try:
         from specify_cli.next.prompt_builder import build_prompt
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from specify_cli.frontmatter import FrontmatterError, FrontmatterManager
+from specify_cli.status.lane_reader import CanonicalStatusNotFoundError, get_wp_lane, has_event_log
 
 from ..detectors import detect_legacy_keys
 from ..models import MissionFinding, Severity
@@ -89,7 +90,15 @@ def classify_wp_files(mission_dir: Path) -> list[MissionFinding]:
         findings.extend(check_unknown_keys("wp_frontmatter", frontmatter, artifact_path))
 
         # Missing evidence check for terminal lanes
-        lane = frontmatter.get("lane") or frontmatter.get("status")
+        # Phase-2 invariant: read lane from event log, never from frontmatter.
+        # Guard: if no event log exists (pre-3.0 / unfinalized mission), skip check.
+        if has_event_log(mission_dir):
+            try:
+                lane: str | None = str(get_wp_lane(mission_dir, wp_path.stem))
+            except CanonicalStatusNotFoundError:
+                lane = None
+        else:
+            lane = None
         if isinstance(lane, str) and lane in _TERMINAL_LANES:
             evidence = frontmatter.get("evidence")
             if evidence is None:

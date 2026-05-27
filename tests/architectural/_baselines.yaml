@@ -92,10 +92,12 @@ test_compat_shims:
 test_example_round_trip:
   # justification: WP03 discovery sweep found 151 contracts from missions
   # predating the Slice F frontmatter convention. These are allowlisted
-  # per FR-141 so they warn instead of failing. The baseline participates
-  # in the burn-down policy (C-004): it MUST shrink as legacy missions
-  # backfill the ``# pydantic_model:`` / ``# expect:`` frontmatter.
-  legacy_contract_allowlist: 151
+  # per FR-141 so they warn instead of failing. +1 for T031 (#1301):
+  # spec-kitty-3-2-docs-01KS4KSZ/contracts/check_docs_freshness.md carries a
+  # CI-wiring YAML snippet (not a Pydantic model payload). The baseline
+  # participates in the burn-down policy (C-004): it MUST shrink as legacy
+  # missions backfill the ``# pydantic_model:`` / ``# expect:`` frontmatter.
+  legacy_contract_allowlist: 152
 
 # tests/architectural/test_all_declarations_required.py
 # Populated by WP02 after the charter/kernel __all__ sweep. WP01
