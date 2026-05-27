@@ -1,7 +1,7 @@
 {
-  "event_count": 35,
-  "last_event_id": "01KSMPBXWZ9JQP8BJXJ4SSY2Q7",
-  "materialized_at": "2026-05-27T12:25:50.751514+00:00",
+  "event_count": 36,
+  "last_event_id": "01KSMPC6BF5WRJC6WF8DQJS5FB",
+  "materialized_at": "2026-05-27T12:25:59.407565+00:00",
   "mission_number": "",
   "mission_slug": "pre-doctrine-test-stabilization-01KSMG8Y",
   "mission_type": "software-dev",
@@ -11,9 +11,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 3,
+    "for_review": 2,
     "in_progress": 5,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 2
   },
   "work_packages": {
@@ -53,11 +53,11 @@
       "last_transition_at": "2026-05-27T12:19:22.897272+00:00"
     },
     "WP06": {
-      "actor": "user",
+      "actor": "claude:claude-sonnet-4-6:curator-carla:reviewer",
       "force_count": 1,
-      "lane": "for_review",
-      "last_event_id": "01KSMPBFYG74SZX2F0H1XD9AQ5",
-      "last_transition_at": "2026-05-27T12:25:36.464084+00:00"
+      "lane": "in_review",
+      "last_event_id": "01KSMPC6BF5WRJC6WF8DQJS5FB",
+      "last_transition_at": "2026-05-27T12:25:59.407565+00:00"
     },
     "WP07": {
       "actor": "claude:claude-sonnet-4-6:debugger-debbie:investigator",
