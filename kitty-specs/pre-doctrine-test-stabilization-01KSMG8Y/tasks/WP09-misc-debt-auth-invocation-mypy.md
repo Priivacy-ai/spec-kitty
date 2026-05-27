@@ -400,3 +400,4 @@ spec-kitty agent action implement WP09 --agent claude
 ## Activity Log
 
 - 2026-05-27T12:19:44Z – claude:claude-opus-4-7:debugger-debbie:investigator – shell_pid=42001 – Assigned agent via action command
+- 2026-05-27T12:39:23Z – claude:claude-opus-4-7:debugger-debbie:investigator – shell_pid=42001 – T036-T041+T050 complete: all 5 in-scope tests pass (57/57), 2 re-defer issues filed (#1317 #1318). NOTE: kitty-specs/ changes (T039 legacy frontmatter fix + T050 stray dir removal) need to land on planning branch separately
