@@ -26,7 +26,8 @@ subtasks:
 - T044
 - T045
 
-shell_pid: '451095'
+shell_pid: "451095"
+agent: "claude:claude-sonnet-4-6:curator-carla:implementer"
 history:
 - date: '2026-05-27'
   event: created
@@ -269,3 +270,7 @@ spec-kitty agent action implement WP10 --agent claude
 3. Confirm `test_context_unit.py` has a mark
 4. No new test files were created in this WP
 </content>
+
+## Activity Log
+
+- 2026-05-27T12:59:21Z – claude:claude-sonnet-4-6:curator-carla:implementer – shell_pid=451095 – Assigned agent via action command
