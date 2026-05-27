@@ -103,11 +103,11 @@
 **Profile**: `implementer-ivan`  
 
 **Included subtasks:**
-- [ ] T004 Pre-check skill file links in advise/runtime-next SKILL.md files (WP02)
-- [ ] T005 Add `## Governance layer` section to README.md (6 assertions) (WP02)
-- [ ] T006 Replace frontmatter lane read in wp_files.py:92 with guarded get_wp_lane() (WP02)
-- [ ] T007 Add test: classify_wp_files() does not raise on mission without event log (WP02)
-- [ ] T008 Remove doctrine import and add_typer from commands/__init__.py:40,78 (WP02)
+- [x] T004 Pre-check skill file links in advise/runtime-next SKILL.md files (WP02)
+- [x] T005 Add `## Governance layer` section to README.md (6 assertions) (WP02)
+- [x] T006 Replace frontmatter lane read in wp_files.py:92 with guarded get_wp_lane() (WP02)
+- [x] T007 Add test: classify_wp_files() does not raise on mission without event log (WP02)
+- [x] T008 Remove doctrine import and add_typer from commands/__init__.py:40,78 (WP02)
 
 **Implementation notes:**
 1. FR-002: Read both skill files first; fix any broken links found (DIR-013 if unexpected)
