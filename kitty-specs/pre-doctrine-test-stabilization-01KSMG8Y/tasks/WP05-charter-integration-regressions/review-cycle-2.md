@@ -7,6 +7,10 @@ reviewed_at: '2026-05-27T12:46:22Z'
 reviewer_agent: unknown
 verdict: rejected
 wp_id: WP05
+review_artifact_override_at: "2026-05-27T12:58:53Z"
+review_artifact_override_actor: "operator"
+review_artifact_override_wp_id: "WP05"
+review_artifact_override_reason: "Review passed cycle 2: all 6 integration tests pass (T017-T022); T019 correctly relocated from runtime_bridge.py to decision.py (no WP06 conflict); SPEC_KITTY_TEST_MODE only in test files; move_task.py and src/charter/synthesizer/ untouched; runtime_bridge.py change is a data-only update to _COMPOSED_ACTIONS_BY_MISSION (separate location from WP06 docstring to _map_runtime_decision, no merge conflict)"
 ---
 
 # Review Cycle 1 — WP05 Charter Integration Regressions
