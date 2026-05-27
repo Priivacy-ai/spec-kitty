@@ -182,12 +182,12 @@
 **Profile**: `debugger-debbie`  
 
 **Included subtasks:**
-- [ ] T017 Fix org-layer source name missing in charter lint output (WP05)
-- [ ] T018 Fix wrong error class from synthesize_without_charter_md (WP05)
-- [ ] T019 Fix discover action blocking despite spec.md authored (check charter_preflight first) (WP05)
-- [ ] T020 Fix implement-review-retrospect smoke test failure (WP05)
-- [ ] T021 Fix wrong branch in rejection-cycle handoff (coordinate with WP04 re: move_task.py) (WP05)
-- [ ] T022 Fix substantive plan not auto-committed in specify-plan (WP05)
+- [x] T017 Fix org-layer source name missing in charter lint output (WP05)
+- [x] T018 Fix wrong error class from synthesize_without_charter_md (WP05)
+- [x] T019 Fix discover action blocking despite spec.md authored (check charter_preflight first) (WP05)
+- [x] T020 Fix implement-review-retrospect smoke test failure (WP05)
+- [x] T021 Fix wrong branch in rejection-cycle handoff (coordinate with WP04 re: move_task.py) (WP05)
+- [x] T022 Fix substantive plan not auto-committed in specify-plan (WP05)
 
 **Implementation notes:**
 1. Run each integration test in isolation with `-x --tb=short` before editing
