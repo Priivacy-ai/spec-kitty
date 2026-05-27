@@ -214,3 +214,4 @@ spec-kitty agent action implement WP06 --agent claude
 ## Activity Log
 
 - 2026-05-27T12:19:27Z – claude:claude-sonnet-4-6:debugger-debbie:investigator – shell_pid=39129 – Assigned agent via action command
+- 2026-05-27T12:25:36Z – claude:claude-sonnet-4-6:debugger-debbie:investigator – shell_pid=39129 – T023-T025 complete: next CLI exit-code contract restored, all 4 tests pass. Investigation (T023) confirmed tests were already passing on base branch — _map_runtime_decision correctly maps terminal→DecisionKind.terminal (exit 0) and blocked→DecisionKind.blocked (exit 1). Mock target for query_current_state is correct. Added FR-008 contract documentation to _map_runtime_decision docstring.
