@@ -238,12 +238,12 @@
 **Profile**: `implementer-ivan`  
 
 **Included subtasks:**
-- [ ] T026 Add restart.py to daemon-allowlist or refactor unauthorized call (WP07)
-- [ ] T027 Fix BuildRegistered not queued at init (WP07)
-- [ ] T028 Fix MissionOriginBound not queued without WebSocket (WP07)
-- [ ] T029 Add actor/wp_title fields to WPCreated fixture payload (WP07)
-- [ ] T030 Remove vendored events tree src/specify_cli/spec_kitty_events/ if present (WP07)
-- [ ] T031 Add # pydantic_model: frontmatter to YAML codeblock in example fixture (WP07)
+- [x] T026 Add restart.py to daemon-allowlist or refactor unauthorized call (WP07)
+- [x] T027 Fix BuildRegistered not queued at init (WP07)
+- [x] T028 Fix MissionOriginBound not queued without WebSocket (WP07)
+- [x] T029 Add actor/wp_title fields to WPCreated fixture payload (WP07)
+- [x] T030 Remove vendored events tree src/specify_cli/spec_kitty_events/ if present (WP07)
+- [x] T031 Add # pydantic_model: frontmatter to YAML codeblock in example fixture (WP07)
 
 **Implementation notes:**
 1. Run `uv sync --frozen` first; confirm spec_kitty_events version matches uv.lock pin
