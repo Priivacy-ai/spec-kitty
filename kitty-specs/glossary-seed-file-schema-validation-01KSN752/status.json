@@ -1,18 +1,18 @@
 {
-  "event_count": 27,
-  "last_event_id": "01KSN9JZ5M6BVQ7R6H51WADXMN",
-  "materialized_at": "2026-05-27T18:01:44.372559+00:00",
+  "event_count": 30,
+  "last_event_id": "01KSN9VFMEVJT6H56GH5RQSJGE",
+  "materialized_at": "2026-05-27T18:06:23.374464+00:00",
   "mission_number": "",
   "mission_slug": "glossary-seed-file-schema-validation-01KSN752",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 4,
+    "approved": 5,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 0
   },
@@ -46,11 +46,11 @@
       "last_transition_at": "2026-05-27T18:01:35.727462+00:00"
     },
     "WP05": {
-      "actor": "claude:opus:implementer-ivan:implementer",
+      "actor": "user",
       "force_count": 1,
-      "lane": "in_progress",
-      "last_event_id": "01KSN9JZ5M6BVQ7R6H51WADXMN",
-      "last_transition_at": "2026-05-27T18:01:44.372559+00:00"
+      "lane": "approved",
+      "last_event_id": "01KSN9VFMEVJT6H56GH5RQSJGE",
+      "last_transition_at": "2026-05-27T18:06:23.374464+00:00"
     }
   }
 }

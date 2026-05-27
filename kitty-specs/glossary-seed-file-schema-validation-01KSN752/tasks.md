@@ -132,11 +132,11 @@
 **Goal**: Replace silent empty-data responses in dashboard glossary handlers with structured validation error reporting.
 
 **Subtasks**:
-- [ ] T020 Add `validation_errors` field to `GlossaryHealthResponse` in `src/specify_cli/dashboard/api_types.py` (WP05)
-- [ ] T021 Update `handle_glossary_health` to catch `SeedFileValidationError` and include error details (WP05)
-- [ ] T022 Update `handle_glossary_terms` to log validation errors (WP05)
-- [ ] T023 Update `_collect_all_senses` to propagate `SeedFileValidationError` instead of silently returning empty list (WP05)
-- [ ] T024 Write dashboard handler tests in `tests/specify_cli/dashboard/test_glossary_handler.py` (WP05)
+- [x] T020 Add `validation_errors` field to `GlossaryHealthResponse` in `src/specify_cli/dashboard/api_types.py` (WP05)
+- [x] T021 Update `handle_glossary_health` to catch `SeedFileValidationError` and include error details (WP05)
+- [x] T022 Update `handle_glossary_terms` to log validation errors (WP05)
+- [x] T023 Update `_collect_all_senses` to propagate `SeedFileValidationError` instead of silently returning empty list (WP05)
+- [x] T024 Write dashboard handler tests in `tests/specify_cli/dashboard/test_glossary_handler.py` (WP05)
 
 **Implementation sketch**: Add optional `validation_errors` key to `GlossaryHealthResponse` TypedDict. Update `_collect_all_senses` to let `SeedFileValidationError` propagate (catch only other exceptions). In `handle_glossary_health`, catch `SeedFileValidationError`, populate `validation_errors` list with file/term/field/message dicts. `/api/glossary-terms` logs errors and returns `[]` (existing behavior, but with logging).
 
