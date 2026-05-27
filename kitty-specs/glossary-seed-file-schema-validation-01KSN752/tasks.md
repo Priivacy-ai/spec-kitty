@@ -45,12 +45,12 @@
 **Goal**: Create the Pydantic validation models (`GlossarySeedFile`, `GlossarySeedTerm`) and error types (`SeedValidationError`, `SeedFileValidationError`) that all downstream WPs depend on. Fix the known bad data.
 
 **Subtasks**:
-- [ ] T001 Fix bad data: normalize `Sonar quality gate` → `sonar quality gate` in `.kittify/glossaries/spec_kitty_core.yaml` (WP01)
-- [ ] T002 Add `SeedValidationError` frozen dataclass to `src/specify_cli/glossary/exceptions.py` (WP01)
-- [ ] T003 Add `SeedFileValidationError` exception class to `src/specify_cli/glossary/exceptions.py` (WP01)
-- [ ] T004 Create `GlossarySeedTerm` Pydantic model in `src/specify_cli/glossary/seed_schema.py` (WP01)
-- [ ] T005 Create `GlossarySeedFile` Pydantic model in `src/specify_cli/glossary/seed_schema.py` (WP01)
-- [ ] T006 Write unit tests in `tests/specify_cli/glossary/test_seed_schema.py` (WP01)
+- [x] T001 Fix bad data: normalize `Sonar quality gate` → `sonar quality gate` in `.kittify/glossaries/spec_kitty_core.yaml` (WP01)
+- [x] T002 Add `SeedValidationError` frozen dataclass to `src/specify_cli/glossary/exceptions.py` (WP01)
+- [x] T003 Add `SeedFileValidationError` exception class to `src/specify_cli/glossary/exceptions.py` (WP01)
+- [x] T004 Create `GlossarySeedTerm` Pydantic model in `src/specify_cli/glossary/seed_schema.py` (WP01)
+- [x] T005 Create `GlossarySeedFile` Pydantic model in `src/specify_cli/glossary/seed_schema.py` (WP01)
+- [x] T006 Write unit tests in `tests/specify_cli/glossary/test_seed_schema.py` (WP01)
 
 **Implementation sketch**: Fix bad YAML data first. Add error dataclass and exception to existing exceptions.py. Create new seed_schema.py with Pydantic models following doctrine pattern (ConfigDict frozen=True, extra="forbid"). Write comprehensive unit tests covering all invariants.
 
