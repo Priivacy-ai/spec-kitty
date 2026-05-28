@@ -12,12 +12,16 @@ tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-mission-coordination-branch-atomic-event-log-01KSPTVW
+base_commit: fc1aa41f62840ca1fa430e2d8fc372f384fc5421
+created_at: '2026-05-28T12:16:03.617573+00:00'
 subtasks:
 - T035
 - T036
 - T037
 - T038
-agent: claude
+agent: "claude:opus:reviewer-rita:reviewer"
+shell_pid: "56717"
 history:
 - at: '2026-05-28T08:55:00+00:00'
   actor: claude
@@ -220,3 +224,10 @@ After WP07 landed, new missions use the coord-branch topology end-to-end. **In-f
 - Plan: PR 2 steps 10–11
 - Contract: [`contracts/cli_status_mediation.md`](../contracts/cli_status_mediation.md)
 - Research: R-004, R-006 in [`research.md`](../research.md)
+
+## Activity Log
+
+- 2026-05-28T12:16:03Z – claude:opus:implementer-ivan:implementer – shell_pid=49347 – Assigned agent via action command
+- 2026-05-28T12:28:31Z – claude:opus:implementer-ivan:implementer – shell_pid=49347 – WP08 legacy fallback ready
+- 2026-05-28T12:29:32Z – claude:opus:reviewer-rita:reviewer – shell_pid=56717 – Started review via action command
+- 2026-05-28T12:30:57Z – claude:opus:reviewer-rita:reviewer – shell_pid=56717 – Review passed: T035 legacy detection (meta.json sans coordination_branch) routes to lane worktree + branch w/ once-per-mission warning marker. T036 transaction comments document both paths; pre-flight/lock/rollback/outbound deferral apply uniformly. T037 _read_path_resolver.py is CWD-independent, prefers coord worktree, falls back to primary; wired into tasks.py status, decision.py verify, execution_context._resolve_mission_slug. T038 SC-02 + SC-11 pass byte-identical SHA-256. 20/20 critical tests green; mypy --strict clean on transaction.py + _read_path_resolver.py. Caveats: filename drift (decision.py vs decisions.py) accepted -- correct file edited; execution_context.py cross-WP edit accepted as single chokepoint for read mediation; transaction.py cross-WP edit pre-authorized; no-meta.json defaults new-topology preserves WP05 test surface; 18 pre-existing failures unrelated.

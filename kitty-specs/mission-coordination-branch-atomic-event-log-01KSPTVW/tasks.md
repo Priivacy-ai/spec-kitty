@@ -313,10 +313,10 @@ No cycles. WP01 is the only WP with no dependencies.
 **Estimated prompt size**: ~360 lines.
 
 **Included subtasks**:
-- [ ] T035 Legacy mission detection: missing coordination branch → lane-branch destination_ref (WP08)
-- [ ] T036 Apply pre-flight + transaction + rollback uniformly to legacy missions (FR-017, FR-027) (WP08)
-- [ ] T037 CLI status mediation: `agent tasks status` / `agent context resolve` read coordination worktree (WP08)
-- [ ] T038 Integration tests: legacy mission regression + CLI mediation from lane CWD (WP08)
+- [x] T035 Legacy mission detection: missing coordination branch → lane-branch destination_ref (WP08)
+- [x] T036 Apply pre-flight + transaction + rollback uniformly to legacy missions (FR-017, FR-027) (WP08)
+- [x] T037 CLI status mediation: `agent tasks status` / `agent context resolve` read coordination worktree (WP08)
+- [x] T038 Integration tests: legacy mission regression + CLI mediation from lane CWD (WP08)
 
 **Implementation sketch**: In `BookkeepingTransaction.acquire(...)`, check whether `CoordinationWorkspace.is_present(...)` returns True. If not (legacy mission), resolve the worktree to the operator's lane worktree, set `destination_ref` to the lane branch, emit a one-time warning. The rest of the transaction flow is unchanged. For CLI mediation, every read-side command (`tasks status`, `context resolve`, `decision verify`, `doctor`) calls a single helper `resolve_mission_read_path(mission_handle)` that returns the coordination worktree (new topology) or the primary checkout (legacy).
 
