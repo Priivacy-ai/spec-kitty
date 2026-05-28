@@ -7,7 +7,7 @@ for domain invariants.
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
@@ -41,6 +41,13 @@ class GlossarySeedTerm(BaseModel):
     def definition_must_not_be_empty(cls, v: str) -> str:
         if not v.strip():
             raise ValueError("definition must not be empty")
+        return v
+
+    @field_validator("confidence", mode="before")
+    @classmethod
+    def confidence_must_be_number(cls, v: Any) -> Any:
+        if isinstance(v, bool) or not isinstance(v, (int, float)):
+            raise ValueError("confidence must be a number")
         return v
 
     @field_validator("confidence")
