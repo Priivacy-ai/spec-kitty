@@ -111,11 +111,11 @@ No cycles. WP01 is the only WP with no dependencies.
 **Estimated prompt size**: ~350 lines.
 
 **Included subtasks**:
-- [ ] T001 Update `safe_commit()` signature → keyword-only `destination_ref` required (WP01)
-- [ ] T002 Implement `HEAD == destination_ref` assertion + structured error types (WP01)
-- [ ] T003 Remove silent `_PROTECTED_BRANCH_COMMIT_EXCEPTIONS` spec-kitty-internal bypass entries (WP01)
-- [ ] T004 Unit tests: happy path, HEAD mismatch, protected branch, missing-arg, empty paths (WP01)
-- [ ] T005 CHANGELOG entry for PR 1 (WP01)
+- [x] T001 Update `safe_commit()` signature → keyword-only `destination_ref` required (WP01)
+- [x] T002 Implement `HEAD == destination_ref` assertion + structured error types (WP01)
+- [x] T003 Remove silent `_PROTECTED_BRANCH_COMMIT_EXCEPTIONS` spec-kitty-internal bypass entries (WP01)
+- [x] T004 Unit tests: happy path, HEAD mismatch, protected branch, missing-arg, empty paths (WP01)
+- [x] T005 CHANGELOG entry for PR 1 (WP01)
 
 **Implementation sketch**: Edit `src/specify_cli/git/commit_helpers.py`. Add `CommitDestinationMismatch` exception. Refactor `safe_commit` to receive `destination_ref` via keyword-only param. Run `git -C <worktree> symbolic-ref HEAD` and compare. Update existing protected-branch exception logic to remove planning-artifact bypass. Write the test file. Add CHANGELOG entry.
 
