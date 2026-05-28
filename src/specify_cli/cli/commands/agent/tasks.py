@@ -1906,10 +1906,11 @@ def move_task(
                     # changes are captured in the same atomic commit.
                     status_artifacts = _collect_status_artifacts(feature_dir)
                     commit_success = safe_commit(
-                        repo_path=main_repo_root,
-                        files_to_commit=[actual_file_path] + status_artifacts,
-                        commit_message=commit_msg,
-                        allow_empty=True,  # OK if nothing changed
+                        repo_root=main_repo_root,
+                        worktree_root=main_repo_root,
+                        destination_ref=target_branch,
+                        message=commit_msg,
+                        paths=tuple([actual_file_path] + status_artifacts),
                     )
 
                     if commit_success:
@@ -2487,10 +2488,11 @@ def mark_status(
 
                     # Commit only the tasks.md file (preserves staging area)
                     commit_success = safe_commit(
-                        repo_path=main_repo_root,
-                        files_to_commit=[actual_tasks_path],
-                        commit_message=commit_msg,
-                        allow_empty=True,  # OK if nothing changed
+                        repo_root=main_repo_root,
+                        worktree_root=main_repo_root,
+                        destination_ref=target_branch,
+                        message=commit_msg,
+                        paths=(actual_tasks_path,),
                     )
 
                     if commit_success:
@@ -2753,7 +2755,7 @@ def finalize_tasks(
 
         mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
         # Ensure we operate on the target branch for this feature
-        main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
+        main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
         feature_dir = main_repo_root / "kitty-specs" / mission_slug
         tasks_md = feature_dir / TASKS_MD_FILENAME
         tasks_dir = feature_dir / "tasks"
@@ -3036,7 +3038,7 @@ def map_requirements(
         _emit_sparse_session_warning(repo_root, command="spec-kitty agent tasks map-requirements")
 
         mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
-        main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
+        main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
         feature_dir = main_repo_root / "kitty-specs" / mission_slug
 
         if not feature_dir.exists():
@@ -3238,10 +3240,11 @@ def map_requirements(
                 commit_msg = f"chore: Map requirements for {', '.join(sorted(new_mappings))} on spec {spec_number}"
                 try:
                     committed = safe_commit(
-                        repo_path=main_repo_root,
-                        files_to_commit=written_files,
-                        commit_message=commit_msg,
-                        allow_empty=True,
+                        repo_root=main_repo_root,
+                        worktree_root=main_repo_root,
+                        destination_ref=target_branch,
+                        message=commit_msg,
+                        paths=tuple(written_files),
                     )
                 except Exception as exc_commit:
                     if not json_output:

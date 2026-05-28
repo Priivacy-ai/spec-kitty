@@ -434,17 +434,13 @@ def _commit_to_branch(
 
         # Commit only this file (preserves staging area)
         commit_msg = f"Add {artifact_type} for feature {mission_slug}"
-        success = safe_commit(
-            repo_path=repo_root,
-            files_to_commit=[file_path],
-            commit_message=commit_msg,
-            allow_empty=False,
+        safe_commit(
+            repo_root=repo_root,
+            worktree_root=repo_root,
+            destination_ref=current_branch,
+            message=commit_msg,
+            paths=(file_path,),
         )
-        if not success:
-            error_msg = f"Failed to commit {artifact_type}"
-            if not json_output:
-                console.print(f"[red]Error:[/red] {error_msg}")
-            raise RuntimeError(error_msg)
 
         if not json_output:
             console.print(f"[green]✓[/green] {artifact_type.capitalize()} committed to {current_branch}")
@@ -839,8 +835,8 @@ def create_mission(
             # Coordination branch (WP03 / issue #1348) — top-level field so
             # downstream tooling (lane allocator, BookkeepingTransaction, merge)
             # can read the canonical ref without re-deriving it.
-            "coordination_branch": result.coordination_branch,
-            "coordination_branch_created": result.coordination_branch_created,
+            "coordination_branch": getattr(result, "coordination_branch", None),
+            "coordination_branch_created": getattr(result, "coordination_branch_created", False),
         }
         _emit_json(
             _inject_branch_contract(
@@ -1363,10 +1359,11 @@ def setup_plan(
                             # Commit gap analysis and updated meta.json
                             with contextlib.suppress(Exception):  # Non-fatal: agent can commit separately
                                 safe_commit(
-                                    repo_path=repo_root,
-                                    files_to_commit=[gap_analysis_output, meta_file],
-                                    commit_message=f"Add gap analysis for feature {mission_slug}",
-                                    allow_empty=False,
+                                    repo_root=repo_root,
+                                    worktree_root=repo_root,
+                                    destination_ref=target_branch,
+                                    message=f"Add gap analysis for feature {mission_slug}",
+                                    paths=(gap_analysis_output, meta_file),
                                 )
                             if not json_output:
                                 coverage_pct = analysis.coverage_matrix.get_coverage_percentage() * 100
@@ -1399,10 +1396,11 @@ def setup_plan(
                     set_generators_configured(meta_file, generators_detected)
                     with contextlib.suppress(Exception):  # Non-fatal
                         safe_commit(
-                            repo_path=repo_root,
-                            files_to_commit=[meta_file],
-                            commit_message=f"Update generator config for feature {mission_slug}",
-                            allow_empty=False,
+                            repo_root=repo_root,
+                            worktree_root=repo_root,
+                            destination_ref=target_branch,
+                            message=f"Update generator config for feature {mission_slug}",
+                            paths=(meta_file,),
                         )
                 except Exception as gen_err:
                     if not json_output:
@@ -2621,10 +2619,11 @@ def finalize_tasks(
                 # Commit with descriptive message (safe_commit preserves staging area)
                 commit_msg = f"Add tasks for feature {mission_slug}"
                 commit_success = safe_commit(
-                    repo_path=repo_root,
-                    files_to_commit=files_to_commit,
-                    commit_message=commit_msg,
-                    allow_empty=False,
+                    repo_root=repo_root,
+                    worktree_root=repo_root,
+                    destination_ref=target_branch,
+                    message=commit_msg,
+                    paths=tuple(files_to_commit),
                 )
 
                 if commit_success:

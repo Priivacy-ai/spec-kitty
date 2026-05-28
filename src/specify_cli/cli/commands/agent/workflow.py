@@ -38,6 +38,7 @@ import logging
 import re
 import subprocess
 import tempfile
+import contextlib
 from datetime import UTC
 from pathlib import Path
 from typing import Annotated
@@ -247,7 +248,7 @@ def _commit_workflow_change(
             target_branch,
             message,
             "committed",
-            sha=result.sha,
+            sha=getattr(result, "sha", None),
             wp_id=wp_id,
         )
     except Exception as exc:  # noqa: BLE001 — surface + truncate + exit
@@ -1273,10 +1274,8 @@ def implement(
     except Exception as e:
         # WP06 T029: surface any partial commit summary before exiting,
         # so operators see what got recorded vs. refused.
-        try:
+        with contextlib.suppress(Exception):
             _print_commit_summary(command_name="implement")
-        except Exception:  # noqa: BLE001 — never let summary break error path
-            pass
         print(f"Error: {e}")
         raise typer.Exit(1)
 
@@ -2139,10 +2138,8 @@ def review(
         print(f"  ❌ spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path} --mission {mission_slug}")
 
     except Exception as e:
-        try:
+        with contextlib.suppress(Exception):
             _print_commit_summary(command_name="review")
-        except Exception:  # noqa: BLE001 — never let summary break error path
-            pass
         print(f"Error: {e}")
         raise typer.Exit(1)
 

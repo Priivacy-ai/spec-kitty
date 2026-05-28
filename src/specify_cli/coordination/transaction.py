@@ -199,7 +199,7 @@ def _is_legacy_mission(repo_root: Path, mission_slug: str, mid8: str) -> bool:
 
 
 def _resolve_legacy_lane_destination(
-    repo_root: Path,
+    _repo_root: Path,
 ) -> tuple[Path, str]:
     """Resolve the operator's current lane worktree + its checked-out branch.
 
@@ -297,7 +297,7 @@ def _emit_legacy_warning_once(
 # status domain owns it (FR-032). Re-export under the original name to
 # keep ``coordination.build_status_event`` import-compatible for any
 # callers that imported it through this module.
-from specify_cli.status.emit import build_status_event  # noqa: E402
+from specify_cli.status.emit import build_status_event  # noqa: E402,F401
 
 
 # ---------------------------------------------------------------------------
@@ -385,9 +385,10 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
     ) -> BookkeepingTransaction:
         """Construct, lock, and run the pre-flight policy gate.
 
-        On a policy refusal, the lock is NEVER acquired (and therefore
-        not released), and the refusal raises :class:`BookkeepingPolicyRefused`
-        before any disk write.
+        The feature-status lock is acquired before worktree resolution so
+        first-time coordination worktree creation is serialized across
+        concurrent emitters. Policy refusal still happens before any
+        bookkeeping write.
 
         On a lock-acquire timeout, raises :class:`BookkeepingLockTimeout`.
 
@@ -400,7 +401,47 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         # compare to short-form).
         normalised_ref = _normalize_ref(destination_ref)
 
-        # 2. Resolve the worktree.  Two paths exist (WP08 T035–T036, SC-11):
+        # 2. Acquire the feature status lock before worktree resolution. The
+        # lock context manager is held open across the lifetime of the
+        # transaction object; on any setup failure below, release it before
+        # propagating the domain error.
+        lock_cm = feature_status_lock(
+            repo_root, mission_slug, timeout=timeout,
+        )
+        try:
+            lock_cm.__enter__()
+        except FeatureStatusLockTimeoutError as exc:
+            raise BookkeepingLockTimeout(str(exc)) from exc
+
+        try:
+            return cls._acquire_locked(
+                repo_root=repo_root,
+                mission_id=mission_id,
+                mission_slug=mission_slug,
+                mid8=mid8,
+                destination_ref=destination_ref,
+                normalised_ref=normalised_ref,
+                operation=operation,
+                lock_cm=lock_cm,
+            )
+        except Exception:
+            lock_cm.__exit__(None, None, None)
+            raise
+
+    @classmethod
+    def _acquire_locked(
+        cls,
+        *,
+        repo_root: Path,
+        mission_id: str,
+        mission_slug: str,
+        mid8: str,
+        destination_ref: str,
+        normalised_ref: str,
+        operation: str,
+        lock_cm: AbstractContextManager[Path],
+    ) -> BookkeepingTransaction:
+        # Resolve the worktree.  Two paths exist (WP08 T035–T036, SC-11):
         #
         # (a) **New topology** (default): the mission's meta.json carries
         #     ``coordination_branch``.  We resolve the per-mission coord
@@ -462,8 +503,8 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         snapshot_path = feature_dir / _SNAPSHOT_FILENAME
 
         # 4. Build the change set and run the pre-flight policy gate.
-        # IMPORTANT: this happens BEFORE the lock is acquired so a
-        # refusal never blocks other emitters waiting on the lock.
+        # This still happens before any bookkeeping write; the lock is
+        # already held only to serialize first-time coord worktree setup.
         change_set = GitChangeSet(
             destination_ref=destination_ref,
             repo_root=repo_root,
@@ -478,18 +519,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         # ``Allowed`` — fall through.
         assert isinstance(verdict, Allowed)  # noqa: S101 — defensive
 
-        # 5. Acquire the feature status lock. The lock context manager
-        # is held open across the lifetime of the transaction object;
-        # we enter it here and exit it in __exit__.
-        lock_cm = feature_status_lock(
-            repo_root, mission_slug, timeout=timeout,
-        )
-        try:
-            lock_cm.__enter__()
-        except FeatureStatusLockTimeoutError as exc:
-            raise BookkeepingLockTimeout(str(exc)) from exc
-
-        # 6. Capture the pre-emit size of the event log (FR-010) and
+        # 5. Capture the pre-emit size of the event log (FR-010) and
         # snapshot of status.json (so rollback is byte-identical, not
         # "re-materialised approximately the same").
         pre_emit_size = events_path.stat().st_size if events_path.exists() else 0

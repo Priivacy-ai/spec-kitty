@@ -24,6 +24,7 @@ def _build_feature(tmp_path: Path, *, owned_file: str) -> Path:
     feature_dir = tmp_path / "kitty-specs" / mission_slug
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text('{"target_branch": "main"}\n', encoding="utf-8")
     (feature_dir / "spec.md").write_text(
         "# Spec\n"
         "## Functional Requirements\n"

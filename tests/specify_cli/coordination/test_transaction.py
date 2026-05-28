@@ -98,6 +98,44 @@ def test_acquire_creates_coord_worktree_and_holds_lock(repo: Path) -> None:
         assert txn.destination_ref == COORD_BRANCH
 
 
+def test_concurrent_first_acquire_serializes_coord_worktree_creation(repo: Path) -> None:
+    """Concurrent first use must not race ``git worktree add``."""
+    worktree_path = CoordinationWorkspace.worktree_path(repo, MISSION_SLUG, MID8)
+    assert not worktree_path.exists()
+
+    barrier = threading.Barrier(8)
+    results: list[str] = []
+    lock = threading.Lock()
+
+    def worker() -> None:
+        barrier.wait()
+        try:
+            with BookkeepingTransaction.acquire(
+                repo_root=repo,
+                mission_id=MISSION_ID,
+                mission_slug=MISSION_SLUG,
+                mid8=MID8,
+                destination_ref=COORD_BRANCH,
+                operation="concurrent_first_acquire",
+                timeout=10.0,
+            ) as txn:
+                assert txn.worktree_root == worktree_path
+        except Exception as exc:  # noqa: BLE001 - test records all failures
+            outcome = f"{type(exc).__name__}: {exc}"
+        else:
+            outcome = "ok"
+        with lock:
+            results.append(outcome)
+
+    threads = [threading.Thread(target=worker) for _ in range(8)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert results == ["ok"] * 8
+
+
 def test_append_event_then_commit_returns_receipt(repo: Path) -> None:
     event = _make_event()
     with BookkeepingTransaction.acquire(

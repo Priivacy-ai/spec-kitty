@@ -174,14 +174,13 @@ def _commit_feature_file(
         raise MissionCreationError("Not in a git repository")
 
     commit_msg = f"Add {artifact_type} for feature {mission_slug}"
-    success = safe_commit(
-        repo_path=repo_root,
-        files_to_commit=[file_path],
-        commit_message=commit_msg,
-        allow_empty=False,
+    safe_commit(
+        repo_root=repo_root,
+        worktree_root=repo_root,
+        destination_ref=current_branch,
+        message=commit_msg,
+        paths=(file_path,),
     )
-    if not success:
-        raise RuntimeError(f"Failed to commit {artifact_type}")
 
 
 # ---------------------------------------------------------------------------

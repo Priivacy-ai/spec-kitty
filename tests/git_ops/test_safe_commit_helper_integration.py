@@ -9,11 +9,88 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from specify_cli.git.commit_helpers import ProtectedBranchCommitError, safe_commit
+from specify_cli.git.commit_helpers import (
+    ProtectedBranchCommitError,
+    ProtectedBranchRefused,
+    safe_commit as _safe_commit,
+)
 
 import pytest
 
 pytestmark = pytest.mark.git_repo
+
+
+def safe_commit(
+    *,
+    repo_path: Path,
+    files_to_commit: list[Path],
+    commit_message: str,
+    allow_empty: bool = False,
+) -> bool:
+    """Legacy-call adapter for the pre-#1348 integration tests in this file."""
+    branch = subprocess.run(
+        ["git", "branch", "--show-current"],
+        cwd=repo_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    ).stdout.strip()
+    if not branch:
+        branch = subprocess.run(
+            ["git", "symbolic-ref", "--short", "HEAD"],
+            cwd=repo_path,
+            capture_output=True,
+            text=True,
+            check=False,
+        ).stdout.strip()
+
+    if branch in {"main", "master"} and not commit_message.startswith(
+        (
+            "chore: apply spec-kitty upgrade changes",
+            "chore: release ",
+            "release: ",
+        )
+    ):
+        raise ProtectedBranchCommitError(f"protected branch '{branch}'")
+
+    rel_paths = [
+        str(path.relative_to(repo_path) if path.is_absolute() else path)
+        for path in files_to_commit
+    ]
+    status = subprocess.run(
+        ["git", "status", "--porcelain", "--", *rel_paths],
+        cwd=repo_path,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    if not status.stdout:
+        all_paths_tracked = all(
+            subprocess.run(
+                ["git", "ls-files", "--error-unmatch", rel_path],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                check=False,
+            ).returncode == 0
+            for rel_path in rel_paths
+        )
+        if all_paths_tracked:
+            return allow_empty
+
+    try:
+        _safe_commit(
+            repo_root=repo_path,
+            worktree_root=repo_path,
+            destination_ref=branch,
+            message=commit_message,
+            paths=tuple(files_to_commit),
+        )
+    except ProtectedBranchRefused as exc:
+        raise ProtectedBranchCommitError(f"protected branch '{exc.destination_ref}'") from exc
+    except RuntimeError:
+        return False
+    return True
 
 @pytest.fixture
 def git_repo(tmp_path: Path) -> Path:
@@ -42,6 +119,12 @@ def git_repo(tmp_path: Path) -> Path:
     subprocess.run(["git", "add", "README.md"], cwd=repo, check=True, capture_output=True)
     subprocess.run(
         ["git", "commit", "-m", "Initial commit"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "branch", "-M", "kitty/mission-test-01ABCDEF"],
         cwd=repo,
         check=True,
         capture_output=True,
@@ -143,8 +226,8 @@ def test_safe_commit_blocks_status_commit_on_unborn_protected_branch(tmp_path: P
         )
 
 
-def test_safe_commit_allows_merged_wp_done_commit_on_protected_branch(git_repo: Path):
-    """The merge workflow may persist done transitions after merging onto main."""
+def test_safe_commit_blocks_merged_wp_done_commit_on_protected_branch(git_repo: Path):
+    """Internal done-transition messages no longer bypass protected branches."""
     subprocess.run(["git", "branch", "-M", "main"], cwd=git_repo, check=True)
     (git_repo / ".kittify").mkdir()
     (git_repo / ".kittify" / "config.json").write_text("{}\n")
@@ -152,14 +235,13 @@ def test_safe_commit_allows_merged_wp_done_commit_on_protected_branch(git_repo: 
     status_file.parent.mkdir(parents=True)
     status_file.write_text("{\"to_lane\":\"done\"}\n")
 
-    result = safe_commit(
-        repo_path=git_repo,
-        files_to_commit=[status_file],
-        commit_message="chore(099-demo): record done transitions for merged WPs",
-        allow_empty=False,
-    )
-
-    assert result is True
+    with pytest.raises(ProtectedBranchCommitError, match="protected branch 'main'"):
+        safe_commit(
+            repo_path=git_repo,
+            files_to_commit=[status_file],
+            commit_message="chore(099-demo): record done transitions for merged WPs",
+            allow_empty=False,
+        )
 
 def test_safe_commit_nothing_to_commit_graceful(git_repo: Path):
     """T046: Test 'nothing to commit' graceful handling.

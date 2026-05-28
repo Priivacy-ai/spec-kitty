@@ -1449,10 +1449,11 @@ def _run_lane_based_merge_locked(
         files_to_commit.append(baseline_meta_path)
 
     safe_commit(
-        repo_path=main_repo,
-        files_to_commit=files_to_commit,
-        commit_message=f"chore({mission_slug}): record done transitions for merged WPs",
-        allow_empty=False,
+        repo_root=main_repo,
+        worktree_root=main_repo,
+        destination_ref=lanes_manifest.target_branch,
+        message=f"chore({mission_slug}): record done transitions for merged WPs",
+        paths=tuple(files_to_commit),
     )
 
     console.print("  [dim]Syncing dossier state for the merged mission...[/dim]")
