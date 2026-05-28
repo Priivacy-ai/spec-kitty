@@ -341,10 +341,10 @@ No cycles. WP01 is the only WP with no dependencies.
 **Estimated prompt size**: ~320 lines.
 
 **Included subtasks**:
-- [ ] T039 Architectural test: forbid direct `safe_commit` imports from transactional workflow modules (WP09)
-- [ ] T040 Stress test: 20 concurrent `implement` calls; verify no interleaved writes (SC-12) (WP09)
-- [ ] T041 SaaS-sink fanout deferral instrumentation + mock-sink test fixture (NFR-009) (WP09)
-- [ ] T042 Issue #1348 regression test: exact reproduction sequence; verify fix holds (WP09)
+- [x] T039 Architectural test: forbid direct `safe_commit` imports from transactional workflow modules (WP09)
+- [x] T040 Stress test: 20 concurrent `implement` calls; verify no interleaved writes (SC-12) (WP09)
+- [x] T041 SaaS-sink fanout deferral instrumentation + mock-sink test fixture (NFR-009) (WP09)
+- [x] T042 Issue #1348 regression test: exact reproduction sequence; verify fix holds (WP09)
 
 **Implementation sketch**: The architectural test uses `ast.parse` to scan target modules and detect `from specify_cli.git.commit_helpers import safe_commit` or equivalent. The stress test uses `multiprocessing` to spawn N subprocess workers, each running an `implement` against the same mission with a different WP. The mock SaaS sink fixture records every call and exposes a `clear()`/`get_calls()` API. The #1348 regression test asserts the bug-reproducing sequence (event on main, commit blocked, on-disk advance) does not happen on either topology.
 
