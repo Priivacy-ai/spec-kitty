@@ -169,10 +169,10 @@ No cycles. WP01 is the only WP with no dependencies.
 **Estimated prompt size**: ~280 lines.
 
 **Included subtasks**:
-- [ ] T011 Add coordination branch creation logic to `agent mission create` (WP03)
-- [ ] T012 Implement idempotent branch creation; preserve existing coordination ref (WP03)
-- [ ] T013 Persist coordination branch ref in `meta.json`; expose in `mission create --json` output (WP03)
-- [ ] T014 Unit tests for branch creation, idempotency, name derivation (mid8 disambiguation) (WP03)
+- [x] T011 Add coordination branch creation logic to `agent mission create` (WP03)
+- [x] T012 Implement idempotent branch creation; preserve existing coordination ref (WP03)
+- [x] T013 Persist coordination branch ref in `meta.json`; expose in `mission create --json` output (WP03)
+- [x] T014 Unit tests for branch creation, idempotency, name derivation (mid8 disambiguation) (WP03)
 
 **Implementation sketch**: In `agent/mission.py` (`mission create` subcommand), after `mission_id` / `mid8` / `mission_slug` are minted, compute the coordination branch name and call `git branch <name> <target_branch>` (or reuse if it exists). Update `meta.json` to include `coordination_branch` field. Update the JSON output schema.
 
