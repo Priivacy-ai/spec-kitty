@@ -64,3 +64,10 @@ class GlossarySeedFile(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     terms: list[GlossarySeedTerm]
+
+    @field_validator("terms", mode="before")
+    @classmethod
+    def bare_terms_key_means_empty_list(cls, v: Any) -> Any:
+        if v is None:
+            return []
+        return v

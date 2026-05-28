@@ -114,6 +114,9 @@ def _translate_pydantic_errors(
             elif isinstance(part, str):
                 field_name = part
 
+        if msg == "Field required" and field_name:
+            msg = f"must have '{field_name}' key"
+
         errors.append(
             SeedValidationError(
                 file_path=file_path,
