@@ -3,7 +3,7 @@
   "mission_slug": "rename-ceremony-to-status-commit-01KSPN6C",
   "mission_id": "01KSPN6C5DWX7MRFMCD2BG1SBT",
   "mission_branch": "kitty/mission-rename-ceremony-to-status-commit-01KSPN6C",
-  "target_branch": "prep/tasks-rename-ceremony-01KSPN6C",
+  "target_branch": "main",
   "lanes": [
     {
       "lane_id": "lane-a",

@@ -6,9 +6,9 @@ requirement_refs:
 - FR-001
 - FR-008
 tracker_refs: []
-planning_base_branch: prep/tasks-rename-ceremony-01KSPN6C
-merge_target_branch: prep/tasks-rename-ceremony-01KSPN6C
-branch_strategy: Planning artifacts for this mission were generated on prep/tasks-rename-ceremony-01KSPN6C. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into prep/tasks-rename-ceremony-01KSPN6C unless the human explicitly redirects the landing branch.
+planning_base_branch: main
+merge_target_branch: main
+branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 created_at: '2026-05-28T07:11:05Z'
 subtasks:
 - T015
