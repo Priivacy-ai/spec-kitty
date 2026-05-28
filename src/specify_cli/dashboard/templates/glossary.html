@@ -168,6 +168,31 @@ body {
   box-shadow: 0 2px 8px rgba(0,0,0,0.06);
 }
 
+.validation-banner {
+  margin: 18px 32px 0;
+  padding: 12px 14px;
+  background: #fff8db;
+  border: 1px solid #e6c84c;
+  border-left: 4px solid var(--yellow-dark);
+  border-radius: var(--radius-sm);
+  color: var(--text-bright);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 0.9em;
+  box-shadow: var(--shadow-sm);
+}
+.validation-banner.hidden { display: none; }
+.validation-banner strong { font-weight: 700; }
+.validation-banner code {
+  font-family: var(--mono);
+  background: rgba(255,255,255,0.7);
+  border: 1px solid rgba(44,62,80,0.12);
+  border-radius: 4px;
+  padding: 2px 5px;
+}
+
 .search-wrap {
   position: relative;
   flex: 1;
@@ -474,6 +499,8 @@ body {
   <span class="result-count" id="result-count"></span>
 </div>
 
+<div class="validation-banner hidden" id="validation-banner" role="alert"></div>
+
 <!-- ALPHABET NAV -->
 <nav class="alpha-nav" id="alpha-nav" aria-label="Jump to letter"></nav>
 
@@ -489,6 +516,7 @@ body {
 
 <script>
 let TERMS = [];
+let VALIDATION_ERRORS = [];
 
 // ── State ─────────────────────────────────────────────────
 let filter = 'all';
@@ -504,9 +532,41 @@ async function loadTerms() {
     console.warn('glossary: could not load terms', e);
     TERMS = [];
   }
+  try {
+    const resp = await fetch('/api/glossary-health');
+    if (!resp.ok) throw new Error('health fetch failed');
+    const health = await resp.json();
+    VALIDATION_ERRORS = Array.isArray(health.validation_errors) ? health.validation_errors : [];
+  } catch (e) {
+    console.warn('glossary: could not load health', e);
+    VALIDATION_ERRORS = [];
+  }
+  renderValidationBanner();
   updateStats();
   buildAlphaNav();
   render();
+}
+
+function renderValidationBanner() {
+  const banner = document.getElementById('validation-banner');
+  if (!banner) return;
+  if (!VALIDATION_ERRORS.length) {
+    banner.classList.add('hidden');
+    banner.innerHTML = '';
+    return;
+  }
+  const first = VALIDATION_ERRORS[0] || {};
+  const count = VALIDATION_ERRORS.length;
+  const file = first.file ? String(first.file).split('/').pop() : 'seed file';
+  const where = first.term_index === null || first.term_index === undefined ? 'file' : `term ${first.term_index}`;
+  const field = first.field ? ` · ${first.field}` : '';
+  const more = count > 1 ? ` · ${count - 1} more` : '';
+  banner.classList.remove('hidden');
+  banner.innerHTML = `
+    <strong>Glossary validation warning</strong>
+    <span>${count} validation ${count === 1 ? 'error' : 'errors'}; showing recovered terms only.</span>
+    <code>${esc(file)} · ${esc(where)}${esc(field)}${esc(more)}</code>
+  `;
 }
 
 function updateStats() {

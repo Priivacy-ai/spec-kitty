@@ -69,7 +69,7 @@ class TestGlossaryHealth:
 
         handler = _make_handler(tmp_path)
 
-        with patch.object(gloss_module, "_collect_all_senses", return_value=terms):
+        with patch.object(gloss_module, "_collect_all_senses_with_errors", return_value=(terms, [])):
             gloss_module.GlossaryHandler.handle_glossary_health(handler)
 
         handler.send_response.assert_called_once_with(200)
@@ -85,7 +85,7 @@ class TestGlossaryHealth:
 
         handler = _make_handler(tmp_path)
 
-        with patch.object(gloss_module, "_collect_all_senses", return_value=[]):
+        with patch.object(gloss_module, "_collect_all_senses_with_errors", return_value=([], [])):
             gloss_module.GlossaryHandler.handle_glossary_health(handler)
 
         handler.send_response.assert_called_once_with(200)
@@ -101,7 +101,7 @@ class TestGlossaryHealth:
 
         handler = _make_handler(tmp_path)
 
-        with patch.object(gloss_module, "_collect_all_senses", side_effect=RuntimeError("boom")):
+        with patch.object(gloss_module, "_collect_all_senses_with_errors", side_effect=RuntimeError("boom")):
             gloss_module.GlossaryHandler.handle_glossary_health(handler)
 
         handler.send_response.assert_called_once_with(200)
@@ -157,7 +157,7 @@ class TestGlossaryHealth:
 
         handler = _make_handler(tmp_path)
 
-        with patch.object(gloss_module, "_collect_all_senses", return_value=[]):
+        with patch.object(gloss_module, "_collect_all_senses_with_errors", return_value=([], [])):
             gloss_module.GlossaryHandler.handle_glossary_health(handler)
 
         data = _read_response(handler)
@@ -170,7 +170,7 @@ class TestGlossaryHealth:
 
         handler = _make_handler(tmp_path)
 
-        with patch.object(gloss_module, "_collect_all_senses", return_value=[]):
+        with patch.object(gloss_module, "_collect_all_senses_with_errors", return_value=([], [])):
             gloss_module.GlossaryHandler.handle_glossary_health(handler)
 
         data = _read_response(handler)
@@ -183,7 +183,7 @@ class TestGlossaryHealth:
 
         handler = _make_handler(tmp_path)
 
-        with patch.object(gloss_module, "_collect_all_senses", return_value=[]):
+        with patch.object(gloss_module, "_collect_all_senses_with_errors", return_value=([], [])):
             gloss_module.GlossaryHandler.handle_glossary_health(handler)
 
         data = _read_response(handler)
@@ -202,7 +202,7 @@ class TestGlossaryHealth:
         terms = [_make_term("alpha", "def a", "active", 1.0)]
         handler = _make_handler(tmp_path)
 
-        with patch.object(gloss_module, "_collect_all_senses", return_value=terms):
+        with patch.object(gloss_module, "_collect_all_senses_with_errors", return_value=(terms, [])):
             gloss_module.GlossaryHandler.handle_glossary_health(handler)
 
         data = _read_response(handler)
@@ -233,7 +233,7 @@ class TestGlossaryHealth:
 
         handler = _make_handler(tmp_path)
 
-        with patch.object(gloss_module, "_collect_all_senses", side_effect=exc):
+        with patch.object(gloss_module, "_collect_all_senses_with_errors", side_effect=exc):
             gloss_module.GlossaryHandler.handle_glossary_health(handler)
 
         data = _read_response(handler)
@@ -258,12 +258,100 @@ class TestGlossaryHealth:
 
         handler = _make_handler(tmp_path)
 
-        with patch.object(gloss_module, "_collect_all_senses", side_effect=RuntimeError("boom")):
+        with patch.object(gloss_module, "_collect_all_senses_with_errors", side_effect=RuntimeError("boom")):
             gloss_module.GlossaryHandler.handle_glossary_health(handler)
 
         data = _read_response(handler)
         assert data["total_terms"] == 0
         assert data["validation_errors"] is None
+
+    def test_health_reports_validation_errors_after_partial_recovery(self, tmp_path):
+        """Recovered dashboard terms must not hide seed validation errors."""
+        from specify_cli.dashboard.handlers import glossary as gloss_module
+
+        seed_dir = tmp_path / ".kittify" / "glossaries"
+        seed_dir.mkdir(parents=True)
+        (seed_dir / "spec_kitty_core.yaml").write_text(
+            "terms:\n"
+            "  - surface: alpha\n"
+            "    definition: First letter\n"
+            "    status: active\n"
+            "  - surface: beta\n"
+            "    definition: Invalid extra field\n"
+            "    status: active\n"
+            "    bogus_extra_field: rejected\n"
+            "  - surface: gamma\n"
+            "    definition: Third letter\n"
+            "    status: draft\n",
+            encoding="utf-8",
+        )
+        handler = _make_handler(tmp_path)
+
+        gloss_module.GlossaryHandler.handle_glossary_health(handler)
+
+        data = _read_response(handler)
+        assert data["total_terms"] == 2
+        assert data["active_count"] == 1
+        assert data["draft_count"] == 1
+        assert data["validation_errors"] is not None
+        assert data["validation_errors"][0]["term_index"] == 1
+        assert data["validation_errors"][0]["term_surface"] == "beta"
+        assert data["validation_errors"][0]["field"] == "bogus_extra_field"
+
+    def test_health_reports_invalid_scope_even_when_lower_scope_loads(self, tmp_path):
+        """A valid lower-precedence scope must not mask an invalid higher scope."""
+        from specify_cli.dashboard.handlers import glossary as gloss_module
+
+        seed_dir = tmp_path / ".kittify" / "glossaries"
+        seed_dir.mkdir(parents=True)
+        (seed_dir / "mission_local.yaml").write_text(
+            "terms:\n"
+            "  - surface: BadTerm\n"
+            "    definition: Invalid high-precedence term\n",
+            encoding="utf-8",
+        )
+        (seed_dir / "spec_kitty_core.yaml").write_text(
+            "terms:\n"
+            "  - surface: alpha\n"
+            "    definition: Valid core term\n"
+            "    status: active\n",
+            encoding="utf-8",
+        )
+        handler = _make_handler(tmp_path)
+
+        gloss_module.GlossaryHandler.handle_glossary_health(handler)
+
+        data = _read_response(handler)
+        assert data["total_terms"] == 1
+        assert data["active_count"] == 1
+        assert data["validation_errors"] is not None
+        assert data["validation_errors"][0]["term_index"] == 0
+        assert data["validation_errors"][0]["term_surface"] == "BadTerm"
+        assert data["validation_errors"][0]["field"] == "surface"
+
+    def test_health_refuses_recovery_for_root_level_validation_error(self, tmp_path):
+        """Root seed schema errors are file-level failures, not per-term recovery."""
+        from specify_cli.dashboard.handlers import glossary as gloss_module
+
+        seed_dir = tmp_path / ".kittify" / "glossaries"
+        seed_dir.mkdir(parents=True)
+        (seed_dir / "spec_kitty_core.yaml").write_text(
+            "version: 1\n"
+            "terms:\n"
+            "  - surface: alpha\n"
+            "    definition: Valid term in invalid file shape\n"
+            "    status: active\n",
+            encoding="utf-8",
+        )
+        handler = _make_handler(tmp_path)
+
+        gloss_module.GlossaryHandler.handle_glossary_health(handler)
+
+        data = _read_response(handler)
+        assert data["total_terms"] == 0
+        assert data["validation_errors"] is not None
+        assert data["validation_errors"][0]["term_index"] is None
+        assert data["validation_errors"][0]["field"] == "version"
 
 
 class TestGlossaryTerms:
@@ -367,10 +455,12 @@ class TestCollectAllSenses:
             )],
         )
 
-        with patch("specify_cli.dashboard.handlers.glossary.SeedFileValidationError", SeedFileValidationError):
-            with patch("specify_cli.glossary.scope.load_seed_file", side_effect=exc):
-                with pytest.raises(SeedFileValidationError):
-                    _collect_all_senses(tmp_path)
+        with (
+            patch("specify_cli.dashboard.handlers.glossary.SeedFileValidationError", SeedFileValidationError),
+            patch("specify_cli.glossary.scope.load_seed_file", side_effect=exc),
+            pytest.raises(SeedFileValidationError),
+        ):
+            _collect_all_senses(tmp_path)
 
     def test_other_exceptions_are_swallowed(self, tmp_path):
         """Non-validation exceptions are caught, returning empty list."""
@@ -380,6 +470,40 @@ class TestCollectAllSenses:
             result = _collect_all_senses(tmp_path)
 
         assert result == []
+
+    def test_recovers_valid_terms_when_file_validation_fails(self, tmp_path):
+        """Per-term recovery returns valid terms even when one entry is malformed."""
+        from specify_cli.dashboard.handlers.glossary import _collect_all_senses
+
+        # Write a seed file w/ two valid terms and one term with an
+        # extra-forbidden field, simulating the upstream schema drift
+        # that prompted this regression test.
+        seed_dir = tmp_path / ".kittify" / "glossaries"
+        seed_dir.mkdir(parents=True)
+        (seed_dir / "spec_kitty_core.yaml").write_text(
+            "terms:\n"
+            "  - surface: alpha\n"
+            "    definition: First letter\n"
+            "    confidence: 0.9\n"
+            "    status: active\n"
+            "  - surface: beta\n"
+            "    definition: Second letter\n"
+            "    confidence: 0.9\n"
+            "    status: active\n"
+            "    bogus_extra_field: rejected\n"
+            "  - surface: gamma\n"
+            "    definition: Third letter\n"
+            "    confidence: 0.9\n"
+            "    status: active\n",
+            encoding="utf-8",
+        )
+
+        result = _collect_all_senses(tmp_path)
+
+        surfaces = sorted(t.surface.surface_text for t in result)
+        assert surfaces == ["alpha", "gamma"], (
+            f"recovery should keep alpha + gamma and skip beta; got {surfaces}"
+        )
 
 
 class TestGlossaryPage:
@@ -406,6 +530,9 @@ class TestGlossaryPage:
         body = handler.wfile.read()
         assert body  # non-empty
         assert b"<!DOCTYPE html>" in body or b"<html" in body
+        text = body.decode("utf-8")
+        assert 'id="validation-banner"' in text
+        assert "fetch('/api/glossary-health')" in text
 
     def test_glossary_page_uses_cached_bytes(self, tmp_path):
         """Module-level _GLOSSARY_HTML_BYTES is reused for each request."""
