@@ -154,6 +154,26 @@ class TestUvToolBranch:
             )
         assert result == InstallMethod.UV_TOOL
 
+    def test_uv_tool_receipt_must_bind_spec_kitty_package(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        tool_env = tmp_path / "custom-tools" / "spec-kitty-cli"
+        bin_dir = tool_env / "bin"
+        bin_dir.mkdir(parents=True)
+        (tool_env / "uv-receipt.toml").write_text(
+            "[tool]\n"
+            'requirements = [{ name = "other-tool" }]\n',
+            encoding="utf-8",
+        )
+        monkeypatch.delenv("UV_TOOL_DIR", raising=False)
+
+        with _no_source():
+            result = detect_install_method(
+                executable=str(bin_dir / "python"),
+                distribution_loader=_loader_returning(None),
+            )
+        assert result == InstallMethod.UNKNOWN
+
     def test_uv_tool_detected_via_default_uv_tools_path(self) -> None:
         executable = str(Path.home() / ".local" / "share" / "uv" / "tools" / "spec-kitty-cli" / "bin" / "python")
         with _no_source():

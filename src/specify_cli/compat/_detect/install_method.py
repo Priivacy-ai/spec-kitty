@@ -128,7 +128,7 @@ def _has_uv_tool_receipt(exe_path: Path) -> bool:
                 if isinstance(requirement, dict) and requirement.get("name") == _PACKAGE_NAME:
                     return True
 
-        return tool_env.name == _PACKAGE_NAME
+        return False
     except Exception:  # noqa: BLE001
         pass
     return False

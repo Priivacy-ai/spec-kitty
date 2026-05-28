@@ -95,6 +95,8 @@ def _versioned_package() -> str:
 
 
 def _fallback_uv_tool_reinstall_command() -> str:
+    if _active_uv_tool_receipt_path() is not None:
+        return "reinstall the same uv tool source with --with pytest"
     return f"{_uv_tool_env_prefix()}uv tool install --force --with pytest {_versioned_package()}"
 
 
@@ -122,14 +124,26 @@ def _uv_tool_reinstall_command() -> str | None:
 
 def _active_uv_tool_receipt() -> dict[str, object] | None:
     try:
+        receipt_path = _active_uv_tool_receipt_path()
+        if receipt_path is None:
+            return None
+        receipt = tomllib.loads(receipt_path.read_text(encoding="utf-8"))
+        if isinstance(receipt, dict):
+            return receipt
+    except Exception:  # noqa: BLE001
+        return None
+    return None
+
+
+def _active_uv_tool_receipt_path() -> Path | None:
+    try:
         executable_parent = Path(sys.executable).parent
         if executable_parent.name.lower() not in {"bin", "scripts"}:
             return None
 
         receipt_path = executable_parent.parent / "uv-receipt.toml"
-        receipt = tomllib.loads(receipt_path.read_text(encoding="utf-8"))
-        if isinstance(receipt, dict):
-            return receipt
+        if receipt_path.exists():
+            return receipt_path
     except Exception:  # noqa: BLE001
         return None
     return None
@@ -152,12 +166,22 @@ def _uv_tool_with_args(requirements: list[object]) -> list[str]:
             continue
         if requirement.get("name") == _PYTEST_NAME:
             has_pytest = True
-        requirement_arg = _uv_tool_requirement_arg(requirement)
-        if requirement_arg is not None:
-            args.extend(["--with", requirement_arg])
+        args.extend(_uv_tool_requirement_args(requirement))
     if not has_pytest:
         args.extend(["--with", _PYTEST_NAME])
     return args
+
+
+def _uv_tool_requirement_args(requirement: dict[str, object]) -> list[str]:
+    editable = _nonempty_str(requirement.get("editable"))
+    if editable is not None:
+        return ["--with-editable", editable]
+
+    requirement_arg = _uv_tool_requirement_arg(requirement)
+    if requirement_arg is not None:
+        return ["--with", requirement_arg]
+
+    return []
 
 
 def _uv_tool_requirement_arg(requirement: dict[str, object]) -> str | None:
