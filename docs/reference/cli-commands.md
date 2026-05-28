@@ -2591,6 +2591,25 @@ _Cross-mission retrospective summary._
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty safe-commit
+
+```
+ Usage: spec-kitty safe-commit [OPTIONS] FILES...
+
+ Commit only the requested files via Spec Kitty's safe-commit path.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    files      FILES...  Files to commit, relative to the current worktree  │
+│                           root or absolute.                                  │
+│                           [required]                                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --message  -m      TEXT  Commit message. [required]                       │
+│    --json                   Output JSON                                      │
+│    --help                   Show this message and exit.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty specify
 
 ```

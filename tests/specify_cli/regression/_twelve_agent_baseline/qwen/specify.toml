@@ -104,7 +104,7 @@ Workflow:
 1. Run `spec-kitty agent mission create …`. Note that `spec.md` is left
    untracked.
 2. Populate `spec.md` with real Functional / Non-Functional / Constraint rows.
-3. Commit `spec.md` yourself: `git add <feature_dir>/spec.md && git commit -m "Add spec for <slug>"`.
+3. Commit `spec.md` yourself: `spec-kitty safe-commit --message "Add spec for <slug>" <feature_dir>/spec.md`.
 4. Only then will `spec-kitty agent mission setup-plan` accept the spec phase
    as complete; otherwise it returns `phase_complete=false` with a
    `blocked_reason` mentioning "committed AND substantive".

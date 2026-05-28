@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+import subprocess
 from unittest.mock import patch
 
 import pytest
@@ -25,6 +26,12 @@ SAMPLE_CHARTER = """# Testing Standards
 ## Project Directives
 1. Write tests for new features
 """
+
+
+def _git_init(repo_root: Path) -> None:
+    subprocess.run(["git", "init", "--quiet", str(repo_root)], check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo_root, check=True)
+    subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo_root, check=True)
 
 
 @pytest.fixture
@@ -136,12 +143,13 @@ def test_interview_defaults_writes_answers(tmp_path: Path) -> None:
 def test_generate_command_success(tmp_path: Path) -> None:
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
+    _git_init(repo_root)
     (repo_root / ".kittify" / "charter").mkdir(parents=True)
 
     with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_find_root:
         mock_find_root.return_value = repo_root
 
-        result = runner.invoke(app, ["generate"])
+        result = runner.invoke(app, ["generate", "--no-from-interview"])
 
         assert result.exit_code == 0
         assert "generated and synced" in result.stdout
@@ -153,6 +161,8 @@ def test_generate_command_success(tmp_path: Path) -> None:
 
 def test_generate_command_requires_force_when_existing(tmp_path: Path) -> None:
     repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    _git_init(repo_root)
     charter_dir = repo_root / ".kittify" / "charter"
     charter_dir.mkdir(parents=True)
     (charter_dir / "charter.md").write_text("# Existing", encoding="utf-8")
@@ -160,7 +170,7 @@ def test_generate_command_requires_force_when_existing(tmp_path: Path) -> None:
     with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_find_root:
         mock_find_root.return_value = repo_root
 
-        result = runner.invoke(app, ["generate"])
+        result = runner.invoke(app, ["generate", "--no-from-interview"])
 
         assert result.exit_code == 1
         assert "--force" in result.stdout
@@ -168,6 +178,8 @@ def test_generate_command_requires_force_when_existing(tmp_path: Path) -> None:
 
 def test_generate_command_force_overwrites(tmp_path: Path) -> None:
     repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    _git_init(repo_root)
     charter_dir = repo_root / ".kittify" / "charter"
     charter_dir.mkdir(parents=True)
     charter_file = charter_dir / "charter.md"
@@ -176,7 +188,7 @@ def test_generate_command_force_overwrites(tmp_path: Path) -> None:
     with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_find_root:
         mock_find_root.return_value = repo_root
 
-        result = runner.invoke(app, ["generate", "--force", "--json"])
+        result = runner.invoke(app, ["generate", "--force", "--json", "--no-from-interview"])
 
         assert result.exit_code == 0
         data = json.loads(result.stdout)
@@ -189,12 +201,13 @@ def test_generate_command_force_overwrites(tmp_path: Path) -> None:
 def test_context_bootstrap_then_compact(tmp_path: Path) -> None:
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
+    _git_init(repo_root)
     (repo_root / ".kittify" / "charter").mkdir(parents=True)
 
     with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_find_root:
         mock_find_root.return_value = repo_root
 
-        generate_result = runner.invoke(app, ["generate", "--json"])
+        generate_result = runner.invoke(app, ["generate", "--json", "--no-from-interview"])
         assert generate_result.exit_code == 0
 
         first = runner.invoke(app, ["context", "--action", "specify", "--json"])
@@ -223,7 +236,7 @@ def test_context_compact_mode_auto_syncs_missing_extracted_artifacts(tmp_path: P
     with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_find_root:
         mock_find_root.return_value = repo_root
 
-        generate_result = runner.invoke(app, ["generate", "--json"])
+        generate_result = runner.invoke(app, ["generate", "--json", "--no-from-interview"])
         assert generate_result.exit_code == 0
 
         first = runner.invoke(app, ["context", "--action", "plan", "--json"])

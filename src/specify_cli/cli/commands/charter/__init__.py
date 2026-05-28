@@ -142,6 +142,7 @@ __all__ = [
     # Subcommand handlers
     "interview",
     "generate",
+    "commit",
     "context",
     "sync",
     "status",

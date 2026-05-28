@@ -51,15 +51,24 @@ If the skill conflicts with this command contract, follow this command contract.
 
 ## Command Contract
 
-This command owns the user interview in chat. Do not default to
+This command owns charter discovery in chat. Do not default to
 `spec-kitty charter interview --defaults` unless the user explicitly asks for a
 fast bootstrap with canned defaults.
+
+Listen intently to what the human-in-command says next. If any form of charter
+already exists, assume the user is probably flagging a charter addition, course
+correction, or new guidance they noticed while observing Spec Kitty or agent
+behavior. Do not restart a full interview unless the user asks for one or the
+existing charter is clearly unusable. The default goal is to update the charter
+with the new guidance.
 
 The CLI charter workflow is a compiler and persistence surface, not the primary
 interview experience. Your job is to:
 
 1. Inspect the repo quickly to form an initial governance hypothesis.
-2. Ask the user a short, targeted interview in chat.
+2. Discover the intended charter change in chat. For an existing charter, ask
+   focused follow-up questions about the new guidance; for a missing charter,
+   run a short targeted interview.
 3. Synthesize the answers into `.kittify/charter/interview/answers.yaml`.
 4. Run `spec-kitty charter generate --from-interview --json`.
 5. Verify generation with `spec-kitty charter status --json`.
@@ -69,7 +78,7 @@ generation. Action context is loaded iteratively at the actual action boundary.
 
 ## Doctrine Gaps
 
-If no shipped paradigm or directive cleanly fits the user's needs:
+If no built-in paradigm or directive cleanly fits the user's needs:
 
 - Do **not** force a near-match just to populate selections.
 - Keep `selected_paradigms` and `selected_directives` narrow and truthful.
@@ -120,7 +129,20 @@ Use this for normal `/spec-kitty.charter` runs.
    - If charter status or repo inspection reports "not inside a git repository"
      but the directory is clearly a new project bootstrap, treat that as a
      greenfield setup condition rather than a reason to delay the interview.
-2. Ask a short targeted interview in chat:
+2. Discover the intended charter update in chat:
+   - If a charter exists and the user gives a correction, complaint, observed
+     agent failure, desired norm, or new policy, treat that as the primary
+     source. Ask only the minimum follow-up needed to make the guidance precise
+     enough to encode.
+   - Preserve existing charter guidance unless the user clearly wants to replace
+     or narrow it.
+   - If the user's input names agent behavior that should change, translate it
+     into enforceable review, planning, implementation, terminology, risk, or
+     exception-policy guidance.
+   - If the user input is a small course correction, avoid a broad charter
+     interview. Update the relevant `answers.yaml` fields and regenerate.
+   - If the charter is missing or the user asks to start fresh, ask a short
+     targeted interview in chat.
    - If the user already gave strong context, ask 1-3 clarifying questions.
    - If the invocation is empty, start the interview and wait after one focused question.
    - Ask natural-language questions. Do **not** ask the user to answer in YAML,
@@ -169,18 +191,21 @@ spec-kitty charter status --json
 ### Commit expectation
 
 - Do **not** stop at "there is an uncommitted charter change."
-- After successful generation, the default behavior is to create the commit.
-- Use a concise commit message that makes the governance action explicit, for
-  example:
+- After successful generation, the default behavior is to create the commit via
+  Spec Kitty's safe-commit path.
+- Use a concise commit message that makes the governance action explicit:
 
 ```bash
-git add .kittify/charter/
-git commit -m "chore: generate project charter"
+spec-kitty safe-commit --message "chore: generate project charter" \
+  .kittify/charter/interview/answers.yaml \
+  .kittify/charter/charter.md \
+  .kittify/charter/references.yaml \
+  .gitignore
 ```
 
 - If generation produced no diff, say so and do not create an empty commit.
 - If unrelated dirty changes exist, avoid sweeping them into the charter commit;
-  stage only the charter-related files.
+  `spec-kitty safe-commit` commits only the requested files.
 
 ### Path B: CLI interview fallback
 

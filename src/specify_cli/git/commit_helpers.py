@@ -67,7 +67,7 @@ class SafeCommitBackstopError(RuntimeError):
 
 
 class ProtectedBranchCommitError(RuntimeError):
-    """Raised when a Spec Kitty ceremony commit would land on a protected branch."""
+    """Raised when a Spec Kitty status commit would land on a protected branch."""
 
 
 _DEFAULT_PROTECTED_BRANCHES = frozenset({"main", "master"})
@@ -99,6 +99,10 @@ def _is_spec_kitty_project(repo_path: Path) -> bool:
 
 
 def _current_branch(repo_path: Path) -> str | None:
+    branch = _run_git_text(repo_path, ["symbolic-ref", "--quiet", "--short", "HEAD"])
+    if branch:
+        return branch
+
     branch = _run_git_text(repo_path, ["rev-parse", "--abbrev-ref", "HEAD"])
     if not branch or branch == "HEAD":
         return None
@@ -119,7 +123,7 @@ def _remote_default_branch(repo_path: Path) -> str | None:
 
 
 def protected_branches(repo_path: Path) -> frozenset[str]:
-    """Return branch names that must not receive Spec Kitty ceremony commits."""
+    """Return branch names that must not receive Spec Kitty status commits."""
     branches = set(_DEFAULT_PROTECTED_BRANCHES)
     if default_branch := _remote_default_branch(repo_path):
         branches.add(default_branch)
@@ -127,14 +131,14 @@ def protected_branches(repo_path: Path) -> frozenset[str]:
 
 
 def assert_not_protected_branch(repo_path: Path, *, operation: str = "commit") -> None:
-    """Fail loudly before a Spec Kitty ceremony commit can pollute local main.
+    """Fail loudly before a Spec Kitty status commit can pollute local main.
 
     The guard is bypassed when either of:
     - ``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS`` is set to a truthy value
       (``1``, ``true``, ``yes``) — opt-in for solo-fork operators who own ``main``.
     - ``SPEC_KITTY_TEST_MODE=1`` is set — the test-mode marker the conftest sets
       on its isolated environment. Test fixtures create projects on ``main`` and
-      exercise ceremony commands directly; forcing every fixture to fork a lane
+      exercise status-writing commands directly; forcing every fixture to fork a lane
       branch would multiply boilerplate without testing anything the production
       guard cares about.
     """
@@ -152,7 +156,7 @@ def assert_not_protected_branch(repo_path: Path, *, operation: str = "commit") -
     if branch and branch in protected_branches(repo_path):
         raise ProtectedBranchCommitError(
             f"Refusing to {operation} on protected branch '{branch}' in {repo_path}. "
-            "Run ceremony write operations from the mission lane branch/worktree."
+            "Run status-writing operations from the mission lane branch/worktree."
         )
 
 
@@ -256,6 +260,88 @@ def _stage_requested_files(repo_path: Path, normalized_files: list[str]) -> bool
         if add_result.returncode != 0:
             return False
     return True
+
+
+def _staged_patch_for_paths(repo_path: Path, normalized_files: list[str]) -> str | None:
+    """Return an exact binary patch for currently-staged requested paths."""
+    if not normalized_files:
+        return ""
+    result = subprocess.run(
+        ["git", "diff", "--cached", "--binary", "--no-ext-diff", "--no-renames", "--", *normalized_files],
+        cwd=repo_path,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout
+
+
+def _unstage_requested_files(repo_path: Path, normalized_files: list[str]) -> None:
+    """Remove requested paths from the index before saving unrelated staging."""
+    if not normalized_files:
+        return
+
+    staged_result = subprocess.run(
+        ["git", "diff", "--cached", "--name-only", "--", *normalized_files],
+        cwd=repo_path,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if staged_result.returncode != 0:
+        return
+    staged_requested = [line.strip() for line in staged_result.stdout.splitlines() if line.strip()]
+    if not staged_requested:
+        return
+
+    has_head = _run_git_text(repo_path, ["rev-parse", "--verify", "HEAD"]) is not None
+    if has_head:
+        subprocess.run(
+            ["git", "restore", "--staged", "--", *staged_requested],
+            cwd=repo_path,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+        return
+
+    subprocess.run(
+        ["git", "rm", "--cached", "--ignore-unmatch", "-q", "--", *staged_requested],
+        cwd=repo_path,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+
+
+def _restore_staged_patch(repo_path: Path, normalized_files: list[str], patch: str | None) -> bool:
+    """Restore the caller's pre-existing staged requested-file state."""
+    if patch is None:
+        return False
+    _unstage_requested_files(repo_path, normalized_files)
+    if not patch:
+        return True
+    result = subprocess.run(
+        ["git", "apply", "--cached", "--whitespace=nowarn", "-"],
+        cwd=repo_path,
+        input=patch,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    return result.returncode == 0
 
 
 def _run_commit(repo_path: Path, commit_message: str, allow_empty: bool) -> bool:
@@ -366,6 +452,11 @@ def safe_commit(
 
     stash_message = f"spec-kitty-safe-commit:{uuid.uuid4()}"
 
+    # If a previous command already staged the requested files, keep treating
+    # them as the files to commit rather than as unrelated operator staging.
+    requested_staged_patch = _staged_patch_for_paths(repo_path, normalized_files)
+    _unstage_requested_files(repo_path, normalized_files)
+
     # Save current staging area (only staged changes, not working tree)
     stash_result = subprocess.run(
         ["git", "stash", "push", "--staged", "--quiet", "-m", stash_message],
@@ -381,6 +472,7 @@ def safe_commit(
     created_stash = stash_result.returncode == 0 and _find_stash_ref(repo_path, stash_message) is not None
     restore_failed = False
     commit_success = False
+    commit_created = False
     backstop_error: SafeCommitBackstopError | None = None
 
     try:
@@ -402,6 +494,7 @@ def safe_commit(
                 commit_success = False
             else:
                 commit_success = _run_commit(repo_path, commit_message, allow_empty)
+                commit_created = commit_success
 
     finally:
         # Restore original staging area if we created a stash entry.
@@ -423,6 +516,9 @@ def safe_commit(
                     restore_failed = True
 
         if restore_failed:
+            commit_success = False
+
+        if not commit_created and not _restore_staged_patch(repo_path, normalized_files, requested_staged_patch):
             commit_success = False
 
     # Propagate backstop error AFTER stash cleanup has run.

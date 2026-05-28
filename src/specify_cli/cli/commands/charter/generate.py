@@ -12,7 +12,7 @@ from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.task_utils import TaskCliError
 
 from specify_cli.cli.commands.charter._app import charter_app, console
-from specify_cli.cli.commands.charter._common import _interview_path
+from specify_cli.cli.commands.charter._common import _emit_error, _interview_path
 
 # Test-patch shim: see ``synthesize.py`` for the rationale. ``find_repo_root``
 # and ``default_interview`` are looked up on the package module at call time so
@@ -74,7 +74,7 @@ def _is_inside_git_worktree(repo_root: Path) -> bool:
 
 
 def _stage_charter_files(repo_root: Path, files: list[Path]) -> None:
-    """Stage ``files`` via ``git add --force`` so ``bundle validate`` accepts them.
+    """Stage ``files`` via ``git add --force`` for bundle validation.
 
     Issue #841: ``charter generate`` must auto-track the produced ``charter.md``
     (and any other tracked-files manifest entries) so the immediately-following
@@ -82,20 +82,33 @@ def _stage_charter_files(repo_root: Path, files: list[Path]) -> None:
     stage (not commit) — staging is what ``git ls-files`` reports as tracked,
     which is the signal ``charter bundle validate`` keys on.
 
+    The slash-command flow commits generated files with ``spec-kitty
+    safe-commit``; pre-staging keeps ``bundle validate`` green and safe-commit
+    now treats requested pre-staged files as commit inputs, not unrelated
+    operator staging.
+
     Files are passed as repo-relative ``Path``s. ``--force`` is used so that an
     operator who has gitignored ``charter.md`` for any reason still gets the
     auto-track contract honored — this is consistent with the bundle manifest
     declaring ``charter.md`` as a tracked file.
     """
     for file_path in files:
+        if not (repo_root / file_path).exists():
+            continue
         rel = file_path.as_posix()
-        subprocess.run(
+        result = subprocess.run(
             ["git", "add", "--force", "--", rel],
             cwd=str(repo_root),
             capture_output=True,
             text=True,
             check=False,
         )
+        if result.returncode != 0:
+            detail = (result.stderr or result.stdout or "").strip()
+            raise RuntimeError(
+                f"Failed to stage charter file {rel}. "
+                f"{detail or 'git add returned a non-zero exit code.'}"
+            )
 
 
 def _ensure_gitignore_entries(repo_root: Path, required: list[str]) -> None:
@@ -133,6 +146,38 @@ def _ensure_gitignore_entries(repo_root: Path, required: list[str]) -> None:
     gitignore_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
 
 
+def _load_interview_for_generate(
+    *,
+    repo_root: Path,
+    answers_path: Path,
+    from_interview: bool,
+    resolved_mission_type: str | None,
+    profile: str,
+) -> tuple[Any, str, str]:
+    """Resolve interview payload, source label, and mission for generation."""
+    from charter.interview import read_interview_answers
+
+    interview_data = read_interview_answers(answers_path) if from_interview else None
+    if from_interview and interview_data is None:
+        raise ValueError(
+            "No charter interview answers found at "
+            f"{answers_path.relative_to(repo_root)}. "
+            "Run `/spec-kitty.charter` so the agent can capture guidance, "
+            "run `spec-kitty charter interview --defaults` for a canned bootstrap, "
+            "or pass `--no-from-interview` to generate from defaults explicitly."
+        )
+
+    if interview_data is None:
+        resolved_mission = resolved_mission_type or "software-dev"
+        interview_data = _charter_pkg.default_interview(
+            mission=resolved_mission,
+            profile=profile.strip().lower(),
+        )
+        return interview_data, "defaults", resolved_mission
+
+    return interview_data, "interview", resolved_mission_type or interview_data.mission
+
+
 @charter_app.command()
 def generate(
     mission_type: str | None = typer.Option(None, "--mission-type", help="Mission type for template-set defaults"),
@@ -163,7 +208,6 @@ def generate(
       names the remediation (``git init``).
     """
     from charter.compiler import compile_charter, write_compiled_charter
-    from charter.interview import read_interview_answers
     from charter.sync import sync as sync_charter
 
     try:
@@ -174,10 +218,14 @@ def generate(
         # git, and producing artifacts that bundle validate cannot accept
         # is exactly the silent-inconsistency bug #841 closes.
         if not _is_inside_git_worktree(repo_root):
-            console.print(
-                "[red]Error:[/red] charter generate requires a git repository. "
-                "Initialize one with `git init` (so the produced charter.md can be "
-                "auto-tracked and accepted by `charter bundle validate`)."
+            _emit_error(
+                console,
+                json_output=json_output,
+                message=(
+                    "charter generate requires a git repository. "
+                    "Initialize one with `git init` (so the produced charter.md can be "
+                    "auto-tracked and accepted by `charter bundle validate`)."
+                ),
             )
             raise typer.Exit(code=1)
         charter_dir = repo_root / ".kittify" / "charter"
@@ -194,18 +242,13 @@ def generate(
             )
             resolved_mission_type = resolved.canonical_value
 
-        interview_data = read_interview_answers(answers_path) if from_interview else None
-        if interview_data is None:
-            resolved_mission = resolved_mission_type or "software-dev"
-            interview_data = _charter_pkg.default_interview(
-                mission=resolved_mission,
-                profile=profile.strip().lower(),
-            )
-            interview_source = "defaults"
-        else:
-            interview_source = "interview"
-
-        resolved_mission = resolved_mission_type or interview_data.mission
+        interview_data, interview_source, resolved_mission = _load_interview_for_generate(
+            repo_root=repo_root,
+            answers_path=answers_path,
+            from_interview=from_interview,
+            resolved_mission_type=resolved_mission_type,
+            profile=profile,
+        )
 
         compiled = compile_charter(
             mission=resolved_mission,
@@ -242,7 +285,12 @@ def generate(
         _ensure_gitignore_entries(
             repo_root, list(CANONICAL_MANIFEST.gitignore_required_entries)
         )
-        _stage_charter_files(repo_root, list(CANONICAL_MANIFEST.tracked_files))
+        commit_input_files = [
+            *list(CANONICAL_MANIFEST.tracked_files),
+            Path(".kittify/charter/references.yaml"),
+            Path(".gitignore"),
+        ]
+        _stage_charter_files(repo_root, commit_input_files)
 
         if json_output:
             local_support_files = [
@@ -289,8 +337,8 @@ def generate(
         # (e.g. T030 fail-fast for non-git environments).
         raise
     except (FileExistsError, TaskCliError, ValueError, RuntimeError) as e:
-        console.print(f"[red]Error:[/red] {e}")
+        _emit_error(console, json_output=json_output, message=str(e))
         raise typer.Exit(code=1) from e
     except Exception as e:
-        console.print(f"[red]Unexpected error:[/red] {e}")
+        _emit_error(console, json_output=json_output, message=str(e), unexpected=True)
         raise typer.Exit(code=1) from e

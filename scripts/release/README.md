@@ -130,8 +130,7 @@ twine check dist/*
 rm -rf dist/ build/
 
 # 4) commit, push, and merge the release metadata through a PR
-git add pyproject.toml CHANGELOG.md
-git commit -m "chore(release): prepare 3.1.0a0"
+spec-kitty safe-commit --message "chore(release): prepare 3.1.0a0" pyproject.toml CHANGELOG.md
 git push origin release/3.1.0a0
 gh pr create --base main --title "Release 3.1.0a0" --fill
 

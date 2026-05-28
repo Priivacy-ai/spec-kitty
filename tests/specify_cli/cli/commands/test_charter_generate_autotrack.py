@@ -10,16 +10,19 @@ and ``init``.
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 from pathlib import Path
-from typing import cast
+from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
 
+from specify_cli import app as cli_app
 from specify_cli.cli.commands.charter import app as charter_app
 from specify_cli.cli.commands.charter_bundle import app as charter_bundle_app
+from specify_cli.task_utils import TaskCliError
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
@@ -49,6 +52,19 @@ def _git_init(repo: Path) -> None:
     subprocess.run(
         ["git", "config", "commit.gpgsign", "false"],
         cwd=repo, check=True, capture_output=True,
+    )
+
+
+def _git_initial_commit(repo: Path) -> None:
+    readme = repo / "README.md"
+    readme.write_text("# Test Repo\n", encoding="utf-8")
+    subprocess.run(
+        ["git", "add", "README.md"],
+        cwd=repo, check=True, capture_output=True, text=True,
+    )
+    subprocess.run(
+        ["git", "commit", "-m", "Initial commit"],
+        cwd=repo, check=True, capture_output=True, text=True,
     )
 
 
@@ -167,7 +183,7 @@ def test_generate_in_non_git_dir_fails_fast(tmp_path: Path) -> None:
 
 def test_generate_stages_produced_files(tmp_path: Path) -> None:
     """After ``charter generate`` succeeds, ``git ls-files --stage`` MUST
-    include ``.kittify/charter/charter.md`` (the manifest's tracked file).
+    include the generated charter commit inputs.
     """
     _git_init(tmp_path)
     _write_minimal_interview(tmp_path)
@@ -186,10 +202,95 @@ def test_generate_stages_produced_files(tmp_path: Path) -> None:
     finally:
         os.chdir(old_cwd)
 
-    assert ".kittify/charter/charter.md" in staged, (
-        f"charter.md must be auto-staged after generate; "
-        f"got staged paths: {staged!r}"
+    expected = {
+        ".gitignore",
+        ".kittify/charter/charter.md",
+        ".kittify/charter/references.yaml",
+    }
+    assert expected.issubset(set(staged)), (
+        f"generated charter commit inputs must be auto-staged after generate; "
+        f"expected={expected!r}, got staged paths: {staged!r}"
     )
+
+
+def test_generate_from_interview_fails_when_answers_missing(tmp_path: Path) -> None:
+    """``--from-interview`` must not silently fall back to defaults."""
+    _git_init(tmp_path)
+
+    old_cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+        result = runner.invoke(
+            charter_app, ["generate", "--from-interview"],
+            catch_exceptions=False,
+        )
+    finally:
+        os.chdir(old_cwd)
+
+    assert result.exit_code != 0
+    assert "No charter interview answers found" in result.stdout
+    assert not (tmp_path / ".kittify" / "charter" / "charter.md").exists()
+
+
+def test_generate_from_interview_missing_answers_json_is_parseable(tmp_path: Path) -> None:
+    """``--json`` error output must stay machine-parseable."""
+    _git_init(tmp_path)
+
+    old_cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+        result = runner.invoke(
+            charter_app, ["generate", "--from-interview", "--json"],
+            catch_exceptions=False,
+        )
+    finally:
+        os.chdir(old_cwd)
+
+    payload = json.loads(result.stdout)
+    assert result.exit_code != 0
+    assert payload["success"] is False
+    assert payload["result"] == "error"
+    assert "No charter interview answers found" in payload["error"]
+
+
+def test_status_json_error_is_parseable() -> None:
+    """``charter status --json`` must not emit Rich-formatted error text."""
+    with patch(
+        "specify_cli.cli.commands.charter.find_repo_root",
+        side_effect=TaskCliError("repo root unavailable"),
+    ):
+        result = runner.invoke(
+            charter_app, ["status", "--json"],
+            catch_exceptions=False,
+        )
+
+    payload = json.loads(result.stdout)
+    assert result.exit_code != 0
+    assert payload == {
+        "error": "repo root unavailable",
+        "result": "error",
+        "success": False,
+    }
+
+
+def test_generate_fails_when_auto_stage_fails(tmp_path: Path) -> None:
+    """Auto-track failures must not be reported as successful generation."""
+    _git_init(tmp_path)
+    _write_minimal_interview(tmp_path)
+    (tmp_path / ".git" / "index.lock").write_text("locked\n", encoding="utf-8")
+
+    old_cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+        result = runner.invoke(
+            charter_app, ["generate", "--from-interview", "--json"],
+            catch_exceptions=False,
+        )
+    finally:
+        os.chdir(old_cwd)
+
+    assert result.exit_code != 0
+    assert "Failed to stage charter file" in result.stdout
 
 
 # ---------------------------------------------------------------------------
@@ -230,3 +331,134 @@ def test_generate_does_not_disturb_unrelated_staged_changes(
         f"pre-staged README.md must remain staged; got {staged!r}"
     )
     assert ".kittify/charter/charter.md" in staged
+
+
+def test_generic_safe_commit_commits_generated_charter_files(tmp_path: Path) -> None:
+    """``safe-commit`` creates the charter commit without raw git commit."""
+    _git_init(tmp_path)
+    _git_initial_commit(tmp_path)
+    _write_minimal_interview(tmp_path)
+    subprocess.run(
+        ["git", "switch", "-c", "charter/update"],
+        cwd=tmp_path, check=True, capture_output=True, text=True,
+    )
+
+    old_cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+        gen = runner.invoke(
+            charter_app, ["generate", "--from-interview"],
+            catch_exceptions=False,
+        )
+        assert gen.exit_code == 0, f"generate failed: {gen.stdout!r}"
+
+        committed = runner.invoke(
+            cli_app,
+            [
+                "safe-commit",
+                "--message",
+                "chore: generate project charter",
+                "--json",
+                ".kittify/charter/interview/answers.yaml",
+                ".kittify/charter/charter.md",
+                ".kittify/charter/references.yaml",
+                ".gitignore",
+            ],
+            catch_exceptions=False,
+        )
+        assert committed.exit_code == 0, f"commit failed: {committed.stdout!r}"
+        assert '"committed": true' in committed.stdout
+    finally:
+        os.chdir(old_cwd)
+
+    log = subprocess.run(
+        ["git", "log", "-1", "--pretty=%s"],
+        cwd=tmp_path, check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    assert log == "chore: generate project charter"
+    stash_list = subprocess.run(
+        ["git", "stash", "list"],
+        cwd=tmp_path, check=True, capture_output=True, text=True,
+    ).stdout
+    assert "spec-kitty-safe-commit" not in stash_list
+
+
+def test_generic_safe_commit_targets_current_git_worktree(tmp_path: Path) -> None:
+    """``safe-commit`` must commit to the current worktree branch, not main."""
+    _git_init(tmp_path)
+    (tmp_path / ".kittify").mkdir()
+    (tmp_path / ".kittify" / "config.json").write_text("{}\n", encoding="utf-8")
+    (tmp_path / "README.md").write_text("# Test Repo\n", encoding="utf-8")
+    subprocess.run(
+        ["git", "add", "README.md", ".kittify/config.json"],
+        cwd=tmp_path, check=True, capture_output=True, text=True,
+    )
+    subprocess.run(
+        ["git", "commit", "-m", "Initial commit"],
+        cwd=tmp_path, check=True, capture_output=True, text=True,
+    )
+    main_head_before = subprocess.run(
+        ["git", "rev-parse", "main"],
+        cwd=tmp_path, check=True, capture_output=True, text=True,
+    ).stdout.strip()
+
+    worktree = tmp_path.parent / f"{tmp_path.name}-worktree"
+    subprocess.run(
+        ["git", "worktree", "add", "-b", "charter/update", str(worktree)],
+        cwd=tmp_path, check=True, capture_output=True, text=True,
+    )
+    (worktree / "charter.txt").write_text("worktree charter change\n", encoding="utf-8")
+
+    old_cwd = os.getcwd()
+    try:
+        os.chdir(worktree)
+        committed = runner.invoke(
+            cli_app,
+            [
+                "safe-commit",
+                "--message",
+                "chore: generate project charter",
+                "--json",
+                "charter.txt",
+            ],
+            catch_exceptions=False,
+        )
+    finally:
+        os.chdir(old_cwd)
+
+    assert committed.exit_code == 0, f"commit failed: {committed.stdout!r}"
+    assert '"committed": true' in committed.stdout
+
+    worktree_subject = subprocess.run(
+        ["git", "log", "-1", "--pretty=%s"],
+        cwd=worktree, check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    main_head_after = subprocess.run(
+        ["git", "rev-parse", "main"],
+        cwd=tmp_path, check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    worktree_status = subprocess.run(
+        ["git", "status", "--short"],
+        cwd=worktree, check=True, capture_output=True, text=True,
+    ).stdout
+
+    assert worktree_subject == "chore: generate project charter"
+    assert main_head_after == main_head_before
+    assert "charter.txt" not in worktree_status
+
+
+def test_charter_template_uses_safe_commit_command() -> None:
+    """Slash prompt must route commits through Spec Kitty, not raw git commit."""
+    import specify_cli
+
+    template = (
+        Path(specify_cli.__file__).parent
+        / "missions"
+        / "software-dev"
+        / "command-templates"
+        / "charter.md"
+    ).read_text(encoding="utf-8")
+
+    assert "spec-kitty safe-commit" in template
+    assert "git commit" not in template
+    assert "Listen intently" in template

@@ -69,8 +69,10 @@ When you need to bump `spec-kitty-events`:
 4. **Commit both files together.**
 
    ```bash
-   git add pyproject.toml uv.lock tests/contract/snapshots/spec-kitty-events-*.json
-   git commit -m "chore: bump spec-kitty-events to <version>"
+   spec-kitty safe-commit --message "chore: bump spec-kitty-events to <version>" \
+     pyproject.toml \
+     uv.lock \
+     tests/contract/snapshots/spec-kitty-events-*.json
    ```
 
 If you skip step 2, the contract test

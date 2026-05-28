@@ -7,6 +7,7 @@ forking this file.
 """
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -74,6 +75,25 @@ def _display_path(path: Path, repo_root: Path) -> str:
         return str(path.relative_to(repo_root))
     except ValueError:
         return str(path)
+
+
+def _emit_error(console: Any, *, json_output: bool, message: str, unexpected: bool = False) -> None:
+    """Emit a charter command error while preserving ``--json`` parseability."""
+    if json_output:
+        print(
+            json.dumps(
+                {
+                    "result": "error",
+                    "success": False,
+                    "error": message,
+                },
+                sort_keys=True,
+            )
+        )
+        return
+
+    label = "Unexpected error" if unexpected else "Error"
+    console.print(f"[red]{label}:[/red] {message}")
 
 
 def _assert_bundle_compatible(charter_dir: Path) -> None:

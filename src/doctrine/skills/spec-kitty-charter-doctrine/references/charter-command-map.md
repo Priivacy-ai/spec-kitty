@@ -91,7 +91,7 @@ spec-kitty charter generate [--mission TEXT] [--force] [--from-interview] [--jso
 **Notes:**
 
 - Generation automatically triggers sync, so extracted YAML is always current.
-- If `--from-interview` is true (default) but no interview file exists, generation falls back to defaults for the specified mission and profile.
+- If `--from-interview` is true (default) but no interview file exists, generation fails closed. Use `--no-from-interview` only when you explicitly want defaults for the specified mission and profile.
 - Use `--force` when re-generating over an existing charter.
 
 ---

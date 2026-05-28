@@ -81,7 +81,7 @@ class SeedValidationError:
     message: str
 
 
-class SeedFileValidationError(GlossaryError):
+class SeedFileValidationError(GlossaryError, ValueError):
     """Aggregated validation failure for a glossary seed file."""
 
     def __init__(self, file_path: Path, errors: list[SeedValidationError]):

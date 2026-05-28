@@ -518,17 +518,22 @@ and per-file sizes. If `stale`, run sync before relying on governance config.
 
 ---
 
-## Step 2: Run the Charter Interview
+## Step 2: Discover the Charter Change
 
-For agent-mediated governance setup, the preferred interview surface is the chat
-itself, not the CLI questionnaire.
+For agent-mediated governance setup and revision, the preferred discovery
+surface is the chat itself, not the CLI questionnaire.
 
 Recommended flow:
 
 1. Inspect the repo quickly.
-2. Ask the user a short targeted governance interview in chat.
-3. Synthesize `.kittify/charter/interview/answers.yaml` directly.
-4. Run `spec-kitty charter generate --from-interview --json`.
+2. If a charter already exists, listen for the new guidance the
+   human-in-command is flagging: a charter addition, course correction,
+   observed agent failure, desired norm, or policy change. Ask only the minimum
+   follow-up needed to encode it precisely.
+3. If no charter exists or the user asks to start over, ask a short targeted
+   governance interview in chat.
+4. Synthesize `.kittify/charter/interview/answers.yaml` directly.
+5. Run `spec-kitty charter generate --from-interview --json`.
 
 Use the CLI interview only as a fallback when the user explicitly wants the CLI
 prompt loop or wants deterministic defaults.
@@ -564,8 +569,18 @@ Key flags: `--mission`, `--template-set`, `--force`, `--from-interview`, `--json
 Generation triggers an automatic sync, so governance.yaml and directives.yaml
 are written immediately.
 
-**Output:** `.kittify/charter/charter.md` plus extracted YAML files
-and `library/*.md` reference documents.
+**Output:** `.kittify/charter/charter.md`, `.kittify/charter/references.yaml`,
+and extracted YAML files.
+
+To commit the generated charter inputs, use:
+
+```bash
+spec-kitty safe-commit --message "chore: generate project charter" \
+  .kittify/charter/interview/answers.yaml \
+  .kittify/charter/charter.md \
+  .kittify/charter/references.yaml \
+  .gitignore
+```
 
 ---
 

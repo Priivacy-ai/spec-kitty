@@ -102,8 +102,8 @@ def test_safe_commit_preserves_unrelated_staged_files(git_repo: Path):
     assert "Update WP01 status to doing" in log_result.stdout
 
 
-def test_safe_commit_blocks_spec_kitty_ceremony_commit_on_protected_branch(git_repo: Path):
-    """Spec Kitty ceremony commits must fail loudly before polluting local main."""
+def test_safe_commit_blocks_spec_kitty_status_commit_on_protected_branch(git_repo: Path):
+    """Spec Kitty status commits must fail loudly before polluting local main."""
     subprocess.run(["git", "branch", "-M", "main"], cwd=git_repo, check=True)
     (git_repo / ".kittify").mkdir()
     (git_repo / ".kittify" / "config.json").write_text("{}\n")
@@ -114,6 +114,29 @@ def test_safe_commit_blocks_spec_kitty_ceremony_commit_on_protected_branch(git_r
     with pytest.raises(ProtectedBranchCommitError, match="protected branch 'main'"):
         safe_commit(
             repo_path=git_repo,
+            files_to_commit=[protected_file],
+            commit_message="Add meta for feature 099-demo",
+            allow_empty=False,
+        )
+
+
+def test_safe_commit_blocks_status_commit_on_unborn_protected_branch(tmp_path: Path):
+    """Unborn main is still a protected branch."""
+    repo = tmp_path / "unborn"
+    repo.mkdir()
+    subprocess.run(
+        ["git", "init", "--initial-branch=main"],
+        cwd=repo, check=True, capture_output=True,
+    )
+    (repo / ".kittify").mkdir()
+    (repo / ".kittify" / "config.json").write_text("{}\n")
+    protected_file = repo / "kitty-specs" / "099-demo" / "meta.json"
+    protected_file.parent.mkdir(parents=True)
+    protected_file.write_text("{}\n")
+
+    with pytest.raises(ProtectedBranchCommitError, match="protected branch 'main'"):
+        safe_commit(
+            repo_path=repo,
             files_to_commit=[protected_file],
             commit_message="Add meta for feature 099-demo",
             allow_empty=False,
@@ -163,6 +186,48 @@ def test_safe_commit_nothing_to_commit_graceful(git_repo: Path):
         allow_empty=True,
     )
     assert result is True, "Should return True when nothing to commit and allow_empty=True"
+
+
+def test_safe_commit_restores_prestaged_requested_files_when_stage_fails(git_repo: Path):
+    """A failed requested-file stage must not destroy caller staging."""
+    requested = git_repo / "requested.txt"
+    requested.write_text("keep staged\n")
+    subprocess.run(["git", "add", "requested.txt"], cwd=git_repo, check=True)
+
+    before = subprocess.run(
+        ["git", "diff", "--cached", "--name-status"],
+        cwd=git_repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+
+    result = safe_commit(
+        repo_path=git_repo,
+        files_to_commit=[git_repo / "missing.txt", requested],
+        commit_message="Try invalid safe commit",
+        allow_empty=False,
+    )
+
+    after = subprocess.run(
+        ["git", "diff", "--cached", "--name-status"],
+        cwd=git_repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    status = subprocess.run(
+        ["git", "status", "--short"],
+        cwd=git_repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+
+    assert result is False
+    assert after == before
+    assert "A  requested.txt" in status
+
 
 def test_safe_commit_preserves_multiple_unrelated_staged_files(git_repo: Path):
     """T047: Test multiple unrelated staged files preserved.

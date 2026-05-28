@@ -70,9 +70,10 @@ uv run spec-kitty charter interview --profile comprehensive
 **Synopsis**: `spec-kitty charter generate [OPTIONS]`
 
 **Description**: Generate charter bundle from interview answers + doctrine references. On success
-in a git working tree, the produced `.kittify/charter/charter.md` is auto-staged via `git add`.
-Requires a git working tree — exits non-zero outside git repos with a `git init` remediation
-message.
+in a git working tree, the generated charter commit inputs are auto-staged for the follow-up
+`spec-kitty safe-commit` step. Requires a git working tree — exits non-zero
+outside git repos with a `git init` remediation message. With `--from-interview`, missing
+interview answers fail closed; use `--no-from-interview` to opt into defaults.
 
 | Flag | Description | Default |
 |---|---|---|
@@ -94,8 +95,6 @@ uv run spec-kitty charter generate --from-interview --force --json
 # Override template set
 uv run spec-kitty charter generate --from-interview --template-set documentation-default
 ```
-
----
 
 ## spec-kitty charter synthesize
 
