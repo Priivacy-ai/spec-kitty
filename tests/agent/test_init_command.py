@@ -213,6 +213,13 @@ def test_init_writes_event_log_merge_attributes(
     assert result.exit_code == 0, result.output
     attributes = (tmp_path / "event-log-project" / ".gitattributes").read_text(encoding="utf-8")
     assert "kitty-specs/**/status.events.jsonl merge=spec-kitty-event-log" in attributes
+    assert "kitty-specs/**/status.json linguist-generated=true" in attributes
+    assert "kitty-specs/**/tasks/** linguist-generated=true" in attributes
+    assert "kitty-specs/**/research/evidence-log.csv linguist-generated=true" in attributes
+    assert ".kittify/workspaces/** linguist-generated=true" in attributes
+    assert ".kittify/workspaces/** -diff" in attributes
+    assert ".kittify/migrations/** linguist-generated=true" in attributes
+    assert ".kittify/migrations/** -diff" in attributes
 
 
 # test_init_amends_initial_commit_after_cleanup deleted in feature 076:
