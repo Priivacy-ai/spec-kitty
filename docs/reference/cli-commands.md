@@ -780,6 +780,32 @@ _Project health diagnostics_
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty doctor coordination
+
+```
+ Usage: spec-kitty doctor coordination [OPTIONS]
+
+ Run the WP04 #1348 coordination + sparse-checkout health checks.
+
+ Iterates over every mission under ``kitty-specs/`` whose ``meta.json``
+ declares a ``coordination_branch`` field, runs the coord-worktree
+ and lane-sparse-checkout health checks, and prints findings.
+
+ Also runs the minimum git-version (RR-01) check.
+
+ Exits with code 1 if any ``error`` finding is emitted; ``warning``
+ findings exit 0 but are still printed.
+
+ Examples:
+     spec-kitty doctor coordination
+     spec-kitty doctor coordination --json
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json          Machine-readable JSON output                                 │
+│ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty doctor doctrine
 
 ```
