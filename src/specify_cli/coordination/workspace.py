@@ -1,0 +1,260 @@
+"""Per-mission coordination worktree + lane sparse-checkout policy.
+
+This module implements the contract documented in
+``kitty-specs/mission-coordination-branch-atomic-event-log-01KSPTVW/contracts/coordination_workspace.md``.
+
+Two responsibilities:
+
+1. **Coordination worktree lifecycle.**
+   :class:`CoordinationWorkspace` resolves (creates on demand) the
+   per-mission worktree at ``.worktrees/<slug>-<mid8>-coord/`` checked
+   out to the mission coordination branch ``kitty/mission-<slug>-<mid8>``.
+   ``resolve()`` is idempotent: an existing worktree on the expected
+   branch is returned as-is; a mismatched branch raises
+   :class:`CoordinationWorkspaceBranchMismatch` (stable error code
+   ``COORDINATION_WORKTREE_BRANCH_MISMATCH``) because automatic recovery
+   could mask operator mistakes.
+
+2. **Lane sparse-checkout policy.**
+   :func:`register_lane_sparse_checkout` configures a lane worktree so
+   that ``kitty-specs/<slug>-<mid8>/status.events.jsonl`` and
+   ``status.json`` are absent from the lane filesystem. This is how
+   lane processes are *physically prevented* from writing the event log
+   — they cannot open a file that does not exist.
+
+Important gotcha: in linked git worktrees, ``.git`` is a *file*
+pointing to a per-worktree gitdir, not a directory. We therefore never
+write literally to ``<lane>/.git/info/sparse-checkout``; we resolve the
+real per-worktree gitdir path via
+``git rev-parse --git-path info/sparse-checkout``.
+"""
+
+from __future__ import annotations
+
+import subprocess
+from pathlib import Path
+
+
+class CoordinationWorkspaceBranchMismatch(Exception):
+    """The coordination worktree exists but is checked out to the wrong branch.
+
+    Stable error code: ``COORDINATION_WORKTREE_BRANCH_MISMATCH``.
+
+    This is **never** auto-recovered: a wrong checkout almost always
+    means an operator ran ``git checkout`` inside the coord worktree by
+    hand, and silently switching them back to the expected branch could
+    discard their in-flight work.
+    """
+
+    error_code: str = "COORDINATION_WORKTREE_BRANCH_MISMATCH"
+
+    def __init__(
+        self, *, worktree_path: Path, expected_ref: str, actual_ref: str,
+    ) -> None:
+        self.worktree_path = worktree_path
+        self.expected_ref = expected_ref
+        self.actual_ref = actual_ref
+        super().__init__(
+            f"Coordination worktree at {worktree_path} is on {actual_ref!r}, "
+            f"expected {expected_ref!r}. Manual intervention required."
+        )
+
+
+def _normalize_ref(ref: str) -> str:
+    """Strip ``refs/heads/`` prefix so HEAD comparisons use short names."""
+    return ref.removeprefix("refs/heads/")
+
+
+def _compose_mission_dir(mission_slug: str, mid8: str) -> str:
+    """Return ``<slug>-<mid8>`` but avoid double-suffixing.
+
+    Post-WP03 ``mission_slug`` already contains the mid8 (e.g.
+    ``demo-feature-01J6XW9K``). Older callers may pass a bare human
+    slug. We accept both and only append when the suffix is absent.
+    """
+    if mission_slug.endswith(f"-{mid8}"):
+        return mission_slug
+    return f"{mission_slug}-{mid8}"
+
+
+class CoordinationWorkspace:
+    """Resolve / create / teardown a per-mission coordination worktree.
+
+    The class is intentionally stateless (only ``@staticmethod`` /
+    ``@classmethod``): callers pass ``repo_root``, ``mission_slug``, and
+    ``mid8`` on every call so that there is no possibility of stale
+    identity caching.
+
+    ``mission_slug`` may be either the bare human slug (legacy callers)
+    or the post-WP03 ``<human>-<mid8>`` slug; the helpers below
+    transparently deduplicate the suffix.
+    """
+
+    @staticmethod
+    def worktree_path(repo_root: Path, mission_slug: str, mid8: str) -> Path:
+        """Return the canonical worktree path. Pure; no filesystem touch."""
+        return repo_root / ".worktrees" / f"{_compose_mission_dir(mission_slug, mid8)}-coord"
+
+    @staticmethod
+    def branch_name(mission_slug: str, mid8: str) -> str:
+        """Return the canonical coordination branch name. Pure."""
+        return f"kitty/mission-{_compose_mission_dir(mission_slug, mid8)}"
+
+    @classmethod
+    def resolve(
+        cls, repo_root: Path, mission_slug: str, mid8: str,
+    ) -> Path:
+        """Return the coordination worktree path, creating it on first call.
+
+        Verifies ancestry on reuse: if the worktree already exists but
+        is checked out to a different branch, raises
+        :class:`CoordinationWorkspaceBranchMismatch`. The exception has
+        a stable ``error_code`` field so callers can route on it without
+        string parsing.
+        """
+        path = cls.worktree_path(repo_root, mission_slug, mid8)
+        branch = cls.branch_name(mission_slug, mid8)
+
+        if path.exists():
+            # Verify HEAD points at the expected branch.
+            actual = subprocess.check_output(
+                ["git", "-C", str(path), "symbolic-ref", "HEAD"],
+                text=True,
+            ).strip()
+            # Canonical comparison: normalize via removeprefix.
+            # Belt-and-suspenders fallback retained for transitional safety.
+            if (
+                _normalize_ref(actual) != branch
+                and actual != f"refs/heads/{branch}"
+                and actual != branch
+            ):
+                raise CoordinationWorkspaceBranchMismatch(
+                    worktree_path=path, expected_ref=branch, actual_ref=actual,
+                )
+            return path
+
+        # Create the worktree pointing at the existing branch.
+        # The caller is responsible for ensuring the branch already
+        # exists (WP03's mission create does this).
+        path.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.run(
+            ["git", "-C", str(repo_root), "worktree", "add", str(path), branch],
+            check=True,
+        )
+        return path
+
+    @classmethod
+    def teardown(
+        cls, repo_root: Path, mission_slug: str, mid8: str,
+    ) -> None:
+        """Remove the coordination worktree. Idempotent.
+
+        Does NOT delete the coordination branch — branch deletion is the
+        responsibility of ``spec-kitty merge`` (FR-016) once the merge
+        has succeeded.
+        """
+        path = cls.worktree_path(repo_root, mission_slug, mid8)
+        if not path.exists():
+            return
+        subprocess.run(
+            ["git", "-C", str(repo_root), "worktree", "remove",
+             str(path), "--force"],
+            check=False,  # tolerate "already removed" races
+        )
+
+    @classmethod
+    def is_present(
+        cls, repo_root: Path, mission_slug: str, mid8: str,
+    ) -> bool:
+        """Return whether the coordination worktree exists on disk."""
+        return cls.worktree_path(repo_root, mission_slug, mid8).exists()
+
+
+# ---------------------------------------------------------------------------
+# Lane sparse-checkout policy
+# ---------------------------------------------------------------------------
+
+
+def lane_sparse_checkout_patterns(
+    mission_slug: str, mid8: str,
+) -> list[str]:
+    """Return the lane sparse-checkout patterns (one per line).
+
+    The list is in non-cone mode format:
+
+    * ``/*`` — include everything by default
+    * ``!kitty-specs/<dir>/status.events.jsonl`` — exclude event log
+    * ``!kitty-specs/<dir>/status.json`` — exclude derived snapshot
+
+    Cone mode does NOT support negation patterns, which is why callers
+    MUST call ``git sparse-checkout init --no-cone`` before applying
+    these patterns.
+
+    Argument semantics: ``mission_slug`` must be the **full directory
+    name** under ``kitty-specs/`` for the mission. In post-WP03 missions
+    that name already encodes the mid8 (e.g. ``demo-feature-01J6XW9K``),
+    so callers MUST NOT pass the bare human slug. The ``mid8`` parameter
+    is kept in the signature for API symmetry with the rest of the
+    package and is appended only when ``mission_slug`` does not already
+    end with ``-<mid8>`` — protecting callers from double-suffixing.
+    """
+    mission_dir = _compose_mission_dir(mission_slug, mid8)
+    return [
+        "/*",
+        f"!kitty-specs/{mission_dir}/status.events.jsonl",
+        f"!kitty-specs/{mission_dir}/status.json",
+    ]
+
+
+def register_lane_sparse_checkout(
+    lane_path: Path, mission_slug: str, mid8: str,
+) -> None:
+    """Configure a freshly-created lane worktree's sparse-checkout policy.
+
+    Steps:
+
+    1. ``git sparse-checkout init --no-cone`` — switch the worktree to
+       non-cone sparse-checkout (negation patterns are not supported in
+       cone mode).
+    2. Resolve the *real* per-worktree ``info/sparse-checkout`` path via
+       ``git rev-parse --git-path info/sparse-checkout``. In linked
+       worktrees ``.git`` is a file, NOT a directory; the resolved path
+       points into the per-worktree gitdir (typically under
+       ``<repo>/.git/worktrees/<name>/info/sparse-checkout``).
+    3. Write the patterns from :func:`lane_sparse_checkout_patterns`.
+    4. ``git read-tree -mu HEAD`` — materialise the working tree against
+       the new sparse-checkout rules so the excluded files actually
+       disappear from disk.
+
+    Idempotent: re-invoking on an already-configured lane simply
+    rewrites the same file with the same content.
+    """
+    # Step 1: switch to non-cone sparse-checkout.
+    subprocess.run(
+        ["git", "-C", str(lane_path), "sparse-checkout", "init", "--no-cone"],
+        check=True,
+    )
+
+    # Step 2: resolve the real per-worktree sparse-checkout file path.
+    # `git rev-parse --git-path info/sparse-checkout` returns a path
+    # that may be absolute or relative to the current git dir; resolve
+    # it against the lane path to be safe.
+    raw = subprocess.check_output(
+        ["git", "-C", str(lane_path), "rev-parse", "--git-path",
+         "info/sparse-checkout"],
+        text=True,
+    ).strip()
+    sparse_file = Path(raw)
+    if not sparse_file.is_absolute():
+        sparse_file = lane_path / sparse_file
+    sparse_file.parent.mkdir(parents=True, exist_ok=True)
+
+    # Step 3: write the patterns.
+    patterns = lane_sparse_checkout_patterns(mission_slug, mid8)
+    sparse_file.write_text("\n".join(patterns) + "\n")
+
+    # Step 4: materialise the working tree.
+    subprocess.run(
+        ["git", "-C", str(lane_path), "read-tree", "-mu", "HEAD"],
+        check=True,
+    )
