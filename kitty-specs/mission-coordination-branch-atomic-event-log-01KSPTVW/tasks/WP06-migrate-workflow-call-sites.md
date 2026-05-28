@@ -78,6 +78,8 @@ After this WP lands, the bug from issue #1348 cannot reproduce. The remaining WP
 
 **Purpose**: The current `implement` command runs a raw `git add` + `git commit` for "planning artifacts" (decisions/index.json, issue-matrix.md). This silently lands on main when the operator is on main. Replace with `BookkeepingTransaction`.
 
+**Pre-step (mechanical migration of all workflow files)**: WP02 explicitly does NOT touch the four workflow files (`implement.py`, `workflow.py`, `emit.py`, `mission.py`) because those are owned by WP06. Before doing the semantic transaction refactor in this subtask, do a quick first pass through all four files and add `destination_ref=current_branch` + `worktree_root=repo_root` to every existing `safe_commit()` call. This makes mypy --strict pass on the codebase post-WP01. Commit this pre-step separately (`chore(WP06): mechanical destination_ref migration for workflow files`) so reviewers see the surgical vs. semantic changes distinctly. After this pre-step, the codebase compiles end-to-end; the rest of T026 (plus T027/T028) performs the semantic refactor.
+
 **Steps**:
 1. In `src/specify_cli/cli/commands/implement.py`, locate the raw `git add` / `git commit` call (around line 236; the exact line may have shifted — find it by message pattern `chore: planning artifacts for`).
 2. Identify what files are being committed. Common set: `decisions/index.json`, `issue-matrix.md`, possibly others.
@@ -155,29 +157,32 @@ After this WP lands, the bug from issue #1348 cannot reproduce. The remaining WP
 
 **Purpose**: `emit_status_transition()` is the central event emit function. Today it: writes the event line, re-materializes status.json, then attempts the commit. Refactor so it goes through `BookkeepingTransaction` (or is replaced by direct callers using the transaction).
 
-**Steps**:
-1. In `src/specify_cli/status/emit.py`, locate `emit_status_transition()` (around line 468).
-2. Two options:
-   - **Option A** (preferred): Refactor `emit_status_transition()` to accept an optional `txn` parameter:
-     ```python
-     def emit_status_transition(
-         *,
-         feature_dir, feature_slug, wp_id, to_lane, actor,
-         txn: "BookkeepingTransaction | None" = None,
-         ...
-     ):
-         event = build_status_event(...)
-         if txn is not None:
-             txn.append_event(event)
-         else:
-             # legacy path — only used by WP08's legacy fallback; keep but DEPRECATE
-             ...
-     ```
-   - **Option B**: Replace all callers of `emit_status_transition()` with direct `BookkeepingTransaction.append_event()` calls.
-   
-   Choose Option A. It's less invasive across callers and explicitly signals deprecation of the bare path.
-3. Extract `build_status_event()` as a pure function (no I/O), so callers can construct events in memory before deciding whether to commit.
-4. Mark the bare (non-txn) path as deprecated with a `DeprecationWarning` until WP08 lands.
+**Steps** (revised after cross-review DDD layering finding — FR-032):
+
+The earlier draft proposed passing an optional `BookkeepingTransaction` parameter into `emit_status_transition()`. The cross-review correctly flagged that this couples the low-level status domain to the coordination application service. The corrected approach:
+
+1. In `src/specify_cli/status/emit.py`, extract the constituent pure functions per FR-032:
+   - `build_status_event(*, wp_id, from_lane, to_lane, actor, ...) -> StatusEvent` — pure constructor, no I/O.
+   - `append_event_jsonl(events_path: Path, event: StatusEvent) -> None` — pure I/O; appends one line to the file; no commits, no materialization.
+   - `materialize(events_dir: Path) -> StatusSnapshot` — already exists; reads events, returns snapshot. No change.
+   None of these functions know `BookkeepingTransaction` exists. They are reusable, testable in isolation, and free of coordination concerns.
+
+2. Replace ALL callers of `emit_status_transition()` (the old combined function) with the appropriate composition INSIDE a `BookkeepingTransaction` block:
+   ```python
+   from specify_cli.status.emit import build_status_event
+   from specify_cli.coordination.transaction import BookkeepingTransaction
+
+   with BookkeepingTransaction.acquire(...) as txn:
+       event = build_status_event(wp_id=wp_id, from_lane=fl, to_lane=tl, actor=a, ...)
+       txn.append_event(event)
+   ```
+   The transaction layer orchestrates: it calls `txn.append_event(event)` which internally invokes `append_event_jsonl()`, then `materialize()`. The status domain is unaware.
+
+3. The OLD `emit_status_transition()` function is **removed**. There is no "optional txn parameter" version; that's the coupling the cross-review rejected. Callers either:
+   - Compose `build_status_event` + `BookkeepingTransaction.append_event` (the new path), OR
+   - Compose `build_status_event` + `append_event_jsonl` directly (only valid in tests or read-only contexts; never in workflow paths).
+
+4. The legacy fallback for missions without coordination branches (WP08's scope) uses the SAME `BookkeepingTransaction` API; only the destination_ref resolves differently. No bare emit path needs to exist for legacy.
 
 **Files**:
 - `src/specify_cli/status/emit.py`

@@ -20,9 +20,9 @@ All parameters are **keyword-only**. mypy --strict catches missing `destination_
 
 ## Behavior
 
-1. Validate inputs: `repo_root` is a git repo; `worktree_root` is a worktree of that repo; `paths` is non-empty.
-2. Resolve the worktree's HEAD via `git -C <worktree_root> symbolic-ref HEAD` → `actual_head`.
-3. **HEAD assertion**: if `actual_head != destination_ref`, raise `SafeCommitHeadMismatch(destination_ref, observed_head=actual_head, worktree_root=worktree_root)`. No commit attempted.
+1. Validate inputs: `repo_root` is a git repo; `worktree_root` is a worktree of that repo; `paths` is non-empty; `destination_ref` is a **short branch name** (C-016), never the fully-qualified `refs/heads/...` form. If `destination_ref` starts with `refs/heads/`, raise `SafeCommitDestinationRefShape` — the caller must normalize at the boundary.
+2. Resolve the worktree's HEAD via `git -C <worktree_root> symbolic-ref HEAD` → raw output is `refs/heads/<branch>`. **Normalize**: `actual_head = raw_output.removeprefix("refs/heads/")`. This is the short form, matching `destination_ref`.
+3. **HEAD assertion**: if `actual_head != destination_ref`, raise `SafeCommitHeadMismatch(destination_ref, observed_head=actual_head, worktree_root=worktree_root)`. No commit attempted. Both fields in the error are in short form.
 4. Run the existing protected-branch check (`_is_protected_branch(destination_ref)`). If protected and no documented exception applies, raise `ProtectedBranchRefused(destination_ref, message)`.
 5. Stage `paths` via `git -C <worktree_root> add -- <paths>`.
 6. Run `git -C <worktree_root> commit -m <message>`. Return `CommitResult` with the new commit SHA.
@@ -45,7 +45,7 @@ Each error carries: `error_code`, `message`, `destination_ref`, `observed_head` 
 
 The existing `spec-kitty safe-commit <message> <paths...>` CLI command gains a required `--to-branch <ref>` parameter. Without it, the CLI exits non-zero with `SAFE_COMMIT_HEAD_MISMATCH`. (The CLI does not infer the destination — it requires the operator or wrapping script to declare it.)
 
-For backward compatibility during PR 1's rollout window, the CLI emits a deprecation warning if `--to-branch` is missing AND a `SPEC_KITTY_INFER_DESTINATION_REF=1` env var is set; in that mode it resolves destination via the existing branch-context resolver and proceeds. This env var is removed in the next minor release after PR 1 lands. (Documented in CHANGELOG.)
+**CLI-only deprecation env var (NOT a helper fallback)** — for backward compatibility during PR 1's rollout window, the CLI emits a deprecation warning if `--to-branch` is missing AND `SPEC_KITTY_INFER_DESTINATION_REF=1` is set; in that mode the **CLI layer** invokes the existing branch-context resolver, gets the short branch name, and passes it **explicitly** to `safe_commit(destination_ref=resolved)`. The helper still receives a required, explicit `destination_ref`; nothing about C-015 is loosened. The env var is removed in the next minor release after PR 1 lands. (Documented in CHANGELOG.) This is scoped per the cross-review: CLI-only explicit resolver, never helper-level inference.
 
 ## Test surface
 

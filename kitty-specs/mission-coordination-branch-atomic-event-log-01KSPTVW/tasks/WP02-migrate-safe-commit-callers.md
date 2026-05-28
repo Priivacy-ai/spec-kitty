@@ -51,7 +51,11 @@ Then return here and proceed.
 
 ## Objective
 
-After WP01 lands, `safe_commit()` requires `destination_ref` as a keyword-only argument. The codebase will not compile until every existing caller is migrated. This WP audits all callers and adds `destination_ref` to each one. **Workflow callers** (implement.py, workflow.py, mission.py finalize-tasks, emit.py) are deferred to **WP06** — this WP handles all other callers. The public `spec-kitty safe-commit` CLI gains a required `--to-branch` flag with a deprecation env var to ease external-script rollout.
+After WP01 lands, `safe_commit()` requires `destination_ref` as a keyword-only argument. The codebase will not compile until **every** existing caller is migrated — including workflow callers (`implement.py`, `workflow.py`, `emit.py`, `mission.py` finalize-tasks site). This WP performs the **mechanical migration only**: every existing `safe_commit()` call gains `destination_ref=current_branch` (and `worktree_root=repo_root`). The full semantic replacement of workflow callers with `BookkeepingTransaction` happens in WP06.
+
+**Critical clarification (cross-review correction)**: An earlier draft of this WP claimed workflow callers could be "deferred to WP06." That was incorrect: deferring them leaves the codebase uncompilable after WP01 lands. WP02 must touch every call site WP01 broke. WP06 then refactors the workflow ones (which are currently `safe_commit(destination_ref=current_branch)`) to instead go through `BookkeepingTransaction` (whose internal `safe_commit()` call passes `destination_ref=coordination_branch`). WP06 owns the four workflow files; WP02 owns the rest. This split is enforceable because the ownership lists don't overlap.
+
+The public `spec-kitty safe-commit` CLI gains a required `--to-branch` flag with a CLI-only deprecation env var to ease external-script rollout.
 
 ## Context
 
@@ -79,10 +83,12 @@ The migration is **mostly mechanical**: every existing call site already knows w
    grep -rn 'safe_commit(' src/ tests/ --include='*.py' > /tmp/safe-commit-callers.txt
    ```
 2. Categorize each hit:
-   - **Workflow callers** (deferred to WP06): `cli/commands/implement.py`, `cli/commands/agent/workflow.py`, `cli/commands/agent/mission.py` (specifically the `finalize-tasks` subcommand and `_resolve_planning_branch()`), `status/emit.py`. SKIP these.
-   - **CLI command**: `cli/commands/safe_commit.py` (the user-facing `spec-kitty safe-commit`).
-   - **Non-workflow callers**: charter sync, upgrade migrations, decision-thread tracking, glossary curation, recovery commits, mission close.
-   - **Tests**: any test file that calls `safe_commit` directly. Migrate these too.
+   - **Workflow callers** (`implement.py`, `workflow.py`, `emit.py`, `mission.py` finalize-tasks site) — these four files are owned by **WP06**. WP06's first subtasks include the mechanical `destination_ref=current_branch` migration AS PART of the transaction-refactor work. **WP02 does NOT touch these four files.** This is enforced by `owned_files` non-overlap.
+   - **CLI command**: `cli/commands/safe_commit.py` (the user-facing `spec-kitty safe-commit`) — owned by WP02.
+   - **Other callers**: charter sync, upgrade migrations, decision-thread tracking, glossary curation, recovery commits — owned by WP02.
+   - **Tests**: any test file that calls `safe_commit` directly. Owned by WP02 unless they're test files paired with WP06's workflow files.
+
+3. **Build-coherence note**: PR 1 (WP01 alone) does not ship a buildable codebase — the workflow files still have unmigrated `safe_commit()` calls and fail mypy. The minimum buildable cut is WP01+WP02+WP06 (PR 1 + the workflow file portion of PR 2). The cross-review correctly flagged this. The PR boundaries are not strict shippable boundaries; they're sequencing guidance. The lane allocator assigns separate lanes by dependency; the codebase becomes coherent again at the WP06 merge point.
 3. Write the manifest to `kitty-specs/mission-coordination-branch-atomic-event-log-01KSPTVW/research/safe-commit-caller-manifest.md` (create the `research/` subdirectory if it doesn't exist; the artifact_dirs include it). Format:
    ```markdown
    | File:Line | Category | Current branch source | Migration action |

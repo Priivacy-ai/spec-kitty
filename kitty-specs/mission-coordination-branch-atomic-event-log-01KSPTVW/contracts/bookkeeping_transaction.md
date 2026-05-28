@@ -16,8 +16,10 @@ class BookkeepingTransaction:
         cls,
         *,
         repo_root: Path,
-        mission_id: str,                  # ULID
-        destination_ref: str,
+        mission_id: str,                  # ULID; canonical identity
+        mission_slug: str,                # required to resolve coord worktree path
+        mid8: str,                        # required for worktree disambiguation
+        destination_ref: str,             # SHORT branch name (C-016)
         operation: str,                   # diagnostic label
     ) -> "BookkeepingTransaction":
         """Construct + lock + pre-flight gate. Returns context manager."""
@@ -25,12 +27,16 @@ class BookkeepingTransaction:
     def __enter__(self) -> "BookkeepingTransaction": ...
     def __exit__(self, exc_type, exc, tb) -> None: ...
 
-    def append_event(self, event: StatusEvent) -> EventReceipt: ...
+    def append_event(self, event: StatusEvent) -> PendingEventHandle: ...
     def write_artifact(self, path: Path, content: bytes) -> None: ...
     def stage_path(self, path: Path) -> None: ...
-    def commit(self, message: str) -> EventReceipt: ...      # implicit on __exit__ if not called
+    def commit(self, message: str) -> CommitReceipt: ...     # implicit on __exit__ if not called
     def defer_outbound(self, side_effect: Callable[[], None]) -> None: ...
 ```
+
+**Critical signature note (cross-review correction)**: An earlier draft of this contract showed `acquire(repo_root, mission_id, destination_ref, operation)`. That was incomplete — the worktree resolution path needs `mission_slug` + `mid8` to compute `.worktrees/<slug>-<mid8>-coord/`. The corrected signature above is canonical.
+
+**Return-type note (cross-review correction)**: An earlier draft had `append_event()` returning an `EventReceipt` that carried `commit_sha`. That was incoherent — the commit doesn't exist when `append_event` returns. The corrected types are: `PendingEventHandle` (event_id only) from `append_event()`; `CommitReceipt` (commit_sha, committed_at, destination_ref, worktree_root, event_ids) from `commit()` / successful `__exit__`.
 
 ## Lifecycle invariants
 
@@ -58,10 +64,11 @@ class BookkeepingTransaction:
 
 4. **`__exit__` on exception**:
    - The exception is from `append_event`, `write_artifact`, `commit()`, or a deferred-outbound callable that ran inside the block.
-   - **Surgical rollback**:
+   - **Surgical rollback** (C-009 prohibits `git checkout --` for any rollback path):
      - `os.truncate(<worktree>/kitty-specs/<mission>/status.events.jsonl, pre_emit_size)` (FR-010).
      - Re-materialize `status.json` from the truncated event log.
-     - If the worktree is the coordination worktree, `git -C <worktree> checkout -- <other written paths>` to restore them (only paths that were `stage_path`-ed inside this transaction).
+     - For every path written via `write_artifact()` inside this transaction: restore from the **byte snapshot** captured at write time. Each `write_artifact()` call records `pre_write_bytes = path.read_bytes() if path.exists() else None` *before* writing the new content. On rollback: if `pre_write_bytes is None`, `path.unlink(missing_ok=True)`; otherwise `path.write_bytes(pre_write_bytes)`. No `git checkout --`. (C-009.)
+     - For every path passed to `stage_path()` (already-modified files that the caller wants tracked), the rollback path does **nothing** — the caller is responsible for any state they wrote outside `write_artifact()`. Documented contract: only paths flowing through `write_artifact()` get snapshot/restore semantics.
    - **Do NOT** run deferred outbound side effects.
    - Release the feature status lock.
    - Re-raise the original exception (or wrap in `BookkeepingTransactionFailed` if useful for diagnostics).

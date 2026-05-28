@@ -71,6 +71,16 @@ Introduce the `src/specify_cli/coordination/` package with `CoordinationWorkspac
 
 ---
 
+## Cross-review amendments (SUPERSEDE the code skeletons below where they conflict)
+
+1. **Sparse-checkout path resolution**: The skeleton in T016 wrote literally to `.git/info/sparse-checkout`. In linked git worktrees, `.git` is a **file** pointing to a per-worktree gitdir, not a directory. The correct path comes from `git -C <worktree> rev-parse --git-path info/sparse-checkout`. Use that, or use `git sparse-checkout set --no-cone <patterns>` which handles the resolution automatically. The contract file `contracts/coordination_workspace.md` shows the corrected pattern; follow it.
+
+2. **`CoordinationWorkspace.resolve()` normalizes the HEAD comparison**: When verifying a reused worktree's branch, normalize via `actual = symbolic_ref_head.removeprefix("refs/heads/")` and compare to the SHORT branch name. The earlier skeleton's `if actual != f"refs/heads/{branch}" and actual != branch:` is OK as a transitional check; the canonical form is "always short". (C-016.)
+
+3. **The lane allocator does NOT directly modify status files**. Today the allocator may copy or symlink `kitty-specs/<mission>/` artifacts. After this WP, lane worktrees rely on git sparse-checkout to hide `status.events.jsonl` and `status.json`; the allocator does not need to interact with those files directly.
+
+---
+
 ## Subtask T015: `CoordinationWorkspace` service
 
 **Purpose**: Resolve/create/teardown the coordination worktree. Idempotent. Single source of truth for "where is the coord worktree for mission X?".

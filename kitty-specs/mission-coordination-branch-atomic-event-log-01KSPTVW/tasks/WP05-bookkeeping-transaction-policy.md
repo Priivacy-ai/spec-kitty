@@ -78,9 +78,51 @@ This WP is where the cross-review's hardest architectural pushback lives. Two th
 
 ---
 
-## Subtask T020: `GitChangeSet` value object + `PolicyVerdict` sum type
+## Cross-review amendments (SUPERSEDE the code skeletons below where they conflict)
 
-**Purpose**: Define the immutable value objects passed through the policy + transaction layer. Single source of truth for what a commit "intends to do."
+The detailed code blocks in subtasks T020–T024 were written before the cross-review found several incoherences. The skeletons remain as reference but the following amendments are authoritative; implement them this way:
+
+1. **Lock module path**: `from specify_cli.status.locking import acquire_feature_status_lock` — NOT `from specify_cli.locking`. The locking module lives under `status/` per the actual repo layout. It is built on the `filelock` library (cross-platform), not `fcntl`.
+
+2. **`acquire()` signature includes `mission_slug` AND `mid8`** (both required):
+   ```python
+   BookkeepingTransaction.acquire(
+       *, repo_root, mission_id, mission_slug, mid8, destination_ref, operation, timeout=30.0
+   )
+   ```
+   The earlier skeleton showed only `mission_id` — that's insufficient for resolving the coord worktree path.
+
+3. **`destination_ref` is the SHORT branch name** (C-016). If a caller passes `refs/heads/<branch>`, refuse with `DESTINATION_REF_INVALID_SHAPE`. The HEAD assertion inside `safe_commit()` does `git symbolic-ref HEAD` → strip `refs/heads/` prefix → compare to short-form `destination_ref`. Implement a small helper `_normalize_ref(raw: str) -> str` that does `raw.removeprefix("refs/heads/")` and use it everywhere.
+
+4. **`append_event()` returns `PendingEventHandle`, NOT a `CommitReceipt`** (FR-033):
+   - `PendingEventHandle = dataclass(frozen=True, kw_only=True)` carrying only `event_id: str`.
+   - `commit()` returns `CommitReceipt = dataclass(frozen=True, kw_only=True)` carrying `commit_sha`, `committed_at`, `destination_ref`, `worktree_root`, `event_ids: tuple[str, ...]`.
+   - The earlier skeleton's combined `EventReceipt` is REMOVED.
+
+5. **Rollback MUST NOT use `git checkout --`** (C-009 strengthened). Instead, every `write_artifact(path, content)` call captures:
+   ```python
+   pre_write_bytes = path.read_bytes() if path.exists() else None
+   self._snapshots[path] = pre_write_bytes
+   ```
+   On rollback, restore each snapshot:
+   ```python
+   for p, prev_bytes in self._snapshots.items():
+       if prev_bytes is None:
+           p.unlink(missing_ok=True)
+       else:
+           p.write_bytes(prev_bytes)
+   ```
+   This works correctly under the lock (no concurrent writer can interfere) and respects C-009.
+
+6. **Status domain stays pure** (FR-032). `transaction.py` imports `build_status_event` and `append_event_jsonl` from `status/emit.py`. The status module does NOT import from `coordination/`. WP06's T028 extracts the pure functions; WP05 anticipates them (mock them if WP06 hasn't landed yet during your branch's build).
+
+---
+
+## Subtask T020: `GitChangeSet` value object + `PolicyVerdict` + `PendingEventHandle`/`CommitReceipt` types
+
+**Purpose**: Define the immutable value objects passed through the policy + transaction layer. Single source of truth for what a commit "intends to do" and what receipts the caller gets.
+
+**Cross-review corrections folded in**: (1) `destination_ref` is the SHORT branch name canonically (C-016) — normalize any `refs/heads/...` input. (2) Receipt types are SPLIT: `append_event()` returns `PendingEventHandle` (event_id only); `commit()` returns `CommitReceipt` (commit_sha, committed_at, destination_ref, worktree_root, event_ids). The earlier merged `EventReceipt` returning `commit_sha` from `append_event` was incoherent.
 
 **Steps**:
 1. Create `src/specify_cli/coordination/types.py`:

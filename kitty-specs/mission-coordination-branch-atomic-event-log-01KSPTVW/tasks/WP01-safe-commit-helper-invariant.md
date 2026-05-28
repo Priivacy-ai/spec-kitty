@@ -114,9 +114,11 @@ The cross-review (see `research.md` → R-002) was emphatic: `destination_ref` m
            )
    ```
 2. Inside `safe_commit()`, before any `git add` / `git commit`:
-   - Run `subprocess.check_output(["git", "-C", str(worktree_root), "symbolic-ref", "HEAD"])` → `actual_head` (strip whitespace).
-   - If `actual_head != destination_ref` → raise `SafeCommitHeadMismatch(destination_ref=destination_ref, observed_head=actual_head, worktree_root=worktree_root)`.
-3. Add `ProtectedBranchRefused`, `SafeCommitDestinationNotFound`, `SafeCommitEmptyChangeset`, `SafeCommitNotAWorktree` if they do not already exist. Match the error codes from `contracts/safe_commit_signature.md`.
+   - **First validate `destination_ref` shape** (C-016): if it starts with `refs/heads/`, raise `SafeCommitDestinationRefShape`. Callers must pass short branch names, never fully-qualified refs. This catches the common drift from `git symbolic-ref` output being passed verbatim.
+   - Run `subprocess.check_output(["git", "-C", str(worktree_root), "symbolic-ref", "HEAD"])` → raw output, strip whitespace.
+   - **Normalize**: `actual_head = raw.removeprefix("refs/heads/")` — this is the short form, matching the canonical `destination_ref`.
+   - If `actual_head != destination_ref` → raise `SafeCommitHeadMismatch(destination_ref=destination_ref, observed_head=actual_head, worktree_root=worktree_root)`. Both fields are in short form so operators see consistent branch names.
+3. Add `ProtectedBranchRefused`, `SafeCommitDestinationNotFound`, `SafeCommitEmptyChangeset`, `SafeCommitNotAWorktree`, `SafeCommitDestinationRefShape` if they do not already exist. Match the error codes from `contracts/safe_commit_signature.md`.
 4. Every exception MUST carry: `error_code` (stable identifier per NFR-007), `message`, `destination_ref`, and (when relevant) `observed_head` and `worktree_root`. JSON-serializable.
 
 **Files**:

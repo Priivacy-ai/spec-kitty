@@ -19,11 +19,12 @@
 - `ruamel.yaml` — frontmatter parsing (existing)
 - `pytest` — test framework (existing); coverage target ≥ 90% on new modules (charter policy)
 - `mypy --strict` — type checking (existing); enforces required keyword-only `destination_ref` on `safe_commit()`
+- `filelock` — cross-platform file lock (existing; powers `src/specify_cli/status/locking.py`). **Not `fcntl`** — that's POSIX-only and would break Windows support.
 - Stdlib `os.truncate` / `os.path.getsize` — surgical rollback of `status.events.jsonl` (FR-010)
 - Stdlib `subprocess` — git invocation (existing pattern in `specify_cli.git.commit_helpers`)
-- Stdlib `pathlib`, `fcntl` — filesystem and lock primitives (existing pattern in `specify_cli.locking`)
+- Stdlib `pathlib` — filesystem primitives
 - `safe_commit` from `specify_cli.git.commit_helpers` (existing helper; signature change in FR-031)
-- Existing feature status lock from `specify_cli.locking` (re-used per FR-026, C-013)
+- Existing feature status lock from `specify_cli.status.locking` (re-used per FR-026, C-013)
 
 **New Dependencies**: None. All mechanisms use stdlib + existing helpers.
 

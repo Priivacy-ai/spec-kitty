@@ -47,19 +47,43 @@ When the lane allocator creates `.worktrees/<slug>-<mid8>-lane-<id>/`, it MUST r
 
 ### Implementation steps (executed at lane worktree creation)
 
+**Important**: In a linked worktree, `.git` is a **file** pointing to a per-worktree gitdir, not a directory. Writing literally to `.git/info/sparse-checkout` fails. Resolve the actual path via `git rev-parse --git-path info/sparse-checkout` — this returns the correct location for any worktree topology.
+
 ```bash
 git worktree add .worktrees/<slug>-<mid8>-lane-<id> <coordination_branch>
 cd .worktrees/<slug>-<mid8>-lane-<id>
 git sparse-checkout init --no-cone
-# Include everything (default)
-echo '/*' > .git/info/sparse-checkout
-# Exclude the two status files for this mission
-echo '!kitty-specs/<mission_slug>-<mid8>/status.events.jsonl' >> .git/info/sparse-checkout
-echo '!kitty-specs/<mission_slug>-<mid8>/status.json' >> .git/info/sparse-checkout
+# Resolve the actual sparse-checkout file path (handles linked worktrees correctly):
+SPARSE_FILE=$(git rev-parse --git-path info/sparse-checkout)
+# Include everything (default), then exclude the two status files for this mission:
+cat > "$SPARSE_FILE" <<EOF
+/*
+!kitty-specs/<mission_slug>-<mid8>/status.events.jsonl
+!kitty-specs/<mission_slug>-<mid8>/status.json
+EOF
 git read-tree -mu HEAD
 ```
 
+Python equivalent for the Python helper:
+
+```python
+gitdir_info = subprocess.check_output(
+    ["git", "-C", str(lane_path), "rev-parse", "--git-path", "info/sparse-checkout"],
+    text=True,
+).strip()
+sparse_file = Path(gitdir_info)
+sparse_file.parent.mkdir(parents=True, exist_ok=True)
+sparse_file.write_text("\n".join([
+    "/*",
+    f"!kitty-specs/{mission_slug}-{mid8}/status.events.jsonl",
+    f"!kitty-specs/{mission_slug}-{mid8}/status.json",
+]) + "\n")
+subprocess.run(["git", "-C", str(lane_path), "read-tree", "-mu", "HEAD"], check=True)
+```
+
 The `--no-cone` mode is used because the exclusion list is path-specific (not directory-level).
+
+Alternative: `git sparse-checkout set --no-cone <patterns>` handles file location automatically. Either approach is acceptable; the `rev-parse --git-path` form is shown above for clarity about WHY the literal `.git/info/` path is wrong.
 
 ### Verification
 

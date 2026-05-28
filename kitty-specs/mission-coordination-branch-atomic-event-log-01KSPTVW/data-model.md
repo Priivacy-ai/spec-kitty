@@ -13,7 +13,7 @@ A description of a would-be git commit, passed to `safe_commit()` and `WorkflowM
 ```python
 @dataclass(frozen=True, kw_only=True)
 class GitChangeSet:
-    destination_ref: str           # full ref name (e.g. "kitty/mission-foo-01ABCDEF")
+    destination_ref: str           # SHORT branch name (e.g. "kitty/mission-foo-01ABCDEF")
     repo_root: Path                # absolute path; primary checkout root
     worktree_root: Path            # absolute path; the worktree the commit will land in
     paths: tuple[Path, ...]        # files to stage (absolute or relative to worktree_root)
@@ -22,7 +22,7 @@ class GitChangeSet:
 ```
 
 **Invariants**:
-- `destination_ref` is the *full ref name*, never an abbreviated branch name.
+- `destination_ref` is the **short branch name** (e.g. `kitty/mission-foo-01ABCDEF`), NEVER the fully-qualified `refs/heads/...` form. The HEAD assertion in `safe_commit()` normalizes `git symbolic-ref HEAD` output (strips the `refs/heads/` prefix) before comparing. Persisted artifacts (`meta.json`, `lanes.json`) use the short form. CLI inputs are normalized on entry. (C-016.)
 - `worktree_root` is the worktree the commit will land in. For coordination-branch writes, this is the coordination worktree. For lane code commits, this is the lane worktree.
 - `paths` is the staged set; if empty, the commit is a no-op (rejected by `safe_commit()` with `EMPTY_CHANGESET`).
 - `operation` is for diagnostics only — never used as policy input.
@@ -68,19 +68,21 @@ class BookkeepingTransaction:
         cls,
         *,
         repo_root: Path,
-        mission_id: str,                 # ULID
-        destination_ref: str,
-        operation: str,
+        mission_id: str,                 # ULID; canonical identity
+        mission_slug: str,                # required: needed to resolve coord worktree path
+        mid8: str,                        # required: needed for worktree disambiguation
+        destination_ref: str,             # SHORT branch name (C-016)
+        operation: str,                   # diagnostic label
     ) -> "BookkeepingTransaction": ...
 
     def __enter__(self) -> "BookkeepingTransaction": ...
     def __exit__(self, exc_type, exc, tb) -> None: ...
 
     # Workflow operations (must be called inside `with` block)
-    def append_event(self, event: StatusEvent) -> EventReceipt: ...
+    def append_event(self, event: StatusEvent) -> PendingEventHandle: ...
     def write_artifact(self, path: Path, content: bytes) -> None: ...
     def stage_path(self, path: Path) -> None: ...
-    def commit(self, message: str) -> EventReceipt: ...      # optional explicit; otherwise implicit on __exit__
+    def commit(self, message: str) -> CommitReceipt: ...     # optional explicit; otherwise implicit on __exit__
     def defer_outbound(self, side_effect: Callable[[], None]) -> None: ...
 ```
 
@@ -92,22 +94,34 @@ class BookkeepingTransaction:
 - `__exit__` (exception during commit): same rollback path as above.
 - The lock is held for the entire `with` block. No nested transactions for the same mission.
 
-### `EventReceipt` (value object)
+### `PendingEventHandle` and `CommitReceipt` (value objects)
 
-Return value from `BookkeepingTransaction.append_event(...)`. Confirms the event made it to the coordination branch.
+The cross-review correctly flagged that the earlier draft's `EventReceipt` was incoherent: it returned `commit_sha` from `append_event()` *before* a commit existed. Split into two distinct types:
 
 ```python
 @dataclass(frozen=True, kw_only=True)
-class EventReceipt:
+class PendingEventHandle:
+    """Returned by BookkeepingTransaction.append_event().
+    The event was appended to status.events.jsonl under the lock,
+    but the tracking commit has not yet been attempted.
+    """
     event_id: str                  # ULID from the StatusEvent
-    committed_at: datetime         # commit timestamp (UTC)
+
+@dataclass(frozen=True, kw_only=True)
+class CommitReceipt:
+    """Returned by BookkeepingTransaction.commit() (or accumulated at successful __exit__).
+    Confirms the tracking commit landed and lists every event_id included.
+    """
     commit_sha: str                # git commit SHA
-    destination_ref: str           # the branch the commit landed on
-    worktree_root: Path            # the worktree it was committed via
+    committed_at: datetime         # commit timestamp (UTC)
+    destination_ref: str           # short branch name the commit landed on
+    worktree_root: Path            # worktree it was committed via
+    event_ids: tuple[str, ...]     # every event_id included in this commit
 ```
 
 **Invariants**:
-- Returned only on success. On rollback, no receipt is returned and the caller never sees an event_id that doesn't exist on disk.
+- `PendingEventHandle` is returned even if the transaction later fails (the event was written to disk; the rollback path will remove it). Callers MUST NOT treat a `PendingEventHandle` as "the event is durably committed."
+- `CommitReceipt` is returned ONLY after the tracking commit succeeds. On rollback, no receipt is produced.
 
 ### `CoordinationWorkspace` (service)
 

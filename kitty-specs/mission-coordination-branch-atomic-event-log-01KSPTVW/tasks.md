@@ -63,7 +63,14 @@ Total subtasks: **42**. Total WPs: **9**.
 
 ## MVP Scope
 
-**Minimum viable shipment**: **WP01 + WP02** delivers the helper-level invariant alone. After PR 1 (WP01+WP02) lands, it is structurally impossible for any `safe_commit()` caller to silently land commits on the wrong branch. This fixes the structural cause behind issue #1348 even without the coordination-branch topology.
+**Minimum viable shipment that actually closes #1348**: **WP01 → WP06**.
+
+The earlier draft incorrectly claimed WP01+WP02 alone closed #1348. That's wrong: WP01+WP02 close the *structural class* of bug (silent commit-target drift), but the specific symptom in #1348 — `status.events.jsonl` ahead of HEAD because the event-log append happens before the protected-branch refusal — only stops when bookkeeping writes route through `BookkeepingTransaction` (WP05) and the four workflow call sites are migrated (WP06). Until WP06 lands, the reproduction sequence still triggers.
+
+What each PR delivers:
+- **PR 1 (WP01+WP02)**: Helper-level invariant. After this, no `safe_commit()` caller can silently land on the wrong branch via type/HEAD drift. **Does NOT yet close #1348's reproduction**, because the bookkeeping writes still happen before the commit attempt.
+- **PR 2 (WP03..WP08)**: Coordination branch + `BookkeepingTransaction` + workflow call-site migration + legacy fallback. **This is the PR that actually closes the #1348 reproduction.**
+- **PR 3 (WP09)**: Hardening that prevents future regression. Optional for closing #1348; required for long-term resilience.
 
 **Full mission close**: WP01–WP08. WP09 is hardening that can ship in a follow-up release.
 
