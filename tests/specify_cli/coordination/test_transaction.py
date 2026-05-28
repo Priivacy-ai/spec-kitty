@@ -29,9 +29,9 @@ from specify_cli.coordination.transaction import (
     BookkeepingLockTimeout,
     BookkeepingPolicyRefused,
     BookkeepingTransaction,
-    build_status_event,
 )
 from specify_cli.coordination.workspace import CoordinationWorkspace
+from specify_cli.status.emit import build_status_event
 from specify_cli.status import store as _store
 from specify_cli.status.models import StatusEvent
 
@@ -217,6 +217,20 @@ def _sha256(path: Path) -> str | None:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _install_rejecting_pre_commit_hook(worktree_root: Path) -> None:
+    hooks_dir_raw = subprocess.check_output(
+        ["git", "-C", str(worktree_root), "rev-parse", "--git-path", "hooks"],
+        text=True,
+    ).strip()
+    hooks_dir = Path(hooks_dir_raw)
+    if not hooks_dir.is_absolute():
+        hooks_dir = worktree_root / hooks_dir
+    hooks_dir.mkdir(parents=True, exist_ok=True)
+    hook = hooks_dir / "pre-commit"
+    hook.write_text("#!/bin/sh\necho 'rejected'\nexit 1\n")
+    hook.chmod(0o755)
+
+
 def test_commit_failure_rolls_back_event_log_byte_identical(repo: Path) -> None:
     """When safe_commit fails, status.events.jsonl is restored byte-identical."""
     # Seed: first transaction succeeds → known event log on disk.
@@ -244,17 +258,7 @@ def test_commit_failure_rolls_back_event_log_byte_identical(repo: Path) -> None:
     worktree_root = (
         repo / ".worktrees" / f"{FEATURE_DIRNAME}-coord"
     )
-    hooks_dir_raw = subprocess.check_output(
-        ["git", "-C", str(worktree_root), "rev-parse", "--git-path", "hooks"],
-        text=True,
-    ).strip()
-    hooks_dir = Path(hooks_dir_raw)
-    if not hooks_dir.is_absolute():
-        hooks_dir = worktree_root / hooks_dir
-    hooks_dir.mkdir(parents=True, exist_ok=True)
-    hook = hooks_dir / "pre-commit"
-    hook.write_text("#!/bin/sh\necho 'rejected'\nexit 1\n")
-    hook.chmod(0o755)
+    _install_rejecting_pre_commit_hook(worktree_root)
 
     with pytest.raises(BookkeepingCommitFailed), BookkeepingTransaction.acquire(
         repo_root=repo,
@@ -271,6 +275,57 @@ def test_commit_failure_rolls_back_event_log_byte_identical(repo: Path) -> None:
     assert post_rollback_sha == pre_rollback_sha, (
         "rollback must restore status.events.jsonl byte-identical"
     )
+
+
+def test_commit_failure_removes_event_log_created_by_transaction(repo: Path) -> None:
+    """If no event log existed before emit, rollback must not leave an empty file."""
+    worktree_root = CoordinationWorkspace.resolve(repo, MISSION_SLUG, MID8)
+    feature_dir = worktree_root / "kitty-specs" / FEATURE_DIRNAME
+    events_path = feature_dir / "status.events.jsonl"
+    status_path = feature_dir / "status.json"
+    assert not events_path.exists()
+    assert not status_path.exists()
+
+    _install_rejecting_pre_commit_hook(worktree_root)
+
+    with pytest.raises(BookkeepingCommitFailed), BookkeepingTransaction.acquire(
+        repo_root=repo,
+        mission_id=MISSION_ID,
+        mission_slug=MISSION_SLUG,
+        mid8=MID8,
+        destination_ref=COORD_BRANCH,
+        operation="rollback_missing_event_log",
+    ) as txn:
+        txn.append_event(_make_event("WP02", "claimed"))
+        txn.commit("status: should reject")
+
+    assert not events_path.exists()
+    assert not status_path.exists()
+
+
+def test_commit_failure_restores_empty_status_json(repo: Path) -> None:
+    """An originally empty status.json must stay empty, not be unlinked."""
+    worktree_root = CoordinationWorkspace.resolve(repo, MISSION_SLUG, MID8)
+    feature_dir = worktree_root / "kitty-specs" / FEATURE_DIRNAME
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    status_path = feature_dir / "status.json"
+    status_path.write_bytes(b"")
+
+    _install_rejecting_pre_commit_hook(worktree_root)
+
+    with pytest.raises(BookkeepingCommitFailed), BookkeepingTransaction.acquire(
+        repo_root=repo,
+        mission_id=MISSION_ID,
+        mission_slug=MISSION_SLUG,
+        mid8=MID8,
+        destination_ref=COORD_BRANCH,
+        operation="rollback_empty_status",
+    ) as txn:
+        txn.append_event(_make_event("WP02", "claimed"))
+        txn.commit("status: should reject")
+
+    assert status_path.exists()
+    assert status_path.read_bytes() == b""
 
 
 def test_rollback_skips_deferred_outbound(repo: Path) -> None:

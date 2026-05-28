@@ -334,6 +334,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         events_path: Path,
         snapshot_path: Path,
         pre_emit_size: int,
+        pre_emit_events_existed: bool,
         lock_cm: AbstractContextManager[Path],
     ) -> None:
         # Note: most attributes are public-but-immutable-by-convention.
@@ -350,6 +351,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         self._events_path = events_path
         self._snapshot_path = snapshot_path
         self._pre_emit_size = pre_emit_size
+        self._pre_emit_events_existed = pre_emit_events_existed
         self._lock_cm = lock_cm
 
         # Per-transaction mutable state.
@@ -360,6 +362,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         self._snapshots: dict[Path, bytes | None] = {}
         # Snapshot of status.json pre-emit (used to restore exact bytes
         # on rollback, NOT re-materialise — keeps SHA-256 identical).
+        self._pre_emit_snapshot_existed: bool | None = None
         self._pre_emit_snapshot_bytes: bytes | None = None
         # Paths we will pass to safe_commit() on commit().
         self._staged_paths: list[Path] = []
@@ -522,7 +525,8 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         # 5. Capture the pre-emit size of the event log (FR-010) and
         # snapshot of status.json (so rollback is byte-identical, not
         # "re-materialised approximately the same").
-        pre_emit_size = events_path.stat().st_size if events_path.exists() else 0
+        pre_emit_events_existed = events_path.exists()
+        pre_emit_size = events_path.stat().st_size if pre_emit_events_existed else 0
 
         # Construct + return. The pre-emit status.json snapshot is read
         # lazily on first append_event() — many transactions never
@@ -539,6 +543,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             events_path=events_path,
             snapshot_path=snapshot_path,
             pre_emit_size=pre_emit_size,
+            pre_emit_events_existed=pre_emit_events_existed,
             lock_cm=lock_cm,
         )
         return txn
@@ -597,14 +602,13 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
 
         # Capture the pre-emit status.json on first event so rollback
         # restores exact bytes (not "approximately re-materialised").
-        if self._pre_emit_snapshot_bytes is None:
-            if self._snapshot_path.exists():
-                self._pre_emit_snapshot_bytes = self._snapshot_path.read_bytes()
-            else:
-                # Sentinel: empty bytes means "delete on rollback".
-                # We distinguish from "no snapshot taken yet" by also
-                # tracking whether we have written at least one event.
-                self._pre_emit_snapshot_bytes = b""
+        if self._pre_emit_snapshot_existed is None:
+            self._pre_emit_snapshot_existed = self._snapshot_path.exists()
+            self._pre_emit_snapshot_bytes = (
+                self._snapshot_path.read_bytes()
+                if self._pre_emit_snapshot_existed
+                else None
+            )
 
         # Ensure parent directories exist (the feature_dir may be new
         # if this is the first emission for this mission).
@@ -740,8 +744,11 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         # the file is append-only.
         try:
             if self._events_path.exists():
-                with self._events_path.open("ab") as fh:
-                    fh.truncate(self._pre_emit_size)
+                if self._pre_emit_events_existed:
+                    with self._events_path.open("ab") as fh:
+                        fh.truncate(self._pre_emit_size)
+                else:
+                    self._events_path.unlink(missing_ok=True)
         except OSError as exc:
             logger.error(
                 "BookkeepingTransaction rollback: truncate of %s "
@@ -752,11 +759,12 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
 
         # 2. Restore status.json from the byte snapshot captured at
         # first append_event() (NOT a re-materialise — preserves SHA).
-        # If no event was ever appended, the snapshot is None and we
-        # leave status.json alone.
-        if self._pre_emit_snapshot_bytes is not None:
+        # If no event was ever appended, _pre_emit_snapshot_existed is
+        # None and we leave status.json alone.
+        if self._pre_emit_snapshot_existed is not None:
             try:
-                if self._pre_emit_snapshot_bytes:
+                if self._pre_emit_snapshot_existed:
+                    assert self._pre_emit_snapshot_bytes is not None  # noqa: S101
                     self._snapshot_path.parent.mkdir(
                         parents=True, exist_ok=True,
                     )
