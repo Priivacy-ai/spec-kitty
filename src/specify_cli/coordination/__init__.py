@@ -22,6 +22,25 @@ See ``contracts/coordination_workspace.md`` and FR-024 / FR-025 / FR-029.
 
 from __future__ import annotations
 
+from specify_cli.coordination.policy import WorkflowMutationPolicy
+from specify_cli.coordination.transaction import (
+    BookkeepingCommitFailed,
+    BookkeepingDoubleEventId,
+    BookkeepingError,
+    BookkeepingLockTimeout,
+    BookkeepingPolicyRefused,
+    BookkeepingTransaction,
+    BookkeepingWorktreeMissing,
+    build_status_event,
+)
+from specify_cli.coordination.types import (
+    Allowed,
+    CommitReceipt,
+    GitChangeSet,
+    PendingEventHandle,
+    PolicyVerdict,
+    Refused,
+)
 from specify_cli.coordination.workspace import (
     CoordinationWorkspace,
     CoordinationWorkspaceBranchMismatch,
@@ -30,8 +49,27 @@ from specify_cli.coordination.workspace import (
 )
 
 __all__ = [
+    # Workspace (WP04)
     "CoordinationWorkspace",
     "CoordinationWorkspaceBranchMismatch",
     "lane_sparse_checkout_patterns",
     "register_lane_sparse_checkout",
+    # Policy (WP05)
+    "WorkflowMutationPolicy",
+    # Transaction (WP05)
+    "BookkeepingTransaction",
+    "BookkeepingError",
+    "BookkeepingPolicyRefused",
+    "BookkeepingLockTimeout",
+    "BookkeepingWorktreeMissing",
+    "BookkeepingCommitFailed",
+    "BookkeepingDoubleEventId",
+    "build_status_event",
+    # Types (WP05)
+    "Allowed",
+    "Refused",
+    "PolicyVerdict",
+    "GitChangeSet",
+    "PendingEventHandle",
+    "CommitReceipt",
 ]
