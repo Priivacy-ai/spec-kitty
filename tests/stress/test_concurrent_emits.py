@@ -36,7 +36,7 @@ from typing import Any
 
 import pytest
 
-pytestmark = [pytest.mark.stress, pytest.mark.slow]
+pytestmark = [pytest.mark.stress, pytest.mark.slow, pytest.mark.git_repo]
 
 
 # ---------------------------------------------------------------------------

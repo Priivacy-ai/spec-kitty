@@ -23,7 +23,7 @@ import pytest
 from specify_cli.coordination.policy import WorkflowMutationPolicy
 from specify_cli.coordination.types import Allowed, GitChangeSet, Refused
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 
 def _git(repo: Path, *args: str) -> None:

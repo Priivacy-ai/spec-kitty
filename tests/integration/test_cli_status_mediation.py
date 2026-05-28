@@ -31,6 +31,8 @@ from typing import Any
 
 import pytest
 
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+
 from specify_cli.missions._read_path_resolver import (
     STATUS_READ_PATH_NOT_FOUND_CODE,
     StatusReadPathNotFound,

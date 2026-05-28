@@ -35,6 +35,8 @@ from typing import Any
 
 import pytest
 
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+
 from specify_cli.coordination.transaction import (
     BookkeepingCommitFailed,
     BookkeepingTransaction,

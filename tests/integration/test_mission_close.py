@@ -40,7 +40,7 @@ import pytest
 
 from specify_cli.coordination import CoordinationWorkspace
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 MISSION_SLUG = "demo-feature"

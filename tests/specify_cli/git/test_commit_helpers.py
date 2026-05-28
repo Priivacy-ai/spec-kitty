@@ -26,7 +26,7 @@ from specify_cli.git.commit_helpers import (
     safe_commit,
 )
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 
 # ---------------------------------------------------------------------------

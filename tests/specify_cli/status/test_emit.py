@@ -13,6 +13,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.unit
+
 from specify_cli.status.emit import (
     append_event_jsonl,
     build_status_event,

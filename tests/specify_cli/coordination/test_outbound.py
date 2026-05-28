@@ -36,7 +36,7 @@ from specify_cli.status.models import StatusEvent
 # pytest-idiomatic way to expose a cross-package fixture.
 pytest_plugins = ("tests.conftest_saas_sink",)
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 
 MISSION_SLUG = "outbound-feature"

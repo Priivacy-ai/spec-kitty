@@ -27,6 +27,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.unit
+
 from specify_cli.cli.commands.agent.mission import _resolve_planning_branch
 from specify_cli.missions._resolve_planning_branch import (
     PlanningBranchResolutionFailed,

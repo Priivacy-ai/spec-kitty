@@ -21,7 +21,7 @@ from specify_cli.coordination import (
     register_lane_sparse_checkout,
 )
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 
 MISSION_SLUG = "demo-feature"

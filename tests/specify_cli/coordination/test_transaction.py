@@ -35,7 +35,7 @@ from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.status import store as _store
 from specify_cli.status.models import StatusEvent
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 
 MISSION_SLUG = "demo-feature"
