@@ -621,6 +621,17 @@ def create_mission(
             help="Branch-strategy gate control (e.g., 'already-confirmed' to bypass the prompt)",
         ),
     ] = None,
+    force_recreate_coordination_branch: Annotated[
+        bool,
+        typer.Option(
+            "--force-recreate-coordination-branch",
+            help=(
+                "Delete and recreate the per-mission coordination branch if it "
+                "already exists and has diverged from the target. Operator "
+                "escape hatch; never used by automation."
+            ),
+        ),
+    ] = False,
 ) -> None:
     """Create new mission directory structure in the project root checkout.
 
@@ -634,6 +645,7 @@ def create_mission(
         MissionCreationError,
         create_mission_core,
     )
+    from specify_cli.missions._create import CoordinationBranchDiverged
 
     repo_root = locate_project_root()
     resolved_mission_type = mission_type
@@ -701,7 +713,16 @@ def create_mission(
             friendly_name=friendly_name,
             purpose_tldr=purpose_tldr,
             purpose_context=purpose_context,
+            force_recreate_coordination_branch=force_recreate_coordination_branch,
         )
+    except CoordinationBranchDiverged as exc:
+        # Structured error path (NFR-007): emit a stable error_code payload
+        # so scripted callers (CI, doctor) can detect this case unambiguously.
+        if json_output:
+            _emit_json({"error": str(exc), **exc.to_dict()})
+        else:
+            console.print(f"[bold red]Error:[/bold red] {exc}")
+        raise typer.Exit(1) from exc
     except MissionCreationError as exc:
         error_msg = str(exc)
         if json_output:
@@ -777,6 +798,11 @@ def create_mission(
                 "succeeded": result.origin_binding_succeeded,
                 "error": result.origin_binding_error,
             },
+            # Coordination branch (WP03 / issue #1348) — top-level field so
+            # downstream tooling (lane allocator, BookkeepingTransaction, merge)
+            # can read the canonical ref without re-deriving it.
+            "coordination_branch": result.coordination_branch,
+            "coordination_branch_created": result.coordination_branch_created,
         }
         _emit_json(
             _inject_branch_contract(
