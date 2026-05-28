@@ -4,12 +4,17 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
+from io import StringIO
 from pathlib import Path
 from typing import Any
 
 from ruamel.yaml import YAML
+from ruamel.yaml.scalarstring import DoubleQuotedScalarString, PreservedScalarString
 
 from .models import Provenance, SenseStatus, TermSense, TermSurface
+
+
+_SEED_METADATA_FIELDS = ("see_also", "synonyms_to_avoid", "introduced_in_mission")
 
 
 class GlossaryScope(Enum):
@@ -118,7 +123,23 @@ def load_seed_file(scope: GlossaryScope, repo_root: Path) -> list[TermSense]:
 
     yaml = YAML()
     yaml.preserve_quotes = True
-    data = yaml.load(seed_path)
+    try:
+        data = yaml.load(seed_path)
+    except Exception as exc:
+        from .exceptions import SeedFileValidationError, SeedValidationError
+
+        raise SeedFileValidationError(
+            seed_path,
+            [
+                SeedValidationError(
+                    file_path=seed_path,
+                    term_index=None,
+                    term_surface=None,
+                    field=None,
+                    message=f"YAML parse error: {exc}",
+                )
+            ],
+        ) from exc
 
     # Full Pydantic validation — raises SeedFileValidationError on failure
     from .seed_validation import validate_seed_file_data
@@ -144,23 +165,58 @@ def load_seed_file(scope: GlossaryScope, repo_root: Path) -> list[TermSense]:
     return senses
 
 
+def _default_header(scope: GlossaryScope) -> list[str]:
+    return [f"# Spec Kitty glossary seed — scope: {scope.value}", ""]
+
+
 def _needs_quoting(value: str) -> bool:
     return ": " in value or "'" in value
 
 
-def _yaml_scalar(value: str) -> str:
+def _seed_scalar_value(value: str) -> str:
+    if "\n" in value:
+        return PreservedScalarString(value)
     if _needs_quoting(value):
-        escaped = value.replace("\\", "\\\\").replace('"', '\\"')
-        return f'"{escaped}"'
+        return DoubleQuotedScalarString(value)
     return value
 
 
-def _confidence_str(conf: float) -> str:
-    return f"{conf:.1f}" if conf == int(conf) else str(round(conf, 4))
+def _load_existing_seed_metadata(seed_path: Path) -> dict[str, dict[str, Any]]:
+    """Return accepted metadata fields keyed by term surface from an existing seed."""
+    if not seed_path.exists():
+        return {}
+
+    yaml = YAML()
+    yaml.preserve_quotes = True
+    try:
+        data = yaml.load(seed_path)
+    except Exception:
+        return {}
+
+    metadata: dict[str, dict[str, Any]] = {}
+    for term_data in (data or {}).get("terms") or []:
+        if not isinstance(term_data, dict):
+            continue
+        surface = term_data.get("surface")
+        if not isinstance(surface, str):
+            continue
+        preserved = {
+            field: term_data[field]
+            for field in _SEED_METADATA_FIELDS
+            if field in term_data
+        }
+        if preserved:
+            metadata[surface] = preserved
+    return metadata
 
 
-def _default_header(scope: GlossaryScope) -> list[str]:
-    return [f"# Spec Kitty glossary seed — scope: {scope.value}", ""]
+def _dump_seed_body(data: dict[str, Any]) -> str:
+    yaml = YAML()
+    yaml.preserve_quotes = True
+    yaml.default_flow_style = False
+    stream = StringIO()
+    yaml.dump(data, stream)
+    return stream.getvalue()
 
 
 def save_seed_file(
@@ -176,21 +232,23 @@ def save_seed_file(
     seed_path = repo_root / ".kittify" / "glossaries" / f"{scope.value}.yaml"
     seed_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Validate the data that will be written
     from .seed_validation import validate_seed_file_data
 
-    validation_data = {
-        "terms": [
-            {
-                "surface": t.surface.surface_text,
-                "definition": t.definition,
-                "confidence": t.confidence,
-                "status": t.status.value,
-            }
-            for t in terms
-        ]
-    }
-    validate_seed_file_data(validation_data, seed_path)
+    existing_metadata = _load_existing_seed_metadata(seed_path)
+    sorted_terms = sorted(terms, key=lambda t: t.surface.surface_text.lower())
+
+    output_data: dict[str, Any] = {"terms": []}
+    for t in sorted_terms:
+        term_entry: dict[str, Any] = {
+            "surface": _seed_scalar_value(t.surface.surface_text),
+            "definition": _seed_scalar_value(t.definition),
+            "confidence": t.confidence,
+            "status": t.status.value,
+        }
+        term_entry.update(existing_metadata.get(t.surface.surface_text, {}))
+        output_data["terms"].append(term_entry)
+
+    validate_seed_file_data(output_data, seed_path)
 
     # Preserve existing header comment lines; fall back to a generated one.
     if seed_path.exists():
@@ -204,22 +262,12 @@ def save_seed_file(
     else:
         header = _default_header(scope)
 
-    sorted_terms = sorted(terms, key=lambda t: t.surface.surface_text.lower())
+    body = _dump_seed_body(output_data)
+    prefix = "\n".join(header)
+    if prefix and not prefix.endswith("\n"):
+        prefix += "\n"
 
-    lines: list[str] = list(header)
-    if not sorted_terms:
-        lines.append("terms: []")
-    else:
-        lines.append("terms:")
-    for sense in sorted_terms:
-        lines.append("")
-        lines.append(f"  - surface: {_yaml_scalar(sense.surface.surface_text)}")
-        lines.append(f"    definition: {_yaml_scalar(sense.definition)}")
-        lines.append(f"    confidence: {_confidence_str(sense.confidence)}")
-        lines.append(f"    status: {sense.status.value}")
-    lines.append("")
-
-    seed_path.write_text("\n".join(lines), encoding="utf-8")
+    seed_path.write_text(prefix + body, encoding="utf-8")
 
 
 def activate_scope(

@@ -297,6 +297,29 @@ class TestGlossaryHealth:
         assert data["validation_errors"][0]["term_index"] is None
         assert data["validation_errors"][0]["field"] == "version"
 
+    def test_health_reports_yaml_parse_error(self, tmp_path):
+        """Malformed YAML must not look like an empty healthy glossary."""
+        from specify_cli.dashboard.handlers import glossary as gloss_module
+
+        seed_dir = tmp_path / ".kittify" / "glossaries"
+        seed_dir.mkdir(parents=True)
+        (seed_dir / "spec_kitty_core.yaml").write_text(
+            "terms:\n"
+            "  - surface: alpha\n"
+            "    definition: ok\n"
+            "    confidence: [unterminated\n",
+            encoding="utf-8",
+        )
+        handler = _make_handler(tmp_path)
+
+        gloss_module.GlossaryHandler.handle_glossary_health(handler)
+
+        data = _read_response(handler)
+        assert data["total_terms"] == 0
+        assert data["validation_errors"] is not None
+        assert data["validation_errors"][0]["term_index"] is None
+        assert "YAML parse error" in data["validation_errors"][0]["message"]
+
 
 class TestGlossaryTerms:
     """Tests for handle_glossary_terms() → GET /api/glossary-terms."""
