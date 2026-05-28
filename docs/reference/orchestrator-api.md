@@ -13,6 +13,7 @@ It is intentionally stricter than the human-facing CLI:
 - use `--mission`, never `--feature`
 - expect one JSON envelope on stdout for both success and failure
 - treat `error_code` as the stable machine discriminator
+- do not append `--json`; JSON is the default output for this command group
 
 ## Canonical Terms
 
@@ -81,17 +82,17 @@ Forbidden at the CLI boundary:
 
 ## Commands
 
-| Command | Purpose |
-|---|---|
-| `contract-version` | Check API compatibility |
-| `mission-state` | Query mission state and WP lanes |
-| `list-ready` | List WPs ready to start |
-| `start-implementation` | Atomically move a WP into implementation |
-| `start-review` | Claim review for a WP |
-| `transition` | Emit one explicit lane transition |
-| `append-history` | Append a WP activity-log note |
-| `accept-mission` | Record mission acceptance without closing approved WPs |
-| `merge-mission` | Merge the mission into its target branch |
+| Command | Mutates state | Purpose |
+|---|---:|---|
+| `contract-version` | no | Check API compatibility. |
+| `mission-state` | no | Query mission state and WP lanes. |
+| `list-ready` | no | List WPs ready to start. |
+| `start-implementation` | yes | Atomically move a WP into implementation. |
+| `start-review` | yes | Claim active review for a WP. |
+| `transition` | yes | Emit one explicit lane transition. |
+| `append-history` | yes | Append a WP activity-log note. |
+| `accept-mission` | yes | Record mission acceptance. |
+| `merge-mission` | yes | Merge the mission into its target branch. |
 
 Legacy command names such as `feature-state`, `accept-feature`, and
 `merge-feature` are forbidden.
@@ -115,6 +116,48 @@ Run-affecting commands also require `--policy`, whose JSON object must include:
 - `dangerous_flags`
 
 Secret-like values in `--policy` are rejected.
+
+Minimal policy example:
+
+```json
+{
+  "orchestrator_id": "spec-kitty-orchestrator",
+  "orchestrator_version": "0.1.0",
+  "agent_family": "claude",
+  "approval_mode": "full_auto",
+  "sandbox_mode": "workspace_write",
+  "network_mode": "none",
+  "dangerous_flags": []
+}
+```
+
+## Lane Model for Orchestrators
+
+External providers should treat these lanes as the public orchestration model:
+
+| Lane | Meaning |
+|---|---|
+| `planned` | WP exists but has not started. |
+| `claimed` | WP is claimed by an actor as part of implementation start. |
+| `in_progress` | Implementation or rework is active. |
+| `for_review` | Implementation is ready for review. |
+| `in_review` | A reviewer has claimed active review. |
+| `approved` | Review accepted but integration may still be pending. |
+| `done` | WP is complete. |
+| `blocked` | WP cannot continue without intervention. |
+| `canceled` | WP was intentionally canceled. |
+
+The reference orchestrator normally drives:
+
+```text
+planned -> claimed -> in_progress -> for_review -> in_review -> done
+```
+
+Rejected review cycles move back through:
+
+```text
+in_review -> in_progress -> for_review
+```
 
 ## Acceptance Payload
 
@@ -143,6 +186,101 @@ spec-kitty orchestrator-api start-implementation \
   --policy '{"orchestrator_id":"local","orchestrator_version":"1.0.0","agent_family":"codex","approval_mode":"never","sandbox_mode":"danger-full-access","network_mode":"enabled","dangerous_flags":[]}'
 ```
 
+### Start implementation
+
+```bash
+spec-kitty orchestrator-api start-implementation \
+  --mission 077-mission-terminology-cleanup \
+  --wp WP12 \
+  --actor spec-kitty-orchestrator \
+  --policy '{"orchestrator_id":"spec-kitty-orchestrator","orchestrator_version":"0.1.0","agent_family":"claude","approval_mode":"full_auto","sandbox_mode":"workspace_write","network_mode":"none","dangerous_flags":[]}'
+```
+
+Important response fields:
+
+| Field | Meaning |
+|---|---|
+| `workspace_path` | Path where the provider should run the implementation agent. |
+| `prompt_path` | WP markdown prompt file to feed to the implementation agent. |
+| `to_lane` | Expected to be `in_progress` on a fresh start. |
+| `no_op` | `true` when the same actor already owns the compatible state. |
+
+### Mark implementation ready for review
+
+```bash
+spec-kitty orchestrator-api transition \
+  --mission 077-mission-terminology-cleanup \
+  --wp WP12 \
+  --to for_review \
+  --actor spec-kitty-orchestrator \
+  --policy '{"orchestrator_id":"spec-kitty-orchestrator","orchestrator_version":"0.1.0","agent_family":"claude","approval_mode":"full_auto","sandbox_mode":"workspace_write","network_mode":"none","dangerous_flags":[]}' \
+  --subtasks-complete \
+  --implementation-evidence-present \
+  --note "Implementation complete"
+```
+
+`in_progress -> for_review` requires evidence that the implementation handoff
+is ready. A provider may use `--force` with a clear `--note` when it has its own
+reviewable evidence model.
+
+### Claim review
+
+```bash
+spec-kitty orchestrator-api start-review \
+  --mission 077-mission-terminology-cleanup \
+  --wp WP12 \
+  --actor spec-kitty-orchestrator \
+  --policy '{"orchestrator_id":"spec-kitty-orchestrator","orchestrator_version":"0.1.0","agent_family":"codex","approval_mode":"full_auto","sandbox_mode":"workspace_write","network_mode":"none","dangerous_flags":[]}' \
+  --review-ref review/WP12/attempt-1
+```
+
+On current hosts this moves `for_review -> in_review`.
+
+### Complete approved review
+
+```bash
+spec-kitty orchestrator-api transition \
+  --mission 077-mission-terminology-cleanup \
+  --wp WP12 \
+  --to done \
+  --actor spec-kitty-orchestrator \
+  --policy '{"orchestrator_id":"spec-kitty-orchestrator","orchestrator_version":"0.1.0","agent_family":"codex","approval_mode":"full_auto","sandbox_mode":"workspace_write","network_mode":"none","dangerous_flags":[]}' \
+  --review-ref review/WP12/attempt-1 \
+  --force \
+  --note "Codex review approved"
+```
+
+Use `--force` with an audit note for the current external-review completion
+path. The provider is responsible for keeping the review artifact reference in
+`--review-ref` stable enough for later audit.
+
+### Send rejected review back to rework
+
+```bash
+spec-kitty orchestrator-api transition \
+  --mission 077-mission-terminology-cleanup \
+  --wp WP12 \
+  --to in_progress \
+  --actor spec-kitty-orchestrator \
+  --policy '{"orchestrator_id":"spec-kitty-orchestrator","orchestrator_version":"0.1.0","agent_family":"codex","approval_mode":"full_auto","sandbox_mode":"workspace_write","network_mode":"none","dangerous_flags":[]}' \
+  --review-ref review/WP12/attempt-1 \
+  --force \
+  --note "Review rejected; rework required"
+```
+
+Then rerun the implementation agent with the review feedback and transition
+back to `for_review`.
+
+## Worktree Expectations
+
+The host returns the workspace path. The provider is responsible for ensuring
+the path is usable for the agent process. The reference orchestrator creates or
+reuses git worktrees before spawning agents.
+
+State mutation commands should not be run from a protected main branch when
+they need to commit activity-log updates. Use a mission lane/worktree branch for
+provider-owned mutation calls.
+
 ## Error Codes
 
 Current machine-readable error codes:
@@ -158,6 +296,16 @@ Current machine-readable error codes:
 - `PREFLIGHT_FAILED`
 - `CONTRACT_VERSION_MISMATCH`
 - `UNSUPPORTED_STRATEGY`
+
+## Provider Rules
+
+- Call `contract-version` once before mutating state.
+- Use only `orchestrator-api` for lane changes.
+- Keep retry decisions based on `error_code`, not prose.
+- Preserve `review_ref` values in logs and issue/PR links.
+- Treat `mission-state` as authoritative after every recovery.
+- Keep agent stdout/stderr in provider logs; do not stuff full logs into WP
+  history entries.
 
 ## Migration Notes
 

@@ -4,6 +4,8 @@
   href: your-first-feature.md
 - name: Multi-Agent Workflow
   href: multi-agent-workflow.md
+- name: Orchestrator Quickstart
+  href: orchestrator-quickstart.md
 - name: Missions Overview
   href: missions-overview.md
 - name: Claude Code Integration

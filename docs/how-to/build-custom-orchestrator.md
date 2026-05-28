@@ -20,8 +20,8 @@ Your orchestrator must:
 1. Check API compatibility.
 2. Poll for ready WPs.
 3. Start implementation for selected WPs.
-4. Transition WPs through review/complete loops.
-5. Accept when all WPs are accepted-ready (`approved` or `done`), then merge to record `done`.
+4. Transition WPs through implementation, review, approval, and rework loops.
+5. Accept when all WPs are terminal/accepted, then merge through your normal landing process.
 
 ### 1. Check compatibility
 
@@ -56,16 +56,28 @@ spec-kitty orchestrator-api transition \
   --mission <slug> --wp WP01 --to for_review \
   --actor my-orchestrator --policy '<json>' \
   --subtasks-complete --implementation-evidence-present
-# review approved
-spec-kitty orchestrator-api transition \
-  --mission <slug> --wp WP01 --to approved \
-  --actor reviewer-bot \
-  --review-ref review/WP01/attempt-1 \
-  --evidence-json '{"review":{"reviewer":"reviewer-bot","verdict":"approved","reference":"review/WP01/attempt-1"}}'
-# review rejected -> rework
+# reviewer claims active review
 spec-kitty orchestrator-api start-review \
   --mission <slug> --wp WP01 --actor my-orchestrator \
-  --policy '<json>' --review-ref review/WP01/attempt-2
+  --policy '<json>' --review-ref review/WP01/attempt-1
+
+# review approved
+spec-kitty orchestrator-api transition \
+  --mission <slug> --wp WP01 --to done \
+  --actor my-orchestrator \
+  --policy '<json>' \
+  --review-ref review/WP01/attempt-1 \
+  --force \
+  --note "Approved by reviewer-bot"
+
+# review rejected -> rework
+spec-kitty orchestrator-api transition \
+  --mission <slug> --wp WP01 --to in_progress \
+  --actor my-orchestrator \
+  --policy '<json>' \
+  --review-ref review/WP01/attempt-1 \
+  --force \
+  --note "Rejected by reviewer-bot; rework required"
 ```
 
 ### 5. Finalize
@@ -114,8 +126,9 @@ while true:
     run implementation agent
     transition(wp, for_review)
     run reviewer
-    if approved: transition(wp, approved)
-    else: start-review(wp, review_ref)
+    start-review(wp, review_ref)
+    if approved: transition(wp, done, force=True)
+    else: transition(wp, in_progress, force=True)
 accept-mission(mission)
 merge-mission(mission)
 ```
