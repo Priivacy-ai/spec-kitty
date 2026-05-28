@@ -70,12 +70,20 @@ class TestValidateSeedFileDataSuccess:
                     "definition": "An execution lane.",
                     "confidence": 0.95,
                     "status": "deprecated",
+                    "see_also": [
+                        {"fr": "FR-008", "description": "Wall-clock regression test requirement"}
+                    ],
+                    "synonyms_to_avoid": ["track"],
+                    "introduced_in_mission": "glossary-seed-file-schema-validation-01KSN752",
                 }
             ]
         }
         result = validate_seed_file_data(data, SEED_PATH)
         assert result.terms[0].confidence == 0.95
         assert result.terms[0].status == "deprecated"
+        assert result.terms[0].see_also == [
+            {"fr": "FR-008", "description": "Wall-clock regression test requirement"}
+        ]
 
 
 # ---- validate_seed_file_data: failure cases ---------------------------------
@@ -187,6 +195,24 @@ class TestValidateSeedFileDataFailure:
 
         assert any(
             e.term_index == 0 for e in exc_info.value.errors
+        )
+
+    def test_malformed_see_also_rejected(self) -> None:
+        data = {
+            "terms": [
+                {
+                    "surface": "term",
+                    "definition": "Def",
+                    "see_also": [42],
+                }
+            ]
+        }
+        with pytest.raises(SeedFileValidationError) as exc_info:
+            validate_seed_file_data(data, SEED_PATH)
+
+        assert any(
+            e.term_index == 0 and e.field == "see_also"
+            for e in exc_info.value.errors
         )
 
     def test_multiple_errors_collected(self) -> None:

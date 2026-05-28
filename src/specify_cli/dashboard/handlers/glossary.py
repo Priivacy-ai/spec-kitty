@@ -68,25 +68,132 @@ def _collect_all_senses(repo_root: Path) -> list[Any]:
     """Load all TermSense objects from seed files across all scopes.
 
     Returns a flat list of TermSense objects, or an empty list on any error.
-    Raises ``SeedFileValidationError`` if any scope has an invalid seed file.
+    Raises ``SeedFileValidationError`` if any scope has an invalid seed file
+    and per-term recovery yields nothing usable.
     """
+    senses, validation_errors = _collect_all_senses_with_errors(repo_root)
+    if not senses and validation_errors:
+        raise validation_errors[0]
+    return senses
+
+
+def _collect_all_senses_with_errors(repo_root: Path) -> tuple[list[Any], list[SeedFileValidationError]]:
+    """Load glossary senses and retain validation errors for health reporting."""
     try:
         from specify_cli.glossary.scope import GlossaryScope, load_seed_file
 
         senses = []
+        validation_errors: list[SeedFileValidationError] = []
         for scope in GlossaryScope:
             try:
                 senses.extend(load_seed_file(scope, repo_root))
-            except SeedFileValidationError:
-                raise  # Let validation errors propagate to handler
+            except SeedFileValidationError as exc:
+                # File-level validation rejected this scope as a whole. Try
+                # per-term recovery so a handful of bad entries cannot blank
+                # the entire glossary view in the dashboard.
+                recovered = _recover_valid_senses(scope, repo_root, exc)
+                if recovered:
+                    senses.extend(recovered)
+                validation_errors.append(exc)
             except Exception as exc:
                 logger.debug("Skipping scope %s: %s", scope.value, exc)
-        return senses
-    except SeedFileValidationError:
-        raise  # Re-raise through outer try
+        return senses, validation_errors
     except Exception as exc:
         logger.debug("Could not load glossary senses: %s", exc)
+        return [], []
+
+
+def _recover_valid_senses(
+    scope: Any,
+    repo_root: Path,
+    original_error: SeedFileValidationError,
+) -> list[Any]:
+    """Best-effort per-term load when file-level validation has failed.
+
+    Returns the subset of terms that pass schema validation individually.
+    Logs a warning naming the scope, the number recovered, and the indices
+    skipped so operators can see exactly which entries are malformed.
+    """
+    try:
+        if any(e.term_index is None for e in original_error.errors):
+            logger.warning(
+                "glossary scope %s: refusing per-term recovery after file-level "
+                "validation failure: %s",
+                scope.value, original_error,
+            )
+            return []
+
+        from datetime import datetime
+
+        from ruamel.yaml import YAML
+
+        from specify_cli.glossary.models import (
+            Provenance,
+            TermSense,
+            TermSurface,
+        )
+        from specify_cli.glossary.scope import _parse_sense_status
+        from specify_cli.glossary.seed_schema import GlossarySeedTerm
+
+        seed_path = repo_root / ".kittify" / "glossaries" / f"{scope.value}.yaml"
+        if not seed_path.exists():
+            return []
+        yaml = YAML()
+        yaml.preserve_quotes = True
+        data = yaml.load(seed_path)
+        raw_terms = (data or {}).get("terms") or []
+
+        recovered: list[Any] = []
+        skipped: list[int] = []
+        for idx, term_data in enumerate(raw_terms):
+            try:
+                GlossarySeedTerm.model_validate(term_data)
+            except Exception:
+                skipped.append(idx)
+                continue
+            recovered.append(
+                TermSense(
+                    surface=TermSurface(term_data["surface"]),
+                    scope=scope.value,
+                    definition=term_data["definition"],
+                    provenance=Provenance(
+                        actor_id="system:seed_file",
+                        timestamp=datetime.now(),
+                        source="seed_file",
+                    ),
+                    confidence=term_data.get("confidence", 1.0),
+                    status=_parse_sense_status(term_data.get("status")),
+                )
+            )
+        if skipped:
+            logger.warning(
+                "glossary scope %s: recovered %d/%d terms; skipped indices %s "
+                "(file-level validation failed: %s)",
+                scope.value, len(recovered), len(raw_terms), skipped, original_error,
+            )
+        return recovered
+    except Exception as exc:
+        logger.debug("per-term recovery failed for scope %s: %s", scope.value, exc)
         return []
+
+
+def _format_validation_errors(
+    validation_errors: list[SeedFileValidationError],
+) -> list[dict[str, Any]] | None:
+    """Convert validation exceptions into the dashboard health JSON shape."""
+    if not validation_errors:
+        return None
+    return [
+        {
+            "file": str(error.file_path),
+            "term_index": item.term_index,
+            "term_surface": item.term_surface,
+            "field": item.field,
+            "message": item.message,
+        }
+        for error in validation_errors
+        for item in error.errors
+    ]
 
 
 class GlossaryHandler(DashboardHandler):
@@ -103,7 +210,7 @@ class GlossaryHandler(DashboardHandler):
             if self.project_dir is None:
                 raise RuntimeError("dashboard project_dir is not configured")
             project_dir = Path(self.project_dir)
-            senses = _collect_all_senses(project_dir)
+            senses, validation_errors = _collect_all_senses_with_errors(project_dir)
 
             active_count = sum(1 for t in senses if t.status.value == "active")
             draft_count = sum(1 for t in senses if t.status.value == "draft")
@@ -131,7 +238,7 @@ class GlossaryHandler(DashboardHandler):
                 "entity_pages_generated": entity_pages_generated,
                 "entity_pages_path": str(entity_pages_dir) if entity_pages_dir.exists() else None,
                 "last_conflict_at": last_at,
-                "validation_errors": None,
+                "validation_errors": _format_validation_errors(validation_errors),
             }
         except SeedFileValidationError as exc:
             logger.warning("glossary health: validation error in %s: %s", exc.file_path, exc)
@@ -145,16 +252,7 @@ class GlossaryHandler(DashboardHandler):
                 "entity_pages_generated": False,
                 "entity_pages_path": None,
                 "last_conflict_at": None,
-                "validation_errors": [
-                    {
-                        "file": str(e.file_path),
-                        "term_index": e.term_index,
-                        "term_surface": e.term_surface,
-                        "field": e.field,
-                        "message": e.message,
-                    }
-                    for e in exc.errors
-                ],
+                "validation_errors": _format_validation_errors([exc]),
             }
         except Exception as exc:
             logger.exception("glossary health error: %s", exc)

@@ -229,6 +229,23 @@ class TestLoadSeedFile:
         with pytest.raises(GlossaryError):
             load_seed_file(GlossaryScope.SPEC_KITTY_CORE, tmp_path)
 
+    def test_malformed_yaml_raises_seed_file_validation_error(self, tmp_path: Path) -> None:
+        """YAML parser failures are surfaced as seed validation errors."""
+        _write_seed(
+            tmp_path,
+            GlossaryScope.SPEC_KITTY_CORE,
+            "terms:\n"
+            "  - surface: alpha\n"
+            "    definition: ok\n"
+            "    confidence: [unterminated\n",
+        )
+
+        with pytest.raises(SeedFileValidationError) as exc_info:
+            load_seed_file(GlossaryScope.SPEC_KITTY_CORE, tmp_path)
+
+        assert exc_info.value.errors[0].term_index is None
+        assert "YAML parse error" in exc_info.value.errors[0].message
+
 
 # ---------------------------------------------------------------------------
 # save_seed_file (T013)
@@ -285,3 +302,38 @@ class TestSaveSeedFile:
         alpha_pos = content.index("alpha")
         zebra_pos = content.index("zebra")
         assert alpha_pos < zebra_pos
+
+    def test_preserves_metadata_and_writes_valid_multiline_yaml(self, tmp_path: Path) -> None:
+        """Loading then saving an annotated seed must not drop metadata or corrupt YAML."""
+        from ruamel.yaml import YAML
+
+        seed_path = _write_seed(
+            tmp_path,
+            GlossaryScope.SPEC_KITTY_CORE,
+            "terms:\n"
+            "  - surface: characterization test\n"
+            "    definition: >-\n"
+            "      A test that captures existing behavior as fixture-driven assertions,\n"
+            "      written before refactor work begins.\n"
+            "    confidence: 0.95\n"
+            "    status: active\n"
+            "    see_also:\n"
+            "      - fr: FR-008\n"
+            "        description: Wall-clock regression test requirement\n"
+            "    synonyms_to_avoid: [snapshot]\n"
+            "    introduced_in_mission: glossary-seed-file-schema-validation-01KSN752\n",
+        )
+        terms = load_seed_file(GlossaryScope.SPEC_KITTY_CORE, tmp_path)
+
+        save_seed_file(GlossaryScope.SPEC_KITTY_CORE, tmp_path, terms)
+
+        yaml = YAML()
+        data = yaml.load(seed_path)
+        [term] = data["terms"]
+        assert term["surface"] == "characterization test"
+        assert term["see_also"][0]["fr"] == "FR-008"
+        assert term["synonyms_to_avoid"] == ["snapshot"]
+        assert term["introduced_in_mission"] == "glossary-seed-file-schema-validation-01KSN752"
+        assert load_seed_file(GlossaryScope.SPEC_KITTY_CORE, tmp_path)[0].definition.startswith(
+            "A test that captures existing behavior"
+        )

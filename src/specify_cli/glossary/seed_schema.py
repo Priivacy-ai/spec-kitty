@@ -24,6 +24,13 @@ class GlossarySeedTerm(BaseModel):
     confidence: float = 1.0
     status: Literal["active", "draft", "deprecated"] = "draft"
 
+    # Optional provenance/relationship metadata written by authoring pipelines.
+    # Accepted at the schema layer so a single annotated term cannot reject the
+    # entire seed file; preserved by save_seed_file when already present.
+    see_also: list[dict[str, str]] | None = None
+    synonyms_to_avoid: list[str] | None = None
+    introduced_in_mission: str | None = None
+
     @field_validator("surface")
     @classmethod
     def surface_must_be_normalized(cls, v: str) -> str:

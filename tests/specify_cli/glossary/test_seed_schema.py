@@ -42,6 +42,25 @@ class TestGlossarySeedTermValid:
         assert term.confidence == 1.0
         assert term.status == "draft"
 
+    def test_known_metadata_fields_allowed(self) -> None:
+        term = GlossarySeedTerm(
+            surface="regex safety",
+            definition="Regex policy",
+            see_also=[
+                {
+                    "tactic": "secure-regex-catastrophic-backtracking",
+                    "path": "src/doctrine/tactics/shipped/secure-regex-catastrophic-backtracking.tactic.yaml",
+                },
+                {"fr": "FR-008", "description": "Wall-clock regression test requirement"},
+            ],
+            synonyms_to_avoid=["redos"],
+            introduced_in_mission="glossary-seed-file-schema-validation-01KSN752",
+        )
+        assert term.see_also is not None
+        assert term.see_also[0]["tactic"] == "secure-regex-catastrophic-backtracking"
+        assert term.synonyms_to_avoid == ["redos"]
+        assert term.introduced_in_mission == "glossary-seed-file-schema-validation-01KSN752"
+
     def test_boundary_confidence_zero(self) -> None:
         term = GlossarySeedTerm(
             surface="edge", definition="A graph edge", confidence=0.0
@@ -150,6 +169,14 @@ class TestGlossarySeedTermExtraForbid:
                 surface="term",
                 definition="Def",
                 extra_field="nope",  # type: ignore[call-arg]
+            )
+
+    def test_malformed_see_also_rejected(self) -> None:
+        with pytest.raises(ValidationError, match="see_also"):
+            GlossarySeedTerm(
+                surface="term",
+                definition="Def",
+                see_also=[42],  # type: ignore[list-item]
             )
 
 
