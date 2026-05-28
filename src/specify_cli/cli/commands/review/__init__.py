@@ -115,6 +115,7 @@ def _uv_tool_reinstall_command() -> str | None:
             return None
 
         args = ["uv", "tool", "install", "--force"]
+        args.extend(_uv_tool_python_args(receipt))
         args.extend(_uv_tool_with_args(requirements))
         args.extend(_uv_tool_package_args(tool_requirement))
         return f"{_uv_tool_env_prefix()}{' '.join(shlex.quote(arg) for arg in args)}"
@@ -226,6 +227,16 @@ def _uv_tool_package_args(requirement: dict[str, object]) -> list[str]:
         return [f"{_PACKAGE_NAME}{specifier}"]
 
     return [_PACKAGE_NAME]
+
+
+def _uv_tool_python_args(receipt: dict[str, object]) -> list[str]:
+    tool = receipt.get("tool", {})
+    if not isinstance(tool, dict):
+        return []
+    python = _nonempty_str(tool.get("python"))
+    if python is None:
+        return []
+    return ["--python", python]
 
 
 def _uv_git_source(git: str) -> str:

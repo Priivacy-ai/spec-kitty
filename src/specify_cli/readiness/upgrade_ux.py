@@ -224,9 +224,12 @@ def _default_upgrade_runner(method: object) -> int:
     """
     from specify_cli.compat._detect.install_method import InstallMethod  # noqa: PLC0415
 
+    uv_tool_argv = ["uv", "tool", "upgrade"]
+    uv_tool_argv.extend(_uv_tool_python_args())
+    uv_tool_argv.append("spec-kitty-cli")
     argv_by_method = {
         InstallMethod.PIPX: ["pipx", "upgrade", "spec-kitty-cli"],
-        InstallMethod.UV_TOOL: ["uv", "tool", "upgrade", "spec-kitty-cli"],
+        InstallMethod.UV_TOOL: uv_tool_argv,
         InstallMethod.BREW: ["brew", "upgrade", "spec-kitty-cli"],
         InstallMethod.PIP_USER: [sys.executable, "-m", "pip", "install", "--user", "--upgrade", "spec-kitty-cli"],
         InstallMethod.PIP_SYSTEM: [sys.executable, "-m", "pip", "install", "--upgrade", "spec-kitty-cli"],
@@ -259,6 +262,37 @@ def _uv_tool_upgrade_env(method: object) -> dict[str, str] | None:
     env = dict(os.environ)
     env["UV_TOOL_DIR"] = str(tool_dir)
     return env
+
+
+def _uv_tool_python_args() -> list[str]:
+    receipt = _active_uv_tool_receipt()
+    if receipt is None:
+        return []
+    tool = receipt.get("tool", {})
+    if not isinstance(tool, dict):
+        return []
+    python = tool.get("python")
+    if not isinstance(python, str) or not python.strip():
+        return []
+    return ["--python", python]
+
+
+def _active_uv_tool_receipt() -> dict[str, object] | None:
+    try:
+        executable_parent = Path(sys.executable).parent
+        if executable_parent.name.lower() not in {"bin", "scripts"}:
+            return None
+        receipt_path = executable_parent.parent / "uv-receipt.toml"
+        if not receipt_path.exists():
+            return None
+        import tomllib  # noqa: PLC0415
+
+        receipt = tomllib.loads(receipt_path.read_text(encoding="utf-8"))
+        if isinstance(receipt, dict):
+            return receipt
+    except Exception:  # noqa: BLE001
+        return None
+    return None
 
 
 def _active_uv_tool_dir() -> Path | None:
