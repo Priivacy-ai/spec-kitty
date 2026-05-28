@@ -26,19 +26,13 @@ This is the supported automation model:
 ## Version Compatibility
 
 The current host API requires a compatible provider implementation. PyPI
-currently publishes `spec-kitty-orchestrator` `0.1.0`; that release is not
-compatible with current `spec-kitty orchestrator-api` behavior and should not
-be used for this workflow.
+currently publishes `spec-kitty-orchestrator` `0.1.0`; that release appends
+`--json` to host API calls and is not compatible with current
+`spec-kitty orchestrator-api` behavior.
 
-Until a newer compatible release is published, install the orchestrator from
-the current source repository:
-
-```bash
-python -m pip install "git+https://github.com/Priivacy-ai/spec-kitty-orchestrator.git"
-```
-
-After a compatible release newer than `0.1.0` is published, installing from
-PyPI is expected to be the normal path.
+Install only a release, branch, or pinned commit that explicitly documents
+support for the current JSON-default host API. Do not assume an unverified
+default-branch install is compatible.
 
 For the common "Claude implements, Codex reviews" workflow, install and
 authenticate both CLIs before starting:
@@ -178,7 +172,8 @@ Expected for `spec-kitty` core CLI. Use:
 If `contract-version` returns mismatch, upgrade either host (`spec-kitty`) or provider (`spec-kitty-orchestrator`) so versions are compatible.
 
 If a run fails with `No such option: --json`, you are using an incompatible
-provider release. Install a host-compatible source build or a newer release.
+provider build. Install a provider build that no longer appends `--json` to
+`spec-kitty orchestrator-api` calls.
 
 ### Policy validation failures
 

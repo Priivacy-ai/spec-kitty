@@ -46,7 +46,8 @@ spec-kitty agent tasks move-task WP01 --to done
 
 Automated coordination is run by external providers such as `spec-kitty-orchestrator`.
 Use a provider build that explicitly supports the current host API. The PyPI
-`spec-kitty-orchestrator` `0.1.0` release is not compatible with current hosts.
+`spec-kitty-orchestrator` `0.1.0` release appends `--json` to host API calls
+and is not compatible with current hosts.
 
 ```bash
 spec-kitty orchestrator-api contract-version

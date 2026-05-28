@@ -30,12 +30,11 @@ first.
 
 ## Version compatibility
 
-PyPI currently publishes `spec-kitty-orchestrator` `0.1.0`, which is not
-compatible with the current host API. Do not use that release for this
-tutorial. Install a current source build of
-[`Priivacy-ai/spec-kitty-orchestrator`](https://github.com/Priivacy-ai/spec-kitty-orchestrator)
-or a later release that explicitly documents compatibility with the current
-`spec-kitty orchestrator-api`.
+PyPI currently publishes `spec-kitty-orchestrator` `0.1.0`, which appends
+`--json` to host API calls and is not compatible with the current host API. Do
+not use that release for this tutorial. Install only a release, branch, or
+pinned commit that explicitly documents compatibility with the current
+JSON-default `spec-kitty orchestrator-api`.
 
 ## 1. Confirm the host API works
 

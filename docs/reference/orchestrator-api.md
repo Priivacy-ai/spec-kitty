@@ -105,7 +105,12 @@ The tracked-mission selector is always:
 spec-kitty orchestrator-api mission-state --mission 077-mission-terminology-cleanup
 ```
 
-Run-affecting commands also require `--policy`, whose JSON object must include:
+Run-affecting implementation and review mutations require `--policy`. Today
+that means `start-implementation`, `start-review`, and `transition` when the
+target lane is run-affecting. `append-history`, `accept-mission`, and
+`merge-mission` do not accept `--policy`.
+
+The policy JSON object must include:
 
 - `orchestrator_id`
 - `orchestrator_version`
