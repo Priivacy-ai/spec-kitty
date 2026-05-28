@@ -226,12 +226,12 @@ No cycles. WP01 is the only WP with no dependencies.
 **Estimated prompt size**: ~500 lines (the biggest core module).
 
 **Included subtasks**:
-- [ ] T020 `GitChangeSet` value object + `PolicyVerdict` sum type (WP05)
-- [ ] T021 `WorkflowMutationPolicy.assert_allowed()` — single chokepoint with stable error codes (WP05)
-- [ ] T022 `BookkeepingTransaction` context manager: acquire/append_event/commit/rollback/release (WP05)
-- [ ] T023 Surgical truncate rollback path with `pre_emit_size` capture (WP05)
-- [ ] T024 Outbound-deferral mechanism (`defer_outbound`) inside transaction (WP05)
-- [ ] T025 Unit tests: full transaction lifecycle, refusal, rollback, nested-lock blocking (WP05)
+- [x] T020 `GitChangeSet` value object + `PolicyVerdict` sum type (WP05)
+- [x] T021 `WorkflowMutationPolicy.assert_allowed()` — single chokepoint with stable error codes (WP05)
+- [x] T022 `BookkeepingTransaction` context manager: acquire/append_event/commit/rollback/release (WP05)
+- [x] T023 Surgical truncate rollback path with `pre_emit_size` capture (WP05)
+- [x] T024 Outbound-deferral mechanism (`defer_outbound`) inside transaction (WP05)
+- [x] T025 Unit tests: full transaction lifecycle, refusal, rollback, nested-lock blocking (WP05)
 
 **Implementation sketch**: Create `GitChangeSet` dataclass (frozen, kw-only). Create `Allowed` / `Refused` dataclasses. `WorkflowMutationPolicy.assert_allowed(change_set)` checks `destination_ref` for protected-branch / not-found / remote-only / invalid-shape. `BookkeepingTransaction.acquire(...)` resolves coordination worktree (delegates to WP04), acquires lock (`locking.py`), captures `pre_emit_size = os.path.getsize(events_path)`, runs policy gate. `__exit__` on exception truncates and re-materializes. Outbound callbacks are queued and run after commit success.
 

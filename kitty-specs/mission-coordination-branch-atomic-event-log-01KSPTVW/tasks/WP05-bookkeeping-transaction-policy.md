@@ -18,6 +18,9 @@ tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-mission-coordination-branch-atomic-event-log-01KSPTVW
+base_commit: fc1aa41f62840ca1fa430e2d8fc372f384fc5421
+created_at: '2026-05-28T11:23:13.233904+00:00'
 subtasks:
 - T020
 - T021
@@ -25,7 +28,8 @@ subtasks:
 - T023
 - T024
 - T025
-agent: claude
+agent: "claude:opus:reviewer-rita:reviewer"
+shell_pid: "32360"
 history:
 - at: '2026-05-28T08:55:00+00:00'
   actor: claude
@@ -531,3 +535,10 @@ The detailed code blocks in subtasks T020–T024 were written before the cross-r
 - Contracts: [`contracts/bookkeeping_transaction.md`](../contracts/bookkeeping_transaction.md), [`contracts/workflow_mutation_policy.md`](../contracts/workflow_mutation_policy.md)
 - Data model: [`data-model.md`](../data-model.md)
 - Research: R-001, R-002 in [`research.md`](../research.md)
+
+## Activity Log
+
+- 2026-05-28T11:23:13Z – claude:opus:implementer-ivan:implementer – shell_pid=28298 – Assigned agent via action command
+- 2026-05-28T11:34:00Z – claude:opus:implementer-ivan:implementer – shell_pid=28298 – WP05 BookkeepingTransaction ready for review
+- 2026-05-28T11:34:40Z – claude:opus:reviewer-rita:reviewer – shell_pid=32360 – Started review via action command
+- 2026-05-28T11:36:41Z – claude:opus:reviewer-rita:reviewer – shell_pid=32360 – Review passed: 38/38 tests pass incl. SHA-256 byte-identical rollback (NFR-001) and deferred-outbound skip-on-rollback (SC-09). mypy --strict clean on owned files. Grep audit: no git checkout -- in transaction.py rollback (only docstring refs), correct status.locking import, no combined EventReceipt. Receipts split per FR-033 (PendingEventHandle from append, CommitReceipt from commit). _normalize_ref strips refs/heads/ correctly and is applied at acquire(). Pre-flight policy refusal happens before lock acquisition. __exit__ uses try/finally for guaranteed lock release. Accepted self-reported decisions: build_status_event inlined with TODO(WP06), __init__.py re-exports extended, byte-snapshot rollback (not re-materialize) for byte-identical SHA, policy refusal pre-lock.
