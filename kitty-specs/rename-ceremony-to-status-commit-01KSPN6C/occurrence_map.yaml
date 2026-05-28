@@ -1,332 +1,439 @@
-# Bulk-Edit Occurrence Map
+# Bulk-edit occurrence map — "ceremony" / "status-writing" → "status commit"
+#
 # Mission: rename-ceremony-to-status-commit-01KSPN6C
-# Generated: 2026-05-28 (plan phase)
-# Schema: 8 standard categories per spec-kitty-bulk-edit-classification skill.
-#         Each category lists either occurrences[] or carries category_not_applicable: true.
+# Change mode: bulk_edit (declared in meta.json)
+# Source: GitHub Issue #1325
+# Spec: FR-001 through FR-014
+#
+# Valid action vocabulary (enforced by the bulk-edit gate):
+#   - rename                  : straight rename of the literal token
+#   - rename_if_user_visible  : rename only when occurrence is on a public surface
+#   - manual_review           : implementer must inspect and decide per occurrence
+#   - do_not_change           : preserve as-is (out of scope or N/A)
+#
+# This mission renames TWO related legacy terms to a single canonical replacement.
+# `target` captures the primary term per the schema; `target.secondary_terms`
+# enumerates additional forbidden terms covered by the same canonical replacement.
 
-mission:
-  slug: rename-ceremony-to-status-commit-01KSPN6C
-  mission_id: 01KSPN6C5DWX7MRFMCD2BG1SBT
-  change_mode: bulk_edit
-  forbidden_terms:
-    - ceremony
-    - status-writing
+schema_version: "1.0"
+mission: rename-ceremony-to-status-commit-01KSPN6C
+
+target:
+  term: "ceremony"
+  operation: rename
+  replacement: "status commit"
+  secondary_terms:
+    - term: "status-writing"
+      operation: rename
+      replacement: "status commit"
+      rationale: |
+        A prior partial rename of `commit_helpers.py` substituted "ceremony" with
+        "status-writing" rather than the canonical "status commit". This mission
+        reconciles both legacy terms to a single canonical form.
+  scope_notes: |
+    Targets every active-source occurrence of "ceremony" or "status-writing" in
+    `src/`, `tests/`, and `docs/`. Two sense-classifications apply:
+      - commit_class (mechanical substitution to "status commit"): occurrences
+        that refer to the auto-commit class.
+      - workflow_sense (semantic rewrite per decision 01KSPP3SSZ5GKHTTB1C9EJQ13V):
+        occurrences where "ceremony" means "the multi-phase mission workflow",
+        not a single commit. Mechanical substitution to "status commit" would
+        produce nonsense ("full status commit"); rewrite to "the full mission
+        workflow" or similar.
+
+    Out of scope:
+      - `kitty-specs/` historical mission artifacts (immutable per spec C-001).
+      - The user's local checkout path (`spec-kitty-dev/ceremony/...`) per spec C-002.
+      - Git history, past commit messages, past tags per spec C-003.
+
+categories:
+
+  code_symbols:
+    description: >
+      Python identifiers (constants, function names, class names) that contain
+      "ceremony" or "status-writing".
+    action: rename
+    examples:
+      - "tests/e2e/conftest.py:25 — E2E_CEREMONY_BRANCH constant → E2E_STATUS_COMMIT_BRANCH"
+      - "tests/e2e/conftest.py:214 — _checkout_e2e_ceremony_branch fn → _checkout_e2e_status_commit_branch (callers at L324, L399)"
+    occurrences:
+      - id: cs-001
+        file: tests/e2e/conftest.py
+        line: 25
+        source: 'E2E_CEREMONY_BRANCH = "e2e-ceremony"'
+        replacement: 'E2E_STATUS_COMMIT_BRANCH = "e2e-status-commit"'
+        sense: commit_class
+        rule: R3+R4
+      - id: cs-002
+        file: tests/e2e/conftest.py
+        line: 214
+        source: 'def _checkout_e2e_ceremony_branch(project: Path) -> None:'
+        replacement: 'def _checkout_e2e_status_commit_branch(project: Path) -> None:'
+        sense: commit_class
+        rule: R3
+      - id: cs-003
+        file: tests/e2e/conftest.py
+        line: 324
+        source: '_checkout_e2e_ceremony_branch(project)'
+        replacement: '_checkout_e2e_status_commit_branch(project)'
+        sense: commit_class
+        rule: R3
+      - id: cs-004
+        file: tests/e2e/conftest.py
+        line: 399
+        source: '_checkout_e2e_ceremony_branch(project)'
+        replacement: '_checkout_e2e_status_commit_branch(project)'
+        sense: commit_class
+        rule: R3
+
+  import_paths:
+    description: >
+      Python module/package paths containing the forbidden terms.
+    action: do_not_change
+    notes: |
+      No Python module path contains "ceremony" or "status-writing"; no module
+      is being renamed. Constants in `tests/e2e/conftest.py` are renamed in
+      place (under code_symbols); importers using `from tests.e2e.conftest
+      import E2E_CEREMONY_BRANCH` (if any) become symbol renames, not
+      import-path renames.
+
+  filesystem_paths:
+    description: >
+      Repository file or directory names containing the forbidden terms.
+    action: do_not_change
+    notes: |
+      No file or directory in the repository is named "ceremony" or
+      "status-writing". The user's local working-directory path
+      `spec-kitty-dev/ceremony/spec-kitty` is a local checkout choice,
+      explicitly out of scope per spec C-002.
+
+  serialized_keys:
+    description: >
+      JSON/YAML keys, frontmatter, fixture IDs, branch-name string literals.
+    action: rename
+    examples:
+      - "tests/doctrine/procedures/conftest.py:48 — fixture id 'mission-merge-ceremony' → 'mission-merge-workflow' (workflow_sense)"
+      - "tests/doctrine/procedures/test_models.py:31 — paired assertion update"
+      - "tests/e2e/conftest.py:25 — string literal 'e2e-ceremony' → 'e2e-status-commit'"
+    occurrences:
+      - id: sk-001
+        file: tests/doctrine/procedures/conftest.py
+        line: 48
+        source: '"id": "mission-merge-ceremony"'
+        replacement: '"id": "mission-merge-workflow"'
+        sense: workflow_sense
+        rule: R2+R4
+        notes: |
+          This is a fixture ID for the *merge workflow* procedure, not a
+          commit class. Workflow-sense reclassification.
+      - id: sk-002
+        file: tests/doctrine/procedures/test_models.py
+        line: 31
+        source: 'assert p.id == "mission-merge-ceremony"'
+        replacement: 'assert p.id == "mission-merge-workflow"'
+        sense: workflow_sense
+        rule: R2+R4
+        paired_with: sk-001
+      - id: sk-003
+        file: tests/e2e/conftest.py
+        line: 25
+        source: '"e2e-ceremony"'
+        replacement: '"e2e-status-commit"'
+        sense: commit_class
+        rule: R4
+        paired_with: cs-001
+
+  cli_commands:
+    description: >
+      CLI command/subcommand/flag/option names containing the forbidden terms.
+    action: do_not_change
+    notes: |
+      No CLI command, subcommand, flag, or option is named "ceremony" or
+      "status-writing". The proposed flag `vcs.allow_ceremony_commits_on_target_branch`
+      exists only in the F-09 findings doc (handled under
+      user_facing_strings → Rule R6) — it is not a live CLI surface.
+
+  user_facing_strings:
+    description: >
+      Console banners, advisory text, error messages, and prose visible to
+      humans reading the source tree (doctrine, docs, error strings).
+    action: rename
+    examples:
+      - "src/specify_cli/git/commit_helpers.py:159 — error string 'Run status-writing operations...' → 'Run status commit operations...' (spec FR-003)"
+      - "src/specify_cli/git/commit_helpers.py:141 — docstring comment, status-writing → status commit"
+      - "src/doctrine/skills/spec-kitty-program-orchestrate/SKILL.md — 4 'full ceremony' → 'full mission workflow' (workflow_sense)"
+      - "docs/development/org-doctrine-layer-architecture-review.md:481 — 'degrades to ceremony' → 'degrades to performative gesture' (English idiom rewrite)"
+      - "docs/engineering_notes/finding/2026-05-24-mission-01KSAF14-orchestration-findings.md:280 — flag name `vcs.allow_ceremony_commits_on_target_branch` → `vcs.allow_status_commits_on_target_branch` (R6)"
+    occurrences:
+      - id: ufs-001
+        file: src/specify_cli/git/commit_helpers.py
+        line: 159
+        source: '"Run status-writing operations from the mission lane branch/worktree."'
+        replacement: '"Run status commit operations from the mission lane branch/worktree."'
+        sense: commit_class
+        rule: R1
+        visibility: end_user
+        spec_anchor: FR-003
+      - id: ufs-002
+        file: src/specify_cli/git/commit_helpers.py
+        line: 141
+        source: 'exercise status-writing commands directly; forcing every fixture to fork a lane'
+        replacement: 'exercise status commit operations directly; forcing every fixture to fork a lane'
+        sense: commit_class
+        rule: R1
+        visibility: developer_only
+      - id: dd-001
+        file: src/doctrine/procedures/README.md
+        line: 15
+        source: '- Feature merge ceremony'
+        replacement: '- Feature merge workflow'
+        sense: workflow_sense
+        rule: R2
+      - id: dd-002
+        file: src/doctrine/missions/software-dev/actions/tasks/guidelines.md
+        line: 26
+        source: 'inflating them with ceremony.'
+        replacement: 'inflating them with workflow overhead.'
+        sense: workflow_sense
+        rule: R2
+      - id: dd-003
+        file: src/doctrine/skills/spec-kitty-program-orchestrate/SKILL.md
+        line: 9
+        source: 'run the full ceremony on'
+        replacement: 'run the full mission workflow on'
+        sense: workflow_sense
+        rule: R2
+      - id: dd-004
+        file: src/doctrine/skills/spec-kitty-program-orchestrate/SKILL.md
+        line: 269
+        source: 'spawn the full-ceremony'
+        replacement: 'spawn the full-mission-workflow'
+        sense: workflow_sense
+        rule: R2
+      - id: dd-005
+        file: src/doctrine/skills/spec-kitty-program-orchestrate/SKILL.md
+        line: 343
+        source: 'after ceremony;'
+        replacement: 'after the mission workflow runs;'
+        sense: workflow_sense
+        rule: R2
+      - id: dd-006
+        file: src/doctrine/skills/spec-kitty-program-orchestrate/SKILL.md
+        line: 366
+        source: 'parts of the ceremony they valued'
+        replacement: 'parts of the mission workflow they valued'
+        sense: workflow_sense
+        rule: R2
+      - id: dd-007
+        file: docs/development/org-doctrine-layer-architecture-review.md
+        line: 481
+        source: 'Policy without mechanism degrades to ceremony.'
+        replacement: 'Policy without mechanism degrades to performative gesture.'
+        sense: workflow_sense
+        rule: R2
+        notes: |
+          English idiom rewrite. Mechanical substitution to "status commit"
+          would change meaning. Approved by decision 01KSPP3SSZ5GKHTTB1C9EJQ13V.
+      - id: dd-008
+        file: docs/development/3-2-publication-checklist.md
+        line: 210
+        source: 'specify/plan/tasks ceremony'
+        replacement: 'specify/plan/tasks workflow'
+        sense: workflow_sense
+        rule: R2
+      - id: dd-009
+        file: docs/engineering_notes/reflections/README.md
+        line: 12
+        source: "Spec Kitty's own ceremony surfaces"
+        replacement: "Spec Kitty's own status commit surfaces"
+        sense: commit_class
+        rule: R1
+      - id: dd-010
+        file: docs/engineering_notes/finding/2026-05-24-mission-01KSAF14-orchestration-findings.md
+        line: 257
+        source: 'F-09 — Protected-branch guard blocks ceremony writes'
+        replacement: 'F-09 — Protected-branch guard blocks status commits'
+        sense: commit_class
+        rule: R1
+      - id: dd-011
+        file: docs/engineering_notes/finding/2026-05-24-mission-01KSAF14-orchestration-findings.md
+        line: 264
+        source: 'Run ceremony write operations from the mission lane branch/worktree.'
+        replacement: 'Run status commit operations from the mission lane branch/worktree.'
+        sense: commit_class
+        rule: R1
+        notes: 'Quoted copy of the live error string; matches new ufs-001 post-rename.'
+      - id: dd-012
+        file: docs/engineering_notes/finding/2026-05-24-mission-01KSAF14-orchestration-findings.md
+        line: 272
+        source: 'The guard forces extra ceremony'
+        replacement: 'The guard forces extra workflow overhead'
+        sense: workflow_sense
+        rule: R2
+      - id: dd-013
+        file: docs/engineering_notes/finding/2026-05-24-mission-01KSAF14-orchestration-findings.md
+        line: 277
+        source: 'Every ceremony commit was authored manually'
+        replacement: 'Every status commit was authored manually'
+        sense: commit_class
+        rule: R1
+      - id: dd-014
+        file: docs/engineering_notes/finding/2026-05-24-mission-01KSAF14-orchestration-findings.md
+        line: 280
+        source: 'vcs.allow_ceremony_commits_on_target_branch'
+        replacement: 'vcs.allow_status_commits_on_target_branch'
+        sense: commit_class
+        rule: R6
+        notes: |
+          Flag-name rewrite. Confirmed at plan time: the flag does not exist
+          in live code; this is the only place in the repository its name
+          appears.
+
+  tests_fixtures:
+    description: >
+      Test files asserting forbidden terms as string literals, plus YAML/JSON
+      test fixtures and architectural-baseline comments that bake the term in.
+    action: rename
+    examples:
+      - "tests/e2e/conftest.py:215 — function docstring (paired with cs-002)"
+      - "tests/e2e/conftest.py:232 — explanatory comment in larger docstring"
+      - "tests/architectural/_baselines.yaml:17 — comment 'no ceremony' → 'no extra workflow steps' (workflow_sense)"
+    occurrences:
+      - id: tf-001
+        file: tests/e2e/conftest.py
+        line: 215
+        source: '"""Run ceremony-writing E2E workflows away from protected main/master."""'
+        replacement: '"""Run status-commit-writing E2E workflows away from protected main/master."""'
+        sense: commit_class
+        rule: R1
+        paired_with: cs-002
+      - id: tf-002
+        file: tests/e2e/conftest.py
+        line: 232
+        source: '- Checks out an E2E ceremony branch for workflow write operations'
+        replacement: '- Checks out an E2E status commit branch for workflow write operations'
+        sense: commit_class
+        rule: R1
+      - id: tf-003
+        file: tests/architectural/_baselines.yaml
+        line: 17
+        source: '# - Shrinkage requires no ceremony (just edit the number).'
+        replacement: '# - Shrinkage requires no extra workflow steps (just edit the number).'
+        sense: workflow_sense
+        rule: R2
+
+  logs_telemetry:
+    description: >
+      Structured log fields, telemetry events, metric names containing the
+      forbidden terms.
+    action: do_not_change
+    notes: |
+      No log message, telemetry event, or metric name contains "ceremony" or
+      "status-writing". The protected-branch error is a raised Python
+      exception (handled under user_facing_strings), not a log line.
 
 # ──────────────────────────────────────────────────────────────────────
-# CATEGORY 1: code_symbols (Python identifiers, classes, constants)
-# ──────────────────────────────────────────────────────────────────────
-code_symbols:
-  occurrences:
-    - id: cs-001
-      file: tests/e2e/conftest.py
-      line: 25
-      kind: module_constant
-      source: 'E2E_CEREMONY_BRANCH = "e2e-ceremony"'
-      replacement: 'E2E_STATUS_COMMIT_BRANCH = "e2e-status-commit"'
-      rule: R3 + R4
-      sense: commit_class
-      callers_to_update:
-        - tests/e2e/conftest.py:214 (function definition references the constant pattern in name)
-        - any test module importing E2E_CEREMONY_BRANCH from tests.e2e.conftest (grep at implement time)
-    - id: cs-002
-      file: tests/e2e/conftest.py
-      line: 214
-      kind: function_definition
-      source: 'def _checkout_e2e_ceremony_branch(project: Path) -> None:'
-      replacement: 'def _checkout_e2e_status_commit_branch(project: Path) -> None:'
-      rule: R3
-      sense: commit_class
-      callers_to_update:
-        - tests/e2e/conftest.py:324
-        - tests/e2e/conftest.py:399
-        - any test module calling _checkout_e2e_ceremony_branch (grep at implement time)
-    - id: cs-003
-      file: tests/e2e/conftest.py
-      line: 324
-      kind: function_call
-      source: '_checkout_e2e_ceremony_branch(project)'
-      replacement: '_checkout_e2e_status_commit_branch(project)'
-      rule: R3
-      sense: commit_class
-    - id: cs-004
-      file: tests/e2e/conftest.py
-      line: 399
-      kind: function_call
-      source: '_checkout_e2e_ceremony_branch(project)'
-      replacement: '_checkout_e2e_status_commit_branch(project)'
-      rule: R3
-      sense: commit_class
-
-# ──────────────────────────────────────────────────────────────────────
-# CATEGORY 2: import_paths
-# ──────────────────────────────────────────────────────────────────────
-import_paths:
-  category_not_applicable: true
-  rationale: 'No Python module path contains "ceremony" or "status-writing"; no module is being renamed. Constants in `tests/e2e/conftest.py` are renamed in place (category 1) — importers using `from tests.e2e.conftest import E2E_CEREMONY_BRANCH` (if any) become symbol renames, not import-path renames.'
-  verification: 'grep -rn "from .*ceremony\\|import.*ceremony" src/ tests/ at implement time → expected zero hits.'
-
-# ──────────────────────────────────────────────────────────────────────
-# CATEGORY 3: filesystem_paths
-# ──────────────────────────────────────────────────────────────────────
-filesystem_paths:
-  category_not_applicable: true
-  rationale: 'No file or directory in the repository is named "ceremony" or "status-writing". The user''s local working-directory path `spec-kitty-dev/ceremony/spec-kitty` is a local checkout choice, explicitly out of scope per spec C-002.'
-  verification: 'find . -name "*ceremony*" -not -path "./kitty-specs/*" -not -path "./.worktrees/*" → expected zero hits (excluding mission artifacts and worktrees).'
-
-# ──────────────────────────────────────────────────────────────────────
-# CATEGORY 4: serialized_keys (YAML/JSON keys, frontmatter, fixture IDs)
-# ──────────────────────────────────────────────────────────────────────
-serialized_keys:
-  occurrences:
-    - id: sk-001
-      file: tests/doctrine/procedures/conftest.py
-      line: 48
-      kind: fixture_id_string
-      source: '"id": "mission-merge-ceremony"'
-      replacement: '"id": "mission-merge-workflow"'
-      rule: R2 + R4
-      sense: workflow_sense
-      note: 'This is a fixture ID for the *merge workflow* procedure, not a commit class. Rule R2 reclassification: "workflow" (not "status commit").'
-    - id: sk-002
-      file: tests/doctrine/procedures/test_models.py
-      line: 31
-      kind: assertion_string
-      source: 'assert p.id == "mission-merge-ceremony"'
-      replacement: 'assert p.id == "mission-merge-workflow"'
-      rule: R2 + R4
-      sense: workflow_sense
-      paired_with: sk-001
-    - id: sk-003
-      file: tests/e2e/conftest.py
-      line: 25
-      kind: branch_name_string
-      source: '"e2e-ceremony"'
-      replacement: '"e2e-status-commit"'
-      rule: R4
-      sense: commit_class
-      note: 'String value of E2E_CEREMONY_BRANCH constant (paired w/ cs-001).'
-      paired_with: cs-001
-
-# ──────────────────────────────────────────────────────────────────────
-# CATEGORY 5: cli_commands
-# ──────────────────────────────────────────────────────────────────────
-cli_commands:
-  category_not_applicable: true
-  rationale: 'No CLI command, subcommand, flag, or option is named "ceremony" or "status-writing". The proposed flag `vcs.allow_ceremony_commits_on_target_branch` exists only in the F-09 findings doc (R6) — handled as user_facing_strings/prose, not as a real CLI surface.'
-  verification: 'grep -rn "ceremony\\|status-writing" src/specify_cli/cli/ → expected zero hits.'
-
-# ──────────────────────────────────────────────────────────────────────
-# CATEGORY 6: user_facing_strings (error messages, CLI output, prose)
-# ──────────────────────────────────────────────────────────────────────
-user_facing_strings:
-  occurrences:
-    - id: ufs-001
-      file: src/specify_cli/git/commit_helpers.py
-      line: 159
-      kind: error_message_literal
-      source: '"Run status-writing operations from the mission lane branch/worktree."'
-      replacement: '"Run status commit operations from the mission lane branch/worktree."'
-      rule: R1
-      sense: commit_class
-      visibility: end_user
-      spec_anchor: FR-003
-      note: 'Most-visible artifact of the rename. Spec FR-003 asserts exact final string.'
-    - id: ufs-002
-      file: src/specify_cli/git/commit_helpers.py
-      line: 141
-      kind: comment
-      source: 'exercise status-writing commands directly; forcing every fixture to fork a lane'
-      replacement: 'exercise status commit operations directly; forcing every fixture to fork a lane'
-      rule: R1
-      sense: commit_class
-      visibility: developer_only
-
-# ──────────────────────────────────────────────────────────────────────
-# CATEGORY 7: tests_fixtures (test data, fixture functions, test docstrings)
-# ──────────────────────────────────────────────────────────────────────
-tests_fixtures:
-  occurrences:
-    - id: tf-001
-      file: tests/e2e/conftest.py
-      line: 215
-      kind: function_docstring
-      source: '"""Run ceremony-writing E2E workflows away from protected main/master."""'
-      replacement: '"""Run status-commit-writing E2E workflows away from protected main/master."""'
-      rule: R1
-      sense: commit_class
-      paired_with: cs-002
-    - id: tf-002
-      file: tests/e2e/conftest.py
-      line: 232
-      kind: docstring_or_comment
-      source: '- Checks out an E2E ceremony branch for workflow write operations'
-      replacement: '- Checks out an E2E status commit branch for workflow write operations'
-      rule: R1
-      sense: commit_class
-      note: 'Re-check exact phrasing at implement time; if "workflow write operations" reads awkwardly post-rename, tighten to "for status commit operations".'
-    - id: tf-003
-      file: tests/architectural/_baselines.yaml
-      line: 17
-      kind: comment
-      source: '# - Shrinkage requires no ceremony (just edit the number).'
-      replacement: '# - Shrinkage requires no extra workflow steps (just edit the number).'
-      rule: R2
-      sense: workflow_sense
-
-# ──────────────────────────────────────────────────────────────────────
-# CATEGORY 8: logs_telemetry
-# ──────────────────────────────────────────────────────────────────────
-logs_telemetry:
-  category_not_applicable: true
-  rationale: 'No log message, telemetry event, or metric name contains "ceremony" or "status-writing". The protected-branch error is an exception (Python) not a log line — handled under user_facing_strings.'
-  verification: 'grep -rn "logger\\..*ceremony\\|logging\\..*ceremony" src/ → expected zero hits.'
-
-# ──────────────────────────────────────────────────────────────────────
-# DOCTRINE & DOCS PROSE (non-standard category — semantic-rewrite per R2)
-# ──────────────────────────────────────────────────────────────────────
-# This bucket holds Markdown prose in src/doctrine/ and docs/ that does not
-# fit neatly under user_facing_strings (these are not runtime user-facing).
-# Per decision 01KSPP3SSZ5GKHTTB1C9EJQ13V (semantic_rewrite_per_context).
-doctrine_and_docs_prose:
-  occurrences:
-    - id: dd-001
-      file: src/doctrine/procedures/README.md
-      line: 15
-      source: '- Feature merge ceremony'
-      replacement: '- Feature merge workflow'
-      rule: R2
-      sense: workflow_sense
-    - id: dd-002
-      file: src/doctrine/missions/software-dev/actions/tasks/guidelines.md
-      line: 26
-      source: '- Prefer splitting an oversized WP over padding a small one; prefer merging trivially short WPs over inflating them with ceremony.'
-      replacement: '- Prefer splitting an oversized WP over padding a small one; prefer merging trivially short WPs over inflating them with workflow overhead.'
-      rule: R2
-      sense: workflow_sense
-    - id: dd-003
-      file: src/doctrine/skills/spec-kitty-program-orchestrate/SKILL.md
-      line: 9
-      source: '  repos", "orchestrate a cross-repo release", "run the full ceremony on'
-      replacement: '  repos", "orchestrate a cross-repo release", "run the full mission workflow on'
-      rule: R2
-      sense: workflow_sense
-    - id: dd-004
-      file: src/doctrine/skills/spec-kitty-program-orchestrate/SKILL.md
-      line: 269
-      source: '- If the user has authorized autonomy on repo C, spawn the full-ceremony'
-      replacement: '- If the user has authorized autonomy on repo C, spawn the full-mission-workflow'
-      rule: R2
-      sense: workflow_sense
-    - id: dd-005
-      file: src/doctrine/skills/spec-kitty-program-orchestrate/SKILL.md
-      line: 343
-      source: '| Silent repo fallback when target isn''t initialized | Phase 1 on a repo without `.kittify/` scaffold | Detect via `ls <target>/kitty-specs/` after ceremony; if empty and another repo got the artifacts, relocate + `spec-kitty init --ai <agent>` in the real target | #773 |'
-      replacement: '| Silent repo fallback when target isn''t initialized | Phase 1 on a repo without `.kittify/` scaffold | Detect via `ls <target>/kitty-specs/` after the mission workflow runs; if empty and another repo got the artifacts, relocate + `spec-kitty init --ai <agent>` in the real target | #773 |'
-      rule: R2
-      sense: workflow_sense
-    - id: dd-006
-      file: src/doctrine/skills/spec-kitty-program-orchestrate/SKILL.md
-      line: 366
-      source: '  the most time, which parts of the ceremony they valued, what they'
-      replacement: '  the most time, which parts of the mission workflow they valued, what they'
-      rule: R2
-      sense: workflow_sense
-    - id: dd-007
-      file: docs/development/org-doctrine-layer-architecture-review.md
-      line: 481
-      source: 'Policy without mechanism degrades to ceremony.'
-      replacement: 'Policy without mechanism degrades to performative gesture.'
-      rule: R2
-      sense: workflow_sense
-      note: 'English idiom "degrades to ceremony" means "becomes empty ritual". Mechanical substitution would change meaning. Approved rewrite by decision 01KSPP3SSZ5GKHTTB1C9EJQ13V.'
-    - id: dd-008
-      file: docs/development/3-2-publication-checklist.md
-      line: 210
-      source: '| **S8** Plan-only gate respected | All planning WPs (specify/plan/tasks ceremony) — satisfied at planning, locked by C-001/C-002. | Audited via git-log path filter. |'
-      replacement: '| **S8** Plan-only gate respected | All planning WPs (specify/plan/tasks workflow) — satisfied at planning, locked by C-001/C-002. | Audited via git-log path filter. |'
-      rule: R2
-      sense: workflow_sense
-    - id: dd-009
-      file: docs/engineering_notes/reflections/README.md
-      line: 12
-      source: '- Observations about how Spec Kitty''s own ceremony surfaces interact with the project''s protected-branch / pre-commit / CI configuration.'
-      replacement: '- Observations about how Spec Kitty''s own status commit surfaces interact with the project''s protected-branch / pre-commit / CI configuration.'
-      rule: R1
-      sense: commit_class
-    - id: dd-010
-      file: docs/engineering_notes/finding/2026-05-24-mission-01KSAF14-orchestration-findings.md
-      line: 257
-      source: '## F-09 — Protected-branch guard blocks ceremony writes even from authorised operators on solo forks'
-      replacement: '## F-09 — Protected-branch guard blocks status commits even from authorised operators on solo forks'
-      rule: R1
-      sense: commit_class
-    - id: dd-011
-      file: docs/engineering_notes/finding/2026-05-24-mission-01KSAF14-orchestration-findings.md
-      line: 264
-      source: 'Run ceremony write operations from the mission lane branch/worktree.'
-      replacement: 'Run status commit operations from the mission lane branch/worktree.'
-      rule: R1
-      sense: commit_class
-      note: 'This is a quoted copy of the live error string at the time the finding was written. After rename it matches the new error (ufs-001).'
-    - id: dd-012
-      file: docs/engineering_notes/finding/2026-05-24-mission-01KSAF14-orchestration-findings.md
-      line: 272
-      source: '**Why it matters.** The guard forces extra ceremony (manual `git commit`,'
-      replacement: '**Why it matters.** The guard forces extra workflow overhead (manual `git commit`,'
-      rule: R2
-      sense: workflow_sense
-    - id: dd-013
-      file: docs/engineering_notes/finding/2026-05-24-mission-01KSAF14-orchestration-findings.md
-      line: 277
-      source: '**Workaround.** Every ceremony commit was authored manually via'
-      replacement: '**Workaround.** Every status commit was authored manually via'
-      rule: R1
-      sense: commit_class
-    - id: dd-014
-      file: docs/engineering_notes/finding/2026-05-24-mission-01KSAF14-orchestration-findings.md
-      line: 280
-      source: '**Follow-up candidate.** A config flag (`vcs.allow_ceremony_commits_on_target_branch: true`) opt-in for solo forks. Default off (current'
-      replacement: '**Follow-up candidate.** A config flag (`vcs.allow_status_commits_on_target_branch: true`) opt-in for solo forks. Default off (current'
-      rule: R6
-      sense: commit_class
-      note: 'Flag name rewrite. Confirmed at plan time: flag does not exist in live code, so this is the only place the name appears.'
-
-# ──────────────────────────────────────────────────────────────────────
-# GLOSSARY EDITS (additive — not a "rename" but part of the same diff)
+# GLOSSARY EDITS (additive — not a rename but part of the same diff)
 # ──────────────────────────────────────────────────────────────────────
 glossary_edits:
   file: .kittify/glossaries/spec_kitty_core.yaml
+  action: rename
+  notes: |
+    Insertions establish the canonical term and mark both legacy terms as
+    deprecated synonyms, consistent with the existing schema (5 prior
+    `status: deprecated` entries already use this pattern).
   insertions:
     - kind: canonical_entry
-      surface: status commit
-      definition: 'An auto-commit created by spec-kitty to record workflow state changes (task status transitions, lane metadata, WP claims). Status commits target lane branches, not protected branches.'
+      surface: "status commit"
       status: active
       confidence: 0.95
-      synonyms_to_avoid: [ceremony commit, ceremony, ceremony write, status-writing operation, status-writing command]
+      definition: |
+        An auto-commit created by spec-kitty to record workflow state changes
+        (task status transitions, lane metadata, WP claims). Status commits
+        target lane branches, not protected branches.
+      synonyms_to_avoid:
+        - "ceremony commit"
+        - "ceremony"
+        - "ceremony write"
+        - "status-writing operation"
+        - "status-writing command"
       spec_anchor: FR-006
     - kind: deprecated_entry
-      surface: ceremony commit
-      definition: 'DEPRECATED. Replaced by `status commit`. This term obscures intent and is forbidden in active source. See the canonical `status commit` entry.'
+      surface: "ceremony commit"
       status: deprecated
       confidence: 1.0
+      definition: |
+        DEPRECATED. Replaced by `status commit`. This term obscures intent
+        and is forbidden in active source. See the canonical entry.
       spec_anchor: FR-007
     - kind: deprecated_entry
-      surface: status-writing operation
-      definition: 'DEPRECATED. Replaced by `status commit`. This phrasing landed during a partial rename; it is forbidden in active source. See the canonical `status commit` entry.'
+      surface: "status-writing operation"
       status: deprecated
       confidence: 1.0
+      definition: |
+        DEPRECATED. Replaced by `status commit`. This phrasing landed during
+        a partial rename; it is forbidden in active source. See the canonical
+        entry.
       spec_anchor: FR-007
 
 # ──────────────────────────────────────────────────────────────────────
-# NEW FILES (not a rename but part of the same diff — regression guard)
+# NEW FILES (created as part of the same diff — regression guard)
 # ──────────────────────────────────────────────────────────────────────
 new_files:
   - file: tests/architectural/test_no_legacy_terminology.py
-    purpose: 'Architectural test asserting forbidden terms ("ceremony", "status-writing") do not appear in `src/`, `tests/`, `docs/`. Excludes `kitty-specs/` historical artifacts and `.worktrees/` working trees. Implements decision 01KSPP3W3VW8GB4WCXFF7J7X1Z.'
-    spec_anchor: FR-013 + FR-014
+    purpose: |
+      Architectural test asserting forbidden terms ("ceremony", "status-writing")
+      do not reappear in `src/`, `tests/`, `docs/`. Excludes `kitty-specs/`
+      historical artifacts and `.worktrees/`. Implements decision
+      01KSPP3W3VW8GB4WCXFF7J7X1Z (add_pytest_grep_guard).
+    spec_anchor: ["FR-013", "FR-014"]
 
 # ──────────────────────────────────────────────────────────────────────
-# SUMMARY
+# OUT OF SCOPE
+# ──────────────────────────────────────────────────────────────────────
+historical_preservation:
+  description: >
+    Places where "ceremony" or "status-writing" MUST be preserved because they
+    record history, not current behaviour. These are NOT in the rename set.
+  action: do_not_change
+  paths:
+    - "kitty-specs/*/**/*.md (frozen historical mission artifacts; spec C-001)"
+    - "Past git commit messages (history is not rewritten; spec C-003)"
+    - "Past release tags (history is not rewritten; spec C-003)"
+    - "The user's local checkout path `spec-kitty-dev/ceremony/...` (local naming; spec C-002)"
+
+# ──────────────────────────────────────────────────────────────────────
+# DEAD CODE CANDIDATES
+# ──────────────────────────────────────────────────────────────────────
+dead_code_candidates:
+  description: >
+    Occurrences that should be DELETED outright rather than renamed.
+  action: manual_review
+  notes: |
+    None identified at plan time. All current occurrences serve an active
+    documentation, identifier, or assertion purpose and should be renamed,
+    not deleted. If implementation reveals a dead occurrence (e.g., a
+    commented-out test fixture), surface for review rather than delete in-band.
+
+# ──────────────────────────────────────────────────────────────────────
+# ACCEPTANCE GATE (operational check; matches spec FR-013 + FR-014)
+# ──────────────────────────────────────────────────────────────────────
+acceptance_check:
+  command: |
+    (
+      grep -rn 'ceremony' src/ tests/ docs/ --include='*.py' --include='*.md' --include='*.yaml' 2>/dev/null \
+        | grep -v -E "(kitty-specs/|\\.worktrees/|tests/architectural/test_no_legacy_terminology\\.py)";
+      grep -rn 'status-writing' src/ tests/ docs/ --include='*.py' --include='*.md' --include='*.yaml' 2>/dev/null \
+        | grep -v -E "(kitty-specs/|\\.worktrees/|tests/architectural/test_no_legacy_terminology\\.py)"
+    ) | wc -l
+  expected: 0
+  notes: |
+    The architectural test `tests/architectural/test_no_legacy_terminology.py`
+    (FR-013, FR-014) operationalises this check on every CI run via WP06. The
+    shell snippet above is the quick local equivalent.
+
+# ──────────────────────────────────────────────────────────────────────
+# SUMMARY (bookkeeping)
 # ──────────────────────────────────────────────────────────────────────
 summary:
   total_files_modified: 12
@@ -335,9 +442,8 @@ summary:
   by_category:
     code_symbols: 4
     serialized_keys: 3
-    user_facing_strings: 2
+    user_facing_strings: 16
     tests_fixtures: 3
-    doctrine_and_docs_prose: 14
     not_applicable: [import_paths, filesystem_paths, cli_commands, logs_telemetry]
   by_sense:
     commit_class: 14
