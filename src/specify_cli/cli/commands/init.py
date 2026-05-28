@@ -53,6 +53,25 @@ _ensure_executable_scripts: Callable[[Path, StepTracker | None], None] | None = 
 
 _logger = logging.getLogger(__name__)
 _EVENT_LOG_GITATTRIBUTES_ENTRY = "kitty-specs/**/status.events.jsonl merge=spec-kitty-event-log"
+_GITHUB_DIFF_GITATTRIBUTES_ENTRIES = (
+    "kitty-specs/**/status.json linguist-generated=true",
+    "kitty-specs/**/status.events.jsonl linguist-generated=true",
+    "kitty-specs/**/lanes.json linguist-generated=true",
+    "kitty-specs/**/mission-events.jsonl linguist-generated=true",
+    "kitty-specs/**/snapshot-latest.json linguist-generated=true",
+    "kitty-specs/**/acceptance-matrix.json linguist-generated=true",
+    "kitty-specs/**/occurrence_map.yaml linguist-generated=true",
+    "kitty-specs/**/tasks/** linguist-generated=true",
+    "kitty-specs/**/research/evidence-log.csv linguist-generated=true",
+    "kitty-specs/**/research/source-register.csv linguist-generated=true",
+    "kitty-specs/**/test-transcripts/** linguist-generated=true",
+    "kitty-specs/**/baseline/** linguist-generated=true",
+    "kitty-specs/**/canary-evidence/** linguist-generated=true",
+    ".kittify/workspaces/** linguist-generated=true",
+    ".kittify/workspaces/** -diff",
+    ".kittify/migrations/** linguist-generated=true",
+    ".kittify/migrations/** -diff",
+)
 
 
 def _emit_project_init_event(project_path: Path) -> None:
@@ -140,15 +159,17 @@ def _prepare_project_minimal(project_path: Path) -> None:
 
 
 def _ensure_event_log_merge_attributes(project_path: Path) -> bool:
-    """Ensure new projects track status event logs with the semantic merge driver."""
+    """Ensure new projects get Spec Kitty git attributes."""
     attributes_path = project_path / ".gitattributes"
     lines: list[str] = []
     if attributes_path.exists():
         lines = attributes_path.read_text(encoding="utf-8").splitlines()
-        if _EVENT_LOG_GITATTRIBUTES_ENTRY in lines:
-            return False
+    required_entries = (_EVENT_LOG_GITATTRIBUTES_ENTRY, *_GITHUB_DIFF_GITATTRIBUTES_ENTRIES)
+    missing = [entry for entry in required_entries if entry not in lines]
+    if not missing:
+        return False
 
-    lines.append(_EVENT_LOG_GITATTRIBUTES_ENTRY)
+    lines.extend(missing)
     attributes_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
     return True
 
@@ -1007,7 +1028,7 @@ def init(  # noqa: C901
         _console.print(f"[red]❌ {error}[/red]")
 
     if _ensure_event_log_merge_attributes(project_path):
-        _console.print("[dim]Updated .gitattributes to semantically merge status.events.jsonl[/dim]")
+        _console.print("[dim]Updated .gitattributes for Spec Kitty generated artifacts[/dim]")
 
     # Copy AGENTS.md from template source (not user project)
     # In global runtime mode, AGENTS.md resolves from ~/.kittify/ so skip copying.
