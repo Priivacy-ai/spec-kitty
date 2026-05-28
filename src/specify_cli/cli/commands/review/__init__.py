@@ -50,6 +50,10 @@ from ._mode import MissionReviewMode, ModeMismatchError, resolve_mode  # noqa: F
 from ._report import GateRecord, write_review_report  # noqa: F401
 
 
+_PACKAGE_NAME = "spec-kitty-cli"
+_PYTEST_NAME = "pytest"
+
+
 def _fail_missing_test_extra(console: object) -> None:
     import sys
 
@@ -77,8 +81,7 @@ def _missing_test_extra_remediation() -> str:
         install_method = InstallMethod.UNKNOWN
 
     if install_method == InstallMethod.UV_TOOL:
-        package = _uv_tool_reinstall_target() or _versioned_package()
-        return f"{_uv_tool_dir_env_prefix()}uv tool install --force --with pytest {package}"
+        return _uv_tool_reinstall_command() or _fallback_uv_tool_reinstall_command()
 
     return "uv sync --extra test"
 
@@ -91,7 +94,33 @@ def _versioned_package() -> str:
     return package
 
 
-def _uv_tool_reinstall_target() -> str | None:
+def _fallback_uv_tool_reinstall_command() -> str:
+    return f"{_uv_tool_env_prefix()}uv tool install --force --with pytest {_versioned_package()}"
+
+
+def _uv_tool_reinstall_command() -> str | None:
+    try:
+        receipt = _active_uv_tool_receipt()
+        if receipt is None:
+            return None
+
+        requirements = receipt.get("tool", {}).get("requirements", [])
+        if not isinstance(requirements, list):
+            return None
+
+        tool_requirement = _find_uv_tool_requirement(requirements)
+        if tool_requirement is None:
+            return None
+
+        args = ["uv", "tool", "install", "--force"]
+        args.extend(_uv_tool_with_args(requirements))
+        args.extend(_uv_tool_package_args(tool_requirement))
+        return f"{_uv_tool_env_prefix()}{' '.join(shlex.quote(arg) for arg in args)}"
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _active_uv_tool_receipt() -> dict[str, object] | None:
     try:
         executable_parent = Path(sys.executable).parent
         if executable_parent.name.lower() not in {"bin", "scripts"}:
@@ -99,22 +128,95 @@ def _uv_tool_reinstall_target() -> str | None:
 
         receipt_path = executable_parent.parent / "uv-receipt.toml"
         receipt = tomllib.loads(receipt_path.read_text(encoding="utf-8"))
-        requirements = receipt.get("tool", {}).get("requirements", [])
-        if not isinstance(requirements, list):
-            return None
-
-        for requirement in requirements:
-            if not isinstance(requirement, dict) or requirement.get("name") != "spec-kitty-cli":
-                continue
-            directory = requirement.get("directory")
-            if isinstance(directory, str) and directory.strip():
-                return shlex.quote(directory)
-            specifier = requirement.get("specifier")
-            if isinstance(specifier, str) and specifier.strip():
-                return shlex.quote(f"spec-kitty-cli{specifier}")
+        if isinstance(receipt, dict):
+            return receipt
     except Exception:  # noqa: BLE001
         return None
     return None
+
+
+def _find_uv_tool_requirement(requirements: list[object]) -> dict[str, object] | None:
+    for requirement in requirements:
+        if isinstance(requirement, dict) and requirement.get("name") == _PACKAGE_NAME:
+            return requirement
+    return None
+
+
+def _uv_tool_with_args(requirements: list[object]) -> list[str]:
+    args: list[str] = []
+    has_pytest = False
+    for requirement in requirements:
+        if not isinstance(requirement, dict):
+            continue
+        if requirement.get("name") == _PACKAGE_NAME:
+            continue
+        if requirement.get("name") == _PYTEST_NAME:
+            has_pytest = True
+        requirement_arg = _uv_tool_requirement_arg(requirement)
+        if requirement_arg is not None:
+            args.extend(["--with", requirement_arg])
+    if not has_pytest:
+        args.extend(["--with", _PYTEST_NAME])
+    return args
+
+
+def _uv_tool_requirement_arg(requirement: dict[str, object]) -> str | None:
+    directory = _nonempty_str(requirement.get("directory"))
+    if directory is not None:
+        return directory
+
+    path = _nonempty_str(requirement.get("path"))
+    if path is not None:
+        return path
+
+    git = _nonempty_str(requirement.get("git"))
+    if git is not None:
+        return _uv_git_source(git)
+
+    name = _nonempty_str(requirement.get("name"))
+    if name is None:
+        return None
+    specifier = _nonempty_str(requirement.get("specifier"))
+    return f"{name}{specifier or ''}"
+
+
+def _uv_tool_package_args(requirement: dict[str, object]) -> list[str]:
+    directory = _nonempty_str(requirement.get("directory"))
+    if directory is not None:
+        return [directory]
+
+    editable = _nonempty_str(requirement.get("editable"))
+    if editable is not None:
+        return ["--editable", editable]
+
+    path = _nonempty_str(requirement.get("path"))
+    if path is not None:
+        return [path]
+
+    git = _nonempty_str(requirement.get("git"))
+    if git is not None:
+        return [_PACKAGE_NAME, "--from", _uv_git_source(git)]
+
+    specifier = _nonempty_str(requirement.get("specifier"))
+    if specifier is not None:
+        return [f"{_PACKAGE_NAME}{specifier}"]
+
+    return [_PACKAGE_NAME]
+
+
+def _uv_git_source(git: str) -> str:
+    return git if git.startswith("git+") else f"git+{git}"
+
+
+def _nonempty_str(value: object) -> str | None:
+    if isinstance(value, str) and value.strip():
+        return value
+    return None
+
+
+def _uv_tool_env_prefix() -> str:
+    prefixes = [_uv_tool_dir_env_prefix(), _uv_tool_bin_dir_env_prefix()]
+    return "".join(prefix for prefix in prefixes if prefix)
 
 
 def _uv_tool_dir_env_prefix() -> str:
@@ -122,6 +224,13 @@ def _uv_tool_dir_env_prefix() -> str:
     if tool_dir is None or _same_path(tool_dir, Path.home() / ".local" / "share" / "uv" / "tools"):
         return ""
     return f"UV_TOOL_DIR={shlex.quote(str(tool_dir))} "
+
+
+def _uv_tool_bin_dir_env_prefix() -> str:
+    bin_dir = _active_uv_tool_bin_dir()
+    if bin_dir is None or _same_path(bin_dir, Path.home() / ".local" / "bin"):
+        return ""
+    return f"UV_TOOL_BIN_DIR={shlex.quote(str(bin_dir))} "
 
 
 def _active_uv_tool_dir() -> Path | None:
@@ -135,6 +244,25 @@ def _active_uv_tool_dir() -> Path | None:
         return tool_env.parent
     except Exception:  # noqa: BLE001
         return None
+
+
+def _active_uv_tool_bin_dir() -> Path | None:
+    try:
+        receipt = _active_uv_tool_receipt()
+        if receipt is None:
+            return None
+        entrypoints = receipt.get("tool", {}).get("entrypoints", [])
+        if not isinstance(entrypoints, list):
+            return None
+        for entrypoint in entrypoints:
+            if not isinstance(entrypoint, dict) or entrypoint.get("name") != "spec-kitty":
+                continue
+            install_path = _nonempty_str(entrypoint.get("install-path"))
+            if install_path is not None:
+                return Path(install_path).parent
+    except Exception:  # noqa: BLE001
+        return None
+    return None
 
 
 def _same_path(left: Path, right: Path) -> bool:
