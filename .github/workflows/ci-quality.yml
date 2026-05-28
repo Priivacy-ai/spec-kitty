@@ -211,7 +211,7 @@ jobs:
 
       - name: "[ENFORCED] Install Python dependencies"
         run: |
-          uv sync --frozen
+          uv sync --frozen --all-extras
           # spec-kitty-runtime is required by next/runtime tests and patch-target
           # validation, but its published wheel pins an older spec-kitty-events.
           # Install it without deps so this repo's spec-kitty-events==4.0.0 pin
@@ -636,7 +636,7 @@ jobs:
           python-version: '3.12'
 
       - name: "[ENFORCED] Install dependencies"
-        run: uv sync --frozen
+        run: uv sync --frozen --all-extras
 
       - name: "[ENFORCED] Prepare report directories"
         run: |
@@ -694,7 +694,7 @@ jobs:
           python-version: '3.12'
 
       - name: "[ENFORCED] Install dependencies"
-        run: uv sync --frozen
+        run: uv sync --frozen --all-extras
 
       - name: "[ENFORCED] Prepare report directories"
         run: |
@@ -731,7 +731,7 @@ jobs:
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-      - run: uv sync --frozen
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — sync"
         run: |
@@ -754,7 +754,7 @@ jobs:
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-      - run: uv sync --frozen
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — merge"
         run: |
@@ -777,7 +777,7 @@ jobs:
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-      - run: uv sync --frozen
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — missions"
         run: |
@@ -802,7 +802,7 @@ jobs:
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-      - run: uv sync --frozen
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — post_merge"
         run: |
@@ -827,7 +827,7 @@ jobs:
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-      - run: uv sync --frozen
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — release"
         run: |
@@ -864,7 +864,7 @@ jobs:
           python-version: '3.12'
 
       - name: "[ENFORCED] Install dependencies"
-        run: uv sync --frozen
+        run: uv sync --frozen --all-extras
 
       - name: "[ENFORCED] Prepare report directories"
         run: |
@@ -904,7 +904,7 @@ jobs:
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-      - run: uv sync --frozen
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — review"
         run: |
@@ -931,7 +931,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: |
-          uv sync --frozen
+          uv sync --frozen --all-extras
           uv pip install spec-kitty-runtime==0.4.5 --no-deps
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — next"
@@ -965,7 +965,7 @@ jobs:
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-      - run: uv sync --frozen
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "[ENFORCED] Mission loader coverage gate (>=90%)"
         run: |
@@ -995,7 +995,7 @@ jobs:
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-      - run: uv sync --frozen
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — lanes"
         run: |
@@ -1021,7 +1021,7 @@ jobs:
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-      - run: uv sync --frozen
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — dashboard"
         run: |
@@ -1049,7 +1049,7 @@ jobs:
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-      - run: uv sync --frozen
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — upgrade"
         run: |
@@ -1077,7 +1077,7 @@ jobs:
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-      - run: uv sync --frozen
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — cli"
         run: |
@@ -1109,7 +1109,7 @@ jobs:
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-      - run: uv sync --frozen
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — core misc"
         run: |
@@ -1159,7 +1159,7 @@ jobs:
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-      - run: uv sync --frozen
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — charter"
         run: |
@@ -1198,7 +1198,7 @@ jobs:
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-      - run: uv sync --frozen
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — agent"
         run: |
@@ -1229,7 +1229,7 @@ jobs:
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-      - run: uv sync --frozen
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — agent"
         run: |
@@ -1263,7 +1263,7 @@ jobs:
           python-version: '3.12'
 
       - name: "[ENFORCED] Install dependencies"
-        run: uv sync --frozen
+        run: uv sync --frozen --all-extras
 
       - name: "[ENFORCED] Prepare report directories"
         run: |
@@ -1299,7 +1299,7 @@ jobs:
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-      - run: uv sync --frozen
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — charter"
         run: |
@@ -1335,7 +1335,7 @@ jobs:
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-      - run: uv sync --frozen
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — sync"
         run: |
@@ -1363,7 +1363,7 @@ jobs:
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-      - run: uv sync --frozen
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — merge"
         run: |
@@ -1391,7 +1391,7 @@ jobs:
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-      - run: uv sync --frozen
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — missions"
         run: |
@@ -1421,7 +1421,7 @@ jobs:
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-      - run: uv sync --frozen
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — post_merge"
         run: |
@@ -1450,7 +1450,7 @@ jobs:
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-      - run: uv sync --frozen
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — release"
         run: |
@@ -1484,7 +1484,7 @@ jobs:
           python-version: '3.12'
 
       - name: "[ENFORCED] Install dependencies"
-        run: uv sync --frozen
+        run: uv sync --frozen --all-extras
 
       - name: "[ENFORCED] Prepare report directories"
         run: |
@@ -1520,7 +1520,7 @@ jobs:
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-      - run: uv sync --frozen
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — review"
         run: |
@@ -1549,7 +1549,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: |
-          uv sync --frozen
+          uv sync --frozen --all-extras
           uv pip install spec-kitty-runtime==0.4.5 --no-deps
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — next"
@@ -1578,7 +1578,7 @@ jobs:
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-      - run: uv sync --frozen
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — lanes"
         run: |
@@ -1606,7 +1606,7 @@ jobs:
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-      - run: uv sync --frozen
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — dashboard"
         run: |
@@ -1635,7 +1635,7 @@ jobs:
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-      - run: uv sync --frozen
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — upgrade"
         run: |
@@ -1663,7 +1663,7 @@ jobs:
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-      - run: uv sync --frozen
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — cli"
         run: |
@@ -1715,7 +1715,7 @@ jobs:
           python-version: '3.12'
 
       - name: "[ENFORCED] Install Python dependencies"
-        run: uv sync --frozen
+        run: uv sync --frozen --all-extras
 
       - name: "[ENFORCED] Prepare report directories"
         run: |
@@ -1819,7 +1819,7 @@ jobs:
           python-version: '3.12'
 
       - name: "[ENFORCED] Install Python dependencies"
-        run: uv sync --frozen
+        run: uv sync --frozen --all-extras
 
       - name: "[ENFORCED] Prepare report directories"
         run: |
@@ -1880,7 +1880,7 @@ jobs:
           python-version: '3.12'
 
       - name: "[ENFORCED] Install dependencies"
-        run: uv sync --frozen
+        run: uv sync --frozen --all-extras
 
       - name: "[ENFORCED] Download all coverage artifacts"
         uses: actions/download-artifact@v8
