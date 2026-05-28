@@ -246,6 +246,16 @@ def e2e_project(tmp_path: Path) -> Path:
         sync_charter(charter_path, charter_path.parent, force=True)
     _write_built_in_only_manifest(project)
 
+    # Disable charter preflight in the temp project.  metadata.yaml is
+    # gitignored and absent in CI checkouts, so the preflight would always
+    # see charter_source=stale and block `implement`.  E2E tests exercise
+    # the workflow, not charter governance.
+    _e2e_config = project / ".kittify" / "config.yaml"
+    if _e2e_config.exists():
+        _cfg = yaml.safe_load(_e2e_config.read_text(encoding="utf-8")) or {}
+        _cfg["preflight"] = {"enabled": False}
+        _e2e_config.write_text(yaml.dump(_cfg, default_flow_style=False, sort_keys=False), encoding="utf-8")
+
     # Copy missions from source location
     missions_src = REPO_ROOT / "src" / "specify_cli" / "missions"
     missions_dest = project / ".kittify" / "missions"
