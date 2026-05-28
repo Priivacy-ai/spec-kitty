@@ -520,6 +520,24 @@
       "contributions": [
         "bug"
       ]
+    },
+    {
+      "login": "LynnColeArt",
+      "name": "Lynn Cole",
+      "avatar_url": "https://avatars.githubusercontent.com/u/131792457?v=4",
+      "profile": "https://lynncole.art/",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "AlexU-A",
+      "name": "Alex Urevick-Ackelsberg",
+      "avatar_url": "https://avatars.githubusercontent.com/u/3340748?v=4",
+      "profile": "https://github.com/AlexU-A",
+      "contributions": [
+        "code"
+      ]
     }
   ]
 }
