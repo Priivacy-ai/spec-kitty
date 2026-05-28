@@ -10,6 +10,7 @@ requirement_refs:
 - FR-011
 - FR-014
 - FR-022
+- FR-032
 tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
