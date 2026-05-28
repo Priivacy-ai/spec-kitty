@@ -247,6 +247,27 @@ def test_no_removed_orchestrator_api_command_names_in_live_docs():
                 )
 
 
+def test_orchestrator_api_docs_do_not_teach_removed_json_flag_or_unpinned_provider_source():
+    """Live docs must not teach host/provider patterns known to fail today.
+
+    Authority: orchestrator-api JSON-default contract and host/provider
+    compatibility boundary.
+    """
+    forbidden_patterns = (
+        r"spec-kitty orchestrator-api[^\n]*--json",
+        r"--json[^\n]*spec-kitty orchestrator-api",
+        r"git\+https://github\.com/Priivacy-ai/spec-kitty-orchestrator\.git",
+    )
+    for path, content in _live_doc_scan_targets():
+        for pattern in forbidden_patterns:
+            for match in re.finditer(pattern, content):
+                line = _line_number(content, match.start())
+                pytest.fail(
+                    f"{path.relative_to(REPO_ROOT)}:{line}: doc teaches an incompatible orchestrator provider pattern. "
+                    "Fix: orchestrator-api output is JSON by default and provider installs must be pinned to a compatible build."
+                )
+
+
 def test_no_mission_used_to_mean_mission_type_in_cli_commands():
     """CLI command files must not declare --mission with mission-type semantics.
 

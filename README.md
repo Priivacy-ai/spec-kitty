@@ -118,6 +118,7 @@ Start here:
 
 - [Getting Started](docs/tutorials/getting-started.md)
 - [Your First Feature](docs/tutorials/your-first-feature.md)
+- [Orchestrator Quickstart](docs/tutorials/orchestrator-quickstart.md)
 - [CLI Command Reference](docs/reference/cli-commands.md)
 - [Slash Commands](docs/reference/slash-commands.md)
 - [Supported Agents](docs/reference/supported-agents.md)
