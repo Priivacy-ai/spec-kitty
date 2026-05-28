@@ -77,6 +77,10 @@ _HINT_TABLE: dict[InstallMethod, tuple[str | None, str | None]] = {
         "pipx upgrade spec-kitty-cli",
         None,
     ),
+    InstallMethod.UV_TOOL: (
+        "uv tool upgrade spec-kitty-cli",
+        None,
+    ),
     InstallMethod.PIP_USER: (
         "pip install --user --upgrade spec-kitty-cli",
         None,

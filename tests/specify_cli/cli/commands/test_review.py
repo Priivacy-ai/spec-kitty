@@ -321,6 +321,381 @@ def test_review_emits_json_diagnostic_when_pytest_missing(
     assert "uv sync --extra test" in result.output
 
 
+def test_review_emits_uv_tool_remediation_when_pytest_missing_in_uv_tool(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """uv tool installs must repair the tool interpreter, not the consumer repo."""
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+
+    monkeypatch.chdir(repo_root)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.find_repo_root",
+        lambda: repo_root,
+    )
+
+    from specify_cli.cli.commands.review import InstallMethod, TestExtraMissing
+
+    def _raise_missing(_: Path) -> None:
+        raise TestExtraMissing("MISSION_REVIEW_TEST_EXTRA_MISSING")
+
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.assert_pytest_available",
+        _raise_missing,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.detect_install_method",
+        lambda: InstallMethod.UV_TOOL,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.get_version",
+        lambda: "3.2.0rc25",
+    )
+
+    app = _build_cli_app()
+    runner = CliRunner()
+    result = runner.invoke(app, ["--mission", _MISSION_SLUG])
+
+    assert result.exit_code == 1, result.output
+    assert '"diagnostic_code": "MISSION_REVIEW_TEST_EXTRA_MISSING"' in result.output
+    assert "uv tool install --force --with pytest spec-kitty-cli==3.2.0rc25" in result.output
+    assert '"remediation": "uv tool install --force --with pytest spec-kitty-cli==3.2.0rc25"' in result.output
+
+
+def test_uv_tool_remediation_preserves_directory_receipt(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Local directory uv tool installs must not be rewritten to a PyPI pin."""
+    import specify_cli.cli.commands.review as review_mod
+
+    tool_env = tmp_path / "tool" / "spec-kitty-cli"
+    bin_dir = tool_env / "bin"
+    bin_dir.mkdir(parents=True)
+    source_dir = tmp_path / "source-checkout"
+    source_dir.mkdir()
+    (tool_env / "uv-receipt.toml").write_text(
+        "[tool]\n"
+        f'requirements = [{{ name = "spec-kitty-cli", directory = "{source_dir}" }}]\n',
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.detect_install_method",
+        lambda: review_mod.InstallMethod.UV_TOOL,
+    )
+    monkeypatch.setattr(review_mod.sys, "executable", str(bin_dir / "python"))
+
+    assert review_mod._missing_test_extra_remediation() == (  # noqa: SLF001
+        f"UV_TOOL_DIR={tool_env.parent!s} uv tool install --force --with pytest {source_dir!s}"
+    )
+
+
+def test_uv_tool_remediation_preserves_git_receipt_and_existing_with(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Git uv tool installs must preserve source provenance and injected deps."""
+    import specify_cli.cli.commands.review as review_mod
+
+    tool_env = tmp_path / "tool" / "spec-kitty-cli"
+    bin_dir = tool_env / "bin"
+    bin_dir.mkdir(parents=True)
+    (tool_env / "uv-receipt.toml").write_text(
+        "[tool]\n"
+        "requirements = [\n"
+        '  { name = "spec-kitty-cli", git = "file:///tmp/spec-kitty" },\n'
+        '  { name = "click" },\n'
+        "]\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.detect_install_method",
+        lambda: review_mod.InstallMethod.UV_TOOL,
+    )
+    monkeypatch.setattr(review_mod.sys, "executable", str(bin_dir / "python"))
+
+    assert review_mod._missing_test_extra_remediation() == (  # noqa: SLF001
+        f"UV_TOOL_DIR={tool_env.parent!s} uv tool install --force --with click "
+        "--with pytest spec-kitty-cli --from git+file:///tmp/spec-kitty"
+    )
+
+
+def test_uv_tool_remediation_preserves_editable_with_dependency(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Injected editable deps must stay editable when pytest is added."""
+    import specify_cli.cli.commands.review as review_mod
+
+    tool_env = tmp_path / "tool" / "spec-kitty-cli"
+    bin_dir = tool_env / "bin"
+    bin_dir.mkdir(parents=True)
+    extra_dir = tmp_path / "extra-dep"
+    extra_dir.mkdir()
+    (tool_env / "uv-receipt.toml").write_text(
+        "[tool]\n"
+        "requirements = [\n"
+        '  { name = "spec-kitty-cli", specifier = "==3.2.0rc25" },\n'
+        f'  {{ name = "extra-dep", editable = "{extra_dir}" }},\n'
+        "]\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.detect_install_method",
+        lambda: review_mod.InstallMethod.UV_TOOL,
+    )
+    monkeypatch.setattr(review_mod.sys, "executable", str(bin_dir / "python"))
+
+    assert review_mod._missing_test_extra_remediation() == (  # noqa: SLF001
+        f"UV_TOOL_DIR={tool_env.parent!s} uv tool install --force "
+        f"--with-editable {extra_dir!s} --with pytest spec-kitty-cli==3.2.0rc25"
+    )
+
+
+def test_uv_tool_remediation_does_not_duplicate_existing_pytest_with(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Existing pytest injection should not become duplicate --with pytest."""
+    import specify_cli.cli.commands.review as review_mod
+
+    tool_env = tmp_path / "tool" / "spec-kitty-cli"
+    bin_dir = tool_env / "bin"
+    bin_dir.mkdir(parents=True)
+    (tool_env / "uv-receipt.toml").write_text(
+        "[tool]\n"
+        "requirements = [\n"
+        '  { name = "spec-kitty-cli", specifier = "==3.2.0rc25" },\n'
+        '  { name = "pytest" },\n'
+        "]\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.detect_install_method",
+        lambda: review_mod.InstallMethod.UV_TOOL,
+    )
+    monkeypatch.setattr(review_mod.sys, "executable", str(bin_dir / "python"))
+
+    assert review_mod._missing_test_extra_remediation() == (  # noqa: SLF001
+        f"UV_TOOL_DIR={tool_env.parent!s} uv tool install --force --with pytest "
+        "spec-kitty-cli==3.2.0rc25"
+    )
+
+
+def test_uv_tool_remediation_with_unmapped_receipt_does_not_pin_to_pypi(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Present-but-unmapped receipts must fail conservative, not rewrite source."""
+    import specify_cli.cli.commands.review as review_mod
+
+    tool_env = tmp_path / "tool" / "spec-kitty-cli"
+    bin_dir = tool_env / "bin"
+    bin_dir.mkdir(parents=True)
+    (tool_env / "uv-receipt.toml").write_text(
+        "[tool]\n"
+        'requirements = [{ name = "other-tool" }]\n',
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.detect_install_method",
+        lambda: review_mod.InstallMethod.UV_TOOL,
+    )
+    monkeypatch.setattr(review_mod.sys, "executable", str(bin_dir / "python"))
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.get_version",
+        lambda: "3.2.0rc25",
+    )
+
+    remediation = review_mod._missing_test_extra_remediation()  # noqa: SLF001
+    assert "spec-kitty-cli==3.2.0rc25" not in remediation
+    assert "same uv tool source" in remediation
+
+
+def test_uv_tool_remediation_preserves_editable_receipt(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Editable uv tool installs must stay editable when adding pytest."""
+    import specify_cli.cli.commands.review as review_mod
+
+    tool_env = tmp_path / "tool" / "spec-kitty-cli"
+    bin_dir = tool_env / "bin"
+    bin_dir.mkdir(parents=True)
+    source_dir = tmp_path / "source-checkout"
+    source_dir.mkdir()
+    (tool_env / "uv-receipt.toml").write_text(
+        "[tool]\n"
+        f'requirements = [{{ name = "spec-kitty-cli", editable = "{source_dir}" }}]\n',
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.detect_install_method",
+        lambda: review_mod.InstallMethod.UV_TOOL,
+    )
+    monkeypatch.setattr(review_mod.sys, "executable", str(bin_dir / "python"))
+
+    assert review_mod._missing_test_extra_remediation() == (  # noqa: SLF001
+        f"UV_TOOL_DIR={tool_env.parent!s} uv tool install --force --with pytest --editable {source_dir!s}"
+    )
+
+
+def test_uv_tool_remediation_preserves_custom_bin_dir(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Reinstall remediation must not move shims out of a custom uv bin dir."""
+    import specify_cli.cli.commands.review as review_mod
+
+    tool_env = tmp_path / "tool" / "spec-kitty-cli"
+    bin_dir = tool_env / "bin"
+    bin_dir.mkdir(parents=True)
+    shim_dir = tmp_path / "custom-bin"
+    shim_dir.mkdir()
+    shim_path = shim_dir / "spec-kitty"
+    (tool_env / "uv-receipt.toml").write_text(
+        "[tool]\n"
+        'requirements = [{ name = "spec-kitty-cli", specifier = "==3.2.0rc25" }]\n'
+        "entrypoints = [\n"
+        f'  {{ name = "spec-kitty", install-path = "{shim_path}" }},\n'
+        "]\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.detect_install_method",
+        lambda: review_mod.InstallMethod.UV_TOOL,
+    )
+    monkeypatch.setattr(review_mod.sys, "executable", str(bin_dir / "python"))
+
+    assert review_mod._missing_test_extra_remediation() == (  # noqa: SLF001
+        f"UV_TOOL_DIR={tool_env.parent!s} UV_TOOL_BIN_DIR={shim_dir!s} "
+        "uv tool install --force --with pytest spec-kitty-cli==3.2.0rc25"
+    )
+
+
+def test_uv_tool_remediation_preserves_receipt_python(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Reinstall remediation must keep the uv tool Python interpreter."""
+    import specify_cli.cli.commands.review as review_mod
+
+    tool_env = tmp_path / "tool" / "spec-kitty-cli"
+    bin_dir = tool_env / "bin"
+    bin_dir.mkdir(parents=True)
+    (tool_env / "uv-receipt.toml").write_text(
+        "[tool]\n"
+        'requirements = [{ name = "spec-kitty-cli", specifier = "==3.2.0rc25" }]\n'
+        'python = "3.13"\n',
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.detect_install_method",
+        lambda: review_mod.InstallMethod.UV_TOOL,
+    )
+    monkeypatch.setattr(review_mod.sys, "executable", str(bin_dir / "python"))
+
+    assert review_mod._missing_test_extra_remediation() == (  # noqa: SLF001
+        f"UV_TOOL_DIR={tool_env.parent!s} uv tool install --force --python 3.13 --with pytest spec-kitty-cli==3.2.0rc25"
+    )
+
+
+def test_uv_tool_remediation_uses_powershell_env_prefix_on_windows(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Windows remediation must be pasteable in PowerShell, not POSIX-only."""
+    import specify_cli.cli.commands.review as review_mod
+
+    tool_env = tmp_path / "tool dir" / "spec-kitty-cli"
+    bin_dir = tool_env / "Scripts"
+    bin_dir.mkdir(parents=True)
+    shim_dir = tmp_path / "custom bin"
+    shim_dir.mkdir()
+    shim_path = shim_dir / "spec-kitty.exe"
+    (tool_env / "uv-receipt.toml").write_text(
+        "[tool]\n"
+        'requirements = [{ name = "spec-kitty-cli", specifier = "==3.2.0rc25" }]\n'
+        "entrypoints = [\n"
+        f'  {{ name = "spec-kitty", install-path = "{shim_path}" }},\n'
+        "]\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.detect_install_method",
+        lambda: review_mod.InstallMethod.UV_TOOL,
+    )
+    monkeypatch.setattr(review_mod.sys, "executable", str(bin_dir / "python.exe"))
+    monkeypatch.setattr(review_mod.sys, "platform", "win32")
+
+    assert review_mod._missing_test_extra_remediation() == (  # noqa: SLF001
+        f"$env:UV_TOOL_DIR='{tool_env.parent!s}'; "
+        f"$env:UV_TOOL_BIN_DIR='{shim_dir!s}'; "
+        "uv tool install --force --with pytest spec-kitty-cli==3.2.0rc25"
+    )
+
+
+def test_uv_tool_remediation_quotes_specifier_receipt(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Specifier receipts must remain copy/paste safe in POSIX shells."""
+    import specify_cli.cli.commands.review as review_mod
+
+    tool_env = tmp_path / "tool" / "spec-kitty-cli"
+    bin_dir = tool_env / "bin"
+    bin_dir.mkdir(parents=True)
+    (tool_env / "uv-receipt.toml").write_text(
+        "[tool]\n"
+        'requirements = [{ name = "spec-kitty-cli", specifier = ">=3.0" }]\n',
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.detect_install_method",
+        lambda: review_mod.InstallMethod.UV_TOOL,
+    )
+    monkeypatch.setattr(review_mod.sys, "executable", str(bin_dir / "python"))
+
+    assert review_mod._missing_test_extra_remediation() == (  # noqa: SLF001
+        f"UV_TOOL_DIR={tool_env.parent!s} uv tool install --force --with pytest 'spec-kitty-cli>=3.0'"
+    )
+
+
+def test_uv_tool_remediation_omits_uv_tool_dir_for_default_tool_dir(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Default uv tool installs should keep the short copy/paste command."""
+    import specify_cli.cli.commands.review as review_mod
+
+    tool_env = Path.home() / ".local" / "share" / "uv" / "tools" / "spec-kitty-cli"
+    bin_dir = tool_env / "bin"
+
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.detect_install_method",
+        lambda: review_mod.InstallMethod.UV_TOOL,
+    )
+    monkeypatch.setattr(review_mod.sys, "executable", str(bin_dir / "python"))
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.get_version",
+        lambda: "3.2.0rc25",
+    )
+
+    assert review_mod._missing_test_extra_remediation() == (  # noqa: SLF001
+        "uv tool install --force --with pytest spec-kitty-cli==3.2.0rc25"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Internal helper
 # ---------------------------------------------------------------------------

@@ -27,10 +27,12 @@ from __future__ import annotations
 
 import os
 import subprocess  # noqa: S404 — required to invoke the existing `spec-kitty upgrade` binary
+import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
+from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
@@ -206,28 +208,114 @@ def is_currently_snoozed(
 # ---------------------------------------------------------------------------
 
 
-def _default_upgrade_runner() -> int:
-    """Invoke ``spec-kitty upgrade --yes`` via subprocess.
+def _default_upgrade_runner(method: object) -> int:
+    """Invoke the owning installer's upgrade command via subprocess.
 
     Returns the process exit code.  Never raises; on OSError / timeout
     returns a non-zero sentinel so the caller can treat it as "failed".
 
     Auto-upgrade safety:
 
-    - Uses ``--yes`` so the existing upgrade command runs non-interactively.
+    - Uses installer-specific commands so tool-env upgrades mutate the
+      installer-owned CLI environment, not the current project.
     - Hard 5-minute timeout (upgrades that take longer are pathological
       and should be observed by the user, not auto-driven).
     - ``check=False`` — caller inspects the return code.
     """
+    from specify_cli.compat._detect.install_method import InstallMethod  # noqa: PLC0415
+
+    if not isinstance(method, InstallMethod):
+        return 1
+
+    uv_tool_argv = ["uv", "tool", "upgrade"]
+    uv_tool_argv.extend(_uv_tool_python_args())
+    uv_tool_argv.append("spec-kitty-cli")
+    argv_by_method = {
+        InstallMethod.PIPX: ["pipx", "upgrade", "spec-kitty-cli"],
+        InstallMethod.UV_TOOL: uv_tool_argv,
+        InstallMethod.BREW: ["brew", "upgrade", "spec-kitty-cli"],
+        InstallMethod.PIP_USER: [sys.executable, "-m", "pip", "install", "--user", "--upgrade", "spec-kitty-cli"],
+        InstallMethod.PIP_SYSTEM: [sys.executable, "-m", "pip", "install", "--upgrade", "spec-kitty-cli"],
+    }
+    argv = argv_by_method.get(method)
+    if argv is None:
+        return 1
+    env = _uv_tool_upgrade_env(method)
+
     try:
         completed = subprocess.run(  # noqa: S603,S607 — fixed argv; PATH lookup is intentional
-            ["spec-kitty", "upgrade", "--yes"],
+            argv,
             check=False,
+            env=env,
             timeout=300,
         )
         return completed.returncode
     except (OSError, subprocess.TimeoutExpired):
         return 1
+
+
+def _uv_tool_upgrade_env(method: object) -> dict[str, str] | None:
+    from specify_cli.compat._detect.install_method import InstallMethod  # noqa: PLC0415
+
+    if method != InstallMethod.UV_TOOL:
+        return None
+    tool_dir = _active_uv_tool_dir()
+    if tool_dir is None or _same_path(tool_dir, Path.home() / ".local" / "share" / "uv" / "tools"):
+        return None
+    env = dict(os.environ)
+    env["UV_TOOL_DIR"] = str(tool_dir)
+    return env
+
+
+def _uv_tool_python_args() -> list[str]:
+    receipt = _active_uv_tool_receipt()
+    if receipt is None:
+        return []
+    tool = receipt.get("tool", {})
+    if not isinstance(tool, dict):
+        return []
+    python = tool.get("python")
+    if not isinstance(python, str) or not python.strip():
+        return []
+    return ["--python", python]
+
+
+def _active_uv_tool_receipt() -> dict[str, object] | None:
+    try:
+        executable_parent = Path(sys.executable).parent
+        if executable_parent.name.lower() not in {"bin", "scripts"}:
+            return None
+        receipt_path = executable_parent.parent / "uv-receipt.toml"
+        if not receipt_path.exists():
+            return None
+        import tomllib  # noqa: PLC0415
+
+        receipt = tomllib.loads(receipt_path.read_text(encoding="utf-8"))
+        if isinstance(receipt, dict):
+            return receipt
+    except Exception:  # noqa: BLE001
+        return None
+    return None
+
+
+def _active_uv_tool_dir() -> Path | None:
+    try:
+        executable_parent = Path(sys.executable).parent
+        if executable_parent.name.lower() not in {"bin", "scripts"}:
+            return None
+        tool_env = executable_parent.parent
+        if not (tool_env / "uv-receipt.toml").exists():
+            return None
+        return tool_env.parent
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _same_path(left: Path, right: Path) -> bool:
+    try:
+        return left.resolve() == right.resolve()
+    except Exception:  # noqa: BLE001
+        return left == right
 
 
 # ---------------------------------------------------------------------------
@@ -415,10 +503,11 @@ def _run_auto_upgrade_if_safe(
     *,
     safe: bool,
     method: object,
-    upgrade_runner: Callable[[], int],
+    upgrade_runner: Callable[[], int] | None,
 ) -> tuple[bool, int | None, bool]:
     if safe:
-        return True, upgrade_runner(), False
+        runner_exit = _default_upgrade_runner(method) if upgrade_runner is None else upgrade_runner()
+        return True, runner_exit, False
     _print_unsafe_installer_guidance(str(method))
     return False, None, True
 
@@ -429,7 +518,7 @@ def _handle_always_preference(
     kwargs: dict[str, object],
     safe: bool,
     method: object,
-    upgrade_runner: Callable[[], int],
+    upgrade_runner: Callable[[], int] | None,
 ) -> UpgradeUxOutcome:
     attempted, exit_code, guidance_only = _run_auto_upgrade_if_safe(
         safe=safe,
@@ -455,7 +544,7 @@ def _handle_prompt_choice(
     now: datetime,
     safe: bool,
     method: object,
-    upgrade_runner: Callable[[], int],
+    upgrade_runner: Callable[[], int] | None,
 ) -> UpgradeUxOutcome:
     kwargs["last_shown_at"] = now
     new_kwargs = apply_choice(kwargs, choice=choice, current_latest=current_latest, now=now)
@@ -519,9 +608,6 @@ def run_upgrade_ux(  # noqa: C901,PLR0911,PLR0912,PLR0913,PLR0915 — orchestrat
         env = dict(os.environ)
     if prompt is None:
         prompt = _default_prompt
-    if upgrade_runner is None:
-        upgrade_runner = _default_upgrade_runner
-
     try:
         # Deferred imports.
         from specify_cli.compat import (  # noqa: PLC0415
