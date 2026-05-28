@@ -725,15 +725,23 @@ def implement(
             # Auto-commit to target branch (enables instant status sync)
             actual_wp_path = wp.path.resolve()
             status_artifacts = [path.resolve() for path in _collect_status_artifacts(_impl_feature_dir)]
-            commit_success = safe_commit(
-                repo_path=main_repo_root,
-                files_to_commit=[actual_wp_path, *status_artifacts],
-                commit_message=f"chore: Start {normalized_wp_id} implementation [{agent}]",
-                allow_empty=True,  # OK if already in this state
-            )
-            if not commit_success:
-                print(f"Error: Failed to commit workflow status update for {normalized_wp_id}. Status claim aborted.")
-                raise typer.Exit(1)
+            # Mechanical WP06 pre-step migration: WP01 required
+            # destination_ref + worktree_root. The status-claim commit
+            # lands on the target (planning/feature) branch the operator
+            # is on right now.
+            try:
+                safe_commit(
+                    repo_root=main_repo_root,
+                    worktree_root=main_repo_root,
+                    destination_ref=target_branch,
+                    message=f"chore: Start {normalized_wp_id} implementation [{agent}]",
+                    paths=(actual_wp_path, *status_artifacts),
+                )
+            except Exception as _commit_exc:  # noqa: BLE001 — surface + abort
+                print(
+                    f"Error: Failed to commit workflow status update for {normalized_wp_id}: {_commit_exc}. Status claim aborted."
+                )
+                raise typer.Exit(1) from _commit_exc
 
             print(f"✓ Claimed {normalized_wp_id} (agent: {agent}, PID: {shell_pid}, target: {target_branch})")
 
@@ -821,12 +829,20 @@ def implement(
                 # Commit the baseline artifact to the feature branch
                 _baseline_artifact = feature_dir / "tasks" / _wp_slug / "baseline-tests.json"
                 if _baseline_artifact.exists():
-                    safe_commit(
-                        repo_path=main_repo_root,
-                        files_to_commit=[_baseline_artifact],
-                        commit_message=f"chore: Capture baseline tests for {normalized_wp_id}",
-                        allow_empty=True,
-                    )
+                    # Mechanical WP06 pre-step migration.
+                    try:
+                        safe_commit(
+                            repo_root=main_repo_root,
+                            worktree_root=main_repo_root,
+                            destination_ref=target_branch,
+                            message=f"chore: Capture baseline tests for {normalized_wp_id}",
+                            paths=(_baseline_artifact,),
+                        )
+                    except Exception as _bl_commit_exc:  # noqa: BLE001 — best-effort
+                        import logging as _bl_logging2
+                        _bl_logging2.getLogger(__name__).warning(
+                            "Baseline artifact commit failed: %s", _bl_commit_exc
+                        )
             elif _baseline is not None and _baseline.failed == -1:
                 print("[yellow]Warning: baseline test capture failed — no baseline context available[/yellow]")
         except Exception as _bl_err:
@@ -1497,15 +1513,20 @@ def review(
                 # Atomic commit: WP file + all status artifacts (#211, #212)
                 actual_wp_path = wp.path.resolve()
                 status_artifacts = _collect_status_artifacts(feature_dir)
-                commit_success = safe_commit(
-                    repo_path=main_repo_root,
-                    files_to_commit=[actual_wp_path] + status_artifacts,
-                    commit_message=f"chore: Start {normalized_wp_id} review [{agent}]",
-                    allow_empty=True,  # OK if already in this state
-                )
-                if not commit_success:
-                    print(f"Error: Failed to commit workflow status update for {normalized_wp_id}. Review claim aborted.")
-                    raise typer.Exit(1)
+                # Mechanical WP06 pre-step migration.
+                try:
+                    safe_commit(
+                        repo_root=main_repo_root,
+                        worktree_root=main_repo_root,
+                        destination_ref=target_branch,
+                        message=f"chore: Start {normalized_wp_id} review [{agent}]",
+                        paths=(actual_wp_path, *status_artifacts),
+                    )
+                except Exception as _commit_exc:  # noqa: BLE001 — surface + abort
+                    print(
+                        f"Error: Failed to commit workflow status update for {normalized_wp_id}: {_commit_exc}. Review claim aborted."
+                    )
+                    raise typer.Exit(1) from _commit_exc
 
             print(f"✓ Claimed {normalized_wp_id} for review (agent: {agent}, PID: {shell_pid}, target: {target_branch})")
 

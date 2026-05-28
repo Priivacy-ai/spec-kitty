@@ -648,16 +648,24 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
                 if config_file.exists():
                     files_to_commit.append(config_file.resolve())
 
-                commit_success = safe_commit(
-                    repo_path=repo_root,
-                    files_to_commit=files_to_commit,
-                    commit_message=commit_msg,
-                    allow_empty=True,
-                )
-                if commit_success:
+                # Mechanical WP06 pre-step migration: add destination_ref +
+                # worktree_root after WP01's signature change. The status
+                # claim commit lands on the feature planning branch.
+                from specify_cli.core.git_ops import get_current_branch as _get_cur_branch
+                _cur_branch = _get_cur_branch(repo_root) or planning_branch
+                try:
+                    safe_commit(
+                        repo_root=repo_root,
+                        worktree_root=repo_root,
+                        destination_ref=_cur_branch,
+                        message=commit_msg,
+                        paths=tuple(files_to_commit),
+                    )
                     console.print(f"[cyan]→ {wp_id} moved to 'doing'[/cyan]")
-                else:
-                    console.print("[yellow]Warning:[/yellow] Could not auto-commit lane change")
+                except Exception as _commit_exc:  # noqa: BLE001 — log + continue
+                    console.print(
+                        f"[yellow]Warning:[/yellow] Could not auto-commit lane change: {_commit_exc}"
+                    )
             else:
                 console.print(f"[cyan]→ {wp_id} moved to 'doing' (auto-commit disabled, changes staged only)[/cyan]")
     except Exception as exc:
