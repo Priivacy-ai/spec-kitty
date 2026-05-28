@@ -239,3 +239,4 @@ When reviewing this WP, focus on:
 - 2026-05-28T10:22:24Z – claude – shell_pid=88169 – Moved to for_review
 - 2026-05-28T10:22:59Z – opencode – shell_pid=88227 – Started review via action command
 - 2026-05-28T10:26:26Z – opencode – shell_pid=88227 – Moved to approved
+- 2026-05-28T12:52:25Z – opencode – shell_pid=88227 – Done override: Mission merged to main in 886dde756

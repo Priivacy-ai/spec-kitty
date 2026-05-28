@@ -242,3 +242,4 @@ Two related fixes:
 - 2026-05-28T12:12:25Z – claude:opus:implementer-ivan:implementer – shell_pid=44381 – WP07 two-stage merge ready
 - 2026-05-28T12:13:10Z – claude:opus:reviewer-rita:reviewer – shell_pid=48120 – Started review via action command
 - 2026-05-28T12:15:16Z – claude:opus:reviewer-rita:reviewer – shell_pid=48120 – Review passed: T031 resolver reads meta.json (closes prep-branch leak), T032 two-stage merge preserved via existing lane->mission_branch->target flow (coord branch IS mission_branch in new topology), T033 idempotent teardown wired into both successful merge and --abort paths, T034 SC-04 + SC-10 PASS. mypy strict clean on _resolve_planning_branch.py and merge.py. 72/72 targeted tests pass.
+- 2026-05-28T12:52:30Z – claude:opus:reviewer-rita:reviewer – shell_pid=48120 – Done override: Mission merged to main in 886dde756
