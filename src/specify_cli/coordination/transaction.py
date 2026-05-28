@@ -136,48 +136,11 @@ def _generate_ulid() -> str:
     return str(_ulid_mod.ULID())
 
 
-def build_status_event(  # noqa: PLR0913 -- pass-through to a dataclass constructor
-    *,
-    mission_slug: str,
-    mission_id: str | None,
-    wp_id: str,
-    from_lane: str,
-    to_lane: str,
-    actor: str,
-    force: bool = False,
-    execution_mode: str = "worktree",
-    reason: str | None = None,
-    review_ref: str | None = None,
-) -> StatusEvent:
-    """Construct a fresh :class:`StatusEvent` with a new event_id and timestamp.
-
-    This is a **pure** helper so callers (and WP06's eventual refactor of
-    ``status.emit``) can mint events without re-implementing the
-    ULID + ISO-timestamp + Lane-coercion boilerplate. It does not write
-    to disk.
-
-    TODO(WP06): when ``status.emit`` is split into validate + persist
-    halves, replace this helper with the canonical
-    ``status.emit.build_status_event`` import.
-    """
-    from specify_cli.status.models import Lane  # local import: avoid cycles
-
-    return StatusEvent(
-        event_id=_generate_ulid(),
-        mission_slug=mission_slug,
-        wp_id=wp_id,
-        from_lane=Lane(from_lane),
-        to_lane=Lane(to_lane),
-        at=datetime.now(UTC).isoformat(),
-        actor=actor,
-        force=force,
-        execution_mode=execution_mode,
-        reason=reason,
-        review_ref=review_ref,
-        evidence=None,
-        policy_metadata=None,
-        mission_id=mission_id,
-    )
+# WP06 swap: the canonical builder now lives in ``status.emit`` so the
+# status domain owns it (FR-032). Re-export under the original name to
+# keep ``coordination.build_status_event`` import-compatible for any
+# callers that imported it through this module.
+from specify_cli.status.emit import build_status_event  # noqa: E402
 
 
 # ---------------------------------------------------------------------------

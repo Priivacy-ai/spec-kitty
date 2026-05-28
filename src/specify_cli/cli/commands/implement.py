@@ -9,7 +9,7 @@ import subprocess
 from datetime import UTC, datetime
 from io import StringIO
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
 from pydantic import ValidationError
@@ -233,7 +233,81 @@ def _ensure_planning_artifacts_committed_git(
         console.print(f'  git commit -m "chore: planning artifacts for {mission_slug}"')
         raise typer.Exit(1)
 
-    console.print(f"\n[cyan]Auto-committing planning artifacts to {planning_branch}...[/cyan]")
+    commit_msg = (
+        f"chore: planning artifacts for {mission_slug}\n\n"
+        f"Auto-committed by spec-kitty before creating the lane worktree for {wp_id}"
+    )
+
+    # WP06 T026: route planning-artifact commits through
+    # BookkeepingTransaction so the commit lands on the mission's
+    # coordination branch (FR-005) and any write of status events is
+    # atomically reversible (FR-010).
+    #
+    # Legacy missions (created pre-WP03) have no ``coordination_branch``
+    # in meta.json. For those, fall back to the legacy raw-git path.
+    # WP08 will replace this fallback with a proper legacy bridge.
+    from specify_cli.mission_metadata import load_meta as _load_meta
+
+    mission_meta: dict[str, Any] | None
+    try:
+        mission_meta = _load_meta(feature_dir)
+    except Exception:  # noqa: BLE001 — meta missing/corrupt is legacy
+        mission_meta = None
+
+    coord_branch: str | None = None
+    mission_id: str | None = None
+    mid8: str | None = None
+    if isinstance(mission_meta, dict):
+        coord_branch = mission_meta.get("coordination_branch") or None
+        mission_id = mission_meta.get("mission_id") or None
+        mid8 = mission_meta.get("mid8") or (
+            mission_id[:8] if isinstance(mission_id, str) and len(mission_id) >= 8 else None
+        )
+
+    if coord_branch and mission_id and mid8:
+        # Modern (post-WP03) mission: route through BookkeepingTransaction.
+        # This is the only commit path that respects the coordination
+        # branch, the feature-status lock, and the surgical-rollback
+        # contract that keeps #1348 from reproducing.
+        from specify_cli.coordination.transaction import BookkeepingTransaction
+
+        # Stage every file under feature_dir that has pending changes.
+        # ``write_artifact`` would over-rewrite content; we want to
+        # commit whatever the operator has already written. Use
+        # ``stage_path`` so the transaction tracks it for commit without
+        # snapshot-restore semantics (the operator's edits should not be
+        # rolled back on hook failure -- only the bookkeeping is).
+        with BookkeepingTransaction.acquire(
+            repo_root=repo_root,
+            mission_id=str(mission_id),
+            mission_slug=mission_slug,
+            mid8=str(mid8),
+            destination_ref=str(coord_branch),
+            operation=f"planning artifacts for {mission_slug}",
+        ) as txn:
+            for path_str in files_to_commit:
+                p = (repo_root / path_str).resolve()
+                if p.exists():
+                    txn.stage_path(p)
+            try:
+                txn.commit(commit_msg)
+            except Exception as exc:  # noqa: BLE001 — surface as exit-1
+                console.print(
+                    f"[red]Error:[/red] Failed to commit planning artifacts to {coord_branch}: {exc}"
+                )
+                raise typer.Exit(1) from exc
+
+        console.print(
+            f"[green]✓[/green] Planning artifacts committed to coordination branch {coord_branch}"
+        )
+        return
+
+    # Legacy fallback (TODO(WP08): replace with the legacy bridge so even
+    # pre-WP03 missions route through BookkeepingTransaction).
+    console.print(
+        f"\n[cyan]Auto-committing planning artifacts to {planning_branch}...[/cyan] "
+        f"[dim](legacy path -- mission has no coordination_branch)[/dim]"
+    )
     result = subprocess.run(
         ["git", "add", "-f", str(feature_dir)],
         cwd=repo_root,
@@ -248,7 +322,6 @@ def _ensure_planning_artifacts_committed_git(
         console.print(result.stderr)
         raise typer.Exit(1)
 
-    commit_msg = f"chore: planning artifacts for {mission_slug}\n\nAuto-committed by spec-kitty before creating the lane worktree for {wp_id}"
     result = subprocess.run(
         ["git", "-c", "commit.gpgsign=false", "commit", "-m", commit_msg],
         cwd=repo_root,
