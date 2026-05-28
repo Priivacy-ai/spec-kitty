@@ -368,7 +368,21 @@ def cmd_verify(
 ) -> None:
     """Cross-check deferred decisions against inline sentinel markers."""
     repo_root, mission_slug = _resolve_repo_root_and_slug(mission)
-    mission_dir = repo_root / "kitty-specs" / mission_slug
+    # Read-path mediation (WP08 T037, FR-030): in the coord-branch
+    # topology ``decisions/index.json`` lives in the coordination
+    # worktree, not the primary checkout.  The resolver returns the
+    # coord-worktree mission directory when one exists, and falls back
+    # to the primary checkout for legacy missions / early lifecycle.
+    from specify_cli.missions._read_path_resolver import (
+        resolve_mission_read_path,
+    )
+
+    _mid8 = ""
+    if "-" in mission_slug:
+        _tail = mission_slug.rsplit("-", 1)[-1]
+        if len(_tail) == 8 and _tail.isalnum() and _tail.isupper():
+            _mid8 = _tail
+    mission_dir = resolve_mission_read_path(repo_root, mission_slug, _mid8)
 
     result = _verify_decisions(mission_dir, mission_slug)
 

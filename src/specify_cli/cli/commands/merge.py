@@ -258,6 +258,10 @@ def _mark_wp_merged_done(
                     repo_root=repo_root,
                     ensure_sync_daemon=False,
                     sync_dossier=False,
+                    policy_metadata={
+                        "merge_phase": "lane_integrated",
+                        "target_branch": target_branch,
+                    },
                 )
             except TransitionError as exc:
                 console.print(f"[yellow]Warning:[/yellow] Failed to mark {wp_id} approved before done: {exc}")
@@ -269,6 +273,12 @@ def _mark_wp_merged_done(
         return
 
     try:
+        # WP07 / FR-008: tag the done transition with merge_phase=lane_integrated
+        # so consumers can audit which WPs were integrated via the two-stage
+        # merge pipeline (lane -> coordination branch -> target branch) and
+        # which target branch they landed on. The transition is emitted once
+        # per WP after Stage 1 (lane->coord) completes and before Stage 2
+        # (coord->target) runs the post-merge bookkeeping.
         emit_status_transition(
             feature_dir=feature_dir,
             mission_slug=mission_slug,
@@ -281,6 +291,10 @@ def _mark_wp_merged_done(
             repo_root=repo_root,
             ensure_sync_daemon=False,
             sync_dossier=False,
+            policy_metadata={
+                "merge_phase": "lane_integrated",
+                "target_branch": target_branch,
+            },
         )
     except TransitionError as exc:
         console.print(f"[yellow]Warning:[/yellow] Failed to mark {wp_id} done after merge: {exc}")
@@ -1537,6 +1551,48 @@ def _run_lane_based_merge_locked(
             logger.debug("Mission branch %s does not exist, skipping deletion", lanes_manifest.mission_branch)
         console.print(f"  Cleaned up {len(lanes_manifest.lanes)} lane branch(es) + mission branch")
 
+    # -- WP07 / FR-016 / SC-10: Coordination worktree teardown --
+    # After Stage 2 of the two-stage merge succeeds (lane -> coordination
+    # branch -> target branch), the coordination worktree at
+    # ``.worktrees/<slug>-<mid8>-coord/`` is no longer needed. Tearing
+    # it down here keeps the cleanup atomic: a successful merge leaves
+    # no stray coordination-branch worktrees behind.
+    #
+    # The coordination *branch* is the same git ref as
+    # ``lanes_manifest.mission_branch`` and was already deleted above as
+    # part of the standard lane/mission branch cleanup. The
+    # ``CoordinationWorkspace.teardown`` call below only touches the
+    # worktree directory + the per-worktree gitdir; it is idempotent and
+    # safely no-ops when called for legacy missions that never created a
+    # coordination worktree (FR-017).
+    if remove_worktree:
+        try:
+            from specify_cli.coordination import CoordinationWorkspace
+            from specify_cli.mission_metadata import load_meta as _load_meta
+
+            _meta_for_teardown = _load_meta(feature_dir)
+            _mid8_for_teardown = (
+                str(_meta_for_teardown.get("mid8", "")).strip()
+                if isinstance(_meta_for_teardown, dict)
+                else ""
+            )
+            if _mid8_for_teardown:
+                CoordinationWorkspace.teardown(
+                    main_repo,
+                    mission_slug,
+                    _mid8_for_teardown,
+                )
+                logger.debug(
+                    "Coordination worktree teardown for %s-%s completed",
+                    mission_slug,
+                    _mid8_for_teardown,
+                )
+        except Exception as _coord_teardown_exc:  # noqa: BLE001 — teardown is best-effort cleanup, never block the successful merge
+            logger.warning(
+                "Coordination worktree teardown failed (non-fatal): %s",
+                _coord_teardown_exc,
+            )
+
     # -- T002: Cleanup workspace (preserves state.json) then clear state --
     cleanup_merge_workspace(canonical_id, main_repo)
     clear_state(main_repo, canonical_id)
@@ -1614,6 +1670,33 @@ def merge(
         if resolved:
             cleared = clear_state(repo_root, resolved)
             cleanup_merge_workspace(resolved, repo_root)
+            # WP07 / FR-016: --abort also tears down the coordination
+            # worktree (idempotent; no-op for legacy missions without
+            # coordination state). Done here so partial-state aborts
+            # leave the workspace in the same shape as a clean run.
+            try:
+                from specify_cli.coordination import CoordinationWorkspace
+                from specify_cli.mission_metadata import load_meta as _load_meta
+
+                _main_for_abort = get_main_repo_root(repo_root)
+                _feature_dir_for_abort = _main_for_abort / "kitty-specs" / resolved
+                _meta_for_abort = _load_meta(_feature_dir_for_abort)
+                _mid8_for_abort = (
+                    str(_meta_for_abort.get("mid8", "")).strip()
+                    if isinstance(_meta_for_abort, dict)
+                    else ""
+                )
+                if _mid8_for_abort:
+                    CoordinationWorkspace.teardown(
+                        _main_for_abort,
+                        resolved,
+                        _mid8_for_abort,
+                    )
+            except Exception as _coord_abort_exc:  # noqa: BLE001 — abort cleanup is best-effort
+                logger.debug(
+                    "Coordination worktree teardown during --abort failed (non-fatal): %s",
+                    _coord_abort_exc,
+                )
             if cleared:
                 console.print(f"[green]Aborted[/green] merge for {resolved}. State and workspace cleaned up.")
             else:

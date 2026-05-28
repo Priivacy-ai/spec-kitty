@@ -71,20 +71,41 @@ def _resolve_mission_slug(
     cwd: Path | None,  # noqa: ARG001 -- kept for signature compatibility
     env: Mapping[str, str] | None,  # noqa: ARG001 -- kept for signature compatibility
 ) -> tuple[str, Path]:
-    """Resolve mission slug and directory from an explicit --mission value.
+    """Resolve mission slug and read-side directory.
 
-    Raises ActionContextError if feature is not provided or directory doesn't exist.
+    Mission directory resolution is CWD-independent and topology-aware
+    (WP08 T037, FR-030): for missions on the coord-branch topology the
+    returned ``feature_dir`` points into the coordination worktree;
+    for legacy missions it points into the primary checkout.  The
+    caller never has to guess which view the operator is sitting in.
+
+    Raises ActionContextError if feature is not provided or the mission
+    directory cannot be located in either view.
     """
     try:
         slug = require_explicit_feature(feature, command_hint="--mission <slug>")
     except ValueError as exc:
         raise ActionContextError("FEATURE_CONTEXT_UNRESOLVED", str(exc)) from exc
 
-    feature_dir = repo_root / "kitty-specs" / slug
+    # Derive mid8 from the post-WP03 ``<slug>-<mid8>`` shape when present.
+    mid8 = ""
+    if "-" in slug:
+        tail = slug.rsplit("-", 1)[-1]
+        if len(tail) == 8 and tail.isalnum() and tail.isupper():
+            mid8 = tail
+
+    # Late import to avoid a hard module-load dependency for legacy
+    # consumers of execution_context that pre-date the resolver.
+    from specify_cli.missions._read_path_resolver import (
+        resolve_mission_read_path,
+    )
+
+    feature_dir = resolve_mission_read_path(repo_root, slug, mid8)
     if not feature_dir.exists():
         raise ActionContextError(
             "FEATURE_CONTEXT_UNRESOLVED",
-            f"Mission directory not found: {feature_dir}. Check that '{slug}' is the correct mission slug.",
+            f"Mission directory not found: {feature_dir}. Check that "
+            f"'{slug}' is the correct mission slug.",
         )
     return slug, feature_dir
 

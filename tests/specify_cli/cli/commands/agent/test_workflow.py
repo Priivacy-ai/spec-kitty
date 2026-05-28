@@ -325,3 +325,144 @@ def test_agent_assignment_with_all_fields():
     assert assignment.model == "claude-opus-4-6"
     assert assignment.profile_id == "claude:opus:implementer"
     assert assignment.role == "implementer"
+
+
+# ---------------------------------------------------------------------------
+# WP06 (T027/T029) -- BookkeepingTransaction migration tests
+# ---------------------------------------------------------------------------
+
+
+class TestWorkflowCommitReceipts:
+    """The T029 commit-summary accumulator behaves correctly."""
+
+    def test_reset_clears_receipts(self) -> None:
+        from specify_cli.cli.commands.agent import workflow
+
+        workflow._WORKFLOW_COMMIT_RECEIPTS.append({"foo": "bar"})
+        workflow._reset_workflow_receipts()
+        assert workflow._WORKFLOW_COMMIT_RECEIPTS == []
+
+    def test_record_receipt_stores_full_payload(self) -> None:
+        from specify_cli.cli.commands.agent import workflow
+
+        workflow._reset_workflow_receipts()
+        workflow._record_receipt(
+            "kitty/mission-foo-01ABCDEF",
+            "chore: WP01 claimed [claude]",
+            "committed",
+            sha="abc123def456",
+            wp_id="WP01",
+        )
+        assert len(workflow._WORKFLOW_COMMIT_RECEIPTS) == 1
+        receipt = workflow._WORKFLOW_COMMIT_RECEIPTS[0]
+        assert receipt["destination_ref"] == "kitty/mission-foo-01ABCDEF"
+        assert receipt["outcome"] == "committed"
+        assert receipt["sha"] == "abc123def456"
+        assert receipt["wp_id"] == "WP01"
+
+
+class TestLoadCoordBranchMeta:
+    """``_load_coord_branch_meta`` reads coord-branch metadata correctly."""
+
+    def test_returns_none_tuple_when_meta_missing(self, tmp_path: Path) -> None:
+        from specify_cli.cli.commands.agent.workflow import _load_coord_branch_meta
+
+        # No meta.json at all.
+        result = _load_coord_branch_meta(tmp_path)
+        assert result == (None, None, None)
+
+    def test_returns_coord_when_present(self, tmp_path: Path) -> None:
+        import json
+        from specify_cli.cli.commands.agent.workflow import _load_coord_branch_meta
+
+        (tmp_path / "meta.json").write_text(
+            json.dumps({
+                "mission_id": "01ABCDEFGHJKMNPQRSTVWXYZ12",
+                "mid8": "01ABCDEF",
+                "coordination_branch": "kitty/mission-foo-01ABCDEF",
+            }),
+            encoding="utf-8",
+        )
+        coord, mid, mid8 = _load_coord_branch_meta(tmp_path)
+        assert coord == "kitty/mission-foo-01ABCDEF"
+        assert mid == "01ABCDEFGHJKMNPQRSTVWXYZ12"
+        assert mid8 == "01ABCDEF"
+
+    def test_falls_back_to_legacy_when_coord_missing(self, tmp_path: Path) -> None:
+        import json
+        from specify_cli.cli.commands.agent.workflow import _load_coord_branch_meta
+
+        # Legacy mission: mission_id present but no coordination_branch.
+        (tmp_path / "meta.json").write_text(
+            json.dumps({
+                "mission_id": "01ABCDEFGHJKMNPQRSTVWXYZ12",
+            }),
+            encoding="utf-8",
+        )
+        coord, mid, mid8 = _load_coord_branch_meta(tmp_path)
+        assert coord is None
+        # mid8 is still computed from mission_id even without coord branch.
+        assert mid == "01ABCDEFGHJKMNPQRSTVWXYZ12"
+        assert mid8 == "01ABCDEF"
+
+
+class TestPrintCommitSummary:
+    """The T029 terminal summary formats receipts correctly."""
+
+    def test_no_receipts_no_output(self, capsys: pytest.CaptureFixture[str]) -> None:
+        from specify_cli.cli.commands.agent import workflow
+
+        workflow._reset_workflow_receipts()
+        workflow._print_commit_summary(command_name="implement")
+        captured = capsys.readouterr()
+        assert captured.out == ""
+
+    def test_human_format_shows_committed_and_refused(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        from specify_cli.cli.commands.agent import workflow
+
+        workflow._reset_workflow_receipts()
+        workflow._record_receipt(
+            "kitty/mission-foo-01ABCDEF",
+            "chore: WP01 claimed [claude]",
+            "committed",
+            sha="abc123",
+            wp_id="WP01",
+        )
+        workflow._record_receipt(
+            "main",
+            "chore: WP02 claimed [claude]",
+            "refused",
+            wp_id="WP02",
+        )
+        workflow._print_commit_summary(command_name="implement")
+        captured = capsys.readouterr()
+        assert "[implement] Commits recorded:" in captured.out
+        assert "kitty/mission-foo-01ABCDEF" in captured.out
+        assert "WP01 claimed" in captured.out
+        assert "[ok]" in captured.out
+        assert "[refused]" in captured.out
+        workflow._reset_workflow_receipts()
+
+    def test_json_format_emits_structured_payload(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        import json as _json
+        from specify_cli.cli.commands.agent import workflow
+
+        workflow._reset_workflow_receipts()
+        workflow._record_receipt(
+            "kitty/mission-bar-01XYZ",
+            "chore: WP01 review [claude]",
+            "committed",
+            sha="def456",
+            wp_id="WP01",
+        )
+        workflow._print_commit_summary(command_name="review", json_output=True)
+        captured = capsys.readouterr()
+        payload = _json.loads(captured.out.strip())
+        assert "commits" in payload
+        assert len(payload["commits"]) == 1
+        assert payload["commits"][0]["destination_ref"] == "kitty/mission-bar-01XYZ"
+        workflow._reset_workflow_receipts()

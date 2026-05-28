@@ -91,6 +91,98 @@ def _now_utc() -> str:
     return datetime.now(UTC).isoformat()
 
 
+# ---------------------------------------------------------------------------
+# WP06 (T028) -- pure status-domain helpers
+# ---------------------------------------------------------------------------
+#
+# Per FR-032, the status domain stays free of coordination-layer concerns.
+# These helpers are pure: ``build_status_event`` mints a StatusEvent in
+# memory (ULID, ISO timestamp, Lane coercion) with no I/O;
+# ``append_event_jsonl`` performs a single-line JSONL append with no
+# commit and no materialization.
+#
+# Workflow call sites compose ``build_status_event`` + the coordination
+# transaction's ``append_event`` (which calls into store + reducer).
+# Legacy callers that haven't migrated yet continue to use
+# ``emit_status_transition`` -- it now composes these helpers internally
+# and emits a DeprecationWarning when used outside a transaction.
+
+def build_status_event(  # noqa: PLR0913 -- pass-through to a dataclass constructor
+    *,
+    mission_slug: str,
+    wp_id: str,
+    from_lane: str,
+    to_lane: str,
+    actor: str,
+    mission_id: str | None = None,
+    force: bool = False,
+    execution_mode: str = "worktree",
+    reason: str | None = None,
+    review_ref: str | None = None,
+    evidence: DoneEvidence | None = None,
+    policy_metadata: dict[str, Any] | None = None,
+) -> StatusEvent:
+    """Construct a fresh :class:`StatusEvent` with a new ULID and timestamp.
+
+    Pure: no I/O, no validation, no side effects. Callers that need
+    transition validation should run :func:`validate_transition` first
+    and let it raise; this helper only assembles a value object.
+
+    Args:
+        mission_slug: Human mission identifier (e.g. ``"034-feature"``).
+        wp_id: Work-package id (e.g. ``"WP01"``).
+        from_lane: Canonical lane the WP is leaving.
+        to_lane: Canonical lane the WP enters.
+        actor: Identity of the actor performing the transition.
+        mission_id: ULID-based machine identity (optional for legacy).
+        force: True if this transition bypasses guard conditions.
+        execution_mode: ``"worktree"`` or ``"direct_repo"``.
+        reason: Optional human reason (required for force).
+        review_ref: Optional review-feedback reference.
+        evidence: Optional :class:`DoneEvidence` for done transitions.
+        policy_metadata: Optional orchestrator policy metadata dict.
+
+    Returns:
+        A new :class:`StatusEvent` ready to append to the event log.
+    """
+    return StatusEvent(
+        event_id=_generate_ulid(),
+        mission_slug=mission_slug,
+        wp_id=wp_id,
+        from_lane=Lane(from_lane),
+        to_lane=Lane(to_lane),
+        at=_now_utc(),
+        actor=actor,
+        force=force,
+        execution_mode=execution_mode,
+        reason=reason,
+        review_ref=review_ref,
+        evidence=evidence,
+        policy_metadata=policy_metadata,
+        mission_id=mission_id,
+    )
+
+
+def append_event_jsonl(events_path: Path, event: StatusEvent) -> None:
+    """Append a single :class:`StatusEvent` to a JSONL event log.
+
+    Pure I/O: writes one canonical JSON line. Does not materialize,
+    does not commit, does not fan out. The caller is responsible for
+    holding any required lock.
+
+    Args:
+        events_path: Path to the ``status.events.jsonl`` file. Parent
+            directories are created on demand.
+        event: The :class:`StatusEvent` to append.
+    """
+    # Delegate to the canonical store implementation so the wire format
+    # stays consistent (sorted keys, trailing newline, etc.). The store
+    # accepts the feature_dir, not the events_path directly.
+    feature_dir = events_path.parent
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    _store.append_event_verified(feature_dir, event)
+
+
 def _derive_from_lane(feature_dir: Path, wp_id: str) -> str:
     """Derive the current lane for a WP from canonical reduced state.
 

@@ -2024,3 +2024,371 @@ def _render_selection_block_lines(
         for entry in entries:
             lines.append(f"    - {entry['id']:<24}(source: {entry['source']})")
     return lines
+
+
+# ---------------------------------------------------------------------------
+# #1348 (WP04): coordination workspace + lane sparse-checkout health
+# ---------------------------------------------------------------------------
+
+
+from dataclasses import dataclass, field
+
+
+@dataclass
+class DoctorFinding:
+    """A single doctor finding emitted by a WP04 health check.
+
+    Stable shape so that downstream tools (and tests) can rely on it.
+    """
+
+    severity: str  # "ok" | "warning" | "error"
+    message: str
+    next_step: str | None = None
+    error_code: str | None = None
+    extra: dict[str, object] = field(default_factory=dict)
+
+
+_MIN_GIT_VERSION: tuple[int, int] = (2, 25)
+
+
+def _detect_git_version() -> tuple[int, int] | None:
+    """Return ``(major, minor)`` of the local git binary, or ``None`` on failure."""
+    import subprocess as _subprocess
+    try:
+        out = _subprocess.check_output(
+            ["git", "--version"], text=True, stderr=_subprocess.DEVNULL,
+        ).strip()
+    except (OSError, _subprocess.CalledProcessError):
+        return None
+    # Output shape: "git version 2.45.1.windows.1" — take the first two numbers.
+    parts = out.split()
+    if len(parts) < 3:
+        return None
+    nums = parts[2].split(".")
+    try:
+        return int(nums[0]), int(nums[1])
+    except (ValueError, IndexError):
+        return None
+
+
+def _check_git_version(
+    detected: tuple[int, int] | None = None,
+) -> list[DoctorFinding]:
+    """RR-01: refuse to operate on git older than ``_MIN_GIT_VERSION``.
+
+    ``detected`` is injectable for tests; production callers pass
+    ``None`` and the function detects from the live binary.
+    """
+    version = detected if detected is not None else _detect_git_version()
+    if version is None:
+        return [DoctorFinding(
+            severity="error",
+            message="Could not detect git version. spec-kitty requires git >= 2.25.",
+            next_step="Install or upgrade git to >= 2.25.",
+            error_code="GIT_VERSION_UNDETECTABLE",
+        )]
+    if version < _MIN_GIT_VERSION:
+        return [DoctorFinding(
+            severity="error",
+            message=(
+                f"git {version[0]}.{version[1]} is older than the required "
+                f"{_MIN_GIT_VERSION[0]}.{_MIN_GIT_VERSION[1]}. "
+                "Sparse-checkout exclusion of status files requires the "
+                "modern non-cone surface."
+            ),
+            next_step=(
+                "Upgrade git to >= 2.25 — see https://git-scm.com/downloads."
+            ),
+            error_code="GIT_VERSION_TOO_OLD",
+            extra={"detected": f"{version[0]}.{version[1]}"},
+        )]
+    return [DoctorFinding(
+        severity="ok",
+        message=f"git {version[0]}.{version[1]} satisfies the >= 2.25 requirement.",
+    )]
+
+
+def _check_coordination_worktree_health(
+    repo_root: Path, mission_meta: dict[str, object],
+) -> list[DoctorFinding]:
+    """Verify the coordination worktree exists and is healthy.
+
+    Returns one finding per discovered problem (or one ``ok`` finding if
+    everything is fine). Skips silently for legacy missions (no
+    ``coordination_branch`` field) because the coordination worktree
+    concept does not apply there.
+    """
+    import subprocess as _subprocess
+    from specify_cli.coordination import CoordinationWorkspace
+
+    coord_branch = mission_meta.get("coordination_branch")
+    mission_slug = mission_meta.get("mission_slug") or mission_meta.get("slug")
+    mission_id = mission_meta.get("mission_id")
+
+    if not isinstance(coord_branch, str) or not coord_branch:
+        # Legacy mission — nothing to check.
+        return []
+    if not isinstance(mission_slug, str) or not isinstance(mission_id, str):
+        return [DoctorFinding(
+            severity="warning",
+            message=(
+                "meta.json carries coordination_branch but is missing "
+                "mission_slug/mission_id; coord worktree health cannot be verified."
+            ),
+            next_step="Run `spec-kitty doctor identity --json` for details.",
+            error_code="COORDINATION_META_INCOMPLETE",
+        )]
+
+    # Use the canonical mid8 helper.
+    from specify_cli.lanes.branch_naming import mid8 as _mid8
+    try:
+        short = _mid8(mission_id)
+    except ValueError:
+        short = mission_id[:8]
+    worktree = CoordinationWorkspace.worktree_path(repo_root, mission_slug, short)
+    findings: list[DoctorFinding] = []
+
+    if not worktree.exists():
+        findings.append(DoctorFinding(
+            severity="warning",
+            message=(
+                f"Coordination worktree {worktree} is missing for "
+                f"mission {mission_slug!r}."
+            ),
+            next_step=(
+                f"Run `spec-kitty agent worktree repair --mission {mission_slug}` "
+                "to recreate it."
+            ),
+            error_code="COORDINATION_WORKTREE_MISSING",
+        ))
+        return findings
+
+    # Verify HEAD points at the coord branch.
+    try:
+        actual_head = _subprocess.check_output(
+            ["git", "-C", str(worktree), "symbolic-ref", "HEAD"], text=True,
+        ).strip()
+    except _subprocess.CalledProcessError:
+        actual_head = "<detached>"
+    expected = f"refs/heads/{coord_branch}"
+    if actual_head != expected and actual_head.removeprefix("refs/heads/") != coord_branch:
+        findings.append(DoctorFinding(
+            severity="warning",
+            message=(
+                f"Coordination worktree {worktree} is on {actual_head!r}, "
+                f"expected {coord_branch!r}."
+            ),
+            next_step=(
+                f"Inspect the worktree manually; then run "
+                f"`spec-kitty agent worktree repair --mission {mission_slug}` "
+                "to restore."
+            ),
+            error_code="COORDINATION_WORKTREE_BRANCH_MISMATCH",
+        ))
+
+    # Tree cleanliness.
+    try:
+        dirty = _subprocess.check_output(
+            ["git", "-C", str(worktree), "status", "--porcelain"], text=True,
+        ).strip()
+    except _subprocess.CalledProcessError:
+        dirty = ""
+    if dirty:
+        findings.append(DoctorFinding(
+            severity="warning",
+            message=(
+                f"Coordination worktree {worktree} has uncommitted changes."
+            ),
+            next_step=(
+                "Commit or discard the changes inside the coord worktree "
+                "before next implement/review."
+            ),
+            error_code="COORDINATION_WORKTREE_DIRTY",
+        ))
+
+    if not findings:
+        findings.append(DoctorFinding(
+            severity="ok",
+            message=f"Coordination worktree {worktree} is healthy.",
+        ))
+    return findings
+
+
+def _check_lane_sparse_checkout_drift(
+    repo_root: Path, mission_meta: dict[str, object],
+) -> list[DoctorFinding]:
+    """Verify every lane worktree carries the expected sparse-checkout patterns.
+
+    Skips silently for legacy missions.
+    """
+    import subprocess as _subprocess
+    from specify_cli.coordination import lane_sparse_checkout_patterns
+
+    coord_branch = mission_meta.get("coordination_branch")
+    mission_slug = mission_meta.get("mission_slug") or mission_meta.get("slug")
+    mission_id = mission_meta.get("mission_id")
+    if not isinstance(coord_branch, str) or not coord_branch:
+        return []
+    if not isinstance(mission_slug, str) or not isinstance(mission_id, str):
+        return []
+
+    from specify_cli.lanes.branch_naming import mid8 as _mid8
+    try:
+        short = _mid8(mission_id)
+    except ValueError:
+        short = mission_id[:8]
+
+    expected = set(lane_sparse_checkout_patterns(mission_slug, short))
+
+    findings: list[DoctorFinding] = []
+    worktrees_dir = repo_root / ".worktrees"
+    if not worktrees_dir.exists():
+        return []
+
+    # Cache `git worktree list --porcelain` so we don't shell out per lane.
+    try:
+        wt_list = _subprocess.check_output(
+            ["git", "-C", str(repo_root), "worktree", "list", "--porcelain"],
+            text=True,
+        )
+    except _subprocess.CalledProcessError:
+        wt_list = ""
+
+    for lane_dir in sorted(worktrees_dir.iterdir()):
+        name = lane_dir.name
+        # Only inspect lane worktrees for THIS mission (slug prefix + "-lane-").
+        if not name.startswith(f"{mission_slug}-lane-"):
+            continue
+        if str(lane_dir.resolve()) not in wt_list:
+            # Not a registered git worktree; skip silently.
+            continue
+        try:
+            raw = _subprocess.check_output(
+                ["git", "-C", str(lane_dir), "rev-parse",
+                 "--git-path", "info/sparse-checkout"],
+                text=True,
+            ).strip()
+        except _subprocess.CalledProcessError:
+            findings.append(DoctorFinding(
+                severity="warning",
+                message=f"Could not resolve sparse-checkout path for {lane_dir}.",
+                next_step=(
+                    f"Run `spec-kitty agent worktree repair --mission {mission_slug}`."
+                ),
+                error_code="LANE_SPARSE_CHECKOUT_DRIFT",
+            ))
+            continue
+        sparse_file = Path(raw)
+        if not sparse_file.is_absolute():
+            sparse_file = lane_dir / sparse_file
+        if not sparse_file.exists():
+            findings.append(DoctorFinding(
+                severity="warning",
+                message=(
+                    f"Lane worktree {lane_dir} is missing the sparse-checkout "
+                    "policy that excludes status files."
+                ),
+                next_step=(
+                    f"Run `spec-kitty agent worktree repair --mission {mission_slug}` "
+                    "to restore."
+                ),
+                error_code="LANE_SPARSE_CHECKOUT_DRIFT",
+            ))
+            continue
+        present = {
+            line.strip()
+            for line in sparse_file.read_text().splitlines()
+            if line.strip()
+        }
+        missing = expected - present
+        if missing:
+            findings.append(DoctorFinding(
+                severity="warning",
+                message=(
+                    f"Lane worktree {lane_dir} sparse-checkout is missing "
+                    f"{len(missing)} expected pattern(s): {sorted(missing)}."
+                ),
+                next_step=(
+                    f"Run `spec-kitty agent worktree repair --mission {mission_slug}` "
+                    "to restore."
+                ),
+                error_code="LANE_SPARSE_CHECKOUT_DRIFT",
+                extra={"missing_patterns": sorted(missing)},
+            ))
+
+    if not findings:
+        findings.append(DoctorFinding(
+            severity="ok",
+            message="All lane worktrees carry the expected sparse-checkout policy.",
+        ))
+    return findings
+
+
+@app.command(name="coordination")
+def coordination_health(
+    json_output: Annotated[
+        bool, typer.Option("--json", help="Machine-readable JSON output"),
+    ] = False,
+) -> None:
+    """Run the WP04 #1348 coordination + sparse-checkout health checks.
+
+    Iterates over every mission under ``kitty-specs/`` whose ``meta.json``
+    declares a ``coordination_branch`` field, runs the coord-worktree
+    and lane-sparse-checkout health checks, and prints findings.
+
+    Also runs the minimum git-version (RR-01) check.
+
+    Exits with code 1 if any ``error`` finding is emitted; ``warning``
+    findings exit 0 but are still printed.
+    """
+    try:
+        repo_root = locate_project_root()
+    except Exception as exc:
+        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(1) from exc
+    if repo_root is None:
+        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(1)
+
+    findings: list[DoctorFinding] = []
+    findings.extend(_check_git_version())
+
+    specs_dir = repo_root / "kitty-specs"
+    if specs_dir.exists():
+        for mission_dir in sorted(specs_dir.iterdir()):
+            if not mission_dir.is_dir():
+                continue
+            meta_path = mission_dir / "meta.json"
+            if not meta_path.exists():
+                continue
+            try:
+                meta = json.loads(meta_path.read_text())
+            except (OSError, json.JSONDecodeError):
+                continue
+            if not isinstance(meta, dict):
+                continue
+            findings.extend(_check_coordination_worktree_health(repo_root, meta))
+            findings.extend(_check_lane_sparse_checkout_drift(repo_root, meta))
+
+    if json_output:
+        payload = [
+            {
+                "severity": f.severity,
+                "message": f.message,
+                "next_step": f.next_step,
+                "error_code": f.error_code,
+                "extra": f.extra,
+            }
+            for f in findings
+        ]
+        console.print_json(json.dumps(payload, indent=2))
+    else:
+        for f in findings:
+            colour = {
+                "ok": "green", "warning": "yellow", "error": "red",
+            }.get(f.severity, "white")
+            console.print(f"[{colour}]{f.severity}[/{colour}]: {f.message}")
+            if f.next_step:
+                console.print(f"  → {f.next_step}")
+
+    raise typer.Exit(1 if any(f.severity == "error" for f in findings) else 0)
