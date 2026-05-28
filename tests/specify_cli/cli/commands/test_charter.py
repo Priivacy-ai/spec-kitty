@@ -42,6 +42,15 @@ MISSION_ID = "01KCHARTERTESTMISSION0001"
 runner = CliRunner()
 
 
+@pytest.mark.fast
+def test_charter_public_exports_are_defined() -> None:
+    """Every name listed in the charter package __all__ must resolve."""
+    import specify_cli.cli.commands.charter as charter_module
+
+    for name in charter_module.__all__:
+        assert hasattr(charter_module, name), f"{name} listed in __all__ but not defined"
+
+
 def _setup_repo(tmp_path: Path) -> Path:
     """Create a minimal repo structure with .kittify/ and mission meta.json."""
     kittify = tmp_path / ".kittify"
