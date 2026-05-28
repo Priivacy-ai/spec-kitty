@@ -61,7 +61,7 @@ the agent's CLI capabilities:
 | Agent | Config Key | CLI Dispatch | Can Run move-task | Tier |
 |-------|-----------|--------------|-------------------|------|
 | Claude Code | `claude` | `claude -p "prompt" --output-format json` | Yes | 1 |
-| GitHub Codex | `codex` | `codex exec --full-auto -C <dir> -` (stdin) | Yes | 1 |
+| GitHub Codex | `codex` | `codex exec --sandbox danger-full-access -C <dir> -` (stdin) | Yes | 1 |
 | Google Gemini | `gemini` | `gemini -p "prompt" --yolo --output-format json` | Yes | 1 |
 | GitHub Copilot | `copilot` | `copilot -p "prompt" --yolo --silent` | Yes | 1 |
 | OpenCode | `opencode` | `opencode run "prompt" --format json` | Yes | 1 |
@@ -251,7 +251,8 @@ PROMPT_CONTENT=$(cat "$PROMPT_FILE")
 claude -p "$PROMPT_CONTENT" --output-format json -C "$WORKSPACE"
 
 # GitHub Codex:
-printf '%s' "$PROMPT_CONTENT" | codex exec --full-auto -C "$WORKSPACE" -
+# move-task writes git/status locks and may touch local sync state; workspace-write/full-auto is too narrow.
+printf '%s' "$PROMPT_CONTENT" | codex exec --sandbox danger-full-access -C "$WORKSPACE" -
 
 # Google Gemini:
 gemini -p "$PROMPT_CONTENT" --yolo --output-format json -C "$WORKSPACE"
@@ -371,7 +372,7 @@ cat "$REVIEW_PROMPT" >> /tmp/review-prompt-WP##.md
 
 # Dispatch to configured reviewer (same CLI patterns as Step 1b)
 # Example for codex:
-cat /tmp/review-prompt-WP##.md | codex exec --full-auto \
+cat /tmp/review-prompt-WP##.md | codex exec --sandbox danger-full-access \
   -C "$WORKTREE" --add-dir "$(pwd)" \
   -o "/tmp/review-result-WP##.md" -
 
@@ -835,9 +836,11 @@ orchestrator should run the force-move manually.
 `timeout 600 cursor agent -p --force "prompt"`. If still hanging, kill and
 re-dispatch to a different agent.
 
-**Auto-commit warnings from sandboxed agents**: Some agents (codex) run in
-sandboxes that cannot write to `.git/index.lock`. The lane change is written
-to status files but needs manual commit from the repository root checkout:
+**Auto-commit warnings from sandboxed agents**: Codex dispatch must use
+`--sandbox danger-full-access` so terminal `move-task` can write git/status
+locks and commit status artifacts. If a locally patched or stale skill still
+uses `--full-auto`/`workspace-write`, the lane change may be written to status
+files but still need manual commit from the repository root checkout:
 `git add kitty-specs/ && git commit -m "chore: status update"`
 
 **Stale WP (in_progress but no agent activity)**: Force back to planned and
