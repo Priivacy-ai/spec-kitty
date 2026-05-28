@@ -239,22 +239,28 @@ def _nonempty_str(value: object) -> str | None:
 
 
 def _uv_tool_env_prefix() -> str:
-    prefixes = [_uv_tool_dir_env_prefix(), _uv_tool_bin_dir_env_prefix()]
-    return "".join(prefix for prefix in prefixes if prefix)
+    env_values = _uv_tool_env_values()
+    if sys.platform == "win32":
+        return "".join(
+            f"$env:{name}={_powershell_quote(str(value))}; "
+            for name, value in env_values
+        )
+    return "".join(f"{name}={shlex.quote(str(value))} " for name, value in env_values)
 
 
-def _uv_tool_dir_env_prefix() -> str:
+def _uv_tool_env_values() -> list[tuple[str, Path]]:
+    env_values: list[tuple[str, Path]] = []
     tool_dir = _active_uv_tool_dir()
-    if tool_dir is None or _same_path(tool_dir, Path.home() / ".local" / "share" / "uv" / "tools"):
-        return ""
-    return f"UV_TOOL_DIR={shlex.quote(str(tool_dir))} "
-
-
-def _uv_tool_bin_dir_env_prefix() -> str:
+    if tool_dir is not None and not _same_path(tool_dir, Path.home() / ".local" / "share" / "uv" / "tools"):
+        env_values.append(("UV_TOOL_DIR", tool_dir))
     bin_dir = _active_uv_tool_bin_dir()
-    if bin_dir is None or _same_path(bin_dir, Path.home() / ".local" / "bin"):
-        return ""
-    return f"UV_TOOL_BIN_DIR={shlex.quote(str(bin_dir))} "
+    if bin_dir is not None and not _same_path(bin_dir, Path.home() / ".local" / "bin"):
+        env_values.append(("UV_TOOL_BIN_DIR", bin_dir))
+    return env_values
+
+
+def _powershell_quote(value: str) -> str:
+    return "'" + value.replace("'", "''") + "'"
 
 
 def _active_uv_tool_dir() -> Path | None:

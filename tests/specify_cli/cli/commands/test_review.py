@@ -581,6 +581,42 @@ def test_uv_tool_remediation_preserves_custom_bin_dir(
     )
 
 
+def test_uv_tool_remediation_uses_powershell_env_prefix_on_windows(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Windows remediation must be pasteable in PowerShell, not POSIX-only."""
+    import specify_cli.cli.commands.review as review_mod
+
+    tool_env = tmp_path / "tool dir" / "spec-kitty-cli"
+    bin_dir = tool_env / "Scripts"
+    bin_dir.mkdir(parents=True)
+    shim_dir = tmp_path / "custom bin"
+    shim_dir.mkdir()
+    shim_path = shim_dir / "spec-kitty.exe"
+    (tool_env / "uv-receipt.toml").write_text(
+        "[tool]\n"
+        'requirements = [{ name = "spec-kitty-cli", specifier = "==3.2.0rc25" }]\n'
+        "entrypoints = [\n"
+        f'  {{ name = "spec-kitty", install-path = "{shim_path}" }},\n'
+        "]\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.detect_install_method",
+        lambda: review_mod.InstallMethod.UV_TOOL,
+    )
+    monkeypatch.setattr(review_mod.sys, "executable", str(bin_dir / "python.exe"))
+    monkeypatch.setattr(review_mod.sys, "platform", "win32")
+
+    assert review_mod._missing_test_extra_remediation() == (  # noqa: SLF001
+        f"$env:UV_TOOL_DIR='{tool_env.parent!s}'; "
+        f"$env:UV_TOOL_BIN_DIR='{shim_dir!s}'; "
+        "uv tool install --force --with pytest spec-kitty-cli==3.2.0rc25"
+    )
+
+
 def test_uv_tool_remediation_quotes_specifier_receipt(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
