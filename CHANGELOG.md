@@ -25,7 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `SPEC_KITTY_INFER_DESTINATION_REF=1` lets the CLI layer resolve the branch
   context explicitly and pass it to the helper as an explicit
   `destination_ref` — the helper itself never infers. The env var is removed
-  in the next minor release after this lands. (CLI wiring delivered by WP02.)
+  in the next minor release after this lands. (CLI wiring delivered by WP02
+  in `src/specify_cli/cli/commands/safe_commit_cmd.py`; the deprecation
+  warning lands on stderr so `--json` consumers parsing stdout are
+  unaffected.)
 - `safe_commit()` now structurally enforces that the worktree HEAD matches
   the declared `destination_ref` before any staging or commit. A mismatch
   raises `SafeCommitHeadMismatch` with stable error code
