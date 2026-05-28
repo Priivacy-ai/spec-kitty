@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import tomllib
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from textwrap import dedent
 
@@ -246,15 +247,54 @@ def e2e_project(tmp_path: Path) -> Path:
         sync_charter(charter_path, charter_path.parent, force=True)
     _write_built_in_only_manifest(project)
 
-    # Disable charter preflight in the temp project.  metadata.yaml is
-    # gitignored and absent in CI checkouts, so the preflight would always
-    # see charter_source=stale and block `implement`.  E2E tests exercise
-    # the workflow, not charter governance.
-    _e2e_config = project / ".kittify" / "config.yaml"
-    if _e2e_config.exists():
-        _cfg = yaml.safe_load(_e2e_config.read_text(encoding="utf-8")) or {}
-        _cfg["preflight"] = {"enabled": False}
-        _e2e_config.write_text(yaml.dump(_cfg, default_flow_style=False, sort_keys=False), encoding="utf-8")
+    # Synthesize charter runtime state so preflight passes normally.
+    #
+    # .kittify/charter/metadata.yaml is gitignored (line 108 of .gitignore) and
+    # is always absent in CI clones. The preflight system treats a missing
+    # metadata.yaml as charter_source=stale and blocks `spec-kitty implement`.
+    #
+    # Rather than disabling preflight entirely, we synthesize a valid
+    # metadata.yaml from the committed charter.md so the preflight check sees a
+    # consistent state (charter_source=fresh, synced_bundle=fresh,
+    # synthesized_drg=built_in_only).
+    #
+    # Three layers must pass:
+    #   1. charter_source=fresh  — metadata.yaml present with matching hash
+    #   2. synced_bundle=fresh   — metadata.yaml is counted as a bundle file,
+    #                              so its presence + charter_source=fresh suffices
+    #   3. synthesized_drg=built_in_only — PROVENANCE.md with the legacy
+    #                              fresh-seed sentinel phrases (see
+    #                              charter_runtime/freshness/computer.py
+    #                              _looks_like_legacy_fresh_seed)
+    _charter_dir = project / ".kittify" / "charter"
+    _charter_md = _charter_dir / "charter.md"
+    if _charter_md.exists():
+        from charter.hasher import hash_content as _hash_content  # noqa: PLC0415
+
+        _charter_content = _charter_md.read_text(encoding="utf-8")
+        _charter_hash = _hash_content(_charter_content)  # returns "sha256:<hex>"
+        _now_iso = datetime.now(tz=UTC).isoformat()
+        (_charter_dir / "metadata.yaml").write_text(
+            f"charter_hash: {_charter_hash}\nextracted_at: \"{_now_iso}\"\n",
+            encoding="utf-8",
+        )
+
+    # Write the legacy fresh-seed PROVENANCE.md so compute_freshness returns
+    # synthesized_drg=built_in_only (a passing state) instead of missing.
+    _doctrine_dir = project / ".kittify" / "doctrine"
+    _doctrine_dir.mkdir(parents=True, exist_ok=True)
+    (_doctrine_dir / "PROVENANCE.md").write_text(
+        "# Spec Kitty Doctrine — Fresh Project Seed\n\n"
+        "This `.kittify/doctrine/` tree was materialized by `spec-kitty charter\n"
+        "synthesize` running against a **fresh project** (no LLM-authored YAML under\n"
+        "`.kittify/charter/generated/`). It exists so `DoctrineService` discovers a\n"
+        "project layer and the runtime can advance; it is intentionally empty.\n\n"
+        "The runtime falls back to the in-package built-in doctrine\n"
+        "(`src/doctrine/`) for all artifact lookups until the LLM harness writes\n"
+        "project-local artifacts under `.kittify/charter/generated/` and you re-run\n"
+        "`spec-kitty charter synthesize`.\n",
+        encoding="utf-8",
+    )
 
     # Copy missions from source location
     missions_src = REPO_ROOT / "src" / "specify_cli" / "missions"
