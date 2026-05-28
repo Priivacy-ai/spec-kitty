@@ -15,7 +15,13 @@
 
 **Context**: Today, `spec-kitty agent action implement` and `spec-kitty agent action review` silently commit planning artifacts to protected branches while loudly rejecting WP transition tracking commits, and they append events to `status.events.jsonl` *before* attempting the tracking commit — leaving dirty working trees on `main` when the commit fails. This produces a working tree where on-disk lane state diverges from committed history, and `spec-kitty agent tasks status` (which reads the event log) disagrees with `git log` (which reads the commits). Operators have to manually `git checkout -- status.events.jsonl status.json` or stand up throwaway `prep/...` branches to recover — and those prep branches then leak into `finalize-tasks` output as the "canonical" `target_branch` for WPs, causing later lane allocation to crash when the prep branch is deleted.
 
-This mission introduces a per-mission **coordination branch** that owns mission-wide bookkeeping, parents each lane, and is merged back to the canonical target at mission close — combined with **surgical rollback** of event-log appends when their tracking commit fails. As a side effect, `finalize-tasks` is hardened to record the canonical merge target branch (from `mission create --json` → `merge_target_branch`) rather than the current checkout branch at the moment it runs.
+This mission introduces a per-mission **coordination branch** that owns mission-wide bookkeeping, parents each lane, and is merged back to the canonical target at mission close — combined with a **pre-flight workflow-mutation policy gate** (cheap refusal before any write) and a **surgical rollback** of event-log appends when a tracking commit fails *after* passing the pre-flight gate. As a side effect, `finalize-tasks` is hardened to record the canonical merge target branch (from `mission create --json` → `merge_target_branch`) rather than the current checkout branch at the moment it runs.
+
+### Core invariant
+
+> **No workflow mutation may occur unless the corresponding git mutation is permitted.**
+
+Every write that the runtime makes during `implement`/`review` — appending to `status.events.jsonl`, re-materializing `status.json`, mutating WP frontmatter, emitting planning artifacts (`decisions/index.json`, `issue-matrix.md`), and dispatching outbound SaaS/dossier sync — is paired with a tracking commit. The invariant says: ask the git-policy layer *before* the write; if the commit cannot succeed, the write must not happen. Failures that only manifest at commit time (pre-commit hook reject, disk full, branch-protection rule that didn't exist at pre-flight) trigger the surgical rollback path so the workflow state on disk is restored to its pre-mutation form. Outbound side effects (SaaS, dossier) are deferred until *after* the commit succeeds.
 
 ---
 
@@ -33,13 +39,16 @@ This mission introduces a per-mission **coordination branch** that owns mission-
 ### Exception Scenario A — Operator runs `implement` from a protected branch
 
 1. Operator (out of habit) runs `spec-kitty agent action implement --mission my-feature --agent claude` from `main`.
-2. The runtime detects the attempt to commit on a protected branch and refuses **all** bookkeeping commits (both planning artifacts and transition tracking commits) — no silent bypass.
-3. The error message names the correct destination: `"Refusing to record WP01 transitions on protected branch 'main'. Run from the lane worktree at .worktrees/my-feature-<mid8>-lane-a/ or pass --mission my-feature to auto-resolve."`
-4. No event-log append happens. Working tree on `main` stays clean.
+2. The pre-flight workflow-mutation policy gate runs *before* any write. It asks the git-policy layer: "would a commit on `main` be allowed for this operation?" The answer is no.
+3. The runtime refuses **all** bookkeeping operations (event append, status materialize, planning-artifact write, transition tracking commit) — no silent bypass for any class.
+4. The error message names the correct destination: `"Refusing to record WP01 transitions on protected branch 'main'. Run from the lane worktree at .worktrees/my-feature-<mid8>-lane-a/ or pass --mission my-feature to auto-resolve."`
+5. **No write happens at all** — `status.events.jsonl` is untouched, no rollback needed, working tree on `main` is byte-identical to its pre-command state.
 
-### Exception Scenario B — Tracking commit fails after event-log append (e.g. pre-commit hook reject)
+### Exception Scenario B — Tracking commit fails *after* the pre-flight gate passed (residual failure class)
 
-1. Lane worktree appends the `planned → claimed` event to `status.events.jsonl`. The runtime records `pre_emit_size = N` (the file's byte length before the append) and writes the new event line, making the file length `N + L`.
+This scenario covers failures that the pre-flight gate cannot predict: pre-commit hooks that reject the tracking commit message, disk full mid-write, a branch-protection rule that was added between the pre-flight check and the commit attempt, or git plumbing failures. The pre-flight gate has already said "yes, a commit here would be permitted" — but the commit still fails when actually attempted.
+
+1. Pre-flight gate passes (the lane worktree is on a non-protected branch; git-policy says yes). Lane worktree appends the `planned → claimed` event to `status.events.jsonl`. The runtime records `pre_emit_size = N` (the file's byte length before the append) and writes the new event line, making the file length `N + L`.
 2. The runtime re-materializes `status.json` from the new event log.
 3. The runtime attempts the tracking commit on the coordination branch. A pre-commit hook (or branch-protection rule, disk full, etc.) rejects it.
 4. The runtime executes surgical rollback: `os.truncate(status.events.jsonl, N)` (drops *only* the appended line — preserves any other concurrent writers' state if they appended before this truncate), then re-materializes `status.json` from the truncated event log.
@@ -86,6 +95,10 @@ This mission introduces a per-mission **coordination branch** that owns mission-
 | FR-016 | `spec-kitty mission close --discard` MUST delete the coordination branch and all its child lane branches. Successful close (mission complete) MUST fast-forward-merge the coordination branch to the canonical target branch and then delete the coordination and lane branches.                                                                                    | Draft  |
 | FR-017 | Existing in-flight missions whose lanes were created before this change (no coordination branch exists) MUST continue to function. The runtime MUST detect the missing coordination branch, emit a one-time warning, and fall back to the legacy topology (lanes parented on the canonical target) for the remainder of that mission's life.                         | Draft  |
 | FR-018 | `mission create` MUST be idempotent w.r.t. coordination branch creation: re-running against a partially-created mission MUST reuse the existing coordination branch if it is an ancestor of the canonical target, or refuse with a clear error otherwise.                                                                                                            | Draft  |
+| FR-019 | A workflow-mutation policy gate MUST be invoked **before the first workflow write** of every transactional command path (`agent action implement`, `agent action review`, `agent mission finalize-tasks`, planning-artifact emission). The gate asks the git-policy layer "would the corresponding tracking commit be permitted on the current branch?" and refuses the entire operation if the answer is no — *before* any file is written and *before* any event is appended. | Draft  |
+| FR-020 | The policy gate (FR-019) MUST be the single chokepoint for protected-branch refusal. The raw `git add` / `git commit` call site for planning artifacts (currently `src/specify_cli/cli/commands/implement.py`) MUST route through the same gate; the lifecycle status-write call sites (currently `src/specify_cli/cli/commands/agent/workflow.py`) MUST consult the gate before writing.                                                                              | Draft  |
+| FR-021 | The pre-flight gate (FR-019) and the surgical rollback (FR-010) MUST compose: when the pre-flight gate refuses, no rollback machinery runs (nothing was written); when the pre-flight gate passes but the commit fails afterward, the rollback path runs. Both paths MUST produce the same diagnostic shape (FR-002/FR-011) so operators see one consistent error format regardless of which failure class fired. | Draft  |
+| FR-022 | Outbound side effects emitted during transactional command paths — SaaS event sync, decision-thread fanout to a tracker, dossier ingress, and any analogous "push to external system" — MUST be deferred until *after* the corresponding local tracking commit succeeds. If the commit fails (and rollback runs), the outbound emission MUST NOT have occurred. This applies to the implement and review command paths; non-transactional read-side syncs are unaffected. | Draft  |
 
 ---
 
@@ -100,6 +113,8 @@ This mission introduces a per-mission **coordination branch** that owns mission-
 | NFR-005 | The implement/review commit-summary block (FR-014) MUST add no more than a small bounded number of bytes to a typical command's stdout in success cases.                                                                                                                                  | ≤ 1 KB per command invocation in the happy path    | Draft  |
 | NFR-006 | Test coverage for new code (event-log rollback path, coordination branch lifecycle, finalize-tasks branch resolution) MUST meet the project's charter policy.                                                                                                                             | ≥ 90% line coverage on new modules                 | Draft  |
 | NFR-007 | The protected-branch refusal error (FR-001/FR-002) MUST cite a stable error code suitable for scripted detection.                                                                                                                                                                          | One stable identifier per refusal class            | Draft  |
+| NFR-008 | The pre-flight policy gate (FR-019) MUST add bounded latency to transactional command paths.                                                                                                                                                                                                | < 10ms per invocation on a local git repo          | Draft  |
+| NFR-009 | After a forced commit failure (post-pre-flight class — e.g. hook reject), any SaaS event sink configured for the project MUST NOT have received the rolled-back event.                                                                                                                       | 100% of 100 forced-failure test cases              | Draft  |
 
 ---
 
@@ -131,6 +146,8 @@ This mission introduces a per-mission **coordination branch** that owns mission-
 | SC-05 | After 100 forced tracking-commit failures (via hook reject), `status.events.jsonl` on disk is byte-identical (SHA-256) to its pre-emit state in every case where no concurrent writers were active.                    | Forced-failure stress test                                      |
 | SC-06 | The dangling-event reproduction from issue #1348 (event appended on `main`, commit rejected, on-disk state advanced) no longer reproduces on any branch.                                                               | Regression test against the exact issue #1348 sequence          |
 | SC-07 | Existing in-flight missions (created before this change) continue to function without manual intervention; the runtime warns once and falls back to legacy topology.                                                   | Migration smoke test on a pre-existing mission fixture          |
+| SC-08 | A pre-flight refusal on a protected branch (Exception Scenario A) leaves `status.events.jsonl`, `status.json`, WP frontmatter, planning-artifact files, and the SaaS event sink byte-identical / event-identical to their pre-command state in 100% of test cases. | Pre-flight stress test (protected-branch fixture)               |
+| SC-09 | After a forced post-pre-flight commit failure (hook reject), the SaaS event sink has received zero events for the rolled-back transition.                                                                              | Forced-failure test with mocked SaaS sink                       |
 
 ---
 
@@ -143,6 +160,9 @@ This mission introduces a per-mission **coordination branch** that owns mission-
 - **Planning-artifact commit** — bookkeeping commit produced during implement/review to record planning artifacts (`decisions/index.json`, `issue-matrix.md`). Target: coordination branch.
 - **Pre-emit size** — byte length of `status.events.jsonl` immediately before an event line is appended. Captured in memory for the duration of the emit attempt; used by the surgical rollback path on commit failure.
 - **Rebase sync point** — a moment at which a lane branch is automatically rebased from the coordination branch. Exactly two per lane lifecycle (lane claim/start; first `for_review → in_review`).
+- **Workflow-mutation policy gate** — pre-flight check invoked before the first workflow write of every transactional command path. Asks the git-policy layer: "would the corresponding tracking commit be permitted?" Refusal short-circuits the operation before any write happens. Single chokepoint for protected-branch refusal across `implement`, `review`, and `finalize-tasks`.
+- **Transactional command path** — a command (`agent action implement`, `agent action review`, `agent mission finalize-tasks`) whose semantics require all writes to be atomically committed. Out-of-scope: read-only command paths (`status`, `dashboard`, `decision verify`).
+- **Outbound side effect** — work performed against an external system during a transactional command path (SaaS event sync, decision-thread fanout to a tracker, dossier ingress). Deferred until the corresponding local commit succeeds.
 
 ---
 
@@ -157,6 +177,8 @@ This mission introduces a per-mission **coordination branch** that owns mission-
 | pre-emit size             | "rollback offset", "save point"      | "Pre-emit size" names exactly what the value is (file byte length before the append).             |
 | surgical rollback         | "rollback", "undo", "checkout"       | Distinguishes the targeted truncate-by-offset approach from `git checkout --` (explicitly banned per C-009). |
 | sync point                | "rebase", "pull", "merge"            | A sync point is the *moment* a lane rebases — not the rebase itself.                              |
+| workflow-mutation policy gate | "guard", "lock", "check"        | "Guard" already refers to the protected-branch check in `commit_helpers.py`. The gate *wraps* the guard at every workflow call site; it is not the guard itself. |
+| transactional command path | "command", "operation"             | Many CLI commands are read-only and not bound by the gate. Naming the class avoids over-applying the invariant. |
 
 ---
 
@@ -170,6 +192,7 @@ This mission introduces a per-mission **coordination branch** that owns mission-
 6. **`os.truncate` is portable** on all platforms spec-kitty targets (per DIR-001: Linux, macOS, Windows 10+).
 7. **Issue #1348's stated acceptance criteria are fully addressed by this spec** and require no additional sub-features. (See SC-06 for the explicit regression check.)
 8. **The bulk-edit gate does not apply**: this mission introduces new behavior + bug fix; it does not rename existing identifiers across files.
+9. **The policy-gate abstraction is new code, not a rename.** Existing call sites (planning-artifact emit in `implement.py`, lifecycle writes in `agent/workflow.py`) gain a single new precondition call; their internal logic is otherwise unchanged. The git-policy layer they delegate to is the existing `commit_helpers.py` protected-branch check.
 
 ---
 
@@ -189,5 +212,10 @@ This mission introduces a per-mission **coordination branch** that owns mission-
 - **Source issue**: [Priivacy-ai/spec-kitty#1348](https://github.com/Priivacy-ai/spec-kitty/issues/1348) — protected-branch guard bypass inconsistency and dangling event-log writes.
 - **Identity model (prior mission)**: `architecture/adrs/2026-04-09-1-mission-identity-uses-ulid-not-sequential-prefix.md` — establishes `mission_id` / `mid8` as canonical identity; this mission preserves that contract.
 - **Status model**: `src/specify_cli/status/` and `kitty-specs/034-feature-status-state-model-remediation/` — the event log as sole authority for WP lane state. This mission keeps that invariant; the coordination branch becomes the canonical place where the event log lives.
-- **Commit helpers**: `src/specify_cli/git/commit_helpers.py` — the protected-branch guard and its current asymmetric exception list (`_PROTECTED_BRANCH_COMMIT_EXCEPTIONS`).
+- **Commit helpers**: `src/specify_cli/git/commit_helpers.py:439` — the protected-branch guard (`safe_commit()` precondition). Confirmed by cross-review: the guard itself is correct; the bugs are at the *call sites* that bypass it.
+- **Cross-review file/line evidence** (independent investigation):
+  - `src/specify_cli/cli/commands/implement.py:236` — raw `git add` / `git commit` for planning artifacts, bypasses `safe_commit()`. Target of FR-001 / FR-013 / FR-020.
+  - `src/specify_cli/cli/commands/agent/workflow.py:689` and `:1463` — lifecycle status writes occur *before* `safe_commit()` is called. Target of FR-009 / FR-010 / FR-019 / FR-021.
+  - `src/specify_cli/status/emit.py:468` — event append and `status.json` re-materialization happen before commit policy runs. Target of FR-009 / FR-010 / FR-019.
+  - `src/specify_cli/cli/commands/agent/mission.py:321` — returns the current checkout branch, causing `_resolve_planning_branch()` to leak prep branches into WP frontmatter. Target of FR-012.
 - **Charter directives in scope**: DIRECTIVE_003 (Decision Documentation), DIRECTIVE_010 (Specification Fidelity), DIR-010 / DIR-011 (ASCII-only identifier sanitization).

@@ -16,7 +16,7 @@
 - [x] No [NEEDS CLARIFICATION] markers remain
 - [x] Requirements are testable and unambiguous
 - [x] Requirement types are separated (Functional / Non-Functional / Constraints)
-- [x] IDs are unique across FR-### (18), NFR-### (7), and C-### (10)
+- [x] IDs are unique across FR-### (22), NFR-### (9), and C-### (10)
 - [x] All requirement rows include a non-empty Status value
 - [x] Non-functional requirements include measurable thresholds — *7/7 NFRs have explicit thresholds (100% test pass, < 100ms, ≤ 1 sync point, < 2s, ≤ 1 KB, ≥ 90% coverage, one stable identifier).*
 - [x] Success criteria are measurable — *SC-01 through SC-07 each cite a count, threshold, or pass/fail check.*
@@ -48,6 +48,11 @@ Plus from the comment:
 ## Notes
 
 - This spec adds substantive scope beyond the issue's stated acceptance: the **coordination branch** topology. The user's interview answers explicitly directed this, identifying that "all-on-lane" without a coordination branch breaks the 3.0 status model's "event log is sole authority" invariant. The added scope is necessary to make the simpler fix (all-on-lane) actually work.
+- **Cross-review integration (2026-05-28)**: After the initial spec draft, an independent investigation (Debugger Debbie / 5-paradigm) identified three additional architectural concerns that were folded back into the spec:
+  - **Pre-flight policy gate** (FR-019, FR-020, FR-021, NFR-008, SC-08) — refuses the operation *before* any write, composing with the post-write surgical rollback (FR-010). The pre-flight gate handles protected-branch refusal cheaply; the rollback handles residual post-write failures (hook reject, disk full, branch-protection race).
+  - **Named core invariant** in the Purpose section: "No workflow mutation may occur unless the corresponding git mutation is permitted." Elevates the implicit contract to a stated invariant.
+  - **Outbound side-effect deferral** (FR-022, NFR-009, SC-09) — SaaS event sync, dossier ingress, and tracker fanout are deferred until *after* successful local commit. Addresses a same-class atomicity bug for external state that the initial draft missed.
+  - File/line evidence from the cross-review is cited in the References section.
 - One known operational risk flagged in Assumptions #4: rebase conflicts on `status.events.jsonl` when two lanes emit between syncs. Stock `git rebase` may or may not be sufficient. This is deferred to `/spec-kitty.plan` for resolution; it is not a hard FR of this spec.
 - Bulk-edit gate: not applicable (no cross-file rename).
 - All items pass on first iteration. Ready for `/spec-kitty.plan`.
