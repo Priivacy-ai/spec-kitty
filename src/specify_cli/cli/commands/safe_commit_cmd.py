@@ -15,6 +15,27 @@ from specify_cli.task_utils import TaskCliError, find_repo_root
 console = Console()
 
 
+def _current_worktree_root() -> Path:
+    """Return the git top-level for the current worktree.
+
+    ``find_repo_root()`` intentionally resolves Spec Kitty worktrees back to the
+    main repository for status/event callers. This command commits operator
+    files, so it must preserve the current worktree as the commit target.
+    """
+    result = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        cwd=Path.cwd(),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if result.returncode == 0 and result.stdout.strip():
+        return Path(result.stdout.strip()).resolve()
+    return find_repo_root()
+
+
 def _has_candidate_changes(repo_root: Path, files_to_commit: list[Path]) -> bool:
     rel_paths = [str(path.relative_to(repo_root)) if path.is_absolute() else str(path) for path in files_to_commit]
     result = subprocess.run(
@@ -45,13 +66,13 @@ def _payload(*, success: bool, committed: bool = False, files: list[str] | None 
 
 
 def safe_commit_command(
-    files: list[Path] = typer.Argument(..., help="Files to commit, relative to the repository root or absolute."),
+    files: list[Path] = typer.Argument(..., help="Files to commit, relative to the current worktree root or absolute."),
     message: str = typer.Option(..., "--message", "-m", help="Commit message."),
     json_output: bool = typer.Option(False, "--json", help="Output JSON"),
 ) -> None:
     """Commit only the requested files via Spec Kitty's safe-commit path."""
     try:
-        repo_root = find_repo_root()
+        repo_root = _current_worktree_root()
         normalized_files = [
             (repo_root / file_path).resolve() if not file_path.is_absolute() else file_path.resolve()
             for file_path in files

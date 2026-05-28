@@ -340,6 +340,70 @@ def test_generic_safe_commit_commits_generated_charter_files(tmp_path: Path) -> 
     assert "spec-kitty-safe-commit" not in stash_list
 
 
+def test_generic_safe_commit_targets_current_git_worktree(tmp_path: Path) -> None:
+    """``safe-commit`` must commit to the current worktree branch, not main."""
+    _git_init(tmp_path)
+    (tmp_path / ".kittify").mkdir()
+    (tmp_path / ".kittify" / "config.json").write_text("{}\n", encoding="utf-8")
+    (tmp_path / "README.md").write_text("# Test Repo\n", encoding="utf-8")
+    subprocess.run(
+        ["git", "add", "README.md", ".kittify/config.json"],
+        cwd=tmp_path, check=True, capture_output=True, text=True,
+    )
+    subprocess.run(
+        ["git", "commit", "-m", "Initial commit"],
+        cwd=tmp_path, check=True, capture_output=True, text=True,
+    )
+    main_head_before = subprocess.run(
+        ["git", "rev-parse", "main"],
+        cwd=tmp_path, check=True, capture_output=True, text=True,
+    ).stdout.strip()
+
+    worktree = tmp_path.parent / f"{tmp_path.name}-worktree"
+    subprocess.run(
+        ["git", "worktree", "add", "-b", "charter/update", str(worktree)],
+        cwd=tmp_path, check=True, capture_output=True, text=True,
+    )
+    (worktree / "charter.txt").write_text("worktree charter change\n", encoding="utf-8")
+
+    old_cwd = os.getcwd()
+    try:
+        os.chdir(worktree)
+        committed = runner.invoke(
+            cli_app,
+            [
+                "safe-commit",
+                "--message",
+                "chore: generate project charter",
+                "--json",
+                "charter.txt",
+            ],
+            catch_exceptions=False,
+        )
+    finally:
+        os.chdir(old_cwd)
+
+    assert committed.exit_code == 0, f"commit failed: {committed.stdout!r}"
+    assert '"committed": true' in committed.stdout
+
+    worktree_subject = subprocess.run(
+        ["git", "log", "-1", "--pretty=%s"],
+        cwd=worktree, check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    main_head_after = subprocess.run(
+        ["git", "rev-parse", "main"],
+        cwd=tmp_path, check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    worktree_status = subprocess.run(
+        ["git", "status", "--short"],
+        cwd=worktree, check=True, capture_output=True, text=True,
+    ).stdout
+
+    assert worktree_subject == "chore: generate project charter"
+    assert main_head_after == main_head_before
+    assert "charter.txt" not in worktree_status
+
+
 def test_charter_template_uses_safe_commit_command() -> None:
     """Slash prompt must route commits through Spec Kitty, not raw git commit."""
     import specify_cli

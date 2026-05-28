@@ -2599,8 +2599,8 @@ _Cross-mission retrospective summary._
  Commit only the requested files via Spec Kitty's safe-commit path.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    files      FILES...  Files to commit, relative to the repository root   │
-│                           or absolute.                                       │
+│ *    files      FILES...  Files to commit, relative to the current worktree  │
+│                           root or absolute.                                  │
 │                           [required]                                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
