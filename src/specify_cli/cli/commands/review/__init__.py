@@ -21,7 +21,7 @@ import subprocess  # noqa: F401  (monkeypatched in tests)
 import sys
 import tomllib
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, Literal, cast
 
 import typer
 
@@ -106,7 +106,7 @@ def _uv_tool_reinstall_command() -> str | None:
         if receipt is None:
             return None
 
-        requirements = receipt.get("tool", {}).get("requirements", [])
+        requirements = _uv_tool_receipt_tool(receipt).get("requirements", [])
         if not isinstance(requirements, list):
             return None
 
@@ -148,6 +148,11 @@ def _active_uv_tool_receipt_path() -> Path | None:
     except Exception:  # noqa: BLE001
         return None
     return None
+
+
+def _uv_tool_receipt_tool(receipt: dict[str, object]) -> dict[str, object]:
+    tool = receipt.get("tool")
+    return tool if isinstance(tool, dict) else {}
 
 
 def _find_uv_tool_requirement(requirements: list[object]) -> dict[str, object] | None:
@@ -230,9 +235,7 @@ def _uv_tool_package_args(requirement: dict[str, object]) -> list[str]:
 
 
 def _uv_tool_python_args(receipt: dict[str, object]) -> list[str]:
-    tool = receipt.get("tool", {})
-    if not isinstance(tool, dict):
-        return []
+    tool = _uv_tool_receipt_tool(receipt)
     python = _nonempty_str(tool.get("python"))
     if python is None:
         return []
@@ -292,7 +295,7 @@ def _active_uv_tool_bin_dir() -> Path | None:
         receipt = _active_uv_tool_receipt()
         if receipt is None:
             return None
-        entrypoints = receipt.get("tool", {}).get("entrypoints", [])
+        entrypoints = _uv_tool_receipt_tool(receipt).get("entrypoints", [])
         if not isinstance(entrypoints, list):
             return None
         for entrypoint in entrypoints:
@@ -315,7 +318,7 @@ def _same_path(left: Path, right: Path) -> bool:
 
 def _resolve_repo_root(console: object) -> Path:
     try:
-        return find_repo_root()
+        return cast("Path", find_repo_root())
     except TaskCliError as exc:
         console.print(f"[red]Error:[/red] {exc}")  # type: ignore[attr-defined]
         raise typer.Exit(2) from exc
@@ -334,7 +337,8 @@ def _load_meta(feature_dir: Path) -> dict[str, object]:
     if not meta_path.exists():
         return {}
     try:
-        return json.loads(meta_path.read_text(encoding="utf-8"))
+        loaded = json.loads(meta_path.read_text(encoding="utf-8"))
+        return loaded if isinstance(loaded, dict) else {}
     except (json.JSONDecodeError, OSError):
         return {}
 
@@ -346,9 +350,12 @@ def _resolve_mode_or_exit(
     baseline_merge_commit: str | None,
 ) -> tuple[MissionReviewMode, bool]:
     try:
-        return resolve_mode(
-            cli_flag=cli_mode,
-            baseline_merge_commit=baseline_merge_commit,
+        return cast(
+            "tuple[MissionReviewMode, bool]",
+            resolve_mode(
+                cli_flag=cli_mode,
+                baseline_merge_commit=baseline_merge_commit,
+            ),
         )
     except ModeMismatchError as exc:
         diagnostic = {
@@ -389,7 +396,7 @@ def _run_lane_gate(
     gates_recorded: list[GateRecord],
 ) -> None:
     findings_before = len(findings)
-    check_wp_lanes(feature_dir, repo_root, console, findings)  # type: ignore[arg-type]
+    check_wp_lanes(feature_dir, repo_root, console, findings)
     result: Literal["pass", "fail"] = "fail" if len(findings) > findings_before else "pass"
     _record_gate(gates_recorded, gate_id="gate_1", name="wp_lane_check", result=result)
 
@@ -408,7 +415,7 @@ def _run_dead_code_gate(
     scan_dead_code(
         baseline_merge_commit,
         repo_root,
-        console,  # type: ignore[arg-type]
+        console,
         findings,
         mission_id=mission_id,
         mission_slug=mission_slug,

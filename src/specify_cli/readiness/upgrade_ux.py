@@ -224,6 +224,9 @@ def _default_upgrade_runner(method: object) -> int:
     """
     from specify_cli.compat._detect.install_method import InstallMethod  # noqa: PLC0415
 
+    if not isinstance(method, InstallMethod):
+        return 1
+
     uv_tool_argv = ["uv", "tool", "upgrade"]
     uv_tool_argv.extend(_uv_tool_python_args())
     uv_tool_argv.append("spec-kitty-cli")
