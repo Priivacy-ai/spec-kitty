@@ -19,7 +19,6 @@ from ruamel.yaml import YAML
 __all__ = [
     "OrgPackConfig",
     "PackRegistry",
-    "SourceType",
     "load_pack_registry",
     "resolve_org_roots",
     "save_pack_registry",

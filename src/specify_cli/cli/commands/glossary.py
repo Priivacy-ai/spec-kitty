@@ -768,7 +768,7 @@ def _validate_single_file(file_path: Path, json_output: bool) -> None:
             print(json_lib.dumps(result, indent=2))
         else:
             console.print(f"[red]YAML parse error in {file_path}: {exc}[/red]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     try:
         validated = validate_seed_file_data(data, file_path)
@@ -811,7 +811,7 @@ def _validate_single_file(file_path: Path, json_output: bool) -> None:
                 loc = " → ".join(loc_parts) if loc_parts else "file"
                 console.print(f"  [red]✗[/red] {loc}: {e.message}")
             console.print(f"\n{len(exc.errors)} error(s) in {file_path}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
 
 def _validate_directory(dir_path: Path, json_output: bool) -> None:
