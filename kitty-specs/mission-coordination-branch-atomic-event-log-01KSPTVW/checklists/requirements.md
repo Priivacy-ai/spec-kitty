@@ -16,7 +16,7 @@
 - [x] No [NEEDS CLARIFICATION] markers remain
 - [x] Requirements are testable and unambiguous
 - [x] Requirement types are separated (Functional / Non-Functional / Constraints)
-- [x] IDs are unique across FR-### (22), NFR-### (9), and C-### (10)
+- [x] IDs are unique across FR-### (27), NFR-### (11), and C-### (13)
 - [x] All requirement rows include a non-empty Status value
 - [x] Non-functional requirements include measurable thresholds — *7/7 NFRs have explicit thresholds (100% test pass, < 100ms, ≤ 1 sync point, < 2s, ≤ 1 KB, ≥ 90% coverage, one stable identifier).*
 - [x] Success criteria are measurable — *SC-01 through SC-07 each cite a count, threshold, or pass/fail check.*
@@ -53,6 +53,13 @@ Plus from the comment:
   - **Named core invariant** in the Purpose section: "No workflow mutation may occur unless the corresponding git mutation is permitted." Elevates the implicit contract to a stated invariant.
   - **Outbound side-effect deferral** (FR-022, NFR-009, SC-09) — SaaS event sync, dossier ingress, and tracker fanout are deferred until *after* successful local commit. Addresses a same-class atomicity bug for external state that the initial draft missed.
   - File/line evidence from the cross-review is cited in the References section.
+- **Second-round cross-review integration (2026-05-28, P0/P1/P2 findings)**: Five additional concerns surfaced after the first integration round:
+  - **P0 — Coordination workspace ownership** (FR-023, FR-024, FR-025, C-011): the spec now names a `BookkeepingTransaction` service and a coordination worktree (`.worktrees/<slug>-<mid8>-coord/`) as the concrete mechanism by which lane-resident agents write to the coordination branch without `git checkout`-ing it. The earlier draft assumed this was self-evident; the reviewer was right that it isn't.
+  - **P0 — Lane code preservation in merge topology** (FR-008 rewritten): the spec now describes a two-stage merge (per-WP lane → coordination integration; then coordination → target at mission close). The earlier draft's "merge coordination → target, never lane → target" wording would have dropped lane code on the floor.
+  - **P1 — Policy gate input is `destination_ref`** (FR-019, FR-020, C-012; Exception A rewritten with three sub-cases): the gate evaluates against the explicit branch the would-be tracking commit targets, never against process CWD or current HEAD. This is what makes running from any branch correct as long as the bookkeeping target is non-protected.
+  - **P1 — Lock-held atomic window** (FR-026, C-013; FR-010 rewritten; Scenario C removed): the existing feature status lock is held across emit → materialize → commit → rollback. With the lock held, the surgical truncate is unconditionally safe; event-id-targeted removal is no longer a code path; the append-only invariant (C-004) is preserved without contradiction.
+  - **P1 — Legacy missions get the same invariants** (FR-017 rewritten, FR-027, SC-11): pre-flight gate, transaction contract, lock, rollback, and outbound deferral apply uniformly to legacy and coordination-branch missions. Only `destination_ref` and the worktree topology differ.
+  - **P2 — Schema field names** (FR-012, Primary Scenario step 2): `planning_base_branch` and `merge_target_branch` match the current WP template; no schema migration required.
 - One known operational risk flagged in Assumptions #4: rebase conflicts on `status.events.jsonl` when two lanes emit between syncs. Stock `git rebase` may or may not be sufficient. This is deferred to `/spec-kitty.plan` for resolution; it is not a hard FR of this spec.
 - Bulk-edit gate: not applicable (no cross-file rename).
 - All items pass on first iteration. Ready for `/spec-kitty.plan`.
