@@ -69,12 +69,16 @@ python scripts/release/check_shared_package_drift.py \
 
 ### `check_exact_install.py`
 
-Builds a clean temporary virtualenv and installs the built wheel with plain
-`pip` so release-time dependency metadata is exercised exactly as users will
-see it from PyPI.
+Builds a clean temporary virtualenv, installs the built wheel with plain
+`pip`, and can run an installed console script so release-time dependency
+metadata and entrypoint imports are exercised exactly as users will see them
+from PyPI.
 
 ```bash
-python scripts/release/check_exact_install.py --package spec-kitty-cli
+python scripts/release/check_exact_install.py \
+  --package spec-kitty-cli \
+  --console-script spec-kitty \
+  --console-arg=--version
 ```
 
 ### `check_candidate_consumer_compat.py`

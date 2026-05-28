@@ -179,7 +179,7 @@ jobs:
           python scripts/release/check_shared_package_drift.py --check-installed "${ARGS[@]}"
 
       - name: Verify exact installability from built wheel
-        run: python scripts/release/check_exact_install.py --package spec-kitty-cli
+        run: python scripts/release/check_exact_install.py --package spec-kitty-cli --console-script spec-kitty --console-arg=--version
 
       - name: Validate candidate against SaaS consumer contract
         if: steps.fetch_refs.outputs.saas_fetched == 'true'

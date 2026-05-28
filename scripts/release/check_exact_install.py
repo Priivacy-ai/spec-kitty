@@ -24,6 +24,19 @@ def parse_args() -> argparse.Namespace:
         default=sys.executable,
         help="Interpreter used to create the temporary virtualenv.",
     )
+    parser.add_argument(
+        "--console-script",
+        help="Installed console script to smoke-test after wheel installation.",
+    )
+    parser.add_argument(
+        "--console-arg",
+        action="append",
+        default=None,
+        help=(
+            "Argument passed to --console-script. May be repeated. Defaults to "
+            "--version when --console-script is set."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -62,6 +75,11 @@ def read_wheel_metadata(wheel_path: Path) -> email.message.Message:
 
 def venv_bin_dir(venv_dir: Path) -> Path:
     return venv_dir / ("Scripts" if os.name == "nt" else "bin")
+
+
+def console_script_path(venv_dir: Path, script_name: str) -> Path:
+    suffix = ".exe" if os.name == "nt" else ""
+    return venv_bin_dir(venv_dir) / f"{script_name}{suffix}"
 
 
 def run(
@@ -135,11 +153,30 @@ def main() -> int:
                 f"expected {expected_version}, got {installed_version}"
             )
 
+        console_args = args.console_arg
+        if args.console_script:
+            if console_args is None:
+                console_args = ["--version"]
+            smoke_command = [
+                str(console_script_path(venv_dir, args.console_script)),
+                *console_args,
+            ]
+            smoke = run(smoke_command)
+            require_success(
+                smoke,
+                "console script smoke test (" + " ".join(smoke_command) + ")",
+            )
+
         print("Exact Install Summary")
         print("---------------------")
         print(f"- wheel: {wheel_path.name}")
         print(f"- package: {args.package}")
         print(f"- version: {installed_version}")
+        if args.console_script:
+            print(
+                "- console-smoke: "
+                + " ".join([args.console_script, *(console_args or [])])
+            )
         if requires_dist:
             print("- requires-dist:")
             for requirement in requires_dist:
