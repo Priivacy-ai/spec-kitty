@@ -11,13 +11,17 @@ tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-mission-coordination-branch-atomic-event-log-01KSPTVW
+base_commit: fc1aa41f62840ca1fa430e2d8fc372f384fc5421
+created_at: '2026-05-28T10:30:25.979225+00:00'
 subtasks:
 - T006
 - T007
 - T008
 - T009
 - T010
-agent: claude
+agent: "claude:opus:reviewer-rita:reviewer"
+shell_pid: "4471"
 history:
 - at: '2026-05-28T08:55:00+00:00'
   actor: claude
@@ -223,3 +227,10 @@ When reviewing this WP, focus on:
 - Plan: PR 1 step 2
 - Contract: [`contracts/safe_commit_signature.md`](../contracts/safe_commit_signature.md) § "CLI surface change"
 - Research: R-002, R-005 in [`research.md`](../research.md)
+
+## Activity Log
+
+- 2026-05-28T10:30:26Z – claude:opus:implementer-ivan:implementer – shell_pid=95548 – Assigned agent via action command
+- 2026-05-28T10:43:06Z – claude:opus:implementer-ivan:implementer – shell_pid=95548 – WP02 ready for review: spec-kitty safe-commit CLI migrated to destination_ref signature with --to-branch required + SPEC_KITTY_INFER_DESTINATION_REF=1 deprecation env var; 4 new CLI tests pass; manifest on main covers all 17 production callers. Workflow files (implement.py/workflow.py/emit.py/mission.py) deferred to WP06.
+- 2026-05-28T10:44:18Z – claude:opus:reviewer-rita:reviewer – shell_pid=4471 – Started review via action command
+- 2026-05-28T10:47:25Z – claude:opus:reviewer-rita:reviewer – shell_pid=4471 – Review passed: CLI migrated with --to-branch required + deprecation env var, 4 new CLI tests + 4 existing tests pass, mypy --strict clean on owned files; workflow files (implement.py/workflow.py/emit.py/mission.py) correctly left for WP06; three caveats accepted as pragmatic and consistent with the bug being fixed.

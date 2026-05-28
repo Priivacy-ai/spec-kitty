@@ -140,11 +140,11 @@ No cycles. WP01 is the only WP with no dependencies.
 **Estimated prompt size**: ~400 lines.
 
 **Included subtasks**:
-- [ ] T006 Audit every `safe_commit()` call site in the codebase; produce migration manifest (WP02)
-- [ ] T007 Update `spec-kitty safe-commit` CLI: add required `--to-branch`; deprecation env var (WP02)
-- [ ] T008 Migrate non-workflow callers (charter, upgrade migrations, mission close) to pass `destination_ref` (WP02)
-- [ ] T009 Integration tests for `safe-commit` CLI; deprecation-warning path (WP02)
-- [ ] T010 Update tests for migrated callers; verify no `safe_commit()` call site lacks `destination_ref` (WP02)
+- [x] T006 Audit every `safe_commit()` call site in the codebase; produce migration manifest (WP02)
+- [x] T007 Update `spec-kitty safe-commit` CLI: add required `--to-branch`; deprecation env var (WP02)
+- [x] T008 Migrate non-workflow callers (charter, upgrade migrations, mission close) to pass `destination_ref` (WP02)
+- [x] T009 Integration tests for `safe-commit` CLI; deprecation-warning path (WP02)
+- [x] T010 Update tests for migrated callers; verify no `safe_commit()` call site lacks `destination_ref` (WP02)
 
 **Implementation sketch**: `grep -rn 'safe_commit(' src/` to find call sites. Categorize: workflow (deferred to WP06) vs non-workflow (this WP). For non-workflow, add `destination_ref=<resolved>` parameter — typically `destination_ref=current_branch` from the branch-context resolver. Update CLI command. Add deprecation env var path: if `SPEC_KITTY_INFER_DESTINATION_REF=1` is set AND `--to-branch` is missing, resolve via branch-context resolver with a one-line stderr deprecation notice.
 
