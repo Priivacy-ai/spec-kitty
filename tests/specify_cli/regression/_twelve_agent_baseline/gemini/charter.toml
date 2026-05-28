@@ -196,12 +196,16 @@ spec-kitty charter status --json
 - Use a concise commit message that makes the governance action explicit:
 
 ```bash
-spec-kitty charter commit --message "chore: generate project charter"
+spec-kitty safe-commit --message "chore: generate project charter" \
+  .kittify/charter/interview/answers.yaml \
+  .kittify/charter/charter.md \
+  .kittify/charter/references.yaml \
+  .gitignore
 ```
 
 - If generation produced no diff, say so and do not create an empty commit.
 - If unrelated dirty changes exist, avoid sweeping them into the charter commit;
-  `spec-kitty charter commit` commits only charter-related files.
+  `spec-kitty safe-commit` commits only the requested files.
 
 ### Path B: CLI interview fallback
 

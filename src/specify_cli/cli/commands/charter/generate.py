@@ -74,7 +74,7 @@ def _is_inside_git_worktree(repo_root: Path) -> bool:
 
 
 def _stage_charter_files(repo_root: Path, files: list[Path]) -> None:
-    """Stage ``files`` via ``git add --force`` for the next safe charter commit.
+    """Stage ``files`` via ``git add --force`` for bundle validation.
 
     Issue #841: ``charter generate`` must auto-track the produced ``charter.md``
     (and any other tracked-files manifest entries) so the immediately-following
@@ -82,10 +82,10 @@ def _stage_charter_files(repo_root: Path, files: list[Path]) -> None:
     stage (not commit) — staging is what ``git ls-files`` reports as tracked,
     which is the signal ``charter bundle validate`` keys on.
 
-    The slash-command flow also expects generated commit inputs such as
-    ``references.yaml`` and the managed ``.gitignore`` block to be staged so the
-    next step can commit via ``spec-kitty charter commit`` without falling back
-    to raw ``git commit``.
+    The slash-command flow commits generated files with ``spec-kitty
+    safe-commit``; pre-staging keeps ``bundle validate`` green and safe-commit
+    now treats requested pre-staged files as commit inputs, not unrelated
+    operator staging.
 
     Files are passed as repo-relative ``Path``s. ``--force`` is used so that an
     operator who has gitignored ``charter.md`` for any reason still gets the

@@ -23,7 +23,6 @@ This reference covers all `charter` subcommands. For a task-oriented walkthrough
 |---|---|
 | `interview` | Capture charter interview answers for later generation |
 | `generate` | Generate charter bundle from interview answers + doctrine references |
-| `commit` | Commit generated charter files via the shared safe-commit path |
 | `context` | Render charter context for a specific workflow action |
 | `sync` | Sync charter.md to structured YAML config files |
 | `status` | Display charter sync status plus synthesis/operator state |
@@ -72,7 +71,7 @@ uv run spec-kitty charter interview --profile comprehensive
 
 **Description**: Generate charter bundle from interview answers + doctrine references. On success
 in a git working tree, the generated charter commit inputs are auto-staged for the follow-up
-`spec-kitty charter commit` safe-commit step. Requires a git working tree — exits non-zero
+`spec-kitty safe-commit` step. Requires a git working tree — exits non-zero
 outside git repos with a `git init` remediation message. With `--from-interview`, missing
 interview answers fail closed; use `--no-from-interview` to opt into defaults.
 
@@ -96,28 +95,6 @@ uv run spec-kitty charter generate --from-interview --force --json
 # Override template set
 uv run spec-kitty charter generate --from-interview --template-set documentation-default
 ```
-
----
-
-## spec-kitty charter commit
-
-**Synopsis**: `spec-kitty charter commit [OPTIONS]`
-
-**Description**: Commit generated charter files via the shared safe-commit path. The command
-commits only known charter-generation inputs, preserving unrelated staged files and honoring
-protected-branch status-commit guards.
-
-| Flag | Description | Default |
-|---|---|---|
-| `--message`, `-m` | Commit message for charter changes | `chore: generate project charter` |
-| `--json` | Output JSON | — |
-
-**Examples**:
-```bash
-uv run spec-kitty charter commit --message "chore: generate project charter"
-```
-
----
 
 ## spec-kitty charter synthesize
 

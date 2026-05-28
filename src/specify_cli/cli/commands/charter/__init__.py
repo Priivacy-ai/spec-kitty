@@ -53,7 +53,6 @@ from specify_cli.cli.commands.charter.generate import (  # noqa: F401
     _stage_charter_files,
     generate,
 )
-from specify_cli.cli.commands.charter.commit import commit  # noqa: F401
 from specify_cli.cli.commands.charter.context import context  # noqa: F401
 from specify_cli.cli.commands.charter.sync import sync  # noqa: F401
 from specify_cli.cli.commands.charter.status import status  # noqa: F401

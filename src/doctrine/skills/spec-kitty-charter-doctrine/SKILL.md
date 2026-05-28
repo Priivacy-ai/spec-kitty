@@ -575,7 +575,11 @@ and extracted YAML files.
 To commit the generated charter inputs, use:
 
 ```bash
-spec-kitty charter commit --message "chore: generate project charter"
+spec-kitty safe-commit --message "chore: generate project charter" \
+  .kittify/charter/interview/answers.yaml \
+  .kittify/charter/charter.md \
+  .kittify/charter/references.yaml \
+  .gitignore
 ```
 
 ---

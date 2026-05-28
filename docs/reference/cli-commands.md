@@ -205,8 +205,6 @@ _Charter management commands_
 │ interview     Capture charter interview answers for later generation.        │
 │ generate      Generate charter bundle from interview answers + doctrine      │
 │               references.                                                    │
-│ commit        Commit generated charter files via the shared safe-commit      │
-│               path.                                                          │
 │ context       Render charter context for a specific workflow action.         │
 │ sync          Sync charter.md to structured YAML config files.               │
 │ status        Display charter sync status plus synthesis/operator state.     │
@@ -272,21 +270,6 @@ _Charter bundle validation commands._
 │                                               `org_charter` describes        │
 │                                               imported org packs.            │
 │    --help                                     Show this message and exit.    │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty charter commit
-
-```
- Usage: spec-kitty charter commit [OPTIONS]
-
- Commit generated charter files via the shared safe-commit path.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --message  -m      TEXT  Commit message for charter changes.                 │
-│                          [default: chore: generate project charter]          │
-│ --json                   Output JSON                                         │
-│ --help                   Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2605,6 +2588,25 @@ _Cross-mission retrospective summary._
 │                        Auto-detected from meta.json.baseline_merge_commit    │
 │                        when omitted.                                         │
 │ --help                 Show this message and exit.                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty safe-commit
+
+```
+ Usage: spec-kitty safe-commit [OPTIONS] FILES...
+
+ Commit only the requested files via Spec Kitty's safe-commit path.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    files      FILES...  Files to commit, relative to the repository root   │
+│                           or absolute.                                       │
+│                           [required]                                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --message  -m      TEXT  Commit message. [required]                       │
+│    --json                   Output JSON                                      │
+│    --help                   Show this message and exit.                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

@@ -18,6 +18,7 @@ from typing import cast
 import pytest
 from typer.testing import CliRunner
 
+from specify_cli import app as cli_app
 from specify_cli.cli.commands.charter import app as charter_app
 from specify_cli.cli.commands.charter_bundle import app as charter_bundle_app
 
@@ -289,8 +290,8 @@ def test_generate_does_not_disturb_unrelated_staged_changes(
     assert ".kittify/charter/charter.md" in staged
 
 
-def test_charter_commit_uses_safe_commit_for_generated_files(tmp_path: Path) -> None:
-    """``charter commit`` creates the charter commit without raw git commit."""
+def test_generic_safe_commit_commits_generated_charter_files(tmp_path: Path) -> None:
+    """``safe-commit`` creates the charter commit without raw git commit."""
     _git_init(tmp_path)
     _git_initial_commit(tmp_path)
     _write_minimal_interview(tmp_path)
@@ -309,7 +310,17 @@ def test_charter_commit_uses_safe_commit_for_generated_files(tmp_path: Path) -> 
         assert gen.exit_code == 0, f"generate failed: {gen.stdout!r}"
 
         committed = runner.invoke(
-            charter_app, ["commit", "--message", "chore: generate project charter", "--json"],
+            cli_app,
+            [
+                "safe-commit",
+                "--message",
+                "chore: generate project charter",
+                "--json",
+                ".kittify/charter/interview/answers.yaml",
+                ".kittify/charter/charter.md",
+                ".kittify/charter/references.yaml",
+                ".gitignore",
+            ],
             catch_exceptions=False,
         )
         assert committed.exit_code == 0, f"commit failed: {committed.stdout!r}"
@@ -341,6 +352,6 @@ def test_charter_template_uses_safe_commit_command() -> None:
         / "charter.md"
     ).read_text(encoding="utf-8")
 
-    assert "spec-kitty charter commit" in template
+    assert "spec-kitty safe-commit" in template
     assert "git commit" not in template
     assert "Listen intently" in template
