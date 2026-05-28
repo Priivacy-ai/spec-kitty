@@ -18,7 +18,10 @@ C-013, NFR-001, NFR-008, NFR-010.
 
 from __future__ import annotations
 
+import json as _json
 import logging
+import subprocess
+import sys
 import threading
 from collections.abc import Callable
 from contextlib import AbstractContextManager
@@ -108,6 +111,19 @@ class BookkeepingDoubleEventId(BookkeepingError):
     error_code: ClassVar[str] = "BOOKKEEPING_DOUBLE_EVENT_ID"
 
 
+class BookkeepingLegacyResolutionFailed(BookkeepingError):
+    """Legacy mission detected but the lane worktree could not be resolved.
+
+    Stable error code ``BOOKKEEPING_LEGACY_RESOLUTION_FAILED``.  Raised
+    when ``meta.json`` lacks ``coordination_branch`` (legacy mission)
+    but the operator's current working directory does not sit inside a
+    recognisable lane worktree, so we cannot determine which branch is
+    the legitimate write target for this mission's bookkeeping.
+    """
+
+    error_code: ClassVar[str] = "BOOKKEEPING_LEGACY_RESOLUTION_FAILED"
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -134,6 +150,147 @@ def _generate_ulid() -> str:
     if hasattr(_ulid_mod, "new"):
         return str(_ulid_mod.new().str)
     return str(_ulid_mod.ULID())
+
+
+# ---------------------------------------------------------------------------
+# Legacy mission helpers (WP08 T035–T036, FR-017 / FR-027 / SC-11)
+# ---------------------------------------------------------------------------
+#
+# Missions created before the coordination-branch topology landed do not
+# carry ``coordination_branch`` in their ``meta.json``.  For those, the
+# bookkeeping write target is the operator's current LANE worktree + its
+# checked-out branch.  Every other invariant of the transaction
+# (pre-flight policy gate, lock, surgical truncate rollback, outbound
+# deferral) applies uniformly.  Only ``worktree_root`` and
+# ``destination_ref`` differ.
+
+
+def _is_legacy_mission(repo_root: Path, mission_slug: str, mid8: str) -> bool:
+    """Return ``True`` when ``meta.json`` exists and lacks ``coordination_branch``.
+
+    Detection rule (per WP08 reviewer guidance):
+
+    * ``meta.json`` is **present** but does not carry the
+      ``coordination_branch`` key → legacy mission.
+    * ``meta.json`` is **absent** → treat as new-topology mission.  This
+      is the case for synthetic test fixtures and very early mission
+      lifecycle states; defaulting to new-topology preserves the
+      existing test surface and matches the contract that any
+      well-formed post-WP03 mission has its meta written before the
+      first ``acquire()``.
+    * A missing/manually deleted coord branch does **not** make a
+      mission legacy — FR-018 idempotency re-creates it.  Only the
+      ``meta.json`` field is consulted.
+    """
+    kitty_dir_name = _kitty_specs_dir_name(mission_slug, mid8)
+    meta_path = repo_root / "kitty-specs" / kitty_dir_name / "meta.json"
+    if not meta_path.exists():
+        return False
+    try:
+        data = _json.loads(meta_path.read_text(encoding="utf-8"))
+    except (OSError, _json.JSONDecodeError):
+        # A malformed meta.json is not our problem to repair here; if a
+        # caller hits this they will surface it through other validators.
+        # Treat as new-topology so we do not silently route legacy.
+        return False
+    if not isinstance(data, dict):
+        return False
+    return not data.get("coordination_branch")
+
+
+def _resolve_legacy_lane_destination(
+    repo_root: Path,
+) -> tuple[Path, str]:
+    """Resolve the operator's current lane worktree + its checked-out branch.
+
+    Returns ``(worktree_root, branch_short_name)``.
+
+    Algorithm:
+
+    1. Take ``Path.cwd()`` and walk ancestors until a ``.git`` entry is
+       found.  A ``.git`` *file* indicates a linked worktree; a ``.git``
+       *directory* indicates the main checkout.  Either is acceptable as
+       a legacy write target — pre-coord-topology bookkeeping ran in
+       whichever checkout the operator stood in.
+    2. Read ``git symbolic-ref HEAD`` from that worktree to obtain the
+       branch name and strip ``refs/heads/`` so it is comparable to the
+       short-form refs used elsewhere in the transaction.
+
+    Raises :class:`BookkeepingLegacyResolutionFailed` when no ``.git``
+    marker is found or HEAD is detached.
+    """
+    cwd = Path.cwd().resolve()
+    worktree_root: Path | None = None
+    for ancestor in [cwd, *cwd.parents]:
+        marker = ancestor / ".git"
+        if marker.exists():
+            worktree_root = ancestor
+            break
+    if worktree_root is None:
+        raise BookkeepingLegacyResolutionFailed(
+            f"Legacy mission detected but no git worktree found above {cwd}",
+        )
+    try:
+        head = subprocess.check_output(
+            ["git", "-C", str(worktree_root), "symbolic-ref", "HEAD"],
+            text=True,
+            stderr=subprocess.PIPE,
+        ).strip()
+    except subprocess.CalledProcessError as exc:
+        raise BookkeepingLegacyResolutionFailed(
+            f"Legacy mission detected at {worktree_root} but HEAD is detached "
+            f"or symbolic-ref failed: {exc.stderr or exc}"
+        ) from exc
+    branch = head.removeprefix("refs/heads/")
+    if not branch:
+        raise BookkeepingLegacyResolutionFailed(
+            f"Legacy mission detected at {worktree_root} but HEAD resolves to "
+            f"an empty branch name"
+        )
+    # Defensive: discourage running legacy bookkeeping against repo_root
+    # if that happens to be the main checkout sitting on `main`.  We do
+    # not refuse here — the pre-flight policy gate in `acquire()` will
+    # catch protected-ref writes via the same machinery used for the
+    # coord topology (SC-11 behaviour parity).
+    return worktree_root, branch
+
+
+def _legacy_warning_marker_path(repo_root: Path, mission_id: str) -> Path:
+    """Path of the per-mission once-only deprecation warning marker."""
+    return repo_root / ".kittify" / f"legacy-warning-shown-{mission_id}"
+
+
+def _emit_legacy_warning_once(
+    repo_root: Path, mission_id: str, mission_slug: str,
+) -> None:
+    """Emit a one-line stderr deprecation warning, at most once per mission.
+
+    Idempotent: subsequent invocations within the same project see the
+    marker file and no-op.  The marker lives under ``.kittify/`` so it
+    is project-scoped (per-mission ID) and survives across invocations.
+    """
+    marker = _legacy_warning_marker_path(repo_root, mission_id)
+    if marker.exists():
+        return
+    try:
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.write_text("", encoding="utf-8")
+    except OSError as exc:
+        # Marker write failure is non-fatal: we still emit the warning
+        # (worst case: warning repeats next invocation).
+        logger.debug(
+            "BookkeepingTransaction: failed to write legacy-warning "
+            "marker %s: %s",
+            marker,
+            exc,
+        )
+    print(
+        f"warning: mission {mission_slug!r} uses the legacy topology "
+        f"(no coordination branch). New atomicity invariants apply, "
+        f"but consider migrating: see "
+        f"docs/migration/legacy-to-coordination.md",
+        file=sys.stderr,
+    )
 
 
 # WP06 swap: the canonical builder now lives in ``status.emit`` so the
@@ -243,22 +400,62 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         # compare to short-form).
         normalised_ref = _normalize_ref(destination_ref)
 
-        # 2. Resolve the coord worktree. CoordinationWorkspace.resolve
-        # creates the worktree on first call. A failing git operation
-        # surfaces as the underlying subprocess error → wrap in
-        # BookkeepingWorktreeMissing.
-        try:
-            worktree_root = CoordinationWorkspace.resolve(
-                repo_root, mission_slug, mid8,
-            )
-        except Exception as exc:  # noqa: BLE001 — surface as our domain error
-            raise BookkeepingWorktreeMissing(
-                f"Failed to resolve coordination worktree for "
-                f"{mission_slug}-{mid8}: {exc}"
-            ) from exc
+        # 2. Resolve the worktree.  Two paths exist (WP08 T035–T036, SC-11):
+        #
+        # (a) **New topology** (default): the mission's meta.json carries
+        #     ``coordination_branch``.  We resolve the per-mission coord
+        #     worktree at ``.worktrees/<slug>-<mid8>-coord/`` (created on
+        #     first call by ``CoordinationWorkspace.resolve``).  The
+        #     ``destination_ref`` passed in by the caller already names
+        #     the coord branch.
+        #
+        # (b) **Legacy mission** (pre-WP03 / pre-PR2): the mission's
+        #     ``meta.json`` lacks ``coordination_branch``.  Bookkeeping
+        #     for this mission must run against the operator's current
+        #     LANE worktree + its checked-out branch, exactly how it did
+        #     before the coord topology landed.  We override the caller-
+        #     supplied ``destination_ref`` with the actual lane branch
+        #     name resolved from the worktree's ``HEAD`` so the pre-flight
+        #     policy gate and the ``safe_commit`` HEAD assertion see a
+        #     consistent ref.
+        #
+        # Crucial invariant: **every other step of acquire() below — the
+        # pre-flight policy gate, the feature-status lock, the surgical
+        # truncate rollback, and the outbound deferral — applies
+        # uniformly to both paths.**  Only ``worktree_root`` and (in
+        # legacy mode) ``destination_ref`` differ.
+        legacy_mode = _is_legacy_mission(repo_root, mission_slug, mid8)
+        if legacy_mode:
+            try:
+                worktree_root, lane_branch = _resolve_legacy_lane_destination(
+                    repo_root,
+                )
+            except BookkeepingLegacyResolutionFailed:
+                raise
+            # Override caller-supplied destination_ref with the actual
+            # lane branch so policy + HEAD assertion both see truth.
+            normalised_ref = _normalize_ref(lane_branch)
+            destination_ref = normalised_ref
+            _emit_legacy_warning_once(repo_root, mission_id, mission_slug)
+        else:
+            # New topology — create coord worktree on first call.
+            try:
+                worktree_root = CoordinationWorkspace.resolve(
+                    repo_root, mission_slug, mid8,
+                )
+            except Exception as exc:  # noqa: BLE001 — domain error surface
+                raise BookkeepingWorktreeMissing(
+                    f"Failed to resolve coordination worktree for "
+                    f"{mission_slug}-{mid8}: {exc}"
+                ) from exc
 
-        # 3. Compute the feature_dir + status files INSIDE the coord
-        # worktree (FR-024: the coord branch is the canonical writer).
+        # 3. Compute the feature_dir + status files INSIDE the resolved
+        # worktree.  Both paths (coord and legacy lane) host the
+        # ``kitty-specs/<slug>-<mid8>/`` tree containing
+        # ``status.events.jsonl`` + ``status.json``.  In legacy mode
+        # there is no sparse-checkout policy on the lane, so the files
+        # are physically present and the surgical truncate rollback
+        # works against the lane worktree without modification.
         kitty_dir_name = _kitty_specs_dir_name(mission_slug, mid8)
         feature_dir = worktree_root / "kitty-specs" / kitty_dir_name
         events_path = feature_dir / _EVENTS_FILENAME
