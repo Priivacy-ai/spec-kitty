@@ -1,0 +1,122 @@
+{
+  "version": 1,
+  "mission_slug": "rename-ceremony-to-status-commit-01KSPN6C",
+  "mission_id": "01KSPN6C5DWX7MRFMCD2BG1SBT",
+  "mission_branch": "kitty/mission-rename-ceremony-to-status-commit-01KSPN6C",
+  "target_branch": "prep/tasks-rename-ceremony-01KSPN6C",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        ".kittify/glossaries/spec_kitty_core.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/git/commit_helpers.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "tests/architectural/_baselines.yaml",
+        "tests/doctrine/procedures/conftest.py",
+        "tests/doctrine/procedures/test_models.py",
+        "tests/e2e/conftest.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/doctrine/missions/software-dev/actions/tasks/guidelines.md",
+        "src/doctrine/procedures/README.md",
+        "src/doctrine/skills/spec-kitty-program-orchestrate/SKILL.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "docs/development/3-2-publication-checklist.md",
+        "docs/development/org-doctrine-layer-architecture-review.md",
+        "docs/engineering_notes/finding/2026-05-24-mission-01KSAF14-orchestration-findings.md",
+        "docs/engineering_notes/reflections/README.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "tests/architectural/test_no_legacy_terminology.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c",
+        "lane-d",
+        "lane-e"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-05-28T07:19:09.254485+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}
