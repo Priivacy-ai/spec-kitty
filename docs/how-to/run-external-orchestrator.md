@@ -18,16 +18,27 @@ This is the supported automation model:
 ## Prerequisites
 
 - `spec-kitty` installed and available on `PATH`
-- `spec-kitty-orchestrator` installed and available on `PATH`
+- a host-compatible `spec-kitty-orchestrator` build installed and available on `PATH`
 - A prepared mission (`spec.md`, `plan.md`, `tasks.md`, and `tasks/WP*.md`)
 - At least one supported agent CLI installed
 - A clean enough git repository for worktree creation
 
-Install the released orchestrator package from PyPI:
+## Version Compatibility
+
+The current host API requires a compatible provider implementation. PyPI
+currently publishes `spec-kitty-orchestrator` `0.1.0`; that release is not
+compatible with current `spec-kitty orchestrator-api` behavior and should not
+be used for this workflow.
+
+Until a newer compatible release is published, install the orchestrator from
+the current source repository:
 
 ```bash
-pip install spec-kitty-orchestrator
+python -m pip install "git+https://github.com/Priivacy-ai/spec-kitty-orchestrator.git"
 ```
+
+After a compatible release newer than `0.1.0` is published, installing from
+PyPI is expected to be the normal path.
 
 For the common "Claude implements, Codex reviews" workflow, install and
 authenticate both CLIs before starting:
@@ -99,18 +110,19 @@ spec-kitty-orchestrator orchestrate \
   --max-concurrent 1
 ```
 
-The orchestrator loop will typically:
+With a host-compatible provider build, the orchestrator loop will typically:
 
 1. Read ready WPs via `list-ready`.
 2. Claim/start via `start-implementation`.
-3. Run the implementation agent in the WP worktree.
+3. Prepare a usable WP worktree and run the implementation agent there.
 4. Transition to `for_review`.
 5. Run the reviewer.
 6. Claim `in_review`.
-7. Transition to `done` on approval, or back to `in_progress` for rework.
+7. Transition to `done` on approval with the required review evidence, or back to `in_progress` for rework.
 
-The provider prepares worktrees before spawning agents. The host remains the
-source of truth for lane events.
+The host returns the intended workspace path. The provider must ensure that
+path exists and is usable before spawning an agent. The host remains the source
+of truth for lane events.
 
 ## 5. Monitor or Recover
 
@@ -164,6 +176,9 @@ Expected for `spec-kitty` core CLI. Use:
 ### Contract mismatch
 
 If `contract-version` returns mismatch, upgrade either host (`spec-kitty`) or provider (`spec-kitty-orchestrator`) so versions are compatible.
+
+If a run fails with `No such option: --json`, you are using an incompatible
+provider release. Install a host-compatible source build or a newer release.
 
 ### Policy validation failures
 

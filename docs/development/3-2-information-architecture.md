@@ -4,7 +4,7 @@
 **Work package:** WP08 (T025, T026)
 **Requirements:** FR-011 (IA spine), FR-012 (gap list)
 **Inputs:**
-- `docs/development/3-2-page-inventory.yaml` (WP02 — 401 rows)
+- `docs/development/3-2-page-inventory.yaml` (WP02 — 402 rows)
 - `docs/reference/cli-commands.md` (WP07 — rebuilt reference)
 - `kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/spec.md`, `plan.md` (Project Structure §)
 
@@ -162,7 +162,7 @@ Disposition values:
 - `migrate-note` — page is 3.1 and becomes a migration note per plan default.
 - `new` — page does not exist; create during this mission's implement phase.
 
-### 6.1 `docs/tutorials/` (7 existing pages)
+### 6.1 `docs/tutorials/` (8 existing pages)
 
 | Existing page | Inventory tag | Disposition | Target IA slot |
 |---------------|---------------|-------------|----------------|
@@ -172,6 +172,7 @@ Disposition values:
 | `docs/tutorials/getting-started.md` | current | rewrite | replaced by `tutorials/install-and-first-mission.md` |
 | `docs/tutorials/missions-overview.md` | current | rewrite | conceptual material moves to `explanation/mission-model.md`; tutorial slot retired |
 | `docs/tutorials/multi-agent-workflow.md` | current | rewrite | replaced by `tutorials/multi-harness-workflow.md` |
+| `docs/tutorials/orchestrator-quickstart.md` | current | reuse | `tutorials/orchestrator-quickstart` |
 | `docs/tutorials/your-first-feature.md` | current | rewrite | replaced by `tutorials/install-and-first-mission.md` (note: title also de-features per Terminology Canon) |
 
 ### 6.2 `docs/how-to/` (38 existing pages)
@@ -262,11 +263,11 @@ Disposition values:
 
 | Divio directory | Existing pages assessed |
 |-----------------|------------------------|
-| `docs/tutorials/` | 7 |
+| `docs/tutorials/` | 8 |
 | `docs/how-to/` | 38 |
 | `docs/reference/` | 16 |
 | `docs/explanation/` | 15 |
-| **Total** | **76** |
+| **Total** | **77** |
 
 ---
 
@@ -301,7 +302,7 @@ Explanation count breakdown:
 
 - [x] IA doc covers all four Divio directories (§2, §3, §4, §5).
 - [x] Every CLI page in the WP07 reference is referenced in the IA (`docs/reference/cli-commands.md` is the canonical reference slot; `agent-subcommands.md`, `slash-commands.md`, `charter-commands.md` are referenced explicitly in §4).
-- [x] Gap list dispositions are explicit for every existing page across all four Divio directories (§6.1–§6.4 — 76 rows total).
+- [x] Gap list dispositions are explicit for every existing page across all four Divio directories (§6.1–§6.4 — 77 rows total).
 - [x] No files outside `owned_files` are modified by this WP (this file is the sole owned target).
 
 ## 9. Notes for downstream WPs

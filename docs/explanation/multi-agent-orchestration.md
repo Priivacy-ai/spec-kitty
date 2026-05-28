@@ -45,6 +45,8 @@ spec-kitty agent tasks move-task WP01 --to done
 ### 2) External automated orchestration
 
 Automated coordination is run by external providers such as `spec-kitty-orchestrator`.
+Use a provider build that explicitly supports the current host API. The PyPI
+`spec-kitty-orchestrator` `0.1.0` release is not compatible with current hosts.
 
 ```bash
 spec-kitty orchestrator-api contract-version
@@ -52,10 +54,10 @@ spec-kitty-orchestrator orchestrate --mission 034-my-feature --dry-run
 spec-kitty-orchestrator orchestrate --mission 034-my-feature
 ```
 
-Provider loop responsibilities:
+Host-compatible provider loop responsibilities:
 
 1. Discover ready WPs via host API.
-2. Start implementation and run agents in worktrees.
+2. Start implementation, prepare usable worktrees, and run agents there.
 3. Transition WPs through review cycles.
 4. Accept when WPs are accepted-ready (`approved` or `done`), then merge.
 
@@ -108,7 +110,7 @@ Compatibility mapping:
 - API `in_progress` maps to internal `doing`.
 - `planned`, `for_review`, `in_review`, `approved`, and `done` map directly.
 
-Current external review flow is:
+Current host review flow is:
 
 ```text
 in_progress -> for_review -> in_review -> done
@@ -134,7 +136,7 @@ The orchestrator model assumes protected branches stay clean:
 
 This matters because activity-log updates may be committed by the host. A
 provider that invokes mutation commands directly from protected `main` can hit
-branch-protection errors. The reference orchestrator avoids that by preparing
+branch-protection errors. A compatible provider must create or reuse the
 mission and WP worktrees before mutating state or spawning agents.
 
 ## Policy metadata and mutation authority

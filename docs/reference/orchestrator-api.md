@@ -274,8 +274,8 @@ back to `for_review`.
 ## Worktree Expectations
 
 The host returns the workspace path. The provider is responsible for ensuring
-the path is usable for the agent process. The reference orchestrator creates or
-reuses git worktrees before spawning agents.
+the path exists and is usable for the agent process before spawning an agent.
+Do not treat the returned string as proof that a worktree already exists.
 
 State mutation commands should not be run from a protected main branch when
 they need to commit activity-log updates. Use a mission lane/worktree branch for

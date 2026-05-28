@@ -20,13 +20,22 @@ You need:
 
 - a git repository initialized with Spec Kitty
 - `spec-kitty` on `PATH`
-- `spec-kitty-orchestrator` on `PATH`
+- a host-compatible `spec-kitty-orchestrator` build on `PATH`
 - at least one agent CLI supported by the orchestrator, such as Claude Code,
   Codex, or OpenCode
 - a mission with at least one `tasks/WP*.md` file
 
 If you do not have a mission yet, finish [Your First Feature](your-first-feature.md)
 first.
+
+## Version compatibility
+
+PyPI currently publishes `spec-kitty-orchestrator` `0.1.0`, which is not
+compatible with the current host API. Do not use that release for this
+tutorial. Install a current source build of
+[`Priivacy-ai/spec-kitty-orchestrator`](https://github.com/Priivacy-ai/spec-kitty-orchestrator)
+or a later release that explicitly documents compatibility with the current
+`spec-kitty orchestrator-api`.
 
 ## 1. Confirm the host API works
 
@@ -106,15 +115,16 @@ spec-kitty-orchestrator orchestrate \
   --max-concurrent 1
 ```
 
-The reference orchestrator will:
+With a host-compatible provider build, the orchestrator loop will:
 
 1. call `list-ready`
 2. call `start-implementation` for a ready WP
-3. run the implementation agent in the WP worktree
+3. prepare a usable WP worktree and run the implementation agent there
 4. transition the WP to `for_review`
 5. run the review agent
-6. claim `in_review` and transition to `done` when the review passes
-7. move rejected work back to `in_progress` for rework
+6. claim `in_review` before completing approved review
+7. transition to `done` with the required review evidence when the review passes
+8. move rejected work back to `in_progress` for rework
 
 The orchestrator writes its local run state under `.kittify/` and agent logs
 under `.kittify/logs/`.
