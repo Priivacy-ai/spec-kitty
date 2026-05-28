@@ -58,6 +58,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (per-mission coordination worktree, `BookkeepingTransaction`,
   `WorkflowMutationPolicy`) ship in WPs 02-09.
 
+## [3.2.0rc29] - 2026-05-28
+
+3.2.0rc29 rerolls the coordination branch atomic event-log candidate after
+PR review.
+
+### Fixed
+
+- Migrated remaining production `safe_commit()` call sites to the
+  destination-ref-aware API so agent task, mission, merge, upgrade, and
+  orchestrator paths no longer crash on the removed legacy signature.
+- Serialized first-time coordination worktree creation under the feature
+  status lock to prevent concurrent emitters from racing on `git worktree add`.
+- Restored compatibility for older unit-test fakes that do not expose the new
+  coordination branch or commit-result fields.
+
 ## [3.2.0rc28] - 2026-05-27
 
 3.2.0rc28 fixes acceptance lane ownership and a clean-install dependency gap.
