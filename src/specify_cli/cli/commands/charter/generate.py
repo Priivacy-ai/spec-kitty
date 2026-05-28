@@ -12,7 +12,7 @@ from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.task_utils import TaskCliError
 
 from specify_cli.cli.commands.charter._app import charter_app, console
-from specify_cli.cli.commands.charter._common import _interview_path
+from specify_cli.cli.commands.charter._common import _emit_error, _interview_path
 
 # Test-patch shim: see ``synthesize.py`` for the rationale. ``find_repo_root``
 # and ``default_interview`` are looked up on the package module at call time so
@@ -218,10 +218,14 @@ def generate(
         # git, and producing artifacts that bundle validate cannot accept
         # is exactly the silent-inconsistency bug #841 closes.
         if not _is_inside_git_worktree(repo_root):
-            console.print(
-                "[red]Error:[/red] charter generate requires a git repository. "
-                "Initialize one with `git init` (so the produced charter.md can be "
-                "auto-tracked and accepted by `charter bundle validate`)."
+            _emit_error(
+                console,
+                json_output=json_output,
+                message=(
+                    "charter generate requires a git repository. "
+                    "Initialize one with `git init` (so the produced charter.md can be "
+                    "auto-tracked and accepted by `charter bundle validate`)."
+                ),
             )
             raise typer.Exit(code=1)
         charter_dir = repo_root / ".kittify" / "charter"
@@ -333,8 +337,8 @@ def generate(
         # (e.g. T030 fail-fast for non-git environments).
         raise
     except (FileExistsError, TaskCliError, ValueError, RuntimeError) as e:
-        console.print(f"[red]Error:[/red] {e}")
+        _emit_error(console, json_output=json_output, message=str(e))
         raise typer.Exit(code=1) from e
     except Exception as e:
-        console.print(f"[red]Unexpected error:[/red] {e}")
+        _emit_error(console, json_output=json_output, message=str(e), unexpected=True)
         raise typer.Exit(code=1) from e

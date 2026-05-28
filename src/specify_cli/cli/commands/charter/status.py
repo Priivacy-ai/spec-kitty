@@ -21,6 +21,7 @@ from specify_cli.cli.commands.charter._app import (
     charter_app,
     console,
 )
+from specify_cli.cli.commands.charter._common import _emit_error
 from specify_cli.cli.commands.charter._status_collectors import (
     _collect_org_layer_status,
 )
@@ -296,8 +297,8 @@ def status(  # noqa: C901
                 console.print(f"    [dim]Run: {sub['remediation']}[/dim]")
 
     except TaskCliError as e:
-        console.print(f"[red]Error:[/red] {e}")
+        _emit_error(console, json_output=json_output, message=str(e))
         raise typer.Exit(code=1) from e
     except Exception as e:
-        console.print(f"[red]Unexpected error:[/red] {e}")
+        _emit_error(console, json_output=json_output, message=str(e), unexpected=True)
         raise typer.Exit(code=1) from e

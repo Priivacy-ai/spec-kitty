@@ -8,7 +8,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from specify_cli.git import ProtectedBranchCommitError, safe_commit
+from specify_cli.git import ProtectedBranchCommitError, assert_not_protected_branch, safe_commit
 from specify_cli.git.commit_helpers import SafeCommitBackstopError
 from specify_cli.task_utils import TaskCliError, find_repo_root
 
@@ -80,6 +80,7 @@ def safe_commit_command(
         rel_files = [str(path.relative_to(repo_root)) for path in normalized_files]
 
         had_changes = _has_candidate_changes(repo_root, normalized_files)
+        assert_not_protected_branch(repo_root, operation=f"create commit '{message}'")
         committed = safe_commit(
             repo_path=repo_root,
             files_to_commit=normalized_files,

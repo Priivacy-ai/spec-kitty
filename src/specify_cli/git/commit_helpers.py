@@ -262,6 +262,24 @@ def _stage_requested_files(repo_path: Path, normalized_files: list[str]) -> bool
     return True
 
 
+def _staged_patch_for_paths(repo_path: Path, normalized_files: list[str]) -> str | None:
+    """Return an exact binary patch for currently-staged requested paths."""
+    if not normalized_files:
+        return ""
+    result = subprocess.run(
+        ["git", "diff", "--cached", "--binary", "--no-ext-diff", "--no-renames", "--", *normalized_files],
+        cwd=repo_path,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout
+
+
 def _unstage_requested_files(repo_path: Path, normalized_files: list[str]) -> None:
     """Remove requested paths from the index before saving unrelated staging."""
     if not normalized_files:
@@ -304,6 +322,26 @@ def _unstage_requested_files(repo_path: Path, normalized_files: list[str]) -> No
         errors="replace",
         check=False,
     )
+
+
+def _restore_staged_patch(repo_path: Path, normalized_files: list[str], patch: str | None) -> bool:
+    """Restore the caller's pre-existing staged requested-file state."""
+    if patch is None:
+        return False
+    _unstage_requested_files(repo_path, normalized_files)
+    if not patch:
+        return True
+    result = subprocess.run(
+        ["git", "apply", "--cached", "--whitespace=nowarn", "-"],
+        cwd=repo_path,
+        input=patch,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    return result.returncode == 0
 
 
 def _run_commit(repo_path: Path, commit_message: str, allow_empty: bool) -> bool:
@@ -416,6 +454,7 @@ def safe_commit(
 
     # If a previous command already staged the requested files, keep treating
     # them as the files to commit rather than as unrelated operator staging.
+    requested_staged_patch = _staged_patch_for_paths(repo_path, normalized_files)
     _unstage_requested_files(repo_path, normalized_files)
 
     # Save current staging area (only staged changes, not working tree)
@@ -433,6 +472,7 @@ def safe_commit(
     created_stash = stash_result.returncode == 0 and _find_stash_ref(repo_path, stash_message) is not None
     restore_failed = False
     commit_success = False
+    commit_created = False
     backstop_error: SafeCommitBackstopError | None = None
 
     try:
@@ -454,6 +494,7 @@ def safe_commit(
                 commit_success = False
             else:
                 commit_success = _run_commit(repo_path, commit_message, allow_empty)
+                commit_created = commit_success
 
     finally:
         # Restore original staging area if we created a stash entry.
@@ -475,6 +516,9 @@ def safe_commit(
                     restore_failed = True
 
         if restore_failed:
+            commit_success = False
+
+        if not commit_created and not _restore_staged_patch(repo_path, normalized_files, requested_staged_patch):
             commit_success = False
 
     # Propagate backstop error AFTER stash cleanup has run.

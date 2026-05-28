@@ -10,10 +10,11 @@ and ``init``.
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 from pathlib import Path
-from typing import cast
+from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
@@ -21,6 +22,7 @@ from typer.testing import CliRunner
 from specify_cli import app as cli_app
 from specify_cli.cli.commands.charter import app as charter_app
 from specify_cli.cli.commands.charter_bundle import app as charter_bundle_app
+from specify_cli.task_utils import TaskCliError
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
@@ -228,6 +230,47 @@ def test_generate_from_interview_fails_when_answers_missing(tmp_path: Path) -> N
     assert result.exit_code != 0
     assert "No charter interview answers found" in result.stdout
     assert not (tmp_path / ".kittify" / "charter" / "charter.md").exists()
+
+
+def test_generate_from_interview_missing_answers_json_is_parseable(tmp_path: Path) -> None:
+    """``--json`` error output must stay machine-parseable."""
+    _git_init(tmp_path)
+
+    old_cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+        result = runner.invoke(
+            charter_app, ["generate", "--from-interview", "--json"],
+            catch_exceptions=False,
+        )
+    finally:
+        os.chdir(old_cwd)
+
+    payload = json.loads(result.stdout)
+    assert result.exit_code != 0
+    assert payload["success"] is False
+    assert payload["result"] == "error"
+    assert "No charter interview answers found" in payload["error"]
+
+
+def test_status_json_error_is_parseable() -> None:
+    """``charter status --json`` must not emit Rich-formatted error text."""
+    with patch(
+        "specify_cli.cli.commands.charter.find_repo_root",
+        side_effect=TaskCliError("repo root unavailable"),
+    ):
+        result = runner.invoke(
+            charter_app, ["status", "--json"],
+            catch_exceptions=False,
+        )
+
+    payload = json.loads(result.stdout)
+    assert result.exit_code != 0
+    assert payload == {
+        "error": "repo root unavailable",
+        "result": "error",
+        "success": False,
+    }
 
 
 def test_generate_fails_when_auto_stage_fails(tmp_path: Path) -> None:
