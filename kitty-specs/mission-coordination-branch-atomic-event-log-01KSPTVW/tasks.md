@@ -197,11 +197,11 @@ No cycles. WP01 is the only WP with no dependencies.
 **Estimated prompt size**: ~400 lines.
 
 **Included subtasks**:
-- [ ] T015 `CoordinationWorkspace` service: resolve/create/teardown coordination worktree (WP04)
-- [ ] T016 Sparse-checkout policy registration at lane worktree creation (`LANE_SPARSE_CHECKOUT_EXCLUSIONS`) (WP04)
-- [ ] T017 Lane allocator updates: parent lane branches on coordination branch (WP04)
-- [ ] T018 Unit tests: coordination worktree lifecycle; sparse-checkout drift detection (WP04)
-- [ ] T019 Doctor command: sparse-checkout drift + coordination worktree health checks (WP04)
+- [x] T015 `CoordinationWorkspace` service: resolve/create/teardown coordination worktree (WP04)
+- [x] T016 Sparse-checkout policy registration at lane worktree creation (`LANE_SPARSE_CHECKOUT_EXCLUSIONS`) (WP04)
+- [x] T017 Lane allocator updates: parent lane branches on coordination branch (WP04)
+- [x] T018 Unit tests: coordination worktree lifecycle; sparse-checkout drift detection (WP04)
+- [x] T019 Doctor command: sparse-checkout drift + coordination worktree health checks (WP04)
 
 **Implementation sketch**: Create `src/specify_cli/coordination/__init__.py` and `workspace.py`. `CoordinationWorkspace.resolve(repo_root, mission_slug, mid8)` runs `git worktree list --porcelain` to find the worktree; creates via `git worktree add` if missing. The lane allocator (existing module — likely `src/specify_cli/lanes/`) gains a step that runs `git sparse-checkout init --no-cone` and writes the exclusion patterns. Doctor command gains `_check_coordination_worktree_health()` and `_check_sparse_checkout_drift()`.
 

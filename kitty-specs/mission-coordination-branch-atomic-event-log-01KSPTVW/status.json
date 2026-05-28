@@ -1,12 +1,12 @@
 {
-  "event_count": 24,
-  "last_event_id": "01KSQ45VJ3R791DT5V64Q91PHC",
-  "materialized_at": "2026-05-28T11:05:40.675385+00:00",
+  "event_count": 29,
+  "last_event_id": "01KSQ54HRVYMTWS3CXK0W65CNV",
+  "materialized_at": "2026-05-28T11:22:26.459490+00:00",
   "mission_number": "",
   "mission_slug": "mission-coordination-branch-atomic-event-log-01KSPTVW",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 3,
+    "approved": 4,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
@@ -14,7 +14,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 6
+    "planned": 5
   },
   "work_packages": {
     "WP01": {
@@ -39,11 +39,11 @@
       "last_transition_at": "2026-05-28T11:05:40.675385+00:00"
     },
     "WP04": {
-      "actor": "finalize-tasks",
+      "actor": "user",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KSPYM58YX97VKTZXMM1HNH8Z",
-      "last_transition_at": "2026-05-28T09:28:37.918642+00:00"
+      "lane": "approved",
+      "last_event_id": "01KSQ54HRVYMTWS3CXK0W65CNV",
+      "last_transition_at": "2026-05-28T11:22:26.459490+00:00"
     },
     "WP05": {
       "actor": "finalize-tasks",

@@ -15,13 +15,17 @@ tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-mission-coordination-branch-atomic-event-log-01KSPTVW
+base_commit: fc1aa41f62840ca1fa430e2d8fc372f384fc5421
+created_at: '2026-05-28T11:07:10.230223+00:00'
 subtasks:
 - T015
 - T016
 - T017
 - T018
 - T019
-agent: claude
+agent: "claude:opus:reviewer-rita:reviewer"
+shell_pid: "27575"
 history:
 - at: '2026-05-28T08:55:00+00:00'
   actor: claude
@@ -326,3 +330,10 @@ Introduce the `src/specify_cli/coordination/` package with `CoordinationWorkspac
 - Plan: PR 2 step 4
 - Contract: [`contracts/coordination_workspace.md`](../contracts/coordination_workspace.md)
 - Research: R-003 in [`research.md`](../research.md)
+
+## Activity Log
+
+- 2026-05-28T11:07:10Z – claude:opus:implementer-ivan:implementer – shell_pid=21883 – Assigned agent via action command
+- 2026-05-28T11:19:56Z – claude:opus:implementer-ivan:implementer – shell_pid=21883 – WP04 ready for review
+- 2026-05-28T11:20:56Z – claude:opus:reviewer-rita:reviewer – shell_pid=27575 – Started review via action command
+- 2026-05-28T11:22:26Z – claude:opus:reviewer-rita:reviewer – shell_pid=27575 – Review passed: T015-T019 all met. CoordinationWorkspace + stable error code present; lane sparse-checkout uses git rev-parse --git-path (no literal .git/info/); allocator parents on coord branch when meta.json declares it and falls back to mission_branch otherwise; doctor runs git>=2.25, coord-worktree health, and lane sparse-checkout drift. 28/28 tests pass; mypy --strict clean on owned files. Caveats: (1) _compose_mission_dir defensive double-mid8 guard accepted -- correct behavior, idempotent against either slug shape, low blast radius; future WP08 cleanup may consolidate slug helpers. (2) tests/specify_cli/coordination/__init__.py accepted -- needed pytest package marker, trivial. (3) test_doctor_coordination.py accepted -- frontmatter-listed file does not exist; sibling test_doctor_*.py pattern preserves convention. (4) 'doctor coordination' subcommand name accepted -- avoids confusion with retired 'doctor sparse-checkout' semantics.
