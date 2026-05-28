@@ -48,10 +48,10 @@ from specify_cli.retrospective.reader import SchemaError, YAMLParseError, read_r
 # Generator record types (WP02): exported under canonical names
 from specify_cli.retrospective.schema import (
     GenActor as Actor,
-    GenEvidenceRef as EvidenceRef,
-    GenFinding as Finding,
+    GenEvidenceRef as EvidenceRef,  # noqa: F401 - direct import compatibility
+    GenFinding as Finding,  # noqa: F401 - direct import compatibility
     GenProposal as Proposal,
-    GenProvenance as Provenance,
+    GenProvenance as Provenance,  # noqa: F401 - direct import compatibility
     GenRetrospectiveRecord as RetrospectiveRecord,
     RecordValidationError,
 )
@@ -87,10 +87,7 @@ __all__ = [
     "RecordExistsError",
     # generator record schema (WP02 dataclass-based, canonical names)
     "RetrospectiveRecord",
-    "EvidenceRef",
     "Proposal",
-    "Finding",
-    "Provenance",
     "Actor",
     "RecordValidationError",
     "validate_record",
