@@ -214,11 +214,12 @@ class TestSafeCommitCalledAfterMarkDoneLoop:
         # Verify safe_commit was called once with the correct files
         mock_safe_commit.assert_called_once()
         kwargs = mock_safe_commit.call_args.kwargs
-        assert kwargs["repo_path"] == tmp_path
-        assert kwargs["allow_empty"] is False
-        assert mission_slug in kwargs["commit_message"]
+        assert kwargs["repo_root"] == tmp_path
+        assert kwargs["worktree_root"] == tmp_path
+        assert kwargs["destination_ref"] == "main"
+        assert mission_slug in kwargs["message"]
         # Verify both status files are in the payload
-        files = kwargs["files_to_commit"]
+        files = kwargs["paths"]
         file_names = [f.name for f in files]
         assert "status.events.jsonl" in file_names
         assert "status.json" in file_names
@@ -352,7 +353,7 @@ class TestSafeCommitCalledAfterMarkDoneLoop:
 
         data = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
         assert data["baseline_merge_commit"] == "base123"
-        files = mock_safe_commit.call_args.kwargs["files_to_commit"]
+        files = mock_safe_commit.call_args.kwargs["paths"]
         assert feature_dir / "meta.json" in files
 
 

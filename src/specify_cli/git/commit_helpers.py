@@ -42,6 +42,9 @@ that legitimately mutate the protected branch:
 
 - ``"chore: apply spec-kitty upgrade changes"`` — the ``spec-kitty upgrade`` flow
   ships migration commits onto the user's main branch by design.
+- ``"chore(<mission>): record done transitions for merged WPs"`` — the
+  final ``spec-kitty merge`` bookkeeping commit after the mission branch has
+  already been merged into the operator-selected target branch.
 - ``"chore: release "`` — the release tagging flow.
 - ``"release: "`` — alternate release tagging style used by some downstream
   configurations.
@@ -303,6 +306,7 @@ _DEFAULT_PROTECTED_BRANCHES = frozenset({"main", "master"})
 # doctrine-level decision (DIRECTIVE_003).
 _PROTECTED_BRANCH_COMMIT_EXCEPTIONS = (
     "chore: apply spec-kitty upgrade changes",  # upgrade flow
+    "chore(",  # merge bookkeeping; narrowed by _is_protected_branch_exception
     "chore: release ",  # release flow
     "release: ",  # alternate release flow
 )
@@ -409,7 +413,12 @@ def assert_not_protected_branch(repo_path: Path, *, operation: str = "commit") -
 
 
 def _is_protected_branch_exception(commit_message: str) -> bool:
-    return commit_message.startswith(_PROTECTED_BRANCH_COMMIT_EXCEPTIONS)
+    if commit_message.startswith("chore("):
+        first_line = commit_message.splitlines()[0]
+        return first_line.endswith("): record done transitions for merged WPs")
+    return commit_message.startswith(
+        tuple(prefix for prefix in _PROTECTED_BRANCH_COMMIT_EXCEPTIONS if prefix != "chore(")
+    )
 
 
 def assert_staging_area_matches_expected(

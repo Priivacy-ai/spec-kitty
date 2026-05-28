@@ -27,7 +27,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import subprocess
 import threading
 from pathlib import Path
@@ -319,25 +318,24 @@ class TestForcedPreCommitHookFailure:
 
         # Second transaction: append + commit. The pre-commit hook
         # rejects the commit; rollback truncates the event log.
-        with pytest.raises(BookkeepingCommitFailed):
-            with BookkeepingTransaction.acquire(
-                repo_root=repo_root,
-                mission_id=mission["mission_id"],
+        with pytest.raises(BookkeepingCommitFailed), BookkeepingTransaction.acquire(
+            repo_root=repo_root,
+            mission_id=mission["mission_id"],
+            mission_slug=mission["mission_slug"],
+            mid8=mission["mid8"],
+            destination_ref=coord_branch,
+            operation="planned -> claimed for WP01",
+        ) as txn:
+            event = build_status_event(
                 mission_slug=mission["mission_slug"],
-                mid8=mission["mid8"],
-                destination_ref=coord_branch,
-                operation="planned -> claimed for WP01",
-            ) as txn:
-                event = build_status_event(
-                    mission_slug=mission["mission_slug"],
-                    wp_id="WP01",
-                    from_lane="planned",
-                    to_lane="claimed",
-                    actor="claude",
-                    mission_id=mission["mission_id"],
-                )
-                txn.append_event(event)
-                txn.commit("status: WP01 claimed for implementation")
+                wp_id="WP01",
+                from_lane="planned",
+                to_lane="claimed",
+                actor="claude",
+                mission_id=mission["mission_id"],
+            )
+            txn.append_event(event)
+            txn.commit("status: WP01 claimed for implementation")
 
         # 1. The event log is byte-identical to the pre-emit state.
         post_sha = _sha256(events_path)
@@ -354,6 +352,54 @@ class TestForcedPreCommitHookFailure:
         # 3. No commits landed on main.
         main_head_after = _run(repo_root, "git", "rev-parse", "main").stdout.strip()
         assert main_head_after == main_head_before, "main must not advance"
+
+    def test_real_workflow_helper_restores_canonical_status_after_forced_failure(
+        self,
+        repo_root: Path,
+        mission: dict[str, Any],
+    ) -> None:
+        """The real workflow helper must roll back the canonical status files."""
+        import typer
+
+        from specify_cli.cli.commands.agent.workflow import _commit_workflow_change
+
+        feature_dir = mission["feature_dir"]
+        events_path = feature_dir / "status.events.jsonl"
+        status_path = feature_dir / "status.json"
+        events_path.write_text('{"event_id":"before"}\n', encoding="utf-8")
+        status_path.write_text('{"before": true}\n', encoding="utf-8")
+        pre_size = events_path.stat().st_size
+        pre_events_sha = _sha256(events_path)
+        pre_status_bytes = status_path.read_bytes()
+
+        events_path.write_text(
+            events_path.read_text(encoding="utf-8") + '{"event_id":"after"}\n',
+            encoding="utf-8",
+        )
+        status_path.write_text('{"after": true}\n', encoding="utf-8")
+
+        hooks_dir = repo_root / ".git" / "hooks"
+        hooks_dir.mkdir(exist_ok=True)
+        hook = hooks_dir / "pre-commit"
+        hook.write_text("#!/bin/sh\necho 'workflow forced rejection' >&2\nexit 1\n")
+        hook.chmod(0o755)
+
+        with pytest.raises(typer.Exit):
+            _commit_workflow_change(
+                repo_root=repo_root,
+                feature_dir=feature_dir,
+                mission_slug=mission["mission_slug"],
+                target_branch="main",
+                paths=[events_path, status_path],
+                message="chore: Start WP01 implementation [claude]",
+                operation="planned -> claimed for WP01",
+                wp_id="WP01",
+                pre_emit_event_size=pre_size,
+                pre_emit_status_bytes=pre_status_bytes,
+            )
+
+        assert _sha256(events_path) == pre_events_sha
+        assert status_path.read_bytes() == pre_status_bytes
 
     @pytest.mark.parametrize("iteration", list(range(10)))  # 10 of the SC-05 100
     def test_sha256_byte_equality_parametric(
@@ -404,25 +450,24 @@ class TestForcedPreCommitHookFailure:
         hook.write_text("#!/bin/sh\nexit 1\n")
         hook.chmod(0o755)
 
-        with pytest.raises(BookkeepingCommitFailed):
-            with BookkeepingTransaction.acquire(
-                repo_root=repo_root,
-                mission_id=mission["mission_id"],
+        with pytest.raises(BookkeepingCommitFailed), BookkeepingTransaction.acquire(
+            repo_root=repo_root,
+            mission_id=mission["mission_id"],
+            mission_slug=mission["mission_slug"],
+            mid8=mission["mid8"],
+            destination_ref=coord_branch,
+            operation=f"iter {iteration}",
+        ) as txn:
+            event = build_status_event(
                 mission_slug=mission["mission_slug"],
-                mid8=mission["mid8"],
-                destination_ref=coord_branch,
-                operation=f"iter {iteration}",
-            ) as txn:
-                event = build_status_event(
-                    mission_slug=mission["mission_slug"],
-                    wp_id="WP01",
-                    from_lane="planned",
-                    to_lane="claimed",
-                    actor="claude",
-                    mission_id=mission["mission_id"],
-                )
-                txn.append_event(event)
-                txn.commit(f"iter {iteration}")
+                wp_id="WP01",
+                from_lane="planned",
+                to_lane="claimed",
+                actor="claude",
+                mission_id=mission["mission_id"],
+            )
+            txn.append_event(event)
+            txn.commit(f"iter {iteration}")
 
         assert _sha256(events_path) == pre_sha
 

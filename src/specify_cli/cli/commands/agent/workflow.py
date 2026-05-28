@@ -125,6 +125,57 @@ def _record_receipt(
     })
 
 
+def _restore_status_artifacts(
+    *,
+    events_path: Path,
+    pre_emit_event_size: int,
+    status_path: Path,
+    pre_emit_status_bytes: bytes | None,
+) -> None:
+    """Restore canonical status files after a failed workflow commit."""
+    try:
+        if events_path.exists():
+            with events_path.open("ab") as _fh:
+                _fh.truncate(pre_emit_event_size)
+    except OSError as truncate_exc:
+        logger.error(
+            "Could not truncate %s on commit failure: %s",
+            events_path,
+            truncate_exc,
+        )
+
+    try:
+        if pre_emit_status_bytes is None:
+            status_path.unlink(missing_ok=True)
+        else:
+            status_path.parent.mkdir(parents=True, exist_ok=True)
+            status_path.write_bytes(pre_emit_status_bytes)
+    except OSError as restore_exc:
+        logger.error(
+            "Could not restore %s on commit failure: %s",
+            status_path,
+            restore_exc,
+        )
+
+
+def _transaction_path_for(
+    *,
+    source_path: Path,
+    repo_root: Path,
+    worktree_root: Path,
+) -> Path:
+    """Map a canonical-repo path to the same relative path in a worktree."""
+    source_path = source_path.resolve()
+    with contextlib.suppress(ValueError):
+        return worktree_root / source_path.relative_to(repo_root)
+
+    parts = source_path.parts
+    if "kitty-specs" in parts:
+        idx = parts.index("kitty-specs")
+        return worktree_root.joinpath(*parts[idx:])
+    return source_path
+
+
 def _load_coord_branch_meta(feature_dir: Path) -> tuple[str | None, str | None, str | None]:
     """Read (coordination_branch, mission_id, mid8) from meta.json.
 
@@ -158,6 +209,7 @@ def _commit_workflow_change(
     operation: str,
     wp_id: str,
     pre_emit_event_size: int,
+    pre_emit_status_bytes: bytes | None,
 ) -> None:
     """Commit a workflow change with atomic event-log rollback on failure.
 
@@ -179,6 +231,7 @@ def _commit_workflow_change(
     """
     coord_branch, mission_id, mid8 = _load_coord_branch_meta(feature_dir)
     events_path = feature_dir / "status.events.jsonl"
+    status_path = feature_dir / "status.json"
 
     if coord_branch and mission_id and mid8:
         # Modern path: BookkeepingTransaction owns the lock, policy gate,
@@ -201,7 +254,15 @@ def _commit_workflow_change(
             ) as txn:
                 for path in paths:
                     if path.exists():
-                        txn.stage_path(path)
+                        txn_path = _transaction_path_for(
+                            source_path=path,
+                            repo_root=repo_root,
+                            worktree_root=txn.worktree_root,
+                        )
+                        if txn_path.resolve() == path.resolve():
+                            txn.stage_path(path)
+                        else:
+                            txn.write_artifact(txn_path, path.read_bytes())
                 receipt = txn.commit(message)
             _record_receipt(
                 str(coord_branch),
@@ -224,6 +285,12 @@ def _commit_workflow_change(
             )
             raise typer.Exit(1) from policy_exc
         except Exception as exc:  # noqa: BLE001 — surface + exit
+            _restore_status_artifacts(
+                events_path=events_path,
+                pre_emit_event_size=pre_emit_event_size,
+                status_path=status_path,
+                pre_emit_status_bytes=pre_emit_status_bytes,
+            )
             _record_receipt(
                 str(coord_branch),
                 message,
@@ -252,17 +319,12 @@ def _commit_workflow_change(
             wp_id=wp_id,
         )
     except Exception as exc:  # noqa: BLE001 — surface + truncate + exit
-        # Surgical truncate so the event log mirrors the pre-emit state.
-        try:
-            if events_path.exists():
-                with events_path.open("ab") as _fh:
-                    _fh.truncate(pre_emit_event_size)
-        except OSError as truncate_exc:
-            logger.error(
-                "Could not truncate %s on commit failure: %s",
-                events_path,
-                truncate_exc,
-            )
+        _restore_status_artifacts(
+            events_path=events_path,
+            pre_emit_event_size=pre_emit_event_size,
+            status_path=status_path,
+            pre_emit_status_bytes=pre_emit_status_bytes,
+        )
         _record_receipt(
             target_branch,
             message,
@@ -910,8 +972,12 @@ def implement(
             # legacy path; the modern path (coord branch) gets the same
             # contract via BookkeepingTransaction.
             _events_path_pre = _impl_feature_dir / "status.events.jsonl"
+            _status_path_pre = _impl_feature_dir / "status.json"
             _pre_emit_event_size = (
                 _events_path_pre.stat().st_size if _events_path_pre.exists() else 0
+            )
+            _pre_emit_status_bytes = (
+                _status_path_pre.read_bytes() if _status_path_pre.exists() else None
             )
             try:
                 start_implementation_status(
@@ -966,6 +1032,7 @@ def implement(
                 operation=f"planned -> claimed for {normalized_wp_id}",
                 wp_id=normalized_wp_id,
                 pre_emit_event_size=_pre_emit_event_size,
+                pre_emit_status_bytes=_pre_emit_status_bytes,
             )
 
             print(f"✓ Claimed {normalized_wp_id} (agent: {agent}, PID: {shell_pid}, target: {target_branch})")
@@ -1712,10 +1779,16 @@ def review(
                 # WP06 T027: capture pre-emit event-log size for
                 # surgical rollback on commit failure.
                 _events_path_pre_rev = feature_dir / "status.events.jsonl"
+                _status_path_pre_rev = feature_dir / "status.json"
                 _pre_emit_event_size_rev = (
                     _events_path_pre_rev.stat().st_size
                     if _events_path_pre_rev.exists()
                     else 0
+                )
+                _pre_emit_status_bytes_rev = (
+                    _status_path_pre_rev.read_bytes()
+                    if _status_path_pre_rev.exists()
+                    else None
                 )
                 try:
                     start_review_status(
@@ -1767,6 +1840,7 @@ def review(
                     operation=f"for_review -> in_review for {normalized_wp_id}",
                     wp_id=normalized_wp_id,
                     pre_emit_event_size=_pre_emit_event_size_rev,
+                    pre_emit_status_bytes=_pre_emit_status_bytes_rev,
                 )
 
             print(f"✓ Claimed {normalized_wp_id} for review (agent: {agent}, PID: {shell_pid}, target: {target_branch})")

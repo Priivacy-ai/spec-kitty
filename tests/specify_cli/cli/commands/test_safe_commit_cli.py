@@ -3,9 +3,9 @@
 These tests exercise the four CLI modes specified by WP02 / T009:
 
 1. ``--to-branch <ref>`` happy path — succeeds when HEAD matches.
-2. Missing ``--to-branch`` AND no env var — exits non-zero with a clear message.
+2. Missing ``--to-branch`` — infers HEAD for compatibility and warns.
 3. Missing ``--to-branch`` WITH ``SPEC_KITTY_INFER_DESTINATION_REF=1`` —
-   succeeds, prints a one-line stderr deprecation.
+   succeeds without the stderr deprecation.
 4. ``--to-branch`` pointing at a non-HEAD branch — exits non-zero with the
    ``SafeCommitHeadMismatch`` error surface (stable error code from WP01).
 """
@@ -97,8 +97,8 @@ def test_cli_with_to_branch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     assert last_message == "T009: add alpha"
 
 
-def test_cli_without_to_branch_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """No `--to-branch` and no env var → CLI exits non-zero with a clear message."""
+def test_cli_without_to_branch_infers_head_with_warning(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """No `--to-branch` → infer HEAD for compatibility and warn on stderr."""
     monkeypatch.delenv("SPEC_KITTY_INFER_DESTINATION_REF", raising=False)
     monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
     _init_lane_repo(tmp_path, branch="kitty/mission-test-01ABCDEF")
@@ -119,18 +119,20 @@ def test_cli_without_to_branch_fails(tmp_path: Path, monkeypatch: pytest.MonkeyP
     finally:
         os.chdir(old_cwd)
 
-    assert result.exit_code == 1
+    assert result.exit_code == 0
     payload = json.loads(result.stdout)
-    assert payload["success"] is False
-    assert "--to-branch" in payload["error"]
-    assert "SPEC_KITTY_INFER_DESTINATION_REF" in payload["error"]
+    assert payload["success"] is True
+    assert payload["committed"] is True
+    stderr_text = result.stderr or ""
+    assert "warning:" in stderr_text
+    assert "--to-branch will be required in v3.3" in stderr_text
 
     head_after = _git(tmp_path, "rev-parse", "HEAD").stdout.strip()
-    assert head_after == head_before, "no commit must be created when --to-branch is missing"
+    assert head_after != head_before, "expected a new commit through HEAD inference"
 
 
-def test_cli_deprecation_env_var(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """`SPEC_KITTY_INFER_DESTINATION_REF=1` without `--to-branch` → succeeds with stderr deprecation."""
+def test_cli_deprecation_env_var_suppresses_warning(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """`SPEC_KITTY_INFER_DESTINATION_REF=1` keeps legacy scripts stderr-clean."""
     monkeypatch.setenv("SPEC_KITTY_INFER_DESTINATION_REF", "1")
     monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
     _init_lane_repo(tmp_path, branch="kitty/mission-test-01ABCDEF")
@@ -156,11 +158,8 @@ def test_cli_deprecation_env_var(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     assert payload["success"] is True
     assert payload["committed"] is True
 
-    # Deprecation lands on stderr (not stdout) so --json piping is unaffected.
     stderr_text = result.stderr or ""
-    assert "warning:" in stderr_text
-    assert "--to-branch will be required in v3.3" in stderr_text
-    assert "SPEC_KITTY_INFER_DESTINATION_REF" in stderr_text
+    assert "warning:" not in stderr_text
 
     head_after = _git(tmp_path, "rev-parse", "HEAD").stdout.strip()
     assert head_after != head_before, "expected a new commit under the deprecation env var path"

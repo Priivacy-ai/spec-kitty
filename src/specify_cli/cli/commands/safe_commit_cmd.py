@@ -102,12 +102,11 @@ def _resolve_destination_ref(
     Precedence:
 
     1. ``--to-branch X`` provided → return ``X``.
-    2. ``--to-branch`` missing AND ``SPEC_KITTY_INFER_DESTINATION_REF=1`` →
-       resolve current branch via :func:`get_current_branch`. Print a one-line
-       stderr deprecation. Return resolved value.
-    3. Otherwise → raise :class:`ValueError` with a clear message that names
-       the env var as the escape hatch.
+    2. ``--to-branch`` missing → resolve current branch via
+       :func:`get_current_branch`. Print a one-line stderr deprecation unless
+       the legacy env escape hatch is set. Return resolved value.
     """
+    _ = json_output
     if explicit_to_branch is not None and explicit_to_branch != "":
         # Normalize fully-qualified refs/heads/<name> → <name>. The helper
         # rejects fully-qualified destination refs with
@@ -116,28 +115,22 @@ def _resolve_destination_ref(
             return explicit_to_branch[len("refs/heads/"):]
         return explicit_to_branch
 
-    if os.environ.get(SPEC_KITTY_INFER_ENV) == "1":
-        inferred = get_current_branch(repo_root)
-        if inferred is None or inferred == "":
-            raise ValueError(
-                "Cannot infer destination ref: HEAD is detached or not on a branch. "
-                f"Pass --to-branch <ref> explicitly, or unset {SPEC_KITTY_INFER_ENV}."
-            )
-        # Print deprecation to stderr (not stdout) so scripted callers parsing
-        # --json on stdout are not affected.
+    inferred = get_current_branch(repo_root)
+    if inferred is None or inferred == "":
+        raise ValueError(
+            "Cannot infer destination ref: HEAD is detached or not on a branch. "
+            "Pass --to-branch <ref> explicitly."
+        )
+    # Print deprecation to stderr (not stdout) so scripted callers parsing
+    # --json on stdout are not affected. Keep the env var as a warning
+    # suppressor for transition scripts that cannot tolerate stderr noise.
+    if os.environ.get(SPEC_KITTY_INFER_ENV) != "1":
         print(
             f"warning: --to-branch will be required in v3.3; set explicitly or "
-            f"unset {SPEC_KITTY_INFER_ENV}",
+            f"set {SPEC_KITTY_INFER_ENV}=1 to suppress this warning",
             file=sys.stderr,
         )
-        return cast(str, inferred)
-
-    raise ValueError(
-        "Missing required option --to-branch <ref>. "
-        f"Pass --to-branch with the short branch name, or set {SPEC_KITTY_INFER_ENV}=1 "
-        "to opt into the (deprecated) HEAD-inference fallback. The env var will be "
-        "removed in v3.3."
-    )
+    return cast(str, inferred)
 
 
 def safe_commit_command(

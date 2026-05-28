@@ -15,6 +15,7 @@ Recovery semantics (WP01 / 067):
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
@@ -1368,6 +1369,18 @@ def _run_lane_based_merge_locked(
         target_baseline_sha,
     )
 
+    # If the final bookkeeping commit fails after done events are emitted,
+    # restore the canonical status artifacts to their pre-emit bytes. This
+    # keeps the merge path aligned with the #1348 dangling-event invariant.
+    _merge_events_path = feature_dir / "status.events.jsonl"
+    _merge_status_path = feature_dir / "status.json"
+    _pre_done_event_size = (
+        _merge_events_path.stat().st_size if _merge_events_path.exists() else 0
+    )
+    _pre_done_status_bytes = (
+        _merge_status_path.read_bytes() if _merge_status_path.exists() else None
+    )
+
     # -- T001: Mark WPs done with per-WP state tracking --
     console.print("  [dim]Recording merged work packages as done...[/dim]")
     for lane in lanes_manifest.lanes:
@@ -1448,13 +1461,25 @@ def _run_lane_based_merge_locked(
     if baseline_meta_path is not None:
         files_to_commit.append(baseline_meta_path)
 
-    safe_commit(
-        repo_root=main_repo,
-        worktree_root=main_repo,
-        destination_ref=lanes_manifest.target_branch,
-        message=f"chore({mission_slug}): record done transitions for merged WPs",
-        paths=tuple(files_to_commit),
-    )
+    try:
+        safe_commit(
+            repo_root=main_repo,
+            worktree_root=main_repo,
+            destination_ref=lanes_manifest.target_branch,
+            message=f"chore({mission_slug}): record done transitions for merged WPs",
+            paths=tuple(files_to_commit),
+        )
+    except Exception:
+        with contextlib.suppress(OSError):
+            if _merge_events_path.exists():
+                with _merge_events_path.open("ab") as _fh:
+                    _fh.truncate(_pre_done_event_size)
+        with contextlib.suppress(OSError):
+            if _pre_done_status_bytes is None:
+                _merge_status_path.unlink(missing_ok=True)
+            else:
+                _merge_status_path.write_bytes(_pre_done_status_bytes)
+        raise
 
     console.print("  [dim]Syncing dossier state for the merged mission...[/dim]")
     trigger_feature_dossier_sync_if_enabled(
