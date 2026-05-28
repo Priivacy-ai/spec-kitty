@@ -16,7 +16,10 @@ See: src/specify_cli/cli/commands/review/ERROR_CODES.md (authored by WP03)
 from __future__ import annotations
 
 import json
+import shlex
 import subprocess  # noqa: F401  (monkeypatched in tests)
+import sys
+import tomllib
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -26,8 +29,13 @@ from specify_cli.cli.commands._test_env_check import (  # noqa: F401
     TestExtraMissing,
     assert_pytest_available,
 )
+from specify_cli.compat._detect.install_method import (  # noqa: F401
+    InstallMethod,
+    detect_install_method,
+)
 from specify_cli.cli.selector_resolution import resolve_mission_handle  # noqa: F401
 from specify_cli.task_utils import TaskCliError, find_repo_root  # noqa: F401
+from specify_cli.version_utils import get_version  # noqa: F401
 
 from ._ble001_audit import (  # noqa: F401
     Ble001SuppressionFinding,
@@ -46,19 +54,94 @@ def _fail_missing_test_extra(console: object) -> None:
     import sys
 
     diagnostic_code = MissionReviewDiagnostic.TEST_EXTRA_MISSING
+    remediation = _missing_test_extra_remediation()
     diagnostic = {
         "diagnostic_code": str(diagnostic_code),
         "message": (
             "pytest is not importable from the active Python interpreter. "
-            "Run `uv sync --extra test` to install the test extra, then retry."
+            f"Run `{remediation}` to install pytest into that interpreter, then retry."
         ),
-        "remediation": "uv sync --extra test",
+        "remediation": remediation,
     }
     console.print(  # type: ignore[attr-defined]
         f"[red]Error:[/red] {diagnostic_code}: {diagnostic['message']}"
     )
     sys.stdout.write(json.dumps(diagnostic) + "\n")
     raise typer.Exit(1)
+
+
+def _missing_test_extra_remediation() -> str:
+    try:
+        install_method = detect_install_method()
+    except Exception:  # noqa: BLE001
+        install_method = InstallMethod.UNKNOWN
+
+    if install_method == InstallMethod.UV_TOOL:
+        package = _uv_tool_reinstall_target() or _versioned_package()
+        return f"{_uv_tool_dir_env_prefix()}uv tool install --force --with pytest {package}"
+
+    return "uv sync --extra test"
+
+
+def _versioned_package() -> str:
+    version = get_version()
+    package = "spec-kitty-cli"
+    if version and version != "0.0.0-dev":
+        package = f"{package}=={version}"
+    return package
+
+
+def _uv_tool_reinstall_target() -> str | None:
+    try:
+        executable_parent = Path(sys.executable).parent
+        if executable_parent.name.lower() not in {"bin", "scripts"}:
+            return None
+
+        receipt_path = executable_parent.parent / "uv-receipt.toml"
+        receipt = tomllib.loads(receipt_path.read_text(encoding="utf-8"))
+        requirements = receipt.get("tool", {}).get("requirements", [])
+        if not isinstance(requirements, list):
+            return None
+
+        for requirement in requirements:
+            if not isinstance(requirement, dict) or requirement.get("name") != "spec-kitty-cli":
+                continue
+            directory = requirement.get("directory")
+            if isinstance(directory, str) and directory.strip():
+                return shlex.quote(directory)
+            specifier = requirement.get("specifier")
+            if isinstance(specifier, str) and specifier.strip():
+                return shlex.quote(f"spec-kitty-cli{specifier}")
+    except Exception:  # noqa: BLE001
+        return None
+    return None
+
+
+def _uv_tool_dir_env_prefix() -> str:
+    tool_dir = _active_uv_tool_dir()
+    if tool_dir is None or _same_path(tool_dir, Path.home() / ".local" / "share" / "uv" / "tools"):
+        return ""
+    return f"UV_TOOL_DIR={shlex.quote(str(tool_dir))} "
+
+
+def _active_uv_tool_dir() -> Path | None:
+    try:
+        executable_parent = Path(sys.executable).parent
+        if executable_parent.name.lower() not in {"bin", "scripts"}:
+            return None
+        tool_env = executable_parent.parent
+        if not (tool_env / "uv-receipt.toml").exists():
+            return None
+        return tool_env.parent
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _same_path(left: Path, right: Path) -> bool:
+    try:
+        return left.resolve() == right.resolve()
+    except Exception:  # noqa: BLE001
+        return left == right
 
 
 def _resolve_repo_root(console: object) -> Path:

@@ -205,14 +205,15 @@ MISSION_REVIEW_MISSION_EXCEPTION_INVALID: mission-exception.md is present but mi
 **JSON stability**: this code string is stable across minor releases; consumers may match it as an opaque identifier.
 
 **Remediation**:
-1. Run `uv sync --extra test` to install the test extra in the current virtual environment.
-2. Verify with `python -c "import pytest; print(pytest.__version__)"`.
-3. If using a non-uv environment, install pytest directly: `pip install pytest`.
+1. Source/dev checkout: run `uv sync --extra test` to install the test extra in the current virtual environment.
+2. uv tool install: run `uv tool install --force --with pytest <current-tool-source>` to repair the tool environment. For PyPI installs this is `spec-kitty-cli==<current-version>`; for local/source tool installs this preserves the uv receipt source path.
+3. Verify with `python -c "import pytest; print(pytest.__version__)"` using the interpreter that runs `spec-kitty`.
+4. If using a non-uv environment, install pytest directly into the interpreter that runs `spec-kitty`.
 
 **Body example**:
 
 ```text
-MISSION_REVIEW_TEST_EXTRA_MISSING: pytest is not importable from the active Python interpreter. Run `uv sync --extra test` to install the test extra, then retry.
+MISSION_REVIEW_TEST_EXTRA_MISSING: pytest is not importable from the active Python interpreter. Run `<remediation command>` to install pytest into that interpreter, then retry.
 ```
 
 ---

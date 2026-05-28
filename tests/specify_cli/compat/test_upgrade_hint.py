@@ -49,6 +49,7 @@ class TestCommandHints:
         "method,expected_fragment",
         [
             (InstallMethod.PIPX, "pipx upgrade"),
+            (InstallMethod.UV_TOOL, "uv tool upgrade"),
             (InstallMethod.PIP_USER, "pip install --user --upgrade"),
             (InstallMethod.PIP_SYSTEM, "pip install --upgrade"),
             (InstallMethod.BREW, "brew upgrade"),
@@ -62,7 +63,13 @@ class TestCommandHints:
 
     @pytest.mark.parametrize(
         "method",
-        [InstallMethod.PIPX, InstallMethod.PIP_USER, InstallMethod.PIP_SYSTEM, InstallMethod.BREW],
+        [
+            InstallMethod.PIPX,
+            InstallMethod.UV_TOOL,
+            InstallMethod.PIP_USER,
+            InstallMethod.PIP_SYSTEM,
+            InstallMethod.BREW,
+        ],
     )
     def test_command_does_not_contain_ansi(self, method: InstallMethod) -> None:
         hint = build_upgrade_hint(method)

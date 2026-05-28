@@ -2,17 +2,18 @@
 
 Public surface
 --------------
-InstallMethod  -- str enum with seven members.
+InstallMethod  -- str enum with eight members.
 detect_install_method  -- pure detection function; NEVER raises.
 
 Detection chain (first match wins, per research §R-03):
   1. SOURCE        -- package __file__ under cwd AND pyproject.toml present.
-  2. PIPX          -- executable under */pipx/venvs/spec-kitty* or ~/.local/pipx/venvs/.
-  3. BREW          -- executable under a Homebrew prefix.
-  4. SYSTEM_PACKAGE -- /usr/bin/python* executable AND system-manager INSTALLER.
-  5. PIP_USER      -- pip INSTALLER AND distribution under user site-packages.
-  6. PIP_SYSTEM    -- pip INSTALLER, not under user site-packages.
-  7. UNKNOWN       -- fallback.
+  2. UV_TOOL       -- executable under UV_TOOL_DIR, the default uv tools dir, or a uv tool receipt.
+  3. PIPX          -- executable under */pipx/venvs/spec-kitty* or ~/.local/pipx/venvs/.
+  4. BREW          -- executable under a Homebrew prefix.
+  5. SYSTEM_PACKAGE -- /usr/bin/python* executable AND system-manager INSTALLER.
+  6. PIP_USER      -- pip INSTALLER AND distribution under user site-packages.
+  7. PIP_SYSTEM    -- pip INSTALLER, not under user site-packages.
+  8. UNKNOWN       -- fallback.
 
 Security / reliability properties
 -----------------------------------
@@ -24,9 +25,11 @@ CHK032  Every branch is wrapped in try/except; the function MUST NOT raise.
 from __future__ import annotations
 
 import importlib.metadata
+import os
 import site
 import subprocess
 import sys
+import tomllib
 from collections.abc import Callable
 from enum import StrEnum
 from pathlib import Path
@@ -44,6 +47,7 @@ class InstallMethod(StrEnum):
     """
 
     PIPX = "pipx"
+    UV_TOOL = "uv-tool"
     PIP_USER = "pip-user"
     PIP_SYSTEM = "pip-system"
     BREW = "brew"
@@ -76,6 +80,55 @@ def _is_source_install() -> bool:
                 except ValueError:
                     pass
                 break
+    except Exception:  # noqa: BLE001
+        pass
+    return False
+
+
+def _is_uv_tool_install(executable: str) -> bool:
+    """Return True if *executable* looks like a uv tool-managed venv."""
+    try:
+        exe_path = Path(executable)
+        candidate_roots = [
+            os.environ.get("UV_TOOL_DIR"),
+            str(Path.home() / ".local" / "share" / "uv" / "tools"),
+        ]
+        for root_raw in candidate_roots:
+            if not root_raw:
+                continue
+            try:
+                relative = exe_path.relative_to(Path(root_raw))
+            except ValueError:
+                continue
+            if relative.parts[:1] == (_PACKAGE_NAME,):
+                return True
+
+        return _has_uv_tool_receipt(exe_path)
+    except Exception:  # noqa: BLE001
+        pass
+    return False
+
+
+def _has_uv_tool_receipt(exe_path: Path) -> bool:
+    """Return True when *exe_path* belongs to a uv tool environment."""
+    try:
+        executable_parent = exe_path.parent
+        if executable_parent.name.lower() not in {"bin", "scripts"}:
+            return False
+
+        tool_env = executable_parent.parent
+        receipt_path = tool_env / "uv-receipt.toml"
+        if not receipt_path.exists():
+            return False
+
+        receipt = tomllib.loads(receipt_path.read_text(encoding="utf-8"))
+        requirements = receipt.get("tool", {}).get("requirements", [])
+        if isinstance(requirements, list):
+            for requirement in requirements:
+                if isinstance(requirement, dict) and requirement.get("name") == _PACKAGE_NAME:
+                    return True
+
+        return tool_env.name == _PACKAGE_NAME
     except Exception:  # noqa: BLE001
         pass
     return False
@@ -211,7 +264,7 @@ def _is_user_site(
 _SYSTEM_PACKAGE_INSTALLERS = frozenset({"apt", "dnf", "pacman", "yum", "zypper"})
 
 
-def detect_install_method(
+def detect_install_method(  # noqa: C901
     *,
     executable: str | None = None,
     distribution_loader: Callable[[str], importlib.metadata.Distribution] | None = None,
@@ -225,15 +278,17 @@ def detect_install_method(
 
     1. **SOURCE** -- the package's ``__file__`` is under ``cwd`` and a
        ``pyproject.toml`` exists at the package root.
-    2. **PIPX** -- ``executable`` matches ``*/pipx/venvs/spec-kitty*`` or lives
+    2. **UV_TOOL** -- ``executable`` lives under ``UV_TOOL_DIR``, the
+       default uv tools directory, or a uv tool receipt.
+    3. **PIPX** -- ``executable`` matches ``*/pipx/venvs/spec-kitty*`` or lives
        under ``~/.local/pipx/venvs/``.
-    3. **BREW** -- ``executable`` lives under a Homebrew prefix directory.
-    4. **SYSTEM_PACKAGE** -- ``executable`` starts with ``/usr/bin/python`` AND
+    4. **BREW** -- ``executable`` lives under a Homebrew prefix directory.
+    5. **SYSTEM_PACKAGE** -- ``executable`` starts with ``/usr/bin/python`` AND
        the distribution INSTALLER is a system package manager.
-    5. **PIP_USER** -- INSTALLER is ``pip`` AND the distribution is under the
+    6. **PIP_USER** -- INSTALLER is ``pip`` AND the distribution is under the
        user site-packages directory.
-    6. **PIP_SYSTEM** -- INSTALLER is ``pip`` (not under user site-packages).
-    7. **UNKNOWN** -- no branch matched.
+    7. **PIP_SYSTEM** -- INSTALLER is ``pip`` (not under user site-packages).
+    8. **UNKNOWN** -- no branch matched.
 
     Args:
         executable: Path to the Python interpreter to inspect.  Defaults to
@@ -257,21 +312,28 @@ def detect_install_method(
     except Exception:  # noqa: BLE001
         pass
 
-    # 2. pipx.
+    # 2. uv tool.
+    try:
+        if _is_uv_tool_install(executable):
+            return InstallMethod.UV_TOOL
+    except Exception:  # noqa: BLE001
+        pass
+
+    # 3. pipx.
     try:
         if _is_pipx_install(executable):
             return InstallMethod.PIPX
     except Exception:  # noqa: BLE001
         pass
 
-    # 3. Homebrew.
+    # 4. Homebrew.
     try:
         if _is_brew_install(executable):
             return InstallMethod.BREW
     except Exception:  # noqa: BLE001
         pass
 
-    # 4. System package manager.
+    # 5. System package manager.
     try:
         if executable.startswith("/usr/bin/python"):
             installer = _get_installer(distribution_loader)
@@ -280,7 +342,7 @@ def detect_install_method(
     except Exception:  # noqa: BLE001
         pass
 
-    # 5 & 6. pip (user vs system).
+    # 6 & 7. pip (user vs system).
     try:
         installer = _get_installer(distribution_loader)
         if installer == "pip":
@@ -301,6 +363,7 @@ def detect_install_method(
 _SAFE_AUTO_UPGRADE_METHODS: frozenset[InstallMethod] = frozenset(
     {
         InstallMethod.PIPX,
+        InstallMethod.UV_TOOL,
         InstallMethod.BREW,
         InstallMethod.PIP_USER,
         InstallMethod.PIP_SYSTEM,
@@ -315,6 +378,7 @@ def is_safe_for_auto_upgrade(method: InstallMethod) -> bool:
     operate without breaking the installer's own bookkeeping):
 
     - PIPX
+    - UV_TOOL
     - BREW
     - PIP_USER
     - PIP_SYSTEM
