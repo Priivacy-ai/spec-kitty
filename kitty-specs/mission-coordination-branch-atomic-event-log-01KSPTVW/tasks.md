@@ -256,11 +256,11 @@ No cycles. WP01 is the only WP with no dependencies.
 **Estimated prompt size**: ~480 lines.
 
 **Included subtasks**:
-- [ ] T026 Migrate planning-artifact commit site (`implement.py:236`) → `BookkeepingTransaction` (WP06)
-- [ ] T027 Migrate lifecycle status writes (`workflow.py:689`, `:1463`) → `BookkeepingTransaction` (WP06)
-- [ ] T028 Migrate event emit pipeline (`emit.py:468`) → `BookkeepingTransaction` (WP06)
-- [ ] T029 Implement/review terminal output: commit-summary section (FR-014) (WP06)
-- [ ] T030 Integration tests: 2-lane mission happy path; forced commit failure → rollback (WP06)
+- [x] T026 Migrate planning-artifact commit site (`implement.py:236`) → `BookkeepingTransaction` (WP06)
+- [x] T027 Migrate lifecycle status writes (`workflow.py:689`, `:1463`) → `BookkeepingTransaction` (WP06)
+- [x] T028 Migrate event emit pipeline (`emit.py:468`) → `BookkeepingTransaction` (WP06)
+- [x] T029 Implement/review terminal output: commit-summary section (FR-014) (WP06)
+- [x] T030 Integration tests: 2-lane mission happy path; forced commit failure → rollback (WP06)
 
 **Implementation sketch**: For each of the four call sites, replace the existing `safe_commit()` call with a `with BookkeepingTransaction.acquire(...) as txn:` block. Inside the block, call `txn.append_event(event)` (for emit), `txn.write_artifact(path, content)` for planning artifacts, or `txn.stage_path(path)` for already-modified files. The commit happens implicitly on `__exit__`. Add the commit-summary printout: collect `EventReceipt`s from each transaction; print a table of (commit_message, destination_ref, outcome).
 

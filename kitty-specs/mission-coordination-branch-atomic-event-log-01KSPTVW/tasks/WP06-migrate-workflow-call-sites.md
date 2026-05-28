@@ -15,13 +15,17 @@ tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-mission-coordination-branch-atomic-event-log-01KSPTVW
+base_commit: fc1aa41f62840ca1fa430e2d8fc372f384fc5421
+created_at: '2026-05-28T11:37:39.838322+00:00'
 subtasks:
 - T026
 - T027
 - T028
 - T029
 - T030
-agent: claude
+agent: "claude:opus:reviewer-rita:reviewer"
+shell_pid: "41172"
 history:
 - at: '2026-05-28T08:55:00+00:00'
   actor: claude
@@ -272,3 +276,10 @@ The earlier draft proposed passing an optional `BookkeepingTransaction` paramete
 - Plan: PR 2 steps 5–7
 - Contract: [`contracts/bookkeeping_transaction.md`](../contracts/bookkeeping_transaction.md)
 - Cross-review evidence: `implement.py:236`, `workflow.py:689`, `workflow.py:1463`, `emit.py:468` (see `spec.md` § References)
+
+## Activity Log
+
+- 2026-05-28T11:37:40Z – claude:opus:implementer-ivan:implementer – shell_pid=33876 – Assigned agent via action command
+- 2026-05-28T11:55:24Z – claude:opus:implementer-ivan:implementer – shell_pid=33876 – WP06 workflow migration ready: planning artifacts + lifecycle status writes routed through BookkeepingTransaction; commit summary wired; SHA-256 rollback verified end-to-end
+- 2026-05-28T11:56:09Z – claude:opus:reviewer-rita:reviewer – shell_pid=41172 – Started review via action command
+- 2026-05-28T11:59:29Z – claude:opus:reviewer-rita:reviewer – shell_pid=41172 – Review PASS: T026/T027/T028/T029/T030 verified. All 88 owned-file tests pass incl. 3 critical signals (commit-not-on-main #1348 fix, SHA-256 byte-equal rollback x10 parametric, 2-lane serialized). FR-032 layering clean (zero coordination imports in status/). Pure helpers build_status_event + append_event_jsonl correctly extracted. WP05 transaction.py TODO swap completed. Caveats accepted: (1) emit_status_transition preserved for 30+ legacy callers, WP08 will sunset; (2) _commit_workflow_change helper logically equivalent; (3) cross-WP TODO swap was pre-anticipated; (4) this mission's own meta lacks coord_branch so legacy path exercised; (5) 4 mypy errors in _derive_from_lane pre-date WP06. mypy-strict on new helpers clean.
