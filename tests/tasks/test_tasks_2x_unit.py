@@ -57,7 +57,7 @@ class TestFindFeatureSlug:
     def test_find_raises_on_missing_slug(self):
         """_find_mission_slug raises typer.Exit when no explicit slug is given."""
         from specify_cli.cli.commands.agent.tasks import _find_mission_slug
-        from click.exceptions import Exit
+        from typer import Exit
 
         with pytest.raises(Exit):
             _find_mission_slug(explicit_feature=None)

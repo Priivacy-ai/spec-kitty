@@ -209,6 +209,7 @@ select = [
     "UP",     # pyupgrade (deprecated patterns, Pydantic v1 compat)
     "ASYNC",  # async issues (≈ Sonar S7497, S7502)
     "S",      # bandit security checks (≈ Sonar S2083)
+    "TID251", # flake8-tidy-imports: banned-api (not TID252 which enforces absolute imports codebase-wide)
 ]
 ignore = [
     "S101",   # allow assert (used extensively in tests and guards)
@@ -232,6 +233,50 @@ ignore = [
 # analysis. The runtime guarantee is enforced by _load_acceptance_api itself.
 "scripts/tasks/acceptance_support.py" = ["F822"]
 ".kittify/overrides/scripts/tasks/acceptance_support.py" = ["F822"]
+# TID251 (banned-api) is intentionally scoped to tests/ only.
+# Production code under src/ legitimately imports hashlib (charter/hasher.py uses sha256 directly)
+# and click (orchestrator_api/commands.py uses click.UsageError for the typer compatibility shim).
+# Scripts are also exempt — they are tooling helpers, not production or test code.
+"src/**" = ["TID251"]
+"scripts/**" = ["TID251"]
+# The following test directories use hashlib.sha256 for non-charter-freshness purposes that
+# pre-date the TID251 ban. Each category has a distinct, legitimate reason:
+#   charter/     — manifest and artifact content hashes (synthesizer's own hashing scheme,
+#                  NOT the charter.hasher.hash_content() freshness algorithm)
+#   cli/         — mission brief content fingerprinting
+#   doctrine/    — file-integrity idempotency checks for DRG output
+#   integration/ — payload integrity in atomic-write and intake tests (not charter freshness)
+#   sync/        — body upload content checksums (HTTP/protocol-level, not charter)
+#   skills/      — fingerprint() function IS defined as raw sha256; tests verify the definition
+#   specify_cli/ — preflight fixtures, provenance hash, upgrade migration sentinel checks
+#   tasks/       — task-slug tests (sha256 unrelated to charter freshness)
+#   upgrade/     — migration tests preserve existing manifest hash values verbatim
+# New sha256 calls in these directories still require a '# noqa: TID251' with justification.
+"tests/charter/**" = ["TID251"]
+"tests/cli/**" = ["TID251"]
+"tests/doctrine/**" = ["TID251"]
+"tests/integration/**" = ["TID251"]
+"tests/sync/**" = ["TID251"]
+"tests/specify_cli/**" = ["TID251"]
+"tests/tasks/**" = ["TID251"]
+"tests/upgrade/**" = ["TID251"]
+"tests/skills/**" = ["TID251"]
+"tests/dossier/**" = ["TID251"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+# Gap 3: Tests must not reimplement the charter hash algorithm.
+# Call charter.hasher.hash_content() instead of rolling a raw sha256 — a hand-rolled copy
+# silently diverges whenever the production algorithm changes (e.g. normalization, encoding).
+"hashlib.sha256".msg = "Use charter.hasher.hash_content() in tests instead of reimplementing the hash algorithm (TID251 / Gap 3). Add '# noqa: TID251' with a justification comment only for non-charter uses (PKCE, body checksums, file-integrity checks, etc.)."
+# Gap 5: Tests must not catch click.exceptions.* directly.
+# In typer 0.26+, click is vendored as typer._click; bare click.exceptions.Exit/UsageError/Abort
+# assertions will match the wrong class once typer upgrades and will silently pass or fail.
+# Use typer.Exit, typer.Abort, typer.BadParameter (typer's stable public re-exports) instead.
+"click.exceptions.Exit".msg = "Use typer.Exit (typer's public surface) — click.exceptions.Exit refers to a different class in typer>=0.26 which vendors click internally (TID251 / Gap 5)."
+"click.exceptions.UsageError".msg = "Use typer.UsageError or the _CLICK_USAGE_ERRORS shim — click.exceptions.UsageError is unrelated to typer's vendored copy in typer>=0.26 (TID251 / Gap 5)."
+"click.exceptions.Abort".msg = "Use typer.Abort (typer's public surface) — click.exceptions.Abort is unrelated to typer's vendored copy in typer>=0.26 (TID251 / Gap 5)."
 
 [tool.ruff.lint.mccabe]
 max-complexity = 15  # Match SonarCloud S3776 threshold
