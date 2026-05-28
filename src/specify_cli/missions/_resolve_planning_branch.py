@@ -1,0 +1,116 @@
+"""Canonical resolution of a mission's merge target branch (FR-012).
+
+Pre-WP07, ``mission.py`` resolved the planning / merge target branch by
+inspecting the current checkout via ``_show_branch_context``. When an
+operator ran ``spec-kitty agent mission finalize-tasks`` from a
+``prep/...`` branch (a common workaround pattern for the legacy
+``main``-pin guard), the prep branch name leaked into every WP's
+``merge_target_branch`` frontmatter. The prep branch was later deleted
+once the human moved on, at which point lane allocation crashed because
+its parent ref was gone.
+
+WP07 closes this leak. ``mission create`` already persists the canonical
+target in ``meta.json`` (``target_branch`` field) at the moment the
+operator was definitively on the right base. We read that value here and
+refuse to fall back to ``git branch --show-current``.
+
+Public surface:
+
+* :class:`PlanningBranchResolutionFailed` — structured error raised when
+  ``meta.json`` does not carry a usable target_branch. The CLI surface
+  catches this and prints an actionable message that mentions the
+  ``--target-branch`` override.
+* :func:`resolve_planning_branch_from_meta` — pure helper that takes a
+  mission meta dict and returns the canonical target branch.
+* :func:`load_mission_target_branch` — convenience helper that reads
+  ``meta.json`` from disk and resolves.
+
+FR-012 acceptance: every WP frontmatter and ``lanes.json`` carries the
+canonical merge target regardless of which branch ``finalize-tasks``
+runs from.
+
+Spec reference:
+``kitty-specs/mission-coordination-branch-atomic-event-log-01KSPTVW/spec.md``
+FR-012, SC-04.
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Mapping
+
+__all__ = [
+    "PlanningBranchResolutionFailed",
+    "resolve_planning_branch_from_meta",
+    "load_mission_target_branch",
+]
+
+
+class PlanningBranchResolutionFailed(RuntimeError):
+    """``meta.json`` is missing both ``target_branch`` and ``merge_target_branch``.
+
+    Stable error code: ``PLANNING_BRANCH_NOT_PERSISTED``.
+
+    Raised when the mission was created before WP03's branch-context
+    persistence landed, or when ``meta.json`` was hand-edited in a way
+    that dropped the field. Callers can offer the user the
+    ``--target-branch`` escape hatch in response.
+    """
+
+    error_code: str = "PLANNING_BRANCH_NOT_PERSISTED"
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+
+
+def resolve_planning_branch_from_meta(meta: Mapping[str, object]) -> str:
+    """Return the canonical merge target from a meta.json dict.
+
+    Reads ``target_branch`` (canonical key) first; falls back to
+    ``merge_target_branch`` (legacy alias seen in older fixtures).
+    Whitespace-only values are treated as absent.
+
+    Raises:
+        PlanningBranchResolutionFailed: When neither field carries a
+            non-empty string. The caller is expected to surface this as
+            a CLI error and direct the user to ``--target-branch``.
+    """
+    raw = meta.get("target_branch")
+    if not isinstance(raw, str) or not raw.strip():
+        raw = meta.get("merge_target_branch")
+    if not isinstance(raw, str) or not raw.strip():
+        raise PlanningBranchResolutionFailed(
+            "meta.json is missing target_branch / merge_target_branch. "
+            "This mission was created before branch context was persisted. "
+            "Re-run with --target-branch <ref> to override, or "
+            "re-create the mission so meta.json records the canonical target."
+        )
+    return raw.strip()
+
+
+def load_mission_target_branch(feature_dir: Path) -> str:
+    """Read ``meta.json`` from ``feature_dir`` and return the canonical target.
+
+    The lookup is read-only and tolerant of missing/corrupt files —
+    those cases surface as :class:`PlanningBranchResolutionFailed` so
+    the CLI emits a single, consistent diagnostic.
+    """
+    meta_path = feature_dir / "meta.json"
+    if not meta_path.exists():
+        raise PlanningBranchResolutionFailed(
+            f"meta.json not found at {meta_path}. "
+            "Re-run with --target-branch <ref> to override."
+        )
+    try:
+        data = json.loads(meta_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as exc:
+        raise PlanningBranchResolutionFailed(
+            f"meta.json at {meta_path} is unreadable: {exc}. "
+            "Re-run with --target-branch <ref> to override."
+        ) from exc
+    if not isinstance(data, dict):
+        raise PlanningBranchResolutionFailed(
+            f"meta.json at {meta_path} is not a JSON object."
+        )
+    return resolve_planning_branch_from_meta(data)
