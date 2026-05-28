@@ -1,0 +1,15 @@
+{
+  "change_mode": "bulk_edit",
+  "created_at": "2026-05-28T06:43:49.038846+00:00",
+  "friendly_name": "Rename Ceremony Commit to Status Commit",
+  "mission_id": "01KSPN6C5DWX7MRFMCD2BG1SBT",
+  "mission_number": null,
+  "mission_slug": "rename-ceremony-to-status-commit-01KSPN6C",
+  "mission_type": "software-dev",
+  "purpose_context": "The codebase uses 'ceremony' and 'ceremony commit' to describe auto-commits spec-kitty creates for workflow state changes (status transitions, task metadata, lane claims). This terminology obscures intent for new contributors. Establishing 'status commit' as the canonical term, anchored in the glossary with 'ceremony commit' as a deprecated synonym, makes the workflow legible without changing behavior.",
+  "purpose_tldr": "Replace the opaque term 'ceremony commit' with 'status commit' across spec-kitty source, tests, doctrine, docs, and glossary.",
+  "slug": "rename-ceremony-to-status-commit-01KSPN6C",
+  "source_description": "GitHub Issue #1325: Excise \"ceremony\" terminology from codebase, replace with \"status commit\"",
+  "target_branch": "main",
+  "vcs": "git"
+}
