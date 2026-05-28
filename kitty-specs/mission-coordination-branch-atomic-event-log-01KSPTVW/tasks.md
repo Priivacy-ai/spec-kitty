@@ -285,10 +285,10 @@ No cycles. WP01 is the only WP with no dependencies.
 **Estimated prompt size**: ~420 lines.
 
 **Included subtasks**:
-- [ ] T031 Fix `_resolve_planning_branch()` in `mission.py:321` → returns canonical merge target (WP07)
-- [ ] T032 Two-stage merge: lane → coordination → target; lane integration events (WP07)
-- [ ] T033 Mission close teardown: delete coordination worktree + coordination branch + lanes (FR-016) (WP07)
-- [ ] T034 Integration tests: finalize-tasks from prep branch; full multi-lane merge → target (WP07)
+- [x] T031 Fix `_resolve_planning_branch()` in `mission.py:321` → returns canonical merge target (WP07)
+- [x] T032 Two-stage merge: lane → coordination → target; lane integration events (WP07)
+- [x] T033 Mission close teardown: delete coordination worktree + coordination branch + lanes (FR-016) (WP07)
+- [x] T034 Integration tests: finalize-tasks from prep branch; full multi-lane merge → target (WP07)
 
 **Implementation sketch**: Edit `mission.py` to compute target branch from `meta.json` (which already holds the canonical value from `mission create`). Update `spec-kitty merge` (likely in `src/specify_cli/cli/commands/merge.py`) to: (1) for each WP in dependency order, merge lane → coordination, record a `lane_integrated` tracking event via BookkeepingTransaction; (2) merge coordination → target; (3) teardown via `CoordinationWorkspace.teardown(...)` and `git branch -d` for each lane and the coordination branch.
 
