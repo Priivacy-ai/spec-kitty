@@ -16,7 +16,7 @@
 - [x] No [NEEDS CLARIFICATION] markers remain
 - [x] Requirements are testable and unambiguous
 - [x] Requirement types are separated (Functional / Non-Functional / Constraints)
-- [x] IDs are unique across FR-### (27), NFR-### (11), and C-### (13)
+- [x] IDs are unique across FR-### (31), NFR-### (11), and C-### (15)
 - [x] All requirement rows include a non-empty Status value
 - [x] Non-functional requirements include measurable thresholds — *7/7 NFRs have explicit thresholds (100% test pass, < 100ms, ≤ 1 sync point, < 2s, ≤ 1 KB, ≥ 90% coverage, one stable identifier).*
 - [x] Success criteria are measurable — *SC-01 through SC-07 each cite a count, threshold, or pass/fail check.*
