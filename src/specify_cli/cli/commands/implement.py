@@ -264,80 +264,80 @@ def _ensure_planning_artifacts_committed_git(
             mission_id[:8] if isinstance(mission_id, str) and len(mission_id) >= 8 else None
         )
 
-    if coord_branch and mission_id and mid8:
-        # Modern (post-WP03) mission: route through BookkeepingTransaction.
-        # This is the only commit path that respects the coordination
-        # branch, the feature-status lock, and the surgical-rollback
-        # contract that keeps #1348 from reproducing.
-        from specify_cli.coordination.transaction import BookkeepingTransaction
+    # Route ALL planning-artifact commits through BookkeepingTransaction.
+    # The transaction has a built-in legacy fallback (see
+    # ``_is_legacy_mission`` + ``_resolve_legacy_lane_destination`` in
+    # ``coordination/transaction.py``) so the pre-flight policy gate,
+    # surgical rollback, and feature-status lock apply uniformly to
+    # coordination-branch and legacy missions alike (FR-027).
+    #
+    # Modern (post-WP03) missions have ``coordination_branch``,
+    # ``mission_id``, and ``mid8`` in meta; the transaction routes the
+    # commit to the coord branch.
+    #
+    # Legacy missions lack ``coordination_branch``; the transaction
+    # detects this via ``_is_legacy_mission`` and overrides the caller-
+    # supplied ``destination_ref`` with the actual checked-out lane
+    # branch resolved from HEAD. We synthesize ``mission_id`` / ``mid8``
+    # from the slug if meta lacks them (truly pre-WP03 missions).
+    from specify_cli.coordination.transaction import BookkeepingTransaction
 
-        # Stage every file under feature_dir that has pending changes.
-        # ``write_artifact`` would over-rewrite content; we want to
-        # commit whatever the operator has already written. Use
-        # ``stage_path`` so the transaction tracks it for commit without
-        # snapshot-restore semantics (the operator's edits should not be
-        # rolled back on hook failure -- only the bookkeeping is).
-        with BookkeepingTransaction.acquire(
-            repo_root=repo_root,
-            mission_id=str(mission_id),
-            mission_slug=mission_slug,
-            mid8=str(mid8),
-            destination_ref=str(coord_branch),
-            operation=f"planning artifacts for {mission_slug}",
-        ) as txn:
-            for path_str in files_to_commit:
-                p = (repo_root / path_str).resolve()
-                if p.exists():
-                    txn.stage_path(p)
-            try:
-                txn.commit(commit_msg)
-            except Exception as exc:  # noqa: BLE001 — surface as exit-1
-                console.print(
-                    f"[red]Error:[/red] Failed to commit planning artifacts to {coord_branch}: {exc}"
-                )
-                raise typer.Exit(1) from exc
+    # Synthesize identifiers for legacy missions that lack them in meta.
+    # The legacy fallback in BookkeepingTransaction overrides
+    # destination_ref from HEAD, so the placeholder coord_branch value
+    # below is never persisted; the routing just needs *some* shape-valid
+    # ref name to satisfy the pre-flight policy gate's normalisation.
+    effective_mission_id = str(mission_id) if mission_id else f"legacy-{mission_slug}"
+    if mid8:
+        effective_mid8 = str(mid8)
+    elif mission_id and len(str(mission_id)) >= 8:
+        effective_mid8 = str(mission_id)[:8]
+    else:
+        # Pre-WP03 mission with no mission_id at all. Derive a stable
+        # 8-char prefix from the mission_slug so kitty_specs_dir_name
+        # resolution stays deterministic across invocations.
+        effective_mid8 = (mission_slug.replace("-", "") + "00000000")[:8]
+    effective_destination_ref = (
+        str(coord_branch) if coord_branch else planning_branch
+    )
 
+    is_legacy = not (coord_branch and mission_id and mid8)
+    if is_legacy:
+        console.print(
+            f"\n[cyan]Auto-committing planning artifacts to {planning_branch}...[/cyan] "
+            f"[dim](legacy path -- mission has no coordination_branch; "
+            f"routed through BookkeepingTransaction for FR-020/FR-027 atomicity)[/dim]"
+        )
+
+    with BookkeepingTransaction.acquire(
+        repo_root=repo_root,
+        mission_id=effective_mission_id,
+        mission_slug=mission_slug,
+        mid8=effective_mid8,
+        destination_ref=effective_destination_ref,
+        operation=f"planning artifacts for {mission_slug}",
+    ) as txn:
+        for path_str in files_to_commit:
+            p = (repo_root / path_str).resolve()
+            if p.exists():
+                txn.stage_path(p)
+        try:
+            txn.commit(commit_msg)
+        except Exception as exc:  # noqa: BLE001 — surface as exit-1
+            target = coord_branch or planning_branch
+            console.print(
+                f"[red]Error:[/red] Failed to commit planning artifacts to {target}: {exc}"
+            )
+            raise typer.Exit(1) from exc
+
+    if is_legacy:
+        console.print(
+            f"[green]✓[/green] Planning artifacts committed to {planning_branch}"
+        )
+    else:
         console.print(
             f"[green]✓[/green] Planning artifacts committed to coordination branch {coord_branch}"
         )
-        return
-
-    # Legacy fallback (TODO(WP08): replace with the legacy bridge so even
-    # pre-WP03 missions route through BookkeepingTransaction).
-    console.print(
-        f"\n[cyan]Auto-committing planning artifacts to {planning_branch}...[/cyan] "
-        f"[dim](legacy path -- mission has no coordination_branch)[/dim]"
-    )
-    result = subprocess.run(
-        ["git", "add", "-f", str(feature_dir)],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    if result.returncode != 0:
-        console.print("[red]Error:[/red] Failed to stage planning artifacts")
-        console.print(result.stderr)
-        raise typer.Exit(1)
-
-    result = subprocess.run(
-        ["git", "-c", "commit.gpgsign=false", "commit", "-m", commit_msg],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-        timeout=60,
-    )
-    if result.returncode != 0:
-        console.print("[red]Error:[/red] Failed to commit planning artifacts")
-        console.print(result.stderr)
-        raise typer.Exit(1)
-
-    console.print(f"[green]✓[/green] Planning artifacts committed to {planning_branch}")
 
 
 def _ensure_vcs_in_meta(feature_dir: Path, _repo_root: Path) -> VCSBackend:

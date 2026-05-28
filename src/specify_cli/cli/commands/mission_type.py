@@ -478,6 +478,233 @@ def _append_warning_lines(body: Text, warnings: Any) -> None:
         body.append(f"\n[warn] {warn.get('code', '')}: {warn.get('message', '')}")
 
 
+@app.command("close")
+def close_cmd(
+    mission: Annotated[
+        str | None,
+        typer.Option("--mission", "-f", help="Mission slug (auto-detected from cwd if omitted)"),
+    ] = None,
+    discard: Annotated[
+        bool,
+        typer.Option(
+            "--discard",
+            help="Discard the mission mid-flight: delete the coordination "
+                 "branch + all lane branches and tear down all worktrees. "
+                 "Without --discard, requires that the mission has already "
+                 "been merged (no-op cleanup otherwise).",
+        ),
+    ] = False,
+    force: Annotated[
+        bool,
+        typer.Option(
+            "--force",
+            help="Skip the confirmation prompt when --discard is set.",
+        ),
+    ] = False,
+) -> None:
+    """Close a mission. Wraps FR-016 lifecycle teardown.
+
+    Without ``--discard``: tear down the coordination worktree only.
+    This is a safe no-op after a successful ``spec-kitty merge`` (the
+    merge command already runs the same teardown); useful when the
+    teardown was skipped (e.g. legacy merge path) or interrupted.
+
+    With ``--discard``: abandon the mission mid-flight. Deletes the
+    coordination branch and every lane branch named in
+    ``lanes.json``, then tears down the coordination worktree and the
+    operator-visible lane worktrees. Requires confirmation unless
+    ``--force`` is also passed. The coordination + lane branches are
+    deleted with ``git branch -D`` (force-delete) because mid-flight
+    abandonment by definition leaves uncommitted or unmerged work.
+
+    Implements FR-016 from
+    ``kitty-specs/mission-coordination-branch-atomic-event-log-01KSPTVW``.
+    """
+    project_root = get_project_root_or_exit()
+    repo_root = _resolve_primary_repo_root(project_root)
+
+    # Resolve mission slug.
+    mission_slug = mission or _detect_current_feature(project_root)
+    if not mission_slug:
+        console.print(
+            "[red]Error:[/red] No mission specified and no active mission "
+            "detected. Use [cyan]--mission <slug>[/cyan]."
+        )
+        raise typer.Exit(1)
+
+    feature_dir = repo_root / "kitty-specs" / mission_slug
+    if not feature_dir.exists():
+        console.print(f"[red]Mission not found:[/red] {mission_slug}")
+        raise typer.Exit(1)
+
+    # Load meta to get mid8 (required for coordination worktree teardown).
+    meta_path = feature_dir / "meta.json"
+    mid8_value: str = ""
+    if meta_path.exists():
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            if isinstance(meta, dict):
+                mid8_value = str(meta.get("mid8") or "").strip()
+                if not mid8_value:
+                    mission_id_meta = str(meta.get("mission_id") or "").strip()
+                    if len(mission_id_meta) >= 8:
+                        mid8_value = mission_id_meta[:8]
+        except (OSError, json.JSONDecodeError):
+            pass
+
+    if discard:
+        # Confirm unless --force.
+        if not force:
+            confirm = typer.confirm(
+                f"Discard mission {mission_slug}? This deletes the coordination "
+                f"branch, every lane branch, and all worktrees. Unmerged work "
+                f"on those branches WILL BE LOST.",
+                default=False,
+            )
+            if not confirm:
+                console.print("[yellow]Aborted.[/yellow]")
+                raise typer.Exit(1)
+
+        # Load lanes.json (if present) so we know which branches to delete.
+        lanes_manifest = None
+        try:
+            from specify_cli.lanes.persistence import (
+                CorruptLanesError,
+                MissingLanesError,
+                require_lanes_json,
+            )
+
+            lanes_manifest = require_lanes_json(feature_dir)
+        except (MissingLanesError, CorruptLanesError):
+            lanes_manifest = None
+
+        # Delete every lane branch + the coordination/mission branch.
+        if lanes_manifest is not None:
+            from specify_cli.lanes.branch_naming import lane_branch_name
+            try:
+                from specify_cli.lanes.merge import PLANNING_LANE_ID
+            except ImportError:
+                PLANNING_LANE_ID = "lane-planning"  # historical fallback
+
+            for lane in lanes_manifest.lanes:
+                if lane.lane_id == PLANNING_LANE_ID:
+                    continue
+                branch_name = lane_branch_name(mission_slug, lane.lane_id)
+                _force_delete_branch_if_exists(repo_root, branch_name)
+
+            _force_delete_branch_if_exists(repo_root, lanes_manifest.mission_branch)
+            console.print(
+                f"  Deleted {len(lanes_manifest.lanes)} lane branch(es) + "
+                f"mission/coordination branch"
+            )
+        else:
+            # No lanes.json -- legacy mission. Best-effort: try the canonical
+            # coordination_branch from meta if present.
+            if meta_path.exists():
+                try:
+                    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+                    coord_branch = (
+                        meta.get("coordination_branch") if isinstance(meta, dict) else None
+                    )
+                except (OSError, json.JSONDecodeError):
+                    coord_branch = None
+                if coord_branch:
+                    _force_delete_branch_if_exists(repo_root, str(coord_branch))
+                    console.print(f"  Deleted coordination branch {coord_branch}")
+
+        # Remove operator-visible lane worktrees.
+        if lanes_manifest is not None:
+            _remove_lane_worktrees(repo_root, mission_slug, mid8_value, lanes_manifest)
+
+    # Teardown the coordination worktree. Same path as merge.py:1568.
+    # Idempotent: no-ops on legacy missions / when already torn down.
+    if mid8_value:
+        try:
+            from specify_cli.coordination import CoordinationWorkspace
+
+            CoordinationWorkspace.teardown(repo_root, mission_slug, mid8_value)
+            if CoordinationWorkspace.is_present(repo_root, mission_slug, mid8_value):
+                console.print(
+                    "[yellow]Warning:[/yellow] coordination worktree still "
+                    "present after teardown; manual cleanup may be required."
+                )
+            else:
+                console.print(
+                    f"[green]✓[/green] Coordination worktree torn down for "
+                    f"{mission_slug}-{mid8_value}"
+                )
+        except Exception as exc:  # noqa: BLE001 — teardown is best-effort
+            console.print(
+                f"[yellow]Warning:[/yellow] coordination worktree teardown "
+                f"failed (non-fatal): {exc}"
+            )
+
+    if discard:
+        console.print(f"[green]✓[/green] Mission {mission_slug} discarded.")
+    else:
+        console.print(f"[green]✓[/green] Mission {mission_slug} closed.")
+
+
+def _force_delete_branch_if_exists(repo_root: Path, branch_name: str) -> None:
+    """Delete a branch with ``git branch -D`` if it exists. No-op otherwise."""
+    import subprocess as _subprocess
+
+    rev_parse = _subprocess.run(
+        ["git", "rev-parse", "--verify", f"refs/heads/{branch_name}"],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if rev_parse.returncode != 0:
+        return
+    _subprocess.run(
+        ["git", "branch", "-D", branch_name],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def _remove_lane_worktrees(
+    repo_root: Path,
+    mission_slug: str,
+    mid8_value: str,
+    lanes_manifest: Any,
+) -> None:
+    """Remove every operator-visible lane worktree for this mission."""
+    import subprocess as _subprocess
+
+    # Lane worktrees are at .worktrees/<slug>-<mid8>-<lane_id>/ by convention.
+    worktrees_root = repo_root / ".worktrees"
+    if not worktrees_root.exists():
+        return
+
+    # Best-effort: scan worktrees that start with the mission slug.
+    prefix_with_mid8 = f"{mission_slug}-{mid8_value}-" if mid8_value else f"{mission_slug}-"
+    prefix_legacy = f"{mission_slug}-"
+    removed = 0
+    for entry in worktrees_root.iterdir():
+        if not entry.is_dir():
+            continue
+        name = entry.name
+        if name.endswith("-coord"):
+            # Coordination worktree is handled separately.
+            continue
+        if not (name.startswith(prefix_with_mid8) or name.startswith(prefix_legacy)):
+            continue
+        _subprocess.run(
+            ["git", "-C", str(repo_root), "worktree", "remove", str(entry), "--force"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        removed += 1
+    if removed:
+        console.print(f"  Removed {removed} lane worktree(s)")
+
+
 @app.command("switch", deprecated=True)
 def switch_cmd(
     mission_name: str = typer.Argument(..., help="Mission name (no longer supported)"),  # noqa: ARG001
