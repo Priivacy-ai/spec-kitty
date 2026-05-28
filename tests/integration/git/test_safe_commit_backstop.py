@@ -62,7 +62,7 @@ def sparse_cascade_repo(tmp_path: Path) -> Path:
     repo = tmp_path / "cascade"
     repo.mkdir()
 
-    _git(repo, "init", "-q", "-b", "main")
+    _git(repo, "init", "-q", "-b", "kitty/mission-test-01ABCDEF")
     _git(repo, "config", "user.email", "test@example.com")
     _git(repo, "config", "user.name", "Test User")
     _git(repo, "config", "commit.gpgsign", "false")
@@ -176,10 +176,11 @@ def test_backstop_catches_sparse_checkout_phantom_deletion(
     # deleted but is NOT on the expected-paths list.
     with pytest.raises(SafeCommitBackstopError) as exc_info:
         safe_commit(
-            repo_path=repo,
-            files_to_commit=[repo / "status.md"],
-            commit_message="chore: record done transitions",
-            allow_empty=False,
+            repo_root=repo,
+            worktree_root=repo,
+            destination_ref="kitty/mission-test-01ABCDEF",
+            message="chore: record done transitions",
+            paths=(repo / "status.md",),
         )
 
     err = exc_info.value
@@ -218,7 +219,7 @@ def test_backstop_allows_clean_commit(tmp_path: Path) -> None:
     repo = tmp_path / "clean-repo"
     repo.mkdir()
 
-    _git(repo, "init", "-q", "-b", "main")
+    _git(repo, "init", "-q", "-b", "kitty/mission-test-01ABCDEF")
     _git(repo, "config", "user.email", "test@example.com")
     _git(repo, "config", "user.name", "Test User")
     _git(repo, "config", "commit.gpgsign", "false")
@@ -230,12 +231,13 @@ def test_backstop_allows_clean_commit(tmp_path: Path) -> None:
     (repo / "wp.md").write_text("wp content\n")
 
     result = safe_commit(
-        repo_path=repo,
-        files_to_commit=[repo / "wp.md"],
-        commit_message="feat: add wp",
-        allow_empty=False,
+        repo_root=repo,
+        worktree_root=repo,
+        destination_ref="kitty/mission-test-01ABCDEF",
+        message="feat: add wp",
+        paths=(repo / "wp.md",),
     )
 
-    assert result is True
+    assert result.destination_ref == "kitty/mission-test-01ABCDEF"
     # One extra commit was created.
     assert _head_count(repo) == 2

@@ -57,6 +57,10 @@ from specify_cli.sync.events import emit_wp_created, get_emitter
 from specify_cli.sync.feature_flags import is_saas_sync_enabled
 from specify_cli.workspace.context import resolve_feature_worktree
 from specify_cli.merge.config import MergeStrategy
+from specify_cli.missions._resolve_planning_branch import (
+    PlanningBranchResolutionFailed,
+    load_mission_target_branch,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -321,17 +325,51 @@ def _show_branch_context(
     return main_repo_root, resolution.current
 
 
-def _resolve_planning_branch(repo_root: Path, feature_dir: Path) -> str:
-    """Resolve planning branch for a mission directory.
+def _resolve_planning_branch(
+    repo_root: Path,
+    feature_dir: Path,
+    *,
+    target_branch_override: str | None = None,
+) -> str:
+    """Resolve the canonical merge target branch for a mission directory.
 
-    Compatibility shim for tests and callers that patch this helper directly.
+    WP07 / FR-012 / SC-04 (issue #1348 "prep-branch leak" fix):
+
+    Pre-WP07 this helper returned ``git branch --show-current`` via
+    :func:`_show_branch_context`. When an operator ran ``finalize-tasks``
+    from a ``prep/...`` branch (a documented workaround for the legacy
+    main-pin guard) the prep branch name got baked into WP frontmatter
+    as ``merge_target_branch``. The prep branch was deleted later and
+    lane allocation crashed because its parent ref was gone.
+
+    Post-WP07 the resolver reads the canonical target from
+    ``meta.json`` (the value ``mission create`` persisted when the
+    operator was definitively on the right base). The current checkout
+    branch is intentionally **never** consulted. The
+    ``target_branch_override`` parameter exists for legacy missions that
+    pre-date branch-context persistence and for explicit operator
+    override via the ``--target-branch`` CLI flag.
+
+    Args:
+        repo_root: Repository root (unused now; kept for callers that
+            patch the symbol — preserving the API shape avoids a
+            cross-WP rename storm).
+        feature_dir: Path to the mission's ``kitty-specs/<slug>/`` dir.
+        target_branch_override: Explicit override (e.g. CLI ``--target-branch``).
+            Wins over ``meta.json`` when truthy. Whitespace-only values
+            are treated as absent.
+
+    Returns:
+        The canonical merge target branch name.
+
+    Raises:
+        PlanningBranchResolutionFailed: ``meta.json`` is missing /
+            corrupt and no override is supplied.
     """
-    try:
-        _, target_branch = _show_branch_context(repo_root, feature_dir.name, json_output=True)
-        return target_branch
-    except RuntimeError:
-        # In detached/non-git contexts (unit tests, fixtures), fall back to main.
-        return "main"
+    del repo_root  # No longer used; kept in signature for API stability.
+    if target_branch_override is not None and target_branch_override.strip():
+        return target_branch_override.strip()
+    return load_mission_target_branch(feature_dir)
 
 
 def _ensure_branch_checked_out(
@@ -396,17 +434,13 @@ def _commit_to_branch(
 
         # Commit only this file (preserves staging area)
         commit_msg = f"Add {artifact_type} for feature {mission_slug}"
-        success = safe_commit(
-            repo_path=repo_root,
-            files_to_commit=[file_path],
-            commit_message=commit_msg,
-            allow_empty=False,
+        safe_commit(
+            repo_root=repo_root,
+            worktree_root=repo_root,
+            destination_ref=current_branch,
+            message=commit_msg,
+            paths=(file_path,),
         )
-        if not success:
-            error_msg = f"Failed to commit {artifact_type}"
-            if not json_output:
-                console.print(f"[red]Error:[/red] {error_msg}")
-            raise RuntimeError(error_msg)
 
         if not json_output:
             console.print(f"[green]✓[/green] {artifact_type.capitalize()} committed to {current_branch}")
@@ -621,6 +655,17 @@ def create_mission(
             help="Branch-strategy gate control (e.g., 'already-confirmed' to bypass the prompt)",
         ),
     ] = None,
+    force_recreate_coordination_branch: Annotated[
+        bool,
+        typer.Option(
+            "--force-recreate-coordination-branch",
+            help=(
+                "Delete and recreate the per-mission coordination branch if it "
+                "already exists and has diverged from the target. Operator "
+                "escape hatch; never used by automation."
+            ),
+        ),
+    ] = False,
 ) -> None:
     """Create new mission directory structure in the project root checkout.
 
@@ -634,6 +679,7 @@ def create_mission(
         MissionCreationError,
         create_mission_core,
     )
+    from specify_cli.missions._create import CoordinationBranchDiverged
 
     repo_root = locate_project_root()
     resolved_mission_type = mission_type
@@ -701,7 +747,16 @@ def create_mission(
             friendly_name=friendly_name,
             purpose_tldr=purpose_tldr,
             purpose_context=purpose_context,
+            force_recreate_coordination_branch=force_recreate_coordination_branch,
         )
+    except CoordinationBranchDiverged as exc:
+        # Structured error path (NFR-007): emit a stable error_code payload
+        # so scripted callers (CI, doctor) can detect this case unambiguously.
+        if json_output:
+            _emit_json({"error": str(exc), **exc.to_dict()})
+        else:
+            console.print(f"[bold red]Error:[/bold red] {exc}")
+        raise typer.Exit(1) from exc
     except MissionCreationError as exc:
         error_msg = str(exc)
         if json_output:
@@ -777,6 +832,11 @@ def create_mission(
                 "succeeded": result.origin_binding_succeeded,
                 "error": result.origin_binding_error,
             },
+            # Coordination branch (WP03 / issue #1348) — top-level field so
+            # downstream tooling (lane allocator, BookkeepingTransaction, merge)
+            # can read the canonical ref without re-deriving it.
+            "coordination_branch": getattr(result, "coordination_branch", None),
+            "coordination_branch_created": getattr(result, "coordination_branch_created", False),
         }
         _emit_json(
             _inject_branch_contract(
@@ -1299,10 +1359,11 @@ def setup_plan(
                             # Commit gap analysis and updated meta.json
                             with contextlib.suppress(Exception):  # Non-fatal: agent can commit separately
                                 safe_commit(
-                                    repo_path=repo_root,
-                                    files_to_commit=[gap_analysis_output, meta_file],
-                                    commit_message=f"Add gap analysis for feature {mission_slug}",
-                                    allow_empty=False,
+                                    repo_root=repo_root,
+                                    worktree_root=repo_root,
+                                    destination_ref=target_branch,
+                                    message=f"Add gap analysis for feature {mission_slug}",
+                                    paths=(gap_analysis_output, meta_file),
                                 )
                             if not json_output:
                                 coverage_pct = analysis.coverage_matrix.get_coverage_percentage() * 100
@@ -1335,10 +1396,11 @@ def setup_plan(
                     set_generators_configured(meta_file, generators_detected)
                     with contextlib.suppress(Exception):  # Non-fatal
                         safe_commit(
-                            repo_path=repo_root,
-                            files_to_commit=[meta_file],
-                            commit_message=f"Update generator config for feature {mission_slug}",
-                            allow_empty=False,
+                            repo_root=repo_root,
+                            worktree_root=repo_root,
+                            destination_ref=target_branch,
+                            message=f"Update generator config for feature {mission_slug}",
+                            paths=(meta_file,),
                         )
                 except Exception as gen_err:
                     if not json_output:
@@ -1650,6 +1712,17 @@ def finalize_tasks(
     validate_only: Annotated[
         bool, typer.Option("--validate-only", help="Run all validations without committing. Reports issues that would block finalization.")
     ] = False,
+    target_branch_override: Annotated[
+        str | None,
+        typer.Option(
+            "--target-branch",
+            help=(
+                "Override the canonical merge target branch read from meta.json. "
+                "Use this for legacy missions created before WP07 persisted "
+                "target_branch in meta.json (FR-012 escape hatch)."
+            ),
+        ),
+    ] = None,
 ) -> None:
     """Parse dependencies from tasks.md and update WP frontmatter, then commit to target branch.
 
@@ -1761,7 +1834,29 @@ def finalize_tasks(
             raise typer.Exit(1) from None
 
         mission_slug = feature_dir.name
-        target_branch = _resolve_planning_branch(repo_root, feature_dir)
+        # WP07 / FR-012 / SC-04: read the canonical target from meta.json.
+        # The current checkout is NEVER consulted, so running finalize-tasks
+        # from a prep/ branch no longer leaks that branch into WP frontmatter.
+        try:
+            target_branch = _resolve_planning_branch(
+                repo_root,
+                feature_dir,
+                target_branch_override=target_branch_override,
+            )
+        except PlanningBranchResolutionFailed as exc:
+            error_msg = str(exc)
+            if json_output:
+                _emit_json({
+                    "error": error_msg,
+                    "error_code": exc.error_code,
+                })
+            else:
+                console.print(f"[red]Error:[/red] {error_msg}")
+                console.print(
+                    "[yellow]Hint:[/yellow] re-run with "
+                    "[bold]--target-branch <ref>[/bold] to override."
+                )
+            raise typer.Exit(1) from exc
         _ensure_branch_checked_out(repo_root, target_branch, json_output=json_output)
         if not json_output:
             console.print(f"[bold cyan]Branch:[/bold cyan] {target_branch} (target for this mission)")
@@ -2524,10 +2619,11 @@ def finalize_tasks(
                 # Commit with descriptive message (safe_commit preserves staging area)
                 commit_msg = f"Add tasks for feature {mission_slug}"
                 commit_success = safe_commit(
-                    repo_path=repo_root,
-                    files_to_commit=files_to_commit,
-                    commit_message=commit_msg,
-                    allow_empty=False,
+                    repo_root=repo_root,
+                    worktree_root=repo_root,
+                    destination_ref=target_branch,
+                    message=commit_msg,
+                    paths=tuple(files_to_commit),
                 )
 
                 if commit_success:

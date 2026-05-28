@@ -38,6 +38,7 @@ import logging
 import re
 import subprocess
 import tempfile
+import contextlib
 from datetime import UTC
 from pathlib import Path
 from typing import Annotated
@@ -83,6 +84,284 @@ from specify_cli.workspace.context import resolve_workspace_for_wp
 logger = logging.getLogger(__name__)
 
 _REVIEW_FEEDBACK_SENTINELS = REVIEW_FEEDBACK_SENTINELS
+
+
+# ---------------------------------------------------------------------------
+# WP06 T027/T029 -- BookkeepingTransaction routing helpers
+# ---------------------------------------------------------------------------
+#
+# These small helpers centralize the policy: when the mission has a
+# coordination_branch in meta.json (post-WP03 missions), every lifecycle
+# write is routed through BookkeepingTransaction so the event-log append
+# is atomically reversible on commit failure (FR-010, fixes #1348).
+# Legacy missions fall back to the bare safe_commit path that WP08 will
+# replace.
+
+# Module-level accumulator of CommitReceipts for the T029 terminal
+# summary. Reset by each top-level invocation.
+_WORKFLOW_COMMIT_RECEIPTS: list[dict[str, object]] = []
+
+
+def _reset_workflow_receipts() -> None:
+    """Clear the per-invocation commit-receipt accumulator."""
+    _WORKFLOW_COMMIT_RECEIPTS.clear()
+
+
+def _record_receipt(
+    destination_ref: str,
+    message: str,
+    outcome: str,
+    *,
+    sha: str | None = None,
+    wp_id: str | None = None,
+) -> None:
+    """Record a single workflow commit receipt for the T029 summary."""
+    _WORKFLOW_COMMIT_RECEIPTS.append({
+        "destination_ref": destination_ref,
+        "message": message,
+        "outcome": outcome,  # "committed" or "refused"
+        "sha": sha,
+        "wp_id": wp_id,
+    })
+
+
+def _restore_status_artifacts(
+    *,
+    events_path: Path,
+    pre_emit_event_size: int,
+    status_path: Path,
+    pre_emit_status_bytes: bytes | None,
+) -> None:
+    """Restore canonical status files after a failed workflow commit."""
+    try:
+        if events_path.exists():
+            with events_path.open("ab") as _fh:
+                _fh.truncate(pre_emit_event_size)
+    except OSError as truncate_exc:
+        logger.error(
+            "Could not truncate %s on commit failure: %s",
+            events_path,
+            truncate_exc,
+        )
+
+    try:
+        if pre_emit_status_bytes is None:
+            status_path.unlink(missing_ok=True)
+        else:
+            status_path.parent.mkdir(parents=True, exist_ok=True)
+            status_path.write_bytes(pre_emit_status_bytes)
+    except OSError as restore_exc:
+        logger.error(
+            "Could not restore %s on commit failure: %s",
+            status_path,
+            restore_exc,
+        )
+
+
+def _transaction_path_for(
+    *,
+    source_path: Path,
+    repo_root: Path,
+    worktree_root: Path,
+) -> Path:
+    """Map a canonical-repo path to the same relative path in a worktree."""
+    source_path = source_path.resolve()
+    with contextlib.suppress(ValueError):
+        return worktree_root / source_path.relative_to(repo_root)
+
+    parts = source_path.parts
+    if "kitty-specs" in parts:
+        idx = parts.index("kitty-specs")
+        return worktree_root.joinpath(*parts[idx:])
+    return source_path
+
+
+def _load_coord_branch_meta(feature_dir: Path) -> tuple[str | None, str | None, str | None]:
+    """Read (coordination_branch, mission_id, mid8) from meta.json.
+
+    Returns ``(None, None, None)`` for legacy missions or when meta.json
+    is missing / unreadable. Never raises.
+    """
+    from specify_cli.mission_metadata import load_meta
+
+    try:
+        meta = load_meta(feature_dir)
+    except Exception:  # noqa: BLE001 — meta missing/corrupt is legacy
+        return (None, None, None)
+    if not isinstance(meta, dict):
+        return (None, None, None)
+    coord = meta.get("coordination_branch") or None
+    mid = meta.get("mission_id") or None
+    mid8 = meta.get("mid8") or (
+        mid[:8] if isinstance(mid, str) and len(mid) >= 8 else None
+    )
+    return (coord, mid, mid8)
+
+
+def _commit_workflow_change(
+    *,
+    repo_root: Path,
+    feature_dir: Path,
+    mission_slug: str,
+    target_branch: str,
+    paths: list[Path],
+    message: str,
+    operation: str,
+    wp_id: str,
+    pre_emit_event_size: int,
+    pre_emit_status_bytes: bytes | None,
+) -> None:
+    """Commit a workflow change with atomic event-log rollback on failure.
+
+    For modern (post-WP03) missions with ``coordination_branch`` in
+    meta.json, routes through :class:`BookkeepingTransaction` so the
+    event-log append is atomically reversible (FR-010, FR-011) and the
+    commit lands on the coordination branch (FR-005).
+
+    For legacy missions without ``coordination_branch``, falls back to
+    the bare :func:`safe_commit` path but still truncates the event log
+    on commit failure to ``pre_emit_event_size``. WP08 will replace this
+    fallback with a proper legacy bridge.
+
+    Records the outcome via :func:`_record_receipt` so the T029
+    terminal summary can render it.
+
+    Raises:
+        typer.Exit(1): On commit failure (after rollback).
+    """
+    coord_branch, mission_id, mid8 = _load_coord_branch_meta(feature_dir)
+    events_path = feature_dir / "status.events.jsonl"
+    status_path = feature_dir / "status.json"
+
+    if coord_branch and mission_id and mid8:
+        # Modern path: BookkeepingTransaction owns the lock, policy gate,
+        # event-log rollback, and the commit. We stage operational paths
+        # (WP files, status artifacts) so they ride along with the
+        # bookkeeping commit on the coord branch.
+        from specify_cli.coordination.transaction import (
+            BookkeepingPolicyRefused,
+            BookkeepingTransaction,
+        )
+
+        try:
+            with BookkeepingTransaction.acquire(
+                repo_root=repo_root,
+                mission_id=str(mission_id),
+                mission_slug=mission_slug,
+                mid8=str(mid8),
+                destination_ref=str(coord_branch),
+                operation=operation,
+            ) as txn:
+                for path in paths:
+                    if path.exists():
+                        txn_path = _transaction_path_for(
+                            source_path=path,
+                            repo_root=repo_root,
+                            worktree_root=txn.worktree_root,
+                        )
+                        if txn_path.resolve() == path.resolve():
+                            txn.stage_path(path)
+                        else:
+                            txn.write_artifact(txn_path, path.read_bytes())
+                receipt = txn.commit(message)
+            _record_receipt(
+                str(coord_branch),
+                message,
+                "committed",
+                sha=receipt.commit_sha,
+                wp_id=wp_id,
+            )
+            return
+        except BookkeepingPolicyRefused as policy_exc:
+            _record_receipt(
+                str(coord_branch),
+                message,
+                "refused",
+                wp_id=wp_id,
+            )
+            print(
+                f"Error: Bookkeeping policy refused {operation}: "
+                f"{policy_exc.verdict.error_code}: {policy_exc.verdict.message}"
+            )
+            raise typer.Exit(1) from policy_exc
+        except Exception as exc:  # noqa: BLE001 — surface + exit
+            _restore_status_artifacts(
+                events_path=events_path,
+                pre_emit_event_size=pre_emit_event_size,
+                status_path=status_path,
+                pre_emit_status_bytes=pre_emit_status_bytes,
+            )
+            _record_receipt(
+                str(coord_branch),
+                message,
+                "refused",
+                wp_id=wp_id,
+            )
+            print(
+                f"Error: Failed to record {operation} via BookkeepingTransaction: {exc}"
+            )
+            raise typer.Exit(1) from exc
+
+    # Legacy fallback (TODO(WP08): replace with the legacy bridge).
+    try:
+        result = safe_commit(
+            repo_root=repo_root,
+            worktree_root=repo_root,
+            destination_ref=target_branch,
+            message=message,
+            paths=tuple(paths),
+        )
+        _record_receipt(
+            target_branch,
+            message,
+            "committed",
+            sha=getattr(result, "sha", None),
+            wp_id=wp_id,
+        )
+    except Exception as exc:  # noqa: BLE001 — surface + truncate + exit
+        _restore_status_artifacts(
+            events_path=events_path,
+            pre_emit_event_size=pre_emit_event_size,
+            status_path=status_path,
+            pre_emit_status_bytes=pre_emit_status_bytes,
+        )
+        _record_receipt(
+            target_branch,
+            message,
+            "refused",
+            wp_id=wp_id,
+        )
+        print(
+            f"Error: Failed to commit workflow status update for {wp_id}: {exc}. "
+            f"Event log rolled back to pre-emit state."
+        )
+        raise typer.Exit(1) from exc
+
+
+def _print_commit_summary(*, command_name: str, json_output: bool = False) -> None:
+    """T029: render the accumulated commit summary to the terminal.
+
+    Human format::
+
+        [implement] Commits recorded:
+          - <branch>  <message>  ✓ committed
+          - <branch>  <message>  ✗ refused
+
+    JSON format: prints ``{"commits": [...]}`` on its own line so
+    machine consumers can parse the trailing record.
+    """
+    if not _WORKFLOW_COMMIT_RECEIPTS:
+        return
+    if json_output:
+        import json as _json
+        print(_json.dumps({"commits": list(_WORKFLOW_COMMIT_RECEIPTS)}))
+        return
+    print(f"[{command_name}] Commits recorded:")
+    for receipt in _WORKFLOW_COMMIT_RECEIPTS:
+        glyph = "[ok]" if receipt.get("outcome") == "committed" else "[refused]"
+        print(
+            f"  - {receipt['destination_ref']}  {receipt['message']}  {glyph}"
+        )
 
 
 def _write_prompt_to_file(
@@ -506,6 +785,8 @@ def implement(
         spec-kitty agent action implement wp01 --agent codex
         spec-kitty agent action implement --agent gemini  # auto-detects first planned WP
     """
+    # WP06 T029: reset the commit-receipt accumulator for this invocation.
+    _reset_workflow_receipts()
     try:
         # Get repo root and feature slug
         repo_root = locate_project_root()
@@ -683,9 +964,22 @@ def implement(
             # Capture current shell PID
             shell_pid = str(os.getppid())  # Parent process ID (the shell running this command)
 
+            _impl_feature_dir = main_repo_root / "kitty-specs" / mission_slug
+            _actor = agent or "unknown"
+            # WP06 T027: capture the pre-emit size of status.events.jsonl
+            # so we can surgically truncate on commit failure. This is
+            # the byte-for-byte rollback that closes #1348 for the
+            # legacy path; the modern path (coord branch) gets the same
+            # contract via BookkeepingTransaction.
+            _events_path_pre = _impl_feature_dir / "status.events.jsonl"
+            _status_path_pre = _impl_feature_dir / "status.json"
+            _pre_emit_event_size = (
+                _events_path_pre.stat().st_size if _events_path_pre.exists() else 0
+            )
+            _pre_emit_status_bytes = (
+                _status_path_pre.read_bytes() if _status_path_pre.exists() else None
+            )
             try:
-                _impl_feature_dir = main_repo_root / "kitty-specs" / mission_slug
-                _actor = agent or "unknown"
                 start_implementation_status(
                     feature_dir=_impl_feature_dir,
                     mission_slug=mission_slug,
@@ -725,15 +1019,21 @@ def implement(
             # Auto-commit to target branch (enables instant status sync)
             actual_wp_path = wp.path.resolve()
             status_artifacts = [path.resolve() for path in _collect_status_artifacts(_impl_feature_dir)]
-            commit_success = safe_commit(
-                repo_path=main_repo_root,
-                files_to_commit=[actual_wp_path, *status_artifacts],
-                commit_message=f"chore: Start {normalized_wp_id} implementation [{agent}]",
-                allow_empty=True,  # OK if already in this state
+            # WP06 T027: route through BookkeepingTransaction when the
+            # mission has a coordination branch, fall back to safe_commit
+            # with surgical event-log truncate on failure otherwise.
+            _commit_workflow_change(
+                repo_root=main_repo_root,
+                feature_dir=_impl_feature_dir,
+                mission_slug=mission_slug,
+                target_branch=target_branch,
+                paths=[actual_wp_path, *status_artifacts],
+                message=f"chore: Start {normalized_wp_id} implementation [{agent}]",
+                operation=f"planned -> claimed for {normalized_wp_id}",
+                wp_id=normalized_wp_id,
+                pre_emit_event_size=_pre_emit_event_size,
+                pre_emit_status_bytes=_pre_emit_status_bytes,
             )
-            if not commit_success:
-                print(f"Error: Failed to commit workflow status update for {normalized_wp_id}. Status claim aborted.")
-                raise typer.Exit(1)
 
             print(f"✓ Claimed {normalized_wp_id} (agent: {agent}, PID: {shell_pid}, target: {target_branch})")
 
@@ -821,12 +1121,20 @@ def implement(
                 # Commit the baseline artifact to the feature branch
                 _baseline_artifact = feature_dir / "tasks" / _wp_slug / "baseline-tests.json"
                 if _baseline_artifact.exists():
-                    safe_commit(
-                        repo_path=main_repo_root,
-                        files_to_commit=[_baseline_artifact],
-                        commit_message=f"chore: Capture baseline tests for {normalized_wp_id}",
-                        allow_empty=True,
-                    )
+                    # Mechanical WP06 pre-step migration.
+                    try:
+                        safe_commit(
+                            repo_root=main_repo_root,
+                            worktree_root=main_repo_root,
+                            destination_ref=target_branch,
+                            message=f"chore: Capture baseline tests for {normalized_wp_id}",
+                            paths=(_baseline_artifact,),
+                        )
+                    except Exception as _bl_commit_exc:  # noqa: BLE001 — best-effort
+                        import logging as _bl_logging2
+                        _bl_logging2.getLogger(__name__).warning(
+                            "Baseline artifact commit failed: %s", _bl_commit_exc
+                        )
             elif _baseline is not None and _baseline.failed == -1:
                 print("[yellow]Warning: baseline test capture failed — no baseline context available[/yellow]")
         except Exception as _bl_err:
@@ -1031,8 +1339,15 @@ def implement(
         print("     (Pre-flight check will verify no uncommitted changes)")
 
     except Exception as e:
+        # WP06 T029: surface any partial commit summary before exiting,
+        # so operators see what got recorded vs. refused.
+        with contextlib.suppress(Exception):
+            _print_commit_summary(command_name="implement")
         print(f"Error: {e}")
         raise typer.Exit(1)
+
+    # WP06 T029: terminal commit summary for the implement command.
+    _print_commit_summary(command_name="implement")
 
 
 def _resolve_review_context(
@@ -1319,6 +1634,8 @@ def review(
         spec-kitty agent action review wp02 --agent codex
         spec-kitty agent action review --agent gemini  # auto-detects first for_review WP
     """
+    # WP06 T029: reset the commit-receipt accumulator for this invocation.
+    _reset_workflow_receipts()
     try:
         # Get repo root and feature slug
         repo_root = locate_project_root()
@@ -1459,6 +1776,20 @@ def review(
             shell_pid = str(os.getppid())  # Parent process ID (the shell running this command)
 
             with feature_status_lock(main_repo_root, mission_slug):
+                # WP06 T027: capture pre-emit event-log size for
+                # surgical rollback on commit failure.
+                _events_path_pre_rev = feature_dir / "status.events.jsonl"
+                _status_path_pre_rev = feature_dir / "status.json"
+                _pre_emit_event_size_rev = (
+                    _events_path_pre_rev.stat().st_size
+                    if _events_path_pre_rev.exists()
+                    else 0
+                )
+                _pre_emit_status_bytes_rev = (
+                    _status_path_pre_rev.read_bytes()
+                    if _status_path_pre_rev.exists()
+                    else None
+                )
                 try:
                     start_review_status(
                         feature_dir=feature_dir,
@@ -1497,15 +1828,20 @@ def review(
                 # Atomic commit: WP file + all status artifacts (#211, #212)
                 actual_wp_path = wp.path.resolve()
                 status_artifacts = _collect_status_artifacts(feature_dir)
-                commit_success = safe_commit(
-                    repo_path=main_repo_root,
-                    files_to_commit=[actual_wp_path] + status_artifacts,
-                    commit_message=f"chore: Start {normalized_wp_id} review [{agent}]",
-                    allow_empty=True,  # OK if already in this state
+                # WP06 T027: route through BookkeepingTransaction (modern
+                # path) or surgical-truncate fallback (legacy path).
+                _commit_workflow_change(
+                    repo_root=main_repo_root,
+                    feature_dir=feature_dir,
+                    mission_slug=mission_slug,
+                    target_branch=target_branch,
+                    paths=[actual_wp_path, *status_artifacts],
+                    message=f"chore: Start {normalized_wp_id} review [{agent}]",
+                    operation=f"for_review -> in_review for {normalized_wp_id}",
+                    wp_id=normalized_wp_id,
+                    pre_emit_event_size=_pre_emit_event_size_rev,
+                    pre_emit_status_bytes=_pre_emit_status_bytes_rev,
                 )
-                if not commit_success:
-                    print(f"Error: Failed to commit workflow status update for {normalized_wp_id}. Review claim aborted.")
-                    raise typer.Exit(1)
 
             print(f"✓ Claimed {normalized_wp_id} for review (agent: {agent}, PID: {shell_pid}, target: {target_branch})")
 
@@ -1876,5 +2212,10 @@ def review(
         print(f"  ❌ spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path} --mission {mission_slug}")
 
     except Exception as e:
+        with contextlib.suppress(Exception):
+            _print_commit_summary(command_name="review")
         print(f"Error: {e}")
         raise typer.Exit(1)
+
+    # WP06 T029: terminal commit summary for the review command.
+    _print_commit_summary(command_name="review")

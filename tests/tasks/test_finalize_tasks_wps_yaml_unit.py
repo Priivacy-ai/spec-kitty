@@ -49,6 +49,7 @@ def _build_feature_with_wps_yaml(
     feature_dir = tmp_path / "kitty-specs" / "069-test"
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text('{"target_branch": "main"}\n', encoding="utf-8")
 
     # Minimal spec.md with a functional requirement
     (feature_dir / "spec.md").write_text(
@@ -268,6 +269,7 @@ class TestFinalizTasksWithWpsYaml:
         feature_dir = tmp_path / "kitty-specs" / "069-test"
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
+        (feature_dir / "meta.json").write_text('{"target_branch": "main"}\n', encoding="utf-8")
 
         # Minimal spec.md
         (feature_dir / "spec.md").write_text(

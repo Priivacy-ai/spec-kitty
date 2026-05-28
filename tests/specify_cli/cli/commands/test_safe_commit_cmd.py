@@ -59,9 +59,12 @@ def test_public_safe_commit_does_not_honor_internal_protected_branch_exceptions(
     old_cwd = os.getcwd()
     try:
         os.chdir(tmp_path)
+        # Post-#1348 (WP02): --to-branch is required. The test runs on
+        # `main` (the protected branch) so the helper rejects the commit at the
+        # protected-branch check, which is what this test asserts.
         result = runner.invoke(
             cli_app,
-            ["safe-commit", "--message", message, "--json", "change.txt"],
+            ["safe-commit", "--to-branch", "main", "--message", message, "--json", "change.txt"],
             catch_exceptions=False,
         )
     finally:

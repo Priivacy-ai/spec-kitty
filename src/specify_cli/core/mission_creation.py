@@ -47,6 +47,12 @@ class MissionCreationResult:
     origin_binding_attempted: bool = False
     origin_binding_succeeded: bool = False
     origin_binding_error: str | None = None
+    # Coordination-branch outcome (WP03 / issue #1348).  ``coordination_branch``
+    # is the canonical per-mission ref ``kitty/mission-<slug>-<mid8>`` parented
+    # off ``target_branch``; ``coordination_branch_created`` distinguishes a
+    # freshly-minted branch from an idempotent reuse on re-run.
+    coordination_branch: str | None = None
+    coordination_branch_created: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -168,14 +174,13 @@ def _commit_feature_file(
         raise MissionCreationError("Not in a git repository")
 
     commit_msg = f"Add {artifact_type} for feature {mission_slug}"
-    success = safe_commit(
-        repo_path=repo_root,
-        files_to_commit=[file_path],
-        commit_message=commit_msg,
-        allow_empty=False,
+    safe_commit(
+        repo_root=repo_root,
+        worktree_root=repo_root,
+        destination_ref=current_branch,
+        message=commit_msg,
+        paths=(file_path,),
     )
-    if not success:
-        raise RuntimeError(f"Failed to commit {artifact_type}")
 
 
 # ---------------------------------------------------------------------------
@@ -192,6 +197,7 @@ def create_mission_core(
     friendly_name: str | None = None,
     purpose_tldr: str | None = None,
     purpose_context: str | None = None,
+    force_recreate_coordination_branch: bool = False,
 ) -> MissionCreationResult:
     """Create a new feature with all scaffolding.
 
@@ -373,6 +379,27 @@ def create_mission_core(
     meta.setdefault("target_branch", planning_branch)
     meta.setdefault("created_at", datetime.now(timezone.utc).isoformat())  # noqa: UP017
 
+    # ------------------------------------------------------------------
+    # 6.5 Coordination branch (WP03 / issue #1348)
+    #
+    # Mint (or idempotently reuse) the per-mission coordination branch
+    # ``kitty/mission-<slug>-<mid8>`` parented off ``planning_branch``.
+    # This is the topology foundation that WP04 (CoordinationWorkspace) and
+    # WP05 (BookkeepingTransaction) build upon.  Persisting the branch ref
+    # in ``meta.json`` makes downstream commands self-describing — no
+    # re-derivation, no drift.
+    # ------------------------------------------------------------------
+    from specify_cli.missions._create import ensure_coordination_branch
+
+    coordination_outcome = ensure_coordination_branch(
+        repo_root=resolved_root,
+        mission_slug=mission_slug_formatted,
+        mission_id=mission_id,
+        target_branch=planning_branch,
+        force_recreate=force_recreate_coordination_branch,
+    )
+    meta["coordination_branch"] = coordination_outcome.branch_name
+
     from specify_cli.mission_metadata import set_documentation_state, write_meta
 
     write_meta(feature_dir, meta)
@@ -519,6 +546,8 @@ def create_mission_core(
         origin_binding_attempted=origin_binding_attempted,
         origin_binding_succeeded=origin_binding_succeeded,
         origin_binding_error=origin_binding_error,
+        coordination_branch=coordination_outcome.branch_name,
+        coordination_branch_created=coordination_outcome.created,
     )
 
 

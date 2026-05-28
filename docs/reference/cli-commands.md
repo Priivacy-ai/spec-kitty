@@ -780,6 +780,32 @@ _Project health diagnostics_
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty doctor coordination
+
+```
+ Usage: spec-kitty doctor coordination [OPTIONS]
+
+ Run the WP04 #1348 coordination + sparse-checkout health checks.
+
+ Iterates over every mission under ``kitty-specs/`` whose ``meta.json``
+ declares a ``coordination_branch`` field, runs the coord-worktree
+ and lane-sparse-checkout health checks, and prints findings.
+
+ Also runs the minimum git-version (RR-01) check.
+
+ Exits with code 1 if any ``error`` finding is emitted; ``warning``
+ findings exit 0 but are still printed.
+
+ Examples:
+     spec-kitty doctor coordination
+     spec-kitty doctor coordination --json
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json          Machine-readable JSON output                                 │
+│ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty doctor doctrine
 
 ```
@@ -1839,6 +1865,36 @@ _View available Spec Kitty mission types. Mission types are selected per mission
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty mission close
+
+```
+ Usage: spec-kitty mission close [OPTIONS]
+
+ Close a mission. Wraps FR-016 lifecycle teardown.
+
+ Without ``--discard``: tear down the coordination worktree only.
+ This is a safe no-op after a successful ``spec-kitty merge`` (the
+ merge command already runs the same teardown); useful when the
+ teardown was skipped (e.g. legacy merge path) or interrupted.
+
+ With ``--discard``: abandon the mission mid-flight. Deletes the
+ coordination branch and every lane branch named in
+ ``lanes.json``, then tears down the coordination worktree and the
+ operator-visible lane worktrees. Requires confirmation unless
+ ``--force`` is also passed.
+
+ Implements FR-016 from mission-coordination-branch-atomic-event-log-01KSPTVW.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --mission  -f      TEXT  Mission slug (auto-detected from cwd if omitted)    │
+│ --discard                Discard the mission mid-flight: delete the          │
+│                          coordination branch + all lane branches and tear    │
+│                          down all worktrees.                                 │
+│ --force                  Skip the confirmation prompt when --discard is set. │
+│ --help                   Show this message and exit.                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty mission create
 
 ```
@@ -1966,6 +2022,29 @@ _View available Spec Kitty mission types. Mission types are selected per mission
 │          project-authored custom mission definition.                         │
 │ switch   [REMOVED] Switch active mission - this command was    (deprecated)  │
 │          removed in v0.8.0.                                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty mission-type close
+
+```
+ Usage: spec-kitty mission-type close [OPTIONS]
+
+ Close a mission. Wraps FR-016 lifecycle teardown.
+
+ Without ``--discard``: tear down the coordination worktree only.
+ With ``--discard``: abandon the mission mid-flight; delete the coordination
+ branch + every lane branch and tear down the lane worktrees. Requires
+ confirmation unless ``--force`` is also passed.
+
+ Alias of ``spec-kitty mission close``; both names are accepted because the
+ ``mission`` typer app is shared with ``mission-type``.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --mission  -f      TEXT  Mission slug (auto-detected from cwd if omitted)    │
+│ --discard                Discard the mission mid-flight.                     │
+│ --force                  Skip confirmation prompt when --discard is set.     │
+│ --help                   Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

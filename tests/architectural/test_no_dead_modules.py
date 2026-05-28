@@ -258,6 +258,17 @@ _CATEGORY_5_WP_IN_FLIGHT_ADAPTERS: frozenset[str] = frozenset(
         # live src/ caller.  WP11 removal trigger reached.
         # charter.scope_router removed: post-merge remediation cycle 1
         # wired prompt_builder._governance_context through build_with_scope.
+        #
+        # specify_cli.coordination.outbound: new SaaS-fanout deferral
+        # helper landed by mission #1348 WP05/WP09. The new code path
+        # (``BookkeepingTransaction.queue_saas_emission``) is tested by
+        # ``tests/specify_cli/coordination/test_outbound.py`` but the 30+
+        # production callers of ``emit_status_transition`` have NOT
+        # been migrated yet (DRIFT-6 in mission #1348's post-merge
+        # review). Migration is tracked under
+        # Priivacy-ai/spec-kitty#1356; once landed, the module gains a
+        # runtime caller and this entry can be removed.
+        "specify_cli.coordination.outbound",
     }
 )
 

@@ -1906,10 +1906,11 @@ def move_task(
                     # changes are captured in the same atomic commit.
                     status_artifacts = _collect_status_artifacts(feature_dir)
                     commit_success = safe_commit(
-                        repo_path=main_repo_root,
-                        files_to_commit=[actual_file_path] + status_artifacts,
-                        commit_message=commit_msg,
-                        allow_empty=True,  # OK if nothing changed
+                        repo_root=main_repo_root,
+                        worktree_root=main_repo_root,
+                        destination_ref=target_branch,
+                        message=commit_msg,
+                        paths=tuple([actual_file_path] + status_artifacts),
                     )
 
                     if commit_success:
@@ -2487,10 +2488,11 @@ def mark_status(
 
                     # Commit only the tasks.md file (preserves staging area)
                     commit_success = safe_commit(
-                        repo_path=main_repo_root,
-                        files_to_commit=[actual_tasks_path],
-                        commit_message=commit_msg,
-                        allow_empty=True,  # OK if nothing changed
+                        repo_root=main_repo_root,
+                        worktree_root=main_repo_root,
+                        destination_ref=target_branch,
+                        message=commit_msg,
+                        paths=(actual_tasks_path,),
                     )
 
                     if commit_success:
@@ -2753,7 +2755,7 @@ def finalize_tasks(
 
         mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
         # Ensure we operate on the target branch for this feature
-        main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
+        main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
         feature_dir = main_repo_root / "kitty-specs" / mission_slug
         tasks_md = feature_dir / TASKS_MD_FILENAME
         tasks_dir = feature_dir / "tasks"
@@ -3036,7 +3038,7 @@ def map_requirements(
         _emit_sparse_session_warning(repo_root, command="spec-kitty agent tasks map-requirements")
 
         mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
-        main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
+        main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
         feature_dir = main_repo_root / "kitty-specs" / mission_slug
 
         if not feature_dir.exists():
@@ -3238,10 +3240,11 @@ def map_requirements(
                 commit_msg = f"chore: Map requirements for {', '.join(sorted(new_mappings))} on spec {spec_number}"
                 try:
                     committed = safe_commit(
-                        repo_path=main_repo_root,
-                        files_to_commit=written_files,
-                        commit_message=commit_msg,
-                        allow_empty=True,
+                        repo_root=main_repo_root,
+                        worktree_root=main_repo_root,
+                        destination_ref=target_branch,
+                        message=commit_msg,
+                        paths=tuple(written_files),
                     )
                 except Exception as exc_commit:
                     if not json_output:
@@ -3409,19 +3412,48 @@ def status(
         # pins to the primary checkout regardless of where the operator stands.
         main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
 
-        # Read-only path: use worktree-aware resolution so detached-worktree
-        # verification (#984) reads the current worktree's events, not the
-        # primary checkout's potentially-divergent state.
-        status_read_root = get_status_read_root(cwd)
+        # Read-only path (WP08 T037, FR-030): route status reads through
+        # the canonical resolver.  In the new topology the truth lives
+        # in the per-mission coordination worktree; in legacy topology
+        # (no coord worktree on disk) we fall back to the primary
+        # checkout view.  Either way the resolution is CWD-independent:
+        # spawning ``agent tasks status`` from a lane worktree, from the
+        # primary checkout, or from any unrelated CWD all return the
+        # same data.
+        from specify_cli.missions._read_path_resolver import (
+            resolve_mission_read_path,
+        )
 
-        # Locate mission directory from the worktree-aware root for event reading.
-        # workspace resolution (resolve_workspace_for_wp) still uses main_repo_root
-        # so it always resolves against the canonical planning data.
-        feature_dir = status_read_root / "kitty-specs" / mission_slug
+        # Derive mid8 from the resolved slug when it carries the
+        # post-WP03 ``-<mid8>`` suffix.  For legacy slugs the suffix is
+        # absent and the resolver falls back to the primary checkout.
+        _mid8 = ""
+        if "-" in mission_slug:
+            _tail = mission_slug.rsplit("-", 1)[-1]
+            if len(_tail) == 8 and _tail.isalnum() and _tail.isupper():
+                _mid8 = _tail
+        # Legacy worktree-aware fallback for #984 (detached-worktree
+        # status reads): only used when neither the coord worktree nor
+        # the primary checkout view exists.  Kept for back-compat with
+        # pre-coord projects.
+        feature_dir = resolve_mission_read_path(
+            main_repo_root, mission_slug, _mid8,
+        )
 
         if not feature_dir.exists():
-            console.print(f"[red]Error:[/red] Mission directory not found: {feature_dir}")
-            raise typer.Exit(1)
+            # Last-ditch fallback to the original worktree-aware path so
+            # tests / projects that stand up status files in unusual
+            # places still work.  Surface a clear diagnostic when none
+            # of the candidates carry the mission.
+            status_read_root = get_status_read_root(cwd)
+            legacy_dir = status_read_root / "kitty-specs" / mission_slug
+            if legacy_dir.exists():
+                feature_dir = legacy_dir
+            else:
+                console.print(
+                    f"[red]Error:[/red] Mission directory not found: {feature_dir}"
+                )
+                raise typer.Exit(1)
 
         tasks_dir = feature_dir / "tasks"
 

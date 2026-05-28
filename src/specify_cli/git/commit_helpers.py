@@ -1,25 +1,243 @@
-"""Safe commit helper that preserves staging area.
+"""Safe commit helper with destination-ref-aware HEAD assertion.
 
 This module provides utilities for committing only specific files without
-capturing unrelated staged changes.
+capturing unrelated staged changes, while structurally enforcing that the
+commit lands on the branch the caller declared.
 
-It also installs a commit-layer data-loss backstop: every ``safe_commit`` call
+Contract (post-#1348 / mission ``mission-coordination-branch-atomic-event-log``)
+-------------------------------------------------------------------------------
+
+``safe_commit()`` requires a **keyword-only** ``destination_ref`` (the short
+branch name, never ``refs/heads/<name>``) and a ``worktree_root`` path. Before
+any staging or commit, the helper asserts that the worktree's ``HEAD`` matches
+``destination_ref``. There is **no silent fallback** path that infers the
+destination from the current working directory or HEAD --- a missing argument
+fails ``mypy --strict``, and a mismatched HEAD raises ``SafeCommitHeadMismatch``.
+
+This is the structural invariant that makes every caller correct-by-construction.
+Policy can no longer drift from physical staging because policy and physical
+target are checked against each other at the chokepoint.
+
+Every exception below carries a stable ``error_code`` (NFR-007) for scripted
+detection, plus ``destination_ref`` and (where relevant) ``observed_head`` and
+``worktree_root`` so operators and CI tooling can act on structured data.
+
+Staging-area data-loss backstop
+-------------------------------
+
+In addition to the destination-ref invariant, every ``safe_commit`` call still
 asserts that the staging area contains exactly the paths the caller requested
 before the commit is created. If any unexpected path is staged (for example, a
 phantom deletion produced by a sparse-checkout filter interacting with
 ``git stash pop``), the commit is aborted with ``SafeCommitBackstopError``. The
 backstop is unconditional and cannot be bypassed via any ``--force`` code path
 --- see Priivacy-ai/spec-kitty#588 for the cascade it defends against.
+
+Protected-branch exception policy
+---------------------------------
+
+A small allowlist of commit-message prefixes is permitted to land on protected
+branches because they correspond to non-spec-kitty-internal release workflows
+that legitimately mutate the protected branch:
+
+- ``"chore: apply spec-kitty upgrade changes"`` — the ``spec-kitty upgrade`` flow
+  ships migration commits onto the user's main branch by design.
+- ``"chore(<mission>): record done transitions for merged WPs"`` — the
+  final ``spec-kitty merge`` bookkeeping commit after the mission branch has
+  already been merged into the operator-selected target branch.
+- ``"chore: release "`` — the release tagging flow.
+- ``"release: "`` — alternate release tagging style used by some downstream
+  configurations.
+
+Spec-kitty-internal exceptions (planning-artifact prefixes such as
+``"chore: planning artifacts for "``) were **removed** as part of #1348 (FR-013):
+they constituted a silent bypass that allowed the runtime to land arbitrary
+state on ``main`` while the symmetric WP-transition write was loudly refused.
+Any new exception requires a doctrine-level decision (DIRECTIVE_003).
 """
 
 from __future__ import annotations
 
+import contextlib
 import os
 import subprocess
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
+
+
+# ---------------------------------------------------------------------------
+# Structured error types (NFR-007: each carries a stable ``error_code``)
+# ---------------------------------------------------------------------------
+
+
+class SafeCommitError(RuntimeError):
+    """Base class for structured safe_commit errors.
+
+    Subclasses set ``error_code`` to a stable identifier. Every instance
+    exposes JSON-serializable fields via :meth:`to_dict` for CI / scripted
+    detection (NFR-007).
+    """
+
+    error_code: str = "SAFE_COMMIT_GENERIC"
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        destination_ref: str | None = None,
+        observed_head: str | None = None,
+        worktree_root: Path | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.message = message
+        self.destination_ref = destination_ref
+        self.observed_head = observed_head
+        self.worktree_root = worktree_root
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-serializable representation for tooling."""
+        return {
+            "error_code": self.error_code,
+            "message": self.message,
+            "destination_ref": self.destination_ref,
+            "observed_head": self.observed_head,
+            "worktree_root": str(self.worktree_root) if self.worktree_root is not None else None,
+        }
+
+
+class SafeCommitHeadMismatch(SafeCommitError):
+    """Worktree HEAD does not match the declared ``destination_ref``."""
+
+    error_code = "SAFE_COMMIT_HEAD_MISMATCH"
+
+    def __init__(
+        self,
+        *,
+        destination_ref: str,
+        observed_head: str,
+        worktree_root: Path,
+    ) -> None:
+        message = (
+            f"safe_commit: worktree {worktree_root} HEAD is {observed_head!r}, "
+            f"expected {destination_ref!r}. "
+            f"Run `git -C {worktree_root} checkout {destination_ref}` first."
+        )
+        super().__init__(
+            message,
+            destination_ref=destination_ref,
+            observed_head=observed_head,
+            worktree_root=worktree_root,
+        )
+
+
+class SafeCommitDestinationRefShape(SafeCommitError):
+    """``destination_ref`` was passed in fully-qualified form (``refs/heads/...``).
+
+    The contract requires the **short** branch name. Callers must normalize at
+    the boundary so the helper can do a single shape-agnostic comparison. Per
+    C-016.
+    """
+
+    error_code = "SAFE_COMMIT_DESTINATION_REF_SHAPE"
+
+    def __init__(self, *, destination_ref: str) -> None:
+        message = (
+            f"safe_commit: destination_ref must be a short branch name, "
+            f"got fully-qualified ref {destination_ref!r}. "
+            f"Strip the 'refs/heads/' prefix at the call boundary."
+        )
+        super().__init__(message, destination_ref=destination_ref)
+
+
+class SafeCommitDestinationNotFound(SafeCommitError):
+    """``destination_ref`` does not exist as a branch in the repository."""
+
+    error_code = "SAFE_COMMIT_DESTINATION_NOT_FOUND"
+
+    def __init__(
+        self,
+        *,
+        destination_ref: str,
+        worktree_root: Path,
+    ) -> None:
+        message = (
+            f"safe_commit: destination ref {destination_ref!r} does not exist in the repo. "
+            f"Create the branch first, or check the spelling."
+        )
+        super().__init__(
+            message,
+            destination_ref=destination_ref,
+            worktree_root=worktree_root,
+        )
+
+
+class SafeCommitEmptyChangeset(SafeCommitError):
+    """The caller passed an empty ``paths`` tuple. Programming error."""
+
+    error_code = "SAFE_COMMIT_EMPTY_CHANGESET"
+
+    def __init__(self, *, destination_ref: str) -> None:
+        message = (
+            "safe_commit: paths is empty. Pass at least one path to commit; "
+            "an empty changeset is a programming error."
+        )
+        super().__init__(message, destination_ref=destination_ref)
+
+
+class SafeCommitNotAWorktree(SafeCommitError):
+    """``worktree_root`` is not a valid worktree of ``repo_root``."""
+
+    error_code = "SAFE_COMMIT_NOT_A_WORKTREE"
+
+    def __init__(
+        self,
+        *,
+        destination_ref: str,
+        worktree_root: Path,
+    ) -> None:
+        message = (
+            f"safe_commit: {worktree_root} is not a git worktree. "
+            f"Pass a resolved worktree path."
+        )
+        super().__init__(
+            message,
+            destination_ref=destination_ref,
+            worktree_root=worktree_root,
+        )
+
+
+class ProtectedBranchRefused(SafeCommitError):
+    """``destination_ref`` is on the protected list (no documented exception)."""
+
+    error_code = "SAFE_COMMIT_PROTECTED_BRANCH"
+
+    def __init__(
+        self,
+        *,
+        destination_ref: str,
+        worktree_root: Path,
+        commit_message: str,
+    ) -> None:
+        message = (
+            f"safe_commit: refusing to commit to protected branch "
+            f"{destination_ref!r} in {worktree_root}. "
+            f"Use the coordination worktree at .worktrees/<slug>-<mid8>-coord/, "
+            f"or land via the mission lane worktree."
+        )
+        super().__init__(
+            message,
+            destination_ref=destination_ref,
+            worktree_root=worktree_root,
+        )
+        self.commit_message = commit_message
+
+
+# ---------------------------------------------------------------------------
+# Legacy / staging-area backstop error (preserved from prior implementation)
+# ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -31,11 +249,13 @@ class UnexpectedStagedPath:
 
 
 class SafeCommitBackstopError(RuntimeError):
-    """Raised by safe_commit when staged paths do not match files_to_commit.
+    """Raised by safe_commit when staged paths do not match the requested paths.
 
     The backstop fires BEFORE the commit is created, so the commit does not exist.
     Callers should treat this as a data-loss-prevention signal and abort.
     """
+
+    error_code = "SAFE_COMMIT_BACKSTOP"
 
     def __init__(
         self,
@@ -67,16 +287,48 @@ class SafeCommitBackstopError(RuntimeError):
 
 
 class ProtectedBranchCommitError(RuntimeError):
-    """Raised when a Spec Kitty status commit would land on a protected branch."""
+    """Raised when a Spec Kitty status commit would land on a protected branch.
 
+    Retained for backward compatibility with ``assert_not_protected_branch``
+    callers. New code raising on a protected destination should use
+    :class:`ProtectedBranchRefused` (which carries structured fields).
+    """
+
+
+# ---------------------------------------------------------------------------
+# Protected-branch policy
+# ---------------------------------------------------------------------------
 
 _DEFAULT_PROTECTED_BRANCHES = frozenset({"main", "master"})
+
+# Documented exceptions kept on purpose. See module docstring for rationale.
+# DO NOT add spec-kitty-internal entries here. New exceptions require a
+# doctrine-level decision (DIRECTIVE_003).
 _PROTECTED_BRANCH_COMMIT_EXCEPTIONS = (
-    "chore: apply spec-kitty upgrade changes",
-    "chore: release ",
-    "release: ",
+    "chore: apply spec-kitty upgrade changes",  # upgrade flow
+    "chore(",  # merge bookkeeping; narrowed by _is_protected_branch_exception
+    "chore: release ",  # release flow
+    "release: ",  # alternate release flow
 )
-_MERGED_WP_DONE_COMMIT_SUFFIX = ": record done transitions for merged WPs"
+
+
+# ---------------------------------------------------------------------------
+# Result type
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class CommitResult:
+    """The result of a successful safe_commit call."""
+
+    sha: str
+    destination_ref: str
+    worktree_root: Path
+
+
+# ---------------------------------------------------------------------------
+# Internal git plumbing helpers (preserved from prior implementation)
+# ---------------------------------------------------------------------------
 
 
 def _run_git_text(repo_path: Path, args: list[str]) -> str | None:
@@ -161,8 +413,11 @@ def assert_not_protected_branch(repo_path: Path, *, operation: str = "commit") -
 
 
 def _is_protected_branch_exception(commit_message: str) -> bool:
-    return commit_message.startswith(_PROTECTED_BRANCH_COMMIT_EXCEPTIONS) or commit_message.endswith(
-        _MERGED_WP_DONE_COMMIT_SUFFIX
+    if commit_message.startswith("chore("):
+        first_line = commit_message.splitlines()[0]
+        return first_line.endswith("): record done transitions for merged WPs")
+    return commit_message.startswith(
+        tuple(prefix for prefix in _PROTECTED_BRANCH_COMMIT_EXCEPTIONS if prefix != "chore(")
     )
 
 
@@ -189,21 +444,7 @@ def assert_staging_area_matches_expected(
         SafeCommitBackstopError: When any staged path is not in
             ``expected_paths``, or when the ``git diff --cached`` probe fails.
     """
-    # git diff --cached --name-status outputs one line per staged path:
-    #   "D\tdocs/runbooks/file.md"
-    #   "M\tscripts/agents/AGENTS.md"
-    #
-    # --no-renames: disable git's default rename detection so each staged
-    # path appears on its own single-path line. With default rename
-    # detection, a staged deletion + addition pair with similar content
-    # (e.g. a filesystem-level rename performed by an upgrade migration and
-    # then staged individually) collapses into a single
-    # "Rxxx\tsrc\tdest" line that the 2-way split below cannot parse,
-    # producing a spurious backstop violation. See
-    # Priivacy-ai/spec-kitty#643. The backstop cares only about which
-    # paths are staged, not whether git classifies a pair as a rename, so
-    # disabling rename detection here strictly narrows the probe without
-    # weakening the safety guarantee.
+    # See prior history (mission 588) for the --no-renames rationale.
     result = subprocess.run(
         ["git", "diff", "--cached", "--no-renames", "--name-status"],
         cwd=repo_path,
@@ -214,7 +455,6 @@ def assert_staging_area_matches_expected(
         check=False,
     )
     if result.returncode != 0:
-        # Staging-area probe failed. Raise to abort the commit; caller handles.
         raise SafeCommitBackstopError(
             unexpected=(UnexpectedStagedPath(path="<probe-failed>", status_code="??"),),
             requested=tuple(expected_paths),
@@ -243,12 +483,88 @@ def assert_staging_area_matches_expected(
         )
 
 
+# ---------------------------------------------------------------------------
+# Destination-ref-aware safe_commit
+# ---------------------------------------------------------------------------
+
+
+def _read_worktree_head(worktree_root: Path) -> str | None:
+    """Return the short branch name at worktree HEAD, or ``None`` if detached."""
+    raw = _run_git_text(worktree_root, ["symbolic-ref", "HEAD"])
+    if raw is None:
+        return None
+    return raw.removeprefix("refs/heads/")
+
+
+def _is_worktree_of(repo_root: Path, worktree_root: Path) -> bool:
+    """Return ``True`` iff ``worktree_root`` is a worktree of ``repo_root``.
+
+    Uses ``git -C <worktree_root> rev-parse --show-toplevel`` to confirm
+    ``worktree_root`` is inside *some* git working tree, then compares the
+    common dir of ``worktree_root`` and ``repo_root`` — if they share a common
+    ``.git`` repository, they are linked. A failing rev-parse means
+    ``worktree_root`` is not a git worktree at all.
+    """
+    toplevel = _run_git_text(worktree_root, ["rev-parse", "--show-toplevel"])
+    if toplevel is None:
+        return False
+    # If worktree_root and repo_root resolve to the same directory, they are
+    # trivially "the same" worktree.
+    if Path(toplevel).resolve() == repo_root.resolve() == worktree_root.resolve():
+        return True
+    # Otherwise, they must share the same common git dir.
+    wt_common = _run_git_text(worktree_root, ["rev-parse", "--git-common-dir"])
+    repo_common = _run_git_text(repo_root, ["rev-parse", "--git-common-dir"])
+    if wt_common is None or repo_common is None:
+        return False
+    # rev-parse --git-common-dir may return relative paths; resolve them
+    # against the respective working dirs.
+    wt_common_path = (worktree_root / wt_common).resolve()
+    repo_common_path = (repo_root / repo_common).resolve()
+    return wt_common_path == repo_common_path
+
+
+def _destination_ref_exists(worktree_root: Path, destination_ref: str) -> bool:
+    result = subprocess.run(
+        ["git", "rev-parse", "--verify", "--quiet", f"refs/heads/{destination_ref}"],
+        cwd=worktree_root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def _find_stash_ref(repo_path: Path, stash_message: str) -> str | None:
+    """Return the stash ref for a unique stash message, if present."""
+    result = subprocess.run(
+        ["git", "stash", "list", "--format=%gd\t%s"],
+        cwd=repo_path,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+
+    for line in result.stdout.splitlines():
+        if "\t" not in line:
+            continue
+        ref, message = line.split("\t", 1)
+        if message == stash_message or message.endswith(f": {stash_message}"):
+            return ref
+
+    return None
+
+
 def _stage_requested_files(repo_path: Path, normalized_files: list[str]) -> bool:
     """Stage each requested file via ``git add --force``. Returns False on failure."""
     for file_path in normalized_files:
         add_result = subprocess.run(
-            # Use --force for explicitly-requested files so ignored
-            # status files can still be committed intentionally.
             ["git", "add", "--force", "--", file_path],
             cwd=repo_path,
             capture_output=True,
@@ -344,8 +660,8 @@ def _restore_staged_patch(repo_path: Path, normalized_files: list[str], patch: s
     return result.returncode == 0
 
 
-def _run_commit(repo_path: Path, commit_message: str, allow_empty: bool) -> bool:
-    """Run ``git commit`` and classify its result."""
+def _run_commit_capture_sha(repo_path: Path, commit_message: str) -> str | None:
+    """Run ``git commit`` and return the new commit SHA, or ``None`` on failure."""
     commit_result = subprocess.run(
         ["git", "-c", "commit.gpgsign=false", "commit", "-m", commit_message],
         cwd=repo_path,
@@ -355,174 +671,188 @@ def _run_commit(repo_path: Path, commit_message: str, allow_empty: bool) -> bool
         errors="replace",
         check=False,
     )
-
-    if commit_result.returncode == 0:
-        return True
-    if "nothing to commit" in commit_result.stdout or "nothing to commit" in commit_result.stderr:
-        return allow_empty
-    return False
-
-
-def _find_stash_ref(repo_path: Path, stash_message: str) -> str | None:
-    """Return the stash ref for a unique stash message, if present."""
-    result = subprocess.run(
-        ["git", "stash", "list", "--format=%gd\t%s"],
-        cwd=repo_path,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    if result.returncode != 0:
+    if commit_result.returncode != 0:
         return None
-
-    for line in result.stdout.splitlines():
-        if "\t" not in line:
-            continue
-        ref, message = line.split("\t", 1)
-        if message == stash_message or message.endswith(f": {stash_message}"):
-            return ref
-
-    return None
+    sha = _run_git_text(repo_path, ["rev-parse", "HEAD"])
+    return sha
 
 
-def safe_commit(
-    repo_path: Path,
-    files_to_commit: list[Path],
-    commit_message: str,
-    allow_empty: bool = False,
-) -> bool:
-    """Commit only specified files, preserving existing staging area.
+def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms readability
+    *,
+    repo_root: Path,
+    worktree_root: Path,
+    destination_ref: str,
+    message: str,
+    paths: tuple[Path, ...],
+) -> CommitResult:
+    """Commit ``paths`` to ``destination_ref`` inside ``worktree_root``.
 
-    This function ensures that only the explicitly provided files are committed,
-    preventing unrelated staged files from being accidentally included in the commit.
+    This helper structurally enforces that the commit lands on the declared
+    branch. The destination-ref-aware HEAD assertion runs **before** any
+    staging or commit, so a mismatched HEAD aborts cleanly without touching
+    the index.
 
-    Strategy:
-    1. Save current staging area state (git stash)
-    2. Stage only the intended files
-    3. Assert the staging area contains only the intended files (backstop)
-    4. Commit those files
-    5. Restore original staging area (git stash pop)
+    Validation order (every step short-circuits the rest):
 
-    Step 3 is the commit-layer data-loss backstop: if ``git stash pop`` or any
-    other git operation smuggles unexpected paths (e.g. sparse-checkout phantom
-    deletions) into the staging area between steps 2 and 4, the commit is
-    aborted with ``SafeCommitBackstopError``. The backstop is unconditional ---
-    it cannot be disabled by any ``--force`` path.
+    1. ``destination_ref`` shape: a fully-qualified ``refs/heads/...`` raises
+       :class:`SafeCommitDestinationRefShape`.
+    2. ``paths`` non-empty: empty raises :class:`SafeCommitEmptyChangeset`.
+    3. ``worktree_root`` is a worktree of ``repo_root``: not a worktree raises
+       :class:`SafeCommitNotAWorktree`.
+    4. Worktree HEAD matches ``destination_ref`` (short form on both sides);
+       mismatch raises :class:`SafeCommitHeadMismatch`.
+    5. ``destination_ref`` exists in the repo (``git rev-parse --verify``);
+       missing raises :class:`SafeCommitDestinationNotFound`.
+    6. ``destination_ref`` is not protected (unless on the documented
+       exception list, see module docstring); protected raises
+       :class:`ProtectedBranchRefused`.
+    7. Stage ``paths`` via ``git -C <worktree_root> add -- <paths>``.
+    8. Staging-area backstop: assert only the requested paths are staged.
+    9. Commit and return the new SHA in :class:`CommitResult`.
+
+    All parameters are keyword-only. ``destination_ref`` is required;
+    ``mypy --strict`` will refuse any caller that omits it.
 
     Args:
-        repo_path: Path to the git repository root
-        files_to_commit: List of file paths to commit (absolute or relative to repo_path)
-        commit_message: The commit message to use
-        allow_empty: If True, return success even if there's nothing to commit
+        repo_root: Path to the primary git repository.
+        worktree_root: Path to the worktree the commit lands in. May equal
+            ``repo_root`` when the primary checkout is the worktree.
+        destination_ref: Short branch name (e.g. ``"kitty/mission-foo-01ABCDEF"``).
+            Must NOT be fully-qualified.
+        message: The commit message.
+        paths: Tuple of file paths to commit. Absolute paths are resolved
+            relative to ``worktree_root`` when possible.
 
     Returns:
-        True if commit succeeded (or nothing to commit with allow_empty=True),
-        False otherwise
+        :class:`CommitResult` carrying the new commit SHA, the declared
+        ``destination_ref``, and the ``worktree_root`` it landed in.
 
     Raises:
-        SafeCommitBackstopError: If the staging area contains paths outside of
-            ``files_to_commit`` at commit time (data-loss prevention). The
-            prior-staging-area cleanup still runs before the error propagates.
-
-    Example:
-        >>> from pathlib import Path
-        >>> safe_commit(
-        ...     repo_path=Path("."),
-        ...     files_to_commit=[Path("kitty-specs/038-feature/tasks/WP01.md")],
-        ...     commit_message="Update WP01 status to doing",
-        ...     allow_empty=False
-        ... )
-        True
+        SafeCommitDestinationRefShape: ``destination_ref`` starts with ``refs/heads/``.
+        SafeCommitEmptyChangeset: ``paths`` is empty.
+        SafeCommitNotAWorktree: ``worktree_root`` is not a git worktree of ``repo_root``.
+        SafeCommitHeadMismatch: worktree HEAD does not match ``destination_ref``.
+        SafeCommitDestinationNotFound: ``destination_ref`` does not exist in the repo.
+        ProtectedBranchRefused: ``destination_ref`` is protected and ``message``
+            does not match a documented exception.
+        SafeCommitBackstopError: the staging area contains paths outside
+            ``paths`` at commit time (data-loss prevention).
+        RuntimeError: a low-level ``git add`` or ``git commit`` failed.
     """
-    if not _is_protected_branch_exception(commit_message):
-        assert_not_protected_branch(repo_path, operation=f"create commit '{commit_message}'")
+    # 1. Shape: short branch name only.
+    if destination_ref.startswith("refs/heads/"):
+        raise SafeCommitDestinationRefShape(destination_ref=destination_ref)
 
-    # Normalize file paths to be relative to repo_path
-    normalized_files = []
-    for file in files_to_commit:
-        if file.is_absolute():
-            try:  # noqa: SIM105
-                file = file.relative_to(repo_path)
-            except ValueError:
-                # File is not under repo_path, use as-is
-                pass
-        normalized_files.append(str(file))
+    # 2. Non-empty paths.
+    if not paths:
+        raise SafeCommitEmptyChangeset(destination_ref=destination_ref)
+
+    # 3. worktree_root is a worktree of repo_root.
+    if not _is_worktree_of(repo_root, worktree_root):
+        raise SafeCommitNotAWorktree(
+            destination_ref=destination_ref,
+            worktree_root=worktree_root,
+        )
+
+    # 4. HEAD assertion.
+    observed_head = _read_worktree_head(worktree_root)
+    if observed_head is None or observed_head != destination_ref:
+        raise SafeCommitHeadMismatch(
+            destination_ref=destination_ref,
+            observed_head=observed_head if observed_head is not None else "<detached>",
+            worktree_root=worktree_root,
+        )
+
+    # 5. destination_ref exists.
+    if not _destination_ref_exists(worktree_root, destination_ref):
+        raise SafeCommitDestinationNotFound(
+            destination_ref=destination_ref,
+            worktree_root=worktree_root,
+        )
+
+    # 6. Protected-branch check.
+    is_protected = (
+        destination_ref in protected_branches(repo_root)
+        or destination_ref in protected_branches(worktree_root)
+    )
+    if is_protected and not _is_protected_branch_exception(message):
+        raise ProtectedBranchRefused(
+            destination_ref=destination_ref,
+            worktree_root=worktree_root,
+            commit_message=message,
+        )
+
+    # 7-9. Stage + backstop + commit, with prior-staging preservation.
+    normalized_files: list[str] = []
+    for path in paths:
+        candidate: Path = path
+        if candidate.is_absolute():
+            # If the path is not under worktree_root, pass as-is.
+            with contextlib.suppress(ValueError):
+                candidate = candidate.relative_to(worktree_root)
+        normalized_files.append(str(candidate))
 
     stash_message = f"spec-kitty-safe-commit:{uuid.uuid4()}"
+    requested_staged_patch = _staged_patch_for_paths(worktree_root, normalized_files)
+    _unstage_requested_files(worktree_root, normalized_files)
 
-    # If a previous command already staged the requested files, keep treating
-    # them as the files to commit rather than as unrelated operator staging.
-    requested_staged_patch = _staged_patch_for_paths(repo_path, normalized_files)
-    _unstage_requested_files(repo_path, normalized_files)
-
-    # Save current staging area (only staged changes, not working tree)
     stash_result = subprocess.run(
         ["git", "stash", "push", "--staged", "--quiet", "-m", stash_message],
-        cwd=repo_path,
+        cwd=worktree_root,
         capture_output=True,
         text=True,
         encoding="utf-8",
         errors="replace",
         check=False,
     )
+    created_stash = stash_result.returncode == 0 and _find_stash_ref(worktree_root, stash_message) is not None
 
-    # Track whether we created a stash entry so we only restore our own stash.
-    created_stash = stash_result.returncode == 0 and _find_stash_ref(repo_path, stash_message) is not None
-    restore_failed = False
-    commit_success = False
-    commit_created = False
     backstop_error: SafeCommitBackstopError | None = None
+    new_sha: str | None = None
+    commit_created = False
 
     try:
-        # Stage only the intended files
-        if not _stage_requested_files(repo_path, normalized_files):
-            commit_success = False
-        else:
-            # Backstop: assert the staging area now contains ONLY the
-            # caller's requested paths before we commit. This catches
-            # phantom-deletion cascades (see Priivacy-ai/spec-kitty#588).
-            # The assertion is unconditional --- no bypass exists.
-            try:
-                assert_staging_area_matches_expected(repo_path, normalized_files)
-            except SafeCommitBackstopError as exc:
-                # Capture and re-raise AFTER the finally block runs the
-                # stash-pop cleanup so the caller's original staging area is
-                # restored before the exception propagates.
-                backstop_error = exc
-                commit_success = False
-            else:
-                commit_success = _run_commit(repo_path, commit_message, allow_empty)
-                commit_created = commit_success
+        if not _stage_requested_files(worktree_root, normalized_files):
+            raise RuntimeError(
+                f"safe_commit: failed to stage requested files in {worktree_root}: "
+                f"{normalized_files!r}"
+            )
 
+        try:
+            assert_staging_area_matches_expected(worktree_root, normalized_files)
+        except SafeCommitBackstopError as exc:
+            backstop_error = exc
+        else:
+            new_sha = _run_commit_capture_sha(worktree_root, message)
+            commit_created = new_sha is not None
+            if not commit_created:
+                raise RuntimeError(
+                    f"safe_commit: git commit failed in {worktree_root} for "
+                    f"destination_ref={destination_ref!r}"
+                )
     finally:
-        # Restore original staging area if we created a stash entry.
         if created_stash:
-            stash_ref = _find_stash_ref(repo_path, stash_message)
-            if stash_ref is None:
-                restore_failed = True
-            else:
-                restore_result = subprocess.run(
+            stash_ref = _find_stash_ref(worktree_root, stash_message)
+            if stash_ref is not None:
+                subprocess.run(
                     ["git", "stash", "pop", "--index", "--quiet", stash_ref],
-                    cwd=repo_path,
+                    cwd=worktree_root,
                     capture_output=True,
                     text=True,
                     encoding="utf-8",
                     errors="replace",
                     check=False,
                 )
-                if restore_result.returncode != 0:
-                    restore_failed = True
 
-        if restore_failed:
-            commit_success = False
+        if not commit_created:
+            _restore_staged_patch(worktree_root, normalized_files, requested_staged_patch)
 
-        if not commit_created and not _restore_staged_patch(repo_path, normalized_files, requested_staged_patch):
-            commit_success = False
-
-    # Propagate backstop error AFTER stash cleanup has run.
     if backstop_error is not None:
         raise backstop_error
 
-    return commit_success
+    assert new_sha is not None  # type narrow: commit_created => new_sha set
+    return CommitResult(
+        sha=new_sha,
+        destination_ref=destination_ref,
+        worktree_root=worktree_root,
+    )

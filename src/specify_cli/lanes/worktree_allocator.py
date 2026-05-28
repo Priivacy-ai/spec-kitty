@@ -6,14 +6,23 @@ lane share the worktree — no recreation between WPs.
 
 The mission integration branch is created (if absent) when the
 first lane worktree is allocated.
+
+#1348 (WP04): when the mission carries a ``coordination_branch`` field
+in ``meta.json`` (new-topology missions, WP03+), the lane branch is
+parented on the coordination branch rather than the legacy
+``mission_branch`` field, and the lane worktree gets a sparse-checkout
+policy registered so it cannot see ``status.events.jsonl`` or
+``status.json`` (FR-024 / FR-025 / FR-029).
 """
 
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 
-from specify_cli.lanes.branch_naming import lane_branch_name
+from specify_cli.coordination import register_lane_sparse_checkout
+from specify_cli.lanes.branch_naming import lane_branch_name, mid8
 from specify_cli.lanes.models import LanesManifest
 
 
@@ -69,14 +78,96 @@ def allocate_lane_worktree(
         _validate_worktree_clean(worktree_path, lane.lane_id)
         return worktree_path, branch
 
-    # Ensure mission branch exists before creating lane worktree.
+    # #1348 (WP04): pick the parent branch.
+    #
+    #   New-topology missions (meta.json has ``coordination_branch``):
+    #     parent the lane on the coordination branch and register the
+    #     status-files sparse-checkout exclusion.
+    #
+    #   Legacy missions (no ``coordination_branch``): fall back to the
+    #     ``mission_branch`` field. No sparse-checkout. WP08 will harden
+    #     the legacy path further; for now we preserve existing behaviour.
+    coordination_branch = _read_coordination_branch(repo_root, mission_slug)
+
+    if coordination_branch is not None:
+        _ensure_branch_exists(
+            repo_root, coordination_branch, lanes_manifest.target_branch,
+        )
+        _create_lane_worktree(repo_root, worktree_path, branch, coordination_branch)
+        # Register the sparse-checkout policy so the lane filesystem does
+        # NOT contain status.events.jsonl / status.json. Only meaningful
+        # when we have a mid8; new-topology missions always do because
+        # WP03 mints the coord branch only when mission_id is present.
+        try:
+            short_id = mid8(lanes_manifest.mission_id)
+        except ValueError:
+            short_id = None
+        if short_id is not None:
+            register_lane_sparse_checkout(worktree_path, mission_slug, short_id)
+        return worktree_path, branch
+
+    # Legacy path: parent on the mission_branch field.
     mission_branch = lanes_manifest.mission_branch
     _ensure_mission_branch(repo_root, mission_branch, lanes_manifest.target_branch)
-
-    # Create the lane worktree branching from the mission branch.
     _create_lane_worktree(repo_root, worktree_path, branch, mission_branch)
 
     return worktree_path, branch
+
+
+def _read_coordination_branch(
+    repo_root: Path, mission_slug: str,
+) -> str | None:
+    """Return the ``coordination_branch`` field from ``meta.json``.
+
+    Returns ``None`` for legacy missions (no field, or no meta.json).
+
+    The meta.json is in the main checkout under
+    ``kitty-specs/<mission_slug>/meta.json`` — the same place WP03's
+    mission_create writes it.
+    """
+    meta_path = repo_root / "kitty-specs" / mission_slug / "meta.json"
+    if not meta_path.exists():
+        return None
+    try:
+        data = json.loads(meta_path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+    value = data.get("coordination_branch")
+    if isinstance(value, str) and value:
+        return value
+    return None
+
+
+def _ensure_branch_exists(
+    repo_root: Path, branch: str, fallback_parent: str,
+) -> None:
+    """Create ``branch`` from ``fallback_parent`` if it does not exist.
+
+    Used for the coordination-branch path: WP03 normally creates the
+    coordination branch at ``mission create`` time, but legacy
+    upgrade-in-place projects may still hit this code path with the
+    branch missing. We defensively recreate from the target branch
+    rather than crashing.
+    """
+    result = subprocess.run(
+        ["git", "rev-parse", "--verify", f"refs/heads/{branch}"],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 0:
+        return
+    result = subprocess.run(
+        ["git", "branch", branch, fallback_parent],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Failed to create branch {branch} from {fallback_parent}: "
+            f"{result.stderr.strip()}"
+        )
 
 
 def _validate_worktree_clean(worktree_path: Path, lane_id: str) -> None:

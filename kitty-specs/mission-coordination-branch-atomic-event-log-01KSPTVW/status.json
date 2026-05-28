@@ -1,0 +1,84 @@
+{
+  "event_count": 63,
+  "last_event_id": "01KSQA9HATCS3J892KATK8XJEH",
+  "materialized_at": "2026-05-28T12:52:32.730208+00:00",
+  "mission_number": "",
+  "mission_slug": "mission-coordination-branch-atomic-event-log-01KSPTVW",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 9,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KSQA99T4R4W9GXQKV9TGY3EQ",
+      "last_transition_at": "2026-05-28T12:52:25.028033+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KSQA9ASDTACNYCT94S4GEVZB",
+      "last_transition_at": "2026-05-28T12:52:26.029874+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KSQA9BQ183Z4PFR3QYFD5JRQ",
+      "last_transition_at": "2026-05-28T12:52:26.977804+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KSQA9CMZGMVFXWAYYXHD0P6T",
+      "last_transition_at": "2026-05-28T12:52:27.935916+00:00"
+    },
+    "WP05": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KSQA9DJQ53GVTTJE6AQ4EDTK",
+      "last_transition_at": "2026-05-28T12:52:28.887095+00:00"
+    },
+    "WP06": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KSQA9EH0XFQM5SHCHSS59G4S",
+      "last_transition_at": "2026-05-28T12:52:29.856636+00:00"
+    },
+    "WP07": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KSQA9FF27DFXYZ1B72JNJAWD",
+      "last_transition_at": "2026-05-28T12:52:30.818721+00:00"
+    },
+    "WP08": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KSQA9GCSPHBXJEFC5YZ8YG06",
+      "last_transition_at": "2026-05-28T12:52:31.769984+00:00"
+    },
+    "WP09": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KSQA9HATCS3J892KATK8XJEH",
+      "last_transition_at": "2026-05-28T12:52:32.730208+00:00"
+    }
+  }
+}

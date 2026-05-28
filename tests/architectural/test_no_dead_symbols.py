@@ -414,6 +414,38 @@ _CATEGORY_C_CHARTER_SPLIT_LEGACY_PATCH_SURFACE: frozenset[str] = frozenset(
     }
 )
 
+# ---------- C. Mission #1348 coordination-branch atomic event log ----------
+# Mission `mission-coordination-branch-atomic-event-log-01KSPTVW`
+# (Priivacy-ai/spec-kitty#1348) introduced five public helper symbols
+# whose only callers today live in the test suite. Each symbol is part
+# of the new public surface for missions / coordination-branch
+# topology and is already exercised by integration + unit tests; the
+# in-process production callers will land as follow-up wiring during
+# the migration tracked under Priivacy-ai/spec-kitty#1355 / #1356.
+_CATEGORY_C_WP_IN_FLIGHT_COORDINATION_BRANCH: frozenset[str] = frozenset(
+    {
+        # CoordinationBranchResult / coordination_branch_name are the
+        # public surface for the WP03 mission-create coord-branch
+        # helper. Production callers in mission_creation use these
+        # symbols' private siblings; the public surface is for future
+        # rewiring and test fixtures.
+        "specify_cli.missions._create::CoordinationBranchResult",
+        "specify_cli.missions._create::coordination_branch_name",
+        # STATUS_READ_PATH_NOT_FOUND_CODE / StatusReadPathNotFound are
+        # the public error contract of the read-path resolver used by
+        # WP08's CLI status mediation. Today the CLI uses the resolver
+        # function directly; the structured error code is exercised by
+        # tests/integration/test_cli_status_mediation.py.
+        "specify_cli.missions._read_path_resolver::STATUS_READ_PATH_NOT_FOUND_CODE",
+        "specify_cli.missions._read_path_resolver::StatusReadPathNotFound",
+        # resolve_planning_branch_from_meta is the pure-helper variant
+        # used by tests/specify_cli/cli/commands/agent/test_mission_finalize_tasks.py;
+        # production callers route through the IO-shaped wrapper that
+        # itself calls the pure helper internally.
+        "specify_cli.missions._resolve_planning_branch::resolve_planning_branch_from_meta",
+    }
+)
+
 
 # Aggregate. The gate consults this; the per-category frozensets are
 # the surface introspected by the ratchet-baseline meta-test
@@ -424,6 +456,7 @@ _SYMBOL_ALLOWLIST: frozenset[str] = (
     | _CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE
     | _CATEGORY_C_WP_IN_FLIGHT_WORKFLOW_REGISTRY
     | _CATEGORY_C_CHARTER_SPLIT_LEGACY_PATCH_SURFACE
+    | _CATEGORY_C_WP_IN_FLIGHT_COORDINATION_BRANCH
 )
 
 

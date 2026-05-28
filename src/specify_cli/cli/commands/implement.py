@@ -9,7 +9,7 @@ import subprocess
 from datetime import UTC, datetime
 from io import StringIO
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
 from pydantic import ValidationError
@@ -233,38 +233,111 @@ def _ensure_planning_artifacts_committed_git(
         console.print(f'  git commit -m "chore: planning artifacts for {mission_slug}"')
         raise typer.Exit(1)
 
-    console.print(f"\n[cyan]Auto-committing planning artifacts to {planning_branch}...[/cyan]")
-    result = subprocess.run(
-        ["git", "add", "-f", str(feature_dir)],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
+    commit_msg = (
+        f"chore: planning artifacts for {mission_slug}\n\n"
+        f"Auto-committed by spec-kitty before creating the lane worktree for {wp_id}"
     )
-    if result.returncode != 0:
-        console.print("[red]Error:[/red] Failed to stage planning artifacts")
-        console.print(result.stderr)
-        raise typer.Exit(1)
 
-    commit_msg = f"chore: planning artifacts for {mission_slug}\n\nAuto-committed by spec-kitty before creating the lane worktree for {wp_id}"
-    result = subprocess.run(
-        ["git", "-c", "commit.gpgsign=false", "commit", "-m", commit_msg],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-        timeout=60,
+    # WP06 T026: route planning-artifact commits through
+    # BookkeepingTransaction so the commit lands on the mission's
+    # coordination branch (FR-005) and any write of status events is
+    # atomically reversible (FR-010).
+    #
+    # Legacy missions (created pre-WP03) have no ``coordination_branch``
+    # in meta.json. For those, fall back to the legacy raw-git path.
+    # WP08 will replace this fallback with a proper legacy bridge.
+    from specify_cli.mission_metadata import load_meta as _load_meta
+
+    mission_meta: dict[str, Any] | None
+    try:
+        mission_meta = _load_meta(feature_dir)
+    except Exception:  # noqa: BLE001 — meta missing/corrupt is legacy
+        mission_meta = None
+
+    coord_branch: str | None = None
+    mission_id: str | None = None
+    mid8: str | None = None
+    if isinstance(mission_meta, dict):
+        coord_branch = mission_meta.get("coordination_branch") or None
+        mission_id = mission_meta.get("mission_id") or None
+        mid8 = mission_meta.get("mid8") or (
+            mission_id[:8] if isinstance(mission_id, str) and len(mission_id) >= 8 else None
+        )
+
+    # Route ALL planning-artifact commits through BookkeepingTransaction.
+    # The transaction has a built-in legacy fallback (see
+    # ``_is_legacy_mission`` + ``_resolve_legacy_lane_destination`` in
+    # ``coordination/transaction.py``) so the pre-flight policy gate,
+    # surgical rollback, and feature-status lock apply uniformly to
+    # coordination-branch and legacy missions alike (FR-027).
+    #
+    # Modern (post-WP03) missions have ``coordination_branch``,
+    # ``mission_id``, and ``mid8`` in meta; the transaction routes the
+    # commit to the coord branch.
+    #
+    # Legacy missions lack ``coordination_branch``; the transaction
+    # detects this via ``_is_legacy_mission`` and overrides the caller-
+    # supplied ``destination_ref`` with the actual checked-out lane
+    # branch resolved from HEAD. We synthesize ``mission_id`` / ``mid8``
+    # from the slug if meta lacks them (truly pre-WP03 missions).
+    from specify_cli.coordination.transaction import BookkeepingTransaction
+
+    # Synthesize identifiers for legacy missions that lack them in meta.
+    # The legacy fallback in BookkeepingTransaction overrides
+    # destination_ref from HEAD, so the placeholder coord_branch value
+    # below is never persisted; the routing just needs *some* shape-valid
+    # ref name to satisfy the pre-flight policy gate's normalisation.
+    effective_mission_id = str(mission_id) if mission_id else f"legacy-{mission_slug}"
+    if mid8:
+        effective_mid8 = str(mid8)
+    elif mission_id and len(str(mission_id)) >= 8:
+        effective_mid8 = str(mission_id)[:8]
+    else:
+        # Pre-WP03 mission with no mission_id at all. Derive a stable
+        # 8-char prefix from the mission_slug so kitty_specs_dir_name
+        # resolution stays deterministic across invocations.
+        effective_mid8 = (mission_slug.replace("-", "") + "00000000")[:8]
+    effective_destination_ref = (
+        str(coord_branch) if coord_branch else planning_branch
     )
-    if result.returncode != 0:
-        console.print("[red]Error:[/red] Failed to commit planning artifacts")
-        console.print(result.stderr)
-        raise typer.Exit(1)
 
-    console.print(f"[green]✓[/green] Planning artifacts committed to {planning_branch}")
+    is_legacy = not (coord_branch and mission_id and mid8)
+    if is_legacy:
+        console.print(
+            f"\n[cyan]Auto-committing planning artifacts to {planning_branch}...[/cyan] "
+            f"[dim](legacy path -- mission has no coordination_branch; "
+            f"routed through BookkeepingTransaction for FR-020/FR-027 atomicity)[/dim]"
+        )
+
+    with BookkeepingTransaction.acquire(
+        repo_root=repo_root,
+        mission_id=effective_mission_id,
+        mission_slug=mission_slug,
+        mid8=effective_mid8,
+        destination_ref=effective_destination_ref,
+        operation=f"planning artifacts for {mission_slug}",
+    ) as txn:
+        for path_str in files_to_commit:
+            p = (repo_root / path_str).resolve()
+            if p.exists():
+                txn.stage_path(p)
+        try:
+            txn.commit(commit_msg)
+        except Exception as exc:  # noqa: BLE001 — surface as exit-1
+            target = coord_branch or planning_branch
+            console.print(
+                f"[red]Error:[/red] Failed to commit planning artifacts to {target}: {exc}"
+            )
+            raise typer.Exit(1) from exc
+
+    if is_legacy:
+        console.print(
+            f"[green]✓[/green] Planning artifacts committed to {planning_branch}"
+        )
+    else:
+        console.print(
+            f"[green]✓[/green] Planning artifacts committed to coordination branch {coord_branch}"
+        )
 
 
 def _ensure_vcs_in_meta(feature_dir: Path, _repo_root: Path) -> VCSBackend:
@@ -648,16 +721,24 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
                 if config_file.exists():
                     files_to_commit.append(config_file.resolve())
 
-                commit_success = safe_commit(
-                    repo_path=repo_root,
-                    files_to_commit=files_to_commit,
-                    commit_message=commit_msg,
-                    allow_empty=True,
-                )
-                if commit_success:
+                # Mechanical WP06 pre-step migration: add destination_ref +
+                # worktree_root after WP01's signature change. The status
+                # claim commit lands on the feature planning branch.
+                from specify_cli.core.git_ops import get_current_branch as _get_cur_branch
+                _cur_branch = _get_cur_branch(repo_root) or planning_branch
+                try:
+                    safe_commit(
+                        repo_root=repo_root,
+                        worktree_root=repo_root,
+                        destination_ref=_cur_branch,
+                        message=commit_msg,
+                        paths=tuple(files_to_commit),
+                    )
                     console.print(f"[cyan]→ {wp_id} moved to 'doing'[/cyan]")
-                else:
-                    console.print("[yellow]Warning:[/yellow] Could not auto-commit lane change")
+                except Exception as _commit_exc:  # noqa: BLE001 — log + continue
+                    console.print(
+                        f"[yellow]Warning:[/yellow] Could not auto-commit lane change: {_commit_exc}"
+                    )
             else:
                 console.print(f"[cyan]→ {wp_id} moved to 'doing' (auto-commit disabled, changes staged only)[/cyan]")
     except Exception as exc:

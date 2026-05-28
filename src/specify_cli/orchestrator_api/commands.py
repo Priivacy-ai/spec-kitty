@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 import uuid
 from datetime import datetime, UTC
 from pathlib import Path
@@ -935,11 +936,16 @@ def append_history(
 
     wp_path.write_text(build_document(fm, new_body, padding), encoding="utf-8")
 
+    current_branch = subprocess.check_output(
+        ["git", "-C", str(main_repo_root), "branch", "--show-current"],
+        text=True,
+    ).strip()
     safe_commit(
-        repo_path=main_repo_root,
-        files_to_commit=[wp_path],
-        commit_message=f"hist: append activity log entry for {mission}/{wp}",
-        allow_empty=True,
+        repo_root=main_repo_root,
+        worktree_root=main_repo_root,
+        destination_ref=current_branch,
+        message=f"hist: append activity log entry for {mission}/{wp}",
+        paths=(wp_path,),
     )
 
     entry_id = "hist-" + uuid.uuid4().hex

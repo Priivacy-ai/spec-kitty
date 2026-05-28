@@ -125,12 +125,16 @@ def main(argv: list[str] | None = None) -> int:
 
     baseline = json.loads(args.baseline.read_text(encoding="utf-8"))
     pre_median = float(baseline["pre_cutover_median_seconds"])
-    tolerance = (
-        float(args.tolerance_pct)
-        if args.tolerance_pct is not None
-        else float(baseline.get("tolerance_pct", 20.0))
-    )
-    ceiling = pre_median * (1.0 + tolerance / 100.0)
+    if args.tolerance_pct is None and "ci_target_median_seconds" in baseline:
+        ceiling = float(baseline["ci_target_median_seconds"])
+        tolerance = (ceiling / pre_median - 1.0) * 100.0
+    else:
+        tolerance = (
+            float(args.tolerance_pct)
+            if args.tolerance_pct is not None
+            else float(baseline.get("tolerance_pct", 20.0))
+        )
+        ceiling = pre_median * (1.0 + tolerance / 100.0)
 
     if not args.fixture.exists():
         sys.stderr.write(f"NFR-003 gate: fixture missing at {args.fixture}\n")
