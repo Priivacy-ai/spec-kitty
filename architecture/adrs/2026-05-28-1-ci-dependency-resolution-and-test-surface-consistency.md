@@ -198,6 +198,16 @@ divergence entirely. There is no longer a path where CI resolves a different ver
 any dependency than local development. Future version upgrades are explicit lockfile
 changes that go through PR review.
 
+> **Implementation note (second-pass fix, CI run 26565789745):** The initial
+> implementation of `uv sync --frozen` omitted the `--all-extras` flag. Since pytest,
+> pytest-cov, ruff, and mypy live in `[project.optional-dependencies.test]` and
+> `[project.optional-dependencies.lint]`, `uv sync --frozen` without `--all-extras`
+> produced a venv that was missing pytest entirely, causing every test job to fail with
+> `No module named pytest`. All 37 non-infrastructure `uv sync --frozen` invocations in
+> `ci-quality.yml` were corrected to `uv sync --frozen --all-extras`. The three exempt
+> infrastructure jobs (`uv-lock-check`, `build-wheel`, `clean-install-verification`) had
+> no `uv sync` calls and were unaffected.
+
 **Gap 2 (no version-compatibility test):** The smoke test is narrow by design — it
 covers the exact trigger path (`_JSONErrorGroup` with no subcommand) that silently broke
 in production. A broader matrix test would provide more coverage but is out of scope for
