@@ -421,6 +421,20 @@ class TestTransactionPathFor:
                 worktree_root=worktree_root,
             )
 
+    def test_rejects_external_paths_with_embedded_kitty_specs(self, tmp_path: Path) -> None:
+        from specify_cli.cli.commands.agent.workflow import _transaction_path_for
+
+        repo_root = tmp_path / "repo"
+        worktree_root = tmp_path / "worktree"
+        source_path = tmp_path / "outside" / "kitty-specs" / "other" / "tasks" / "WP01.md"
+
+        with pytest.raises(ValueError, match="outside repo/worktree scope"):
+            _transaction_path_for(
+                source_path=source_path,
+                repo_root=repo_root,
+                worktree_root=worktree_root,
+            )
+
     def test_falls_back_to_legacy_when_coord_missing(self, tmp_path: Path) -> None:
         import json
         from specify_cli.cli.commands.agent.workflow import _load_coord_branch_meta
