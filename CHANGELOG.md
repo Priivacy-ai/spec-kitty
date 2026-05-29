@@ -7,7 +7,11 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.2.0rc29] - 2026-05-28
+## [Unreleased]
+
+No notable changes yet.
+
+## [3.2.0rc30] - 2026-05-29
 
 ### Added
 
