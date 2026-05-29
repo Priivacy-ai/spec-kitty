@@ -25,14 +25,54 @@ This is the supported automation model:
 
 ## Version Compatibility
 
-The current host API requires a compatible provider implementation. PyPI
-currently publishes `spec-kitty-orchestrator` `0.1.0`; that release appends
-`--json` to host API calls and is not compatible with current
-`spec-kitty orchestrator-api` behavior.
+The orchestrator is published on
+[PyPI as `spec-kitty-orchestrator`](https://pypi.org/project/spec-kitty-orchestrator/).
+Install the latest compatible package from PyPI, then verify the host contract
+before running a mission.
 
-Install only a release, branch, or pinned commit that explicitly documents
-support for the current JSON-default host API. Do not assume an unverified
-default-branch install is compatible.
+## Install from PyPI
+
+Use `pipx` for an isolated command-line install:
+
+```bash
+pipx install spec-kitty-orchestrator
+```
+
+If you already have it installed:
+
+```bash
+pipx upgrade spec-kitty-orchestrator
+```
+
+If you prefer `uv` tool management:
+
+```bash
+uv tool install spec-kitty-orchestrator
+```
+
+Or upgrade an existing uv-managed install:
+
+```bash
+uv tool upgrade spec-kitty-orchestrator
+```
+
+Then verify the installed console script:
+
+```bash
+spec-kitty-orchestrator --help
+spec-kitty-orchestrator orchestrate --help
+```
+
+If the command is not found, you installed into a Python environment whose
+script directory is not on `PATH`. Activate that environment or install from
+the environment where you run Spec Kitty.
+
+The source repository is
+[`Priivacy-ai/spec-kitty-orchestrator`](https://github.com/Priivacy-ai/spec-kitty-orchestrator)
+if you want to inspect code, issues, or release history. Do not install from
+GitHub unless you are intentionally testing unreleased provider changes.
+
+Run the rest of this guide from your Spec Kitty project root.
 
 For the common "Claude implements, Codex reviews" workflow, install and
 authenticate both CLIs before starting:
@@ -171,9 +211,8 @@ Expected for `spec-kitty` core CLI. Use:
 
 If `contract-version` returns mismatch, upgrade either host (`spec-kitty`) or provider (`spec-kitty-orchestrator`) so versions are compatible.
 
-If a run fails with `No such option: --json`, you are using an incompatible
-provider build. Install a provider build that no longer appends `--json` to
-`spec-kitty orchestrator-api` calls.
+If a run fails with a host API usage error, upgrade both `spec-kitty` and
+`spec-kitty-orchestrator`, then rerun `contract-version`.
 
 ### Policy validation failures
 
