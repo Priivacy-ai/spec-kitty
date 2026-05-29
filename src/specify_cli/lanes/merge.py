@@ -47,6 +47,7 @@ class MissionMergeResult:
     mission_branch: str
     target_branch: str
     commit: str | None = None
+    already_applied: bool = False
     errors: list[str] = field(default_factory=list)
 
 
@@ -171,6 +172,7 @@ def merge_mission_to_target(
     lanes_manifest: LanesManifest | None = None,
     *,
     strategy: MergeStrategy = MergeStrategy.SQUASH,
+    allow_already_applied: bool = False,
 ) -> MissionMergeResult:
     """Merge the mission integration branch into the target branch (e.g., main).
 
@@ -207,7 +209,13 @@ def merge_mission_to_target(
 
     try:
         # T010: honor strategy for mission→target only; lane→mission is not touched
-        _merge_branch_into(repo_root, mission_branch, target_branch, strategy=strategy)
+        changed = _merge_branch_into(
+            repo_root,
+            mission_branch,
+            target_branch,
+            strategy=strategy,
+            allow_noop_squash=allow_already_applied,
+        )
     except RuntimeError as e:
         return MissionMergeResult(
             success=False, mission_branch=mission_branch,
@@ -215,11 +223,14 @@ def merge_mission_to_target(
         )
 
     # Get the merge commit.
-    commit = _rev_parse(repo_root, target_branch)
+    commit = _rev_parse(repo_root, target_branch) if changed else None
 
     return MissionMergeResult(
-        success=True, mission_branch=mission_branch,
-        target_branch=target_branch, commit=commit,
+        success=True,
+        mission_branch=mission_branch,
+        target_branch=target_branch,
+        commit=commit,
+        already_applied=not changed,
     )
 
 
@@ -292,7 +303,8 @@ def _merge_branch_into(
     target_branch: str,
     *,
     strategy: MergeStrategy = MergeStrategy.MERGE,
-) -> None:
+    allow_noop_squash: bool = False,
+) -> bool:
     """Merge source_branch into target_branch using a temporary worktree.
 
     Creates a detached worktree at the target branch tip, merges source
@@ -341,6 +353,28 @@ def _merge_branch_into(
                 raise RuntimeError(
                     f"Squash merge of {source_branch} into {target_branch} failed: "
                     f"{result.stderr.strip() or result.stdout.strip()}"
+                )
+            # Squash merges do not record ancestry. On retry after a previous
+            # successful squash, Git reports a clean index and a plain commit
+            # would fail in this detached worktree with "Not currently on any
+            # branch." Only explicit resume callers may treat that as
+            # idempotent success; ordinary callers need a real merge result.
+            staged = subprocess.run(
+                ["git", "diff", "--cached", "--quiet"],
+                cwd=str(tmp_path), capture_output=True, text=True,
+            )
+            if staged.returncode == 0:
+                if allow_noop_squash:
+                    return False
+                raise RuntimeError(
+                    f"Squash merge of {source_branch} into {target_branch} "
+                    "produced no changes; target may already contain this tree. "
+                    "Retry with merge resume if recovering an interrupted merge."
+                )
+            if staged.returncode not in (0, 1):
+                raise RuntimeError(
+                    f"Could not inspect squash merge result for {source_branch} "
+                    f"into {target_branch}: {staged.stderr.strip()}"
                 )
             # Commit the squashed result.
             result = subprocess.run(
@@ -399,7 +433,7 @@ def _merge_branch_into(
                     f"Failed to fast-forward {target_branch} after rebase: "
                     f"{result.stderr.strip()}"
                 )
-            return  # early return — ref already updated
+            return True  # early return — ref already updated
         else:
             # MERGE strategy (default for lane→mission): no-ff merge commit.
             result = subprocess.run(
@@ -432,6 +466,7 @@ def _merge_branch_into(
             raise RuntimeError(
                 f"Failed to update {target_branch} ref: {result.stderr.strip()}"
             )
+        return True
     finally:
         subprocess.run(
             ["git", "worktree", "remove", str(tmp_path), "--force"],

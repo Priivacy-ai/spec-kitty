@@ -6,8 +6,8 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import Mock
 
-import click
 import pytest
+import typer
 
 from specify_cli.cli.commands.merge import (
     _assert_merged_wps_reached_done,
@@ -222,5 +222,5 @@ def test_assert_merged_wps_reached_done_fails_when_wp_not_done(
         lambda _feature_dir, wp_id: lanes[wp_id],
     )
 
-    with pytest.raises(click.exceptions.Exit):
+    with pytest.raises(typer.Exit):
         _assert_merged_wps_reached_done(tmp_path, "021-test", ["WP01", "WP02"])

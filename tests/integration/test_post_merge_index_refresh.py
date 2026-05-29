@@ -149,7 +149,7 @@ class TestPostMergeIndexRefresh:
         refresh_calls = [c for c in call_log if c[:2] == ("git", "update-index") or "update-index" in c]
         assert refresh_calls, (
             "FR-003 regression: merge did not invoke `git update-index --refresh`. "
-            "After post-merge `git checkout HEAD -- .`, the index stat cache must "
+            "After post-merge `git reset --hard HEAD`, the index stat cache must "
             "be reconciled against the working tree to prevent phantom deletions."
         )
 
@@ -158,8 +158,8 @@ class TestPostMergeIndexRefresh:
             "update-index" in c and "--refresh" in c for c in call_log
         ), f"Did not see `git update-index --refresh`: {call_log!r}"
 
-    def test_refresh_runs_after_checkout_before_status_check(self, tmp_path: Path) -> None:
-        """Order matters: the refresh must run AFTER `checkout HEAD -- .` and
+    def test_refresh_runs_after_hard_reset_before_status_check(self, tmp_path: Path) -> None:
+        """Order matters: the refresh must run AFTER `reset --hard HEAD` and
         BEFORE the post-merge `git status --porcelain` invariant check, so
         the invariant assertion sees a clean stat-cache."""
         slug = "test-index-refresh-order"
@@ -172,16 +172,16 @@ class TestPostMergeIndexRefresh:
                     return i
             return -1
 
-        checkout_idx = _idx(lambda cmd: "checkout" in cmd and "HEAD" in cmd and "--" in cmd)
+        hard_reset_idx = _idx(lambda cmd: "reset" in cmd and "--hard" in cmd and "HEAD" in cmd)
         refresh_idx = _idx(lambda cmd: "update-index" in cmd and "--refresh" in cmd)
         status_idx = _idx(lambda cmd: "status" in cmd and "--porcelain" in cmd)
 
-        assert checkout_idx >= 0 and refresh_idx >= 0 and status_idx >= 0, (
-            f"Missing one of checkout/refresh/status in call log: {call_log!r}"
+        assert hard_reset_idx >= 0 and refresh_idx >= 0 and status_idx >= 0, (
+            f"Missing one of hard-reset/refresh/status in call log: {call_log!r}"
         )
-        assert checkout_idx < refresh_idx < status_idx, (
-            f"Wrong order: checkout={checkout_idx}, refresh={refresh_idx}, "
-            f"status={status_idx}. Expected checkout < refresh < status. "
+        assert hard_reset_idx < refresh_idx < status_idx, (
+            f"Wrong order: hard_reset={hard_reset_idx}, refresh={refresh_idx}, "
+            f"status={status_idx}. Expected hard reset < refresh < status. "
             f"Full log: {call_log!r}"
         )
 

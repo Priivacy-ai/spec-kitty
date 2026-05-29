@@ -11,6 +11,7 @@ from specify_cli.lanes.merge import (
     merge_mission_to_target,
 )
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
+from specify_cli.merge.config import MergeStrategy
 
 pytestmark = pytest.mark.git_repo
 
@@ -164,6 +165,93 @@ class TestMergeMissionToTarget:
         assert result.success is True
         assert result.commit is not None
         assert result.target_branch == "main"
+
+    def test_squash_noop_fails_without_resume_permission(self, tmp_path):
+        repo = _make_repo(tmp_path)
+        manifest = _make_manifest()
+
+        _run(["git", "branch", "kitty/mission-010-feat"], repo)
+        _run(["git", "checkout", "kitty/mission-010-feat"], repo)
+        _commit(repo, "src/feature.py", "feature\n", "feature work")
+        _run(["git", "checkout", "main"], repo)
+
+        first = merge_mission_to_target(
+            repo,
+            "010-feat",
+            manifest,
+            strategy=MergeStrategy.SQUASH,
+        )
+        commits_after_first = subprocess.run(
+            ["git", "rev-list", "--count", "main"],
+            cwd=str(repo),
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+
+        retry = merge_mission_to_target(
+            repo,
+            "010-feat",
+            manifest,
+            strategy=MergeStrategy.SQUASH,
+        )
+        commits_after_retry = subprocess.run(
+            ["git", "rev-list", "--count", "main"],
+            cwd=str(repo),
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+
+        assert first.success is True
+        assert retry.success is False
+        assert "produced no changes" in retry.errors[0]
+        assert commits_after_retry == commits_after_first
+
+    def test_squash_retry_is_idempotent_when_resume_allows_already_applied(self, tmp_path):
+        repo = _make_repo(tmp_path)
+        manifest = _make_manifest()
+
+        _run(["git", "branch", "kitty/mission-010-feat"], repo)
+        _run(["git", "checkout", "kitty/mission-010-feat"], repo)
+        _commit(repo, "src/feature.py", "feature\n", "feature work")
+        _run(["git", "checkout", "main"], repo)
+
+        first = merge_mission_to_target(
+            repo,
+            "010-feat",
+            manifest,
+            strategy=MergeStrategy.SQUASH,
+        )
+        commits_after_first = subprocess.run(
+            ["git", "rev-list", "--count", "main"],
+            cwd=str(repo),
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+
+        retry = merge_mission_to_target(
+            repo,
+            "010-feat",
+            manifest,
+            strategy=MergeStrategy.SQUASH,
+            allow_already_applied=True,
+        )
+        commits_after_retry = subprocess.run(
+            ["git", "rev-list", "--count", "main"],
+            cwd=str(repo),
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+
+        assert first.success is True
+        assert retry.success is True
+        assert retry.already_applied is True
+        assert retry.commit is None
+        assert retry.errors == []
+        assert commits_after_retry == commits_after_first
 
     def test_merge_self_heals_event_log_merge_driver_config(self, tmp_path):
         repo = _make_repo(tmp_path)

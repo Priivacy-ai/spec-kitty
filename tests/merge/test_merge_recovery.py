@@ -302,6 +302,76 @@ class TestEventDedupGuard:
         assert _has_transition_to(feature_dir, "WP01", "done") is False
         assert _has_transition_to(feature_dir, "WP02", "done") is True
 
+    def test_reconcile_completed_wps_drops_missing_done_evidence(self, tmp_path: Path):
+        """Resume state cannot skip a WP when its uncommitted done event was lost."""
+        from specify_cli.cli.commands.merge import _reconcile_completed_wps_for_resume
+
+        feature_dir = tmp_path / "kitty-specs" / MISSION_ID
+        feature_dir.mkdir(parents=True)
+        state = MergeState(
+            mission_id=MISSION_ID,
+            mission_slug=MISSION_ID,
+            target_branch="main",
+            wp_order=["WP01"],
+            completed_wps=["WP01"],
+        )
+        save_state(state, tmp_path)
+
+        confirmed = _reconcile_completed_wps_for_resume(
+            feature_dir=feature_dir,
+            merge_state=state,
+            repo_root=tmp_path,
+        )
+
+        assert confirmed == set()
+        loaded = load_state(tmp_path, MISSION_ID)
+        assert loaded is not None
+        assert loaded.completed_wps == []
+
+    def test_reconcile_completed_wps_keeps_existing_done_evidence(self, tmp_path: Path):
+        """Resume state remains complete when the canonical done event survived."""
+        from specify_cli.cli.commands.merge import _reconcile_completed_wps_for_resume
+
+        feature_dir = tmp_path / "kitty-specs" / MISSION_ID
+        feature_dir.mkdir(parents=True)
+        (feature_dir / "status.events.jsonl").write_text(
+            json.dumps(
+                {
+                    "event_id": "01TESTDONE",
+                    "mission_slug": MISSION_ID,
+                    "wp_id": "WP01",
+                    "from_lane": "approved",
+                    "to_lane": "done",
+                    "at": "2026-04-06T12:00:00+00:00",
+                    "actor": "merge",
+                    "force": False,
+                    "execution_mode": "worktree",
+                },
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        state = MergeState(
+            mission_id=MISSION_ID,
+            mission_slug=MISSION_ID,
+            target_branch="main",
+            wp_order=["WP01"],
+            completed_wps=["WP01"],
+        )
+        save_state(state, tmp_path)
+
+        confirmed = _reconcile_completed_wps_for_resume(
+            feature_dir=feature_dir,
+            merge_state=state,
+            repo_root=tmp_path,
+        )
+
+        assert confirmed == {"WP01"}
+        loaded = load_state(tmp_path, MISSION_ID)
+        assert loaded is not None
+        assert loaded.completed_wps == ["WP01"]
+
 
 # ---------------------------------------------------------------------------
 # T004: Resume / Abort

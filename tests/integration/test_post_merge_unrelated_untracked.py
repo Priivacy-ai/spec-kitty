@@ -20,8 +20,8 @@ import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import click
 import pytest
+import typer
 
 from specify_cli.cli.commands.merge import (
     _classify_porcelain_lines,
@@ -259,7 +259,7 @@ class TestMergeToleratesUntrackedFiles:
             policy.merge_gates = []
             mocks[12].return_value = policy
 
-            with pytest.raises(click.exceptions.Exit):
+            with pytest.raises(typer.Exit):
                 _run_lane_based_merge(
                     repo_root=tmp_path,
                     mission_slug=slug,
