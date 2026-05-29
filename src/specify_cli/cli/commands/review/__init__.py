@@ -53,7 +53,7 @@ from ._report import GateRecord, write_review_report  # noqa: F401
 _PACKAGE_NAME = "spec-kitty-cli"
 _PYTEST_NAME = "pytest"
 _SUPPORTED_UV_REQUIREMENT_KEYS = frozenset(
-    {"name", "specifier", "directory", "editable", "path", "git"}
+    {"name", "specifier", "directory", "editable", "path", "git", "url"}
 )
 
 
@@ -78,13 +78,19 @@ def _fail_missing_test_extra(console: object) -> None:
 
 
 def _missing_test_extra_remediation() -> str:
+    uv_tool_command = _uv_tool_reinstall_command()
+    if uv_tool_command is not None:
+        return uv_tool_command
+    if _active_uv_tool_receipt_has_spec_kitty():
+        return _fallback_uv_tool_reinstall_command()
+
     try:
         install_method = detect_install_method()
     except Exception:  # noqa: BLE001
         install_method = InstallMethod.UNKNOWN
 
     if install_method == InstallMethod.UV_TOOL:
-        return _uv_tool_reinstall_command() or _fallback_uv_tool_reinstall_command()
+        return _fallback_uv_tool_reinstall_command()
 
     return "uv sync --extra test"
 
@@ -173,6 +179,14 @@ def _find_uv_tool_requirement(requirements: list[object]) -> dict[str, object] |
     return None
 
 
+def _active_uv_tool_receipt_has_spec_kitty() -> bool:
+    receipt = _active_uv_tool_receipt()
+    if receipt is None:
+        return False
+    requirements = _uv_tool_receipt_tool(receipt).get("requirements", [])
+    return isinstance(requirements, list) and _find_uv_tool_requirement(requirements) is not None
+
+
 def _uv_tool_with_args(requirements: list[object]) -> list[str] | None:
     args: list[str] = []
     has_pytest = False
@@ -220,6 +234,10 @@ def _uv_tool_requirement_arg(requirement: dict[str, object]) -> str | None:
     if git is not None:
         return _uv_git_source(git)
 
+    url = _nonempty_str(requirement.get("url"))
+    if url is not None:
+        return url
+
     name = _nonempty_str(requirement.get("name"))
     if name is None:
         return None
@@ -246,6 +264,10 @@ def _uv_tool_package_args(requirement: dict[str, object]) -> list[str] | None:
     git = _nonempty_str(requirement.get("git"))
     if git is not None:
         return [_PACKAGE_NAME, "--from", _uv_git_source(git)]
+
+    url = _nonempty_str(requirement.get("url"))
+    if url is not None:
+        return [url]
 
     specifier = _nonempty_str(requirement.get("specifier"))
     if specifier is not None:
