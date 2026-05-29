@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import functools
 import json
+import os
 import re
 import subprocess
 from datetime import UTC, datetime
@@ -23,6 +24,7 @@ from specify_cli.core.vcs import VCSBackend
 from specify_cli.mission_metadata import resolve_mission_identity, set_vcs_lock
 from specify_cli.frontmatter import FrontmatterError, update_fields
 from specify_cli.git import safe_commit
+from specify_cli.git.commit_helpers import protected_branches
 from specify_cli.lanes.implement_support import create_lane_workspace
 from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, require_lanes_json
 from specify_cli.status.emit import TransitionError, emit_status_transition
@@ -34,6 +36,19 @@ from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts
 
 console = Console()
 _WP_ID_RE = re.compile(r"^WP\d{2}$", re.IGNORECASE)
+
+
+def _protected_branch_status_commit_error(branch: str, repo_root: Path) -> str | None:
+    if os.environ.get("SPEC_KITTY_TEST_MODE", "").lower() in {"1", "true", "yes"}:
+        return None
+    if branch not in protected_branches(repo_root):
+        return None
+    return (
+        f"Refusing to start implementation status on protected branch '{branch}' "
+        "before mutating status files. Run this ceremony from an allowed "
+        "coordination/lane branch, or rerun with --no-auto-commit when you "
+        "intentionally want to handle the status artifact commit manually."
+    )
 
 
 def _get_wp_lane_from_event_log(feature_dir: Path, wp_id: str) -> str:
@@ -177,7 +192,7 @@ def _validate_base_ref(repo_root: Path, base_ref: str) -> str:
     return result.stdout.strip()
 
 
-def _ensure_planning_artifacts_committed_git(
+def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestration helper; unrelated to issue #1386
     repo_root: Path,
     feature_dir: Path,
     mission_slug: str,
@@ -541,6 +556,10 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
     tracker.start("validate")
     try:
         planning_branch = resolve_feature_target_branch(mission_slug, repo_root)
+        if auto_commit:
+            protected_error = _protected_branch_status_commit_error(planning_branch, repo_root)
+            if protected_error is not None:
+                raise ValueError(protected_error)
         _ensure_planning_artifacts_committed_git(
             repo_root=repo_root,
             feature_dir=feature_dir,
@@ -650,7 +669,6 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         )
         workspace_path = result.workspace_path
         branch_name = result.branch_name
-        status_execution_mode = result.execution_mode if isinstance(result.execution_mode, str) else status_execution_mode
 
         try:
             status_result = start_implementation_status(

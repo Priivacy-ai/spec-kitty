@@ -34,6 +34,7 @@ def _bypass_charter_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
     from specify_cli.charter_runtime.preflight.result import CharterPreflightResult
 
     result = CharterPreflightResult(passed=True, checks=[])
+    monkeypatch.setenv("SPEC_KITTY_TEST_MODE", "1")
     monkeypatch.setattr(
         "specify_cli.charter_runtime.preflight.hook.run_preflight_or_abort",
         lambda *_args, **_kwargs: result,
@@ -300,6 +301,70 @@ class TestImplementCommand:
             kwargs = mock_create_lane_workspace.call_args.kwargs
             assert kwargs["wp_id"] == "WP02"
             assert kwargs["declared_deps"] == ["WP01"]
+
+    def test_implement_status_emit_uses_transport_execution_mode(self, tmp_path: Path) -> None:
+        feature_dir = tmp_path / "kitty-specs" / "010-feature"
+        create_meta_json(feature_dir)
+        create_lanes_json(feature_dir)
+        wp_file = feature_dir / "tasks" / "WP01-setup.md"
+        wp_file.parent.mkdir(parents=True)
+        wp_file.write_text(
+            "---\n"
+            "work_package_id: WP01\n"
+            "dependencies: []\n"
+            "execution_mode: code_change\n"
+            "owned_files:\n  - src/wp01/**\n"
+            "authoritative_surface: src/wp01/\n"
+            "---\n# WP01",
+            encoding="utf-8",
+        )
+
+        captured: dict[str, str] = {}
+
+        def fake_start_status(**kwargs: object) -> MagicMock:
+            captured["execution_mode"] = str(kwargs["execution_mode"])
+            captured["workspace_context"] = str(kwargs["workspace_context"])
+            return MagicMock(status_changed=False)
+
+        with (
+            patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
+            patch(
+                "specify_cli.cli.commands.implement.detect_feature_context",
+                return_value=("010", "010-feature"),
+            ),
+            patch(
+                "specify_cli.cli.commands.implement.resolve_feature_target_branch",
+                return_value="main",
+            ),
+            patch(
+                "specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git",
+            ),
+            patch(
+                "specify_cli.cli.commands.implement._ensure_vcs_in_meta",
+            ) as mock_ensure_vcs,
+            patch(
+                "specify_cli.cli.commands.implement.create_lane_workspace",
+            ) as mock_create_lane_workspace,
+            patch(
+                "specify_cli.cli.commands.implement.start_implementation_status",
+                side_effect=fake_start_status,
+            ),
+        ):
+            mock_ensure_vcs.return_value = MagicMock(value="git")
+            mock_create_lane_workspace.return_value = MagicMock(
+                workspace_path=tmp_path / ".worktrees" / "010-feature-lane-a",
+                branch_name="kitty/mission-010-feature-lane-a",
+                lane_id="lane-a",
+                mission_branch="kitty/mission-010-feature",
+                is_reuse=False,
+                execution_mode="code_change",
+                resolution_kind="lane_workspace",
+            )
+
+            implement("WP01", feature="010-feature", auto_commit=False, recover=False)
+
+        assert captured["execution_mode"] == "worktree"
+        assert captured["workspace_context"].startswith("worktree:")
 
     def test_implement_allows_planning_artifact_in_lane_planning(self, tmp_path: Path) -> None:
         feature_dir = tmp_path / "kitty-specs" / "010-feature"
