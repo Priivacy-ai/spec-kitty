@@ -896,6 +896,111 @@ class TestFreshCacheFastPath:
         # last_shown_at must be preserved (not overwritten by the fetch)
         assert updated.last_shown_at == old_last_shown
 
+    def test_fresh_fetch_preserves_upgrade_readiness_preferences(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Planner refresh must not erase WS3 snooze/auto-upgrade preferences."""
+        import specify_cli.compat.planner as planner_mod
+
+        from specify_cli.compat.cache import NagCacheRecord
+        from specify_cli.compat.config import UpgradeConfig
+
+        monkeypatch.setattr(planner_mod, "_get_installed_version", lambda: _INSTALLED)
+
+        cfg = UpgradeConfig.load()
+        stale_time = _NOW - timedelta(seconds=cfg.throttle_seconds + 3600)
+        snoozed_until = _NOW + timedelta(days=7)
+
+        cache = NagCache(tmp_path / "upgrade-nag.json")
+        old_record = NagCacheRecord(
+            cli_version_key=_INSTALLED,
+            latest_version="2.0.10",
+            latest_source="pypi",
+            fetched_at=stale_time,
+            last_shown_at=stale_time,
+            remote_version_seen="2.0.10",
+            snooze_step="7d",
+            snoozed_until=snoozed_until,
+            always_upgrade=True,
+            never_ask=True,
+        )
+        cache.write(old_record)
+
+        resolver = _make_project_root_resolver(
+            tmp_path, metadata_content="spec_kitty:\n  schema_version: 3\n"
+        )
+        inv = _make_invocation(command_path=("status",), stdout_is_tty=True)
+
+        plan(
+            inv,
+            latest_version_provider=_CountingProvider(version="2.0.15"),
+            nag_cache=cache,
+            now=_NOW,
+            project_root_resolver=resolver,
+        )
+
+        updated = cache.read()
+        assert updated is not None
+        assert updated.latest_version == "2.0.15"
+        assert updated.remote_version_seen == "2.0.10"
+        assert updated.snooze_step == "7d"
+        assert updated.snoozed_until == snoozed_until
+        assert updated.always_upgrade is True
+        assert updated.never_ask is True
+
+    def test_cli_version_invalidation_preserves_upgrade_readiness_preferences(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """CLI-version data invalidation must not erase remote-version preferences."""
+        import specify_cli.compat.planner as planner_mod
+
+        from specify_cli.compat.cache import NagCacheRecord
+        from specify_cli.compat.config import UpgradeConfig
+
+        monkeypatch.setattr(planner_mod, "_get_installed_version", lambda: _INSTALLED)
+
+        cfg = UpgradeConfig.load()
+        stale_time = _NOW - timedelta(seconds=cfg.throttle_seconds + 3600)
+        snoozed_until = _NOW + timedelta(days=7)
+
+        cache = NagCache(tmp_path / "upgrade-nag.json")
+        old_record = NagCacheRecord(
+            cli_version_key="2.0.10",
+            latest_version="2.0.14",
+            latest_source="pypi",
+            fetched_at=stale_time,
+            last_shown_at=stale_time,
+            remote_version_seen="2.0.15",
+            snooze_step="7d",
+            snoozed_until=snoozed_until,
+            always_upgrade=True,
+            never_ask=True,
+        )
+        cache.write(old_record)
+
+        resolver = _make_project_root_resolver(
+            tmp_path, metadata_content="spec_kitty:\n  schema_version: 3\n"
+        )
+        inv = _make_invocation(command_path=("status",), stdout_is_tty=True)
+
+        plan(
+            inv,
+            latest_version_provider=_CountingProvider(version="2.0.15"),
+            nag_cache=cache,
+            now=_NOW,
+            project_root_resolver=resolver,
+        )
+
+        updated = cache.read()
+        assert updated is not None
+        assert updated.cli_version_key == _INSTALLED
+        assert updated.latest_version == "2.0.15"
+        assert updated.remote_version_seen == "2.0.15"
+        assert updated.snooze_step == "7d"
+        assert updated.snoozed_until == snoozed_until
+        assert updated.always_upgrade is True
+        assert updated.never_ask is True
+
 
 # ---------------------------------------------------------------------------
 # FIX C (P2) — No-update-known fast path must also skip provider

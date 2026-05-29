@@ -9,7 +9,7 @@ import os
 import stat
 import sys
 import unittest.mock as mock
-from datetime import datetime, UTC
+from datetime import datetime, timedelta, UTC
 from pathlib import Path
 
 import pytest
@@ -316,6 +316,51 @@ class TestMissingOrCorrupt:
         cache = NagCache(path)
         cache.write(_make_record())
         assert path.exists()
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX write failure path")
+    def test_posix_short_write_preserves_existing_cache(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A failed temp-file write must leave the previous cache readable."""
+        path = tmp_path / "upgrade-nag.json"
+        cache = NagCache(path)
+        original = NagCacheRecord(
+            cli_version_key=_VERSION,
+            latest_version="2.1.0",
+            latest_source="pypi",
+            fetched_at=_NOW,
+            last_shown_at=_NOW,
+            remote_version_seen="2.1.0",
+            snooze_step="7d",
+            snoozed_until=_NOW + timedelta(days=7),
+            always_upgrade=True,
+            never_ask=True,
+        )
+        cache.write(original)
+
+        real_write = os.write
+        calls = 0
+
+        def flaky_write(fd: int, data: bytes | memoryview) -> int:
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                return real_write(fd, bytes(data)[:24])
+            raise OSError("simulated ENOSPC")
+
+        monkeypatch.setattr("specify_cli.compat.cache.os.write", flaky_write)
+
+        replacement = NagCacheRecord(
+            cli_version_key=_VERSION,
+            latest_version="9.9.9",
+            latest_source="pypi",
+            fetched_at=_NOW,
+            last_shown_at=None,
+            never_ask=False,
+        )
+        cache.write(replacement)
+
+        assert cache.read() == original
 
 
 # ---------------------------------------------------------------------------

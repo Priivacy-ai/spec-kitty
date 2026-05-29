@@ -24,6 +24,7 @@ import logging
 import os
 import stat
 import sys
+import tempfile
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -320,9 +321,10 @@ class NagCache:
         - Parent dir created with mode 0o700 if absent (CHK006).
         - Refuses to write if parent dir is a symlink (CHK010).
         - Refuses to write if the target path is a symlink (CHK009).
-        - On POSIX: file opened with ``os.open(..., 0o600)`` for atomic mode
-          assignment.
-        - On Windows: ``Path.open("w")`` + best-effort ``os.chmod(0o600)``.
+        - Writes are failure-atomic: payload is written to a same-directory
+          temp file, flushed, then promoted with ``os.replace``.
+        - On POSIX: temp file opened with mode 0o600.
+        - On Windows: same-directory temp file + best-effort ``os.chmod(0o600)``.
 
         All refusals are silent (no exception raised); a debug-level log entry
         is emitted.
@@ -544,24 +546,84 @@ def _require_str(data: dict[str, object], key: str) -> str:
 
 
 def _write_posix(path: Path, payload: str) -> None:
-    """Write *payload* to *path* on POSIX with O_CREAT|O_WRONLY|O_TRUNC and mode 0o600."""
+    """Write *payload* to *path* on POSIX via same-directory atomic replace."""
+    tmp_path: Path | None = None
     fd = -1
     try:
-        fd = os.open(str(path), os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)
-        os.write(fd, payload.encode("utf-8"))
+        fd, tmp_name = tempfile.mkstemp(
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            dir=str(path.parent),
+        )
+        tmp_path = Path(tmp_name)
+        os.chmod(str(tmp_path), 0o600)
+        _write_all(fd, payload.encode("utf-8"))
+        os.fsync(fd)
+        os.close(fd)
+        fd = -1
+        os.replace(str(tmp_path), str(path))
+        tmp_path = None
+        _fsync_parent_dir(path.parent)
     except OSError as exc:
         _LOG.debug("NagCache.write: POSIX write failed: %s", exc)
     finally:
         if fd >= 0:
             with contextlib.suppress(OSError):
                 os.close(fd)
+        if tmp_path is not None:
+            with contextlib.suppress(OSError):
+                tmp_path.unlink()
 
 
 def _write_windows(path: Path, payload: str) -> None:
-    """Write *payload* to *path* on Windows, best-effort chmod 0o600."""
+    """Write *payload* to *path* on Windows via same-directory atomic replace."""
+    tmp_path: Path | None = None
     try:
-        path.open("w", encoding="utf-8").write(payload)
+        with tempfile.NamedTemporaryFile(
+            "w",
+            encoding="utf-8",
+            delete=False,
+            dir=str(path.parent),
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+        ) as fh:
+            tmp_path = Path(fh.name)
+            fh.write(payload)
+            fh.flush()
+            with contextlib.suppress(OSError):
+                os.fsync(fh.fileno())
         with contextlib.suppress(OSError):
-            os.chmod(str(path), 0o600)
+            os.chmod(str(tmp_path), 0o600)
+        os.replace(str(tmp_path), str(path))
+        tmp_path = None
     except OSError as exc:
         _LOG.debug("NagCache.write: Windows write failed: %s", exc)
+    finally:
+        if tmp_path is not None:
+            with contextlib.suppress(OSError):
+                tmp_path.unlink()
+
+
+def _write_all(fd: int, data: bytes) -> None:
+    """Write all bytes to ``fd`` or raise on zero-length/failed writes."""
+    view = memoryview(data)
+    offset = 0
+    while offset < len(view):
+        written = os.write(fd, view[offset:])
+        if written == 0:
+            raise OSError("short write")
+        offset += written
+
+
+def _fsync_parent_dir(parent: Path) -> None:
+    """Best-effort directory fsync so the replace is durable on POSIX."""
+    fd = -1
+    try:
+        fd = os.open(str(parent), os.O_RDONLY)
+        os.fsync(fd)
+    except OSError:
+        pass
+    finally:
+        if fd >= 0:
+            with contextlib.suppress(OSError):
+                os.close(fd)
