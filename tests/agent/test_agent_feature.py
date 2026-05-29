@@ -869,7 +869,7 @@ title: "WP01"
             encoding="utf-8",
         )
 
-        result = runner.invoke(app, ["finalize-tasks", "--json"])
+        result = runner.invoke(app, ["finalize-tasks", "--json", "--target-branch", "main"])
         assert result.exit_code == 1
 
         payload = json.loads(result.stdout.strip().split("\n")[0])
@@ -930,7 +930,7 @@ requirement_refs:
                 return_value=(0, "a" * 40, ""),
             ),
         ):
-            result = runner.invoke(app, ["finalize-tasks", "--json"])
+            result = runner.invoke(app, ["finalize-tasks", "--json", "--target-branch", "main"])
 
         assert result.exit_code == 0
         json_lines = [line for line in result.stdout.splitlines() if line.strip().startswith("{")]
