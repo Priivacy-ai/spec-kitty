@@ -151,12 +151,11 @@ class TestCaptureBaseline:
             result.stdout = "abc1234def5\n"
             result.stderr = ""
             # Detect JUnit XML write
-            if isinstance(cmd, str) and "--junitxml=" in cmd:
-                # Extract output file path from the command string
-                import re
-                m = re.search(r"--junitxml=(\S+)", cmd)
-                if m:
-                    Path(m.group(1)).write_text(SAMPLE_JUNIT_XML, encoding="utf-8")
+            cmd_text = " ".join(cmd) if isinstance(cmd, list) else cmd
+            if isinstance(cmd_text, str) and "--junitxml=" in cmd_text:
+                output_file = kwargs.get("env", {}).get("SPEC_KITTY_CMD_OUTPUT_FILE")
+                if output_file:
+                    Path(output_file).write_text(SAMPLE_JUNIT_XML, encoding="utf-8")
             return result
 
         with patch("subprocess.run", side_effect=fake_run):
@@ -239,6 +238,150 @@ class TestCaptureBaseline:
 
         assert result is not None
         assert result.failed == -1, "Sentinel result expected when capture fails"
+
+    def test_capture_baseline_preserves_posix_command_substitution(self, tmp_path: Path) -> None:
+        repo, feature_dir, _wp_task_dir = self._make_wp_dir(tmp_path)
+        shell_commands: list[str] = []
+
+        def fake_run(cmd, **kwargs):
+            result = MagicMock()
+            result.returncode = 0
+            result.stdout = "abc1234def5\n"
+            result.stderr = ""
+            if isinstance(cmd, list) and cmd[:2] == ["sh", "-c"]:
+                shell_commands.append(cmd[2])
+                output_file = kwargs["env"]["SPEC_KITTY_CMD_OUTPUT_FILE"]
+                Path(output_file).write_text(SAMPLE_JUNIT_XML, encoding="utf-8")
+            return result
+
+        with patch("subprocess.run", side_effect=fake_run):
+            result = capture_baseline(
+                worktree_path=repo,
+                base_branch="main",
+                wp_id="WP04",
+                mission_slug="066-test",
+                feature_dir=feature_dir,
+                wp_slug="WP04-test",
+                test_command='custom-runner --junitxml={output_file} --marker "$(printf ok)"',
+            )
+
+        assert result is not None
+        assert result.failed == 1
+        assert any("$(printf ok)" in command for command in shell_commands)
+
+    def test_capture_baseline_output_path_does_not_trigger_shell(self, tmp_path: Path) -> None:
+        repo, feature_dir, _wp_task_dir = self._make_wp_dir(tmp_path)
+        proof_path = tmp_path / "proof-created-by-shell"
+        injected_tmp = tmp_path / "tmp;touch proof-created-by-shell #"
+        injected_tmp.mkdir()
+
+        class FakeTemporaryDirectory:
+            def __enter__(self) -> str:
+                return str(injected_tmp)
+
+            def __exit__(self, exc_type, exc, tb) -> None:
+                return None
+
+        shell_commands: list[str] = []
+
+        def fake_run(cmd, **kwargs):
+            result = MagicMock()
+            result.returncode = 0
+            result.stdout = "abc1234def5\n"
+            result.stderr = ""
+            if isinstance(cmd, list) and cmd[:2] == ["sh", "-c"]:
+                shell_commands.append(cmd[2])
+                output_file = kwargs["env"]["SPEC_KITTY_CMD_OUTPUT_FILE"]
+                Path(output_file).write_text(SAMPLE_JUNIT_XML, encoding="utf-8")
+            return result
+
+        with (
+            patch("tempfile.TemporaryDirectory", return_value=FakeTemporaryDirectory()),
+            patch("subprocess.run", side_effect=fake_run),
+        ):
+            result = capture_baseline(
+                worktree_path=repo,
+                base_branch="main",
+                wp_id="WP04",
+                mission_slug="066-test",
+                feature_dir=feature_dir,
+                wp_slug="WP04-test",
+                test_command="custom-runner --junitxml={output_file}",
+            )
+
+        assert result is not None
+        assert result.failed == 1
+        assert shell_commands == ['custom-runner --junitxml="${SPEC_KITTY_CMD_OUTPUT_FILE}"']
+        assert not proof_path.exists()
+
+    def test_capture_baseline_preserves_quoted_output_file_template(self, tmp_path: Path) -> None:
+        repo, feature_dir, _wp_task_dir = self._make_wp_dir(tmp_path)
+        injected_tmp = tmp_path / "parent with space"
+        injected_tmp.mkdir()
+
+        class FakeTemporaryDirectory:
+            def __enter__(self) -> str:
+                return str(injected_tmp)
+
+            def __exit__(self, exc_type, exc, tb) -> None:
+                return None
+
+        shell_commands: list[str] = []
+
+        def fake_run(cmd, **kwargs):
+            result = MagicMock()
+            result.returncode = 0
+            result.stdout = "abc1234def5\n"
+            result.stderr = ""
+            if isinstance(cmd, list) and cmd[:2] == ["sh", "-c"]:
+                shell_commands.append(cmd[2])
+                output_file = kwargs["env"]["SPEC_KITTY_CMD_OUTPUT_FILE"]
+                Path(output_file).write_text(SAMPLE_JUNIT_XML, encoding="utf-8")
+            return result
+
+        with (
+            patch("tempfile.TemporaryDirectory", return_value=FakeTemporaryDirectory()),
+            patch("subprocess.run", side_effect=fake_run),
+        ):
+            result = capture_baseline(
+                worktree_path=repo,
+                base_branch="main",
+                wp_id="WP04",
+                mission_slug="066-test",
+                feature_dir=feature_dir,
+                wp_slug="WP04-test",
+                test_command='custom-runner --junitxml="{output_file}"',
+            )
+
+        assert result is not None
+        assert result.failed == 1
+        assert shell_commands == ['custom-runner --junitxml="${SPEC_KITTY_CMD_OUTPUT_FILE}"']
+
+    @pytest.mark.windows_ci
+    def test_capture_baseline_posix_shell_syntax_returns_sentinel_on_windows(self, tmp_path: Path) -> None:
+        """Windows reports a clear unsupported command instead of invoking cmd.exe."""
+        repo, feature_dir, _wp_task_dir = self._make_wp_dir(tmp_path)
+
+        def fake_run(cmd, **kwargs):
+            result = MagicMock()
+            result.returncode = 0
+            result.stdout = "abc1234\n"
+            result.stderr = ""
+            return result
+
+        with patch("subprocess.run", side_effect=fake_run):
+            result = capture_baseline(
+                worktree_path=repo,
+                base_branch="main",
+                wp_id="WP04",
+                mission_slug="066-test",
+                feature_dir=feature_dir,
+                wp_slug="WP04-test",
+                test_command='custom-runner --junitxml={output_file} && echo done',
+            )
+
+        assert result is not None
+        assert result.failed == -1
 
 
 # ---------------------------------------------------------------------------
@@ -648,10 +791,11 @@ class TestCoverageEdgeCases:
             result.returncode = 0
             result.stdout = "abc1234\n"
             result.stderr = ""
-            if isinstance(cmd, str) and "{output_file}" not in cmd:
+            cmd_text = " ".join(cmd) if isinstance(cmd, list) else cmd
+            if isinstance(cmd_text, str) and "{output_file}" not in cmd_text:
                 # Write empty JUnit XML for the test run
                 import re
-                m = re.search(r"--output=(\S+)", cmd)
+                m = re.search(r"--output=(\S+)", cmd_text)
                 if m:
                     Path(m.group(1)).write_text(
                         '<?xml version="1.0"?><testsuites><testsuite tests="1">'
@@ -665,9 +809,10 @@ class TestCoverageEdgeCases:
             result.returncode = 0
             result.stdout = "abc1234\n"
             result.stderr = ""
-            if isinstance(cmd, str) and "myrunner" in cmd:
+            cmd_text = " ".join(cmd) if isinstance(cmd, list) else cmd
+            if isinstance(cmd_text, str) and "myrunner" in cmd_text:
                 import re
-                m = re.search(r"--output=(\S+)", cmd)
+                m = re.search(r"--output=(\S+)", cmd_text)
                 if m:
                     Path(m.group(1)).write_text(
                         '<?xml version="1.0"?><testsuites><testsuite tests="1">'
