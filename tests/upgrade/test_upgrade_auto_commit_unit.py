@@ -361,6 +361,107 @@ def test_auto_commit_returns_warning_on_safe_commit_failure(
     assert committed_paths == ["kitty-specs/001/WP01.md"]
 
 
+def test_auto_commit_upgrade_changes_supports_legacy_keyword_stub(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    project_path = tmp_path / "project"
+    project_path.mkdir()
+
+    monkeypatch.setattr(
+        upgrade_cmd,
+        "_prepare_upgrade_commit_files",
+        lambda _project, baseline_paths: [Path("kitty-specs/001/WP01.md")],
+    )
+
+    captured: dict[str, object] = {}
+
+    def _legacy_safe_commit(
+        *,
+        repo_path: Path,
+        files_to_commit: list[Path],
+        commit_message: str,
+        allow_empty: bool = False,
+    ) -> bool:
+        captured["repo_path"] = repo_path
+        captured["files_to_commit"] = files_to_commit
+        captured["commit_message"] = commit_message
+        captured["allow_empty"] = allow_empty
+        return True
+
+    monkeypatch.setattr(upgrade_cmd, "safe_commit", _legacy_safe_commit)
+    monkeypatch.setattr(
+        subprocess,
+        "check_output",
+        lambda *_args, **_kwargs: "main\n",
+    )
+
+    committed, committed_paths, warning = upgrade_cmd._auto_commit_upgrade_changes(
+        project_path=project_path,
+        from_version="0.13.0",
+        to_version="0.14.0",
+        baseline_paths=set(),
+    )
+
+    assert committed is True
+    assert warning is None
+    assert committed_paths == ["kitty-specs/001/WP01.md"]
+    assert captured["repo_path"] == project_path
+    assert captured["files_to_commit"] == [Path("kitty-specs/001/WP01.md")]
+    assert "0.13.0 -> 0.14.0" in str(captured["commit_message"])
+    assert captured["allow_empty"] is False
+
+
+def test_auto_commit_upgrade_changes_supports_legacy_positional_stub(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    project_path = tmp_path / "project"
+    project_path.mkdir()
+
+    monkeypatch.setattr(
+        upgrade_cmd,
+        "_prepare_upgrade_commit_files",
+        lambda _project, baseline_paths: [Path("kitty-specs/001/WP01.md")],
+    )
+
+    captured: dict[str, object] = {}
+
+    def _legacy_safe_commit(
+        repo_path: Path,
+        files_to_commit: list[Path],
+        commit_message: str,
+        allow_empty: bool = False,
+    ) -> bool:
+        captured["repo_path"] = repo_path
+        captured["files_to_commit"] = files_to_commit
+        captured["commit_message"] = commit_message
+        captured["allow_empty"] = allow_empty
+        return True
+
+    monkeypatch.setattr(upgrade_cmd, "safe_commit", _legacy_safe_commit)
+    monkeypatch.setattr(
+        subprocess,
+        "check_output",
+        lambda *_args, **_kwargs: "main\n",
+    )
+
+    committed, committed_paths, warning = upgrade_cmd._auto_commit_upgrade_changes(
+        project_path=project_path,
+        from_version="0.13.0",
+        to_version="0.14.0",
+        baseline_paths=set(),
+    )
+
+    assert committed is True
+    assert warning is None
+    assert committed_paths == ["kitty-specs/001/WP01.md"]
+    assert captured["repo_path"] == project_path
+    assert captured["files_to_commit"] == [Path("kitty-specs/001/WP01.md")]
+    assert "0.13.0 -> 0.14.0" in str(captured["commit_message"])
+    assert captured["allow_empty"] is False
+
+
 def test_auto_commit_noop_when_no_new_files(
     tmp_path: Path,
     monkeypatch,
