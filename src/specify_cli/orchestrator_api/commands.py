@@ -34,7 +34,12 @@ from dataclasses import dataclass
 import typer
 
 from specify_cli.core.contract_gate import validate_outbound_payload
-from specify_cli.git.commit_helpers import SafeCommitBackstopError, SafeCommitError, safe_commit
+from specify_cli.git.commit_helpers import (
+    SafeCommitBackstopError,
+    SafeCommitError,
+    SafeCommitRecoveryFailed,
+    safe_commit,
+)
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.status import wp_state_for
 from specify_cli.status.models import Lane
@@ -955,8 +960,9 @@ def append_history(
             paths=(wp_path,),
         )
     except (SafeCommitError, SafeCommitBackstopError) as exc:
-        with suppress(OSError):
-            wp_path.write_text(raw, encoding="utf-8")
+        if not (isinstance(exc, SafeCommitRecoveryFailed) and exc.commit_sha is not None):
+            with suppress(OSError):
+                wp_path.write_text(raw, encoding="utf-8")
         if isinstance(exc, SafeCommitError):
             data = exc.to_dict()
         else:

@@ -38,8 +38,9 @@ No silent fallback. If `destination_ref` is missing, mypy fails the type check. 
 | `SAFE_COMMIT_DESTINATION_NOT_FOUND` | `destination_ref` does not exist in the repo                                  | "Did you mean `kitty/mission-<slug>-<mid8>`?"                        |
 | `SAFE_COMMIT_EMPTY_CHANGESET`     | `paths` is empty                                                                | Programming error; pass at least one path                            |
 | `SAFE_COMMIT_NOT_A_WORKTREE`      | `worktree_root` is not a valid worktree of `repo_root`                          | Programming error; pass the resolved worktree path                   |
+| `SAFE_COMMIT_RECOVERY_FAILED`     | Caller staging could not be restored or recovery state could not be captured    | Inspect `unrecovered_paths`, `orphan_stash_ref`, and `commit_sha`    |
 
-Each error carries: `error_code`, `message`, `destination_ref`, `observed_head` (when relevant), `worktree_root`. JSON-serializable.
+Each error carries: `error_code`, `message`, `destination_ref`, `observed_head` (when relevant), `worktree_root`. Recovery failures additionally carry `unrecovered_paths`, `orphan_stash_ref`, and `commit_sha` when a commit was created before recovery failed. JSON-serializable.
 
 ## CLI surface change
 

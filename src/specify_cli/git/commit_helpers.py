@@ -209,6 +209,42 @@ class SafeCommitNotAWorktree(SafeCommitError):
         )
 
 
+class SafeCommitRecoveryFailed(SafeCommitError):
+    """Caller staging could not be restored after a failed/successful commit path."""
+
+    error_code = "SAFE_COMMIT_RECOVERY_FAILED"
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        destination_ref: str | None = None,
+        worktree_root: Path | None = None,
+        unrecovered_paths: Sequence[str] = (),
+        orphan_stash_ref: str | None = None,
+        commit_sha: str | None = None,
+    ) -> None:
+        super().__init__(
+            message,
+            destination_ref=destination_ref,
+            worktree_root=worktree_root,
+        )
+        self.unrecovered_paths = tuple(unrecovered_paths)
+        self.orphan_stash_ref = orphan_stash_ref
+        self.commit_sha = commit_sha
+
+    def to_dict(self) -> dict[str, Any]:
+        payload = super().to_dict()
+        payload.update(
+            {
+                "unrecovered_paths": list(self.unrecovered_paths),
+                "orphan_stash_ref": self.orphan_stash_ref,
+                "commit_sha": self.commit_sha,
+            }
+        )
+        return payload
+
+
 class ProtectedBranchRefused(SafeCommitError):
     """``destination_ref`` is on the protected list (no documented exception)."""
 
@@ -640,13 +676,25 @@ def _unstage_requested_files(repo_path: Path, normalized_files: list[str]) -> No
     )
 
 
-def _restore_staged_patch(repo_path: Path, normalized_files: list[str], patch: str | None) -> bool:
+def _restore_staged_patch(
+    repo_path: Path,
+    normalized_files: list[str],
+    patch: str | None,
+    *,
+    destination_ref: str | None = None,
+) -> None:
     """Restore the caller's pre-existing staged requested-file state."""
     if patch is None:
-        return False
+        raise SafeCommitRecoveryFailed(
+            f"safe_commit: failed to restore caller staging in {repo_path}; "
+            "requested-file staged patch was not captured before index mutation.",
+            destination_ref=destination_ref,
+            worktree_root=repo_path,
+            unrecovered_paths=normalized_files,
+        )
     _unstage_requested_files(repo_path, normalized_files)
     if not patch:
-        return True
+        return
     result = subprocess.run(
         ["git", "apply", "--cached", "--whitespace=nowarn", "-"],
         cwd=repo_path,
@@ -657,7 +705,16 @@ def _restore_staged_patch(repo_path: Path, normalized_files: list[str], patch: s
         errors="replace",
         check=False,
     )
-    return result.returncode == 0
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout).strip()
+        suffix = f": {detail}" if detail else "."
+        raise SafeCommitRecoveryFailed(
+            f"safe_commit: failed to restore caller staging in {repo_path}; "
+            f"git apply --cached rejected the requested-file patch{suffix}",
+            destination_ref=destination_ref,
+            worktree_root=repo_path,
+            unrecovered_paths=normalized_files,
+        )
 
 
 def _run_commit_capture_sha(repo_path: Path, commit_message: str) -> str | None:
@@ -737,6 +794,8 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
             does not match a documented exception.
         SafeCommitBackstopError: the staging area contains paths outside
             ``paths`` at commit time (data-loss prevention).
+        SafeCommitRecoveryFailed: caller staging could not be restored, or
+            safe_commit could not capture recovery state before mutating.
         RuntimeError: a low-level ``git add`` or ``git commit`` failed.
     """
     # 1. Shape: short branch name only.
@@ -794,6 +853,14 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
 
     stash_message = f"spec-kitty-safe-commit:{uuid.uuid4()}"
     requested_staged_patch = _staged_patch_for_paths(worktree_root, normalized_files)
+    if requested_staged_patch is None:
+        raise SafeCommitRecoveryFailed(
+            f"safe_commit: refusing to mutate index in {worktree_root}; "
+            "could not capture pre-existing staged requested-file state.",
+            destination_ref=destination_ref,
+            worktree_root=worktree_root,
+            unrecovered_paths=normalized_files,
+        )
     _unstage_requested_files(worktree_root, normalized_files)
 
     stash_result = subprocess.run(
@@ -831,10 +898,13 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
                     f"destination_ref={destination_ref!r}"
                 )
     finally:
+        recovery_messages: list[str] = []
+        orphan_stash_ref: str | None = None
+        unrecovered_paths: Sequence[str] = ()
         if created_stash:
             stash_ref = _find_stash_ref(worktree_root, stash_message)
             if stash_ref is not None:
-                subprocess.run(
+                pop_result = subprocess.run(
                     ["git", "stash", "pop", "--index", "--quiet", stash_ref],
                     cwd=worktree_root,
                     capture_output=True,
@@ -843,9 +913,43 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
                     errors="replace",
                     check=False,
                 )
+                if pop_result.returncode != 0:
+                    orphan_stash_ref = _find_stash_ref(worktree_root, stash_message) or stash_ref
+                    detail = (pop_result.stderr or pop_result.stdout).strip()
+                    suffix = f": {detail}" if detail else "."
+                    recovery_messages.append(
+                        f"failed to restore pre-existing unrelated staging from {stash_ref}{suffix}"
+                    )
+            else:
+                recovery_messages.append(
+                    "created safe_commit staging stash was missing before restore; "
+                    "caller staging state is unknown."
+                )
 
         if not commit_created:
-            _restore_staged_patch(worktree_root, normalized_files, requested_staged_patch)
+            try:
+                _restore_staged_patch(
+                    worktree_root,
+                    normalized_files,
+                    requested_staged_patch,
+                    destination_ref=destination_ref,
+                )
+            except SafeCommitRecoveryFailed as exc:
+                recovery_messages.append(exc.message)
+                unrecovered_paths = exc.unrecovered_paths
+
+        if recovery_messages:
+            commit_note = f" Commit {new_sha} was created before recovery failed." if commit_created else ""
+            raise SafeCommitRecoveryFailed(
+                f"safe_commit: failed to restore caller staging in {worktree_root}; "
+                + " ".join(recovery_messages)
+                + commit_note,
+                destination_ref=destination_ref,
+                worktree_root=worktree_root,
+                unrecovered_paths=unrecovered_paths,
+                orphan_stash_ref=orphan_stash_ref,
+                commit_sha=new_sha if commit_created else None,
+            )
 
     if backstop_error is not None:
         raise backstop_error
