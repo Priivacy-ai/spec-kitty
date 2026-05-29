@@ -170,14 +170,21 @@ def _transitive_deps(
     Returns a mapping of WP ID → set of all WPs it transitively depends on.
     """
     cache: dict[str, set[str]] = {}
+    visiting: set[str] = set()
 
     def _reach(wp_id: str) -> set[str]:
         if wp_id in cache:
             return cache[wp_id]
+        if wp_id in visiting:
+            return set()
+        visiting.add(wp_id)
         direct = set(dependency_graph.get(wp_id, []))
         result: set[str] = set(direct)
-        for dep in direct:
-            result.update(_reach(dep))
+        try:
+            for dep in direct:
+                result.update(_reach(dep))
+        finally:
+            visiting.discard(wp_id)
         cache[wp_id] = result
         return result
 
@@ -191,6 +198,8 @@ def _count_independent_collapses(
     dependency_graph: dict[str, list[str]],
 ) -> int:
     """Count events where wp_a and wp_b have no direct or transitive dependency relationship."""
+    if not events:
+        return 0
     transitive = _transitive_deps(dependency_graph)
     count = 0
     for event in events:

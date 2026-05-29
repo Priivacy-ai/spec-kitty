@@ -438,11 +438,19 @@ class TestWP01Regressions:
                 continue
         pytest.fail("No JSON output with 'result': 'validation_passed' found")
 
-    def test_non_empty_disagreement_fails(self, tmp_path: Path) -> None:
-        """Non-empty dep disagreement between tasks.md and frontmatter → exit 1."""
+    def test_explicit_frontmatter_dependencies_beat_tasks_md_parser(
+        self,
+        tmp_path: Path,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """Explicit WP frontmatter deps are authoritative over tasks.md prose."""
         mission_slug = "060-test-feature"
-        # WP02 frontmatter says [WP99] but tasks.md says "Depends on WP01"
-        _setup_feature_with_existing_deps(tmp_path, mission_slug, wp02_existing_deps=["WP99"])
+        # WP02 frontmatter says [] but tasks.md says "Depends on WP01".
+        _setup_feature_with_existing_deps(
+            tmp_path,
+            mission_slug,
+            wp02_existing_deps=[],
+        )
 
         patches = _common_patches(tmp_path, mission_slug)
         patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(return_value=_make_bootstrap_result())
@@ -452,16 +460,63 @@ class TestWP01Regressions:
         ctx_patches = {k: patch(k, v) for k, v in patches.items()}
         for p in ctx_patches.values():
             p.start()
-        exit_code = None
         try:
-            finalize_tasks(feature=mission_slug, json_output=False, validate_only=False)
-        except (typer.Exit, SystemExit) as exc:
-            exit_code = getattr(exc, "code", 1) or 1
+            finalize_tasks(feature=mission_slug, json_output=True, validate_only=False)
         finally:
             for p in ctx_patches.values():
                 p.stop()
 
-        assert exit_code == 1, "Dependency disagreement must exit with code 1"
+        captured = capsys.readouterr()
+        for line in captured.out.strip().splitlines():
+            try:
+                data = json.loads(line)
+                if data.get("result") == "success":
+                    assert data["dependencies_parsed"]["WP02"] == []
+                    return
+            except json.JSONDecodeError:
+                continue
+        pytest.fail("No JSON success payload found")
+
+    def test_explicit_empty_frontmatter_ignores_tasks_md_cycle(
+        self,
+        tmp_path: Path,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """Explicit dependencies: [] must not be overwritten by parsed back-edges."""
+        mission_slug = "060-test-feature"
+        feature_dir = _setup_feature(tmp_path, mission_slug)
+        (feature_dir / "tasks.md").write_text(
+            "# Tasks\n\n"
+            "## WP01\n\n**Dependencies**: WP02\n\n"
+            "## WP02\n\n**Dependencies**: WP01\n",
+            encoding="utf-8",
+        )
+
+        patches = _common_patches(tmp_path, mission_slug)
+        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(return_value=_make_bootstrap_result())
+
+        from specify_cli.cli.commands.agent.mission import finalize_tasks
+
+        ctx_patches = {k: patch(k, v) for k, v in patches.items()}
+        for p in ctx_patches.values():
+            p.start()
+        try:
+            finalize_tasks(feature=mission_slug, json_output=True, validate_only=True)
+        finally:
+            for p in ctx_patches.values():
+                p.stop()
+
+        captured = capsys.readouterr()
+        for line in captured.out.strip().splitlines():
+            try:
+                data = json.loads(line)
+                if data.get("result") == "validation_passed":
+                    assert data["would_modify"]
+                    assert "Circular dependencies detected" not in captured.out
+                    return
+            except json.JSONDecodeError:
+                continue
+        pytest.fail("No JSON validation payload found")
 
     def test_empty_parse_preserves_existing_deps(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         """When parser finds no deps but frontmatter has deps, preserve existing."""
