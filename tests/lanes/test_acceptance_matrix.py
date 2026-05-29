@@ -1,6 +1,7 @@
 """Tests for acceptance matrix, evidence validation, and negative invariants."""
 
 import json
+import sys
 
 import pytest
 
@@ -266,10 +267,23 @@ class TestNegativeInvariants:
             NegativeInvariant(
                 "NI-01", "No stale files",
                 "custom_command",
-                verification_command="true",  # always exits 0
+                verification_command=f'"{sys.executable}" -c "import sys; sys.exit(0)"',
             ),
         ]
         results = enforce_negative_invariants(tmp_path, invariants)
+        assert results[0].result == "confirmed_absent"
+
+    def test_custom_command_preserves_posix_command_substitution(self, tmp_path):
+        invariants = [
+            NegativeInvariant(
+                "NI-01", "No stale files",
+                "custom_command",
+                verification_command='test -z "$(printf \'\')"',
+            ),
+        ]
+
+        results = enforce_negative_invariants(tmp_path, invariants)
+
         assert results[0].result == "confirmed_absent"
 
     def test_custom_command_fail(self, tmp_path):
@@ -277,11 +291,40 @@ class TestNegativeInvariants:
             NegativeInvariant(
                 "NI-01", "Check fails",
                 "custom_command",
-                verification_command="false",  # always exits 1
+                verification_command=f'"{sys.executable}" -c "import sys; sys.exit(1)"',
             ),
         ]
         results = enforce_negative_invariants(tmp_path, invariants)
         assert results[0].result == "still_present"
+
+    def test_custom_command_missing_executable_returns_evidence(self, tmp_path):
+        invariants = [
+            NegativeInvariant(
+                "NI-01", "Check fails",
+                "custom_command",
+                verification_command="definitely-not-a-spec-kitty-command",
+            ),
+        ]
+
+        results = enforce_negative_invariants(tmp_path, invariants)
+
+        assert results[0].result == "still_present"
+        assert "not found" in (results[0].evidence or "")
+
+    @pytest.mark.windows_ci
+    def test_custom_command_posix_shell_syntax_fails_clear_on_windows(self, tmp_path):
+        invariants = [
+            NegativeInvariant(
+                "NI-01", "No stale files",
+                "custom_command",
+                verification_command='python -c "print(1)" && echo done',
+            ),
+        ]
+
+        results = enforce_negative_invariants(tmp_path, invariants)
+
+        assert results[0].result == "pending"
+        assert "POSIX shell syntax" in (results[0].evidence or "")
 
     def test_enforcement_preserves_negative_invariant_extensions(self, tmp_path):
         repo_root = tmp_path / "repo"

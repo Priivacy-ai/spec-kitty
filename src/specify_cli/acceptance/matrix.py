@@ -17,6 +17,7 @@ from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 from typing import Any
 
+from specify_cli.configured_command import ConfiguredCommandUnsupported, run_configured_command
 from specify_cli.mission_metadata import mission_identity_fields, resolve_mission_identity
 
 
@@ -323,14 +324,33 @@ def _check_custom_command(repo_root: Path, ni: NegativeInvariant) -> NegativeInv
             extras=ni.extras,
         )
 
-    # User-authored acceptance matrices intentionally support shell snippets.
-    result = subprocess.run(  # noqa: S602
-        ni.verification_command,
-        shell=True,  # nosec B602
-        cwd=str(repo_root),
-        capture_output=True,
-        text=True,
-    )
+    try:
+        result = run_configured_command(
+            ni.verification_command,
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+        )
+    except ConfiguredCommandUnsupported as exc:
+        return NegativeInvariant(
+            invariant_id=ni.invariant_id,
+            description=ni.description,
+            verification_method=ni.verification_method,
+            verification_command=ni.verification_command,
+            result="pending",
+            evidence=str(exc),
+            extras=ni.extras,
+        )
+    except OSError as exc:
+        return NegativeInvariant(
+            invariant_id=ni.invariant_id,
+            description=ni.description,
+            verification_method=ni.verification_method,
+            verification_command=ni.verification_command,
+            result="still_present",
+            evidence=f"Command failed to start: {exc}",
+            extras=ni.extras,
+        )
     if result.returncode == 0:
         return NegativeInvariant(
             invariant_id=ni.invariant_id,

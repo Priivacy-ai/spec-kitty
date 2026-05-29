@@ -24,6 +24,8 @@ from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import Any
 
+from specify_cli.configured_command import ConfiguredCommandUnsupported, run_configured_command_template
+
 logger = logging.getLogger(__name__)
 
 
@@ -284,18 +286,19 @@ def capture_baseline(
             return _make_sentinel(wp_id, base_branch, base_commit)
 
         try:
-            # Build the final command string with output_file substituted
-            cmd_str = test_command.format(output_file=str(junit_xml_path))
             try:
-                run_result = subprocess.run(
-                    cmd_str,
-                    shell=True,  # nosec B602 — test_command is user-authored config string, shell required for pipes/redirects
+                run_result = run_configured_command_template(
+                    test_command,
+                    {"output_file": junit_xml_path},
                     cwd=str(tmp_worktree),
                     capture_output=True,
                     text=True,
                     check=False,
                     timeout=300,  # 5 minute timeout
                 )
+            except ConfiguredCommandUnsupported as exc:
+                logger.warning("Test command is not supported on this platform: %s", exc)
+                return _make_sentinel(wp_id, base_branch, base_commit)
             except Exception as exc:
                 logger.warning("Test command failed to execute: %s", exc)
                 return _make_sentinel(wp_id, base_branch, base_commit)
