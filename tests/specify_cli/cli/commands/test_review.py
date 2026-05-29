@@ -518,6 +518,73 @@ def test_uv_tool_remediation_with_unmapped_receipt_does_not_pin_to_pypi(
     assert "same uv tool source" in remediation
 
 
+def test_uv_tool_remediation_with_unsupported_main_requirement_is_conservative(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unknown main-package receipt shapes must not collapse to PyPI names."""
+    import specify_cli.cli.commands.review as review_mod
+
+    tool_env = tmp_path / "tool" / "spec-kitty-cli"
+    bin_dir = tool_env / "bin"
+    bin_dir.mkdir(parents=True)
+    (tool_env / "uv-receipt.toml").write_text(
+        "[tool]\n"
+        'requirements = [{ name = "spec-kitty-cli", url = "https://example.test/pkg.whl" }]\n',
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.detect_install_method",
+        lambda: review_mod.InstallMethod.UV_TOOL,
+    )
+    monkeypatch.setattr(review_mod.sys, "executable", str(bin_dir / "python"))
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.get_version",
+        lambda: "3.2.0rc25",
+    )
+
+    remediation = review_mod._missing_test_extra_remediation()  # noqa: SLF001
+    assert "uv tool install --force" not in remediation
+    assert "spec-kitty-cli==3.2.0rc25" not in remediation
+    assert "same uv tool source" in remediation
+
+
+def test_uv_tool_remediation_with_unsupported_existing_dep_is_conservative(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unknown injected deps must not be silently dropped from remediation."""
+    import specify_cli.cli.commands.review as review_mod
+
+    tool_env = tmp_path / "tool" / "spec-kitty-cli"
+    bin_dir = tool_env / "bin"
+    bin_dir.mkdir(parents=True)
+    (tool_env / "uv-receipt.toml").write_text(
+        "[tool]\n"
+        "requirements = [\n"
+        '  { name = "spec-kitty-cli", specifier = "==3.2.0rc25" },\n'
+        '  { name = "extra-dep", url = "https://example.test/extra.whl" },\n'
+        "]\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.detect_install_method",
+        lambda: review_mod.InstallMethod.UV_TOOL,
+    )
+    monkeypatch.setattr(review_mod.sys, "executable", str(bin_dir / "python"))
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.get_version",
+        lambda: "3.2.0rc25",
+    )
+
+    remediation = review_mod._missing_test_extra_remediation()  # noqa: SLF001
+    assert "uv tool install --force" not in remediation
+    assert "extra-dep" not in remediation
+    assert "same uv tool source" in remediation
+
+
 def test_uv_tool_remediation_preserves_editable_receipt(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
