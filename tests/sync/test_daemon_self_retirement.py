@@ -265,7 +265,8 @@ class TestRunSyncDaemonWiring:
                 self._stop = threading.Event()
                 self.shutdown_called = False
 
-            def serve_forever(self) -> None:
+            def serve_forever(self, poll_interval: float = 0.5) -> None:
+                del poll_interval
                 self._stop.wait(timeout=2.0)
 
             def shutdown(self) -> None:
@@ -280,7 +281,7 @@ class TestRunSyncDaemonWiring:
             real_init(self, addr, handler)
             servers.append(self)
 
-        FakeServer.__init__ = init_capture  # type: ignore[method-assign]
+        FakeServer.__init__ = init_capture  # type: ignore[assignment]
         monkeypatch.setattr(daemon, "HTTPServer", FakeServer)
 
         # Stub get_runtime so the import does not pull the real sync layer.
@@ -400,7 +401,7 @@ class TestStateFileOwnershipInvariant:
 
         def tripwire_unlink(self: Path, *args: object, **kwargs: object) -> None:
             unlink_calls.append((self, args, kwargs))
-            original_unlink(self, *args, **kwargs)  # type: ignore[misc]
+            original_unlink(self, *args, **kwargs)  # type: ignore[arg-type]
 
         monkeypatch.setattr(daemon, "_write_daemon_file", tripwire_write)
         monkeypatch.setattr(Path, "unlink", tripwire_unlink)

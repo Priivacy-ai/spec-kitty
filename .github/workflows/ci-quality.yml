@@ -1845,6 +1845,47 @@ jobs:
           if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------
+  # restart-daemon-nfr-timing: issue #1153 / NFR-002. Runs the real daemon
+  # restart path on Linux and macOS, but stays out of the fast suite because it
+  # starts subprocesses and asserts wall-clock time.
+  # ---------------------------------------------------------------------------
+  restart-daemon-nfr-timing:
+    name: doctor restart-daemon NFR-002 timing (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    needs: [changes]
+    if: >-
+      always() &&
+      (
+        github.event_name == 'schedule' ||
+        github.event_name == 'workflow_dispatch' ||
+        needs.changes.outputs.cli == 'true'
+      )
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+      - name: Run NFR-002 timing gate
+        env:
+          SPEC_KITTY_ENABLE_SAAS_SYNC: "1"
+        run: |
+          python -m pytest \
+            tests/specify_cli/cli/commands/test_doctor_restart_daemon_timing.py \
+            -m timing \
+            -q \
+            --tb=short
+
+  # ---------------------------------------------------------------------------
   # e2e-cross-cutting: Push-only (or manual dispatch). Runs tests/e2e/ and
   # tests/cross_cutting/ in parallel with slow-tests.
   # ---------------------------------------------------------------------------
@@ -2555,6 +2596,7 @@ jobs:
       - integration-tests-upgrade
       - integration-tests-cli
       - integration-tests-agent
+      - restart-daemon-nfr-timing
       - build-wheel
       - clean-install-verification
       - consumer-compatibility
@@ -2602,6 +2644,7 @@ jobs:
             "${{ needs.integration-tests-upgrade.result }}" \
             "${{ needs.integration-tests-cli.result }}" \
             "${{ needs.integration-tests-agent.result }}" \
+            "${{ needs.restart-daemon-nfr-timing.result }}" \
             "${{ needs.build-wheel.result }}" \
             "${{ needs.clean-install-verification.result }}" \
             "${{ needs.consumer-compatibility.result }}" \

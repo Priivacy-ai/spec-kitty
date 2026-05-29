@@ -8,8 +8,10 @@ Covers:
 
 from __future__ import annotations
 
+import sys
 import warnings
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -275,7 +277,7 @@ class TestEnsureRuntimeSlowPath:
         call_count = 0
         original_lock = _lock_exclusive
 
-        def lock_that_creates_version(fd):
+        def lock_that_creates_version(fd: Any) -> None:
             nonlocal call_count
             original_lock(fd)
             call_count += 1
@@ -751,3 +753,47 @@ class TestVersionPinWiredIntoCallback:
             main_callback(MagicMock(), version=False)
 
         mock_pin.assert_not_called()
+
+    def test_main_callback_skips_runtime_bootstrap_for_restart_daemon(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """restart-daemon is machine-global and must not pay project bootstrap cost."""
+        ensure_runtime_mock = MagicMock()
+        ensure_skills_mock = MagicMock()
+        ensure_commands_mock = MagicMock()
+        root_callback_mock = MagicMock()
+
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            ["spec-kitty", "doctor", "restart-daemon", "--json"],
+        )
+
+        with (
+            patch("specify_cli.runtime.bootstrap.ensure_runtime", ensure_runtime_mock),
+            patch("specify_cli.runtime.agent_skills.ensure_global_agent_skills", ensure_skills_mock),
+            patch("specify_cli.runtime.agent_commands.ensure_global_agent_commands", ensure_commands_mock),
+            patch("specify_cli.root_callback", root_callback_mock),
+        ):
+            from specify_cli import main_callback
+
+            main_callback(MagicMock(), version=False)
+
+        root_callback_mock.assert_not_called()
+        ensure_runtime_mock.assert_not_called()
+        ensure_skills_mock.assert_not_called()
+        ensure_commands_mock.assert_not_called()
+
+    def test_restart_daemon_process_fast_path_allows_only_json(self) -> None:
+        """Process fast path bypasses Typer only for the machine-output form."""
+        from specify_cli import _is_doctor_restart_daemon_process_fast_path
+
+        assert _is_doctor_restart_daemon_process_fast_path(
+            ["spec-kitty", "doctor", "restart-daemon", "--json"]
+        )
+        assert not _is_doctor_restart_daemon_process_fast_path(
+            ["spec-kitty", "doctor", "restart-daemon", "--bad"]
+        )
+        assert not _is_doctor_restart_daemon_process_fast_path(
+            ["spec-kitty", "doctor", "restart-daemon", "--help"]
+        )

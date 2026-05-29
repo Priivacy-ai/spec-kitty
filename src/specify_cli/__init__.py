@@ -97,6 +97,11 @@ def main_callback(
     ),
 ) -> None:
     """Main callback for root CLI setup."""
+    import sys
+
+    if _is_doctor_restart_daemon_invocation(sys.argv):
+        return
+
     root_callback(ctx)
 
     # FR-002: Ensure global runtime (~/.kittify/) is populated and current.
@@ -198,6 +203,50 @@ register_init_command(
 register_commands(app)
 
 
+def _is_doctor_restart_daemon_invocation(argv: list[str]) -> bool:
+    if any(arg in {"--help", "-h"} for arg in argv[1:]):
+        return False
+    command_parts: list[str] = []
+    for arg in argv[1:]:
+        if arg.startswith("-"):
+            continue
+        command_parts.append(arg)
+        if len(command_parts) == 2:
+            return command_parts == ["doctor", "restart-daemon"]
+    return False
+
+
+def _is_doctor_restart_daemon_process_fast_path(argv: list[str]) -> bool:
+    if any(arg in {"--help", "-h"} for arg in argv[1:]):
+        return False
+    command_parts: list[str] = []
+    for arg in argv[1:]:
+        if arg.startswith("-"):
+            if arg != "--json":
+                return False
+            continue
+        command_parts.append(arg)
+    return command_parts == ["doctor", "restart-daemon"]
+
+
+def _run_doctor_restart_daemon_process_fast_path(argv: list[str]) -> None:
+    import os
+    import sys
+
+    from specify_cli.sync.restart import render_restart_result, restart_daemon
+
+    try:
+        located = locate_project_root()
+    except Exception:  # noqa: BLE001 — restart-daemon is machine-global today
+        located = None
+    repo_root = located if located is not None else Path.cwd()
+    result = restart_daemon(repo_root)
+    sys.stdout.write(render_restart_result(result, json_output="--json" in argv) + "\n")
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(result.exit_code)
+
+
 def main() -> None:
     import sys
 
@@ -220,6 +269,9 @@ def main() -> None:
         except (AttributeError, OSError):
             # Python < 3.7 or reconfigure not available
             pass
+
+    if _is_doctor_restart_daemon_process_fast_path(sys.argv):
+        _run_doctor_restart_daemon_process_fast_path(sys.argv)
 
     # Check for spec-kitty-events library availability (required for 2.x branch)
     from specify_cli.events.adapter import EventAdapter
