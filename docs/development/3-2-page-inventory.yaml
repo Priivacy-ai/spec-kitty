@@ -2525,6 +2525,16 @@
   current_target: true
   citation_refs: []
   notes: How-to; provisional current — confirm in WP08 IA review.
+- path: docs/how-to/review-artifacts-with-planbridge.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: C
+  current_target: true
+  citation_refs:
+    - https://plan.contextbridge.ai/recipes/spec-kitty/
+    - https://plan.contextbridge.ai/install/
+    - https://github.com/contextbridge/planbridge
+  notes: How-to; external PlanBridge review recipe for Spec Kitty planning artifacts.
 - path: docs/how-to/review-work-package.md
   tag: current
   divio_type: how-to
