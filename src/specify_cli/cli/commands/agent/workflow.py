@@ -338,6 +338,8 @@ def _commit_workflow_change(
                 wp_id=wp_id,
             )
             return
+        except typer.Exit:
+            raise
         except Exception as exc:  # noqa: BLE001 — surface + exit
             recovery_commit_sha = _safe_commit_recovery_commit_sha(exc)
             if recovery_commit_sha is None:
