@@ -334,8 +334,18 @@ def validate(
     try:
         canonical_root = resolve_canonical_repo_root(Path.cwd())
     except (NotInsideRepositoryError, GitCommonDirUnavailableError) as exc:
-        # Exit 2: resolver failure. Message on stderr per contract.
-        err_console.print(f"[red]Error:[/red] {exc}")
+        # Exit 2: resolver failure. ``--json`` still emits one parseable
+        # stdout envelope for machine consumers.
+        if json_output:
+            sys.stdout.write(
+                _json.dumps(
+                    {"result": "error", "success": False, "error": str(exc)},
+                    sort_keys=True,
+                )
+                + "\n"
+            )
+        else:
+            err_console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(code=2) from exc
 
     # FR-009: Incompatible bundles fail validation, but --json still emits the

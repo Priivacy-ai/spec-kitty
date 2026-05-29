@@ -8,6 +8,7 @@ import typer
 from specify_cli.task_utils import TaskCliError
 
 from specify_cli.cli.commands.charter._app import charter_app, console
+from specify_cli.cli.commands.charter._common import _emit_error
 
 # Test-patch shim — see ``synthesize.py``.
 import specify_cli.cli.commands.charter as _charter_pkg
@@ -104,8 +105,8 @@ def context(
         console.print(result.text)
 
     except TaskCliError as e:
-        console.print(f"[red]Error:[/red] {e}")
+        _emit_error(console, json_output=json_output, message=str(e))
         raise typer.Exit(code=1) from e
     except Exception as e:
-        console.print(f"[red]Unexpected error:[/red] {e}")
+        _emit_error(console, json_output=json_output, message=str(e), unexpected=True)
         raise typer.Exit(code=1) from e

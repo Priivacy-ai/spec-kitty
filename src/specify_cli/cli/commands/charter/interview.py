@@ -18,6 +18,7 @@ from specify_cli.task_utils import TaskCliError
 
 from specify_cli.cli.commands.charter._app import charter_app, console
 from specify_cli.cli.commands.charter._common import (
+    _emit_error,
     _interview_path,
     _parse_csv_option,
     _resolve_actor,
@@ -105,14 +106,19 @@ def interview(  # noqa: C901
         # surfaces it; existing answers are preserved. Required directives are
         # pre-selected. Failure here is non-fatal (org packs are optional).
         # ------------------------------------------------------------------
+        org_prefill_messages: list[str] = []
+        org_prefill_warning: str | None = None
         try:
             from specify_cli.doctrine.org_charter import apply_org_charter_to_interview
 
             org_prefill_messages = apply_org_charter_to_interview(interview_data, repo_root)
-            for msg in org_prefill_messages:
-                console.print(f"[cyan]Org charter:[/cyan] {msg}")
+            if not json_output:
+                for msg in org_prefill_messages:
+                    console.print(f"[cyan]Org charter:[/cyan] {msg}")
         except Exception as exc:  # noqa: BLE001 — org-charter is best-effort, never blocks interview
-            console.print(f"[yellow]Org charter pre-fill skipped:[/yellow] {exc}")
+            org_prefill_warning = str(exc)
+            if not json_output:
+                console.print(f"[yellow]Org charter pre-fill skipped:[/yellow] {exc}")
 
         # Resolve actor for Decision Moment events (non-fatal fallback)
         actor = _resolve_actor()
@@ -337,6 +343,8 @@ def interview(  # noqa: C901
                         "selected_paradigms": interview_data.selected_paradigms,
                         "selected_directives": interview_data.selected_directives,
                         "available_tools": interview_data.available_tools,
+                        "org_prefill_messages": org_prefill_messages,
+                        "org_prefill_warning": org_prefill_warning,
                     },
                     indent=2,
                 )
@@ -349,8 +357,8 @@ def interview(  # noqa: C901
         console.print(f"Profile: {interview_data.profile}")
 
     except (TaskCliError, ValueError) as e:
-        console.print(f"[red]Error:[/red] {e}")
+        _emit_error(console, json_output=json_output, message=str(e))
         raise typer.Exit(code=1) from e
     except Exception as e:
-        console.print(f"[red]Unexpected error:[/red] {e}")
+        _emit_error(console, json_output=json_output, message=str(e), unexpected=True)
         raise typer.Exit(code=1) from e

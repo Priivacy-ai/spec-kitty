@@ -15,6 +15,7 @@ from specify_cli.cli.commands.charter._app import (
     charter_app,
     console,
 )
+from specify_cli.cli.commands.charter._common import _emit_error
 # See ``synthesize.py`` for the package-module pattern: patches of
 # ``specify_cli.cli.commands.charter.<name>`` must be visible here too. We route
 # ``_assert_bundle_compatible``, ``_build_synthesis_request``,
@@ -103,8 +104,10 @@ def charter_resynthesize(  # noqa: C901
             skip_code_evidence=skip_code_evidence,
             skip_corpus=skip_corpus,
         )
-        for warning in evidence_result.warnings:
-            console.print(f"[yellow]⚠ {warning}[/yellow]")
+        warnings_collected = [str(warning) for warning in evidence_result.warnings]
+        if not json_output:
+            for warning in warnings_collected:
+                console.print(f"[yellow]⚠ {warning}[/yellow]")
 
         request, syn_adapter = _charter_pkg._build_synthesis_request(repo_root, adapter, evidence=evidence_result.bundle)
 
@@ -114,6 +117,7 @@ def charter_resynthesize(  # noqa: C901
                 print(json.dumps({
                     "result": "success",
                     "topics": topics,
+                    "warnings": warnings_collected,
                 }, indent=2))
                 return
 
@@ -156,6 +160,7 @@ def charter_resynthesize(  # noqa: C901
                     "diagnostic": result.diagnostic,
                     "matched_form": result.resolved_topic.matched_form,
                     "targets_count": 0,
+                    "warnings": warnings_collected,
                 }, indent=2))
                 return
             console.print(f"[yellow]No-op:[/yellow] {result.diagnostic}")
@@ -175,6 +180,7 @@ def charter_resynthesize(  # noqa: C901
                 "regenerated": regenerated,
                 "run_id": result.manifest.run_id,
                 "manifest_artifacts": len(result.manifest.artifacts),
+                "warnings": warnings_collected,
             }, indent=2))
             return
 
@@ -194,23 +200,29 @@ def charter_resynthesize(  # noqa: C901
         panel_body += (
             "\n\nRun 'spec-kitty charter resynthesize --list-topics' to see all valid selectors."
         )
-        err_console.print(
-            Panel(
-                Text(panel_body),
-                title=f'[bold red]Cannot resolve --topic "{e.raw}"[/]',
-                border_style="red",
+        if json_output:
+            _emit_error(console, json_output=True, message=panel_body)
+        else:
+            err_console.print(
+                Panel(
+                    Text(panel_body),
+                    title=f'[bold red]Cannot resolve --topic "{e.raw}"[/]',
+                    border_style="red",
+                )
             )
-        )
         raise typer.Exit(code=2) from e
     except SynthesisError as e:
-        render_error_panel(e, err_console)
+        if json_output:
+            _emit_error(console, json_output=True, message=str(e))
+        else:
+            render_error_panel(e, err_console)
         raise typer.Exit(code=1) from e
     except FileNotFoundError as e:
-        console.print(f"[red]Error:[/red] {e}")
+        _emit_error(console, json_output=json_output, message=str(e))
         raise typer.Exit(code=1) from e
     except TaskCliError as e:
-        console.print(f"[red]Error:[/red] {e}")
+        _emit_error(console, json_output=json_output, message=str(e))
         raise typer.Exit(code=1) from e
     except Exception as e:
-        console.print(f"[red]Unexpected error:[/red] {e}")
+        _emit_error(console, json_output=json_output, message=str(e), unexpected=True)
         raise typer.Exit(code=1) from e
