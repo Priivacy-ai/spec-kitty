@@ -124,6 +124,39 @@ def test_sync_json_error_result_is_parseable_and_nonzero(tmp_path: Path) -> None
     assert payload["error"] == "charter parse failed"
 
 
+def test_interview_json_keeps_org_prefill_messages_inside_payload(tmp_path: Path) -> None:
+    interview_data = SimpleNamespace(
+        mission="software-dev",
+        profile="minimal",
+        answers={},
+        selected_paradigms=[],
+        selected_directives=[],
+        available_tools=[],
+    )
+
+    with (
+        patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path),
+        patch("specify_cli.cli.commands.charter.default_interview", return_value=interview_data),
+        patch(
+            "specify_cli.doctrine.org_charter.apply_org_charter_to_interview",
+            return_value=["applied org default"],
+        ),
+        patch("charter.interview.write_interview_answers"),
+        patch("charter.interview.apply_answer_overrides", return_value=interview_data),
+        patch("charter.interview.MINIMAL_QUESTION_ORDER", []),
+        patch("charter.interview.QUESTION_ORDER", []),
+        patch("charter.interview.QUESTION_PROMPTS", {}),
+        patch("specify_cli.cli.commands.charter._get_widen_prereqs_absent", return_value=None),
+    ):
+        result = runner.invoke(charter_app, ["interview", "--defaults", "--profile", "minimal", "--json"])
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["result"] == "success"
+    assert payload["org_prefill_messages"] == ["applied org default"]
+    assert payload["org_prefill_warning"] is None
+
+
 def test_bundle_validate_json_resolver_error_is_parseable() -> None:
     with patch(
         "specify_cli.cli.commands.charter_bundle.resolve_canonical_repo_root",

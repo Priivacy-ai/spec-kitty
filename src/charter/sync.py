@@ -209,7 +209,7 @@ def sync(
         )
 
     except Exception as e:
-        logger.exception("Sync failed: %s", e)
+        logger.error("Sync failed: %s", e)
         return SyncResult(
             synced=False,
             stale_before=False,
