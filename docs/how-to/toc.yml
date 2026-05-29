@@ -18,6 +18,8 @@
   href: harnesses/
 - name: Set Up Codex Launcher
   href: setup-codex-spec-kitty-launcher.md
+- name: Review Artifacts with PlanBridge
+  href: review-artifacts-with-planbridge.md
 - name: Create a Specification
   href: create-specification.md
 - name: Keep Main Clean
