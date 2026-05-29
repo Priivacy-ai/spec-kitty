@@ -16,6 +16,7 @@ from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
 from specify_cli.upgrade.migrations.m_0_12_1_remove_kitty_specs_from_gitignore import (
     RemoveKittySpecsFromGitignoreMigration,
 )
+from specify_cli.upgrade.migrations import auto_discover_migrations
 from specify_cli.upgrade.registry import MigrationRegistry
 from specify_cli.upgrade.runner import MigrationRunner
 import contextlib
@@ -248,17 +249,17 @@ class TestPermissionErrors:
 
 
 class TestMigrationRegistryCompleteness:
-    """Verify all migration files are properly imported and registered.
+    """Verify all migration files are properly discoverable and registered.
 
-    CRITICAL: This test prevents the 0.13.2 release blocker bug where
-    migrations existed but weren't imported in __init__.py.
+    CRITICAL: This test prevents the 0.13.2 release blocker class where
+    migrations existed but never reached the runtime registry.
     """
 
     def test_all_migration_files_are_registered(self) -> None:
-        """Verify every m_*.py file in migrations/ is imported and registered.
+        """Verify every m_*.py file in migrations/ is discovered and registered.
 
         This prevents silent bugs where migrations exist but never run during
-        `spec-kitty upgrade` because they weren't imported in __init__.py.
+        `spec-kitty upgrade` because discovery/import wiring skipped them.
 
         Bug prevented: 0.13.2 release blocker (4 migrations missing from registry)
         """
@@ -267,6 +268,8 @@ class TestMigrationRegistryCompleteness:
         # Assumption check
         assert len(migration_files) > 0, "No migration files found"
         # Act
+        MigrationRegistry.clear()
+        auto_discover_migrations()
         registered_migrations = MigrationRegistry.get_all()
         # Assert
         assert len(migration_files) == len(registered_migrations), (
@@ -278,8 +281,8 @@ class TestMigrationRegistryCompleteness:
             + f"\n\nRegistered migrations ({len(registered_migrations)}):\n"
             + "\n".join(f"  - {m.migration_id}" for m in registered_migrations)
             + "\n\nLikely cause: Missing imports in "
-            "src/specify_cli/upgrade/migrations/__init__.py\n"
-            "Add: from . import <migration_file_name>"
+            "src/specify_cli/upgrade/migrations/__init__.py auto-discovery\n"
+            "or a migration module missing @MigrationRegistry.register"
         )
 
 

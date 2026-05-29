@@ -55,8 +55,15 @@ def _make_expired_session() -> StoredSession:
     return StoredSession(
         user_id="u_refresh_test",
         email="refresh@test.example",
-        name="Refresh Tester",
-        teams=[Team(id="tm_test", name="TestTeam", role="admin")],
+            name="Refresh Tester",
+        teams=[
+            Team(
+                id="tm_test",
+                name="TestTeam",
+                role="admin",
+                is_private_teamspace=True,
+            )
+        ],
         default_team_id="tm_test",
         access_token="stale_access_token",
         refresh_token="valid_refresh_token",
@@ -253,7 +260,11 @@ class TestRefreshThroughTransport:
             # rather than .get(...). Capture headers on every request.
             if headers:
                 captured_auth_headers.append(headers.get("Authorization", ""))
-            return httpx.Response(200, json={"status": "ok"})
+            return httpx.Response(
+                200,
+                json={"status": "ok"},
+                request=httpx.Request(method, url),
+            )
 
         mock_http_client = MagicMock(spec=httpx.Client)
         mock_http_client.__enter__ = MagicMock(return_value=mock_http_client)

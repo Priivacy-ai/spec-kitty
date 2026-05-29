@@ -12,6 +12,8 @@ import specify_cli.coordination.transaction as transaction_module
 from specify_cli.coordination.transaction import BookkeepingCommitFailed
 from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
 
+pytestmark = [pytest.mark.integration]
+
 
 def _write_status_artifacts(feature_dir: Path) -> tuple[Path, Path, int, bytes]:
     feature_dir.mkdir(parents=True, exist_ok=True)

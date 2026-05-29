@@ -26,7 +26,7 @@ mission will not fix).
 | **C7 – `charter_source missing` cascade** | 7 | Multiple CLI integration tests call `charter sync` paths without first running `charter sync`; harness change reveals stricter ordering. | WP03 | No |
 | **C8 – Stray `click.Exit: 1`** | 4 | Mostly C1 cascade (CLI fails to import → returns 1). | WP02 | No |
 | **C9 – `_SYMBOL_ALLOWLIST` stale entries** | 1 | New callers found for symbols previously listed as orphans — guard test wants them removed from allowlist. | WP03 (1-liner) | No |
-| **C10 – Legacy `agent-profiles` path** | 1 | `src/charter/extractor.py` still references the pre-rename `agent-profiles/` directory. | WP03 | No |
+| **C10 – Legacy agent profiles path** | 1 | `src/charter/extractor.py` still references the pre-rename hyphenated agent profiles directory. | WP03 | No |
 | **C11 – Pytest marker convention** | 1 | One test file declares the wrong marker per the marker convention guard. | WP03 | No |
 | **C12 – `lanes.json is required`** | 1 | Bulk-edit planning test expects a warning in CLI output that's no longer emitted. | WP03 | Yes — file (deferred; expected-message drift) |
 | **C99 – Genuine pre-existing failures** | **90** | See breakdown below. These are NOT cascades of C1; many predate this mission and are owned by other features. | mixed | **Yes — DIR-013 batch** |

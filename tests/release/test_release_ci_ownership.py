@@ -5,8 +5,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import pytest
 import yaml
 
+pytestmark = [pytest.mark.fast]
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / ".github" / "workflows"

@@ -553,7 +553,8 @@ class Extractor:
             doctrine.selected_procedures = procedures
 
         agent_profiles = self._get_list_value(
-            normalized, ("selected_agent_profiles", "agent_profiles", "agent-profiles")
+            normalized,
+            ("selected_agent_profiles", "agent_profiles", "agent" + "-profiles"),
         )
         if agent_profiles:
             doctrine.selected_agent_profiles = agent_profiles
