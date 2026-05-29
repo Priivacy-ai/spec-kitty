@@ -77,6 +77,8 @@ logger = logging.getLogger(__name__)
 
 TARGET_BRANCH_NOT_SYNCHRONIZED = "TARGET_BRANCH_NOT_SYNCHRONIZED"
 TARGET_BRANCH_SYNC_INVARIANT = "local_target_branch_must_match_tracking_branch"
+_STATUS_EVENTS_FILENAME = "status.events.jsonl"
+_STATUS_FILENAME = "status.json"
 
 # T011 — FR-009: push-error parser tokens (locked tuple — do not reorder or extend without a spec change)
 LINEAR_HISTORY_REJECTION_TOKENS: tuple[str, ...] = (
@@ -1104,7 +1106,7 @@ def _enforce_canonical_status_history(
     if not wp_ids:
         return
 
-    log_path = feature_dir / "status.events.jsonl"
+    log_path = feature_dir / _STATUS_EVENTS_FILENAME
     if not log_path.exists():
         return
 
@@ -1441,8 +1443,8 @@ def _run_lane_based_merge_locked(
     # If the final bookkeeping commit fails after done events are emitted,
     # restore the canonical status artifacts to their pre-emit bytes. This
     # keeps the merge path aligned with the #1348 dangling-event invariant.
-    _merge_events_path = feature_dir / "status.events.jsonl"
-    _merge_status_path = feature_dir / "status.json"
+    _merge_events_path = feature_dir / _STATUS_EVENTS_FILENAME
+    _merge_status_path = feature_dir / _STATUS_FILENAME
     _pre_done_event_size = (
         _merge_events_path.stat().st_size if _merge_events_path.exists() else 0
     )
@@ -1489,8 +1491,8 @@ def _run_lane_based_merge_locked(
     )
     if _ret_status == 0:
         expected_paths = {
-            f"kitty-specs/{mission_slug}/status.events.jsonl",
-            f"kitty-specs/{mission_slug}/status.json",
+            f"kitty-specs/{mission_slug}/{_STATUS_EVENTS_FILENAME}",
+            f"kitty-specs/{mission_slug}/{_STATUS_FILENAME}",
         }
         if baseline_meta_path is not None:
             expected_paths.add(str(baseline_meta_path.relative_to(main_repo)))
@@ -1529,8 +1531,8 @@ def _run_lane_based_merge_locked(
 
     # -- T012: FR-019 — Persist done events to git BEFORE any worktree removal --
     files_to_commit = [
-        feature_dir / "status.events.jsonl",
-        feature_dir / "status.json",
+        feature_dir / _STATUS_EVENTS_FILENAME,
+        feature_dir / _STATUS_FILENAME,
     ]
     if baseline_meta_path is not None:
         files_to_commit.append(baseline_meta_path)
@@ -1693,7 +1695,8 @@ def _run_lane_based_merge_locked(
                     mission_slug,
                     _mid8_for_teardown,
                 )
-        except Exception as _coord_teardown_exc:  # noqa: BLE001 — teardown is best-effort cleanup, never block the successful merge
+        # Teardown is best-effort cleanup; never block a successful merge.
+        except Exception as _coord_teardown_exc:  # noqa: BLE001
             logger.warning(
                 "Coordination worktree teardown failed (non-fatal): %s",
                 _coord_teardown_exc,

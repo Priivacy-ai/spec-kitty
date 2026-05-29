@@ -28,10 +28,7 @@ from specify_cli.core.git_ops import get_current_branch
 from specify_cli.git import ProtectedBranchCommitError, assert_not_protected_branch, safe_commit
 from specify_cli.git.commit_helpers import (
     SafeCommitBackstopError,
-    SafeCommitDestinationNotFound,
-    SafeCommitDestinationRefShape,
-    SafeCommitHeadMismatch,
-    SafeCommitNotAWorktree,
+    SafeCommitError,
 )
 from specify_cli.task_utils import TaskCliError, find_repo_root
 
@@ -189,12 +186,9 @@ def safe_commit_command(
         else:
             console.print("[yellow]No requested changes to commit[/yellow]")
     except (
+        SafeCommitError,
         ProtectedBranchCommitError,
         SafeCommitBackstopError,
-        SafeCommitDestinationNotFound,
-        SafeCommitDestinationRefShape,
-        SafeCommitHeadMismatch,
-        SafeCommitNotAWorktree,
         TaskCliError,
         ValueError,
         RuntimeError,

@@ -264,7 +264,38 @@ def _is_user_site(
 _SYSTEM_PACKAGE_INSTALLERS = frozenset({"apt", "dnf", "pacman", "yum", "zypper"})
 
 
-def detect_install_method(  # noqa: C901
+def _detect_with_guard(detector: Callable[[], InstallMethod | None]) -> InstallMethod | None:
+    """Run a detection probe and swallow probe-local exceptions."""
+    try:
+        return detector()
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _detect_system_package(
+    executable: str,
+    distribution_loader: Callable[[str], importlib.metadata.Distribution],
+) -> InstallMethod | None:
+    if not executable.startswith("/usr/bin/python"):
+        return None
+    installer = _get_installer(distribution_loader)
+    if installer in _SYSTEM_PACKAGE_INSTALLERS:
+        return InstallMethod.SYSTEM_PACKAGE
+    return None
+
+
+def _detect_pip_install(
+    distribution_loader: Callable[[str], importlib.metadata.Distribution],
+) -> InstallMethod | None:
+    installer = _get_installer(distribution_loader)
+    if installer != "pip":
+        return None
+    if _is_user_site(distribution_loader):
+        return InstallMethod.PIP_USER
+    return InstallMethod.PIP_SYSTEM
+
+
+def detect_install_method(
     *,
     executable: str | None = None,
     distribution_loader: Callable[[str], importlib.metadata.Distribution] | None = None,
@@ -305,52 +336,17 @@ def detect_install_method(  # noqa: C901
     if distribution_loader is None:
         distribution_loader = importlib.metadata.distribution
 
-    # 1. Source / dev install.
-    try:
-        if _is_source_install():
-            return InstallMethod.SOURCE
-    except Exception:  # noqa: BLE001
-        pass
-
-    # 2. uv tool.
-    try:
-        if _is_uv_tool_install(executable):
-            return InstallMethod.UV_TOOL
-    except Exception:  # noqa: BLE001
-        pass
-
-    # 3. pipx.
-    try:
-        if _is_pipx_install(executable):
-            return InstallMethod.PIPX
-    except Exception:  # noqa: BLE001
-        pass
-
-    # 4. Homebrew.
-    try:
-        if _is_brew_install(executable):
-            return InstallMethod.BREW
-    except Exception:  # noqa: BLE001
-        pass
-
-    # 5. System package manager.
-    try:
-        if executable.startswith("/usr/bin/python"):
-            installer = _get_installer(distribution_loader)
-            if installer in _SYSTEM_PACKAGE_INSTALLERS:
-                return InstallMethod.SYSTEM_PACKAGE
-    except Exception:  # noqa: BLE001
-        pass
-
-    # 6 & 7. pip (user vs system).
-    try:
-        installer = _get_installer(distribution_loader)
-        if installer == "pip":
-            if _is_user_site(distribution_loader):
-                return InstallMethod.PIP_USER
-            return InstallMethod.PIP_SYSTEM
-    except Exception:  # noqa: BLE001
-        pass
+    detectors = (
+        lambda: InstallMethod.SOURCE if _is_source_install() else None,
+        lambda: InstallMethod.UV_TOOL if _is_uv_tool_install(executable) else None,
+        lambda: InstallMethod.PIPX if _is_pipx_install(executable) else None,
+        lambda: InstallMethod.BREW if _is_brew_install(executable) else None,
+        lambda: _detect_system_package(executable, distribution_loader),
+        lambda: _detect_pip_install(distribution_loader),
+    )
+    for detector in detectors:
+        if detected := _detect_with_guard(detector):
+            return detected
 
     # 7. Fallback.
     return InstallMethod.UNKNOWN

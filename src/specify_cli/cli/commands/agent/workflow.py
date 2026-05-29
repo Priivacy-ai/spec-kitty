@@ -85,6 +85,8 @@ from specify_cli.workspace.context import resolve_workspace_for_wp
 logger = logging.getLogger(__name__)
 
 _REVIEW_FEEDBACK_SENTINELS = REVIEW_FEEDBACK_SENTINELS
+_STATUS_EVENTS_FILENAME = "status.events.jsonl"
+_STATUS_FILENAME = "status.json"
 
 
 # ---------------------------------------------------------------------------
@@ -138,12 +140,8 @@ def _restore_status_artifacts(
         if events_path.exists():
             with events_path.open("ab") as _fh:
                 _fh.truncate(pre_emit_event_size)
-    except OSError as truncate_exc:
-        logger.error(
-            "Could not truncate %s on commit failure: %s",
-            events_path,
-            truncate_exc,
-        )
+    except OSError:
+        logger.exception("Could not truncate %s on commit failure", events_path)
 
     try:
         if pre_emit_status_bytes is None:
@@ -151,12 +149,8 @@ def _restore_status_artifacts(
         else:
             status_path.parent.mkdir(parents=True, exist_ok=True)
             status_path.write_bytes(pre_emit_status_bytes)
-    except OSError as restore_exc:
-        logger.error(
-            "Could not restore %s on commit failure: %s",
-            status_path,
-            restore_exc,
-        )
+    except OSError:
+        logger.exception("Could not restore %s on commit failure", status_path)
 
 
 def _safe_commit_recovery_commit_sha(exc: BaseException) -> str | None:
@@ -208,6 +202,93 @@ def _load_coord_branch_meta(feature_dir: Path) -> tuple[str | None, str | None, 
     return (coord, mid, mid8)
 
 
+def _commit_via_coordination_transaction(
+    *,
+    coord_branch: str,
+    repo_root: Path,
+    mission_slug: str,
+    paths: list[Path],
+    message: str,
+    operation: str,
+    mission_id: str,
+    mid8: str,
+    wp_id: str,
+) -> None:
+    """Commit workflow changes via BookkeepingTransaction."""
+    from specify_cli.coordination.transaction import (
+        BookkeepingPolicyRefused,
+        BookkeepingTransaction,
+    )
+
+    try:
+        with BookkeepingTransaction.acquire(
+            repo_root=repo_root,
+            mission_id=mission_id,
+            mission_slug=mission_slug,
+            mid8=mid8,
+            destination_ref=coord_branch,
+            operation=operation,
+        ) as txn:
+            for path in paths:
+                if not path.exists():
+                    continue
+                txn_path = _transaction_path_for(
+                    source_path=path,
+                    repo_root=repo_root,
+                    worktree_root=txn.worktree_root,
+                )
+                if txn_path.resolve() == path.resolve():
+                    txn.stage_path(path)
+                else:
+                    txn.write_artifact(txn_path, path.read_bytes())
+            receipt = txn.commit(message)
+    except BookkeepingPolicyRefused as policy_exc:
+        _record_receipt(
+            coord_branch,
+            message,
+            "refused",
+            wp_id=wp_id,
+        )
+        print(
+            f"Error: Bookkeeping policy refused {operation}: "
+            f"{policy_exc.verdict.error_code}: {policy_exc.verdict.message}"
+        )
+        raise typer.Exit(1) from policy_exc
+
+    _record_receipt(
+        coord_branch,
+        message,
+        "committed",
+        sha=receipt.commit_sha,
+        wp_id=wp_id,
+    )
+
+
+def _commit_via_legacy_safe_commit(
+    *,
+    repo_root: Path,
+    target_branch: str,
+    paths: list[Path],
+    message: str,
+    wp_id: str,
+) -> None:
+    """Commit workflow changes directly on legacy mission branches."""
+    result = safe_commit(
+        repo_root=repo_root,
+        worktree_root=repo_root,
+        destination_ref=target_branch,
+        message=message,
+        paths=tuple(paths),
+    )
+    _record_receipt(
+        target_branch,
+        message,
+        "committed",
+        sha=getattr(result, "sha", None),
+        wp_id=wp_id,
+    )
+
+
 def _commit_workflow_change(
     *,
     repo_root: Path,
@@ -240,60 +321,23 @@ def _commit_workflow_change(
         typer.Exit(1): On commit failure (after rollback).
     """
     coord_branch, mission_id, mid8 = _load_coord_branch_meta(feature_dir)
-    events_path = feature_dir / "status.events.jsonl"
-    status_path = feature_dir / "status.json"
+    events_path = feature_dir / _STATUS_EVENTS_FILENAME
+    status_path = feature_dir / _STATUS_FILENAME
 
     if coord_branch and mission_id and mid8:
-        # Modern path: BookkeepingTransaction owns the lock, policy gate,
-        # event-log rollback, and the commit. We stage operational paths
-        # (WP files, status artifacts) so they ride along with the
-        # bookkeeping commit on the coord branch.
-        from specify_cli.coordination.transaction import (
-            BookkeepingPolicyRefused,
-            BookkeepingTransaction,
-        )
-
         try:
-            with BookkeepingTransaction.acquire(
+            _commit_via_coordination_transaction(
+                coord_branch=str(coord_branch),
                 repo_root=repo_root,
                 mission_id=str(mission_id),
                 mission_slug=mission_slug,
                 mid8=str(mid8),
-                destination_ref=str(coord_branch),
+                paths=paths,
+                message=message,
                 operation=operation,
-            ) as txn:
-                for path in paths:
-                    if path.exists():
-                        txn_path = _transaction_path_for(
-                            source_path=path,
-                            repo_root=repo_root,
-                            worktree_root=txn.worktree_root,
-                        )
-                        if txn_path.resolve() == path.resolve():
-                            txn.stage_path(path)
-                        else:
-                            txn.write_artifact(txn_path, path.read_bytes())
-                receipt = txn.commit(message)
-            _record_receipt(
-                str(coord_branch),
-                message,
-                "committed",
-                sha=receipt.commit_sha,
                 wp_id=wp_id,
             )
             return
-        except BookkeepingPolicyRefused as policy_exc:
-            _record_receipt(
-                str(coord_branch),
-                message,
-                "refused",
-                wp_id=wp_id,
-            )
-            print(
-                f"Error: Bookkeeping policy refused {operation}: "
-                f"{policy_exc.verdict.error_code}: {policy_exc.verdict.message}"
-            )
-            raise typer.Exit(1) from policy_exc
         except Exception as exc:  # noqa: BLE001 — surface + exit
             recovery_commit_sha = _safe_commit_recovery_commit_sha(exc)
             if recovery_commit_sha is None:
@@ -317,18 +361,11 @@ def _commit_workflow_change(
 
     # Legacy fallback (TODO(WP08): replace with the legacy bridge).
     try:
-        result = safe_commit(
+        _commit_via_legacy_safe_commit(
             repo_root=repo_root,
-            worktree_root=repo_root,
-            destination_ref=target_branch,
+            target_branch=target_branch,
+            paths=paths,
             message=message,
-            paths=tuple(paths),
-        )
-        _record_receipt(
-            target_branch,
-            message,
-            "committed",
-            sha=getattr(result, "sha", None),
             wp_id=wp_id,
         )
     except Exception as exc:  # noqa: BLE001 — surface + truncate + exit
@@ -992,8 +1029,8 @@ def implement(
             # the byte-for-byte rollback that closes #1348 for the
             # legacy path; the modern path (coord branch) gets the same
             # contract via BookkeepingTransaction.
-            _events_path_pre = _impl_feature_dir / "status.events.jsonl"
-            _status_path_pre = _impl_feature_dir / "status.json"
+            _events_path_pre = _impl_feature_dir / _STATUS_EVENTS_FILENAME
+            _status_path_pre = _impl_feature_dir / _STATUS_FILENAME
             _pre_emit_event_size = (
                 _events_path_pre.stat().st_size if _events_path_pre.exists() else 0
             )
@@ -1799,8 +1836,8 @@ def review(
             with feature_status_lock(main_repo_root, mission_slug):
                 # WP06 T027: capture pre-emit event-log size for
                 # surgical rollback on commit failure.
-                _events_path_pre_rev = feature_dir / "status.events.jsonl"
-                _status_path_pre_rev = feature_dir / "status.json"
+                _events_path_pre_rev = feature_dir / _STATUS_EVENTS_FILENAME
+                _status_path_pre_rev = feature_dir / _STATUS_FILENAME
                 _pre_emit_event_size_rev = (
                     _events_path_pre_rev.stat().st_size
                     if _events_path_pre_rev.exists()
@@ -2029,8 +2066,8 @@ def review(
                             [
                                 f":(exclude){mission_root}tasks/**",
                                 f":(exclude){mission_root}tasks.md",
-                                f":(exclude){mission_root}status.events.jsonl",
-                                f":(exclude){mission_root}status.json",
+                                f":(exclude){mission_root}{_STATUS_EVENTS_FILENAME}",
+                                f":(exclude){mission_root}{_STATUS_FILENAME}",
                             ]
                         )
                     review_paths = " -- " + " ".join(review_pathspecs)
@@ -2214,8 +2251,8 @@ def review(
                         [
                             f":(exclude){mission_root}tasks/**",
                             f":(exclude){mission_root}tasks.md",
-                            f":(exclude){mission_root}status.events.jsonl",
-                            f":(exclude){mission_root}status.json",
+                            f":(exclude){mission_root}{_STATUS_EVENTS_FILENAME}",
+                            f":(exclude){mission_root}{_STATUS_FILENAME}",
                         ]
                     )
                 review_paths = " -- " + " ".join(review_pathspecs) if review_pathspecs else ""
