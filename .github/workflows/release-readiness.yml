@@ -7,7 +7,6 @@ on:
       - 2.x
     paths:
       - pyproject.toml
-      - uv.lock
       - CHANGELOG.md
       - scripts/release/**
       - RELEASE_CHECKLIST.md
@@ -19,7 +18,7 @@ on:
         required: false
         type: string
   schedule:
-    # Run nightly to monitor drift
+    # Run nightly to monitor release metadata drift
     - cron: '0 2 * * *'
 
 concurrency:
@@ -33,10 +32,6 @@ permissions:
 jobs:
   check-readiness:
     runs-on: ubuntu-latest
-    env:
-      REPO_OWNER: ${{ github.repository_owner }}
-      CROSS_REPO_TOKEN: ${{ secrets.SPEC_KITTY_SAAS_READ_TOKEN != '' && secrets.SPEC_KITTY_SAAS_READ_TOKEN || github.token }}
-      HAS_SAAS_READ_TOKEN: ${{ secrets.SPEC_KITTY_SAAS_READ_TOKEN != '' }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -49,52 +44,10 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
 
-      - name: Setup SSH for private repository access
-        # Purpose: spec-kitty depends on private spec-kitty-events library.
-        # Uses SSH deploy key stored in GitHub Actions secrets.
-        # See docs/development/ssh-deploy-keys.md for setup instructions.
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SPEC_KITTY_EVENTS_DEPLOY_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan github.com >> ~/.ssh/known_hosts
-        shell: bash
-
-      - name: Install dependencies
+      - name: Install validator dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install build tomli packaging pytest
-          pip install -e .[test]
-
-      - name: Verify test isolation
-        run: |
-          cat > verify_isolation.py << 'EOF'
-          import sys
-          import tomllib
-          from pathlib import Path
-
-          # Get source version from pyproject.toml
-          with open("pyproject.toml", "rb") as f:
-              source_version = tomllib.load(f)["project"]["version"]
-
-          # Try to get installed version
-          try:
-              from importlib.metadata import version
-              installed_version = version("spec-kitty-cli")
-          except Exception:
-              print(f"✅ No installed version detected (source: {source_version})")
-              sys.exit(0)
-
-          # Check if versions match
-          if installed_version == source_version:
-              print(f"✅ Version match: {source_version}")
-              sys.exit(0)
-          else:
-              print(f"❌ Version mismatch! Source: {source_version}, Installed: {installed_version}")
-              print("Tests may fail due to version inconsistency.")
-              sys.exit(1)
-          EOF
-          python verify_isolation.py
+          pip install pyyaml
 
       - name: Detect release metadata changes
         if: github.event_name == 'pull_request'
@@ -104,20 +57,6 @@ jobs:
           filters: |
             release_metadata:
               - 'pyproject.toml'
-
-      - name: Run release workflow tests
-        if: github.event_name == 'pull_request'
-        run: |
-          echo "::group::Running targeted release test suite"
-          python -m pytest -v --import-mode=importlib tests/release
-          echo "::endgroup::"
-
-      - name: Run release workflow tests
-        if: github.event_name != 'pull_request'
-        run: |
-          echo "::group::Running targeted release test suite"
-          python -m pytest -v --import-mode=importlib tests/release
-          echo "::endgroup::"
 
       - name: Validate release metadata
         if: github.event_name != 'pull_request' || steps.metadata_changes.outputs.release_metadata == 'true'
@@ -132,62 +71,6 @@ jobs:
             python scripts/release/validate_release.py --mode branch --tag-pattern "v*.*.*"
           fi
 
-      - name: Test packaging
-        run: |
-          echo "::group::Building wheel to catch packaging issues"
-          python -m build --wheel
-          echo "::endgroup::"
-
-      - name: Fetch compatibility references
-        id: fetch_refs
-        run: |
-          set -euo pipefail
-          mkdir -p /tmp/spec-kitty-release-contracts
-
-          if [ "${HAS_SAAS_READ_TOKEN}" != "true" ]; then
-            echo "saas_fetched=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::SPEC_KITTY_SAAS_READ_TOKEN is not configured; skipping private SaaS compatibility fetches."
-            exit 0
-          fi
-
-          curl -fsSL \
-            -H "Authorization: Bearer ${CROSS_REPO_TOKEN}" \
-            -H "Accept: application/vnd.github.raw" \
-            "https://api.github.com/repos/${REPO_OWNER}/spec-kitty-saas/contents/pyproject.toml?ref=main" \
-            -o /tmp/spec-kitty-release-contracts/spec-kitty-saas-pyproject.toml
-
-          curl -fsSL \
-            -H "Authorization: Bearer ${CROSS_REPO_TOKEN}" \
-            -H "Accept: application/vnd.github.raw" \
-            "https://api.github.com/repos/${REPO_OWNER}/spec-kitty-saas/contents/contracts/consumer-compatibility.json?ref=main" \
-            -o /tmp/spec-kitty-release-contracts/consumer-compatibility.json
-
-          echo "saas_fetched=true" >> "$GITHUB_OUTPUT"
-          echo "saas_pyproject=/tmp/spec-kitty-release-contracts/spec-kitty-saas-pyproject.toml" >> "$GITHUB_OUTPUT"
-          echo "consumer_contract=/tmp/spec-kitty-release-contracts/consumer-compatibility.json" >> "$GITHUB_OUTPUT"
-
-      - name: Validate shared package drift
-        run: |
-          ARGS=()
-
-          if [ "${{ steps.fetch_refs.outputs.saas_fetched }}" = "true" ]; then
-            ARGS+=(
-              --saas-pyproject "${{ steps.fetch_refs.outputs.saas_pyproject }}"
-            )
-          fi
-
-          python scripts/release/check_shared_package_drift.py --check-installed "${ARGS[@]}"
-
-      - name: Verify exact installability from built wheel
-        run: python scripts/release/check_exact_install.py --package spec-kitty-cli --console-script spec-kitty --console-arg=--version
-
-      - name: Validate candidate against SaaS consumer contract
-        if: steps.fetch_refs.outputs.saas_fetched == 'true'
-        run: |
-          python scripts/release/check_candidate_consumer_compat.py \
-            --package spec-kitty-cli \
-            --consumer-contract "${{ steps.fetch_refs.outputs.consumer_contract }}"
-
       - name: Generate readiness summary
         if: always()
         run: |
@@ -201,24 +84,15 @@ jobs:
             echo "- Version is properly bumped" >> $GITHUB_STEP_SUMMARY
             echo "- Changelog entry exists and is populated" >> $GITHUB_STEP_SUMMARY
             echo "- Version progression is monotonic" >> $GITHUB_STEP_SUMMARY
-            echo "- Release validation tests pass" >> $GITHUB_STEP_SUMMARY
-            echo "- Package builds successfully" >> $GITHUB_STEP_SUMMARY
-            echo "- Shared-package drift check passes" >> $GITHUB_STEP_SUMMARY
-            echo "- Candidate wheel installs via plain pip" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "This report covers release-readiness checks for this workflow only. Do not summarize a release as green until the required branch checks on the same commit are also green." >> $GITHUB_STEP_SUMMARY
+            echo "This workflow validates release metadata only. CI Quality owns tests, wheel build, and exact-install checks; Check Shared Package Drift owns shared-package and SaaS consumer compatibility checks." >> $GITHUB_STEP_SUMMARY
+            echo "Do not summarize a release as green until all required branch checks on the same commit are also green." >> $GITHUB_STEP_SUMMARY
           elif [[ "${{ github.event_name }}" == "pull_request" && "${{ steps.metadata_changes.outputs.release_metadata }}" != "true" ]]; then
-            echo "✅ **Release workflow checks passed**" >> $GITHUB_STEP_SUMMARY
+            echo "✅ **Release metadata validation skipped**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Release metadata validation was skipped because this pull request does not modify \`pyproject.toml\`." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "This branch is ready to merge from a release-readiness workflow perspective:" >> $GITHUB_STEP_SUMMARY
-            echo "- Targeted release workflow tests pass" >> $GITHUB_STEP_SUMMARY
-            echo "- Package builds successfully" >> $GITHUB_STEP_SUMMARY
-            echo "- Shared-package drift check passes" >> $GITHUB_STEP_SUMMARY
-            echo "- Candidate wheel installs via plain pip" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "This report covers release-workflow checks only. Do not summarize a release as green until the required branch checks on the same commit are also green." >> $GITHUB_STEP_SUMMARY
+            echo "This workflow no longer repeats CI Quality or shared-package drift work. Use the required branch checks on the same commit for test, package, and compatibility evidence." >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ **Readiness checks failed**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY

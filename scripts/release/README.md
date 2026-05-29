@@ -94,10 +94,18 @@ python scripts/release/check_candidate_consumer_compat.py \
 
 ## Workflow Integration
 
-- PR checks: `.github/workflows/release-readiness.yml`
+- PR release metadata validation: `.github/workflows/release-readiness.yml`
+- PR/package CI: `.github/workflows/ci-quality.yml`
+- PR shared-package and SaaS consumer compatibility: `.github/workflows/check-spec-kitty-events-alignment.yml`
 - Tag releases: `.github/workflows/release.yml` (triggers on stable and prerelease `v*.*.*` tags)
 
-Release workflow sequence:
+Release PR check ownership:
+
+1. `Release Readiness Check` validates release metadata only: version, changelog, and tag progression.
+2. `CI Quality` owns tests, wheel build, lockfile checks, and exact install verification.
+3. `Check Shared Package Drift` owns shared-package drift and SaaS consumer compatibility evidence.
+
+Tag-time publish workflow sequence:
 
 1. run tests
 2. validate release metadata

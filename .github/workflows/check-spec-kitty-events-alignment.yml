@@ -40,7 +40,7 @@ jobs:
       - name: Install script dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install packaging
+          python -m pip install build packaging
 
       - name: Fetch compatibility references
         id: fetch_refs
@@ -54,20 +54,36 @@ jobs:
             exit 0
           fi
 
-          URL="https://api.github.com/repos/${REPO_OWNER}/spec-kitty-saas/contents/pyproject.toml?ref=main"
+          SAAS_PYPROJECT_URL="https://api.github.com/repos/${REPO_OWNER}/spec-kitty-saas/contents/pyproject.toml?ref=main"
+          CONSUMER_CONTRACT_URL="https://api.github.com/repos/${REPO_OWNER}/spec-kitty-saas/contents/contracts/consumer-compatibility.json?ref=main"
+
           if curl -fsSL \
             -H "Authorization: Bearer ${CROSS_REPO_TOKEN}" \
             -H "Accept: application/vnd.github.raw" \
-            "$URL" \
+            "$SAAS_PYPROJECT_URL" \
             -o /tmp/spec-kitty-release-contracts/spec-kitty-saas-pyproject.toml; then
-            echo "saas_fetched=true" >> "$GITHUB_OUTPUT"
-            echo "saas_pyproject=/tmp/spec-kitty-release-contracts/spec-kitty-saas-pyproject.toml" >> "$GITHUB_OUTPUT"
+            echo "Fetched spec-kitty-saas/pyproject.toml."
           else
-            echo "saas_fetched=false" >> "$GITHUB_OUTPUT"
             echo "Unable to fetch spec-kitty-saas/pyproject.toml from main."
             echo "Configure SPEC_KITTY_SAAS_READ_TOKEN secret with read access to private repo ${REPO_OWNER}/spec-kitty-saas."
             exit 1
           fi
+
+          if curl -fsSL \
+            -H "Authorization: Bearer ${CROSS_REPO_TOKEN}" \
+            -H "Accept: application/vnd.github.raw" \
+            "$CONSUMER_CONTRACT_URL" \
+            -o /tmp/spec-kitty-release-contracts/consumer-compatibility.json; then
+            echo "Fetched spec-kitty-saas/contracts/consumer-compatibility.json."
+          else
+            echo "Unable to fetch spec-kitty-saas/contracts/consumer-compatibility.json from main."
+            echo "Configure SPEC_KITTY_SAAS_READ_TOKEN secret with read access to private repo ${REPO_OWNER}/spec-kitty-saas."
+            exit 1
+          fi
+
+          echo "saas_fetched=true" >> "$GITHUB_OUTPUT"
+          echo "saas_pyproject=/tmp/spec-kitty-release-contracts/spec-kitty-saas-pyproject.toml" >> "$GITHUB_OUTPUT"
+          echo "consumer_contract=/tmp/spec-kitty-release-contracts/consumer-compatibility.json" >> "$GITHUB_OUTPUT"
 
       - name: Validate shared package drift
         run: |
@@ -80,3 +96,14 @@ jobs:
           fi
 
           python scripts/release/check_shared_package_drift.py "${ARGS[@]}"
+
+      - name: Build candidate wheel for consumer compatibility
+        if: steps.fetch_refs.outputs.saas_fetched == 'true'
+        run: python -m build --wheel
+
+      - name: Validate candidate against SaaS consumer contract
+        if: steps.fetch_refs.outputs.saas_fetched == 'true'
+        run: |
+          python scripts/release/check_candidate_consumer_compat.py \
+            --package spec-kitty-cli \
+            --consumer-contract "${{ steps.fetch_refs.outputs.consumer_contract }}"

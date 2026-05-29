@@ -122,11 +122,12 @@ gh pr create --base main --title "Release X.Y.Z" --fill
 
 ### 4. Wait for CI and Review
 
-- [ ] `Release Readiness Check` passes.
-- [ ] `CI Quality` passes or has explicitly accepted non-blocking failures with
+- [ ] `Release Readiness Check` passes for release metadata.
+- [ ] `CI Quality` passes for tests, wheel build, lockfile, and install evidence
+  or has explicitly accepted non-blocking failures with
   issue links.
 - [ ] `Check Shared Package Drift` passes against the current SaaS consumer
-  pins.
+  pins and consumer compatibility contract.
 - [ ] `Protect Main Branch` is expected to pass for the eventual merge or
   tagged release commit path.
 - [ ] Maintainer approval is recorded.
