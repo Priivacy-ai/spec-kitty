@@ -114,6 +114,74 @@ spec-kitty auth login
 
 ## Output and UX
 
+### SPEC_KITTY_NO_NAG
+
+Disable CLI upgrade check notices.
+
+**Purpose**: Suppress human upgrade notices for the current shell. This also
+keeps JSON, quiet, help, version, CI, and non-TTY output clean.
+
+**Example**:
+```bash
+export SPEC_KITTY_NO_NAG=1
+spec-kitty next --agent claude --mission my-mission --json
+```
+
+### SPEC_KITTY_NAG_THROTTLE_SECONDS
+
+Override the minimum interval between upgrade checks.
+
+**Purpose**: Tune local upgrade-check cadence. Values outside the supported
+range fall back to the default silently.
+
+**Example**:
+```bash
+export SPEC_KITTY_NAG_THROTTLE_SECONDS=86400
+spec-kitty status
+```
+
+### SPEC_KITTY_UPGRADE_DISABLED
+
+Disable the launch-readiness upgrade UX.
+
+**Purpose**: Hard kill switch for the interactive readiness prompt and
+auto-upgrade path. It is evaluated per invocation and is not persisted.
+
+**Example**:
+```bash
+export SPEC_KITTY_UPGRADE_DISABLED=1
+spec-kitty status
+```
+
+### SPEC_KITTY_UPGRADE_AUTO
+
+Attempt safe auto-upgrade without prompting when an upgrade is available.
+
+**Purpose**: Per-invocation override equivalent to choosing "Always keep me up
+to date". Auto-upgrade still only runs for known-safe install methods such as
+`pipx`, `uv tool`, Homebrew, and pip installs. Unknown or source installs print
+manual guidance instead of mutating anything.
+
+**Example**:
+```bash
+export SPEC_KITTY_UPGRADE_AUTO=1
+spec-kitty status
+```
+
+### SPEC_KITTY_UPGRADE_NEVER_ASK
+
+Suppress the launch-readiness upgrade prompt.
+
+**Purpose**: Per-invocation override equivalent to choosing "Never ask again".
+It does not rewrite the persisted cache unless the user chooses that option at
+the interactive prompt.
+
+**Example**:
+```bash
+export SPEC_KITTY_UPGRADE_NEVER_ASK=1
+spec-kitty status
+```
+
 ### SPEC_KITTY_SIMPLE_HELP
 
 Request a simpler help presentation.
@@ -201,6 +269,11 @@ The codebase also contains test and harness overrides such as `SPEC_KITTY_TEST_M
 | `SPEC_KITTY_WORKTREE_REMOVAL_DELAY` | Delay worktree cleanup | `10` |
 | `SPEC_KITTY_ENABLE_SAAS_SYNC` | Opt in to hosted sync/auth flows | `1` |
 | `SPEC_KITTY_SAAS_URL` | Override hosted base URL | `https://spec-kitty-dev.fly.dev` |
+| `SPEC_KITTY_NO_NAG` | Disable upgrade notices | `1` |
+| `SPEC_KITTY_NAG_THROTTLE_SECONDS` | Override upgrade-check cadence | `86400` |
+| `SPEC_KITTY_UPGRADE_DISABLED` | Disable upgrade readiness UX | `1` |
+| `SPEC_KITTY_UPGRADE_AUTO` | Enable safe auto-upgrade override | `1` |
+| `SPEC_KITTY_UPGRADE_NEVER_ASK` | Suppress upgrade prompt override | `1` |
 | `SPEC_KITTY_SIMPLE_HELP` | Use simpler help output | `1` |
 | `SPEC_KITTY_NO_BANNER` | Suppress startup banner | `1` |
 | `SPECIFY_REPO_ROOT` | Override repo-root discovery | `/path/to/repo` |

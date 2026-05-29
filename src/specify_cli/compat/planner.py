@@ -19,7 +19,7 @@ from __future__ import annotations
 import contextlib
 import os
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, UTC
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
@@ -801,8 +801,12 @@ def _plan_impl(
     # cached version data was recent.  has_fresh_data checks fetched_at instead
     # and correctly returns True in that case (FIX C, P2).
     cache_record: NagCacheRecord | None = nag_cache.read()
+    preference_record: NagCacheRecord | None = cache_record
 
-    # Invalidate cache if CLI version changed (FR-025)
+    # Invalidate cached version data if CLI version changed (FR-025), but
+    # preserve user preferences such as snooze/auto/never-ask for the next
+    # write. Those preferences are anchored to the remote version, not to the
+    # currently installed CLI version.
     if cache_record is not None and cache_record.cli_version_key != installed_version:
         cache_record = None
 
@@ -835,13 +839,23 @@ def _plan_impl(
 
         # If we got a version from the provider, update the cache (preserve last_shown_at).
         if latest_result.source == "pypi" and latest_version is not None:
-            new_record = NagCacheRecord(
-                cli_version_key=installed_version,
-                latest_version=latest_version,
-                latest_source="pypi",
-                fetched_at=now,
-                last_shown_at=cache_record.last_shown_at if cache_record is not None else None,
-            )
+            if preference_record is not None:
+                new_record = replace(
+                    preference_record,
+                    cli_version_key=installed_version,
+                    latest_version=latest_version,
+                    latest_source="pypi",
+                    fetched_at=now,
+                    last_shown_at=preference_record.last_shown_at,
+                )
+            else:
+                new_record = NagCacheRecord(
+                    cli_version_key=installed_version,
+                    latest_version=latest_version,
+                    latest_source="pypi",
+                    fetched_at=now,
+                    last_shown_at=None,
+                )
             with contextlib.suppress(Exception):
                 nag_cache.write(new_record)
         elif cache_record is not None and cache_record.latest_version is not None:

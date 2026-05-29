@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import sys
+from dataclasses import replace
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
@@ -239,13 +240,7 @@ def _render_nag_if_needed(ctx: typer.Context) -> None:
             existing = nag_cache.read()
             now = datetime.now(UTC)
             if existing is not None:
-                updated_record = NagCacheRecord(
-                    cli_version_key=existing.cli_version_key,
-                    latest_version=existing.latest_version,
-                    latest_source=existing.latest_source,
-                    fetched_at=existing.fetched_at,
-                    last_shown_at=now,
-                )
+                updated_record = replace(existing, last_shown_at=now)
             else:
                 # No existing record — write a minimal one to record the show time.
                 updated_record = NagCacheRecord(

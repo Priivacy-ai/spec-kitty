@@ -82,6 +82,44 @@ The exact wording the CLI prints in each case is set by the
 readiness coordinator and its sister modules. This doc does not
 restate the byte-stable strings; it points the reader at them.
 
+## Upgrade readiness UX
+
+The launch readiness coordinator owns the upgrade prompt. It uses the
+existing compatibility planner and `NagCache` state, then adds user-facing
+choices:
+
+- Upgrade now.
+- Always keep me up to date.
+- Not now.
+- Never ask again.
+
+"Not now" snoozes the same remote version on a conservative cadence:
+24 hours, then 48 hours, then 7 days. A newly discovered remote version
+restarts that cadence. "Never ask again" is also anchored to the remote
+version the user dismissed.
+
+Auto-upgrade is fail-closed. It only runs for known-safe install methods
+where the CLI can call the owning package manager directly (`pipx`, `uv tool`,
+Homebrew, and pip installs). Unknown, source, or system-package installs print
+manual guidance and do not mutate the environment.
+
+Upgrade readiness never prompts, mutates the upgrade cache, or invokes an
+auto-upgrade subprocess during JSON, quiet, help, version, CI, non-TTY, or
+`SPEC_KITTY_NO_NAG=1` invocations. These outputs remain safe for wrappers that
+parse stdout.
+
+Operator overrides:
+
+```bash
+SPEC_KITTY_UPGRADE_DISABLED=1 spec-kitty status
+SPEC_KITTY_UPGRADE_AUTO=1 spec-kitty status
+SPEC_KITTY_UPGRADE_NEVER_ASK=1 spec-kitty status
+SPEC_KITTY_NAG_THROTTLE_SECONDS=86400 spec-kitty status
+```
+
+See [Environment Variables Reference](../reference/environment-variables.md)
+for the exact active env keys.
+
 ## Operator playbook for the launch flip
 
 This is the high-level launch coordinator checklist, not a
