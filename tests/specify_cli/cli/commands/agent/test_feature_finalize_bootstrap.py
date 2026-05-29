@@ -33,6 +33,21 @@ MODULE = "specify_cli.cli.commands.agent.mission"
 CORE_MODULE = "specify_cli.core.mission_creation"
 
 
+@pytest.fixture(autouse=True)
+def _disable_saas_sync_for_finalize_bootstrap_tests(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Keep these unit tests on the offline finalize-tasks path.
+
+    ``tests/conftest.py`` enables SaaS sync globally so sync/auth tests keep
+    exercising the hosted path. This module patches git, event emission, and
+    bootstrap collaborators in-process; it is not testing the SaaS boundary
+    preflight. Leaving the flag enabled lets a machine-local daemon owner
+    record short-circuit finalize-tasks before these assertions run.
+    """
+    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+
+
 def _setup_feature(tmp_path: Path, mission_slug: str = "060-test-feature") -> Path:
     """Create a minimal feature directory with spec.md, tasks.md, and WP files."""
     feature_dir = tmp_path / "kitty-specs" / mission_slug
@@ -596,7 +611,7 @@ class TestWP01Regressions:
 
         def _safe_commit_spy(**kwargs: object) -> bool:
             nonlocal captured_files
-            captured_files = list(kwargs["files_to_commit"])  # type: ignore[index]
+            captured_files = list(kwargs["paths"])  # type: ignore[index]
             return True
 
         def _write_snapshot(feature_path: Path, slug: str, repo_root: Path) -> None:
