@@ -38,6 +38,7 @@ See also: docs/how-to/install-and-upgrade.md
 
 from __future__ import annotations
 
+import inspect
 import json
 import subprocess
 import sys
@@ -197,32 +198,12 @@ def _auto_commit_upgrade_changes(
         destination_ref = "main"
 
     try:
-        try:
-            commit_success = safe_commit(
-                repo_root=project_path,
-                worktree_root=project_path,
-                destination_ref=destination_ref,
-                message=commit_message,
-                paths=tuple(files_to_commit),
-            )
-        except TypeError as exc:
-            if "unexpected keyword" not in str(exc):
-                raise
-            try:
-                commit_success = safe_commit(  # type: ignore[misc]
-                    project_path,
-                    files_to_commit,
-                    commit_message,
-                    False,
-                )
-            except TypeError:
-                legacy_kwargs = {
-                    "repo_path": project_path,
-                    "files_to_commit": files_to_commit,
-                    "commit_message": commit_message,
-                    "allow_empty": False,
-                }
-                commit_success = safe_commit(**legacy_kwargs)  # type: ignore[arg-type]
+        commit_success = _call_safe_commit_for_upgrade(
+            project_path=project_path,
+            destination_ref=destination_ref,
+            commit_message=commit_message,
+            files_to_commit=tuple(files_to_commit),
+        )
     except Exception:
         commit_success = False
 
@@ -233,6 +214,58 @@ def _auto_commit_upgrade_changes(
         False,
         committed_paths,
         "Could not auto-commit upgrade changes; please review and commit manually.",
+    )
+
+
+def _call_safe_commit_for_upgrade(
+    *,
+    project_path: Path,
+    destination_ref: str,
+    commit_message: str,
+    files_to_commit: tuple[Path, ...],
+) -> bool:
+    """Call ``safe_commit`` using the best available supported signature.
+
+    Production code uses the current keyword-only signature. Tests may still
+    monkeypatch ``safe_commit`` with historical helper shapes, so this helper
+    keeps upgrade auto-commit behavior stable without reintroducing invalid
+    production call sites.
+    """
+    parameters = inspect.signature(safe_commit).parameters
+    parameter_names = tuple(parameters)
+    accepts_var_kwargs = any(
+        parameter.kind is inspect.Parameter.VAR_KEYWORD
+        for parameter in parameters.values()
+    )
+
+    if accepts_var_kwargs or {
+        "repo_root",
+        "worktree_root",
+        "destination_ref",
+        "message",
+        "paths",
+    } <= set(parameter_names):
+        return safe_commit(
+            repo_root=project_path,
+            worktree_root=project_path,
+            destination_ref=destination_ref,
+            message=commit_message,
+            paths=files_to_commit,
+        )
+
+    if {"repo_path", "files_to_commit", "commit_message"} <= set(parameter_names):
+        return safe_commit(
+            repo_path=project_path,
+            files_to_commit=list(files_to_commit),
+            commit_message=commit_message,
+            allow_empty=False,
+        )
+
+    return safe_commit(
+        project_path,
+        list(files_to_commit),
+        commit_message,
+        False,
     )
 
 

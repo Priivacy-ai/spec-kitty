@@ -166,14 +166,13 @@ def _transaction_path_for(
 ) -> Path:
     """Map a canonical-repo path to the same relative path in a worktree."""
     source_path = source_path.resolve()
-    with contextlib.suppress(ValueError):
-        return worktree_root / source_path.relative_to(repo_root)
-
-    parts = source_path.parts
-    if "kitty-specs" in parts:
-        idx = parts.index("kitty-specs")
-        return worktree_root.joinpath(*parts[idx:])
-    return source_path
+    try:
+        relative_path = source_path.relative_to(repo_root.resolve())
+    except ValueError as exc:
+        raise ValueError(
+            f"Refusing to mirror path outside repo/worktree scope: {source_path}"
+        ) from exc
+    return worktree_root / relative_path
 
 
 def _load_coord_branch_meta(feature_dir: Path) -> tuple[str | None, str | None, str | None]:
