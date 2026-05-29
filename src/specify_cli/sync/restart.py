@@ -50,6 +50,8 @@ RestartStatus = Literal[
     "stale_owner_cleaned",
 ]
 
+_RESTART_STOP_TIMEOUT_SECONDS = 1.0
+
 
 @dataclass(frozen=True)
 class RestartResult:
@@ -157,7 +159,7 @@ def restart_daemon(repo_root: Path) -> RestartResult:  # noqa: ARG001 — reserv
     # "no metadata to stop" or "stop failed" boundary; we map it to
     # ``stop_failed`` and surface the message verbatim.
     try:
-        stopped, stop_message = stop_sync_daemon()
+        stopped, stop_message = stop_sync_daemon(timeout=_RESTART_STOP_TIMEOUT_SECONDS)
     except Exception as exc:  # noqa: BLE001 — surface as stop_failed per contract
         return RestartResult(
             status="stop_failed",

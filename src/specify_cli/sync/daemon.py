@@ -34,6 +34,7 @@ import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from enum import Enum
+from functools import cache
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional, Tuple
@@ -116,10 +117,16 @@ DAEMON_PORT_MAX_ATTEMPTS = 50
 # compares this against the running daemon and restarts it on mismatch.
 DAEMON_PROTOCOL_VERSION = 1
 
+# Keep shutdown latency tight for restart-daemon NFR-002. The default
+# ``serve_forever`` poll interval is 0.5s, which is user-visible on restart.
+DAEMON_SERVE_FOREVER_POLL_SECONDS: float = 0.05
+
 # Self-retirement tick interval (seconds).  Each running daemon re-checks
 # DAEMON_STATE_FILE this often; if the recorded port is held by a different
 # live process, the daemon retires itself.  See FR-008 / FR-010.
 DAEMON_TICK_SECONDS: int = 30
+
+_RUNTIME_BACKGROUND_START_DELAY_SECONDS: float = 1.0
 
 
 def _is_daemon_lock_contention(exc: OSError) -> bool:
@@ -138,6 +145,7 @@ def _is_daemon_lock_contention(exc: OSError) -> bool:
     return exc.errno in {errno.EACCES, errno.EAGAIN}
 
 
+@cache
 def _get_package_version() -> str:
     """Return the installed specify_cli version string."""
     try:
@@ -385,10 +393,19 @@ class SyncDaemonHandler(BaseHTTPRequestHandler):
 
     def handle_health(self) -> None:
         from specify_cli.sync.owner import read_owner_record, redact_token
-        from specify_cli.sync.runtime import get_runtime
 
-        runtime = get_runtime()
-        sync = runtime.background_service
+        sync: Any | None = None
+        websocket_status = "Offline"
+        try:
+            from specify_cli.sync import runtime as runtime_module
+
+            runtime = getattr(runtime_module, "_runtime", None)
+            if runtime is not None:
+                sync = runtime.background_service
+                websocket_status = runtime.get_websocket_status()
+        except Exception:
+            logger.debug("Could not read sync runtime for health payload", exc_info=True)
+
         payload: dict[str, Any] = {
             "status": "ok",
             "token": getattr(self, "daemon_token", None),
@@ -399,7 +416,7 @@ class SyncDaemonHandler(BaseHTTPRequestHandler):
                 "last_sync": sync.last_sync.isoformat() if sync and sync.last_sync else None,
                 "consecutive_failures": sync.consecutive_failures if sync else 0,
             },
-            "websocket_status": runtime.get_websocket_status(),
+            "websocket_status": websocket_status,
         }
         # Surface the redacted owner record (FR-006). The redactor returns
         # ``None`` when no record exists; we drop the key in that case so
@@ -450,7 +467,7 @@ class SyncDaemonHandler(BaseHTTPRequestHandler):
         self._send_json(200, {"status": "stopping"})
 
         def shutdown_server(server: HTTPServer) -> None:
-            time.sleep(0.05)
+            time.sleep(0.01)
             server.shutdown()
 
         threading.Thread(target=shutdown_server, args=(self.server,), daemon=True).start()
@@ -580,9 +597,7 @@ def run_sync_daemon(port: int, daemon_token: str | None) -> None:
         remove_owner_record,
         write_owner_record,
     )
-    from specify_cli.sync.runtime import get_runtime
 
-    get_runtime()
     handler_class = type(
         "SyncDaemonRouter",
         (SyncDaemonHandler,),
@@ -602,6 +617,21 @@ def run_sync_daemon(port: int, daemon_token: str | None) -> None:
         write_owner_record(record)
     except OSError as exc:  # pragma: no cover - filesystem catastrophe
         logger.warning("Failed to write daemon owner record: %s", exc)
+
+    def _start_runtime_in_background() -> None:
+        try:
+            time.sleep(_RUNTIME_BACKGROUND_START_DELAY_SECONDS)
+            from specify_cli.sync.runtime import get_runtime
+
+            get_runtime()
+        except Exception:  # noqa: BLE001 — health endpoint stays available
+            logger.exception("Failed to start sync runtime")
+
+    threading.Thread(
+        target=_start_runtime_in_background,
+        name="spec-kitty-sync-runtime-start",
+        daemon=True,
+    ).start()
 
     def _cleanup_owner_record() -> None:
         try:
@@ -644,7 +674,7 @@ def run_sync_daemon(port: int, daemon_token: str | None) -> None:
 
     tick = _start_self_check_tick(server, my_port=port)
     try:
-        server.serve_forever()
+        server.serve_forever(poll_interval=DAEMON_SERVE_FOREVER_POLL_SECONDS)
     finally:
         tick.cancel()
         _cleanup_owner_record()

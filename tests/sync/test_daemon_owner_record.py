@@ -51,7 +51,7 @@ def _scoped_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return tmp_path
 
 
-def _build_record(**overrides: Any):
+def _build_record(**overrides: Any) -> Any:
     from specify_cli.sync.owner import DaemonOwnerRecord
 
     defaults: dict[str, Any] = {
@@ -185,7 +185,7 @@ def test_health_endpoint_excludes_token(_scoped_home: Path) -> None:
 
     # Build a barebones handler instance that bypasses the network stack.
     handler = daemon_mod.SyncDaemonHandler.__new__(daemon_mod.SyncDaemonHandler)
-    handler.daemon_token = "handler-token"  # type: ignore[attr-defined]
+    handler.daemon_token = "handler-token"
     captured: dict[str, Any] = {}
 
     def fake_send_json(status_code: int, payload: dict[str, Any]) -> None:
@@ -201,12 +201,12 @@ def test_health_endpoint_excludes_token(_scoped_home: Path) -> None:
     fake_runtime.get_websocket_status.return_value = "Offline"
     import specify_cli.sync.runtime as runtime_mod
 
-    original_get_runtime = runtime_mod.get_runtime
-    runtime_mod.get_runtime = lambda: fake_runtime  # type: ignore[assignment]
+    original_runtime: Any = runtime_mod._runtime
+    runtime_mod._runtime = fake_runtime
     try:
         handler.handle_health()
     finally:
-        runtime_mod.get_runtime = original_get_runtime  # type: ignore[assignment]
+        runtime_mod._runtime = original_runtime
 
     assert captured["status"] == 200
     payload = captured["payload"]
@@ -216,6 +216,43 @@ def test_health_endpoint_excludes_token(_scoped_home: Path) -> None:
     rendered = json.dumps(payload["owner"])
     assert "leaked-secret-token" not in rendered
     assert payload["owner"]["token"] != "leaked-secret-token"
+
+
+def test_health_endpoint_does_not_start_runtime(_scoped_home: Path) -> None:
+    """Health must stay lightweight so daemon startup can report readiness fast."""
+
+    from specify_cli.sync import daemon as daemon_mod
+
+    handler = daemon_mod.SyncDaemonHandler.__new__(daemon_mod.SyncDaemonHandler)
+    handler.daemon_token = "handler-token"
+    captured: dict[str, Any] = {}
+
+    def fake_send_json(status_code: int, payload: dict[str, Any]) -> None:
+        captured["status"] = status_code
+        captured["payload"] = payload
+
+    handler._send_json = fake_send_json  # type: ignore[method-assign]
+
+    import specify_cli.sync.runtime as runtime_mod
+
+    original_runtime: Any = runtime_mod._runtime
+    original_get_runtime = runtime_mod.get_runtime
+    runtime_mod._runtime = None
+
+    def fail_get_runtime() -> object:
+        raise AssertionError("health endpoint must not start runtime")
+
+    runtime_mod.get_runtime = fail_get_runtime
+    try:
+        handler.handle_health()
+    finally:
+        runtime_mod.get_runtime = original_get_runtime
+        runtime_mod._runtime = original_runtime
+
+    assert captured["status"] == 200
+    payload = captured["payload"]
+    assert payload["sync"]["running"] is False
+    assert payload["websocket_status"] == "Offline"
 
 
 # ---------------------------------------------------------------------------

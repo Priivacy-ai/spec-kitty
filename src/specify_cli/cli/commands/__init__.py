@@ -19,12 +19,32 @@ def _is_next_fast_path(argv: list[str]) -> bool:
     return False
 
 
+def _is_doctor_restart_daemon_fast_path(argv: list[str]) -> bool:
+    """Return True for direct ``doctor restart-daemon`` invocations."""
+    if any(arg in {"--help", "-h"} for arg in argv[1:]):
+        return False
+    command_parts: list[str] = []
+    for arg in argv[1:]:
+        if arg.startswith("-"):
+            continue
+        command_parts.append(arg)
+        if len(command_parts) == 2:
+            return command_parts == ["doctor", "restart-daemon"]
+    return False
+
+
 def register_commands(app: typer.Typer) -> None:
     """Attach all extracted commands to the root Typer application."""
     if _is_next_fast_path(sys.argv):
         from . import next_cmd as next_cmd_module
 
         app.command(name="next")(next_cmd_module.next_step)
+        return
+
+    if _is_doctor_restart_daemon_fast_path(sys.argv):
+        from . import doctor as doctor_module
+
+        app.add_typer(doctor_module.app, name="doctor", help="Project health diagnostics")
         return
 
     from . import accept as accept_module

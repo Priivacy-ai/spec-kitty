@@ -25,6 +25,7 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands import doctor as doctor_module
+from specify_cli.cli.commands import _is_doctor_restart_daemon_fast_path
 from specify_cli.sync.daemon import DaemonIntent, DaemonStartOutcome
 
 pytestmark = pytest.mark.fast
@@ -79,12 +80,12 @@ def _install_stop_fake(
     monkeypatch: pytest.MonkeyPatch,
     *,
     result: tuple[bool, str] | Exception,
-) -> list[int]:
+) -> list[float]:
     """Install a fake ``stop_sync_daemon`` and return a call-counter list."""
-    calls: list[int] = []
+    calls: list[float] = []
 
     def _fake_stop(timeout: float = 5.0) -> tuple[bool, str]:
-        calls.append(1)
+        calls.append(timeout)
         if isinstance(result, Exception):
             raise result
         return result
@@ -125,6 +126,17 @@ def _runner() -> CliRunner:
     return CliRunner()
 
 
+def test_restart_daemon_uses_cli_registration_fast_path() -> None:
+    """Direct restart-daemon invocation should avoid registering unrelated commands."""
+    assert _is_doctor_restart_daemon_fast_path(
+        ["spec-kitty", "doctor", "restart-daemon", "--json"]
+    )
+    assert not _is_doctor_restart_daemon_fast_path(
+        ["spec-kitty", "doctor", "restart-daemon", "--help"]
+    )
+    assert not _is_doctor_restart_daemon_fast_path(["spec-kitty", "doctor", "identity"])
+
+
 # ---------------------------------------------------------------------------
 # Exit-code matrix
 # ---------------------------------------------------------------------------
@@ -146,7 +158,7 @@ def test_happy_path_exits_zero_and_reports_new_pid(
     result = _runner().invoke(doctor_module.app, ["restart-daemon", "--json"])
 
     assert result.exit_code == 0
-    assert stop_calls == [1], "stop primitive must be called exactly once"
+    assert stop_calls == [1.0], "stop primitive must be called exactly once"
     assert len(launch_calls) == 1, "launch primitive must be called exactly once"
 
     payload = json.loads(result.stdout.strip())
@@ -200,7 +212,7 @@ def test_stop_failure_exits_three_and_skips_launch(
     result = _runner().invoke(doctor_module.app, ["restart-daemon", "--json"])
 
     assert result.exit_code == 3
-    assert stop_calls == [1]
+    assert stop_calls == [1.0]
     assert launch_calls == [], "launch must not run after a stop failure"
 
     payload = json.loads(result.stdout.strip())

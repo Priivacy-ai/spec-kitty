@@ -56,7 +56,7 @@
 | FR-008 | All 4 `_REMEDIATION_HINTS` + line-218 comment updated; every referenced command resolves | WP03 | `tests/specify_cli/sync/test_preflight_remediation_hints.py` (4 tests) | ADEQUATE | — |
 | FR-009 | Each fix ships a regression test that fails on rc13 and passes after | WP01/02/03 | three test files above | ADEQUATE | — |
 | NFR-001 | Audit perf ≤ 2× rc13 baseline on 100-mission tree | WP01 | `T022-perf.txt` (PR evidence) | ADEQUATE | 1.053× actual; well under gate. |
-| NFR-002 | `doctor restart-daemon` ≤ 10s end-to-end | WP03 | Manual smoke (documented in WP03 report) | PARTIAL | No automated timing assertion. Documented as PR-description evidence per WP03 prompt. |
+| NFR-002 | `doctor restart-daemon` ≤ 10s end-to-end | WP03 + follow-up #1153 | `tests/specify_cli/cli/commands/test_doctor_restart_daemon_timing.py` + dedicated CI job `restart-daemon-nfr-timing` | ADEQUATE once #1153 lands | Follow-up automation adds: real daemon start, CLI restart, post-restart health check, Linux/macOS CI gate. |
 | NFR-003 | Canary scenarios 1, 2, 4 GREEN on rc bump | WP04 | `canary-evidence/canary-run.txt` + `latest.json` / `run-1.json` | MISSING | **NOT MET in this environment** — scenarios fail for reasons documented in Gate 3 (none attributable to WP01/02/03 logic). |
 | NFR-004 | No regression in existing test suites | WP04 | `canary-evidence/full-pytest.txt` | ADEQUATE | 17,656 passed / 279 pre-existing failures; 3/3 sampled failures verified pre-existing on `ded236ee`. |
 | C-001 | This mission delivers only into spec-kitty repo | All WPs | git diff confirms 0 changes to sibling | ADEQUATE | — |
@@ -90,14 +90,14 @@ The drift is documentation: **the spec's NFR-003 wording assumed the canary woul
 
 **Resolution path** (post-merge): either (a) re-spec NFR-003 with the narrowed acceptance criterion (scenarios where the failure is in this mission's code surface), or (b) ship `#1141`'s remediation and re-run the canary cleanly. Recommended: (a) for this mission's release, (b) as separate follow-up work.
 
-### DRIFT-2: NFR-002 (≤ 10s daemon restart) has no automated timing assertion
+### DRIFT-2: NFR-002 (≤ 10s daemon restart) had no automated timing assertion — follow-up #1153
 
 **Type**: PUNTED-FR (specifically PUNTED-NFR)
 **Severity**: LOW
 **Spec reference**: NFR-002.
-**Evidence**: `tests/specify_cli/cli/commands/test_doctor_restart_daemon.py` exercises happy-path, no-owner, stop-fail, respawn-fail, foreground-binding scenarios via monkeypatched primitives — none with timing.
-**Analysis**: WP03 prompt explicitly said T016 manual smoke is documentation-only. NFR-002 is therefore enforced by reviewer attestation in the PR description rather than CI. Acceptable for a developer-facing CLI command, but no automated guard against future regression.
-**Recommended resolution**: open a follow-up issue to add a coarse CI timing test (`subprocess.run` with `timeout=15s` and `time.perf_counter()` assertion `< 10s`). Non-blocking.
+**Original evidence**: `tests/specify_cli/cli/commands/test_doctor_restart_daemon.py` exercised happy-path, no-owner, stop-fail, respawn-fail, foreground-binding scenarios via monkeypatched primitives — none with timing.
+**Resolution path**: follow-up #1153 adds `tests/specify_cli/cli/commands/test_doctor_restart_daemon_timing.py`, which creates a daemon under a temp `HOME`, invokes `python -m specify_cli doctor restart-daemon --json` with a 15s subprocess timeout, asserts elapsed time is under the 10s NFR-002 threshold, and verifies the new daemon is healthy after the command returns.
+**CI gate**: `.github/workflows/ci-quality.yml` now runs `restart-daemon-nfr-timing` on Linux and macOS for nightly/manual runs and CLI-surface changes. The job is included in `quality-gate`, so a timing regression blocks the workflow.
 
 ---
 
@@ -202,7 +202,7 @@ The mission honestly cannot satisfy NFR-003 as literally worded without resolvin
 2. **Resolve `Priivacy-ai/spec-kitty#1141`** — scenario 4 lifecycle rollback emission contract. Pre-existing bug surfaced by this mission; not introduced.
 3. **Resolve sibling-repo `Priivacy-ai/spec-kitty-end-to-end-testing#43`** — scenario 3 contract drift (mismatch field name shortening). Already declared out-of-scope by C-002.
 4. **Pre-existing failures `#1134` and `#1135`** (audit literal docstring; doctor healthy environmental) — opened during the mission per charter; should be triaged in their own time.
-5. **Add an automated timing test for NFR-002** (`doctor restart-daemon` ≤ 10s) — currently manual-only.
+5. **NFR-002 automation** (`doctor restart-daemon` ≤ 10s) — follow-up #1153 adds a real-daemon timing test and Linux/macOS CI gate.
 6. **Reconcile local `main` with `origin/main`** (43 ahead / 6 behind) — out of mission scope but blocks the actual landing of `kitty/pr/<slug>-to-main`. Operator decision per the merge-strategy question already raised.
 7. **Charter update applied during this mission**: scoped test runs (added 2026-05-19; commit `23a57832`) — already in effect; no follow-up needed.
 
