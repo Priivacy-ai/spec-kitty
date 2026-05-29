@@ -18,6 +18,7 @@ from specify_cli.task_utils import TaskCliError
 
 from specify_cli.cli.commands.charter._app import charter_app, console
 from specify_cli.cli.commands.charter._common import (
+    _emit_error,
     _interview_path,
     _parse_csv_option,
     _resolve_actor,
@@ -349,8 +350,8 @@ def interview(  # noqa: C901
         console.print(f"Profile: {interview_data.profile}")
 
     except (TaskCliError, ValueError) as e:
-        console.print(f"[red]Error:[/red] {e}")
+        _emit_error(console, json_output=json_output, message=str(e))
         raise typer.Exit(code=1) from e
     except Exception as e:
-        console.print(f"[red]Unexpected error:[/red] {e}")
+        _emit_error(console, json_output=json_output, message=str(e), unexpected=True)
         raise typer.Exit(code=1) from e

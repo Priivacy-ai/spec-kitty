@@ -8,6 +8,7 @@ import typer
 from specify_cli.task_utils import TaskCliError
 
 from specify_cli.cli.commands.charter._app import charter_app, console
+from specify_cli.cli.commands.charter._common import _emit_error
 
 # Test-patch shim — see ``synthesize.py``.
 import specify_cli.cli.commands.charter as _charter_pkg
@@ -96,7 +97,7 @@ def charter_lint(
     try:
         repo_root = _charter_pkg.find_repo_root()
     except TaskCliError as e:
-        console.print(f"[red]Error:[/red] {e}")
+        _emit_error(console, json_output=output_json, message=str(e))
         raise typer.Exit(code=1) from e
 
     # Resolve canonical --mission, accepting hidden --feature as a deprecated alias.
@@ -139,12 +140,14 @@ def charter_lint(
         from charter.drg import OrgDRGConflictError, OrgPackMissingError
 
         if isinstance(exc, (OrgPackMissingError, OrgDRGConflictError)):
-            console.print(f"[red]Charter Lint:[/red] org-layer load failed: {exc}")
+            message = f"Charter Lint: org-layer load failed: {exc}"
+            _emit_error(console, json_output=output_json, message=message)
             raise typer.Exit(code=1) from exc
         # Unknown failure shape — log and continue without org layer.
-        console.print(
-            f"[yellow]warning:[/yellow] org-layer skipped (load error): {exc}"
-        )
+        if not output_json:
+            console.print(
+                f"[yellow]warning:[/yellow] org-layer skipped (load error): {exc}"
+            )
 
     # When org packs are configured, exercise ``merge_three_layers``
     # against an empty built-in graph so any pack-level conflict (layer
@@ -179,6 +182,20 @@ def charter_lint(
             # re-format with the conflict kind named so operators see
             # which org pack(s) misbehaved.
             conflicts: list[OrgDRGConflict] = list(exc.conflicts)
+            if output_json:
+                details = "; ".join(
+                    f"kind={c.kind} target_id={c.target_id} layers={c.conflicting_layers}"
+                    for c in conflicts
+                )
+                _emit_error(
+                    console,
+                    json_output=True,
+                    message=(
+                        f"Charter Lint: {len(conflicts)} org-layer conflict(s) detected"
+                        + (f": {details}" if details else "")
+                    ),
+                )
+                raise typer.Exit(code=1) from exc
             console.print(
                 f"[red]Charter Lint:[/red] {len(conflicts)} org-layer "
                 f"conflict(s) detected"
