@@ -19,7 +19,7 @@ from specify_cli.cli.commands.merge import (
     _refresh_primary_checkout_after_merge,
 )
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 def test_classify_untracked_lines_returns_empty_offending() -> None:

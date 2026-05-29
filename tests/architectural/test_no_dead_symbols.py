@@ -308,7 +308,6 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
         "specify_cli.shims::SkillRegistry",
         "specify_cli.shims::generate_shims",
         "specify_cli.skills.manifest_store::SCHEMA_VERSION",
-        "specify_cli.skills.manifest_store::SkillsManifest",
         "specify_cli.skills.manifest_store::fingerprint",
         "specify_cli.skills.manifest_store::fingerprint_file",
         "specify_cli.skills.manifest_store::load",

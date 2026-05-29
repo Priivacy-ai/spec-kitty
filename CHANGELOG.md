@@ -9,54 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- **BREAKING (internal)**: `safe_commit()` in
-  `specify_cli.git.commit_helpers` now requires three keyword-only parameters:
-  `worktree_root: Path`, `destination_ref: str` (short branch name, never
-  `refs/heads/...`), and `paths: tuple[Path, ...]`. The legacy positional
-  signature is gone; every internal caller must be migrated to pass an
-  explicit destination ref. `mypy --strict` flags any caller missing
-  `destination_ref` at static-check time. WP02 (mission
-  `mission-coordination-branch-atomic-event-log`) migrates the existing call
-  sites.
-- **BREAKING (CLI)**: `spec-kitty safe-commit` gains a required
-  `--to-branch <ref>` flag. During the rollout window, a deprecation env var
-  `SPEC_KITTY_INFER_DESTINATION_REF=1` lets the CLI layer resolve the branch
-  context explicitly and pass it to the helper as an explicit
-  `destination_ref` — the helper itself never infers. The env var is removed
-  in the next minor release after this lands. (CLI wiring delivered by WP02
-  in `src/specify_cli/cli/commands/safe_commit_cmd.py`; the deprecation
-  warning lands on stderr so `--json` consumers parsing stdout are
-  unaffected.)
-- `safe_commit()` now structurally enforces that the worktree HEAD matches
-  the declared `destination_ref` before any staging or commit. A mismatch
-  raises `SafeCommitHeadMismatch` with stable error code
-  `SAFE_COMMIT_HEAD_MISMATCH` and structured fields (`destination_ref`,
-  `observed_head`, `worktree_root`) so CI and scripted tooling can react.
-
-### Removed
-
-- The spec-kitty-internal entries in
-  `_PROTECTED_BRANCH_COMMIT_EXCEPTIONS` (planning-artifact commit message
-  prefixes such as `"chore: planning artifacts for "` and merged-WP
-  done-record suffixes) have been removed. They were the silent bypass that
-  let the runtime land state on `main` while symmetric WP-transition writes
-  were loudly refused — the asymmetric leak at the heart of #1348. The
-  remaining documented exceptions
-  (`"chore: apply spec-kitty upgrade changes"`, `"chore: release "`,
-  `"release: "`) are kept for non-spec-kitty release workflows and are
-  documented in the module docstring. Any new exception requires a
-  doctrine-level decision (DIRECTIVE_003).
-
-### Fixed
-
-- Closes the structural-cause portion of
-  [#1348](https://github.com/Priivacy-ai/spec-kitty/issues/1348):
-  `agent action implement` can no longer silently land "planning artifacts"
-  on a protected branch via the helper. The remaining behavioral fixes
-  (per-mission coordination worktree, `BookkeepingTransaction`,
-  `WorkflowMutationPolicy`) ship in WPs 02-09.
+No notable changes yet.
 
 ## [Unreleased - 3.2.0]
 
@@ -73,18 +26,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [#534](https://github.com/Priivacy-ai/spec-kitty/issues/534) outside the
   3.2.0 readiness tranche.
 
-## [3.2.0rc29] - 2026-05-28
+## [3.2.0rc29] - 2026-05-29
 
 3.2.0rc29 rerolls the coordination branch atomic event-log candidate after
-PR review.
+PR review and publishes the launch-readiness hardening merged after the yanked
+3.2.0rc28 candidate.
+
+### Added
+
+- Added mission coordination branches, sparse coordination worktrees,
+  `BookkeepingTransaction`, and `WorkflowMutationPolicy` so mission status
+  mutations are staged, audited, and committed away from protected target
+  branches.
+- Added regression, integration, stress, and architectural coverage for
+  coordination worktree creation, safe-commit branch assertions, legacy mission
+  fallback, workflow rollback, post-merge indexing, and concurrent status
+  emission.
+- Added `mission close --discard` and doctor diagnostics for coordination
+  workspace health, restart-daemon timing, command/skill manifest drift, and
+  upgrade remediation provenance.
+- Added external-orchestrator install and compatibility documentation, including
+  PyPI installation paths, orchestrator API JSON-error guidance, host-surface
+  governance docs, and environment-variable references.
+
+### Changed
+
+- **BREAKING (CLI)**: `spec-kitty safe-commit` now requires
+  `--to-branch <ref>`. The temporary `SPEC_KITTY_INFER_DESTINATION_REF=1`
+  compatibility path lets the CLI resolve and pass the destination explicitly
+  during rollout; the helper itself never infers it.
+- **BREAKING (internal)**: `safe_commit()` now requires keyword-only
+  `worktree_root`, `destination_ref`, and `paths`, and structurally verifies
+  that the worktree HEAD matches the declared destination before staging.
+- Removed Spec Kitty internal protected-branch commit exceptions for planning
+  artifacts and merged-WP done records. Remaining exceptions are limited to
+  documented non-Spec-Kitty upgrade/release workflows.
+- Hardened release CI ownership by deduplicating release-readiness checks,
+  adding installed-entrypoint smoke coverage, and preserving clean-install
+  latency evidence.
 
 ### Fixed
 
 - Migrated remaining production `safe_commit()` call sites to the
   destination-ref-aware API so agent task, mission, merge, upgrade, and
   orchestrator paths no longer crash on the removed legacy signature.
+- Fixed protected-branch leakage from `agent action implement` by routing
+  planning artifacts and workflow status writes through coordination-owned
+  commit paths instead of target-branch bypasses.
 - Serialized first-time coordination worktree creation under the feature
   status lock to prevent concurrent emitters from racing on `git worktree add`.
+- Fixed idempotent squash-merge retry behavior, finalize-tasks dependency
+  source precedence, safe-commit recovery reporting, workflow path mirroring,
+  configured command execution on Windows, charter JSON error envelopes, and
+  command/skill manifest repair drift.
+- Restored upgrade-readiness preference preservation and compatibility hints,
+  including uv-tool pytest remediation provenance fallbacks.
 - Restored compatibility for older unit-test fakes that do not expose the new
   coordination branch or commit-result fields.
 
