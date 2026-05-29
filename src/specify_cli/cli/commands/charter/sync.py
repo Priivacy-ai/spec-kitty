@@ -32,6 +32,9 @@ def sync(
         result = sync_charter(charter_path, output_dir, force=force)
 
         if json_output:
+            if result.error:
+                _emit_error(console, json_output=True, message=str(result.error))
+                raise typer.Exit(code=1)
             data = {
                 "result": "success" if result.synced else "noop",
                 "success": result.synced,
@@ -56,6 +59,8 @@ def sync(
         else:
             console.print("[blue]Charter already in sync[/blue] (use --force to re-extract)")
 
+    except typer.Exit:
+        raise
     except TaskCliError as e:
         _emit_error(console, json_output=json_output, message=str(e))
         raise typer.Exit(code=1) from e

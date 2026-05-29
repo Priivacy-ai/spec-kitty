@@ -104,8 +104,10 @@ def charter_resynthesize(  # noqa: C901
             skip_code_evidence=skip_code_evidence,
             skip_corpus=skip_corpus,
         )
-        for warning in evidence_result.warnings:
-            console.print(f"[yellow]⚠ {warning}[/yellow]")
+        warnings_collected = [str(warning) for warning in evidence_result.warnings]
+        if not json_output:
+            for warning in warnings_collected:
+                console.print(f"[yellow]⚠ {warning}[/yellow]")
 
         request, syn_adapter = _charter_pkg._build_synthesis_request(repo_root, adapter, evidence=evidence_result.bundle)
 
@@ -115,6 +117,7 @@ def charter_resynthesize(  # noqa: C901
                 print(json.dumps({
                     "result": "success",
                     "topics": topics,
+                    "warnings": warnings_collected,
                 }, indent=2))
                 return
 
@@ -157,6 +160,7 @@ def charter_resynthesize(  # noqa: C901
                     "diagnostic": result.diagnostic,
                     "matched_form": result.resolved_topic.matched_form,
                     "targets_count": 0,
+                    "warnings": warnings_collected,
                 }, indent=2))
                 return
             console.print(f"[yellow]No-op:[/yellow] {result.diagnostic}")
@@ -176,6 +180,7 @@ def charter_resynthesize(  # noqa: C901
                 "regenerated": regenerated,
                 "run_id": result.manifest.run_id,
                 "manifest_artifacts": len(result.manifest.artifacts),
+                "warnings": warnings_collected,
             }, indent=2))
             return
 
