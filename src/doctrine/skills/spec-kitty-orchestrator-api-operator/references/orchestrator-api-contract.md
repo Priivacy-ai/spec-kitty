@@ -386,7 +386,17 @@ spec-kitty orchestrator-api merge-mission \
 | `CONTRACT_VERSION_MISMATCH` | contract-version | Provider version too old |
 | `MISSION_NOT_FOUND` | mission-state, list-ready | Unknown mission slug |
 | `MISSION_NOT_READY` | accept-mission | Not all WPs are approved or done |
+| `WORKFLOW_EVIDENCE_REQUIRED` | accept-mission | Workflow files changed without runner proof |
 | `POLICY_METADATA_REQUIRED` | start-implementation, start-review, transition | Missing or incomplete policy JSON |
+| `HISTORY_COMMIT_FAILED` | append-history | Branch lookup or commit setup failed |
+| `SAFE_COMMIT_BACKSTOP` | append-history | Safe commit refused unexpected staged paths |
+| `SAFE_COMMIT_DESTINATION_NOT_FOUND` | append-history | Safe commit destination branch does not exist |
+| `SAFE_COMMIT_DESTINATION_REF_SHAPE` | append-history | Safe commit destination ref is not short-form |
+| `SAFE_COMMIT_EMPTY_CHANGESET` | append-history | Safe commit was called without requested paths |
+| `SAFE_COMMIT_GENERIC` | append-history | Generic safe commit failure |
+| `SAFE_COMMIT_HEAD_MISMATCH` | append-history | Worktree HEAD differs from destination branch |
+| `SAFE_COMMIT_NOT_A_WORKTREE` | append-history | Safe commit target is not a git worktree |
+| `SAFE_COMMIT_PROTECTED_BRANCH` | append-history | Safe commit refused a protected branch |
 | `TRANSITION_REJECTED` | start-implementation, start-review, transition | Guard failure or invalid transition |
 | `WP_ALREADY_CLAIMED` | start-implementation, start-review | Another actor owns the WP |
 

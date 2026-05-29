@@ -12,6 +12,11 @@ from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
 
+from specify_cli.git.commit_helpers import (
+    ProtectedBranchRefused,
+    SafeCommitBackstopError,
+    UnexpectedStagedPath,
+)
 from specify_cli.orchestrator_api.commands import app
 from specify_cli.orchestrator_api.envelope import CONTRACT_VERSION
 from specify_cli.status.models import TransitionRequest
@@ -739,7 +744,11 @@ class TestAppendHistory:
                 return_value=repo_root,
             ),
             patch(
-                "specify_cli.git.commit_helpers.safe_commit",
+                "specify_cli.orchestrator_api.commands.subprocess.check_output",
+                return_value="feature/test\n",
+            ),
+            patch(
+                "specify_cli.orchestrator_api.commands.safe_commit",
                 return_value=True,
             ),
         ):
@@ -763,6 +772,131 @@ class TestAppendHistory:
         assert data["success"] is True
         assert data["data"]["history_entry_id"].startswith("hist-")
         assert data["data"]["wp_id"] == "WP01"
+
+    def test_safe_commit_failure_returns_json_envelope(self, tmp_path):
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        wp_path = mission_dir / "tasks" / "WP01.md"
+        original = wp_path.read_text(encoding="utf-8")
+        error = ProtectedBranchRefused(
+            destination_ref="main",
+            worktree_root=repo_root,
+            commit_message="hist: append activity log entry for 099-test-mission/WP01",
+        )
+
+        with (
+            patch(
+                "specify_cli.orchestrator_api.commands._get_main_repo_root",
+                return_value=repo_root,
+            ),
+            patch(
+                "specify_cli.orchestrator_api.commands.subprocess.check_output",
+                return_value="main\n",
+            ),
+            patch(
+                "specify_cli.orchestrator_api.commands.safe_commit",
+                side_effect=error,
+            ),
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "append-history",
+                    "--mission",
+                    "099-test-mission",
+                    "--wp",
+                    "WP01",
+                    "--actor",
+                    "claude",
+                    "--note",
+                    "Started implementation",
+                ],
+            )
+
+        assert result.exit_code == 1
+        data = json.loads(result.output)
+        assert data["success"] is False
+        assert data["error_code"] == "SAFE_COMMIT_PROTECTED_BRANCH"
+        assert data["data"]["destination_ref"] == "main"
+        assert "protected branch" in data["data"]["message"]
+        assert wp_path.read_text(encoding="utf-8") == original
+
+    def test_safe_commit_backstop_failure_preserves_error_code(self, tmp_path):
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        wp_path = mission_dir / "tasks" / "WP01.md"
+        original = wp_path.read_text(encoding="utf-8")
+        error = SafeCommitBackstopError(
+            unexpected=(UnexpectedStagedPath(path="unrelated.txt", status_code="A "),),
+            requested=("kitty-specs/099-test-mission/tasks/WP01.md",),
+        )
+
+        with (
+            patch(
+                "specify_cli.orchestrator_api.commands._get_main_repo_root",
+                return_value=repo_root,
+            ),
+            patch(
+                "specify_cli.orchestrator_api.commands.subprocess.check_output",
+                return_value="feature/test\n",
+            ),
+            patch(
+                "specify_cli.orchestrator_api.commands.safe_commit",
+                side_effect=error,
+            ),
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "append-history",
+                    "--mission",
+                    "099-test-mission",
+                    "--wp",
+                    "WP01",
+                    "--actor",
+                    "claude",
+                    "--note",
+                    "Started implementation",
+                ],
+            )
+
+        assert result.exit_code == 1
+        data = json.loads(result.output)
+        assert data["success"] is False
+        assert data["error_code"] == "SAFE_COMMIT_BACKSTOP"
+        assert data["data"]["requested"] == ["kitty-specs/099-test-mission/tasks/WP01.md"]
+        assert data["data"]["unexpected"] == [{"path": "unrelated.txt", "status_code": "A "}]
+        assert wp_path.read_text(encoding="utf-8") == original
+
+    def test_branch_lookup_failure_captures_git_stderr_in_json(self, tmp_path):
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        wp_path = mission_dir / "tasks" / "WP01.md"
+        original = wp_path.read_text(encoding="utf-8")
+
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "append-history",
+                    "--mission",
+                    "099-test-mission",
+                    "--wp",
+                    "WP01",
+                    "--actor",
+                    "claude",
+                    "--note",
+                    "Started implementation",
+                ],
+            )
+
+        assert result.exit_code == 1
+        assert result.stderr == ""
+        data = json.loads(result.output)
+        assert data["success"] is False
+        assert data["error_code"] == "HISTORY_COMMIT_FAILED"
+        assert "fatal: not a git repository" in data["data"]["message"]
+        assert wp_path.read_text(encoding="utf-8") == original
 
     def test_wp_not_found_error(self, tmp_path):
         repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
