@@ -4,8 +4,12 @@ from __future__ import annotations
 
 import enum as _enum
 import json
+import logging
 import os
 import sys
+import warnings
+from contextlib import contextmanager
+from dataclasses import dataclass, field
 from pathlib import Path
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Annotated
@@ -21,6 +25,8 @@ from specify_cli.runtime.home import get_kittify_home
 if TYPE_CHECKING:
     from specify_cli.audit import Severity
     from specify_cli.compat.doctor import ShimRegistryReport
+    from specify_cli.skills.command_installer import VerifyReport
+    from specify_cli.skills.manifest_store import SkillsManifest
 
 
 # CI env-vars that should force non-interactive behaviour even when stdin
@@ -56,6 +62,263 @@ if TYPE_CHECKING:
 
 app = typer.Typer(name="doctor", help="Project health diagnostics")
 console = Console()
+
+
+@contextmanager
+def _json_output_guard(enabled: bool):
+    """Keep ``--json`` stdout/stderr machine-clean."""
+    if not enabled:
+        yield
+        return
+
+    previous_disable = logging.root.manager.disable
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        logging.disable(logging.CRITICAL)
+        try:
+            yield
+        finally:
+            logging.disable(previous_disable)
+
+
+def _json_error(code: str, message: str) -> dict[str, object]:
+    return {
+        "ok": False,
+        "error": {
+            "code": code,
+            "message": message,
+        },
+    }
+
+
+def _vibe_skill_path_configured(project_path: Path) -> bool:
+    from specify_cli.skills.vibe_config import VIBE_SKILL_PATH
+
+    config_path = project_path / ".vibe" / "config.toml"
+    if not config_path.exists():
+        return False
+
+    try:
+        import tomllib  # noqa: PLC0415
+
+        raw = config_path.read_text(encoding="utf-8")
+        data = tomllib.loads(raw) if raw.strip() else {}
+    except Exception:
+        return False
+
+    skill_paths = data.get("skill_paths")
+    if isinstance(skill_paths, str):
+        return skill_paths == VIBE_SKILL_PATH
+    if isinstance(skill_paths, list):
+        return VIBE_SKILL_PATH in [str(path) for path in skill_paths]
+    return False
+
+
+def _load_command_skill_state(
+    project_path: Path,
+) -> tuple[SkillsManifest, VerifyReport, list[str], list[str], list[str], bool]:
+    """Load command-skill manifest state and configured command-skill agents."""
+    from specify_cli.core.agent_config import AgentConfigError, load_agent_config
+    from specify_cli.skills import command_installer, manifest_store
+
+    try:
+        config = load_agent_config(project_path)
+    except AgentConfigError:
+        raise
+
+    supported = set(command_installer.SUPPORTED_AGENTS)
+    configured_agents = sorted(set(config.available) & supported)
+    manifest = manifest_store.load(project_path)
+    report = command_installer.verify(project_path)
+    manifest_agents = sorted({agent for entry in manifest.entries for agent in entry.agents})
+    uninstalled_agents = [
+        agent for agent in configured_agents if agent not in set(manifest_agents)
+    ]
+    vibe_config_missing = "vibe" in configured_agents and not _vibe_skill_path_configured(
+        project_path
+    )
+    return (
+        manifest,
+        report,
+        configured_agents,
+        manifest_agents,
+        uninstalled_agents,
+        vibe_config_missing,
+    )
+
+
+def _repair_command_skill_state(
+    project_path: Path,
+    manifest_agents: list[str],
+    uninstalled_agents: list[str],
+    report: VerifyReport,
+    vibe_config_missing: bool,
+) -> tuple[list[str], list[str], list[str], bool]:
+    """Repair missing command-skill files unless edited-file drift is present."""
+    from specify_cli.skills import command_installer
+    from specify_cli.skills.vibe_config import ensure_project_skill_path
+
+    if not (report.gaps or report.stale or uninstalled_agents or vibe_config_missing):
+        return [], [], [], False
+    if report.drift:
+        return (
+            [],
+            [],
+            ["Refusing --fix while managed skill files have edited-file drift."],
+            False,
+        )
+    if report.unsafe:
+        return (
+            [],
+            [],
+            ["Refusing --fix while managed skill paths resolve outside the project."],
+            False,
+        )
+    if report.orphans:
+        return (
+            [],
+            [],
+            ["Refusing --fix while unmanaged spec-kitty skill files exist."],
+            False,
+        )
+
+    repaired: list[str] = []
+    pruned: list[str] = []
+    errors: list[str] = []
+    repaired_vibe_config = False
+    if report.stale:
+        try:
+            pruned = command_installer.prune_stale(project_path)
+        except Exception as exc:  # pragma: no cover - exercised by CLI smoke paths
+            errors.append(f"stale: {exc}")
+
+    if vibe_config_missing and "vibe" in set(manifest_agents) | set(uninstalled_agents):
+        try:
+            ensure_project_skill_path(project_path)
+            repaired_vibe_config = True
+        except Exception as exc:  # pragma: no cover - exercised by CLI smoke paths
+            errors.append(f"vibe-config: {exc}")
+
+    for agent in sorted(set(manifest_agents) | set(uninstalled_agents)):
+        try:
+            command_installer.install(project_path, agent)
+            if agent == "vibe":
+                ensure_project_skill_path(project_path)
+                repaired_vibe_config = True
+            repaired.append(agent)
+        except Exception as exc:  # pragma: no cover - exercised by CLI smoke paths
+            errors.append(f"{agent}: {exc}")
+    return repaired, pruned, errors, repaired_vibe_config
+
+
+def _command_skill_payload(
+    manifest: SkillsManifest,
+    report: VerifyReport,
+    configured_agents: list[str],
+    manifest_agents: list[str],
+    uninstalled_agents: list[str],
+    vibe_config_missing: bool,
+    repaired: list[str],
+    pruned: list[str],
+    repaired_vibe_config: bool,
+    repair_errors: list[str],
+) -> dict[str, object]:
+    """Build the JSON/human report payload for ``doctor skills``."""
+    from specify_cli.skills import command_installer
+
+    has_issues = bool(
+        report.drift
+        or report.gaps
+        or report.orphans
+        or report.stale
+        or report.unsafe
+        or uninstalled_agents
+        or vibe_config_missing
+        or repair_errors
+    )
+    return {
+        "configured_agents": configured_agents,
+        "manifest_agents": manifest_agents,
+        "entries": len(manifest.entries),
+        "canonical_commands": len(command_installer.CANONICAL_COMMANDS),
+        "drift": sorted(report.drift),
+        "gaps": sorted(report.gaps),
+        "orphans": sorted(report.orphans),
+        "stale": sorted(report.stale),
+        "unsafe": sorted(report.unsafe),
+        "uninstalled_agents": uninstalled_agents,
+        "vibe_config_missing": vibe_config_missing,
+        "repaired_agents": repaired,
+        "pruned": pruned,
+        "repaired_vibe_config": repaired_vibe_config,
+        "repair_errors": repair_errors,
+        "ok": not has_issues,
+    }
+
+
+def _print_command_skill_paths(title: str, paths: list[str]) -> None:
+    if not paths:
+        return
+    console.print(f"\n[bold yellow]{title}[/bold yellow]")
+    for path in paths:
+        console.print(f"  [yellow]![/yellow] {path}")
+
+
+def _print_command_skill_report(payload: dict[str, object], fix: bool) -> None:
+    """Render human output for ``doctor skills``."""
+    if payload["ok"]:
+        console.print(
+            "[green]Command Skills[/green]: all manifest entries healthy "
+            f"({payload['entries']} file(s))"
+        )
+        return
+
+    drift = list(payload["drift"])
+    gaps = list(payload["gaps"])
+    orphans = list(payload["orphans"])
+    stale = list(payload["stale"])
+    unsafe = list(payload["unsafe"])
+    uninstalled_agents = list(payload["uninstalled_agents"])
+    repaired = list(payload["repaired_agents"])
+    repair_errors = list(payload["repair_errors"])
+
+    console.print("\n[bold]Command Skills[/bold] - issue(s) found\n")
+    summary = Table(box=None, padding=(0, 2), show_edge=False)
+    summary.add_column("Check", style="cyan", min_width=20)
+    summary.add_column("Count", justify="right", min_width=6)
+    summary.add_row("manifest entries", str(payload["entries"]))
+    summary.add_row("drift", str(len(drift)))
+    summary.add_row("gaps", str(len(gaps)))
+    summary.add_row("orphans", str(len(orphans)))
+    summary.add_row("stale", str(len(stale)))
+    summary.add_row("unsafe", str(len(unsafe)))
+    summary.add_row("uninstalled agents", str(len(uninstalled_agents)))
+    console.print(summary)
+
+    _print_command_skill_paths("Edited managed files (manual review required)", drift)
+    _print_command_skill_paths("Missing managed files", gaps)
+    _print_command_skill_paths("Unmanaged spec-kitty skill files", orphans)
+    _print_command_skill_paths("Stale managed files", stale)
+    _print_command_skill_paths("Unsafe managed paths", unsafe)
+
+    if uninstalled_agents:
+        console.print("\n[bold yellow]Configured agents without command skills[/bold yellow]")
+        for agent in uninstalled_agents:
+            console.print(f"  [yellow]![/yellow] {agent}")
+
+    if repaired:
+        console.print(f"\n[green]Repaired:[/green] {', '.join(repaired)}")
+    if payload["pruned"]:
+        console.print(f"\n[green]Pruned stale entries:[/green] {len(payload['pruned'])}")
+    if payload["repaired_vibe_config"]:
+        console.print("\n[green]Repaired:[/green] Vibe skill path config")
+    if repair_errors:
+        console.print("\n[bold red]Repair errors[/bold red]")
+        for error in repair_errors:
+            console.print(f"  [red]![/red] {error}")
+
+    if not fix and (gaps or uninstalled_agents or stale or payload["vibe_config_missing"]):
+        console.print("\nRun [cyan]spec-kitty doctor skills --fix[/cyan] to reinstall missing command skills.")
 
 
 @app.command(name="command-files")
@@ -123,6 +386,107 @@ def command_files(
     console.print(table)
     console.print()
     raise typer.Exit(1)
+
+
+@app.command(name="skills")
+def skills(
+    fix: Annotated[
+        bool,
+        typer.Option("--fix", help="Repair missing command-skill files"),
+    ] = False,
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Machine-readable JSON output"),
+    ] = False,
+) -> None:
+    """Check command-skill manifest drift for Codex, Vibe, Pi, and Letta."""
+    from specify_cli.core.agent_config import AgentConfigError
+
+    try:
+        project_path = locate_project_root()
+    except Exception as exc:
+        if json_output:
+            console.print_json(json.dumps(_json_error("not_in_project", "Not in a spec-kitty project"), indent=2))
+            raise typer.Exit(2) from exc
+        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(2) from exc
+
+    if project_path is None:
+        if json_output:
+            console.print_json(json.dumps(_json_error("not_in_project", "Not in a spec-kitty project"), indent=2))
+            raise typer.Exit(2)
+        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(2)
+
+    with _json_output_guard(json_output):
+        try:
+            (
+                manifest,
+                report,
+                configured_agents,
+                manifest_agents,
+                uninstalled_agents,
+                vibe_config_missing,
+            ) = _load_command_skill_state(project_path)
+        except AgentConfigError as exc:
+            if json_output:
+                console.print_json(json.dumps(_json_error("config_error", str(exc)), indent=2))
+                raise typer.Exit(2) from exc
+            console.print(f"[red]Error:[/red] {exc}")
+            raise typer.Exit(2) from exc
+        except Exception as exc:
+            if json_output:
+                console.print_json(json.dumps(_json_error("manifest_error", str(exc)), indent=2))
+                raise typer.Exit(2) from exc
+            console.print(f"[red]Error:[/red] Could not read command-skill manifest: {exc}")
+            raise typer.Exit(2) from exc
+
+        repaired: list[str] = []
+        pruned: list[str] = []
+        repair_errors: list[str] = []
+        repaired_vibe_config = False
+        if fix:
+            repaired, pruned, repair_errors, repaired_vibe_config = (
+                _repair_command_skill_state(
+                    project_path,
+                    manifest_agents,
+                    uninstalled_agents,
+                    report,
+                    vibe_config_missing,
+                )
+            )
+            if (repaired or pruned or repaired_vibe_config) and not repair_errors:
+                try:
+                    (
+                        manifest,
+                        report,
+                        configured_agents,
+                        manifest_agents,
+                        uninstalled_agents,
+                        vibe_config_missing,
+                    ) = _load_command_skill_state(project_path)
+                except Exception as exc:
+                    repair_errors.append(f"post-fix verify failed: {exc}")
+
+        payload = _command_skill_payload(
+            manifest,
+            report,
+            configured_agents,
+            manifest_agents,
+            uninstalled_agents,
+            vibe_config_missing,
+            repaired,
+            pruned,
+            repaired_vibe_config,
+            repair_errors,
+        )
+
+    if json_output:
+        console.print_json(json.dumps(payload, indent=2))
+        raise typer.Exit(0 if payload["ok"] else 1)
+
+    _print_command_skill_report(payload, fix)
+    raise typer.Exit(0 if payload["ok"] else 1)
 
 
 @app.command(name="state-roots")
@@ -2029,9 +2393,6 @@ def _render_selection_block_lines(
 # ---------------------------------------------------------------------------
 # #1348 (WP04): coordination workspace + lane sparse-checkout health
 # ---------------------------------------------------------------------------
-
-
-from dataclasses import dataclass, field
 
 
 @dataclass

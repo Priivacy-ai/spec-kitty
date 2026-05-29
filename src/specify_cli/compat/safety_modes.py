@@ -16,6 +16,7 @@ Flag discovery (2026-04-27)
 
 ``doctor`` subcommands and flags inspected:
   - ``command-files``              read-only — SAFE
+  - ``skills``                     read-only unless ``--fix`` — mode-aware
   - ``state-roots``                read-only — SAFE
   - ``identity``                   read-only — SAFE
     - ``--json``                   read-only output — SAFE
@@ -183,8 +184,9 @@ def register_mode_predicates() -> None:
     register_safety(("dashboard",), predicate=_dashboard_predicate)
     # Bare ``doctor`` (no subcommand — prints help, no disk mutation)
     register_safety(("doctor",), predicate=_doctor_predicate)
-    # Doctor subcommands — all read-only except sparse-checkout --fix
+    # Doctor subcommands — all read-only except mode-aware repair commands.
     register_safety(("doctor", "command-files"), predicate=None)  # read-only
+    register_safety(("doctor", "skills"), predicate=_doctor_predicate)  # mode-aware
     register_safety(("doctor", "state-roots"), predicate=None)  # read-only
     register_safety(("doctor", "identity"), predicate=None)  # read-only
     register_safety(("doctor", "mission-state"), predicate=_mission_state_predicate)  # mode-aware

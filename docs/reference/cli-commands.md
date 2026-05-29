@@ -739,6 +739,8 @@ _Project health diagnostics_
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ command-files       Check all agent command files for correctness.           │
+│ skills              Check command-skill manifest drift for Codex, Vibe, Pi,  │
+│                     and Letta.                                               │
 │ state-roots         Show state roots, surface classification, and safety     │
 │                     warnings.                                                │
 │ identity            Report mission-identity health across kitty-specs/.      │
@@ -775,6 +777,20 @@ _Project health diagnostics_
      spec-kitty doctor command-files --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json          Machine-readable JSON output                                 │
+│ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctor skills
+
+```
+ Usage: spec-kitty doctor skills [OPTIONS]
+
+ Check command-skill manifest drift for Codex, Vibe, Pi, and Letta.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --fix           Repair missing command-skill files                           │
 │ --json          Machine-readable JSON output                                 │
 │ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯

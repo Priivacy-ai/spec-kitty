@@ -476,6 +476,17 @@ class TestParentDirPreservation:
 
 
 class TestCollisionError:
+    def test_unmanaged_canonical_file_is_not_overwritten(self, repo: Path) -> None:
+        skill_path = _skill_path(repo, "analyze")
+        skill_path.parent.mkdir(parents=True, exist_ok=True)
+        skill_path.write_bytes(b"CUSTOM LOCAL SKILL\n")
+
+        with pytest.raises(InstallerError) as exc_info:
+            install(repo, "codex")
+
+        assert exc_info.value.code == "unexpected_collision"
+        assert skill_path.read_bytes() == b"CUSTOM LOCAL SKILL\n"
+
     def test_unexpected_collision_raised_when_disk_hash_differs(
         self, repo: Path
     ) -> None:
@@ -545,6 +556,43 @@ class TestFileMutationOnRemove:
         assert manifest_path.read_bytes() == manifest_before, (
             "Manifest must not be modified when file_mutation_detected is raised"
         )
+
+
+class TestPathConfinement:
+    def test_install_rejects_symlinked_managed_path(self, repo: Path) -> None:
+        outside = repo.parent / f"{repo.name}-outside-install"
+        outside.mkdir()
+        protected = outside / "SKILL.md"
+        protected.write_bytes(b"DO_NOT_OVERWRITE\n")
+        skills_root = repo / ".agents" / "skills"
+        skills_root.mkdir(parents=True)
+        (skills_root / "spec-kitty.analyze").symlink_to(
+            outside, target_is_directory=True
+        )
+
+        with pytest.raises(InstallerError) as exc_info:
+            install(repo, "codex")
+
+        assert exc_info.value.code == "unsafe_path"
+        assert protected.read_bytes() == b"DO_NOT_OVERWRITE\n"
+
+    def test_remove_rejects_symlinked_managed_path(self, repo: Path) -> None:
+        install(repo, "codex")
+        skill_path = _skill_path(repo, "analyze")
+        original = skill_path.read_bytes()
+        skill_path.unlink()
+        skill_path.parent.rmdir()
+        outside = repo.parent / f"{repo.name}-outside-remove"
+        outside.mkdir()
+        protected = outside / "SKILL.md"
+        protected.write_bytes(original)
+        skill_path.parent.symlink_to(outside, target_is_directory=True)
+
+        with pytest.raises(InstallerError) as exc_info:
+            remove(repo, "codex")
+
+        assert exc_info.value.code == "unsafe_path"
+        assert protected.read_bytes() == original
 
 
 # ---------------------------------------------------------------------------
