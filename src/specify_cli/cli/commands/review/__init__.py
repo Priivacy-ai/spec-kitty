@@ -52,6 +52,9 @@ from ._report import GateRecord, write_review_report  # noqa: F401
 
 _PACKAGE_NAME = "spec-kitty-cli"
 _PYTEST_NAME = "pytest"
+_SUPPORTED_UV_REQUIREMENT_KEYS = frozenset(
+    {"name", "specifier", "directory", "editable", "path", "git", "url"}
+)
 
 
 def _fail_missing_test_extra(console: object) -> None:
@@ -75,13 +78,19 @@ def _fail_missing_test_extra(console: object) -> None:
 
 
 def _missing_test_extra_remediation() -> str:
+    uv_tool_command = _uv_tool_reinstall_command()
+    if uv_tool_command is not None:
+        return uv_tool_command
+    if _active_uv_tool_receipt_has_spec_kitty():
+        return _fallback_uv_tool_reinstall_command()
+
     try:
         install_method = detect_install_method()
     except Exception:  # noqa: BLE001
         install_method = InstallMethod.UNKNOWN
 
     if install_method == InstallMethod.UV_TOOL:
-        return _uv_tool_reinstall_command() or _fallback_uv_tool_reinstall_command()
+        return _fallback_uv_tool_reinstall_command()
 
     return "uv sync --extra test"
 
@@ -96,7 +105,10 @@ def _versioned_package() -> str:
 
 def _fallback_uv_tool_reinstall_command() -> str:
     if _active_uv_tool_receipt_path() is not None:
-        return "reinstall the same uv tool source with --with pytest"
+        return (
+            "Spec Kitty could not preserve uv receipt provenance automatically; "
+            "reinstall the same uv tool source with --with pytest"
+        )
     return f"{_uv_tool_env_prefix()}uv tool install --force --with pytest {_versioned_package()}"
 
 
@@ -114,10 +126,15 @@ def _uv_tool_reinstall_command() -> str | None:
         if tool_requirement is None:
             return None
 
+        with_args = _uv_tool_with_args(requirements)
+        package_args = _uv_tool_package_args(tool_requirement)
+        if with_args is None or package_args is None:
+            return None
+
         args = ["uv", "tool", "install", "--force"]
         args.extend(_uv_tool_python_args(receipt))
-        args.extend(_uv_tool_with_args(requirements))
-        args.extend(_uv_tool_package_args(tool_requirement))
+        args.extend(with_args)
+        args.extend(package_args)
         return f"{_uv_tool_env_prefix()}{' '.join(shlex.quote(arg) for arg in args)}"
     except Exception:  # noqa: BLE001
         return None
@@ -162,7 +179,15 @@ def _find_uv_tool_requirement(requirements: list[object]) -> dict[str, object] |
     return None
 
 
-def _uv_tool_with_args(requirements: list[object]) -> list[str]:
+def _active_uv_tool_receipt_has_spec_kitty() -> bool:
+    receipt = _active_uv_tool_receipt()
+    if receipt is None:
+        return False
+    requirements = _uv_tool_receipt_tool(receipt).get("requirements", [])
+    return isinstance(requirements, list) and _find_uv_tool_requirement(requirements) is not None
+
+
+def _uv_tool_with_args(requirements: list[object]) -> list[str] | None:
     args: list[str] = []
     has_pytest = False
     for requirement in requirements:
@@ -172,13 +197,19 @@ def _uv_tool_with_args(requirements: list[object]) -> list[str]:
             continue
         if requirement.get("name") == _PYTEST_NAME:
             has_pytest = True
-        args.extend(_uv_tool_requirement_args(requirement))
+        requirement_args = _uv_tool_requirement_args(requirement)
+        if requirement_args is None:
+            return None
+        args.extend(requirement_args)
     if not has_pytest:
         args.extend(["--with", _PYTEST_NAME])
     return args
 
 
-def _uv_tool_requirement_args(requirement: dict[str, object]) -> list[str]:
+def _uv_tool_requirement_args(requirement: dict[str, object]) -> list[str] | None:
+    if not _uv_tool_requirement_is_supported(requirement):
+        return None
+
     editable = _nonempty_str(requirement.get("editable"))
     if editable is not None:
         return ["--with-editable", editable]
@@ -187,7 +218,7 @@ def _uv_tool_requirement_args(requirement: dict[str, object]) -> list[str]:
     if requirement_arg is not None:
         return ["--with", requirement_arg]
 
-    return []
+    return None
 
 
 def _uv_tool_requirement_arg(requirement: dict[str, object]) -> str | None:
@@ -203,6 +234,10 @@ def _uv_tool_requirement_arg(requirement: dict[str, object]) -> str | None:
     if git is not None:
         return _uv_git_source(git)
 
+    url = _nonempty_str(requirement.get("url"))
+    if url is not None:
+        return url
+
     name = _nonempty_str(requirement.get("name"))
     if name is None:
         return None
@@ -210,7 +245,10 @@ def _uv_tool_requirement_arg(requirement: dict[str, object]) -> str | None:
     return f"{name}{specifier or ''}"
 
 
-def _uv_tool_package_args(requirement: dict[str, object]) -> list[str]:
+def _uv_tool_package_args(requirement: dict[str, object]) -> list[str] | None:
+    if not _uv_tool_requirement_is_supported(requirement):
+        return None
+
     directory = _nonempty_str(requirement.get("directory"))
     if directory is not None:
         return [directory]
@@ -227,11 +265,19 @@ def _uv_tool_package_args(requirement: dict[str, object]) -> list[str]:
     if git is not None:
         return [_PACKAGE_NAME, "--from", _uv_git_source(git)]
 
+    url = _nonempty_str(requirement.get("url"))
+    if url is not None:
+        return [url]
+
     specifier = _nonempty_str(requirement.get("specifier"))
     if specifier is not None:
         return [f"{_PACKAGE_NAME}{specifier}"]
 
     return [_PACKAGE_NAME]
+
+
+def _uv_tool_requirement_is_supported(requirement: dict[str, object]) -> bool:
+    return set(requirement).issubset(_SUPPORTED_UV_REQUIREMENT_KEYS)
 
 
 def _uv_tool_python_args(receipt: dict[str, object]) -> list[str]:

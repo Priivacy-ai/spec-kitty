@@ -392,6 +392,33 @@ def test_uv_tool_remediation_preserves_directory_receipt(
     )
 
 
+def test_uv_tool_remediation_prefers_active_receipt_over_source_detection(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A uv-tool executable must repair the tool even when cwd looks like source."""
+    import specify_cli.cli.commands.review as review_mod
+
+    repo_root = Path(__file__).resolve().parents[4]
+    tool_env = tmp_path / "tool" / "spec-kitty-cli"
+    bin_dir = tool_env / "bin"
+    bin_dir.mkdir(parents=True)
+    (tool_env / "uv-receipt.toml").write_text(
+        "[tool]\n"
+        'requirements = [{ name = "spec-kitty-cli", specifier = "==3.2.0rc25" }]\n',
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(repo_root)
+    monkeypatch.setattr(review_mod.sys, "executable", str(bin_dir / "python"))
+
+    assert review_mod.detect_install_method() == review_mod.InstallMethod.SOURCE
+    assert review_mod._missing_test_extra_remediation() == (  # noqa: SLF001
+        f"UV_TOOL_DIR={tool_env.parent!s} "
+        "uv tool install --force --with pytest spec-kitty-cli==3.2.0rc25"
+    )
+
+
 def test_uv_tool_remediation_preserves_git_receipt_and_existing_with(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -516,6 +543,132 @@ def test_uv_tool_remediation_with_unmapped_receipt_does_not_pin_to_pypi(
     remediation = review_mod._missing_test_extra_remediation()  # noqa: SLF001
     assert "spec-kitty-cli==3.2.0rc25" not in remediation
     assert "same uv tool source" in remediation
+
+
+def test_uv_tool_remediation_with_unsupported_main_requirement_is_conservative(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unknown main-package receipt shapes must not collapse to PyPI names."""
+    import specify_cli.cli.commands.review as review_mod
+
+    tool_env = tmp_path / "tool" / "spec-kitty-cli"
+    bin_dir = tool_env / "bin"
+    bin_dir.mkdir(parents=True)
+    (tool_env / "uv-receipt.toml").write_text(
+        "[tool]\n"
+        'requirements = [{ name = "spec-kitty-cli", unknown-source = "opaque" }]\n',
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.detect_install_method",
+        lambda: review_mod.InstallMethod.UV_TOOL,
+    )
+    monkeypatch.setattr(review_mod.sys, "executable", str(bin_dir / "python"))
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.get_version",
+        lambda: "3.2.0rc25",
+    )
+
+    remediation = review_mod._missing_test_extra_remediation()  # noqa: SLF001
+    assert "uv tool install --force" not in remediation
+    assert "spec-kitty-cli==3.2.0rc25" not in remediation
+    assert "same uv tool source" in remediation
+
+
+def test_uv_tool_remediation_with_unsupported_existing_dep_is_conservative(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unknown injected deps must not be silently dropped from remediation."""
+    import specify_cli.cli.commands.review as review_mod
+
+    tool_env = tmp_path / "tool" / "spec-kitty-cli"
+    bin_dir = tool_env / "bin"
+    bin_dir.mkdir(parents=True)
+    (tool_env / "uv-receipt.toml").write_text(
+        "[tool]\n"
+        "requirements = [\n"
+        '  { name = "spec-kitty-cli", specifier = "==3.2.0rc25" },\n'
+        '  { name = "extra-dep", unknown-source = "opaque" },\n'
+        "]\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.detect_install_method",
+        lambda: review_mod.InstallMethod.UV_TOOL,
+    )
+    monkeypatch.setattr(review_mod.sys, "executable", str(bin_dir / "python"))
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.get_version",
+        lambda: "3.2.0rc25",
+    )
+
+    remediation = review_mod._missing_test_extra_remediation()  # noqa: SLF001
+    assert "uv tool install --force" not in remediation
+    assert "extra-dep" not in remediation
+    assert "same uv tool source" in remediation
+
+
+def test_uv_tool_remediation_preserves_url_receipt(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Wheel URL uv tool installs must stay URL-based when adding pytest."""
+    import specify_cli.cli.commands.review as review_mod
+
+    tool_env = tmp_path / "tool" / "spec-kitty-cli"
+    bin_dir = tool_env / "bin"
+    bin_dir.mkdir(parents=True)
+    (tool_env / "uv-receipt.toml").write_text(
+        "[tool]\n"
+        'requirements = [{ name = "spec-kitty-cli", url = "https://example.test/pkg.whl" }]\n',
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.detect_install_method",
+        lambda: review_mod.InstallMethod.UV_TOOL,
+    )
+    monkeypatch.setattr(review_mod.sys, "executable", str(bin_dir / "python"))
+
+    assert review_mod._missing_test_extra_remediation() == (  # noqa: SLF001
+        f"UV_TOOL_DIR={tool_env.parent!s} "
+        "uv tool install --force --with pytest https://example.test/pkg.whl"
+    )
+
+
+def test_uv_tool_remediation_preserves_url_with_dependency(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Injected URL deps must not be dropped when pytest is added."""
+    import specify_cli.cli.commands.review as review_mod
+
+    tool_env = tmp_path / "tool" / "spec-kitty-cli"
+    bin_dir = tool_env / "bin"
+    bin_dir.mkdir(parents=True)
+    (tool_env / "uv-receipt.toml").write_text(
+        "[tool]\n"
+        "requirements = [\n"
+        '  { name = "spec-kitty-cli", specifier = "==3.2.0rc25" },\n'
+        '  { name = "extra-dep", url = "https://example.test/extra.whl" },\n'
+        "]\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.detect_install_method",
+        lambda: review_mod.InstallMethod.UV_TOOL,
+    )
+    monkeypatch.setattr(review_mod.sys, "executable", str(bin_dir / "python"))
+
+    assert review_mod._missing_test_extra_remediation() == (  # noqa: SLF001
+        f"UV_TOOL_DIR={tool_env.parent!s} uv tool install --force "
+        "--with https://example.test/extra.whl --with pytest spec-kitty-cli==3.2.0rc25"
+    )
 
 
 def test_uv_tool_remediation_preserves_editable_receipt(
