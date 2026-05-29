@@ -95,3 +95,27 @@ def test_ci_quality_consumer_compatibility_reuses_ci_wheel_with_trusted_scripts(
 
     fetch_step = next(step for step in job["steps"] if step.get("id") == "fetch_contract")
     assert "CROSS_REPO_TOKEN" in fetch_step["env"]
+
+
+def test_quality_gate_fails_closed_for_release_required_package_jobs() -> None:
+    workflow = load_workflow("ci-quality.yml")
+    quality_gate = workflow["jobs"]["quality-gate"]
+    needs = set(quality_gate["needs"])
+
+    release_required = {
+        "changes",
+        "build-wheel",
+        "clean-install-verification",
+        "consumer-compatibility",
+        "fast-tests-release",
+        "integration-tests-release",
+        "uv-lock-check",
+    }
+    assert not release_required - needs
+
+    script = quality_gate["steps"][0]["run"]
+    assert 'failure" ] || [ "$result" = "cancelled' in script
+    assert "needs.changes.outputs.release" in script
+    assert 'if [ "$result" != "success" ]; then' in script
+    for job_name in release_required - {"changes"}:
+        assert f"needs.{job_name}.result" in script

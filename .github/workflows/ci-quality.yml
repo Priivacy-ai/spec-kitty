@@ -2489,6 +2489,7 @@ jobs:
   # ---------------------------------------------------------------------------
   quality-gate:
     needs:
+      - changes
       - lint
       - diff-coverage
       - kernel-tests
@@ -2522,6 +2523,7 @@ jobs:
       - integration-tests-upgrade
       - integration-tests-cli
       - integration-tests-agent
+      - build-wheel
       - clean-install-verification
       - consumer-compatibility
       - uv-lock-check
@@ -2533,6 +2535,7 @@ jobs:
           echo "All upstream jobs completed."
           # Fail if any required job failed (skipped is OK)
           for result in \
+            "${{ needs.changes.result }}" \
             "${{ needs.lint.result }}" \
             "${{ needs.diff-coverage.result }}" \
             "${{ needs.kernel-tests.result }}" \
@@ -2567,11 +2570,27 @@ jobs:
             "${{ needs.integration-tests-upgrade.result }}" \
             "${{ needs.integration-tests-cli.result }}" \
             "${{ needs.integration-tests-agent.result }}" \
+            "${{ needs.build-wheel.result }}" \
             "${{ needs.clean-install-verification.result }}" \
             "${{ needs.consumer-compatibility.result }}" \
             "${{ needs.uv-lock-check.result }}"; do
-            if [ "$result" = "failure" ]; then
-              echo "A required job failed."
+            if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
+              echo "A required job failed or was cancelled."
               exit 1
             fi
           done
+
+          if [ "${{ needs.changes.outputs.release }}" = "true" ]; then
+            for result in \
+              "${{ needs.build-wheel.result }}" \
+              "${{ needs.clean-install-verification.result }}" \
+              "${{ needs.consumer-compatibility.result }}" \
+              "${{ needs.fast-tests-release.result }}" \
+              "${{ needs.integration-tests-release.result }}" \
+              "${{ needs.uv-lock-check.result }}"; do
+              if [ "$result" != "success" ]; then
+                echo "A release-required job did not complete successfully."
+                exit 1
+              fi
+            done
+          fi
