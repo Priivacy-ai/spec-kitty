@@ -154,6 +154,20 @@ def _owned_files_yaml_is_explicit_empty_list(wp_raw_content: str) -> bool:
     return bool(_EXPLICIT_EMPTY_OWNED_FILES_RE.search(frontmatter))
 
 
+def _raw_frontmatter_has_field(wp_raw_content: str, field_name: str) -> bool:
+    """Return True when raw WP frontmatter explicitly declares ``field_name``."""
+    if not wp_raw_content.startswith("---"):
+        return False
+    parts = wp_raw_content.split("---", 2)
+    if len(parts) < 3:
+        return False
+    return re.search(
+        rf"^\s*{re.escape(field_name)}\s*:",
+        parts[1],
+        re.MULTILINE,
+    ) is not None
+
+
 def _invalid_kitty_specs_owned_files(
     frontmatter_by_wp: dict[str, WPMetadata],
 ) -> list[dict[str, str]]:
@@ -1924,11 +1938,14 @@ def finalize_tasks(
             raise typer.Exit(1)
 
         # ─── TIER 1+: existing dependency resolution ──────────────────────────
-        # Parse dependencies and requirement refs using 2-tier priority:
-        # 1. WP frontmatter (primary — map-requirements writes here directly)
-        # 2. tasks.md text parsing (backward compat for pre-API projects)
+        # Parse dependencies and requirement refs using 3-tier priority:
+        # 1. wps.yaml manifest when present
+        # 2. explicit WP frontmatter dependencies (including explicit [])
+        # 3. tasks.md text parsing as a legacy fallback only when frontmatter
+        #    lacks the dependencies field entirely
         tasks_md = feature_dir / TASKS_MD_FILENAME
         wp_dependencies: dict[str, list[str]] = {}
+        tasks_md_dependencies: dict[str, list[str]] = {}
         wp_requirement_refs: dict[str, list[str]] = {}
 
         if wps_manifest is not None:
@@ -1943,13 +1960,14 @@ def finalize_tasks(
         wp_requirement_refs = _parse_requirement_refs_from_wp_files(wp_files)
 
         if wps_manifest is None and tasks_md.exists():
-            # Read tasks.md and parse dependency mapping (always needed)
+            # Read tasks.md and parse dependency mapping for legacy WP files
+            # that do not yet carry dependencies in frontmatter.
             tasks_content = tasks_md.read_text(encoding="utf-8")
             from specify_cli.core.dependency_parser import parse_dependencies_from_tasks_md as _shared_parse_deps
 
-            wp_dependencies = _shared_parse_deps(tasks_content)
-            missing_wp_sections = [wp_id for wp_id in expected_wp_ids if wp_id not in wp_dependencies]
-            extra_wp_sections = sorted(set(wp_dependencies) - set(expected_wp_ids))
+            tasks_md_dependencies = _shared_parse_deps(tasks_content)
+            missing_wp_sections = [wp_id for wp_id in expected_wp_ids if wp_id not in tasks_md_dependencies]
+            extra_wp_sections = sorted(set(tasks_md_dependencies) - set(expected_wp_ids))
             if missing_wp_sections or extra_wp_sections:
                 error_msg = (
                     "tasks.md work package coverage is incomplete. "
@@ -1978,6 +1996,18 @@ def finalize_tasks(
             for wp_id, refs in tasks_md_refs.items():
                 if refs and not wp_requirement_refs.get(wp_id):
                     wp_requirement_refs[wp_id] = refs
+
+            for wp_file in wp_files:
+                wp_id_match = re.match(r"^(WP\d{2})(?:[-_.]|$)", wp_file.name)
+                if not wp_id_match:
+                    continue
+                wp_id = wp_id_match.group(1)
+                raw_content = wp_file.read_text(encoding="utf-8")
+                wp_meta, _ = read_wp_frontmatter(wp_file)
+                if _raw_frontmatter_has_field(raw_content, "dependencies"):
+                    wp_dependencies[wp_id] = list(wp_meta.dependencies)
+                else:
+                    wp_dependencies[wp_id] = list(tasks_md_dependencies.get(wp_id, []))
 
         # Validate dependencies (detect cycles, invalid references)
         if wp_dependencies:
@@ -2124,14 +2154,8 @@ def finalize_tasks(
 
             # Detect whether dependencies field exists in raw frontmatter
             raw_content = wp_file.read_text(encoding="utf-8")
-            has_dependencies_line = False
-            has_requirement_refs_line = False
-            if raw_content.startswith("---"):
-                parts = raw_content.split("---", 2)
-                if len(parts) >= 3:
-                    frontmatter_text = parts[1]
-                    has_dependencies_line = re.search(r"^\s*dependencies\s*:", frontmatter_text, re.MULTILINE) is not None
-                    has_requirement_refs_line = re.search(r"^\s*requirement_refs\s*:", frontmatter_text, re.MULTILINE) is not None
+            has_dependencies_line = _raw_frontmatter_has_field(raw_content, "dependencies")
+            has_requirement_refs_line = _raw_frontmatter_has_field(raw_content, "requirement_refs")
 
             # Read current frontmatter (typed)
             try:
