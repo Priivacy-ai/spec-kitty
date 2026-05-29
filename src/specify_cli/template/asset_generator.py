@@ -176,6 +176,7 @@ def render_command_template(
         body_text = rendered_body
         if not body_text.endswith("\n"):
             body_text += "\n"
+        body_text = body_text.replace("\\", "\\\\").replace('"""', '""\\"')
         # For TOML files, embed the version marker as a comment in the prompt body
         return f'description = "{description_value}"\n\nprompt = """\n{version_marker}{body_text}"""\n'
 

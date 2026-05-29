@@ -360,8 +360,11 @@ def _check_project_not_too_new(
                 method = detect_install_method()
                 hint = build_upgrade_hint(method)
                 hint_str = hint.command if hint.command is not None else hint.note or "Upgrade your CLI."
-                console.print(f"[red]Error:[/red] This project uses schema version {schema_v}, but this CLI supports up to schema {MAX_SUPPORTED_SCHEMA}.")
-                console.print(f"[cyan]Upgrade the CLI:[/cyan] {hint_str}")
+                console.print(
+                    f"[red]Error:[/red] This project uses Spec Kitty project schema {schema_v}, "
+                    f"but this CLI supports up to schema {MAX_SUPPORTED_SCHEMA}."
+                )
+                console.print(f"[cyan]Upgrade your CLI:[/cyan] {hint_str}")
             raise typer.Exit(5)
     except typer.Exit:
         raise

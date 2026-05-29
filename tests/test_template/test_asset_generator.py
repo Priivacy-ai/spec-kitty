@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import tomllib
 from pathlib import Path
 
 from specify_cli.template.asset_generator import (
@@ -73,6 +74,22 @@ def test_render_command_template_handles_toml_extension(tmp_path: Path) -> None:
     assert 'prompt = """' in output
     assert "Run echo hi {{args}}  for gemini." in output
     assert "<!-- spec-kitty-command-version:" in output
+    assert tomllib.loads(output)["prompt"]
+
+
+def test_render_command_template_escapes_backslashes_in_toml(tmp_path: Path) -> None:
+    template_path = tmp_path / "demo.md"
+    _write_template_with_body(template_path, "Run `rg '\\.py$'` before review.\n")
+
+    output = render_command_template(
+        template_path,
+        script_type="sh",
+        agent_key="gemini",
+        arg_format="{{args}}",
+        extension="toml",
+    )
+
+    assert "Run `rg '\\.py$'` before review.\n" in tomllib.loads(output)["prompt"]
 
 
 def test_generate_agent_assets_creates_expected_files(tmp_path: Path) -> None:
