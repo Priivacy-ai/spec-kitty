@@ -1064,6 +1064,230 @@ _Project health diagnostics_
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty doctrine
+
+_Manage org-layer doctrine packs_
+
+```
+ Usage: spec-kitty doctrine [OPTIONS] COMMAND [ARGS]...
+
+ Manage org-layer doctrine packs
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ fetch     Fetch org doctrine pack(s) from their configured remote sources.   │
+│ new       Scaffold a stub doctrine artifact YAML (FR-016).                   │
+│ validate  Validate project-layer doctrine artifacts against their schemas    │
+│           (FR-017).                                                          │
+│ pack      Validate or assemble doctrine packs.                               │
+│ org       Manage org-layer doctrine pack authoring (init, validate).         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctrine fetch
+
+```
+ Usage: spec-kitty doctrine fetch [OPTIONS]
+
+ Fetch org doctrine pack(s) from their configured remote sources.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --pack           TEXT  Fetch only the named pack (default: fetch all         │
+│                        configured packs).                                    │
+│ --dry-run              Show what would be fetched without contacting any     │
+│                        remote.                                               │
+│ --help                 Show this message and exit.                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctrine new
+
+```
+ Usage: spec-kitty doctrine new [OPTIONS] KIND ID
+
+ Scaffold a stub doctrine artifact YAML (FR-016).
+
+ The scaffolder pre-fills the canonical schema's required fields with
+ ``TODO …`` placeholders so the file passes ``doctrine validate`` on
+ first emit.  Refuses to overwrite an existing file.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    kind             TEXT  Artifact kind (singular): one of agent_profile,  │
+│                             directive, mission_step_contract, paradigm,      │
+│                             procedure, styleguide, tactic, toolguide.        │
+│                             [required]                                       │
+│ *    artifact_id      ID    Artifact identifier (kebab-case for most kinds;  │
+│                             SCREAMING_SNAKE for directives).                 │
+│                             [required]                                       │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --pack        PATH  Scaffold inside a doctrine pack directory instead of the │
+│                     project layer. When omitted, the stub lands under        │
+│                     .kittify/doctrine/.                                      │
+│ --help              Show this message and exit.                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctrine org
+
+_Manage org-layer doctrine pack authoring (init, validate)._
+
+```
+ Usage: spec-kitty doctrine org [OPTIONS] COMMAND [ARGS]...
+
+ Manage org-layer doctrine pack authoring (init, validate).
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ init      Scaffold a minimal org doctrine pack skeleton (FR-006).            │
+│ validate  Validate an org doctrine pack using schema and DRG checks          │
+│           (FR-006).                                                          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctrine org init
+
+```
+ Usage: spec-kitty doctrine org init [OPTIONS] PACK_PATH
+
+ Scaffold a minimal org doctrine pack skeleton (FR-006).
+
+ Creates three files under *pack-path*::
+
+     org-charter.yaml   — governance policy stub
+     drg/fragment.yaml  — DRG extension stub (with pydantic_model: frontmatter)
+     README.md          — authoring quickstart
+
+ Refuses to overwrite an existing directory unless ``--force`` is passed.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    pack_path      PATH  Path to the directory to initialise as an org      │
+│                           doctrine pack.                                     │
+│                           [required]                                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --force          Overwrite an existing pack directory.                       │
+│ --help           Show this message and exit.                                 │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctrine org validate
+
+```
+ Usage: spec-kitty doctrine org validate [OPTIONS] PACK_PATH
+
+ Validate an org doctrine pack using schema and DRG checks (FR-006).
+
+ Calls the WP06 :func:`specify_cli.doctrine.pack_validator.validate_pack`
+ loader.  Prints per-file findings with file paths.  Exits non-zero when
+ at least one error is found.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    pack_path      PATH  Path to the org doctrine pack directory to         │
+│                           validate.                                          │
+│                           [required]                                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctrine pack
+
+_Validate or assemble doctrine packs._
+
+```
+ Usage: spec-kitty doctrine pack [OPTIONS] COMMAND [ARGS]...
+
+ Validate or assemble doctrine packs.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ validate  Validate a doctrine pack against schema and DRG constraints.       │
+│ assemble  Assemble multiple doctrine packs into a single distributable.      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctrine pack assemble
+
+```
+ Usage: spec-kitty doctrine pack assemble [OPTIONS] OUTPUT_PATH INPUT_PACKS...
+
+ Assemble multiple doctrine packs into a single distributable.
+
+ Exits 0 on success and 1 when conflicts block the merge or when the
+ assembled output fails validation.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    output_path      PATH            Output directory for the assembled     │
+│                                       distributable pack.                    │
+│                                       [required]                             │
+│ *    input_packs      INPUT_PACKS...  One or more input pack directories to  │
+│                                       assemble.                              │
+│                                       [required]                             │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --conflicts-out        PATH  Write the conflict report to this path (JSON).  │
+│ --force                      Resolve artifact-id conflicts by last-pack-wins │
+│                              and drop duplicate DRG edges silently.          │
+│ --json                       Emit machine-readable JSON instead of rich      │
+│                              text.                                           │
+│ --help                       Show this message and exit.                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctrine pack validate
+
+```
+ Usage: spec-kitty doctrine pack validate [OPTIONS] PACK_PATH
+
+ Validate a doctrine pack against schema and DRG constraints.
+
+ Exits 0 when the pack passes validation (advisories do not affect the
+ exit code) and 1 when at least one error is reported.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    pack_path      PATH  Path to the doctrine pack directory to validate.   │
+│                           [required]                                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json          Emit machine-readable JSON instead of rich text.             │
+│ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctrine validate
+
+```
+ Usage: spec-kitty doctrine validate [OPTIONS] PATH
+
+ Validate project-layer doctrine artifacts against their schemas (FR-017).
+
+ When *path* is a single file, validates that file.  When *path* is a
+ directory, walks the tree for ``*.yaml`` files whose filename suffix
+ matches a canonical artifact kind and validates each one.
+
+ Exit code: ``0`` if every artifact validates; ``1`` if any artifact
+ fails.  A per-file error report is printed for failures.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    path      PATH  Artifact YAML file or a directory containing            │
+│                      project-layer doctrine artifacts (recurses into         │
+│                      per-kind subdirectories).                               │
+│                      [required]                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+
 ## spec-kitty glossary
 
 _Glossary management commands_
