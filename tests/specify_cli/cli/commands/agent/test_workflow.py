@@ -388,6 +388,39 @@ class TestLoadCoordBranchMeta:
         assert mid == "01ABCDEFGHJKMNPQRSTVWXYZ12"
         assert mid8 == "01ABCDEF"
 
+
+class TestTransactionPathFor:
+    """``_transaction_path_for`` keeps mirrored writes inside the worktree."""
+
+    def test_maps_repo_relative_path_into_worktree(self, tmp_path: Path) -> None:
+        from specify_cli.cli.commands.agent.workflow import _transaction_path_for
+
+        repo_root = tmp_path / "repo"
+        worktree_root = tmp_path / "worktree"
+        source_path = repo_root / "kitty-specs" / "001-test" / "tasks" / "WP01.md"
+
+        mapped = _transaction_path_for(
+            source_path=source_path,
+            repo_root=repo_root,
+            worktree_root=worktree_root,
+        )
+
+        assert mapped == worktree_root / "kitty-specs" / "001-test" / "tasks" / "WP01.md"
+
+    def test_rejects_paths_outside_repo_and_kitty_specs(self, tmp_path: Path) -> None:
+        from specify_cli.cli.commands.agent.workflow import _transaction_path_for
+
+        repo_root = tmp_path / "repo"
+        worktree_root = tmp_path / "worktree"
+        source_path = tmp_path / "outside" / "secret.txt"
+
+        with pytest.raises(ValueError, match="outside repo/worktree scope"):
+            _transaction_path_for(
+                source_path=source_path,
+                repo_root=repo_root,
+                worktree_root=worktree_root,
+            )
+
     def test_falls_back_to_legacy_when_coord_missing(self, tmp_path: Path) -> None:
         import json
         from specify_cli.cli.commands.agent.workflow import _load_coord_branch_meta

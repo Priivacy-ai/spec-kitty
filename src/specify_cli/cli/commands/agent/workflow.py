@@ -173,7 +173,9 @@ def _transaction_path_for(
     if "kitty-specs" in parts:
         idx = parts.index("kitty-specs")
         return worktree_root.joinpath(*parts[idx:])
-    return source_path
+    raise ValueError(
+        f"Refusing to mirror path outside repo/worktree scope: {source_path}"
+    )
 
 
 def _load_coord_branch_meta(feature_dir: Path) -> tuple[str | None, str | None, str | None]:

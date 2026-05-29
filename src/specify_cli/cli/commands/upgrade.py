@@ -197,32 +197,13 @@ def _auto_commit_upgrade_changes(
         destination_ref = "main"
 
     try:
-        try:
-            commit_success = safe_commit(
-                repo_root=project_path,
-                worktree_root=project_path,
-                destination_ref=destination_ref,
-                message=commit_message,
-                paths=tuple(files_to_commit),
-            )
-        except TypeError as exc:
-            if "unexpected keyword" not in str(exc):
-                raise
-            try:
-                commit_success = safe_commit(  # type: ignore[misc]
-                    project_path,
-                    files_to_commit,
-                    commit_message,
-                    False,
-                )
-            except TypeError:
-                legacy_kwargs = {
-                    "repo_path": project_path,
-                    "files_to_commit": files_to_commit,
-                    "commit_message": commit_message,
-                    "allow_empty": False,
-                }
-                commit_success = safe_commit(**legacy_kwargs)  # type: ignore[arg-type]
+        commit_success = safe_commit(
+            repo_root=project_path,
+            worktree_root=project_path,
+            destination_ref=destination_ref,
+            message=commit_message,
+            paths=tuple(files_to_commit),
+        )
     except Exception:
         commit_success = False
 
