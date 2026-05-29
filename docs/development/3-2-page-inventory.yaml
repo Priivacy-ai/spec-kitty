@@ -2227,6 +2227,17 @@
   current_target: false
   citation_refs: []
   notes: Post-mission pytest delta + WP landing summary + acceptance criteria roll-up.
+- path: docs/engineering_notes/triage/2026-05-29-schema-versioning-operator-closure.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs:
+    - https://github.com/Priivacy-ai/spec-kitty/issues/1198
+    - https://github.com/Priivacy-ai/spec-kitty/issues/1200
+    - https://github.com/Priivacy-ai/spec-kitty/issues/1203
+    - https://github.com/Priivacy-ai/spec-kitty/issues/1281
+  notes: Operator-closure evidence note for the schema-versioning launch cluster.
 - path: docs/engineering_notes/triage/README.md
   tag: internal
   divio_type: none
