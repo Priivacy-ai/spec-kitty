@@ -123,11 +123,11 @@ gh pr create --base main --title "Release X.Y.Z" --fill
 ### 4. Wait for CI and Review
 
 - [ ] `Release Readiness Check` passes for release metadata.
-- [ ] `CI Quality` passes for tests, wheel build, lockfile, and install evidence
-  or has explicitly accepted non-blocking failures with
+- [ ] `CI Quality` passes for tests, wheel build, lockfile, exact install, and
+  SaaS consumer compatibility evidence or has explicitly accepted non-blocking failures with
   issue links.
 - [ ] `Check Shared Package Drift` passes against the current SaaS consumer
-  pins and consumer compatibility contract.
+  pins.
 - [ ] `Protect Main Branch` is expected to pass for the eventual merge or
   tagged release commit path.
 - [ ] Maintainer approval is recorded.
@@ -183,9 +183,9 @@ package first, verify it is installable from PyPI, and only then tag the CLI.
 - [ ] Verify the publishing workflow result separately from branch health.
   A successful PyPI/GitHub release proves publication only; it does not prove
   that `main` is green.
-- [ ] Verify all required checks on the released commit are green, or record
-  every failing check with an issue link before using the release as launch-gate
-  evidence:
+- [ ] Verify CI Quality, Check Shared Package Drift, and other release evidence
+  checks on the released commit are green, or record every failing check with an
+  issue link before using the release as launch-gate evidence:
   ```bash
   gh run list --commit "$(git rev-parse HEAD)" --limit 20
   ```

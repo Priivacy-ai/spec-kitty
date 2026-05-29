@@ -15,47 +15,75 @@ on:
       - 'uv.lock'
       - 'scripts/release/**'
       - '.github/workflows/check-spec-kitty-events-alignment.yml'
+  schedule:
+    # Nightly shared-package and SaaS pin drift monitor.
+    - cron: '11 2 * * *'
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
+  prepare-candidate-metadata:
+    name: Prepare candidate package metadata
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Upload candidate package metadata
+        uses: actions/upload-artifact@v7
+        with:
+          name: candidate-package-metadata
+          path: |
+            pyproject.toml
+            uv.lock
+          retention-days: 1
+
   verify-drift:
     name: Verify shared package drift
     runs-on: ubuntu-latest
+    needs: [prepare-candidate-metadata]
     env:
       REPO_OWNER: ${{ github.repository_owner }}
       # For public spec-kitty -> private spec-kitty-saas comparisons, add
       # SPEC_KITTY_SAAS_READ_TOKEN (repo:read) as a repository secret.
-      CROSS_REPO_TOKEN: ${{ secrets.SPEC_KITTY_SAAS_READ_TOKEN != '' && secrets.SPEC_KITTY_SAAS_READ_TOKEN || github.token }}
       HAS_SAAS_READ_TOKEN: ${{ secrets.SPEC_KITTY_SAAS_READ_TOKEN != '' }}
     steps:
-      - uses: actions/checkout@v6
+      - name: Check out trusted validation scripts
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
 
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
-      - name: Install script dependencies
+      - name: Install validation dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install build packaging
+          python -m pip install packaging
+
+      - name: Download candidate package metadata
+        uses: actions/download-artifact@v8
+        with:
+          name: candidate-package-metadata
+          path: candidate
 
       - name: Fetch compatibility references
         id: fetch_refs
+        env:
+          CROSS_REPO_TOKEN: ${{ secrets.SPEC_KITTY_SAAS_READ_TOKEN != '' && secrets.SPEC_KITTY_SAAS_READ_TOKEN || github.token }}
         run: |
           set -euo pipefail
           mkdir -p /tmp/spec-kitty-release-contracts
 
           if [ "${HAS_SAAS_READ_TOKEN}" != "true" ]; then
-            echo "saas_fetched=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::SPEC_KITTY_SAAS_READ_TOKEN is not configured; skipping private SaaS parity portion of the drift check."
-            exit 0
+            echo "::error::SPEC_KITTY_SAAS_READ_TOKEN is required for shared-package and SaaS pin drift evidence."
+            exit 1
           fi
 
           SAAS_PYPROJECT_URL="https://api.github.com/repos/${REPO_OWNER}/spec-kitty-saas/contents/pyproject.toml?ref=main"
-          CONSUMER_CONTRACT_URL="https://api.github.com/repos/${REPO_OWNER}/spec-kitty-saas/contents/contracts/consumer-compatibility.json?ref=main"
 
           if curl -fsSL \
             -H "Authorization: Bearer ${CROSS_REPO_TOKEN}" \
@@ -69,41 +97,11 @@ jobs:
             exit 1
           fi
 
-          if curl -fsSL \
-            -H "Authorization: Bearer ${CROSS_REPO_TOKEN}" \
-            -H "Accept: application/vnd.github.raw" \
-            "$CONSUMER_CONTRACT_URL" \
-            -o /tmp/spec-kitty-release-contracts/consumer-compatibility.json; then
-            echo "Fetched spec-kitty-saas/contracts/consumer-compatibility.json."
-          else
-            echo "Unable to fetch spec-kitty-saas/contracts/consumer-compatibility.json from main."
-            echo "Configure SPEC_KITTY_SAAS_READ_TOKEN secret with read access to private repo ${REPO_OWNER}/spec-kitty-saas."
-            exit 1
-          fi
-
-          echo "saas_fetched=true" >> "$GITHUB_OUTPUT"
           echo "saas_pyproject=/tmp/spec-kitty-release-contracts/spec-kitty-saas-pyproject.toml" >> "$GITHUB_OUTPUT"
-          echo "consumer_contract=/tmp/spec-kitty-release-contracts/consumer-compatibility.json" >> "$GITHUB_OUTPUT"
 
       - name: Validate shared package drift
         run: |
-          ARGS=()
-
-          if [ "${{ steps.fetch_refs.outputs.saas_fetched }}" = "true" ]; then
-            ARGS+=(
-              --saas-pyproject "${{ steps.fetch_refs.outputs.saas_pyproject }}"
-            )
-          fi
-
-          python scripts/release/check_shared_package_drift.py "${ARGS[@]}"
-
-      - name: Build candidate wheel for consumer compatibility
-        if: steps.fetch_refs.outputs.saas_fetched == 'true'
-        run: python -m build --wheel
-
-      - name: Validate candidate against SaaS consumer contract
-        if: steps.fetch_refs.outputs.saas_fetched == 'true'
-        run: |
-          python scripts/release/check_candidate_consumer_compat.py \
-            --package spec-kitty-cli \
-            --consumer-contract "${{ steps.fetch_refs.outputs.consumer_contract }}"
+          python scripts/release/check_shared_package_drift.py \
+            --pyproject candidate/pyproject.toml \
+            --lockfile candidate/uv.lock \
+            --saas-pyproject "${{ steps.fetch_refs.outputs.saas_pyproject }}"
