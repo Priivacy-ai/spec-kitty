@@ -12,6 +12,8 @@ Error codes used:
   TRANSITION_REJECTED         -- transition not allowed by state machine
   WP_ALREADY_CLAIMED          -- WP claimed by a different actor
   MISSION_NOT_READY           -- not all WPs approved/done (for accept-mission)
+  HISTORY_COMMIT_FAILED       -- append-history could not create its commit
+  SAFE_COMMIT_*               -- structured safe_commit refusal/failure
   WORKFLOW_EVIDENCE_REQUIRED  -- workflow files changed without runner proof
   PREFLIGHT_FAILED            -- preflight checks failed (for merge-mission)
   CONTRACT_VERSION_MISMATCH   -- provider version is below MIN_PROVIDER_VERSION
@@ -32,7 +34,7 @@ from dataclasses import dataclass
 import typer
 
 from specify_cli.core.contract_gate import validate_outbound_payload
-from specify_cli.git.commit_helpers import SafeCommitError, safe_commit
+from specify_cli.git.commit_helpers import SafeCommitBackstopError, SafeCommitError, safe_commit
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.status import wp_state_for
 from specify_cli.status.models import Lane
@@ -941,6 +943,9 @@ def append_history(
         current_branch = subprocess.check_output(
             ["git", "-C", str(main_repo_root), "branch", "--show-current"],
             text=True,
+            encoding="utf-8",
+            errors="replace",
+            stderr=subprocess.PIPE,
         ).strip()
         safe_commit(
             repo_root=main_repo_root,
@@ -949,10 +954,22 @@ def append_history(
             message=f"hist: append activity log entry for {mission}/{wp}",
             paths=(wp_path,),
         )
-    except SafeCommitError as exc:
+    except (SafeCommitError, SafeCommitBackstopError) as exc:
         with suppress(OSError):
             wp_path.write_text(raw, encoding="utf-8")
-        _fail(cmd, exc.error_code, str(exc), data=exc.to_dict())
+        if isinstance(exc, SafeCommitError):
+            data = exc.to_dict()
+        else:
+            data = {
+                "error_code": exc.error_code,
+                "message": str(exc),
+                "requested": list(exc.requested),
+                "unexpected": [
+                    {"path": unexpected.path, "status_code": unexpected.status_code}
+                    for unexpected in exc.unexpected
+                ],
+            }
+        _fail(cmd, exc.error_code, str(exc), data=data)
         return
     except subprocess.CalledProcessError as exc:
         with suppress(OSError):

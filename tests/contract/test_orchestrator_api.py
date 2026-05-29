@@ -8,13 +8,17 @@ Run: python -m pytest tests/contract/test_orchestrator_api.py -v
 
 from __future__ import annotations
 
+import inspect
 import json
+import re
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
 
+from specify_cli.git.commit_helpers import SafeCommitBackstopError, SafeCommitError
+from specify_cli.orchestrator_api import commands
 from specify_cli.orchestrator_api.commands import app
 from specify_cli.orchestrator_api.envelope import CONTRACT_VERSION
 
@@ -213,3 +217,25 @@ class TestAllowedCommandNames:
             assert forbidden_cmd not in registered, (
                 f"Forbidden command '{forbidden_cmd}' is registered in orchestrator-api app"
             )
+
+
+class TestAllowedErrorCodes:
+    """Cross-check emitted orchestrator-api failure codes against the contract."""
+
+    def test_literal_failure_codes_are_contract_allowed(self, orchestrator_api_contract):
+        source = inspect.getsource(commands)
+        emitted = set(
+            re.findall(
+                r"_fail\(\s*[^,]+,\s*[\"']([A-Z0-9_]+)[\"']",
+                source,
+                flags=re.DOTALL,
+            )
+        )
+        allowed = set(orchestrator_api_contract["allowed_error_codes"])
+        assert emitted <= allowed
+
+    def test_safe_commit_failure_codes_are_contract_allowed(self, orchestrator_api_contract):
+        emitted = {SafeCommitError.error_code, SafeCommitBackstopError.error_code}
+        emitted.update(cls.error_code for cls in SafeCommitError.__subclasses__())
+        allowed = set(orchestrator_api_contract["allowed_error_codes"])
+        assert emitted <= allowed
