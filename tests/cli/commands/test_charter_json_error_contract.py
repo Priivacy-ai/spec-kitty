@@ -124,6 +124,20 @@ def test_sync_json_error_result_is_parseable_and_nonzero(tmp_path: Path) -> None
     assert payload["error"] == "charter parse failed"
 
 
+def test_sync_json_filesystem_failure_does_not_log_to_stderr(tmp_path: Path) -> None:
+    charter_dir = tmp_path / ".kittify" / "charter"
+    (charter_dir / "governance.yaml").mkdir(parents=True)
+    (charter_dir / "charter.md").write_text("# Charter\n", encoding="utf-8")
+
+    with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path):
+        result = runner.invoke(charter_app, ["sync", "--json"])
+
+    assert result.exit_code == 1, result.output
+    payload = _assert_json_error(result.stdout)
+    assert "governance.yaml" in str(payload["error"])
+    assert result.stderr == ""
+
+
 def test_interview_json_keeps_org_prefill_messages_inside_payload(tmp_path: Path) -> None:
     interview_data = SimpleNamespace(
         mission="software-dev",
