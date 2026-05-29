@@ -336,13 +336,14 @@ class ProtectedBranchCommitError(RuntimeError):
 # ---------------------------------------------------------------------------
 
 _DEFAULT_PROTECTED_BRANCHES = frozenset({"main", "master"})
+_MERGE_BOOKKEEPING_PREFIX = "chore("
 
 # Documented exceptions kept on purpose. See module docstring for rationale.
 # DO NOT add spec-kitty-internal entries here. New exceptions require a
 # doctrine-level decision (DIRECTIVE_003).
 _PROTECTED_BRANCH_COMMIT_EXCEPTIONS = (
     "chore: apply spec-kitty upgrade changes",  # upgrade flow
-    "chore(",  # merge bookkeeping; narrowed by _is_protected_branch_exception
+    _MERGE_BOOKKEEPING_PREFIX,  # merge bookkeeping; narrowed by _is_protected_branch_exception
     "chore: release ",  # release flow
     "release: ",  # alternate release flow
 )
@@ -449,11 +450,15 @@ def assert_not_protected_branch(repo_path: Path, *, operation: str = "commit") -
 
 
 def _is_protected_branch_exception(commit_message: str) -> bool:
-    if commit_message.startswith("chore("):
+    if commit_message.startswith(_MERGE_BOOKKEEPING_PREFIX):
         first_line = commit_message.splitlines()[0]
         return first_line.endswith("): record done transitions for merged WPs")
     return commit_message.startswith(
-        tuple(prefix for prefix in _PROTECTED_BRANCH_COMMIT_EXCEPTIONS if prefix != "chore(")
+        tuple(
+            prefix
+            for prefix in _PROTECTED_BRANCH_COMMIT_EXCEPTIONS
+            if prefix != _MERGE_BOOKKEEPING_PREFIX
+        )
     )
 
 

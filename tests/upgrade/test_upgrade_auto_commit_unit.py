@@ -284,20 +284,9 @@ def test_auto_commit_upgrade_changes_calls_safe_commit(
 
     captured: dict[str, object] = {}
 
-    def _fake_safe_commit(
-        *,
-        repo_root: Path,
-        worktree_root: Path,
-        destination_ref: str,
-        message: str,
-        paths: tuple[Path, ...],
-    ) -> bool:
-        captured["repo_root"] = repo_root
-        captured["worktree_root"] = worktree_root
-        captured["destination_ref"] = destination_ref
-        captured["message"] = message
-        captured["paths"] = paths
-        return True
+    def _fake_safe_commit(**kwargs: object) -> object:
+        captured.update(kwargs)
+        return object()
 
     monkeypatch.setattr(upgrade_cmd, "safe_commit", _fake_safe_commit)
     monkeypatch.setattr(
@@ -333,7 +322,7 @@ def test_auto_commit_returns_warning_on_safe_commit_failure(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    """When safe_commit returns False the caller gets a warning string."""
+    """When safe_commit raises the caller gets a warning string."""
     project_path = tmp_path / "project"
     project_path.mkdir()
 
@@ -345,7 +334,7 @@ def test_auto_commit_returns_warning_on_safe_commit_failure(
     monkeypatch.setattr(
         upgrade_cmd,
         "safe_commit",
-        lambda **_kw: False,
+        lambda **_kw: (_ for _ in ()).throw(RuntimeError("boom")),
     )
 
     committed, committed_paths, warning = upgrade_cmd._auto_commit_upgrade_changes(
@@ -359,107 +348,6 @@ def test_auto_commit_returns_warning_on_safe_commit_failure(
     assert warning is not None
     assert "review and commit manually" in warning
     assert committed_paths == ["kitty-specs/001/WP01.md"]
-
-
-def test_auto_commit_upgrade_changes_supports_legacy_keyword_stub(
-    tmp_path: Path,
-    monkeypatch,
-) -> None:
-    project_path = tmp_path / "project"
-    project_path.mkdir()
-
-    monkeypatch.setattr(
-        upgrade_cmd,
-        "_prepare_upgrade_commit_files",
-        lambda _project, baseline_paths: [Path("kitty-specs/001/WP01.md")],
-    )
-
-    captured: dict[str, object] = {}
-
-    def _legacy_safe_commit(
-        *,
-        repo_path: Path,
-        files_to_commit: list[Path],
-        commit_message: str,
-        allow_empty: bool = False,
-    ) -> bool:
-        captured["repo_path"] = repo_path
-        captured["files_to_commit"] = files_to_commit
-        captured["commit_message"] = commit_message
-        captured["allow_empty"] = allow_empty
-        return True
-
-    monkeypatch.setattr(upgrade_cmd, "safe_commit", _legacy_safe_commit)
-    monkeypatch.setattr(
-        subprocess,
-        "check_output",
-        lambda *_args, **_kwargs: "main\n",
-    )
-
-    committed, committed_paths, warning = upgrade_cmd._auto_commit_upgrade_changes(
-        project_path=project_path,
-        from_version="0.13.0",
-        to_version="0.14.0",
-        baseline_paths=set(),
-    )
-
-    assert committed is True
-    assert warning is None
-    assert committed_paths == ["kitty-specs/001/WP01.md"]
-    assert captured["repo_path"] == project_path
-    assert captured["files_to_commit"] == [Path("kitty-specs/001/WP01.md")]
-    assert "0.13.0 -> 0.14.0" in str(captured["commit_message"])
-    assert captured["allow_empty"] is False
-
-
-def test_auto_commit_upgrade_changes_supports_legacy_positional_stub(
-    tmp_path: Path,
-    monkeypatch,
-) -> None:
-    project_path = tmp_path / "project"
-    project_path.mkdir()
-
-    monkeypatch.setattr(
-        upgrade_cmd,
-        "_prepare_upgrade_commit_files",
-        lambda _project, baseline_paths: [Path("kitty-specs/001/WP01.md")],
-    )
-
-    captured: dict[str, object] = {}
-
-    def _legacy_safe_commit(
-        repo_path: Path,
-        files_to_commit: list[Path],
-        commit_message: str,
-        allow_empty: bool = False,
-    ) -> bool:
-        captured["repo_path"] = repo_path
-        captured["files_to_commit"] = files_to_commit
-        captured["commit_message"] = commit_message
-        captured["allow_empty"] = allow_empty
-        return True
-
-    monkeypatch.setattr(upgrade_cmd, "safe_commit", _legacy_safe_commit)
-    monkeypatch.setattr(
-        subprocess,
-        "check_output",
-        lambda *_args, **_kwargs: "main\n",
-    )
-
-    committed, committed_paths, warning = upgrade_cmd._auto_commit_upgrade_changes(
-        project_path=project_path,
-        from_version="0.13.0",
-        to_version="0.14.0",
-        baseline_paths=set(),
-    )
-
-    assert committed is True
-    assert warning is None
-    assert committed_paths == ["kitty-specs/001/WP01.md"]
-    assert captured["repo_path"] == project_path
-    assert captured["files_to_commit"] == [Path("kitty-specs/001/WP01.md")]
-    assert "0.13.0 -> 0.14.0" in str(captured["commit_message"])
-    assert captured["allow_empty"] is False
 
 
 def test_auto_commit_noop_when_no_new_files(
@@ -575,7 +463,7 @@ def test_upgrade_no_migrations_json_includes_auto_commit_fields(
     monkeypatch.setattr(
         upgrade_cmd,
         "safe_commit",
-        lambda **_kwargs: True,
+        lambda **_kw: object(),
     )
 
     upgrade_cmd.upgrade(
@@ -644,20 +532,9 @@ def test_upgrade_no_migrations_stamps_missing_schema_version(
 
     safe_commit_calls: list[list[str]] = []
 
-    def _fake_safe_commit(
-        *,
-        repo_root: Path,
-        worktree_root: Path,
-        destination_ref: str,
-        message: str,
-        paths: tuple[Path, ...],
-    ) -> bool:
-        assert repo_root == project_path
-        assert worktree_root == project_path
-        assert destination_ref == "main"
-        assert "3.2.0rc14 -> 3.2.0rc14" in message
-        safe_commit_calls.append([str(path) for path in paths])
-        return True
+    def _fake_safe_commit(**kwargs: object) -> object:
+        safe_commit_calls.append([str(path) for path in kwargs["paths"]])
+        return object()
 
     monkeypatch.setattr(upgrade_cmd, "_git_status_paths", _fake_status)
     monkeypatch.setattr(upgrade_cmd, "safe_commit", _fake_safe_commit)
@@ -859,7 +736,7 @@ def test_upgrade_no_migrations_rich_output_shows_auto_commit(
     monkeypatch.setattr(
         upgrade_cmd,
         "safe_commit",
-        lambda **_kwargs: True,
+        lambda **_kw: object(),
     )
 
     captured_output: list[str] = []
@@ -891,7 +768,7 @@ def test_upgrade_no_migrations_safe_commit_failure_shows_warning(
     monkeypatch,
     capsys,
 ) -> None:
-    """When safe_commit fails, the JSON output includes a warning."""
+    """When safe_commit raises, the JSON output includes a warning."""
     project_path = _setup_upgrade_project(tmp_path)
     monkeypatch.setattr(Path, "cwd", lambda: project_path)
 
@@ -907,7 +784,7 @@ def test_upgrade_no_migrations_safe_commit_failure_shows_warning(
     monkeypatch.setattr(
         upgrade_cmd,
         "safe_commit",
-        lambda **_kwargs: False,
+        lambda **_kw: (_ for _ in ()).throw(RuntimeError("boom")),
     )
 
     upgrade_cmd.upgrade(

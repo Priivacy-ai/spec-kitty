@@ -7,6 +7,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from specify_cli.core.constants import KITTIFY_DIR
 from specify_cli.glossary.exceptions import SeedFileValidationError
 from specify_cli.glossary.semantic_events import iter_semantic_conflicts
 
@@ -19,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 _GLOSSARY_HTML_PATH = Path(__file__).resolve().parents[1] / "templates" / "glossary.html"
 _GLOSSARY_HTML_BYTES: bytes = _GLOSSARY_HTML_PATH.read_bytes()
+_KITTIFY_PATH = Path(KITTIFY_DIR)
 
 
 def _count_orphaned_terms(project_dir: Path) -> int:
@@ -31,7 +33,7 @@ def _count_orphaned_terms(project_dir: Path) -> int:
     try:
         import yaml  # ruamel.yaml or pyyaml
 
-        drg_path = project_dir / ".kittify" / "doctrine" / "graph.yaml"
+        drg_path = project_dir / _KITTIFY_PATH / "doctrine" / "graph.yaml"
         if not drg_path.exists():
             return 0
         with drg_path.open(encoding="utf-8") as fh:
@@ -135,7 +137,7 @@ def _recover_valid_senses(
         from specify_cli.glossary.scope import _parse_sense_status
         from specify_cli.glossary.seed_schema import GlossarySeedTerm
 
-        seed_path = repo_root / ".kittify" / "glossaries" / f"{scope.value}.yaml"
+        seed_path = repo_root / _KITTIFY_PATH / "glossaries" / f"{scope.value}.yaml"
         if not seed_path.exists():
             return []
         yaml = YAML()
@@ -225,7 +227,7 @@ class GlossaryHandler(DashboardHandler):
                 if conflict.timestamp:
                     last_at = max(last_at, conflict.timestamp) if last_at else conflict.timestamp
 
-            entity_pages_dir = project_dir / ".kittify" / "charter" / "compiled" / "glossary"
+            entity_pages_dir = project_dir / _KITTIFY_PATH / "charter" / "compiled" / "glossary"
             entity_pages_generated = entity_pages_dir.exists() and any(entity_pages_dir.iterdir())
 
             response: GlossaryHealthResponse = {

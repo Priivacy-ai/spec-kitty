@@ -453,6 +453,67 @@ class TestTransactionPathFor:
         assert mid8 == "01ABCDEF"
 
 
+class TestCommitWorkflowChange:
+    """``_commit_workflow_change`` preserves helper-level exit semantics."""
+
+    def test_modern_policy_exit_is_not_rehandled(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        import json
+        import typer
+        from specify_cli.cli.commands.agent import workflow
+
+        feature_dir = tmp_path / "kitty-specs" / "001-test"
+        feature_dir.mkdir(parents=True)
+        (feature_dir / "meta.json").write_text(
+            json.dumps({
+                "mission_id": "01ABCDEFGHJKMNPQRSTVWXYZ12",
+                "mid8": "01ABCDEF",
+                "coordination_branch": "kitty/mission-test-01ABCDEF",
+            }),
+            encoding="utf-8",
+        )
+        restore_calls: list[object] = []
+
+        def _raise_exit(**kwargs: object) -> None:
+            workflow._record_receipt(
+                str(kwargs["coord_branch"]),
+                str(kwargs["message"]),
+                "refused",
+                wp_id=str(kwargs["wp_id"]),
+            )
+            raise typer.Exit(1)
+
+        monkeypatch.setattr(workflow, "_commit_via_coordination_transaction", _raise_exit)
+        monkeypatch.setattr(
+            workflow,
+            "_restore_status_artifacts",
+            lambda **kwargs: restore_calls.append(kwargs),
+        )
+
+        workflow._reset_workflow_receipts()
+        with pytest.raises(typer.Exit):
+            workflow._commit_workflow_change(
+                repo_root=tmp_path,
+                feature_dir=feature_dir,
+                mission_slug="001-test",
+                target_branch="main",
+                paths=[],
+                message="chore: WP01 claimed [claude]",
+                operation="implement",
+                wp_id="WP01",
+                pre_emit_event_size=0,
+                pre_emit_status_bytes=None,
+            )
+
+        assert len(workflow._WORKFLOW_COMMIT_RECEIPTS) == 1
+        assert workflow._WORKFLOW_COMMIT_RECEIPTS[0]["outcome"] == "refused"
+        assert restore_calls == []
+        workflow._reset_workflow_receipts()
+
+
 class TestPrintCommitSummary:
     """The T029 terminal summary formats receipts correctly."""
 
