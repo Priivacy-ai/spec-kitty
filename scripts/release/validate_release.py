@@ -42,6 +42,7 @@ RELEASE_VERSION_RE = re.compile(
 )
 CHANGELOG_HEADING_RE = re.compile(
     r"^##\s*(?:\[\s*)?"
+    r"(?:(?:Unreleased)\s*-\s*)?"
     r"(?P<version>\d+\.\d+\.\d+(?:(?:a|b|rc)\d+|(?:alpha|beta)\d*)?)"
     r"(?:\s*\]|)(?:\s*-.*)?$",
     re.IGNORECASE,

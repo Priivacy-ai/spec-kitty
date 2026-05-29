@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 from pathlib import Path
@@ -23,6 +24,11 @@ def _get_cli_version() -> str:
         from specify_cli import __version__
 
         return __version__
+
+
+def _toml_basic_string(value: str) -> str:
+    """Return a TOML basic-string literal for a single-line value."""
+    return json.dumps(value, ensure_ascii=False)
 
 
 def prepare_command_templates(
@@ -172,13 +178,13 @@ def render_command_template(
         description_value = description
         if description_value.startswith('"') and description_value.endswith('"'):
             description_value = description_value[1:-1]
-        description_value = description_value.replace('"', '\\"')
+        description_literal = _toml_basic_string(description_value)
         body_text = rendered_body
         if not body_text.endswith("\n"):
             body_text += "\n"
         body_text = body_text.replace("\\", "\\\\").replace('"""', '""\\"')
         # For TOML files, embed the version marker as a comment in the prompt body
-        return f'description = "{description_value}"\n\nprompt = """\n{version_marker}{body_text}"""\n'
+        return f"description = {description_literal}\n\nprompt = \"\"\"\n{version_marker}{body_text}\"\"\"\n"
 
     # Markdown output: preserve the template's YAML frontmatter on line 1 so
     # agents (e.g. Claude Code) can read the `description` field for their

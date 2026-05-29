@@ -92,6 +92,30 @@ def test_render_command_template_escapes_backslashes_in_toml(tmp_path: Path) -> 
     assert "Run `rg '\\.py$'` before review.\n" in tomllib.loads(output)["prompt"]
 
 
+def test_render_command_template_escapes_description_backslashes_in_toml(tmp_path: Path) -> None:
+    template_path = tmp_path / "demo.md"
+    template_path.write_text(
+        """---
+description: 'Run C:\\Program Files\\Spec'
+scripts:
+  sh: echo hi
+---
+Body
+""",
+        encoding="utf-8",
+    )
+
+    output = render_command_template(
+        template_path,
+        script_type="sh",
+        agent_key="gemini",
+        arg_format="{{args}}",
+        extension="toml",
+    )
+
+    assert tomllib.loads(output)["description"] == r"Run C:\Program Files\Spec"
+
+
 def test_generate_agent_assets_creates_expected_files(tmp_path: Path) -> None:
     commands_dir = tmp_path / "commands"
     commands_dir.mkdir()

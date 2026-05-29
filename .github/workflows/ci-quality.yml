@@ -367,6 +367,38 @@ jobs:
           echo "Detected markdown changes in docs/architecture. Running consistency checks..."
           python -m pytest -m "not windows_ci" -q tests/docs/test_architecture_docs_consistency.py tests/docs/test_versioned_docs_integrity.py
 
+      - name: "[ENFORCED] Run template/compat regression tests on matching changes"
+        if: always()
+        run: |
+          FROM_SHA="${{ steps.commit_range.outputs.from }}"
+          TO_SHA="${{ steps.commit_range.outputs.to }}"
+
+          if [ -z "$FROM_SHA" ] || [ -z "$TO_SHA" ]; then
+            echo "No commit range available for this trigger. Skipping template/compat regression tests."
+            exit 0
+          fi
+
+          mapfile -d '' CHANGED_TEMPLATE_COMPAT < <(git diff --name-only -z --diff-filter=ACM "$FROM_SHA" "$TO_SHA" -- \
+            'src/specify_cli/template/**' \
+            'tests/test_template/**' \
+            'src/specify_cli/compat/**' \
+            'tests/specify_cli/compat/**' \
+            'src/specify_cli/migration/**' \
+            'tests/specify_cli/migration/**' \
+            'tests/specify_cli/regression/**')
+
+          if [ "${#CHANGED_TEMPLATE_COMPAT[@]}" -eq 0 ]; then
+            echo "No template/compat/migration changes detected. Skipping regression tests."
+            exit 0
+          fi
+
+          echo "Detected template/compat/migration changes. Running focused regression tests..."
+          python -m pytest -q --tb=short \
+            tests/test_template/test_asset_generator.py \
+            tests/specify_cli/migration/test_schema_version.py \
+            tests/specify_cli/compat/test_messages.py \
+            tests/specify_cli/regression/test_twelve_agent_parity.py::test_toml_command_output_is_parseable
+
       - name: "[ENFORCED] Check Contextive glossary files are up-to-date"
         if: always()
         run: |

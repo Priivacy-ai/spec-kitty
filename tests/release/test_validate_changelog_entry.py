@@ -15,6 +15,7 @@ import pytest
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts" / "release"))
+from extract_changelog import extract_changelog_section  # type: ignore[import]
 from validate_release import changelog_has_entry  # type: ignore[import]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -109,6 +110,31 @@ def test_changelog_has_entry_prerelease_version() -> None:
     )
     assert changelog_has_entry(changelog, "3.1.1a3") is True
     assert changelog_has_entry(changelog, "3.1.1") is False
+
+
+def test_changelog_has_entry_unreleased_version_tranche() -> None:
+    changelog = (
+        "# Changelog\n\n"
+        "## [Unreleased - 3.2.0]\n\n"
+        "### Changed\n- The tranche\n\n"
+        "## [3.2.0rc29] - 2026-05-28\n\n"
+        "### Fixed\n- Old release candidate\n"
+    )
+    assert changelog_has_entry(changelog, "3.2.0") is True
+    assert changelog_has_entry(changelog, "3.2.0rc29") is True
+
+
+def test_extract_changelog_section_unreleased_version_tranche() -> None:
+    changelog = (
+        "# Changelog\n\n"
+        "## [Unreleased - 3.2.0]\n\n"
+        "### Changed\n- The tranche\n\n"
+        "## [3.2.0rc29] - 2026-05-28\n\n"
+        "### Fixed\n- Old release candidate\n"
+    )
+    section = extract_changelog_section(changelog, "3.2.0")
+    assert "The tranche" in section
+    assert "Old release candidate" not in section
 
 
 # ---------------------------------------------------------------------------

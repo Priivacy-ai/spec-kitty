@@ -362,18 +362,40 @@ def test_project_migration_needed_project_dry_run_json_contract(tmp_path: Path) 
 # ---------------------------------------------------------------------------
 
 
+def _assert_too_new_project_human_output(output: str) -> None:
+    normalized = " ".join(output.split())
+    assert "This project uses Spec Kitty project schema 7" in output
+    assert "supports up to schema" in normalized
+    assert "Upgrade your CLI:" in output
+    assert "pip install --upgrade spec-kitty-cli" in output
+
+
 def test_project_too_new_for_cli_command_exit_5(tmp_path: Path) -> None:
     """Project schema 7 (too new): upgrade command exits 5 (CHK037)."""
+    from specify_cli.compat._detect.install_method import InstallMethod
+
     _make_compatible_project(tmp_path, schema_version=7)
-    result = _invoke_upgrade(["--project", "--dry-run"], cwd=tmp_path)
+    with patch(
+        "specify_cli.compat._detect.install_method.detect_install_method",
+        return_value=InstallMethod.PIP_SYSTEM,
+    ):
+        result = _invoke_upgrade(["--project", "--dry-run"], cwd=tmp_path)
     assert result.exit_code == 5, f"Expected exit 5 for too-new project, got {result.exit_code}. Output: {result.output}"
+    _assert_too_new_project_human_output(result.output)
 
 
 def test_project_too_new_for_cli_default_mode_exit_5(tmp_path: Path) -> None:
     """Project schema 7 (too new): default upgrade mode also exits 5."""
+    from specify_cli.compat._detect.install_method import InstallMethod
+
     _make_compatible_project(tmp_path, schema_version=7)
-    result = _invoke_upgrade(["--dry-run"], cwd=tmp_path)
+    with patch(
+        "specify_cli.compat._detect.install_method.detect_install_method",
+        return_value=InstallMethod.PIP_SYSTEM,
+    ):
+        result = _invoke_upgrade(["--dry-run"], cwd=tmp_path)
     assert result.exit_code == 5, f"Expected exit 5 for too-new project, got {result.exit_code}. Output: {result.output}"
+    _assert_too_new_project_human_output(result.output)
 
 
 def test_project_too_new_for_cli_yes_does_not_bypass(tmp_path: Path) -> None:
