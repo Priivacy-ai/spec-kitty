@@ -94,10 +94,18 @@ python scripts/release/check_candidate_consumer_compat.py \
 
 ## Workflow Integration
 
-- PR checks: `.github/workflows/release-readiness.yml`
+- PR release metadata validation: `.github/workflows/release-readiness.yml`
+- PR/package CI and SaaS consumer compatibility: `.github/workflows/ci-quality.yml`
+- PR shared-package pin drift: `.github/workflows/check-spec-kitty-events-alignment.yml`
 - Tag releases: `.github/workflows/release.yml` (triggers on stable and prerelease `v*.*.*` tags)
 
-Release workflow sequence:
+Release PR check ownership:
+
+1. `Release Readiness Check` validates release metadata only: version, changelog, and tag progression.
+2. `CI Quality` owns tests, wheel build, lockfile checks, exact install verification, and SaaS consumer compatibility evidence.
+3. `Check Shared Package Drift` owns shared-package pin drift evidence.
+
+Tag-time publish workflow sequence:
 
 1. run tests
 2. validate release metadata
@@ -152,8 +160,8 @@ git push origin v3.1.0
 
 Treat publish success and branch health as separate evidence. The tag-time
 publish workflow proves PyPI/GitHub release publication; release summaries
-should only call `main` green after the required branch checks on the same
-commit have also passed. If SaaS consumes a shared-package bump after the CLI
+should only call `main` green after CI Quality and Check Shared Package Drift
+on the same commit have also passed. If SaaS consumes a shared-package bump after the CLI
 candidate commit, rerun the shared-package drift workflow or the local drift
 command against the updated SaaS `main` before recording release-health
 evidence.

@@ -11,8 +11,13 @@ on:
       - 'tests/**'
       - 'pyproject.toml'
       - 'uv.lock'
+      - 'CHANGELOG.md'
+      - 'RELEASE_CHECKLIST.md'
+      - 'scripts/release/**'
       - 'ruff.toml'
       - '.github/workflows/ci-quality.yml'
+      - '.github/workflows/release-readiness.yml'
+      - '.github/workflows/check-spec-kitty-events-alignment.yml'
   push:
     branches:
       - main
@@ -23,8 +28,13 @@ on:
       - 'tests/**'
       - 'pyproject.toml'
       - 'uv.lock'
+      - 'CHANGELOG.md'
+      - 'RELEASE_CHECKLIST.md'
+      - 'scripts/release/**'
       - 'ruff.toml'
       - '.github/workflows/ci-quality.yml'
+      - '.github/workflows/release-readiness.yml'
+      - '.github/workflows/check-spec-kitty-events-alignment.yml'
   schedule:
     # Nightly Sonar run on the default branch. Offset from the top of the hour
     # to avoid GitHub Actions' busiest scheduling window.
@@ -102,6 +112,13 @@ jobs:
             release:
               - 'src/specify_cli/release/**'
               - 'tests/release/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - 'CHANGELOG.md'
+              - 'RELEASE_CHECKLIST.md'
+              - 'scripts/release/**'
+              - '.github/workflows/release-readiness.yml'
+              - '.github/workflows/check-spec-kitty-events-alignment.yml'
             status:
               - 'src/specify_cli/status/**'
               - 'tests/status/**'
@@ -2429,11 +2446,82 @@ jobs:
             --runs 5
 
   # ---------------------------------------------------------------------------
+  # consumer-compatibility: validates the CI-built wheel against the private
+  # SaaS consumer contract using trusted validation scripts from the base commit.
+  # The private contract is never exposed to PR-controlled checkout code.
+  # ---------------------------------------------------------------------------
+  consumer-compatibility:
+    name: SaaS consumer compatibility
+    runs-on: ubuntu-latest
+    needs: [changes, build-wheel]
+    if: always() && needs.changes.outputs.release == 'true' && needs.build-wheel.result == 'success'
+    env:
+      REPO_OWNER: ${{ github.repository_owner }}
+      HAS_SAAS_READ_TOKEN: ${{ secrets.SPEC_KITTY_SAAS_READ_TOKEN != '' }}
+    steps:
+      - name: Check out trusted validation scripts
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
+
+      - name: Download CLI wheel
+        uses: actions/download-artifact@v8
+        with:
+          name: spec-kitty-cli-wheel
+          path: dist/
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install validation dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install packaging
+
+      - name: Fetch SaaS consumer contract
+        id: fetch_contract
+        env:
+          CROSS_REPO_TOKEN: ${{ secrets.SPEC_KITTY_SAAS_READ_TOKEN != '' && secrets.SPEC_KITTY_SAAS_READ_TOKEN || github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/spec-kitty-release-contracts
+
+          if [ "${HAS_SAAS_READ_TOKEN}" != "true" ]; then
+            echo "::error::SPEC_KITTY_SAAS_READ_TOKEN is required for SaaS consumer compatibility evidence."
+            exit 1
+          fi
+
+          CONSUMER_CONTRACT_URL="https://api.github.com/repos/${REPO_OWNER}/spec-kitty-saas/contents/contracts/consumer-compatibility.json?ref=main"
+
+          if curl -fsSL \
+            -H "Authorization: Bearer ${CROSS_REPO_TOKEN}" \
+            -H "Accept: application/vnd.github.raw" \
+            "$CONSUMER_CONTRACT_URL" \
+            -o /tmp/spec-kitty-release-contracts/consumer-compatibility.json; then
+            echo "Fetched spec-kitty-saas/contracts/consumer-compatibility.json."
+          else
+            echo "Unable to fetch spec-kitty-saas/contracts/consumer-compatibility.json from main."
+            echo "Configure SPEC_KITTY_SAAS_READ_TOKEN secret with read access to private repo ${REPO_OWNER}/spec-kitty-saas."
+            exit 1
+          fi
+
+          echo "consumer_contract=/tmp/spec-kitty-release-contracts/consumer-compatibility.json" >> "$GITHUB_OUTPUT"
+
+      - name: Validate candidate against SaaS consumer contract
+        run: |
+          python scripts/release/check_candidate_consumer_compat.py \
+            --package spec-kitty-cli \
+            --consumer-contract "${{ steps.fetch_contract.outputs.consumer_contract }}"
+
+  # ---------------------------------------------------------------------------
   # quality-gate: single check that aggregates all required job results.
   # Skipped jobs are OK; only failures block.
   # ---------------------------------------------------------------------------
   quality-gate:
     needs:
+      - changes
       - lint
       - diff-coverage
       - kernel-tests
@@ -2467,7 +2555,9 @@ jobs:
       - integration-tests-upgrade
       - integration-tests-cli
       - integration-tests-agent
+      - build-wheel
       - clean-install-verification
+      - consumer-compatibility
       - uv-lock-check
     runs-on: ubuntu-latest
     if: always()
@@ -2477,6 +2567,7 @@ jobs:
           echo "All upstream jobs completed."
           # Fail if any required job failed (skipped is OK)
           for result in \
+            "${{ needs.changes.result }}" \
             "${{ needs.lint.result }}" \
             "${{ needs.diff-coverage.result }}" \
             "${{ needs.kernel-tests.result }}" \
@@ -2511,10 +2602,27 @@ jobs:
             "${{ needs.integration-tests-upgrade.result }}" \
             "${{ needs.integration-tests-cli.result }}" \
             "${{ needs.integration-tests-agent.result }}" \
+            "${{ needs.build-wheel.result }}" \
             "${{ needs.clean-install-verification.result }}" \
+            "${{ needs.consumer-compatibility.result }}" \
             "${{ needs.uv-lock-check.result }}"; do
-            if [ "$result" = "failure" ]; then
-              echo "A required job failed."
+            if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
+              echo "A required job failed or was cancelled."
               exit 1
             fi
           done
+
+          if [ "${{ needs.changes.outputs.release }}" = "true" ]; then
+            for result in \
+              "${{ needs.build-wheel.result }}" \
+              "${{ needs.clean-install-verification.result }}" \
+              "${{ needs.consumer-compatibility.result }}" \
+              "${{ needs.fast-tests-release.result }}" \
+              "${{ needs.integration-tests-release.result }}" \
+              "${{ needs.uv-lock-check.result }}"; do
+              if [ "$result" != "success" ]; then
+                echo "A release-required job did not complete successfully."
+                exit 1
+              fi
+            done
+          fi
