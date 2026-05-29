@@ -165,7 +165,7 @@ def check_compatibility(
             project_version=project_version,
             cli_version=cli_version,
             message=(
-                f"Project schema version {project_version} is outdated. "
+                f"Spec Kitty project schema {project_version} is outdated. "
                 f"Run `spec-kitty upgrade` to update to version {cli_version}."
             ),
             exit_code=1,
@@ -177,10 +177,11 @@ def check_compatibility(
             project_version=project_version,
             cli_version=cli_version,
             message=(
-                f"Project schema version {project_version} is newer than this CLI "
+                f"Spec Kitty project schema {project_version} is newer than this CLI "
                 f"supports ({cli_version}). "
                 "Upgrade your CLI: `pipx upgrade spec-kitty-cli` or use the "
-                "upgrade command for your installer."
+                "upgrade command for your installer. For virtualenv installs, "
+                "run `pip install --upgrade spec-kitty-cli`."
             ),
             exit_code=1,
         )

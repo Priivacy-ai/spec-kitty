@@ -58,6 +58,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (per-mission coordination worktree, `BookkeepingTransaction`,
   `WorkflowMutationPolicy`) ship in WPs 02-09.
 
+## [Unreleased - 3.2.0]
+
+### Changed
+
+- Documented the host-surface parity matrix and Mode of Work governance layer
+  so advise/ask/do behavior has a visible README entry point.
+- Clarified correlation link and projection policy / read-model policy coverage
+  for the 3.2.0 trail-model tranche, including deferred Tier 2 items.
+
+### Deferred
+
+- Continued tracking deferred follow-up work such as
+  [#534](https://github.com/Priivacy-ai/spec-kitty/issues/534) outside the
+  3.2.0 readiness tranche.
+
 ## [3.2.0rc29] - 2026-05-28
 
 3.2.0rc29 rerolls the coordination branch atomic event-log candidate after

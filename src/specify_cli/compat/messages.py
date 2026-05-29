@@ -64,7 +64,9 @@ MESSAGES: dict[Fr023Case, str] = {
         "This project needs Spec Kitty project migrations before this command can run.\nRun: spec-kitty upgrade\nPreview first: spec-kitty upgrade --dry-run"
     ),
     Fr023Case.PROJECT_TOO_NEW_FOR_CLI: (
-        "This project uses Spec Kitty project schema {schema_version}, but this CLI supports up to schema {max_supported}.\nUpgrade the CLI: {hint_command_or_note}"
+        "This project uses Spec Kitty project schema {schema_version}, "
+        "but this CLI supports up to schema {max_supported}.\n"
+        "Upgrade your CLI: {hint_command_or_note}"
     ),
     Fr023Case.PROJECT_NOT_INITIALIZED: "This directory is not a Spec Kitty project. Run: spec-kitty init",
     Fr023Case.PROJECT_METADATA_CORRUPT: ("This project's .kittify/metadata.yaml is unreadable: {metadata_error}.\nRun: spec-kitty doctor"),

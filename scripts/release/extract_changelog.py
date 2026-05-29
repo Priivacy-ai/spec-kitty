@@ -13,6 +13,7 @@ from pathlib import Path
 
 CHANGELOG_HEADING_RE = re.compile(
     r"^##\s*(?:\[\s*)?"
+    r"(?:(?:Unreleased)\s*-\s*)?"
     r"(?P<version>\d+\.\d+\.\d+(?:(?:a|b|rc)\d+|(?:alpha|beta)\d*)?)"
     r"(?:\s*\]|)(?:\s*-.*)?$",
     re.IGNORECASE,
