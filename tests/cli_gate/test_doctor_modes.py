@@ -226,6 +226,19 @@ class TestSparseCheckoutPredicate:
         assert _sparse_checkout_predicate(inv) == Safety.SAFE
 
 
+class TestSkillsPredicate:
+    def setup_method(self) -> None:
+        register_mode_predicates()
+
+    def test_skills_json_is_safe(self) -> None:
+        inv = _inv(command_path=("doctor", "skills"), raw_args=("--json",))
+        assert classify(inv) == Safety.SAFE
+
+    def test_skills_fix_is_unsafe(self) -> None:
+        inv = _inv(command_path=("doctor", "skills"), raw_args=("--fix",))
+        assert classify(inv) == Safety.UNSAFE
+
+
 # ---------------------------------------------------------------------------
 # T041-E: Doctor subcommand gate integration tests (FIX B, P2)
 # ---------------------------------------------------------------------------

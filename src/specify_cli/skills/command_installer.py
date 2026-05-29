@@ -101,6 +101,7 @@ class InstallerError(Exception):
           manifest entry hash during remove.  Abort to preserve integrity.
         * ``"unsupported_agent"`` — ``agent_key`` not in
           :data:`SUPPORTED_AGENTS`.
+        * ``"unsafe_path"`` — a managed path resolves outside ``repo_root``.
     context:
         Additional diagnostic keyword arguments (path, agent_key, etc.).
     """
@@ -178,11 +179,18 @@ class VerifyReport:
         manifest.
     gaps:
         Manifest entries whose files are missing from disk.
+    stale:
+        Manifest entries for command skills that are no longer canonical.
+    unsafe:
+        Manifest entries or orphan candidates that resolve outside
+        ``repo_root`` through symlinks.
     """
 
     drift: list[str] = field(default_factory=list)
     orphans: list[str] = field(default_factory=list)
     gaps: list[str] = field(default_factory=list)
+    stale: list[str] = field(default_factory=list)
+    unsafe: list[str] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -219,6 +227,45 @@ def _atomic_write(path: Path, content: bytes) -> None:
         with contextlib.suppress(OSError):
             tmp.unlink(missing_ok=True)
         raise
+
+
+def _ensure_project_confined(repo_root: Path, rel_path: str, abs_path: Path) -> None:
+    """Reject managed paths that escape the project root through symlinks."""
+    repo_resolved = repo_root.resolve()
+    try:
+        resolved_target = abs_path.resolve(strict=False)
+    except OSError as exc:
+        raise InstallerError("unsafe_path", path=rel_path, detail=str(exc)) from exc
+
+    if not resolved_target.is_relative_to(repo_resolved):
+        raise InstallerError(
+            "unsafe_path",
+            path=rel_path,
+            resolved=str(resolved_target),
+            repo_root=str(repo_resolved),
+        )
+
+
+def _command_from_rel_path(rel_path: str) -> str | None:
+    prefix = ".agents/skills/spec-kitty."
+    suffix = "/SKILL.md"
+    if not rel_path.startswith(prefix) or not rel_path.endswith(suffix):
+        return None
+    return rel_path[len(prefix) : -len(suffix)]
+
+
+def _is_canonical_rel_path(rel_path: str) -> bool:
+    command = _command_from_rel_path(rel_path)
+    return command in CANONICAL_COMMANDS
+
+
+def _remove_empty_parent(path: Path) -> None:
+    parent = path.parent
+    try:
+        if parent.exists() and not any(parent.iterdir()):
+            parent.rmdir()
+    except OSError:
+        pass
 
 
 def _now_utc_iso() -> str:
@@ -294,6 +341,7 @@ def install(repo_root: Path, agent_key: str) -> InstallReport:
         skill_md_bytes = rendered.to_skill_md().encode("utf-8")
         rel_path = f".agents/skills/spec-kitty.{command}/SKILL.md"
         abs_path = repo_root / rel_path
+        _ensure_project_confined(repo_root, rel_path, abs_path)
 
         existing = manifest.find(rel_path)
 
@@ -336,13 +384,29 @@ def install(repo_root: Path, agent_key: str) -> InstallReport:
             report.added.append(rel_path)
         else:
             # New installation.
+            would_write_hash = manifest_store.fingerprint(skill_md_bytes)
+            if abs_path.exists():
+                on_disk_hash = manifest_store.fingerprint_file(abs_path)
+                if on_disk_hash != would_write_hash:
+                    raise InstallerError("unexpected_collision", path=rel_path)
+                manifest.upsert(
+                    ManifestEntry(
+                        path=rel_path,
+                        content_hash=would_write_hash,
+                        agents=(agent_key,),
+                        installed_at=_now_utc_iso(),
+                        spec_kitty_version=version,
+                    )
+                )
+                report.reused_shared.append(rel_path)
+                continue
+
             abs_path.parent.mkdir(parents=True, exist_ok=True)
             _atomic_write(abs_path, skill_md_bytes)
-            content_hash = manifest_store.fingerprint(skill_md_bytes)
             manifest.upsert(
                 ManifestEntry(
                     path=rel_path,
-                    content_hash=content_hash,
+                    content_hash=would_write_hash,
                     agents=(agent_key,),
                     installed_at=_now_utc_iso(),
                     spec_kitty_version=version,
@@ -398,6 +462,7 @@ def remove(repo_root: Path, agent_key: str) -> RemoveReport:
             continue
 
         abs_path = repo_root / entry.path
+        _ensure_project_confined(repo_root, entry.path, abs_path)
 
         # Drift check before mutating disk.
         if abs_path.exists():
@@ -421,14 +486,7 @@ def remove(repo_root: Path, agent_key: str) -> RemoveReport:
 
             # Remove the parent dir only if it is empty after our deletion.
             # This preserves any third-party files the user placed in the dir.
-            parent = abs_path.parent
-            try:
-                if parent.exists() and not any(parent.iterdir()):
-                    parent.rmdir()
-            except OSError:
-                # Benign: another process wrote to the dir between our unlink
-                # and the iterdir() check.  Leave the dir in place.
-                pass
+            _remove_empty_parent(abs_path)
 
             manifest.remove_path(entry.path)
             report.deref.append(entry.path)
@@ -436,6 +494,39 @@ def remove(repo_root: Path, agent_key: str) -> RemoveReport:
 
     manifest_store.save(repo_root, manifest)
     return report
+
+
+def prune_stale(repo_root: Path) -> list[str]:
+    """Remove manifest entries whose command is no longer canonical.
+
+    Stale files are deleted only when their on-disk bytes still match the
+    manifest hash. Edited files fail closed.
+    """
+    try:
+        manifest = manifest_store.load(repo_root)
+    except Exception as exc:
+        raise InstallerError("manifest_parse_failed", detail=str(exc)) from exc
+
+    pruned: list[str] = []
+    for entry in list(manifest.entries):
+        if _is_canonical_rel_path(entry.path):
+            continue
+
+        abs_path = repo_root / entry.path
+        _ensure_project_confined(repo_root, entry.path, abs_path)
+        if abs_path.exists():
+            on_disk_hash = manifest_store.fingerprint_file(abs_path)
+            if on_disk_hash != entry.content_hash:
+                raise InstallerError("file_mutation_detected", path=entry.path)
+            abs_path.unlink()
+            _remove_empty_parent(abs_path)
+
+        manifest.remove_path(entry.path)
+        pruned.append(entry.path)
+
+    if pruned:
+        manifest_store.save(repo_root, manifest)
+    return pruned
 
 
 def verify(repo_root: Path) -> VerifyReport:
@@ -474,6 +565,13 @@ def verify(repo_root: Path) -> VerifyReport:
     # --- Drift and gaps -------------------------------------------------------
     for entry in manifest.entries:
         abs_path = repo_root / entry.path
+        try:
+            _ensure_project_confined(repo_root, entry.path, abs_path)
+        except InstallerError:
+            report.unsafe.append(entry.path)
+            continue
+        if not _is_canonical_rel_path(entry.path):
+            report.stale.append(entry.path)
         if not abs_path.exists():
             report.gaps.append(entry.path)
             continue
@@ -492,6 +590,11 @@ def verify(repo_root: Path) -> VerifyReport:
                 if not file.is_file():
                     continue
                 rel = str(file.relative_to(repo_root)).replace("\\", "/")
+                try:
+                    _ensure_project_confined(repo_root, rel, file)
+                except InstallerError:
+                    report.unsafe.append(rel)
+                    continue
                 if rel not in manifest_paths:
                     report.orphans.append(rel)
 
