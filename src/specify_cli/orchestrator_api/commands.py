@@ -24,6 +24,7 @@ import json
 import re
 import subprocess
 import uuid
+from contextlib import suppress
 from datetime import datetime, UTC
 from pathlib import Path
 from dataclasses import dataclass
@@ -31,7 +32,7 @@ from dataclasses import dataclass
 import typer
 
 from specify_cli.core.contract_gate import validate_outbound_payload
-from specify_cli.git.commit_helpers import safe_commit
+from specify_cli.git.commit_helpers import SafeCommitError, safe_commit
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.status import wp_state_for
 from specify_cli.status.models import Lane
@@ -934,19 +935,36 @@ def append_history(
     entry_text = f"- [{timestamp}] {actor}: {note}"
     new_body = append_activity_log(body, entry_text)
 
-    wp_path.write_text(build_document(fm, new_body, padding), encoding="utf-8")
+    try:
+        wp_path.write_text(build_document(fm, new_body, padding), encoding="utf-8")
 
-    current_branch = subprocess.check_output(
-        ["git", "-C", str(main_repo_root), "branch", "--show-current"],
-        text=True,
-    ).strip()
-    safe_commit(
-        repo_root=main_repo_root,
-        worktree_root=main_repo_root,
-        destination_ref=current_branch,
-        message=f"hist: append activity log entry for {mission}/{wp}",
-        paths=(wp_path,),
-    )
+        current_branch = subprocess.check_output(
+            ["git", "-C", str(main_repo_root), "branch", "--show-current"],
+            text=True,
+        ).strip()
+        safe_commit(
+            repo_root=main_repo_root,
+            worktree_root=main_repo_root,
+            destination_ref=current_branch,
+            message=f"hist: append activity log entry for {mission}/{wp}",
+            paths=(wp_path,),
+        )
+    except SafeCommitError as exc:
+        with suppress(OSError):
+            wp_path.write_text(raw, encoding="utf-8")
+        _fail(cmd, exc.error_code, str(exc), data=exc.to_dict())
+        return
+    except subprocess.CalledProcessError as exc:
+        with suppress(OSError):
+            wp_path.write_text(raw, encoding="utf-8")
+        message = exc.stderr.strip() if exc.stderr else str(exc)
+        _fail(cmd, "HISTORY_COMMIT_FAILED", message)
+        return
+    except (OSError, RuntimeError) as exc:
+        with suppress(OSError):
+            wp_path.write_text(raw, encoding="utf-8")
+        _fail(cmd, "HISTORY_COMMIT_FAILED", str(exc))
+        return
 
     entry_id = "hist-" + uuid.uuid4().hex
 
