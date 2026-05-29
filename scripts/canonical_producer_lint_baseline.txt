@@ -12,11 +12,6 @@
 #
 # The remaining baseline entries are:
 #
-# - src/specify_cli/next/_internal_runtime/engine.py — internal runtime
-#   ``run.events.jsonl`` local-only log. It is not a SaaS-bound producer,
-#   and touching the file solely for an inline lint exemption needlessly
-#   activates unrelated next-command CI shards. Tracked under #1200.
-#
 # - tests/sync/test_*.py — synthetic envelopes built by test fixtures
 #   to feed the OfflineQueue/router directly without invoking the
 #   producer surface (we're testing the queue/drain, not the producer).
@@ -39,7 +34,6 @@
 # - scripts/benchmarks/bench_queue_enqueue.py — micro-bench harness;
 #   not a real producer. Tracked under #1200.
 scripts/benchmarks/bench_queue_enqueue.py::CP001
-src/specify_cli/next/_internal_runtime/engine.py::CP001
 tests/audit/test_audit_classifiers.py::CP001
 tests/contract/test_handoff_fixtures.py::CP001
 tests/dossier/test_events.py::CP001
