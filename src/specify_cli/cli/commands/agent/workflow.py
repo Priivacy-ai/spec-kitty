@@ -53,6 +53,7 @@ from specify_cli.core.dependency_graph import build_dependency_graph, get_depend
 from specify_cli.core.paths import get_main_repo_root, is_worktree_context, locate_project_root
 from specify_cli.core.utils import write_text_within_directory
 from specify_cli.git import safe_commit
+from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
 from specify_cli.mission import get_deliverables_path, get_mission_type
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.review.prompt_metadata import (
@@ -156,6 +157,16 @@ def _restore_status_artifacts(
             status_path,
             restore_exc,
         )
+
+
+def _safe_commit_recovery_commit_sha(exc: BaseException) -> str | None:
+    """Return commit SHA when a chained safe_commit recovery failure committed."""
+    current: BaseException | None = exc
+    while current is not None:
+        if isinstance(current, SafeCommitRecoveryFailed) and current.commit_sha is not None:
+            return current.commit_sha
+        current = current.__cause__
+    return None
 
 
 def _transaction_path_for(
@@ -284,16 +295,19 @@ def _commit_workflow_change(
             )
             raise typer.Exit(1) from policy_exc
         except Exception as exc:  # noqa: BLE001 — surface + exit
-            _restore_status_artifacts(
-                events_path=events_path,
-                pre_emit_event_size=pre_emit_event_size,
-                status_path=status_path,
-                pre_emit_status_bytes=pre_emit_status_bytes,
-            )
+            recovery_commit_sha = _safe_commit_recovery_commit_sha(exc)
+            if recovery_commit_sha is None:
+                _restore_status_artifacts(
+                    events_path=events_path,
+                    pre_emit_event_size=pre_emit_event_size,
+                    status_path=status_path,
+                    pre_emit_status_bytes=pre_emit_status_bytes,
+                )
             _record_receipt(
                 str(coord_branch),
                 message,
                 "refused",
+                sha=recovery_commit_sha,
                 wp_id=wp_id,
             )
             print(
@@ -318,21 +332,29 @@ def _commit_workflow_change(
             wp_id=wp_id,
         )
     except Exception as exc:  # noqa: BLE001 — surface + truncate + exit
-        _restore_status_artifacts(
-            events_path=events_path,
-            pre_emit_event_size=pre_emit_event_size,
-            status_path=status_path,
-            pre_emit_status_bytes=pre_emit_status_bytes,
-        )
+        recovery_commit_sha = _safe_commit_recovery_commit_sha(exc)
+        if recovery_commit_sha is None:
+            _restore_status_artifacts(
+                events_path=events_path,
+                pre_emit_event_size=pre_emit_event_size,
+                status_path=status_path,
+                pre_emit_status_bytes=pre_emit_status_bytes,
+            )
         _record_receipt(
             target_branch,
             message,
             "refused",
+            sha=recovery_commit_sha,
             wp_id=wp_id,
+        )
+        recovery_note = (
+            "Commit was created before staging recovery failed; status artifacts were not rolled back."
+            if recovery_commit_sha is not None
+            else "Event log rolled back to pre-emit state."
         )
         print(
             f"Error: Failed to commit workflow status update for {wp_id}: {exc}. "
-            f"Event log rolled back to pre-emit state."
+            f"{recovery_note}"
         )
         raise typer.Exit(1) from exc
 

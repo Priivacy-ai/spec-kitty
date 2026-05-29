@@ -311,6 +311,7 @@ Current machine-readable error codes:
 - `SAFE_COMMIT_HEAD_MISMATCH`
 - `SAFE_COMMIT_NOT_A_WORKTREE`
 - `SAFE_COMMIT_PROTECTED_BRANCH`
+- `SAFE_COMMIT_RECOVERY_FAILED`
 
 ## Provider Rules
 

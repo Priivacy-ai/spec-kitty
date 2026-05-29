@@ -44,7 +44,7 @@ from specify_cli.coordination.types import (
     Refused,
 )
 from specify_cli.coordination.workspace import CoordinationWorkspace
-from specify_cli.git.commit_helpers import safe_commit
+from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed, safe_commit
 from specify_cli.status import reducer as _reducer
 from specify_cli.status import store as _store
 from specify_cli.status.locking import (
@@ -369,6 +369,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         # Outbound side-effects deferred until commit succeeds.
         self._deferred: list[Callable[[], None]] = []
         self._committed = False
+        self._commit_recovery_failed_after_commit = False
         self._explicit_commit_message: str | None = None
         self._explicit_commit_receipt: CommitReceipt | None = None
 
@@ -561,6 +562,8 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
     ) -> None:
         try:
             if exc_type is None:
+                if self._commit_recovery_failed_after_commit:
+                    return
                 # Happy path: implicit commit if the caller did not call
                 # commit() explicitly. Then run deferred outbound.
                 if not self._committed and (self._event_ids or self._staged_paths):
@@ -576,7 +579,13 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 self._run_deferred_outbound()
             else:
                 # Exception path: surgical rollback.
-                self._rollback()
+                recovery_after_commit = (
+                    isinstance(exc, BookkeepingCommitFailed)
+                    and isinstance(exc.__cause__, SafeCommitRecoveryFailed)
+                    and exc.__cause__.commit_sha is not None
+                )
+                if not recovery_after_commit:
+                    self._rollback()
         finally:
             self._release_lock()
         # Do not suppress exceptions (implicit None return).
@@ -692,6 +701,11 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             # Idempotent: return the receipt from the first call.
             assert self._explicit_commit_receipt is not None  # noqa: S101
             return self._explicit_commit_receipt
+        if self._commit_recovery_failed_after_commit:
+            raise BookkeepingCommitFailed(
+                "commit() cannot be retried: safe_commit already created a commit "
+                "but failed to restore caller staging"
+            )
 
         if not self._staged_paths:
             raise BookkeepingCommitFailed(
@@ -706,6 +720,14 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 message=message,
                 paths=tuple(self._staged_paths),
             )
+        except SafeCommitRecoveryFailed as exc:
+            if exc.commit_sha is None:
+                self._rollback()
+            else:
+                self._commit_recovery_failed_after_commit = True
+            raise BookkeepingCommitFailed(
+                f"safe_commit recovery failed on {self.destination_ref!r}: {exc}"
+            ) from exc
         except Exception as exc:  # noqa: BLE001 — wrap as domain error
             # Rollback before re-raising. ``_rollback`` is intentionally
             # tolerant: it logs but does not raise so the caller sees

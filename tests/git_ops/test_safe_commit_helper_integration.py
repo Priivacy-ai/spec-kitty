@@ -9,9 +9,11 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import specify_cli.git.commit_helpers as commit_helpers
 from specify_cli.git.commit_helpers import (
     ProtectedBranchCommitError,
     ProtectedBranchRefused,
+    SafeCommitRecoveryFailed,
     safe_commit as _safe_commit,
 )
 
@@ -309,6 +311,110 @@ def test_safe_commit_restores_prestaged_requested_files_when_stage_fails(git_rep
     assert result is False
     assert after == before
     assert "A  requested.txt" in status
+
+
+def test_safe_commit_raises_when_requested_patch_snapshot_fails(
+    git_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A failed pre-mutation snapshot must fail closed, not silently unstage."""
+    requested = git_repo / "requested.txt"
+    requested.write_text("keep staged\n", encoding="utf-8")
+    subprocess.run(["git", "add", "requested.txt"], cwd=git_repo, check=True)
+
+    before = subprocess.run(
+        ["git", "diff", "--cached", "--name-status"],
+        cwd=git_repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+
+    monkeypatch.setattr(
+        commit_helpers,
+        "_staged_patch_for_paths",
+        lambda _repo_path, _normalized_files: None,
+    )
+
+    with pytest.raises(SafeCommitRecoveryFailed) as exc_info:
+        _safe_commit(
+            repo_root=git_repo,
+            worktree_root=git_repo,
+            destination_ref="kitty/mission-test-01ABCDEF",
+            message="Try invalid safe commit",
+            paths=(git_repo / "missing.txt", requested),
+        )
+
+    after = subprocess.run(
+        ["git", "diff", "--cached", "--name-status"],
+        cwd=git_repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+
+    assert exc_info.value.error_code == "SAFE_COMMIT_RECOVERY_FAILED"
+    assert exc_info.value.unrecovered_paths == ("missing.txt", "requested.txt")
+    assert after == before
+
+
+def test_safe_commit_raises_with_orphan_stash_ref_when_stash_pop_fails(
+    git_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A failed stash pop must surface the orphaned safe_commit stash ref."""
+    unrelated = git_repo / "other.txt"
+    unrelated.write_text("caller staged data\n", encoding="utf-8")
+    subprocess.run(["git", "add", "other.txt"], cwd=git_repo, check=True)
+
+    requested = git_repo / "requested.txt"
+    requested.write_text("commit me\n", encoding="utf-8")
+
+    real_run = commit_helpers.subprocess.run
+
+    def run_with_failed_stash_pop(args, *pos_args, **kwargs):  # noqa: ANN001
+        if list(args[:4]) == ["git", "stash", "pop", "--index"]:
+            return subprocess.CompletedProcess(
+                args=args,
+                returncode=1,
+                stdout="",
+                stderr="simulated stash pop failure",
+            )
+        return real_run(args, *pos_args, **kwargs)
+
+    monkeypatch.setattr(commit_helpers.subprocess, "run", run_with_failed_stash_pop)
+
+    with pytest.raises(SafeCommitRecoveryFailed) as exc_info:
+        _safe_commit(
+            repo_root=git_repo,
+            worktree_root=git_repo,
+            destination_ref="kitty/mission-test-01ABCDEF",
+            message="Commit requested only",
+            paths=(requested,),
+        )
+
+    stash_list = real_run(
+        ["git", "stash", "list"],
+        cwd=git_repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+
+    assert exc_info.value.error_code == "SAFE_COMMIT_RECOVERY_FAILED"
+    assert exc_info.value.orphan_stash_ref is not None
+    assert exc_info.value.commit_sha is not None
+    assert exc_info.value.to_dict()["commit_sha"] == exc_info.value.commit_sha
+    assert "spec-kitty-safe-commit" in stash_list
+
+    log_subject = real_run(
+        ["git", "log", "-1", "--format=%s"],
+        cwd=git_repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    assert log_subject == "Commit requested only"
 
 
 def test_safe_commit_preserves_multiple_unrelated_staged_files(git_repo: Path):

@@ -33,6 +33,7 @@ from specify_cli.core.git_ops import has_remote, run_command
 from specify_cli.core.git_preflight import build_git_preflight_failure_payload, run_git_preflight
 from specify_cli.core.paths import get_feature_target_branch, get_main_repo_root
 from specify_cli.git import safe_commit
+from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
 from specify_cli.git.sparse_checkout import (
     SparseCheckoutPreflightError,
     require_no_sparse_checkout,
@@ -1469,16 +1470,17 @@ def _run_lane_based_merge_locked(
             message=f"chore({mission_slug}): record done transitions for merged WPs",
             paths=tuple(files_to_commit),
         )
-    except Exception:
-        with contextlib.suppress(OSError):
-            if _merge_events_path.exists():
-                with _merge_events_path.open("ab") as _fh:
-                    _fh.truncate(_pre_done_event_size)
-        with contextlib.suppress(OSError):
-            if _pre_done_status_bytes is None:
-                _merge_status_path.unlink(missing_ok=True)
-            else:
-                _merge_status_path.write_bytes(_pre_done_status_bytes)
+    except Exception as exc:
+        if not (isinstance(exc, SafeCommitRecoveryFailed) and exc.commit_sha is not None):
+            with contextlib.suppress(OSError):
+                if _merge_events_path.exists():
+                    with _merge_events_path.open("ab") as _fh:
+                        _fh.truncate(_pre_done_event_size)
+            with contextlib.suppress(OSError):
+                if _pre_done_status_bytes is None:
+                    _merge_status_path.unlink(missing_ok=True)
+                else:
+                    _merge_status_path.write_bytes(_pre_done_status_bytes)
         raise
 
     console.print("  [dim]Syncing dossier state for the merged mission...[/dim]")

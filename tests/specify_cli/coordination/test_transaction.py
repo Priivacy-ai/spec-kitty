@@ -23,6 +23,7 @@ from typing import Any
 
 import pytest
 
+import specify_cli.coordination.transaction as transaction_module
 from specify_cli.coordination.transaction import (
     BookkeepingCommitFailed,
     BookkeepingDoubleEventId,
@@ -31,6 +32,7 @@ from specify_cli.coordination.transaction import (
     BookkeepingTransaction,
 )
 from specify_cli.coordination.workspace import CoordinationWorkspace
+from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
 from specify_cli.status.emit import build_status_event
 from specify_cli.status import store as _store
 from specify_cli.status.models import StatusEvent
@@ -326,6 +328,42 @@ def test_commit_failure_restores_empty_status_json(repo: Path) -> None:
 
     assert status_path.exists()
     assert status_path.read_bytes() == b""
+
+
+def test_post_commit_recovery_failure_does_not_roll_back_committed_artifacts(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """If safe_commit created a commit, recovery failure is not a no-commit rollback."""
+    worktree_root = CoordinationWorkspace.resolve(repo, MISSION_SLUG, MID8)
+    events_path = worktree_root / "kitty-specs" / FEATURE_DIRNAME / "status.events.jsonl"
+    emitted_bytes: bytes | None = None
+
+    def fail_after_commit(**_kwargs: object) -> None:
+        raise SafeCommitRecoveryFailed(
+            "commit created but staging recovery failed",
+            destination_ref=COORD_BRANCH,
+            worktree_root=worktree_root,
+            orphan_stash_ref="stash@{0}",
+            commit_sha="abc123",
+        )
+
+    monkeypatch.setattr(transaction_module, "safe_commit", fail_after_commit)
+
+    with pytest.raises(BookkeepingCommitFailed), BookkeepingTransaction.acquire(
+        repo_root=repo,
+        mission_id=MISSION_ID,
+        mission_slug=MISSION_SLUG,
+        mid8=MID8,
+        destination_ref=COORD_BRANCH,
+        operation="post_commit_recovery",
+    ) as txn:
+        txn.append_event(_make_event("WP02", "claimed"))
+        emitted_bytes = events_path.read_bytes()
+        txn.commit("status: committed then recovery failed")
+
+    assert emitted_bytes is not None
+    assert events_path.read_bytes() == emitted_bytes
 
 
 def test_rollback_skips_deferred_outbound(repo: Path) -> None:

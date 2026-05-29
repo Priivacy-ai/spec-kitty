@@ -397,6 +397,7 @@ spec-kitty orchestrator-api merge-mission \
 | `SAFE_COMMIT_HEAD_MISMATCH` | append-history | Worktree HEAD differs from destination branch |
 | `SAFE_COMMIT_NOT_A_WORKTREE` | append-history | Safe commit target is not a git worktree |
 | `SAFE_COMMIT_PROTECTED_BRANCH` | append-history | Safe commit refused a protected branch |
+| `SAFE_COMMIT_RECOVERY_FAILED` | append-history | Safe commit created or attempted a commit but could not restore caller staging |
 | `TRANSITION_REJECTED` | start-implementation, start-review, transition | Guard failure or invalid transition |
 | `WP_ALREADY_CLAIMED` | start-implementation, start-review | Another actor owns the WP |
 
