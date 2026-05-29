@@ -9,9 +9,15 @@ Exercises _classify_porcelain_lines() to verify that:
 
 from __future__ import annotations
 
+import subprocess
+from pathlib import Path
+
 import pytest
 
-from specify_cli.cli.commands.merge import _classify_porcelain_lines
+from specify_cli.cli.commands.merge import (
+    _classify_porcelain_lines,
+    _refresh_primary_checkout_after_merge,
+)
 
 pytestmark = pytest.mark.fast
 
@@ -96,3 +102,57 @@ def test_classify_multiple_untracked_directories() -> None:
     offending, skipped = _classify_porcelain_lines(lines, set())
     assert offending == []
     assert skipped == 7
+
+
+def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", *args],
+        cwd=str(repo),
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+
+def test_refresh_primary_checkout_removes_sparse_rename_source(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-b", "main")
+    _git(repo, "config", "user.email", "test@example.com")
+    _git(repo, "config", "user.name", "Test")
+
+    old_path = repo / "scripts" / "google" / "authorize-calendar.py"
+    new_path = repo / "docs" / "archive" / "scripts" / "authorize-calendar.py"
+    old_path.parent.mkdir(parents=True)
+    old_path.write_text("authorize\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "initial")
+
+    _git(repo, "sparse-checkout", "init", "--no-cone")
+    (repo / ".git" / "info" / "sparse-checkout").write_text("/*\n", encoding="utf-8")
+    _git(repo, "read-tree", "-mu", "HEAD")
+
+    _git(repo, "switch", "-c", "kitty/mission-rename")
+    new_path.parent.mkdir(parents=True, exist_ok=True)
+    _git(repo, "mv", "scripts/google/authorize-calendar.py", "docs/archive/scripts/authorize-calendar.py")
+    _git(repo, "commit", "-m", "rename script")
+    _git(repo, "switch", "main")
+
+    new_tree = _git(repo, "rev-parse", "kitty/mission-rename^{tree}").stdout.strip()
+    new_commit = _git(repo, "commit-tree", new_tree, "-p", "main", "-m", "squash").stdout.strip()
+    _git(repo, "update-ref", "refs/heads/main", new_commit)
+
+    checkout_only = subprocess.run(
+        ["git", "checkout", "HEAD", "--", "."],
+        cwd=str(repo),
+        capture_output=True,
+        text=True,
+    )
+    assert checkout_only.returncode == 0
+    assert "A  scripts/google/authorize-calendar.py" in _git(repo, "status", "--porcelain").stdout
+
+    _refresh_primary_checkout_after_merge(repo)
+
+    assert _git(repo, "status", "--porcelain").stdout == ""
+    assert not old_path.exists()
+    assert new_path.exists()

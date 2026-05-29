@@ -19,6 +19,7 @@ Pins two contracts on resume:
 from __future__ import annotations
 
 import contextlib
+import json
 import subprocess
 import time
 from pathlib import Path
@@ -67,6 +68,28 @@ def _make_manifest(slug: str, lane_count: int = 10) -> MagicMock:
         lanes.append(lane)
     manifest.lanes = lanes
     return manifest
+
+
+def _write_done_events(feature_dir: Path, wp_ids: list[str]) -> None:
+    events = []
+    for wp_id in wp_ids:
+        events.append(
+            json.dumps(
+                {
+                    "event_id": f"01TEST{wp_id}",
+                    "mission_slug": feature_dir.name,
+                    "wp_id": wp_id,
+                    "from_lane": "approved",
+                    "to_lane": "done",
+                    "at": "2026-04-06T12:00:00+00:00",
+                    "actor": "merge",
+                    "force": False,
+                    "execution_mode": "worktree",
+                },
+                sort_keys=True,
+            )
+        )
+    (feature_dir / "status.events.jsonl").write_text("\n".join(events) + "\n", encoding="utf-8")
 
 
 def _patches(
@@ -143,6 +166,7 @@ class TestMergeResumeIdempotence:
         feature_dir.mkdir(parents=True)
 
         manifest = _make_manifest(slug, lane_count=3)
+        _write_done_events(feature_dir, ["WP01", "WP02", "WP03"])
 
         # State says all three WPs are completed already.
         existing = MergeState(
@@ -216,6 +240,7 @@ class TestMergeResumeAfterInterruption:
         feature_dir.mkdir(parents=True)
 
         manifest = _make_manifest(slug, lane_count=3)
+        _write_done_events(feature_dir, ["WP01"])
         # WP01 completed; WP02 and WP03 remaining.
         existing = MergeState(
             mission_id=slug,

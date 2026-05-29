@@ -337,6 +337,101 @@ def _assert_merged_wps_reached_done(
         raise typer.Exit(1)
 
 
+def _reconcile_completed_wps_for_resume(
+    *,
+    feature_dir: Path,
+    merge_state: MergeState,
+    repo_root: Path,
+) -> set[str]:
+    """Return completed WPs that still have canonical done evidence on disk.
+
+    A retry can happen after the target ref advanced but before the final
+    status-event housekeeping commit. If the operator repairs the checkout
+    back to HEAD, state.json may still list a WP as completed even though its
+    uncommitted done event is gone. Drop those stale completions so the retry
+    re-emits done evidence instead of skipping the WP and failing validation.
+    """
+    if not merge_state.completed_wps:
+        return set()
+
+    confirmed = [
+        wp_id
+        for wp_id in merge_state.completed_wps
+        if _has_transition_to(feature_dir, wp_id, "done")
+    ]
+    if len(confirmed) != len(merge_state.completed_wps):
+        dropped = sorted(set(merge_state.completed_wps) - set(confirmed))
+        logger.info(
+            "Re-emitting done events for WPs whose resume state outlived on-disk evidence: %s",
+            ", ".join(dropped),
+        )
+        merge_state.completed_wps = confirmed
+        save_state(merge_state, repo_root)
+    return set(confirmed)
+
+
+def _refresh_primary_checkout_after_merge(repo_root: Path) -> None:
+    """Force the primary checkout's tracked files to match HEAD.
+
+    The target ref is advanced from a detached merge worktree, so the primary
+    checkout's index/worktree can lag behind the new HEAD. A path checkout does
+    not remove rename sources in sparse-checkout repos; hard reset does.
+    Merge preflight requires a clean tracked worktree before this point, so this
+    must only discard stale tracked state created by the ref update.
+    """
+    ret_reset, out_reset, err_reset = run_command(
+        ["git", "reset", "--hard", "HEAD"],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if ret_reset != 0:
+        console.print(
+            f"[yellow]Warning:[/yellow] post-merge working-tree refresh failed: "
+            f"{(err_reset or out_reset or '').strip()}"
+        )
+        return
+
+    ret_refresh, out_refresh, err_refresh = run_command(
+        ["git", "update-index", "--refresh"],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if ret_refresh != 0:
+        # Non-zero is expected when files truly differ from HEAD. The invariant
+        # check below is the contract; this refresh is just stat reconciliation.
+        logger.debug(
+            "post-merge index refresh reported divergence (this is informational): %s",
+            (out_refresh or err_refresh or "").strip(),
+        )
+
+
+def _paths_have_status_changes(repo_root: Path, paths: list[Path]) -> bool:
+    """Return True when any requested path differs from HEAD or is untracked."""
+    normalized: list[str] = []
+    for path in paths:
+        candidate = path
+        if candidate.is_absolute():
+            with contextlib.suppress(ValueError):
+                candidate = candidate.relative_to(repo_root)
+        normalized.append(str(candidate))
+
+    ret_status, out_status, err_status = run_command(
+        ["git", "status", "--porcelain", "--", *normalized],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if ret_status != 0:
+        logger.warning(
+            "Could not inspect post-merge bookkeeping paths before commit: %s",
+            (err_status or "").strip(),
+        )
+        return True
+    return bool((out_status or "").strip())
+
+
 def _already_baked(merge_state: MergeState | None) -> bool:
     """Resume short-circuit predicate (T026 / FR-012).
 
@@ -1208,7 +1303,7 @@ def _run_lane_based_merge_locked(
     all_wp_ids = [wp for lane in lanes_manifest.lanes for wp in lane.wp_ids]
     state = load_state(main_repo, canonical_id)
     is_resume = False
-    if state is not None and state.completed_wps:
+    if state is not None:
         is_resume = True
         console.print(f"[bold cyan]Resuming[/bold cyan] merge for {mission_slug} ({len(state.completed_wps)}/{len(state.wp_order)} WPs already done)")
     else:
@@ -1308,7 +1403,14 @@ def _run_lane_based_merge_locked(
 
     # -- Mission-to-target merge (T010: honor strategy for this step only) --
     console.print(f"  [dim]Merging mission branch into {lanes_manifest.target_branch}...[/dim]")
-    mission_result = merge_mission_to_target(main_repo, mission_slug, lanes_manifest, strategy=strategy)
+    mission_result = merge_mission_to_target(
+        main_repo,
+        mission_slug,
+        lanes_manifest,
+        strategy=strategy,
+        allow_already_applied=is_resume,
+    )
+    mission_already_applied = getattr(mission_result, "already_applied", False) is True
     if not mission_result.success:
         # T005: tolerate already-merged on retry
         already_merged = any("already" in e.lower() or "up to date" in e.lower() for e in mission_result.errors)
@@ -1320,50 +1422,16 @@ def _run_lane_based_merge_locked(
             raise typer.Exit(1)
     else:
         console.print(f"\n[green]✓[/green] {lanes_manifest.mission_branch} → {lanes_manifest.target_branch}")
+        if mission_already_applied:
+            console.print("  [dim]Mission changes already present on target; continuing bookkeeping.[/dim]")
         if mission_result.commit:
             console.print(f"  Commit: {mission_result.commit[:7]}")
 
     # -- WP05/T006 FR-013: Post-merge working-tree refresh --
-    # Re-sync the primary checkout against HEAD so any paths that git left out
-    # (the observed legacy sparse-checkout case — Priivacy-ai/spec-kitty#588)
-    # are restored before we record done transitions and persist the final
-    # housekeeping commit. Running this refresh after writing status.events.jsonl
-    # would clobber the freshly-recorded done transitions back to HEAD.
-    # This is a no-op on a clean full checkout. Do not abort on failure: the
-    # WP01 commit-layer backstop is the final safety net.
-    _ret_checkout, _out_checkout, _err_checkout = run_command(
-        ["git", "checkout", "HEAD", "--", "."],
-        capture=True,
-        check_return=False,
-        cwd=main_repo,
-    )
-    if _ret_checkout != 0:
-        console.print(
-            f"[yellow]Warning:[/yellow] post-merge working-tree refresh failed: "
-            f"{(_err_checkout or '').strip()}"
-        )
-
-    # -- WP01/T003 FR-003: Refresh the index against on-disk reality --
-    # ``git checkout HEAD -- .`` restores file content to match HEAD, but the
-    # cached stat info in the index can still trail real on-disk state after
-    # worktree churn (mtime/inode changes), producing phantom ``D ``/`` M``
-    # entries in subsequent ``git status`` calls. ``git update-index
-    # --refresh`` reconciles the index stats with the working tree without
-    # touching any blobs. Treat divergence as informational — never fail.
-    _ret_refresh, _out_refresh, _err_refresh = run_command(
-        ["git", "update-index", "--refresh"],
-        capture=True,
-        check_return=False,
-        cwd=main_repo,
-    )
-    if _ret_refresh != 0:
-        # Non-zero is expected when files truly differ from HEAD (e.g.
-        # the two status files we are about to safe_commit). Log and move
-        # on — the working-tree invariant check below is the contract.
-        logger.debug(
-            "post-merge index refresh reported divergence (this is informational): %s",
-            (_out_refresh or _err_refresh or "").strip(),
-        )
+    # Re-sync the primary checkout against HEAD before done-event bookkeeping.
+    # A path checkout does not remove stale rename sources in sparse-checkout
+    # repos; the helper uses a tracked-file hard refresh instead.
+    _refresh_primary_checkout_after_merge(main_repo)
 
     baseline_meta_path = _record_baseline_merge_commit(
         feature_dir,
@@ -1384,6 +1452,11 @@ def _run_lane_based_merge_locked(
 
     # -- T001: Mark WPs done with per-WP state tracking --
     console.print("  [dim]Recording merged work packages as done...[/dim]")
+    completed_set = _reconcile_completed_wps_for_resume(
+        feature_dir=feature_dir,
+        merge_state=state,
+        repo_root=main_repo,
+    )
     for lane in lanes_manifest.lanes:
         for wp_id in lane.wp_ids:
             if wp_id in completed_set:
@@ -1462,26 +1535,31 @@ def _run_lane_based_merge_locked(
     if baseline_meta_path is not None:
         files_to_commit.append(baseline_meta_path)
 
-    try:
-        safe_commit(
-            repo_root=main_repo,
-            worktree_root=main_repo,
-            destination_ref=lanes_manifest.target_branch,
-            message=f"chore({mission_slug}): record done transitions for merged WPs",
-            paths=tuple(files_to_commit),
-        )
-    except Exception as exc:
-        if not (isinstance(exc, SafeCommitRecoveryFailed) and exc.commit_sha is not None):
-            with contextlib.suppress(OSError):
-                if _merge_events_path.exists():
-                    with _merge_events_path.open("ab") as _fh:
-                        _fh.truncate(_pre_done_event_size)
-            with contextlib.suppress(OSError):
-                if _pre_done_status_bytes is None:
-                    _merge_status_path.unlink(missing_ok=True)
-                else:
-                    _merge_status_path.write_bytes(_pre_done_status_bytes)
-        raise
+    has_bookkeeping_changes = _paths_have_status_changes(main_repo, files_to_commit)
+    may_skip_empty_bookkeeping = is_resume or mission_already_applied
+    if has_bookkeeping_changes or not may_skip_empty_bookkeeping:
+        try:
+            safe_commit(
+                repo_root=main_repo,
+                worktree_root=main_repo,
+                destination_ref=lanes_manifest.target_branch,
+                message=f"chore({mission_slug}): record done transitions for merged WPs",
+                paths=tuple(files_to_commit),
+            )
+        except Exception as exc:
+            if not (isinstance(exc, SafeCommitRecoveryFailed) and exc.commit_sha is not None):
+                with contextlib.suppress(OSError):
+                    if _merge_events_path.exists():
+                        with _merge_events_path.open("ab") as _fh:
+                            _fh.truncate(_pre_done_event_size)
+                with contextlib.suppress(OSError):
+                    if _pre_done_status_bytes is None:
+                        _merge_status_path.unlink(missing_ok=True)
+                    else:
+                        _merge_status_path.write_bytes(_pre_done_status_bytes)
+            raise
+    else:
+        console.print("  [dim]No post-merge bookkeeping changes to commit; continuing cleanup.[/dim]")
 
     console.print("  [dim]Syncing dossier state for the merged mission...[/dim]")
     trigger_feature_dossier_sync_if_enabled(

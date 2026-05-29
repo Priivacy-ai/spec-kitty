@@ -11,7 +11,7 @@ violation and must raise a merge-specific error.
 
 These tests drive ``_run_lane_based_merge_locked`` indirectly through
 ``_run_lane_based_merge`` with the heavy merge helpers patched out, so we can
-verify the two git subprocess calls (``git checkout HEAD -- .`` and
+verify the two git subprocess calls (``git reset --hard HEAD`` and
 ``git status --porcelain``) fire between ``merge_mission_to_target`` and
 ``safe_commit``.
 """
@@ -23,6 +23,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+import typer
 
 from specify_cli.cli.commands.merge import _run_lane_based_merge
 from specify_cli.merge.config import MergeStrategy
@@ -86,8 +87,8 @@ class TestPostMergeRefreshAndInvariant:
 
         def fake_run_command(cmd, *args, **kwargs):  # noqa: ANN001
             ordered_calls.append(("run_command", tuple(cmd)))
-            if "checkout" in cmd and "HEAD" in cmd:
-                call_log.append("checkout_refresh")
+            if "reset" in cmd and "--hard" in cmd and "HEAD" in cmd:
+                call_log.append("hard_refresh")
                 return (0, "", "")
             if "status" in cmd and "--porcelain" in cmd:
                 call_log.append("status_check")
@@ -147,9 +148,9 @@ class TestPostMergeRefreshAndInvariant:
                 strategy=MergeStrategy.SQUASH,
             )
 
-        # Required ordering: checkout_refresh → mark_done → status_check → safe_commit.
-        assert "checkout_refresh" in call_log, (
-            f"FR-013: post-merge `git checkout HEAD -- .` must fire; call_log={call_log}"
+        # Required ordering: hard_refresh → mark_done → status_check → safe_commit.
+        assert "hard_refresh" in call_log, (
+            f"FR-013: post-merge `git reset --hard HEAD` must fire; call_log={call_log}"
         )
         assert "mark_done" in call_log, "Merged WPs must be recorded as done after refresh"
         assert "status_check" in call_log, (
@@ -157,7 +158,7 @@ class TestPostMergeRefreshAndInvariant:
         )
         assert "safe_commit" in call_log, "safe_commit must still fire after refresh/invariant"
 
-        refresh_idx = call_log.index("checkout_refresh")
+        refresh_idx = call_log.index("hard_refresh")
         mark_done_idx = call_log.index("mark_done")
         status_idx = call_log.index("status_check")
         commit_idx = call_log.index("safe_commit")
@@ -187,8 +188,8 @@ class TestPostMergeRefreshAndInvariant:
         call_log: list[str] = []
 
         def fake_run_command(cmd, *args, **kwargs):  # noqa: ANN001
-            if "checkout" in cmd and "HEAD" in cmd:
-                call_log.append("checkout_refresh")
+            if "reset" in cmd and "--hard" in cmd and "HEAD" in cmd:
+                call_log.append("hard_refresh")
                 return (0, "", "")
             if "status" in cmd and "--porcelain" in cmd:
                 call_log.append("status_check")
@@ -202,8 +203,6 @@ class TestPostMergeRefreshAndInvariant:
         def fake_safe_commit(**kwargs):  # noqa: ANN001
             call_log.append("safe_commit")
             return True
-
-        import click
 
         with (
             patch("specify_cli.cli.commands.merge.require_lanes_json", return_value=manifest),
@@ -239,7 +238,7 @@ class TestPostMergeRefreshAndInvariant:
             policy.merge_gates = []
             mock_policy.return_value = policy
 
-            with pytest.raises(click.exceptions.Exit):
+            with pytest.raises(typer.Exit):
                 _run_lane_based_merge(
                     repo_root=tmp_path,
                     mission_slug=slug,
