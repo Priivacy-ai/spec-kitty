@@ -9,6 +9,7 @@ from pydantic import ValidationError
 
 from specify_cli.core.dependency_graph import (
     build_dependency_graph,
+    dependency_readiness_for_wp,
     detect_cycles,
     get_dependents,
     parse_wp_dependencies,
@@ -17,6 +18,38 @@ from specify_cli.core.dependency_graph import (
 from specify_cli.frontmatter import FrontmatterError
 
 pytestmark = pytest.mark.fast
+
+
+class TestDependencyReadiness:
+    def test_legacy_doing_alias_is_unsatisfied_not_error(self) -> None:
+        readiness = dependency_readiness_for_wp(
+            "WP02",
+            ["WP01"],
+            {"WP01": "doing"},
+        )
+
+        assert readiness.satisfied is False
+        assert readiness.unsatisfied == ("WP01",)
+
+    def test_done_dependency_is_satisfied(self) -> None:
+        readiness = dependency_readiness_for_wp(
+            "WP02",
+            ["WP01"],
+            {"WP01": "done"},
+        )
+
+        assert readiness.satisfied is True
+        assert readiness.unsatisfied == ()
+
+    def test_invalid_dependency_lane_fails_closed(self) -> None:
+        readiness = dependency_readiness_for_wp(
+            "WP02",
+            ["WP01"],
+            {"WP01": "not-a-lane"},
+        )
+
+        assert readiness.satisfied is False
+        assert readiness.unsatisfied == ("WP01",)
 
 
 # T001: Tests for dependency parsing

@@ -12,6 +12,7 @@ import re
 from pathlib import Path
 
 from specify_cli.status.models import Lane
+from specify_cli.status.transitions import resolve_lane_alias
 from specify_cli.status.wp_metadata import read_wp_frontmatter
 
 
@@ -43,13 +44,21 @@ def dependency_readiness_for_wp(
     unsatisfied = tuple(
         dep
         for dep in deps
-        if Lane(wp_lanes.get(dep, Lane.PLANNED)) != Lane.DONE
+        if _dependency_lane(wp_lanes.get(dep, Lane.PLANNED)) != Lane.DONE
     )
     return DependencyReadiness(
         wp_id=wp_id,
         dependencies=deps,
         unsatisfied=unsatisfied,
     )
+
+
+def _dependency_lane(value: Lane | str) -> Lane | None:
+    """Normalize canonical/legacy dependency lanes without laundering invalid data."""
+    try:
+        return Lane(resolve_lane_alias(str(value)))
+    except ValueError:
+        return None
 
 
 def parse_wp_dependencies(wp_file: Path) -> list[str]:
@@ -355,6 +364,7 @@ def get_dependents(wp_id: str, graph: dict[str, list[str]]) -> list[str]:
 
 __all__ = [
     "build_dependency_graph",
+    "dependency_readiness_for_wp",
     "detect_cycles",
     "get_dependents",
     "parse_wp_dependencies",

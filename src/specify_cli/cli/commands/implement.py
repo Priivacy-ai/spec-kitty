@@ -595,7 +595,7 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         from specify_cli.status.store import read_events as _read_events
 
         _wp_lanes = {
-            _wp_id: Lane(_state.get("lane", Lane.PLANNED))
+            _wp_id: _state.get("lane", Lane.PLANNED)
             for _wp_id, _state in _reduce_events(_read_events(feature_dir)).work_packages.items()
         }
         _dependency_readiness = dependency_readiness_for_wp(wp_id, declared_deps, _wp_lanes)

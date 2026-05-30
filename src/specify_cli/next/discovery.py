@@ -34,6 +34,7 @@ from specify_cli.core.dependency_graph import build_dependency_graph, dependency
 from specify_cli.status.models import Lane
 from specify_cli.status.reducer import reduce as _reduce_events
 from specify_cli.status.store import read_events as _read_events
+from specify_cli.status.wp_state import wp_state_for
 from specify_cli.task_utils.support import extract_scalar, split_frontmatter
 
 __all__ = ["ClaimablePreview", "preview_claimable_wp"]
@@ -101,7 +102,7 @@ def _load_wp_lanes(feature_dir: Path) -> dict[str, Lane]:
     except Exception:  # noqa: BLE001 — discovery is best-effort; on read failure default to PLANNED
         return {}
     return {
-        wp_id: Lane(state.get("lane", Lane.PLANNED))
+        wp_id: wp_state_for(state.get("lane", Lane.PLANNED)).lane
         for wp_id, state in snapshot.work_packages.items()
     }
 
