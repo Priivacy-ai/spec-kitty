@@ -120,14 +120,10 @@ def _load_command_skill_state(
     project_path: Path,
 ) -> tuple[SkillsManifest, VerifyReport, list[str], list[str], list[str], bool]:
     """Load command-skill manifest state and configured command-skill agents."""
-    from specify_cli.core.agent_config import AgentConfigError, load_agent_config
+    from specify_cli.core.agent_config import load_agent_config
     from specify_cli.skills import command_installer, manifest_store
 
-    try:
-        config = load_agent_config(project_path)
-    except AgentConfigError:
-        raise
-
+    config = load_agent_config(project_path)
     supported = set(command_installer.SUPPORTED_AGENTS)
     configured_agents = sorted(set(config.available) & supported)
     manifest = manifest_store.load(project_path)

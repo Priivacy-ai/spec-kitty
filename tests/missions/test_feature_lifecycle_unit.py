@@ -128,6 +128,7 @@ def test_accept_command_delegates_to_toplevel(mock_locate: MagicMock, mock_accep
         json_output=True,
         lenient=False,
         no_commit=False,
+        diagnose=False,
         allow_fail=False,
     )
 
@@ -161,6 +162,7 @@ def test_accept_command_passes_flags(mock_locate: MagicMock, mock_accept: MagicM
         json_output=True,
         lenient=True,
         no_commit=True,
+        diagnose=False,
         allow_fail=False,
     )
 
@@ -491,5 +493,6 @@ def test_accept_command_with_all_flags_console_output(mock_locate: MagicMock, mo
         json_output=False,
         lenient=True,
         no_commit=True,
+        diagnose=False,
         allow_fail=False,
     )

@@ -127,6 +127,7 @@ DAEMON_SERVE_FOREVER_POLL_SECONDS: float = 0.05
 DAEMON_TICK_SECONDS: int = 30
 
 _RUNTIME_BACKGROUND_START_DELAY_SECONDS: float = 1.0
+_STARTUP_HEALTH_TIMEOUT_SECONDS: float = 0.1
 
 
 def _is_daemon_lock_contention(exc: OSError) -> bool:
@@ -148,6 +149,10 @@ def _is_daemon_lock_contention(exc: OSError) -> bool:
 @cache
 def _get_package_version() -> str:
     """Return the installed specify_cli version string."""
+    env_version = os.environ.get("SPEC_KITTY_CLI_VERSION")
+    if env_version:
+        return env_version
+
     try:
         from importlib.metadata import version
 
@@ -910,9 +915,17 @@ def _ensure_sync_daemon_running_locked(
     """Inner implementation — caller must hold the daemon lock file."""
     if DAEMON_STATE_FILE.exists():
         existing_url, existing_port, existing_token, existing_pid = _parse_daemon_file(DAEMON_STATE_FILE)
-        if existing_port is not None and _check_sync_daemon_health(existing_port, existing_token):
+        if existing_port is not None and _check_sync_daemon_health(
+            existing_port,
+            existing_token,
+            timeout=_STARTUP_HEALTH_TIMEOUT_SECONDS,
+        ):
             # Daemon is healthy — check whether it's running the current version.
-            if _daemon_version_matches(existing_port, existing_token):
+            if _daemon_version_matches(
+                existing_port,
+                existing_token,
+                timeout=_STARTUP_HEALTH_TIMEOUT_SECONDS,
+            ):
                 return existing_url or f"http://127.0.0.1:{existing_port}", existing_port, False
 
             # Stale version — recycle the daemon.
@@ -942,6 +955,7 @@ def _ensure_sync_daemon_running_locked(
         stderr=log_fh,
         stdin=subprocess.DEVNULL,
         start_new_session=True,
+        env={**os.environ, "SPEC_KITTY_CLI_VERSION": _get_package_version()},
     )
     log_fh.close()
 
@@ -953,7 +967,11 @@ def _ensure_sync_daemon_running_locked(
         health_wait_seconds,
     )
     for delay in retry_delays:
-        if _check_sync_daemon_health(port, token):
+        if _check_sync_daemon_health(
+            port,
+            token,
+            timeout=_STARTUP_HEALTH_TIMEOUT_SECONDS,
+        ):
             _write_daemon_file(DAEMON_STATE_FILE, url, port, token, proc.pid)
             return url, port, True
         time.sleep(delay)

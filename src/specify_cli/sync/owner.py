@@ -292,16 +292,17 @@ def redact_token(record: DaemonOwnerRecord | None) -> dict[str, Any] | None:
 def _resolve_source_checkout_path() -> str:
     """Return the repo root of the installed ``specify_cli`` package.
 
-    Uses ``Path(specify_cli.__file__).resolve().parents[2]`` to match the
-    algorithm used by the daemon side (see data-model.md). For a normal
-    editable install this yields the project root; for a wheel install
-    it yields a deterministic site-packages-relative path which is still
-    stable across foreground+daemon comparisons because both sides use
-    the same code path.
-    """
-    import specify_cli  # local import keeps module import-time cheap
+    Mirrors ``Path(specify_cli.__file__).resolve().parents[2]`` without
+    importing the top-level package. Importing ``specify_cli`` here would
+    drag the full root CLI registration graph into daemon owner-record
+    construction, which is on the restart-daemon critical path.
 
-    return str(Path(specify_cli.__file__).resolve().parents[2])
+    ``owner.py`` lives at ``.../specify_cli/sync/owner.py`` so
+    ``Path(__file__).resolve().parents[3]`` lands on the same repo /
+    site-packages-relative root that ``specify_cli.__file__`` would have
+    produced.
+    """
+    return str(Path(__file__).resolve().parents[3])
 
 
 def compute_foreground_identity() -> dict[str, Any]:
