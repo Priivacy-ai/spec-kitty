@@ -3073,6 +3073,17 @@ def map_requirements(
 
         mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
         main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
+        if auto_commit is None:
+            auto_commit = get_auto_commit_default(main_repo_root)
+        if auto_commit:
+            protected_error = _protected_branch_status_commit_error(
+                target_branch,
+                main_repo_root,
+                "spec-kitty agent tasks map-requirements",
+            )
+            if protected_error is not None:
+                _output_error(json_output, protected_error)
+                raise typer.Exit(1)
         feature_dir = main_repo_root / "kitty-specs" / mission_slug
 
         if not feature_dir.exists():
@@ -3259,9 +3270,6 @@ def map_requirements(
         coverage = compute_coverage(all_wp_refs, functional_ids)
 
         # Auto-commit written WP files (consistent with move-task / update-subtasks)
-        if auto_commit is None:
-            auto_commit = get_auto_commit_default(main_repo_root)
-
         committed = False
         if auto_commit:
             written_files: list[Path] = []

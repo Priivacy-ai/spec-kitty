@@ -55,6 +55,10 @@ def _seed_mission(repo: Path) -> Path:
         "# Tasks\n\n## WP01\n- [ ] T001 First task\n",
         encoding="utf-8",
     )
+    (feature_dir / "spec.md").write_text(
+        "# Spec\n\n## Functional Requirements\n\n- **FR-001**: First requirement.\n",
+        encoding="utf-8",
+    )
     (tasks_dir / "WP01-test.md").write_text(
         "---\n"
         "work_package_id: WP01\n"
@@ -146,4 +150,38 @@ def test_mark_status_refuses_protected_branch_before_mutation(
     assert result.exit_code == 1
     assert "Refusing to run `spec-kitty agent tasks mark-status`" in result.output
     assert "protected branch 'main'" in result.output
+    assert _status(repo) == ""
+
+
+def test_map_requirements_refuses_protected_branch_before_mutation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    _seed_mission(repo)
+    _commit_seed(repo)
+    monkeypatch.chdir(repo)
+
+    result = runner.invoke(
+        tasks_app,
+        [
+            "map-requirements",
+            "--wp",
+            "WP01",
+            "--refs",
+            "FR-001",
+            "--mission",
+            "issue1386-protected",
+            "--auto-commit",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 1
+    payload = json.loads(result.output)
+    assert "Refusing to run `spec-kitty agent tasks map-requirements`" in payload["error"]
+    assert "protected branch 'main'" in payload["error"]
     assert _status(repo) == ""
