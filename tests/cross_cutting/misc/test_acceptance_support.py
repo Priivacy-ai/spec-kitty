@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
+import sys
 from pathlib import Path
 
 import pytest
@@ -222,6 +224,167 @@ def test_accept_no_commit_reports_merge_pending_without_mutation(
     assert len(read_events(feature_dir)) == before_events
     summary = acc.collect_feature_summary(feature_repo, mission_slug, strict_metadata=True)
     assert summary.lanes["approved"] == ["WP01"]
+
+
+def test_accept_diagnose_json_reports_skipped_checks_without_mutation(
+    feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tests.lane_test_utils import write_single_lane_manifest
+    from tests.utils import run
+
+    _write_acceptance_meta(feature_repo, mission_slug)
+    feature_dir = feature_repo / "kitty-specs" / mission_slug
+    write_single_lane_manifest(feature_dir)
+    run(["git", "branch", "-M", "main"], cwd=feature_repo)
+    run(["git", "add", "."], cwd=feature_repo)
+    run(["git", "commit", "-m", "Add lane metadata"], cwd=feature_repo)
+    run(["git", "checkout", "-b", f"kitty/mission-{mission_slug}"], cwd=feature_repo)
+
+    before_meta = (feature_dir / "meta.json").read_text(encoding="utf-8")
+    monkeypatch.chdir(feature_repo)
+    result = runner.invoke(
+        cli_app,
+        [
+            "accept",
+            "--mission",
+            mission_slug,
+            "--diagnose",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["diagnose"] is True
+    assert any(item["check"] == "acceptance_matrix" for item in payload["blocked_checks"])
+    assert any(item["check"] == "negative_invariants" for item in payload["skipped_checks"])
+    assert any("acceptance-matrix.json" in item for item in payload["recommended_fix_order"])
+    assert (feature_dir / "meta.json").read_text(encoding="utf-8") == before_meta
+    assert "acceptance-matrix.json" not in {path.name for path in feature_dir.iterdir()}
+    status = run(["git", "status", "--short"], cwd=feature_repo)
+    assert status.stdout == ""
+
+
+def test_accept_diagnose_does_not_mutate_matrix_metadata_or_events(
+    feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import specify_cli.status.emit as status_emit
+    from specify_cli.acceptance.matrix import AcceptanceMatrix, NegativeInvariant, write_acceptance_matrix
+    from specify_cli.status.store import read_events
+    from tests.lane_test_utils import write_single_lane_manifest
+    from tests.utils import run
+
+    monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
+    _write_acceptance_meta(feature_repo, mission_slug)
+    feature_dir = feature_repo / "kitty-specs" / mission_slug
+    write_single_lane_manifest(feature_dir)
+    write_acceptance_matrix(
+        feature_dir,
+        AcceptanceMatrix(
+            mission_slug=mission_slug,
+            negative_invariants=[
+                NegativeInvariant(
+                    "NI-01",
+                    "Legacy route stays absent",
+                    "grep_absence",
+                    verification_command="legacy_route_that_does_not_exist",
+                )
+            ],
+        ),
+    )
+    _approve_wp(feature_repo, mission_slug, "WP01")
+    run(["git", "branch", "-M", "main"], cwd=feature_repo)
+    run(["git", "add", "."], cwd=feature_repo)
+    run(["git", "commit", "-m", "Prepare accepted lane mission"], cwd=feature_repo)
+    run(["git", "checkout", "-b", f"kitty/mission-{mission_slug}"], cwd=feature_repo)
+
+    matrix_path = feature_dir / "acceptance-matrix.json"
+    before_matrix = matrix_path.read_text(encoding="utf-8")
+    before_meta = (feature_dir / "meta.json").read_text(encoding="utf-8")
+    before_events = len(read_events(feature_dir))
+
+    monkeypatch.chdir(feature_repo)
+    result = runner.invoke(
+        cli_app,
+        [
+            "accept",
+            "--mission",
+            mission_slug,
+            "--diagnose",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["diagnose"] is True
+    assert payload["ok"] is False
+    assert any(item["check"] == "negative_invariants" for item in payload["skipped_checks"])
+    assert any("Acceptance matrix verdict is 'pending'" in item["detail"] for item in payload["failed_checks"])
+    assert matrix_path.read_text(encoding="utf-8") == before_matrix
+    assert (feature_dir / "meta.json").read_text(encoding="utf-8") == before_meta
+    assert len(read_events(feature_dir)) == before_events
+    status = run(["git", "status", "--short"], cwd=feature_repo)
+    assert status.stdout == ""
+
+
+def test_accept_diagnose_does_not_execute_custom_negative_invariants(
+    feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import specify_cli.status.emit as status_emit
+    from specify_cli.acceptance.matrix import AcceptanceMatrix, NegativeInvariant, write_acceptance_matrix
+    from tests.lane_test_utils import write_single_lane_manifest
+    from tests.utils import run
+
+    monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
+    _write_acceptance_meta(feature_repo, mission_slug)
+    feature_dir = feature_repo / "kitty-specs" / mission_slug
+    side_effect_path = feature_repo / "diagnose-side-effect.txt"
+    write_single_lane_manifest(feature_dir)
+    command = (
+        f"{shlex.quote(sys.executable)} -c "
+        "\"from pathlib import Path; Path('diagnose-side-effect.txt').write_text('mutated')\""
+    )
+    write_acceptance_matrix(
+        feature_dir,
+        AcceptanceMatrix(
+            mission_slug=mission_slug,
+            negative_invariants=[
+                NegativeInvariant(
+                    "NI-01",
+                    "Diagnostic command must not run",
+                    "custom_command",
+                    verification_command=command,
+                )
+            ],
+        ),
+    )
+    _approve_wp(feature_repo, mission_slug, "WP01")
+    run(["git", "branch", "-M", "main"], cwd=feature_repo)
+    run(["git", "add", "."], cwd=feature_repo)
+    run(["git", "commit", "-m", "Prepare custom invariant mission"], cwd=feature_repo)
+    run(["git", "checkout", "-b", f"kitty/mission-{mission_slug}"], cwd=feature_repo)
+
+    before_matrix = (feature_dir / "acceptance-matrix.json").read_text(encoding="utf-8")
+    monkeypatch.chdir(feature_repo)
+    result = runner.invoke(
+        cli_app,
+        [
+            "accept",
+            "--mission",
+            mission_slug,
+            "--diagnose",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert any(item["check"] == "negative_invariants" for item in payload["skipped_checks"])
+    assert not side_effect_path.exists()
+    assert (feature_dir / "acceptance-matrix.json").read_text(encoding="utf-8") == before_matrix
+    status = run(["git", "status", "--short"], cwd=feature_repo)
+    assert status.stdout == ""
 
 
 def test_accept_does_not_require_done_evidence_for_approved_wp(

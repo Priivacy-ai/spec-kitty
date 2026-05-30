@@ -99,6 +99,31 @@ def _print_acceptance_result(result: AcceptanceResult) -> None:
             console.print(f"  - {note}")
 
 
+def _print_acceptance_diagnosis(summary: AcceptanceSummary) -> None:
+    failed_checks = summary.failed_checks()
+    if failed_checks:
+        console.print("\n[bold red]Failed checks[/bold red]")
+        for item in failed_checks:
+            console.print(f"[red]- {item.check}[/red]: {item.detail}")
+    else:
+        console.print("\n[green]No failed acceptance checks detected.[/green]")
+
+    if summary.skipped_checks:
+        console.print("\n[bold yellow]Skipped checks[/bold yellow]")
+        for item in summary.skipped_checks:
+            console.print(f"[yellow]- {item.check}[/yellow]: {item.detail}")
+
+    if summary.blocked_checks:
+        console.print("\n[bold yellow]Blocked checks[/bold yellow]")
+        for item in summary.blocked_checks:
+            console.print(f"[yellow]- {item.check}[/yellow]: {item.detail}")
+
+    if summary.recommended_fix_order:
+        console.print("\n[bold]Recommended fix order[/bold]")
+        for idx, item in enumerate(summary.recommended_fix_order, start=1):
+            console.print(f"  {idx}. {item}")
+
+
 def _summary_payload(summary: AcceptanceSummary) -> dict[str, object]:
     payload = summary.to_dict()
     payload.update(acceptance_lane_derivations(summary))
@@ -123,6 +148,7 @@ def accept(
     json_output: bool = typer.Option(False, "--json", help="Emit JSON instead of formatted text"),
     lenient: bool = typer.Option(False, "--lenient", help="Skip strict metadata validation"),
     no_commit: bool = typer.Option(False, "--no-commit", help="Report acceptance readiness without writing metadata or status changes"),
+    diagnose: bool = typer.Option(False, "--diagnose", help="Diagnose acceptance blockers without writing metadata or matrix artifacts"),
     allow_fail: bool = typer.Option(False, "--allow-fail", help="Return checklist even when issues remain"),
 ) -> None:
     """Validate mission readiness before merging to main."""
@@ -168,11 +194,11 @@ def accept(
 
     requested_mode = (mode or "auto").lower()
     actual_mode = choose_mode(requested_mode, repo_root)
-    commit_required = actual_mode != "checklist" and not no_commit
+    commit_required = actual_mode != "checklist" and not no_commit and not diagnose
     if commit_required and not json_output:
         tracker.add("commit", "Record acceptance metadata")
     if not json_output:
-        tracker.add("guide", "Share next steps")
+        tracker.add("guide", "Share next steps" if not diagnose else "Report diagnostics")
 
     if not json_output:
         tracker.start("verify")
@@ -181,6 +207,7 @@ def accept(
             repo_root,
             mission_slug,
             strict_metadata=not lenient,
+            mutate_matrix=not diagnose,
         )
     except AcceptanceError as exc:
         _safe_emit_error_logged(str(exc))
@@ -193,6 +220,18 @@ def accept(
         raise typer.Exit(1)
     if not json_output:
         tracker.complete("verify", "ready" if summary.ok else "issues found")
+
+    if diagnose:
+        if json_output:
+            payload = _summary_payload(summary)
+            payload["diagnose"] = True
+            print(json.dumps(payload, indent=2))
+        else:
+            tracker.start("guide")
+            tracker.complete("guide", "diagnostics ready")
+            console.print(tracker.render())
+            _print_acceptance_diagnosis(summary)
+        raise typer.Exit(0)
 
     if actual_mode == "checklist":
         if json_output:
