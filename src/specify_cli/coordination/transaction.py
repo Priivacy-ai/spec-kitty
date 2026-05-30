@@ -293,6 +293,24 @@ def _emit_legacy_warning_once(
     )
 
 
+def _confine_path_to_worktree(worktree_root: Path, path: Path) -> Path:
+    """Resolve ``path`` relative to ``worktree_root`` and reject escapes."""
+    candidate = path if path.is_absolute() else worktree_root / path
+    try:
+        resolved_worktree = worktree_root.resolve()
+        resolved_candidate = candidate.resolve(strict=False)
+    except OSError as exc:
+        raise ValueError(
+            f"Path {candidate} could not be resolved under worktree {worktree_root}: {exc}"
+        ) from exc
+    if not resolved_candidate.is_relative_to(resolved_worktree):
+        raise ValueError(
+            f"Path {candidate} resolves outside worktree {worktree_root}: "
+            f"{resolved_candidate}"
+        )
+    return candidate
+
+
 # WP06 swap: the canonical builder now lives in ``status.emit`` so the
 # status domain owns it (FR-032). Re-export under the original name to
 # keep ``coordination.build_status_event`` import-compatible for any
@@ -654,6 +672,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         previously exist). C-009: no ``git checkout --`` in the
         rollback path.
         """
+        path = _confine_path_to_worktree(self.worktree_root, path)
         # Capture snapshot ONLY if we have not seen this path yet.
         # Re-writing the same path repeatedly in one transaction still
         # rolls back to the *original* pre-transaction state.
@@ -675,6 +694,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         Rollback does NOT restore these (documented contract — only
         :meth:`write_artifact` paths get snapshot/restore semantics).
         """
+        path = _confine_path_to_worktree(self.worktree_root, path)
         if path not in self._staged_paths:
             self._staged_paths.append(path)
 

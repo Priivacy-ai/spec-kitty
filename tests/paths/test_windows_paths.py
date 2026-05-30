@@ -30,6 +30,19 @@ def test_get_runtime_root_on_windows(tmp_path: Path, monkeypatch: pytest.MonkeyP
     assert root.cache_dir == root.base / "cache"
 
 
+def test_get_runtime_root_on_windows_falls_back_when_platformdirs_breaks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(sys, "platform", "win32")
+    with patch(
+        "specify_cli.paths.windows_paths.platformdirs.user_data_dir",
+        side_effect=ImportError("ctypes HRESULT unavailable"),
+    ):
+        root = get_runtime_root()
+    assert root.platform == "win32"
+    assert root.base == Path.home() / ".spec-kitty"
+
+
 def test_get_runtime_root_on_linux(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(sys, "platform", "linux")
     root = get_runtime_root()
