@@ -411,6 +411,7 @@ def test_runs_outside_project_does_not_crash(
     a tmp dir so we know the entry point is robust."""
     monkeypatch.chdir(tmp_path)
     _install_owner_record_fakes(monkeypatch, record=None, path_exists=False)
+    _install_daemon_state_file_fake(monkeypatch, exists=False)
     _install_stop_fake(monkeypatch, result=(False, "noop"))
     _install_launch_fake(
         monkeypatch,

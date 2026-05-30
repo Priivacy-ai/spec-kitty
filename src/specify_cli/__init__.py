@@ -76,6 +76,20 @@ if not _RESTART_DAEMON_PROCESS_FAST_PATH:
     from specify_cli.cli.commands.init import register_init_command
 
 
+def locate_project_root() -> Path | None:
+    """Compatibility wrapper so patch targets stay stable."""
+    from specify_cli.core.project_resolver import locate_project_root as _locate_project_root
+
+    return _locate_project_root()
+
+
+def root_callback(ctx: typer.Context) -> None:
+    """Compatibility wrapper so patch targets stay stable."""
+    from specify_cli.cli.helpers import callback as _root_callback
+
+    _root_callback(ctx)
+
+
 def activate_mission(project_path: Path, mission_type: str, mission_display: str, console: "Console") -> str:
     """
     DEPRECATED: No-op function for backwards compatibility.
@@ -141,9 +155,6 @@ def main_callback(
     """Main callback for root CLI setup."""
     if _is_doctor_restart_daemon_invocation(sys.argv):
         return
-
-    from specify_cli.cli.helpers import callback as root_callback
-    from specify_cli.core.project_resolver import locate_project_root
 
     root_callback(ctx)
 
@@ -254,15 +265,9 @@ def _run_doctor_restart_daemon_process_fast_path(argv: list[str]) -> None:
     import os
     import sys
 
-    from specify_cli.core.project_resolver import locate_project_root
     from specify_cli.sync.restart import render_restart_result, restart_daemon
 
-    try:
-        located = locate_project_root()
-    except Exception:  # noqa: BLE001 — restart-daemon is machine-global today
-        located = None
-    repo_root = located if located is not None else Path.cwd()
-    result = restart_daemon(repo_root)
+    result = restart_daemon(Path.cwd())
     sys.stdout.write(render_restart_result(result, json_output="--json" in argv) + "\n")
     sys.stdout.flush()
     sys.stderr.flush()
@@ -271,6 +276,9 @@ def _run_doctor_restart_daemon_process_fast_path(argv: list[str]) -> None:
 
 def main() -> None:
     import sys
+
+    if _is_doctor_restart_daemon_process_fast_path(sys.argv):
+        _run_doctor_restart_daemon_process_fast_path(sys.argv)
 
     # FR-130 / FR-131: Install the CLI logging bootstrap early — before the
     # Typer app runs — so that warnings.warn(...) calls (including
@@ -291,9 +299,6 @@ def main() -> None:
         except (AttributeError, OSError):
             # Python < 3.7 or reconfigure not available
             pass
-
-    if _is_doctor_restart_daemon_process_fast_path(sys.argv):
-        _run_doctor_restart_daemon_process_fast_path(sys.argv)
 
     # Check for spec-kitty-events library availability (required for 2.x branch)
     from specify_cli.events.adapter import EventAdapter
