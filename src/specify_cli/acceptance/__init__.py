@@ -860,6 +860,15 @@ def _commit_acceptance_meta(
             if _history:
                 _history[-1]["accept_commit"] = accept_commit
             write_meta(summary.feature_dir, _meta)
+            run_git(["add", str(meta_path.relative_to(summary.repo_root))], cwd=summary.repo_root, check=True)
+            commit_status = run_git(["diff", "--cached", "--name-only"], cwd=summary.repo_root, check=True)
+            commit_staged_files = [line.strip() for line in commit_status.stdout.splitlines() if line.strip()]
+            if commit_staged_files:
+                run_git(
+                    ["commit", "-m", f"Record acceptance commit for {summary.feature}"],
+                    cwd=summary.repo_root,
+                    check=True,
+                )
 
     return parent_commit, accept_commit, True
 
