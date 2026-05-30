@@ -22,6 +22,8 @@ must fetch bearer tokens via
 deletion).
 """
 
+import os
+
 _EVENTS_MODULE = ".events"
 _FEATURE_FLAGS_MODULE = ".feature_flags"
 
@@ -289,29 +291,31 @@ def register_default_handlers() -> None:
 # Initial registration at import time. Subsequent code (production or
 # tests) can call ``register_default_handlers()`` again to repair the
 # registry after a wipe.
-register_default_handlers()
+if os.environ.get("SPEC_KITTY_SYNC_MINIMAL_IMPORT") != "1":
+    register_default_handlers()
 
-with _contextlib.suppress(ImportError):
-    # Register dossier emitter (WP01 inversion). The wrapper routes
-    # through get_emitter() lazily so the late-binding behavior of the
-    # emitter singleton is preserved across resets.
-    from specify_cli.dossier.emitter_adapter import register_dossier_emitter
+if os.environ.get("SPEC_KITTY_SYNC_MINIMAL_IMPORT") != "1":
+    with _contextlib.suppress(ImportError):
+        # Register dossier emitter (WP01 inversion). The wrapper routes
+        # through get_emitter() lazily so the late-binding behavior of the
+        # emitter singleton is preserved across resets.
+        from specify_cli.dossier.emitter_adapter import register_dossier_emitter
 
-    def _dossier_emit_via_sync(
-        *,
-        event_type: str,
-        aggregate_id: str,
-        aggregate_type: str,
-        payload: dict[str, object],
-    ) -> dict[str, object]:
-        from specify_cli.sync.events import get_emitter
+        def _dossier_emit_via_sync(
+            *,
+            event_type: str,
+            aggregate_id: str,
+            aggregate_type: str,
+            payload: dict[str, object],
+        ) -> dict[str, object]:
+            from specify_cli.sync.events import get_emitter
 
-        result = get_emitter()._emit(
-            event_type=event_type,
-            aggregate_id=aggregate_id,
-            aggregate_type=aggregate_type,
-            payload=payload,
-        )
-        return result if result is not None else {}
+            result = get_emitter()._emit(
+                event_type=event_type,
+                aggregate_id=aggregate_id,
+                aggregate_type=aggregate_type,
+                payload=payload,
+            )
+            return result if result is not None else {}
 
-    register_dossier_emitter(_dossier_emit_via_sync)
+        register_dossier_emitter(_dossier_emit_via_sync)

@@ -107,9 +107,6 @@ class DaemonStartOutcome:
     skipped_reason: str | None
     pid: int | None
 
-
-_FAST_STARTUP_GRACE_DELAYS = [0.1] * 20 + [0.25] * 12
-
 # Port range for the sync daemon — well above the dashboard range (9237-9337)
 # to prevent overlap.
 DAEMON_PORT_START = 9400
@@ -253,27 +250,6 @@ def _find_free_port(start_port: int = DAEMON_PORT_START, max_attempts: int = DAE
             continue
 
     raise RuntimeError(f"Could not find free sync daemon port in range {start_port}-{start_port + max_attempts}")
-
-
-def _port_accepting_connections(port: int) -> bool:
-    """Return True when localhost:*port* is accepting TCP connections."""
-    try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            sock.settimeout(0.05)
-            return sock.connect_ex(("127.0.0.1", port)) == 0
-    except OSError:
-        return False
-
-
-def _owner_record_matches_process(pid: int, port: int) -> bool:
-    """Return True when the canonical owner record names *pid* on *port*."""
-    try:
-        from specify_cli.sync.owner import read_owner_record
-
-        record = read_owner_record()
-    except Exception:
-        return False
-    return bool(record is not None and record.pid == pid and record.port == port)
 
 
 def _fetch_health_payload(health_url: str, timeout: float = 0.5) -> dict[str, Any] | None:
@@ -712,6 +688,8 @@ def _background_script(port: int, daemon_token: str | None) -> str:
     """
     return textwrap.dedent(
         f"""\
+        import os
+        os.environ["SPEC_KITTY_SYNC_MINIMAL_IMPORT"] = "1"
         from specify_cli.sync.daemon import run_sync_daemon
         run_sync_daemon({port}, {repr(daemon_token)})
         """
@@ -807,7 +785,6 @@ def ensure_sync_daemon_running(
     *,
     intent: DaemonIntent,
     config: SyncConfig | None = None,
-    wait_for_health: bool = True,
 ) -> DaemonStartOutcome:
     """Ensure the machine-global sync daemon is running.
 
@@ -881,9 +858,7 @@ def ensure_sync_daemon_running(
                 pid=None,
             )
         try:
-            _url, _port, _started = _ensure_sync_daemon_running_locked(
-                wait_for_health=wait_for_health
-            )
+            _url, _port, _started = _ensure_sync_daemon_running_locked()
         except Exception as exc:
             return DaemonStartOutcome(
                 started=False, skipped_reason=f"start_failed: {exc}", pid=None
@@ -905,11 +880,7 @@ def ensure_sync_daemon_running(
         lock_fd.close()
 
 
-def _ensure_sync_daemon_running_locked(
-    preferred_port: int | None = None,
-    *,
-    wait_for_health: bool = True,
-) -> tuple[str, int, bool]:
+def _ensure_sync_daemon_running_locked(preferred_port: int | None = None) -> tuple[str, int, bool]:
     """Inner implementation — caller must hold the daemon lock file."""
     if DAEMON_STATE_FILE.exists():
         existing_url, existing_port, existing_token, existing_pid = _parse_daemon_file(DAEMON_STATE_FILE)
@@ -949,20 +920,6 @@ def _ensure_sync_daemon_running_locked(
     log_fh.close()
 
     url = f"http://127.0.0.1:{port}"
-
-    if not wait_for_health:
-        # Fast-path for restart-daemon: once the child process is stably alive,
-        # callers can observe readiness via the existing health poll after the
-        # CLI returns instead of blocking this startup path on full health.
-        for delay in _FAST_STARTUP_GRACE_DELAYS:
-            if _check_sync_daemon_health(port, token):
-                _write_daemon_file(DAEMON_STATE_FILE, url, port, token, proc.pid)
-                return url, port, True
-            if _owner_record_matches_process(proc.pid, port) or _port_accepting_connections(port):
-                _write_daemon_file(DAEMON_STATE_FILE, url, port, token, proc.pid)
-                return url, port, True
-            time.sleep(delay)
-        raise RuntimeError(f"Sync daemon failed to stay alive on port {port}")
 
     # Wait up to ~20s for the daemon to become healthy (matching dashboard pattern)
     retry_delays = [0.1] * 10 + [0.25] * 40 + [0.5] * 20

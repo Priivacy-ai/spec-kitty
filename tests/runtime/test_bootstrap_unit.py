@@ -871,3 +871,37 @@ print(json.dumps({
             "commands_loaded": False,
             "init_loaded": False,
         }
+
+    def test_restart_daemon_minimal_sync_import_skips_status_and_dossier(self) -> None:
+        """Restart-daemon fast path should avoid sync package fan-out imports."""
+        script = """
+import json
+import os
+import sys
+
+os.environ["SPEC_KITTY_SYNC_MINIMAL_IMPORT"] = "1"
+import specify_cli.sync.daemon  # noqa: F401
+
+print(json.dumps({
+    "status_loaded": "specify_cli.status" in sys.modules,
+    "dossier_loaded": "specify_cli.dossier" in sys.modules,
+}))
+"""
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            cwd=str(Path(__file__).resolve().parents[2]),
+            env={
+                **os.environ,
+                "PYTHONPATH": str(Path(__file__).resolve().parents[2] / "src"),
+            },
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        assert result.returncode == 0, result.stderr
+        payload = json.loads(result.stdout)
+        assert payload == {
+            "status_loaded": False,
+            "dossier_loaded": False,
+        }

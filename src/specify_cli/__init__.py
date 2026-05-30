@@ -47,6 +47,7 @@ def _early_doctor_restart_daemon_process_fast_path(argv: list[str]) -> bool:
 
 
 def _run_early_doctor_restart_daemon_process_fast_path(argv: list[str]) -> None:
+    os.environ["SPEC_KITTY_SYNC_MINIMAL_IMPORT"] = "1"
     from specify_cli.sync.restart import render_restart_result, restart_daemon
 
     result = restart_daemon(Path.cwd())
