@@ -338,6 +338,24 @@ def test_perform_acceptance_persists_accept_commit(tmp_path: Path) -> None:
         f"Result.accept_commit mismatch: {result.accept_commit!r} != {accept_commit!r}"
     )
 
+    status = subprocess.run(
+        ["git", "-C", str(repo_root), "status", "--short"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert status.stdout == ""
+
+    committed_meta = subprocess.run(
+        ["git", "-C", str(repo_root), "show", f"HEAD:kitty-specs/{_FEATURE_SLUG}/meta.json"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    committed = json.loads(committed_meta.stdout)
+    assert committed["accept_commit"] == accept_commit
+    assert committed["acceptance_history"][-1]["accept_commit"] == accept_commit
+
 
 # ---------------------------------------------------------------------------
 # Integration branch guard: merge guidance must not target integration branch

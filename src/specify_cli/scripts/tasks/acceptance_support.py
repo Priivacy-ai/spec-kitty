@@ -44,11 +44,13 @@ _EXPORT_NAMES = (
     "AcceptanceSummary",
     "ArtifactEncodingError",
     "WorkPackageState",
+    "acceptance_lane_derivations",
     "choose_mode",
     "collect_feature_summary",
     "detect_mission_slug",
     "normalize_feature_encoding",
     "perform_acceptance",
+    "resolve_acceptance_actor",
 )
 
 
@@ -70,9 +72,11 @@ __all__ = [
     "AcceptanceSummary",
     "ArtifactEncodingError",
     "WorkPackageState",
+    "acceptance_lane_derivations",
     "choose_mode",
     "collect_feature_summary",
     "detect_mission_slug",
     "normalize_feature_encoding",
     "perform_acceptance",
+    "resolve_acceptance_actor",
 ]
