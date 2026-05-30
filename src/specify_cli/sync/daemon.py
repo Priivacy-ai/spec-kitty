@@ -148,6 +148,10 @@ def _is_daemon_lock_contention(exc: OSError) -> bool:
 @cache
 def _get_package_version() -> str:
     """Return the installed specify_cli version string."""
+    env_version = os.environ.get("SPEC_KITTY_CLI_VERSION")
+    if env_version:
+        return env_version
+
     try:
         from importlib.metadata import version
 
@@ -914,6 +918,7 @@ def _ensure_sync_daemon_running_locked(preferred_port: int | None = None) -> tup
         stderr=log_fh,
         stdin=subprocess.DEVNULL,
         start_new_session=True,
+        env={**os.environ, "SPEC_KITTY_CLI_VERSION": _get_package_version()},
     )
     log_fh.close()
 
