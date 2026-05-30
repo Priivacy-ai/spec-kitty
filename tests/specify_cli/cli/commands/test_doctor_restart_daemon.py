@@ -83,6 +83,7 @@ def _install_daemon_state_file_fake(
     monkeypatch: pytest.MonkeyPatch,
     *,
     exists: bool,
+    port: int | None = 9400,
     pid: int | None = None,
 ) -> None:
     """Wire up a fake ``DAEMON_STATE_FILE.exists()`` response."""
@@ -98,7 +99,7 @@ def _install_daemon_state_file_fake(
     )
     monkeypatch.setattr(
         "specify_cli.sync.daemon._parse_daemon_file",
-        lambda _path: ("http://127.0.0.1:9400", 9400, "token", pid),
+        lambda _path: ("http://127.0.0.1:9400", port, "token", pid),
         raising=True,
     )
 
@@ -341,6 +342,51 @@ def test_daemon_state_without_owner_is_restartable(
     assert payload["status"] == "restarted"
     assert payload["previous_pid"] == 12345
     assert payload["new_pid"] == 67890
+
+
+def test_invalid_daemon_state_without_owner_is_not_restartable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Corrupt state-only metadata stays on the no-owner boundary."""
+
+    class _MissingPath:
+        def exists(self) -> bool:
+            return False
+
+    monkeypatch.setattr(
+        "specify_cli.sync.owner.owner_record_path",
+        lambda: _MissingPath(),
+        raising=True,
+    )
+    monkeypatch.setattr(
+        "specify_cli.sync.owner.read_owner_record",
+        lambda: None,
+        raising=True,
+    )
+    _install_daemon_state_file_fake(monkeypatch, exists=True, port=None, pid=None)
+
+    ticks = iter([0.0, 0.1, 0.2, 0.3, 2.1])
+    sleeps: list[float] = []
+    monkeypatch.setattr("specify_cli.sync.restart.time.monotonic", lambda: next(ticks))
+    monkeypatch.setattr("specify_cli.sync.restart.time.sleep", lambda seconds: sleeps.append(seconds))
+
+    stop_calls = _install_stop_fake(monkeypatch, result=(False, "invalid metadata"))
+    launch_calls = _install_launch_fake(
+        monkeypatch,
+        outcome=DaemonStartOutcome(started=True, skipped_reason=None, pid=67890),
+    )
+
+    result = _runner().invoke(doctor_module.app, ["restart-daemon", "--json"])
+
+    assert result.exit_code == 1
+    assert sleeps, "restart should wait briefly for owner before checking state"
+    assert stop_calls == []
+    assert launch_calls == []
+    payload = json.loads(result.stdout.strip())
+    assert payload["status"] == "no_owner"
+    assert payload["previous_pid"] is None
+    assert payload["new_pid"] is None
+    assert "spec-kitty sync now" in (payload["error"] or "")
 
 
 def test_stop_failure_exits_three_and_skips_launch(
