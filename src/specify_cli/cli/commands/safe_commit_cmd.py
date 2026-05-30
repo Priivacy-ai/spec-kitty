@@ -30,7 +30,7 @@ from specify_cli.git.commit_helpers import (
     SafeCommitBackstopError,
     SafeCommitError,
 )
-from specify_cli.task_utils import find_repo_root
+from specify_cli.task_utils import TaskCliError, find_repo_root
 
 console = Console()
 
@@ -189,6 +189,7 @@ def safe_commit_command(
         SafeCommitError,
         ProtectedBranchCommitError,
         SafeCommitBackstopError,
+        TaskCliError,
         ValueError,
         RuntimeError,
     ) as exc:
