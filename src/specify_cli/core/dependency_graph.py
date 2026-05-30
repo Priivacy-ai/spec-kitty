@@ -16,6 +16,24 @@ from specify_cli.status.transitions import resolve_lane_alias
 from specify_cli.status.wp_metadata import read_wp_frontmatter
 
 
+# A dependency satisfies the readiness gate once its work is reviewed and
+# accepted. Both lanes count:
+#   * ``approved`` — review passed, merge pending. This is the pre-merge
+#     terminal lane a WP reaches during normal mission execution.
+#   * ``done`` — merged/integrated into the mission target branch.
+#
+# ``done`` is emitted ONLY by the whole-mission ``spec-kitty merge`` run
+# (``_mark_wp_merged_done`` in ``cli/commands/merge.py``), which itself refuses
+# to complete until every WP in the mission has reached ``done``. Requiring a
+# dependency to be strictly ``done`` would therefore deadlock every same-mission
+# dependency chain: a dependent WP could never start, so the mission could never
+# merge, so the dependency could never reach ``done``. Accepting ``approved`` as
+# well is what makes intra-mission dependency ordering possible, and it matches
+# the existing merge dependency gate (``policy/merge_gates.py`` treats
+# ``{approved, done}`` as satisfied) and the retrospective generator.
+_SATISFYING_DEPENDENCY_LANES: tuple[Lane, ...] = (Lane.APPROVED, Lane.DONE)
+
+
 @dataclass(frozen=True)
 class DependencyReadiness:
     """Dependency completion status for one work package."""
@@ -34,17 +52,23 @@ def dependency_readiness_for_wp(
     dependencies: Iterable[str],
     wp_lanes: Mapping[str, Lane | str],
 ) -> DependencyReadiness:
-    """Return whether all dependencies are in the canonical ``done`` lane.
+    """Return whether every dependency is in ``approved`` or ``done``.
 
-    This intentionally matches ``orchestrator-api list-ready`` semantics:
-    dependencies must be ``done``. ``approved``, ``for_review``, ``blocked``,
-    missing status, and every other lane are not ready.
+    A dependency is satisfied once its work is reviewed and accepted — i.e. its
+    lane is ``approved`` (review passed, merge pending) or ``done`` (merged).
+    ``for_review``, ``in_review``, ``blocked``, ``canceled``, missing status,
+    and every other lane are not ready.
+
+    The ``approved`` lane is deliberately included: ``done`` is emitted only by
+    the whole-mission merge, so gating strictly on ``done`` would deadlock every
+    same-mission dependency chain. See ``_SATISFYING_DEPENDENCY_LANES`` above and
+    the aligned merge gate in ``policy/merge_gates.py``.
     """
     deps = tuple(dependencies)
     unsatisfied = tuple(
         dep
         for dep in deps
-        if _dependency_lane(wp_lanes.get(dep, Lane.PLANNED)) != Lane.DONE
+        if _dependency_lane(wp_lanes.get(dep, Lane.PLANNED)) not in _SATISFYING_DEPENDENCY_LANES
     )
     return DependencyReadiness(
         wp_id=wp_id,

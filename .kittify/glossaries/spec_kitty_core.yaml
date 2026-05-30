@@ -183,6 +183,44 @@ terms:
     confidence: 1.0
     status: active
 
+  - surface: dependency readiness
+    definition: >
+      The condition the dependency gate evaluates before a work package may be
+      claimed or implemented: every WP listed in its ``dependencies`` frontmatter
+      must be in the ``approved`` or ``done`` lane. ``approved`` is included
+      deliberately — ``done`` is emitted only by the whole-mission merge, so
+      requiring a dependency to be strictly ``done`` would deadlock every
+      same-mission dependency chain (the dependent WP could never start, so the
+      mission could never merge, so the dependency could never reach ``done``).
+      Computed by ``dependency_readiness_for_wp`` in
+      ``src/specify_cli/core/dependency_graph.py``; intentionally matches the
+      merge dependency gate (``policy/merge_gates.py`` treats ``{approved, done}``
+      as satisfied). ``for_review``, ``in_review``, ``blocked``, ``canceled``,
+      and missing status are not ready.
+    confidence: 1.0
+    status: active
+
+  - surface: dependency gate
+    definition: >
+      The pre-implementation enforcement point that refuses to start a work
+      package until it meets dependency readiness (all declared dependencies are
+      ``approved`` or ``done``). Enforced consistently at every claim path. The
+      read-only surfaces — the ``next`` claim-discovery preview
+      (``preview_claimable_wp``) and orchestrator-api ``list-ready`` — only ever
+      surface ``planned`` candidates, so a dependency-blocked planned WP is simply
+      withheld (preview returns ``dependencies_not_satisfied``; list-ready omits
+      it). The imperative claim verbs — ``agent action implement``, the low-level
+      ``implement`` command (before any workspace is created), and orchestrator-api
+      ``start-implementation`` — additionally apply a resume guard: they enforce
+      readiness only on the not-yet-started (``planned``/``claimed``) claim
+      transition, so re-invoking implement on an already ``in_progress`` WP is a
+      no-op resume, not a re-gated claim, and a dependency that later regresses out
+      of ``approved``/``done`` does not block resuming in-flight work. On block the
+      imperative verbs surface the stable ``dependencies_not_satisfied``
+      reason/error code.
+    confidence: 1.0
+    status: active
+
   - surface: machine-level runtime
     definition: "The ~/.kittify/ directory on a developer's machine, containing templates, global agent configs, and skills shared across all projects on that machine. Distinct from the per-project .kittify/ directory."
     confidence: 0.95

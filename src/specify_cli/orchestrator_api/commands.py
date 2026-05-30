@@ -547,7 +547,7 @@ def mission_state(
 def list_ready(
     mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
 ) -> None:
-    """List WPs that are ready to start (planned and all deps done)."""
+    """List WPs that are ready to start (planned and all deps approved or done)."""
     main_repo_root = _get_main_repo_root()
     mission_dir = _resolve_mission_dir(main_repo_root, mission)
     if mission_dir is None:
@@ -650,27 +650,33 @@ def start_implementation(
         wp_id: state.get("lane", Lane.PLANNED)
         for wp_id, state in reduce(read_events(mission_dir)).work_packages.items()
     }
-    dependency_readiness = dependency_readiness_for_wp(
-        wp,
-        parse_wp_dependencies(wp_path),
-        wp_lanes,
-    )
-    if not dependency_readiness.satisfied:
-        blocked = ", ".join(dependency_readiness.unsatisfied)
-        _fail(
-            cmd,
-            "DEPENDENCIES_NOT_SATISFIED",
-            (
-                f"dependencies_not_satisfied: {wp} depends on {blocked}; "
-                "all dependencies must be done before implementation can start"
-            ),
-            {
-                **_mission_identity_payload(mission_dir),
-                "wp_id": wp,
-                "unsatisfied_dependencies": list(dependency_readiness.unsatisfied),
-            },
+    # Only gate the not-yet-started claim transition. Re-invoking start-implementation
+    # on a WP that is already in_progress/for_review/.../approved is a no-op resume
+    # in the lifecycle layer and must not be rejected just because a dependency later
+    # regressed out of approved/done.
+    _self_lane = wp_state_for(wp_lanes.get(wp, Lane.PLANNED)).lane
+    if _self_lane in (Lane.PLANNED, Lane.CLAIMED):
+        dependency_readiness = dependency_readiness_for_wp(
+            wp,
+            parse_wp_dependencies(wp_path),
+            wp_lanes,
         )
-        return
+        if not dependency_readiness.satisfied:
+            blocked = ", ".join(dependency_readiness.unsatisfied)
+            _fail(
+                cmd,
+                "DEPENDENCIES_NOT_SATISFIED",
+                (
+                    f"dependencies_not_satisfied: {wp} depends on {blocked}; "
+                    "all dependencies must be approved or done before implementation can start"
+                ),
+                {
+                    **_mission_identity_payload(mission_dir),
+                    "wp_id": wp,
+                    "unsatisfied_dependencies": list(dependency_readiness.unsatisfied),
+                },
+            )
+            return
 
     from specify_cli.status.emit import TransitionError
     from specify_cli.status.work_package_lifecycle import WorkPackageClaimConflict, start_implementation_status

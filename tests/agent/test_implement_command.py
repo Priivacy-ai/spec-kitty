@@ -366,7 +366,9 @@ class TestImplementCommand:
 
         assert mock_commit_planning.call_count == 0
         assert mock_create_lane_workspace.call_count == 0
-        assert "dependencies_not_satisfied" in capsys.readouterr().out
+        out = capsys.readouterr().out
+        assert "dependencies_not_satisfied" in out
+        assert "all dependencies must be approved or done" in out
 
     def test_implement_auto_commit_allows_safe_coordination_branch_when_target_is_protected(
         self,

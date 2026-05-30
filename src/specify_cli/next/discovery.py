@@ -8,7 +8,7 @@ trust ``next --json`` as the canonical "what should I do next?" signal.
 
 This module exposes :func:`preview_claimable_wp`, the **single
 implementation path** for "which WP would the next implement action claim?".
-``_find_first_planned_wp`` in
+``_preview_claimable_wp_for_mission`` in
 ``specify_cli.cli.commands.agent.workflow`` delegates to this helper, so
 spec FR-003 ("claimability discovery MUST share a single implementation
 path with the explicit ``agent action implement`` claim logic, with no
@@ -69,9 +69,9 @@ class ClaimablePreview:
               ``for_review``, ``in_review``).
             * ``"dependencies_not_satisfied"`` — planned WPs exist, but every
               planned candidate is waiting on at least one dependency that is
-              not in ``done``.
+              not yet ``approved`` or ``done``.
         candidates: Ordered tuple of WP IDs the claim algorithm would have
-            considered (matches the order ``_find_first_planned_wp`` walks).
+            considered, in alphabetical ``WP*.md`` order.
     """
 
     wp_id: str | None
@@ -149,12 +149,11 @@ def preview_claimable_wp(feature_dir: Path) -> ClaimablePreview:
     """Return the WP that ``agent action implement`` would auto-claim, if any.
 
     Walks ``<feature_dir>/tasks/WP*.md`` in alphabetical order, reads each
-    file's YAML frontmatter ``work_package_id`` (matching the source-of-truth
-    used by :func:`_find_first_planned_wp`), then consults the canonical
+    file's YAML frontmatter ``work_package_id``, then consults the canonical
     status event log for current lane and the canonical dependency graph for
     dependency readiness. The first candidate whose lane is
-    :class:`Lane.PLANNED` and whose dependencies are all :class:`Lane.DONE` is
-    the WP the explicit action would claim.
+    :class:`Lane.PLANNED` and whose dependencies are all ``approved`` or
+    ``done`` is the WP the explicit action would claim.
 
     Args:
         feature_dir: Absolute path to ``kitty-specs/<mission_slug>/``.

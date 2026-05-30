@@ -89,7 +89,7 @@ def _scaffold(
 
 
 def test_preview_claimable_wp_returns_first_planned_wp(tmp_path: Path) -> None:
-    """The discovery helper mirrors ``_find_first_planned_wp`` candidate selection."""
+    """``preview_claimable_wp`` returns the first claimable planned WP in candidate order."""
     repo = tmp_path / "repo"
     repo.mkdir()
     feature_dir, _ = _scaffold(repo, {"WP01": Lane.PLANNED, "WP02": Lane.PLANNED})
@@ -153,7 +153,7 @@ def test_preview_claimable_wp_distinguishes_terminal_from_active(
 def test_preview_claimable_wp_uses_frontmatter_id_not_filename(
     tmp_path: Path,
 ) -> None:
-    """WP id source is YAML ``work_package_id``, matching ``_find_first_planned_wp`` (FR-003)."""
+    """WP id source is YAML ``work_package_id``, the canonical claim source (FR-003)."""
     repo = tmp_path / "repo"
     repo.mkdir()
     feature_dir, _ = _scaffold(repo, {"WP01": Lane.PLANNED})
@@ -175,7 +175,7 @@ def test_preview_claimable_wp_uses_frontmatter_id_not_filename(
 
 
 def test_preview_claimable_wp_skips_dep_blocked_planned_wp(tmp_path: Path) -> None:
-    """Planned WPs are not claimable until every dependency reaches ``done``."""
+    """Planned WPs are not claimable until every dependency is approved or done."""
     repo = tmp_path / "repo"
     repo.mkdir()
     feature_dir, _ = _scaffold(
@@ -198,6 +198,28 @@ def test_preview_claimable_wp_allows_dep_after_done(tmp_path: Path) -> None:
     feature_dir, _ = _scaffold(
         repo,
         {"WP01": Lane.DONE, "WP02": Lane.PLANNED},
+        dependencies={"WP02": ["WP01"]},
+    )
+
+    preview = preview_claimable_wp(feature_dir)
+
+    assert preview.wp_id == "WP02"
+    assert preview.selection_reason is None
+    assert preview.candidates == ("WP01", "WP02")
+
+
+def test_preview_claimable_wp_allows_dep_after_approved(tmp_path: Path) -> None:
+    """A dependent planned WP becomes claimable once upstream is ``approved``.
+
+    ``done`` is only reached at whole-mission merge time, so an ``approved``
+    dependency (review passed, merge pending) must unblock the dependent WP;
+    otherwise every same-mission dependency chain deadlocks.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    feature_dir, _ = _scaffold(
+        repo,
+        {"WP01": Lane.APPROVED, "WP02": Lane.PLANNED},
         dependencies={"WP02": ["WP01"]},
     )
 

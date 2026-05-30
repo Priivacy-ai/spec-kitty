@@ -582,7 +582,7 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
             blocked = ", ".join(_dependency_readiness.unsatisfied)
             raise ValueError(
                 f"dependencies_not_satisfied: {wp_id} depends on {blocked}; "
-                "all dependencies must be done before implementation can start"
+                "all dependencies must be approved or done before implementation can start"
             )
 
         _ensure_planning_artifacts_committed_git(

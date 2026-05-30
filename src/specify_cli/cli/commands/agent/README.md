@@ -62,9 +62,10 @@ top_level_implement(wp_id=wp_id, ...)
 ```python
 @app.command(name="implement")
 def implement(wp_id: str | None, agent: str | None):
-    # Auto-detect WP if omitted
+    # Auto-detect WP if omitted (shared claimability discovery)
     if not wp_id:
-        wp_id = _find_first_planned_wp(repo_root, feature_slug)
+        preview = _preview_claimable_wp_for_mission(repo_root, feature_slug)
+        wp_id = getattr(preview, "wp_id", None)
 
     # Normalize format
     wp_id = _normalize_wp_id(wp_id)  # "wp01" → "WP01"
