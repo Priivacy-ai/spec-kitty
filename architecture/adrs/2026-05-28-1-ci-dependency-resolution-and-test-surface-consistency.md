@@ -163,8 +163,13 @@ convention.
   the lockfile. `uv lock --check` already enforces this (NFR-005 gate, job
   `uv-lock-check`).
 - The `hashlib.sha256` ban in `tests/` may produce false positives for tests that
-  legitimately compute a raw SHA-256 (e.g., testing a hashing utility's output). Those
-  tests must use a `# noqa: SC001` suppression with justification comment.
+  legitimately compute a raw SHA-256 (e.g., testing a hashing utility's output, PKCE
+  challenges, body/file-integrity checksums). Those tests must carry an inline
+  `# noqa: TID251 — <justification>` suppression (the configured rule is `TID251`,
+  flake8-tidy-imports banned-api — there is no `SC001` rule). The ban is enforced
+  per-call across the whole `tests/` tree by the dedicated
+  `[ENFORCED] banned-API lint gate (TID251)` step in `ci-quality.yml`; there are no
+  whole-directory exemptions that could silently disarm it.
 
 #### Neutral
 

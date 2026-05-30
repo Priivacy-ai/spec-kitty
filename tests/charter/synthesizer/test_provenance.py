@@ -261,7 +261,7 @@ def test_dump_yaml_hash_matches_canonical_yaml(
         "summary": "A summary.",
     }
     artifact_bytes = canonical_yaml(body)
-    expected_hash = hashlib.sha256(artifact_bytes).hexdigest()
+    expected_hash = hashlib.sha256(artifact_bytes).hexdigest()  # noqa: TID251 — charter synthesizer provenance/artifact-hash scheme, not charter.hasher.hash_content() freshness
 
     # Build a provenance entry with the matching content hash
     prov = ProvenanceEntry(

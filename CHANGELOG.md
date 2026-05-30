@@ -56,6 +56,14 @@ No notable changes yet.
 - `TID251` (`flake8-tidy-imports` banned-api) added to ruff: `hashlib.sha256` usage in
   `tests/` must go through `charter.hasher.hash_content()`; `click.exceptions.Exit`,
   `UsageError`, and `Abort` in tests must use `typer.*` equivalents instead.
+- `TID251` is now **enforced**, not advisory: a dedicated `[ENFORCED] banned-API lint
+  gate (TID251)` step in `ci-quality.yml` runs `ruff check src tests --select TID251`
+  without `continue-on-error`, so an unannotated banned call fails the build. The
+  previous whole-directory `per-file-ignores` (which silently exempted 10 test trees and
+  defeated the "new sha256 still needs a `# noqa`" policy) were removed; every legitimate
+  raw `hashlib.sha256` now carries an inline `# noqa: TID251 — <justification>`. A guard
+  test (`tests/architectural/test_tid251_enforcement.py`) pins the enforcement so it
+  cannot silently regress to advisory. (Closes the adversarial review block on #1395.)
 
 ## [Unreleased - 3.2.0]
 

@@ -345,8 +345,8 @@ class TestGenerateGraph:
         out2 = tmp_path / "graph2.yaml"
         generate_graph(DOCTRINE_ROOT, out1)
         generate_graph(DOCTRINE_ROOT, out2)
-        h1 = hashlib.sha256(out1.read_bytes()).hexdigest()
-        h2 = hashlib.sha256(out2.read_bytes()).hexdigest()
+        h1 = hashlib.sha256(out1.read_bytes()).hexdigest()  # noqa: TID251 — DRG-output file-integrity idempotency check, not charter freshness hashing
+        h2 = hashlib.sha256(out2.read_bytes()).hexdigest()  # noqa: TID251 — DRG-output file-integrity idempotency check, not charter freshness hashing
         assert h1 == h2, "generate_graph is not idempotent"
 
     def test_surface_inequalities(self, tmp_path: Path) -> None:

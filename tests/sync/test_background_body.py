@@ -69,7 +69,7 @@ def _enqueue_task(
     )
     import hashlib
 
-    content_hash = hashlib.sha256(content.encode()).hexdigest()
+    content_hash = hashlib.sha256(content.encode()).hexdigest()  # noqa: TID251 — background body-upload content checksum (protocol-level), not charter freshness hashing
     queue.enqueue(
         namespace=ns,
         artifact_path=artifact_path,

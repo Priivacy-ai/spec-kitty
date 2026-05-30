@@ -189,7 +189,7 @@ class TestHashReproducibility:
         hash2 = hash_file(test_file)
         assert hash1 == hash2
         # Verify it matches expected SHA256
-        expected = hashlib.sha256(b"Hello\n").hexdigest()
+        expected = hashlib.sha256(b"Hello\n").hexdigest()  # noqa: TID251 — file-integrity checksum verifying hash_file() output (standard SHA-256), not charter freshness hashing
         assert hash1 == expected
 
 
@@ -555,7 +555,7 @@ class TestParityHashStability:
         hash_val, _ = hash_file_with_validation(file_path)
 
         # Expected hash (pre-computed with reference SHA256)
-        expected = hashlib.sha256(b"# Test Content\n").hexdigest()
+        expected = hashlib.sha256(b"# Test Content\n").hexdigest()  # noqa: TID251 — file-integrity checksum verifying hash_file_with_validation() output (standard SHA-256), not charter freshness hashing
 
         assert hash_val == expected, \
             f"Hash mismatch: {hash_val} vs {expected}"
@@ -601,7 +601,7 @@ class TestParityHashStability:
             shuffled = random.sample(test_hashes, len(test_hashes))
             # Manually compute parity hash (same as compute_parity_hash_from_dossier)
             combined = "".join(sorted(shuffled))
-            parity = hashlib.sha256(combined.encode()).hexdigest()
+            parity = hashlib.sha256(combined.encode()).hexdigest()  # noqa: TID251 — dossier determinism content fingerprint (standard SHA-256), not charter freshness hashing
             parity_hashes.append(parity)
 
         # All should be identical (order-independent)

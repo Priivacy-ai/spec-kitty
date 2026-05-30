@@ -233,35 +233,24 @@ ignore = [
 # analysis. The runtime guarantee is enforced by _load_acceptance_api itself.
 "scripts/tasks/acceptance_support.py" = ["F822"]
 ".kittify/overrides/scripts/tasks/acceptance_support.py" = ["F822"]
-# TID251 (banned-api) is intentionally scoped to tests/ only.
-# Production code under src/ legitimately imports hashlib (charter/hasher.py uses sha256 directly)
-# and click (orchestrator_api/commands.py uses click.UsageError for the typer compatibility shim).
-# Scripts are also exempt — they are tooling helpers, not production or test code.
+# TID251 (banned-api) is ENFORCED across the ENTIRE tests/ tree — see ADR
+# architecture/adrs/2026-05-28-1-... (Gap 3 / Gap 5) and the dedicated
+# "[ENFORCED] banned-API (TID251)" gate in .github/workflows/ci-quality.yml.
+#
+# There are intentionally NO whole-directory TID251 exemptions for tests/. A directory
+# glob per-file-ignore silently disarms the rule for every PRESENT and FUTURE file in
+# that tree, which made the previous "new sha256 still requires a # noqa" policy
+# unenforceable (the scope hole closed in this change). Every raw ``hashlib.sha256`` in
+# a test must instead carry an inline ``# noqa: TID251 — <justification>`` describing the
+# legitimate non-charter use (PKCE, body/file-integrity checksums, the synthesizer's own
+# manifest scheme, fingerprint-definition tests, migration sentinel checks, …), OR call
+# ``charter.hasher.hash_content()`` when it genuinely mirrors the charter freshness hash.
+#
+# Only production (src/**) and tooling (scripts/**) stay dir-exempt: src/ legitimately uses
+# hashlib directly (charter/hasher.py) and click via the typer compatibility shim, and
+# scripts/ are tooling helpers — neither is test code the Gap-3/Gap-5 contract governs.
 "src/**" = ["TID251"]
 "scripts/**" = ["TID251"]
-# The following test directories use hashlib.sha256 for non-charter-freshness purposes that
-# pre-date the TID251 ban. Each category has a distinct, legitimate reason:
-#   charter/     — manifest and artifact content hashes (synthesizer's own hashing scheme,
-#                  NOT the charter.hasher.hash_content() freshness algorithm)
-#   cli/         — mission brief content fingerprinting
-#   doctrine/    — file-integrity idempotency checks for DRG output
-#   integration/ — payload integrity in atomic-write and intake tests (not charter freshness)
-#   sync/        — body upload content checksums (HTTP/protocol-level, not charter)
-#   skills/      — fingerprint() function IS defined as raw sha256; tests verify the definition
-#   specify_cli/ — preflight fixtures, provenance hash, upgrade migration sentinel checks
-#   tasks/       — task-slug tests (sha256 unrelated to charter freshness)
-#   upgrade/     — migration tests preserve existing manifest hash values verbatim
-# New sha256 calls in these directories still require a '# noqa: TID251' with justification.
-"tests/charter/**" = ["TID251"]
-"tests/cli/**" = ["TID251"]
-"tests/doctrine/**" = ["TID251"]
-"tests/integration/**" = ["TID251"]
-"tests/sync/**" = ["TID251"]
-"tests/specify_cli/**" = ["TID251"]
-"tests/tasks/**" = ["TID251"]
-"tests/upgrade/**" = ["TID251"]
-"tests/skills/**" = ["TID251"]
-"tests/dossier/**" = ["TID251"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 

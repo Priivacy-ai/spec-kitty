@@ -73,7 +73,7 @@ def _write_generated_directive(repo_root: Path, body: dict[str, object]) -> Path
 
 def _evidence_hash(bundle: EvidenceBundle) -> str:
     raw = json.dumps(_evidence_to_jsonable(bundle), sort_keys=True, ensure_ascii=True).encode("utf-8")
-    return hashlib.sha256(raw).hexdigest()
+    return hashlib.sha256(raw).hexdigest()  # noqa: TID251 — charter synthesizer generated-artifact hash (own scheme), not charter.hasher.hash_content() freshness
 
 
 def test_generated_adapter_missing_file_raises(tmp_path: Path) -> None:

@@ -127,7 +127,7 @@ def _make_legacy_mission(
 def _sha256(path: Path) -> str | None:
     if not path.exists():
         return None
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    return hashlib.sha256(path.read_bytes()).hexdigest()  # noqa: TID251 — file-integrity checksum of read_bytes(), not charter freshness hashing
 
 
 # ---------------------------------------------------------------------------

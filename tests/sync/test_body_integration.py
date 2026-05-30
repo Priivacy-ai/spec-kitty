@@ -67,7 +67,7 @@ def _write_file(feature_dir: Path, relative_path: str, content: str) -> str:
     file_path = feature_dir / relative_path
     file_path.parent.mkdir(parents=True, exist_ok=True)
     file_path.write_text(content, encoding="utf-8")
-    return hashlib.sha256(file_path.read_bytes()).hexdigest()
+    return hashlib.sha256(file_path.read_bytes()).hexdigest()  # noqa: TID251 — file-integrity checksum of read_bytes() content (protocol-level integrity), not charter freshness hashing
 
 
 def _make_service(
@@ -612,7 +612,7 @@ class TestSC006UnsupportedFilesSkip:
         feature_dir.mkdir()
         binary_content = b"\x80\x81\x82\xff\xfe"
         (feature_dir / "spec.md").write_bytes(binary_content)
-        actual_hash = hashlib.sha256(binary_content).hexdigest()
+        actual_hash = hashlib.sha256(binary_content).hexdigest()  # noqa: TID251 — body-upload content checksum (protocol-level integrity), not charter freshness hashing
 
         art = _artifact("spec.md", actual_hash, len(binary_content))
         queue = OfflineBodyUploadQueue(db_path=tmp_path / "q.db")

@@ -48,7 +48,7 @@ _TEMPLATE_REPO_ROOT = (
 
 
 def _sha256(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
+    return hashlib.sha256(data).hexdigest()  # noqa: TID251 — skills installer content fingerprint (raw SHA-256 by definition), not charter freshness
 
 
 def _sha256_file(path: Path) -> str:

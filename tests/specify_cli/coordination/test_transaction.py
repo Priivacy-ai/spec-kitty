@@ -216,7 +216,7 @@ def test_destination_ref_refs_heads_prefix_refused(repo: Path) -> None:
 def _sha256(path: Path) -> str | None:
     if not path.exists():
         return None
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    return hashlib.sha256(path.read_bytes()).hexdigest()  # noqa: TID251 — file-integrity checksum of read_bytes() to assert byte-identical rollback, not charter freshness hashing
 
 
 def _install_rejecting_pre_commit_hook(worktree_root: Path) -> None:

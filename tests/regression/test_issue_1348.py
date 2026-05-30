@@ -108,7 +108,7 @@ def _init_coord_mission(repo: Path) -> None:
 def _sha256(path: Path) -> str | None:
     if not path.exists():
         return None
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    return hashlib.sha256(path.read_bytes()).hexdigest()  # noqa: TID251 — file-integrity checksum of read_bytes(), not charter freshness hashing
 
 
 def _coord_worktree_path(repo: Path) -> Path:

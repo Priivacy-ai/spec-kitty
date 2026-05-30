@@ -169,7 +169,7 @@ class TestReHashGuard:
         content = "# Hello World\n"
         file_path = tmp_path / "spec.md"
         file_path.write_text(content, encoding="utf-8")
-        expected_hash = hashlib.sha256(file_path.read_bytes()).hexdigest()
+        expected_hash = hashlib.sha256(file_path.read_bytes()).hexdigest()  # noqa: TID251 — file-integrity checksum over read_bytes() (HTTP/protocol-level body integrity), not charter freshness hashing
 
         result = _read_and_rehash(tmp_path, "spec.md", expected_hash)
         assert isinstance(result, tuple)
@@ -198,7 +198,7 @@ class TestReHashGuard:
         file_path.write_bytes(binary_content)
         # Use the actual hash of the binary bytes so hash check passes
         # and we reach the UTF-8 decode check
-        actual_hash = hashlib.sha256(binary_content).hexdigest()
+        actual_hash = hashlib.sha256(binary_content).hexdigest()  # noqa: TID251 — body-upload content checksum (HTTP/protocol-level integrity), not charter freshness hashing
 
         result = _read_and_rehash(tmp_path, "binary.md", actual_hash)
         assert isinstance(result, UploadOutcome)
@@ -226,7 +226,7 @@ class TestPrepareBodyUploads:
         content = "# Spec\n"
         file_path = tmp_path / "spec.md"
         file_path.write_text(content, encoding="utf-8")
-        content_hash = hashlib.sha256(file_path.read_bytes()).hexdigest()
+        content_hash = hashlib.sha256(file_path.read_bytes()).hexdigest()  # noqa: TID251 — file-integrity checksum over read_bytes() (HTTP/protocol-level body integrity), not charter freshness hashing
 
         artifact = _artifact(
             relative_path="spec.md",
@@ -323,7 +323,7 @@ class TestPrepareBodyUploads:
         content = "# Spec\n"
         file_path = tmp_path / "spec.md"
         file_path.write_text(content, encoding="utf-8")
-        content_hash = hashlib.sha256(file_path.read_bytes()).hexdigest()
+        content_hash = hashlib.sha256(file_path.read_bytes()).hexdigest()  # noqa: TID251 — file-integrity checksum over read_bytes() (HTTP/protocol-level body integrity), not charter freshness hashing
 
         artifacts = [
             _artifact(
@@ -351,7 +351,7 @@ class TestPrepareBodyUploads:
         content = "# Spec\n"
         file_path = tmp_path / "spec.md"
         file_path.write_text(content, encoding="utf-8")
-        content_hash = hashlib.sha256(file_path.read_bytes()).hexdigest()
+        content_hash = hashlib.sha256(file_path.read_bytes()).hexdigest()  # noqa: TID251 — file-integrity checksum over read_bytes() (HTTP/protocol-level body integrity), not charter freshness hashing
 
         artifact = _artifact(
             relative_path="spec.md",
@@ -374,11 +374,11 @@ class TestPrepareBodyUploads:
     def test_queue_full_returns_failed(self, tmp_path: Path) -> None:
         spec_path = tmp_path / "spec.md"
         spec_path.write_text("# Spec\n", encoding="utf-8")
-        spec_hash = hashlib.sha256(spec_path.read_bytes()).hexdigest()
+        spec_hash = hashlib.sha256(spec_path.read_bytes()).hexdigest()  # noqa: TID251 — file-integrity checksum over read_bytes() (HTTP/protocol-level body integrity), not charter freshness hashing
 
         plan_path = tmp_path / "plan.md"
         plan_path.write_text("# Plan\n", encoding="utf-8")
-        plan_hash = hashlib.sha256(plan_path.read_bytes()).hexdigest()
+        plan_hash = hashlib.sha256(plan_path.read_bytes()).hexdigest()  # noqa: TID251 — file-integrity checksum over read_bytes() (HTTP/protocol-level body integrity), not charter freshness hashing
 
         queue = OfflineBodyUploadQueue(
             db_path=tmp_path / "queue.db",
@@ -434,7 +434,7 @@ class TestPrepareBodyUploads:
     def test_zero_byte_artifact_skipped(self, tmp_path: Path) -> None:
         file_path = tmp_path / "research.md"
         file_path.write_text("", encoding="utf-8")
-        content_hash = hashlib.sha256(file_path.read_bytes()).hexdigest()
+        content_hash = hashlib.sha256(file_path.read_bytes()).hexdigest()  # noqa: TID251 — file-integrity checksum over read_bytes() (HTTP/protocol-level body integrity), not charter freshness hashing
 
         artifact = _artifact(
             relative_path="research.md",
@@ -455,7 +455,7 @@ class TestPrepareBodyUploads:
         content = "# WP01\n"
         file_path = tasks_dir / "WP01-setup.md"
         file_path.write_text(content, encoding="utf-8")
-        content_hash = hashlib.sha256(file_path.read_bytes()).hexdigest()
+        content_hash = hashlib.sha256(file_path.read_bytes()).hexdigest()  # noqa: TID251 — file-integrity checksum over read_bytes() (HTTP/protocol-level body integrity), not charter freshness hashing
 
         artifact = _artifact(
             relative_path="tasks/WP01-setup.md",

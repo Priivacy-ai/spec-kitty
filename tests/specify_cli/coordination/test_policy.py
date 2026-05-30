@@ -132,7 +132,7 @@ def test_assert_allowed_is_side_effect_free(repo: Path) -> None:
     def state_hash() -> str:
         # Hash the index file + working-tree mtime tree summary.
         index_path = repo / ".git" / "index"
-        h = hashlib.sha256()
+        h = hashlib.sha256()  # noqa: TID251 — file-integrity checksum of git index + working-tree bytes, not charter freshness hashing
         if index_path.exists():
             h.update(index_path.read_bytes())
         for f in sorted(repo.glob("*")):

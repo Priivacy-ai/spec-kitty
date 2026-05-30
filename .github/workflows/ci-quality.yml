@@ -453,6 +453,19 @@ jobs:
             echo "has_failures=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: "[ENFORCED] banned-API lint gate (TID251)"
+        id: tid251
+        if: always()
+        run: |
+          # ADR architecture/adrs/2026-05-28-1-... (Gap 3 / Gap 5): tests must not
+          # reimplement the charter hash algorithm (hashlib.sha256) or catch
+          # click.exceptions.* directly. Unlike the advisory full-ruff report above, this
+          # banned-API check is ENFORCED — an unannotated banned call FAILS the build (no
+          # continue-on-error). Legitimate non-charter uses carry an inline
+          # '# noqa: TID251 — <justification>'. This realises the ADR Decision Outcome:
+          # "automated enforcement rather than convention".
+          uv run python -m ruff check src tests --select TID251
+
       - name: "[INFO] Run mypy report (advisory)"
         id: mypy
         if: always()

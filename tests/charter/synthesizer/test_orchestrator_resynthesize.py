@@ -134,7 +134,7 @@ def repo_with_prior_synthesis(
 
 
 def _content_hash(yaml_bytes: bytes) -> str:
-    return hashlib.sha256(yaml_bytes).hexdigest()
+    return hashlib.sha256(yaml_bytes).hexdigest()  # noqa: TID251 — charter synthesizer resynthesis content hash (own scheme), not charter.hasher.hash_content() freshness
 
 
 def _artifact_hashes_from_manifest(

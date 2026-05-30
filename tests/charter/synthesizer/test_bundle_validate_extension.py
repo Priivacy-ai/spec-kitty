@@ -98,7 +98,7 @@ def _make_v2_manifest(
         "artifacts": [a.model_dump(mode="python") for a in artifacts],
         "built_in_only": False,
     }
-    manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()
+    manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()  # noqa: TID251 — charter synthesizer's own manifest/content-hash scheme, not charter.hasher.hash_content() freshness
     return SynthesisManifest(
         created_at=created_at,
         run_id=run_id,
@@ -196,7 +196,7 @@ def test_valid_synthesis_bundle_passes(tmp_path: Path) -> None:
 
     # Write artifact + matching provenance
     body = _tactic_body("my-tactic")
-    content_hash = hashlib.sha256(body).hexdigest()
+    content_hash = hashlib.sha256(body).hexdigest()  # noqa: TID251 — charter synthesizer's own manifest/content-hash scheme, not charter.hasher.hash_content() freshness
     _write_artifact(repo, "tactic", "my-tactic", "my-tactic.tactic.yaml", body)
     _write_provenance(repo, "tactic", "my-tactic", _prov_yaml("tactic", "my-tactic", content_hash))
 
@@ -366,7 +366,7 @@ def test_manifest_absolute_artifact_path_fails_closed(tmp_path: Path) -> None:
     repo.mkdir()
     outside = tmp_path / "outside.tactic.yaml"
     outside.write_bytes(_tactic_body("outside"))
-    content_hash = hashlib.sha256(outside.read_bytes()).hexdigest()
+    content_hash = hashlib.sha256(outside.read_bytes()).hexdigest()  # noqa: TID251 — file-integrity checksum of on-disk artifact bytes (read_bytes), not charter.hasher.hash_content() freshness
 
     guard = PathGuard(repo, extra_allowed_prefixes=[repo])
     manifest = _make_v2_manifest(
@@ -622,7 +622,7 @@ def test_manifest_self_hash_mismatch_is_error(tmp_path: Path) -> None:
     repo.mkdir()
 
     body = _tactic_body("selfhash-tactic")
-    content_hash = hashlib.sha256(body).hexdigest()
+    content_hash = hashlib.sha256(body).hexdigest()  # noqa: TID251 — charter synthesizer's own manifest/content-hash scheme, not charter.hasher.hash_content() freshness
     _write_artifact(repo, "tactic", "selfhash-tactic", "selfhash-tactic.tactic.yaml", body)
     _write_provenance(
         repo, "tactic", "selfhash-tactic",

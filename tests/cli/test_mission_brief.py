@@ -50,7 +50,7 @@ def test_write_brief_hash_is_sha256_of_raw_content(tmp_path: Path) -> None:
     """The brief_hash in both the header and YAML matches SHA-256 of raw content."""
     write_mission_brief(tmp_path, RAW_CONTENT, "plan.md")
 
-    expected_hash = hashlib.sha256(RAW_CONTENT.encode()).hexdigest()
+    expected_hash = hashlib.sha256(RAW_CONTENT.encode()).hexdigest()  # noqa: TID251 — mission-brief content fingerprint, not charter freshness hashing
 
     brief_path = tmp_path / ".kittify" / MISSION_BRIEF_FILENAME
     text = brief_path.read_text(encoding="utf-8")
@@ -161,11 +161,11 @@ def test_clear_is_idempotent(tmp_path: Path) -> None:
 def test_write_twice_overwrites(tmp_path: Path) -> None:
     """Second write_mission_brief call replaces the first (hash changes)."""
     write_mission_brief(tmp_path, RAW_CONTENT, "plan.md")
-    first_hash = hashlib.sha256(RAW_CONTENT.encode()).hexdigest()
+    first_hash = hashlib.sha256(RAW_CONTENT.encode()).hexdigest()  # noqa: TID251 — mission-brief content fingerprint, not charter freshness hashing
 
     new_content = "# New Plan\n\nDifferent content.\n"
     write_mission_brief(tmp_path, new_content, "plan.md")
-    second_hash = hashlib.sha256(new_content.encode()).hexdigest()
+    second_hash = hashlib.sha256(new_content.encode()).hexdigest()  # noqa: TID251 — mission-brief content fingerprint, not charter freshness hashing
 
     source = read_brief_source(tmp_path)
     assert source is not None
