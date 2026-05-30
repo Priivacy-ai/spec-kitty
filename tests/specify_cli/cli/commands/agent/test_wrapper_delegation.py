@@ -52,6 +52,31 @@ def test_agent_mission_accept_passes_explicit_feature_none(
         json_output=True,
         lenient=False,
         no_commit=False,
+        diagnose=False,
+        allow_fail=False,
+    )
+
+
+@patch("specify_cli.cli.commands.agent.mission.top_level_accept")
+def test_agent_mission_accept_passes_diagnose_flag(
+    mock_top_level_accept: MagicMock,
+) -> None:
+    result = runner.invoke(
+        app,
+        ["accept", "--mission", "077-mission-terminology-cleanup", "--diagnose", "--json"],
+    )
+
+    assert result.exit_code == 0, result.output
+    mock_top_level_accept.assert_called_once_with(
+        mission="077-mission-terminology-cleanup",
+        feature=None,
+        mode="auto",
+        actor=None,
+        test=[],
+        json_output=True,
+        lenient=False,
+        no_commit=False,
+        diagnose=True,
         allow_fail=False,
     )
 

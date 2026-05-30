@@ -358,6 +358,55 @@ def test_perform_acceptance_persists_accept_commit(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# T017: accept diagnostics expose skipped cascade checks
+# ---------------------------------------------------------------------------
+
+
+def test_collect_feature_summary_reports_branch_mismatch_skipped_checks(tmp_path: Path) -> None:
+    repo_root, feature_dir = _create_test_feature(tmp_path)
+    subprocess.run(["git", "-C", str(repo_root), "branch", "-M", "main"], check=True, capture_output=True)
+
+    from tests.lane_test_utils import write_single_lane_manifest
+
+    write_single_lane_manifest(feature_dir)
+    subprocess.run(["git", "-C", str(repo_root), "add", "."], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(repo_root), "commit", "-m", "Add lanes manifest"], check=True, capture_output=True)
+
+    summary = collect_feature_summary(repo_root, _FEATURE_SLUG, mutate_matrix=False)
+
+    assert any("Acceptance must run on mission branch" in issue for issue in summary.activity_issues)
+    assert any(item.check == "mission_branch" for item in summary.blocked_checks)
+    skipped = {item.check for item in summary.skipped_checks}
+    assert "acceptance_matrix_presence" in skipped
+    assert "acceptance_matrix_verdict" in skipped
+    assert any("Switch to the mission branch" in item for item in summary.recommended_fix_order)
+
+
+def test_collect_feature_summary_reports_missing_matrix_skipped_checks(tmp_path: Path) -> None:
+    repo_root, feature_dir = _create_test_feature(tmp_path)
+    subprocess.run(["git", "-C", str(repo_root), "branch", "-M", "main"], check=True, capture_output=True)
+
+    from tests.lane_test_utils import write_single_lane_manifest
+
+    write_single_lane_manifest(feature_dir)
+    subprocess.run(["git", "-C", str(repo_root), "add", "."], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(repo_root), "commit", "-m", "Add lanes manifest"], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-C", str(repo_root), "checkout", "-b", f"kitty/mission-{_FEATURE_SLUG}"],
+        check=True,
+        capture_output=True,
+    )
+
+    summary = collect_feature_summary(repo_root, _FEATURE_SLUG, mutate_matrix=False)
+
+    assert any("Acceptance matrix" in issue and "required" in issue for issue in summary.activity_issues)
+    assert any(item.check == "acceptance_matrix" for item in summary.blocked_checks)
+    skipped = {item.check for item in summary.skipped_checks}
+    assert {"acceptance_matrix_evidence", "negative_invariants", "acceptance_matrix_verdict"} <= skipped
+    assert any("acceptance-matrix.json" in item for item in summary.recommended_fix_order)
+
+
+# ---------------------------------------------------------------------------
 # Integration branch guard: merge guidance must not target integration branch
 # ---------------------------------------------------------------------------
 
