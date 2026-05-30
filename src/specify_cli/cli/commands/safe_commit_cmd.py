@@ -27,6 +27,7 @@ from rich.console import Console
 from specify_cli.core.git_ops import get_current_branch
 from specify_cli.git import ProtectedBranchCommitError, assert_not_protected_branch, safe_commit
 from specify_cli.git.commit_helpers import (
+    SafeCommitBackstopError,
     SafeCommitError,
 )
 from specify_cli.task_utils import TaskCliError, find_repo_root
@@ -187,6 +188,7 @@ def safe_commit_command(
     except (
         SafeCommitError,
         ProtectedBranchCommitError,
+        SafeCommitBackstopError,
         TaskCliError,
         ValueError,
         RuntimeError,

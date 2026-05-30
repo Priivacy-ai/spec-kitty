@@ -24,25 +24,16 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-if TYPE_CHECKING:
-    from rich.console import Console
-    from specify_cli.cli import StepTracker
 
+def _early_doctor_restart_daemon_process_fast_path(argv: list[str]) -> bool:
+    """Return True for the machine-output restart-daemon fast path.
 
-def _is_doctor_restart_daemon_invocation(argv: list[str]) -> bool:
-    if any(arg in {"--help", "-h"} for arg in argv[1:]):
+    This runs before importing the heavy Typer command graph so the
+    console-script entry point can short-circuit import cost for the
+    latency-sensitive machine-global restart command.
+    """
+    if os.environ.get("SPEC_KITTY_TEST_MODE") == "1":
         return False
-    command_parts: list[str] = []
-    for arg in argv[1:]:
-        if arg.startswith("-"):
-            continue
-        command_parts.append(arg)
-        if len(command_parts) == 2:
-            return command_parts == ["doctor", "restart-daemon"]
-    return False
-
-
-def _is_doctor_restart_daemon_process_fast_path(argv: list[str]) -> bool:
     if any(arg in {"--help", "-h"} for arg in argv[1:]):
         return False
     command_parts: list[str] = []
@@ -55,39 +46,48 @@ def _is_doctor_restart_daemon_process_fast_path(argv: list[str]) -> bool:
     return command_parts == ["doctor", "restart-daemon"]
 
 
-_RESTART_DAEMON_PROCESS_FAST_PATH = _is_doctor_restart_daemon_process_fast_path(sys.argv)
+def _run_early_doctor_restart_daemon_process_fast_path(argv: list[str]) -> None:
+    os.environ["SPEC_KITTY_SYNC_MINIMAL_IMPORT"] = "1"
+    from specify_cli.sync.restart import render_restart_result, restart_daemon
+
+    result = restart_daemon(Path.cwd())
+    sys.stdout.write(render_restart_result(result, json_output="--json" in argv) + "\n")
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(result.exit_code)
+
+
+if _early_doctor_restart_daemon_process_fast_path(sys.argv):
+    _run_early_doctor_restart_daemon_process_fast_path(sys.argv)
+
+import typer  # noqa: E402
+
+if TYPE_CHECKING:
+    from rich.console import Console
+    from specify_cli.cli import StepTracker
 
 # Get version from package metadata
 # Test mode: use environment override to ensure tests use source version
 if os.environ.get("SPEC_KITTY_TEST_MODE") == "1":
     __version__ = os.environ.get("SPEC_KITTY_CLI_VERSION", "0.5.0-dev")
-elif _RESTART_DAEMON_PROCESS_FAST_PATH:
-    __version__ = os.environ.get("SPEC_KITTY_CLI_VERSION", "unknown")
 else:
     from specify_cli.version_utils import get_version
 
     __version__ = get_version()
 
-if not _RESTART_DAEMON_PROCESS_FAST_PATH:
-    import typer
+_APP: typer.Typer | None = None
 
-    from specify_cli.cli.helpers import BannerGroup
-    from specify_cli.cli.commands import register_commands
-    from specify_cli.cli.commands.init import register_init_command
+
+def root_callback(*args: Any, **kwargs: Any) -> Any:
+    from specify_cli.cli.helpers import callback as _root_callback
+
+    return _root_callback(*args, **kwargs)
 
 
 def locate_project_root() -> Path | None:
-    """Compatibility wrapper so patch targets stay stable."""
     from specify_cli.core.project_resolver import locate_project_root as _locate_project_root
 
     return _locate_project_root()
-
-
-def root_callback(ctx: Any) -> None:
-    """Compatibility wrapper so patch targets stay stable."""
-    from specify_cli.cli.helpers import callback as _root_callback
-
-    _root_callback(ctx)
 
 
 def activate_mission(project_path: Path, mission_type: str, mission_display: str, console: "Console") -> str:
@@ -117,13 +117,53 @@ def version_callback(value: bool) -> None:
     """Display version and exit."""
     if value:
         from specify_cli.cli.helpers import console, show_banner
-        import typer
 
         show_banner(force=True)
         console.print(f"spec-kitty-cli version {__version__}")
         raise typer.Exit()
 
-if not _RESTART_DAEMON_PROCESS_FAST_PATH:
+def main_callback(
+    ctx: typer.Context,
+    version: bool = typer.Option(  # noqa: ARG001
+        None, "--version", "-v", callback=version_callback, is_eager=True, help="Show version and exit"
+    ),
+) -> None:
+    """Main callback for root CLI setup."""
+    import sys
+
+    if _is_doctor_restart_daemon_invocation(sys.argv):
+        return
+
+    root_callback(ctx)
+
+    # FR-002: Ensure global runtime (~/.kittify/) is populated and current.
+    # Must run BEFORE check_version_pin() so global assets are available.
+    from specify_cli.runtime.agent_commands import ensure_global_agent_commands
+    from specify_cli.runtime.agent_skills import ensure_global_agent_skills
+    from specify_cli.runtime.bootstrap import check_version_pin, ensure_runtime
+
+    ensure_runtime()
+    ensure_global_agent_skills()
+    ensure_global_agent_commands()
+
+    # F-Pin-001 / 1A-16: Warn on runtime.pin_version for all project invocations.
+    project_root = locate_project_root()
+    if project_root is not None:
+        check_version_pin(project_root)
+
+    # FR-019 / FR-020: Schema version gate — refuse unmigrated or newer-than-CLI
+    # projects before any command runs.  Exempt upgrade/init/--version/--help.
+    if project_root is not None:
+        from specify_cli.migration.gate import check_schema_version
+
+        check_schema_version(project_root, invoked_subcommand=ctx.invoked_subcommand)
+
+
+def _build_app() -> typer.Typer:
+    from specify_cli.cli.commands import register_commands
+    from specify_cli.cli.commands.init import register_init_command
+    from specify_cli.cli.helpers import BannerGroup
+
     app = typer.Typer(
         name="spec-kitty",
         help=(
@@ -134,50 +174,41 @@ if not _RESTART_DAEMON_PROCESS_FAST_PATH:
         invoke_without_command=True,
         cls=BannerGroup,
     )
-else:
-    app = None
+    app.callback()(main_callback)
+    register_init_command(
+        app,
+        console=_get_console(),
+        show_banner=_get_show_banner(),
+        activate_mission=activate_mission,
+        ensure_executable_scripts=ensure_executable_scripts,
+    )
+    register_commands(app)
+    return app
 
 
-if not _RESTART_DAEMON_PROCESS_FAST_PATH:
+def _get_app() -> typer.Typer:
+    global _APP
+    if _APP is None:
+        _APP = _build_app()
+    return _APP
 
-    @app.callback()
-    def main_callback(
-        ctx: typer.Context,
-        version: bool = typer.Option(  # noqa: ARG001
-            None, "--version", "-v", callback=version_callback, is_eager=True, help="Show version and exit"
-        ),
-    ) -> None:
-        """Main callback for root CLI setup."""
-        if _is_doctor_restart_daemon_invocation(sys.argv):
-            return
 
-        root_callback(ctx)
+def _get_console() -> Any:
+    from specify_cli.cli.helpers import console
 
-        # FR-002: Ensure global runtime (~/.kittify/) is populated and current.
-        # Must run BEFORE check_version_pin() so global assets are available.
-        from specify_cli.runtime.agent_commands import ensure_global_agent_commands
-        from specify_cli.runtime.agent_skills import ensure_global_agent_skills
-        from specify_cli.runtime.bootstrap import check_version_pin, ensure_runtime
+    return console
 
-        ensure_runtime()
-        ensure_global_agent_skills()
-        ensure_global_agent_commands()
 
-        # F-Pin-001 / 1A-16: Warn on runtime.pin_version for all project invocations.
-        project_root = locate_project_root()
-        if project_root is not None:
-            check_version_pin(project_root)
+def _get_show_banner() -> Any:
+    from specify_cli.cli.helpers import show_banner
 
-        # FR-019 / FR-020: Schema version gate — refuse unmigrated or newer-than-CLI
-        # projects before any command runs.  Exempt upgrade/init/--version/--help.
-        if project_root is not None:
-            from specify_cli.migration.gate import check_schema_version
+    return show_banner
 
-            check_schema_version(project_root, invoked_subcommand=ctx.invoked_subcommand)
-else:
 
-    def main_callback(*_args: Any, **_kwargs: Any) -> None:
-        raise RuntimeError("main_callback unavailable in restart-daemon fast path")
+def __getattr__(name: str) -> Any:
+    if name == "app":
+        return _get_app()
+    raise AttributeError(name)
 
 
 def _compute_execute_mode(mode: int) -> int:
@@ -218,8 +249,7 @@ def _report_chmod_results(tracker: "StepTracker | None", updated: int, failures:
         tracker.add("chmod", "Set script permissions recursively")
         (tracker.error if failures else tracker.complete)("chmod", detail)
     else:
-        from specify_cli.cli.helpers import console
-
+        console = _get_console()
         if updated:
             console.print(f"[cyan]Updated execute permissions on {updated} script(s) recursively[/cyan]")
         if failures:
@@ -246,18 +276,30 @@ def ensure_executable_scripts(project_path: Path, tracker: "StepTracker | None" 
     _report_chmod_results(tracker, updated, failures)
 
 
-if not _RESTART_DAEMON_PROCESS_FAST_PATH:
-    from specify_cli.cli.helpers import console, show_banner
+def _is_doctor_restart_daemon_invocation(argv: list[str]) -> bool:
+    if any(arg in {"--help", "-h"} for arg in argv[1:]):
+        return False
+    command_parts: list[str] = []
+    for arg in argv[1:]:
+        if arg.startswith("-"):
+            continue
+        command_parts.append(arg)
+        if len(command_parts) == 2:
+            return command_parts == ["doctor", "restart-daemon"]
+    return False
 
-    register_init_command(
-        app,
-        console=console,
-        show_banner=show_banner,
-        activate_mission=activate_mission,
-        ensure_executable_scripts=ensure_executable_scripts,
-    )
 
-    register_commands(app)
+def _is_doctor_restart_daemon_process_fast_path(argv: list[str]) -> bool:
+    if any(arg in {"--help", "-h"} for arg in argv[1:]):
+        return False
+    command_parts: list[str] = []
+    for arg in argv[1:]:
+        if arg.startswith("-"):
+            if arg != "--json":
+                return False
+            continue
+        command_parts.append(arg)
+    return command_parts == ["doctor", "restart-daemon"]
 
 
 def _run_doctor_restart_daemon_process_fast_path(argv: list[str]) -> None:
@@ -266,7 +308,12 @@ def _run_doctor_restart_daemon_process_fast_path(argv: list[str]) -> None:
 
     from specify_cli.sync.restart import render_restart_result, restart_daemon
 
-    result = restart_daemon(Path.cwd())
+    try:
+        located = locate_project_root()
+    except Exception:  # noqa: BLE001 — restart-daemon is machine-global today
+        located = None
+    repo_root = located if located is not None else Path.cwd()
+    result = restart_daemon(repo_root)
     sys.stdout.write(render_restart_result(result, json_output="--json" in argv) + "\n")
     sys.stdout.flush()
     sys.stderr.flush()
@@ -275,9 +322,6 @@ def _run_doctor_restart_daemon_process_fast_path(argv: list[str]) -> None:
 
 def main() -> None:
     import sys
-
-    if _is_doctor_restart_daemon_process_fast_path(sys.argv):
-        _run_doctor_restart_daemon_process_fast_path(sys.argv)
 
     # FR-130 / FR-131: Install the CLI logging bootstrap early — before the
     # Typer app runs — so that warnings.warn(...) calls (including
@@ -299,14 +343,17 @@ def main() -> None:
             # Python < 3.7 or reconfigure not available
             pass
 
+    if _is_doctor_restart_daemon_process_fast_path(sys.argv):
+        _run_doctor_restart_daemon_process_fast_path(sys.argv)
+
     # Check for spec-kitty-events library availability (required for 2.x branch)
     from specify_cli.events.adapter import EventAdapter
 
     if not EventAdapter.check_library_available():
-        console.print(f"[red]{EventAdapter.get_missing_library_error()}[/red]")
+        _get_console().print(f"[red]{EventAdapter.get_missing_library_error()}[/red]")
         raise typer.Exit(1)
 
-    app()
+    _get_app()()
 
 
 __all__ = ["main", "app", "__version__"]

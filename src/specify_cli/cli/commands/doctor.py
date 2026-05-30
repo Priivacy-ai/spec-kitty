@@ -62,6 +62,7 @@ if TYPE_CHECKING:
 
 app = typer.Typer(name="doctor", help="Project health diagnostics")
 console = Console()
+logger = logging.getLogger(__name__)
 
 
 @contextmanager
@@ -103,7 +104,8 @@ def _vibe_skill_path_configured(project_path: Path) -> bool:
 
         raw = config_path.read_text(encoding="utf-8")
         data = tomllib.loads(raw) if raw.strip() else {}
-    except Exception:
+    except Exception as exc:
+        logger.debug("Failed to read %s: %s", config_path, exc)
         return False
 
     skill_paths = data.get("skill_paths")

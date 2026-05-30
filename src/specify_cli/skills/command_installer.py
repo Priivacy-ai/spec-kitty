@@ -508,7 +508,7 @@ def prune_stale(repo_root: Path) -> list[str]:
         raise InstallerError("manifest_parse_failed", detail=str(exc)) from exc
 
     pruned: list[str] = []
-    for entry in list(manifest.entries):
+    for entry in manifest.entries.copy():
         if _is_canonical_rel_path(entry.path):
             continue
 

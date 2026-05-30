@@ -693,6 +693,8 @@ def _background_script(port: int, daemon_token: str | None) -> str:
     """
     return textwrap.dedent(
         f"""\
+        import os
+        os.environ["SPEC_KITTY_SYNC_MINIMAL_IMPORT"] = "1"
         from specify_cli.sync.daemon import run_sync_daemon
         run_sync_daemon({port}, {repr(daemon_token)})
         """

@@ -179,6 +179,7 @@ def test_happy_path_exits_zero_and_reports_new_pid(
     assert result.exit_code == 0
     assert stop_calls == [1.0], "stop primitive must be called exactly once"
     assert len(launch_calls) == 1, "launch primitive must be called exactly once"
+    assert launch_calls[0]["kwargs"] == {"intent": DaemonIntent.REMOTE_REQUIRED}
 
     payload = json.loads(result.stdout.strip())
     assert payload["status"] == "restarted"
