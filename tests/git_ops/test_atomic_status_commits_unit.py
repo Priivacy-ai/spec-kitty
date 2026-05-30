@@ -397,11 +397,12 @@ class TestMoveTaskAtomicCommit:
     """Tests that move_task commits all status artifacts atomically."""
 
     @pytest.fixture
-    def git_repo_with_feature(self, tmp_path: Path) -> Path:
+    def git_repo_with_feature(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         """Create a git repo with a feature for move_task testing."""
+        monkeypatch.setenv("SPEC_KITTY_TEST_MODE", "1")
         repo = tmp_path / "test-repo"
         repo.mkdir()
-        subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
+        subprocess.run(["git", "init", "-b", "status-test"], cwd=repo, check=True, capture_output=True)
         subprocess.run(
             ["git", "config", "user.email", "test@example.com"],
             cwd=repo,
@@ -615,7 +616,7 @@ Test content.
         assert extract_scalar(frontmatter, "agent") == "test-agent"
         assert extract_scalar(frontmatter, "shell_pid") == "4242"
         assert any(
-            "Committed status change to main branch" in str(call.args[0])
+            "Committed status change to status-test branch" in str(call.args[0])
             for call in mock_print.call_args_list
             if call.args
         )
@@ -654,8 +655,9 @@ class TestMarkStatusAtomicCommit:
     """Tests that mark-status updates tasks.md under the feature lock."""
 
     @pytest.fixture
-    def git_repo_with_feature(self, tmp_path: Path) -> Path:
+    def git_repo_with_feature(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         """Create a git repo with a feature for mark-status testing."""
+        monkeypatch.setenv("SPEC_KITTY_TEST_MODE", "1")
         repo = tmp_path / "test-repo"
         repo.mkdir()
         subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)

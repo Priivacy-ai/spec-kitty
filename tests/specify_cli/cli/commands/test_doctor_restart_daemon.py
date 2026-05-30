@@ -17,6 +17,9 @@ actual ``run_sync_daemon`` subprocess is spawned during the test run.
 from __future__ import annotations
 
 import json
+import os
+import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -155,6 +158,32 @@ def test_restart_daemon_uses_cli_registration_fast_path() -> None:
     assert not _is_doctor_restart_daemon_fast_path(["spec-kitty", "doctor", "identity"])
 
 
+def test_import_does_not_execute_restart_daemon_fast_path(tmp_path: Path) -> None:
+    """Importing the package must not dispatch commands from inherited argv."""
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(Path.cwd() / "src")
+    env["HOME"] = str(tmp_path / "home")
+    env.pop("SPEC_KITTY_TEST_MODE", None)
+    code = (
+        "import sys; "
+        "sys.argv=['host','doctor','restart-daemon','--json']; "
+        "import specify_cli; "
+        "print('IMPORT_SURVIVED')"
+    )
+
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert result.stdout.strip() == "IMPORT_SURVIVED"
+    assert result.stderr.strip() == ""
+
+
 # ---------------------------------------------------------------------------
 # Exit-code matrix
 # ---------------------------------------------------------------------------
@@ -179,7 +208,10 @@ def test_happy_path_exits_zero_and_reports_new_pid(
     assert result.exit_code == 0
     assert stop_calls == [1.0], "stop primitive must be called exactly once"
     assert len(launch_calls) == 1, "launch primitive must be called exactly once"
-    assert launch_calls[0]["kwargs"] == {"intent": DaemonIntent.REMOTE_REQUIRED}
+    assert launch_calls[0]["kwargs"] == {
+        "intent": DaemonIntent.REMOTE_REQUIRED,
+        "health_wait_seconds": 3.0,
+    }
 
     payload = json.loads(result.stdout.strip())
     assert payload["status"] == "restarted"
@@ -392,6 +424,7 @@ def test_foreground_binding_uses_remote_required_intent(
     assert len(launch_calls) == 1
     intent = launch_calls[0]["kwargs"].get("intent")
     assert intent == DaemonIntent.REMOTE_REQUIRED
+    assert launch_calls[0]["kwargs"].get("health_wait_seconds") == 3.0
 
 
 # ---------------------------------------------------------------------------

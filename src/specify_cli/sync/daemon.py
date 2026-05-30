@@ -786,10 +786,11 @@ def _kill_and_cleanup(pid: int | None, *, wait_timeout: float = 2.0) -> None:
     DAEMON_STATE_FILE.unlink(missing_ok=True)
 
 
-def ensure_sync_daemon_running(
+def ensure_sync_daemon_running(  # noqa: C901 — lifecycle decision matrix plus lock/retry handling.
     *,
     intent: DaemonIntent,
     config: SyncConfig | None = None,
+    health_wait_seconds: float | None = None,
 ) -> DaemonStartOutcome:
     """Ensure the machine-global sync daemon is running.
 
@@ -863,7 +864,12 @@ def ensure_sync_daemon_running(
                 pid=None,
             )
         try:
-            _url, _port, _started = _ensure_sync_daemon_running_locked()
+            if health_wait_seconds is None:
+                _url, _port, _started = _ensure_sync_daemon_running_locked()
+            else:
+                _url, _port, _started = _ensure_sync_daemon_running_locked(
+                    health_wait_seconds=health_wait_seconds
+                )
         except Exception as exc:
             return DaemonStartOutcome(
                 started=False, skipped_reason=f"start_failed: {exc}", pid=None
@@ -885,7 +891,27 @@ def ensure_sync_daemon_running(
         lock_fd.close()
 
 
-def _ensure_sync_daemon_running_locked(preferred_port: int | None = None) -> tuple[str, int, bool]:
+def _bounded_retry_delays(
+    retry_delays: list[float],
+    max_wait_seconds: float | None,
+) -> list[float]:
+    if max_wait_seconds is None:
+        return retry_delays
+    bounded: list[float] = []
+    total = 0.0
+    for delay in retry_delays:
+        if total >= max_wait_seconds:
+            break
+        bounded.append(min(delay, max_wait_seconds - total))
+        total += delay
+    return bounded
+
+
+def _ensure_sync_daemon_running_locked(
+    preferred_port: int | None = None,
+    *,
+    health_wait_seconds: float | None = None,
+) -> tuple[str, int, bool]:
     """Inner implementation — caller must hold the daemon lock file."""
     if DAEMON_STATE_FILE.exists():
         existing_url, existing_port, existing_token, existing_pid = _parse_daemon_file(DAEMON_STATE_FILE)
@@ -936,7 +962,10 @@ def _ensure_sync_daemon_running_locked(preferred_port: int | None = None) -> tup
     url = f"http://127.0.0.1:{port}"
 
     # Wait up to ~20s for the daemon to become healthy (matching dashboard pattern)
-    retry_delays = [0.1] * 10 + [0.25] * 40 + [0.5] * 20
+    retry_delays = _bounded_retry_delays(
+        [0.1] * 10 + [0.25] * 40 + [0.5] * 20,
+        health_wait_seconds,
+    )
     for delay in retry_delays:
         if _check_sync_daemon_health(
             port,
@@ -948,10 +977,9 @@ def _ensure_sync_daemon_running_locked(preferred_port: int | None = None) -> tup
         time.sleep(delay)
 
     if _is_process_alive(proc.pid):
-        _write_daemon_file(DAEMON_STATE_FILE, url, port, token, proc.pid)
-        return url, port, True
+        _kill_and_cleanup(proc.pid)
 
-    raise RuntimeError(f"Sync daemon failed to start on port {port}")
+    raise RuntimeError(f"Sync daemon failed health check on port {port}")
 
 
 def _stop_daemon_by_http(url: str, token: str | None) -> None:

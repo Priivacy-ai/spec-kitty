@@ -34,6 +34,13 @@ SPEC_CONTENT = """\
 """
 
 
+@pytest.fixture(autouse=True)
+def _bypass_protected_branch_guard(monkeypatch: pytest.MonkeyPatch) -> None:
+    """These unit tests exercise mapping semantics on minimal main-branch fixtures."""
+    monkeypatch.setenv("SPEC_KITTY_TEST_MODE", "1")
+    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+
+
 def _setup_feature(tmp_path: Path, *, wp_ids: list[str] | None = None) -> Path:
     """Create a minimal feature directory with spec.md and WP files."""
     feature_dir = tmp_path / "kitty-specs" / "001-test"
@@ -550,7 +557,7 @@ class TestFinalizeTasksWithFrontmatterRefs:
             encoding="utf-8",
         )
 
-        result = runner.invoke(feature_app, ["finalize-tasks", "--json"])
+        result = runner.invoke(feature_app, ["finalize-tasks", "--target-branch", "main", "--json"])
         assert result.exit_code == 0, result.stdout
         payload = json.loads(result.stdout.strip().splitlines()[-1])
         assert payload["result"] == "success"
@@ -596,7 +603,7 @@ class TestFinalizeTasksWithFrontmatterRefs:
             encoding="utf-8",
         )
 
-        result = runner.invoke(feature_app, ["finalize-tasks", "--json"])
+        result = runner.invoke(feature_app, ["finalize-tasks", "--target-branch", "main", "--json"])
         assert result.exit_code == 0, result.stdout
         payload = json.loads(result.stdout.strip().splitlines()[-1])
         wp01_refs = payload["requirement_refs_parsed"]["WP01"]

@@ -52,6 +52,7 @@ RestartStatus = Literal[
 ]
 
 _RESTART_STOP_TIMEOUT_SECONDS = 1.0
+_RESTART_HEALTH_WAIT_SECONDS = 3.0
 _OWNER_RECORD_GRACE_SECONDS = 2.0
 _OWNER_RECORD_POLL_SECONDS = 0.05
 
@@ -218,7 +219,10 @@ def restart_daemon(repo_root: Path) -> RestartResult:  # noqa: ARG001 — reserv
 
     # Step 4 — respawn the daemon at the foreground binding.
     try:
-        outcome = ensure_sync_daemon_running(intent=DaemonIntent.REMOTE_REQUIRED)
+        outcome = ensure_sync_daemon_running(
+            intent=DaemonIntent.REMOTE_REQUIRED,
+            health_wait_seconds=_RESTART_HEALTH_WAIT_SECONDS,
+        )
     except Exception as exc:  # noqa: BLE001 — surface as respawn_failed per contract
         return RestartResult(
             status="respawn_failed",
