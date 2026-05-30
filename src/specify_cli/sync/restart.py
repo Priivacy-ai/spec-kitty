@@ -98,6 +98,13 @@ def _owner_record_present() -> bool:
     return bool(owner_record_path().exists())
 
 
+def _daemon_state_metadata_present() -> bool:
+    """Return True iff the daemon state file is on disk."""
+    from specify_cli.sync.daemon import DAEMON_STATE_FILE
+
+    return DAEMON_STATE_FILE.exists()
+
+
 def restart_daemon(repo_root: Path) -> RestartResult:  # noqa: ARG001 — reserved for future repo-scoped state
     """Restart the registered sync daemon at the foreground version/source.
 
@@ -132,7 +139,8 @@ def restart_daemon(repo_root: Path) -> RestartResult:  # noqa: ARG001 — reserv
     # through stop, because the on-disk path exists. The contract treats
     # "no owner record on disk at all" as the only ``no_owner`` case
     # (FR-007 / FR-009: actionable refusal points operator at ``sync now``).
-    if not _owner_record_present():
+    owner_present = _owner_record_present()
+    if not owner_present and not _daemon_state_metadata_present():
         return RestartResult(
             status="no_owner",
             exit_code=1,
@@ -144,7 +152,7 @@ def restart_daemon(repo_root: Path) -> RestartResult:  # noqa: ARG001 — reserv
             ),
         )
 
-    previous_pid = _read_previous_pid()
+    previous_pid = _read_previous_pid() if owner_present else None
 
     # Local imports — keeps cycles tight and lets test monkeypatches target
     # the canonical symbol on the ``specify_cli.sync.daemon`` module.
