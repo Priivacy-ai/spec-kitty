@@ -23,7 +23,6 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.core.atomic import atomic_write
-from specify_cli.ownership.inference import infer_execution_mode, score_execution_mode_signals
 from specify_cli.ownership.models import ExecutionMode
 from specify_cli.ownership.workspace_strategy import create_planning_workspace
 from specify_cli.status.wp_metadata import WPMetadata, read_wp_frontmatter
@@ -495,6 +494,7 @@ def _normalize_wp_file(wp_file: Path, mission_slug: str) -> NormalizedWorkPackag
 
     raw_mode = metadata.execution_mode
     if raw_mode is None:
+        from specify_cli.ownership.inference import infer_execution_mode, score_execution_mode_signals  # noqa: PLC0415
         raw_content = wp_file.read_text(encoding="utf-8")
         planning_score, code_score = score_execution_mode_signals(raw_content, list(metadata.owned_files))
         try:
