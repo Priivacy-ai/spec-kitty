@@ -55,10 +55,9 @@ def _subprocess_env(home: Path) -> dict[str, str]:
 
 
 def _restart_command() -> list[str]:
-    for script_name in ("spec-kitty", "spec-kitty.exe"):
-        script = Path(sys.executable).with_name(script_name)
-        if script.exists():
-            return [str(script), "doctor", "restart-daemon", "--json"]
+    # Exercise the current checkout through the active interpreter. macOS CI
+    # can expose framework-level console shims that are slower and less
+    # deterministic than the source tree under test.
     return [sys.executable, "-m", "specify_cli", "doctor", "restart-daemon", "--json"]
 
 
