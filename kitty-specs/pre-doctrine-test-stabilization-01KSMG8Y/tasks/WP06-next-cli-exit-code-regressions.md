@@ -97,9 +97,9 @@ if decision.kind == "blocked":
 5. Compare the mock target in the test against the actual import path in `runtime_bridge.py`. If the function was renamed or the delegation chain changed, the mock target is stale.
 
 **Output from this subtask**: A clear diagnosis of whether the bug is:
-   - (A) `decide_next_via_runtime` returns wrong `Decision.kind`
-   - (B) The mock patch target is stale (function renamed / delegation chain changed)
-   - (C) Both
+- (A) `decide_next_via_runtime` returns wrong `Decision.kind`
+- (B) The mock patch target is stale (function renamed / delegation chain changed)
+- (C) Both
 
 **Validation**:
 - [ ] You have a written diagnosis (A, B, or C) before touching production code
@@ -214,6 +214,6 @@ spec-kitty agent action implement WP06 --agent claude
 ## Activity Log
 
 - 2026-05-27T12:19:27Z – claude:claude-sonnet-4-6:debugger-debbie:investigator – shell_pid=39129 – Assigned agent via action command
-- 2026-05-27T12:25:36Z – claude:claude-sonnet-4-6:debugger-debbie:investigator – shell_pid=39129 – T023-T025 complete: next CLI exit-code contract restored, all 4 tests pass. Investigation (T023) confirmed tests were already passing on base branch — _map_runtime_decision correctly maps terminal→DecisionKind.terminal (exit 0) and blocked→DecisionKind.blocked (exit 1). Mock target for query_current_state is correct. Added FR-008 contract documentation to _map_runtime_decision docstring.
+- 2026-05-27T12:25:36Z – claude:claude-sonnet-4-6:debugger-debbie:investigator – shell_pid=39129 – T023-T025 complete: next CLI exit-code contract restored, all 4 tests pass. Investigation (T023) confirmed tests were already passing on base branch — `_map_runtime_decision` correctly maps terminal→DecisionKind.terminal (exit 0) and blocked→DecisionKind.blocked (exit 1). Mock target for query_current_state is correct. Added FR-008 contract documentation to `_map_runtime_decision` docstring.
 - 2026-05-27T12:25:59Z – claude:claude-sonnet-4-6:curator-carla:reviewer – shell_pid=177403 – Started review via action command
 - 2026-05-27T12:28:07Z – claude:claude-sonnet-4-6:curator-carla:reviewer – shell_pid=177403 – Review passed: exit-code contract confirmed correct, all 4 tests pass, next_cmd.py untouched

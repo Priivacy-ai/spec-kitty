@@ -2,9 +2,9 @@ description = "Generate research documents for the current mission"
 
 prompt = """
 <!-- spec-kitty-command-version: 3.1.2a3 -->
-**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
+**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project<!-- glossary:glossary:project --> root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
 
-**In repos with multiple missions, always pass `--mission <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
+**In repos with multiple missions, always pass `--mission<!-- glossary:glossary:mission --> <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id<!-- glossary:glossary:mission_id -->` (ULID), `mid8<!-- glossary:glossary:mid8 -->` (first 8 chars of the ULID), or `mission_slug<!-- glossary:glossary:mission_slug -->`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
 
 ## User Input
 
@@ -16,7 +16,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Location Pre-flight Check
 
-**BEFORE PROCEEDING:** Verify you are working in the repository root checkout.
+**BEFORE PROCEEDING:** Verify you are working in the repository<!-- glossary:glossary:repository --> root checkout<!-- glossary:glossary:repository-root-checkout -->.
 
 ```bash
 pwd
@@ -56,7 +56,7 @@ When you run `spec-kitty research`, the following files are generated in your fe
 
 ## Workflow Context
 
-**Before this**: `/spec-kitty.plan` calls this as "Phase 0" research phase
+**Before this**: `/spec-kitty.plan` calls this as "Phase<!-- glossary:glossary:phase --> 0" research phase
 
 **This command**:
 - Scaffolds research artifacts

@@ -7,29 +7,29 @@ description: Create an implementation plan
 
 **Version**: 0.11.0+
 
-## 📍 WORKING DIRECTORY: Stay in the repository root checkout
+## 📍 WORKING DIRECTORY: Stay in the repository<!-- glossary:glossary:repository --> root checkout<!-- glossary:glossary:repository-root-checkout -->
 
 **IMPORTANT**: Plan works in the repository root checkout. NO worktrees created.
 
 ```bash
-# Run from project root (same directory as /spec-kitty.specify):
+# Run from project<!-- glossary:glossary:project --> root (same directory as /spec-kitty.specify):
 # You should already be here if you just ran /spec-kitty.specify
 
 # Creates:
-# - kitty-specs/<mission_slug>/plan.md → In repository root checkout
+# - kitty-specs/<mission_slug<!-- glossary:glossary:mission_slug -->>/plan.md → In repository root checkout
 #   (the NNN- prefix in the directory listing is display-only metadata)
-# - Commits to target branch
+# - Commits to target branch<!-- glossary:glossary:target-branch -->
 # - NO worktrees created
 ```
 
 **Do NOT cd anywhere**. Stay in the repository root checkout.
 
-## Mission Handle Rule
+## Mission<!-- glossary:glossary:mission --> Handle Rule
 
 `/spec-kitty.plan` operates on an existing mission, so use `--mission <handle>`
 when the CLI needs a mission selector.
 
-- `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of
+- `<handle>` can be the mission's `mission_id<!-- glossary:glossary:mission_id -->` (ULID), `mid8<!-- glossary:glossary:mid8 -->` (first 8 chars of
   the ULID), or `mission_slug`.
 - Prefer `mission_id` or `mid8` when the repo has multiple similarly named
   missions.
@@ -46,7 +46,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Commit Boundary (issue #846)
 
-`/spec-kitty.plan` will refuse to advance the plan phase unless **two**
+`/spec-kitty.plan` will refuse to advance the plan phase<!-- glossary:glossary:phase --> unless **two**
 gates pass:
 
 1. **Entry gate.** `spec.md` must already be both **committed** (tracked +
@@ -69,7 +69,7 @@ To advance: populate the Technical Context with real values, then re-run
 `spec-kitty agent mission setup-plan --json`. The substantive plan will be
 auto-committed and `phase_complete` will report `true`.
 
-Reference: `kitty-specs/charter-e2e-827-followups-01KQAJA0/contracts/specify-plan-commit-boundary.md`.
+Reference: `kitty-specs/charter<!-- glossary:glossary:charter -->-e2e-827-followups-01KQAJA0/contracts/specify-plan-commit-boundary.md`.
 
 ## Branch Strategy Confirmation (MANDATORY)
 
@@ -98,7 +98,7 @@ This command runs in the **repository root checkout**, not in a worktree.
 
 - Resolve branch context from deterministic JSON output, not from `meta.json` inspection:
   - Run `spec-kitty agent mission setup-plan --mission <mission-slug> --json`
-  - Use `current_branch`, `target_branch` / `base_branch`, and `planning_base_branch` / `merge_target_branch` (plus uppercase aliases) from that payload
+  - Use `current_branch`, `target_branch` / `base_branch`, and `planning_base_branch<!-- glossary:glossary:planning_base_branch -->` / `merge_target_branch<!-- glossary:glossary:merge_target_branch -->` (plus uppercase aliases) from that payload
   - Use `branch_matches_target` from that payload to detect branch mismatch; do not probe branch state manually inside the prompt
 - Planning artifacts live in `kitty-specs/<mission_slug>/` (the `NNN-` prefix is display-only metadata)
 - The plan template is committed to the target branch after generation
@@ -121,7 +121,7 @@ This command does **not** update agent-specific context files.
   - `quickstart.md`
   - `occurrence_map.yaml` when bulk-edit planning applies
 
-## Decision Moment Protocol
+## Decision Moment<!-- glossary:glossary:decision-moment --> Protocol
 
 Before asking **any** clarifying question during plan elaboration, you MUST:
 
@@ -173,7 +173,7 @@ Before asking **any** clarifying question during plan elaboration, you MUST:
 
 Before executing any scripts or generating artifacts you must interrogate the specification and stakeholders.
 
-- **Scope proportionality (CRITICAL)**: FIRST, assess the feature's complexity from the spec:
+- **Scope<!-- glossary:glossary:scope --> proportionality (CRITICAL)**: FIRST, assess the feature's complexity from the spec:
   - **Trivial/Test Features** (hello world, simple static pages, basic demos): Ask 1-2 questions maximum about tech stack preference, then proceed with sensible defaults
   - **Simple Features** (small components, minor API additions): Ask 2-3 questions about tech choices and constraints
   - **Complex Features** (new subsystems, multi-component features): Ask 3-5 questions covering architecture, NFRs, integrations
@@ -201,7 +201,7 @@ Before executing any scripts or generating artifacts you must interrogate the sp
 Planning requirements (scale to complexity):
 
 1. Maintain a **Planning Questions** table internally covering questions appropriate to the feature's complexity (1-2 for trivial, up to 5+ for platform-level). Track columns `#`, `Question`, `Why it matters`, and `Current insight`. Do **not** render this table to the user.
-2. For trivial features, standard practices are acceptable (vanilla HTML, simple file structure, no build tools). Only probe if the user's request suggests otherwise.
+2. For trivial features, standard practices are acceptable (vanilla HTML, simple file structure, no build<!-- glossary:glossary:build --> tools). Only probe if the user's request suggests otherwise.
 3. When you have sufficient context for the scope, summarize into an **Engineering Alignment** note and confirm. Include invariant, state-transition, or event assumptions when they materially affect the design.
 4. If user explicitly asks to skip questions or use defaults, acknowledge and proceed with best practices for that feature type.
 
@@ -209,15 +209,15 @@ Planning requirements (scale to complexity):
 
 If this mission is marked `change_mode: bulk_edit` in `meta.json` — or if the
 spec describes renaming the same string (identifier, path, key, label, term)
-across many files — load the `spec-kitty-bulk-edit-classification` skill and
+across many files — load the `spec-kitty-bulk-edit-classification` skill<!-- glossary:glossary:skill --> and
 follow it. You will produce `kitty-specs/<mission>/occurrence_map.yaml`
 alongside the other planning artifacts. Every one of the 8 standard categories
 (code_symbols, import_paths, filesystem_paths, serialized_keys, cli_commands,
 user_facing_strings, tests_fixtures, logs_telemetry) must have an explicit
 action. Without that artifact, the `implement` command will refuse to start
-the first WP.
+the first WP<!-- glossary:glossary:wp -->.
 
-If the mission is not a bulk edit, skip this step.
+If the mission is not a bulk edit<!-- glossary:glossary:bulk-edit -->, skip this step.
 
 ## Outline
 
@@ -233,7 +233,7 @@ If the mission is not a bulk edit, skip this step.
 
 3. **Setup**: If step 2 did not already return a successful setup payload, run `spec-kitty agent mission setup-plan --mission <mission-slug> --json` from the repository root and parse JSON for:
    - `result`: "success" or error message
-   - `mission_slug`: Resolved feature slug
+   - `mission_slug`: Resolved feature slug<!-- glossary:glossary:feature-slug -->
    - `spec_file`: Absolute path to resolved spec.md
    - `plan_file`: Absolute path to the created plan.md
    - `feature_dir`: Absolute path to the feature directory
@@ -243,7 +243,7 @@ If the mission is not a bulk edit, skip this step.
    - `branch_strategy_summary`: canonical sentence describing the branch strategy
 
    Before proceeding, explicitly state to the user:
-   - Current branch at plan start
+   - Current branch<!-- glossary:glossary:current-branch --> at plan start
    - Intended planning/base branch
    - Final merge target for completed changes
    - Whether `branch_matches_target` says the current branch matches that intended target
@@ -339,7 +339,7 @@ After reporting:
 
 Do NOT:
 - ❌ Generate `tasks.md`
-- ❌ Create work package (WP) files
+- ❌ Create work package<!-- glossary:glossary:work-package --> (WP) files
 - ❌ Create `tasks/` subdirectories
 - ❌ Proceed to implementation
 

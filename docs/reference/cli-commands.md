@@ -1287,7 +1287,6 @@ _Validate or assemble doctrine packs._
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
-
 ## spec-kitty glossary
 
 _Glossary management commands_

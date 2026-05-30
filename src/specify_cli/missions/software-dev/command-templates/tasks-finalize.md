@@ -1,8 +1,6 @@
 ---
 description: Validate dependencies, finalize WP metadata, and commit all task artifacts.
 ---
-
-
 # /spec-kitty.tasks-finalize - Finalize Tasks
 
 **Version**: 3.2.0

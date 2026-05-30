@@ -44,18 +44,23 @@
 ## What Went Well
 
 ### 1. Parallel sprint was genuinely effective
+
 All 9 independent WPs (WP01–WP09) ran in parallel using background agents. The lane-based worktree model kept them isolated — no cross-WP file conflicts during implementation. Wall-clock time for all 9 implementations was roughly equal to the time a single sequential WP would have taken.
 
 ### 2. Tight issue-to-WP traceability
+
 Each sub-issue (#1301–#1310) mapped cleanly to one or two WPs. The mission's planning upfront — confirming scope, owner, and acceptance gate per issue — meant reviewers had clear criteria and implementations had clear targets.
 
 ### 3. WP05 cycle 2 found a better solution
+
 The cycle-1 rejection for WP05 was legitimate: the implementation touched `runtime_bridge.py` which was owned by WP06. The cycle-2 fix relocated the logic to `decision.py/_build_prompt_or_error`, which is both a more architecturally correct home for prompt-file resolution and eliminated the merge conflict risk. The review cycle did its job.
 
 ### 4. All 6 WP05 integration tests pass
+
 The T017–T022 charter integration tests all pass on the feature branch. The functional goal of WP05 was met; the cycle-2 issue was purely about ownership boundaries, not correctness.
 
 ### 5. Mission merge completed without file conflicts
+
 Despite 11 lanes merging into a single feature branch, the owned-files declarations in WP frontmatter kept lanes genuinely non-overlapping. `spec-kitty merge` completed cleanly on the first attempt after the two pre-merge blockers were resolved.
 
 ---
@@ -63,6 +68,7 @@ Despite 11 lanes merging into a single feature branch, the owned-files declarati
 ## Blockers and Friction
 
 ### 1. Review artifact `verdict` field not auto-synced with override fields
+
 **What happened**: WP05 review-cycle-2.md was created with `verdict: rejected` (from the initial review template). The review passed, and the override fields (`review_artifact_override_at`, `review_artifact_override_reason`, etc.) were populated — but the `verdict:` key itself was not updated to `approved`. The `spec-kitty merge` gate reads `verdict`, not the override fields, so it blocked with `REJECTED_REVIEW_ARTIFACT_CONFLICT`.
 
 **Resolution**: Manually changed `verdict: rejected` → `verdict: approved`, committed, pushed, re-ran merge.
@@ -74,6 +80,7 @@ Despite 11 lanes merging into a single feature branch, the owned-files declarati
 ---
 
 ### 2. `TARGET_BRANCH_NOT_SYNCHRONIZED` before merge
+
 **What happened**: The feature branch had 68 commits that hadn't been pushed to the remote when `spec-kitty merge` was invoked. The merge gate requires the remote to be synchronized before proceeding.
 
 **Resolution**: `git push origin feat/pre-doctrine-stabilization-remediation`, then retry.
@@ -85,6 +92,7 @@ Despite 11 lanes merging into a single feature branch, the owned-files declarati
 ---
 
 ### 3. WP11 frontmatter missing `agent` and `shell_pid`
+
 **What happened**: The `spec-kitty accept` check required `agent` and `shell_pid` fields in WP11 frontmatter. WP11 is a `human-in-charge` planning artifact and was created without these fields.
 
 **Resolution**: Added `agent: "human:none:human-in-charge:human-in-charge"` and `shell_pid: "0"` to WP11 frontmatter, then force-approved.
@@ -96,6 +104,7 @@ Despite 11 lanes merging into a single feature branch, the owned-files declarati
 ---
 
 ### 4. `spec-kitty accept` misrouted (feature branch vs. mission branch)
+
 **What happened**: Running `spec-kitty accept --mission pre-doctrine-test-stabilization-01KSMG8Y` on the feature branch (`feat/pre-doctrine-stabilization-remediation`) showed all WPs in `planned` — because the status events live on the mission branch (`kitty/mission-pre-doctrine-test-stabilization-01KSMG8Y`).
 
 **Resolution**: Skipped `accept` and proceeded directly to `spec-kitty merge`.
@@ -107,6 +116,7 @@ Despite 11 lanes merging into a single feature branch, the owned-files declarati
 ---
 
 ### 5. WP05 cycle 1: DoD file-ownership constraint not surfaced prominently
+
 **What happened**: The implementing agent modified `runtime_bridge.py` despite the WP DoD explicitly stating "No changes to `runtime_bridge.py` in this lane (unless WP06 merged)." This was a straightforward DoD violation.
 
 **Resolution**: Reviewer caught it; cycle-2 fixed it. No functional regression.
@@ -120,41 +130,49 @@ Despite 11 lanes merging into a single feature branch, the owned-files declarati
 ## Test Debt Analysis: Remaining 138 Failures
 
 ### Cluster A — Invocation CLI (21 failures) — **Priority: High**
+
 `tests/specify_cli/invocation/cli/` (advise, do, profiles, invocations)
 
 WP09 T037 addressed the `mode_of_work` field mismatch but the deeper routing architecture for the invocation subsystem is broken. These tests were not confirmed regressions in the original triage (#1310) — they are structural. Needs a dedicated remediation mission.
 
 ### Cluster B — Cross-cutting: encoding + versioning (19 failures) — **Priority: Low**
+
 `tests/cross_cutting/encoding/` (9), `tests/cross_cutting/versioning/` + `test_version_isolation_integration.py` (10)
 
 Pre-existing environment-specific failures. The encoding tests require a `spec-kitty encode` CLI surface not present in this build. The versioning tests fail due to subprocess version isolation issues in the test environment. Not mission-scope regressions.
 
 ### Cluster C — Planning workflow integration (9 failures) — **Priority: Medium**
+
 `tests/tasks/test_planning_workflow_integration.py`
 
 Repo-root detection failures in worktree context. These would have been latent during the mission itself (worktrees were used throughout) but didn't surface as implementation blockers. The `find_repo_root` function has edge-case failures in worktree subdirs and missing-git scenarios.
 
 ### Cluster D — Checklist template (9 failures) — **Priority: Low** (deferred)
+
 `tests/specify_cli/test_command_template_cleanliness.py` (checklist)
 
 The `spec-kitty.checklist` skill package is absent — explicitly re-deferred to #1317 per C-008 (re-deferred items must have a filed follow-on issue). Not a regression introduced by this mission.
 
 ### Cluster E — Finalize-bootstrap regressions (7 failures) — **Priority: High**
+
 `tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py`
 
 Typed frontmatter migration path is broken. These test the `finalize-tasks` bootstrap flow that every new mission creation depends on. If these failures reflect real bugs (not just test-environment drift), they are a blocker for mission creation reliability.
 
 ### Cluster F — Skills snapshots (8 failures) — **Priority: Medium**
+
 `tests/specify_cli/skills/test_command_renderer.py` (codex, vibe snapshots)
 
 Snapshot drift from WP01 template changes. These are "update the snapshot" tasks — low complexity, high failure count. Should have been part of WP01's scope. The snapshot update is a one-command fix; the failure count is misleading relative to the effort required.
 
 ### Cluster G — Prompt-file invariant (3 failures) — **Priority: Medium**
+
 `tests/next/test_prompt_file_invariant.py`
 
 New tests added by WP05 T019 (`_build_prompt_or_error` path) are failing in the error-handling branches (path missing on disk, OSError from stat). The core happy path passes. The implementation in `decision.py` needs the error branches to be hardened.
 
 ### Cluster H — Misc / architectural (63 failures) — **Priority: Low–Medium**
+
 `test_intake` (7), `test_cli_smoke` (3), `test_acceptance_regressions` (6), architectural tests (5), audit tests (2), and others.
 
 Mixed bag of pre-existing debt and test-environment-specific failures. Some (intake CLI, acceptance regressions, architectural dead-module checks) indicate real production surface issues; others (charter epic golden path E2E, clean-install-next) are environment-specific.
@@ -164,17 +182,21 @@ Mixed bag of pre-existing debt and test-environment-specific failures. Some (int
 ## Process Observations
 
 ### The parallel sprint model works at scale
+
 Running 9 WPs in parallel with background agents, scheduling reviews as each completed, then unblocking dependents immediately — this is the right model for a mission of this shape. The primary bottleneck was review throughput, not implementation.
 
 ### Gate calibration matters
+
 NFR-001 (≤75 failures) required eliminating ~174 of ~249 failures. The mission's 10 implementation WPs were scoped to confirmed regressions from the triage list (#1301–#1310). The math assumed those confirmed regressions accounted for ≥174 failures. In practice, many of the 249 original failures were pre-existing environment-specific debt that the WPs didn't touch. A gate grounded in "eliminate confirmed regressions" rather than an absolute floor would have been more achievable.
 
 **Recommended for future missions**: Gate as "eliminate N% of confirmed regressions" rather than "reach floor of M absolute failures" when the baseline contains significant pre-existing debt of uncertain scope.
 
 ### Snapshot tests should travel with the change that breaks them
+
 WP01 changed command templates. That change broke 8 codex/vibe snapshot tests. The snapshots should have been updated in the same WP01 commit. The current pattern — implement the change, leave the snapshots for "the next person" — creates a trailing failure count that makes the overall picture look worse than it is and creates work for the next mission.
 
 ### Owned-files enforcement needs tooling support
+
 The WP05 cycle-1 failure was foreseeable. The `owned_files` manifest in WP frontmatter is authoritative, but there's no enforcement at commit time. A git hook or pre-move-task check that validates changed files against the WP's `owned_files` would catch this class of error before it costs a review cycle.
 
 ---

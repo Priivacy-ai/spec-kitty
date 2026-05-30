@@ -245,7 +245,7 @@ The six assertions that must all pass:
 
 ---
 
-## Subtask T008 — Remove doctrine CLI group from commands/__init__.py (FR-004)
+## Subtask T008 — Remove doctrine CLI group from `commands/__init__.py` (FR-004)
 
 **Purpose**: The `doctrine` Typer app was supposed to be removed by mission `excise-doctrine-curation-and-inline-references-01KP54J6`. It was re-registered — a regression. Remove it now.
 

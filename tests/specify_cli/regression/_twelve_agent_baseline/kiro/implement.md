@@ -3,7 +3,7 @@ description: Execute a work package implementation
 ---
 <!-- spec-kitty-command-version: 3.1.2a3 -->
 
-# /spec-kitty.implement - Execute Work Package Implementation
+# /spec-kitty.implement - Execute Work Package<!-- glossary:glossary:work-package --> Implementation
 
 **Version**: 0.12.0+
 
@@ -17,11 +17,11 @@ guardrails for bulk operations.
 
 ## Working Directory
 
-**IMPORTANT**: This step works inside the execution workspace (worktree)
+**IMPORTANT**: This step works inside the execution workspace<!-- glossary:glossary:workspace --> (worktree)
 allocated by `spec-kitty agent action implement WPxx --agent <name>`. Do NOT modify files outside
 your `owned_files` boundaries.
 
-**In repos with multiple missions, always pass `--mission <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
+**In repos with multiple missions, always pass `--mission<!-- glossary:glossary:mission --> <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id<!-- glossary:glossary:mission_id -->` (ULID), `mid8<!-- glossary:glossary:mid8 -->` (first 8 chars of the ULID), or `mission_slug<!-- glossary:glossary:mission_slug -->`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
 
 ## User Input
 
@@ -39,26 +39,26 @@ governance sources unless explicitly cited by a fetch command + when-doing
 rule in the prompt.
 
 **Guaranteed bodies** (verbatim in the prompt when under the token budget; the
-resolver substitutes a `spec-kitty charter context --include section:<slug>`
+resolver substitutes a `spec-kitty charter<!-- glossary:glossary:charter --> context --include section:<slug>`
 fetch + when-doing stanza only when the budget would otherwise be exceeded):
 
 - **Terminology Canon** — from `.kittify/charter/charter.md` — governs every
   identifier rename or new term you introduce.
 - **Code Review Checklist** — from `.kittify/charter/charter.md` — enumerates
   the gates the reviewer will measure your diff against.
-- **Regression Vigilance** — from `.kittify/charter/charter.md` — the project's
+- **Regression Vigilance** — from `.kittify/charter/charter.md` — the project<!-- glossary:glossary:project -->'s
   explicit guard against terminology and structural drift.
 - Any additional action-critical sections the mission declares are appended
   automatically.
 
 **Guaranteed citations** (catalog IDs always present in the prompt when the
-WP frontmatter selects an `agent_profile`):
+WP<!-- glossary:glossary:wp --> frontmatter selects an `agent_profile`):
 
 - Every `DIRECTIVE_NNN` declared in the loaded agent profile's
-  `directive-references` list (for example, `python-pedro` cites
+  `directive<!-- glossary:glossary:directive -->-references` list (for example, `python-pedro` cites
   `DIRECTIVE_010` — Specification Fidelity Requirement, `DIRECTIVE_024` —
   Locality of Change, `DIRECTIVE_030` — Test and Typecheck Quality Gate).
-- Every tactic-id declared in the loaded agent profile's `tactic-references`
+- Every tactic<!-- glossary:glossary:tactic -->-id declared in the loaded agent profile's `tactic-references`
   list.
 
 **Guaranteed authority pointers** (path + when-doing conditional):
@@ -106,7 +106,7 @@ Parse frontmatter for:
 - `authoritative_surface` -- primary directory for this WP
 - `execution_mode` -- `code_change` or `planning_artifact`
 - `subtasks` -- ordered list of subtask IDs
-- `dependencies` -- WPs that must be done first
+- `dependencies` -- WPs that must be done<!-- glossary:glossary:done --> first
 - `agent_profile` -- agent profile identifier to load (e.g., `implementer-ivan`)
 - `role` -- role within the profile (e.g., `implementer`)
 - `agent` -- CLI agent/tool identifier (e.g., `claude`, `codex`)
@@ -114,7 +114,7 @@ Parse frontmatter for:
 
 ### 2a. Load Agent Profile
 
-Before proceeding, load the agent profile from the WP frontmatter using the `/ad-hoc-profile-load` skill (or `spec-kitty agent profile list` to find user-defined profiles). Apply the profile's guidance for the rest of this implementation session.
+Before proceeding, load the agent profile from the WP frontmatter using the `/ad-hoc-profile-load` skill<!-- glossary:glossary:skill --> (or `spec-kitty agent profile list` to find user-defined profiles). Apply the profile's guidance for the rest of this implementation session.
 
 If `agent_profile` is empty, run `spec-kitty agent profile list` and select the best
 available profile for the WP's `task_type` and `authoritative_surface`.
@@ -140,8 +140,8 @@ After all subtasks are complete:
 - Code follows project conventions (run linter if configured)
 - **Diff-scoped ruff sweep (MANDATORY before moving to `for_review`)** —
   catches lint regressions before they reach the cycle-1 reviewer. The WP06
-  cycle-1 `textwrap` F401 in `tests/specify_cli/doctrine/test_missing_pack_policy.py`
-  would have been caught by this step. Scope is the diff only so the implementer
+  cycle-1 `textwrap` F401 in `tests/specify_cli/doctrine<!-- glossary:glossary:doctrine -->/test_missing_pack_policy.py`
+  would have been caught by this step. Scope<!-- glossary:glossary:scope --> is the diff only so the implementer
   does not drown in pre-existing warnings owned by other WPs.
   ```bash
   CHANGED_PY=$(git diff --name-only --diff-filter=AMR HEAD | grep -E '[.]py$' || true)
@@ -157,7 +157,7 @@ After all subtasks are complete:
 
 ---
 
-## Bulk Edit Occurrence Classification
+## Bulk Edit<!-- glossary:glossary:bulk-edit --> Occurrence Classification<!-- glossary:glossary:occurrence-classification -->
 
 If this mission has `change_mode: bulk_edit` in its `meta.json`, an occurrence
 classification artifact is required before implementation can begin.
@@ -165,7 +165,7 @@ classification artifact is required before implementation can begin.
 **What to check**:
 1. Read `meta.json` in the feature directory — look for `"change_mode": "bulk_edit"`
 2. If present, verify `occurrence_map.yaml` exists in the same directory
-3. The occurrence map classifies the target term by semantic category with
+3. The occurrence map<!-- glossary:glossary:occurrence-map --> classifies the target term by semantic category with
    per-category actions: `rename`, `manual_review`, `do_not_change`, `rename_if_user_visible`
 
 **During implementation**:

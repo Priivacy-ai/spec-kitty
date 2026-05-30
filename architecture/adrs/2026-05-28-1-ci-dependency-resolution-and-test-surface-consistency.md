@@ -53,15 +53,15 @@ The failures were traced through the following chain:
 
 ## Decision Drivers
 
-* Local development and CI must run against the same resolved dependency graph.
-* The version drift that exposed these failures was not user error — it was a structural
+- Local development and CI must run against the same resolved dependency graph.
+- The version drift that exposed these failures was not user error — it was a structural
   gap in how the project manages its environment contract.
-* Linting and fixture discipline should enforce correct patterns before review, not
+- Linting and fixture discipline should enforce correct patterns before review, not
   after a CI failure.
-* Tests that re-implement production algorithms test their own copy, not the system under
+- Tests that re-implement production algorithms test their own copy, not the system under
   test. Any deviation between the two silently breaks the test's validity as a contract
   check.
-* E2e test infrastructure must be self-contained; it must not inherit implicit
+- E2e test infrastructure must be self-contained; it must not inherit implicit
   preconditions from the developer's machine state or gitignored runtime files.
 
 ---
@@ -70,42 +70,42 @@ The failures were traced through the following chain:
 
 ### Gap 1: CI vs. local dependency resolver mismatch
 
-* **Option A (chosen):** Run CI via `uv sync --frozen`, making the lockfile the single
+- **Option A (chosen):** Run CI via `uv sync --frozen`, making the lockfile the single
   contract for both local and CI environments.
-* **Option B:** Add upper-bound pins in `pyproject.toml` for sensitive transitive deps.
-* **Option C:** Keep `pip install`, add a scheduled "latest-deps" shadow CI job.
+- **Option B:** Add upper-bound pins in `pyproject.toml` for sensitive transitive deps.
+- **Option C:** Keep `pip install`, add a scheduled "latest-deps" shadow CI job.
 
 ### Gap 2: No version-compatibility test for the typer/click interface
 
-* **Option A (chosen):** Add a targeted smoke test that exercises `_JSONErrorGroup`'s
+- **Option A (chosen):** Add a targeted smoke test that exercises `_JSONErrorGroup`'s
   JSON envelope output end-to-end, parameterized by importing `typer.Exit` through the
   stable public surface.
-* **Option B:** Add a full CI matrix axis `typer: [pinned, latest]`.
-* **Option C:** No test; rely on lockfile pinning from Gap 1.
+- **Option B:** Add a full CI matrix axis `typer: [pinned, latest]`.
+- **Option C:** No test; rely on lockfile pinning from Gap 1.
 
 ### Gap 3: Test helpers re-implement production algorithms
 
-* **Option A (chosen):** Ruff `noqa` allowlist ban — add a custom or per-file linter
+- **Option A (chosen):** Ruff `noqa` allowlist ban — add a custom or per-file linter
   rule that flags inline re-implementations of known production helpers (detected by
   pattern, e.g., `hashlib.sha256` inside `tests/`).
-* **Option B:** Code review checklist only (no automated enforcement).
-* **Option C:** Extract a shared test-utilities module and require all tests to import
+- **Option B:** Code review checklist only (no automated enforcement).
+- **Option C:** Extract a shared test-utilities module and require all tests to import
   from it.
 
 ### Gap 4: E2e fixtures depend on gitignored runtime state
 
-* **Option A (chosen):** E2e conftest synthesizes all required runtime state files
+- **Option A (chosen):** E2e conftest synthesizes all required runtime state files
   explicitly after `copytree`, using the production helpers to produce valid content.
-* **Option B:** Disable preflight globally for test contexts (ad-hoc, per-conftest).
-* **Option C:** Commit a minimal `metadata.yaml` fixture file for tests only.
+- **Option B:** Disable preflight globally for test contexts (ad-hoc, per-conftest).
+- **Option C:** Commit a minimal `metadata.yaml` fixture file for tests only.
 
 ### Gap 5: Direct `click.exceptions.*` imports in test files
 
-* **Option A (chosen):** Ruff banned-import rule covering `click.exceptions` in the
+- **Option A (chosen):** Ruff banned-import rule covering `click.exceptions` in the
   `tests/` tree. Any test that needs to assert on CLI exit/error types must import
   through `typer`'s public surface.
-* **Option B:** Code review checklist only.
-* **Option C:** Test-only compatibility shim (mirrors the production shim).
+- **Option B:** Code review checklist only.
+- **Option C:** Test-only compatibility shim (mirrors the production shim).
 
 ---
 
@@ -145,32 +145,32 @@ convention.
 
 #### Positive
 
-* Local and CI environments are now described by the same lockfile contract. Any
+- Local and CI environments are now described by the same lockfile contract. Any
   dependency upgrade is visible, deliberate, and reviewed in a PR via `uv.lock` diff.
-* The `_JSONErrorGroup` regression mode now has a test that would have caught it at the
+- The `_JSONErrorGroup` regression mode now has a test that would have caught it at the
   time it was introduced (i.e., at the first `uv.lock` update that bumped typer).
-* Lint rules enforce both bans (re-implemented algorithms, direct click imports) without
+- Lint rules enforce both bans (re-implemented algorithms, direct click imports) without
   requiring human attention in review.
-* The e2e fixture is reproducible across any fresh clone, eliminating a class of
+- The e2e fixture is reproducible across any fresh clone, eliminating a class of
   "works on my machine" CI failures.
 
 #### Negative
 
-* CI install time increases slightly (uv resolves and installs from lockfile rather than
+- CI install time increases slightly (uv resolves and installs from lockfile rather than
   just latest-compatible). Measured impact is expected to be under 5 seconds per job
   given uv's speed.
-* `uv.lock` must be kept current; PRs that add or change dependencies must also update
+- `uv.lock` must be kept current; PRs that add or change dependencies must also update
   the lockfile. `uv lock --check` already enforces this (NFR-005 gate, job
   `uv-lock-check`).
-* The `hashlib.sha256` ban in `tests/` may produce false positives for tests that
+- The `hashlib.sha256` ban in `tests/` may produce false positives for tests that
   legitimately compute a raw SHA-256 (e.g., testing a hashing utility's output). Those
   tests must use a `# noqa: SC001` suppression with justification comment.
 
 #### Neutral
 
-* The typer version-compatibility smoke test does not replace the full envelope contract
+- The typer version-compatibility smoke test does not replace the full envelope contract
   test suite; it is additive. Existing tests continue to run unchanged.
-* No production code changes are required by this ADR; all changes are in CI
+- No production code changes are required by this ADR; all changes are in CI
   configuration, test infrastructure, and lint configuration.
 
 ### Confirmation
@@ -235,12 +235,12 @@ from silently depending on the wrong class for assertions.
 
 ## More Information
 
-* GitHub Actions run 26558837157 — full CI run that surfaced all four failure modes.
-* `src/specify_cli/orchestrator_api/commands.py` — `_JSONErrorGroup` and the
+- GitHub Actions run 26558837157 — full CI run that surfaced all four failure modes.
+- `src/specify_cli/orchestrator_api/commands.py` — `_JSONErrorGroup` and the
   `_CLICK_USAGE_ERRORS` / `_CLICK_ABORTS` compatibility shim.
-* `tests/e2e/conftest.py` — e2e fixture and the `preflight.enabled: false` workaround
+- `tests/e2e/conftest.py` — e2e fixture and the `preflight.enabled: false` workaround
   being replaced by this ADR.
-* `tests/integration/test_quickstart_end_to_end.py` — charter hash fix.
-* `architecture/adrs/2026-02-21-1-consistent-code-style-enforcement-via-git-hooks.md`
+- `tests/integration/test_quickstart_end_to_end.py` — charter hash fix.
+- `architecture/adrs/2026-02-21-1-consistent-code-style-enforcement-via-git-hooks.md`
   — related ADR on automated style enforcement.
-* `pyproject.toml` `[tool.ruff]` section — location of banned-api rules.
+- `pyproject.toml` `[tool.ruff]` section — location of banned-api rules.
