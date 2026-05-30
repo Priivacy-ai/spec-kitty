@@ -957,10 +957,9 @@ def _ensure_sync_daemon_running_locked(
         time.sleep(delay)
 
     if _is_process_alive(proc.pid):
-        _write_daemon_file(DAEMON_STATE_FILE, url, port, token, proc.pid)
-        return url, port, True
+        _kill_and_cleanup(proc.pid)
 
-    raise RuntimeError(f"Sync daemon failed to start on port {port}")
+    raise RuntimeError(f"Sync daemon failed health check on port {port}")
 
 
 def _stop_daemon_by_http(url: str, token: str | None) -> None:

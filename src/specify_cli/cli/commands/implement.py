@@ -20,6 +20,7 @@ from rich.panel import Panel
 from specify_cli.cli import StepTracker
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.core.context_validation import require_main_repo
+from specify_cli.core.git_ops import get_current_branch
 from specify_cli.core.vcs import VCSBackend
 from specify_cli.mission_metadata import resolve_mission_identity, set_vcs_lock
 from specify_cli.frontmatter import FrontmatterError, update_fields
@@ -49,6 +50,11 @@ def _protected_branch_status_commit_error(branch: str, repo_root: Path) -> str |
         "coordination/lane branch, or rerun with --no-auto-commit when you "
         "intentionally want to handle the status artifact commit manually."
     )
+
+
+def _status_commit_destination_branch(repo_root: Path, fallback_branch: str) -> str:
+    """Return the branch that the pre-lane status commit would target."""
+    return get_current_branch(repo_root) or fallback_branch
 
 
 def _get_wp_lane_from_event_log(feature_dir: Path, wp_id: str) -> str:
@@ -557,7 +563,11 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
     try:
         planning_branch = resolve_feature_target_branch(mission_slug, repo_root)
         if auto_commit:
-            protected_error = _protected_branch_status_commit_error(planning_branch, repo_root)
+            status_destination = _status_commit_destination_branch(
+                repo_root,
+                fallback_branch=planning_branch,
+            )
+            protected_error = _protected_branch_status_commit_error(status_destination, repo_root)
             if protected_error is not None:
                 raise ValueError(protected_error)
         _ensure_planning_artifacts_committed_git(

@@ -278,6 +278,29 @@ class TestHealthCheckRetryWindow:
         # Dashboard uses ~20s; daemon should be at least 15s
         assert total_sleep["s"] >= 15.0
 
+    def test_alive_but_unhealthy_daemon_is_not_recorded_as_started(self, monkeypatch, tmp_path):
+        """Startup success requires health, not just an alive child process."""
+        state_file = tmp_path / "sync-daemon"
+        monkeypatch.setattr(daemon, "DAEMON_STATE_FILE", state_file)
+        monkeypatch.setattr(daemon, "DAEMON_LOG_FILE", tmp_path / "sync-daemon.log")
+        monkeypatch.setattr(daemon, "_find_free_port", lambda **kw: 9400)
+        monkeypatch.setattr(daemon, "_check_sync_daemon_health", lambda *a, **kw: False)
+        monkeypatch.setattr(daemon, "_is_process_alive", lambda pid: True)
+        monkeypatch.setattr(daemon.time, "sleep", lambda seconds: None)
+
+        class FakeProc:
+            pid = 77778
+
+        killed: list[int] = []
+        monkeypatch.setattr(daemon.subprocess, "Popen", lambda *a, **kw: FakeProc())
+        monkeypatch.setattr(daemon, "_kill_and_cleanup", lambda pid: killed.append(pid))
+
+        with pytest.raises(RuntimeError, match="failed health check"):
+            daemon._ensure_sync_daemon_running_locked(health_wait_seconds=0.0)
+
+        assert killed == [77778]
+        assert not state_file.exists()
+
 
 # ---------------------------------------------------------------------------
 # Fix #7 — Version check triggers daemon restart
