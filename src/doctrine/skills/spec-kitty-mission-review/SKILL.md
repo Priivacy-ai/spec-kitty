@@ -43,7 +43,7 @@ After this mission review, remind the operator to follow the canonical post-merg
 while the work is still fresh: **author or verify the retrospective** (`retrospect create`
 if the record is absent, or verify the existing `.kittify/missions/<mission_id>/retrospective.yaml`);
 **surface findings** (`spec-kitty retrospect summary` for cross-mission aggregation;
-`spec-kitty agent retrospect synthesize --mission <slug> --preview` to inspect proposals).
+`spec-kitty agent retrospect synthesize --mission <slug>` to inspect proposals, dry-run by default).
 
 ---
 
@@ -791,8 +791,8 @@ spec-kitty retrospect create --mission <slug>
 Then surface findings:
 
 - `spec-kitty retrospect summary` — cross-mission aggregation (read-only; does NOT author)
-- `spec-kitty agent retrospect synthesize --mission <slug> --preview` — inspect proposals
-- `spec-kitty agent retrospect synthesize --mission <slug> --apply <id>` — apply a proposal
+- `spec-kitty agent retrospect synthesize --mission <slug>` — inspect proposals (dry-run by default)
+- `spec-kitty agent retrospect synthesize --mission <slug> --apply` — apply proposals (mutates)
 
 If the record is absent and `retrospect create` fails, escalate — the terminus facilitator
 either did not run or was skipped without a recorded reason. Check `status.events.jsonl` for

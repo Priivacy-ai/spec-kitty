@@ -361,3 +361,69 @@ class TestNegativeInvariants:
         restored = json.loads((feature_dir / MATRIX_FILENAME).read_text(encoding="utf-8"))
         assert restored["negative_invariants"][0]["result"] == "confirmed_absent"
         assert restored["negative_invariants"][0]["verification_pattern"] == "operator-authored extension"
+
+
+class TestScaffoldAcceptanceMatrix:
+    """Finding 6: ``scaffold_acceptance_matrix`` writes a schema-valid file."""
+
+    def test_scaffold_empty_but_valid_when_no_requirements(self, tmp_path):
+        from specify_cli.acceptance.matrix import (
+            SCAFFOLD_TODO_MARKER,
+            scaffold_acceptance_matrix,
+        )
+
+        feature_dir = tmp_path / "kitty-specs" / "010-feat"
+        feature_dir.mkdir(parents=True)
+
+        out_path = scaffold_acceptance_matrix(feature_dir, "010-feat", requirement_ids=[])
+
+        assert out_path == feature_dir / MATRIX_FILENAME
+        assert out_path.exists()
+
+        # Schema-valid: round-trips through read_acceptance_matrix.
+        matrix = read_acceptance_matrix(feature_dir)
+        assert matrix is not None
+        assert matrix.mission_slug == "010-feat"
+        # Empty-but-valid scaffold has a clear TODO marker.
+        assert len(matrix.criteria) == 1
+        assert SCAFFOLD_TODO_MARKER in (matrix.criteria[0].notes or "")
+        # Verdict stays pending until evidence is supplied.
+        assert matrix.overall_verdict == "pending"
+
+    def test_scaffold_derives_criteria_from_requirements(self, tmp_path):
+        from specify_cli.acceptance.matrix import scaffold_acceptance_matrix
+
+        feature_dir = tmp_path / "kitty-specs" / "010-feat"
+        feature_dir.mkdir(parents=True)
+
+        scaffold_acceptance_matrix(feature_dir, "010-feat", requirement_ids=["FR-001", "FR-002"])
+
+        matrix = read_acceptance_matrix(feature_dir)
+        assert matrix is not None
+        assert [c.criterion_id for c in matrix.criteria] == ["FR-001", "FR-002"]
+        assert all(c.pass_fail == "pending" for c in matrix.criteria)
+
+    def test_scaffold_is_idempotent(self, tmp_path):
+        from specify_cli.acceptance.matrix import scaffold_acceptance_matrix
+
+        feature_dir = tmp_path / "kitty-specs" / "010-feat"
+        feature_dir.mkdir(parents=True)
+
+        # Operator-curated content must survive a re-scaffold.
+        curated = AcceptanceMatrix(
+            mission_slug="010-feat",
+            criteria=[
+                AcceptanceCriterion(
+                    criterion_id="AC-CUSTOM",
+                    description="Operator authored",
+                    proof_type="manual_qa",
+                ),
+            ],
+        )
+        write_acceptance_matrix(feature_dir, curated)
+
+        scaffold_acceptance_matrix(feature_dir, "010-feat", requirement_ids=["FR-001"])
+
+        matrix = read_acceptance_matrix(feature_dir)
+        assert matrix is not None
+        assert [c.criterion_id for c in matrix.criteria] == ["AC-CUSTOM"]

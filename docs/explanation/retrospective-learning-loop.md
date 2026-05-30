@@ -150,7 +150,7 @@ Their lifecycle:
 
 1. **Generated**: the pure-Python generator produces proposals and writes them to
    `.kittify/missions/<mission_id>/retrospective.yaml`.
-2. **Staged**: proposals are visible in `agent retrospect synthesize --preview`. No changes
+2. **Staged**: proposals are visible in `agent retrospect synthesize` (dry-run by default). No changes
    have been made to governance state yet.
 3. **Applied or rejected**: `agent retrospect synthesize --apply <id>` validates, conflict-checks,
    and applies. Rejected or conflicting proposals are not applied.
@@ -175,7 +175,7 @@ conflicting set.
 You cannot bypass the synthesizer by editing governance files directly — those files are derived
 artifacts and would be overwritten on the next `charter synthesize` run. The correct path:
 
-1. Review proposals (`agent retrospect synthesize --preview`)
+1. Review proposals (`agent retrospect synthesize`, dry-run by default)
 2. Resolve any conflicts (manually, in `charter.md` if needed)
 3. Apply (`agent retrospect synthesize --apply <id>` or `--apply` for full batch)
 4. Re-run `charter synthesize` if `charter.md` was edited

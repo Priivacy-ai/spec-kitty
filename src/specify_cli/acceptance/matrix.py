@@ -183,6 +183,75 @@ def read_acceptance_matrix(feature_dir: Path) -> AcceptanceMatrix | None:
     return AcceptanceMatrix.from_dict(data)
 
 
+# Marker dropped into scaffolded criteria so operators (and reviewers) can
+# tell a placeholder row apart from a real, authored acceptance criterion.
+SCAFFOLD_TODO_MARKER = "TODO: replace with a real acceptance criterion"
+
+
+def scaffold_acceptance_matrix(
+    feature_dir: Path,
+    mission_slug: str,
+    requirement_ids: list[str] | None = None,
+) -> Path | None:
+    """Author a minimal, schema-valid ``acceptance-matrix.json`` for a feature.
+
+    Lane-based features require ``acceptance-matrix.json`` to exist before the
+    acceptance gate will run (see ``specify_cli.acceptance``). This helper
+    scaffolds a minimal but schema-valid matrix at task-finalization time so the
+    artifact is never silently missing.
+
+    The scaffold is **idempotent**: an existing ``acceptance-matrix.json`` is
+    never overwritten, so operator-curated criteria survive re-runs.
+
+    When ``requirement_ids`` are supplied (e.g. functional requirement ids from
+    ``spec.md``), one ``pending`` criterion is derived per requirement. When no
+    requirement ids are available, a single placeholder criterion carrying
+    :data:`SCAFFOLD_TODO_MARKER` is written so the file is valid yet obviously
+    awaiting real content.
+
+    Args:
+        feature_dir: The ``kitty-specs/<slug>/`` directory for the mission.
+        mission_slug: Feature slug (e.g. ``010-lane-only-runtime``).
+        requirement_ids: Optional functional requirement ids to seed criteria.
+
+    Returns:
+        Path to the scaffolded (or pre-existing) ``acceptance-matrix.json``.
+    """
+    path = feature_dir / MATRIX_FILENAME
+    if path.exists():
+        # Respect operator-curated content; idempotent re-runs must not clobber.
+        return path
+
+    criteria: list[AcceptanceCriterion] = []
+    for req_id in requirement_ids or []:
+        criteria.append(
+            AcceptanceCriterion(
+                criterion_id=req_id,
+                description=f"Verify {req_id} is satisfied",
+                proof_type="automated_test",
+                pass_fail="pending",  # noqa: S106
+                notes=SCAFFOLD_TODO_MARKER,
+            )
+        )
+
+    if not criteria:
+        # Empty-but-valid scaffold with an explicit TODO marker. A single
+        # placeholder keeps the JSON schema-valid while signalling clearly that
+        # no real criteria have been authored yet.
+        criteria.append(
+            AcceptanceCriterion(
+                criterion_id="AC-001",
+                description=SCAFFOLD_TODO_MARKER,
+                proof_type="automated_test",
+                pass_fail="pending",  # noqa: S106
+                notes=SCAFFOLD_TODO_MARKER,
+            )
+        )
+
+    matrix = AcceptanceMatrix(mission_slug=mission_slug, criteria=criteria)
+    return write_acceptance_matrix(feature_dir, matrix)
+
+
 # ---------------------------------------------------------------------------
 # Evidence validation
 # ---------------------------------------------------------------------------

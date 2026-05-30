@@ -92,6 +92,19 @@ LINEAR_HISTORY_REJECTION_TOKENS: tuple[str, ...] = (
 MissionBranchBlocker = dict[str, str | bool]
 
 
+class BaselineMergeCommitError(RuntimeError):
+    """Raised when the post-merge review baseline cannot be recorded or verified.
+
+    Modern lane missions (those whose ``meta.json`` carries a canonical
+    ``mission_id``) MUST land ``baseline_merge_commit`` on the target branch.
+    When the baseline is missing, the working meta is absent/corrupt, or the
+    committed target meta lacks the expected value, downstream
+    ``spec-kitty review`` raises ``MISSION_REVIEW_MODE_MISMATCH``. We surface
+    that failure loudly at merge time instead of letting an apparently
+    successful merge ship a mission that cannot be reviewed post-merge.
+    """
+
+
 def _classify_porcelain_lines(
     lines: list[str],
     expected_paths: set[str],
@@ -903,18 +916,43 @@ def _emit_merge_diff_summary(
 def _record_baseline_merge_commit(
     feature_dir: Path,
     baseline_commit: str | None,
+    *,
+    mission_id: str | None = None,
 ) -> Path | None:
     """Persist the post-merge review baseline in mission meta.json.
 
     ``baseline_merge_commit`` anchors post-merge review diffs. It should point
     at the target-branch baseline before the mission lands, not at the final
     housekeeping commit produced by merge.
+
+    For **modern lane missions** (``mission_id`` is set — the canonical ULID
+    introduced by mission 083), an empty baseline, a missing ``meta.json``, or
+    corrupt JSON is a HARD failure: we raise :class:`BaselineMergeCommitError`
+    so the merge stops loudly instead of shipping a mission that
+    ``spec-kitty review --mode post-merge`` cannot anchor
+    (``MISSION_REVIEW_MODE_MISMATCH``).
+
+    For **legacy missions** (no ``mission_id``) the historical soft behavior is
+    preserved: the function logs a warning and returns ``None`` so the merge
+    proceeds without a baseline.
     """
+    is_modern = bool(mission_id and str(mission_id).strip())
+
     if not baseline_commit or not baseline_commit.strip():
+        if is_modern:
+            raise BaselineMergeCommitError(
+                f"Cannot record baseline_merge_commit for modern mission "
+                f"{feature_dir.name}: no target baseline SHA was captured."
+            )
         return None
 
     meta_path = feature_dir / "meta.json"
     if not meta_path.exists():
+        if is_modern:
+            raise BaselineMergeCommitError(
+                f"Cannot record baseline_merge_commit for modern mission "
+                f"{feature_dir.name}: meta.json is missing."
+            )
         logger.warning(
             "Cannot record baseline_merge_commit for %s: meta.json is missing",
             feature_dir.name,
@@ -924,6 +962,11 @@ def _record_baseline_merge_commit(
     try:
         meta = load_meta(feature_dir)
     except ValueError as exc:
+        if is_modern:
+            raise BaselineMergeCommitError(
+                f"Cannot record baseline_merge_commit for modern mission "
+                f"{feature_dir.name}: meta.json is invalid ({exc})."
+            ) from exc
         logger.warning(
             "Cannot record baseline_merge_commit for %s: %s",
             feature_dir.name,
@@ -932,6 +975,11 @@ def _record_baseline_merge_commit(
         return None
 
     if meta is None:
+        if is_modern:
+            raise BaselineMergeCommitError(
+                f"Cannot record baseline_merge_commit for modern mission "
+                f"{feature_dir.name}: meta.json could not be loaded."
+            )
         return None
 
     existing = meta.get("baseline_merge_commit")
@@ -941,6 +989,104 @@ def _record_baseline_merge_commit(
     meta["baseline_merge_commit"] = baseline_commit.strip()
     write_meta(feature_dir, meta, validate=False)
     return meta_path
+
+
+def _assert_baseline_merge_commit_on_target(
+    main_repo: Path,
+    mission_slug: str,
+    target_branch: str,
+    expected_baseline: str | None,
+    *,
+    feature_dir: Path | None = None,
+    mission_id: str | None = None,
+) -> None:
+    """Fail the merge if ``baseline_merge_commit`` did not land on *target_branch*.
+
+    Mirrors :func:`_assert_merged_wps_reached_done`: it reads the target
+    branch's COMMITTED ``kitty-specs/<slug>/meta.json`` via
+    ``git show <target>:<path>`` and asserts ``baseline_merge_commit`` is both
+    present and equal to the baseline that was actually RECORDED for this
+    mission. This is the post-commit invariant that closes the gap behind
+    ``MISSION_REVIEW_MODE_MISMATCH``: it proves the baseline is durable in git
+    history (not just in the working tree) before any worktree removal or
+    branch cleanup runs.
+
+    The expected baseline is read from the recorded mission ``meta.json`` in
+    *feature_dir* (the idempotent value written by
+    :func:`_record_baseline_merge_commit`) and only falls back to
+    *expected_baseline* when that is unavailable. This is deliberate:
+    ``target_baseline_sha`` is re-derived from the live target HEAD on every
+    invocation, so on ``spec-kitty merge --resume`` — after a prior run already
+    landed the mission/bookkeeping commits — the live HEAD has advanced past the
+    original baseline. Comparing the committed value against a re-derived HEAD
+    would spuriously fail an otherwise-correct resume; comparing it against the
+    recorded value does not.
+
+    Only enforced for **modern missions** (``mission_id`` set). Legacy missions
+    never carry a baseline and are skipped.
+    """
+    if not (mission_id and str(mission_id).strip()):
+        return
+
+    recorded = ""
+    if feature_dir is not None:
+        try:
+            working_meta = load_meta(feature_dir)
+        except ValueError:
+            working_meta = None
+        if isinstance(working_meta, dict):
+            recorded = str(working_meta.get("baseline_merge_commit") or "").strip()
+
+    expected = recorded or (expected_baseline or "").strip()
+    if not expected:
+        raise BaselineMergeCommitError(
+            f"Cannot verify baseline_merge_commit for modern mission "
+            f"{mission_slug}: no recorded baseline SHA was found."
+        )
+
+    meta_rel = f"kitty-specs/{mission_slug}/meta.json"
+    ret, out, err = run_command(
+        ["git", "show", f"{target_branch}:{meta_rel}"],
+        capture=True,
+        check_return=False,
+        cwd=main_repo,
+    )
+    if ret != 0:
+        raise BaselineMergeCommitError(
+            f"Post-merge baseline validation failed for {mission_slug}: "
+            f"could not read {meta_rel} from {target_branch} "
+            f"({(err or '').strip() or 'git show failed'})."
+        )
+
+    try:
+        committed_meta = json.loads(out)
+    except json.JSONDecodeError as exc:
+        raise BaselineMergeCommitError(
+            f"Post-merge baseline validation failed for {mission_slug}: "
+            f"committed {meta_rel} on {target_branch} is not valid JSON ({exc})."
+        ) from exc
+
+    if not isinstance(committed_meta, dict):
+        raise BaselineMergeCommitError(
+            f"Post-merge baseline validation failed for {mission_slug}: "
+            f"committed {meta_rel} on {target_branch} is not a JSON object."
+        )
+
+    committed_baseline = str(committed_meta.get("baseline_merge_commit") or "").strip()
+    if not committed_baseline:
+        raise BaselineMergeCommitError(
+            f"Post-merge baseline validation failed for {mission_slug}: "
+            f"baseline_merge_commit is missing from committed {meta_rel} on "
+            f"{target_branch}. Downstream `spec-kitty review --mode post-merge` "
+            f"would fail with MISSION_REVIEW_MODE_MISMATCH."
+        )
+
+    if committed_baseline != expected:
+        raise BaselineMergeCommitError(
+            f"Post-merge baseline validation failed for {mission_slug}: "
+            f"committed baseline_merge_commit ({committed_baseline}) on "
+            f"{target_branch} does not match the captured baseline ({expected})."
+        )
 
 
 def _validate_target_branch(
@@ -1388,6 +1534,16 @@ def _run_lane_based_merge_locked(
     )
     target_baseline_sha = target_baseline_sha.strip() if _ret == 0 else "HEAD~1"
 
+    # -- Resolve the canonical mission_id (ULID) to gate modern-mission invariants --
+    # ``canonical_id`` falls back to the slug for legacy missions, so it cannot
+    # distinguish modern (083+) from pre-083 missions. Re-resolve the raw
+    # mission_id from meta.json: a non-empty value means this is a MODERN lane
+    # mission and the baseline_merge_commit invariants below are HARD failures.
+    try:
+        _baseline_mission_id = resolve_mission_identity(feature_dir).mission_id
+    except Exception:  # noqa: BLE001 — meta.json may be missing/corrupt for legacy missions
+        _baseline_mission_id = None
+
     # -- WP10/T053/T055: assign dense integer mission_number on mission branch --
     # Inside the global merge lock (acquire_merge_lock("__global_merge__"))
     # which serializes ALL merge operations — same-mission and cross-mission.
@@ -1435,10 +1591,18 @@ def _run_lane_based_merge_locked(
     # repos; the helper uses a tracked-file hard refresh instead.
     _refresh_primary_checkout_after_merge(main_repo)
 
-    baseline_meta_path = _record_baseline_merge_commit(
-        feature_dir,
-        target_baseline_sha,
-    )
+    try:
+        baseline_meta_path = _record_baseline_merge_commit(
+            feature_dir,
+            target_baseline_sha,
+            mission_id=_baseline_mission_id,
+        )
+    except BaselineMergeCommitError as exc:
+        # Modern lane mission could not record its post-merge review baseline.
+        # Fail loudly — an apparently successful merge that drops the baseline
+        # produces MISSION_REVIEW_MODE_MISMATCH downstream.
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
 
     # If the final bookkeeping commit fails after done events are emitted,
     # restore the canonical status artifacts to their pre-emit bytes. This
@@ -1562,6 +1726,27 @@ def _run_lane_based_merge_locked(
             raise
     else:
         console.print("  [dim]No post-merge bookkeeping changes to commit; continuing cleanup.[/dim]")
+
+    # -- Post-merge baseline invariant (mirrors _assert_merged_wps_reached_done) --
+    # Now that the bookkeeping commit (which carries meta.json's
+    # baseline_merge_commit) has landed on the target branch, verify the
+    # baseline is durable in committed git history BEFORE any worktree removal
+    # or branch cleanup. Together with _assert_merged_wps_reached_done this
+    # guarantees BOTH the done-state AND the baseline gate merge success: a
+    # merge cannot appear successful while the baseline is absent, which would
+    # otherwise surface downstream as MISSION_REVIEW_MODE_MISMATCH.
+    try:
+        _assert_baseline_merge_commit_on_target(
+            main_repo,
+            mission_slug,
+            lanes_manifest.target_branch,
+            target_baseline_sha,
+            feature_dir=feature_dir,
+            mission_id=_baseline_mission_id,
+        )
+    except BaselineMergeCommitError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
 
     console.print("  [dim]Syncing dossier state for the merged mission...[/dim]")
     trigger_feature_dossier_sync_if_enabled(
@@ -2047,6 +2232,9 @@ def merge(
 __all__ = [
     "_has_transition_to",
     "_assert_merged_wps_reached_done",
+    "_assert_baseline_merge_commit_on_target",
+    "_record_baseline_merge_commit",
+    "BaselineMergeCommitError",
     "_mark_wp_merged_done",
     "_run_lane_based_merge",
     "_is_linear_history_rejection",

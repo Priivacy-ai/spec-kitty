@@ -215,3 +215,106 @@ class TestCheckUncheckedSubtasksHeaderDepth:
 
         result = _check_unchecked_subtasks(repo_root, "060-test", "WP01", _force=False)
         assert len(result) == 0, "WP01 section should end at #### WP02 boundary"
+
+
+# ---------------------------------------------------------------------------
+# Finding 2: only canonical ``- [ ] T###`` rows block a lane transition.
+# Validation/command rows, prose, and fenced code blocks must NOT count.
+# ---------------------------------------------------------------------------
+
+
+class TestCheckUncheckedSubtasksCanonicalOnly:
+    """_check_unchecked_subtasks must only block on canonical T### subtasks."""
+
+    def _setup_feature(
+        self,
+        tmp_path: Path,
+        tasks_content: str,
+        feature_slug: str = "060-test",
+    ) -> Path:
+        feature_dir = tmp_path / "kitty-specs" / feature_slug
+        feature_dir.mkdir(parents=True)
+        (feature_dir / "tasks.md").write_text(tasks_content, encoding="utf-8")
+        return tmp_path  # repo_root
+
+    @patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root")
+    def test_real_unchecked_tasks_still_block(self, mock_main_root: MagicMock, tmp_path: Path) -> None:
+        """Genuine ``- [ ] T###`` rows must still block movement (regression guard)."""
+        from specify_cli.cli.commands.agent.tasks import _check_unchecked_subtasks
+
+        content = (
+            "## WP01: Setup\n\n"
+            "### Included Subtasks\n"
+            "- [ ] T001 Create the module\n"
+            "- [x] T002 Already done\n"
+            "- [ ] T003 Wire it up\n"
+        )
+        repo_root = self._setup_feature(tmp_path, content)
+        mock_main_root.return_value = repo_root
+
+        result = _check_unchecked_subtasks(repo_root, "060-test", "WP01", _force=False)
+        assert result == ["T001", "T003"], "Only unchecked canonical T### rows should be reported"
+
+    @patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root")
+    def test_validation_command_rows_do_not_block(self, mock_main_root: MagicMock, tmp_path: Path) -> None:
+        """Validation/checklist command rows like ``- [ ] swift test`` must NOT block."""
+        from specify_cli.cli.commands.agent.tasks import _check_unchecked_subtasks
+
+        content = (
+            "## WP01: Setup\n\n"
+            "### Included Subtasks\n"
+            "- [x] T001 Implement feature\n\n"
+            "### Validation\n"
+            "- [ ] swift test\n"
+            "- [ ] git status --short\n"
+            "- [ ] npm run lint\n"
+            "- [ ] Review the diff before merging\n"
+        )
+        repo_root = self._setup_feature(tmp_path, content)
+        mock_main_root.return_value = repo_root
+
+        result = _check_unchecked_subtasks(repo_root, "060-test", "WP01", _force=False)
+        assert result == [], "Validation/command/prose rows must not be treated as blocking subtasks"
+
+    @patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root")
+    def test_fenced_code_task_like_lines_do_not_block(self, mock_main_root: MagicMock, tmp_path: Path) -> None:
+        """Task-like lines inside fenced code blocks must NOT block."""
+        from specify_cli.cli.commands.agent.tasks import _check_unchecked_subtasks
+
+        content = (
+            "## WP01: Setup\n\n"
+            "### Included Subtasks\n"
+            "- [x] T001 Implement feature\n\n"
+            "### Implementation Notes\n"
+            "Example task list to mimic in the README:\n"
+            "```markdown\n"
+            "- [ ] T999 This is documentation, not a real subtask\n"
+            "- [ ] T998 Neither is this\n"
+            "```\n"
+        )
+        repo_root = self._setup_feature(tmp_path, content)
+        mock_main_root.return_value = repo_root
+
+        result = _check_unchecked_subtasks(repo_root, "060-test", "WP01", _force=False)
+        assert result == [], "T### rows inside fenced code blocks must not block"
+
+    @patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root")
+    def test_mixed_real_and_noise(self, mock_main_root: MagicMock, tmp_path: Path) -> None:
+        """Real unchecked T### blocks even when surrounded by command/code noise."""
+        from specify_cli.cli.commands.agent.tasks import _check_unchecked_subtasks
+
+        content = (
+            "## WP01: Setup\n\n"
+            "### Included Subtasks\n"
+            "- [ ] T001 Real unchecked subtask\n"
+            "- [ ] swift test\n"
+            "```sh\n"
+            "- [ ] T500 fenced noise\n"
+            "```\n"
+            "- [ ] git status --short\n"
+        )
+        repo_root = self._setup_feature(tmp_path, content)
+        mock_main_root.return_value = repo_root
+
+        result = _check_unchecked_subtasks(repo_root, "060-test", "WP01", _force=False)
+        assert result == ["T001"], "Only the canonical unchecked T### should be reported"

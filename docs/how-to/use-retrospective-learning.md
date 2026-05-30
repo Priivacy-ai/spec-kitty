@@ -149,7 +149,7 @@ doctrine, and so on. Applying them is always human-approved:
 
 ```bash
 # Preview proposals (dry-run — no mutations)
-spec-kitty agent retrospect synthesize --mission my-feature-01J6XW9K --preview
+spec-kitty agent retrospect synthesize --mission my-feature-01J6XW9K
 
 # Apply a specific proposal
 spec-kitty agent retrospect synthesize --mission my-feature-01J6XW9K --apply p-001

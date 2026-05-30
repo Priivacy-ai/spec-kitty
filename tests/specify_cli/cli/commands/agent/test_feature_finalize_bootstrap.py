@@ -438,6 +438,118 @@ class TestWP01Regressions:
                 continue
         pytest.fail("No JSON output with 'result': 'validation_passed' found")
 
+
+# ---------------------------------------------------------------------------
+# Finding 6: finalize-tasks scaffolds acceptance-matrix.json for lane-based
+# missions (those that produce lanes.json).
+# ---------------------------------------------------------------------------
+
+
+def _setup_lane_based_feature(tmp_path: Path, mission_slug: str = "061-lane-feature") -> Path:
+    """Create a feature whose WPs have disjoint owned_files so lanes compute."""
+    feature_dir = tmp_path / "kitty-specs" / mission_slug
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+
+    (feature_dir / "spec.md").write_text(
+        "---\ntitle: Lane Feature\n---\n\n## Requirements\n\n"
+        "- FR-001: First requirement\n- FR-002: Second requirement\n",
+        encoding="utf-8",
+    )
+    (feature_dir / "tasks.md").write_text(
+        "# Tasks\n\n## WP01\n\nNo dependencies.\n\n## WP02\n\nNo dependencies.\n",
+        encoding="utf-8",
+    )
+    (feature_dir / "meta.json").write_text(
+        json.dumps({"mission_slug": mission_slug}), encoding="utf-8"
+    )
+
+    # Two independent WPs owning disjoint files → compute_lanes yields lanes.
+    for wp_id, owned, refs in [
+        ("WP01", ["src/alpha.py"], ["FR-001"]),
+        ("WP02", ["src/beta.py"], ["FR-002"]),
+    ]:
+        owned_yaml = "\n".join(f"  - {o}" for o in owned)
+        refs_yaml = "\n".join(f"  - {r}" for r in refs)
+        (tasks_dir / f"{wp_id}-test.md").write_text(
+            f'---\nwork_package_id: "{wp_id}"\ntitle: "Test {wp_id}"\n'
+            f"requirement_refs:\n{refs_yaml}\n"
+            f"owned_files:\n{owned_yaml}\n"
+            f"dependencies: []\n---\n\n# {wp_id}\n",
+            encoding="utf-8",
+        )
+
+    return feature_dir
+
+
+class TestFinalizeScaffoldsAcceptanceMatrix:
+    """Finding 6: lane-based finalize-tasks creates acceptance-matrix.json."""
+
+    def test_lane_based_finalize_creates_valid_matrix(self, tmp_path: Path) -> None:
+        mission_slug = "061-lane-feature"
+        feature_dir = _setup_lane_based_feature(tmp_path, mission_slug)
+
+        patches = _common_patches(tmp_path, mission_slug)
+        patches[f"{MODULE}._find_feature_directory"] = MagicMock(return_value=feature_dir)
+        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(
+            return_value=_make_bootstrap_result()
+        )
+
+        from specify_cli.cli.commands.agent.mission import finalize_tasks
+
+        ctx_patches = {k: patch(k, v) for k, v in patches.items()}
+        for p in ctx_patches.values():
+            p.start()
+        try:
+            finalize_tasks(feature=mission_slug, json_output=True, validate_only=False)
+        except (typer.Exit, SystemExit):
+            pass
+        finally:
+            for p in ctx_patches.values():
+                p.stop()
+
+        # Lane-based: lanes.json was written, so the matrix must exist.
+        assert (feature_dir / "lanes.json").exists(), "test setup must produce a lane-based feature"
+
+        from specify_cli.acceptance.matrix import read_acceptance_matrix
+
+        matrix_path = feature_dir / "acceptance-matrix.json"
+        assert matrix_path.exists(), "lane-based finalize must scaffold acceptance-matrix.json"
+
+        # Schema-valid + derived from functional requirements.
+        matrix = read_acceptance_matrix(feature_dir)
+        assert matrix is not None
+        assert matrix.mission_slug == mission_slug
+        criterion_ids = {c.criterion_id for c in matrix.criteria}
+        assert {"FR-001", "FR-002"} <= criterion_ids
+
+    def test_validate_only_does_not_scaffold_matrix(self, tmp_path: Path) -> None:
+        mission_slug = "061-lane-feature"
+        feature_dir = _setup_lane_based_feature(tmp_path, mission_slug)
+
+        patches = _common_patches(tmp_path, mission_slug)
+        patches[f"{MODULE}._find_feature_directory"] = MagicMock(return_value=feature_dir)
+        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(
+            return_value=_make_bootstrap_result()
+        )
+
+        from specify_cli.cli.commands.agent.mission import finalize_tasks
+
+        ctx_patches = {k: patch(k, v) for k, v in patches.items()}
+        for p in ctx_patches.values():
+            p.start()
+        try:
+            finalize_tasks(feature=mission_slug, json_output=True, validate_only=True)
+        except (typer.Exit, SystemExit):
+            pass
+        finally:
+            for p in ctx_patches.values():
+                p.stop()
+
+        assert not (feature_dir / "acceptance-matrix.json").exists(), (
+            "validate-only must not write the acceptance-matrix scaffold"
+        )
+
     def test_explicit_frontmatter_dependencies_beat_tasks_md_parser(
         self,
         tmp_path: Path,

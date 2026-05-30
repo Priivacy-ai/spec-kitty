@@ -230,8 +230,8 @@ Then surface findings:
 
 ```bash
 spec-kitty retrospect summary                              # cross-mission aggregation (read-only)
-spec-kitty agent retrospect synthesize --mission <slug> --preview  # inspect proposals
-spec-kitty agent retrospect synthesize --mission <slug> --apply <id>  # apply a proposal
+spec-kitty agent retrospect synthesize --mission <slug>  # inspect proposals (dry-run by default)
+spec-kitty agent retrospect synthesize --mission <slug> --apply  # apply proposals (mutates)
 ```
 
 If `retrospective.yaml` is missing and `retrospect create` fails, escalate — check

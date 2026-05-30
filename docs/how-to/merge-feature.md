@@ -357,7 +357,7 @@ spec-kitty retrospect create --mission <handle>
 
 ```bash
 spec-kitty retrospect summary                              # cross-mission view (read-only)
-spec-kitty agent retrospect synthesize --mission <handle> --preview  # inspect proposals
+spec-kitty agent retrospect synthesize --mission <handle>  # inspect proposals (dry-run by default)
 spec-kitty agent retrospect synthesize --mission <handle> --apply <id>  # apply a proposal
 ```
 

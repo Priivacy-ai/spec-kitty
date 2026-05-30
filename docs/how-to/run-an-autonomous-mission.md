@@ -171,7 +171,7 @@ Verify the retrospective record and inspect synthesis proposals:
 ```bash
 spec-kitty retrospect create --mission <mission-slug>
 spec-kitty retrospect summary
-spec-kitty agent retrospect synthesize --mission <mission-slug> --preview
+spec-kitty agent retrospect synthesize --mission <mission-slug>
 ```
 
 Apply an individual proposal only after review:

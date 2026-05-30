@@ -2,16 +2,20 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 import typer
 
 from specify_cli.cli.commands.merge import (
+    BaselineMergeCommitError,
+    _assert_baseline_merge_commit_on_target,
     _assert_merged_wps_reached_done,
     _mark_wp_merged_done,
+    _record_baseline_merge_commit,
 )
 
 pytestmark = pytest.mark.fast
@@ -224,3 +228,254 @@ def test_assert_merged_wps_reached_done_fails_when_wp_not_done(
 
     with pytest.raises(typer.Exit):
         _assert_merged_wps_reached_done(tmp_path, "021-test", ["WP01", "WP02"])
+
+
+# ---------------------------------------------------------------------------
+# baseline_merge_commit invariants (Finding 5): modern lane missions must
+# land baseline_merge_commit on the target branch or the merge fails loudly.
+# ---------------------------------------------------------------------------
+
+
+_MODERN_MISSION_ID = "01KTESTMISSIONID00000000000"
+
+
+def _write_meta(feature_dir: Path, mission_slug: str, **overrides: object) -> None:
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    meta: dict[str, object] = {
+        "created_at": "2026-04-07T00:00:00+00:00",
+        "friendly_name": mission_slug.replace("-", " "),
+        "mission_id": _MODERN_MISSION_ID,
+        "mission_number": None,
+        "mission_slug": mission_slug,
+        "mission_type": "software-dev",
+        "slug": mission_slug,
+        "target_branch": "main",
+    }
+    meta.update(overrides)
+    (feature_dir / "meta.json").write_text(
+        json.dumps(meta, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
+def test_record_baseline_merge_commit_modern_mission_missing_meta_raises(tmp_path: Path) -> None:
+    """A modern lane mission with no meta.json is a HARD failure (Finding 5 (b))."""
+    feature_dir = tmp_path / "kitty-specs" / "021-test"
+    feature_dir.mkdir(parents=True)
+    # No meta.json on disk.
+
+    with pytest.raises(BaselineMergeCommitError):
+        _record_baseline_merge_commit(
+            feature_dir,
+            "base123",
+            mission_id=_MODERN_MISSION_ID,
+        )
+
+
+def test_record_baseline_merge_commit_modern_mission_empty_baseline_raises(tmp_path: Path) -> None:
+    """A modern lane mission with an empty captured baseline is a HARD failure."""
+    feature_dir = tmp_path / "kitty-specs" / "021-test"
+    _write_meta(feature_dir, "021-test", baseline_merge_commit=None)
+
+    with pytest.raises(BaselineMergeCommitError):
+        _record_baseline_merge_commit(
+            feature_dir,
+            "   ",
+            mission_id=_MODERN_MISSION_ID,
+        )
+
+
+def test_record_baseline_merge_commit_modern_mission_invalid_meta_raises(tmp_path: Path) -> None:
+    """A modern lane mission with corrupt meta.json is a HARD failure."""
+    feature_dir = tmp_path / "kitty-specs" / "021-test"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text("{not valid json", encoding="utf-8")
+
+    with pytest.raises(BaselineMergeCommitError):
+        _record_baseline_merge_commit(
+            feature_dir,
+            "base123",
+            mission_id=_MODERN_MISSION_ID,
+        )
+
+
+def test_record_baseline_merge_commit_legacy_missing_meta_soft_returns_none(tmp_path: Path) -> None:
+    """A legacy mission (no mission_id) preserves the soft skip behavior."""
+    feature_dir = tmp_path / "kitty-specs" / "021-test"
+    feature_dir.mkdir(parents=True)
+    # No meta.json, no mission_id → legacy soft path returns None, no raise.
+
+    result = _record_baseline_merge_commit(feature_dir, "base123", mission_id=None)
+
+    assert result is None
+
+
+def test_record_baseline_merge_commit_modern_mission_fills_field(tmp_path: Path) -> None:
+    """A modern lane mission with valid meta records baseline and returns the path."""
+    feature_dir = tmp_path / "kitty-specs" / "021-test"
+    _write_meta(feature_dir, "021-test", baseline_merge_commit=None)
+
+    result = _record_baseline_merge_commit(
+        feature_dir,
+        "base123",
+        mission_id=_MODERN_MISSION_ID,
+    )
+
+    assert result == feature_dir / "meta.json"
+    data = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+    assert data["baseline_merge_commit"] == "base123"
+
+
+def test_assert_baseline_on_target_passes_when_committed_meta_matches(tmp_path: Path) -> None:
+    """Finding 5 (a)/(c): target meta.json carrying the matching baseline passes."""
+    feature_dir = tmp_path / "kitty-specs" / "021-test"
+    _write_meta(feature_dir, "021-test")
+    committed_meta = json.dumps({"baseline_merge_commit": "base123"})
+
+    with patch(
+        "specify_cli.cli.commands.merge.run_command",
+        return_value=(0, committed_meta, ""),
+    ):
+        # Must not raise.
+        _assert_baseline_merge_commit_on_target(
+            tmp_path,
+            "021-test",
+            "main",
+            "base123",
+            mission_id=_MODERN_MISSION_ID,
+        )
+
+
+def test_assert_baseline_on_target_raises_when_baseline_absent(tmp_path: Path) -> None:
+    """Finding 5 (c): target meta.json lacking baseline_merge_commit fails loudly."""
+    feature_dir = tmp_path / "kitty-specs" / "021-test"
+    _write_meta(feature_dir, "021-test")
+    committed_meta = json.dumps({"mission_slug": "021-test"})  # no baseline_merge_commit
+
+    with patch(
+        "specify_cli.cli.commands.merge.run_command",
+        return_value=(0, committed_meta, ""),
+    ), pytest.raises(BaselineMergeCommitError):
+        _assert_baseline_merge_commit_on_target(
+            tmp_path,
+            "021-test",
+            "main",
+            "base123",
+            mission_id=_MODERN_MISSION_ID,
+        )
+
+
+def test_assert_baseline_on_target_raises_when_baseline_mismatches(tmp_path: Path) -> None:
+    """Target meta.json carrying a DIFFERENT baseline fails loudly."""
+    feature_dir = tmp_path / "kitty-specs" / "021-test"
+    _write_meta(feature_dir, "021-test")
+    committed_meta = json.dumps({"baseline_merge_commit": "other999"})
+
+    with patch(
+        "specify_cli.cli.commands.merge.run_command",
+        return_value=(0, committed_meta, ""),
+    ), pytest.raises(BaselineMergeCommitError):
+        _assert_baseline_merge_commit_on_target(
+            tmp_path,
+            "021-test",
+            "main",
+            "base123",
+            mission_id=_MODERN_MISSION_ID,
+        )
+
+
+def test_assert_baseline_on_target_raises_when_git_show_fails(tmp_path: Path) -> None:
+    """A failed `git show <target>:meta.json` (e.g. path absent) fails loudly."""
+    feature_dir = tmp_path / "kitty-specs" / "021-test"
+    _write_meta(feature_dir, "021-test")
+
+    with patch(
+        "specify_cli.cli.commands.merge.run_command",
+        return_value=(128, "", "fatal: path does not exist"),
+    ), pytest.raises(BaselineMergeCommitError):
+        _assert_baseline_merge_commit_on_target(
+            tmp_path,
+            "021-test",
+            "main",
+            "base123",
+            mission_id=_MODERN_MISSION_ID,
+        )
+
+
+def test_assert_baseline_on_target_skips_legacy_mission(tmp_path: Path) -> None:
+    """Legacy missions (no mission_id) skip the target baseline assertion entirely."""
+    feature_dir = tmp_path / "kitty-specs" / "021-test"
+    feature_dir.mkdir(parents=True)
+
+    # run_command would raise if called — assert it is never invoked for legacy.
+    def _boom(*_a: Any, **_kw: Any):
+        raise AssertionError("run_command must not be called for legacy missions")
+
+    with patch("specify_cli.cli.commands.merge.run_command", side_effect=_boom):
+        _assert_baseline_merge_commit_on_target(
+            tmp_path,
+            "021-test",
+            "main",
+            "base123",
+            mission_id=None,
+        )
+
+
+def test_assert_baseline_on_target_resume_uses_recorded_baseline_not_live_head(
+    tmp_path: Path,
+) -> None:
+    """Resume safety (Finding 5): the invariant compares the COMMITTED target
+    baseline against the RECORDED working-meta value, not a freshly re-derived
+    target HEAD.
+
+    On ``spec-kitty merge --resume`` a prior run already landed the
+    mission/bookkeeping commits, so the live target HEAD (the value
+    ``expected_baseline`` is captured from on each invocation) has advanced past
+    the original baseline. Comparing the committed value against that advanced
+    HEAD would spuriously fail an otherwise-correct resume. Passing
+    ``feature_dir`` makes the assertion read the originally-recorded baseline,
+    which is stable across resume.
+    """
+    feature_dir = tmp_path / "kitty-specs" / "021-test"
+    # Run 1 recorded the original pre-merge baseline into the working meta and
+    # committed the same value to the target branch.
+    _write_meta(feature_dir, "021-test", baseline_merge_commit="original_sha_a")
+    committed_meta = json.dumps({"baseline_merge_commit": "original_sha_a"})
+
+    with patch(
+        "specify_cli.cli.commands.merge.run_command",
+        return_value=(0, committed_meta, ""),
+    ):
+        # expected_baseline is the RE-DERIVED, now-advanced target HEAD on
+        # resume; it must be ignored in favor of the recorded value.
+        _assert_baseline_merge_commit_on_target(
+            tmp_path,
+            "021-test",
+            "main",
+            "advanced_sha_b_from_live_head",
+            feature_dir=feature_dir,
+            mission_id=_MODERN_MISSION_ID,
+        )
+
+
+def test_assert_baseline_on_target_raises_when_committed_differs_from_recorded(
+    tmp_path: Path,
+) -> None:
+    """A genuine drift (committed target baseline != recorded value) still fails
+    loudly even when ``feature_dir`` supplies the recorded baseline."""
+    feature_dir = tmp_path / "kitty-specs" / "021-test"
+    _write_meta(feature_dir, "021-test", baseline_merge_commit="recorded_sha_a")
+    committed_meta = json.dumps({"baseline_merge_commit": "drifted_sha_c"})
+
+    with patch(
+        "specify_cli.cli.commands.merge.run_command",
+        return_value=(0, committed_meta, ""),
+    ), pytest.raises(BaselineMergeCommitError):
+        _assert_baseline_merge_commit_on_target(
+            tmp_path,
+            "021-test",
+            "main",
+            "recorded_sha_a",
+            feature_dir=feature_dir,
+            mission_id=_MODERN_MISSION_ID,
+        )

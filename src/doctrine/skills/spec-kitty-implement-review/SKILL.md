@@ -792,8 +792,8 @@ spec-kitty retrospect create --mission <mission-slug>
 
 ```bash
 spec-kitty retrospect summary                              # cross-mission aggregation (read-only)
-spec-kitty agent retrospect synthesize --mission <slug> --preview  # inspect proposals
-spec-kitty agent retrospect synthesize --mission <slug> --apply <id>  # apply a proposal
+spec-kitty agent retrospect synthesize --mission <slug>  # inspect proposals (dry-run by default)
+spec-kitty agent retrospect synthesize --mission <slug> --apply  # apply proposals (mutates)
 ```
 
 `summary` aggregates; it does NOT author. `synthesize` previews and applies proposals from an

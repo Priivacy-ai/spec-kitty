@@ -146,7 +146,7 @@ Before you move on, complete the three post-merge steps:
 3. **Surface findings** — review the record's proposals:
    ```bash
    spec-kitty retrospect summary                              # cross-mission aggregation (read-only)
-   spec-kitty agent retrospect synthesize --mission <slug> --preview  # inspect proposals
+   spec-kitty agent retrospect synthesize --mission <slug>  # inspect proposals (dry-run by default)
    ```
 
 For the full retrospective workflow, see
