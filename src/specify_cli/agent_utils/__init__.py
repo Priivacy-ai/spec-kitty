@@ -9,11 +9,9 @@ from .directories import (
     AGENT_DIR_TO_KEY,
     get_agent_dirs_for_project,
 )
-from .status import show_kanban_status
 
 __all__ = [
     "AGENT_DIRS",
     "AGENT_DIR_TO_KEY",
     "get_agent_dirs_for_project",
-    "show_kanban_status",
 ]
