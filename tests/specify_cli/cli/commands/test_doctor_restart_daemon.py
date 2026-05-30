@@ -83,6 +83,7 @@ def _install_daemon_state_file_fake(
     monkeypatch: pytest.MonkeyPatch,
     *,
     exists: bool,
+    pid: int | None = None,
 ) -> None:
     """Wire up a fake ``DAEMON_STATE_FILE.exists()`` response."""
 
@@ -93,6 +94,11 @@ def _install_daemon_state_file_fake(
     monkeypatch.setattr(
         "specify_cli.sync.daemon.DAEMON_STATE_FILE",
         _FakePath(),
+        raising=True,
+    )
+    monkeypatch.setattr(
+        "specify_cli.sync.daemon._parse_daemon_file",
+        lambda _path: ("http://127.0.0.1:9400", 9400, "token", pid),
         raising=True,
     )
 
@@ -293,10 +299,10 @@ def test_owner_grace_wait_allows_registered_daemon_to_restart(
     assert len(launch_calls) == 1
 
 
-def test_owner_grace_wait_still_fails_closed_when_owner_never_appears(
+def test_daemon_state_without_owner_is_restartable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Daemon metadata alone is insufficient; absent owner still returns no_owner."""
+    """Daemon state metadata is enough to stop and respawn when owner is absent."""
 
     class _MissingPath:
         def exists(self) -> bool:
@@ -312,25 +318,29 @@ def test_owner_grace_wait_still_fails_closed_when_owner_never_appears(
         lambda: None,
         raising=True,
     )
-    _install_daemon_state_file_fake(monkeypatch, exists=True)
+    _install_daemon_state_file_fake(monkeypatch, exists=True, pid=12345)
 
     ticks = iter([0.0, 0.1, 0.2, 0.3, 2.1])
     sleeps: list[float] = []
     monkeypatch.setattr("specify_cli.sync.restart.time.monotonic", lambda: next(ticks))
     monkeypatch.setattr("specify_cli.sync.restart.time.sleep", lambda seconds: sleeps.append(seconds))
 
-    stop_calls = _install_stop_fake(monkeypatch, result=(False, "should-not-call"))
+    stop_calls = _install_stop_fake(monkeypatch, result=(True, "Sync daemon stopped."))
     launch_calls = _install_launch_fake(
         monkeypatch,
-        outcome=DaemonStartOutcome(started=False, skipped_reason="x", pid=None),
+        outcome=DaemonStartOutcome(started=True, skipped_reason=None, pid=67890),
     )
 
     result = _runner().invoke(doctor_module.app, ["restart-daemon", "--json"])
 
-    assert result.exit_code == 1
-    assert sleeps, "restart should wait briefly before failing closed"
-    assert stop_calls == []
-    assert launch_calls == []
+    assert result.exit_code == 0
+    assert sleeps, "restart should wait briefly for owner before falling back to state"
+    assert stop_calls == [1.0]
+    assert len(launch_calls) == 1
+    payload = json.loads(result.stdout.strip())
+    assert payload["status"] == "restarted"
+    assert payload["previous_pid"] == 12345
+    assert payload["new_pid"] == 67890
 
 
 def test_stop_failure_exits_three_and_skips_launch(

@@ -84,15 +84,15 @@ class RestartResult:
 
 
 def _read_previous_pid() -> int | None:
-    """Return the PID recorded in the owner record, or ``None`` if absent."""
+    """Return the PID recorded in owner/state metadata, or ``None`` if absent."""
     # Local import keeps module import cheap and avoids cycles with
     # ``specify_cli.sync.owner`` at module load time.
     from specify_cli.sync.owner import read_owner_record
 
     record = read_owner_record()
-    if record is None:
-        return None
-    return int(record.pid)
+    if record is not None:
+        return int(record.pid)
+    return _read_daemon_state_pid()
 
 
 def _owner_record_present() -> bool:
@@ -109,6 +109,16 @@ def _daemon_state_metadata_present() -> bool:
     return bool(DAEMON_STATE_FILE.exists())
 
 
+def _read_daemon_state_pid() -> int | None:
+    """Return the PID from daemon state metadata, or ``None`` if absent/invalid."""
+    from specify_cli.sync.daemon import DAEMON_STATE_FILE, _parse_daemon_file
+
+    if not DAEMON_STATE_FILE.exists():
+        return None
+    _url, _port, _token, pid = _parse_daemon_file(DAEMON_STATE_FILE)
+    return pid
+
+
 def _owner_record_present_after_grace() -> bool:
     """Allow a short grace window for owner registration after daemon start."""
     if _owner_record_present():
@@ -122,6 +132,19 @@ def _owner_record_present_after_grace() -> bool:
         if _owner_record_present():
             return True
     return _owner_record_present()
+
+
+def _registered_daemon_metadata_present_after_grace() -> bool:
+    """Return True when any restartable daemon metadata is present.
+
+    The owner record is richer, but the daemon state file is sufficient for
+    stop/respawn. macOS can observe a started daemon with state metadata before
+    or without owner registration; restart-daemon should reconcile that state,
+    not refuse with ``no_owner``.
+    """
+    if _owner_record_present_after_grace():
+        return True
+    return _daemon_state_metadata_present()
 
 
 def restart_daemon(repo_root: Path) -> RestartResult:  # noqa: ARG001 — reserved for future repo-scoped state
@@ -158,8 +181,8 @@ def restart_daemon(repo_root: Path) -> RestartResult:  # noqa: ARG001 — reserv
     # through stop, because the on-disk path exists. The contract treats
     # "no owner record on disk at all" as the only ``no_owner`` case
     # (FR-007 / FR-009: actionable refusal points operator at ``sync now``).
-    owner_present = _owner_record_present_after_grace()
-    if not owner_present:
+    metadata_present = _registered_daemon_metadata_present_after_grace()
+    if not metadata_present:
         return RestartResult(
             status="no_owner",
             exit_code=1,
@@ -171,7 +194,7 @@ def restart_daemon(repo_root: Path) -> RestartResult:  # noqa: ARG001 — reserv
             ),
         )
 
-    previous_pid = _read_previous_pid() if owner_present else None
+    previous_pid = _read_previous_pid()
 
     # Local imports — keeps cycles tight and lets test monkeypatches target
     # the canonical symbol on the ``specify_cli.sync.daemon`` module.
