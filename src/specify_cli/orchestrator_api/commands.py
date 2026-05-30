@@ -560,12 +560,16 @@ def list_ready(
 
     from specify_cli.status.reducer import reduce
     from specify_cli.status.store import read_events
-    from specify_cli.core.dependency_graph import build_dependency_graph
+    from specify_cli.core.dependency_graph import build_dependency_graph, dependency_readiness_for_wp
 
     # Query endpoint: reduce from event log without rewriting status.json.
     snapshot = reduce(read_events(mission_dir))
     dep_graph = build_dependency_graph(mission_dir)
     wp_states = snapshot.work_packages
+    wp_lanes = {
+        dep_id: wp_state_for(state.get("lane", Lane.PLANNED)).lane
+        for dep_id, state in wp_states.items()
+    }
 
     ready_wps = []
     for wp_id, deps in dep_graph.items():
@@ -575,18 +579,13 @@ def list_ready(
         if state.progress_bucket() != "not_started":
             continue
 
-        # Check all dependencies are done (completed, not merely terminal —
-        # canceled deps do NOT satisfy the dependency requirement).
-        all_deps_done = all(
-            wp_state_for(wp_states.get(dep, {}).get("lane", Lane.PLANNED)).lane == Lane.DONE
-            for dep in deps
-        )
+        readiness = dependency_readiness_for_wp(wp_id, deps, wp_lanes)
 
         ready_wps.append(
             {
                 "wp_id": wp_id,
                 "lane": lane,
-                "dependencies_satisfied": all_deps_done,
+                "dependencies_satisfied": readiness.satisfied,
             }
         )
 

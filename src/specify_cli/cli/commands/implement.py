@@ -505,7 +505,7 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
     See FR-503 and D-4 in the 3.1.1 spec.
     """
     from specify_cli.core.agent_config import get_auto_commit_default
-    from specify_cli.core.dependency_graph import parse_wp_dependencies
+    from specify_cli.core.dependency_graph import dependency_readiness_for_wp, parse_wp_dependencies
 
     if recover:
         _run_recover_mode(wp_id, mission, feature, json_output)
@@ -590,6 +590,21 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
                     border_style="yellow",
                 ))
                 raise typer.Exit(1)
+
+        from specify_cli.status.reducer import reduce as _reduce_events
+        from specify_cli.status.store import read_events as _read_events
+
+        _wp_lanes = {
+            _wp_id: Lane(_state.get("lane", Lane.PLANNED))
+            for _wp_id, _state in _reduce_events(_read_events(feature_dir)).work_packages.items()
+        }
+        _dependency_readiness = dependency_readiness_for_wp(wp_id, declared_deps, _wp_lanes)
+        if not _dependency_readiness.satisfied:
+            blocked = ", ".join(_dependency_readiness.unsatisfied)
+            raise ValueError(
+                f"dependencies_not_satisfied: {wp_id} depends on {blocked}; "
+                "all dependencies must be done before implementation can start"
+            )
 
         resolved_workspace = resolve_workspace_for_wp(repo_root, mission_slug, wp_id)
 

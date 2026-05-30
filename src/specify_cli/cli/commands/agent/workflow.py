@@ -49,7 +49,11 @@ from charter.context import build_charter_context
 from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts
 from specify_cli.cli.commands.implement import implement as top_level_implement
 from specify_cli.cli.selector_resolution import resolve_mission_handle, resolve_selector
-from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
+from specify_cli.core.dependency_graph import (
+    build_dependency_graph,
+    dependency_readiness_for_wp,
+    get_dependents,
+)
 from specify_cli.core.paths import get_main_repo_root, is_worktree_context, locate_project_root
 from specify_cli.core.utils import write_text_within_directory
 from specify_cli.git import safe_commit
@@ -917,6 +921,34 @@ def implement(
             raise typer.Exit(1)
         except Exception as e:
             print(f"Error locating work package: {e}")
+            raise typer.Exit(1)
+
+        try:
+            _dependency_wp_meta, _ = read_wp_frontmatter(wp.path)
+        except Exception as e:
+            print(f"Error reading work package metadata: {e}")
+            raise typer.Exit(1)
+
+        from specify_cli.status.reducer import reduce as _dep_reduce_events
+        from specify_cli.status.store import read_events as _dep_read_events
+
+        _dependency_feature_dir = main_repo_root / "kitty-specs" / mission_slug
+        _dependency_snapshot = _dep_reduce_events(_dep_read_events(_dependency_feature_dir))
+        _dependency_lanes = {
+            _wp_id: Lane(_state.get("lane", Lane.PLANNED))
+            for _wp_id, _state in _dependency_snapshot.work_packages.items()
+        }
+        _dependency_readiness = dependency_readiness_for_wp(
+            normalized_wp_id,
+            _dependency_wp_meta.dependencies,
+            _dependency_lanes,
+        )
+        if not _dependency_readiness.satisfied:
+            blocked = ", ".join(_dependency_readiness.unsatisfied)
+            print(
+                f"Error: dependencies_not_satisfied: {normalized_wp_id} depends on {blocked}; "
+                "all dependencies must be done before implementation can start"
+            )
             raise typer.Exit(1)
 
         workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)

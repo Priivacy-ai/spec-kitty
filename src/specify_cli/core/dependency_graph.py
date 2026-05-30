@@ -6,10 +6,50 @@ dependency relationships between work packages in Spec Kitty features.
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
+from dataclasses import dataclass
 import re
 from pathlib import Path
 
+from specify_cli.status.models import Lane
 from specify_cli.status.wp_metadata import read_wp_frontmatter
+
+
+@dataclass(frozen=True)
+class DependencyReadiness:
+    """Dependency completion status for one work package."""
+
+    wp_id: str
+    dependencies: tuple[str, ...]
+    unsatisfied: tuple[str, ...]
+
+    @property
+    def satisfied(self) -> bool:
+        return not self.unsatisfied
+
+
+def dependency_readiness_for_wp(
+    wp_id: str,
+    dependencies: Iterable[str],
+    wp_lanes: Mapping[str, Lane | str],
+) -> DependencyReadiness:
+    """Return whether all dependencies are in the canonical ``done`` lane.
+
+    This intentionally matches ``orchestrator-api list-ready`` semantics:
+    dependencies must be ``done``. ``approved``, ``for_review``, ``blocked``,
+    missing status, and every other lane are not ready.
+    """
+    deps = tuple(dependencies)
+    unsatisfied = tuple(
+        dep
+        for dep in deps
+        if Lane(wp_lanes.get(dep, Lane.PLANNED)) != Lane.DONE
+    )
+    return DependencyReadiness(
+        wp_id=wp_id,
+        dependencies=deps,
+        unsatisfied=unsatisfied,
+    )
 
 
 def parse_wp_dependencies(wp_file: Path) -> list[str]:

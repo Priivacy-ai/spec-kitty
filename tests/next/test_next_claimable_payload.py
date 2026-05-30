@@ -31,7 +31,12 @@ def _init_repo(repo: Path) -> None:
     subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo, check=True, capture_output=True)
 
 
-def _scaffold(repo: Path, wps: dict[str, Lane]) -> tuple[Path, str]:
+def _scaffold(
+    repo: Path,
+    wps: dict[str, Lane],
+    *,
+    dependencies: dict[str, list[str]] | None = None,
+) -> tuple[Path, str]:
     _init_repo(repo)
     (repo / ".kittify").mkdir()
     mission_slug = "claimable-payload-mission-01KRKTT5"
@@ -49,8 +54,14 @@ def _scaffold(repo: Path, wps: dict[str, Lane]) -> tuple[Path, str]:
     (feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
     write_single_lane_manifest(feature_dir, wp_ids=tuple(wps.keys()))
     for wp_id, lane in wps.items():
+        deps = dependencies.get(wp_id, []) if dependencies else []
         (tasks_dir / f"{wp_id}.md").write_text(
-            f"---\nwork_package_id: {wp_id}\ndependencies: []\ntitle: {wp_id}\n---\n# {wp_id}\n",
+            "---\n"
+            f"work_package_id: {wp_id}\n"
+            f"dependencies: {json.dumps(deps)}\n"
+            f"title: {wp_id}\n"
+            "---\n"
+            f"# {wp_id}\n",
             encoding="utf-8",
         )
         append_event(
@@ -161,6 +172,53 @@ def test_preview_claimable_wp_uses_frontmatter_id_not_filename(
     assert preview.wp_id == "WP01"
     assert preview.selection_reason is None
     assert preview.candidates == ("WP01",)
+
+
+def test_preview_claimable_wp_skips_dep_blocked_planned_wp(tmp_path: Path) -> None:
+    """Planned WPs are not claimable until every dependency reaches ``done``."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    feature_dir, _ = _scaffold(
+        repo,
+        {"WP01": Lane.IN_PROGRESS, "WP02": Lane.PLANNED},
+        dependencies={"WP02": ["WP01"]},
+    )
+
+    preview = preview_claimable_wp(feature_dir)
+
+    assert preview.wp_id is None
+    assert preview.selection_reason == "dependencies_not_satisfied"
+    assert preview.candidates == ("WP01", "WP02")
+
+
+def test_preview_claimable_wp_allows_dep_after_done(tmp_path: Path) -> None:
+    """A dependent planned WP becomes claimable once upstream is ``done``."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    feature_dir, _ = _scaffold(
+        repo,
+        {"WP01": Lane.DONE, "WP02": Lane.PLANNED},
+        dependencies={"WP02": ["WP01"]},
+    )
+
+    preview = preview_claimable_wp(feature_dir)
+
+    assert preview.wp_id == "WP02"
+    assert preview.selection_reason is None
+    assert preview.candidates == ("WP01", "WP02")
+
+
+def test_preview_claimable_wp_preserves_independent_fanout(tmp_path: Path) -> None:
+    """An independent planned WP remains claimable while another WP is active."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    feature_dir, _ = _scaffold(repo, {"WP01": Lane.IN_PROGRESS, "WP02": Lane.PLANNED})
+
+    preview = preview_claimable_wp(feature_dir)
+
+    assert preview.wp_id == "WP02"
+    assert preview.selection_reason is None
+    assert preview.candidates == ("WP01", "WP02")
 
 
 def test_next_json_payload_serializes_claimable_wp_id(tmp_path: Path) -> None:

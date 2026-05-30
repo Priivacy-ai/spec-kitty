@@ -30,6 +30,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from specify_cli.core.dependency_graph import build_dependency_graph, dependency_readiness_for_wp
 from specify_cli.status.models import Lane
 from specify_cli.status.reducer import reduce as _reduce_events
 from specify_cli.status.store import read_events as _read_events
@@ -65,6 +66,9 @@ class ClaimablePreview:
             * ``"all_wps_in_progress"`` — at least one candidate is in an
               active non-planned lane (``claimed``, ``in_progress``,
               ``for_review``, ``in_review``).
+            * ``"dependencies_not_satisfied"`` — planned WPs exist, but every
+              planned candidate is waiting on at least one dependency that is
+              not in ``done``.
         candidates: Ordered tuple of WP IDs the claim algorithm would have
             considered (matches the order ``_find_first_planned_wp`` walks).
     """
@@ -102,11 +106,24 @@ def _load_wp_lanes(feature_dir: Path) -> dict[str, Lane]:
     }
 
 
-def _preview_from_candidates(candidates: list[str], wp_lanes: dict[str, Lane]) -> ClaimablePreview:
+def _preview_from_candidates(
+    candidates: list[str],
+    wp_lanes: dict[str, Lane],
+    dependency_graph: dict[str, list[str]],
+) -> ClaimablePreview:
     has_active_candidate = False
+    has_dependency_blocked_candidate = False
     for wp_id in candidates:
         lane = wp_lanes.get(wp_id, Lane.PLANNED)
         if lane == Lane.PLANNED:
+            readiness = dependency_readiness_for_wp(
+                wp_id,
+                dependency_graph.get(wp_id, []),
+                wp_lanes,
+            )
+            if not readiness.satisfied:
+                has_dependency_blocked_candidate = True
+                continue
             return ClaimablePreview(
                 wp_id=wp_id,
                 selection_reason=None,
@@ -116,7 +133,13 @@ def _preview_from_candidates(candidates: list[str], wp_lanes: dict[str, Lane]) -
             has_active_candidate = True
     return ClaimablePreview(
         wp_id=None,
-        selection_reason="all_wps_in_progress" if has_active_candidate else "no_planned_wps",
+        selection_reason=(
+            "dependencies_not_satisfied"
+            if has_dependency_blocked_candidate
+            else "all_wps_in_progress"
+            if has_active_candidate
+            else "no_planned_wps"
+        ),
         candidates=tuple(candidates),
     )
 
@@ -127,8 +150,10 @@ def preview_claimable_wp(feature_dir: Path) -> ClaimablePreview:
     Walks ``<feature_dir>/tasks/WP*.md`` in alphabetical order, reads each
     file's YAML frontmatter ``work_package_id`` (matching the source-of-truth
     used by :func:`_find_first_planned_wp`), then consults the canonical
-    status event log for current lane. The first candidate whose lane is
-    :class:`Lane.PLANNED` is the WP the explicit action would claim.
+    status event log for current lane and the canonical dependency graph for
+    dependency readiness. The first candidate whose lane is
+    :class:`Lane.PLANNED` and whose dependencies are all :class:`Lane.DONE` is
+    the WP the explicit action would claim.
 
     Args:
         feature_dir: Absolute path to ``kitty-specs/<mission_slug>/``.
@@ -155,4 +180,8 @@ def preview_claimable_wp(feature_dir: Path) -> ClaimablePreview:
         )
 
     # Read lanes from the canonical status event log (lane is event-log-only).
-    return _preview_from_candidates(candidates, _load_wp_lanes(feature_dir))
+    return _preview_from_candidates(
+        candidates,
+        _load_wp_lanes(feature_dir),
+        build_dependency_graph(feature_dir),
+    )
