@@ -20,33 +20,63 @@ Usage:
 """
 
 import os
+import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import typer
-from rich.console import Console
+
+if TYPE_CHECKING:
+    from rich.console import Console
+    from specify_cli.cli import StepTracker
+
+
+def _is_doctor_restart_daemon_invocation(argv: list[str]) -> bool:
+    if any(arg in {"--help", "-h"} for arg in argv[1:]):
+        return False
+    command_parts: list[str] = []
+    for arg in argv[1:]:
+        if arg.startswith("-"):
+            continue
+        command_parts.append(arg)
+        if len(command_parts) == 2:
+            return command_parts == ["doctor", "restart-daemon"]
+    return False
+
+
+def _is_doctor_restart_daemon_process_fast_path(argv: list[str]) -> bool:
+    if any(arg in {"--help", "-h"} for arg in argv[1:]):
+        return False
+    command_parts: list[str] = []
+    for arg in argv[1:]:
+        if arg.startswith("-"):
+            if arg != "--json":
+                return False
+            continue
+        command_parts.append(arg)
+    return command_parts == ["doctor", "restart-daemon"]
+
+
+_RESTART_DAEMON_PROCESS_FAST_PATH = _is_doctor_restart_daemon_process_fast_path(sys.argv)
 
 # Get version from package metadata
 # Test mode: use environment override to ensure tests use source version
 if os.environ.get("SPEC_KITTY_TEST_MODE") == "1":
     __version__ = os.environ.get("SPEC_KITTY_CLI_VERSION", "0.5.0-dev")
+elif _RESTART_DAEMON_PROCESS_FAST_PATH:
+    __version__ = os.environ.get("SPEC_KITTY_CLI_VERSION", "unknown")
 else:
     from specify_cli.version_utils import get_version
 
     __version__ = get_version()
 
-from specify_cli.cli import StepTracker
-from specify_cli.cli.helpers import (
-    BannerGroup,
-    callback as root_callback,
-    console,
-    show_banner,
-)
-from specify_cli.cli.commands import register_commands
-from specify_cli.cli.commands.init import register_init_command
-from specify_cli.core.project_resolver import locate_project_root
+if not _RESTART_DAEMON_PROCESS_FAST_PATH:
+    from specify_cli.cli.helpers import BannerGroup
+    from specify_cli.cli.commands import register_commands
+    from specify_cli.cli.commands.init import register_init_command
 
 
-def activate_mission(project_path: Path, mission_type: str, mission_display: str, console: Console) -> str:
+def activate_mission(project_path: Path, mission_type: str, mission_display: str, console: "Console") -> str:
     """
     DEPRECATED: No-op function for backwards compatibility.
 
@@ -72,21 +102,33 @@ def activate_mission(project_path: Path, mission_type: str, mission_display: str
 def version_callback(value: bool) -> None:
     """Display version and exit."""
     if value:
+        from specify_cli.cli.helpers import console, show_banner
+
         show_banner(force=True)
         console.print(f"spec-kitty-cli version {__version__}")
         raise typer.Exit()
 
-
-app = typer.Typer(
-    name="spec-kitty",
-    help=(
-        "Setup tool for Spec Kitty spec-driven development projects.\n\n"
-        "Set SPEC_KITTY_NO_UPGRADE_CHECK=1 to disable the upgrade-check notice."
-    ),
-    add_completion=False,
-    invoke_without_command=True,
-    cls=BannerGroup,
-)
+if _RESTART_DAEMON_PROCESS_FAST_PATH:
+    app = typer.Typer(
+        name="spec-kitty",
+        help=(
+            "Setup tool for Spec Kitty spec-driven development projects.\n\n"
+            "Set SPEC_KITTY_NO_UPGRADE_CHECK=1 to disable the upgrade-check notice."
+        ),
+        add_completion=False,
+        invoke_without_command=True,
+    )
+else:
+    app = typer.Typer(
+        name="spec-kitty",
+        help=(
+            "Setup tool for Spec Kitty spec-driven development projects.\n\n"
+            "Set SPEC_KITTY_NO_UPGRADE_CHECK=1 to disable the upgrade-check notice."
+        ),
+        add_completion=False,
+        invoke_without_command=True,
+        cls=BannerGroup,
+    )
 
 
 @app.callback()
@@ -97,10 +139,11 @@ def main_callback(
     ),
 ) -> None:
     """Main callback for root CLI setup."""
-    import sys
-
     if _is_doctor_restart_daemon_invocation(sys.argv):
         return
+
+    from specify_cli.cli.helpers import callback as root_callback
+    from specify_cli.core.project_resolver import locate_project_root
 
     root_callback(ctx)
 
@@ -159,12 +202,14 @@ def _try_chmod_script(script: Path, scripts_root: Path) -> tuple[bool, str | Non
         return False, f"{script.relative_to(scripts_root)}: {e}"
 
 
-def _report_chmod_results(tracker: StepTracker | None, updated: int, failures: list[str]) -> None:
+def _report_chmod_results(tracker: "StepTracker | None", updated: int, failures: list[str]) -> None:
     if tracker:
         detail = f"{updated} updated" + (f", {len(failures)} failed" if failures else "")
         tracker.add("chmod", "Set script permissions recursively")
         (tracker.error if failures else tracker.complete)("chmod", detail)
     else:
+        from specify_cli.cli.helpers import console
+
         if updated:
             console.print(f"[cyan]Updated execute permissions on {updated} script(s) recursively[/cyan]")
         if failures:
@@ -173,7 +218,7 @@ def _report_chmod_results(tracker: StepTracker | None, updated: int, failures: l
                 console.print(f"  - {f}")
 
 
-def ensure_executable_scripts(project_path: Path, tracker: StepTracker | None = None) -> None:
+def ensure_executable_scripts(project_path: Path, tracker: "StepTracker | None" = None) -> None:
     """Ensure POSIX .sh scripts under .kittify/scripts (recursively) have execute bits (no-op on Windows)."""
     if os.name == "nt":
         return  # Windows: skip silently
@@ -191,48 +236,25 @@ def ensure_executable_scripts(project_path: Path, tracker: StepTracker | None = 
     _report_chmod_results(tracker, updated, failures)
 
 
-# Register the init command with necessary dependencies
-register_init_command(
-    app,
-    console=console,
-    show_banner=show_banner,
-    activate_mission=activate_mission,
-    ensure_executable_scripts=ensure_executable_scripts,
-)
+if not _RESTART_DAEMON_PROCESS_FAST_PATH:
+    from specify_cli.cli.helpers import console, show_banner
 
-register_commands(app)
+    register_init_command(
+        app,
+        console=console,
+        show_banner=show_banner,
+        activate_mission=activate_mission,
+        ensure_executable_scripts=ensure_executable_scripts,
+    )
 
-
-def _is_doctor_restart_daemon_invocation(argv: list[str]) -> bool:
-    if any(arg in {"--help", "-h"} for arg in argv[1:]):
-        return False
-    command_parts: list[str] = []
-    for arg in argv[1:]:
-        if arg.startswith("-"):
-            continue
-        command_parts.append(arg)
-        if len(command_parts) == 2:
-            return command_parts == ["doctor", "restart-daemon"]
-    return False
-
-
-def _is_doctor_restart_daemon_process_fast_path(argv: list[str]) -> bool:
-    if any(arg in {"--help", "-h"} for arg in argv[1:]):
-        return False
-    command_parts: list[str] = []
-    for arg in argv[1:]:
-        if arg.startswith("-"):
-            if arg != "--json":
-                return False
-            continue
-        command_parts.append(arg)
-    return command_parts == ["doctor", "restart-daemon"]
+    register_commands(app)
 
 
 def _run_doctor_restart_daemon_process_fast_path(argv: list[str]) -> None:
     import os
     import sys
 
+    from specify_cli.core.project_resolver import locate_project_root
     from specify_cli.sync.restart import render_restart_result, restart_daemon
 
     try:
