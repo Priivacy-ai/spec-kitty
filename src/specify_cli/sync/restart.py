@@ -31,6 +31,7 @@ rename or mutate any field on either dataclass.
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Literal
@@ -51,6 +52,8 @@ RestartStatus = Literal[
 ]
 
 _RESTART_STOP_TIMEOUT_SECONDS = 1.0
+_OWNER_RECORD_GRACE_SECONDS = 2.0
+_OWNER_RECORD_POLL_SECONDS = 0.05
 
 
 @dataclass(frozen=True)
@@ -98,6 +101,28 @@ def _owner_record_present() -> bool:
     return bool(owner_record_path().exists())
 
 
+def _daemon_state_metadata_present() -> bool:
+    """Return True iff daemon state metadata exists on disk."""
+    from specify_cli.sync.daemon import DAEMON_STATE_FILE
+
+    return bool(DAEMON_STATE_FILE.exists())
+
+
+def _owner_record_present_after_grace() -> bool:
+    """Allow a short grace window for owner registration after daemon start."""
+    if _owner_record_present():
+        return True
+    if not _daemon_state_metadata_present():
+        return False
+
+    deadline = time.monotonic() + _OWNER_RECORD_GRACE_SECONDS
+    while time.monotonic() < deadline:
+        time.sleep(_OWNER_RECORD_POLL_SECONDS)
+        if _owner_record_present():
+            return True
+    return _owner_record_present()
+
+
 def restart_daemon(repo_root: Path) -> RestartResult:  # noqa: ARG001 — reserved for future repo-scoped state
     """Restart the registered sync daemon at the foreground version/source.
 
@@ -132,7 +157,7 @@ def restart_daemon(repo_root: Path) -> RestartResult:  # noqa: ARG001 — reserv
     # through stop, because the on-disk path exists. The contract treats
     # "no owner record on disk at all" as the only ``no_owner`` case
     # (FR-007 / FR-009: actionable refusal points operator at ``sync now``).
-    owner_present = _owner_record_present()
+    owner_present = _owner_record_present_after_grace()
     if not owner_present:
         return RestartResult(
             status="no_owner",

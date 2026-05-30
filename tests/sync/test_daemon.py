@@ -278,68 +278,6 @@ class TestHealthCheckRetryWindow:
         # Dashboard uses ~20s; daemon should be at least 15s
         assert total_sleep["s"] >= 15.0
 
-    def test_health_success_still_waits_for_owner_record(self, monkeypatch, tmp_path):
-        """Startup is not coherent until the owner record exists for the spawned PID."""
-        state_file = tmp_path / "sync-daemon"
-        lock_file = tmp_path / "sync-daemon.lock"
-        monkeypatch.setattr(daemon, "SPEC_KITTY_DIR", tmp_path)
-        monkeypatch.setattr(daemon, "DAEMON_STATE_FILE", state_file)
-        monkeypatch.setattr(daemon, "DAEMON_LOCK_FILE", lock_file)
-        monkeypatch.setattr(daemon, "DAEMON_LOG_FILE", tmp_path / "sync-daemon.log")
-
-        class FakeProc:
-            pid = 77777
-
-        monkeypatch.setattr(daemon.subprocess, "Popen", lambda *a, **kw: FakeProc())
-        monkeypatch.setattr(daemon, "_find_free_port", lambda **kw: 9400)
-        monkeypatch.setattr(daemon, "_check_sync_daemon_health", lambda *a, **kw: True)
-
-        owner_checks = {"n": 0}
-
-        def fake_owner_matches(pid):
-            assert pid == FakeProc.pid
-            owner_checks["n"] += 1
-            return owner_checks["n"] >= 3
-
-        monkeypatch.setattr(daemon, "_owner_record_matches_pid", fake_owner_matches)
-        monkeypatch.setattr(daemon.time, "sleep", lambda _seconds: None)
-
-        cfg = _MagicMock()
-        cfg.get_background_daemon.return_value = BackgroundDaemonPolicy.AUTO
-        outcome = daemon.ensure_sync_daemon_running(intent=DaemonIntent.REMOTE_REQUIRED, config=cfg)
-
-        assert outcome.started is True
-        assert outcome.pid == FakeProc.pid
-        assert owner_checks["n"] == 3
-
-    def test_process_alive_fallback_requires_owner_record(self, monkeypatch, tmp_path):
-        """A still-running subprocess without an owner record is not a successful start."""
-        state_file = tmp_path / "sync-daemon"
-        lock_file = tmp_path / "sync-daemon.lock"
-        monkeypatch.setattr(daemon, "SPEC_KITTY_DIR", tmp_path)
-        monkeypatch.setattr(daemon, "DAEMON_STATE_FILE", state_file)
-        monkeypatch.setattr(daemon, "DAEMON_LOCK_FILE", lock_file)
-        monkeypatch.setattr(daemon, "DAEMON_LOG_FILE", tmp_path / "sync-daemon.log")
-
-        class FakeProc:
-            pid = 77778
-
-        monkeypatch.setattr(daemon.subprocess, "Popen", lambda *a, **kw: FakeProc())
-        monkeypatch.setattr(daemon, "_find_free_port", lambda **kw: 9400)
-        monkeypatch.setattr(daemon, "_check_sync_daemon_health", lambda *a, **kw: False)
-        monkeypatch.setattr(daemon, "_is_process_alive", lambda pid: pid == FakeProc.pid)
-        monkeypatch.setattr(daemon, "_owner_record_matches_pid", lambda pid: False)
-        monkeypatch.setattr(daemon.time, "sleep", lambda _seconds: None)
-
-        cfg = _MagicMock()
-        cfg.get_background_daemon.return_value = BackgroundDaemonPolicy.AUTO
-        outcome = daemon.ensure_sync_daemon_running(intent=DaemonIntent.REMOTE_REQUIRED, config=cfg)
-
-        assert outcome.started is False
-        assert outcome.skipped_reason is not None
-        assert outcome.skipped_reason.startswith("start_failed:")
-
-
 # ---------------------------------------------------------------------------
 # Fix #7 — Version check triggers daemon restart
 # ---------------------------------------------------------------------------
@@ -395,7 +333,6 @@ class TestDaemonVersionCheck:
             return health_calls["n"] > 3
 
         monkeypatch.setattr(daemon, "_check_sync_daemon_health", check_health)
-        monkeypatch.setattr(daemon, "_owner_record_matches_pid", lambda pid: pid == 88888)
 
         # Version mismatch for old daemon, so it gets recycled
         def version_matches(port, token, timeout=0.5):

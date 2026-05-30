@@ -214,6 +214,92 @@ def test_no_owner_exits_one_and_directs_to_sync_now(
     assert "spec-kitty sync now" in payload["error"]
 
 
+def test_owner_grace_wait_allows_registered_daemon_to_restart(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A short owner-registration lag is tolerated when daemon metadata exists."""
+
+    class _SequencedPath:
+        def __init__(self, results: list[bool]) -> None:
+            self._results = results
+
+        def exists(self) -> bool:
+            if len(self._results) > 1:
+                return self._results.pop(0)
+            return self._results[0]
+
+    path = _SequencedPath([False, False, True])
+    monkeypatch.setattr(
+        "specify_cli.sync.owner.owner_record_path",
+        lambda: path,
+        raising=True,
+    )
+    monkeypatch.setattr(
+        "specify_cli.sync.owner.read_owner_record",
+        lambda: _FakeRecord(pid=12345),
+        raising=True,
+    )
+    _install_daemon_state_file_fake(monkeypatch, exists=True)
+
+    ticks = iter([0.0, 0.1, 0.2, 0.3])
+    sleeps: list[float] = []
+    monkeypatch.setattr("specify_cli.sync.restart.time.monotonic", lambda: next(ticks))
+    monkeypatch.setattr("specify_cli.sync.restart.time.sleep", lambda seconds: sleeps.append(seconds))
+
+    stop_calls = _install_stop_fake(monkeypatch, result=(True, "Sync daemon stopped."))
+    launch_calls = _install_launch_fake(
+        monkeypatch,
+        outcome=DaemonStartOutcome(started=True, skipped_reason=None, pid=67890),
+    )
+
+    result = _runner().invoke(doctor_module.app, ["restart-daemon", "--json"])
+
+    assert result.exit_code == 0
+    assert sleeps, "restart should poll briefly while owner record appears"
+    assert stop_calls == [1.0]
+    assert len(launch_calls) == 1
+
+
+def test_owner_grace_wait_still_fails_closed_when_owner_never_appears(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Daemon metadata alone is insufficient; absent owner still returns no_owner."""
+
+    class _MissingPath:
+        def exists(self) -> bool:
+            return False
+
+    monkeypatch.setattr(
+        "specify_cli.sync.owner.owner_record_path",
+        lambda: _MissingPath(),
+        raising=True,
+    )
+    monkeypatch.setattr(
+        "specify_cli.sync.owner.read_owner_record",
+        lambda: None,
+        raising=True,
+    )
+    _install_daemon_state_file_fake(monkeypatch, exists=True)
+
+    ticks = iter([0.0, 0.1, 0.2, 0.3, 2.1])
+    sleeps: list[float] = []
+    monkeypatch.setattr("specify_cli.sync.restart.time.monotonic", lambda: next(ticks))
+    monkeypatch.setattr("specify_cli.sync.restart.time.sleep", lambda seconds: sleeps.append(seconds))
+
+    stop_calls = _install_stop_fake(monkeypatch, result=(False, "should-not-call"))
+    launch_calls = _install_launch_fake(
+        monkeypatch,
+        outcome=DaemonStartOutcome(started=False, skipped_reason="x", pid=None),
+    )
+
+    result = _runner().invoke(doctor_module.app, ["restart-daemon", "--json"])
+
+    assert result.exit_code == 1
+    assert sleeps, "restart should wait briefly before failing closed"
+    assert stop_calls == []
+    assert launch_calls == []
+
+
 def test_stop_failure_exits_three_and_skips_launch(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

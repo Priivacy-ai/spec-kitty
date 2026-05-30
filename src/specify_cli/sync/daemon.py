@@ -305,14 +305,6 @@ def _daemon_version_matches(port: int, expected_token: str | None, timeout: floa
     return True
 
 
-def _owner_record_matches_pid(expected_pid: int) -> bool:
-    """Return True when the canonical owner record exists for *expected_pid*."""
-    from specify_cli.sync.owner import read_owner_record
-
-    record = read_owner_record()
-    return record is not None and record.pid == expected_pid
-
-
 # ---------------------------------------------------------------------------
 # HTTP control plane
 # ---------------------------------------------------------------------------
@@ -948,12 +940,12 @@ def _ensure_sync_daemon_running_locked(preferred_port: int | None = None) -> tup
             port,
             token,
             timeout=_STARTUP_HEALTH_TIMEOUT_SECONDS,
-        ) and _owner_record_matches_pid(proc.pid):
+        ):
             _write_daemon_file(DAEMON_STATE_FILE, url, port, token, proc.pid)
             return url, port, True
         time.sleep(delay)
 
-    if _is_process_alive(proc.pid) and _owner_record_matches_pid(proc.pid):
+    if _is_process_alive(proc.pid):
         _write_daemon_file(DAEMON_STATE_FILE, url, port, token, proc.pid)
         return url, port, True
 
