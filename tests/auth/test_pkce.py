@@ -58,7 +58,7 @@ def test_challenge_is_base64url_of_sha256() -> None:
 
     verifier = "some-verifier-value"
     expected = (
-        base64.urlsafe_b64encode(hashlib.sha256(verifier.encode("ascii")).digest())
+        base64.urlsafe_b64encode(hashlib.sha256(verifier.encode("ascii")).digest())  # noqa: TID251 — PKCE code_challenge is a raw SHA-256 hash of the verifier (RFC 7636 §4.2), not a charter algorithm
         .rstrip(b"=")
         .decode("ascii")
     )

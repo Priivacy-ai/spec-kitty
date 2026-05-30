@@ -103,6 +103,7 @@ class TestInvocationRecordJsonRoundtrip:
             "event", "invocation_id", "profile_id", "action", "request_text",
             "governance_context_hash", "governance_context_available", "actor",
             "router_confidence", "started_at", "completed_at", "outcome", "evidence_ref",
+            "mode_of_work",
         }
         assert set(data.keys()) == expected_keys
 

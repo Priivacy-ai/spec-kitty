@@ -2,7 +2,7 @@ description = "Review a work package implementation"
 
 prompt = """
 <!-- spec-kitty-command-version: 3.1.2a3 -->
-# /spec-kitty.review - Review Work Package Implementation
+# /spec-kitty.review - Review Work Package<!-- glossary:glossary:work-package --> Implementation
 
 **Version**: 0.12.0+
 
@@ -10,17 +10,17 @@ prompt = """
 
 Review the implementation of a work package against its prompt file, acceptance
 criteria, and owned-file boundaries. Verify correctness, test coverage, and
-compliance with any applicable guardrails (e.g., bulk edit occurrence maps).
+compliance with any applicable guardrails (e.g., bulk edit<!-- glossary:glossary:bulk-edit --> occurrence maps).
 
 ---
 
 ## Working Directory
 
-**IMPORTANT**: This step works inside the execution workspace (worktree)
+**IMPORTANT**: This step works inside the execution workspace<!-- glossary:glossary:workspace --> (worktree)
 allocated by `spec-kitty agent action review WPxx --agent <name>`. Do NOT modify files outside
 your `owned_files` boundaries.
 
-**In repos with multiple missions, always pass `--mission <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
+**In repos with multiple missions, always pass `--mission<!-- glossary:glossary:mission --> <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id<!-- glossary:glossary:mission_id -->` (ULID), `mid8<!-- glossary:glossary:mid8 -->` (first 8 chars of the ULID), or `mission_slug<!-- glossary:glossary:mission_slug -->`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
 
 ## User Input
 
@@ -38,15 +38,15 @@ sources unless explicitly cited by a fetch command + when-doing rule in the
 prompt.
 
 **Guaranteed bodies** (verbatim in the prompt when under the token budget; the
-resolver substitutes a `spec-kitty charter context --include section:<slug>`
+resolver substitutes a `spec-kitty charter<!-- glossary:glossary:charter --> context --include section:<slug>`
 fetch + when-doing stanza only when the budget would otherwise be exceeded):
 
 - **Terminology Canon** — from `.kittify/charter/charter.md` — governs the
   identifiers and term usage you assess in the diff.
 - **Code Review Checklist** — from `.kittify/charter/charter.md` — your
-  primary gate set when judging the WP.
+  primary gate set when judging the WP<!-- glossary:glossary:wp -->.
 - **Regression Vigilance** — from `.kittify/charter/charter.md` — the
-  project's explicit drift guard; apply when the diff renames or introduces
+  project<!-- glossary:glossary:project -->'s explicit drift guard; apply when the diff renames or introduces
   identifier-bearing terms.
 - Any additional action-critical sections the mission declares are appended
   automatically.
@@ -55,9 +55,9 @@ fetch + when-doing stanza only when the budget would otherwise be exceeded):
 WP frontmatter selects a reviewer `agent_profile`):
 
 - Every `DIRECTIVE_NNN` declared in the loaded reviewer profile's
-  `directive-references` list (for example, `reviewer-renata` cites
+  `directive<!-- glossary:glossary:directive -->-references` list (for example, `reviewer-renata` cites
   `DIRECTIVE_032` — Conceptual Alignment).
-- Every tactic-id declared in the loaded reviewer profile's
+- Every tactic<!-- glossary:glossary:tactic -->-id declared in the loaded reviewer profile's
   `tactic-references` list (for example, `reviewer-renata` cites the
   `language-driven-design` tactic).
 
@@ -110,12 +110,12 @@ Parse frontmatter for:
 - `authoritative_surface` -- primary directory for this WP
 - `execution_mode` -- `code_change` or `planning_artifact`
 - `subtasks` -- ordered list of subtask IDs
-- `dependencies` -- WPs that must be done first
+- `dependencies` -- WPs that must be done<!-- glossary:glossary:done --> first
 
 ### 2a. Load Agent Profile
 
 Before proceeding with the review, load the agent profile from the WP frontmatter
-using the `/ad-hoc-profile-load` skill (or `spec-kitty agent profile list` to browse
+using the `/ad-hoc-profile-load` skill<!-- glossary:glossary:skill --> (or `spec-kitty agent profile list` to browse
 available profiles). Apply the profile's reviewer guidance and self-review gates for
 the rest of this review session.
 
@@ -175,7 +175,7 @@ item blocks approval.
    `spec.md`, `plan.md`, or `contracts/`. Grep the diff for forbidden patterns
    named by those clauses.
 7. **Shared-file ownership**: any file modified by this WP that is also
-   modified by another WP, visible in `lanes.json`, shared lane metadata, or
+   modified by another WP, visible in `lanes.json`, shared lane<!-- glossary:glossary:lane --> metadata, or
    the same mission merge, has an explicit coordination note in the move-task
    reason or review feedback.
 8. **Production fragility**: any new `raise` in a production code path has a
@@ -188,7 +188,7 @@ item blocks approval.
 
 If this mission has `change_mode: bulk_edit` in `meta.json`:
 
-1. **Verify occurrence map exists**: `occurrence_map.yaml` must be present in the feature directory
+1. **Verify occurrence map<!-- glossary:glossary:occurrence-map --> exists**: `occurrence_map.yaml` must be present in the feature directory
 2. **Reference during review**: The occurrence map is the governing artifact for this bulk edit
 3. **Check category compliance**:
    - Verify changes respect `do_not_change` categories — reject if these were modified
@@ -214,7 +214,7 @@ After completing review:
 
 Move the WP forward:
 ```bash
-spec-kitty agent status emit WPxx --to approved --actor <name> --mission <handle>
+spec-kitty agent status emit WPxx --to approved<!-- glossary:glossary:approved --> --actor <name> --mission <handle>
 ```
 
 ### On Rejection
@@ -241,5 +241,5 @@ implementer profile so the next implementation cycle starts with the right conte
 The implementing agent will then load the correct profile via `/ad-hoc-profile-load`
 and resume work with the proper persona and self-review gates.
 
-**Next step**: `spec-kitty next --agent <name>` will advance to the next phase.
+**Next step**: `spec-kitty next --agent <name>` will advance to the next phase<!-- glossary:glossary:phase -->.
 """

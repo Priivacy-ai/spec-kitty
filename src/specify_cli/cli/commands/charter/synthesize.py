@@ -423,7 +423,28 @@ def charter_synthesize(  # noqa: C901
             }, indent=2, sort_keys=True))
         raise typer.Exit(code=1) from e
     except SynthesisError as e:
+        from charter.synthesizer.errors import GeneratedArtifactMissingError as _GAME
+
         render_error_panel(e, err_console)
+        if isinstance(e, _GAME):
+            # Actionable remediation: the adapter found no agent-authored
+            # YAML, which usually means `charter generate` was never run.
+            _charter_hint = (
+                "Charter prerequisite missing: no generated charter artifacts found. "
+                "Run `spec-kitty charter generate` (or `charter interview` first) "
+                "to produce the artifacts that synthesis needs."
+            )
+            if json_output:
+                print(json.dumps({
+                    "result": "failure",
+                    "adapter": {"id": adapter, "version": "unknown"},
+                    "written_artifacts": [],
+                    "warnings": warnings_collected + [_charter_hint],
+                }, indent=2, sort_keys=True))
+            else:
+                console.print(f"[red]Error:[/red] {_charter_hint}")
+            raise typer.Exit(code=1) from e
+
         if json_output:
             print(json.dumps({
                 "result": "failure",

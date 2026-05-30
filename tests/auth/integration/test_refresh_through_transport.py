@@ -177,10 +177,15 @@ def seeded_tm(monkeypatch: pytest.MonkeyPatch, install_fake_refresh: FakeRefresh
 def _stub_sync_deps():
     """Return a context manager that stubs all non-auth sync dependencies.
 
-    ``SyncConfig``, ``OfflineQueue``, and ``get_sync_daemon_status`` are
-    lazy-imported inside the ``status`` function body, so we patch them at
-    their source modules rather than on the ``sync`` command module.
+    ``SyncConfig``, ``OfflineQueue``, ``get_sync_daemon_status``, and
+    the identity-boundary helpers are lazy-imported inside the ``status``
+    function body, so we patch them at their source modules rather than
+    on the ``sync`` command module.
     """
+    from pathlib import Path as _Path
+
+    from specify_cli.sync.preflight import BoundaryFailureSet, ForegroundIdentity
+
     # SyncConfig stub
     mock_config = MagicMock()
     mock_config.get_server_url.return_value = "https://saas.test"
@@ -189,6 +194,7 @@ def _stub_sync_deps():
     # OfflineQueue stub
     mock_queue = MagicMock()
     mock_queue.size.return_value = 0
+    mock_queue.db_path = _Path("/tmp/test-queue.db")
     mock_queue.get_queue_stats.return_value = MagicMock(total_queued=0)
 
     # DaemonStatus stub
@@ -199,6 +205,28 @@ def _stub_sync_deps():
     mock_daemon_status.websocket_status = "Disconnected"
     mock_daemon_status.last_sync = None
     mock_daemon_status.consecutive_failures = 0
+
+    # Identity-boundary stubs — prevent the live system state (legacy queue,
+    # orphan daemons, daemon owner record) from polluting the test and
+    # causing exit-code 2.
+    fg = ForegroundIdentity(
+        package_version="0.0.0-test",
+        executable_path=_Path("/tmp/test-python"),
+        source_path=_Path("/tmp/test-source"),
+        server_url="https://saas.test",
+        team_or_user="test-user",
+        queue_db_path=_Path("/tmp/test-queue.db"),
+        pid=99999,
+    )
+    clean_failure_set = BoundaryFailureSet(
+        foreground=fg,
+        daemon_record=None,
+    )
+
+    # scan_sync_daemons stub — no orphan processes
+    mock_orphan_report = MagicMock()
+    mock_orphan_report.orphan_count = 0
+    mock_orphan_report.orphan_processes = []
 
     from contextlib import ExitStack
 
@@ -220,6 +248,51 @@ def _stub_sync_deps():
         patch(
             "specify_cli.sync.daemon.get_sync_daemon_status",
             return_value=mock_daemon_status,
+        )
+    )
+    # Identity-boundary patches
+    stack.enter_context(
+        patch(
+            "specify_cli.sync.preflight.build_boundary_failure_set",
+            return_value=clean_failure_set,
+        )
+    )
+    stack.enter_context(
+        patch(
+            "specify_cli.sync.owner.compute_foreground_identity",
+            return_value=fg.__dict__,
+        )
+    )
+    stack.enter_context(
+        patch("specify_cli.sync.owner.read_owner_record", return_value=None)
+    )
+    stack.enter_context(
+        patch("specify_cli.sync.owner.list_orphan_records", return_value=[])
+    )
+    stack.enter_context(
+        patch("specify_cli.sync.owner.mismatched_fields", return_value=[])
+    )
+    stack.enter_context(
+        patch(
+            "specify_cli.sync.daemon.scan_sync_daemons",
+            return_value=mock_orphan_report,
+        )
+    )
+    # Legacy queue detection — return empty counts
+    mock_legacy_counts = MagicMock()
+    mock_legacy_counts.get.return_value = 0
+    mock_legacy_counts.values.return_value = []
+    mock_legacy_counts.items.return_value = []
+    stack.enter_context(
+        patch(
+            "specify_cli.sync.queue.detect_legacy_rows_for_scope",
+            return_value=mock_legacy_counts,
+        )
+    )
+    stack.enter_context(
+        patch(
+            "specify_cli.sync.queue._legacy_queue_db_path",
+            return_value=_Path("/tmp/test-legacy-queue.db"),
         )
     )
     return stack

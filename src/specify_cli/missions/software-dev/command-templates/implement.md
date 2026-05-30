@@ -165,7 +165,7 @@ After all subtasks are complete:
   would have been caught by this step. Scope is the diff only so the implementer
   does not drown in pre-existing warnings owned by other WPs.
   ```bash
-  CHANGED_PY=$(git diff --name-only --diff-filter=AMR HEAD | rg '\.py$' || true)
+  CHANGED_PY=$(git diff --name-only --diff-filter=AMR HEAD | grep -E '[.]py$' || true)
   if [ -n "$CHANGED_PY" ]; then
     .venv/bin/ruff check $CHANGED_PY
   fi

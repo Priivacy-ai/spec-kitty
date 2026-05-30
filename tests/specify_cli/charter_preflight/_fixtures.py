@@ -10,7 +10,6 @@ the production surface.
 
 from __future__ import annotations
 
-import hashlib
 import subprocess
 from pathlib import Path
 from textwrap import dedent
@@ -52,7 +51,9 @@ def seed_charter(repo: Path, body: str = "# Charter\n\nHello") -> tuple[Path, Pa
 
 def write_metadata(metadata_path: Path, charter_path: Path, *, mismatched: bool = False) -> None:
     """Write ``metadata.yaml`` with a charter_hash matching (or not) the charter file."""
-    digest = hashlib.sha256(charter_path.read_bytes()).hexdigest()
+    from charter.hasher import hash_content  # noqa: PLC0415
+    charter_hash = hash_content(charter_path.read_text(encoding="utf-8"))  # "sha256:<hex>"
+    digest = charter_hash.split(":", 1)[1]
     if mismatched:
         digest = "0" * 64
     metadata_path.write_text(

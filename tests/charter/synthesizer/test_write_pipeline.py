@@ -200,7 +200,7 @@ def _make_staging_dir_with_artifact(
 
     body: dict[str, str] = {"title": slug, "body": content}
     yaml_bytes = canonical_yaml(body)
-    content_hash = hashlib.sha256(yaml_bytes).hexdigest()
+    content_hash = hashlib.sha256(yaml_bytes).hexdigest()  # noqa: TID251 — charter synthesizer write-pipeline content hash (own scheme), not charter.hasher.hash_content() freshness
 
     # Determine artifact_id / urn
     effective_artifact_id = artifact_id or slug

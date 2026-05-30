@@ -68,9 +68,10 @@ FIXTURE_EVENTS = [
         "aggregate_id": "WP10",
         "payload": {
             "wp_id": "WP10",
-            "title": "End-to-end integration test suite",
+            "wp_title": "End-to-end integration test suite",
             "mission_slug": "039-cli-2x-readiness",
-            "dependencies": ["WP02", "WP03"],
+            "depends_on": ["WP02", "WP03"],
+            "actor": "claude",
         },
         "timestamp": "2026-02-12T11:01:00+00:00",
         "build_id": _FIXTURE_BUILD_ID,

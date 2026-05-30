@@ -89,6 +89,7 @@ jobs:
       agent: ${{ inputs.run_all && 'true' || steps.filter.outputs.agent }}
       kernel: ${{ inputs.run_all && 'true' || steps.filter.outputs.kernel }}
       doctrine: ${{ inputs.run_all && 'true' || steps.filter.outputs.doctrine }}
+      e2e: ${{ inputs.run_all && 'true' || steps.filter.outputs.e2e }}
     steps:
       - uses: actions/checkout@v6
       - uses: dorny/paths-filter@v4
@@ -165,6 +166,9 @@ jobs:
               - 'tests/dossier/**'
               - 'tests/git_ops/**'
               - 'tests/tasks/**'
+            e2e:
+              - 'tests/e2e/**'
+              - 'tests/cross_cutting/**'
             charter:
               - 'src/charter/**'
               - 'src/specify_cli/charter_runtime/**'
@@ -199,11 +203,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: "[ENFORCED] Set up Python"
-        uses: actions/setup-python@v6
+      - name: "[ENFORCED] Set up uv"
+        uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
 
       - name: "[ENFORCED] Set up Node"
         uses: actions/setup-node@v6
@@ -212,13 +215,12 @@ jobs:
 
       - name: "[ENFORCED] Install Python dependencies"
         run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[test,lint]"
+          uv sync --frozen --all-extras
           # spec-kitty-runtime is required by next/runtime tests and patch-target
           # validation, but its published wheel pins an older spec-kitty-events.
           # Install it without deps so this repo's spec-kitty-events==4.0.0 pin
           # remains authoritative.
-          pip install spec-kitty-runtime==0.4.5 --no-deps
+          uv pip install spec-kitty-runtime==0.4.5 --no-deps
 
       - name: "[ENFORCED] Prepare report directories"
         run: |
@@ -382,7 +384,7 @@ jobs:
           fi
 
           echo "Detected markdown changes in docs/architecture. Running consistency checks..."
-          python -m pytest -m "not windows_ci" -q tests/docs/test_architecture_docs_consistency.py tests/docs/test_versioned_docs_integrity.py
+          uv run python -m pytest -m "not windows_ci" -q tests/docs/test_architecture_docs_consistency.py tests/docs/test_versioned_docs_integrity.py
 
       - name: "[ENFORCED] Run template/compat regression tests on matching changes"
         if: always()
@@ -410,7 +412,7 @@ jobs:
           fi
 
           echo "Detected template/compat/migration changes. Running focused regression tests..."
-          python -m pytest -q --tb=short \
+          uv run python -m pytest -q --tb=short \
             tests/test_template/test_asset_generator.py \
             tests/specify_cli/migration/test_schema_version.py \
             tests/specify_cli/compat/test_messages.py \
@@ -424,7 +426,7 @@ jobs:
 
           if [ -z "$FROM_SHA" ] || [ -z "$TO_SHA" ]; then
             echo "No commit range available. Running Contextive check unconditionally."
-            python scripts/generate_contextive_glossaries.py check
+            uv run python scripts/generate_contextive_glossaries.py check
             exit $?
           fi
 
@@ -437,7 +439,7 @@ jobs:
           fi
 
           echo "Detected relevant changes. Verifying Contextive glossary files are up-to-date..."
-          python scripts/generate_contextive_glossaries.py check
+          uv run python scripts/generate_contextive_glossaries.py check
 
       - name: "[INFO] Run ruff report (advisory)"
         id: ruff
@@ -445,11 +447,24 @@ jobs:
         continue-on-error: true
         run: |
           set -o pipefail
-          if python -m ruff check src tests 2>&1 | tee out/reports/static-analysis/ruff-report.txt; then
+          if uv run python -m ruff check src tests 2>&1 | tee out/reports/static-analysis/ruff-report.txt; then
             echo "has_failures=false" >> "$GITHUB_OUTPUT"
           else
             echo "has_failures=true" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: "[ENFORCED] banned-API lint gate (TID251)"
+        id: tid251
+        if: always()
+        run: |
+          # ADR architecture/adrs/2026-05-28-1-... (Gap 3 / Gap 5): tests must not
+          # reimplement the charter hash algorithm (hashlib.sha256) or catch
+          # click.exceptions.* directly. Unlike the advisory full-ruff report above, this
+          # banned-API check is ENFORCED — an unannotated banned call FAILS the build (no
+          # continue-on-error). Legitimate non-charter uses carry an inline
+          # '# noqa: TID251 — <justification>'. This realises the ADR Decision Outcome:
+          # "automated enforcement rather than convention".
+          uv run python -m ruff check src tests --select TID251
 
       - name: "[INFO] Run mypy report (advisory)"
         id: mypy
@@ -457,7 +472,7 @@ jobs:
         continue-on-error: true
         run: |
           set -o pipefail
-          if python -m mypy --strict src/specify_cli src/charter src/doctrine 2>&1 | tee out/reports/static-analysis/mypy-report.txt; then
+          if uv run python -m mypy --strict src/specify_cli src/charter src/doctrine 2>&1 | tee out/reports/static-analysis/mypy-report.txt; then
             echo "has_failures=false" >> "$GITHUB_OUTPUT"
           else
             echo "has_failures=true" >> "$GITHUB_OUTPUT"
@@ -468,7 +483,7 @@ jobs:
         if: always()
         continue-on-error: true
         run: |
-          python -m bandit -r src/ \
+          uv run python -m bandit -r src/ \
             --severity-level medium \
             --confidence-level medium \
             | tee out/reports/security/bandit-report.txt
@@ -478,10 +493,10 @@ jobs:
         if: always()
         continue-on-error: true
         run: |
-          python -m pip_audit | tee out/reports/security/pip-audit-report.txt
+          uv run python -m pip_audit | tee out/reports/security/pip-audit-report.txt
 
       - name: "[ENFORCED] Validate patch() target strings (closes #394)"
-        run: python scripts/check_patch_targets.py
+        run: uv run python scripts/check_patch_targets.py
 
       - name: "[ENFORCED] Upload lint artifacts"
         if: always()
@@ -632,16 +647,13 @@ jobs:
       - name: "[ENFORCED] Check out repository"
         uses: actions/checkout@v6
 
-      - name: "[ENFORCED] Set up Python"
-        uses: actions/setup-python@v6
+      - name: "[ENFORCED] Set up uv"
+        uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
 
       - name: "[ENFORCED] Install dependencies"
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+        run: uv sync --frozen --all-extras
 
       - name: "[ENFORCED] Prepare report directories"
         run: |
@@ -650,7 +662,7 @@ jobs:
 
       - name: "[ENFORCED] Run kernel test suite with coverage"
         run: |
-          python -m pytest \
+          uv run python -m pytest \
             -v \
             tests/kernel/ \
             -m "fast and not windows_ci" \
@@ -661,7 +673,7 @@ jobs:
 
       - name: "[ENFORCED] Enforce kernel coverage floor (90%)"
         run: |
-          python - <<'PY'
+          uv run python - <<'PY'
           import xml.etree.ElementTree as ET
 
           report = ET.parse("out/reports/coverage/coverage-kernel.xml").getroot()
@@ -693,16 +705,13 @@ jobs:
       - name: "[ENFORCED] Check out repository"
         uses: actions/checkout@v6
 
-      - name: "[ENFORCED] Set up Python"
-        uses: actions/setup-python@v6
+      - name: "[ENFORCED] Set up uv"
+        uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
 
       - name: "[ENFORCED] Install dependencies"
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+        run: uv sync --frozen --all-extras
 
       - name: "[ENFORCED] Prepare report directories"
         run: |
@@ -711,7 +720,7 @@ jobs:
 
       - name: "[ENFORCED] Run fast doctrine tests with coverage"
         run: |
-          python -m pytest \
+          uv run python -m pytest \
             -v \
             tests/doctrine/ \
             -m "fast and not windows_ci" \
@@ -736,17 +745,14 @@ jobs:
     if: always() && needs.changes.outputs.sync == 'true'
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — sync"
         run: |
-          python -m pytest tests/sync/ -m "fast and not windows_ci" -q --tb=short \
+          uv run python -m pytest tests/sync/ -m "fast and not windows_ci" -q --tb=short \
             --cov=src/specify_cli/sync \
             --cov-report=xml:out/reports/coverage/coverage-fast-sync.xml
       - name: "Upload fast-sync coverage"
@@ -762,17 +768,14 @@ jobs:
     if: always() && needs.changes.outputs.merge == 'true'
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — merge"
         run: |
-          python -m pytest tests/merge/ -m "fast and not windows_ci" -q --tb=short \
+          uv run python -m pytest tests/merge/ -m "fast and not windows_ci" -q --tb=short \
             --cov=src/specify_cli/merge \
             --cov-report=xml:out/reports/coverage/coverage-fast-merge.xml
       - name: "Upload fast-merge coverage"
@@ -788,17 +791,14 @@ jobs:
     if: always() && needs.changes.outputs.missions == 'true'
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — missions"
         run: |
-          python -m pytest tests/missions/ -m "fast and not windows_ci" -q --tb=short \
+          uv run python -m pytest tests/missions/ -m "fast and not windows_ci" -q --tb=short \
             --cov=src/specify_cli/mission \
             --cov=src/specify_cli/mission_metadata \
             --cov=src/doctrine/missions \
@@ -816,17 +816,14 @@ jobs:
     if: always() && needs.changes.outputs.post_merge == 'true'
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — post_merge"
         run: |
-          python -m pytest tests/post_merge/ -m "fast and not windows_ci" -q --tb=short \
+          uv run python -m pytest tests/post_merge/ -m "fast and not windows_ci" -q --tb=short \
             --cov=src/specify_cli/post_merge \
             --cov-report=xml:out/reports/coverage/coverage-fast-post-merge.xml \
             || test $? -eq 5
@@ -844,17 +841,14 @@ jobs:
     if: always() && needs.changes.outputs.release == 'true'
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — release"
         run: |
-          python -m pytest tests/release/ -m "fast and not windows_ci" -q --tb=short \
+          uv run python -m pytest tests/release/ -m "fast and not windows_ci" -q --tb=short \
             --cov=src/specify_cli/release \
             --cov-report=xml:out/reports/coverage/coverage-fast-release.xml \
             || test $? -eq 5
@@ -881,16 +875,13 @@ jobs:
       - name: "[ENFORCED] Check out repository"
         uses: actions/checkout@v6
 
-      - name: "[ENFORCED] Set up Python"
-        uses: actions/setup-python@v6
+      - name: "[ENFORCED] Set up uv"
+        uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
 
       - name: "[ENFORCED] Install dependencies"
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+        run: uv sync --frozen --all-extras
 
       - name: "[ENFORCED] Prepare report directories"
         run: |
@@ -899,7 +890,7 @@ jobs:
 
       - name: "[ENFORCED] Run fast status tests with coverage"
         run: |
-          python -m pytest \
+          uv run python -m pytest \
             -v \
             tests/status/ tests/specify_cli/status/ \
             -m "fast and not windows_ci" \
@@ -927,17 +918,14 @@ jobs:
       needs.fast-tests-status.result != 'failure'
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — review"
         run: |
-          python -m pytest tests/review/ -m "fast and not windows_ci" -q --tb=short \
+          uv run python -m pytest tests/review/ -m "fast and not windows_ci" -q --tb=short \
             --cov=src/specify_cli/review \
             --cov-report=xml:out/reports/coverage/coverage-fast-review.xml
       - name: "Upload fast-review coverage"
@@ -956,18 +944,16 @@ jobs:
       needs.fast-tests-status.result != 'failure'
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
       - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
-          pip install spec-kitty-runtime==0.4.5 --no-deps
+          uv sync --frozen --all-extras
+          uv pip install spec-kitty-runtime==0.4.5 --no-deps
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — next"
         run: |
-          python -m pytest tests/next/ tests/specify_cli/next/ \
+          uv run python -m pytest tests/next/ tests/specify_cli/next/ \
             -m "fast and not windows_ci" -q --tb=short \
             --cov=src/specify_cli/next \
             --cov-report=xml:out/reports/coverage/coverage-fast-next.xml
@@ -993,17 +979,14 @@ jobs:
       needs.fast-tests-next.result != 'failure'
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "[ENFORCED] Mission loader coverage gate (>=90%)"
         run: |
-          python -m pytest \
+          uv run python -m pytest \
             --cov=src/specify_cli/mission_loader \
             --cov-report=term-missing \
             --cov-report=xml:out/reports/coverage/coverage-mission-loader.xml \
@@ -1026,17 +1009,14 @@ jobs:
       needs.fast-tests-merge.result != 'failure'
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — lanes"
         run: |
-          python -m pytest tests/lanes/ -m "fast and not windows_ci" -q --tb=short \
+          uv run python -m pytest tests/lanes/ -m "fast and not windows_ci" -q --tb=short \
             --cov=src/specify_cli/lanes \
             --cov-report=xml:out/reports/coverage/coverage-fast-lanes.xml
       - name: "Upload fast-lanes coverage"
@@ -1055,17 +1035,14 @@ jobs:
       needs.fast-tests-status.result != 'failure'
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — dashboard"
         run: |
-          python -m pytest tests/test_dashboard/ -m "fast and not windows_ci" -q --tb=short \
+          uv run python -m pytest tests/test_dashboard/ -m "fast and not windows_ci" -q --tb=short \
             --cov=src/specify_cli/dashboard \
             --cov-report=xml:out/reports/coverage/coverage-fast-dashboard.xml \
             || test $? -eq 5
@@ -1086,17 +1063,14 @@ jobs:
       needs.fast-tests-status.result != 'failure'
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — upgrade"
         run: |
-          python -m pytest tests/upgrade/ -m "fast and not windows_ci" -q --tb=short \
+          uv run python -m pytest tests/upgrade/ -m "fast and not windows_ci" -q --tb=short \
             --cov=src/specify_cli/upgrade \
             --cov-report=xml:out/reports/coverage/coverage-fast-upgrade.xml
       - name: "Upload fast-upgrade coverage"
@@ -1117,17 +1091,14 @@ jobs:
       needs.changes.outputs.cli == 'true'
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — cli"
         run: |
-          python -m pytest tests/cli/ tests/specify_cli/cli/ -m "fast and not windows_ci" -q --tb=short \
+          uv run python -m pytest tests/cli/ tests/specify_cli/cli/ -m "fast and not windows_ci" -q --tb=short \
             --cov=src/specify_cli/cli \
             --cov-report=xml:out/reports/coverage/coverage-fast-cli.xml \
             || test $? -eq 5
@@ -1152,17 +1123,14 @@ jobs:
       needs.fast-tests-doctrine.result != 'failure'
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — core misc"
         run: |
-          python -m pytest \
+          uv run python -m pytest \
             --ignore=tests/doctrine \
             --ignore=tests/kernel \
             --ignore=tests/status \
@@ -1205,17 +1173,14 @@ jobs:
       needs.fast-tests-doctrine.result != 'failure'
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — charter"
         run: |
-          python -m pytest \
+          uv run python -m pytest \
             tests/charter \
             tests/specify_cli/charter_freshness \
             tests/specify_cli/charter_lint \
@@ -1247,17 +1212,14 @@ jobs:
       needs.fast-tests-charter.result != 'failure'
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — agent"
         run: |
-          python -m pytest tests/agent \
+          uv run python -m pytest tests/agent \
             -m "fast and not windows_ci" -q --tb=short \
             --cov=src/specify_cli/agent_utils \
             --cov-fail-under=10 \
@@ -1281,17 +1243,14 @@ jobs:
       needs.fast-tests-agent.result == 'success'
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — agent"
         run: |
-          python -m pytest tests/agent \
+          uv run python -m pytest tests/agent \
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             --cov=src/specify_cli/agent_utils \
@@ -1315,16 +1274,13 @@ jobs:
       - name: "[ENFORCED] Check out repository"
         uses: actions/checkout@v6
 
-      - name: "[ENFORCED] Set up Python"
-        uses: actions/setup-python@v6
+      - name: "[ENFORCED] Set up uv"
+        uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
 
       - name: "[ENFORCED] Install dependencies"
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+        run: uv sync --frozen --all-extras
 
       - name: "[ENFORCED] Prepare report directories"
         run: |
@@ -1333,7 +1289,7 @@ jobs:
 
       - name: "[ENFORCED] Run doctrine integration tests with coverage"
         run: |
-          python -m pytest \
+          uv run python -m pytest \
             -v \
             tests/doctrine/ \
             -m "integration and not windows_ci" \
@@ -1357,17 +1313,14 @@ jobs:
       needs.fast-tests-charter.result == 'success'
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — charter"
         run: |
-          python -m pytest \
+          uv run python -m pytest \
             tests/charter \
             tests/specify_cli/charter_freshness \
             tests/specify_cli/charter_lint \
@@ -1396,17 +1349,14 @@ jobs:
       needs.fast-tests-sync.result == 'success'
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — sync"
         run: |
-          python -m pytest tests/sync/ \
+          uv run python -m pytest tests/sync/ \
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             --cov=src/specify_cli/sync \
@@ -1427,17 +1377,14 @@ jobs:
       needs.fast-tests-merge.result == 'success'
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — merge"
         run: |
-          python -m pytest tests/merge/ \
+          uv run python -m pytest tests/merge/ \
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             --cov=src/specify_cli/merge \
@@ -1458,17 +1405,14 @@ jobs:
       needs.fast-tests-missions.result == 'success'
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — missions"
         run: |
-          python -m pytest tests/missions/ \
+          uv run python -m pytest tests/missions/ \
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             --cov=src/specify_cli/mission \
@@ -1491,17 +1435,14 @@ jobs:
       needs.fast-tests-post-merge.result == 'success'
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — post_merge"
         run: |
-          python -m pytest tests/post_merge/ \
+          uv run python -m pytest tests/post_merge/ \
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             --cov=src/specify_cli/post_merge \
@@ -1523,17 +1464,14 @@ jobs:
       needs.fast-tests-release.result == 'success'
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — release"
         run: |
-          python -m pytest tests/release/ \
+          uv run python -m pytest tests/release/ \
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             --cov=src/specify_cli/release \
@@ -1557,16 +1495,13 @@ jobs:
       - name: "[ENFORCED] Check out repository"
         uses: actions/checkout@v6
 
-      - name: "[ENFORCED] Set up Python"
-        uses: actions/setup-python@v6
+      - name: "[ENFORCED] Set up uv"
+        uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
 
       - name: "[ENFORCED] Install dependencies"
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+        run: uv sync --frozen --all-extras
 
       - name: "[ENFORCED] Prepare report directories"
         run: |
@@ -1575,7 +1510,7 @@ jobs:
 
       - name: "[ENFORCED] Run status integration tests with coverage"
         run: |
-          python -m pytest \
+          uv run python -m pytest \
             -v \
             tests/status/ tests/specify_cli/status/ \
             -m "not windows_ci and (git_repo or integration)" \
@@ -1599,17 +1534,14 @@ jobs:
       needs.fast-tests-review.result == 'success'
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — review"
         run: |
-          python -m pytest tests/review/ \
+          uv run python -m pytest tests/review/ \
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             --cov=src/specify_cli/review \
@@ -1630,18 +1562,16 @@ jobs:
       needs.fast-tests-next.result == 'success'
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
       - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
-          pip install spec-kitty-runtime==0.4.5 --no-deps
+          uv sync --frozen --all-extras
+          uv pip install spec-kitty-runtime==0.4.5 --no-deps
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — next"
         run: |
-          python -m pytest tests/next/ tests/specify_cli/next/ \
+          uv run python -m pytest tests/next/ tests/specify_cli/next/ \
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             --cov=src/specify_cli/next \
@@ -1662,17 +1592,14 @@ jobs:
       needs.fast-tests-lanes.result == 'success'
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — lanes"
         run: |
-          python -m pytest tests/lanes/ \
+          uv run python -m pytest tests/lanes/ \
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             --cov=src/specify_cli/lanes \
@@ -1693,17 +1620,14 @@ jobs:
       needs.fast-tests-dashboard.result == 'success'
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — dashboard"
         run: |
-          python -m pytest tests/test_dashboard/ \
+          uv run python -m pytest tests/test_dashboard/ \
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             --cov=src/specify_cli/dashboard \
@@ -1725,17 +1649,14 @@ jobs:
       needs.fast-tests-upgrade.result == 'success'
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — upgrade"
         run: |
-          python -m pytest tests/upgrade/ \
+          uv run python -m pytest tests/upgrade/ \
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             --cov=src/specify_cli/upgrade \
@@ -1756,17 +1677,14 @@ jobs:
       needs.fast-tests-cli.result == 'success'
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+      - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — cli"
         run: |
-          python -m pytest tests/cli/ tests/specify_cli/cli/ \
+          uv run python -m pytest tests/cli/ tests/specify_cli/cli/ \
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             --cov=src/specify_cli/cli \
@@ -1808,16 +1726,13 @@ jobs:
       - name: "[ENFORCED] Check out repository"
         uses: actions/checkout@v6
 
-      - name: "[ENFORCED] Set up Python"
-        uses: actions/setup-python@v6
+      - name: "[ENFORCED] Set up uv"
+        uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
 
       - name: "[ENFORCED] Install Python dependencies"
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+        run: uv sync --frozen --all-extras
 
       - name: "[ENFORCED] Prepare report directories"
         run: |
@@ -1826,7 +1741,7 @@ jobs:
 
       - name: "[ENFORCED] Run slow tests with coverage"
         run: |
-          python -m pytest \
+          uv run python -m pytest \
             -v \
             -m "slow and not windows_ci" \
             --ignore=tests/e2e \
@@ -1886,12 +1801,13 @@ jobs:
             --tb=short
 
   # ---------------------------------------------------------------------------
-  # e2e-cross-cutting: Push-only (or manual dispatch). Runs tests/e2e/ and
-  # tests/cross_cutting/ in parallel with slow-tests.
+  # e2e-cross-cutting: push/manual, plus PRs that change e2e/cross-cutting
+  # fixtures. Runs tests/e2e/ and tests/cross_cutting/ in parallel with slow-tests.
   # ---------------------------------------------------------------------------
   e2e-cross-cutting:
     runs-on: ubuntu-latest
     needs:
+      - changes
       - fast-tests-doctrine
       - fast-tests-sync
       - fast-tests-merge
@@ -1908,23 +1824,25 @@ jobs:
       - fast-tests-core-misc
       - fast-tests-charter
       - fast-tests-agent
-    if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && (inputs.run_extended || inputs.run_all)))
+    if: |
+      always() && (
+        github.event_name == 'push' ||
+        (github.event_name == 'pull_request' && needs.changes.outputs.e2e == 'true') ||
+        (github.event_name == 'workflow_dispatch' && (inputs.run_extended || inputs.run_all))
+      )
     timeout-minutes: 40
 
     steps:
       - name: "[ENFORCED] Check out repository"
         uses: actions/checkout@v6
 
-      - name: "[ENFORCED] Set up Python"
-        uses: actions/setup-python@v6
+      - name: "[ENFORCED] Set up uv"
+        uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
 
       - name: "[ENFORCED] Install Python dependencies"
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test,lint]
+        run: uv sync --frozen --all-extras
 
       - name: "[ENFORCED] Prepare report directories"
         run: |
@@ -1933,7 +1851,7 @@ jobs:
 
       - name: "[ENFORCED] Run e2e and cross_cutting tests with coverage"
         run: |
-          python -m pytest \
+          uv run python -m pytest \
             -v \
             tests/e2e/ tests/cross_cutting/ \
             -m "not distribution and not windows_ci" \
@@ -1979,16 +1897,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: "[ENFORCED] Set up Python"
-        uses: actions/setup-python@v6
+      - name: "[ENFORCED] Set up uv"
+        uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
-          cache: 'pip'
 
       - name: "[ENFORCED] Install dependencies"
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
+        run: uv sync --frozen --all-extras
 
       - name: "[ENFORCED] Download all coverage artifacts"
         uses: actions/download-artifact@v8
@@ -2047,7 +1962,7 @@ jobs:
             exit 1
           fi
 
-          diff-cover "${coverage_reports[@]}" \
+          uv run diff-cover "${coverage_reports[@]}" \
             --compare-branch=origin/${{ github.base_ref }} \
             --fail-under=90 \
             --include "${critical_paths[@]}"
@@ -2061,7 +1976,7 @@ jobs:
           done < <(find out/reports/artifacts -name 'coverage-*.xml' -print0 2>/dev/null)
 
           if [ ${#coverage_reports[@]} -gt 0 ]; then
-            diff-cover "${coverage_reports[@]}" \
+            uv run diff-cover "${coverage_reports[@]}" \
               --compare-branch=origin/${{ github.base_ref }} || true
           fi
 

@@ -55,6 +55,7 @@ _ACTION_PROFILE_DEFAULTS: dict[tuple[str, str], str] = {
     ("documentation", "generate"): "implementer-ivan",
     ("documentation", "validate"): "reviewer-renata",
     ("documentation", "publish"): "reviewer-renata",
+    ("documentation", "accept"): "reviewer-renata",
 }
 
 

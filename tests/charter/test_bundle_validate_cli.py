@@ -113,7 +113,7 @@ def _add_synthesis_manifest(
 
     full_artifact_rel = f".kittify/doctrine/{artifact_rel}"
     provenance_rel = f".kittify/charter/provenance/{kind}-{slug}.yaml"
-    real_hash = hashlib.sha256(content.encode()).hexdigest()
+    real_hash = hashlib.sha256(content.encode()).hexdigest()  # noqa: TID251 — charter bundle manifest/content-hash scheme, not charter.hasher.hash_content() freshness
     stored_hash = "deadbeef" * 8 if corrupt_hash else real_hash
 
     # Compute the real manifest_hash from the canonical YAML of all non-hash fields
@@ -137,7 +137,7 @@ def _add_synthesis_manifest(
         ],
         "built_in_only": False,
     }
-    real_manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()
+    real_manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()  # noqa: TID251 — charter bundle manifest_hash over canonical_yaml() of non-hash fields, not charter.hasher.hash_content() freshness
     manifest_hash = "e" * 64 if corrupt_manifest_hash else real_manifest_hash
 
     manifest_path = repo_root / ".kittify" / "charter" / "synthesis-manifest.yaml"

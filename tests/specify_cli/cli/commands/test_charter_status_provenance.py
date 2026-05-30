@@ -48,7 +48,7 @@ def _write_yaml(path: Path, data: dict) -> None:
 
 def _compute_manifest_hash(fields: dict) -> str:
     from doctrine.yaml_utils import canonical_yaml
-    return hashlib.sha256(canonical_yaml(fields)).hexdigest()
+    return hashlib.sha256(canonical_yaml(fields)).hexdigest()  # noqa: TID251 — provenance manifest-hash mirror (synthesizer scheme), not charter.hasher.hash_content() freshness
 
 
 def _setup_charter_v1_project(project_path: Path) -> None:

@@ -282,6 +282,18 @@ Terms describing the Doctrine domain model and doctrine artifact taxonomy.
 
 ---
 
+### Doctrine Pack
+
+| | |
+|---|---|
+| **Definition** | A versioned, distributable bundle of doctrine artefacts (glossary terms, tactics, directives, agent profiles, styleguides, and toolguides) that can be installed into a project to govern its development practices. Packs are identified by a stable [Doctrine Pack ID](#doctrine-pack-id) and registered in `.kittify/config.yaml` under `doctrine.org.packs`. The spec-kitty built-in pack is the base layer; project-layer overrides live at `.kittify/doctrine/`. |
+| **Context** | Doctrine |
+| **Status** | canonical |
+| **Applicable to** | `2.x` |
+| **Related terms** | [Doctrine Pack ID](#doctrine-pack-id), [Activation Registry](#activation-registry), [Organisation Tier](#organisation-tier) |
+
+---
+
 ### Doctrine Pack ID
 
 | | |

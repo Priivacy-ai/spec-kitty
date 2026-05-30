@@ -61,7 +61,7 @@ def test_kill9_mid_write_never_leaves_partial_file(tmp_path):
         payload = _make_payload(trial)
         # Capture the expected hash so we can verify on the parent side.
         if expected_hash is None:
-            expected_hash = hashlib.sha256(payload).hexdigest()
+            expected_hash = hashlib.sha256(payload).hexdigest()  # noqa: TID251 — payload-integrity checksum for atomic-write verification, not charter freshness hashing
 
         pid = os.fork()
         if pid == 0:
@@ -85,13 +85,13 @@ def test_kill9_mid_write_never_leaves_partial_file(tmp_path):
 
             # Rebuild the expected payload bytes for verification.
             expected = payload
-            expected_h = hashlib.sha256(expected).hexdigest()
+            expected_h = hashlib.sha256(expected).hexdigest()  # noqa: TID251 — payload-integrity checksum for atomic-write verification, not charter freshness hashing
 
             if not target.exists():
                 missing += 1
                 continue
             data = target.read_bytes()
-            if hashlib.sha256(data).hexdigest() == expected_h:
+            if hashlib.sha256(data).hexdigest() == expected_h:  # noqa: TID251 — file-integrity check on bytes read back from disk for atomic-write verification, not charter freshness hashing
                 completed += 1
             else:
                 partial += 1

@@ -504,14 +504,14 @@ def test_atomic_save_creates_kittify_dir(tmp_path: Path) -> None:
 
 def test_fingerprint_known_value() -> None:
     """fingerprint(b"hello") equals the known SHA-256 digest."""
-    expected = hashlib.sha256(b"hello").hexdigest()
+    expected = hashlib.sha256(b"hello").hexdigest()  # noqa: TID251 — skills manifest fingerprint() is defined as raw SHA-256; the test verifies that definition, not charter freshness
     assert fingerprint(b"hello") == expected
     assert len(fingerprint(b"hello")) == 64
     assert fingerprint(b"hello") == fingerprint(b"hello")  # idempotent
 
 
 def test_fingerprint_empty_bytes() -> None:
-    expected = hashlib.sha256(b"").hexdigest()
+    expected = hashlib.sha256(b"").hexdigest()  # noqa: TID251 — skills manifest fingerprint() is defined as raw SHA-256; the test verifies that definition, not charter freshness
     assert fingerprint(b"") == expected
 
 

@@ -11,7 +11,7 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
-**In repos with multiple missions, always pass `--mission <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
+**In repos with multiple missions, always pass `--mission<!-- glossary:glossary:mission --> <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id<!-- glossary:glossary:mission_id -->` (ULID), `mid8<!-- glossary:glossary:mid8 -->` (first 8 chars of the ULID), or `mission_slug<!-- glossary:glossary:mission_slug -->`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
 
 ## Goal
 
@@ -21,7 +21,7 @@ Identify inconsistencies, duplications, ambiguities, and underspecified items ac
 
 **STRICTLY READ-ONLY**: Do **not** modify any files. Output a structured analysis report. Offer an optional remediation plan (user must explicitly approve before any follow-up editing commands would be invoked manually).
 
-**Charter Authority**: The project charter (`/charter/charter.md`) is **non-negotiable** within this analysis scope. Charter conflicts are automatically CRITICAL and require adjustment of the spec, plan, or tasks—not dilution, reinterpretation, or silent ignoring of the principle. If a principle itself needs to change, that must occur in a separate, explicit charter update outside `/analyze`.
+**Charter<!-- glossary:glossary:charter --> Authority**: The project<!-- glossary:glossary:project --> charter (`/charter/charter.md`) is **non-negotiable** within this analysis scope<!-- glossary:glossary:scope -->. Charter conflicts are automatically CRITICAL and require adjustment of the spec, plan, or tasks—not dilution, reinterpretation, or silent ignoring of the principle. If a principle itself needs to change, that must occur in a separate, explicit charter update outside `/analyze`.
 
 ## Execution Steps
 
@@ -58,7 +58,7 @@ Load only the minimal necessary context from each artifact:
 
 - Task IDs
 - Descriptions
-- Phase grouping
+- Phase<!-- glossary:glossary:phase --> grouping
 - Parallel markers [P]
 - Referenced file paths
 
@@ -66,7 +66,7 @@ Load only the minimal necessary context from each artifact:
 
 - Load `/charter/charter.md` for principle validation
 
-### 3. Build Semantic Models
+### 3. Build<!-- glossary:glossary:build --> Semantic Models
 
 Create internal representations (do not include raw artifacts in output):
 

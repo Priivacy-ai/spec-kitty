@@ -54,7 +54,7 @@ def _make_provenance(
 ) -> ProvenanceEntry:
     body = {"id": "tac-001", "title": "My Tactic", "summary": "Test."}
     yaml_bytes = canonical_yaml(body)
-    ch = content_hash or hashlib.sha256(yaml_bytes).hexdigest()
+    ch = content_hash or hashlib.sha256(yaml_bytes).hexdigest()  # noqa: TID251 — charter synthesizer staging content hash (own scheme), not charter.hasher.hash_content() freshness
     return ProvenanceEntry(
         schema_version="2",
         artifact_urn=f"{kind}:{slug}",

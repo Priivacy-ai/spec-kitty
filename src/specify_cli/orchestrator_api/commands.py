@@ -52,8 +52,23 @@ from .envelope import (
     policy_to_dict,
 )
 
+import click
 from typer import core as typer_core
 from typer.core import TyperGroup
+
+# Typer 0.26+ vendors click as typer._click; exceptions from that module are
+# distinct from the standalone click package's exceptions. We need to catch both
+# so that _JSONErrorGroup works regardless of the installed typer version.
+try:
+    from typer import _click as _typer_click_module  # type: ignore[attr-defined]
+    _CLICK_USAGE_ERRORS: tuple[type, ...] = (
+        click.UsageError,
+        _typer_click_module.exceptions.UsageError,
+    )
+    _CLICK_ABORTS: tuple[type, ...] = (click.Abort, _typer_click_module.exceptions.Abort)
+except ImportError:
+    _CLICK_USAGE_ERRORS = (click.UsageError,)
+    _CLICK_ABORTS = (click.Abort,)
 
 
 _CLICK = typer_core._click if hasattr(typer_core, "_click") else typer_core.click
@@ -115,7 +130,7 @@ class _JSONErrorGroup(TyperGroup):
         """
         try:
             return super().make_context(info_name, args, parent=parent, **extra)
-        except _USAGE_ERROR as exc:
+        except _CLICK_USAGE_ERRORS as exc:
             self._emit_error(exc.format_message())
             raise SystemExit(2) from exc
 
@@ -129,10 +144,10 @@ class _JSONErrorGroup(TyperGroup):
         """
         try:
             return super().invoke(ctx)
-        except _USAGE_ERROR as exc:
+        except _CLICK_USAGE_ERRORS as exc:
             self._emit_error(exc.format_message())
             ctx.exit(2)
-        except _ABORT:
+        except _CLICK_ABORTS:
             self._emit_error("Command aborted")
             ctx.exit(2)
 
@@ -145,10 +160,10 @@ class _JSONErrorGroup(TyperGroup):
             if isinstance(rv, int) and rv != 0:
                 raise SystemExit(rv)
             return rv
-        except _USAGE_ERROR as exc:
+        except _CLICK_USAGE_ERRORS as exc:
             self._emit_error(exc.format_message())
             raise SystemExit(2) from exc
-        except _ABORT:
+        except _CLICK_ABORTS:
             self._emit_error("Command aborted")
             raise SystemExit(2)
         except _EXIT as exc:

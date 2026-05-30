@@ -28,7 +28,7 @@ def _make_namespace() -> NamespaceRef:
 
 
 def _sha256(text: str) -> str:
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()  # noqa: TID251 — sync dossier content checksum (protocol-level), not charter freshness hashing
 
 
 def _make_artifact(

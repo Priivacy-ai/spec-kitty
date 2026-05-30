@@ -31,6 +31,9 @@ from specify_cli.status.store import append_event
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
+_EVENT_COUNTER: int = 0
+
+
 def _make_event(
     *,
     event_id: str = "01HXYZ0123456789ABCDEFGHJK",
@@ -40,13 +43,15 @@ def _make_event(
     review_ref: str | None = None,
     mission_slug: str = "066-test-mission",
 ) -> StatusEvent:
+    global _EVENT_COUNTER  # noqa: PLW0603
+    _EVENT_COUNTER += 1
     return StatusEvent(
         event_id=event_id,
         mission_slug=mission_slug,
         wp_id=wp_id,
         from_lane=from_lane,
         to_lane=to_lane,
-        at="2026-04-06T12:00:00Z",
+        at=f"2026-04-06T12:00:{_EVENT_COUNTER:02d}Z",
         actor="claude",
         force=False,
         execution_mode="worktree",
@@ -396,6 +401,9 @@ class TestModeSwitchFallsThroughOnResolved:
 
 @pytest.fixture()
 def workflow_cli_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Path]:
+    # Bypass the protected-branch guard for test fixtures on 'main'.
+    monkeypatch.setenv("SPEC_KITTY_TEST_MODE", "1")
+
     repo = tmp_path / "repo"
     repo.mkdir()
     subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)

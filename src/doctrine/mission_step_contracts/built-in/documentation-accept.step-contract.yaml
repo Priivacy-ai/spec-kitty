@@ -1,0 +1,47 @@
+# Shipped step contract for the documentation/accept action (#1395).
+# Mirrors the other documentation composition contracts: no new top-level
+# fields and no expected_artifacts on contracts or steps.
+schema_version: "1.0"
+id: documentation-accept
+action: accept
+mission: documentation
+steps:
+  - id: bootstrap
+    description: Load charter context for this action
+    command: "spec-kitty charter context --action accept --role accept --json"
+    inputs:
+      - flag: --profile
+        source: wp.agent_profile
+        optional: true
+      - flag: --tool
+        source: env.agent_tool
+        optional: true
+
+  - id: confirm_publication_handoff
+    description: Confirm release.md records publication target, source revision, owner, and living-documentation cadence
+    delegates_to:
+      kind: directive
+      candidates:
+        - 037-living-documentation-sync
+
+  - id: validate_acceptance_fidelity
+    description: Validate the accepted documentation baseline against the mission specification and publish handoff
+    delegates_to:
+      kind: directive
+      candidates:
+        - 010-specification-fidelity-requirement
+
+  - id: acceptance_decision
+    description: Record whether the documentation mission is accepted or blocked for follow-up work
+    delegates_to:
+      kind: tactic
+      candidates:
+        - requirements-validation-workflow
+
+  - id: commit_acceptance
+    description: Commit acceptance evidence or blocker notes to main branch
+    delegates_to:
+      kind: directive
+      candidates:
+        - 029-agent-commit-signing-policy
+        - 033-targeted-staging-policy

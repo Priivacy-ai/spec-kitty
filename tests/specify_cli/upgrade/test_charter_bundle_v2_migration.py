@@ -132,7 +132,7 @@ def _create_v2_bundle(project_path: Path) -> None:
         "synthesizer_version": "3.2.6",
         "artifacts": [],
     }
-    manifest_hash = hashlib.sha256(canonical_yaml(fields_for_hash)).hexdigest()
+    manifest_hash = hashlib.sha256(canonical_yaml(fields_for_hash)).hexdigest()  # noqa: TID251 — migration preserves existing manifest hash verbatim, not charter.hasher.hash_content() freshness
 
     _write_yaml(
         charter_dir / "synthesis-manifest.yaml",

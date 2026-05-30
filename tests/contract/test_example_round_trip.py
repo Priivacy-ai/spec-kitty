@@ -227,6 +227,8 @@ _LEGACY_CONTRACT_ALLOWLIST: frozenset[str] = frozenset(
         "kitty-specs/wp-prompt-governance-payload-01KRR8HS/contracts/charter-context-resolver.md",
         "kitty-specs/wp-prompt-governance-payload-01KRR8HS/contracts/charter-sync-cross-link.md",
         "kitty-specs/wp-prompt-governance-payload-01KRR8HS/contracts/runtime-template-governance-payload-contract.md",
+        # CI-wiring YAML snippet (not a Pydantic model payload); added per T031 (#1301)
+        "kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/contracts/check_docs_freshness.md",
     }
 )
 

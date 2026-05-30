@@ -331,12 +331,12 @@ def test_migration_does_not_touch_worktree(
     worktree_dir.mkdir(parents=True)
     sentinel = worktree_dir / "ledger.txt"
     sentinel.write_text("do not touch me", encoding="utf-8")
-    before_hash = hashlib.sha256(sentinel.read_bytes()).hexdigest()
+    before_hash = hashlib.sha256(sentinel.read_bytes()).hexdigest()  # noqa: TID251 — file-integrity checksum of an on-disk sentinel to prove the migration leaves it untouched, not charter freshness hashing
 
     migration.apply(fixture_b_no_derivatives)
 
     # File content unchanged.
-    after_hash = hashlib.sha256(sentinel.read_bytes()).hexdigest()
+    after_hash = hashlib.sha256(sentinel.read_bytes()).hexdigest()  # noqa: TID251 — file-integrity checksum of an on-disk sentinel to prove the migration leaves it untouched, not charter freshness hashing
     assert before_hash == after_hash
     # Nothing added underneath the worktree.
     descendants = sorted(p.name for p in worktree_dir.rglob("*"))

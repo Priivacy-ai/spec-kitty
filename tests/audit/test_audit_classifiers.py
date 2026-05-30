@@ -483,11 +483,21 @@ def test_wp_files_known_frontmatter(tmp_path: Path) -> None:
 
 
 def test_wp_files_terminal_lane_no_evidence(tmp_path: Path) -> None:
-    """WP file with terminal lane but no evidence → MISSING_EVIDENCE warning."""
+    """WP file with terminal lane but no evidence → MISSING_EVIDENCE warning.
+
+    The canonical lane is read from the event log (Phase-2 invariant). The
+    frontmatter ``lane`` field is ignored; only the event log is authoritative.
+    """
     tasks_dir = tmp_path / "tasks"
     tasks_dir.mkdir()
-    content = "---\nwork_package_id: WP01\ntitle: Test WP\ndependencies: []\nlane: done\n---\n\n# Body\n"
+    # WP frontmatter without evidence field
+    content = "---\nwork_package_id: WP01\ntitle: Test WP\ndependencies: []\n---\n\n# Body\n"
     (tasks_dir / "WP01.md").write_text(content, encoding="utf-8")
+    # Event log marks WP01 as 'done' — canonical Phase-2 lane source
+    _write_jsonl(
+        tmp_path / "status.events.jsonl",
+        [{**_MODERN_EVENT, "to_lane": "done", "from_lane": "approved"}],
+    )
     findings = classify_wp_files(tmp_path)
     assert "MISSING_EVIDENCE" in _codes(findings)
     missing = [f for f in findings if f.code == "MISSING_EVIDENCE"]
@@ -532,11 +542,20 @@ def test_wp_files_legacy_key_in_frontmatter(tmp_path: Path) -> None:
 
 
 def test_wp_files_approved_lane_no_evidence(tmp_path: Path) -> None:
-    """WP file with 'approved' terminal lane but no evidence → MISSING_EVIDENCE."""
+    """WP file with 'approved' terminal lane but no evidence → MISSING_EVIDENCE.
+
+    The canonical lane is read from the event log (Phase-2 invariant).
+    """
     tasks_dir = tmp_path / "tasks"
     tasks_dir.mkdir()
-    content = "---\nwork_package_id: WP01\ntitle: Test WP\ndependencies: []\nlane: approved\n---\n\n# Body\n"
+    # WP frontmatter without evidence field
+    content = "---\nwork_package_id: WP01\ntitle: Test WP\ndependencies: []\n---\n\n# Body\n"
     (tasks_dir / "WP01.md").write_text(content, encoding="utf-8")
+    # Event log marks WP01 as 'approved' — canonical Phase-2 lane source
+    _write_jsonl(
+        tmp_path / "status.events.jsonl",
+        [{**_MODERN_EVENT, "to_lane": "approved", "from_lane": "in_review"}],
+    )
     findings = classify_wp_files(tmp_path)
     assert "MISSING_EVIDENCE" in _codes(findings)
 

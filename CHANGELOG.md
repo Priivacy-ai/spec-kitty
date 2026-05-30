@@ -11,6 +11,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 No notable changes yet.
 
+## [3.2.0rc30] - 2026-05-29
+
+### Added
+
+- **ADR 2026-05-28-1**: Documents CI dependency resolution and test surface consistency —
+  five structural gaps identified from CI run 26558837157, chosen remediations, and
+  confirmation criteria.
+  (`architecture/adrs/2026-05-28-1-ci-dependency-resolution-and-test-surface-consistency.md`)
+- Typer-surface smoke test (`tests/agent/test_json_group_typer_surface.py`) that exercises
+  the `_JSONErrorGroup` / JSON-envelope contract end-to-end using `typer.Exit` (not
+  `click.exceptions.Exit`). Acts as a canary for the typer 0.26+ vendored-click regression.
+- `agent` pytest marker for orchestrator-api / agent-facing contract surface tests.
+
+### Changed
+
+- **CI: all test and lint jobs now use `uv sync --frozen --all-extras`** instead of
+  `pip install -e .[test]`. The lockfile is the single environment contract for both
+  local and CI, eliminating resolver drift between `uv.lock` and `pyproject.toml` bounds.
+  Three infrastructure jobs (`uv-lock-check`, `build-wheel`, `clean-install-verification`)
+  are unaffected.
+- Python version pinned to `3.11.15` in `.python-version` for reproducibility.
+
+### Fixed
+
+- `_JSONErrorGroup` exception handlers now use `_CLICK_USAGE_ERRORS` / `_CLICK_ABORTS`
+  tuples that include both `click.exceptions.*` and `typer._click.exceptions.*` variants,
+  fixing silent miss of all exceptions raised by typer 0.26+ which vendors click
+  internally as `typer._click`.
+- Charter-preflight test fixtures (`tests/specify_cli/charter_preflight/_fixtures.py`)
+  now use `charter.hasher.hash_content()` instead of raw `hashlib.sha256(bytes)`,
+  aligning with the production algorithm and eliminating hash-format divergence.
+- E2e conftest synthesises `.kittify/charter/metadata.yaml` after `copytree` using
+  the production `charter.hasher.hash_content()` helper, making fixtures self-contained
+  and reproducible on clean clones without gitignored runtime state.
+- Missing `import click` in `orchestrator_api/commands.py` that caused `NameError` in the
+  `except ImportError` fallback when importing the module on typer < 0.26.
+- Restored `doctrine` CLI group registration (incorrectly removed when a stale regression
+  test was treated as a contract); narrowed the curation-excision guard to `curate`/`promote`
+  only; restored `spec-kitty doctrine` sections in `docs/reference/cli-commands.md`.
+
+### Security / Lint
+
+- `TID251` (`flake8-tidy-imports` banned-api) added to ruff: `hashlib.sha256` usage in
+  `tests/` must go through `charter.hasher.hash_content()`; `click.exceptions.Exit`,
+  `UsageError`, and `Abort` in tests must use `typer.*` equivalents instead.
+- `TID251` is now **enforced**, not advisory: a dedicated `[ENFORCED] banned-API lint
+  gate (TID251)` step in `ci-quality.yml` runs `ruff check src tests --select TID251`
+  without `continue-on-error`, so an unannotated banned call fails the build. The
+  previous whole-directory `per-file-ignores` (which silently exempted 10 test trees and
+  defeated the "new sha256 still needs a `# noqa`" policy) were removed; every legitimate
+  raw `hashlib.sha256` now carries an inline `# noqa: TID251 — <justification>`. A guard
+  test (`tests/architectural/test_tid251_enforcement.py`) pins the enforcement so it
+  cannot silently regress to advisory. (Closes the adversarial review block on #1395.)
+
 ## [Unreleased - 3.2.0]
 
 ### Changed

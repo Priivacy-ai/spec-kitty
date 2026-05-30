@@ -48,7 +48,7 @@ def _compute_manifest_hash(
     """
     fields = manifest.model_dump(mode="python")
     fields.pop("manifest_hash")
-    return hashlib.sha256(canonical_yaml(fields)).hexdigest()
+    return hashlib.sha256(canonical_yaml(fields)).hexdigest()  # noqa: TID251 — charter synthesizer's own manifest/content-hash scheme, not the charter.hasher.hash_content() freshness algorithm
 
 
 def _make_manifest(run_id: str = "01KPE222TESTRUNID0000000001") -> SynthesisManifest:
@@ -74,7 +74,7 @@ def _make_manifest(run_id: str = "01KPE222TESTRUNID0000000001") -> SynthesisMani
         "artifacts": [a.model_dump(mode="python") for a in artifacts],
         "built_in_only": False,
     }
-    manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()
+    manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()  # noqa: TID251 — charter synthesizer's own manifest/content-hash scheme, not the charter.hasher.hash_content() freshness algorithm
     return SynthesisManifest(
         schema_version="2",
         mission_id=None,
@@ -103,7 +103,7 @@ def _make_manifest_for_artifacts(
         "artifacts": [a.model_dump(mode="python") for a in artifacts],
         "built_in_only": False,
     }
-    manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()
+    manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()  # noqa: TID251 — charter synthesizer's own manifest/content-hash scheme, not the charter.hasher.hash_content() freshness algorithm
     return SynthesisManifest(
         created_at="2026-04-17T12:00:00+00:00",
         run_id=run_id,
@@ -188,7 +188,7 @@ def test_manifest_with_mission_id(tmp_path: Path, guard: PathGuard) -> None:
         "artifacts": [],
         "built_in_only": False,
     }
-    manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()
+    manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()  # noqa: TID251 — charter synthesizer's own manifest/content-hash scheme, not the charter.hasher.hash_content() freshness algorithm
     manifest = SynthesisManifest(
         created_at="2026-04-17T12:00:00+00:00",
         run_id="01KPE222TESTRUNID0000000001",
@@ -214,7 +214,7 @@ def test_verify_passes_when_hashes_match(tmp_path: Path, guard: PathGuard) -> No
     """verify() passes when all artifact content_hash values match on-disk bytes."""
     # Create an actual artifact file
     artifact_bytes = b"id: PROJECT_001\ntitle: Test\n"
-    content_hash = hashlib.sha256(artifact_bytes).hexdigest()
+    content_hash = hashlib.sha256(artifact_bytes).hexdigest()  # noqa: TID251 — file-integrity checksum of an artifact's raw on-disk bytes, not the charter.hasher.hash_content() freshness algorithm
 
     artifact_rel = ".kittify/doctrine/tactics/my-tactic.tactic.yaml"
     artifact_path = tmp_path / artifact_rel
@@ -241,7 +241,7 @@ def test_verify_passes_when_hashes_match(tmp_path: Path, guard: PathGuard) -> No
         "artifacts": [a.model_dump(mode="python") for a in artifacts],
         "built_in_only": False,
     }
-    manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()
+    manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()  # noqa: TID251 — charter synthesizer's own manifest/content-hash scheme, not the charter.hasher.hash_content() freshness algorithm
     manifest = SynthesisManifest(
         created_at="2026-04-17T12:00:00+00:00",
         run_id="01KPE222TESTRUNID0000000001",
@@ -284,7 +284,7 @@ def test_verify_raises_on_hash_mismatch(tmp_path: Path) -> None:
         "artifacts": [a.model_dump(mode="python") for a in artifacts],
         "built_in_only": False,
     }
-    manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()
+    manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()  # noqa: TID251 — charter synthesizer's own manifest/content-hash scheme, not the charter.hasher.hash_content() freshness algorithm
     manifest = SynthesisManifest(
         created_at="2026-04-17T12:00:00+00:00",
         run_id="01KPE222TESTRUNID0000000001",
@@ -324,7 +324,7 @@ def test_verify_raises_on_missing_artifact(tmp_path: Path) -> None:
         "artifacts": [a.model_dump(mode="python") for a in artifacts],
         "built_in_only": False,
     }
-    manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()
+    manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()  # noqa: TID251 — charter synthesizer's own manifest/content-hash scheme, not the charter.hasher.hash_content() freshness algorithm
     manifest = SynthesisManifest(
         created_at="2026-04-17T12:00:00+00:00",
         run_id="01KPE222TESTRUNID0000000001",
@@ -349,7 +349,7 @@ def test_verify_rejects_absolute_artifact_path(tmp_path: Path) -> None:
                 slug="outside",
                 path=str(outside),
                 provenance_path=".kittify/charter/provenance/tactic-outside.yaml",
-                content_hash=hashlib.sha256(outside.read_bytes()).hexdigest(),
+                content_hash=hashlib.sha256(outside.read_bytes()).hexdigest(),  # noqa: TID251 — file-integrity checksum of an artifact file's on-disk bytes, not the charter.hasher.hash_content() freshness algorithm
             )
         ]
     )
@@ -389,7 +389,7 @@ def test_verify_rejects_provenance_path_outside_provenance_tree(tmp_path: Path) 
                 slug="my-tactic",
                 path=artifact_rel,
                 provenance_path=".kittify/charter/../doctrine/tactic-my-tactic.yaml",
-                content_hash=hashlib.sha256(artifact_path.read_bytes()).hexdigest(),
+                content_hash=hashlib.sha256(artifact_path.read_bytes()).hexdigest(),  # noqa: TID251 — file-integrity checksum of an artifact file's on-disk bytes, not the charter.hasher.hash_content() freshness algorithm
             )
         ]
     )
@@ -413,7 +413,7 @@ def test_verify_accepts_manifest_paths_with_windows_separators(tmp_path: Path) -
                 provenance_path=".kittify/charter/provenance/tactic-windows-path.yaml".replace(
                     "/", "\\"
                 ),
-                content_hash=hashlib.sha256(artifact_path.read_bytes()).hexdigest(),
+                content_hash=hashlib.sha256(artifact_path.read_bytes()).hexdigest(),  # noqa: TID251 — file-integrity checksum of an artifact file's on-disk bytes, not the charter.hasher.hash_content() freshness algorithm
             )
         ]
     )
@@ -462,7 +462,7 @@ def test_manifest_artifact_ordering(tmp_path: Path, guard: PathGuard) -> None:
         "artifacts": [a.model_dump(mode="python") for a in artifacts],
         "built_in_only": False,
     }
-    manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()
+    manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()  # noqa: TID251 — charter synthesizer's own manifest/content-hash scheme, not the charter.hasher.hash_content() freshness algorithm
     manifest = SynthesisManifest(
         created_at="2026-04-17T12:00:00+00:00",
         run_id="01KPE222TESTRUNID0000000001",
@@ -495,7 +495,7 @@ def test_manifest_hash_validates(tmp_path: Path, guard: PathGuard) -> None:
     fields_without_hash = manifest.model_dump(mode="python")
     fields_without_hash.pop("manifest_hash")
     # canonical_yaml() returns bytes — hash directly, no .encode()
-    computed = hashlib.sha256(canonical_yaml(fields_without_hash)).hexdigest()
+    computed = hashlib.sha256(canonical_yaml(fields_without_hash)).hexdigest()  # noqa: TID251 — charter synthesizer's own manifest/content-hash scheme, not the charter.hasher.hash_content() freshness algorithm
     assert computed == manifest.manifest_hash
 
 
@@ -512,7 +512,7 @@ def test_manifest_synthesizer_version_empty_raises() -> None:
         "artifacts": [],
         "built_in_only": False,
     }
-    manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()
+    manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()  # noqa: TID251 — charter synthesizer's own manifest/content-hash scheme, not the charter.hasher.hash_content() freshness algorithm
     with pytest.raises(ValidationError):
         SynthesisManifest(
             created_at="2026-04-17T12:00:00+00:00",
