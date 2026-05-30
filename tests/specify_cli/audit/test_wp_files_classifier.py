@@ -112,6 +112,29 @@ def test_classify_wp_files_reads_lane_from_event_log(tmp_path: Path) -> None:
     assert "MISSING_EVIDENCE" not in [f.code for f in result]
 
 
+def test_classify_wp_files_reads_suffixed_wp_id_from_frontmatter(
+    tmp_path: Path,
+) -> None:
+    """Suffixed task filenames use work_package_id for canonical lane lookup."""
+    tasks_dir = tmp_path / "tasks"
+    tasks_dir.mkdir()
+    (tasks_dir / "WP01-real-task.md").write_text(
+        "---\nwork_package_id: WP01\ntitle: Test\ndependencies: []\n---\n\n# Body\n",
+        encoding="utf-8",
+    )
+    event_log = tmp_path / "status.events.jsonl"
+    event_log.write_text(
+        json.dumps({**_BASE_EVENT, "to_lane": "done", "from_lane": "in_review"}) + "\n",
+        encoding="utf-8",
+    )
+
+    result = classify_wp_files(tmp_path)
+
+    missing_evidence = [finding for finding in result if finding.code == "MISSING_EVIDENCE"]
+    assert len(missing_evidence) == 1
+    assert missing_evidence[0].artifact_path == "tasks/WP01-real-task.md"
+
+
 def test_classify_wp_files_handles_get_wp_lane_race(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

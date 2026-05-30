@@ -93,8 +93,11 @@ def classify_wp_files(mission_dir: Path) -> list[MissionFinding]:
         # Phase-2 invariant: read lane from event log, never from frontmatter.
         # Guard: if no event log exists (pre-3.0 / unfinalized mission), skip check.
         if has_event_log(mission_dir):
+            raw_wp_id = frontmatter.get("work_package_id")
+            wp_id = str(raw_wp_id).strip() if raw_wp_id is not None else ""
+            canonical_wp_id = wp_id or wp_path.stem
             try:
-                lane: str | None = str(get_wp_lane(mission_dir, wp_path.stem))
+                lane: str | None = str(get_wp_lane(mission_dir, canonical_wp_id))
             except CanonicalStatusNotFoundError:
                 lane = None
         else:
