@@ -66,9 +66,14 @@ def get_runtime_root() -> RuntimeRoot:
     """
     platform = _current_platform()
     if platform == "win32":
-        base = Path(
-            platformdirs.user_data_dir("spec-kitty", appauthor=False, roaming=False)
-        )
+        try:
+            base = Path(
+                platformdirs.user_data_dir("spec-kitty", appauthor=False, roaming=False)
+            )
+        except Exception:
+            # Keep import-time Windows simulations and constrained runtimes from
+            # crashing before callers can patch or inspect the module.
+            base = Path.home() / ".spec-kitty"
     else:
         base = Path.home() / ".spec-kitty"
     return RuntimeRoot(platform=platform, base=base)

@@ -305,6 +305,45 @@ def test_commit_failure_removes_event_log_created_by_transaction(repo: Path) -> 
     assert not status_path.exists()
 
 
+def test_write_artifact_refuses_paths_outside_worktree(repo: Path, tmp_path: Path) -> None:
+    """Artifact writes must stay confined to the transaction worktree."""
+    outside = tmp_path / "outside.txt"
+
+    with (
+        BookkeepingTransaction.acquire(
+        repo_root=repo,
+        mission_id=MISSION_ID,
+        mission_slug=MISSION_SLUG,
+        mid8=MID8,
+        destination_ref=COORD_BRANCH,
+        operation="artifact_path_confined",
+    ) as txn,
+        pytest.raises(ValueError, match="outside worktree"),
+    ):
+        txn.write_artifact(outside, b"blocked")
+
+    assert not outside.exists()
+
+
+def test_stage_path_refuses_paths_outside_worktree(repo: Path, tmp_path: Path) -> None:
+    """Staged paths must stay confined to the transaction worktree."""
+    outside = tmp_path / "outside.txt"
+    outside.write_text("seed", encoding="utf-8")
+
+    with (
+        BookkeepingTransaction.acquire(
+        repo_root=repo,
+        mission_id=MISSION_ID,
+        mission_slug=MISSION_SLUG,
+        mid8=MID8,
+        destination_ref=COORD_BRANCH,
+        operation="stage_path_confined",
+    ) as txn,
+        pytest.raises(ValueError, match="outside worktree"),
+    ):
+        txn.stage_path(outside)
+
+
 def test_commit_failure_restores_empty_status_json(repo: Path) -> None:
     """An originally empty status.json must stay empty, not be unlinked."""
     worktree_root = CoordinationWorkspace.resolve(repo, MISSION_SLUG, MID8)
@@ -469,6 +508,21 @@ def test_deferred_outbound_individual_failure_logged(
         txn.commit("status: WP01")
     assert ran == ["a", "c"]
     assert any("kaboom" in rec.getMessage() for rec in caplog.records)
+
+
+def test_write_artifact_refuses_paths_outside_coordination_worktree(repo: Path) -> None:
+    """Artifact writes must stay inside the coordination worktree."""
+    with BookkeepingTransaction.acquire(
+        repo_root=repo,
+        mission_id=MISSION_ID,
+        mission_slug=MISSION_SLUG,
+        mid8=MID8,
+        destination_ref=COORD_BRANCH,
+        operation="artifact_scope",
+    ) as txn:
+        outside_path = repo / "outside.txt"
+        with pytest.raises(ValueError, match="outside coordination worktree"):
+            txn.write_artifact(outside_path, b"bad")
 
 
 # ---------------------------------------------------------------------------

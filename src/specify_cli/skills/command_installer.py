@@ -457,7 +457,7 @@ def remove(repo_root: Path, agent_key: str) -> RemoveReport:
 
     report = RemoveReport()
 
-    for entry in list(manifest.entries):
+    for entry in manifest.entries:
         if agent_key not in entry.agents:
             continue
 
@@ -508,7 +508,7 @@ def prune_stale(repo_root: Path) -> list[str]:
         raise InstallerError("manifest_parse_failed", detail=str(exc)) from exc
 
     pruned: list[str] = []
-    for entry in list(manifest.entries):
+    for entry in manifest.entries.copy():
         if _is_canonical_rel_path(entry.path):
             continue
 

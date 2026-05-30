@@ -127,6 +127,7 @@ DAEMON_SERVE_FOREVER_POLL_SECONDS: float = 0.05
 DAEMON_TICK_SECONDS: int = 30
 
 _RUNTIME_BACKGROUND_START_DELAY_SECONDS: float = 1.0
+_STARTUP_HEALTH_TIMEOUT_SECONDS: float = 0.1
 
 
 def _is_daemon_lock_contention(exc: OSError) -> bool:
@@ -148,6 +149,10 @@ def _is_daemon_lock_contention(exc: OSError) -> bool:
 @cache
 def _get_package_version() -> str:
     """Return the installed specify_cli version string."""
+    env_version = os.environ.get("SPEC_KITTY_CLI_VERSION")
+    if env_version:
+        return env_version
+
     try:
         from importlib.metadata import version
 
@@ -699,6 +704,8 @@ def _background_script(port: int, daemon_token: str | None) -> str:
     """
     return textwrap.dedent(
         f"""\
+        import os
+        os.environ["SPEC_KITTY_SYNC_MINIMAL_IMPORT"] = "1"
         from specify_cli.sync.daemon import run_sync_daemon
         run_sync_daemon({port}, {repr(daemon_token)})
         """
@@ -893,9 +900,17 @@ def _ensure_sync_daemon_running_locked(preferred_port: int | None = None) -> tup
     """Inner implementation — caller must hold the daemon lock file."""
     if DAEMON_STATE_FILE.exists():
         existing_url, existing_port, existing_token, existing_pid = _parse_daemon_file(DAEMON_STATE_FILE)
-        if existing_port is not None and _check_sync_daemon_health(existing_port, existing_token):
+        if existing_port is not None and _check_sync_daemon_health(
+            existing_port,
+            existing_token,
+            timeout=_STARTUP_HEALTH_TIMEOUT_SECONDS,
+        ):
             # Daemon is healthy — check whether it's running the current version.
-            if _daemon_version_matches(existing_port, existing_token):
+            if _daemon_version_matches(
+                existing_port,
+                existing_token,
+                timeout=_STARTUP_HEALTH_TIMEOUT_SECONDS,
+            ):
                 return existing_url or f"http://127.0.0.1:{existing_port}", existing_port, False
 
             # Stale version — recycle the daemon.
@@ -925,6 +940,7 @@ def _ensure_sync_daemon_running_locked(preferred_port: int | None = None) -> tup
         stderr=log_fh,
         stdin=subprocess.DEVNULL,
         start_new_session=True,
+        env={**os.environ, "SPEC_KITTY_CLI_VERSION": _get_package_version()},
     )
     log_fh.close()
 
@@ -933,7 +949,11 @@ def _ensure_sync_daemon_running_locked(preferred_port: int | None = None) -> tup
     # Wait up to ~20s for the daemon to become healthy (matching dashboard pattern)
     retry_delays = [0.1] * 10 + [0.25] * 40 + [0.5] * 20
     for delay in retry_delays:
-        if _check_sync_daemon_health(port, token):
+        if _check_sync_daemon_health(
+            port,
+            token,
+            timeout=_STARTUP_HEALTH_TIMEOUT_SECONDS,
+        ):
             _write_daemon_file(DAEMON_STATE_FILE, url, port, token, proc.pid)
             return url, port, True
         time.sleep(delay)

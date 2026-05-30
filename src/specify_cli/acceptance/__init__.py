@@ -85,6 +85,15 @@ class WorkPackageState:
 
 
 @dataclass
+class AcceptanceCheckDiagnostic:
+    check: str
+    detail: str
+
+    def to_dict(self) -> dict[str, str]:
+        return {"check": self.check, "detail": self.detail}
+
+
+@dataclass
 class AcceptanceSummary:
     feature: str
     repo_root: Path
@@ -104,6 +113,9 @@ class AcceptanceSummary:
     git_dirty: list[str]
     path_violations: list[str]
     warnings: list[str]
+    skipped_checks: list[AcceptanceCheckDiagnostic] = field(default_factory=list)
+    blocked_checks: list[AcceptanceCheckDiagnostic] = field(default_factory=list)
+    recommended_fix_order: list[str] = field(default_factory=list)
 
     @property
     def all_done(self) -> bool:
@@ -143,6 +155,13 @@ class AcceptanceSummary:
         }
         return {key: value for key, value in buckets.items() if value}
 
+    def failed_checks(self) -> list[AcceptanceCheckDiagnostic]:
+        return [
+            AcceptanceCheckDiagnostic(check=check, detail=detail)
+            for check, details in self.outstanding().items()
+            for detail in details
+        ]
+
     def to_dict(self) -> dict[str, object]:
         identity = resolve_mission_identity(self.feature_dir)
         return {
@@ -177,6 +196,10 @@ class AcceptanceSummary:
             "git_dirty": self.git_dirty,
             "path_violations": self.path_violations,
             "warnings": self.warnings,
+            "failed_checks": [item.to_dict() for item in self.failed_checks()],
+            "skipped_checks": [item.to_dict() for item in self.skipped_checks],
+            "blocked_checks": [item.to_dict() for item in self.blocked_checks],
+            "recommended_fix_order": self.recommended_fix_order,
             "all_done": self.all_done,
             "ok": self.ok,
         }
@@ -524,11 +547,36 @@ def _validate_wp_readiness(
             activity_issues.append(f"{wp_id}: canonical lane is '{wp_snapshot.get('lane')}', expected 'approved' or 'done'")
 
 
+def _append_skipped_lane_checks(
+    skipped_checks: list[AcceptanceCheckDiagnostic],
+    *,
+    reason: str,
+    include_matrix_presence: bool = False,
+) -> None:
+    checks = [
+        ("acceptance_matrix_presence", "Acceptance matrix presence check"),
+        ("acceptance_matrix_evidence", "Acceptance matrix evidence validation"),
+        ("negative_invariants", "Negative invariant execution"),
+        ("acceptance_matrix_verdict", "Acceptance matrix verdict evaluation"),
+    ]
+    for check, label in checks[0 if include_matrix_presence else 1:]:
+        skipped_checks.append(
+            AcceptanceCheckDiagnostic(
+                check=check,
+                detail=f"{label} skipped: {reason}",
+            )
+        )
+
+
 def _check_lane_gates(
     repo_root: Path,
     feature_dir: Path,
     branch: str | None,
     activity_issues: list[str],
+    skipped_checks: list[AcceptanceCheckDiagnostic],
+    blocked_checks: list[AcceptanceCheckDiagnostic],
+    *,
+    mutate_matrix: bool = True,
 ) -> None:
     """Enforce lane-based acceptance gates: branch check + acceptance matrix."""
     try:
@@ -542,7 +590,15 @@ def _check_lane_gates(
         return
 
     if branch and branch != lanes_manifest.mission_branch:
-        activity_issues.append(f"Acceptance must run on mission branch {lanes_manifest.mission_branch}, not {branch}")
+        message = f"Acceptance must run on mission branch {lanes_manifest.mission_branch}, not {branch}"
+        activity_issues.append(message)
+        blocked_checks.append(AcceptanceCheckDiagnostic(check="mission_branch", detail=message))
+        _append_skipped_lane_checks(
+            skipped_checks,
+            reason="current branch does not match the mission branch",
+            include_matrix_presence=True,
+        )
+        return
 
     from specify_cli.acceptance.matrix import (
         enforce_negative_invariants,
@@ -553,12 +609,25 @@ def _check_lane_gates(
 
     acc_matrix = read_acceptance_matrix(feature_dir)
     if acc_matrix is None:
-        activity_issues.append("Acceptance matrix (acceptance-matrix.json) is required for lane-based features but was not found")
+        message = "Acceptance matrix (acceptance-matrix.json) is required for lane-based features but was not found"
+        activity_issues.append(message)
+        blocked_checks.append(AcceptanceCheckDiagnostic(check="acceptance_matrix", detail=message))
+        _append_skipped_lane_checks(
+            skipped_checks,
+            reason="acceptance-matrix.json is missing",
+        )
         return
 
-    if acc_matrix.negative_invariants:
+    if acc_matrix.negative_invariants and mutate_matrix:
         acc_matrix.negative_invariants = enforce_negative_invariants(repo_root, acc_matrix.negative_invariants)
         write_acceptance_matrix(feature_dir, acc_matrix)
+    elif acc_matrix.negative_invariants:
+        skipped_checks.append(
+            AcceptanceCheckDiagnostic(
+                check="negative_invariants",
+                detail="Negative invariant execution skipped: diagnose mode is read-only",
+            )
+        )
 
     for err in validate_matrix_evidence(acc_matrix):
         activity_issues.append(f"Evidence: {err}")
@@ -674,11 +743,54 @@ def _check_workflow_run_evidence(
         )
 
 
+def _build_recommended_fix_order(
+    *,
+    lanes: dict[str, list[str]],
+    metadata_issues: list[str],
+    activity_issues: list[str],
+    unchecked_tasks: list[str],
+    needs_clarification: list[str],
+    missing_artifacts: list[str],
+    git_dirty: list[str],
+    path_violations: list[str],
+    blocked_checks: list[AcceptanceCheckDiagnostic],
+) -> list[str]:
+    recommendations: list[str] = []
+
+    if git_dirty:
+        recommendations.append("Commit, stash, or discard working tree changes before acceptance.")
+    if any(item.check == "mission_branch" for item in blocked_checks):
+        recommendations.append("Switch to the mission branch named in the branch failure.")
+    if missing_artifacts:
+        recommendations.append("Restore required mission artifacts before acceptance.")
+    if metadata_issues:
+        recommendations.append("Fix work-package metadata issues.")
+    if any(wp_ids for lane, wp_ids in lanes.items() if lane not in {"approved", "done"}):
+        recommendations.append("Move all work packages to approved or done.")
+    if unchecked_tasks:
+        recommendations.append("Complete unchecked items in tasks.md.")
+    if needs_clarification:
+        recommendations.append("Resolve open NEEDS CLARIFICATION markers.")
+    if any(item.check == "acceptance_matrix" for item in blocked_checks):
+        recommendations.append("Create or restore kitty-specs/<mission>/acceptance-matrix.json.")
+    if any("Evidence:" in issue for issue in activity_issues):
+        recommendations.append("Fill missing acceptance matrix evidence fields.")
+    if any("Acceptance matrix verdict is" in issue for issue in activity_issues):
+        recommendations.append("Resolve pending or failing acceptance matrix criteria and negative invariants.")
+    if any("Workflow run evidence required" in issue for issue in activity_issues):
+        recommendations.append("Add successful GitHub Actions run evidence for workflow changes.")
+    if path_violations:
+        recommendations.append("Fix mission path convention violations.")
+
+    return recommendations
+
+
 def collect_feature_summary(
     repo_root: Path,
     feature: str,
     *,
     strict_metadata: bool = True,
+    mutate_matrix: bool = True,
 ) -> AcceptanceSummary:
     feature_dir = repo_root / "kitty-specs" / feature
     tasks_dir = feature_dir / "tasks"
@@ -691,6 +803,8 @@ def collect_feature_summary(
     work_packages: list[WorkPackageState] = []
     metadata_issues: list[str] = []
     activity_issues: list[str] = []
+    skipped_checks: list[AcceptanceCheckDiagnostic] = []
+    blocked_checks: list[AcceptanceCheckDiagnostic] = []
 
     snapshot_wps = _collect_snapshot_wps(feature, feature_dir, activity_issues)
 
@@ -768,8 +882,29 @@ def collect_feature_summary(
     if path_violations:
         warnings.append("Path conventions not satisfied.")
 
-    _check_lane_gates(repo_root, feature_dir, branch, activity_issues)
+    _check_lane_gates(
+        repo_root,
+        feature_dir,
+        branch,
+        activity_issues,
+        skipped_checks,
+        blocked_checks,
+        mutate_matrix=mutate_matrix,
+    )
     _check_workflow_run_evidence(repo_root, feature_dir, branch, activity_issues)
+
+    normalized_unchecked_tasks = unchecked_tasks if unchecked_tasks != [f"{TASKS_FILE} missing"] else []
+    recommended_fix_order = _build_recommended_fix_order(
+        lanes=lanes,
+        metadata_issues=metadata_issues,
+        activity_issues=activity_issues,
+        unchecked_tasks=normalized_unchecked_tasks,
+        needs_clarification=needs_clarification,
+        missing_artifacts=missing_required,
+        git_dirty=git_dirty,
+        path_violations=path_violations,
+        blocked_checks=blocked_checks,
+    )
 
     return AcceptanceSummary(
         feature=feature,
@@ -783,13 +918,16 @@ def collect_feature_summary(
         work_packages=work_packages,
         metadata_issues=metadata_issues,
         activity_issues=activity_issues,
-        unchecked_tasks=unchecked_tasks if unchecked_tasks != [f"{TASKS_FILE} missing"] else [],
+        unchecked_tasks=normalized_unchecked_tasks,
         needs_clarification=needs_clarification,
         missing_artifacts=missing_required,
         optional_missing=missing_optional,
         git_dirty=git_dirty,
         path_violations=path_violations,
         warnings=warnings,
+        skipped_checks=skipped_checks,
+        blocked_checks=blocked_checks,
+        recommended_fix_order=recommended_fix_order,
     )
 
 
@@ -860,6 +998,15 @@ def _commit_acceptance_meta(
             if _history:
                 _history[-1]["accept_commit"] = accept_commit
             write_meta(summary.feature_dir, _meta)
+            run_git(["add", str(meta_path.relative_to(summary.repo_root))], cwd=summary.repo_root, check=True)
+            commit_status = run_git(["diff", "--cached", "--name-only"], cwd=summary.repo_root, check=True)
+            commit_staged_files = [line.strip() for line in commit_status.stdout.splitlines() if line.strip()]
+            if commit_staged_files:
+                run_git(
+                    ["commit", "-m", f"Record acceptance commit for {summary.feature}"],
+                    cwd=summary.repo_root,
+                    check=True,
+                )
 
     return parent_commit, accept_commit, True
 

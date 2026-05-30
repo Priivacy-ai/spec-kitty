@@ -278,7 +278,6 @@ class TestHealthCheckRetryWindow:
         # Dashboard uses ~20s; daemon should be at least 15s
         assert total_sleep["s"] >= 15.0
 
-
 # ---------------------------------------------------------------------------
 # Fix #7 — Version check triggers daemon restart
 # ---------------------------------------------------------------------------

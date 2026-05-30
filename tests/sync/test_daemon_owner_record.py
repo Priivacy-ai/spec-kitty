@@ -12,6 +12,7 @@ directory is a per-test scratch space.
 
 from __future__ import annotations
 
+import builtins
 import json
 import os
 import shutil
@@ -93,6 +94,26 @@ def test_read_returns_none_when_missing(_scoped_home: Path) -> None:
     from specify_cli.sync.owner import read_owner_record
 
     assert read_owner_record() is None
+
+
+def test_resolve_source_checkout_path_avoids_root_cli_import(
+    _scoped_home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Daemon owner construction must not import the root CLI package."""
+    from specify_cli.sync import owner as owner_mod
+
+    real_import = builtins.__import__
+
+    def guarded_import(name: str, globals=None, locals=None, fromlist=(), level=0):
+        if name == "specify_cli" and not fromlist:
+            raise AssertionError("root CLI package import is not allowed here")
+        return real_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", guarded_import)
+
+    assert owner_mod._resolve_source_checkout_path() == str(
+        Path(owner_mod.__file__).resolve().parents[3]
+    )
 
 
 def test_read_returns_none_on_corrupt_json(_scoped_home: Path) -> None:

@@ -1529,6 +1529,7 @@ def accept_feature(
     json_output: Annotated[bool, typer.Option("--json", help="Output results as JSON for agent parsing")] = False,
     lenient: Annotated[bool, typer.Option("--lenient", help="Skip strict metadata validation")] = False,
     no_commit: Annotated[bool, typer.Option("--no-commit", help="Skip auto-commit (report only)")] = False,
+    diagnose: Annotated[bool, typer.Option("--diagnose", help="Diagnose acceptance blockers without mutation")] = False,
 ) -> None:
     """Perform mission acceptance workflow.
 
@@ -1562,6 +1563,7 @@ def accept_feature(
             json_output=json_output,
             lenient=lenient,
             no_commit=no_commit,
+            diagnose=diagnose,
             allow_fail=False,  # Agent commands use strict validation
         )
     except typer.Exit:
