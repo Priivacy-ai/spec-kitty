@@ -8,7 +8,7 @@ trust ``next --json`` as the canonical "what should I do next?" signal.
 
 This module exposes :func:`preview_claimable_wp`, the **single
 implementation path** for "which WP would the next implement action claim?".
-``_find_first_planned_wp`` in
+``_preview_claimable_wp_for_mission`` in
 ``specify_cli.cli.commands.agent.workflow`` delegates to this helper, so
 spec FR-003 ("claimability discovery MUST share a single implementation
 path with the explicit ``agent action implement`` claim logic, with no
@@ -30,9 +30,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from specify_cli.core.dependency_graph import build_dependency_graph, dependency_readiness_for_wp
 from specify_cli.status.models import Lane
 from specify_cli.status.reducer import reduce as _reduce_events
 from specify_cli.status.store import read_events as _read_events
+from specify_cli.status.wp_state import wp_state_for
 from specify_cli.task_utils.support import extract_scalar, split_frontmatter
 
 __all__ = ["ClaimablePreview", "preview_claimable_wp"]
@@ -65,8 +67,11 @@ class ClaimablePreview:
             * ``"all_wps_in_progress"`` — at least one candidate is in an
               active non-planned lane (``claimed``, ``in_progress``,
               ``for_review``, ``in_review``).
+            * ``"dependencies_not_satisfied"`` — planned WPs exist, but every
+              planned candidate is waiting on at least one dependency that is
+              not yet ``approved`` or ``done``.
         candidates: Ordered tuple of WP IDs the claim algorithm would have
-            considered (matches the order ``_find_first_planned_wp`` walks).
+            considered, in alphabetical ``WP*.md`` order.
     """
 
     wp_id: str | None
@@ -97,16 +102,29 @@ def _load_wp_lanes(feature_dir: Path) -> dict[str, Lane]:
     except Exception:  # noqa: BLE001 — discovery is best-effort; on read failure default to PLANNED
         return {}
     return {
-        wp_id: Lane(state.get("lane", Lane.PLANNED))
+        wp_id: wp_state_for(state.get("lane", Lane.PLANNED)).lane
         for wp_id, state in snapshot.work_packages.items()
     }
 
 
-def _preview_from_candidates(candidates: list[str], wp_lanes: dict[str, Lane]) -> ClaimablePreview:
+def _preview_from_candidates(
+    candidates: list[str],
+    wp_lanes: dict[str, Lane],
+    dependency_graph: dict[str, list[str]],
+) -> ClaimablePreview:
     has_active_candidate = False
+    has_dependency_blocked_candidate = False
     for wp_id in candidates:
         lane = wp_lanes.get(wp_id, Lane.PLANNED)
         if lane == Lane.PLANNED:
+            readiness = dependency_readiness_for_wp(
+                wp_id,
+                dependency_graph.get(wp_id, []),
+                wp_lanes,
+            )
+            if not readiness.satisfied:
+                has_dependency_blocked_candidate = True
+                continue
             return ClaimablePreview(
                 wp_id=wp_id,
                 selection_reason=None,
@@ -116,7 +134,13 @@ def _preview_from_candidates(candidates: list[str], wp_lanes: dict[str, Lane]) -
             has_active_candidate = True
     return ClaimablePreview(
         wp_id=None,
-        selection_reason="all_wps_in_progress" if has_active_candidate else "no_planned_wps",
+        selection_reason=(
+            "dependencies_not_satisfied"
+            if has_dependency_blocked_candidate
+            else "all_wps_in_progress"
+            if has_active_candidate
+            else "no_planned_wps"
+        ),
         candidates=tuple(candidates),
     )
 
@@ -125,10 +149,11 @@ def preview_claimable_wp(feature_dir: Path) -> ClaimablePreview:
     """Return the WP that ``agent action implement`` would auto-claim, if any.
 
     Walks ``<feature_dir>/tasks/WP*.md`` in alphabetical order, reads each
-    file's YAML frontmatter ``work_package_id`` (matching the source-of-truth
-    used by :func:`_find_first_planned_wp`), then consults the canonical
-    status event log for current lane. The first candidate whose lane is
-    :class:`Lane.PLANNED` is the WP the explicit action would claim.
+    file's YAML frontmatter ``work_package_id``, then consults the canonical
+    status event log for current lane and the canonical dependency graph for
+    dependency readiness. The first candidate whose lane is
+    :class:`Lane.PLANNED` and whose dependencies are all ``approved`` or
+    ``done`` is the WP the explicit action would claim.
 
     Args:
         feature_dir: Absolute path to ``kitty-specs/<mission_slug>/``.
@@ -155,4 +180,8 @@ def preview_claimable_wp(feature_dir: Path) -> ClaimablePreview:
         )
 
     # Read lanes from the canonical status event log (lane is event-log-only).
-    return _preview_from_candidates(candidates, _load_wp_lanes(feature_dir))
+    return _preview_from_candidates(
+        candidates,
+        _load_wp_lanes(feature_dir),
+        build_dependency_graph(feature_dir),
+    )

@@ -49,7 +49,11 @@ from charter.context import build_charter_context
 from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts
 from specify_cli.cli.commands.implement import implement as top_level_implement
 from specify_cli.cli.selector_resolution import resolve_mission_handle, resolve_selector
-from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
+from specify_cli.core.dependency_graph import (
+    build_dependency_graph,
+    dependency_readiness_for_wp,
+    get_dependents,
+)
 from specify_cli.core.paths import get_main_repo_root, is_worktree_context, locate_project_root
 from specify_cli.core.utils import write_text_within_directory
 from specify_cli.git import safe_commit
@@ -760,51 +764,36 @@ def _normalize_wp_id(wp_arg: str) -> str:
         return f"WP{wp_upper.lstrip('WP')}"
 
 
-def _resolve_tasks_dir(cwd: Path, mission_slug: str, repo_root: Path) -> Path:
-    """Resolve the tasks directory for mission_slug from the current working directory."""
-    from specify_cli.core.paths import is_worktree_context
+def _preview_claimable_wp_for_mission(repo_root: Path, mission_slug: str):
+    """Return the shared claimable preview for *mission_slug*, if tasks exist.
 
-    if not is_worktree_context(cwd):
-        return repo_root / "kitty-specs" / mission_slug / "tasks"
-
-    if (cwd / "kitty-specs" / mission_slug).exists():
-        return cwd / "kitty-specs" / mission_slug / "tasks"
-
-    current = cwd
-    while current != current.parent:
-        if (current / "kitty-specs" / mission_slug).exists():
-            return current / "kitty-specs" / mission_slug / "tasks"
-        current = current.parent
-
-    return repo_root / "kitty-specs" / mission_slug / "tasks"
-
-
-def _find_first_planned_wp(repo_root: Path, mission_slug: str) -> str | None:
-    """Find the first WP file with lane: "planned".
-
-    Args:
-        repo_root: Repository root path
-        mission_slug: Feature slug
-
-    Returns:
-        WP ID of first planned task, or None if not found
-
-    Implementation note (issue #988, FR-003): this function delegates to the
-    shared, side-effect-free :func:`specify_cli.next.discovery.preview_claimable_wp`
-    so that ``next --json`` and ``agent action implement`` cannot drift in
-    their candidate-selection logic. Do not reintroduce a parallel
-    implementation here.
+    The readiness preview is always computed against the repository-root
+    checkout's canonical status event log — never a worktree-local copy, which
+    may lag the latest status commit. This keeps the displayed auto-claim
+    candidate and ``selection_reason`` in agreement with the authoritative
+    dependency gate that governs the implement action (which also reads from the
+    repository-root checkout), so a genuinely-ready WP is never falsely reported
+    as ``dependencies_not_satisfied`` when this command runs from a stale
+    worktree.
     """
     from specify_cli.next.discovery import preview_claimable_wp
 
-    cwd = Path.cwd().resolve()
-    tasks_dir = _resolve_tasks_dir(cwd, mission_slug, repo_root)
-
-    if not tasks_dir.exists():
+    feature_dir = get_main_repo_root(repo_root) / "kitty-specs" / mission_slug
+    if not (feature_dir / "tasks").is_dir():
         return None
+    return preview_claimable_wp(feature_dir)
 
-    feature_dir = tasks_dir.parent
-    return preview_claimable_wp(feature_dir).wp_id
+
+def _auto_claim_failure_message(preview: object | None) -> str:
+    """Return the user-facing error when auto-claim has no selectable WP."""
+    selection_reason = getattr(preview, "selection_reason", None)
+    if selection_reason == "dependencies_not_satisfied":
+        return (
+            "dependencies_not_satisfied: planned work packages are waiting on "
+            "dependencies; all dependencies must be approved or done before "
+            "implementation can start"
+        )
+    return "No planned work packages found. Specify a WP ID explicitly."
 
 
 @app.command(name="implement")
@@ -901,9 +890,10 @@ def implement(
             normalized_wp_id = _normalize_wp_id(wp_id)
         else:
             # Auto-detect first planned WP
-            normalized_wp_id = _find_first_planned_wp(repo_root, mission_slug)
+            _claimable_preview = _preview_claimable_wp_for_mission(repo_root, mission_slug)
+            normalized_wp_id = getattr(_claimable_preview, "wp_id", None)
             if not normalized_wp_id:
-                print("Error: No planned work packages found. Specify a WP ID explicitly.")
+                print(f"Error: {_auto_claim_failure_message(_claimable_preview)}")
                 raise typer.Exit(1)
 
         # Find WP file to read dependencies
@@ -963,6 +953,39 @@ def implement(
             if _is_missing_canonical_status_error(e):
                 raise RuntimeError(_missing_canonical_status_message(normalized_wp_id, mission_slug)) from e
             raise
+
+        from specify_cli.status.reducer import reduce as _dep_reduce_events
+        from specify_cli.status.store import read_events as _dep_read_events
+        from specify_cli.status.transitions import resolve_lane_alias as _dep_resolve_alias
+
+        _dependency_feature_dir = main_repo_root / "kitty-specs" / mission_slug
+        _dependency_snapshot = _dep_reduce_events(_dep_read_events(_dependency_feature_dir))
+        _dependency_lanes = {
+            _wp_id: _state.get("lane", Lane.PLANNED)
+            for _wp_id, _state in _dependency_snapshot.work_packages.items()
+        }
+        # Only gate the not-yet-started claim transition. Re-invoking implement on
+        # a WP that is already in_progress/for_review/.../approved (resume, prompt
+        # redisplay, fix-cycle) must not be rejected just because a dependency
+        # later regressed out of approved/done — the lifecycle treats those
+        # re-invocations as no-op resumes, not new claims.
+        try:
+            _self_lane = Lane(_dep_resolve_alias(str(_dependency_lanes.get(normalized_wp_id, Lane.PLANNED))))
+        except ValueError:
+            _self_lane = Lane.PLANNED
+        if _self_lane in (Lane.PLANNED, Lane.CLAIMED):
+            _dependency_readiness = dependency_readiness_for_wp(
+                normalized_wp_id,
+                wp_meta.dependencies,
+                _dependency_lanes,
+            )
+            if not _dependency_readiness.satisfied:
+                blocked = ", ".join(_dependency_readiness.unsatisfied)
+                print(
+                    f"Error: dependencies_not_satisfied: {normalized_wp_id} depends on {blocked}; "
+                    "all dependencies must be approved or done before implementation can start"
+                )
+                raise typer.Exit(1)
 
         subtask_ids = [str(item) for item in wp_meta.subtasks if isinstance(item, str)]
         subtask_cmd = " ".join(subtask_ids) if subtask_ids else "<subtask-ids>"

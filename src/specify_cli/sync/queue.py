@@ -436,7 +436,7 @@ def _read_server_url_for_scope() -> str:
     return str(value)
 
 
-def read_queue_scope_from_session() -> str | None:
+def read_queue_scope_from_session(*, allow_rehydrate: bool = True) -> str | None:
     """Read queue scope from the real encrypted auth session store.
 
     Returns None when the session is missing, unreadable, or incomplete, or
@@ -452,7 +452,7 @@ def read_queue_scope_from_session() -> str | None:
     # repeated /api/v1/me probes for a single shared-only session.
     try:
         from specify_cli.auth import get_token_manager
-        from specify_cli.sync._team import resolve_private_team_id_for_ingress
+        from specify_cli.auth.session import require_private_team_id
     except Exception as exc:  # noqa: BLE001 — explicit "log and skip" boundary
         import logging
 
@@ -466,10 +466,15 @@ def read_queue_scope_from_session() -> str | None:
     if session is None or not session.email:
         return None
 
-    team_id = resolve_private_team_id_for_ingress(
-        token_manager,
-        endpoint="/api/v1/events/batch/",
-    )
+    if allow_rehydrate:
+        from specify_cli.sync._team import resolve_private_team_id_for_ingress
+
+        team_id = resolve_private_team_id_for_ingress(
+            token_manager,
+            endpoint="/api/v1/events/batch/",
+        )
+    else:
+        team_id = require_private_team_id(session)
     if team_id is None:
         # Queue scope cannot be safely derived without a Private Teamspace;
         # leave events in any existing scoped queue and return None so
@@ -913,13 +918,17 @@ def detect_legacy_rows_for_scope(scope: str) -> LegacyRowCounts:
     )
 
 
-def default_queue_db_path(credentials_path: Path | None = None) -> Path:
+def default_queue_db_path(
+    credentials_path: Path | None = None,
+    *,
+    allow_rehydrate: bool = True,
+) -> Path:
     """Resolve default queue DB path.
 
     Unauthenticated sessions use legacy ~/.spec-kitty/queue.db.
     Authenticated sessions use scoped queues under ~/.spec-kitty/queues/.
     """
-    scope = read_queue_scope_from_session()
+    scope = read_queue_scope_from_session(allow_rehydrate=allow_rehydrate)
     if scope is None:
         scope = read_queue_scope_from_credentials(credentials_path=credentials_path)
     if scope:

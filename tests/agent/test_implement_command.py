@@ -84,6 +84,26 @@ def create_lanes_json(feature_dir: Path, wp_ids: tuple[str, ...] = ("WP01",)) ->
     )
 
 
+def _append_lane_event(feature_dir: Path, wp_id: str, lane: str) -> None:
+    from specify_cli.status.models import Lane, StatusEvent
+    from specify_cli.status.store import append_event
+
+    append_event(
+        feature_dir,
+        StatusEvent(
+            event_id=f"seed-{wp_id}-{lane}",
+            mission_slug=feature_dir.name,
+            wp_id=wp_id,
+            from_lane=Lane.PLANNED,
+            to_lane=Lane(lane),
+            at="2026-05-30T08:30:00+00:00",
+            actor="fixture",
+            force=True,
+            execution_mode="worktree",
+        ),
+    )
+
+
 class TestDetectFeatureContext:
     def test_detect_with_explicit_flag(self) -> None:
         number, slug = detect_feature_context("010-lane-only-runtime")
@@ -266,6 +286,7 @@ class TestImplementCommand:
             "---\n# WP02",
             encoding="utf-8",
         )
+        _append_lane_event(feature_dir, "WP01", "done")
 
         with (
             patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
@@ -301,6 +322,53 @@ class TestImplementCommand:
             kwargs = mock_create_lane_workspace.call_args.kwargs
             assert kwargs["wp_id"] == "WP02"
             assert kwargs["declared_deps"] == ["WP01"]
+
+    def test_implement_rejects_dependency_before_workspace_creation(
+        self,
+        tmp_path: Path,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        feature_dir = tmp_path / "kitty-specs" / "010-feature"
+        create_meta_json(feature_dir)
+        create_lanes_json(feature_dir, wp_ids=("WP01", "WP02"))
+        wp_file = feature_dir / "tasks" / "WP02-api.md"
+        wp_file.parent.mkdir(parents=True)
+        wp_file.write_text(
+            "---\n"
+            "work_package_id: WP02\n"
+            "dependencies: [WP01]\n"
+            "execution_mode: code_change\n"
+            "owned_files:\n  - src/wp02/**\n"
+            "authoritative_surface: src/wp02/\n"
+            "---\n# WP02",
+            encoding="utf-8",
+        )
+
+        with (
+            patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
+            patch(
+                "specify_cli.cli.commands.implement.detect_feature_context",
+                return_value=("010", "010-feature"),
+            ),
+            patch(
+                "specify_cli.cli.commands.implement.resolve_feature_target_branch",
+                return_value="main",
+            ),
+            patch(
+                "specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git",
+            ) as mock_commit_planning,
+            patch(
+                "specify_cli.cli.commands.implement.create_lane_workspace",
+            ) as mock_create_lane_workspace,
+        ):
+            with pytest.raises(typer.Exit):
+                implement("WP02", feature="010-feature", auto_commit=True, recover=False)
+
+        assert mock_commit_planning.call_count == 0
+        assert mock_create_lane_workspace.call_count == 0
+        out = capsys.readouterr().out
+        assert "dependencies_not_satisfied" in out
+        assert "all dependencies must be approved or done" in out
 
     def test_implement_auto_commit_allows_safe_coordination_branch_when_target_is_protected(
         self,

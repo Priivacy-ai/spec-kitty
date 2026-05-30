@@ -482,3 +482,91 @@ class TestPlanningArtifactWorkflowPrompt:
         prompt = prompt_path.read_text(encoding="utf-8")
 
         assert "Review commands unavailable: no deterministic implementation claim commit found for this WP." in prompt
+
+
+# ---------------------------------------------------------------------------
+# Dependency gate on the `agent action implement` verb (explicit WP, existing
+# workspace). Mirrors the orchestrator-api start-implementation twin.
+# ---------------------------------------------------------------------------
+
+
+class TestImplementDependencyGate:
+    """workflow.py `implement` dependency gate: block fresh dep-blocked claims,
+    resume already-in_progress WPs without re-gating."""
+
+    def _scaffold_dependent_pair(self, feature_dir: Path, wp02_dep: str = "WP01") -> None:
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+        write_single_lane_manifest(feature_dir, wp_ids=("WP01", "WP02"), predicted_surfaces=("workflow",))
+        (feature_dir / "tasks.md").write_text(
+            "## WP01 Test\n\n- [x] T001 Placeholder task\n\n## WP02 Test\n\n- [x] T002 Placeholder task\n",
+            encoding="utf-8",
+        )
+        (tasks_dir / "WP01-test.md").write_text(
+            "---\n"
+            "work_package_id: WP01\n"
+            "subtasks: [T001]\n"
+            "title: WP01 Test\n"
+            "dependencies: []\n"
+            "execution_mode: code_change\n"
+            "owned_files:\n  - src/wp01/**\n"
+            "authoritative_surface: src/wp01/\n"
+            "---\n# WP01 Prompt\n",
+            encoding="utf-8",
+        )
+        (tasks_dir / "WP02-test.md").write_text(
+            "---\n"
+            "work_package_id: WP02\n"
+            "subtasks: [T002]\n"
+            "title: WP02 Test\n"
+            f"dependencies: [{wp02_dep}]\n"
+            "execution_mode: code_change\n"
+            "owned_files:\n  - src/wp02/**\n"
+            "authoritative_surface: src/wp02/\n"
+            "---\n# WP02 Prompt\n",
+            encoding="utf-8",
+        )
+
+    def test_implement_blocks_dep_unsatisfied_planned_wp_with_existing_workspace(
+        self, workflow_repo: Path
+    ) -> None:
+        """Explicit dep-blocked planned WP is rejected at the workflow.py gate even
+        when its workspace already exists (so top_level_implement is not called)."""
+        mission_slug = "060-test-feature"
+        feature_dir = workflow_repo / "kitty-specs" / mission_slug
+        self._scaffold_dependent_pair(feature_dir)
+        # WP01 is only in_progress (not approved/done); WP02 stays planned.
+        _seed_wp_lane(feature_dir, "WP01", "in_progress")
+        # Workspace already resolves so creation is skipped and the gate is reached.
+        lane_worktree_path(workflow_repo, mission_slug).mkdir(parents=True)
+
+        result = CliRunner().invoke(
+            workflow.app,
+            ["implement", "WP02", "--mission", mission_slug, "--agent", "test-agent"],
+        )
+
+        assert result.exit_code == 1, result.stdout
+        assert "dependencies_not_satisfied" in result.stdout
+        assert "all dependencies must be approved or done" in result.stdout
+
+    def test_implement_resumes_in_progress_wp_with_unsatisfied_dependency(
+        self, workflow_repo: Path
+    ) -> None:
+        """An already in_progress WP resumes without re-gating, even if its
+        dependency later regressed out of approved/done."""
+        mission_slug = "060-test-feature"
+        feature_dir = workflow_repo / "kitty-specs" / mission_slug
+        self._scaffold_dependent_pair(feature_dir)
+        # WP01 reverted to in_progress (unsatisfied); WP02 was already started.
+        _seed_wp_lane(feature_dir, "WP01", "in_progress")
+        _seed_wp_lane(feature_dir, "WP02", "in_progress", actor="test-agent")
+        lane_worktree_path(workflow_repo, mission_slug).mkdir(parents=True)
+
+        result = CliRunner().invoke(
+            workflow.app,
+            ["implement", "WP02", "--mission", mission_slug, "--agent", "test-agent"],
+        )
+
+        # Gate skipped (WP02 is in_progress) -> resume succeeds, no dependency error.
+        assert result.exit_code == 0, result.stdout
+        assert "dependencies_not_satisfied" not in result.stdout

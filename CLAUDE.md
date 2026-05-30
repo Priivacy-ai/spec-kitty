@@ -605,6 +605,31 @@ Alias: `doing` -> `in_progress` (resolved at input boundaries, never persisted i
 
 Terminal lanes: `done`, `canceled` (force required to leave).
 
+### Dependency Gating (WP claim readiness)
+
+A work package whose `dependencies` frontmatter is non-empty cannot be claimed or
+implemented until **every** declared dependency is in the `approved` **or** `done`
+lane. This is "dependency readiness," computed by
+`dependency_readiness_for_wp()` in `src/specify_cli/core/dependency_graph.py` and
+enforced by the **dependency gate** at every claim path: `next` claim discovery
+(`preview_claimable_wp`), `agent action implement`, the low-level `implement`
+command (before any worktree is created), and orchestrator-api
+`start-implementation` / `list-ready`.
+
+`approved` satisfies the gate on purpose. `done` is emitted **only** by the
+whole-mission `spec-kitty merge` (`_mark_wp_merged_done`), which itself refuses to
+complete until every WP has reached `done`. Gating strictly on `done` would
+therefore deadlock every same-mission dependency chain. This matches the merge
+dependency gate (`policy/merge_gates.py`), which already treats `{approved, done}`
+as satisfied. The read-only surfaces (`preview_claimable_wp`, `list-ready`) only
+surface `planned` candidates, so a blocked WP is simply withheld. The imperative
+verbs (`agent action implement`, `implement`, `start-implementation`) additionally
+apply a resume guard: they enforce readiness only on the not-yet-started
+(`planned`/`claimed`) claim transition, so re-invoking implement on an already
+`in_progress` WP is a no-op resume, never re-gated. A blocked claim surfaces the
+stable `dependencies_not_satisfied` reason/error. Independent WPs (no declared
+dependencies) continue to fan out in parallel.
+
 ### Phase Behavior (3.0: Phase 2 is active)
 
 Phase 2 (event-log authority) is the only active model as of 3.0. Phases 0 and 1 are historical.

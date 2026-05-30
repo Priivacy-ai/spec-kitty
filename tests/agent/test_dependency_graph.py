@@ -9,6 +9,7 @@ from pydantic import ValidationError
 
 from specify_cli.core.dependency_graph import (
     build_dependency_graph,
+    dependency_readiness_for_wp,
     detect_cycles,
     get_dependents,
     parse_wp_dependencies,
@@ -17,6 +18,92 @@ from specify_cli.core.dependency_graph import (
 from specify_cli.frontmatter import FrontmatterError
 
 pytestmark = pytest.mark.fast
+
+
+class TestDependencyReadiness:
+    def test_legacy_doing_alias_is_unsatisfied_not_error(self) -> None:
+        readiness = dependency_readiness_for_wp(
+            "WP02",
+            ["WP01"],
+            {"WP01": "doing"},
+        )
+
+        assert readiness.satisfied is False
+        assert readiness.unsatisfied == ("WP01",)
+
+    def test_done_dependency_is_satisfied(self) -> None:
+        readiness = dependency_readiness_for_wp(
+            "WP02",
+            ["WP01"],
+            {"WP01": "done"},
+        )
+
+        assert readiness.satisfied is True
+        assert readiness.unsatisfied == ()
+
+    def test_invalid_dependency_lane_fails_closed(self) -> None:
+        readiness = dependency_readiness_for_wp(
+            "WP02",
+            ["WP01"],
+            {"WP01": "not-a-lane"},
+        )
+
+        assert readiness.satisfied is False
+        assert readiness.unsatisfied == ("WP01",)
+
+    def test_approved_dependency_is_satisfied(self) -> None:
+        # `done` is emitted only by the whole-mission merge, so an `approved`
+        # dependency must satisfy the gate or every dependency chain deadlocks.
+        readiness = dependency_readiness_for_wp(
+            "WP02",
+            ["WP01"],
+            {"WP01": "approved"},
+        )
+
+        assert readiness.satisfied is True
+        assert readiness.unsatisfied == ()
+
+    def test_for_review_dependency_is_unsatisfied(self) -> None:
+        readiness = dependency_readiness_for_wp(
+            "WP02",
+            ["WP01"],
+            {"WP01": "for_review"},
+        )
+
+        assert readiness.satisfied is False
+        assert readiness.unsatisfied == ("WP01",)
+
+    def test_multi_dependency_mixed_states_reports_only_unsatisfied_in_order(self) -> None:
+        # Two satisfied deps (approved/done) and one not (in_progress); the result
+        # must contain exactly the unsatisfied dep, preserving declaration order.
+        readiness = dependency_readiness_for_wp(
+            "WP04",
+            ["WP01", "WP02", "WP03"],
+            {"WP01": "approved", "WP02": "in_progress", "WP03": "done"},
+        )
+
+        assert readiness.satisfied is False
+        assert readiness.unsatisfied == ("WP02",)
+
+    def test_multi_dependency_all_satisfied_mix_of_approved_and_done(self) -> None:
+        readiness = dependency_readiness_for_wp(
+            "WP03",
+            ["WP01", "WP02"],
+            {"WP01": "approved", "WP02": "done"},
+        )
+
+        assert readiness.satisfied is True
+        assert readiness.unsatisfied == ()
+
+    def test_multi_dependency_preserves_unsatisfied_declaration_order(self) -> None:
+        readiness = dependency_readiness_for_wp(
+            "WP09",
+            ["WP03", "WP01"],
+            {"WP03": "planned", "WP01": "blocked"},
+        )
+
+        assert readiness.satisfied is False
+        assert readiness.unsatisfied == ("WP03", "WP01")
 
 
 # T001: Tests for dependency parsing

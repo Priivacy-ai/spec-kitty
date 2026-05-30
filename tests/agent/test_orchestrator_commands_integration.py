@@ -299,6 +299,54 @@ class TestListReady:
         assert result.exit_code == 0, result.output
         assert not status_path.exists()
 
+    def test_dep_blocked_wp_excluded_from_ready(self, tmp_path):
+        """A planned WP whose dependency is not approved/done is filtered out of ready."""
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        mission_slug = "099-test-mission"
+        (mission_dir / "tasks" / "WP02.md").write_text(
+            "---\nwork_package_id: WP02\ntitle: Test WP02\nlane: planned\ndependencies: [WP01]\n---\n\n# WP02\n",
+            encoding="utf-8",
+        )
+
+        from specify_cli.status.emit import emit_status_transition
+
+        emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id="WP01", to_lane="claimed", actor="test"))
+        emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id="WP01", to_lane="in_progress", actor="test"))
+
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ):
+            result = runner.invoke(app, ["list-ready", "--mission", mission_slug])
+
+        assert result.exit_code == 0, result.output
+        ready_ids = {wp["wp_id"] for wp in json.loads(result.output)["data"]["ready_work_packages"]}
+        # WP01 is in_progress (not planned); WP02's dependency is unsatisfied. Neither ready.
+        assert ready_ids == set()
+
+    def test_dep_satisfied_by_approved_makes_wp_ready(self, tmp_path):
+        """An `approved` dependency (not yet merged) satisfies list-ready."""
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        mission_slug = "099-test-mission"
+        (mission_dir / "tasks" / "WP02.md").write_text(
+            "---\nwork_package_id: WP02\ntitle: Test WP02\nlane: planned\ndependencies: [WP01]\n---\n\n# WP02\n",
+            encoding="utf-8",
+        )
+        _emit_planned_to_approved(mission_dir, mission_slug, "WP01")
+
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ):
+            result = runner.invoke(app, ["list-ready", "--mission", mission_slug])
+
+        assert result.exit_code == 0, result.output
+        ready_ids = {wp["wp_id"] for wp in json.loads(result.output)["data"]["ready_work_packages"]}
+        # WP01 is approved (not planned) so not itself ready; WP02's dependency is
+        # satisfied by `approved`, so WP02 is ready.
+        assert "WP02" in ready_ids
+        assert "WP01" not in ready_ids
+
 
 # ── start-implementation ──────────────────────────────────────────
 
@@ -356,6 +404,140 @@ class TestStartImplementation:
             ("planned", "claimed"),
             ("claimed", "in_progress"),
         ]
+
+    def test_dependency_blocked_wp_rejected_without_events(self, tmp_path):
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        mission_slug = "099-test-mission"
+        wp02_path = mission_dir / "tasks" / "WP02.md"
+        wp02_path.write_text(
+            "---\n"
+            "work_package_id: WP02\n"
+            "title: Test WP02\n"
+            "lane: planned\n"
+            "dependencies: [WP01]\n"
+            "---\n\n"
+            "# WP02\n",
+            encoding="utf-8",
+        )
+
+        from specify_cli.status.emit import emit_status_transition
+        from specify_cli.status.store import read_events
+
+        emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id="WP01", to_lane="claimed", actor="seed"))
+        emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id="WP01", to_lane="in_progress", actor="seed"))
+        before_events = read_events(mission_dir)
+
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "start-implementation",
+                    "--mission",
+                    mission_slug,
+                    "--wp",
+                    "WP02",
+                    "--actor",
+                    "claude",
+                    "--policy",
+                    _valid_policy_json(),
+                ],
+            )
+
+        assert result.exit_code == 1
+        data = json.loads(result.output)
+        assert data["success"] is False
+        assert data["error_code"] == "DEPENDENCIES_NOT_SATISFIED"
+        assert data["data"]["wp_id"] == "WP02"
+        assert data["data"]["unsatisfied_dependencies"] == ["WP01"]
+        assert read_events(mission_dir) == before_events
+
+    def test_dependency_satisfied_by_approved_allows_start(self, tmp_path):
+        """An `approved` dependency unblocks starting the dependent WP.
+
+        ``done`` is emitted only by the whole-mission merge, so requiring it would
+        deadlock the chain; ``approved`` (review passed, merge pending) must allow
+        the dependent WP to start.
+        """
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        mission_slug = "099-test-mission"
+        (mission_dir / "tasks" / "WP02.md").write_text(
+            "---\nwork_package_id: WP02\ntitle: Test WP02\nlane: planned\ndependencies: [WP01]\n---\n\n# WP02\n",
+            encoding="utf-8",
+        )
+        _emit_planned_to_approved(mission_dir, mission_slug, "WP01")
+
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "start-implementation",
+                    "--mission",
+                    mission_slug,
+                    "--wp",
+                    "WP02",
+                    "--actor",
+                    "claude",
+                    "--policy",
+                    _valid_policy_json(),
+                ],
+            )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)
+        assert data["success"] is True
+        assert data["data"]["wp_id"] == "WP02"
+        assert data["data"]["to_lane"] == "in_progress"
+
+    def test_resume_in_progress_wp_not_blocked_by_unsatisfied_dependency(self, tmp_path):
+        """Re-running start on an already in_progress WP must not be dep-gated.
+
+        The dependency gate guards only the not-yet-started claim transition. A WP
+        that is already in_progress (e.g. its dependency's approval was later
+        reverted) must still resume as a no-op rather than being rejected.
+        """
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        mission_slug = "099-test-mission"
+        (mission_dir / "tasks" / "WP02.md").write_text(
+            "---\nwork_package_id: WP02\ntitle: Test WP02\nlane: planned\ndependencies: [WP01]\n---\n\n# WP02\n",
+            encoding="utf-8",
+        )
+
+        from specify_cli.status.emit import emit_status_transition
+
+        # WP02 was started earlier; WP01 is still planned (its approval was reverted).
+        emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id="WP02", to_lane="claimed", actor="claude"))
+        emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id="WP02", to_lane="in_progress", actor="claude"))
+
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "start-implementation",
+                    "--mission",
+                    mission_slug,
+                    "--wp",
+                    "WP02",
+                    "--actor",
+                    "claude",
+                    "--policy",
+                    _valid_policy_json(),
+                ],
+            )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)
+        assert data["success"] is True
+        assert data["data"]["wp_id"] == "WP02"
+        assert data["data"]["no_op"] is True
 
     def test_claimed_same_actor_resumes_to_in_progress(self, tmp_path):
         repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")

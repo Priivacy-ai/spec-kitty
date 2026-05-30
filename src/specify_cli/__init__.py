@@ -20,6 +20,7 @@ Usage:
 """
 
 import os
+import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -267,17 +268,10 @@ def _is_doctor_restart_daemon_process_fast_path(argv: list[str]) -> bool:
 
 
 def _run_doctor_restart_daemon_process_fast_path(argv: list[str]) -> None:
-    import os
-    import sys
-
+    os.environ["SPEC_KITTY_SYNC_MINIMAL_IMPORT"] = "1"
     from specify_cli.sync.restart import render_restart_result, restart_daemon
 
-    try:
-        located = locate_project_root()
-    except Exception:  # noqa: BLE001 — restart-daemon is machine-global today
-        located = None
-    repo_root = located if located is not None else Path.cwd()
-    result = restart_daemon(repo_root)
+    result = restart_daemon(Path.cwd())
     sys.stdout.write(render_restart_result(result, json_output="--json" in argv) + "\n")
     sys.stdout.flush()
     sys.stderr.flush()
@@ -285,8 +279,6 @@ def _run_doctor_restart_daemon_process_fast_path(argv: list[str]) -> None:
 
 
 def main() -> None:
-    import sys
-
     # FR-130 / FR-131: Install the CLI logging bootstrap early — before the
     # Typer app runs — so that warnings.warn(...) calls (including
     # CharterCatalogMissWarning from charter._catalog_miss) are routed through

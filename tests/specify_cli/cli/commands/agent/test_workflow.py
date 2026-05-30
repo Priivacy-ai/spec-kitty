@@ -285,6 +285,70 @@ def test_workflow_uses_lane_in_progress_not_doing_string():
     )
 
 
+def test_auto_claim_failure_message_preserves_dependency_reason() -> None:
+    """Auto implement must not launder dependency blocking into a generic no-WP error."""
+    from specify_cli.cli.commands.agent import workflow as workflow_module
+
+    preview = MagicMock(selection_reason="dependencies_not_satisfied")
+
+    message = workflow_module._auto_claim_failure_message(preview)
+
+    assert "dependencies_not_satisfied" in message
+    assert "all dependencies must be approved or done" in message
+
+
+def test_preview_claimable_wp_for_mission_reads_repo_root_not_worktree(tmp_path, monkeypatch):
+    """The auto-claim readiness preview resolves to the repository-root checkout's
+    canonical event log (via get_main_repo_root), never a stale worktree-local copy.
+
+    A dependent WP whose dependency is `approved` in the authoritative log must be
+    surfaced as claimable even when the helper is invoked with a worktree repo root.
+    """
+    import json as _json
+
+    from specify_cli.cli.commands.agent import workflow as workflow_module
+    from specify_cli.status.models import Lane, StatusEvent
+    from specify_cli.status.store import append_event
+
+    mission_slug = "010-feature"
+    main_repo = tmp_path / "main"
+    feature_dir = main_repo / "kitty-specs" / mission_slug
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    for wp_id, deps in (("WP01", []), ("WP02", ["WP01"])):
+        (tasks_dir / f"{wp_id}.md").write_text(
+            f"---\nwork_package_id: {wp_id}\ndependencies: {_json.dumps(deps)}\ntitle: {wp_id}\n---\n# {wp_id}\n",
+            encoding="utf-8",
+        )
+    for wp_id, lane in (("WP01", Lane.APPROVED), ("WP02", Lane.PLANNED)):
+        append_event(
+            feature_dir,
+            StatusEvent(
+                event_id=f"seed-{wp_id}",
+                mission_slug=mission_slug,
+                wp_id=wp_id,
+                from_lane=Lane.PLANNED,
+                to_lane=lane,
+                at="2026-05-30T08:30:00+00:00",
+                actor="fixture",
+                force=True,
+                execution_mode="worktree",
+            ),
+        )
+
+    # The helper is handed a *worktree* repo root; it must still resolve to the
+    # main checkout via get_main_repo_root rather than reading the worktree.
+    worktree_root = tmp_path / "worktree"
+    worktree_root.mkdir()
+    monkeypatch.setattr(workflow_module, "get_main_repo_root", lambda _path: main_repo)
+
+    preview = workflow_module._preview_claimable_wp_for_mission(worktree_root, mission_slug)
+
+    assert preview is not None
+    assert preview.wp_id == "WP02"
+    assert preview.selection_reason is None
+
+
 # ---------------------------------------------------------------------------
 # Tests for AgentAssignment dataclass
 # ---------------------------------------------------------------------------

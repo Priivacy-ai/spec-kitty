@@ -547,7 +547,7 @@ def mission_state(
 def list_ready(
     mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
 ) -> None:
-    """List WPs that are ready to start (planned and all deps done)."""
+    """List WPs that are ready to start (planned and all deps approved or done)."""
     main_repo_root = _get_main_repo_root()
     mission_dir = _resolve_mission_dir(main_repo_root, mission)
     if mission_dir is None:
@@ -560,12 +560,16 @@ def list_ready(
 
     from specify_cli.status.reducer import reduce
     from specify_cli.status.store import read_events
-    from specify_cli.core.dependency_graph import build_dependency_graph
+    from specify_cli.core.dependency_graph import build_dependency_graph, dependency_readiness_for_wp
 
     # Query endpoint: reduce from event log without rewriting status.json.
     snapshot = reduce(read_events(mission_dir))
     dep_graph = build_dependency_graph(mission_dir)
     wp_states = snapshot.work_packages
+    wp_lanes = {
+        dep_id: wp_state_for(state.get("lane", Lane.PLANNED)).lane
+        for dep_id, state in wp_states.items()
+    }
 
     ready_wps = []
     for wp_id, deps in dep_graph.items():
@@ -575,18 +579,13 @@ def list_ready(
         if state.progress_bucket() != "not_started":
             continue
 
-        # Check all dependencies are done (completed, not merely terminal —
-        # canceled deps do NOT satisfy the dependency requirement).
-        all_deps_done = all(
-            wp_state_for(wp_states.get(dep, {}).get("lane", Lane.PLANNED)).lane == Lane.DONE
-            for dep in deps
-        )
+        readiness = dependency_readiness_for_wp(wp_id, deps, wp_lanes)
 
         ready_wps.append(
             {
                 "wp_id": wp_id,
                 "lane": lane,
-                "dependencies_satisfied": all_deps_done,
+                "dependencies_satisfied": readiness.satisfied,
             }
         )
 
@@ -642,6 +641,42 @@ def start_implementation(
     if wp_path is None:
         _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {mission}")
         return
+
+    from specify_cli.core.dependency_graph import dependency_readiness_for_wp, parse_wp_dependencies
+    from specify_cli.status.reducer import reduce
+    from specify_cli.status.store import read_events
+
+    wp_lanes = {
+        wp_id: state.get("lane", Lane.PLANNED)
+        for wp_id, state in reduce(read_events(mission_dir)).work_packages.items()
+    }
+    # Only gate the not-yet-started claim transition. Re-invoking start-implementation
+    # on a WP that is already in_progress/for_review/.../approved is a no-op resume
+    # in the lifecycle layer and must not be rejected just because a dependency later
+    # regressed out of approved/done.
+    _self_lane = wp_state_for(wp_lanes.get(wp, Lane.PLANNED)).lane
+    if _self_lane in (Lane.PLANNED, Lane.CLAIMED):
+        dependency_readiness = dependency_readiness_for_wp(
+            wp,
+            parse_wp_dependencies(wp_path),
+            wp_lanes,
+        )
+        if not dependency_readiness.satisfied:
+            blocked = ", ".join(dependency_readiness.unsatisfied)
+            _fail(
+                cmd,
+                "DEPENDENCIES_NOT_SATISFIED",
+                (
+                    f"dependencies_not_satisfied: {wp} depends on {blocked}; "
+                    "all dependencies must be approved or done before implementation can start"
+                ),
+                {
+                    **_mission_identity_payload(mission_dir),
+                    "wp_id": wp,
+                    "unsatisfied_dependencies": list(dependency_readiness.unsatisfied),
+                },
+            )
+            return
 
     from specify_cli.status.emit import TransitionError
     from specify_cli.status.work_package_lifecycle import WorkPackageClaimConflict, start_implementation_status
