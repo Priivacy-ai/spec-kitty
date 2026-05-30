@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import sys
 import warnings
+import subprocess
+import os
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -797,3 +799,42 @@ class TestVersionPinWiredIntoCallback:
         assert not _is_doctor_restart_daemon_process_fast_path(
             ["spec-kitty", "doctor", "restart-daemon", "--help"]
         )
+
+    def test_import_time_restart_daemon_fast_path_short_circuits_heavy_bootstrap(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A fresh import under restart-daemon argv exits before full bootstrap."""
+        monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
+        script = """
+import os
+import sys
+import types
+
+fake_restart = types.ModuleType("specify_cli.sync.restart")
+fake_restart.restart_daemon = lambda _repo_root: types.SimpleNamespace(exit_code=0)
+fake_restart.render_restart_result = lambda _result, *, json_output: '{"status":"restarted"}'
+sys.modules["specify_cli.sync.restart"] = fake_restart
+sys.argv = ["spec-kitty", "doctor", "restart-daemon", "--json"]
+os._exit = lambda code: (_ for _ in ()).throw(SystemExit(code))
+
+try:
+    import specify_cli  # noqa: F401
+except SystemExit as exc:
+    print(f"EXIT:{exc.code}")
+"""
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            cwd=str(Path(__file__).resolve().parents[2]),
+            env={
+                **os.environ,
+                "PYTHONPATH": str(Path(__file__).resolve().parents[2] / "src"),
+            },
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        assert result.returncode == 0
+        assert '{"status":"restarted"}' in result.stdout
+        assert "EXIT:0" in result.stdout

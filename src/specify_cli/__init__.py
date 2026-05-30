@@ -20,10 +20,46 @@ Usage:
 """
 
 import os
+import sys
 from pathlib import Path
 
-import typer
-from rich.console import Console
+
+def _early_doctor_restart_daemon_process_fast_path(argv: list[str]) -> bool:
+    """Return True for the machine-output restart-daemon fast path.
+
+    This runs before importing the heavy Typer command graph so the
+    console-script entry point can short-circuit import cost for the
+    latency-sensitive machine-global restart command.
+    """
+    if os.environ.get("SPEC_KITTY_TEST_MODE") == "1":
+        return False
+    if any(arg in {"--help", "-h"} for arg in argv[1:]):
+        return False
+    command_parts: list[str] = []
+    for arg in argv[1:]:
+        if arg.startswith("-"):
+            if arg != "--json":
+                return False
+            continue
+        command_parts.append(arg)
+    return command_parts == ["doctor", "restart-daemon"]
+
+
+def _run_early_doctor_restart_daemon_process_fast_path(argv: list[str]) -> None:
+    from specify_cli.sync.restart import render_restart_result, restart_daemon
+
+    result = restart_daemon(Path.cwd())
+    sys.stdout.write(render_restart_result(result, json_output="--json" in argv) + "\n")
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(result.exit_code)
+
+
+if _early_doctor_restart_daemon_process_fast_path(sys.argv):
+    _run_early_doctor_restart_daemon_process_fast_path(sys.argv)
+
+import typer  # noqa: E402
+from rich.console import Console  # noqa: E402
 
 # Get version from package metadata
 # Test mode: use environment override to ensure tests use source version
@@ -34,16 +70,16 @@ else:
 
     __version__ = get_version()
 
-from specify_cli.cli import StepTracker
-from specify_cli.cli.helpers import (
+from specify_cli.cli import StepTracker  # noqa: E402
+from specify_cli.cli.helpers import (  # noqa: E402
     BannerGroup,
     callback as root_callback,
     console,
     show_banner,
 )
-from specify_cli.cli.commands import register_commands
-from specify_cli.cli.commands.init import register_init_command
-from specify_cli.core.project_resolver import locate_project_root
+from specify_cli.cli.commands import register_commands  # noqa: E402
+from specify_cli.cli.commands.init import register_init_command  # noqa: E402
+from specify_cli.core.project_resolver import locate_project_root  # noqa: E402
 
 
 def activate_mission(project_path: Path, mission_type: str, mission_display: str, console: Console) -> str:
