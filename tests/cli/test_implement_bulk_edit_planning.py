@@ -139,7 +139,7 @@ def test_occurrence_map_planning_wp_does_not_require_acknowledgement(
     feature_dir = _build_feature(tmp_path, owned_file="occurrence_map.yaml")
 
     with _patched_implement(tmp_path, feature_dir) as create_workspace:
-        implement("WP01", mission=feature_dir.name, recover=False)
+        implement("WP01", mission=feature_dir.name, recover=False, auto_commit=False)
 
     output = capsys.readouterr().out
     assert "Bulk Edit Inference Informational" in output
@@ -157,7 +157,7 @@ def test_active_rewrite_wp_still_requires_acknowledgement(
         _patched_implement(tmp_path, feature_dir) as create_workspace,
         pytest.raises(typer.Exit) as exc_info,
     ):
-        implement("WP01", mission=feature_dir.name, recover=False)
+        implement("WP01", mission=feature_dir.name, recover=False, auto_commit=False)
 
     assert exc_info.value.exit_code == 1
     output = capsys.readouterr().out

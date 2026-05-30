@@ -19,8 +19,35 @@ Usage:
     spec-kitty init --here
 """
 
+# ruff: noqa: E402
+
 import os
+import sys
 from pathlib import Path
+
+
+def _is_import_time_doctor_restart_daemon_fast_path(argv: list[str]) -> bool:
+    if any(arg in {"--help", "-h"} for arg in argv[1:]):
+        return False
+    command_parts: list[str] = []
+    for arg in argv[1:]:
+        if arg.startswith("-"):
+            if arg != "--json":
+                return False
+            continue
+        command_parts.append(arg)
+    return command_parts == ["doctor", "restart-daemon"]
+
+
+if _is_import_time_doctor_restart_daemon_fast_path(sys.argv):
+    from specify_cli.sync.restart import render_restart_result, restart_daemon
+
+    _result = restart_daemon(Path.cwd())
+    sys.stdout.write(render_restart_result(_result, json_output="--json" in sys.argv) + "\n")
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(_result.exit_code)
+
 
 import typer
 from rich.console import Console
