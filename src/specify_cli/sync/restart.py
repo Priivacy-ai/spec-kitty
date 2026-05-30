@@ -7,7 +7,8 @@ re-implement any daemon lifecycle logic: it reads the on-disk
 previous PID, then composes:
 
 - :func:`specify_cli.sync.daemon.stop_sync_daemon` to terminate the
-  currently-registered daemon (used by the existing operator workflow).
+  daemon recorded in owner/state metadata (used by the existing operator
+  workflow).
 - :func:`specify_cli.sync.daemon.ensure_sync_daemon_running` with
   ``intent=REMOTE_REQUIRED`` to respawn the daemon at the foreground
   executable/source (used by ``sync now`` and the event emitter).
@@ -67,8 +68,8 @@ class RestartResult:
     Attributes:
         status: One of the literal :data:`RestartStatus` values.
         exit_code: Process exit code per the contract's exit-code matrix.
-        previous_pid: PID recorded in the owner record before the restart,
-            or ``None`` when no owner record was present.
+        previous_pid: PID recorded in owner/state metadata before the restart,
+            or ``None`` when no PID metadata was present.
         new_pid: PID of the freshly-launched daemon, or ``None`` if launch
             did not run (no_owner / stop_failed) or did not return a PID
             (respawn_failed, including ``skipped_reason`` paths).
@@ -84,15 +85,15 @@ class RestartResult:
 
 
 def _read_previous_pid() -> int | None:
-    """Return the PID recorded in the owner record, or ``None`` if absent."""
+    """Return the PID recorded in owner/state metadata, or ``None`` if absent."""
     # Local import keeps module import cheap and avoids cycles with
     # ``specify_cli.sync.owner`` at module load time.
     from specify_cli.sync.owner import read_owner_record
 
     record = read_owner_record()
-    if record is None:
-        return None
-    return int(record.pid)
+    if record is not None:
+        return int(record.pid)
+    return _read_daemon_state_pid()
 
 
 def _owner_record_present() -> bool:
@@ -107,6 +108,26 @@ def _daemon_state_metadata_present() -> bool:
     from specify_cli.sync.daemon import DAEMON_STATE_FILE
 
     return bool(DAEMON_STATE_FILE.exists())
+
+
+def _restartable_daemon_state_metadata_present() -> bool:
+    """Return True iff daemon state metadata is parseable enough to stop."""
+    from specify_cli.sync.daemon import DAEMON_STATE_FILE, _parse_daemon_file
+
+    if not DAEMON_STATE_FILE.exists():
+        return False
+    _url, port, _token, _pid = _parse_daemon_file(DAEMON_STATE_FILE)
+    return port is not None
+
+
+def _read_daemon_state_pid() -> int | None:
+    """Return the PID from daemon state metadata, or ``None`` if absent/invalid."""
+    from specify_cli.sync.daemon import DAEMON_STATE_FILE, _parse_daemon_file
+
+    if not DAEMON_STATE_FILE.exists():
+        return None
+    _url, _port, _token, pid = _parse_daemon_file(DAEMON_STATE_FILE)
+    return pid
 
 
 def _owner_record_present_after_grace() -> bool:
@@ -124,17 +145,30 @@ def _owner_record_present_after_grace() -> bool:
     return _owner_record_present()
 
 
+def _registered_daemon_metadata_present_after_grace() -> bool:
+    """Return True when restartable daemon metadata is present.
+
+    The owner record is richer, but the daemon state file is sufficient for
+    stop/respawn. macOS can observe a started daemon with state metadata before
+    or without owner registration; restart-daemon should reconcile that state,
+    not refuse with ``no_owner``.
+    """
+    if _owner_record_present_after_grace():
+        return True
+    return _restartable_daemon_state_metadata_present()
+
+
 def restart_daemon(repo_root: Path) -> RestartResult:  # noqa: ARG001 — reserved for future repo-scoped state
     """Restart the registered sync daemon at the foreground version/source.
 
     Composition pipeline:
 
-    1. Read the on-disk daemon owner record. If absent, return a
+    1. Read restartable on-disk daemon metadata. If absent, return a
        ``no_owner`` result (exit 1) directing the operator to
        ``spec-kitty sync now``.
-    2. Capture the previous PID from the record (best-effort: a
+    2. Capture the previous PID from owner/state metadata (best-effort: a
        malformed record yields ``previous_pid=None`` but still proceeds
-       through the stop step because the on-disk path exists).
+       through the stop step when restartable daemon state metadata exists).
     3. Call :func:`stop_sync_daemon`. Two normal outcomes:
 
        - ``(True, _)`` — process stopped or unhealthy metadata cleared.
@@ -153,13 +187,14 @@ def restart_daemon(repo_root: Path) -> RestartResult:  # noqa: ARG001 — reserv
     owner record itself; both sides of the pipeline are owned by the
     existing primitives.
     """
-    # Step 1 + 2 — read existing owner record. We tolerate a malformed
-    # record by treating ``previous_pid`` as unknown but still proceeding
-    # through stop, because the on-disk path exists. The contract treats
-    # "no owner record on disk at all" as the only ``no_owner`` case
-    # (FR-007 / FR-009: actionable refusal points operator at ``sync now``).
-    owner_present = _owner_record_present_after_grace()
-    if not owner_present:
+    # Step 1 + 2 — read existing owner/state metadata. We tolerate a malformed
+    # owner record by treating ``previous_pid`` as unknown but still proceeding
+    # through stop when restartable daemon state metadata exists. Corrupt
+    # state-only metadata is not restartable, so it stays on the ``no_owner``
+    # boundary instead of laundering a local metadata parse failure as
+    # ``stop_failed``.
+    metadata_present = _registered_daemon_metadata_present_after_grace()
+    if not metadata_present:
         return RestartResult(
             status="no_owner",
             exit_code=1,
@@ -171,7 +206,7 @@ def restart_daemon(repo_root: Path) -> RestartResult:  # noqa: ARG001 — reserv
             ),
         )
 
-    previous_pid = _read_previous_pid() if owner_present else None
+    previous_pid = _read_previous_pid()
 
     # Local imports — keeps cycles tight and lets test monkeypatches target
     # the canonical symbol on the ``specify_cli.sync.daemon`` module.
