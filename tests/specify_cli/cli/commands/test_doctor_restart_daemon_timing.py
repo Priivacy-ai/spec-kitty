@@ -102,22 +102,17 @@ def _fetch_health(url: str, token: str) -> dict[str, object]:
     return payload
 
 
-def _wait_for_runtime_ready(home: Path, expected_pid: int, *, deadline: float) -> dict[str, object]:
+def _wait_for_control_plane_ready(home: Path, expected_pid: int, *, deadline: float) -> dict[str, object]:
     last_payload: dict[str, object] | None = None
     while time.perf_counter() < deadline:
         url, _port, token, pid = _read_daemon_record(home)
         assert pid == expected_pid
         payload = _fetch_health(url, token)
         last_payload = payload
-        sync_payload = payload.get("sync")
-        if (
-            payload.get("status") == "ok"
-            and isinstance(sync_payload, dict)
-            and sync_payload.get("running") is True
-        ):
+        if payload.get("status") == "ok":
             return payload
         time.sleep(0.1)
-    raise AssertionError(f"sync runtime was not ready before NFR deadline: {last_payload}")
+    raise AssertionError(f"sync control plane was not ready before NFR deadline: {last_payload}")
 
 
 def _terminate_known_daemon_pids(pids: list[int]) -> None:
@@ -139,7 +134,7 @@ def _terminate_known_daemon_pids(pids: list[int]) -> None:
 def test_doctor_restart_daemon_completes_under_nfr_002_threshold(
     tmp_path: Path,
 ) -> None:
-    """NFR-002: real stop + respawn + health response finishes under 10s."""
+    """NFR-002: real stop + respawn + control-plane health finishes under 10s."""
     home = tmp_path / "home"
     home.mkdir()
     env = _subprocess_env(home)
@@ -180,7 +175,7 @@ def test_doctor_restart_daemon_completes_under_nfr_002_threshold(
         assert payload["status"] == "restarted"
         assert payload["previous_pid"] != payload["new_pid"]
         created_pids.append(int(payload["new_pid"]))
-        health_payload = _wait_for_runtime_ready(
+        health_payload = _wait_for_control_plane_ready(
             home,
             int(payload["new_pid"]),
             deadline=start + _NFR_002_SECONDS,

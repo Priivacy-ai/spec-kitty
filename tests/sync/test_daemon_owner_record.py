@@ -559,7 +559,13 @@ def test_build_record_for_current_process_uses_identity(
         "auth_scope": "https://example.test|alice@example.test|team-a",
         "queue_db_path": "/tmp/queue.db",
     }
-    monkeypatch.setattr(owner_mod, "compute_foreground_identity", lambda: fake_identity)
+    observed_allow_network: list[bool] = []
+
+    def fake_compute_identity(*, allow_network: bool = True) -> dict[str, Any]:
+        observed_allow_network.append(allow_network)
+        return fake_identity
+
+    monkeypatch.setattr(owner_mod, "compute_foreground_identity", fake_compute_identity)
 
     record = owner_mod.build_record_for_current_process(pid=4242, port=9410, token="t")
     assert record.pid == 4242
@@ -573,6 +579,39 @@ def test_build_record_for_current_process_uses_identity(
     assert record.auth_team == "team-a"
     assert record.auth_scope == "https://example.test|alice@example.test|team-a"
     assert record.queue_db_path == "/tmp/queue.db"
+    assert observed_allow_network == [True]
+
+
+def test_build_record_for_current_process_can_skip_network_identity(
+    _scoped_home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from specify_cli.sync import owner as owner_mod
+
+    observed_allow_network: list[bool] = []
+
+    def fake_compute_identity(*, allow_network: bool = True) -> dict[str, Any]:
+        observed_allow_network.append(allow_network)
+        return {
+            "package_version": "1.2.3",
+            "executable_path": "/usr/bin/python-test",
+            "source_checkout_path": "/some/path",
+            "server_url": "https://example.test",
+            "auth_principal": None,
+            "auth_team": None,
+            "auth_scope": None,
+            "queue_db_path": "/tmp/queue.db",
+        }
+
+    monkeypatch.setattr(owner_mod, "compute_foreground_identity", fake_compute_identity)
+
+    record = owner_mod.build_record_for_current_process(
+        pid=4242,
+        port=9410,
+        token="t",
+        allow_network=False,
+    )
+
+    assert observed_allow_network == [False]
     # Timestamp is ISO-8601 UTC.
     assert record.started_at.endswith("+00:00")
 

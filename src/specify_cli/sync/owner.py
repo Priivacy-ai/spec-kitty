@@ -304,14 +304,15 @@ def _resolve_source_checkout_path() -> str:
     return str(Path(specify_cli.__file__).resolve().parents[2])
 
 
-def compute_foreground_identity() -> dict[str, Any]:
+def compute_foreground_identity(*, allow_network: bool = True) -> dict[str, Any]:
     """Build the foreground's view of the comparable identity fields.
 
     Returns a dict shaped like the subset of :class:`DaemonOwnerRecord`
-    that participates in :func:`mismatched_fields`. Fetches the scope-aware
-    auth/queue values from :mod:`specify_cli.sync.queue` lazily so that
-    callers without a configured environment (e.g. unit tests with a
-    tmp ``HOME``) still get a valid dict with ``None`` for missing pieces.
+    that participates in :func:`mismatched_fields`.
+
+    When ``allow_network`` is false, auth scope resolution must use only
+    local session/credential state. This keeps daemon control-plane startup
+    responsive; any SaaS membership rehydrate can run after health is live.
     """
     from specify_cli.sync.queue import (  # local import: cycle-safe
         _read_server_url_for_scope,
@@ -320,7 +321,7 @@ def compute_foreground_identity() -> dict[str, Any]:
         read_queue_scope_from_session,
     )
 
-    scope = read_queue_scope_from_session()
+    scope = read_queue_scope_from_session(allow_rehydrate=allow_network)
     if scope is None:
         scope = read_queue_scope_from_credentials()
 
@@ -341,7 +342,7 @@ def compute_foreground_identity() -> dict[str, Any]:
         "auth_principal": auth_principal,
         "auth_team": auth_team,
         "auth_scope": scope,
-        "queue_db_path": str(default_queue_db_path()),
+        "queue_db_path": str(default_queue_db_path(allow_rehydrate=allow_network)),
     }
 
 
@@ -465,6 +466,7 @@ def build_record_for_current_process(
     pid: int,
     port: int,
     token: str,
+    allow_network: bool = True,
 ) -> DaemonOwnerRecord:
     """Construct a :class:`DaemonOwnerRecord` for the current process.
 
@@ -472,8 +474,12 @@ def build_record_for_current_process(
     the daemon process *is* the foreground from its own perspective, so
     all the comparable fields are sourced from :func:`compute_foreground_identity`
     plus the supplied PID/port/token and the current UTC timestamp.
+
+    Daemon startup passes ``allow_network=False`` for the initial owner
+    record so TeamSpace membership rehydrate can never delay the first
+    health response.
     """
-    identity = compute_foreground_identity()
+    identity = compute_foreground_identity(allow_network=allow_network)
     now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S+00:00")
     return DaemonOwnerRecord(
         pid=pid,

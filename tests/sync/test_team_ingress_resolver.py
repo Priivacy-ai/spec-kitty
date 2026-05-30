@@ -26,7 +26,7 @@ from specify_cli.auth.secure_storage import SecureStorage
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.auth.token_manager import TokenManager
 from specify_cli.sync.emitter import EventEmitter
-from specify_cli.sync.queue import read_queue_scope_from_session
+from specify_cli.sync.queue import default_queue_db_path, read_queue_scope_from_session
 
 pytestmark = pytest.mark.fast
 
@@ -167,6 +167,68 @@ def test_queue_ingress_rehydrates_and_sends_private(
     assert scope is not None
     assert "t-private" in scope
     assert me_route.call_count == 1
+
+
+@respx.mock
+def test_queue_scope_local_only_skips_rehydrate(
+    token_manager_with_shared_only_session: TokenManager,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Local-only scope reads must not call TeamSpace membership rehydrate."""
+    me_route = respx.get(f"{_SAAS_BASE_URL}/api/v1/me").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "email": "u@example.com",
+                "teams": [
+                    {
+                        "id": "t-private",
+                        "name": "Private",
+                        "role": "owner",
+                        "is_private_teamspace": True,
+                    }
+                ],
+            },
+        )
+    )
+
+    _patched_token_manager(monkeypatch, token_manager_with_shared_only_session)
+
+    scope = read_queue_scope_from_session(allow_rehydrate=False)
+
+    assert scope is None
+    assert me_route.call_count == 0
+
+
+@respx.mock
+def test_default_queue_db_path_local_only_skips_rehydrate(
+    token_manager_with_shared_only_session: TokenManager,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Local-only queue path resolution must not call TeamSpace membership rehydrate."""
+    me_route = respx.get(f"{_SAAS_BASE_URL}/api/v1/me").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "email": "u@example.com",
+                "teams": [
+                    {
+                        "id": "t-private",
+                        "name": "Private",
+                        "role": "owner",
+                        "is_private_teamspace": True,
+                    }
+                ],
+            },
+        )
+    )
+
+    _patched_token_manager(monkeypatch, token_manager_with_shared_only_session)
+
+    path = default_queue_db_path(allow_rehydrate=False)
+
+    assert path.name == "queue.db"
+    assert me_route.call_count == 0
 
 
 @respx.mock

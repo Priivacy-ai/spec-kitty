@@ -612,6 +612,7 @@ def run_sync_daemon(port: int, daemon_token: str | None) -> None:
         pid=os.getpid(),
         port=port,
         token=daemon_token or "",
+        allow_network=False,
     )
     try:
         write_owner_record(record)
@@ -624,6 +625,16 @@ def run_sync_daemon(port: int, daemon_token: str | None) -> None:
             from specify_cli.sync.runtime import get_runtime
 
             get_runtime()
+            try:
+                enriched_record = build_record_for_current_process(
+                    pid=os.getpid(),
+                    port=port,
+                    token=daemon_token or "",
+                    allow_network=True,
+                )
+                write_owner_record(enriched_record)
+            except Exception:  # noqa: BLE001 — health remains valid with local-only owner data
+                logger.debug("Failed to enrich daemon owner record", exc_info=True)
         except Exception:  # noqa: BLE001 — health endpoint stays available
             logger.exception("Failed to start sync runtime")
 
