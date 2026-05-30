@@ -2112,7 +2112,7 @@ def _update_pipe_table_status(line: str, status: str, header_map: dict[str, int]
 
 
 _INLINE_SUBTASKS_RE = re.compile(
-    r"Subtasks:\s*(?P<ids>(?:T|WP)\d+(?:\s*,\s*(?:T|WP)\d+)*)",
+    r"(?:Subtasks|\*\*Subtasks\*\*):\s*(?P<ids>(?:T|WP)\d+(?:\s*,\s*(?:T|WP)\d+)*)",
     re.IGNORECASE,
 )
 
