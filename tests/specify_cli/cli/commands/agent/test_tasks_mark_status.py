@@ -10,6 +10,11 @@ from unittest.mock import patch
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.tasks import app
+from specify_cli.core.wps_manifest import (
+    WorkPackageEntry,
+    WpsManifest,
+    generate_tasks_md_from_manifest,
+)
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event, read_events
 
@@ -114,6 +119,31 @@ def test_inline_subtasks_multiple(tmp_path: Path) -> None:
         assert result["outcome"] == "updated"
         assert result["format"] == "inline_subtasks"
         assert f"- [x] {task_id}" in content
+
+
+def test_generated_bold_inline_subtasks_are_markable(tmp_path: Path) -> None:
+    slug = "003-generated-bold-inline"
+    tasks_md = generate_tasks_md_from_manifest(
+        WpsManifest(
+            work_packages=[
+                WorkPackageEntry(
+                    id="WP01",
+                    title="Generated",
+                    subtasks=["T014", "T015", "T016", "T017"],
+                )
+            ]
+        ),
+        "Generated Feature",
+    )
+    assert "**Subtasks**: T014, T015, T016, T017" in tasks_md
+    mission_dir = _write_mission(tmp_path, slug, tasks_md)
+
+    payload = _invoke_mark_status(tmp_path, slug, "T014")
+
+    result = _result_by_id(payload, "T014")
+    assert result["outcome"] == "updated"
+    assert result["format"] == "inline_subtasks"
+    assert "- [x] T014" in (mission_dir / "tasks.md").read_text(encoding="utf-8")
 
 
 def test_wp_id_mark_done(tmp_path: Path) -> None:
