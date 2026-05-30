@@ -357,6 +357,55 @@ class TestStartImplementation:
             ("claimed", "in_progress"),
         ]
 
+    def test_dependency_blocked_wp_rejected_without_events(self, tmp_path):
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        mission_slug = "099-test-mission"
+        wp02_path = mission_dir / "tasks" / "WP02.md"
+        wp02_path.write_text(
+            "---\n"
+            "work_package_id: WP02\n"
+            "title: Test WP02\n"
+            "lane: planned\n"
+            "dependencies: [WP01]\n"
+            "---\n\n"
+            "# WP02\n",
+            encoding="utf-8",
+        )
+
+        from specify_cli.status.emit import emit_status_transition
+        from specify_cli.status.store import read_events
+
+        emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id="WP01", to_lane="claimed", actor="seed"))
+        emit_status_transition(TransitionRequest(feature_dir=mission_dir, mission_slug=mission_slug, wp_id="WP01", to_lane="in_progress", actor="seed"))
+        before_events = read_events(mission_dir)
+
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "start-implementation",
+                    "--mission",
+                    mission_slug,
+                    "--wp",
+                    "WP02",
+                    "--actor",
+                    "claude",
+                    "--policy",
+                    _valid_policy_json(),
+                ],
+            )
+
+        assert result.exit_code == 1
+        data = json.loads(result.output)
+        assert data["success"] is False
+        assert data["error_code"] == "DEPENDENCIES_NOT_SATISFIED"
+        assert data["data"]["wp_id"] == "WP02"
+        assert data["data"]["unsatisfied_dependencies"] == ["WP01"]
+        assert read_events(mission_dir) == before_events
+
     def test_claimed_same_actor_resumes_to_in_progress(self, tmp_path):
         repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
         mission_slug = "099-test-mission"

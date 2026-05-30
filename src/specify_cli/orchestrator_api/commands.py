@@ -642,6 +642,36 @@ def start_implementation(
         _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {mission}")
         return
 
+    from specify_cli.core.dependency_graph import dependency_readiness_for_wp, parse_wp_dependencies
+    from specify_cli.status.reducer import reduce
+    from specify_cli.status.store import read_events
+
+    wp_lanes = {
+        wp_id: state.get("lane", Lane.PLANNED)
+        for wp_id, state in reduce(read_events(mission_dir)).work_packages.items()
+    }
+    dependency_readiness = dependency_readiness_for_wp(
+        wp,
+        parse_wp_dependencies(wp_path),
+        wp_lanes,
+    )
+    if not dependency_readiness.satisfied:
+        blocked = ", ".join(dependency_readiness.unsatisfied)
+        _fail(
+            cmd,
+            "DEPENDENCIES_NOT_SATISFIED",
+            (
+                f"dependencies_not_satisfied: {wp} depends on {blocked}; "
+                "all dependencies must be done before implementation can start"
+            ),
+            {
+                **_mission_identity_payload(mission_dir),
+                "wp_id": wp,
+                "unsatisfied_dependencies": list(dependency_readiness.unsatisfied),
+            },
+        )
+        return
+
     from specify_cli.status.emit import TransitionError
     from specify_cli.status.work_package_lifecycle import WorkPackageClaimConflict, start_implementation_status
 
