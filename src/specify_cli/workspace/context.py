@@ -23,8 +23,6 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.core.atomic import atomic_write
-from specify_cli.ownership.models import ExecutionMode
-from specify_cli.ownership.workspace_strategy import create_planning_workspace
 from specify_cli.status.wp_metadata import WPMetadata, read_wp_frontmatter
 
 
@@ -493,6 +491,7 @@ def _normalize_wp_file(wp_file: Path, mission_slug: str) -> NormalizedWorkPackag
     diagnostic: str | None = None
 
     raw_mode = metadata.execution_mode
+    from specify_cli.ownership.models import ExecutionMode  # noqa: PLC0415
     if raw_mode is None:
         from specify_cli.ownership.inference import infer_execution_mode, score_execution_mode_signals  # noqa: PLC0415
         raw_content = wp_file.read_text(encoding="utf-8")
@@ -618,6 +617,8 @@ def resolve_workspace_for_wp(
     The returned path may not exist yet; callers can inspect `.exists`.
     """
     normalized_wp = get_normalized_wp(repo_root, mission_slug, wp_id)
+    from specify_cli.ownership.models import ExecutionMode  # noqa: PLC0415
+    from specify_cli.ownership.workspace_strategy import create_planning_workspace  # noqa: PLC0415
     execution_mode = ExecutionMode(normalized_wp.metadata.execution_mode or ExecutionMode.CODE_CHANGE)
 
     if execution_mode == ExecutionMode.PLANNING_ARTIFACT:
