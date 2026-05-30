@@ -457,7 +457,7 @@ def remove(repo_root: Path, agent_key: str) -> RemoveReport:
 
     report = RemoveReport()
 
-    for entry in list(manifest.entries):
+    for entry in manifest.entries:
         if agent_key not in entry.agents:
             continue
 

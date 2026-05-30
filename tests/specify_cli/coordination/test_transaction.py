@@ -471,6 +471,21 @@ def test_deferred_outbound_individual_failure_logged(
     assert any("kaboom" in rec.getMessage() for rec in caplog.records)
 
 
+def test_write_artifact_refuses_paths_outside_coordination_worktree(repo: Path) -> None:
+    """Artifact writes must stay inside the coordination worktree."""
+    with BookkeepingTransaction.acquire(
+        repo_root=repo,
+        mission_id=MISSION_ID,
+        mission_slug=MISSION_SLUG,
+        mid8=MID8,
+        destination_ref=COORD_BRANCH,
+        operation="artifact_scope",
+    ) as txn:
+        outside_path = repo / "outside.txt"
+        with pytest.raises(ValueError, match="outside coordination worktree"):
+            txn.write_artifact(outside_path, b"bad")
+
+
 # ---------------------------------------------------------------------------
 # Nested-lock
 # ---------------------------------------------------------------------------

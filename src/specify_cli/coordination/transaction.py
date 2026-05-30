@@ -133,6 +133,18 @@ _EVENTS_FILENAME = "status.events.jsonl"
 _SNAPSHOT_FILENAME = "status.json"
 
 
+def _confine_transaction_artifact_path(path: Path, worktree_root: Path) -> Path:
+    """Return a resolved artifact path confined to the coordination worktree."""
+    candidate = path.resolve()
+    try:
+        candidate.relative_to(worktree_root.resolve())
+    except ValueError as exc:
+        raise ValueError(
+            f"Refusing to write artifact outside coordination worktree: {candidate}"
+        ) from exc
+    return candidate
+
+
 def _kitty_specs_dir_name(mission_slug: str, mid8: str) -> str:
     """Return the kitty-specs sub-directory name for this mission.
 
@@ -657,6 +669,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         # Capture snapshot ONLY if we have not seen this path yet.
         # Re-writing the same path repeatedly in one transaction still
         # rolls back to the *original* pre-transaction state.
+        path = _confine_transaction_artifact_path(path, self.worktree_root)
         if path not in self._snapshots:
             self._snapshots[path] = (
                 path.read_bytes() if path.exists() else None
