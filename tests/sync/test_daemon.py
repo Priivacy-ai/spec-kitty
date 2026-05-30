@@ -93,7 +93,7 @@ class TestDaemonFileLock:
         spawn_count = {"n": 0}
         call_order = []
 
-        def fake_locked(preferred_port=None):
+        def fake_locked(preferred_port=None, *, wait_for_health=True):
             spawn_count["n"] += 1
             call_order.append(spawn_count["n"])
             # On first call, write state so second call finds a healthy daemon
@@ -277,6 +277,40 @@ class TestHealthCheckRetryWindow:
         assert outcome.skipped_reason.startswith("start_failed:")
         # Dashboard uses ~20s; daemon should be at least 15s
         assert total_sleep["s"] >= 15.0
+
+    def test_wait_for_health_false_returns_once_daemon_binds_port(self, monkeypatch, tmp_path):
+        """Fast startup mode should return once localhost is accepting connections."""
+        state_file = tmp_path / "sync-daemon"
+        lock_file = tmp_path / "sync-daemon.lock"
+        monkeypatch.setattr(daemon, "SPEC_KITTY_DIR", tmp_path)
+        monkeypatch.setattr(daemon, "DAEMON_STATE_FILE", state_file)
+        monkeypatch.setattr(daemon, "DAEMON_LOCK_FILE", lock_file)
+        monkeypatch.setattr(daemon, "DAEMON_LOG_FILE", tmp_path / "sync-daemon.log")
+
+        class FakeProc:
+            pid = 77777
+
+        monkeypatch.setattr(daemon.subprocess, "Popen", lambda *args, **kwargs: FakeProc())
+        monkeypatch.setattr(daemon, "_find_free_port", lambda **kw: 9400)
+        monkeypatch.setattr(daemon, "_check_sync_daemon_health", lambda *a, **kw: False)
+        monkeypatch.setattr(daemon, "_owner_record_matches_process", lambda pid, port: False)
+        monkeypatch.setattr(daemon, "_port_accepting_connections", lambda port: True)
+
+        sleep_calls: list[float] = []
+        monkeypatch.setattr(daemon.time, "sleep", lambda seconds: sleep_calls.append(seconds))
+
+        cfg = _MagicMock()
+        cfg.get_background_daemon.return_value = BackgroundDaemonPolicy.AUTO
+        outcome = daemon.ensure_sync_daemon_running(
+            intent=DaemonIntent.REMOTE_REQUIRED,
+            config=cfg,
+            wait_for_health=False,
+        )
+
+        assert outcome.started is True
+        assert outcome.pid == FakeProc.pid
+        assert sleep_calls == []
+        assert state_file.exists()
 
 
 # ---------------------------------------------------------------------------
