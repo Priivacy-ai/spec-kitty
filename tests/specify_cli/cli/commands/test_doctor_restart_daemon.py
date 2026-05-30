@@ -282,6 +282,7 @@ def test_foreground_binding_uses_remote_required_intent(
     assert len(launch_calls) == 1
     intent = launch_calls[0]["kwargs"].get("intent")
     assert intent == DaemonIntent.REMOTE_REQUIRED
+    assert launch_calls[0]["kwargs"].get("health_wait_seconds") == 3.0
 
 
 # ---------------------------------------------------------------------------

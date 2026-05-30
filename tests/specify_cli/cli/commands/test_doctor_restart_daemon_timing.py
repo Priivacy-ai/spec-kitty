@@ -106,15 +106,18 @@ def _wait_for_runtime_ready(home: Path, expected_pid: int, *, deadline: float) -
     while time.perf_counter() < deadline:
         url, _port, token, pid = _read_daemon_record(home)
         assert pid == expected_pid
-        payload = _fetch_health(url, token)
-        last_payload = payload
-        sync_payload = payload.get("sync")
-        if (
-            payload.get("status") == "ok"
-            and isinstance(sync_payload, dict)
-            and sync_payload.get("running") is True
-        ):
-            return payload
+        try:
+            payload = _fetch_health(url, token)
+            last_payload = payload
+            sync_payload = payload.get("sync")
+            if (
+                payload.get("status") == "ok"
+                and isinstance(sync_payload, dict)
+                and sync_payload.get("running") is True
+            ):
+                return payload
+        except Exception:  # noqa: BLE001 — daemon may be between fork and bind.
+            pass
         time.sleep(0.1)
     raise AssertionError(f"sync runtime was not ready before NFR deadline: {last_payload}")
 
