@@ -22,9 +22,7 @@ Usage:
 import os
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
-
-import typer
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from rich.console import Console
@@ -71,6 +69,8 @@ else:
     __version__ = get_version()
 
 if not _RESTART_DAEMON_PROCESS_FAST_PATH:
+    import typer
+
     from specify_cli.cli.helpers import BannerGroup
     from specify_cli.cli.commands import register_commands
     from specify_cli.cli.commands.init import register_init_command
@@ -83,7 +83,7 @@ def locate_project_root() -> Path | None:
     return _locate_project_root()
 
 
-def root_callback(ctx: typer.Context) -> None:
+def root_callback(ctx: Any) -> None:
     """Compatibility wrapper so patch targets stay stable."""
     from specify_cli.cli.helpers import callback as _root_callback
 
@@ -117,22 +117,13 @@ def version_callback(value: bool) -> None:
     """Display version and exit."""
     if value:
         from specify_cli.cli.helpers import console, show_banner
+        import typer
 
         show_banner(force=True)
         console.print(f"spec-kitty-cli version {__version__}")
         raise typer.Exit()
 
-if _RESTART_DAEMON_PROCESS_FAST_PATH:
-    app = typer.Typer(
-        name="spec-kitty",
-        help=(
-            "Setup tool for Spec Kitty spec-driven development projects.\n\n"
-            "Set SPEC_KITTY_NO_UPGRADE_CHECK=1 to disable the upgrade-check notice."
-        ),
-        add_completion=False,
-        invoke_without_command=True,
-    )
-else:
+if not _RESTART_DAEMON_PROCESS_FAST_PATH:
     app = typer.Typer(
         name="spec-kitty",
         help=(
@@ -143,42 +134,50 @@ else:
         invoke_without_command=True,
         cls=BannerGroup,
     )
+else:
+    app = None
 
 
-@app.callback()
-def main_callback(
-    ctx: typer.Context,
-    version: bool = typer.Option(  # noqa: ARG001
-        None, "--version", "-v", callback=version_callback, is_eager=True, help="Show version and exit"
-    ),
-) -> None:
-    """Main callback for root CLI setup."""
-    if _is_doctor_restart_daemon_invocation(sys.argv):
-        return
+if not _RESTART_DAEMON_PROCESS_FAST_PATH:
 
-    root_callback(ctx)
+    @app.callback()
+    def main_callback(
+        ctx: typer.Context,
+        version: bool = typer.Option(  # noqa: ARG001
+            None, "--version", "-v", callback=version_callback, is_eager=True, help="Show version and exit"
+        ),
+    ) -> None:
+        """Main callback for root CLI setup."""
+        if _is_doctor_restart_daemon_invocation(sys.argv):
+            return
 
-    # FR-002: Ensure global runtime (~/.kittify/) is populated and current.
-    # Must run BEFORE check_version_pin() so global assets are available.
-    from specify_cli.runtime.agent_commands import ensure_global_agent_commands
-    from specify_cli.runtime.agent_skills import ensure_global_agent_skills
-    from specify_cli.runtime.bootstrap import check_version_pin, ensure_runtime
+        root_callback(ctx)
 
-    ensure_runtime()
-    ensure_global_agent_skills()
-    ensure_global_agent_commands()
+        # FR-002: Ensure global runtime (~/.kittify/) is populated and current.
+        # Must run BEFORE check_version_pin() so global assets are available.
+        from specify_cli.runtime.agent_commands import ensure_global_agent_commands
+        from specify_cli.runtime.agent_skills import ensure_global_agent_skills
+        from specify_cli.runtime.bootstrap import check_version_pin, ensure_runtime
 
-    # F-Pin-001 / 1A-16: Warn on runtime.pin_version for all project invocations.
-    project_root = locate_project_root()
-    if project_root is not None:
-        check_version_pin(project_root)
+        ensure_runtime()
+        ensure_global_agent_skills()
+        ensure_global_agent_commands()
 
-    # FR-019 / FR-020: Schema version gate — refuse unmigrated or newer-than-CLI
-    # projects before any command runs.  Exempt upgrade/init/--version/--help.
-    if project_root is not None:
-        from specify_cli.migration.gate import check_schema_version
+        # F-Pin-001 / 1A-16: Warn on runtime.pin_version for all project invocations.
+        project_root = locate_project_root()
+        if project_root is not None:
+            check_version_pin(project_root)
 
-        check_schema_version(project_root, invoked_subcommand=ctx.invoked_subcommand)
+        # FR-019 / FR-020: Schema version gate — refuse unmigrated or newer-than-CLI
+        # projects before any command runs.  Exempt upgrade/init/--version/--help.
+        if project_root is not None:
+            from specify_cli.migration.gate import check_schema_version
+
+            check_schema_version(project_root, invoked_subcommand=ctx.invoked_subcommand)
+else:
+
+    def main_callback(*_args: Any, **_kwargs: Any) -> None:
+        raise RuntimeError("main_callback unavailable in restart-daemon fast path")
 
 
 def _compute_execute_mode(mode: int) -> int:

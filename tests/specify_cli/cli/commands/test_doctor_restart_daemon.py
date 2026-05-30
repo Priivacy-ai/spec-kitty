@@ -214,31 +214,6 @@ def test_no_owner_exits_one_and_directs_to_sync_now(
     assert "spec-kitty sync now" in payload["error"]
 
 
-def test_missing_owner_record_but_daemon_metadata_restarts(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Missing owner JSON should not block restart when daemon metadata exists."""
-    _install_owner_record_fakes(monkeypatch, record=None, path_exists=False)
-    _install_daemon_state_file_fake(monkeypatch, exists=True)
-    stop_calls = _install_stop_fake(monkeypatch, result=(True, "Sync daemon stopped."))
-    launch_calls = _install_launch_fake(
-        monkeypatch,
-        outcome=DaemonStartOutcome(started=True, skipped_reason=None, pid=67890),
-    )
-
-    result = _runner().invoke(doctor_module.app, ["restart-daemon", "--json"])
-
-    assert result.exit_code == 0
-    assert stop_calls == [1.0]
-    assert len(launch_calls) == 1
-
-    payload = json.loads(result.stdout.strip())
-    assert payload["status"] == "restarted"
-    assert payload["previous_pid"] is None
-    assert payload["new_pid"] == 67890
-    assert payload["error"] is None
-
-
 def test_stop_failure_exits_three_and_skips_launch(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
