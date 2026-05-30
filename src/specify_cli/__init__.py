@@ -22,6 +22,7 @@ Usage:
 import os
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 
 def _early_doctor_restart_daemon_process_fast_path(argv: list[str]) -> bool:
@@ -59,7 +60,10 @@ if _early_doctor_restart_daemon_process_fast_path(sys.argv):
     _run_early_doctor_restart_daemon_process_fast_path(sys.argv)
 
 import typer  # noqa: E402
-from rich.console import Console  # noqa: E402
+
+if TYPE_CHECKING:
+    from rich.console import Console
+    from specify_cli.cli import StepTracker
 
 # Get version from package metadata
 # Test mode: use environment override to ensure tests use source version
@@ -70,19 +74,22 @@ else:
 
     __version__ = get_version()
 
-from specify_cli.cli import StepTracker  # noqa: E402
-from specify_cli.cli.helpers import (  # noqa: E402
-    BannerGroup,
-    callback as root_callback,
-    console,
-    show_banner,
-)
-from specify_cli.cli.commands import register_commands  # noqa: E402
-from specify_cli.cli.commands.init import register_init_command  # noqa: E402
-from specify_cli.core.project_resolver import locate_project_root  # noqa: E402
+_APP: typer.Typer | None = None
 
 
-def activate_mission(project_path: Path, mission_type: str, mission_display: str, console: Console) -> str:
+def root_callback(*args: Any, **kwargs: Any) -> Any:
+    from specify_cli.cli.helpers import callback as _root_callback
+
+    return _root_callback(*args, **kwargs)
+
+
+def locate_project_root() -> Path | None:
+    from specify_cli.core.project_resolver import locate_project_root as _locate_project_root
+
+    return _locate_project_root()
+
+
+def activate_mission(project_path: Path, mission_type: str, mission_display: str, console: "Console") -> str:
     """
     DEPRECATED: No-op function for backwards compatibility.
 
@@ -108,24 +115,12 @@ def activate_mission(project_path: Path, mission_type: str, mission_display: str
 def version_callback(value: bool) -> None:
     """Display version and exit."""
     if value:
+        from specify_cli.cli.helpers import console, show_banner
+
         show_banner(force=True)
         console.print(f"spec-kitty-cli version {__version__}")
         raise typer.Exit()
 
-
-app = typer.Typer(
-    name="spec-kitty",
-    help=(
-        "Setup tool for Spec Kitty spec-driven development projects.\n\n"
-        "Set SPEC_KITTY_NO_UPGRADE_CHECK=1 to disable the upgrade-check notice."
-    ),
-    add_completion=False,
-    invoke_without_command=True,
-    cls=BannerGroup,
-)
-
-
-@app.callback()
 def main_callback(
     ctx: typer.Context,
     version: bool = typer.Option(  # noqa: ARG001
@@ -163,6 +158,58 @@ def main_callback(
         check_schema_version(project_root, invoked_subcommand=ctx.invoked_subcommand)
 
 
+def _build_app() -> typer.Typer:
+    from specify_cli.cli.commands import register_commands
+    from specify_cli.cli.commands.init import register_init_command
+    from specify_cli.cli.helpers import BannerGroup
+
+    app = typer.Typer(
+        name="spec-kitty",
+        help=(
+            "Setup tool for Spec Kitty spec-driven development projects.\n\n"
+            "Set SPEC_KITTY_NO_UPGRADE_CHECK=1 to disable the upgrade-check notice."
+        ),
+        add_completion=False,
+        invoke_without_command=True,
+        cls=BannerGroup,
+    )
+    app.callback()(main_callback)
+    register_init_command(
+        app,
+        console=_get_console(),
+        show_banner=_get_show_banner(),
+        activate_mission=activate_mission,
+        ensure_executable_scripts=ensure_executable_scripts,
+    )
+    register_commands(app)
+    return app
+
+
+def _get_app() -> typer.Typer:
+    global _APP
+    if _APP is None:
+        _APP = _build_app()
+    return _APP
+
+
+def _get_console() -> Any:
+    from specify_cli.cli.helpers import console
+
+    return console
+
+
+def _get_show_banner() -> Any:
+    from specify_cli.cli.helpers import show_banner
+
+    return show_banner
+
+
+def __getattr__(name: str) -> Any:
+    if name == "app":
+        return _get_app()
+    raise AttributeError(name)
+
+
 def _compute_execute_mode(mode: int) -> int:
     new_mode = mode
     if mode & 0o400:
@@ -195,12 +242,13 @@ def _try_chmod_script(script: Path, scripts_root: Path) -> tuple[bool, str | Non
         return False, f"{script.relative_to(scripts_root)}: {e}"
 
 
-def _report_chmod_results(tracker: StepTracker | None, updated: int, failures: list[str]) -> None:
+def _report_chmod_results(tracker: "StepTracker | None", updated: int, failures: list[str]) -> None:
     if tracker:
         detail = f"{updated} updated" + (f", {len(failures)} failed" if failures else "")
         tracker.add("chmod", "Set script permissions recursively")
         (tracker.error if failures else tracker.complete)("chmod", detail)
     else:
+        console = _get_console()
         if updated:
             console.print(f"[cyan]Updated execute permissions on {updated} script(s) recursively[/cyan]")
         if failures:
@@ -209,7 +257,7 @@ def _report_chmod_results(tracker: StepTracker | None, updated: int, failures: l
                 console.print(f"  - {f}")
 
 
-def ensure_executable_scripts(project_path: Path, tracker: StepTracker | None = None) -> None:
+def ensure_executable_scripts(project_path: Path, tracker: "StepTracker | None" = None) -> None:
     """Ensure POSIX .sh scripts under .kittify/scripts (recursively) have execute bits (no-op on Windows)."""
     if os.name == "nt":
         return  # Windows: skip silently
@@ -225,18 +273,6 @@ def ensure_executable_scripts(project_path: Path, tracker: StepTracker | None = 
         if error:
             failures.append(error)
     _report_chmod_results(tracker, updated, failures)
-
-
-# Register the init command with necessary dependencies
-register_init_command(
-    app,
-    console=console,
-    show_banner=show_banner,
-    activate_mission=activate_mission,
-    ensure_executable_scripts=ensure_executable_scripts,
-)
-
-register_commands(app)
 
 
 def _is_doctor_restart_daemon_invocation(argv: list[str]) -> bool:
@@ -313,10 +349,10 @@ def main() -> None:
     from specify_cli.events.adapter import EventAdapter
 
     if not EventAdapter.check_library_available():
-        console.print(f"[red]{EventAdapter.get_missing_library_error()}[/red]")
+        _get_console().print(f"[red]{EventAdapter.get_missing_library_error()}[/red]")
         raise typer.Exit(1)
 
-    app()
+    _get_app()()
 
 
 __all__ = ["main", "app", "__version__"]

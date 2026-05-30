@@ -8,10 +8,11 @@ Covers:
 
 from __future__ import annotations
 
+import json
+import os
+import subprocess
 import sys
 import warnings
-import subprocess
-import os
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -838,3 +839,35 @@ except SystemExit as exc:
         assert result.returncode == 0
         assert '{"status":"restarted"}' in result.stdout
         assert "EXIT:0" in result.stdout
+
+    def test_library_import_does_not_eagerly_load_cli_command_graph(self) -> None:
+        """Library imports should not pay full CLI command registration cost."""
+        script = """
+import json
+import sys
+
+import specify_cli.sync.daemon  # noqa: F401
+
+print(json.dumps({
+    "commands_loaded": "specify_cli.cli.commands" in sys.modules,
+    "init_loaded": "specify_cli.cli.commands.init" in sys.modules,
+}))
+"""
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            cwd=str(Path(__file__).resolve().parents[2]),
+            env={
+                **os.environ,
+                "PYTHONPATH": str(Path(__file__).resolve().parents[2] / "src"),
+            },
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        assert result.returncode == 0, result.stderr
+        payload = json.loads(result.stdout)
+        assert payload == {
+            "commands_loaded": False,
+            "init_loaded": False,
+        }
