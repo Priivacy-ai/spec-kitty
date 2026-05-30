@@ -36,6 +36,7 @@ _PROFILE_DEFAULTS = {
     "generate": "implementer-ivan",
     "validate": "reviewer-renata",
     "publish": "reviewer-renata",
+    "accept": "reviewer-renata",
 }
 _GATE_ARTIFACT = {
     "discover": "spec.md",

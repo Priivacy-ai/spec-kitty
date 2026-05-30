@@ -12,7 +12,7 @@ manifest_version: "1"
 required_always: []
 
 # Artifacts required at specific mission steps
-# Note: documentation mission uses legacy phases (discover, audit, design, generate, validate, publish)
+# Note: documentation mission uses legacy phases (discover, audit, design, generate, validate, publish, accept)
 required_by_step:
   discover:
     # Discover phase requires specification of documentation needs
@@ -61,6 +61,10 @@ required_by_step:
 
   publish:
     # Publish phase finalizes documentation
+    []
+
+  accept:
+    # Accept phase confirms the publication handoff is complete
     []
 
 # Artifacts optional throughout the mission

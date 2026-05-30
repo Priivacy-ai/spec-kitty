@@ -31,6 +31,7 @@ _DOC_ACTIONS: tuple[str, ...] = (
     "generate",
     "validate",
     "publish",
+    "accept",
 )
 
 _SHIPPED: Path = (

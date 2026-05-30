@@ -6,6 +6,7 @@ from pathlib import Path
 
 from specify_cli.frontmatter import FrontmatterError, FrontmatterManager
 from specify_cli.status.lane_reader import CanonicalStatusNotFoundError, get_wp_lane, has_event_log
+from specify_cli.status.store import StoreError
 
 from ..detectors import detect_legacy_keys
 from ..models import MissionFinding, Severity
@@ -98,7 +99,7 @@ def classify_wp_files(mission_dir: Path) -> list[MissionFinding]:
             canonical_wp_id = wp_id or wp_path.stem
             try:
                 lane: str | None = str(get_wp_lane(mission_dir, canonical_wp_id))
-            except CanonicalStatusNotFoundError:
+            except (CanonicalStatusNotFoundError, StoreError):
                 lane = None
         else:
             lane = None

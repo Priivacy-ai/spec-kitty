@@ -160,3 +160,21 @@ def test_classify_wp_files_handles_get_wp_lane_race(
     result = classify_wp_files(tmp_path)
     assert isinstance(result, list)
     assert "MISSING_EVIDENCE" not in [f.code for f in result]
+
+
+def test_classify_wp_files_does_not_raise_on_corrupt_event_log(
+    tmp_path: Path,
+) -> None:
+    """The WP classifier never raises; corrupt status logs are classified elsewhere."""
+    tasks_dir = tmp_path / "tasks"
+    tasks_dir.mkdir()
+    (tasks_dir / "WP01.md").write_text(
+        "---\nwork_package_id: WP01\ntitle: Test\ndependencies: []\n---\n\n# Body\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "status.events.jsonl").write_text("{not json}\n", encoding="utf-8")
+
+    result = classify_wp_files(tmp_path)
+
+    assert isinstance(result, list)
+    assert "MISSING_EVIDENCE" not in [f.code for f in result]
