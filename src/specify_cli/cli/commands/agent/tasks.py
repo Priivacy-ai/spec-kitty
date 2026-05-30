@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import enum
 import json
 import logging
+import os
 from kernel._safe_re import re
 import subprocess
 import traceback
@@ -38,6 +39,7 @@ from specify_cli.core.paths import get_status_read_root
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.mission import get_mission_type
 from specify_cli.git import safe_commit
+from specify_cli.git.commit_helpers import protected_branches
 from specify_cli.status.locking import feature_status_lock
 from specify_cli.core.agent_config import get_auto_commit_default
 from specify_cli.status.bootstrap import bootstrap_canonical_state
@@ -593,6 +595,20 @@ def _output_error(json_mode: bool, error_message: str, diagnostic: dict | None =
         print(json.dumps(diagnostic if diagnostic is not None else {"error": error_message}))
     else:
         console.print(f"[red]Error:[/red] {error_message}")
+
+
+def _protected_branch_status_commit_error(branch: str, repo_root: Path, command: str) -> str | None:
+    if os.environ.get("SPEC_KITTY_TEST_MODE", "").lower() in {"1", "true", "yes"}:
+        return None
+    if branch not in protected_branches(repo_root):
+        return None
+    return (
+        f"Refusing to run `{command}` with auto-commit on protected branch "
+        f"'{branch}' before mutating status files. Run ceremony write "
+        "operations from an allowed coordination/lane branch, or rerun with "
+        "--no-auto-commit when you intentionally want to handle the status "
+        "artifact commit manually."
+    )
 
 
 def _status_event_result_fields(event: object | None) -> dict[str, str | None]:
@@ -1438,6 +1454,15 @@ def move_task(
 
         # Ensure we operate on the target branch for this feature
         main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
+        if auto_commit:
+            protected_error = _protected_branch_status_commit_error(
+                target_branch,
+                main_repo_root,
+                "spec-kitty agent tasks move-task",
+            )
+            if protected_error is not None:
+                _output_error(json_output, protected_error)
+                raise typer.Exit(1)
 
         # Informational: Let user know we're using planning repo's kitty-specs
         cwd = Path.cwd().resolve()
@@ -2397,6 +2422,15 @@ def mark_status(
         mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
         # Ensure we operate on the target branch for this feature
         main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
+        if auto_commit:
+            protected_error = _protected_branch_status_commit_error(
+                target_branch,
+                main_repo_root,
+                "spec-kitty agent tasks mark-status",
+            )
+            if protected_error is not None:
+                _output_error(json_output, protected_error)
+                raise typer.Exit(1)
         feature_dir = main_repo_root / "kitty-specs" / mission_slug
         tasks_md = feature_dir / TASKS_MD_FILENAME
 
@@ -3039,6 +3073,17 @@ def map_requirements(
 
         mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
         main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
+        if auto_commit is None:
+            auto_commit = get_auto_commit_default(main_repo_root)
+        if auto_commit:
+            protected_error = _protected_branch_status_commit_error(
+                target_branch,
+                main_repo_root,
+                "spec-kitty agent tasks map-requirements",
+            )
+            if protected_error is not None:
+                _output_error(json_output, protected_error)
+                raise typer.Exit(1)
         feature_dir = main_repo_root / "kitty-specs" / mission_slug
 
         if not feature_dir.exists():
@@ -3225,9 +3270,6 @@ def map_requirements(
         coverage = compute_coverage(all_wp_refs, functional_ids)
 
         # Auto-commit written WP files (consistent with move-task / update-subtasks)
-        if auto_commit is None:
-            auto_commit = get_auto_commit_default(main_repo_root)
-
         committed = False
         if auto_commit:
             written_files: list[Path] = []

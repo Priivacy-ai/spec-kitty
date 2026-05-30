@@ -783,6 +783,28 @@ def _resolve_tasks_dir(cwd: Path, mission_slug: str, repo_root: Path) -> Path:
     return repo_root / "kitty-specs" / mission_slug / "tasks"
 
 
+def _preview_claimable_wp_for_mission(repo_root: Path, mission_slug: str):
+    """Return the shared claimable preview for *mission_slug*, if tasks exist."""
+    from specify_cli.next.discovery import preview_claimable_wp
+
+    cwd = Path.cwd().resolve()
+    tasks_dir = _resolve_tasks_dir(cwd, mission_slug, repo_root)
+    if not tasks_dir.exists():
+        return None
+    return preview_claimable_wp(tasks_dir.parent)
+
+
+def _auto_claim_failure_message(preview: object | None) -> str:
+    """Return the user-facing error when auto-claim has no selectable WP."""
+    selection_reason = getattr(preview, "selection_reason", None)
+    if selection_reason == "dependencies_not_satisfied":
+        return (
+            "dependencies_not_satisfied: planned work packages are waiting on "
+            "dependencies; all dependencies must be done before implementation can start"
+        )
+    return "No planned work packages found. Specify a WP ID explicitly."
+
+
 def _find_first_planned_wp(repo_root: Path, mission_slug: str) -> str | None:
     """Find the first WP file with lane: "planned".
 
@@ -799,16 +821,8 @@ def _find_first_planned_wp(repo_root: Path, mission_slug: str) -> str | None:
     their candidate-selection logic. Do not reintroduce a parallel
     implementation here.
     """
-    from specify_cli.next.discovery import preview_claimable_wp
-
-    cwd = Path.cwd().resolve()
-    tasks_dir = _resolve_tasks_dir(cwd, mission_slug, repo_root)
-
-    if not tasks_dir.exists():
-        return None
-
-    feature_dir = tasks_dir.parent
-    return preview_claimable_wp(feature_dir).wp_id
+    preview = _preview_claimable_wp_for_mission(repo_root, mission_slug)
+    return getattr(preview, "wp_id", None)
 
 
 @app.command(name="implement")
@@ -905,9 +919,10 @@ def implement(
             normalized_wp_id = _normalize_wp_id(wp_id)
         else:
             # Auto-detect first planned WP
-            normalized_wp_id = _find_first_planned_wp(repo_root, mission_slug)
+            _claimable_preview = _preview_claimable_wp_for_mission(repo_root, mission_slug)
+            normalized_wp_id = getattr(_claimable_preview, "wp_id", None)
             if not normalized_wp_id:
-                print("Error: No planned work packages found. Specify a WP ID explicitly.")
+                print(f"Error: {_auto_claim_failure_message(_claimable_preview)}")
                 raise typer.Exit(1)
 
         # Find WP file to read dependencies

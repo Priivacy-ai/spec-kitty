@@ -25,41 +25,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 
-def _early_doctor_restart_daemon_process_fast_path(argv: list[str]) -> bool:
-    """Return True for the machine-output restart-daemon fast path.
-
-    This runs before importing the heavy Typer command graph so the
-    console-script entry point can short-circuit import cost for the
-    latency-sensitive machine-global restart command.
-    """
-    if os.environ.get("SPEC_KITTY_TEST_MODE") == "1":
-        return False
-    if any(arg in {"--help", "-h"} for arg in argv[1:]):
-        return False
-    command_parts: list[str] = []
-    for arg in argv[1:]:
-        if arg.startswith("-"):
-            if arg != "--json":
-                return False
-            continue
-        command_parts.append(arg)
-    return command_parts == ["doctor", "restart-daemon"]
-
-
-def _run_early_doctor_restart_daemon_process_fast_path(argv: list[str]) -> None:
-    os.environ["SPEC_KITTY_SYNC_MINIMAL_IMPORT"] = "1"
-    from specify_cli.sync.restart import render_restart_result, restart_daemon
-
-    result = restart_daemon(Path.cwd())
-    sys.stdout.write(render_restart_result(result, json_output="--json" in argv) + "\n")
-    sys.stdout.flush()
-    sys.stderr.flush()
-    os._exit(result.exit_code)
-
-
-if _early_doctor_restart_daemon_process_fast_path(sys.argv):
-    _run_early_doctor_restart_daemon_process_fast_path(sys.argv)
-
 import typer  # noqa: E402
 
 if TYPE_CHECKING:

@@ -445,6 +445,7 @@ class TestMoveTaskHardFail:
                 "--mission",
                 mission_slug,
                 "--force",
+                "--no-auto-commit",
                 "--json",
             ],
         )

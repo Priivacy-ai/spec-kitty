@@ -285,6 +285,18 @@ def test_workflow_uses_lane_in_progress_not_doing_string():
     )
 
 
+def test_auto_claim_failure_message_preserves_dependency_reason() -> None:
+    """Auto implement must not launder dependency blocking into a generic no-WP error."""
+    from specify_cli.cli.commands.agent import workflow as workflow_module
+
+    preview = MagicMock(selection_reason="dependencies_not_satisfied")
+
+    message = workflow_module._auto_claim_failure_message(preview)
+
+    assert "dependencies_not_satisfied" in message
+    assert "all dependencies must be done" in message
+
+
 # ---------------------------------------------------------------------------
 # Tests for AgentAssignment dataclass
 # ---------------------------------------------------------------------------
