@@ -33,7 +33,6 @@ from specify_cli.status.models import Lane, TransitionRequest
 from specify_cli.status.work_package_lifecycle import WorkPackageClaimConflict, start_implementation_status
 from specify_cli.task_utils import TaskCliError, find_repo_root
 from specify_cli.workspace.context import resolve_workspace_for_wp
-from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts
 
 console = Console()
 _WP_ID_RE = re.compile(r"^WP\d{2}$", re.IGNORECASE)
@@ -741,6 +740,8 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         if status_result is not None and status_result.status_changed:
             commit_msg = f"chore: {wp_id} claimed for implementation"
             if auto_commit:
+                from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts
+
                 meta_file = feature_dir / "meta.json"
                 config_file = repo_root / ".kittify" / "config.yaml"
                 files_to_commit = [wp_file.resolve(), *[path.resolve() for path in _collect_status_artifacts(feature_dir)]]
