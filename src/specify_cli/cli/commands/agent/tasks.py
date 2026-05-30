@@ -739,12 +739,33 @@ def _check_unchecked_subtasks(repo_root: Path, mission_slug: str, wp_id: str, _f
 
     content = tasks_md.read_text(encoding="utf-8")
 
-    # Find subtasks for this WP (looking for - [ ] or - [x] checkboxes under WP section)
+    # Find canonical subtasks for this WP. Only unchecked rows of the form
+    # ``- [ ] T### <desc>`` count as blocking. Validation/procedure/checklist
+    # command rows (e.g. ``- [ ] swift test``, ``- [ ] git status --short``),
+    # prose, and anything inside fenced code blocks are intentionally ignored —
+    # they are not work-package subtasks and must not block a lane transition.
     lines = content.split("\n")
-    unchecked = []
+    unchecked: list[str] = []
     in_wp_section = False
+    in_code_fence = False
+
+    # Canonical subtask row: ``- [ ] T001 ...``. A ``T`` id of at least three
+    # digits is mandatory (``\d{3,}`` so ids past T999 still block).
+    canonical_unchecked = re.compile(r"^-\s*\[\s*\]\s*(T\d{3,})\b")
 
     for line in lines:
+        stripped = line.strip()
+
+        # Toggle fenced-code-block state on ``` or ~~~ markers. Task-like lines
+        # inside fenced code blocks (examples in implementation notes) must not
+        # be treated as real subtasks.
+        if stripped.startswith("```") or stripped.startswith("~~~"):
+            in_code_fence = not in_code_fence
+            continue
+
+        if in_code_fence:
+            continue
+
         # Check if we entered this WP's section
         if re.search(rf"^#{{2,4}}[^#].*{wp_id}\b", line):
             in_wp_section = True
@@ -754,13 +775,11 @@ def _check_unchecked_subtasks(repo_root: Path, mission_slug: str, wp_id: str, _f
         if in_wp_section and re.search(r"^#{2,4}[^#].*WP\d{2}\b", line):
             break  # Left this WP's section
 
-        # Look for unchecked tasks in this WP's section
+        # Look for unchecked canonical task rows in this WP's section
         if in_wp_section:
-            # Match patterns like: - [ ] T001 or - [ ] Task description
-            unchecked_match = re.match(r"-\s*\[\s*\]\s*(T\d{3}|.*)", line.strip())
+            unchecked_match = canonical_unchecked.match(stripped)
             if unchecked_match:
-                task_id = unchecked_match.group(1).split()[0] if unchecked_match.group(1) else line.strip()
-                unchecked.append(task_id)
+                unchecked.append(unchecked_match.group(1))
 
     return unchecked
 
@@ -1610,13 +1629,14 @@ def move_task(
         if target_lane in (Lane.FOR_REVIEW, Lane.APPROVED, Lane.DONE) and not force:
             unchecked = _check_unchecked_subtasks(repo_root, mission_slug, task_id, force)
             if unchecked:
+                # ``unchecked`` only ever contains canonical T### ids, so the
+                # remediation commands below are always valid mark-status calls.
                 error_msg = f"Cannot move {task_id} to {target_lane} - unchecked subtasks:\n"
                 for task in unchecked:
                     error_msg += f"  - [ ] {task}\n"
                 error_msg += "\nMark these complete first:\n"
                 for task in unchecked[:3]:  # Show first 3 examples
-                    task_clean = task.split()[0] if " " in task else task
-                    error_msg += f"  spec-kitty agent tasks mark-status {task_clean} --status done\n"
+                    error_msg += f"  spec-kitty agent tasks mark-status {task} --status done\n"
                 error_msg += "\nOr use --force to override (not recommended)"
                 _output_error(json_output, error_msg)
                 raise typer.Exit(1)

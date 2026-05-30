@@ -133,7 +133,7 @@ Verify or create the retrospective, then inspect synthesis proposals:
 
 ```bash
 spec-kitty retrospect create --mission <mission-slug>
-spec-kitty agent retrospect synthesize --mission <mission-slug> --preview
+spec-kitty agent retrospect synthesize --mission <mission-slug>
 ```
 
 Apply only the proposals you intend to preserve:

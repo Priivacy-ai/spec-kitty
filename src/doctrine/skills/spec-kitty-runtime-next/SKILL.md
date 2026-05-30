@@ -482,7 +482,7 @@ if [ "$KIND" = "terminal" ] || [ "$DONE" -eq "$TOTAL" ]; then
   #      OR verify: cat .kittify/missions/<mission_id>/retrospective.yaml
   #   c. Surface findings:
   #      spec-kitty retrospect summary                                   # read-only aggregation
-  #      spec-kitty agent retrospect synthesize --mission 042-mission --preview
+  #      spec-kitty agent retrospect synthesize --mission 042-mission  # dry-run by default; --apply to mutate
   # Note: summary aggregates; synthesize applies proposals — neither authors records.
 fi
 ```

@@ -977,14 +977,19 @@ def _commit_acceptance_meta(
     record_acceptance(summary.feature_dir, accepted_by=actor_name, mode=mode, from_commit=parent_commit, accept_commit=None)
 
     meta_path = summary.feature_dir / "meta.json"
-    run_git(["add", str(meta_path.relative_to(summary.repo_root))], cwd=summary.repo_root, check=True)
+    meta_rel = str(meta_path.relative_to(summary.repo_root))
+    run_git(["add", meta_rel], cwd=summary.repo_root, check=True)
 
-    status = run_git(["diff", "--cached", "--name-only"], cwd=summary.repo_root, check=True)
+    # Scope the staged-check and commit to meta.json. A bare ``git commit`` would
+    # sweep in any unrelated files the operator had pre-staged before running
+    # ``accept``; the explicit ``-- <meta>`` pathspec commits only the
+    # acceptance metadata and leaves the operator's staged work untouched.
+    status = run_git(["diff", "--cached", "--name-only", "--", meta_rel], cwd=summary.repo_root, check=True)
     staged_files = [line.strip() for line in status.stdout.splitlines() if line.strip()]
     if not staged_files:
         return parent_commit, None, False
 
-    run_git(["commit", "-m", f"Accept {summary.feature}"], cwd=summary.repo_root, check=True)
+    run_git(["commit", "-m", f"Accept {summary.feature}", "--", meta_rel], cwd=summary.repo_root, check=True)
     try:
         accept_commit: str | None = run_git(["rev-parse", "HEAD"], cwd=summary.repo_root, check=True).stdout.strip()
     except TaskCliError:
@@ -998,12 +1003,12 @@ def _commit_acceptance_meta(
             if _history:
                 _history[-1]["accept_commit"] = accept_commit
             write_meta(summary.feature_dir, _meta)
-            run_git(["add", str(meta_path.relative_to(summary.repo_root))], cwd=summary.repo_root, check=True)
-            commit_status = run_git(["diff", "--cached", "--name-only"], cwd=summary.repo_root, check=True)
+            run_git(["add", meta_rel], cwd=summary.repo_root, check=True)
+            commit_status = run_git(["diff", "--cached", "--name-only", "--", meta_rel], cwd=summary.repo_root, check=True)
             commit_staged_files = [line.strip() for line in commit_status.stdout.splitlines() if line.strip()]
             if commit_staged_files:
                 run_git(
-                    ["commit", "-m", f"Record acceptance commit for {summary.feature}"],
+                    ["commit", "-m", f"Record acceptance commit for {summary.feature}", "--", meta_rel],
                     cwd=summary.repo_root,
                     check=True,
                 )

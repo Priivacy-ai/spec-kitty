@@ -389,8 +389,8 @@ def create_cmd(
         "evidence_refs": len(record.evidence_refs),
     }
     next_step = (
-        f"Run `spec-kitty agent retrospect synthesize --mission {resolved.mission_slug} --preview` "
-        "to review proposals."
+        f"Run `spec-kitty agent retrospect synthesize --mission {resolved.mission_slug}` "
+        "to review proposals (dry-run by default; add --apply to mutate)."
     )
 
     if json_output:
@@ -798,8 +798,8 @@ def backfill_cmd(  # noqa: C901
     next_actions: list[str] = []
     if created and not dry_run:
         next_actions.append(
-            "Run `spec-kitty agent retrospect synthesize --mission <handle> --preview` "
-            "on newly authored records."
+            "Run `spec-kitty agent retrospect synthesize --mission <handle>` "
+            "on newly authored records (dry-run by default; add --apply to mutate)."
         )
     if failed:
         next_actions.append(f"Inspect the {len(failed)} failed mission(s) listed above.")

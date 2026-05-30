@@ -111,6 +111,33 @@ def _write_meta(feature_dir: Path, mission_slug: str, **overrides: object) -> No
     )
 
 
+def _baseline_run_command_side_effect(feature_dir: Path, baseline_sha: str):
+    """run_command side_effect that simulates a target carrying the baseline.
+
+    Every git command returns ``(0, baseline_sha, "")`` EXCEPT ``git show
+    <target>:kitty-specs/<slug>/meta.json``, which returns the committed
+    target meta.json with ``baseline_merge_commit`` populated. This lets the
+    full merge flow exercise ``_assert_baseline_merge_commit_on_target``
+    without a real git history.
+    """
+    meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+    meta["baseline_merge_commit"] = baseline_sha
+    committed_meta_json = json.dumps(meta, sort_keys=True)
+
+    def _side_effect(cmd, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003
+        if (
+            isinstance(cmd, (list, tuple))
+            and len(cmd) >= 3
+            and cmd[0] == "git"
+            and cmd[1] == "show"
+            and str(cmd[2]).endswith("meta.json")
+        ):
+            return (0, committed_meta_json, "")
+        return (0, baseline_sha, "")
+
+    return _side_effect
+
+
 class TestBaselineMergeCommitMetadata:
     def test_record_baseline_merge_commit_fills_blank_field(self, tmp_path: Path) -> None:
         mission_slug = "068-baseline-meta"
@@ -321,7 +348,10 @@ class TestSafeCommitCalledAfterMarkDoneLoop:
             patch("specify_cli.post_merge.stale_assertions.run_check") as mock_run_check,
             patch("specify_cli.policy.merge_gates.evaluate_merge_gates") as mock_gates,
             patch("specify_cli.policy.config.load_policy_config") as mock_policy,
-            patch("specify_cli.cli.commands.merge.run_command", return_value=(0, "base123", "")),
+            patch(
+                "specify_cli.cli.commands.merge.run_command",
+                side_effect=_baseline_run_command_side_effect(feature_dir, "base123"),
+            ),
             patch("specify_cli.cli.commands.merge.has_remote", return_value=False),
             patch("specify_cli.cli.commands.merge.cleanup_merge_workspace"),
             patch("specify_cli.cli.commands.merge.clear_state"),
@@ -641,7 +671,10 @@ class TestDoneEventsCommittedToGit:
             patch("specify_cli.post_merge.stale_assertions.run_check") as mock_run_check,
             patch("specify_cli.policy.merge_gates.evaluate_merge_gates") as mock_gates,
             patch("specify_cli.policy.config.load_policy_config") as mock_policy,
-            patch("specify_cli.cli.commands.merge.run_command", return_value=(0, "abc123", "")),
+            patch(
+                "specify_cli.cli.commands.merge.run_command",
+                side_effect=_baseline_run_command_side_effect(feature_dir, "abc123"),
+            ),
             patch("specify_cli.cli.commands.merge.has_remote", return_value=False),
             patch("specify_cli.cli.commands.merge.cleanup_merge_workspace"),
             patch("specify_cli.cli.commands.merge.clear_state"),

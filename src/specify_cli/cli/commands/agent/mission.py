@@ -95,6 +95,7 @@ def _collect_finalize_artifacts(
         feature_dir / "status.events.jsonl",
         feature_dir / "status.json",
         feature_dir / TASKS_MD_FILENAME,
+        feature_dir / "acceptance-matrix.json",
         feature_dir / ".kittify" / "dossiers" / mission_slug / "snapshot-latest.json",
     ]
     candidates.extend(sorted(path for path in tasks_dir.iterdir() if path.is_file()))
@@ -2598,6 +2599,43 @@ def finalize_tasks(
                 else:
                     console.print(f"[red]Error:[/red] {error_msg}")
                 raise typer.Exit(1)
+
+        # Finding 6: scaffold a minimal, schema-valid ``acceptance-matrix.json``
+        # for lane-based missions whenever it is absent. The acceptance gate
+        # requires this artifact for lane-based features, so creating it at
+        # finalize-tasks time prevents a silently-missing file from blocking
+        # acceptance later. The helper is idempotent (existing files are never
+        # overwritten) and must never block finalize on failure.
+        if lanes_manifest is not None and not validate_only:
+            try:
+                from specify_cli.acceptance.matrix import scaffold_acceptance_matrix
+
+                acceptance_matrix_path = scaffold_acceptance_matrix(
+                    feature_dir,
+                    mission_slug,
+                    requirement_ids=sorted(functional_spec_requirement_ids),
+                )
+            except Exception as _acc_matrix_exc:  # noqa: BLE001
+                # Never block finalize-tasks on a scaffold failure — this is a
+                # convenience artifact, not a correctness gate. Emit a
+                # copy-pasteable remediation command so operators can recover.
+                if not json_output:
+                    console.print(
+                        "[yellow]Warning:[/yellow] could not scaffold "
+                        f"acceptance-matrix.json: {_acc_matrix_exc}"
+                    )
+                    console.print(
+                        "[yellow]Hint:[/yellow] create it manually before "
+                        "acceptance:\n  spec-kitty agent mission finalize-tasks "
+                        f"--feature {mission_slug}"
+                    )
+            else:
+                if acceptance_matrix_path is not None and not json_output:
+                    try:
+                        rel = acceptance_matrix_path.relative_to(repo_root)
+                    except ValueError:
+                        rel = acceptance_matrix_path
+                    console.print(f"[info] Scaffolded {rel}")
 
         # Run dossier sync before the commit so its deterministic snapshot lands
         # atomically with the rest of the planning artifacts.

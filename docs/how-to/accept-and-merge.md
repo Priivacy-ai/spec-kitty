@@ -119,7 +119,7 @@ operator verb.
 spec-kitty retrospect summary
 
 # Preview proposals in this mission's retrospective.yaml (dry-run by default)
-spec-kitty agent retrospect synthesize --mission <handle> --preview
+spec-kitty agent retrospect synthesize --mission <handle>
 
 # Apply a proposal (requires explicit --apply)
 spec-kitty agent retrospect synthesize --mission <handle> --apply <proposal-id>

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import typer
 from rich.table import Table
@@ -21,7 +22,13 @@ from specify_cli.cli import StepTracker
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.cli.helpers import console, show_banner
 from specify_cli.git.commit_helpers import assert_not_protected_branch
-from specify_cli.task_utils import LANES, TaskCliError, find_repo_root
+from specify_cli.task_utils import (
+    LANES,
+    TaskCliError,
+    find_repo_root,
+    git_status_lines,
+    run_git,
+)
 
 
 def _safe_emit_error_logged(message: str) -> None:
@@ -32,6 +39,73 @@ def _safe_emit_error_logged(message: str) -> None:
     except Exception:
         # Non-blocking: never fail the command on emission errors
         pass
+
+
+def _spec_artifact_dirty_paths(repo_root: Path, feature_slug: str) -> list[str]:
+    """Return tracked-but-uncommitted spec/meta artifacts under the mission dir.
+
+    The acceptance pipeline materializes derived artifacts (e.g.
+    ``acceptance-matrix.json`` and status views) while running readiness checks
+    *before* the acceptance commit is created. Those writes happen after the
+    git-cleanliness snapshot is taken, so the acceptance commit only captures
+    ``meta.json`` and leaves the materialized artifacts modified-unstaged. This
+    helper finds exactly those leftover tracked modifications so the command can
+    fold them into the acceptance state and leave a clean working tree.
+
+    Untracked files (``??``) are deliberately excluded so the cleanup commit
+    never sweeps in unrelated, unmanaged files the operator may have created.
+    """
+    prefix = f"kitty-specs/{feature_slug}/"
+    dirty: list[str] = []
+    for line in git_status_lines(repo_root):
+        # Porcelain format: two status chars, a space, then the path.
+        status_code = line[:2]
+        path = line[3:].strip()
+        # Rename entries look like "old -> new"; keep the destination path.
+        if " -> " in path:
+            path = path.split(" -> ", 1)[1].strip()
+        if status_code == "??":
+            continue
+        if path.startswith(prefix):
+            dirty.append(path)
+    return dirty
+
+
+def _commit_residual_acceptance_artifacts(repo_root: Path, feature_slug: str) -> bool:
+    """Stage and commit any leftover acceptance artifacts so the tree is clean.
+
+    Returns True when a follow-up commit was created. This preserves the
+    recorded ``accept_commit`` SHA (it still points at the real acceptance
+    commit) while guaranteeing a successful ``accept`` leaves no
+    staged-but-uncommitted or modified-unstaged spec/meta artifacts behind.
+    """
+    dirty = _spec_artifact_dirty_paths(repo_root, feature_slug)
+    if not dirty:
+        return False
+
+    for path in dirty:
+        run_git(["add", path], cwd=repo_root, check=True)
+
+    # Scope the staged-check and the commit to the mission's dirty artifacts
+    # only. A bare ``git commit`` would sweep in any files the operator had
+    # pre-staged outside the mission dir; the explicit ``-- <paths>`` pathspec
+    # commits exactly these spec/meta artifacts and leaves unrelated staged work
+    # untouched.
+    staged = run_git(
+        ["diff", "--cached", "--name-only", "--", *dirty],
+        cwd=repo_root,
+        check=True,
+    )
+    staged_files = [line.strip() for line in staged.stdout.splitlines() if line.strip()]
+    if not staged_files:
+        return False
+
+    run_git(
+        ["commit", "-m", f"Finalize acceptance artifacts for {feature_slug}", "--", *dirty],
+        cwd=repo_root,
+        check=True,
+    )
+    return True
 
 
 def _print_acceptance_summary(summary: AcceptanceSummary) -> None:
@@ -292,6 +366,14 @@ def accept(
                 tests=acceptance_tests,
                 auto_commit=commit_required,
             )
+        if commit_required:
+            # The acceptance commit (inside perform_acceptance) only captures
+            # meta.json. Derived artifacts materialized during readiness checks
+            # (e.g. acceptance-matrix.json, status views) are written after the
+            # git-cleanliness snapshot and would otherwise be left dirty. Fold
+            # them into a follow-up commit so a successful accept leaves a clean
+            # working tree on every path (including accept_commit == None).
+            _commit_residual_acceptance_artifacts(repo_root, mission_slug)
         if commit_required and not json_output:
             detail = "commit created" if result.commit_created else "no changes"
             tracker.complete("commit", detail)
