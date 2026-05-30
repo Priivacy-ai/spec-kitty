@@ -1,8 +1,8 @@
 # Tasks: Pre-Doctrine Test Stabilization
 
-**Mission**: `pre-doctrine-test-stabilization-01KSMG8Y`  
-**Branch**: `feat/pre-doctrine-stabilization-remediation`  
-**Spec**: [spec.md](spec.md) | **Plan**: [plan.md](plan.md)  
+**Mission**: `pre-doctrine-test-stabilization-01KSMG8Y`
+**Branch**: `feat/pre-doctrine-stabilization-remediation`
+**Spec**: [spec.md](spec.md) | **Plan**: [plan.md](plan.md)
 **Generated**: 2026-05-27T11:26:35Z
 
 ---
@@ -72,11 +72,11 @@
 
 ## WP01 — TOML escape fix + snapshot refresh (FR-001 / #1302)
 
-**Goal**: Fix unescaped backslash in `implement.md` that causes `TOMLDecodeError` for gemini/qwen agents; refresh all twelve-agent snapshots.  
-**Priority**: High (blocks gemini/qwen usage and parity test suite)  
-**Estimated prompt size**: ~250 lines  
-**Execution lane**: lane-a  
-**Profile**: `implementer-ivan`  
+**Goal**: Fix unescaped backslash in `implement.md` that causes `TOMLDecodeError` for gemini/qwen agents; refresh all twelve-agent snapshots.
+**Priority**: High (blocks gemini/qwen usage and parity test suite)
+**Estimated prompt size**: ~250 lines
+**Execution lane**: lane-a
+**Profile**: `implementer-ivan`
 
 **Included subtasks:**
 - [x] T001 Fix `rg '\.py$'` → `grep -E '[.]py$'` in implement.md:168 (WP01)
@@ -89,18 +89,18 @@
 3. Confirm all 12 (or 13 — count first) agent snapshots updated with only the rg→grep substitution
 4. Run parity tests without `PYTEST_UPDATE_SNAPSHOTS` to verify all pass
 
-**Dependencies**: none  
+**Dependencies**: none
 **Prompt file**: [tasks/WP01-toml-escape-fix-snapshot-refresh.md](tasks/WP01-toml-escape-fix-snapshot-refresh.md)
 
 ---
 
 ## WP02 — README Governance + chokepoint guards (FR-002, FR-003, FR-004 / #1308, #1309, #1310-partial)
 
-**Goal**: Three independent quick fixes: add README governance section, fix frontmatter-lane read in wp_files.py, remove doctrine CLI group.  
-**Priority**: High (4 confirmed test failures directly verifiable)  
-**Estimated prompt size**: ~380 lines  
-**Execution lane**: lane-b  
-**Profile**: `implementer-ivan`  
+**Goal**: Three independent quick fixes: add README governance section, fix frontmatter-lane read in wp_files.py, remove doctrine CLI group.
+**Priority**: High (4 confirmed test failures directly verifiable)
+**Estimated prompt size**: ~380 lines
+**Execution lane**: lane-b
+**Profile**: `implementer-ivan`
 
 **Included subtasks:**
 - [x] T004 Pre-check skill file links in advise/runtime-next SKILL.md files (WP02)
@@ -115,7 +115,7 @@
 3. FR-003: Add guarded get_wp_lane() to wp_files.py; add guard-fallback test
 4. FR-004: Remove 2 lines from `commands/__init__.py`; verify charter group unaffected
 
-**Dependencies**: none  
+**Dependencies**: none
 **Prompt file**: [tasks/WP02-readme-governance-chokepoint-guards.md](tasks/WP02-readme-governance-chokepoint-guards.md)
 
 ---
@@ -126,11 +126,11 @@
 
 ## WP03 — Doctrine / glossary anchor + tactic repair (FR-005 / #1304)
 
-**Goal**: Add two missing glossary anchors and fix the five-paradigm-parallel-debugging tactic schema.  
-**Priority**: High (4 failing doctrine tests)  
-**Estimated prompt size**: ~280 lines  
-**Execution lane**: lane-c  
-**Profile**: `curator-carla`  
+**Goal**: Add two missing glossary anchors and fix the five-paradigm-parallel-debugging tactic schema.
+**Priority**: High (4 failing doctrine tests)
+**Estimated prompt size**: ~280 lines
+**Execution lane**: lane-c
+**Profile**: `curator-carla`
 
 **Included subtasks:**
 - [x] T009 Run failing doctrine/glossary tests to identify exact missing anchors (WP03)
@@ -143,18 +143,18 @@
 2. Anchors are content additions to existing YAML; no schema version bump needed
 3. Fix tactic schema in-place; run tactic compliance test to confirm
 
-**Dependencies**: none  
+**Dependencies**: none
 **Prompt file**: [tasks/WP03-doctrine-glossary-anchor-tactic-repair.md](tasks/WP03-doctrine-glossary-anchor-tactic-repair.md)
 
 ---
 
 ## WP04 — Status / lifecycle event drift (FR-006 / #1306)
 
-**Goal**: Fix four independent status/lifecycle event regressions; holds exclusive ownership of `move_task.py`.  
-**Priority**: High (4 failing status tests)  
-**Estimated prompt size**: ~400 lines  
-**Execution lane**: lane-d  
-**Profile**: `debugger-debbie`  
+**Goal**: Fix four independent status/lifecycle event regressions; holds exclusive ownership of `move_task.py`.
+**Priority**: High (4 failing status tests)
+**Estimated prompt size**: ~400 lines
+**Execution lane**: lane-d
+**Profile**: `debugger-debbie`
 
 **Included subtasks:**
 - [x] T013 Fix SpecifyStarted event not emitted at mission create (WP04)
@@ -168,18 +168,18 @@
 3. If WP05 item 5 (rejection-cycle handoff) is rooted in move_task.py, coordinate the fix here
 4. Four independent fixes — each can be addressed in any order
 
-**Dependencies**: none  
+**Dependencies**: none
 **Prompt file**: [tasks/WP04-status-lifecycle-event-drift.md](tasks/WP04-status-lifecycle-event-drift.md)
 
 ---
 
 ## WP05 — Charter integration suite regressions (FR-007 / #1307)
 
-**Goal**: Fix six independent charter integration test failures.  
-**Priority**: High (6 failing integration tests)  
-**Estimated prompt size**: ~460 lines  
-**Execution lane**: lane-e  
-**Profile**: `debugger-debbie`  
+**Goal**: Fix six independent charter integration test failures.
+**Priority**: High (6 failing integration tests)
+**Estimated prompt size**: ~460 lines
+**Execution lane**: lane-e
+**Profile**: `debugger-debbie`
 
 **Included subtasks:**
 - [x] T017 Fix org-layer source name missing in charter lint output (WP05)
@@ -196,18 +196,18 @@
 4. T019 fix may be in `src/specify_cli/charter_preflight/` — check there before `runtime_bridge.py`
 5. WP05 item 2 touches CLI adapter only (`src/specify_cli/cli/commands/charter/synthesize.py`), not `src/charter/synthesizer/errors.py`
 
-**Dependencies**: Coordinate with WP04 before touching move_task.py; coordinate with WP06 before touching runtime_bridge.py  
+**Dependencies**: Coordinate with WP04 before touching move_task.py; coordinate with WP06 before touching runtime_bridge.py
 **Prompt file**: [tasks/WP05-charter-integration-regressions.md](tasks/WP05-charter-integration-regressions.md)
 
 ---
 
 ## WP06 — `next` CLI exit-code regressions (FR-008 / #1305)
 
-**Goal**: Fix `decide_next_via_runtime` returning wrong Decision.kind for terminal states; update mock targets if call-path changed.  
-**Priority**: High (4 failing next-CLI tests)  
-**Estimated prompt size**: ~280 lines  
-**Execution lane**: lane-f  
-**Profile**: `debugger-debbie`  
+**Goal**: Fix `decide_next_via_runtime` returning wrong Decision.kind for terminal states; update mock targets if call-path changed.
+**Priority**: High (4 failing next-CLI tests)
+**Estimated prompt size**: ~280 lines
+**Execution lane**: lane-f
+**Profile**: `debugger-debbie`
 
 **Included subtasks:**
 - [x] T023 Investigate decide_next_via_runtime return value for terminal states (WP06)
@@ -220,7 +220,7 @@
 3. Do NOT change the exit-code mapping in `next_cmd.py`
 4. If mock is not being hit, patch target likely changed — check current import path
 
-**Dependencies**: WP05 must not begin runtime_bridge.py edits until WP06 is merged  
+**Dependencies**: WP05 must not begin runtime_bridge.py edits until WP06 is merged
 **Prompt file**: [tasks/WP06-next-cli-exit-code-regressions.md](tasks/WP06-next-cli-exit-code-regressions.md)
 
 ---
@@ -231,11 +231,11 @@
 
 ## WP07 — Shared-package events drift residual (FR-009 / #1301)
 
-**Goal**: Fix six residual structural failures from the events package alignment done in 01KSF9HJ.  
-**Priority**: Medium (6 sync/contract test failures)  
-**Estimated prompt size**: ~380 lines  
-**Execution lane**: lane-g  
-**Profile**: `implementer-ivan`  
+**Goal**: Fix six residual structural failures from the events package alignment done in 01KSF9HJ.
+**Priority**: Medium (6 sync/contract test failures)
+**Estimated prompt size**: ~380 lines
+**Execution lane**: lane-g
+**Profile**: `implementer-ivan`
 
 **Included subtasks:**
 - [x] T026 Add restart.py to daemon-allowlist or refactor unauthorized call (WP07)
@@ -250,18 +250,18 @@
 2. T026–T028 are production code; T029–T031 are test/fixture fixes
 3. T030: check existence before attempting delete; if re-appeared, it is a regression
 
-**Dependencies**: none (can run in parallel with WP08, WP09)  
+**Dependencies**: none (can run in parallel with WP08, WP09)
 **Prompt file**: [tasks/WP07-shared-package-events-drift.md](tasks/WP07-shared-package-events-drift.md)
 
 ---
 
 ## WP08 — Charter synthesizer determinism (FR-010 / #1303)
 
-**Goal**: Fix non-deterministic manifest hash computation in the charter synthesizer; enforce path_guard.py chokepoint.  
-**Priority**: Medium (5 failing bundle-validate tests)  
-**Estimated prompt size**: ~300 lines  
-**Execution lane**: lane-h  
-**Profile**: `python-pedro`  
+**Goal**: Fix non-deterministic manifest hash computation in the charter synthesizer; enforce path_guard.py chokepoint.
+**Priority**: Medium (5 failing bundle-validate tests)
+**Estimated prompt size**: ~300 lines
+**Execution lane**: lane-h
+**Profile**: `python-pedro`
 
 **Included subtasks:**
 - [x] T032 Run charter synthesizer tests to identify exact hash computation path (WP08)
@@ -274,18 +274,18 @@
 2. WP08 must NOT touch `src/specify_cli/cli/commands/charter/synthesize.py` (owned by WP05)
 3. Run tests twice before + after fix to confirm hash determinism
 
-**Dependencies**: none (can run in parallel with WP07, WP09)  
+**Dependencies**: none (can run in parallel with WP07, WP09)
 **Prompt file**: [tasks/WP08-charter-synthesizer-determinism.md](tasks/WP08-charter-synthesizer-determinism.md)
 
 ---
 
 ## WP09 — Misc debt — auth / invocation / mypy / mission switching (FR-011 / #1310)
 
-**Goal**: Fix five in-scope miscellaneous debt items; re-defer two with new GitHub issues.  
-**Priority**: Medium (5 test clusters; 2 re-deferred)  
-**Estimated prompt size**: ~440 lines  
-**Execution lane**: lane-i  
-**Profile**: `debugger-debbie`  
+**Goal**: Fix five in-scope miscellaneous debt items; re-defer two with new GitHub issues.
+**Priority**: Medium (5 test clusters; 2 re-deferred)
+**Estimated prompt size**: ~440 lines
+**Execution lane**: lane-i
+**Profile**: `debugger-debbie`
 
 **Included subtasks:**
 - [x] T036 Fix auth integration exit-code returning wrong value (WP09)
@@ -301,7 +301,7 @@
 2. T041 must be done BEFORE closing WP09 — two new GitHub issues required per C-008
 3. All five in-scope items are independent; address in any order
 
-**Dependencies**: none (can run in parallel with WP07, WP08)  
+**Dependencies**: none (can run in parallel with WP07, WP08)
 **Prompt file**: [tasks/WP09-misc-debt-auth-invocation-mypy.md](tasks/WP09-misc-debt-auth-invocation-mypy.md)
 
 ---
@@ -312,11 +312,11 @@
 
 ## WP10 — CI test-mark audit (FR-012)
 
-**Goal**: Audit all test files in modules touched by WP01–WP09; add missing CI-quality marks; verify existing architectural guard passes.  
-**Priority**: High (gate for WP11)  
-**Estimated prompt size**: ~250 lines  
-**Execution lane**: lane-j  
-**Profile**: `curator-carla`  
+**Goal**: Audit all test files in modules touched by WP01–WP09; add missing CI-quality marks; verify existing architectural guard passes.
+**Priority**: High (gate for WP11)
+**Estimated prompt size**: ~250 lines
+**Execution lane**: lane-j
+**Profile**: `curator-carla`
 
 **Included subtasks:**
 - [x] T042 Audit all WP01-WP09 touched test directories for missing pytestmark (WP10)
@@ -329,18 +329,18 @@
 2. No new guard test file — existing `tests/architectural/test_pytest_marker_convention.py` is the guard
 3. T044: add `pytest.mark.unit` alongside existing `pytest.mark.non_sandbox` (non_sandbox alone is not a CI-quality split mark)
 
-**Dependencies**: Depends on WP01, WP02, WP03, WP04, WP05, WP06, WP07, WP08, WP09  
+**Dependencies**: Depends on WP01, WP02, WP03, WP04, WP05, WP06, WP07, WP08, WP09
 **Prompt file**: [tasks/WP10-ci-test-mark-audit.md](tasks/WP10-ci-test-mark-audit.md)
 
 ---
 
 ## WP11 — Full-suite re-baseline + issue closeout (FR-013) — planning lane
 
-**Goal**: Run the full test suite, record baseline, close all 10 sub-issues.  
-**Priority**: Critical (mission success gate)  
-**Estimated prompt size**: ~230 lines  
-**Execution lane**: lane-planning  
-**Profile**: `human-in-charge`  
+**Goal**: Run the full test suite, record baseline, close all 10 sub-issues.
+**Priority**: Critical (mission success gate)
+**Estimated prompt size**: ~230 lines
+**Execution lane**: lane-planning
+**Profile**: `human-in-charge`
 
 **Included subtasks:**
 - [ ] T046 Run PWHEADLESS=1 pytest tests/ -q --tb=no and record output (WP11)
@@ -352,7 +352,7 @@
 1. Gate: failure count ≤75. If >75, file DIR-013 issues for remaining clusters and document in baseline.md
 2. This is a planning-lane WP — no worktree; runs in main checkout after all lanes merged
 
-**Dependencies**: Depends on WP10  
+**Dependencies**: Depends on WP10
 **Prompt file**: [tasks/WP11-full-suite-rebaseline-closeout.md](tasks/WP11-full-suite-rebaseline-closeout.md)
 
 ---
@@ -371,8 +371,8 @@ WP08 ──┤
 WP09 ──┘
 ```
 
-WP01–WP06 (waves A+B) can run in parallel.  
-WP07–WP09 (wave C) can run in parallel.  
-WP10 depends on WP01–WP09.  
+WP01–WP06 (waves A+B) can run in parallel.
+WP07–WP09 (wave C) can run in parallel.
+WP10 depends on WP01–WP09.
 WP11 depends on WP10.
 </content>

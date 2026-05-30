@@ -1,10 +1,10 @@
 # Pre-Doctrine Test Stabilization
 
-**Mission ID:** 01KSMG8Y0V5V2ZM4YEQMKFWN2K  
-**Mission slug:** pre-doctrine-test-stabilization-01KSMG8Y  
-**Mission type:** software-dev  
-**Target branch:** feat/pre-doctrine-stabilization-remediation  
-**Parent triage:** #1298 / mission `test-stabilization-and-debt-pass-01KSF9HJ`  
+**Mission ID:** 01KSMG8Y0V5V2ZM4YEQMKFWN2K
+**Mission slug:** pre-doctrine-test-stabilization-01KSMG8Y
+**Mission type:** software-dev
+**Target branch:** feat/pre-doctrine-stabilization-remediation
+**Parent triage:** #1298 / mission `test-stabilization-and-debt-pass-01KSF9HJ`
 **Sub-issues addressed:** #1301, #1302, #1303, #1304, #1305, #1306, #1307, #1308, #1309, #1310
 
 ---

@@ -113,9 +113,9 @@ This WP is the mission's success gate. The ≤75-failure threshold (NFR-001) det
    ```markdown
    # Post-Mission Test Baseline: 01KSMG8Y
 
-   **Mission**: Pre-Doctrine Test Stabilization  
-   **Date**: YYYY-MM-DD  
-   **Branch**: feat/pre-doctrine-stabilization-remediation  
+   **Mission**: Pre-Doctrine Test Stabilization
+   **Date**: YYYY-MM-DD
+   **Branch**: feat/pre-doctrine-stabilization-remediation
    **Gate**: ≤75 failures (NFR-001)
 
    ## Summary

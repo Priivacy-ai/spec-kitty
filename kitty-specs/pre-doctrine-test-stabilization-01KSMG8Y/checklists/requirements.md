@@ -1,7 +1,7 @@
 # Specification Quality Checklist: Pre-Doctrine Test Stabilization
 
-**Purpose**: Validate specification completeness and quality before proceeding to planning  
-**Created**: 2026-05-27  
+**Purpose**: Validate specification completeness and quality before proceeding to planning
+**Created**: 2026-05-27
 **Feature**: [spec.md](../spec.md)
 
 ## Content Quality

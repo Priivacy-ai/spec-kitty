@@ -89,6 +89,7 @@ jobs:
       agent: ${{ inputs.run_all && 'true' || steps.filter.outputs.agent }}
       kernel: ${{ inputs.run_all && 'true' || steps.filter.outputs.kernel }}
       doctrine: ${{ inputs.run_all && 'true' || steps.filter.outputs.doctrine }}
+      e2e: ${{ inputs.run_all && 'true' || steps.filter.outputs.e2e }}
     steps:
       - uses: actions/checkout@v6
       - uses: dorny/paths-filter@v4
@@ -165,6 +166,9 @@ jobs:
               - 'tests/dossier/**'
               - 'tests/git_ops/**'
               - 'tests/tasks/**'
+            e2e:
+              - 'tests/e2e/**'
+              - 'tests/cross_cutting/**'
             charter:
               - 'src/charter/**'
               - 'src/specify_cli/charter_runtime/**'
@@ -1784,12 +1788,13 @@ jobs:
             --tb=short
 
   # ---------------------------------------------------------------------------
-  # e2e-cross-cutting: Push-only (or manual dispatch). Runs tests/e2e/ and
-  # tests/cross_cutting/ in parallel with slow-tests.
+  # e2e-cross-cutting: push/manual, plus PRs that change e2e/cross-cutting
+  # fixtures. Runs tests/e2e/ and tests/cross_cutting/ in parallel with slow-tests.
   # ---------------------------------------------------------------------------
   e2e-cross-cutting:
     runs-on: ubuntu-latest
     needs:
+      - changes
       - fast-tests-doctrine
       - fast-tests-sync
       - fast-tests-merge
@@ -1806,7 +1811,12 @@ jobs:
       - fast-tests-core-misc
       - fast-tests-charter
       - fast-tests-agent
-    if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && (inputs.run_extended || inputs.run_all)))
+    if: |
+      always() && (
+        github.event_name == 'push' ||
+        (github.event_name == 'pull_request' && needs.changes.outputs.e2e == 'true') ||
+        (github.event_name == 'workflow_dispatch' && (inputs.run_extended || inputs.run_all))
+      )
     timeout-minutes: 40
 
     steps:

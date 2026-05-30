@@ -8,9 +8,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any, overload
+from typing import TYPE_CHECKING, Any, overload
 
-from specify_cli.status.wp_metadata import WPMetadata
+if TYPE_CHECKING:
+    from specify_cli.status.wp_metadata import WPMetadata
 
 
 # Sentinel for the codebase-wide scope value used in WP frontmatter.
@@ -77,6 +78,8 @@ class OwnershipManifest:
             KeyError: If a required key is missing.
             ValueError: If ``execution_mode`` is not a valid ExecutionMode value.
         """
+        from specify_cli.status.wp_metadata import WPMetadata
+
         if isinstance(data, WPMetadata):
             raw_mode = data.execution_mode
             if raw_mode is None:

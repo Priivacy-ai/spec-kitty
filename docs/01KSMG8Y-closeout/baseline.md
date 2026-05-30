@@ -1,9 +1,9 @@
 # Post-Mission Test Baseline: 01KSMG8Y
 
-**Mission**: Pre-Doctrine Test Stabilization  
-**Date**: 2026-05-27  
-**Branch**: feat/pre-doctrine-stabilization-remediation  
-**Merge commit**: 56de9d565  
+**Mission**: Pre-Doctrine Test Stabilization
+**Date**: 2026-05-27
+**Branch**: feat/pre-doctrine-stabilization-remediation
+**Merge commit**: 56de9d565
 **Gate**: ≤75 failures (NFR-001)
 
 ## Summary
@@ -19,7 +19,7 @@
 | Run time | 873 s (14m 33s) |
 | **Gate met** | ❌ NO (138 failures vs. ≤75 threshold) |
 
-**Pre-mission baseline**: ~249 failures  
+**Pre-mission baseline**: ~249 failures
 **Reduction achieved**: ~111 fewer failures (249 → 138)
 
 ## Failure Clusters

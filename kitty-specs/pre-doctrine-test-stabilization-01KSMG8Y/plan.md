@@ -1,7 +1,7 @@
 # Implementation Plan: Pre-Doctrine Test Stabilization
 
-**Branch**: `feat/pre-doctrine-stabilization-remediation` | **Date**: 2026-05-27 | **Spec**: [spec.md](spec.md)  
-**Mission ID**: 01KSMG8Y0V5V2ZM4YEQMKFWN2K  
+**Branch**: `feat/pre-doctrine-stabilization-remediation` | **Date**: 2026-05-27 | **Spec**: [spec.md](spec.md)
+**Mission ID**: 01KSMG8Y0V5V2ZM4YEQMKFWN2K
 **Input**: `kitty-specs/pre-doctrine-test-stabilization-01KSMG8Y/spec.md`
 
 ---
@@ -14,13 +14,13 @@ Fix all 10 DIR-013 sub-issues (#1301–#1310) from the 01KSF9HJ triage that were
 
 ## Technical Context
 
-**Language/Version**: Python 3.11+  
-**Primary Dependencies**: pytest 9.x, ruff, mypy --strict (for surfaces explicitly in scope), typer, spec-kitty CLI  
-**Storage**: Filesystem only — YAML, JSON, JSONL, Markdown (no database mutations)  
-**Testing**: pytest with `pytestmark` module-level marks; CI splits on `fast`, `integration`, `e2e`, `architectural`, `contract`, `doctrine`; new tests require `[pytest.mark.fast]` plus one domain mark  
-**Target Platform**: Linux / macOS / Windows (cross-platform CLI tool)  
-**Project Type**: Single Python project (`src/specify_cli`, `src/charter`, `src/doctrine`, `src/kernel`)  
-**Performance Goals**: Full-suite run time must not regress by > 10% vs. pre-mission baseline (~924 s)  
+**Language/Version**: Python 3.11+
+**Primary Dependencies**: pytest 9.x, ruff, mypy --strict (for surfaces explicitly in scope), typer, spec-kitty CLI
+**Storage**: Filesystem only — YAML, JSON, JSONL, Markdown (no database mutations)
+**Testing**: pytest with `pytestmark` module-level marks; CI splits on `fast`, `integration`, `e2e`, `architectural`, `contract`, `doctrine`; new tests require `[pytest.mark.fast]` plus one domain mark
+**Target Platform**: Linux / macOS / Windows (cross-platform CLI tool)
+**Project Type**: Single Python project (`src/specify_cli`, `src/charter`, `src/doctrine`, `src/kernel`)
+**Performance Goals**: Full-suite run time must not regress by > 10% vs. pre-mission baseline (~924 s)
 **Constraints**: All fixes are behaviour-preserving; no feature extension; DIR-013 applies throughout; Phase-2 frontmatter-lane reads are illegal; `meta.json` writes must route through `feature_metadata/mission_metadata.py`
 
 ---

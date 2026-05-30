@@ -1,8 +1,8 @@
 # Mission Retrospective: 01KSMG8Y — Pre-Doctrine Test Stabilization
 
-**Date**: 2026-05-27  
-**Branch**: feat/pre-doctrine-stabilization-remediation  
-**Merge commit**: 56de9d565  
+**Date**: 2026-05-27
+**Branch**: feat/pre-doctrine-stabilization-remediation
+**Merge commit**: 56de9d565
 **Retro author**: human-in-charge + claude-sonnet-4-6
 
 ---
