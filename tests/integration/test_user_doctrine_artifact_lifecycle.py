@@ -53,7 +53,7 @@ _FETCH_CMD_RE = re.compile(
     re.IGNORECASE,
 )
 _WHEN_DOING_RE = re.compile(
-    r"when\s+you\s+(write|are\s+about\s+to|need\s+to|introduce|rename|review)",
+    r"when\s+you\s+(are\s+about\s+to|need\s+to|encounter|introduce|rename|review)",
     re.IGNORECASE,
 )
 
@@ -277,7 +277,7 @@ def test_case_1_project_styleguide_appears_in_implement_prompt(
     ), (
         "The implement charter context MUST surface the project-selected styleguide "
         "`caveman-comments` — either by ID + body or by ID + fetch command + "
-        "'when you write a code comment' conditional. Today the resolver ignores "
+        "canonical when-doing conditional. Today the resolver ignores "
         "`selected_styleguides` because `DoctrineSelectionConfig` has no such field "
         "(see src/charter/schemas.py). Mission B WP04 adds the field and the "
         "matching renderer (_render_selected_styleguides). See "
@@ -419,10 +419,10 @@ def test_case_1_styleguide_render_includes_trigger_stanza(
 
     Acceptable phrasing (any one):
 
-      * "When you write a code comment, run
+      * "When you are about to write a code comment, run
         `spec-kitty charter context --include styleguide:caveman-comments`
          and apply the returned rule."
-      * "When you write a code comment, fetch styleguide caveman-comments"
+      * "When you are about to write a code comment, fetch styleguide caveman-comments"
       * Any text containing both the action verb ("write a code comment" /
         "write a comment") and the artifact id.
 
@@ -446,19 +446,24 @@ def test_case_1_styleguide_render_includes_trigger_stanza(
     )
 
     text = result.text.lower()
-    write_comment_phrase = re.search(
-        r"when\s+you\s+write\s+(a\s+)?(code\s+)?comment", text
-    )
+    canonical_conditional = _WHEN_DOING_RE.search(text)
+    write_comment_phrase = "write a code comment" in text or "write a comment" in text
     references_artifact = "caveman-comments" in text or "caveman" in text
     has_fetch_command = bool(_FETCH_CMD_RE.search(result.text))
 
-    assert write_comment_phrase and references_artifact and has_fetch_command, (
+    assert (
+        canonical_conditional
+        and write_comment_phrase
+        and references_artifact
+        and has_fetch_command
+    ), (
         "The implement prompt MUST carry an activation stanza shaped like\n"
-        '  "When you write a code comment, run '
+        '  "When you are about to write a code comment, run '
         "`spec-kitty charter context --include styleguide:caveman-comments` "
         'and apply the returned rule."\n'
         "Required surfaces:\n"
-        f"  - 'when you write [a] [code] comment' phrase: {bool(write_comment_phrase)}\n"
+        f"  - canonical when-doing conditional: {bool(canonical_conditional)}\n"
+        f"  - 'write [a] [code] comment' phrase: {bool(write_comment_phrase)}\n"
         f"  - artifact id (caveman / caveman-comments) present: {references_artifact}\n"
         f"  - fetch command (spec-kitty charter context / doctrine): {has_fetch_command}\n"
         "Mission B WP05 introduces the charter-level activation registry and the "
