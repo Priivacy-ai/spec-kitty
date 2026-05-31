@@ -360,6 +360,48 @@ class TestWidenHappyPathBlock:
 class TestWidenHappyPathContinue:
     """Secondary scenario: w → CONTINUE → question parked in pending store."""
 
+    def test_continue_marker_failure_does_not_advance_question(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Pending marker write failure must re-prompt instead of parking blank."""
+        from specify_cli.cli.commands.charter import _dispatch_widen_input
+
+        decision_id = "01KWP10CONTINUEFAIL01"
+        mock_flow = MagicMock()
+        mock_flow.run_widen_mode.return_value = WidenFlowResult(
+            action=WidenAction.CONTINUE,
+            decision_id=decision_id,
+            invited=["Alice Johnson"],
+        )
+        bad_store = MagicMock()
+        bad_store.add_pending.side_effect = OSError("disk full")
+        console = Console(file=StringIO(), highlight=False, markup=False)
+        answers_override: dict[str, str] = {}
+
+        answer, should_break = _dispatch_widen_input(
+            widen_flow=mock_flow,
+            current_decision_id=decision_id,
+            mission_id=MISSION_ID,
+            mission_slug=MISSION_SLUG,
+            question_id="database",
+            prompt_text="Which DB?",
+            hint_line="[enter]=accept default | [w]iden",
+            widen_store=bad_store,
+            answers_override=answers_override,
+            repo_root=tmp_path,
+            console=console,
+            saas_client=MagicMock(),
+            actor="tester",
+        )
+
+        assert answer is None
+        assert should_break is False
+        assert answers_override == {}
+        output = console.file.getvalue()  # type: ignore[union-attr]
+        assert "Question was NOT" in output
+        assert "parked" in output
+
     def test_w_then_continue_parks_question(self, tmp_path: Path) -> None:
         """w input → CONTINUE → WidenPendingEntry written to store (FR-009)."""
         _setup_repo(tmp_path)

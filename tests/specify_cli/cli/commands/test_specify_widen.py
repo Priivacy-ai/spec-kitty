@@ -196,6 +196,63 @@ class TestSpecifyWidenCancelPath:
 class TestSpecifyWidenContinuePath:
     """CONTINUE: typing w → CONTINUE → WidenPendingEntry written; question skipped."""
 
+    def test_continue_marker_failure_reprompts_without_parking_blank(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        _setup_repo(tmp_path)
+
+        decision_id = "01KSPECWIDENMARKERFAIL1"
+        continue_result = WidenFlowResult(
+            action=WidenAction.CONTINUE,
+            decision_id=decision_id,
+            invited=["Alice Johnson"],
+        )
+        mock_flow = MagicMock()
+        mock_flow.run_widen_mode.return_value = continue_result
+        bad_store = MagicMock()
+        bad_store.list_pending.return_value = []
+        bad_store.add_pending.side_effect = OSError("disk full")
+
+        prereq_ok = PrereqState(teamspace_ok=True, slack_ok=True, saas_reachable=True)
+        q1_inputs = ["w", "Manual specify answer"]
+        remaining_q = [""] * (_N_QUESTIONS - 1)
+        inputs = _make_inputs(q1_inputs + remaining_q)
+
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            with (
+                patch(
+                    "specify_cli.cli.commands.lifecycle.agent_feature.create_mission",
+                    return_value=None,
+                ),
+                patch(
+                    "specify_cli.cli.commands.lifecycle.locate_project_root",
+                    return_value=tmp_path,
+                ),
+                patch(
+                    "specify_cli.saas_client.client.SaasClient.from_env",
+                    return_value=MagicMock(has_token=True),
+                ),
+                patch("specify_cli.widen.check_prereqs", return_value=prereq_ok),
+                patch("specify_cli.widen.flow.WidenFlow", return_value=mock_flow),
+                patch("specify_cli.widen.state.WidenPendingStore", return_value=bad_store),
+            ):
+                result = runner.invoke(
+                    _app,
+                    [MISSION_SLUG],
+                    input=inputs,
+                    catch_exceptions=False,
+                )
+        finally:
+            os.chdir(old_cwd)
+
+        assert result.exit_code == 0, result.output
+        bad_store.add_pending.assert_called_once()
+        assert "Question was NOT parked" in result.output
+        assert mock_flow.run_widen_mode.call_count == 1
+
     def test_continue_path_writes_pending_entry(self, tmp_path: Path) -> None:
         _setup_repo(tmp_path)
 

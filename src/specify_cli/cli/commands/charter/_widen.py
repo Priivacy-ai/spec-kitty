@@ -384,7 +384,7 @@ def _dispatch_widen_input(  # noqa: C901
     if result.action == WidenAction.CONTINUE:
         # Write WidenPendingEntry (T024 pattern — caller does persistence)
         if widen_store is not None:
-            with contextlib.suppress(Exception):
+            try:
                 widen_store.add_pending(WidenPendingEntry(
                     decision_id=result.decision_id or current_decision_id,
                     mission_slug=mission_slug,
@@ -393,6 +393,12 @@ def _dispatch_widen_input(  # noqa: C901
                     entered_pending_at=datetime.now(tz=UTC),
                     widen_endpoint_response={},
                 ))
+            except Exception as exc:  # noqa: BLE001
+                console.print(
+                    "[red]Could not save pending widen marker: "
+                    f"{exc}. Question was NOT parked.[/red]"
+                )
+                return None, False
         answers_override[question_id] = ""
         return "", True  # advance to next question
 
