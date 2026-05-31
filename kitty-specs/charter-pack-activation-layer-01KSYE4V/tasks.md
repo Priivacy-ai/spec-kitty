@@ -338,11 +338,11 @@ WP11 subtasks T048–T051 are fully independent and can be executed in any order
 **Subtasks**: T039–T043
 **Agent profile**: python-pedro
 
-- [ ] T039 Wire Pattern B: `generate.py:47` — construct `DoctrineService` with `pack_context`
-- [ ] T040 Wire `org_charter.py:660, 710` callers of `load_org_charter_policies()` to pass `pack_context`
-- [ ] T041 Wire `doctor.py:2332` + `org_layer.py:218,236` to pass/accept `pack_context` (FR-037)
-- [ ] T042 Wire Pattern C: `DoctrineService.agent_profiles` via `charter/resolver.py` with activation filter
-- [ ] T043 Add `MissionStepRepository` to `charter/mission_steps.py` re-exports; wire to production call site (FR-016)
+- [x] T039 Wire Pattern B: `generate.py:47` — construct `DoctrineService` with `pack_context`
+- [x] T040 Wire `org_charter.py:660, 710` callers of `load_org_charter_policies()` to pass `pack_context`
+- [x] T041 Wire `doctor.py:2332` + `org_layer.py:218,236` to pass/accept `pack_context` (FR-037)
+- [x] T042 Wire Pattern C: `DoctrineService.agent_profiles` via `charter/resolver.py` with activation filter
+- [x] T043 Add `MissionStepRepository` to `charter/mission_steps.py` re-exports; wire to production call site (FR-016)
 
 **Implementation Notes**:
 - T039: `generate.py:47` constructs a `DoctrineService`. Extend the constructor to accept `pack_context: PackContext | None = None` and filter `.paradigms`/`.procedures` properties when non-None. Pass `pack_context` from the generate command's invocation context.
