@@ -13,6 +13,7 @@ from specify_cli.sync.queue import OfflineQueue
 from specify_cli.sync.routing import (
     disable_checkout_sync,
     resolve_checkout_sync_routing,
+    resolve_checkout_sync_routing_readonly,
     write_local_sync_enabled,
 )
 
@@ -63,6 +64,24 @@ def test_resolve_checkout_sync_routing_uses_global_repo_default(tmp_path: Path, 
     assert routing.local_sync_enabled is None
     assert routing.repo_default_sync_enabled is False
     assert routing.effective_sync_enabled is False
+
+
+def test_readonly_routing_does_not_create_project_identity(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    home = tmp_path / "home"
+    repo_root = tmp_path / "repo"
+    home.mkdir()
+    repo_root.mkdir()
+    (repo_root / ".git").mkdir()
+    (repo_root / ".kittify").mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.chdir(repo_root)
+
+    routing = resolve_checkout_sync_routing_readonly()
+
+    assert routing is not None
+    assert routing.project_uuid is None
+    assert routing.project_slug is None
+    assert not (repo_root / ".kittify" / "config.yaml").exists()
 
 
 def test_local_override_beats_global_repo_default(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
