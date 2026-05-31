@@ -27,6 +27,7 @@ __all__ = [
     "CRITICAL_SECTION_WHEN_CLAUSES",
     "critical_section_header",
     "render_critical_section_bodies",
+    "render_critical_section_include",
 ]
 
 
@@ -84,7 +85,7 @@ def _slugify_heading(heading: str) -> str:
 
 
 def _heading_pattern(heading: str) -> re.Pattern[str]:
-    """Compile the regex matching ``## <heading>`` (with optional date suffix).
+    """Compile the regex matching an ATX ``<heading>`` (with optional date suffix).
 
     The charter convention permits a parenthetical suffix after the
     heading text (``## Regression Vigilance (2026-04-06)``) — the ATDD
@@ -93,7 +94,89 @@ def _heading_pattern(heading: str) -> re.Pattern[str]:
     """
 
     escaped = re.escape(heading.strip())
-    return re.compile(rf"^##\s+{escaped}\b.*$", re.MULTILINE)
+    return re.compile(rf"^(#{{2,6}})\s+{escaped}\b.*$", re.MULTILINE)
+
+
+_FENCE_OPEN_RE = re.compile(r"^[ \t]{0,3}(`{3,}|~{3,})")
+
+
+def _is_fence_close(line: str, fence_marker: str, fence_length: int) -> bool:
+    """Return whether *line* closes the active Markdown fence."""
+
+    close_pattern = rf"^[ \t]{{0,3}}{re.escape(fence_marker)}{{{fence_length},}}[ \t]*\r?\n?$"
+    return re.match(close_pattern, line) is not None
+
+
+def _has_fence_close(
+    lines: list[str], start_index: int, fence_marker: str, fence_length: int
+) -> bool:
+    """Return whether the active Markdown fence closes after ``start_index``."""
+
+    return any(
+        _is_fence_close(line, fence_marker, fence_length)
+        for line in lines[start_index:]
+    )
+
+
+def _find_next_section_start(body: str, heading_level: int) -> int | None:
+    """Return the next same-or-higher heading offset outside code fences."""
+
+    fence_marker: str | None = None
+    fence_length = 0
+    offset = 0
+
+    lines = body.splitlines(keepends=True)
+    for index, line in enumerate(lines):
+        if fence_marker is not None:
+            if _is_fence_close(line, fence_marker, fence_length):
+                fence_marker = None
+                fence_length = 0
+        else:
+            heading_match = re.match(r"^(#{1,6})\s+", line)
+            if (
+                heading_match is not None
+                and len(heading_match.group(1)) <= heading_level
+            ):
+                return offset
+
+            fence_match = _FENCE_OPEN_RE.match(line)
+            if fence_match is not None:
+                fence_marker = fence_match.group(1)[0]
+                fence_length = len(fence_match.group(1))
+                if not _has_fence_close(lines, index + 1, fence_marker, fence_length):
+                    return offset
+
+        offset += len(line)
+
+    return None
+
+
+def _find_heading_end(charter_content: str, heading: str) -> tuple[int, int] | None:
+    """Return ``(end offset, level)`` for ``heading`` outside code fences."""
+
+    pattern = _heading_pattern(heading)
+    fence_marker: str | None = None
+    fence_length = 0
+    offset = 0
+
+    for line in charter_content.splitlines(keepends=True):
+        if fence_marker is not None:
+            if _is_fence_close(line, fence_marker, fence_length):
+                fence_marker = None
+                fence_length = 0
+        else:
+            match = pattern.match(line)
+            if match is not None:
+                return offset + match.end(), len(match.group(1))
+
+            fence_match = _FENCE_OPEN_RE.match(line)
+            if fence_match is not None:
+                fence_marker = fence_match.group(1)[0]
+                fence_length = len(fence_match.group(1))
+
+        offset += len(line)
+
+    return None
 
 
 def _extract_section_body(charter_content: str, heading: str) -> str | None:
@@ -101,21 +184,22 @@ def _extract_section_body(charter_content: str, heading: str) -> str | None:
 
     The body is everything from the line **after** the heading up to (but
     not including) the next line that begins with ``## `` at the same
-    level.  Nested ``###`` headings are preserved verbatim so callers can
-    embed multi-paragraph governance text without losing structure.
+    level outside fenced code blocks.  Nested ``###`` headings are preserved
+    verbatim so callers can embed multi-paragraph governance text without
+    losing structure.
     """
 
-    pattern = _heading_pattern(heading)
-    match = pattern.search(charter_content)
-    if match is None:
+    heading_match = _find_heading_end(charter_content, heading)
+    if heading_match is None:
         return None
 
-    body_start = match.end()
-    next_section = re.search(r"^##\s+", charter_content[body_start:], re.MULTILINE)
+    body_start, heading_level = heading_match
+    remainder = charter_content[body_start:]
+    next_section_start = _find_next_section_start(remainder, heading_level)
     body = (
-        charter_content[body_start:]
-        if next_section is None
-        else charter_content[body_start : body_start + next_section.start()]
+        remainder
+        if next_section_start is None
+        else charter_content[body_start : body_start + next_section_start]
     )
 
     return body.strip("\n").rstrip()
@@ -191,3 +275,37 @@ def render_critical_section_bodies(
         blocks.extend(_render_fetch_stanza(heading))
 
     return "\n".join(blocks)
+
+
+def render_critical_section_include(
+    charter_content: str,
+    selector_id: str,
+    *,
+    action: str | None = None,
+) -> str | None:
+    """Render the body addressed by a ``section:<selector_id>`` fetch selector."""
+
+    cleaned = selector_id.strip()
+    if not cleaned:
+        return None
+
+    if cleaned.startswith("critical-"):
+        action_name = cleaned.removeprefix("critical-").strip()
+        if action is not None and action.strip() and action.strip().lower() != action_name:
+            return None
+        return render_critical_section_bodies(charter_content, action_name) or None
+
+    headings = {
+        heading
+        for section_headings in ACTION_CRITICAL_SECTIONS.values()
+        for heading in section_headings
+    }
+    for heading in sorted(headings):
+        if _slugify_heading(heading) != cleaned:
+            continue
+        body = _extract_section_body(charter_content, heading)
+        if body is None:
+            return None
+        return f"### {heading}\n{body}" if body else f"### {heading}"
+
+    return None

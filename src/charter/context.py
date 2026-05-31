@@ -29,6 +29,7 @@ from charter.context_renderers import (
     budget_without_warning_line,
     render_authority_paths,
     render_critical_section_bodies,
+    render_critical_section_include,
 )
 from charter.context_renderers.fetch_stanza import (
     fetch_stanza_lines as _shared_fetch_stanza_lines,
@@ -47,6 +48,7 @@ __all__ = [
     "BOOTSTRAP_ACTIONS",
     "CharterContextResult",
     "build_charter_context",
+    "build_charter_context_include",
     "build_charter_context_json",
 ]
 
@@ -269,6 +271,187 @@ def build_charter_context(
         text=_augment(text),
         references_count=len(references),
         depth=state_bundle.effective_depth,
+    )
+
+
+def build_charter_context_include(
+    repo_root: Path,
+    selector: str,
+    *,
+    action: str | None = None,
+    org_root: Path | None = None,
+) -> str:
+    """Render one fetch-deferred governance selector."""
+
+    kind, separator, identifier = selector.partition(":")
+    kind = kind.strip().lower()
+    identifier = identifier.strip()
+    if not separator or not kind or not identifier:
+        raise ValueError("Expected --include selector in '<kind>:<id>' form.")
+
+    if kind == "section":
+        canonical_root = _bundle_root_for_json(repo_root)
+        charter_path = canonical_root / KITTIFY_DIRNAME / "charter" / "charter.md"
+        if not charter_path.exists():
+            raise ValueError("No charter.md found for section selector.")
+        charter_content = charter_path.read_text(encoding="utf-8")
+        section = render_critical_section_include(
+            charter_content,
+            identifier,
+            action=action.strip().lower() if action else None,
+        )
+        if section is None:
+            raise ValueError(f"No charter section found for selector '{selector}'.")
+        return section
+
+    org_roots = [org_root] if org_root is not None else None
+    service = _build_doctrine_service(repo_root, org_roots=org_roots)
+    if kind == "directive":
+        return _render_directive_include(service, identifier, selector)
+    if kind == "tactic":
+        return _render_tactic_include(service, identifier, selector)
+    if kind == "artifact":
+        return _render_generic_artifact_include(service, identifier)
+    artifact = _render_doctrine_artifact_include(service, kind, identifier)
+    if artifact is not None:
+        return artifact
+
+    raise ValueError(f"Unsupported --include selector kind '{kind}'.")
+
+
+def _render_directive_include(service: object, identifier: str, selector: str) -> str:
+    """Render a directive selector for ``--include``."""
+
+    directive_id = _format_profile_directive_code(identifier)
+    directive = service.directives.get(directive_id)  # type: ignore[attr-defined]
+    if directive is None:
+        raise ValueError(f"No directive found for selector '{selector}'.")
+    title = getattr(directive, "title", directive_id)
+    return "\n".join(
+        [
+            f"Directive {directive_id}: {title}",
+            *_format_inline_directive_body(directive),
+            *_format_full_artifact_payload_body(directive),
+        ]
+    )
+
+
+def _render_tactic_include(service: object, identifier: str, selector: str) -> str:
+    """Render a tactic selector for ``--include``."""
+
+    tactic = service.tactics.get(identifier)  # type: ignore[attr-defined]
+    if tactic is None:
+        raise ValueError(f"No tactic found for selector '{selector}'.")
+    name = getattr(tactic, "name", identifier)
+    return "\n".join(
+        [
+            f"Tactic {identifier}: {name}",
+            *_format_inline_tactic_body(tactic),
+            *_format_full_artifact_payload_body(tactic),
+        ]
+    )
+
+
+def _render_generic_artifact_include(service: object, identifier: str) -> str:
+    """Resolve a best-effort ``artifact:<id>`` selector emitted by activations."""
+
+    matches: list[tuple[str, str]] = []
+    for candidate_kind in (
+        "directive",
+        "tactic",
+        "paradigm",
+        "styleguide",
+        "toolguide",
+        "procedure",
+        "agent_profile",
+        "mission_step_contract",
+    ):
+        selector = f"{candidate_kind}:{identifier}"
+        try:
+            if candidate_kind == "directive":
+                rendered = _render_directive_include(service, identifier, selector)
+            elif candidate_kind == "tactic":
+                rendered = _render_tactic_include(service, identifier, selector)
+            else:
+                rendered = _render_doctrine_artifact_include(
+                    service, candidate_kind, identifier
+                )
+        except ValueError:
+            continue
+        if rendered is not None:
+            matches.append((candidate_kind, rendered))
+
+    if not matches:
+        raise ValueError(f"No artifact found for selector 'artifact:{identifier}'.")
+    if len(matches) > 1:
+        kinds = ", ".join(kind for kind, _text in matches)
+        raise ValueError(
+            f"Ambiguous artifact selector 'artifact:{identifier}' matched kinds: {kinds}."
+        )
+    return matches[0][1]
+
+
+def _render_doctrine_artifact_include(
+    service: object,
+    kind: str,
+    identifier: str,
+) -> str | None:
+    """Render non-directive/tactic doctrine artifacts addressed by ``--include``."""
+
+    renderers = {
+        "paradigm": (
+            "paradigms",
+            "Paradigm",
+            "name",
+            _format_inline_paradigm_body,
+        ),
+        "styleguide": (
+            "styleguides",
+            "Styleguide",
+            "title",
+            _format_inline_styleguide_body,
+        ),
+        "toolguide": (
+            "toolguides",
+            "Toolguide",
+            "title",
+            _format_inline_toolguide_body,
+        ),
+        "procedure": (
+            "procedures",
+            "Procedure",
+            "name",
+            _format_inline_procedure_body,
+        ),
+        "agent_profile": (
+            "agent_profiles",
+            "Agent profile",
+            "name",
+            _format_inline_agent_profile_body,
+        ),
+        "mission_step_contract": (
+            "mission_step_contracts",
+            "Mission step contract",
+            "action",
+            _format_inline_step_contract_body,
+        ),
+    }
+    renderer = renderers.get(kind)
+    if renderer is None:
+        return None
+
+    repo_attr, label, title_attr, body_formatter = renderer
+    repo = getattr(service, repo_attr, None)
+    artifact = repo.get(identifier) if repo is not None else None  # type: ignore[attr-defined]
+    if artifact is None:
+        raise ValueError(f"No {kind} found for selector '{kind}:{identifier}'.")
+    title = getattr(artifact, title_attr, identifier)
+    return "\n".join(
+        [
+            f"{label} {identifier}: {title}",
+            *body_formatter(artifact),
+            *_format_full_artifact_payload_body(artifact),
+        ]
     )
 
 
@@ -1280,6 +1463,63 @@ def _format_profile_directive_code(raw: object) -> str:
     if match:
         return f"DIRECTIVE_{match.group(1).zfill(3)}"
     return text
+
+
+def _jsonable_artifact_value(value: object) -> object:
+    """Return a deterministic JSON-safe representation of a doctrine object."""
+
+    if value is None or isinstance(value, str | int | float | bool):
+        return value
+
+    model_dump = getattr(value, "model_dump", None)
+    if callable(model_dump):
+        try:
+            dumped = model_dump(by_alias=True, mode="json", exclude_none=True)
+        except TypeError:
+            dumped = model_dump()
+        return _jsonable_artifact_value(dumped)
+
+    enum_value = getattr(value, "value", None)
+    if isinstance(enum_value, str | int | float | bool):
+        return enum_value
+
+    if isinstance(value, dict):
+        return {
+            str(key): _jsonable_artifact_value(item)
+            for key, item in value.items()
+            if item is not None
+        }
+
+    if isinstance(value, set):
+        normalized = [_jsonable_artifact_value(item) for item in value]
+        return sorted(
+            normalized,
+            key=lambda item: json.dumps(item, sort_keys=True),
+        )
+
+    if isinstance(value, list | tuple):
+        return [_jsonable_artifact_value(item) for item in value]
+
+    attrs = getattr(value, "__dict__", None)
+    if isinstance(attrs, dict):
+        return {
+            key: _jsonable_artifact_value(item)
+            for key, item in attrs.items()
+            if not key.startswith("_") and item is not None
+        }
+
+    return str(value)
+
+
+def _format_full_artifact_payload_body(artifact: object) -> list[str]:
+    """Render the full doctrine payload for fetch-selector recovery."""
+
+    payload = _jsonable_artifact_value(artifact)
+    if not isinstance(payload, dict) or not payload:
+        return []
+
+    json_lines = json.dumps(payload, indent=2, sort_keys=True).splitlines()
+    return ["    Full artifact:", *(f"      {line}" for line in json_lines)]
 
 
 def _format_inline_directive_body(directive: object) -> list[str]:
