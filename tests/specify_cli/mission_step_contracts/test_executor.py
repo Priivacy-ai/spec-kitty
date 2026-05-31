@@ -64,9 +64,19 @@ def _write_project_graph(repo_root: Path) -> None:
                     "label": "Fixture directive composer action",
                 },
                 {
+                    "urn": "action:fixture/contract-composer",
+                    "kind": "action",
+                    "label": "Fixture contract composer action",
+                },
+                {
                     "urn": "directive:DIRECTIVE_030",
                     "kind": "directive",
                     "label": "Test and Typecheck Quality Gate",
+                },
+                {
+                    "urn": "mission_step_contract:child-contract",
+                    "kind": "mission_step_contract",
+                    "label": "Child contract",
                 },
             ],
             "edges": [
@@ -88,6 +98,11 @@ def _write_project_graph(repo_root: Path) -> None:
                 {
                     "source": "action:fixture/directive-composer",
                     "target": "directive:DIRECTIVE_030",
+                    "relation": "scope",
+                },
+                {
+                    "source": "action:fixture/contract-composer",
+                    "target": "mission_step_contract:child-contract",
                     "relation": "scope",
                 },
             ],
@@ -300,6 +315,53 @@ def test_shipped_implement_workspace_paradigms_resolve_through_built_in_drg(
         "paradigm:git-flow",
         "paradigm:trunk-based",
     ]
+
+
+def test_mission_step_contract_candidate_resolves_to_drg_urn(tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    _setup_fixture_profiles(repo_root)
+    _write_project_graph(repo_root)
+
+    contract = {
+        "schema_version": "1.0",
+        "id": "contract-delegation",
+        "mission": "fixture",
+        "action": "contract-composer",
+        "steps": [
+            {
+                "id": "child",
+                "description": "Run child contract",
+                "delegates_to": {
+                    "kind": "mission_step_contract",
+                    "candidates": ["child-contract"],
+                },
+            }
+        ],
+    }
+    built_in_dir = tmp_path / "contracts"
+    _write_yaml(built_in_dir / "contract.step-contract.yaml", contract)
+
+    context_result = SimpleNamespace(mode="compact", text="fixture governance context")
+    with patch("specify_cli.invocation.executor.build_charter_context", return_value=context_result):
+        result = StepContractExecutor(
+            repo_root=repo_root,
+            contract_repository=MissionStepContractRepository(built_in_dir=built_in_dir),
+        ).execute(
+            StepContractExecutionContext(
+                repo_root=repo_root,
+                mission="fixture",
+                action="contract-composer",
+                actor="pytest",
+                profile_hint="implementer-fixture",
+            )
+        )
+
+    assert (
+        result.steps[0].resolved_delegations[0].urn
+        == "mission_step_contract:child-contract"
+    )
+    assert result.steps[0].unresolved_candidates == ()
 
 
 def test_profile_hint_required_when_no_action_default_exists(tmp_path: Path) -> None:

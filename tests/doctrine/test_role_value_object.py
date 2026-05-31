@@ -54,6 +54,9 @@ class TestRoleIsKnown:
     def test_plain_string_known_returns_true(self):
         assert Role.is_known("implementer")
 
+    def test_plain_string_known_is_case_insensitive(self):
+        assert Role.is_known("IMPLEMENTER")
+
     def test_custom_role_returns_false(self):
         assert not Role.is_known(Role("data-engineer"))
 
@@ -106,6 +109,12 @@ class TestAgentProfileModel:
         p = AgentProfile(**_BASE, roles=["implementer", "reviewer"])
         assert p.roles == [Role.IMPLEMENTER, Role.REVIEWER]
         assert p.role == Role.IMPLEMENTER
+
+    def test_roles_list_normalizes_case(self):
+        p = AgentProfile(**_BASE, roles=["IMPLEMENTER", "Reviewer", "Org-Lead"])
+        assert p.roles == [Role.IMPLEMENTER, Role.REVIEWER, Role("org-lead")]
+        assert Role.is_known(p.roles[0])
+        assert Role.is_known(p.roles[1])
 
     def test_scalar_role_coerces_to_list_with_warning(self):
         with warnings.catch_warnings(record=True) as w:

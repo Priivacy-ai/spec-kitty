@@ -13,7 +13,6 @@ Mission: charter-ownership-consolidation-and-neutrality-hardening-01KPD880
 
 from __future__ import annotations
 
-import fnmatch
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -82,6 +81,14 @@ class _CompiledTerm:
     compiled: re.Pattern[str] | None  # regex terms, plus case-insensitive literals
 
 
+@dataclass(frozen=True)
+class _ResolvedAllowlist:
+    """Repo-relative allowlist paths expanded with one glob implementation."""
+
+    paths: frozenset[str]
+    stale_entries: tuple[str, ...]
+
+
 def _is_glob_pattern(path_spec: str) -> bool:
     """Return True when the allowlist entry uses glob syntax."""
     return any(char in path_spec for char in "*?[")
@@ -123,31 +130,29 @@ def _load_allowlist(path: Path) -> list[str]:
     return [entry["path"] for entry in raw.get("paths", [])]
 
 
-def _is_allowlisted(repo_relative: str, allowlist: list[str]) -> bool:
-    """Return True if repo_relative matches any allowlist entry (literal or glob)."""
-    for entry in allowlist:
-        # Glob entries contain wildcards; literals are exact matches.
-        if _is_glob_pattern(entry):
-            if fnmatch.fnmatchcase(repo_relative, entry):
-                return True
-        else:
-            if repo_relative == entry:
-                return True
-    return False
-
-
-def _check_stale(repo_root: Path, allowlist_paths: list[str]) -> list[str]:
-    """Return allowlist path strings that resolve to zero files."""
-    stale: list[str] = []
+def _resolve_allowlist(repo_root: Path, allowlist_paths: list[str]) -> _ResolvedAllowlist:
+    """Expand allowlist entries once so stale checks and exemptions agree."""
+    resolved_paths: set[str] = set()
+    stale_entries: list[str] = []
     for entry in allowlist_paths:
         if _is_glob_pattern(entry):
-            matches = list(repo_root.glob(entry))
+            matches = [path for path in repo_root.glob(entry) if path.is_file()]
             if not matches:
-                stale.append(entry)
+                stale_entries.append(entry)
+            else:
+                resolved_paths.update(path.relative_to(repo_root).as_posix() for path in matches)
         else:
-            if not (repo_root / entry).exists():
-                stale.append(entry)
-    return stale
+            path = repo_root / entry
+            if path.is_file():
+                resolved_paths.add(path.relative_to(repo_root).as_posix())
+            else:
+                stale_entries.append(entry)
+    return _ResolvedAllowlist(paths=frozenset(resolved_paths), stale_entries=tuple(stale_entries))
+
+
+def _is_allowlisted(repo_relative: str, allowlist: _ResolvedAllowlist) -> bool:
+    """Return True if repo_relative is in the resolved allowlist."""
+    return repo_relative in allowlist.paths
 
 
 def _relative_parts(path: Path, root: Path) -> tuple[str, ...]:
@@ -408,8 +413,8 @@ def run_neutrality_lint(
     terms = _load_banned_terms(banned_terms_path)
     allowlist_paths = _load_allowlist(allowlist_path)
 
-    # Check for stale allowlist entries
-    stale = _check_stale(repo_root, allowlist_paths)
+    # Resolve allowlist entries once; stale checks and exemptions share semantics.
+    allowlist = _resolve_allowlist(repo_root, allowlist_paths)
 
     # Collect files
     all_files = _iter_scannable_files(effective_roots)
@@ -420,14 +425,14 @@ def run_neutrality_lint(
     for file_path in all_files:
         scanned += 1
         repo_relative_str = _repo_relative_string(file_path, repo_root)
-        if _is_allowlisted(repo_relative_str, allowlist_paths):
+        if _is_allowlisted(repo_relative_str, allowlist):
             continue
         hits = _scan_file(file_path, repo_root, terms)
         all_hits.extend(hits)
 
     return NeutralityLintResult(
         hits=tuple(all_hits),
-        stale_allowlist_entries=tuple(stale),
+        stale_allowlist_entries=allowlist.stale_entries,
         scanned_file_count=scanned,
         banned_term_count=len(terms),
         allowlisted_path_count=len(allowlist_paths),

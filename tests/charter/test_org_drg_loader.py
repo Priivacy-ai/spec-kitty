@@ -387,6 +387,35 @@ class TestMergeThreeLayers:
             getattr(n, "provenance", None) == "org:acme" for n in merged.nodes
         )
 
+    def test_org_fragment_mission_step_contract_node_merges(self) -> None:
+        built_in = _empty_built_in()
+        fragment = OrgDRGFragment.model_validate(
+            {
+                "pack_name": "mission-pack",
+                "source_kind": "local_path",
+                "source_ref": "/tmp/mission-pack",
+                "layer_index": 1,
+                "provenance_marker": "org",
+                "nodes": [
+                    {
+                        "id": "implement-step",
+                        "kind": "mission_step_contracts",
+                        "title": "Implement step",
+                    }
+                ],
+                "edges": [],
+            }
+        )
+
+        merged = merge_three_layers(
+            built_in=built_in, org_fragments=[fragment], project=None
+        )
+
+        node = merged.get_node("mission_step_contract:implement-step")
+        assert node is not None
+        assert node.kind is NodeKind.MISSION_STEP_CONTRACT
+        assert getattr(node, "provenance", None) == "org:mission-pack"
+
     def test_project_layer_nodes_tagged_project(self) -> None:
         built_in = _empty_built_in()
         project = DRGGraph(

@@ -24,10 +24,13 @@ shipped tree so failures isolate to the renderer logic.
 
 from __future__ import annotations
 
+from enum import Enum
+from pathlib import Path
 from typing import Any
 
 import pytest
 
+import charter.context as context_module
 from charter.context import (
     _PROFILE_INLINE_BODY_LIMIT_CHARS,
     _SELECTED_AGENT_PROFILES_HEADER,
@@ -36,7 +39,15 @@ from charter.context import (
     _SELECTED_STYLEGUIDES_HEADER,
     _SELECTED_TOOLGUIDES_HEADER,
     _collect_org_source_map,
+    _default_agent_profile_repository,
+    _format_full_artifact_payload_body,
+    _format_inline_directive_body,
+    _format_profile_directive_code,
+    _jsonable_artifact_value,
+    _load_agent_profile,
     _provenance_suffix,
+    _reset_agent_profile_cache,
+    _render_doctrine_artifact_include,
     _render_selected_agent_profiles,
     _render_selected_mission_step_contracts,
     _render_selected_procedures,
@@ -316,6 +327,393 @@ class TestTokenBudgetOverflow:
         lines = _render_selected_procedures(["bloated-proc"], service)
         joined = "\n".join(lines)
         assert "spec-kitty charter context --include procedure:bloated-proc" in joined
+
+
+# ---------------------------------------------------------------------------
+# Fetch-selector recovery — emitted selectors must round-trip through --include
+# ---------------------------------------------------------------------------
+
+
+class TestFetchSelectorRecovery:
+    """Every selection kind that can emit a fetch stanza is recoverable."""
+
+    def test_malformed_include_selector_fails_closed(self, tmp_path: Path) -> None:
+        with pytest.raises(ValueError, match="Expected --include selector"):
+            context_module.build_charter_context_include(tmp_path, "not-a-selector")
+
+    def test_section_selector_round_trips_through_context_include(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        charter_dir = tmp_path / ".kittify" / "charter"
+        charter_dir.mkdir(parents=True)
+        (charter_dir / "charter.md").write_text(
+            "# Project Charter\n\n"
+            "## Regression Vigilance\n\n"
+            "Consult glossary/contexts before approving a terminology cutover.\n",
+            encoding="utf-8",
+        )
+
+        text = context_module.build_charter_context_include(
+            tmp_path,
+            "section:regression-vigilance",
+        )
+
+        assert "### Regression Vigilance" in text
+        assert "Consult glossary/contexts" in text
+
+    def test_section_selector_fails_closed_without_charter(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        with pytest.raises(ValueError, match="No charter.md found"):
+            context_module.build_charter_context_include(
+                tmp_path,
+                "section:regression-vigilance",
+            )
+
+    def test_section_selector_fails_closed_on_missing_heading(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        charter_dir = tmp_path / ".kittify" / "charter"
+        charter_dir.mkdir(parents=True)
+        (charter_dir / "charter.md").write_text(
+            "# Project Charter\n\n## Purpose\n\nNo critical sections.\n",
+            encoding="utf-8",
+        )
+
+        with pytest.raises(ValueError, match="No charter section found"):
+            context_module.build_charter_context_include(
+                tmp_path,
+                "section:regression-vigilance",
+            )
+
+    def test_selected_styleguide_include_recovers_body(self) -> None:
+        sg = _DummyStyleguide(title="Caveman", principles=["Prefer concrete names."])
+        service = _StubService(styleguides=_StubRepo(items={"caveman-comments": sg}))
+
+        text = _render_doctrine_artifact_include(service, "styleguide", "caveman-comments")
+
+        assert text is not None
+        assert "Styleguide caveman-comments: Caveman" in text
+        assert "Prefer concrete names." in text
+
+    def test_unknown_doctrine_artifact_include_fails_closed(self) -> None:
+        with pytest.raises(ValueError, match="No styleguide found"):
+            _render_doctrine_artifact_include(
+                _StubService(),
+                "styleguide",
+                "does-not-exist",
+            )
+
+    def test_selected_procedure_include_recovers_body(self) -> None:
+        procedure = _DummyProcedure(
+            name="Review",
+            purpose="keep merge checks honest",
+            entry="diff ready",
+            exit_="review complete",
+            steps=[_DummyStep(title="Run focused tests")],
+        )
+        service = _StubService(procedures=_StubRepo(items={"review-before-merge": procedure}))
+
+        text = _render_doctrine_artifact_include(
+            service, "procedure", "review-before-merge"
+        )
+
+        assert text is not None
+        assert "Procedure review-before-merge: Review" in text
+        assert "Run focused tests" in text
+
+    def test_doctrine_artifact_include_recovers_fields_outside_inline_summary(self) -> None:
+        sg = _DummyStyleguide(title="Caveman", principles=["Prefer concrete names."])
+        sg.anti_patterns = [
+            {"name": "soft recovery", "description": "Do not drop governance."}
+        ]
+        toolguide = _DummyToolguide(title="Pytest", tool="pytest", summary="Run tests.")
+        toolguide.commands = ["pytest tests/charter"]
+        procedure = _DummyProcedure(
+            name="Review",
+            purpose="keep merge checks honest",
+            entry="diff ready",
+            exit_="review complete",
+            steps=[_DummyStep(title="Run focused tests")],
+        )
+        procedure.anti_patterns = [{"name": "skip repro", "description": "No repro."}]
+        profile = _DummyAgentProfile(
+            name="Python Pedro",
+            purpose="Implement Python work with TDD discipline.",
+            roles=["implementer"],
+        )
+        profile.initialization_declaration = "Acknowledge governance before coding."
+        contract_step = _DummyStep(
+            title="t",
+            id_="s1",
+            description="First step",
+        )
+        contract_step.guidance = "Recover contract guidance."
+        contract = _DummyContract(
+            action="implement",
+            mission="software-dev",
+            steps=[contract_step],
+        )
+        paradigm = _DummyParadigm(name="SPDD", summary="Use structured prompts.")
+        paradigm.directive_refs = ["DIRECTIVE_039"]
+        service = _StubService(
+            paradigms=_StubRepo(items={"structured-prompt-driven-development": paradigm}),
+            styleguides=_StubRepo(items={"caveman-comments": sg}),
+            toolguides=_StubRepo(items={"pytest-runner": toolguide}),
+            procedures=_StubRepo(items={"review-before-merge": procedure}),
+            agent_profiles=_StubRepo(items={"python-pedro": profile}),
+            mission_step_contracts=_StubRepo(items={"implement-contract": contract}),
+        )
+
+        cases = (
+            ("paradigm", "structured-prompt-driven-development", "DIRECTIVE_039"),
+            ("styleguide", "caveman-comments", "Do not drop governance."),
+            ("toolguide", "pytest-runner", "pytest tests/charter"),
+            ("procedure", "review-before-merge", "No repro."),
+            ("agent_profile", "python-pedro", "Acknowledge governance before coding."),
+            ("mission_step_contract", "implement-contract", "Recover contract guidance."),
+        )
+        for kind, artifact_id, marker in cases:
+            text = _render_doctrine_artifact_include(service, kind, artifact_id)
+            assert text is not None
+            assert "Full artifact:" in text
+            assert marker in text
+
+    def test_directive_and_tactic_include_recovers_fields_outside_inline_summary(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        directive = _DummyDirective(
+            title="Security Baseline",
+            intent="Never leak secrets.",
+        )
+        directive.enforcement = "lenient-adherence"
+        directive.explicit_allowances = ["Documented exception marker."]
+        step = _DummyStep(title="Map trust boundaries")
+        step.description = "Full tactic step marker."
+        step.examples = ["Run a concrete abuse-path check."]
+        tactic = _DummyTactic(
+            name="Threat Model First",
+            purpose="Find attacker paths before coding.",
+            steps=[step],
+        )
+        service = _StubService(
+            directives=_StubRepo(items={"DIRECTIVE_999": directive}),
+            tactics=_StubRepo(items={"threat-model-first": tactic}),
+        )
+        monkeypatch.setattr(
+            context_module,
+            "_build_doctrine_service",
+            lambda repo_root, org_roots=None: service,
+        )
+
+        directive_text = context_module.build_charter_context_include(
+            tmp_path,
+            "directive:DIRECTIVE_999",
+        )
+        tactic_text = context_module.build_charter_context_include(
+            tmp_path,
+            "tactic:threat-model-first",
+        )
+
+        assert "Full artifact:" in directive_text
+        assert "Documented exception marker." in directive_text
+        assert "Full artifact:" in tactic_text
+        assert "Run a concrete abuse-path check." in tactic_text
+
+    def test_generic_artifact_selector_recovers_activation_fallback(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        sg = _DummyStyleguide(title="Caveman", principles=["Prefer concrete names."])
+        service = _StubService(styleguides=_StubRepo(items={"caveman-comments": sg}))
+        monkeypatch.setattr(
+            context_module,
+            "_build_doctrine_service",
+            lambda repo_root, org_roots=None: service,
+        )
+
+        text = context_module.build_charter_context_include(
+            tmp_path,
+            "artifact:caveman-comments",
+        )
+
+        assert "Styleguide caveman-comments: Caveman" in text
+        assert "Prefer concrete names." in text
+
+    def test_generic_artifact_selector_fails_closed_on_ambiguous_match(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        service = _StubService(
+            styleguides=_StubRepo(
+                items={"shared-id": _DummyStyleguide(title="Style", principles=["One"])}
+            ),
+            toolguides=_StubRepo(
+                items={
+                    "shared-id": _DummyToolguide(
+                        title="Tool",
+                        tool="pytest",
+                        summary="Run tests.",
+                    )
+                }
+            ),
+        )
+        monkeypatch.setattr(
+            context_module,
+            "_build_doctrine_service",
+            lambda repo_root, org_roots=None: service,
+        )
+
+        with pytest.raises(ValueError, match="Ambiguous artifact selector"):
+            context_module.build_charter_context_include(
+                tmp_path,
+                "artifact:shared-id",
+            )
+
+    def test_generic_artifact_selector_fails_closed_on_missing_match(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        monkeypatch.setattr(
+            context_module,
+            "_build_doctrine_service",
+            lambda repo_root, org_roots=None: _StubService(),
+        )
+
+        with pytest.raises(ValueError, match="No artifact found"):
+            context_module.build_charter_context_include(
+                tmp_path,
+                "artifact:missing-id",
+            )
+
+    def test_unknown_include_kind_fails_closed(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        monkeypatch.setattr(
+            context_module,
+            "_build_doctrine_service",
+            lambda repo_root, org_roots=None: _StubService(),
+        )
+
+        with pytest.raises(ValueError, match="Unsupported --include selector kind"):
+            context_module.build_charter_context_include(
+                tmp_path,
+                "template:mission",
+            )
+
+    def test_styleguide_selector_round_trips_through_context_include(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        sg = _DummyStyleguide(title="Caveman", principles=["Prefer concrete names."])
+        service = _StubService(styleguides=_StubRepo(items={"caveman-comments": sg}))
+        monkeypatch.setattr(
+            context_module,
+            "_build_doctrine_service",
+            lambda repo_root, org_roots=None: service,
+        )
+
+        text = context_module.build_charter_context_include(
+            tmp_path,
+            "styleguide:caveman-comments",
+        )
+
+        assert "Styleguide caveman-comments: Caveman" in text
+        assert "Prefer concrete names." in text
+
+    def test_full_payload_json_conversion_covers_nested_values(self) -> None:
+        class _Mode(Enum):
+            STRICT = "strict"
+
+        class _Dumpable:
+            def model_dump(self, **kwargs: object) -> dict[str, object]:
+                return {"kind": "modern", "kwargs": sorted(kwargs)}
+
+        class _LegacyDumpable:
+            def model_dump(self) -> dict[str, object]:
+                return {"kind": "legacy"}
+
+        payload = {
+            "mode": _Mode.STRICT,
+            "items": [{"name": "rule", "skip": None}],
+            "none": None,
+        }
+
+        assert _jsonable_artifact_value(payload) == {
+            "mode": "strict",
+            "items": [{"name": "rule"}],
+        }
+        assert _jsonable_artifact_value({"tags": {"beta", "alpha"}}) == {
+            "tags": ["alpha", "beta"]
+        }
+        assert _jsonable_artifact_value(_Dumpable()) == {
+            "kind": "modern",
+            "kwargs": ["by_alias", "exclude_none", "mode"],
+        }
+        assert _jsonable_artifact_value(_LegacyDumpable()) == {"kind": "legacy"}
+        assert isinstance(_jsonable_artifact_value(object()), str)
+
+    def test_full_payload_empty_scalar_emits_no_payload(self) -> None:
+        assert _format_full_artifact_payload_body("scalar") == []
+
+    def test_directive_include_renders_list_fields(self) -> None:
+        directive = _DummyDirective(
+            title="Security Baseline",
+            intent="Never leak secrets.",
+        )
+        directive.scope = "security-sensitive code"
+        directive.procedures = ["Map trust boundaries."]
+        directive.integrity_rules = ["Do not hide failures."]
+        directive.validation_criteria = ["Focused repro exists."]
+
+        lines = _format_inline_directive_body(directive)
+
+        joined = "\n".join(lines)
+        assert "Scope: security-sensitive code" in joined
+        assert "Procedures:" in joined
+        assert "Map trust boundaries." in joined
+        assert "Integrity rules:" in joined
+        assert "Validation criteria:" in joined
+
+    def test_profile_lookup_helpers_fail_softly(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        class _BoomRepo:
+            def get(self, profile_id: str) -> object:
+                raise RuntimeError(profile_id)
+
+        class _EmptyRepo:
+            def get(self, profile_id: str) -> None:
+                return None
+
+        _reset_agent_profile_cache()
+        assert _default_agent_profile_repository() is not None
+        _reset_agent_profile_cache()
+        monkeypatch.setattr(
+            context_module,
+            "_default_agent_profile_repository",
+            lambda: _BoomRepo(),
+        )
+        assert _load_agent_profile("missing-profile") is None
+        monkeypatch.setattr(
+            context_module,
+            "_default_agent_profile_repository",
+            lambda: _EmptyRepo(),
+        )
+        assert _load_agent_profile("missing-profile") is None
+        assert _format_profile_directive_code("7") == "DIRECTIVE_007"
 
 
 # ---------------------------------------------------------------------------

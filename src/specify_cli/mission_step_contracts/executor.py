@@ -31,6 +31,7 @@ _ARTIFACT_TO_NODE_KIND: dict[ArtifactKind, NodeKind] = {
     ArtifactKind.TOOLGUIDE: NodeKind.TOOLGUIDE,
     ArtifactKind.PROCEDURE: NodeKind.PROCEDURE,
     ArtifactKind.AGENT_PROFILE: NodeKind.AGENT_PROFILE,
+    ArtifactKind.MISSION_STEP_CONTRACT: NodeKind.MISSION_STEP_CONTRACT,
     ArtifactKind.TEMPLATE: NodeKind.TEMPLATE,
 }
 

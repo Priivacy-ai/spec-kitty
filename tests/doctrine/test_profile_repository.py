@@ -1000,6 +1000,11 @@ class TestMultiRoleRouting:
         p = _make_profile("arch-alex", ["architect", "researcher"])
         assert p in _filter_candidates_by_role([p], "researcher")
 
+    def test_mixed_case_role_included_in_filter(self):
+        """Profile role list case is normalized before routing filters run."""
+        p = _make_profile("arch-alex", ["ARCHITECT", "Researcher"])
+        assert p in _filter_candidates_by_role([p], "researcher")
+
     def test_primary_role_included_in_filter(self):
         p = _make_profile("arch-alex", ["architect", "researcher"])
         assert p in _filter_candidates_by_role([p], "architect")
@@ -1011,6 +1016,11 @@ class TestMultiRoleRouting:
     def test_primary_role_signal_is_1_0(self):
         p = _make_profile("arch-alex", ["architect", "researcher"])
         ctx = TaskContext(required_role=Role("architect"))
+        assert _exact_id_signal(ctx, p) == 1.0
+
+    def test_mixed_case_primary_role_signal_is_1_0(self):
+        p = _make_profile("arch-alex", ["ARCHITECT", "researcher"])
+        ctx = TaskContext(required_role="architect")
         assert _exact_id_signal(ctx, p) == 1.0
 
     def test_secondary_role_signal_is_0_5(self):
@@ -1070,11 +1080,21 @@ class TestRoleLookup:
         repo = self._repo_with(p)
         assert repo.find_by_role("implementer") == []
 
+    def test_find_by_role_returns_empty_for_blank_query(self):
+        p = _make_profile("arch-alex", ["architect"])
+        repo = self._repo_with(p)
+        assert repo.find_by_role("") == []
+
     def test_find_by_role_with_role_instance(self):
         """find_by_role accepts a Role instance."""
         p = _make_profile("impl-ivan", ["implementer"])
         repo = self._repo_with(p)
         assert p in repo.find_by_role(Role.IMPLEMENTER)
+
+    def test_find_by_role_normalizes_query_case(self):
+        p = _make_profile("impl-ivan", ["implementer"])
+        repo = self._repo_with(p)
+        assert p in repo.find_by_role("IMPLEMENTER")
 
     def test_get_returns_profile_for_known_id(self):
         p = _make_profile("arch-alex", ["architect"])

@@ -29,6 +29,19 @@ TEAMSPACE_BLOCKER_CODES: frozenset[str] = frozenset(
     }
 )
 
+_MISSION_ROOT_DIRNAME = "kitty-specs"
+
+
+def _stable_mission_dir_for_json(mission_dir: Path, mission_slug: str) -> str:
+    """Return a deterministic, installation-independent mission path."""
+    if not mission_dir.is_absolute():
+        return mission_dir.as_posix()
+
+    if mission_dir.parent.name == _MISSION_ROOT_DIRNAME:
+        return Path(_MISSION_ROOT_DIRNAME, mission_dir.name).as_posix()
+
+    return mission_slug or mission_dir.name
+
 
 class Severity(StrEnum):
     """Audit finding severity level.
@@ -122,15 +135,17 @@ class MissionAuditResult:
     def to_dict(self) -> dict[str, object]:
         """Return a JSON-serializable dict.
 
-        ``mission_dir`` is serialized as a plain string because ``Path`` is
-        opaque across platforms; callers should not parse it.
+        ``mission_dir`` is serialized as a stable, non-absolute string because
+        absolute ``Path`` values are install-location dependent.
         """
         return {
             "finding_count": len(self.findings),
             "findings": [f.to_dict() for f in self.findings],
             "has_errors": self.has_errors,
             "has_teamspace_blockers": self.has_teamspace_blockers,
-            "mission_dir": str(self.mission_dir),
+            "mission_dir": _stable_mission_dir_for_json(
+                self.mission_dir, self.mission_slug
+            ),
             "mission_slug": self.mission_slug,
         }
 

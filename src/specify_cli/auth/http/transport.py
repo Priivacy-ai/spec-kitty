@@ -40,6 +40,7 @@ from specify_cli.auth.errors import (
     NotAuthenticatedError,
     TokenRefreshError,
 )
+from specify_cli.auth.refresh_transaction import RefreshLockTimeoutError
 
 # Default timeout for all HTTP operations (per WP08 spec).
 DEFAULT_TIMEOUT_SECONDS = 30.0
@@ -219,6 +220,8 @@ class OAuthHttpClient(_BaseHttpClient):
         # First attempt: inject the current access token (auto-refresh if near expiry).
         try:
             access_token = await tm.get_access_token()
+        except RefreshLockTimeoutError as exc:
+            raise TokenRefreshError(str(exc)) from exc
         except (NotAuthenticatedError, TokenRefreshError):
             # Propagate auth errors unchanged — callers differentiate these.
             raise
@@ -239,10 +242,16 @@ class OAuthHttpClient(_BaseHttpClient):
             # Force a refresh. If the server invalidated our session mid-flight,
             # `refresh_if_needed()` will raise RefreshTokenExpiredError /
             # SessionInvalidError (both subclasses of TokenRefreshError).
-            await tm.refresh_if_needed()
+            try:
+                await tm.refresh_if_needed()
+            except RefreshLockTimeoutError as exc:
+                raise TokenRefreshError(str(exc)) from exc
 
             # Re-fetch the (now-refreshed) access token.
-            access_token = await tm.get_access_token()
+            try:
+                access_token = await tm.get_access_token()
+            except RefreshLockTimeoutError as exc:
+                raise TokenRefreshError(str(exc)) from exc
 
             response = await self._send(method, url, access_token, kwargs)
 

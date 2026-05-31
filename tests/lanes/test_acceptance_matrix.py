@@ -5,6 +5,7 @@ import sys
 
 import pytest
 
+from specify_cli.acceptance import matrix as acceptance_matrix_module
 from specify_cli.acceptance_matrix import (
     AcceptanceCriterion,
     AcceptanceMatrix,
@@ -68,6 +69,18 @@ class TestAcceptanceMatrix:
             ],
             negative_invariants=[
                 NegativeInvariant("NI-01", "Old route gone", "grep_absence", result="still_present"),
+            ],
+        )
+        assert m.overall_verdict == "fail"
+
+    def test_verdict_invariant_verification_error_fails_closed(self):
+        m = AcceptanceMatrix(
+            mission_slug="test",
+            criteria=[
+                AcceptanceCriterion("AC-01", "Test", "automated_test", pass_fail="pass"),
+            ],
+            negative_invariants=[
+                NegativeInvariant("NI-01", "Old route gone", "grep_absence", result="verification_error"),
             ],
         )
         assert m.overall_verdict == "fail"
@@ -238,7 +251,7 @@ class TestManualEvidence:
         errors = validate_matrix_evidence(m)
 
         assert "AC-01: pass_fail must be one of fail, pass, pending; got 'failed'" in errors
-        assert "NI-01: result must be one of confirmed_absent, pending, still_present; got 'absent'" in errors
+        assert "NI-01: result must be one of confirmed_absent, pending, still_present, verification_error; got 'absent'" in errors
 
 
 class TestNegativeInvariants:
@@ -256,6 +269,43 @@ class TestNegativeInvariants:
         ]
         results = enforce_negative_invariants(tmp_path, invariants)
         assert results[0].result == "confirmed_absent"
+
+    def test_grep_absence_invalid_regex_is_not_confirmed_absent(self, tmp_path):
+        (tmp_path / "src").mkdir()
+        (tmp_path / "src" / "app.py").write_text("forbidden_thing()\n")
+
+        invariants = [
+            NegativeInvariant(
+                "NI-01", "No forbidden call",
+                "grep_absence",
+                verification_command="forbidden[",
+            ),
+        ]
+        results = enforce_negative_invariants(tmp_path, invariants)
+
+        assert results[0].result == "verification_error"
+        assert "grep verification failed (exit 2)" in (results[0].evidence or "")
+
+    def test_grep_absence_execution_failure_is_not_confirmed_absent(self, tmp_path, monkeypatch):
+        (tmp_path / "src").mkdir()
+        (tmp_path / "src" / "app.py").write_text("def main(): pass\n")
+
+        def fail_to_start(*_args, **_kwargs):
+            raise OSError("grep unavailable")
+
+        monkeypatch.setattr(acceptance_matrix_module.subprocess, "run", fail_to_start)
+
+        invariants = [
+            NegativeInvariant(
+                "NI-01", "No legacy route",
+                "grep_absence",
+                verification_command="old_legacy_route",
+            ),
+        ]
+        results = enforce_negative_invariants(tmp_path, invariants)
+
+        assert results[0].result == "verification_error"
+        assert "grep failed to start: grep unavailable" in (results[0].evidence or "")
 
     def test_grep_absence_still_present(self, tmp_path):
         (tmp_path / "src").mkdir()

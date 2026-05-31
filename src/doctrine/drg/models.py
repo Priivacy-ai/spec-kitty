@@ -27,7 +27,7 @@ _URN_RE = re.compile(r"^[a-z_]+:[A-Za-z0-9_/.\-]+$")
 class NodeKind(StrEnum):
     """Canonical DRG node kinds.
 
-    Superset of ``ArtifactKind`` -- adds ``ACTION`` and ``GLOSSARY_SCOPE``.
+    Superset of ``ArtifactKind`` plus action and glossary node kinds.
     """
 
     DIRECTIVE = "directive"
@@ -37,6 +37,7 @@ class NodeKind(StrEnum):
     TOOLGUIDE = "toolguide"
     PROCEDURE = "procedure"
     AGENT_PROFILE = "agent_profile"
+    MISSION_STEP_CONTRACT = "mission_step_contract"
     TEMPLATE = "template"
     ACTION = "action"
     GLOSSARY_SCOPE = "glossary_scope"

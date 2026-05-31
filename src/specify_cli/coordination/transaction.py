@@ -18,8 +18,10 @@ C-013, NFR-001, NFR-008, NFR-010.
 
 from __future__ import annotations
 
+import errno
 import json as _json
 import logging
+import os
 import subprocess
 import sys
 import threading
@@ -309,6 +311,159 @@ def _confine_path_to_worktree(worktree_root: Path, path: Path) -> Path:
             f"{resolved_candidate}"
         )
     return candidate
+
+
+def _resolve_confined_artifact_path(worktree_root: Path, path: Path) -> Path:
+    """Return a canonical artifact path that remains inside ``worktree_root``."""
+    candidate = _confine_path_to_worktree(worktree_root, path)
+    resolved_worktree = worktree_root.resolve()
+    resolved_path = candidate.resolve(strict=False)
+    if resolved_path == resolved_worktree:
+        raise ValueError(
+            "Refusing to write artifact outside coordination worktree "
+            "(target is worktree root): "
+            f"{path}"
+        )
+    if not resolved_path.is_relative_to(resolved_worktree):
+        raise ValueError(
+            "Refusing to write artifact outside coordination worktree "
+            "(outside worktree): "
+            f"{resolved_path}"
+        )
+    return resolved_path
+
+
+def _write_confined_artifact_bytes(
+    worktree_root: Path,
+    path: Path,
+    content: bytes,
+) -> Path:
+    """Write bytes after revalidating containment at the I/O boundary."""
+    resolved_path = _resolve_confined_artifact_path(worktree_root, path)
+    resolved_path.parent.mkdir(parents=True, exist_ok=True)
+    resolved_path = _resolve_confined_artifact_path(worktree_root, resolved_path)
+    if resolved_path.exists() and not resolved_path.is_file():
+        raise ValueError(
+            "Refusing to write artifact outside coordination worktree "
+            "(target is not a regular file): "
+            f"{resolved_path}"
+        )
+    existing_mode = (
+        resolved_path.stat().st_mode & 0o777
+        if resolved_path.exists()
+        else None
+    )
+
+    parent_fd: int | None = None
+    tmp_name = f".spec-kitty-{_generate_ulid()}.tmp"
+    try:
+        parent_fd = _open_confined_parent_fd(worktree_root, resolved_path)
+        _write_and_replace_via_parent_fd(
+            parent_fd=parent_fd,
+            target_name=resolved_path.name,
+            tmp_name=tmp_name,
+            content=content,
+            existing_mode=existing_mode,
+        )
+    except OSError as exc:
+        if exc.errno in {errno.ELOOP, errno.ENOENT, errno.ENOTDIR}:
+            raise ValueError(
+                "Refusing to write artifact outside coordination worktree "
+                "(unsafe path changed during write): "
+                f"{resolved_path}"
+            ) from exc
+        raise
+    finally:
+        if parent_fd is not None:
+            try:
+                os.unlink(tmp_name, dir_fd=parent_fd)
+            except FileNotFoundError:
+                pass
+            except OSError:
+                logger.debug(
+                    "BookkeepingTransaction: failed to remove temp artifact %s/%s",
+                    resolved_path.parent,
+                    tmp_name,
+                )
+            os.close(parent_fd)
+    return resolved_path
+
+
+def _open_confined_parent_fd(worktree_root: Path, path: Path) -> int:
+    """Open ``path.parent`` component-by-component without following symlinks."""
+    if not (
+        os.open in os.supports_dir_fd
+        and hasattr(os, "O_DIRECTORY")
+        and hasattr(os, "O_NOFOLLOW")
+    ):
+        raise ValueError(
+            "Refusing to write artifact outside coordination worktree "
+            "(fd-relative no-follow writes unsupported on this platform): "
+            f"{path}"
+        )
+
+    resolved_worktree = worktree_root.resolve()
+    relative_parent = path.parent.relative_to(resolved_worktree)
+    dir_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    fd = os.open(resolved_worktree, dir_flags)
+    try:
+        for part in relative_parent.parts:
+            next_fd = os.open(part, dir_flags, dir_fd=fd)
+            os.close(fd)
+            fd = next_fd
+    except Exception:
+        os.close(fd)
+        raise
+    return fd
+
+
+def _write_and_replace_via_parent_fd(
+    *,
+    parent_fd: int,
+    target_name: str,
+    tmp_name: str,
+    content: bytes,
+    existing_mode: int | None,
+) -> None:
+    """Create temp file and replace target relative to an already-open parent."""
+    tmp_fd = os.open(
+        tmp_name,
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+        0o600,
+        dir_fd=parent_fd,
+    )
+    try:
+        if existing_mode is not None:
+            os.fchmod(tmp_fd, existing_mode)
+        remaining = memoryview(content)
+        while remaining:
+            written = os.write(tmp_fd, remaining)
+            remaining = remaining[written:]
+    finally:
+        os.close(tmp_fd)
+    os.replace(tmp_name, target_name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
+
+
+def _unlink_confined_artifact_path(worktree_root: Path, path: Path) -> None:
+    """Unlink an artifact relative to a verified no-follow parent directory."""
+    resolved_path = _resolve_confined_artifact_path(worktree_root, path)
+    parent_fd: int | None = None
+    try:
+        parent_fd = _open_confined_parent_fd(worktree_root, resolved_path)
+        os.unlink(resolved_path.name, dir_fd=parent_fd)
+    except FileNotFoundError:
+        pass
+    except OSError as exc:
+        if exc.errno in {errno.ELOOP, errno.ENOTDIR}:
+            raise ValueError(
+                "Refusing to unlink artifact outside coordination worktree "
+                "(unsafe path changed during unlink): "
+                f"{resolved_path}"
+            ) from exc
+        raise
+    finally:
+        if parent_fd is not None:
+            os.close(parent_fd)
 
 
 # WP06 swap: the canonical builder now lives in ``status.emit`` so the
@@ -673,31 +828,26 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         rollback path.
         """
         try:
-            candidate = _confine_path_to_worktree(self.worktree_root, path)
+            resolved_path = _resolve_confined_artifact_path(self.worktree_root, path)
         except ValueError as exc:
             raise ValueError(
                 "Refusing to write artifact outside coordination worktree "
                 "(outside worktree): "
                 f"{path}"
             ) from exc
-        resolved_worktree = self.worktree_root.resolve()
         # Capture snapshot ONLY if we have not seen this path yet.
         # Re-writing the same path repeatedly in one transaction still
         # rolls back to the *original* pre-transaction state.
-        resolved_path = candidate.resolve(strict=False)
-        if not resolved_path.is_relative_to(resolved_worktree):
-            raise ValueError(
-                "Refusing to write artifact outside coordination worktree "
-                "(outside worktree): "
-                f"{resolved_path}"
-            )
         if resolved_path not in self._snapshots:
             self._snapshots[resolved_path] = (
                 resolved_path.read_bytes() if resolved_path.exists() else None
             )
 
-        resolved_path.parent.mkdir(parents=True, exist_ok=True)
-        resolved_path.write_bytes(content)
+        resolved_path = _write_confined_artifact_bytes(
+            self.worktree_root,
+            resolved_path,
+            content,
+        )
 
         if resolved_path not in self._staged_paths:
             self._staged_paths.append(resolved_path)
@@ -844,11 +994,10 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         for path, prev in self._snapshots.items():
             try:
                 if prev is None:
-                    path.unlink(missing_ok=True)
+                    _unlink_confined_artifact_path(self.worktree_root, path)
                 else:
-                    path.parent.mkdir(parents=True, exist_ok=True)
-                    path.write_bytes(prev)
-            except OSError as exc:
+                    _write_confined_artifact_bytes(self.worktree_root, path, prev)
+            except (OSError, ValueError) as exc:
                 logger.error(
                     "BookkeepingTransaction rollback: restore of %s "
                     "failed: %s",

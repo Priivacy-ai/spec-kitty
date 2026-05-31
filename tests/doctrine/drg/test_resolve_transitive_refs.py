@@ -214,6 +214,7 @@ def test_bucketing_by_kind_and_prefix_stripping() -> None:
             ("toolguide:TG1", NodeKind.TOOLGUIDE),
             ("procedure:PR1", NodeKind.PROCEDURE),
             ("agent_profile:AP1", NodeKind.AGENT_PROFILE),
+            ("mission_step_contract:MSC1", NodeKind.MISSION_STEP_CONTRACT),
             ("template:TPL1", NodeKind.TEMPLATE),
         ],
         edges=[
@@ -223,6 +224,7 @@ def test_bucketing_by_kind_and_prefix_stripping() -> None:
             ("directive:D1", "toolguide:TG1", Relation.REQUIRES),
             ("directive:D1", "procedure:PR1", Relation.REQUIRES),
             ("directive:D1", "agent_profile:AP1", Relation.REQUIRES),
+            ("directive:D1", "mission_step_contract:MSC1", Relation.REQUIRES),
             ("directive:D1", "template:TPL1", Relation.REQUIRES),
         ],
     )
@@ -240,6 +242,7 @@ def test_bucketing_by_kind_and_prefix_stripping() -> None:
     assert result.toolguides == ["TG1"]
     assert result.procedures == ["PR1"]
     assert result.agent_profiles == ["AP1"]
+    assert result.mission_step_contracts == ["MSC1"]
     assert result.templates == ["TPL1"]
     assert result.is_complete
 

@@ -43,7 +43,19 @@ to``) so it always satisfies the prompt-governance contract — see
 """
 
 
-_VALID_SELECTOR_KINDS: frozenset[str] = frozenset({"directive", "tactic", "section"})
+_VALID_SELECTOR_KINDS: frozenset[str] = frozenset(
+    {
+        "agent_profile",
+        "directive",
+        "mission_step_contract",
+        "paradigm",
+        "procedure",
+        "section",
+        "styleguide",
+        "tactic",
+        "toolguide",
+    }
+)
 
 
 def format_selector(kind: str, identifier: str) -> str:
@@ -51,10 +63,10 @@ def format_selector(kind: str, identifier: str) -> str:
 
     ``kind`` is normalised to lowercase and validated against the set of
     selector kinds the ``spec-kitty charter context --include`` surface
-    accepts (``directive``, ``tactic``, ``section``).  An unknown kind
-    is permitted (returned as-is) so callers can extend the vocabulary
-    without code changes here, but the canonical kinds are guaranteed
-    to round-trip through the validator unchanged.
+    accepts (for example, ``directive``, ``tactic``, ``styleguide``, and
+    ``section``).  An unknown kind is permitted (returned as-is) so callers can
+    extend the vocabulary without code changes here, but the canonical kinds
+    are guaranteed to round-trip through the validator unchanged.
     """
 
     cleaned_kind = (kind or "").strip().lower()

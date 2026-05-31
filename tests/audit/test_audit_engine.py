@@ -171,6 +171,20 @@ def test_determinism(tmp_path: Path) -> None:
     assert json_1 == json_2, "Two identical run_audit() calls produced different JSON"
 
 
+def test_json_stable_across_checkout_roots(tmp_path: Path) -> None:
+    """Identical audit input in different roots serializes byte-identically."""
+    repo_a = tmp_path / "repo-a"
+    repo_b = tmp_path / "repo-b"
+    _make_mission(repo_a / "kitty-specs", "mission-x", _ULID_A, mission_number=1)
+    _make_mission(repo_b / "kitty-specs", "mission-x", _ULID_A, mission_number=1)
+
+    json_a = build_report_json(run_audit(_options(repo_a)))
+    json_b = build_report_json(run_audit(_options(repo_b)))
+
+    assert json_a == json_b
+    assert str(tmp_path) not in json_a
+
+
 # ---------------------------------------------------------------------------
 # Test 5: test_corrupt_jsonl_does_not_crash_engine
 # ---------------------------------------------------------------------------
@@ -203,6 +217,33 @@ def test_corrupt_jsonl_does_not_crash_engine(tmp_path: Path) -> None:
 
     assert "CORRUPT_JSONL" in codes, f"Expected CORRUPT_JSONL in {codes}"
     assert "SNAPSHOT_DRIFT" not in codes, f"SNAPSHOT_DRIFT should be suppressed, got {codes}"
+
+
+def test_non_object_meta_and_status_json_do_not_crash_engine(tmp_path: Path) -> None:
+    """Engine emits findings for valid non-object meta/status JSON roots."""
+    specs_dir = tmp_path / "kitty-specs"
+    mission_dir = specs_dir / "non-object-json-mission"
+    mission_dir.mkdir(parents=True, exist_ok=True)
+    (mission_dir / "meta.json").write_text("[]", encoding="utf-8")
+    (mission_dir / "status.json").write_text("true", encoding="utf-8")
+
+    report = run_audit(_options(tmp_path))
+
+    assert len(report.missions) == 1
+    result = report.missions[0]
+    findings_by_artifact = {
+        (finding.artifact_path, finding.code): finding for finding in result.findings
+    }
+    assert ("meta.json", "CORRUPT_JSON") in findings_by_artifact
+    assert ("status.json", "CORRUPT_JSON") in findings_by_artifact
+    assert (
+        findings_by_artifact[("meta.json", "CORRUPT_JSON")].detail
+        == "top-level JSON value must be an object"
+    )
+    assert (
+        findings_by_artifact[("status.json", "CORRUPT_JSON")].detail
+        == "top-level JSON value must be an object"
+    )
 
 
 # ---------------------------------------------------------------------------

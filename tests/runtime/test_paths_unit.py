@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.core.paths import (
+    get_main_repo_root,
     locate_project_root,
     is_worktree_context,
     resolve_with_context,
@@ -58,6 +59,25 @@ def test_locate_project_root_with_env_var(mock_main_repo: Path, monkeypatch: pyt
 
     # Assert env var was used
     assert repo_root == mock_main_repo
+
+
+def test_locate_project_root_env_var_worktree_resolves_main_repo(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """SPECIFY_REPO_ROOT may point at a lane worktree; callers still need the main repo."""
+    main_repo = tmp_path / "repo"
+    worktree = main_repo / ".worktrees" / "feature-lane-a"
+    gitdir = main_repo / ".git" / "worktrees" / "feature-lane-a"
+    gitdir.mkdir(parents=True)
+    (main_repo / ".kittify").mkdir(parents=True)
+    worktree.mkdir(parents=True)
+    (worktree / ".kittify").mkdir()
+    (worktree / ".git").write_text(f"gitdir: {gitdir}\n", encoding="utf-8")
+
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(worktree))
+
+    assert locate_project_root() == main_repo
 
 
 def test_locate_project_root_from_nested_dir(mock_main_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -122,6 +142,17 @@ def test_locate_project_root_from_external_worktree_pointer(tmp_path: Path) -> N
     )
 
     assert locate_project_root(external_wt) == main_repo
+
+
+def test_get_main_repo_root_ignores_non_worktree_git_file(tmp_path: Path) -> None:
+    """Separate-git-dir and submodule-style .git files are not worktree roots."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    gitdir = tmp_path / "external-git-dir"
+    gitdir.mkdir()
+    (repo / ".git").write_text(f"gitdir: {gitdir}\n", encoding="utf-8")
+
+    assert get_main_repo_root(repo) == repo.resolve()
 
 
 def test_is_worktree_context_bare_repo_worktree(tmp_path: Path) -> None:
