@@ -525,6 +525,27 @@ def test_write_artifact_refuses_paths_outside_coordination_worktree(repo: Path) 
             txn.write_artifact(outside_path, b"bad")
 
 
+def test_write_artifact_refuses_symlink_escape(repo: Path, tmp_path: Path) -> None:
+    """Artifact writes must reject symlinks that resolve outside the worktree."""
+    outside_dir = tmp_path / "outside"
+    outside_dir.mkdir()
+
+    with BookkeepingTransaction.acquire(
+        repo_root=repo,
+        mission_id=MISSION_ID,
+        mission_slug=MISSION_SLUG,
+        mid8=MID8,
+        destination_ref=COORD_BRANCH,
+        operation="artifact_symlink_escape",
+    ) as txn:
+        link_path = txn.worktree_root / "kitty-specs" / FEATURE_DIRNAME / "escape-link"
+        link_path.parent.mkdir(parents=True, exist_ok=True)
+        link_path.symlink_to(outside_dir, target_is_directory=True)
+
+        with pytest.raises(ValueError, match="outside worktree"):
+            txn.write_artifact(link_path / "artifact.txt", b"bad")
+
+
 # ---------------------------------------------------------------------------
 # Nested-lock
 # ---------------------------------------------------------------------------
