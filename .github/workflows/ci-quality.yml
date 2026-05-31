@@ -218,11 +218,6 @@ jobs:
       - name: "[ENFORCED] Install Python dependencies"
         run: |
           uv sync --frozen --all-extras
-          # spec-kitty-runtime is required by next/runtime tests and patch-target
-          # validation, but its published wheel pins an older spec-kitty-events.
-          # Install it without deps so this repo's spec-kitty-events==4.0.0 pin
-          # remains authoritative.
-          uv pip install spec-kitty-runtime==0.4.5 --no-deps
 
       - name: "[ENFORCED] Prepare report directories"
         run: |
@@ -951,7 +946,6 @@ jobs:
           python-version: '3.12'
       - run: |
           uv sync --frozen --all-extras
-          uv pip install spec-kitty-runtime==0.4.5 --no-deps
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — next"
         run: |
@@ -1570,7 +1564,6 @@ jobs:
           python-version: '3.12'
       - run: |
           uv sync --frozen --all-extras
-          uv pip install spec-kitty-runtime==0.4.5 --no-deps
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — next"
         run: |
