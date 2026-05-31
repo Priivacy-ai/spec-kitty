@@ -803,7 +803,7 @@ jobs:
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — missions"
         run: |
-          uv run python -m pytest tests/missions/ -m "fast and not windows_ci" -q --tb=short \
+          uv run python -m pytest tests/missions/ tests/specify_cli/missions/ -m "fast and not windows_ci" -q --tb=short \
             --cov=src/specify_cli/mission \
             --cov=src/specify_cli/mission_metadata \
             --cov=src/doctrine/missions \
@@ -1416,7 +1416,7 @@ jobs:
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — missions"
         run: |
-          uv run python -m pytest tests/missions/ \
+          uv run python -m pytest tests/missions/ tests/specify_cli/missions/ \
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             --cov=src/specify_cli/mission \

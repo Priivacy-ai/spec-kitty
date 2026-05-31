@@ -32,11 +32,19 @@ def _job_run_script(job_name: str, step_name: str) -> str:
 
 
 def test_missions_filter_includes_missions_package_and_tests() -> None:
-    """Mission package edits must run the mission test slice."""
+    """Mission package tests must both trigger and run the mission test slice."""
     missions_filter = set(_path_filters()["missions"])
     assert "src/specify_cli/missions/**" in missions_filter
     assert "tests/fixtures/missions/**" in missions_filter
     assert "tests/specify_cli/missions/**" in missions_filter
+
+    fast_run = _job_run_script("fast-tests-missions", "Run fast tests — missions")
+    integration_run = _job_run_script(
+        "integration-tests-missions",
+        "Run integration tests — missions",
+    )
+    assert "tests/specify_cli/missions/" in fast_run
+    assert "tests/specify_cli/missions/" in integration_run
 
 
 def test_lanes_filter_and_jobs_include_lanes_package_tests() -> None:
