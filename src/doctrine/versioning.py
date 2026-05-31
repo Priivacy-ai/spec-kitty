@@ -204,6 +204,85 @@ def _compute_v2_synthesis_manifest_hash(manifest_data: dict[str, object]) -> str
     return hashlib.sha256(canonical_yaml(fields_for_hash)).hexdigest()
 
 
+def repair_v2_synthesis_manifest_defaults(
+    bundle_root: Path,
+    dry_run: bool = False,
+) -> MigrationResult:
+    """Repair current v2 manifests that predate verifier-visible defaults."""
+    _yaml = YAML()
+    _yaml.default_flow_style = False
+    _yaml.explicit_start = False
+
+    manifest_path = bundle_root / "synthesis-manifest.yaml"
+    if not manifest_path.exists():
+        return MigrationResult(changes_made=[], errors=[], from_version=2, to_version=2)
+
+    try:
+        manifest_data = _yaml.load(manifest_path)
+    except Exception as exc:  # noqa: BLE001
+        return MigrationResult(
+            changes_made=[],
+            errors=[f"Failed to load synthesis-manifest.yaml: {exc}"],
+            from_version=2,
+            to_version=2,
+        )
+
+    if not isinstance(manifest_data, dict) or manifest_data.get("schema_version") != "2":
+        return MigrationResult(changes_made=[], errors=[], from_version=2, to_version=2)
+    if "built_in_only" in manifest_data:
+        return MigrationResult(changes_made=[], errors=[], from_version=2, to_version=2)
+
+    stored_hash = manifest_data.get("manifest_hash")
+    if not isinstance(stored_hash, str):
+        return MigrationResult(
+            changes_made=[],
+            errors=["Cannot repair synthesis-manifest.yaml: manifest_hash is missing or invalid."],
+            from_version=2,
+            to_version=2,
+        )
+
+    legacy_fields_for_hash = {
+        k: v for k, v in manifest_data.items() if k != "manifest_hash"
+    }
+    legacy_hash = hashlib.sha256(canonical_yaml(legacy_fields_for_hash)).hexdigest()
+    if legacy_hash != stored_hash:
+        return MigrationResult(
+            changes_made=[],
+            errors=[
+                "Cannot repair synthesis-manifest.yaml: existing manifest_hash does not "
+                "match the pre-built_in_only v2 payload."
+            ],
+            from_version=2,
+            to_version=2,
+        )
+
+    manifest_data["built_in_only"] = False
+    manifest_data["manifest_hash"] = _compute_v2_synthesis_manifest_hash(manifest_data)
+    changes_made = [str(manifest_path)]
+
+    if not dry_run:
+        try:
+            import io as _io
+
+            buf = _io.BytesIO()
+            _yaml.dump(manifest_data, buf)
+            manifest_path.write_bytes(buf.getvalue())
+        except Exception as exc:  # noqa: BLE001
+            return MigrationResult(
+                changes_made=[],
+                errors=[f"Failed to write synthesis-manifest.yaml: {exc}"],
+                from_version=2,
+                to_version=2,
+            )
+
+    return MigrationResult(
+        changes_made=changes_made,
+        errors=[],
+        from_version=2,
+        to_version=2,
+    )
+
+
 def _register_migration(
     from_version: int,
     fn: Callable[[Path, bool], MigrationResult],
@@ -402,5 +481,6 @@ __all__ = [
     "check_bundle_compatibility",
     "get_bundle_schema_version",
     "migrate_v1_to_v2",
+    "repair_v2_synthesis_manifest_defaults",
     "run_migration",
 ]

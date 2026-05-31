@@ -16,6 +16,7 @@ from doctrine.versioning import (
     BundleCompatibilityStatus,
     check_bundle_compatibility,
     get_bundle_schema_version,
+    repair_v2_synthesis_manifest_defaults,
     run_migration,
 )
 
@@ -24,5 +25,6 @@ __all__ = [
     "CURRENT_BUNDLE_SCHEMA_VERSION",
     "check_bundle_compatibility",
     "get_bundle_schema_version",
+    "repair_v2_synthesis_manifest_defaults",
     "run_migration",
 ]

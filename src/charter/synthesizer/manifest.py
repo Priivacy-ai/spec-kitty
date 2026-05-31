@@ -23,7 +23,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 from ruamel.yaml import YAML
 
 from .errors import ManifestIntegrityError
@@ -74,6 +74,7 @@ class SynthesisManifest(BaseModel):
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
+    _raw_field_names: frozenset[str] | None = PrivateAttr(default=None)
 
     schema_version: Literal["2"] = "2"
     mission_id: str | None = None
@@ -168,7 +169,10 @@ def load_yaml(path: Path) -> SynthesisManifest:
     """
     y = _yaml_instance()
     raw = y.load(path.read_text(encoding="utf-8"))
-    return SynthesisManifest.model_validate(raw)
+    manifest = SynthesisManifest.model_validate(raw)
+    if isinstance(raw, Mapping):
+        manifest._raw_field_names = frozenset(str(key) for key in raw)
+    return manifest
 
 
 def compute_manifest_hash(manifest_or_data: SynthesisManifest | Mapping[str, Any]) -> str:
@@ -203,6 +207,15 @@ def verify_manifest_hash(manifest: SynthesisManifest) -> None:
     """
     computed = compute_manifest_hash(manifest)
     if computed != manifest.manifest_hash:
+        raw_field_names = manifest._raw_field_names
+        if raw_field_names is not None and "built_in_only" not in raw_field_names:
+            legacy_data = manifest.model_dump(mode="python")
+            legacy_data.pop("manifest_hash", None)
+            legacy_data.pop("built_in_only", None)
+            legacy_computed = hashlib.sha256(canonical_yaml(legacy_data)).hexdigest()
+            if legacy_computed == manifest.manifest_hash:
+                return
+
         raise ValueError(
             f"manifest_hash mismatch (stored {manifest.manifest_hash[:12]}..., "
             f"computed {computed[:12]}...)"

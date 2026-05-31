@@ -153,6 +153,26 @@ def _create_v2_bundle(project_path: Path) -> None:
     )
 
 
+def _create_legacy_v2_bundle_without_built_in_only(project_path: Path) -> None:
+    """Create a v2 bundle from before manifest built_in_only was introduced."""
+    _create_v2_bundle(project_path)
+
+    import hashlib
+
+    from doctrine.yaml_utils import canonical_yaml
+
+    manifest_path = (
+        project_path / ".kittify" / "charter" / "synthesis-manifest.yaml"
+    )
+    manifest = _load_yaml(manifest_path)
+    manifest.pop("built_in_only")
+    manifest.pop("manifest_hash")
+    manifest["manifest_hash"] = hashlib.sha256(  # noqa: TID251 — legacy v2 manifest self-hash fixture
+        canonical_yaml(manifest)
+    ).hexdigest()
+    _write_yaml(manifest_path, manifest)
+
+
 def _create_bundle_with_metadata_version(project_path: Path, version: int) -> None:
     """Create a charter bundle whose metadata advertises a specific version."""
     charter_dir = project_path / ".kittify" / "charter"
@@ -278,6 +298,37 @@ def test_apply_manifest_hash_verifies_after_v2_migration(tmp_path: Path) -> None
         tmp_path / ".kittify" / "charter" / "synthesis-manifest.yaml"
     )
     verify_manifest_hash(manifest)
+
+
+def test_apply_repairs_current_v2_manifest_missing_built_in_only(tmp_path: Path) -> None:
+    """Current v2 bundles with legacy self-hashes get a canonical manifest repair."""
+    from charter.synthesizer.manifest import load_yaml, verify_manifest_hash
+
+    _create_legacy_v2_bundle_without_built_in_only(tmp_path)
+
+    result = CharterBundleV2Migration().apply(tmp_path)
+
+    assert result.success is True
+    assert result.errors == []
+    assert result.changes_made == [
+        str(tmp_path / ".kittify" / "charter" / "synthesis-manifest.yaml")
+    ]
+    manifest_path = tmp_path / ".kittify" / "charter" / "synthesis-manifest.yaml"
+    manifest_data = _load_yaml(manifest_path)
+    assert manifest_data["built_in_only"] is False
+    verify_manifest_hash(load_yaml(manifest_path))
+
+
+def test_apply_current_v2_manifest_repair_is_dry_run_safe(tmp_path: Path) -> None:
+    """Dry-run reports the legacy v2 manifest repair without mutating the file."""
+    _create_legacy_v2_bundle_without_built_in_only(tmp_path)
+    manifest_path = tmp_path / ".kittify" / "charter" / "synthesis-manifest.yaml"
+
+    result = CharterBundleV2Migration().apply(tmp_path, dry_run=True)
+
+    assert result.success is True
+    assert result.changes_made == [str(manifest_path)]
+    assert "built_in_only" not in _load_yaml(manifest_path)
 
 
 def test_apply_dry_run_makes_no_changes(tmp_path: Path) -> None:
