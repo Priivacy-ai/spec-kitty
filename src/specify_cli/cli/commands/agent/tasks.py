@@ -2131,7 +2131,30 @@ def _update_pipe_table_status(line: str, status: str, header_map: dict[str, int]
     return "|" + "|".join(inner_cells) + "|"
 
 
-_WP_HEADING_RE = re.compile(r"^\s{0,3}#{1,6}\s+(?P<wp_id>WP\d+)\b", re.IGNORECASE)
+_WP_HEADING_RE = re.compile(r"^\s{0,3}#{1,6}\s+(?P<title>.+?)\s*$")
+_WP_ID_TITLE_RE = re.compile(r"^(?:Work Package\s+)?(?P<wp_id>WP\d+)(?:\b|:)", re.IGNORECASE)
+
+
+def _match_history_wp_heading(line: str) -> str | None:
+    """Return the owning WP id from supported tasks.md section headings."""
+    heading_match = _WP_HEADING_RE.match(line)
+    if not heading_match:
+        return None
+
+    title = heading_match.group("title").strip()
+    if wp_match := _WP_ID_TITLE_RE.match(title):
+        return wp_match.group("wp_id").upper()
+    work_package_prefix = "Work Package "
+    if title.startswith(work_package_prefix):
+        suffix = title[len(work_package_prefix) :]
+        digit_count = 0
+        while digit_count < len(suffix) and digit_count < 2 and suffix[digit_count].isdigit():
+            digit_count += 1
+        if digit_count and (digit_count == len(suffix) or not suffix[digit_count].isdigit()):
+            remainder = suffix[digit_count:]
+            if not remainder or remainder[0].isspace() or remainder[0] in ":-" or ord(remainder[0]) == 0x2014:
+                return f"WP{int(suffix[:digit_count]):02d}"
+    return None
 
 
 def _extract_pipe_table_wp_id(line: str, header_map: dict[str, int]) -> str | None:
@@ -2158,9 +2181,9 @@ def _resolve_history_wp_id(tasks_content: str, task_id: str) -> str | None:
     lines = tasks_content.split("\n")
 
     for line_index, line in enumerate(lines):
-        heading_match = _WP_HEADING_RE.match(line)
-        if heading_match:
-            current_wp_id = heading_match.group("wp_id").upper()
+        heading_wp_id = _match_history_wp_heading(line)
+        if heading_wp_id:
+            current_wp_id = heading_wp_id
 
         if _is_pipe_table_task_row(line, normalized_task_id):
             header_map = _parse_pipe_table_header(lines, line_index)

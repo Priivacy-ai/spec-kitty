@@ -261,6 +261,37 @@ def test_history_added_uses_owning_wp_for_checkbox_task(tmp_path: Path) -> None:
     assert emit_history.call_args.kwargs["wp_id"] == "WP01"
 
 
+def test_history_added_uses_work_package_heading_for_checkbox_task(tmp_path: Path) -> None:
+    slug = "007-history-work-package-heading"
+    _write_mission(tmp_path, slug, "# Tasks\n\n## Work Package WP01: Build\n- [ ] T001 First task\n")
+
+    with (
+        patch("specify_cli.cli.commands.agent.tasks.locate_project_root", return_value=tmp_path),
+        patch("specify_cli.cli.commands.agent.tasks._find_mission_slug", return_value=slug),
+        patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out", return_value=(tmp_path, "main")),
+        patch("specify_cli.cli.commands.agent.tasks._emit_sparse_session_warning"),
+        patch("specify_cli.cli.commands.agent.tasks.feature_status_lock", _null_lock),
+        patch("specify_cli.cli.commands.agent.tasks.emit_history_added") as emit_history,
+    ):
+        result = runner.invoke(
+            app,
+            [
+                "mark-status",
+                "T001",
+                "--status",
+                "done",
+                "--mission",
+                slug,
+                "--json",
+                "--no-auto-commit",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    emit_history.assert_called_once()
+    assert emit_history.call_args.kwargs["wp_id"] == "WP01"
+
+
 def test_history_added_uses_explicit_wp_column_for_non_derivable_task_id(tmp_path: Path) -> None:
     slug = "007-history-pipe-table"
     _write_mission(
