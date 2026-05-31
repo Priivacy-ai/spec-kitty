@@ -132,6 +132,14 @@ class StoredSession:
 
     generation: int | None = None  # Tranche 2 token-family generation counter; None for pre-Tranche-2 sessions
 
+    def __post_init__(self) -> None:
+        """Keep persisted auth timestamps comparable with UTC ``now`` values."""
+        self.issued_at = _coerce_utc(self.issued_at)
+        self.access_token_expires_at = _coerce_utc(self.access_token_expires_at)
+        if self.refresh_token_expires_at is not None:
+            self.refresh_token_expires_at = _coerce_utc(self.refresh_token_expires_at)
+        self.last_used_at = _coerce_utc(self.last_used_at)
+
     def is_access_token_expired(self, buffer_seconds: int = 0) -> bool:
         """Return True if the access token expires within ``buffer_seconds``.
 
@@ -216,3 +224,9 @@ class StoredSession:
     def from_json(cls, raw: str) -> StoredSession:
         """Deserialize from a JSON string produced by the encrypted file store."""
         return cls.from_dict(json.loads(raw))
+
+
+def _coerce_utc(value: datetime) -> datetime:
+    if value.tzinfo is None or value.tzinfo.utcoffset(value) is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)

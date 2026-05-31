@@ -233,6 +233,22 @@ class TestRefreshTTLAmendment:
         assert updated.refresh_token_expires_at == datetime(2099, 1, 1, tzinfo=UTC)
 
     @pytest.mark.asyncio
+    async def test_offsetless_absolute_expires_at_is_treated_as_utc(self):
+        flow = TokenRefreshFlow()
+        session = _make_session()
+        body = _refresh_body(refresh_token_expires_at="2099-01-01T00:00:00")
+
+        with patch("specify_cli.auth.flows.refresh.PublicHttpClient") as mock_cls:
+            mock_client = AsyncMock()
+            mock_cls.return_value.__aenter__.return_value = mock_client
+            mock_client.post.return_value = _mock_httpx_response(200, body)
+
+            updated = await flow.refresh(session)
+
+        assert updated.refresh_token_expires_at == datetime(2099, 1, 1, tzinfo=UTC)
+        assert updated.is_refresh_token_expired() is False
+
+    @pytest.mark.asyncio
     async def test_preserves_prior_expiry_when_response_omits_both_forms(self):
         """Non-compliant server: last-resort fallback preserves prior expiry."""
         flow = TokenRefreshFlow()
