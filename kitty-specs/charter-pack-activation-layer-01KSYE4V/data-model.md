@@ -23,9 +23,11 @@ Immutable snapshot of a full activation configuration. Loaded from `src/charter/
 | `activated_agent_profiles` | `frozenset[str] \| None` | Agent profile IDs; `None` = all built-ins available |
 | `activated_mission_step_contracts` | `frozenset[str] \| None` | MSC IDs; `None` = all built-ins available |
 
-**Invariant**: `None` means "all built-ins available" (backward-compat fallback). An empty `frozenset` means "nothing activated for this kind" (explicit restriction to empty set). A non-empty frozenset means "only these IDs are available." These three states are distinct.
+**Invariant**: Absence of a key in config.yaml means "all built-ins available" (backward-compat for pre-upgrade projects — `None` in Python). An empty list `[]` / empty frozenset means "nothing available for this kind" (explicit restriction). A non-empty frozenset means "only these IDs are available." These three states are distinct and all legitimate.
 
-**Serialization**: YAML under `src/charter/packs/default.yaml`. Kind keys use plural snake_case matching `PackContext` existing keys. `None` is represented by absence of the key (YAML round-trip safe).
+**Reader rule (FR-039)**: The `from_config()` reader must NOT apply a silent fallback when it encounters an empty list `[]`. An empty YAML list maps to `frozenset()`, not to the default built-in set. The existing `and raw` guard in `_read_activated_kinds` (which collapses `[]` to all built-ins) must be removed from all per-kind readers. Projects are protected from an empty-set state by the upgrade command writing the default pack — not by a silent reader fallback.
+
+**Serialization**: YAML under `src/charter/packs/default.yaml`. Kind keys use plural snake_case matching `PackContext` existing keys. `None` / absent key is represented by absence of the YAML key (round-trip safe).
 
 ---
 

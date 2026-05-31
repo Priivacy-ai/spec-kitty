@@ -29,7 +29,7 @@ control and a consistency validation command.
 
 | Term | Definition | Avoid confusing with |
 |------|-----------|----------------------|
-| **charter pack** | The project's curated selection of doctrine artifacts, stored at `.kittify/charter/charter.md` | The charter file itself (which contains governance rules beyond activation) |
+| **charter pack** | The project's curated selection of doctrine artifacts; activation state stored in `.kittify/config.yaml` under `activated_*` keys (human-readable `.kittify/charter/charter.md` may describe the selection, but code reads config.yaml as the single source of truth) | The charter governance file (which contains narrative rules, not activation state) |
 | **doctrine pack** | The catalog of artifacts available for activation; the built-in spec-kitty doctrine pack is the default baseline | The activated set |
 | **pack context** | The resolved combination of an active charter pack and a doctrine pack; the context in which WP lifecycle decisions are made | Charter alone |
 | **activation** | The act of explicitly selecting a doctrine artifact for use in this project | Enabling, turning on |
@@ -62,21 +62,23 @@ control and a consistency validation command.
 
 ### Journey 1 — New project receives default charter pack
 
-A developer runs `spec-kitty upgrade` on a project that has no charter file. The upgrade
-writes the default charter pack to `.kittify/charter/charter.md`. The terminal displays a
-summary of what was written: all nine activation kinds, with all built-in artifacts listed
-and marked as activated. The developer takes no further action; all previously available
-behavior continues to work unchanged.
+A developer runs `spec-kitty upgrade` on a project that has no activation state in
+`.kittify/config.yaml`. The upgrade writes the default activation entries to `config.yaml`
+under `activated_*` keys — one per activation kind, listing all built-in artifact IDs. The
+terminal displays a summary of what was written: all nine activation kinds, with all built-in
+artifacts listed and marked as activated. The developer takes no further action; all previously
+available behavior continues to work unchanged.
 
 ### Journey 2 — Existing project upgraded safely
 
-A developer runs `spec-kitty upgrade` on a project that already has a charter file. The
-upgrade detects the existing file, creates a timestamped backup at
-`.kittify/charter/charter.md.bak`, merges the default pack entries for any activation
-kind not yet present in the existing charter, and prints a prominent warning: "Your charter
-file was updated. Please review `.kittify/charter/charter.md` before continuing, then
-run `charter pack consistency-check` to confirm coherence." No activation entries that
-were explicitly set by the user are overwritten.
+A developer runs `spec-kitty upgrade` on a project that already has a charter governance
+file at `.kittify/charter/charter.md`. The upgrade detects the existing file and creates a
+timestamped backup at `.kittify/charter/backups/charter-{timestamp}.md` before making any
+changes. It then merges the default activation entries into `.kittify/config.yaml` for any
+activation kind not yet present, and prints a prominent warning: "Your charter file was
+backed up. Default activation entries have been written to config.yaml. Please review and
+run `charter pack consistency-check` to confirm coherence." No activation entries that were
+explicitly set by the user in config.yaml are overwritten.
 
 ### Journey 3 — Activating a mission type without cascade
 
@@ -223,9 +225,10 @@ set (which may be empty), and the command to activate it. The review does not st
 8. `filter_graph_by_activation` is called from the charter module in at least one live code path that affects a user-visible command; `grep src/ -r filter_graph_by_activation` returns at least one non-test, non-`__all__` hit
 9. `MissionStepRepository` is instantiated and called from a production path accessible via a user-facing command
 10. `PackContext.activated_kinds` is demonstrably read in each of the three resolution patterns (DRG-based, charter-internal, direct repository); a codebase grep for `activated_kinds` returns consumer call sites, not only the constructor
-11. Deactivating `directive` in a test project's charter and running `charter context` produces zero directives in the output (end-to-end activation enforcement verified for at least one DRG-based kind)
-10. `pytest tests/architectural/` exits with 0 failures after all changes
-11. `pytest tests/ -m "fast or doctrine"` continues to exit with 0 failures
+11. Activating only a specific subset of directives (e.g., one directive ID) in a test project's `config.yaml` and running `charter context` produces exactly that subset in the output — other built-in directives are absent (end-to-end per-artifact-ID hard restriction verified for at least one DRG-based kind via FR-038)
+12. Setting `activated_directives: []` in `config.yaml` and running `charter context` produces zero directives — empty list is not silently treated as "all built-ins" (FR-039 verified)
+13. `pytest tests/architectural/` exits with 0 failures after all changes
+14. `pytest tests/ -m "fast or doctrine"` continues to exit with 0 failures
 
 ---
 
@@ -233,12 +236,12 @@ set (which may be empty), and the command to activate it. The review does not st
 
 | Entity | Description |
 |--------|-------------|
-| `CharterPack` | Container holding the project's activation selections across all nine activation kinds; serialized in the charter file |
+| `CharterPack` | Container holding the project's activation selections across all nine activation kinds; activation state stored in `.kittify/config.yaml` under `activated_*` keys |
 | `PackContext` | Runtime combination of an active `CharterPack` and a `DoctrinePack`; the context in which WP lifecycle decisions are evaluated |
 | `DoctrinePack` | The inventory of artifacts available for activation; defaults to the built-in spec-kitty doctrine pack |
-| `ActivationKind` | Enumeration: `mission_type`, `profile`, `directive`, `tactic` |
+| `ActivationKind` | Enumeration of the nine activatable axes: `mission_type`, `directive`, `tactic`, `styleguide`, `toolguide`, `paradigm`, `procedure`, `agent_profile`, `mission_step_contract` |
 | `ActivatedArtifact` | A reference to a specific doctrine artifact by kind and ID that has been selected in a charter pack |
-| `CascadeScope` | The set of artifact kinds to include in a cascade operation: any combination of `profiles`, `directives`, `tactics`, or the shorthand `all` |
+| `CascadeScope` | The set of artifact kinds to include in a cascade operation: any combination of the nine activation kind names, or the shorthand `all` |
 | `ConsistencyReport` | The output of `charter pack consistency-check`; lists violations, passing axes, and resolution commands |
 | `CharterBackup` | A timestamped copy of an existing charter file created before an upgrade merge |
 
@@ -248,8 +251,8 @@ set (which may be empty), and the command to activate it. The review does not st
 
 - The built-in spec-kitty doctrine pack is the authoritative baseline for consistency checks; org-level and project-level doctrine layers may extend it but are not in scope for the default charter pack
 - "Referenced by" relationships (used by cascade and consistency check) are derived from the doctrine artifact definitions, not from runtime usage; if a mission type's YAML definition lists a profile, that constitutes a reference
-- The `charter.md` file serves dual purpose: governance rules (existing) and activation state (new); activation state is stored in a dedicated section to avoid conflicts with existing governance content
-- A project may have zero activated artifacts for a given kind; this is a valid (though unusual) state representing full restriction — no artifacts of that kind are available
+- `.kittify/config.yaml` is the single source of truth for activation state; `.kittify/charter/charter.md` is a human-readable governance document that may describe the project's choices but is never parsed by the runtime for activation state; code reads config.yaml exclusively
+- A project may have zero activated artifacts for a given kind; this is a valid state — an empty activation list in config.yaml means no artifacts of that kind are available (full restriction); the upgrade command prevents this from occurring accidentally by writing the default pack
 - Org-charter extension chains with `mission_type_activations` are not in scope for this mission; they are explicitly listed as unknown in the prior adversarial review
 
 ---
@@ -290,6 +293,8 @@ implemented to ensure the wiring gap does not repeat:
 | FR-035 | `filter_graph_by_activation` must have at least one verified production call site reachable by a user-facing command; the architectural dead-symbols test must not flag it as unused after this mission | Must | Proposed |
 | FR-036 | All call sites of `load_validated_graph()` in the charter module that supply context to user-facing commands pass the project's current PackContext so the returned graph is activation-filtered; passing `None` is permitted only in test isolation | Must | Proposed |
 | FR-037 | `load_org_charter_policies()` call sites that currently pass `pack_context=None` are updated to supply `PackContext.from_config(repo_root)`; the `None` default is retained only for test isolation | Must | Proposed |
+| FR-038 | `_node_is_activated` in `src/charter/drg.py` is extended to check per-artifact-ID frozensets (`activated_directives`, `activated_tactics`, `activated_styleguides`, `activated_toolguides`, `activated_paradigms`, `activated_procedures`, `activated_agent_profiles`, `activated_mission_step_contracts`) when the corresponding `PackContext` field is non-`None`; kind-level gating via `activated_kinds` remains as the outer check | Must | Proposed |
+| FR-039 | The `from_config()` reader for per-kind activation fields treats an empty YAML list as an explicit empty frozenset (zero artifacts available); the silent fallback that collapses `[]` to all built-ins (present in the existing `_read_activated_kinds` implementation via the `and raw` guard) is removed; the upgrade command's default-pack write is the mechanism that prevents newly-upgraded projects from inadvertently having an empty activation set | Must | Proposed |
 
 ### Wiring Acceptance Criteria
 
