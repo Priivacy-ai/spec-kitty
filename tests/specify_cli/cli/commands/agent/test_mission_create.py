@@ -112,6 +112,19 @@ def _branch_sha(repo: Path, branch: str) -> str:
     return _git(repo, "rev-parse", branch).stdout.strip()
 
 
+def _json_payload_from_output(output: str) -> dict[str, Any]:
+    """Return the first JSON object emitted by the CLI."""
+    for line in output.splitlines():
+        line = line.strip()
+        if not line.startswith("{"):
+            continue
+        try:
+            return json.loads(line)
+        except json.JSONDecodeError:
+            continue
+    pytest.fail(f"No JSON payload in CLI output: {output!r}")
+
+
 # ---------------------------------------------------------------------------
 # Pure-helper tests (no CLI, no mission scaffold)
 # ---------------------------------------------------------------------------
@@ -325,3 +338,89 @@ def test_create_json_output_contains_coordination_branch(tmp_path: Path) -> None
     assert "coordination_branch" in payload
     assert payload["coordination_branch"].startswith("kitty/mission-cli-json-test-")
     assert payload["coordination_branch_created"] is True
+
+
+def test_pr_bound_create_json_refuses_with_json_instead_of_prompt_abort(tmp_path: Path) -> None:
+    """Issue #1451: ``--pr-bound --json`` must not call the interactive prompt."""
+    _init_repo(tmp_path)
+
+    runner = CliRunner()
+    with (
+        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
+        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
+        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
+        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
+        patch(f"{_CORE_MODULE}.emit_mission_created"),
+        patch(f"{_CORE_MODULE}._commit_feature_file"),
+        patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
+        patch("specify_cli.cli.commands.agent.mission.get_current_branch", return_value="main"),
+    ):
+        result = runner.invoke(
+            mission_app,
+            [
+                "create",
+                "json-pr-bound",
+                "--pr-bound",
+                "--json",
+                "--target-branch",
+                "main",
+                "--friendly-name",
+                "JSON PR Bound",
+                "--purpose-tldr",
+                "Validate JSON branch-strategy refusal.",
+                "--purpose-context",
+                "Issue #1451 — scripted callers need machine-parseable output.",
+            ],
+            input="",
+        )
+
+    assert result.exit_code == 1
+    assert "Aborted" not in result.output
+    assert "Proceed anyway?" not in result.output
+    payload = _json_payload_from_output(result.output)
+    assert payload["error_code"] == "BRANCH_STRATEGY_CONFIRMATION_REQUIRED"
+    assert payload["branch_strategy_gate"] == "confirmation_required"
+    assert "already-confirmed" in payload["remediation"]
+
+
+def test_pr_bound_create_json_already_confirmed_preserves_success_path(tmp_path: Path) -> None:
+    """The non-interactive JSON refusal must not break the explicit automation bypass."""
+    _init_repo(tmp_path)
+
+    runner = CliRunner()
+    with (
+        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
+        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
+        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
+        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
+        patch(f"{_CORE_MODULE}.emit_mission_created"),
+        patch(f"{_CORE_MODULE}._commit_feature_file"),
+        patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
+        patch("specify_cli.cli.commands.agent.mission.get_current_branch", return_value="main"),
+    ):
+        result = runner.invoke(
+            mission_app,
+            [
+                "create",
+                "json-pr-bound-confirmed",
+                "--pr-bound",
+                "--branch-strategy",
+                "already-confirmed",
+                "--json",
+                "--target-branch",
+                "main",
+                "--friendly-name",
+                "JSON PR Bound Confirmed",
+                "--purpose-tldr",
+                "Validate confirmed PR-bound create.",
+                "--purpose-context",
+                "Automation can bypass the gate explicitly and still receive JSON.",
+            ],
+            input="",
+        )
+
+    assert result.exit_code == 0, result.output
+    payload = _json_payload_from_output(result.output)
+    assert payload["result"] == "success"
+    meta = json.loads(Path(str(payload["meta_file"])).read_text(encoding="utf-8"))
+    assert meta["pr_bound"] is True

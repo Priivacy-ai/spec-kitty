@@ -139,10 +139,13 @@ class SpecializationContext(BaseModel):
 class ContextSources(BaseModel):
     """Doctrine context sources this agent loads."""
 
-    model_config = ConfigDict(frozen=True, populate_by_name=True)
+    model_config = ConfigDict(frozen=True, extra="forbid", populate_by_name=True)
 
     doctrine_layers: list[str] = Field(default_factory=list, alias="doctrine-layers")
     directives: list[str] = Field(default_factory=list)
+    tactics: list[str] = Field(default_factory=list)
+    toolguides: list[str] = Field(default_factory=list)
+    styleguides: list[str] = Field(default_factory=list)
     additional: list[str] = Field(default_factory=list)
 
 

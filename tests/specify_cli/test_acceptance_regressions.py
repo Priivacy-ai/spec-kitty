@@ -93,6 +93,7 @@ def _create_test_feature(
     mission_slug: str = _FEATURE_SLUG,
     *,
     malformed_events: str | None = None,
+    omit_status_events: bool = False,
 ) -> Tuple[Path, Path]:
     """Create a minimal but valid feature for acceptance testing.
 
@@ -151,7 +152,9 @@ def _create_test_feature(
     (tasks_dir / "WP01-test.md").write_text(wp_content)
 
     # Status event log
-    if malformed_events is not None:
+    if omit_status_events:
+        pass
+    elif malformed_events is not None:
         (feature_dir / "status.events.jsonl").write_text(malformed_events)
     else:
         # Build a valid transition chain: planned -> done (with force to skip intermediate)
@@ -406,6 +409,111 @@ def test_collect_feature_summary_reports_missing_matrix_skipped_checks(tmp_path:
     assert any("acceptance-matrix.json" in item for item in summary.recommended_fix_order)
 
 
+def test_collect_feature_summary_blocks_malformed_matrix_verdict_values(tmp_path: Path) -> None:
+    repo_root, feature_dir = _create_test_feature(tmp_path)
+    subprocess.run(["git", "-C", str(repo_root), "branch", "-M", "main"], check=True, capture_output=True)
+
+    from tests.lane_test_utils import write_single_lane_manifest
+
+    write_single_lane_manifest(feature_dir)
+    (feature_dir / "acceptance-matrix.json").write_text(
+        json.dumps(
+            {
+                "mission_slug": _FEATURE_SLUG,
+                "criteria": [
+                    {
+                        "criterion_id": "AC-01",
+                        "description": "Automated acceptance proof",
+                        "proof_type": "automated_test",
+                        "pass_fail": "failed",
+                    }
+                ],
+                "negative_invariants": [],
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    subprocess.run(["git", "-C", str(repo_root), "add", "."], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(repo_root), "commit", "-m", "Add malformed acceptance matrix"], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-C", str(repo_root), "checkout", "-b", f"kitty/mission-{_FEATURE_SLUG}"],
+        check=True,
+        capture_output=True,
+    )
+
+    summary = collect_feature_summary(repo_root, _FEATURE_SLUG, mutate_matrix=False)
+
+    assert "Evidence: AC-01: pass_fail must be one of fail, pass, pending; got 'failed'" in summary.activity_issues
+    assert "Acceptance matrix verdict is 'fail' — negative invariants or criteria not satisfied" in summary.activity_issues
+    assert summary.ok is False
+
+
+@pytest.mark.parametrize(
+    "lanes_payload",
+    [
+        "{not-json",
+        '{"version": 1}',
+    ],
+)
+def test_collect_feature_summary_blocks_corrupt_lanes_json(tmp_path: Path, lanes_payload: str) -> None:
+    repo_root, feature_dir = _create_test_feature(tmp_path)
+    subprocess.run(["git", "-C", str(repo_root), "branch", "-M", "main"], check=True, capture_output=True)
+
+    from tests.lane_test_utils import write_single_lane_manifest
+
+    write_single_lane_manifest(feature_dir)
+    (feature_dir / "lanes.json").write_text(lanes_payload, encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo_root), "add", "."], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(repo_root), "commit", "-m", "Add corrupt lanes manifest"], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-C", str(repo_root), "checkout", "-b", f"kitty/mission-{_FEATURE_SLUG}"],
+        check=True,
+        capture_output=True,
+    )
+
+    summary = collect_feature_summary(repo_root, _FEATURE_SLUG, mutate_matrix=False)
+
+    assert summary.all_done is True
+    assert summary.ok is False
+    assert any("lanes.json" in issue and "corrupt or malformed" in issue for issue in summary.activity_issues)
+    assert any(item.check == "lanes_manifest" for item in summary.blocked_checks)
+    skipped = {item.check for item in summary.skipped_checks}
+    assert {
+        "acceptance_matrix_presence",
+        "acceptance_matrix_evidence",
+        "negative_invariants",
+        "acceptance_matrix_verdict",
+    } <= skipped
+    assert any("lanes.json" in item for item in summary.recommended_fix_order)
+
+
+def test_collect_feature_summary_blocks_unreadable_lanes_path(tmp_path: Path) -> None:
+    repo_root, feature_dir = _create_test_feature(tmp_path)
+    subprocess.run(["git", "-C", str(repo_root), "branch", "-M", "main"], check=True, capture_output=True)
+
+    from tests.lane_test_utils import write_single_lane_manifest
+
+    write_single_lane_manifest(feature_dir)
+    (feature_dir / "lanes.json").unlink()
+    (feature_dir / "lanes.json").mkdir()
+    (feature_dir / "lanes.json" / ".keep").write_text("", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo_root), "add", "."], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(repo_root), "commit", "-m", "Add unreadable lanes manifest"], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-C", str(repo_root), "checkout", "-b", f"kitty/mission-{_FEATURE_SLUG}"],
+        check=True,
+        capture_output=True,
+    )
+
+    summary = collect_feature_summary(repo_root, _FEATURE_SLUG, mutate_matrix=False)
+
+    assert summary.ok is False
+    assert any("lanes.json" in issue and "corrupt or malformed" in issue for issue in summary.activity_issues)
+    assert any(item.check == "lanes_manifest" for item in summary.blocked_checks)
+
+
 # ---------------------------------------------------------------------------
 # Integration branch guard: merge guidance must not target integration branch
 # ---------------------------------------------------------------------------
@@ -604,6 +712,19 @@ class TestMalformedJsonlRaisesAcceptanceError:
         summary = collect_feature_summary(repo_root, _FEATURE_SLUG)
         # But the feature won't be "ok" because there's no canonical state
         assert isinstance(summary, AcceptanceSummary)
+
+    def test_missing_events_file_reports_bootstrap_issue(self, tmp_path: Path) -> None:
+        """Missing status.events.jsonl reports bootstrap guidance instead of crashing."""
+        repo_root, _feature_dir = _create_test_feature(
+            tmp_path,
+            omit_status_events=True,
+        )
+
+        summary = collect_feature_summary(repo_root, _FEATURE_SLUG)
+
+        assert isinstance(summary, AcceptanceSummary)
+        assert any("status.events.jsonl" in issue for issue in summary.activity_issues)
+        assert any("finalize-tasks" in issue for issue in summary.activity_issues)
 
 
 # ---------------------------------------------------------------------------

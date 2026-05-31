@@ -76,6 +76,28 @@ class TestAcceptanceMatrix:
         m = AcceptanceMatrix(mission_slug="test")
         assert m.overall_verdict == "pending"
 
+    @pytest.mark.parametrize("pass_fail", ["failed", "FAIL", "Pending", None, ["fail"]])
+    def test_verdict_invalid_criterion_result_fails_closed(self, pass_fail):
+        m = AcceptanceMatrix(
+            mission_slug="test",
+            criteria=[
+                AcceptanceCriterion("AC-01", "Test", "automated_test", pass_fail=pass_fail),
+            ],
+        )
+
+        assert m.overall_verdict == "fail"
+
+    @pytest.mark.parametrize("result", ["absent", "STILL_PRESENT", "Pending", None, ["still_present"]])
+    def test_verdict_invalid_negative_invariant_result_fails_closed(self, result):
+        m = AcceptanceMatrix(
+            mission_slug="test",
+            negative_invariants=[
+                NegativeInvariant("NI-01", "Old route gone", "grep_absence", result=result),
+            ],
+        )
+
+        assert m.overall_verdict == "fail"
+
 
 class TestPersistence:
     def test_round_trip(self, tmp_path):
@@ -201,6 +223,22 @@ class TestManualEvidence:
         )
         errors = validate_matrix_evidence(m)
         assert len(errors) == 3  # evidence, verified_at, verified_by
+
+    def test_matrix_level_validation_rejects_invalid_verdict_values(self):
+        m = AcceptanceMatrix(
+            mission_slug="test",
+            criteria=[
+                AcceptanceCriterion("AC-01", "Auto", "automated_test", pass_fail="failed"),
+            ],
+            negative_invariants=[
+                NegativeInvariant("NI-01", "Legacy route gone", "grep_absence", result="absent"),
+            ],
+        )
+
+        errors = validate_matrix_evidence(m)
+
+        assert "AC-01: pass_fail must be one of fail, pass, pending; got 'failed'" in errors
+        assert "NI-01: result must be one of confirmed_absent, pending, still_present; got 'absent'" in errors
 
 
 class TestNegativeInvariants:

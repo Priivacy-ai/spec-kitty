@@ -1,7 +1,10 @@
 """Unit tests for styleguide schema validation."""
 
-from doctrine.styleguides.validation import validate_styleguide
 import pytest
+from pydantic import ValidationError
+
+from doctrine.styleguides.models import Styleguide
+from doctrine.styleguides.validation import validate_styleguide
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 
@@ -39,3 +42,21 @@ class TestValidateStyleguide:
         }
         errors = validate_styleguide(data)
         assert any("principles" in e for e in errors)
+
+    def test_empty_pattern_lists_rejected_by_schema_and_model(self) -> None:
+        data = {
+            "schema_version": "1.0",
+            "id": "test",
+            "title": "Test",
+            "scope": "code",
+            "principles": ["Write clear code"],
+            "patterns": [],
+            "anti_patterns": [],
+        }
+
+        errors = validate_styleguide(data)
+        assert any(error.startswith("patterns:") for error in errors)
+        assert any(error.startswith("anti_patterns:") for error in errors)
+
+        with pytest.raises(ValidationError):
+            Styleguide.model_validate(data)

@@ -23,6 +23,7 @@ from specify_cli.cli.commands.charter._app import (
 )
 from specify_cli.cli.commands.charter._common import _emit_error
 from specify_cli.cli.commands.charter._status_collectors import (
+    _collect_governance_reference_status,
     _collect_org_layer_status,
 )
 
@@ -64,6 +65,7 @@ def status(  # noqa: C901
             # Always present in JSON output; packs list is empty when no org
             # packs are configured (NFR-001 — no spurious empty section).
             "org_layer": _collect_org_layer_status(repo_root),
+            "governance_references": _collect_governance_reference_status(repo_root),
             # WP02 FR-005: freshness sub-payload (charter -> bundle -> DRG).
             "freshness": compute_freshness(repo_root).to_dict(),
         }
@@ -91,6 +93,11 @@ def status(  # noqa: C901
                 console.print(f"Hash: {sync_status['current_hash']}")
 
             console.print(f"Library docs: {sync_status['library_docs']}")
+            governance_references = payload["governance_references"]
+            if governance_references["warnings"]:
+                console.print("\n[yellow]Governance reference warnings[/yellow]")
+                for warning in governance_references["warnings"]:
+                    console.print(f"  - {warning}")
             console.print("\nExtracted files:")
             table = Table(show_header=True, header_style="bold")
             table.add_column("File", style="cyan")

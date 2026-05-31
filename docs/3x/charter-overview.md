@@ -11,11 +11,14 @@ mental model. For a step-by-step walkthrough, see the
 [Governed Charter Workflow Tutorial](../tutorials/charter-governed-workflow.md).
 
 > **Key invariant**: `.kittify/charter/charter.md` is the Spec Kitty runtime policy source. A
-> project may also keep a public constitution outside `.kittify/`, but `charter sync` extracts the
-> runtime bundle from `.kittify/charter/charter.md`. Do not hand-edit derived files such as
-> `governance.yaml`, `directives.yaml`, `metadata.yaml`, `references.yaml`, `context-state.json`,
-> synthesis manifests, or provenance sidecars. Agent synthesis input under
-> `.kittify/charter/generated/` is produced by the harness, not by routine operator edits.
+> project may also keep a public constitution or governance document outside `.kittify/`, but
+> `charter sync` extracts the runtime bundle from `.kittify/charter/charter.md`. External
+> governance docs such as `spec/constitution.md` are supporting context referenced from the
+> charter, not alternate authoritative charter paths. Do not hand-edit derived files such as
+> `governance.yaml`, `directives.yaml`, `metadata.yaml`,
+> `references.yaml`, `context-state.json`, synthesis manifests, or provenance sidecars. Agent
+> synthesis input under `.kittify/charter/generated/` is produced by the harness, not by routine
+> operator edits.
 
 ---
 
@@ -96,6 +99,25 @@ triple, where the governance context is the DRG-derived subgraph rendered as str
 
 The agent cannot see or modify the DRG directly. It receives the rendered context and acts in
 accordance with the directives it finds there.
+
+## External Governance Documents
+
+Projects that already publish governance outside `.kittify/`, for example
+`spec/constitution.md`, should keep that public document in place and reference it from
+`.kittify/charter/charter.md`. Spec Kitty does not require the public document and
+`.kittify/charter/charter.md` to be byte-for-byte equal. Mirroring the public document into
+`charter.md` is allowed only when the project deliberately chooses that policy.
+
+Declare supporting docs in a fenced YAML block:
+
+```yaml
+governance_references:
+  - spec/constitution.md
+```
+
+`spec-kitty charter context --action ...` renders these paths as required governance reading.
+`spec-kitty charter status` reports missing or unsafe references so operators can fix stale paths.
+All referenced paths must be repository-relative and stay inside the repo root.
 
 ---
 

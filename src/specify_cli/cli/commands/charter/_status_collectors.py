@@ -99,6 +99,32 @@ def _collect_charter_sync_status(repo_root: Path) -> dict[str, Any]:
         }
 
 
+def _collect_governance_reference_status(repo_root: Path) -> dict[str, Any]:
+    """Collect charter-declared supporting governance doc diagnostics."""
+    try:
+        from charter.governance_references import collect_governance_reference_status
+        from charter.sync import load_governance_config
+
+        governance = load_governance_config(repo_root)
+        statuses = collect_governance_reference_status(
+            repo_root,
+            governance.doctrine.governance_references,
+        )
+    except Exception as exc:  # noqa: BLE001 - status diagnostics must degrade
+        return {
+            "available": False,
+            "references": [],
+            "warnings": [f"Could not inspect governance references: {exc}"],
+        }
+
+    warnings = [status.warning for status in statuses if status.warning]
+    return {
+        "available": True,
+        "references": [status.to_dict() for status in statuses],
+        "warnings": warnings,
+    }
+
+
 def _collect_generated_input_status(repo_root: Path) -> dict[str, Any]:
     input_root = repo_root / ".kittify" / "charter" / "generated"
     counts = {

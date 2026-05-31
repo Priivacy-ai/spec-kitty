@@ -208,6 +208,35 @@ class TestBuildContextV2:
         assert result.mode == "compact"
         assert result.first_load is False
 
+    def test_compact_text_contains_governance_reference_diagnostics(self, tmp_path: Path) -> None:
+        """Compact context preserves declared supporting governance docs."""
+        _setup_fixture_repo(tmp_path)
+        (tmp_path / "spec").mkdir()
+        (tmp_path / "spec" / "constitution.md").write_text("# Public Constitution\n", encoding="utf-8")
+        (tmp_path / ".kittify" / "charter" / "charter.md").write_text(
+            _CHARTER_MD
+            + textwrap.dedent("""\
+
+                ## Supporting Governance
+
+                ```yaml
+                governance_references:
+                  - spec/constitution.md
+                ```
+            """),
+            encoding="utf-8",
+        )
+
+        result = build_charter_context(
+            tmp_path,
+            action="custom-action",
+            mark_loaded=False,
+        )
+
+        assert result.mode == "compact"
+        assert "Required Governance Reading:" in result.text
+        assert "spec/constitution.md" in result.text
+
     def test_text_contains_charter_context_header(self, tmp_path: Path) -> None:
         """Output text starts with Charter Context header."""
         result = self._call(tmp_path)
@@ -230,6 +259,44 @@ class TestBuildContextV2:
         result = self._call(tmp_path)
         assert "Tactics:" in result.text
         assert "tdd-red-green-refactor" in result.text
+
+    def test_text_contains_governance_reference_diagnostics(self, tmp_path: Path) -> None:
+        """Declared supporting governance docs appear in rendered context."""
+        _setup_fixture_repo(tmp_path)
+        (tmp_path / "spec").mkdir()
+        (tmp_path / "spec" / "constitution.md").write_text("# Public Constitution\n", encoding="utf-8")
+        (tmp_path / ".kittify" / "charter" / "charter.md").write_text(
+            _CHARTER_MD
+            + textwrap.dedent("""\
+
+                ## Supporting Governance
+
+                ```yaml
+                governance_references:
+                  - spec/constitution.md
+                  - docs/missing-governance.md
+                ```
+            """),
+            encoding="utf-8",
+        )
+
+        patched_load_graph = _write_graph_fixture(tmp_path)
+
+        with (
+            patch("doctrine.drg.loader.load_graph", side_effect=patched_load_graph),
+            patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("doctrine.drg.validator.assert_valid"),
+        ):
+            result = build_charter_context(
+                tmp_path,
+                action="implement",
+                depth=2,
+                mark_loaded=False,
+            )
+
+        assert "Required Governance Reading:" in result.text
+        assert "spec/constitution.md" in result.text
+        assert "Missing governance reference docs/missing-governance.md" in result.text
 
     def test_selected_directive_closure_contributes_action_context(self, tmp_path: Path) -> None:
         """Selected directives contribute their DRG closure even without action-scope edges."""
@@ -283,6 +350,93 @@ class TestBuildContextV2:
 
         assert "DIRECTIVE_039" in result.text
         assert "boring-code-review" in result.text
+
+    def test_org_required_primary_kinds_contribute_to_prompt(self, tmp_path: Path) -> None:
+        """Org-required directives, tactics, and paradigms render without project mirroring."""
+        _setup_fixture_repo(tmp_path)
+        org_pack = tmp_path / "org-pack"
+        org_pack.mkdir()
+        (org_pack / "org-charter.yaml").write_text(
+            textwrap.dedent("""\
+                required_directives:
+                  - DIRECTIVE_039
+                required_tactics:
+                  - threat-model-first
+                required_paradigms:
+                  - structured-prompt-driven-development
+            """),
+            encoding="utf-8",
+        )
+        (tmp_path / ".kittify" / "config.yaml").write_text(
+            textwrap.dedent(f"""\
+                doctrine:
+                  org:
+                    packs:
+                      - name: security
+                        local_path: {org_pack.as_posix()}
+            """),
+            encoding="utf-8",
+        )
+
+        graph_yaml = textwrap.dedent("""\
+            schema_version: "1.0"
+            generated_at: "2026-04-13T10:00:00+00:00"
+            generated_by: "test"
+            nodes:
+              - urn: "action:software-dev/implement"
+                kind: action
+                label: implement
+              - urn: "directive:DIRECTIVE_039"
+                kind: directive
+                label: Lynn Cole Engineering Culture
+              - urn: "tactic:boring-code-review"
+                kind: tactic
+                label: Boring Code Review
+              - urn: "tactic:threat-model-first"
+                kind: tactic
+                label: Threat Model First
+              - urn: "tactic:reasons-canvas-fill"
+                kind: tactic
+                label: Reasons Canvas Fill
+              - urn: "paradigm:structured-prompt-driven-development"
+                kind: paradigm
+                label: Structured Prompt-Driven Development
+            edges:
+              - source: "directive:DIRECTIVE_039"
+                target: "tactic:boring-code-review"
+                relation: requires
+              - source: "paradigm:structured-prompt-driven-development"
+                target: "tactic:reasons-canvas-fill"
+                relation: requires
+        """)
+
+        from io import StringIO
+
+        from doctrine.drg.models import DRGGraph
+        from ruamel.yaml import YAML
+
+        yaml = YAML(typ="safe")
+        mock_graph = DRGGraph.model_validate(yaml.load(StringIO(graph_yaml)))
+
+        with (
+            patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
+            patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("doctrine.drg.validator.assert_valid"),
+            patch("charter.sync.ensure_charter_bundle_fresh", return_value=None),
+        ):
+            result = build_charter_context(tmp_path, action="implement", depth=2, mark_loaded=False)
+
+        action_block = result.text.split("Action Doctrine (implement):", 1)[1]
+        assert "DIRECTIVE_039" in action_block
+        assert "boring-code-review" in action_block
+        assert "threat-model-first" in action_block
+        assert "reasons-canvas-fill" in action_block
+        assert "Selected paradigms:" in result.text
+        assert "structured-prompt-driven-development" in result.text
+        assert "Selected directives:" in result.text
+        assert "DIRECTIVE_039" in result.text
+        assert "Selected tactics:" in result.text
+        assert "threat-model-first" in result.text
 
     def test_text_contains_reference_docs(self, tmp_path: Path) -> None:
         """Output text includes Reference Docs section."""

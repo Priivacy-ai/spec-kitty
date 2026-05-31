@@ -129,6 +129,32 @@ class TestAlreadyClosed:
         with pytest.raises(AlreadyClosedError):
             writer.write_completed(_INVOCATION_ID, tmp_path, outcome="done")
 
+    @pytest.mark.parametrize(
+        ("link_kwargs", "link_event"),
+        [
+            ({"ref": "spec.md"}, "artifact_link"),
+            ({"sha": "abc123"}, "commit_link"),
+        ],
+    )
+    def test_complete_after_correlation_link_raises_already_closed_error(
+        self, tmp_path: Path, link_kwargs: dict[str, str], link_event: str
+    ) -> None:
+        writer = InvocationWriter(tmp_path)
+        writer.write_started(_make_record())
+        writer.write_completed(_INVOCATION_ID, tmp_path, outcome="done")
+        writer.append_correlation_link(_INVOCATION_ID, **link_kwargs)
+
+        with pytest.raises(AlreadyClosedError):
+            writer.write_completed(_INVOCATION_ID, tmp_path, outcome="failed")
+
+        file_path = writer.invocation_path(_INVOCATION_ID)
+        events = [
+            json.loads(line)["event"]
+            for line in file_path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        assert events == ["started", "completed", link_event]
+
     def test_complete_nonexistent_invocation_raises_invocation_error(
         self, tmp_path: Path
     ) -> None:

@@ -40,8 +40,8 @@ Contains Spec Kitty configuration, templates, and project memory.
 │   │   └── mission.yaml
 │   └── documentation/
 │       └── mission.yaml
-└── memory/                       # Project memory
-    └── charter.md           # Project principles (optional)
+└── charter/                      # Charter governance
+    └── charter.md                # Project principles (optional)
 ```
 
 ### Key Files
@@ -50,7 +50,7 @@ Contains Spec Kitty configuration, templates, and project memory.
 |------|---------|
 | `templates/*.md` | Templates used by `/spec-kitty.specify`, `/spec-kitty.plan`, etc. |
 | `missions/*/mission.yaml` | Mission-specific configuration and phases |
-| `memory/charter.md` | Project-wide principles referenced by all commands |
+| `charter/charter.md` | Project-wide principles referenced by governed commands |
 
 ---
 
@@ -225,7 +225,7 @@ my-project/
 │   │   ├── software-dev/
 │   │   ├── research/
 │   │   └── documentation/
-│   └── memory/
+│   └── charter/
 │       └── charter.md
 ├── .claude/
 │   └── commands/
@@ -262,8 +262,10 @@ my-project/
 - [Git Worktrees](../explanation/git-worktrees.md) — Git worktrees explained
 
 ## Getting Started
+
 - [Claude Code Integration](../tutorials/claude-code-integration.md)
 
 ## Practical Usage
+
 - [Install Spec Kitty](../how-to/install-spec-kitty.md)
 - [Upgrade to 0.11.0](../how-to/install-and-upgrade.md)

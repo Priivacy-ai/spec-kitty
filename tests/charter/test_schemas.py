@@ -59,6 +59,7 @@ class TestDoctrineSelectionConfig:
         assert config.selected_paradigms == []
         assert config.selected_directives == []
         assert config.available_tools == []
+        assert config.governance_references == []
         assert config.template_set is None
 
 

@@ -2,7 +2,7 @@
 
 Verifies that:
 - Acceptance reads canonical state (materialize()) instead of Activity Log
-- Missing event log gives explicit error, not silent fallback
+- Missing event log gives explicit bootstrap issue, not silent fallback
 - record_acceptance() produces identical metadata structure for all paths
 - Falsified Activity Log is ignored when canonical state disagrees
 """
@@ -18,7 +18,6 @@ import pytest
 
 from specify_cli.acceptance import collect_feature_summary
 from specify_cli.mission_metadata import load_meta, record_acceptance
-from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
 
@@ -289,8 +288,8 @@ class TestCanonicalStateAuthority:
             f"Expected canonical lane mismatch for WP02, got: {summary.activity_issues}"
         )
 
-    def test_acceptance_fails_with_missing_event_log(self, tmp_path: Path) -> None:
-        """No status.events.jsonl -- explicit error, not Activity Log fallback."""
+    def test_acceptance_reports_bootstrap_issue_with_missing_event_log(self, tmp_path: Path) -> None:
+        """No status.events.jsonl -- explicit bootstrap issue, not Activity Log fallback."""
         _setup_feature(
             tmp_path,
             all_done=True,
@@ -300,12 +299,17 @@ class TestCanonicalStateAuthority:
 
         with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_lines", return_value=[]):
             mock_git.return_value.stdout = "main\n"
-            with pytest.raises(CanonicalStatusNotFoundError, match="Canonical status not found"):
-                collect_feature_summary(
-                    tmp_path,
-                    "099-test-feature",
-                    strict_metadata=False,
-                )
+            summary = collect_feature_summary(
+                tmp_path,
+                "099-test-feature",
+                strict_metadata=False,
+            )
+
+        assert summary.ok is False
+        assert summary.lanes["planned"] == ["WP01", "WP02"]
+        assert summary.lanes["done"] == []
+        assert any("status.events.jsonl" in issue for issue in summary.activity_issues)
+        assert any("finalize-tasks" in issue for issue in summary.activity_issues)
 
     def test_wp_with_no_events_reports_no_canonical_state(self, tmp_path: Path) -> None:
         """WP exists in task files but has no events in the log."""

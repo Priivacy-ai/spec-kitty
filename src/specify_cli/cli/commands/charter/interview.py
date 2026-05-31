@@ -11,7 +11,6 @@ from typing import Any
 
 import typer
 
-from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.decisions.models import OriginFlow as _DmOriginFlow
 from specify_cli.decisions.service import DecisionError as _DecisionError
 from specify_cli.task_utils import TaskCliError
@@ -88,6 +87,8 @@ def interview(  # noqa: C901
 
         resolved_mission_type = "software-dev"
         if mission_type is not None or mission is not None:
+            from specify_cli.cli.selector_resolution import resolve_selector
+
             resolved = resolve_selector(
                 canonical_value=mission_type,
                 canonical_flag="--mission-type",

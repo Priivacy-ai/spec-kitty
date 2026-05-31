@@ -141,6 +141,39 @@ def test_wp_id_rejected_with_move_task_guidance(tmp_path: Path) -> None:
     emit_mock.assert_not_called()
 
 
+def test_wp_id_rejection_is_actionable_in_human_output(tmp_path: Path) -> None:
+    slug = "003-wp-mark-done-human"
+    _write_mission(tmp_path, slug, "# Tasks\n\n## WP05\n", wp_ids=("WP05",))
+
+    with (
+        patch("specify_cli.cli.commands.agent.tasks.locate_project_root", return_value=tmp_path),
+        patch("specify_cli.cli.commands.agent.tasks._find_mission_slug", return_value=slug),
+        patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out", return_value=(tmp_path, "main")),
+        patch("specify_cli.cli.commands.agent.tasks._emit_sparse_session_warning"),
+        patch("specify_cli.cli.commands.agent.tasks.feature_status_lock", _null_lock),
+        patch("specify_cli.cli.commands.agent.tasks.emit_history_added"),
+        patch("specify_cli.cli.commands.agent.tasks.emit_status_transition") as emit_mock,
+    ):
+        result = runner.invoke(
+            app,
+            [
+                "mark-status",
+                "WP05",
+                "--status",
+                "done",
+                "--mission",
+                slug,
+                "--no-auto-commit",
+            ],
+        )
+
+    assert result.exit_code == 1
+    assert "mark-status does not change work-package lanes" in result.output
+    normalized_output = " ".join(result.output.split())
+    assert "spec-kitty agent tasks move-task <WP_ID> --to <lane>" in normalized_output
+    emit_mock.assert_not_called()
+
+
 def test_wp_id_rejection_does_not_consult_lane_state(tmp_path: Path) -> None:
     slug = "004-wp-already-done"
     _write_mission(tmp_path, slug, "# Tasks\n\n## WP02\n", wp_ids=("WP02",))

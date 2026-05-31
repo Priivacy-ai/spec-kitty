@@ -61,6 +61,12 @@ def build_charter_draft(
 
 def write_charter(path: Path, markdown: str, *, force: bool = False) -> None:
     """Write charter markdown to disk."""
+    if path.is_symlink():
+        raise FileExistsError(
+            f"Charter path {path} is a symlink. Replace it with a normal "
+            "hand-authored .kittify/charter/charter.md file before running "
+            "charter generate."
+        )
     if path.exists() and not force:
         raise FileExistsError(f"Charter already exists at {path}. Use --force to overwrite.")
     path.parent.mkdir(parents=True, exist_ok=True)

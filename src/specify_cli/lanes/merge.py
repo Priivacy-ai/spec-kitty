@@ -391,19 +391,18 @@ def _merge_branch_into(
                     f"{result.stderr.strip() or result.stdout.strip()}"
                 )
         elif strategy == MergeStrategy.REBASE:
-            # Rebase source onto target then fast-forward target.
-            # We work in a temporary clone of source branch, rebase onto target.
+            # Rebase source onto target in the isolated worktree, then
+            # fast-forward target to the rebased detached HEAD. Do not check
+            # out or rewrite source_branch in the user's main checkout.
             result = subprocess.run(
-                ["git", "rebase", "HEAD", source_branch],
-                cwd=str(repo_root), capture_output=True, text=True,
-            )
-            # Rebase approach: checkout source in the worktree and rebase onto target.
-            # Simpler: just do a rebase in the tmp worktree.
-            # First checkout source_branch in tmp worktree.
-            result = subprocess.run(
-                ["git", "checkout", source_branch],
+                ["git", "checkout", "--detach", source_branch],
                 cwd=str(tmp_path), capture_output=True, text=True,
             )
+            if result.returncode != 0:
+                raise RuntimeError(
+                    f"Failed to check out {source_branch} in merge worktree: "
+                    f"{result.stderr.strip() or result.stdout.strip()}"
+                )
             # Rebase source on top of target.
             result = subprocess.run(
                 ["git", "rebase", target_branch],

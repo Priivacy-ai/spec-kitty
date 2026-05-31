@@ -63,6 +63,12 @@ def test_read_invalid_schema_raises(tmp_path):
         read_lanes_json(tmp_path)
 
 
+def test_read_unreadable_lanes_path_raises_corrupt(tmp_path):
+    (tmp_path / "lanes.json").mkdir()
+    with pytest.raises(CorruptLanesError, match="corrupt or malformed"):
+        read_lanes_json(tmp_path)
+
+
 def test_atomic_write_leaves_no_temp_on_success(tmp_path):
     manifest = _make_manifest()
     write_lanes_json(tmp_path, manifest)

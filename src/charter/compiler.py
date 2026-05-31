@@ -185,6 +185,7 @@ def write_compiled_charter(
     compiled: CompiledCharter,
     *,
     force: bool = False,
+    repo_root: Path | None = None,
 ) -> WriteBundleResult:
     """Write charter bundle artifacts to output_dir.
 
@@ -192,15 +193,16 @@ def write_compiled_charter(
     has been removed — doctrine content is fetched at context-retrieval time via
     references.yaml.
     """
+    _assert_safe_charter_output_dir(output_dir, repo_root=repo_root)
     output_dir.mkdir(parents=True, exist_ok=True)
+    _assert_safe_charter_output_dir(output_dir, repo_root=repo_root)
     charter_path = output_dir / "charter.md"
 
     if charter_path.is_symlink():
         raise FileExistsError(
-            f"Refusing to overwrite symlinked charter at {charter_path}. "
+            f"Refusing to overwrite symlinked charter at {charter_path}; it is a symlink. "
             "Remove the symlink or update the symlink target directly."
         )
-
     if charter_path.exists() and not force:
         raise FileExistsError(f"Charter already exists at {charter_path}. Use --force to overwrite.")
 
@@ -214,6 +216,47 @@ def write_compiled_charter(
     files_written.append("references.yaml")
 
     return WriteBundleResult(files_written=files_written)
+
+
+def _assert_safe_charter_output_dir(
+    output_dir: Path,
+    *,
+    repo_root: Path | None,
+) -> None:
+    """Reject symlinked charter output dirs before generated writes."""
+    if repo_root is None:
+        if output_dir.is_symlink():
+            raise FileExistsError(
+                f"Charter output directory {output_dir} is a symlink. Replace it "
+                "with a normal .kittify/charter directory before running charter generate."
+            )
+        return
+
+    root = repo_root.resolve(strict=False)
+    candidate = output_dir if output_dir.is_absolute() else root / output_dir
+    try:
+        relative = candidate.relative_to(root)
+    except ValueError as exc:
+        raise FileExistsError(
+            f"Charter output directory {output_dir} is outside repository root {repo_root}."
+        ) from exc
+
+    current = root
+    for part in relative.parts:
+        current = current / part
+        if current.is_symlink():
+            raise FileExistsError(
+                f"Charter output path {current} is a symlink. Replace it with a normal "
+                ".kittify/charter directory before running charter generate."
+            )
+
+    resolved = candidate.resolve(strict=False)
+    try:
+        resolved.relative_to(root)
+    except ValueError as exc:
+        raise FileExistsError(
+            f"Charter output directory {output_dir} resolves outside repository root {repo_root}."
+        ) from exc
 
 
 def _resolve_template_set(

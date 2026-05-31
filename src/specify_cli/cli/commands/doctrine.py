@@ -34,6 +34,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import typer
+from doctrine.artifact_kinds import ArtifactKind
 from rich.console import Console
 
 __all__ = ["app"]
@@ -254,6 +255,14 @@ _CANONICAL_KIND_SINGULAR_TO_PLURAL: dict[str, str] = {
 #: tightens a required field, the next ``doctrine new`` invocation will
 #: surface the mismatch immediately rather than silently scaffolding an
 #: invalid file.
+def _artifact_filename(kind_singular: str, artifact_id: str) -> str:
+    """Return the canonical filename for a doctrine artifact."""
+    glob_pattern = ArtifactKind(kind_singular).glob_pattern
+    if not glob_pattern.startswith("*"):
+        raise ValueError(f"Unsupported artifact kind: {kind_singular}")
+    return f"{artifact_id}{glob_pattern.removeprefix('*')}"
+
+
 def _stub_template(kind_singular: str, artifact_id: str) -> str:
     """Return the canonical YAML stub for ``kind_singular`` populated with ``artifact_id``."""
     if kind_singular == "directive":
@@ -417,7 +426,7 @@ def new(
 
     target_dir = doctrine_root / plural
     target_dir.mkdir(parents=True, exist_ok=True)
-    target_path = target_dir / f"{artifact_id}.{kind_singular}.yaml"
+    target_path = target_dir / _artifact_filename(kind_singular, artifact_id)
 
     if target_path.exists():
         console.print(

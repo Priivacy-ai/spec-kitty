@@ -421,6 +421,39 @@ def _ensure_branch_checked_out(
         console.print(f"[green]✓[/green] Switched to branch [bold]{target_branch}[/bold]")
 
 
+def _artifact_has_no_git_changes(repo_root: Path, file_path: Path) -> bool:
+    candidate = file_path
+    if candidate.is_absolute():
+        with contextlib.suppress(ValueError):
+            candidate = candidate.relative_to(repo_root)
+
+    status = subprocess.run(
+        ["git", "status", "--porcelain", "--", str(candidate)],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    return status.returncode == 0 and not status.stdout.strip()
+
+
+def _safe_commit_empty_changeset_error(exc: RuntimeError) -> bool:
+    return str(exc).startswith("safe_commit: git commit failed")
+
+
+def _print_artifact_unchanged(artifact_type: str, json_output: bool) -> None:
+    if not json_output:
+        console.print(f"[dim]{artifact_type.capitalize()} unchanged, no commit needed[/dim]")
+
+
+def _warn_commit_failed(artifact_type: str, file_path: Path, exc: BaseException, json_output: bool) -> None:
+    if not json_output:
+        console.print(f"[yellow]Warning:[/yellow] Failed to commit {artifact_type}: {exc}")
+        console.print(f"[yellow]You may need to commit manually:[/yellow] git add {file_path} && git commit")
+
+
 def _commit_to_branch(
     file_path: Path,
     mission_slug: str,
@@ -441,14 +474,15 @@ def _commit_to_branch(
 
     Raises:
         subprocess.CalledProcessError: If commit fails unexpectedly
+        RuntimeError: If safe_commit fails for anything other than an unchanged artifact
     """
-    try:
-        current_branch = get_current_branch(repo_root)
-        if current_branch is None:
-            raise RuntimeError("Not in a git repository")
+    current_branch = get_current_branch(repo_root)
+    if current_branch is None:
+        raise RuntimeError("Not in a git repository")
 
-        # Commit only this file (preserves staging area)
-        commit_msg = f"Add {artifact_type} for feature {mission_slug}"
+    # Commit only this file (preserves staging area)
+    commit_msg = f"Add {artifact_type} for feature {mission_slug}"
+    try:
         safe_commit(
             repo_root=repo_root,
             worktree_root=repo_root,
@@ -457,22 +491,27 @@ def _commit_to_branch(
             paths=(file_path,),
         )
 
-        if not json_output:
-            console.print(f"[green]✓[/green] {artifact_type.capitalize()} committed to {current_branch}")
-
     except subprocess.CalledProcessError as e:
         # Check if it's just "nothing to commit" (benign)
         stderr = e.stderr if hasattr(e, "stderr") and e.stderr else ""
         if "nothing to commit" in stderr or "nothing added to commit" in stderr:
             # Benign - file unchanged
-            if not json_output:
-                console.print(f"[dim]{artifact_type.capitalize()} unchanged, no commit needed[/dim]")
+            _print_artifact_unchanged(artifact_type, json_output)
+            return
         else:
             # Actual error
-            if not json_output:
-                console.print(f"[yellow]Warning:[/yellow] Failed to commit {artifact_type}: {e}")
-                console.print(f"[yellow]You may need to commit manually:[/yellow] git add {file_path} && git commit")
+            _warn_commit_failed(artifact_type, file_path, e, json_output)
             raise
+    except RuntimeError as e:
+        if _safe_commit_empty_changeset_error(e) and _artifact_has_no_git_changes(repo_root, file_path):
+            _print_artifact_unchanged(artifact_type, json_output)
+            return
+
+        _warn_commit_failed(artifact_type, file_path, e, json_output)
+        raise
+
+    if not json_output:
+        console.print(f"[green]✓[/green] {artifact_type.capitalize()} committed to {current_branch}")
 
 
 def _find_feature_directory(
@@ -733,11 +772,23 @@ def create_mission(
             current_branch=current_branch,
             merge_target_branch=effective_merge_target,
             branch_strategy=branch_strategy,
-            prompt=lambda message: typer.confirm(message, default=False),
+            prompt=None if json_output else lambda message: typer.confirm(message, default=False),
         )
     except BranchStrategyGateError as exc:
         if json_output:
-            _emit_json({"error": str(exc)})
+            _emit_json(
+                {
+                    "error_code": "BRANCH_STRATEGY_CONFIRMATION_REQUIRED",
+                    "error": (
+                        "PR-bound mission creation requires explicit branch-strategy "
+                        "confirmation in --json mode."
+                    ),
+                    "branch_strategy_gate": "confirmation_required",
+                    "current_branch": current_branch,
+                    "merge_target_branch": effective_merge_target,
+                    "remediation": "Pass `--branch-strategy already-confirmed` or run without --json to confirm interactively.",
+                }
+            )
         else:
             console.print(f"[bold red]Error:[/bold red] {exc}")
         raise typer.Exit(1) from exc

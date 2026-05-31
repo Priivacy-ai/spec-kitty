@@ -20,6 +20,13 @@ from typing import Any
 from specify_cli.configured_command import ConfiguredCommandUnsupported, run_configured_command
 from specify_cli.mission_metadata import mission_identity_fields, resolve_mission_identity
 
+CRITERION_VERDICTS = frozenset({"pass", "fail", "pending"})
+NEGATIVE_INVARIANT_RESULTS = frozenset({"confirmed_absent", "still_present", "pending"})
+
+
+def _is_allowed_value(value: Any, allowed: frozenset[str]) -> bool:
+    return isinstance(value, str) and value in allowed
+
 
 def _split_known_fields(
     cls: type[Any],
@@ -103,12 +110,19 @@ class AcceptanceMatrix:
     @property
     def overall_verdict(self) -> str:
         """Compute verdict from individual results."""
-        all_items = [c.pass_fail for c in self.criteria] + [ni.result for ni in self.negative_invariants]
-        if not all_items:
+        criterion_results = [c.pass_fail for c in self.criteria]
+        invariant_results = [ni.result for ni in self.negative_invariants]
+        if not criterion_results and not invariant_results:
             return "pending"
-        if any(v == "fail" or v == "still_present" for v in all_items):
+        if any(not _is_allowed_value(v, CRITERION_VERDICTS) for v in criterion_results):
             return "fail"
-        if any(v == "pending" for v in all_items):
+        if any(not _is_allowed_value(v, NEGATIVE_INVARIANT_RESULTS) for v in invariant_results):
+            return "fail"
+        if any(v == "fail" for v in criterion_results):
+            return "fail"
+        if any(v == "still_present" for v in invariant_results):
+            return "fail"
+        if any(v == "pending" for v in criterion_results + invariant_results):
             return "pending"
         return "pass"
 
@@ -284,7 +298,14 @@ def validate_matrix_evidence(matrix: AcceptanceMatrix) -> list[str]:
     """Validate all evidence in the matrix. Returns list of errors."""
     errors: list[str] = []
     for criterion in matrix.criteria:
+        if not _is_allowed_value(criterion.pass_fail, CRITERION_VERDICTS):
+            allowed = ", ".join(sorted(CRITERION_VERDICTS))
+            errors.append(f"{criterion.criterion_id}: pass_fail must be one of {allowed}; got {criterion.pass_fail!r}")
         errors.extend(validate_manual_evidence(criterion))
+    for invariant in matrix.negative_invariants:
+        if not _is_allowed_value(invariant.result, NEGATIVE_INVARIANT_RESULTS):
+            allowed = ", ".join(sorted(NEGATIVE_INVARIANT_RESULTS))
+            errors.append(f"{invariant.invariant_id}: result must be one of {allowed}; got {invariant.result!r}")
     return errors
 
 

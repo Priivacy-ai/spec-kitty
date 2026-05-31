@@ -51,6 +51,7 @@ from .transitions import resolve_lane_alias, validate_transition
 from . import store as _store
 from . import reducer as _reducer
 from .adapters import fire_dossier_sync, fire_saas_fanout
+from .locking import feature_status_lock
 
 logger = logging.getLogger(__name__)
 
@@ -348,6 +349,15 @@ def _legacy_alias_collapses_to_current_lane(
     return normalized != resolved_lane and resolved_lane == from_lane
 
 
+def _feature_status_lock_root(feature_dir: Path, repo_root: Path | None) -> Path:
+    """Resolve the repo root used for per-feature status locking."""
+    if repo_root is not None:
+        return repo_root
+    if feature_dir.parent.name == "kitty-specs":
+        return feature_dir.parent.parent
+    return feature_dir
+
+
 def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 params are optional with stable defaults; refactor tracked separately
     feature_dir: TransitionRequest | Path | None = None,
     _legacy_mission_slug: str | None = None,
@@ -466,36 +476,83 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
     # never lands in a stale worktree-local copy.
     feature_dir = canonicalize_feature_dir(feature_dir)
 
-    # T023: Load mission_id (ULID) from meta.json to use as the canonical
-    # machine-facing identity for new events.  None for legacy/pre-3.1.1 missions.
-    mission_id = _load_mission_id(feature_dir)
+    lock_root = _feature_status_lock_root(feature_dir, repo_root)
+    with feature_status_lock(lock_root, mission_slug):
+        # T023: Load mission_id (ULID) from meta.json to use as the canonical
+        # machine-facing identity for new events.  None for legacy/pre-3.1.1 missions.
+        mission_id = _load_mission_id(feature_dir)
 
-    raw_to_lane = to_lane.strip().lower()
+        raw_to_lane = to_lane.strip().lower()
 
-    # Step 1: Resolve alias
-    resolved_lane = resolve_lane_alias(to_lane)
+        # Step 1: Resolve alias
+        resolved_lane = resolve_lane_alias(to_lane)
 
-    # Step 2: Derive from_lane from last event for this WP
-    from_lane = _derive_from_lane(feature_dir, wp_id)
+        # Step 2: Derive from_lane from last event for this WP
+        from_lane = _derive_from_lane(feature_dir, wp_id)
 
-    if workspace_context is None:
-        context_root = repo_root if repo_root is not None else feature_dir
-        workspace_context = f"{execution_mode}:{context_root}"
-    if subtasks_complete is None and from_lane == "in_progress" and resolved_lane == "for_review":
-        subtasks_complete = _infer_subtasks_complete(feature_dir, wp_id)
-    if implementation_evidence_present is None and from_lane == "in_progress" and resolved_lane == "for_review":
-        implementation_evidence_present = _infer_implementation_evidence(feature_dir, wp_id)
+        if workspace_context is None:
+            context_root = repo_root if repo_root is not None else feature_dir
+            workspace_context = f"{execution_mode}:{context_root}"
+        if subtasks_complete is None and from_lane == "in_progress" and resolved_lane == "for_review":
+            subtasks_complete = _infer_subtasks_complete(feature_dir, wp_id)
+        if implementation_evidence_present is None and from_lane == "in_progress" and resolved_lane == "for_review":
+            implementation_evidence_present = _infer_implementation_evidence(feature_dir, wp_id)
 
-    if _legacy_alias_collapses_to_current_lane(raw_to_lane, resolved_lane, from_lane):
-        logger.info(
-            "Collapsing legacy alias %s to existing lane %s for %s/%s",
-            to_lane,
+        if _legacy_alias_collapses_to_current_lane(raw_to_lane, resolved_lane, from_lane):
+            logger.info(
+                "Collapsing legacy alias %s to existing lane %s for %s/%s",
+                to_lane,
+                resolved_lane,
+                mission_slug,
+                wp_id,
+            )
+            _mirror_phase1_frontmatter_lane(feature_dir, wp_id, resolved_lane)
+            return StatusEvent(
+                event_id=_generate_ulid(),
+                mission_slug=mission_slug,
+                wp_id=wp_id,
+                from_lane=Lane(from_lane),
+                to_lane=Lane(resolved_lane),
+                at=_now_utc(),
+                actor=actor,
+                force=force,
+                execution_mode=execution_mode,
+                reason=reason,
+                review_ref=review_ref,
+                evidence=None,
+                policy_metadata=policy_metadata,
+                mission_id=mission_id,
+            )
+
+        # Step 3: Validate the transition
+        # Build DoneEvidence early so we can pass it to validate_transition
+        done_evidence: DoneEvidence | None = None
+        if evidence is not None:
+            done_evidence = _build_done_evidence(evidence)
+
+        ok, error_msg = validate_transition(
+            from_lane,
             resolved_lane,
-            mission_slug,
-            wp_id,
+            GuardContext(
+                force=force,
+                actor=actor,
+                workspace_context=workspace_context,
+                subtasks_complete=subtasks_complete,
+                implementation_evidence_present=implementation_evidence_present,
+                reason=reason,
+                review_ref=review_ref,
+                evidence=done_evidence,
+                review_result=review_result,
+                current_actor=current_actor,
+            ),
         )
-        _mirror_phase1_frontmatter_lane(feature_dir, wp_id, resolved_lane)
-        return StatusEvent(
+        if not ok:
+            raise TransitionError(error_msg)
+
+        # Step 4: Create StatusEvent with ULID event_id.
+        # mission_id is the canonical machine-facing identity (ULID from meta.json).
+        # T023: New events carry mission_id alongside mission_slug.
+        event = StatusEvent(
             event_id=_generate_ulid(),
             mission_slug=mission_slug,
             wp_id=wp_id,
@@ -507,69 +564,24 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
             execution_mode=execution_mode,
             reason=reason,
             review_ref=review_ref,
-            evidence=None,
+            evidence=done_evidence,
             policy_metadata=policy_metadata,
             mission_id=mission_id,
         )
 
-    # Step 3: Validate the transition
-    # Build DoneEvidence early so we can pass it to validate_transition
-    done_evidence: DoneEvidence | None = None
-    if evidence is not None:
-        done_evidence = _build_done_evidence(evidence)
+        # Step 5: Persist event to JSONL log and require readback before success.
+        _store.append_event_verified(feature_dir, event)
 
-    ok, error_msg = validate_transition(
-        from_lane,
-        resolved_lane,
-        GuardContext(
-            force=force,
-            actor=actor,
-            workspace_context=workspace_context,
-            subtasks_complete=subtasks_complete,
-            implementation_evidence_present=implementation_evidence_present,
-            reason=reason,
-            review_ref=review_ref,
-            evidence=done_evidence,
-            review_result=review_result,
-            current_actor=current_actor,
-        ),
-    )
-    if not ok:
-        raise TransitionError(error_msg)
+        # Step 6: Materialize snapshot from event log
+        try:
+            _reducer.materialize(feature_dir)
+        except Exception:
+            logger.warning(
+                "Materialization failed after event %s was persisted; run 'status materialize' to recover",
+                event.event_id,
+            )
 
-    # Step 4: Create StatusEvent with ULID event_id.
-    # mission_id is the canonical machine-facing identity (ULID from meta.json).
-    # T023: New events carry mission_id alongside mission_slug.
-    event = StatusEvent(
-        event_id=_generate_ulid(),
-        mission_slug=mission_slug,
-        wp_id=wp_id,
-        from_lane=Lane(from_lane),
-        to_lane=Lane(resolved_lane),
-        at=_now_utc(),
-        actor=actor,
-        force=force,
-        execution_mode=execution_mode,
-        reason=reason,
-        review_ref=review_ref,
-        evidence=done_evidence,
-        policy_metadata=policy_metadata,
-        mission_id=mission_id,
-    )
-
-    # Step 5: Persist event to JSONL log and require readback before success.
-    _store.append_event_verified(feature_dir, event)
-
-    # Step 6: Materialize snapshot from event log
-    try:
-        _reducer.materialize(feature_dir)
-    except Exception:
-        logger.warning(
-            "Materialization failed after event %s was persisted; run 'status materialize' to recover",
-            event.event_id,
-        )
-
-    _mirror_phase1_frontmatter_lane(feature_dir, wp_id, resolved_lane)
+        _mirror_phase1_frontmatter_lane(feature_dir, wp_id, resolved_lane)
 
     # Step 7: SaaS fan-out (never blocks canonical persistence)
     _saas_fan_out(

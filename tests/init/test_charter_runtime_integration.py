@@ -272,7 +272,7 @@ class TestCharterGracefulFallback:
         plan_template = templates_dir / "plan-template.md"
         plan_template_content = """# Implementation Plan
 
-Load context: Read FEATURE_SPEC and `.kittify/memory/charter.md` if it exists.
+Load context: Read FEATURE_SPEC and `.kittify/charter/charter.md` if it exists.
 If the charter file is missing, skip Charter Check and note that it is absent.
 
 ## Plan Structure

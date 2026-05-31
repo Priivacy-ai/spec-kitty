@@ -26,11 +26,16 @@ from charter._doctrine_paths import resolve_project_root
 from charter.context_renderers import (
     BUDGET_DEFAULT,
     RenderedSection,
+    budget_without_warning_line,
     render_authority_paths,
     render_critical_section_bodies,
 )
 from charter.context_renderers.fetch_stanza import (
     fetch_stanza_lines as _shared_fetch_stanza_lines,
+)
+from charter.governance_references import (
+    collect_governance_reference_status,
+    render_governance_references,
 )
 from charter.language_scope import infer_repo_languages
 from charter.schemas import DoctrineSelectionConfig
@@ -295,14 +300,21 @@ def _classify_artifact_urns(
     artifact_urns: frozenset[str] | set[str],
     merged: object,
     project_directives: set[str],
+    selected_tactics: set[str] | None = None,
+    selected_paradigms: set[str] | None = None,
 ) -> tuple[list[str], list[str], list[str], list[str]]:
     """Partition resolved artifact URNs into doctrine-type buckets."""
     from doctrine.drg.models import NodeKind, Relation
     from doctrine.drg.query import resolve_transitive_refs
 
+    selected_tactics = selected_tactics or set()
+    selected_paradigms = selected_paradigms or set()
+    start_urns = {f"directive:{directive_id}" for directive_id in project_directives}
+    start_urns.update(f"tactic:{tactic_id}" for tactic_id in selected_tactics)
+    start_urns.update(f"paradigm:{paradigm_id}" for paradigm_id in selected_paradigms)
     selected_closure = resolve_transitive_refs(
         merged,
-        start_urns={f"directive:{directive_id}" for directive_id in project_directives},
+        start_urns=start_urns,
         relations={Relation.REQUIRES, Relation.SUGGESTS},
     )
     artifact_urns = set(artifact_urns)
@@ -494,13 +506,14 @@ def _load_action_doctrine_bundle(
 ) -> _ActionDoctrineBundle:
     """Load DRG-backed action doctrine artifacts for bootstrap rendering."""
     from charter._drg_helpers import load_validated_graph
-    from charter.sync import load_governance_config
     from doctrine.drg.loader import DRGLoadError
     from doctrine.drg.query import resolve_context
 
-    governance = load_governance_config(repo_root)
-    mission = (governance.doctrine.template_set or "software-dev-default").removesuffix("-default")
-    project_directives = {_normalize_directive_id(d) for d in governance.doctrine.selected_directives}
+    doctrine_selection = _load_doctrine_selection(repo_root)
+    mission = (doctrine_selection.template_set or "software-dev-default").removesuffix("-default")
+    project_directives = {_normalize_directive_id(d) for d in doctrine_selection.selected_directives}
+    selected_tactics = {t for t in doctrine_selection.selected_tactics if t}
+    selected_paradigms = {p for p in doctrine_selection.selected_paradigms if p}
 
     # WP07 T034: route the DRG load through the shared helper so the built-in +
     # org + project three-layer overlay is honoured.  Callers in ``specify_cli``
@@ -524,7 +537,11 @@ def _load_action_doctrine_bundle(
         action_urn = f"action:{mission}/{action}"
         resolved = resolve_context(merged, action_urn, depth=effective_depth)
         directive_ids, tactic_ids, styleguide_ids, toolguide_ids = _classify_artifact_urns(
-            resolved.artifact_urns, merged, project_directives
+            resolved.artifact_urns,
+            merged,
+            project_directives,
+            selected_tactics,
+            selected_paradigms,
         )
     except DRGLoadError as exc:
         _LOGGER.warning(
@@ -600,6 +617,16 @@ def _render_bootstrap_text(
     if authority_block:
         lines.append("")
         lines.append(authority_block)
+
+    reference_block = ""
+    if repo_root is not None and doctrine_selection is not None:
+        reference_block = render_governance_references(
+            repo_root,
+            doctrine_selection.governance_references,
+        )
+    if reference_block:
+        lines.append("")
+        lines.append(reference_block)
 
     # WP04 (FR-001) — action-critical charter section bodies.  When a
     # heading is absent from the charter the renderer emits a fetch
@@ -779,7 +806,7 @@ def _enforce_token_budget(
     current_text = text
     swapped_ids: list[str] = []
     for section in candidates:
-        if len(current_text) <= budget:
+        if len(current_text) <= budget_without_warning_line(len(swapped_ids), budget):
             break
         stanza = "\n".join(
             _shared_fetch_stanza_lines(
@@ -1033,15 +1060,14 @@ def _append_action_doctrine_lines(
     """Append action doctrine content to lines list. Degrades gracefully on error."""
     from doctrine.missions import MissionTemplateRepository
     from doctrine.missions.action_index import load_action_index
-    from charter.sync import load_governance_config
 
     try:
         repo = MissionTemplateRepository.default()
-        governance = load_governance_config(repo_root)
-        template_set = governance.doctrine.template_set or "software-dev-default"
+        doctrine_selection = _load_doctrine_selection(repo_root)
+        template_set = doctrine_selection.template_set or "software-dev-default"
         mission = template_set.removesuffix("-default")
         action_index = load_action_index(repo._missions_root, mission, action)
-        project_directives: set[str] = {_normalize_directive_id(d) for d in governance.doctrine.selected_directives}
+        project_directives: set[str] = {_normalize_directive_id(d) for d in doctrine_selection.selected_directives}
         doctrine_service = _build_doctrine_service(repo_root)
 
         lines.append(f"Action Doctrine ({action}):")
@@ -1459,6 +1485,9 @@ def _render_profile_tactics(
 # ---------------------------------------------------------------------------
 
 
+_SELECTED_PARADIGMS_HEADER = "Selected paradigms:"
+_SELECTED_DIRECTIVES_HEADER = "Selected directives:"
+_SELECTED_TACTICS_HEADER = "Selected tactics:"
 _SELECTED_STYLEGUIDES_HEADER = "Selected styleguides:"
 _SELECTED_TOOLGUIDES_HEADER = "Selected toolguides:"
 _SELECTED_PROCEDURES_HEADER = "Selected procedures:"
@@ -1507,6 +1536,36 @@ def _format_inline_styleguide_body(styleguide: object) -> list[str]:
         body_lines.append("    Principles:")
         for principle in principles:
             body_lines.append(f"      - {principle}")
+    return body_lines
+
+
+def _format_inline_paradigm_body(paradigm: object) -> list[str]:
+    """Render the verbatim body of a paradigm as indented lines."""
+    body_lines: list[str] = []
+    name = getattr(paradigm, "name", None)
+    if isinstance(name, str) and name.strip():
+        body_lines.append(f"    Name: {name.strip()}")
+    summary = getattr(paradigm, "summary", None)
+    if isinstance(summary, str) and summary.strip():
+        body_lines.append(f"    Summary: {summary.strip()}")
+    return body_lines
+
+
+def _format_inline_tactic_body(tactic: object) -> list[str]:
+    """Render the verbatim body of a tactic as indented lines."""
+    body_lines: list[str] = []
+    name = getattr(tactic, "name", None)
+    if isinstance(name, str) and name.strip():
+        body_lines.append(f"    Name: {name.strip()}")
+    purpose = getattr(tactic, "purpose", None)
+    if isinstance(purpose, str) and purpose.strip():
+        body_lines.append(f"    Purpose: {purpose.strip()}")
+    steps = getattr(tactic, "steps", None)
+    if isinstance(steps, list) and steps:
+        body_lines.append("    Steps:")
+        for step in steps:
+            step_title = getattr(step, "title", str(step))
+            body_lines.append(f"      - {step_title}")
     return body_lines
 
 
@@ -1629,7 +1688,7 @@ def _available_catalog_ids(repository: object | None) -> list[str]:
 
 def _render_selected_artifacts(
     selected_ids: list[str],
-    repository: object,
+    repository: object | None,
     *,
     header: str,
     selector_kind: str,
@@ -1637,7 +1696,7 @@ def _render_selected_artifacts(
     body_formatter,  # noqa: ANN001 — callable[(object), list[str]]
     org_source_map: dict[str, str] | None = None,
 ) -> list[str]:
-    """Shared implementation for the 5 ``_render_selected_<kind>`` helpers.
+    """Shared implementation for the 8 ``_render_selected_<kind>`` helpers.
 
     Each helper is a thin wrapper that picks the right repository
     (``service.styleguides`` / ``service.toolguides`` / ...) and inline
@@ -1714,6 +1773,63 @@ def _render_selected_artifacts(
             )
 
     return lines
+
+
+def _render_selected_paradigms(
+    selected_ids: list[str],
+    service: object,
+    *,
+    org_source_map: dict[str, str] | None = None,
+) -> list[str]:
+    """Render globally-selected paradigms into prompt lines."""
+    repo = getattr(service, "paradigms", None)
+    return _render_selected_artifacts(
+        selected_ids,
+        repo,
+        header=_SELECTED_PARADIGMS_HEADER,
+        selector_kind="paradigm",
+        when_clause="are about to choose a reasoning frame",
+        body_formatter=_format_inline_paradigm_body,
+        org_source_map=org_source_map,
+    )
+
+
+def _render_selected_directives(
+    selected_ids: list[str],
+    service: object,
+    *,
+    org_source_map: dict[str, str] | None = None,
+) -> list[str]:
+    """Render globally-selected directives into prompt lines."""
+    repo = getattr(service, "directives", None)
+    return _render_selected_artifacts(
+        selected_ids,
+        repo,
+        header=_SELECTED_DIRECTIVES_HEADER,
+        selector_kind="directive",
+        when_clause="are about to apply a code change",
+        body_formatter=_format_inline_directive_body,
+        org_source_map=org_source_map,
+    )
+
+
+def _render_selected_tactics(
+    selected_ids: list[str],
+    service: object,
+    *,
+    org_source_map: dict[str, str] | None = None,
+) -> list[str]:
+    """Render globally-selected tactics into prompt lines."""
+    repo = getattr(service, "tactics", None)
+    return _render_selected_artifacts(
+        selected_ids,
+        repo,
+        header=_SELECTED_TACTICS_HEADER,
+        selector_kind="tactic",
+        when_clause="are about to apply a code change",
+        body_formatter=_format_inline_tactic_body,
+        org_source_map=org_source_map,
+    )
 
 
 def _render_selected_styleguides(
@@ -1853,9 +1969,9 @@ def _render_selection_block(
     *,
     repo_root: Path | None = None,
 ) -> str:
-    """Render the combined 5-kind selection section block.
+    """Render the combined 8-kind selection section block.
 
-    Concatenates the 5 ``_render_selected_<kind>`` outputs with blank
+    Concatenates the 8 ``_render_selected_<kind>`` outputs with blank
     lines between non-empty blocks so the prompt body remains readable.
     Returns ``""`` when no selections exist on the charter — the caller
     can then skip the leading blank line without emitting a stray
@@ -1895,6 +2011,27 @@ def _render_selection_block(
                 merged[sid] = ""
         return merged
 
+    paradigm_org = _merge(
+        _collect_org_source_map(
+            getattr(service, "paradigms", None), doctrine_selection.selected_paradigms
+        ),
+        "paradigms",
+        doctrine_selection.selected_paradigms,
+    )
+    directive_org = _merge(
+        _collect_org_source_map(
+            getattr(service, "directives", None), doctrine_selection.selected_directives
+        ),
+        "directives",
+        doctrine_selection.selected_directives,
+    )
+    tactic_org = _merge(
+        _collect_org_source_map(
+            getattr(service, "tactics", None), doctrine_selection.selected_tactics
+        ),
+        "tactics",
+        doctrine_selection.selected_tactics,
+    )
     styleguide_org = _merge(
         _collect_org_source_map(
             getattr(service, "styleguides", None), doctrine_selection.selected_styleguides
@@ -1935,6 +2072,15 @@ def _render_selection_block(
 
     blocks: list[str] = []
     sections = (
+        _render_selected_paradigms(
+            doctrine_selection.selected_paradigms, service, org_source_map=paradigm_org
+        ),
+        _render_selected_directives(
+            doctrine_selection.selected_directives, service, org_source_map=directive_org
+        ),
+        _render_selected_tactics(
+            doctrine_selection.selected_tactics, service, org_source_map=tactic_org
+        ),
         _render_selected_styleguides(
             doctrine_selection.selected_styleguides, service, org_source_map=styleguide_org
         ),
@@ -2088,6 +2234,12 @@ def _render_compact_governance(
     authority_block = render_authority_paths(repo_root, doctrine_selection)
     if authority_block:
         augmented_blocks.append(authority_block)
+    reference_block = render_governance_references(
+        repo_root,
+        doctrine_selection.governance_references,
+    )
+    if reference_block:
+        augmented_blocks.append(reference_block)
 
     if action:
         charter_path = repo_root / KITTIFY_DIRNAME / "charter" / "charter.md"
@@ -2438,7 +2590,16 @@ def build_charter_context_json(
         "org_charter": (
             dict(org_charter_block) if org_charter_block is not None else dict(_EMPTY_ORG_CHARTER)
         ),
+        "governance_references": [],
     }
+    selection = _load_doctrine_selection(repo_root)
+    payload["governance_references"] = [
+        status.to_dict()
+        for status in collect_governance_reference_status(
+            repo_root,
+            selection.governance_references,
+        )
+    ]
 
     if normalized not in BOOTSTRAP_ACTIONS:
         payload["mode"] = "compact"

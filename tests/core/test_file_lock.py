@@ -128,6 +128,25 @@ async def test_stale_lock_adopted(lock_path: Path) -> None:
         assert on_disk.pid == os.getpid()
 
 
+async def test_stale_record_with_live_holder_does_not_admit_second_lock(
+    lock_path: Path,
+) -> None:
+    holder = MachineFileLock(lock_path, acquire_timeout_s=1.0)
+    await holder.__aenter__()
+    contender = MachineFileLock(lock_path, acquire_timeout_s=0.15, stale_after_s=0.0)
+    try:
+        # Advisory locks do not stop diagnostics from observing an old record.
+        # Age alone must not authorize unlinking the path while a live holder
+        # still owns the locked inode.
+        _write_record(lock_path, age_s=120.0, pid=999_999)
+
+        with pytest.raises(LockAcquireTimeout):
+            await contender.__aenter__()
+    finally:
+        await contender.__aexit__(None, None, None)
+        await holder.__aexit__(None, None, None)
+
+
 # ---------------------------------------------------------------------------
 # 5. test_force_release_only_when_stuck
 # ---------------------------------------------------------------------------
@@ -144,7 +163,21 @@ def test_force_release_only_when_stuck(lock_path: Path) -> None:
 
     _write_record(lock_path, age_s=120.0)
     assert force_release(lock_path, only_if_age_s=60.0) is True
-    assert not lock_path.exists()
+    assert read_lock_record(lock_path) is None
+
+
+async def test_force_release_does_not_unlink_when_stale_lock_is_held(
+    lock_path: Path,
+) -> None:
+    holder = MachineFileLock(lock_path, acquire_timeout_s=1.0)
+    await holder.__aenter__()
+    try:
+        _write_record(lock_path, age_s=120.0, pid=999_999)
+
+        assert force_release(lock_path, only_if_age_s=60.0) is False
+        assert read_lock_record(lock_path) is not None
+    finally:
+        await holder.__aexit__(None, None, None)
 
 
 # ---------------------------------------------------------------------------
@@ -283,15 +316,15 @@ def test_read_lock_record_non_string_fields_returns_none(lock_path: Path) -> Non
     assert read_lock_record(lock_path) is None
 
 
-def test_force_release_unlink_failure(
+def test_force_release_clear_failure(
     lock_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _write_record(lock_path, age_s=120.0)
 
-    def _boom(self: Path, *args: Any, **kwargs: Any) -> None:
+    def _boom(_fd: int, _payload: bytes) -> None:
         raise OSError("permission denied")
 
-    monkeypatch.setattr(Path, "unlink", _boom)
+    monkeypatch.setattr(fl, "_atomic_write_under_lock", _boom)
     assert force_release(lock_path, only_if_age_s=60.0) is False
 
 

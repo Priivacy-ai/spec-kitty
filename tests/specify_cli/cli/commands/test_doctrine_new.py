@@ -84,6 +84,49 @@ def test_new_validates_stub_against_schema_so_validate_passes(tmp_path: Path) ->
     assert "OK" in result_validate.stdout
 
 
+@pytest.mark.parametrize(
+    ("kind", "artifact_id", "plural", "filename"),
+    [
+        ("agent_profile", "sample-agent", "agent_profiles", "sample-agent.agent.yaml"),
+        (
+            "mission_step_contract",
+            "sample-step",
+            "mission_step_contracts",
+            "sample-step.step-contract.yaml",
+        ),
+    ],
+)
+def test_new_special_kind_suffixes_validate_on_first_emit(
+    tmp_path: Path,
+    kind: str,
+    artifact_id: str,
+    plural: str,
+    filename: str,
+) -> None:
+    """Special-kind scaffold filenames MUST match ``doctrine validate`` suffixes."""
+    project = _make_project_root(tmp_path)
+
+    old_cwd = os.getcwd()
+    try:
+        os.chdir(project)
+        result_new = runner.invoke(
+            doctrine_app, ["new", kind, artifact_id], catch_exceptions=False
+        )
+        assert result_new.exit_code == 0, result_new.stdout
+
+        target = project / ".kittify" / "doctrine" / plural / filename
+        assert target.exists()
+
+        result_validate = runner.invoke(
+            doctrine_app, ["validate", str(target)], catch_exceptions=False
+        )
+    finally:
+        os.chdir(old_cwd)
+
+    assert result_validate.exit_code == 0, result_validate.stdout
+    assert "OK" in result_validate.stdout
+
+
 def test_new_refuses_to_overwrite_existing_file(tmp_path: Path) -> None:
     """Re-running ``doctrine new`` on the same id fails with a clear message."""
     project = _make_project_root(tmp_path)

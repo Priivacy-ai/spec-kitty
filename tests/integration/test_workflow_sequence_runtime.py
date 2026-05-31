@@ -94,3 +94,48 @@ def test_unknown_workflow_id_in_meta_json_hard_fails(tmp_path: Path) -> None:
 
     with pytest.raises(UnknownWorkflowError):
         resolve_next_workflow_action(mission_dir=mission_dir, current_action="plan")
+
+
+def test_project_override_workflow_id_drives_next_action(tmp_path: Path) -> None:
+    """Issue #682: project-authored `.kittify` workflow sequences are runtime-owned."""
+    workflow_dir = tmp_path / ".kittify" / "overrides" / "workflows"
+    workflow_dir.mkdir(parents=True)
+    (workflow_dir / "solo-fast.yaml").write_text(
+        """
+workflow_id: solo-fast
+description: Project override that skips review.
+version: 1
+initial: specify
+actions:
+  - action_name: specify
+    description: Create a mission specification
+    next: [plan]
+  - action_name: plan
+    description: Create an implementation plan
+    next: [implement]
+  - action_name: implement
+    description: Implement directly
+    next: [accept]
+  - action_name: accept
+    description: Accept without review
+    terminal: true
+""".lstrip(),
+        encoding="utf-8",
+    )
+    mission_dir = tmp_path / "kitty-specs" / "solo-fast-mission-01YYY"
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "meta.json").write_text(json.dumps({
+        "mission_id": "01YYY000000000000000000000",
+        "mission_slug": "solo-fast-mission",
+        "mission_number": None,
+        "workflow_id": "solo-fast",
+    }))
+
+    from specify_cli.next._internal_runtime.planner import resolve_next_workflow_action
+    from specify_cli.next._internal_runtime.workflow_registry import get_workflow
+
+    get_workflow.cache_clear()
+    result = resolve_next_workflow_action(mission_dir=mission_dir, current_action="implement")
+
+    assert result.workflow_id == "solo-fast"
+    assert result.next_action == "accept"

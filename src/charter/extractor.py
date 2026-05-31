@@ -406,7 +406,14 @@ class Extractor:
             # Strip resolver-input keys so they are NOT replayed through
             # the row-style replacement path (which would clobber prior
             # selection-table values).
-            resolver_keys = {"template_set", "available_tools", "authority_paths"}
+            resolver_keys = {
+                "template_set",
+                "available_tools",
+                "authority_paths",
+                "governance_references",
+                "required_reading",
+                "reading_list",
+            }
             row_only = {k: v for k, v in block.items() if k not in resolver_keys}
             if row_only:
                 self._apply_selection_row(row_only, doctrine)
@@ -433,6 +440,10 @@ class Extractor:
           preserving order and deduplicating. Non-string entries are
           rejected with a clear ``ValueError`` (matches the existing
           ``_apply_selection_row`` strictness).
+        - ``governance_references`` (list): merged into supporting
+          governance docs. ``required_reading`` and ``reading_list`` are
+          accepted as aliases so early charter drafts can migrate without
+          losing intent.
         """
         if not isinstance(block, dict):
             return
@@ -448,6 +459,12 @@ class Extractor:
             new=block.get("authority_paths"),
             field_name="authority_paths",
         )
+        for field_name in ("governance_references", "required_reading", "reading_list"):
+            doctrine.governance_references = self._merge_string_list(
+                existing=doctrine.governance_references,
+                new=block.get(field_name),
+                field_name=field_name,
+            )
 
     def _apply_template_set_override(
         self,

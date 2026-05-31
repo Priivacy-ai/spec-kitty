@@ -8,7 +8,6 @@ from typing import Any
 
 import typer
 
-from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.task_utils import TaskCliError
 
 from specify_cli.cli.commands.charter._app import charter_app, console
@@ -248,6 +247,8 @@ def generate(
         answers_path = _interview_path(repo_root)
         resolved_mission_type = None
         if mission_type is not None or mission is not None:
+            from specify_cli.cli.selector_resolution import resolve_selector
+
             resolved = resolve_selector(
                 canonical_value=mission_type,
                 canonical_flag="--mission-type",
@@ -273,7 +274,12 @@ def generate(
             repo_root=repo_root,
             doctrine_service=_build_doctrine_service_with_org_layer(repo_root),
         )
-        bundle_result = write_compiled_charter(charter_dir, compiled, force=force)
+        bundle_result = write_compiled_charter(
+            charter_dir,
+            compiled,
+            force=force,
+            repo_root=repo_root,
+        )
         if interview_source == "defaults":
             # Legacy CLI contract: default generation materializes an empty
             # library/ directory for older consumers. Interview-driven flows

@@ -1,15 +1,14 @@
 """Workflow registry (FR-012, FR-015).
 
-Loads ``.workflow.yaml`` files from ``src/doctrine/workflows/`` and returns
-validated ``WorkflowSequence`` instances.
+Loads project-authored and shipped workflow YAML files and returns validated
+``WorkflowSequence`` instances.
 
 Search precedence
 -----------------
-1. ``src/doctrine/workflows/<workflow_id>.workflow.yaml`` (built-in defaults)
-2. ``src/doctrine/workflows/_fixtures/<workflow_id>.workflow.yaml`` (test fixtures)
-
-Operator override at ``.kittify/workflows/<workflow_id>.workflow.yaml`` is
-reserved for a future extension (not load-bearing this mission).
+1. ``<project_root>/.kittify/overrides/workflows/<workflow_id>.workflow.yaml``
+2. ``<project_root>/.kittify/overrides/workflows/<workflow_id>.yaml``
+3. ``src/doctrine/workflows/<workflow_id>.workflow.yaml`` (built-in defaults)
+4. ``src/doctrine/workflows/_fixtures/<workflow_id>.workflow.yaml`` (test fixtures)
 
 Layer rule (C-001 / NFR-003)
 -----------------------------
@@ -28,15 +27,21 @@ caller (currently WP11's ``planner.plan_next``).
 """
 from __future__ import annotations
 
-import functools
 import re
 from pathlib import Path
 
+from pydantic import ValidationError
 import yaml
 
 from .workflow_schema import WorkflowSequence
 
-__all__ = ["get_workflow", "list_available_workflows"]
+__all__ = [
+    "get_workflow",
+    "list_available_workflows",
+    "load_workflow_file",
+    "resolve_workflow_path",
+    "validate_workflow_id",
+]
 
 
 class UnknownWorkflowError(Exception):
@@ -87,12 +92,12 @@ _SEARCH_ROOTS: tuple[Path, ...] = (
 )
 
 
-@functools.cache
-def get_workflow(workflow_id: str) -> WorkflowSequence:
+def get_workflow(workflow_id: str, project_root: Path | None = None) -> WorkflowSequence:
     """Return the validated ``WorkflowSequence`` for *workflow_id*.
 
-    Search order: built-in defaults first, then test fixtures (see module
-    docstring for the full precedence list).
+    Search order: project overrides first when *project_root* is provided,
+    then built-in defaults, then test fixtures (see module docstring for the
+    full precedence list).
 
     Raises
     ------
@@ -104,8 +109,43 @@ def get_workflow(workflow_id: str) -> WorkflowSequence:
     pydantic.ValidationError
         If the resolved YAML file fails ``WorkflowSequence`` validation.
     """
-    # MEDIUM-4: slug validator (defense-in-depth against path traversal).
-    # Reject before any filesystem interaction.
+    candidate = resolve_workflow_path(workflow_id, project_root=project_root)
+    return load_workflow_file(candidate, requested_workflow_id=workflow_id)
+
+
+def resolve_workflow_path(workflow_id: str, project_root: Path | None = None) -> Path:
+    """Return the source YAML path for *workflow_id* using registry precedence."""
+    validate_workflow_id(workflow_id)
+    for candidate in _candidate_paths(workflow_id, project_root):
+        if candidate.exists():
+            return candidate
+
+    available = list_available_workflows(project_root=project_root)
+    raise UnknownWorkflowError(
+        f"Unknown workflow_id={workflow_id!r}. "
+        f"Available: {available}. "
+        f"Searched: {[str(p) for p in _candidate_paths(workflow_id, project_root)]}."
+    )
+
+
+def load_workflow_file(
+    path: Path,
+    requested_workflow_id: str | None = None,
+) -> WorkflowSequence:
+    """Load and validate a workflow YAML file."""
+    raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    workflow = WorkflowSequence.model_validate(raw)
+    validate_workflow_id(workflow.workflow_id)
+    if requested_workflow_id is not None and workflow.workflow_id != requested_workflow_id:
+        raise UnknownWorkflowError(
+            f"Workflow file {path} declares workflow_id={workflow.workflow_id!r} "
+            f"but was requested as {requested_workflow_id!r}."
+        )
+    return workflow
+
+
+def validate_workflow_id(workflow_id: str) -> None:
+    """Reject workflow ids that cannot be safely interpolated into paths."""
     if not _WORKFLOW_ID_PATTERN.fullmatch(workflow_id):
         raise UnknownWorkflowError(
             f"Invalid workflow_id {workflow_id!r}: must match [a-z0-9][a-z0-9-]*. "
@@ -113,27 +153,51 @@ def get_workflow(workflow_id: str) -> WorkflowSequence:
             f"characters are not permitted in workflow identifiers."
         )
 
-    for root in _SEARCH_ROOTS:
-        candidate = root / f"{workflow_id}.workflow.yaml"
-        if candidate.exists():
-            raw = yaml.safe_load(candidate.read_text(encoding="utf-8"))
-            return WorkflowSequence.model_validate(raw)
 
-    available = list_available_workflows()
-    raise UnknownWorkflowError(
-        f"Unknown workflow_id={workflow_id!r}. "
-        f"Available: {available}. "
-        f"Searched: {[str(r) for r in _SEARCH_ROOTS]}."
-    )
-
-
-def list_available_workflows() -> list[str]:
-    """Return a sorted list of workflow ids resolvable from the search roots."""
+def list_available_workflows(project_root: Path | None = None) -> list[str]:
+    """Return a sorted list of validated workflow ids resolvable from the search roots."""
     available: list[str] = []
-    for root in _SEARCH_ROOTS:
+    for root in _search_roots(project_root):
         if root.exists():
-            for p in sorted(root.glob("*.workflow.yaml")):
-                # p.stem is e.g. "software-dev-default.workflow"
-                workflow_id = p.stem.replace(".workflow", "")
+            for p in sorted(root.glob("*.yaml")):
+                workflow_id = _workflow_id_from_path(p)
+                try:
+                    validate_workflow_id(workflow_id)
+                    load_workflow_file(p, requested_workflow_id=workflow_id)
+                except (OSError, UnknownWorkflowError, ValidationError, yaml.YAMLError):
+                    continue
                 available.append(workflow_id)
     return sorted(set(available))
+
+
+def _search_roots(project_root: Path | None) -> tuple[Path, ...]:
+    project_roots: tuple[Path, ...] = ()
+    if project_root is not None:
+        project_roots = (Path(project_root) / ".kittify" / "overrides" / "workflows",)
+    return project_roots + _SEARCH_ROOTS
+
+
+def _candidate_paths(workflow_id: str, project_root: Path | None) -> tuple[Path, ...]:
+    project_paths: tuple[Path, ...] = ()
+    if project_root is not None:
+        override_root = Path(project_root) / ".kittify" / "overrides" / "workflows"
+        project_paths = (
+            override_root / f"{workflow_id}.workflow.yaml",
+            override_root / f"{workflow_id}.yaml",
+        )
+    shipped_paths = tuple(root / f"{workflow_id}.workflow.yaml" for root in _SEARCH_ROOTS)
+    return project_paths + shipped_paths
+
+
+def _workflow_id_from_path(path: Path) -> str:
+    name = path.name
+    if name.endswith(".workflow.yaml"):
+        return name[: -len(".workflow.yaml")]
+    return path.stem
+
+
+def _clear_noop_cache() -> None:
+    """Compatibility no-op for tests and callers that cleared the old cache."""
+
+
+get_workflow.cache_clear = _clear_noop_cache  # type: ignore[attr-defined]

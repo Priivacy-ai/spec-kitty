@@ -9,9 +9,9 @@ internal ``plan_next`` (DAG engine, used by ``engine.py`` and
 
 * ``_resolve_workflow_for_mission(mission_dir)`` — reads ``meta.json``,
   extracts ``workflow_id``, and returns the validated ``WorkflowSequence``
-  (defaulting to ``software-dev-default`` when ``workflow_id`` is absent).
-  Unknown ids propagate ``UnknownWorkflowError`` — no silent fallback
-  (FR-015 binding).
+  from project overrides or shipped defaults (defaulting to
+  ``software-dev-default`` when ``workflow_id`` is absent). Unknown ids
+  propagate ``UnknownWorkflowError`` — no silent fallback (FR-015 binding).
 * ``PlanResult`` — lightweight dataclass returned by
   ``resolve_next_workflow_action``.
 * ``resolve_next_workflow_action(mission_dir, current_action)`` — looks up the
@@ -57,7 +57,7 @@ from specify_cli.next._internal_runtime.workflow_schema import ActionStep, Workf
 # _resolve_workflow_for_mission, resolve_next_workflow_action) are intentionally
 # kept as non-exported symbols so the symbol-level dead-code gate does not
 # require them to have callers in other src/ files.  They are exercised by
-# integration tests and by prompt_builder._cached_workflow_for (which calls
+# integration tests and by prompt_builder._workflow_for (which calls
 # _resolve_workflow_for_mission directly).
 
 
@@ -87,6 +87,81 @@ class PlanResult:
     workflow_id: str
 
 
+def compose_template_with_workflow(
+    template: MissionTemplate,
+    workflow: WorkflowSequence,
+) -> MissionTemplate:
+    """Return a runtime template whose steps follow *workflow*.
+
+    The workflow artifact owns public action ordering; the runtime still needs
+    a ``MissionTemplate`` DAG. This adapter keeps the live ``spec-kitty next``
+    path on the same planner while preserving existing step metadata when an
+    action matches a shipped/custom mission step.
+    """
+    by_id = {step.id: step for step in template.steps}
+    composed: list[PromptStep] = []
+    previous_id: str | None = None
+
+    if workflow.initial == "specify" and "discovery" in by_id and "discovery" not in {
+        action.action_name for action in workflow.actions
+    }:
+        discovery = by_id["discovery"]
+        composed.append(
+            PromptStep(
+                id=discovery.id,
+                title=discovery.title,
+                description=discovery.description,
+                prompt=discovery.prompt,
+                prompt_template=discovery.prompt_template,
+                expected_output=discovery.expected_output,
+                requires_inputs=discovery.requires_inputs,
+                depends_on=[],
+                raci=discovery.raci,
+                raci_override_reason=discovery.raci_override_reason,
+                agent_profile=discovery.agent_profile,
+                contract_ref=discovery.contract_ref,
+            )
+        )
+        previous_id = "discovery"
+
+    for action in workflow.actions:
+        source = by_id.get(action.action_name)
+        depends_on = [previous_id] if previous_id is not None else []
+        if source is not None:
+            step = PromptStep(
+                id=source.id,
+                title=source.title,
+                description=action.description or source.description,
+                prompt=source.prompt,
+                prompt_template=source.prompt_template,
+                expected_output=source.expected_output,
+                requires_inputs=source.requires_inputs,
+                depends_on=depends_on,
+                raci=source.raci,
+                raci_override_reason=source.raci_override_reason,
+                agent_profile=action.agent_profile or source.agent_profile,
+                contract_ref=source.contract_ref,
+            )
+        else:
+            step = PromptStep(
+                id=action.action_name,
+                title=action.action_name.replace("-", " ").title(),
+                description=action.description,
+                prompt_template=f"{action.action_name}.md",
+                requires_inputs=[action.human_in_the_loop] if action.human_in_the_loop else [],
+                depends_on=depends_on,
+                agent_profile=action.agent_profile,
+            )
+        composed.append(step)
+        previous_id = action.action_name
+
+    return MissionTemplate(
+        mission=template.mission,
+        steps=composed,
+        audit_steps=template.audit_steps,
+    )
+
+
 def _resolve_workflow_for_mission(mission_dir: Path) -> WorkflowSequence:
     """Return the ``WorkflowSequence`` for the mission rooted at *mission_dir*.
 
@@ -102,14 +177,26 @@ def _resolve_workflow_for_mission(mission_dir: Path) -> WorkflowSequence:
         resolved by the registry.  FR-015 binding: no silent fallback.
     """
     meta_path = mission_dir / "meta.json"
+    project_root = _infer_project_root(mission_dir)
     if not meta_path.exists():
-        return get_workflow("software-dev-default")
+        return get_workflow("software-dev-default", project_root=project_root)
     meta: dict[str, Any] = json.loads(meta_path.read_text(encoding="utf-8"))
     workflow_id: str | None = meta.get("workflow_id")
     if workflow_id is None:
-        return get_workflow("software-dev-default")
+        return get_workflow("software-dev-default", project_root=project_root)
     # Unknown ids propagate UnknownWorkflowError — no silent fallback (FR-015).
-    return get_workflow(workflow_id)
+    return get_workflow(workflow_id, project_root=project_root)
+
+
+def _infer_project_root(mission_dir: Path) -> Path | None:
+    """Infer the project root that owns *mission_dir* for `.kittify` lookup."""
+    current = mission_dir.resolve()
+    for candidate in (current, *current.parents):
+        if (candidate / ".kittify").exists():
+            return candidate
+        if candidate.name == "kitty-specs":
+            return candidate.parent
+    return None
 
 
 def resolve_next_workflow_action(
@@ -141,7 +228,7 @@ def resolve_next_workflow_action(
     by_name: dict[str, ActionStep] = {a.action_name: a for a in workflow.actions}
     action: ActionStep | None = by_name.get(current_action)
     if action is None:
-        available_workflows = list_available_workflows()
+        available_workflows = list_available_workflows(project_root=_infer_project_root(mission_dir))
         raise ValueError(
             f"action {current_action!r} not in workflow {workflow.workflow_id!r}. "
             f"Available actions: {sorted(by_name)}. "

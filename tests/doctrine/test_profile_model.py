@@ -266,6 +266,48 @@ class TestAgentProfileInterface:
         assert profile.routing_priority == 75
         assert profile.max_concurrent_tasks == 3
 
+    def test_context_sources_preserve_schema_declared_artifact_lists(self):
+        """Runtime model preserves all schema-approved context-sources lists."""
+        data = {
+            "profile-id": "context-source-artifacts",
+            "name": "Context Source Artifacts",
+            "purpose": "Prove context-sources artifact lists survive validation",
+            "roles": ["reviewer"],
+            "specialization": {"primary-focus": "testing"},
+            "context-sources": {
+                "doctrine-layers": ["directives", "tactics", "toolguides"],
+                "directives": ["001"],
+                "tactics": ["code-review-incremental"],
+                "toolguides": ["python-review-checks"],
+                "styleguides": ["python-conventions"],
+                "additional": ["review-checklist"],
+            },
+        }
+
+        profile = AgentProfile.model_validate(data)
+
+        assert profile.context_sources.tactics == ["code-review-incremental"]
+        assert profile.context_sources.toolguides == ["python-review-checks"]
+        assert profile.context_sources.styleguides == ["python-conventions"]
+
+    def test_context_sources_reject_unknown_keys(self):
+        """Runtime context-sources must not silently drop unsupported fields."""
+        data = {
+            "profile-id": "context-source-unknown",
+            "name": "Context Source Unknown",
+            "purpose": "Prove unsupported context-sources fields are explicit errors",
+            "roles": ["reviewer"],
+            "specialization": {"primary-focus": "testing"},
+            "context-sources": {
+                "doctrine-layers": ["directives"],
+                "directives": ["001"],
+                "unknown-guide-kind": ["silent-drop"],
+            },
+        }
+
+        with pytest.raises(ValidationError, match="unknown-guide-kind"):
+            AgentProfile.model_validate(data)
+
 
 class TestAgentProfileExceptions:
     """Exceptions: Missing required fields."""
