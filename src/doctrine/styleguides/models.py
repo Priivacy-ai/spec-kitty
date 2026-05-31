@@ -66,8 +66,8 @@ class Styleguide(BaseModel):
         description="ID of a built-in styleguide this artifact augments via field-merge.",
     )
     principles: list[str] = Field(min_length=1)
-    patterns: list[Pattern] = Field(default_factory=list)
-    anti_patterns: list[AntiPattern] = Field(default_factory=list)
+    patterns: list[Pattern] = Field(default_factory=list, min_length=1)
+    anti_patterns: list[AntiPattern] = Field(default_factory=list, min_length=1)
     tooling: dict[str, str] = Field(default_factory=dict)
     quality_test: str | None = None
     applies_to_languages: list[str] = Field(default_factory=list)

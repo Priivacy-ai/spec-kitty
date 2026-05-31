@@ -6,6 +6,7 @@ import pytest
 from ruamel.yaml import YAML
 
 from doctrine.styleguides.repository import StyleguideRepository
+from doctrine.styleguides.validation import validate_styleguide
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 
@@ -74,6 +75,30 @@ class TestStyleguideRepository:
 
         assert repo.list_all() == []
 
+    def test_empty_pattern_lists_skipped_with_warning(self, tmp_path: Path) -> None:
+        shipped = tmp_path / "built-in"
+        shipped.mkdir()
+        yaml = YAML()
+        yaml.default_flow_style = False
+        with (shipped / "bad.styleguide.yaml").open("w") as f:
+            yaml.dump(
+                {
+                    "schema_version": "1.0",
+                    "id": "bad",
+                    "title": "Bad",
+                    "scope": "code",
+                    "principles": ["Write clear code"],
+                    "patterns": [],
+                    "anti_patterns": [],
+                },
+                f,
+            )
+
+        with pytest.warns(UserWarning, match="Skipping invalid"):
+            repo = StyleguideRepository(built_in_dir=shipped)
+
+        assert repo.list_all() == []
+
     def test_save_writes_valid_yaml(
         self, tmp_path: Path, sample_styleguide_data: dict
     ) -> None:
@@ -93,6 +118,7 @@ class TestStyleguideRepository:
         yaml = YAML(typ="safe")
         data = yaml.load(path)
         assert data["id"] == "test-style"
+        assert validate_styleguide(data) == []
 
     def test_save_raises_without_project_dir(
         self, tmp_path: Path, sample_styleguide_data: dict

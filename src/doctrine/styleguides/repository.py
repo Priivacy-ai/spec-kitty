@@ -65,6 +65,10 @@ class StyleguideRepository(BaseDoctrineRepository[Styleguide]):
         """Recursive scan — styleguides may live in subdirectories."""
         return sorted(project_dir.rglob(self._glob))
 
+    def _merge(self, built_in: Styleguide, project_data: dict[str, Any]) -> Styleguide:
+        merged = {**built_in.model_dump(exclude_defaults=True), **project_data}
+        return Styleguide.model_validate(merged)
+
     def save(self, styleguide: Styleguide) -> Path:
         """Save styleguide to project directory.
 
@@ -87,7 +91,9 @@ class StyleguideRepository(BaseDoctrineRepository[Styleguide]):
         yaml.default_flow_style = False
         yaml_file = self._project_dir / filename
 
-        data = styleguide.model_dump(mode="json", exclude_none=True)
+        data = styleguide.model_dump(
+            mode="json", exclude_defaults=True, exclude_none=True
+        )
 
         with yaml_file.open("w") as f:
             yaml.dump(data, f)
