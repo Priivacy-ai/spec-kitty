@@ -212,6 +212,70 @@ class TestWorkflowRuntimeTemplate:
             "merge",
         ]
 
+    def test_workflow_inserted_step_resolves_prompt_file(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A workflow-inserted step must not block on missing prompt resolution."""
+        repo_root = _scaffold_project(tmp_path)
+        mission_dir = repo_root / "kitty-specs" / "042-test-feature"
+        (mission_dir / "meta.json").write_text(
+            json.dumps(
+                {
+                    "mission_type": "software-dev",
+                    "workflow_id": "our-team-design-first",
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        from specify_cli.next import runtime_bridge
+        from specify_cli.next.decision import DecisionKind
+
+        monkeypatch.setattr(
+            runtime_bridge.SyncRuntimeEventEmitter,
+            "for_feature",
+            staticmethod(lambda **_: runtime_bridge._BufferingRuntimeEmitter()),
+        )
+
+        runtime_bridge.decide_next_via_runtime(
+            "agent",
+            "042-test-feature",
+            "success",
+            repo_root,
+        )
+        specify = runtime_bridge.decide_next_via_runtime(
+            "agent",
+            "042-test-feature",
+            "success",
+            repo_root,
+        )
+        assert specify.step_id == "specify"
+        (mission_dir / "spec.md").write_text("# Spec\n", encoding="utf-8")
+
+        plan = runtime_bridge.decide_next_via_runtime(
+            "agent",
+            "042-test-feature",
+            "success",
+            repo_root,
+        )
+        assert plan.step_id == "plan"
+        (mission_dir / "plan.md").write_text("# Plan\n", encoding="utf-8")
+
+        design_review = runtime_bridge.decide_next_via_runtime(
+            "agent",
+            "042-test-feature",
+            "success",
+            repo_root,
+        )
+
+        assert design_review.kind == DecisionKind.step
+        assert design_review.step_id == "design-review"
+        assert design_review.action == "design-review"
+        assert design_review.prompt_file is not None
+        assert Path(design_review.prompt_file).is_file()
+
     def test_software_dev_builtin_outranks_stale_user_global(
         self,
         tmp_path: Path,

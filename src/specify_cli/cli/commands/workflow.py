@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 
 import typer
 
+from specify_cli.core.atomic import atomic_write
 from specify_cli.next._internal_runtime.workflow_registry import (
     list_available_workflows,
     load_workflow_file,
@@ -82,5 +82,4 @@ def _destination_path(output: Path, *, workflow_id: str) -> Path:
 def _copy_workflow(source: Path, destination: Path, *, force: bool) -> None:
     if destination.exists() and not force:
         raise typer.BadParameter(f"Destination exists: {destination}")
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(source, destination)
+    atomic_write(destination, source.read_bytes(), mkdir=True)

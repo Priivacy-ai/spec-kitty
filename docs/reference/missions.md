@@ -376,6 +376,11 @@ Each `actions[]` entry supports:
 
 Validation rejects duplicate action names, unresolved `next` references, unreachable actions, cycles, terminal actions with successors, and branching `next` lists. Unknown workflow ids fail closed and list available workflow ids; they do not silently fall back to `software-dev-default`.
 
+When a workflow introduces a new software-dev action, make sure a matching command
+template such as `.kittify/overrides/command-templates/<action-name>.md` is
+available. Actions that reuse shipped names such as `specify`, `plan`, `tasks`,
+`implement`, `review`, `accept`, or `design-review` resolve to bundled templates.
+
 ### Workflow portability commands
 
 Use `spec-kitty workflow list` to see the workflow ids visible from the current project. Use `spec-kitty workflow export <workflow-id> <path>` to copy the resolved workflow YAML to a portable file, preserving project override precedence. Use `spec-kitty workflow import <path>` to validate a workflow file and copy it into `.kittify/overrides/workflows/<workflow-id>.yaml`. Both import and export refuse to overwrite existing files unless `--force` is supplied.
