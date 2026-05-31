@@ -106,6 +106,15 @@ def _is_fence_close(line: str, fence_marker: str, fence_length: int) -> bool:
     return re.match(close_pattern, line) is not None
 
 
+def _has_fence_close(lines: list[str], start_index: int, fence_marker: str, fence_length: int) -> bool:
+    """Return whether the active Markdown fence closes after ``start_index``."""
+
+    return any(
+        _is_fence_close(line, fence_marker, fence_length)
+        for line in lines[start_index:]
+    )
+
+
 def _find_next_section_start(body: str) -> int | None:
     """Return the offset of the next level-two heading outside code fences."""
 
@@ -113,7 +122,8 @@ def _find_next_section_start(body: str) -> int | None:
     fence_length = 0
     offset = 0
 
-    for line in body.splitlines(keepends=True):
+    lines = body.splitlines(keepends=True)
+    for index, line in enumerate(lines):
         if fence_marker is not None:
             if _is_fence_close(line, fence_marker, fence_length):
                 fence_marker = None
@@ -126,6 +136,8 @@ def _find_next_section_start(body: str) -> int | None:
             if fence_match is not None:
                 fence_marker = fence_match.group(1)[0]
                 fence_length = len(fence_match.group(1))
+                if not _has_fence_close(lines, index + 1, fence_marker, fence_length):
+                    return offset
 
         offset += len(line)
 

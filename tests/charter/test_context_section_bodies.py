@@ -123,6 +123,29 @@ _CHARTER_WITH_FENCED_SECTION_HEADING_EXAMPLE = textwrap.dedent(
 )
 
 
+_CHARTER_WITH_UNBALANCED_FENCE = textwrap.dedent(
+    """\
+    # Project Charter
+
+    ## Terminology Canon
+
+    - canonical term is **Mission**.
+
+    ## Regression Vigilance
+
+    Preserve cleanup instructions around command examples:
+
+    ```bash
+    ## STEP 1
+    spec-kitty glossary scan
+
+    ## Code Review Checklist
+
+    - This is the next section and must not be swallowed by Regression Vigilance.
+    """
+)
+
+
 def _rendered_section_body(rendered: str, heading: str) -> str:
     section_start = rendered.index(f"### {heading}")
     body_start = rendered.index("\n", section_start) + 1
@@ -168,6 +191,19 @@ class TestVerbatimBodies:
         assert "This is example text" not in body
         assert "canonical term is **Mission**" not in body
         assert "check terminology alignment" not in body
+
+    def test_unbalanced_fence_does_not_swallow_following_sections(self) -> None:
+        result = render_critical_section_bodies(
+            _CHARTER_WITH_UNBALANCED_FENCE, action="implement"
+        )
+
+        body = _rendered_section_body(result, "Regression Vigilance")
+
+        assert "Preserve cleanup instructions" in body
+        assert "```bash" not in body
+        assert "## STEP 1" not in body
+        assert "This is the next section" not in body
+        assert result.count("  Run: spec-kitty charter context --include") == 3
 
 
 class TestMissingSectionFetchStanza:
