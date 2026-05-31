@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import shutil
 from collections.abc import Mapping
 from pathlib import Path
@@ -21,6 +22,15 @@ from specify_cli.mission_step_contracts.executor import (
 
 
 pytestmark = pytest.mark.fast
+
+
+def test_charter_mission_steps_facade_reexports_step_inputs() -> None:
+    """The runtime-facing facade exposes the doctrine input model by identity."""
+    from doctrine.mission_step_contracts.models import MissionStepInput
+
+    facade = importlib.reload(importlib.import_module("charter.mission_steps"))
+
+    assert facade.MissionStepInput is MissionStepInput
 
 
 def _write_yaml(path: Path, data: Mapping[str, object]) -> None:
@@ -294,6 +304,72 @@ def test_command_step_inputs_are_rendered_into_runtime_request_text(tmp_path: Pa
                 "Step bootstrap: Load context",
                 "Declared command: spec-kitty charter context --action composer --json [--profile {wp.agent_profile}] [--tool {env.agent_tool}]",
                 "Command status: declared only; the host/operator owns execution.",
+            ]
+        )
+    ]
+
+
+def test_input_only_step_renders_required_inputs_into_runtime_request_text(
+    tmp_path: Path,
+) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    _write_project_graph(repo_root)
+
+    contract = {
+        "schema_version": "1.0",
+        "id": "input-only-contract",
+        "mission": "fixture",
+        "action": "composer",
+        "steps": [
+            {
+                "id": "collect",
+                "description": "Collect required context",
+                "inputs": [
+                    {
+                        "flag": "--profile",
+                        "source": "wp.agent_profile",
+                    },
+                ],
+            }
+        ],
+    }
+    built_in_dir = tmp_path / "contracts"
+    _write_yaml(built_in_dir / "input-only.step-contract.yaml", contract)
+
+    class FakeInvocationExecutor:
+        def __init__(self) -> None:
+            self.request_texts: list[str] = []
+
+        def invoke(self, request_text: str, **_kwargs: object) -> object:
+            self.request_texts.append(request_text)
+            return SimpleNamespace(invocation_id="inv-1")
+
+        def complete_invocation(self, _invocation_id: str, *, outcome: str) -> None:
+            assert outcome == "done"
+
+    fake_invocations = FakeInvocationExecutor()
+    result = StepContractExecutor(
+        repo_root=repo_root,
+        contract_repository=MissionStepContractRepository(built_in_dir=built_in_dir),
+        invocation_executor=fake_invocations,  # type: ignore[arg-type]
+    ).execute(
+        StepContractExecutionContext(
+            repo_root=repo_root,
+            mission="fixture",
+            action="composer",
+            actor="pytest",
+            profile_hint="implementer-fixture",
+        )
+    )
+
+    assert result.steps[0].inputs[0].optional is False
+    assert fake_invocations.request_texts == [
+        "\n".join(
+            [
+                "Execute mission step contract input-only-contract (fixture/composer).",
+                "Step collect: Collect required context",
+                "Declared step inputs: --profile {wp.agent_profile}",
             ]
         )
     ]
