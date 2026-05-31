@@ -78,7 +78,6 @@ __all__ = [
     "OrgDRGConflictError",
     "OrgDRGFragment",
     "OrgPackMissingError",
-    "PackContext",
     "Relation",
     "ResolvedContext",
     "filter_graph_by_activation",
@@ -589,7 +588,22 @@ _SINGULAR_TO_PLURAL: dict[str, str] = {
     "paradigm": "paradigms",
     "procedure": "procedures",
     "agent_profile": "agent_profiles",
-    "mission_step_contract": "mission_steps",
+    "mission_step_contract": "mission_step_contracts",
+}
+
+
+#: Per-kind ``PackContext`` field names for per-artifact-ID gate (FR-038, WP08).
+#: Maps a singular URN kind prefix to the corresponding ``PackContext`` attribute
+#: that holds the three-state frozenset of activated artifact IDs.
+_SINGULAR_TO_PER_KIND_FIELD: dict[str, str] = {
+    "directive":             "activated_directives",
+    "tactic":                "activated_tactics",
+    "styleguide":            "activated_styleguides",
+    "toolguide":             "activated_toolguides",
+    "paradigm":              "activated_paradigms",
+    "procedure":             "activated_procedures",
+    "agent_profile":         "activated_agent_profiles",
+    "mission_step_contract": "activated_mission_step_contracts",
 }
 
 
@@ -636,8 +650,22 @@ def _owning_mission_type(urn: str) -> str | None:
     return head
 
 
-def _node_is_activated(node: DRGNode, pack_context: PackContext) -> bool:
-    """Return ``True`` when *node* is visible under the activation filter.
+def _node_is_activated(
+    node_kind: str,
+    artifact_id: str,
+    pack_context: PackContext,
+) -> bool:
+    """Return ``True`` when the artifact is visible under the activation filter.
+
+    Parameters
+    ----------
+    node_kind:
+        Singular URN kind prefix (e.g. ``"directive"``, ``"tactic"``).
+    artifact_id:
+        Identifier portion of the URN (the part after the first ``":"``).
+        An empty string (malformed URN) bypasses the per-artifact-ID gate.
+    pack_context:
+        Activation state from the project charter.
 
     Decision tree:
 
@@ -650,17 +678,38 @@ def _node_is_activated(node: DRGNode, pack_context: PackContext) -> bool:
        extension kind not yet in :data:`_SINGULAR_TO_PLURAL`) is allowed
        through so the filter never silently swallows new artifact kinds —
        the DRG schema validator is the gatekeeper for kind legality.
+    3. Per-artifact-ID gate (FR-038, WP08): after the kind-level check, the
+       per-kind ``PackContext`` frozenset is consulted. ``None`` (key absent
+       from config) means all IDs are allowed. ``frozenset()`` (explicit
+       empty list) blocks all IDs. A non-empty frozenset gates by ID.
+       An empty *artifact_id* (malformed URN) bypasses this gate
+       (default-allow).
     """
-    singular, _ = _split_urn(node.urn)
-    if singular in _MISSION_STEP_SINGULAR_KINDS:
-        owner = _owning_mission_type(node.urn)
+    # Step 1: mission-step contract kind check.
+    if node_kind in _MISSION_STEP_SINGULAR_KINDS:
+        # Reconstruct the URN to reuse _owning_mission_type which expects a full URN.
+        pseudo_urn = f"{node_kind}:{artifact_id}"
+        owner = _owning_mission_type(pseudo_urn)
         if owner is not None:
             return owner in pack_context.activated_mission_types
         # Fall through: ownerless step relies on kind filter.
-    plural = _SINGULAR_TO_PLURAL.get(singular)
+
+    # Step 2: kind-level gate.
+    plural = _SINGULAR_TO_PLURAL.get(node_kind)
     if plural is None:
         return True
-    return plural in pack_context.activated_kinds
+    if plural not in pack_context.activated_kinds:
+        return False
+
+    # Step 3: per-artifact-ID gate (FR-038, WP08).
+    per_kind_field = _SINGULAR_TO_PER_KIND_FIELD.get(node_kind)
+    if per_kind_field is not None:
+        per_kind_set = getattr(pack_context, per_kind_field, None)
+        # artifact_id="" (malformed URN) → bypass (default-allow)
+        if per_kind_set is not None and artifact_id and artifact_id not in per_kind_set:
+            return False
+
+    return True
 
 
 def filter_graph_by_activation(
@@ -687,7 +736,10 @@ def filter_graph_by_activation(
     Direct doctrine-API callers (``DoctrineService.<repo>.get(...)``,
     ``MissionTemplateRepository.get(...)``) are exempt.
     """
-    surviving_nodes = [n for n in graph.nodes if _node_is_activated(n, pack_context)]
+    surviving_nodes = [
+        n for n in graph.nodes
+        if _node_is_activated(*_split_urn(n.urn), pack_context)
+    ]
     surviving_urns = {n.urn for n in surviving_nodes}
     surviving_edges = [
         e

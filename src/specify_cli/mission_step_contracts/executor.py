@@ -11,9 +11,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from charter.pack_context import PackContext
 
 from charter._drg_helpers import load_validated_graph
-from charter.drg import ArtifactKind, DRGGraph, NodeKind, ResolvedContext, resolve_context
+from charter.drg import ArtifactKind, DRGGraph, NodeKind, ResolvedContext, filter_graph_by_activation, resolve_context
 from charter.mission_steps import (
     MissionStep,
     MissionStepContract,
@@ -168,6 +172,10 @@ class StepContractExecutor:
 
         profile_hint = self._resolve_profile_hint(context, selected_contract)
         graph = self._graph or load_validated_graph(context.repo_root)
+        # FR-031, FR-033 (WP08): apply activation filter before resolving context.
+        pack_context = self._resolve_pack_context(context.repo_root)
+        if pack_context is not None:
+            graph = filter_graph_by_activation(graph, pack_context)
         action_urn = f"action:{selected_contract.mission}/{selected_contract.action}"
         action_context = resolve_context(graph, action_urn, depth=context.resolution_depth)
 
@@ -238,6 +246,20 @@ class StepContractExecutor:
             "profile_hint is required when no action default exists for "
             f"{contract.mission}/{contract.action}"
         )
+
+    def _resolve_pack_context(self, repo_root: Path) -> PackContext | None:
+        """Construct a PackContext from project config for activation filtering.
+
+        FR-031, FR-033 (WP08): Obtain pack_context from project config so the
+        activation filter can narrow the DRG before context resolution.
+        Returns ``None`` on any error so the filter is always optional.
+        """
+        try:
+            from charter.pack_context import PackContext  # noqa: PLC0415
+
+            return PackContext.from_config(repo_root)
+        except Exception:  # noqa: BLE001 — defensive; activation filter is optional
+            return None
 
     def _resolve_step_delegations(
         self,

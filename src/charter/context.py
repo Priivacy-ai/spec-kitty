@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
+    from charter.pack_context import PackContext
     from charter.scope import CharterScope
 
 from ruamel.yaml import YAML
@@ -238,11 +239,15 @@ def build_charter_context(
                 effective_org_root = candidate
                 break
 
+    from charter.pack_context import PackContext as _PackContext  # noqa: PLC0415
+
+    _pack_ctx = _PackContext.from_config(repo_root)
     doctrine_bundle = _load_action_doctrine_bundle(
         repo_root=repo_root,
         action=normalized,
         effective_depth=state_bundle.effective_depth,
         org_root=effective_org_root,
+        pack_context=_pack_ctx,
     )
     charter_content = charter_path.read_text(encoding="utf-8")
     summary = _extract_policy_summary(charter_content)
@@ -686,9 +691,11 @@ def _load_action_doctrine_bundle(
     action: str,
     effective_depth: int,
     org_root: Path | None = None,
+    pack_context: PackContext | None = None,
 ) -> _ActionDoctrineBundle:
     """Load DRG-backed action doctrine artifacts for bootstrap rendering."""
     from charter._drg_helpers import load_validated_graph
+    from charter.drg import filter_graph_by_activation
     from doctrine.drg.loader import DRGLoadError
     from doctrine.drg.query import resolve_context
 
@@ -717,6 +724,9 @@ def _load_action_doctrine_bundle(
     toolguide_ids: list[str] = []
     try:
         merged = load_validated_graph(repo_root, org_root=org_root)
+        # FR-032, FR-035 (WP08): apply activation filter before resolving context.
+        if pack_context is not None:
+            merged = filter_graph_by_activation(merged, pack_context)
         action_urn = f"action:{mission}/{action}"
         resolved = resolve_context(merged, action_urn, depth=effective_depth)
         directive_ids, tactic_ids, styleguide_ids, toolguide_ids = _classify_artifact_urns(
@@ -2850,11 +2860,15 @@ def build_charter_context_json(
     if state_bundle.effective_depth < _MIN_EFFECTIVE_DEPTH:
         return payload
 
+    from charter.pack_context import PackContext as _PackContext  # noqa: PLC0415
+
+    _pack_ctx_json = _PackContext.from_config(repo_root)
     bundle = _load_action_doctrine_bundle(
         repo_root=repo_root,
         action=normalized,
         effective_depth=state_bundle.effective_depth,
         org_root=org_root,
+        pack_context=_pack_ctx_json,
     )
     service = bundle.service
     payload["directives"] = _collect_typed_artifacts(service.directives, bundle.directive_ids)  # type: ignore[attr-defined]
