@@ -21,13 +21,21 @@ Each ``InterviewSectionMapping`` entry describes one interview section and the
 artifact kinds it drives. The ``requires_nonempty`` flag gates target emission
 on a non-empty, non-whitespace answer for that section.
 
+Producer key aliases
+--------------------
+The synthesis labels in ``INTERVIEW_MAPPINGS`` are legacy artifact-topic names.
+The real ``CharterInterview.answers`` producer uses newer question keys. The
+``_INTERVIEW_SECTION_ALIASES`` table is the explicit compatibility contract:
+when a synthesis label is absent, resolver reads the producer alias before
+deciding a required section is blank.
+
 Special-case sections
 ---------------------
 - ``selected_directives``: each selected directive URN drives a distinct tactic
   artifact (``how-we-apply-<directive-id>``) for each item in the selection
   list. Handled by ``resolve_sections()`` using a per-item expansion.
-- ``language_scope``: each selected language drives a distinct styleguide
-  artifact (``<lang>-style-guide``). Handled by per-item expansion.
+- ``language_scope``: each selected or declared language drives a distinct
+  styleguide artifact (``<lang>-style-guide``). Handled by per-item expansion.
 
 These expansions are intentionally kept inside ``resolve_sections()`` rather
 than inside the table so the table remains declarative and inspectable.
@@ -37,6 +45,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any, Literal
+
+from charter.language_scope import extract_declared_languages
 
 __all__ = [
     "resolve_sections",
@@ -123,6 +133,23 @@ INTERVIEW_MAPPINGS: tuple[InterviewSectionMapping, ...] = (
     ),
 )
 
+# Real interview producer keys that feed legacy synthesis section labels.
+_INTERVIEW_SECTION_ALIASES: dict[str, tuple[str, ...]] = {
+    "testing_philosophy": ("testing_requirements",),
+    "risk_appetite": ("risk_boundaries",),
+    "language_scope": ("languages_frameworks",),
+}
+
+# Gated sections without a direct producer key. These remain accepted for
+# legacy/synthetic synthesis snapshots and are documented so contract tests do
+# not silently bless missing real interview data.
+_SYNTHETIC_SECTIONS: dict[str, str] = {
+    "neutrality_posture": (
+        "Legacy synthesis topic with no current CharterInterview producer key; "
+        "accepted only when callers provide it explicitly."
+    ),
+}
+
 # Interview sections that receive special per-item expansion in resolve_sections().
 # These are NOT rows in INTERVIEW_MAPPINGS because each item in the list drives
 # a distinct artifact, not a single fixed artifact per section.
@@ -139,15 +166,28 @@ _EXPANDED_SECTIONS: frozenset[str] = frozenset(
 # ---------------------------------------------------------------------------
 
 
-def _section_answer(snapshot: dict[str, Any], section_label: str) -> str:
-    """Extract a scalar answer string from the interview snapshot.
+def _section_answer_with_source(
+    snapshot: dict[str, Any],
+    section_label: str,
+) -> tuple[str, str]:
+    """Extract a scalar answer string and the key it came from.
 
-    Returns an empty string when the section is absent or not a string.
+    Returns ("", section_label) when the section and aliases are absent or not
+    strings. The canonical section takes precedence over aliases.
     """
-    value = snapshot.get(section_label, "")
-    if isinstance(value, str):
-        return value.strip()
-    return ""
+    for key in (section_label, *_INTERVIEW_SECTION_ALIASES.get(section_label, ())):
+        value = snapshot.get(key, "")
+        if isinstance(value, str):
+            answer = value.strip()
+            if answer:
+                return answer, key
+    return "", section_label
+
+
+def _section_answer(snapshot: dict[str, Any], section_label: str) -> str:
+    """Extract a scalar answer string from the interview snapshot."""
+    answer, _source_key = _section_answer_with_source(snapshot, section_label)
+    return answer
 
 
 def _section_is_nonempty(snapshot: dict[str, Any], section_label: str) -> bool:
@@ -162,7 +202,7 @@ def _append_table_driven_results(
     """Append the standard fixed-cardinality section mappings."""
     for mapping in INTERVIEW_MAPPINGS:
         label = mapping.section_label
-        answer = _section_answer(interview_snapshot, label)
+        answer, source_key = _section_answer_with_source(interview_snapshot, label)
 
         if mapping.requires_nonempty and not answer:
             continue
@@ -174,6 +214,7 @@ def _append_table_driven_results(
                     "answer": answer,
                     "kinds": list(mapping.kinds),
                     "source_section": label,
+                    "answer_source": source_key,
                 },
             )
         )
@@ -220,7 +261,18 @@ def _append_language_scope_results(
     interview_snapshot: dict[str, Any],
 ) -> None:
     """Append one styleguide entry per declared language."""
-    for language in _iter_clean_strings(interview_snapshot.get("language_scope", [])):
+    source_key = "language_scope"
+    languages = _iter_clean_strings(interview_snapshot.get("language_scope", []))
+    if not languages:
+        raw_alias = interview_snapshot.get("languages_frameworks", "")
+        source_key = "languages_frameworks"
+        languages = (
+            tuple(extract_declared_languages(raw_alias))
+            if isinstance(raw_alias, str)
+            else _iter_clean_strings(raw_alias)
+        )
+
+    for language in languages:
         normalized_language = language.lower()
         results.append(
             (
@@ -229,6 +281,7 @@ def _append_language_scope_results(
                     "answer": normalized_language,
                     "kinds": ["styleguide"],
                     "source_section": "language_scope",
+                    "answer_source": source_key,
                     "language": normalized_language,
                 },
             )
