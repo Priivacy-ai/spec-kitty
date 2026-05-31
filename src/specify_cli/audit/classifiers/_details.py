@@ -2,6 +2,16 @@
 
 from __future__ import annotations
 
+import re
+
+_POSIX_ABSOLUTE_PATH_RE = re.compile(r"(?<!\w)/(?:[^\s'\"<>:]+/)*[^\s'\"<>:]+")
+_WINDOWS_ABSOLUTE_PATH_RE = re.compile(
+    r"(?i)\b[A-Z]:\\(?:[^\\\s'\"<>:]+\\)*[^\\\s'\"<>:]+"
+)
+_WINDOWS_UNC_PATH_RE = re.compile(
+    r"\\\\[^\\\s'\"<>:]+\\[^\\\s'\"<>:]+(?:\\[^\\\s'\"<>:]+)*"
+)
+
 
 def format_exception_detail(exc: Exception) -> str:
     """Return exception detail with OSError filename data removed."""
@@ -14,6 +24,8 @@ def _format_os_error_detail(exc: OSError) -> str:
     exc_type = type(exc).__name__
     errno = getattr(exc, "errno", None)
     strerror = getattr(exc, "strerror", None)
+    if strerror:
+        strerror = _sanitize_run_varying_paths(strerror)
 
     if errno is not None and strerror:
         return f"{exc_type}: [Errno {errno}] {strerror}"
@@ -21,3 +33,9 @@ def _format_os_error_detail(exc: OSError) -> str:
         return f"{exc_type}: {strerror}"
 
     return exc_type
+
+
+def _sanitize_run_varying_paths(text: str) -> str:
+    text = _WINDOWS_UNC_PATH_RE.sub("<path>", text)
+    text = _WINDOWS_ABSOLUTE_PATH_RE.sub("<path>", text)
+    return _POSIX_ABSOLUTE_PATH_RE.sub("<path>", text)

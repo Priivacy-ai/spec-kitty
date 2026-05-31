@@ -225,6 +225,31 @@ def test_status_events_read_oserror_without_errno_does_not_echo_message_path(
     _assert_no_absolute_path_leak(findings[0].detail, path)
 
 
+def test_status_events_read_oserror_strerror_path_is_redacted(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """OSError.strerror may be caller supplied and must not leak paths."""
+    path = tmp_path / "status.events.jsonl"
+    path.write_text("{}\n", encoding="utf-8")
+    original_read_text = Path.read_text
+
+    def raise_for_status_events(self: Path, *args: object, **kwargs: object) -> str:
+        if self == path:
+            raise OSError(5, f"failed reading {path}")
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", raise_for_status_events)
+
+    findings, flag = classify_status_events_jsonl(tmp_path)
+
+    assert flag is True
+    assert findings[0].detail == (
+        "could not read file: OSError: [Errno 5] failed reading <path>"
+    )
+    _assert_no_absolute_path_leak(findings[0].detail, path)
+
+
 def test_status_events_legacy_key(tmp_path: Path) -> None:
     """Event row with work_package_id → LEGACY_KEY finding."""
     row = {**_MODERN_EVENT, "work_package_id": "WP01"}
@@ -367,6 +392,32 @@ def test_status_json_reducer_oserror_detail_is_deterministic(
     assert drift[0].detail == (
         "reducer raised during drift check: FileNotFoundError: "
         "[Errno 2] No such file or directory"
+    )
+    _assert_no_absolute_path_leak(drift[0].detail, path)
+
+
+def test_status_json_reducer_oserror_strerror_path_is_redacted(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Reducer OSError.strerror paths must be redacted from drift findings."""
+    path = tmp_path / "status.events.jsonl"
+    (tmp_path / "status.json").write_text("{}", encoding="utf-8")
+
+    from specify_cli.status import reducer
+
+    def raise_reducer_oserror(mission_dir: Path) -> object:
+        assert mission_dir == tmp_path
+        raise OSError(None, f"failed reading {path}")
+
+    monkeypatch.setattr(reducer, "materialize_snapshot", raise_reducer_oserror)
+
+    findings = classify_status_json(tmp_path)
+
+    drift = [f for f in findings if f.code == "SNAPSHOT_DRIFT"]
+    assert len(drift) == 1
+    assert drift[0].detail == (
+        "reducer raised during drift check: OSError: failed reading <path>"
     )
     _assert_no_absolute_path_leak(drift[0].detail, path)
 
