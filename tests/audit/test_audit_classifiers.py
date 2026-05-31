@@ -6,10 +6,12 @@ Total: ≥ 25 test cases.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 import json
 from pathlib import Path
 
 
+from specify_cli.audit.classifiers._details import format_exception_detail
 from specify_cli.audit.classifiers.decisions_events import classify_decisions_events_jsonl
 from specify_cli.audit.classifiers.handoff_events import classify_handoff_events_jsonl
 from specify_cli.audit.classifiers.meta import classify_meta_json
@@ -28,6 +30,12 @@ from specify_cli.audit.models import Severity
 import pytest
 
 pytestmark = [pytest.mark.integration]
+
+
+def _assert_no_absolute_path_leak(detail: str | None, leaked_path: Path) -> None:
+    assert detail is not None
+    assert str(leaked_path) not in detail
+    assert leaked_path.name not in detail
 
 def _write_json(path: Path, data: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -49,6 +57,56 @@ def _write_corrupt_jsonl(path: Path, corrupt_line: str = "NOT JSON {{") -> None:
 
 def _codes(findings: list) -> list[str]:
     return [f.code for f in findings]
+
+
+def test_oserror_detail_preserves_non_path_message() -> None:
+    """Message-only OSError details without paths should not be erased."""
+    assert (
+        format_exception_detail(OSError("network share unavailable"))
+        == "OSError: network share unavailable"
+    )
+
+
+def test_oserror_detail_redacts_absolute_paths_with_spaces() -> None:
+    """OSError messages may carry POSIX, Windows, or UNC paths with spaces."""
+    cases = [
+        OSError("failed reading /tmp/My Project/secret.txt"),
+        OSError(5, "failed reading /tmp/My Project/secret.txt"),
+        OSError(5, r"failed reading C:\Users\Rob Douglass\secret.txt"),
+        OSError(5, r"failed reading \\server\My Share\secret.txt"),
+    ]
+
+    for exc in cases:
+        detail = format_exception_detail(exc)
+        assert detail.endswith("failed reading <path>")
+        assert "secret.txt" not in detail
+        assert "My Project" not in detail
+        assert "Rob Douglass" not in detail
+        assert "My Share" not in detail
+
+
+def test_oserror_detail_redacts_posix_edge_paths() -> None:
+    """POSIX absolute paths may be single-segment or contain colons."""
+    cases = [
+        OSError("failed reading /tmp"),
+        OSError("failed reading /secret.txt"),
+        OSError("failed reading /tmp/project:secret.txt"),
+    ]
+
+    for exc in cases:
+        detail = format_exception_detail(exc)
+        assert detail == "OSError: failed reading <path>"
+        assert "/tmp" not in detail
+        assert "/secret.txt" not in detail
+        assert "project:secret.txt" not in detail
+
+
+def test_oserror_detail_does_not_redact_non_path_slashes_or_urls() -> None:
+    """Slash commands and URLs are stable messages, not local path evidence."""
+    assert (
+        format_exception_detail(OSError("open /help or https://example.com/path/file"))
+        == "OSError: open /help or https://example.com/path/file"
+    )
 
 
 # Minimal valid ULID
@@ -169,6 +227,81 @@ def test_status_events_corrupt_line(tmp_path: Path) -> None:
     assert flag is True
 
 
+def test_status_events_read_oserror_detail_is_deterministic(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unreadable status.events.jsonl must not leak absolute paths."""
+    path = tmp_path / "status.events.jsonl"
+    path.write_text("{}\n", encoding="utf-8")
+    original_read_text = Path.read_text
+
+    def raise_for_status_events(self: Path, *args: object, **kwargs: object) -> str:
+        if self == path:
+            raise PermissionError(13, "Permission denied", str(path))
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", raise_for_status_events)
+
+    findings, flag = classify_status_events_jsonl(tmp_path)
+
+    assert flag is True
+    assert len(findings) == 1
+    assert findings[0].code == "CORRUPT_JSONL"
+    assert findings[0].detail == (
+        "could not read file: PermissionError: [Errno 13] Permission denied"
+    )
+    _assert_no_absolute_path_leak(findings[0].detail, path)
+
+
+def test_status_events_read_oserror_without_errno_does_not_echo_message_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """OSError args without errno may include paths and must not be copied."""
+    path = tmp_path / "status.events.jsonl"
+    path.write_text("{}\n", encoding="utf-8")
+    original_read_text = Path.read_text
+
+    def raise_for_status_events(self: Path, *args: object, **kwargs: object) -> str:
+        if self == path:
+            raise OSError(f"failed reading {path}")
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", raise_for_status_events)
+
+    findings, flag = classify_status_events_jsonl(tmp_path)
+
+    assert flag is True
+    assert findings[0].detail == "could not read file: OSError: failed reading <path>"
+    _assert_no_absolute_path_leak(findings[0].detail, path)
+
+
+def test_status_events_read_oserror_strerror_path_is_redacted(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """OSError.strerror may be caller supplied and must not leak paths."""
+    path = tmp_path / "status.events.jsonl"
+    path.write_text("{}\n", encoding="utf-8")
+    original_read_text = Path.read_text
+
+    def raise_for_status_events(self: Path, *args: object, **kwargs: object) -> str:
+        if self == path:
+            raise OSError(5, f"failed reading {path}")
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", raise_for_status_events)
+
+    findings, flag = classify_status_events_jsonl(tmp_path)
+
+    assert flag is True
+    assert findings[0].detail == (
+        "could not read file: OSError: [Errno 5] failed reading <path>"
+    )
+    _assert_no_absolute_path_leak(findings[0].detail, path)
+
+
 def test_status_events_legacy_key(tmp_path: Path) -> None:
     """Event row with work_package_id → LEGACY_KEY finding."""
     row = {**_MODERN_EVENT, "work_package_id": "WP01"}
@@ -234,6 +367,32 @@ def test_status_json_corrupt_json(tmp_path: Path) -> None:
     assert "CORRUPT_JSON" in _codes(findings)
 
 
+def test_status_json_read_oserror_detail_is_deterministic(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unreadable status.json must not raise or leak absolute paths."""
+    path = tmp_path / "status.json"
+    path.write_text("{}", encoding="utf-8")
+    original_read_text = Path.read_text
+
+    def raise_for_status_json(self: Path, *args: object, **kwargs: object) -> str:
+        if self == path:
+            raise PermissionError(13, "Permission denied", str(path))
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", raise_for_status_json)
+
+    findings = classify_status_json(tmp_path)
+
+    assert len(findings) == 1
+    assert findings[0].code == "CORRUPT_JSON"
+    assert findings[0].detail == (
+        "could not read file: PermissionError: [Errno 13] Permission denied"
+    )
+    _assert_no_absolute_path_leak(findings[0].detail, path)
+
+
 def test_status_json_skip_drift_true(tmp_path: Path) -> None:
     """skip_drift=True → no SNAPSHOT_DRIFT even with mismatched content."""
     # Write a status.json with content that would normally cause drift
@@ -260,6 +419,59 @@ def test_snapshot_drift_detected(tmp_path: Path) -> None:
     drift = [f for f in findings if f.code == "SNAPSHOT_DRIFT"]
     assert len(drift) >= 1
     assert drift[0].severity == Severity.ERROR
+
+
+def test_status_json_reducer_oserror_detail_is_deterministic(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Reducer OSError details must not leak absolute paths into findings."""
+    path = tmp_path / "status.events.jsonl"
+    (tmp_path / "status.json").write_text("{}", encoding="utf-8")
+
+    from specify_cli.status import reducer
+
+    def raise_reducer_oserror(mission_dir: Path) -> object:
+        assert mission_dir == tmp_path
+        raise FileNotFoundError(2, "No such file or directory", str(path))
+
+    monkeypatch.setattr(reducer, "materialize_snapshot", raise_reducer_oserror)
+
+    findings = classify_status_json(tmp_path)
+
+    drift = [f for f in findings if f.code == "SNAPSHOT_DRIFT"]
+    assert len(drift) == 1
+    assert drift[0].detail == (
+        "reducer raised during drift check: FileNotFoundError: "
+        "[Errno 2] No such file or directory"
+    )
+    _assert_no_absolute_path_leak(drift[0].detail, path)
+
+
+def test_status_json_reducer_oserror_strerror_path_is_redacted(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Reducer OSError.strerror paths must be redacted from drift findings."""
+    path = tmp_path / "status.events.jsonl"
+    (tmp_path / "status.json").write_text("{}", encoding="utf-8")
+
+    from specify_cli.status import reducer
+
+    def raise_reducer_oserror(mission_dir: Path) -> object:
+        assert mission_dir == tmp_path
+        raise OSError(None, f"failed reading {path}")
+
+    monkeypatch.setattr(reducer, "materialize_snapshot", raise_reducer_oserror)
+
+    findings = classify_status_json(tmp_path)
+
+    drift = [f for f in findings if f.code == "SNAPSHOT_DRIFT"]
+    assert len(drift) == 1
+    assert drift[0].detail == (
+        "reducer raised during drift check: OSError: failed reading <path>"
+    )
+    _assert_no_absolute_path_leak(drift[0].detail, path)
 
 
 def test_status_json_retrospective_materialized_snapshot_is_not_drift(
@@ -324,6 +536,68 @@ def test_mission_events_corrupt(tmp_path: Path) -> None:
     _write_corrupt_jsonl(tmp_path / "mission-events.jsonl")
     findings = classify_mission_events_jsonl(tmp_path)
     assert "CORRUPT_JSONL" in _codes(findings)
+
+
+def test_mission_events_read_oserror_detail_is_deterministic(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unreadable mission-events.jsonl must not leak absolute paths."""
+    path = tmp_path / "mission-events.jsonl"
+    path.write_text("{}\n", encoding="utf-8")
+    original_read_text = Path.read_text
+
+    def raise_for_mission_events(self: Path, *args: object, **kwargs: object) -> str:
+        if self == path:
+            raise PermissionError(13, "Permission denied", str(path))
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", raise_for_mission_events)
+
+    findings = classify_mission_events_jsonl(tmp_path)
+
+    assert len(findings) == 1
+    assert findings[0].code == "CORRUPT_JSONL"
+    assert findings[0].detail == (
+        "could not read file: PermissionError: [Errno 13] Permission denied"
+    )
+    _assert_no_absolute_path_leak(findings[0].detail, path)
+
+
+@pytest.mark.parametrize(
+    ("relative_path", "classifier"),
+    [
+        (Path("decisions/events.jsonl"), classify_decisions_events_jsonl),
+        (Path("handoff/events.jsonl"), classify_handoff_events_jsonl),
+    ],
+)
+def test_shared_jsonl_classifiers_read_oserror_detail_is_deterministic(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    relative_path: Path,
+    classifier: Callable[[Path], list],
+) -> None:
+    """Shared JSONL classifiers must sanitize OSError details."""
+    path = tmp_path / relative_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("{}\n", encoding="utf-8")
+    original_read_text = Path.read_text
+
+    def raise_for_shared_jsonl(self: Path, *args: object, **kwargs: object) -> str:
+        if self == path:
+            raise PermissionError(13, "Permission denied", str(path))
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", raise_for_shared_jsonl)
+
+    findings = classifier(tmp_path)
+
+    assert len(findings) == 1
+    assert findings[0].code == "CORRUPT_JSONL"
+    assert findings[0].detail == (
+        "could not read file: PermissionError: [Errno 13] Permission denied"
+    )
+    _assert_no_absolute_path_leak(findings[0].detail, path)
 
 
 def test_mission_events_legacy_key(tmp_path: Path) -> None:
