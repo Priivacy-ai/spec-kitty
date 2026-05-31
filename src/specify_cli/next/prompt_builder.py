@@ -3,19 +3,16 @@
 Independent from ``workflow.py``.  Generates prompt text for each action type,
 writes it to a temp file, and returns ``(prompt_text, prompt_file_path)``.
 
-WP11 addition: ``_cached_workflow_for``
+WP11 addition: ``_workflow_for``
 -----------------------------------------
-Slice F WP11 adds a per-process cached workflow lookup so the workflow YAML
-is loaded at most once per mission directory per process.  This satisfies the
-NFR-001 byte-stability contract: missions without ``workflow_id`` in
+Slice F WP11 adds a workflow lookup helper. This satisfies the NFR-001
+byte-stability contract: missions without ``workflow_id`` in
 ``meta.json`` always get the ``software-dev-default`` workflow (permanent
-default per NEW-2 resolution).  The cache is keyed by the stringified mission
-directory path; ``functools.lru_cache`` provides the implicit storage.
+default per NEW-2 resolution).
 """
 
 from __future__ import annotations
 
-import functools
 import subprocess
 import tempfile
 from pathlib import Path
@@ -35,22 +32,17 @@ from specify_cli.workspace.context import resolve_workspace_for_wp
 
 
 # ---------------------------------------------------------------------------
-# Workflow lookup cache (Slice F WP11, FR-013 / NFR-001)
+# Workflow lookup (Slice F WP11, FR-013 / NFR-001)
 # ---------------------------------------------------------------------------
 
 
-@functools.lru_cache(maxsize=128)
-def _cached_workflow_for(mission_dir_str: str):
-    """Return the ``WorkflowSequence`` for *mission_dir_str* (cached per process).
-
-    The cache is keyed by the stringified mission directory path.  For
-    long-lived processes, the cache is invalidated by restarting the CLI;
-    operators who swap ``workflow_id`` mid-session should restart.  This is
-    documented and acceptable for the NEW-2 permanent-default use case where
-    workflow ids are stable across a mission's lifetime.
+def _workflow_for(mission_dir_str: str):
+    """Return the ``WorkflowSequence`` for *mission_dir_str*.
 
     Uses ``_resolve_workflow_for_mission`` from ``planner`` so the resolver
     logic is co-located with the DAG-based runtime engine and not duplicated.
+    Project-authored workflow files are mutable, so this helper intentionally
+    performs a fresh load.
     """
     from specify_cli.next._internal_runtime.planner import _resolve_workflow_for_mission
 

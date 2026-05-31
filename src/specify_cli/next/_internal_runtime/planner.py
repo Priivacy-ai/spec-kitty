@@ -9,9 +9,9 @@ internal ``plan_next`` (DAG engine, used by ``engine.py`` and
 
 * ``_resolve_workflow_for_mission(mission_dir)`` — reads ``meta.json``,
   extracts ``workflow_id``, and returns the validated ``WorkflowSequence``
-  (defaulting to ``software-dev-default`` when ``workflow_id`` is absent).
-  Unknown ids propagate ``UnknownWorkflowError`` — no silent fallback
-  (FR-015 binding).
+  from project overrides or shipped defaults (defaulting to
+  ``software-dev-default`` when ``workflow_id`` is absent). Unknown ids
+  propagate ``UnknownWorkflowError`` — no silent fallback (FR-015 binding).
 * ``PlanResult`` — lightweight dataclass returned by
   ``resolve_next_workflow_action``.
 * ``resolve_next_workflow_action(mission_dir, current_action)`` — looks up the
@@ -57,7 +57,7 @@ from specify_cli.next._internal_runtime.workflow_schema import ActionStep, Workf
 # _resolve_workflow_for_mission, resolve_next_workflow_action) are intentionally
 # kept as non-exported symbols so the symbol-level dead-code gate does not
 # require them to have callers in other src/ files.  They are exercised by
-# integration tests and by prompt_builder._cached_workflow_for (which calls
+# integration tests and by prompt_builder._workflow_for (which calls
 # _resolve_workflow_for_mission directly).
 
 
@@ -102,14 +102,26 @@ def _resolve_workflow_for_mission(mission_dir: Path) -> WorkflowSequence:
         resolved by the registry.  FR-015 binding: no silent fallback.
     """
     meta_path = mission_dir / "meta.json"
+    project_root = _infer_project_root(mission_dir)
     if not meta_path.exists():
-        return get_workflow("software-dev-default")
+        return get_workflow("software-dev-default", project_root=project_root)
     meta: dict[str, Any] = json.loads(meta_path.read_text(encoding="utf-8"))
     workflow_id: str | None = meta.get("workflow_id")
     if workflow_id is None:
-        return get_workflow("software-dev-default")
+        return get_workflow("software-dev-default", project_root=project_root)
     # Unknown ids propagate UnknownWorkflowError — no silent fallback (FR-015).
-    return get_workflow(workflow_id)
+    return get_workflow(workflow_id, project_root=project_root)
+
+
+def _infer_project_root(mission_dir: Path) -> Path | None:
+    """Infer the project root that owns *mission_dir* for `.kittify` lookup."""
+    current = mission_dir.resolve()
+    for candidate in (current, *current.parents):
+        if (candidate / ".kittify").exists():
+            return candidate
+        if candidate.name == "kitty-specs":
+            return candidate.parent
+    return None
 
 
 def resolve_next_workflow_action(
@@ -141,7 +153,7 @@ def resolve_next_workflow_action(
     by_name: dict[str, ActionStep] = {a.action_name: a for a in workflow.actions}
     action: ActionStep | None = by_name.get(current_action)
     if action is None:
-        available_workflows = list_available_workflows()
+        available_workflows = list_available_workflows(project_root=_infer_project_root(mission_dir))
         raise ValueError(
             f"action {current_action!r} not in workflow {workflow.workflow_id!r}. "
             f"Available actions: {sorted(by_name)}. "

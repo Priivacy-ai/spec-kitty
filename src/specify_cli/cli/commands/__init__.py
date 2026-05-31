@@ -80,6 +80,7 @@ def register_commands(app: typer.Typer) -> None:
     from . import validate_encoding as validate_encoding_module
     from . import validate_tasks as validate_tasks_module
     from . import verify as verify_module
+    from . import workflow as workflow_module
     from specify_cli import orchestrator_api as orchestrator_api_module
     from specify_cli.saas.rollout import is_saas_sync_enabled
 
@@ -125,6 +126,7 @@ def register_commands(app: typer.Typer) -> None:
     app.command(name="validate-encoding")(validate_encoding_module.validate_encoding)
     app.command(name="validate-tasks")(validate_tasks_module.validate_tasks)
     app.command()(verify_module.verify_setup)
+    app.add_typer(workflow_module.app, name="workflow", help="Manage mission workflow definitions")
     app.add_typer(profiles_cmd_module.app, name="profiles")
     app.command(name="advise", help="Get governance context for a request (opens an invocation record).")(advise_module.advise)
     app.command(name="ask", help="Invoke a named profile directly.")(advise_module.ask)

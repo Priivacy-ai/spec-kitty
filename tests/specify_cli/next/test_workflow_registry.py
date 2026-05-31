@@ -7,6 +7,8 @@ ATDD anchors
 """
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 
@@ -42,6 +44,198 @@ def test_get_workflow_loads_fixture_workflow():
     wf = get_workflow("our-team-design-first")
     action_names = [a.action_name for a in wf.actions]
     assert "design-review" in action_names
+
+
+def test_get_workflow_loads_project_override_yaml(tmp_path: Path):
+    from specify_cli.next._internal_runtime.workflow_registry import get_workflow
+
+    workflow_dir = tmp_path / ".kittify" / "overrides" / "workflows"
+    workflow_dir.mkdir(parents=True)
+    (workflow_dir / "github-pr.yaml").write_text(
+        """
+workflow_id: github-pr
+description: Project-authored GitHub PR workflow.
+version: 1
+initial: specify
+integrations:
+  vcs:
+    provider: github_pr
+    target_branch: main
+actions:
+  - action_name: specify
+    description: Create a mission specification
+    next: [submit]
+  - action_name: submit
+    description: Open a pull request
+    integration: vcs.open_pr
+    next: [accept]
+  - action_name: accept
+    description: Accept the merged mission
+    terminal: true
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    get_workflow.cache_clear()
+    wf = get_workflow("github-pr", project_root=tmp_path)
+
+    assert wf.workflow_id == "github-pr"
+    assert wf.integrations["vcs"]["provider"] == "github_pr"
+    assert [a.action_name for a in wf.actions] == ["specify", "submit", "accept"]
+    assert wf.actions[1].integration == "vcs.open_pr"
+
+
+def test_project_override_precedes_builtin_workflow(tmp_path: Path):
+    from specify_cli.next._internal_runtime.workflow_registry import get_workflow
+
+    workflow_dir = tmp_path / ".kittify" / "overrides" / "workflows"
+    workflow_dir.mkdir(parents=True)
+    (workflow_dir / "software-dev-default.workflow.yaml").write_text(
+        """
+workflow_id: software-dev-default
+description: Project-specific default override.
+version: 1
+initial: specify
+actions:
+  - action_name: specify
+    description: Create a mission specification
+    next: [accept]
+  - action_name: accept
+    description: Accept directly
+    terminal: true
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    get_workflow.cache_clear()
+    wf = get_workflow("software-dev-default", project_root=tmp_path)
+
+    assert [a.action_name for a in wf.actions] == ["specify", "accept"]
+
+
+def test_workflow_file_id_must_match_requested_slug(tmp_path: Path):
+    from specify_cli.next._internal_runtime.workflow_registry import (
+        UnknownWorkflowError,
+        get_workflow,
+    )
+
+    workflow_dir = tmp_path / ".kittify" / "overrides" / "workflows"
+    workflow_dir.mkdir(parents=True)
+    (workflow_dir / "github-pr.yaml").write_text(
+        """
+workflow_id: different-id
+description: Mismatched workflow identity.
+version: 1
+initial: specify
+actions:
+  - action_name: specify
+    description: Create a mission specification
+    terminal: true
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    get_workflow.cache_clear()
+    with pytest.raises(UnknownWorkflowError, match="declares workflow_id"):
+        get_workflow("github-pr", project_root=tmp_path)
+
+
+def test_project_workflow_reload_reflects_file_changes(tmp_path: Path):
+    from specify_cli.next._internal_runtime.workflow_registry import get_workflow
+
+    workflow_dir = tmp_path / ".kittify" / "overrides" / "workflows"
+    workflow_dir.mkdir(parents=True)
+    workflow_path = workflow_dir / "solo-fast.yaml"
+    workflow_path.write_text(
+        """
+workflow_id: solo-fast
+description: Mutable project workflow.
+version: 1
+initial: plan
+actions:
+  - action_name: plan
+    description: Plan next
+    next: [implement]
+  - action_name: implement
+    description: Implement
+    terminal: true
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    first = get_workflow("solo-fast", project_root=tmp_path)
+    workflow_path.write_text(
+        """
+workflow_id: solo-fast
+description: Mutable project workflow.
+version: 1
+initial: plan
+actions:
+  - action_name: plan
+    description: Plan next
+    next: [accept]
+  - action_name: accept
+    description: Accept
+    terminal: true
+""".lstrip(),
+        encoding="utf-8",
+    )
+    second = get_workflow("solo-fast", project_root=tmp_path)
+
+    assert first.actions[0].next == ["implement"]
+    assert second.actions[0].next == ["accept"]
+
+
+def test_list_available_workflows_omits_invalid_project_files(tmp_path: Path):
+    from specify_cli.next._internal_runtime.workflow_registry import list_available_workflows
+
+    workflow_dir = tmp_path / ".kittify" / "overrides" / "workflows"
+    workflow_dir.mkdir(parents=True)
+    (workflow_dir / "bad name.yaml").write_text(
+        """
+workflow_id: bad name
+description: Invalid slug.
+version: 1
+initial: specify
+actions:
+  - action_name: specify
+    description: Create a mission specification
+    terminal: true
+""".lstrip(),
+        encoding="utf-8",
+    )
+    (workflow_dir / "mismatch.yaml").write_text(
+        """
+workflow_id: different
+description: Mismatched file slug.
+version: 1
+initial: specify
+actions:
+  - action_name: specify
+    description: Create a mission specification
+    terminal: true
+""".lstrip(),
+        encoding="utf-8",
+    )
+    (workflow_dir / "valid.yaml").write_text(
+        """
+workflow_id: valid
+description: Valid project workflow.
+version: 1
+initial: specify
+actions:
+  - action_name: specify
+    description: Create a mission specification
+    terminal: true
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    available = list_available_workflows(project_root=tmp_path)
+
+    assert "valid" in available
+    assert "bad name" not in available
+    assert "mismatch" not in available
 
 
 def test_workflow_sequence_actions_form_dag():
@@ -187,6 +381,40 @@ def test_workflow_sequence_rejects_unreachable_action():
                     },
                     {
                         "action_name": "orphan",
+                        "description": "x",
+                        "terminal": True,
+                    },
+                ],
+            }
+        )
+
+
+def test_workflow_sequence_rejects_branching_next_actions():
+    """Issue #682 v1 workflows stay linear: one current action has one successor."""
+    import pydantic
+
+    from specify_cli.next._internal_runtime.workflow_schema import WorkflowSequence
+
+    with pytest.raises(pydantic.ValidationError, match="linear"):
+        WorkflowSequence.model_validate(
+            {
+                "workflow_id": "test",
+                "description": "x",
+                "version": 1,
+                "initial": "start",
+                "actions": [
+                    {
+                        "action_name": "start",
+                        "description": "x",
+                        "next": ["a", "b"],
+                    },
+                    {
+                        "action_name": "a",
+                        "description": "x",
+                        "terminal": True,
+                    },
+                    {
+                        "action_name": "b",
                         "description": "x",
                         "terminal": True,
                     },
