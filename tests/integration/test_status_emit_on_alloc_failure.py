@@ -29,6 +29,7 @@ pytestmark = pytest.mark.integration
 def _disable_status_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
     import specify_cli.status.emit as status_emit
 
+    monkeypatch.setenv("SPEC_KITTY_TEST_MODE", "1")
     monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
     monkeypatch.setattr(status_emit, "fire_dossier_sync", lambda *args, **kwargs: None)
 

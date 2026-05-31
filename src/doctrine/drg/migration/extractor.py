@@ -40,6 +40,39 @@ _KIND_MAP: dict[str, NodeKind] = {
 # Reference types that are NOT DRG node kinds (skipped during extraction).
 _SKIP_REF_TYPES: frozenset[str] = frozenset()
 
+_CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
+    (
+        "paradigm:specification-by-example",
+        "tactic:acceptance-test-first",
+        Relation.REQUIRES,
+    ),
+    (
+        "paradigm:specification-by-example",
+        "tactic:atdd-adversarial-acceptance",
+        Relation.REQUIRES,
+    ),
+    (
+        "paradigm:specification-by-example",
+        "tactic:usage-examples-sync",
+        Relation.REQUIRES,
+    ),
+    (
+        "directive:DIRECTIVE_040",
+        "tactic:five-paradigm-parallel-debugging",
+        Relation.REQUIRES,
+    ),
+    (
+        "directive:DIRECTIVE_037",
+        "tactic:usage-examples-sync",
+        Relation.REQUIRES,
+    ),
+    (
+        "directive:DIRECTIVE_001",
+        "tactic:paula-patterns-architecture-scout-review",
+        Relation.REQUIRES,
+    ),
+)
+
 
 def _ensure_node(
     nodes_by_urn: dict[str, DRGNode],
@@ -71,11 +104,49 @@ def _relation_for_ref_type(ref_type: str) -> Relation:
     return Relation.SUGGESTS
 
 
+def _relation_for_procedure_ref_type(ref_type: str) -> Relation:
+    """Map procedure references to relations.
+
+    Procedures orchestrate required operational artifacts. Template/style/tool
+    references remain advisory.
+    """
+    if ref_type in {"directive", "tactic", "procedure"}:
+        return Relation.REQUIRES
+    return Relation.SUGGESTS
+
+
 def _kind_for_type(ref_type: str) -> NodeKind | None:
     """Map a reference ``type`` string to a NodeKind, or ``None`` if skipped."""
     if ref_type in _SKIP_REF_TYPES:
         return None
     return _KIND_MAP.get(ref_type)
+
+
+def _add_ref_edge(
+    *,
+    nodes_by_urn: dict[str, DRGNode],
+    add_edge: Any,
+    source: str,
+    ref_type: str,
+    ref_id: str,
+    relation: Relation,
+    when: str | None = None,
+    reason: str | None = None,
+) -> None:
+    tgt_kind = _kind_for_type(ref_type)
+    if tgt_kind is None:
+        return
+    tgt_urn = artifact_to_urn(ref_type, ref_id)
+    _ensure_node(nodes_by_urn, tgt_urn, tgt_kind)
+    add_edge(
+        DRGEdge(
+            source=source,
+            target=tgt_urn,
+            relation=relation,
+            when=when,
+            reason=reason,
+        )
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -276,6 +347,22 @@ def extract_artifact_edges(  # noqa: C901
                     )
                 )
 
+            for ref in data.get("references", []) or []:
+                ref_type = ref.get("type", "")
+                ref_id = ref.get("id", "")
+                if not ref_type or not ref_id:
+                    continue
+                _add_ref_edge(
+                    nodes_by_urn=nodes_by_urn,
+                    add_edge=_add_edge,
+                    source=src_urn,
+                    ref_type=ref_type,
+                    ref_id=ref_id,
+                    relation=_relation_for_procedure_ref_type(ref_type),
+                    when=ref.get("when"),
+                    reason=ref.get("reason"),
+                )
+
     # --- Procedures ---
     procedures_dir = doctrine_root / "procedures" / "built-in"
     if procedures_dir.is_dir():
@@ -302,9 +389,54 @@ def extract_artifact_edges(  # noqa: C901
                     DRGEdge(
                         source=src_urn,
                         target=tgt_urn,
-                        relation=_relation_for_ref_type(ref_type),
+                        relation=_relation_for_procedure_ref_type(ref_type),
                     )
                 )
+
+    # --- Agent profiles ---
+    profiles_dir = doctrine_root / "agent_profiles" / "built-in"
+    if profiles_dir.is_dir():
+        for path in sorted(profiles_dir.glob("*.agent.yaml")):
+            data = _load_yaml(path)
+            if data is None:
+                continue
+            profile_id = data.get("profile-id", "")
+            if not profile_id:
+                continue
+            src_urn = artifact_to_urn("agent_profile", profile_id)
+            label = data.get("name", "")
+            _ensure_node(nodes_by_urn, src_urn, NodeKind.AGENT_PROFILE, label or None)
+
+            context_sources = data.get("context-sources", {}) or {}
+            for directive_id in context_sources.get("directives", []) or []:
+                _add_ref_edge(
+                    nodes_by_urn=nodes_by_urn,
+                    add_edge=_add_edge,
+                    source=src_urn,
+                    ref_type="directive",
+                    ref_id=str(directive_id),
+                    relation=Relation.REQUIRES,
+                )
+            for ref in data.get("tactic-references", []) or []:
+                ref_id = ref.get("id", "")
+                if not ref_id:
+                    continue
+                _add_ref_edge(
+                    nodes_by_urn=nodes_by_urn,
+                    add_edge=_add_edge,
+                    source=src_urn,
+                    ref_type="tactic",
+                    ref_id=ref_id,
+                    relation=Relation.REQUIRES,
+                    reason=ref.get("rationale"),
+                )
+
+    for source, target, relation in _CURATED_ARTIFACT_EDGES:
+        source_kind = source.split(":", 1)[0]
+        target_kind = target.split(":", 1)[0]
+        _ensure_node(nodes_by_urn, source, _KIND_MAP[source_kind])
+        _ensure_node(nodes_by_urn, target, _KIND_MAP[target_kind])
+        _add_edge(DRGEdge(source=source, target=target, relation=relation))
 
     return list(nodes_by_urn.values()), edges
 
@@ -352,6 +484,7 @@ def extract_action_edges(
             ("styleguides", "styleguide"),
             ("toolguides", "toolguide"),
             ("procedures", "procedure"),
+            ("agent_profiles", "agent_profile"),
         ]
 
         for field_name, kind in scope_fields:
@@ -390,16 +523,18 @@ def _discover_built_in_artifact_nodes(
         ("styleguides/built-in", "styleguide", NodeKind.STYLEGUIDE),
         ("toolguides/built-in", "toolguide", NodeKind.TOOLGUIDE),
         ("procedures/built-in", "procedure", NodeKind.PROCEDURE),
+        ("agent_profiles/built-in", "agent_profile", NodeKind.AGENT_PROFILE),
     ]
     for subdir, kind, node_kind in scan_dirs:
         built_in_dir = doctrine_root / subdir
         if not built_in_dir.is_dir():
             continue
-        for path in sorted(built_in_dir.glob(f"*.{kind}.yaml")):
+        glob = "*.agent.yaml" if kind == "agent_profile" else f"*.{kind}.yaml"
+        for path in sorted(built_in_dir.glob(glob)):
             data = _load_yaml(path)
             if data is None:
                 continue
-            artifact_id: str = data.get("id", "")
+            artifact_id: str = data.get("profile-id" if kind == "agent_profile" else "id", "")
             label: str = data.get("name", data.get("title", ""))
             if not artifact_id:
                 continue
@@ -520,6 +655,7 @@ def _write_graph_yaml(graph: DRGGraph, output_path: Path) -> None:
     yaml_writer = YAML()
     yaml_writer.default_flow_style = False
     yaml_writer.allow_unicode = True
+    yaml_writer.width = 4096
     # Sort keys at the top level for deterministic output
     with output_path.open("w") as fh:
         yaml_writer.dump(data, fh)
@@ -528,7 +664,7 @@ def _write_graph_yaml(graph: DRGGraph, output_path: Path) -> None:
 def _node_to_dict(node: DRGNode) -> dict[str, Any]:
     d: dict[str, Any] = {"urn": node.urn, "kind": node.kind.value}
     if node.label is not None:
-        d["label"] = node.label
+        d["label"] = node.label.strip()
     return d
 
 
@@ -539,7 +675,7 @@ def _edge_to_dict(edge: DRGEdge) -> dict[str, Any]:
         "relation": edge.relation.value,
     }
     if edge.when is not None:
-        d["when"] = edge.when
+        d["when"] = edge.when.strip()
     if edge.reason is not None:
-        d["reason"] = edge.reason
+        d["reason"] = edge.reason.strip()
     return d

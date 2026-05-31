@@ -37,7 +37,7 @@ pytestmark = [pytest.mark.architectural]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _PYPROJECT = _REPO_ROOT / "pyproject.toml"
-_CI_QUALITY = _REPO_ROOT / ".github" / "workflows" / "ci-quality.yml"
+_CI_QUALITY_WORKFLOW = _REPO_ROOT / ".github" / "workflows" / "ci-quality.yml"
 _SRC = _REPO_ROOT / "src"
 
 # Optional-dependency groups that are dev-only and may legitimately mention
@@ -91,13 +91,6 @@ def test_pyproject_optional_dep_groups_do_not_smuggle_runtime_into_production() 
         f"({sorted(_DEV_OPTIONAL_GROUPS)}) are permitted. Offenders:\n  "
         + "\n  ".join(offenders)
     )
-
-
-def test_ci_quality_does_not_install_retired_runtime() -> None:
-    """CI must not manually install the retired runtime into test jobs."""
-    workflow = _CI_QUALITY.read_text(encoding="utf-8")
-    assert "uv pip install spec-kitty-runtime" not in workflow
-    assert "pip install spec-kitty-runtime" not in workflow
 
 
 def test_cli_next_decision_imports_without_spec_kitty_runtime() -> None:
@@ -170,4 +163,16 @@ def test_cli_next_decision_imports_without_spec_kitty_runtime() -> None:
     )
     assert "OK" in result.stdout, (
         f"Sub-process did not print OK marker; stdout={result.stdout!r}"
+    )
+
+
+def test_ci_quality_does_not_install_retired_runtime_package() -> None:
+    """CI must not reinstall the retired runtime package after cutover."""
+    content = _CI_QUALITY_WORKFLOW.read_text(encoding="utf-8")
+    forbidden = "uv pip install spec-kitty-runtime"
+    assert forbidden not in content, (
+        ".github/workflows/ci-quality.yml installs spec-kitty-runtime even "
+        "though the standalone runtime package is retired. Remove the install; "
+        "the clean-install-verification job is the authoritative guard that "
+        "spec-kitty next works without spec-kitty-runtime."
     )

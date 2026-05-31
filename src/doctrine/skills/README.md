@@ -55,6 +55,7 @@ Skills should teach agents to load doctrine **iteratively**:
 | `spec-kitty-orchestrator-api-operator` | External automation via orchestrator-api |
 | `spec-kitty-bulk-edit-classification` | Detect bulk-edit intent and drive occurrence-map guardrail (DIRECTIVE_035) |
 | `debugger-debbie` | Dispatch five independent debugging paradigms for recurring bug classes that need structural intervention |
+| `paula-patterns` | Dispatch five architecture scouts and synthesize release-safe vs long-term architecture recommendations |
 
 ## Source Location
 

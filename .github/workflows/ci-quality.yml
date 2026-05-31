@@ -8,6 +8,7 @@ on:
       - 2.x
     paths:
       - 'src/**'
+      - '.kittify/doctrine/overlays/**'
       - 'tests/**'
       - 'pyproject.toml'
       - 'uv.lock'
@@ -25,6 +26,7 @@ on:
       - 2.x
     paths:
       - 'src/**'
+      - '.kittify/doctrine/overlays/**'
       - 'tests/**'
       - 'pyproject.toml'
       - 'uv.lock'
@@ -125,8 +127,10 @@ jobs:
               - '.github/workflows/check-spec-kitty-events-alignment.yml'
             status:
               - 'src/specify_cli/status/**'
+              - 'src/specify_cli/coordination/**'
               - 'tests/status/**'
               - 'tests/specify_cli/status/**'
+              - 'tests/specify_cli/coordination/**'
             review:
               - 'src/specify_cli/review/**'
               - 'tests/review/**'
@@ -191,6 +195,7 @@ jobs:
               - 'tests/kernel/**'
             doctrine:
               - 'src/doctrine/**'
+              - '.kittify/doctrine/overlays/**'
               - 'tests/doctrine/**'
 
   lint:
@@ -1516,9 +1521,10 @@ jobs:
         run: |
           uv run python -m pytest \
             -v \
-            tests/status/ tests/specify_cli/status/ \
+            tests/status/ tests/specify_cli/status/ tests/specify_cli/coordination/ \
             -m "not windows_ci and (git_repo or integration)" \
             --cov=src/specify_cli/status \
+            --cov=src/specify_cli/coordination \
             --cov-report=xml:out/reports/coverage/coverage-integration-status.xml \
             --junitxml=out/reports/xunit-reports/xunit-result-integration-status-${{ github.run_id }}.xml
 
