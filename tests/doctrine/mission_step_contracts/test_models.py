@@ -4,10 +4,10 @@ import pytest
 from pydantic import ValidationError
 
 from doctrine.artifact_kinds import ArtifactKind
-from doctrine.mission_step_contracts.models import (
+from doctrine.missions.step_contracts import (
     DelegatesTo,
-    MissionStep,
     MissionStepContract,
+    MissionStepContractStep as MissionStep,
 )
 
 pytestmark = pytest.mark.fast

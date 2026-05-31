@@ -227,7 +227,7 @@ List available profiles:
 spec-kitty agent profile list --json
 ```
 
-> If this command is unavailable, look for profiles under `src/doctrine/agent_profiles/shipped/` and any user-defined profiles in `.kittify/agent_profiles/` or equivalent.
+> If this command is unavailable, look for profiles under `src/doctrine/agent_profiles/built-in/` and any user-defined profiles in `.kittify/agent_profiles/` or equivalent.
 
 For each WP, select the best-matching profile based on `task_type`, `authoritative_surface`, `owned_files`, and subtask content. Then update the WP prompt file's frontmatter **in place** with:
 - `agent_profile`: the profile identifier (e.g., `"implementer-ivan"`, `"architect-alphonso"`, `"curator-carla"`)

@@ -27,7 +27,7 @@ For every in-scope step the function emits::
         action=step.id,
         mission=template.mission.key,
         steps=[
-            MissionStep(
+            MissionStepContractStep(
                 id=f"{step.id}.execute",
                 description=step.description or step.title or step.id,
             ),
@@ -35,11 +35,12 @@ For every in-scope step the function emits::
     )
 
 The actual :class:`MissionStepContract` schema (see
-``src/doctrine/mission_step_contracts/models.py``) requires ``id``,
+``src/doctrine/missions/step_contracts.py``) requires ``id``,
 ``schema_version``, ``action``, ``mission`` and a non-empty ``steps``
-list. The inner :class:`MissionStep` requires ``id`` and ``description``;
-``command``, ``delegates_to`` and ``guidance`` are intentionally left
-unset for v1 custom missions (no delegation, no inline command).
+list. The inner :class:`MissionStepContractStep` requires ``id`` and
+``description``; ``command``, ``delegates_to`` and ``guidance`` are
+intentionally left unset for v1 custom missions (no delegation, no
+inline command).
 
 Order is preserved: synthesized contracts appear in the same order as
 ``template.steps``.
@@ -47,7 +48,7 @@ Order is preserved: synthesized contracts appear in the same order as
 
 from __future__ import annotations
 
-from charter.mission_steps import MissionStep, MissionStepContract
+from charter.mission_steps import MissionStepContract, MissionStepContractStep
 
 from specify_cli.mission_loader.retrospective import RETROSPECTIVE_MARKER_ID
 from specify_cli.next._internal_runtime.schema import MissionTemplate, PromptStep
@@ -73,7 +74,7 @@ def _is_composed_step(step: PromptStep) -> bool:
 def _build_contract(template: MissionTemplate, step: PromptStep) -> MissionStepContract:
     """Build a single :class:`MissionStepContract` for ``step``."""
     description = step.description or step.title or step.id
-    inner_step = MissionStep(
+    inner_step = MissionStepContractStep(
         id=f"{step.id}.execute",
         description=description,
     )

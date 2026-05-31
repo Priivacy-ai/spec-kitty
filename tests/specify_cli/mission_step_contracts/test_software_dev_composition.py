@@ -28,7 +28,7 @@ from unittest.mock import patch
 
 import pytest
 
-from doctrine.mission_step_contracts.repository import MissionStepContractRepository
+from doctrine.missions.step_contracts import MissionStepContractRepository
 from specify_cli.invocation.writer import EVENTS_DIR
 from specify_cli.mission_step_contracts.executor import (
     _ACTION_PROFILE_DEFAULTS,
@@ -78,7 +78,7 @@ def test_tasks_contract_loads_from_repository() -> None:
     assert contract is not None, (
         "Expected MissionStepContractRepository to surface the new "
         "tasks.step-contract.yaml; ensure the file exists under "
-        "src/doctrine/mission_step_contracts/built-in/."
+        "src/doctrine/missions/built_in_step_contracts/."
     )
     assert contract.id == "tasks"
     assert contract.action == "tasks"
@@ -103,7 +103,7 @@ def test_all_five_software_dev_actions_have_shipped_contracts() -> None:
         contract = repo.get_by_action("software-dev", action)
         assert contract is not None, (
             f"Missing shipped contract for software-dev/{action}; expected a "
-            f"file at src/doctrine/mission_step_contracts/built-in/{action}.step-contract.yaml"
+            f"file at src/doctrine/missions/built_in_step_contracts/{action}.step-contract.yaml"
         )
         assert contract.action == action
         assert contract.mission == "software-dev"

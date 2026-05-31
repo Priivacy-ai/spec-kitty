@@ -8,7 +8,7 @@ ways:
    ``StepContractExecutor`` composition (see
    ``runtime_bridge._COMPOSED_ACTIONS_BY_MISSION``). These steps never read a
    file from ``command-templates/``; the built-in step contracts under
-   ``src/doctrine/mission_step_contracts/built-in/`` are authoritative.
+   ``src/doctrine/missions/built_in_step_contracts/`` are authoritative.
 2. **Command-template-driven** -- the step's action falls through to
    ``prompt_builder._build_template_prompt`` which calls
    ``resolve_command(f"{action}.md", ..., mission=<mission>)``. The packaged

@@ -196,7 +196,6 @@ _CATEGORY_2_BUILD_SCHEMA_GENERATORS: frozenset[str] = frozenset(
     {
         "doctrine.agent_profiles.schema_models",
         "doctrine.import_candidates.models",
-        "doctrine.missions.models",
         "doctrine.model_task_routing.models",
     }
 )

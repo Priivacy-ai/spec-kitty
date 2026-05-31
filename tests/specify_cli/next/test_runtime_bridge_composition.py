@@ -62,6 +62,46 @@ def _local_only_sync_emitter(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
+_KNOWN_ACTION_SEQUENCES: dict[str, list[str]] = {
+    "software-dev": ["specify", "plan", "tasks", "implement", "review"],
+    "documentation": ["discover", "audit", "design", "generate", "validate", "publish", "accept"],
+    "research": ["scoping", "methodology", "gathering", "synthesis", "output"],
+    "plan": [],
+}
+
+
+def _mock_resolve_action_sequence(mission_type_id: str, _repo_root: object) -> list[str]:
+    """Return the built-in action sequence for the given mission type.
+
+    Used as an autouse fixture patch so integration tests don't need a live
+    MissionTypeRepository (which is provided by a later WP).
+    """
+    from charter.mission_type_profiles import UnknownMissionTypeError
+
+    result = _KNOWN_ACTION_SEQUENCES.get(mission_type_id)
+    if result is None:
+        raise UnknownMissionTypeError(mission_type_id)
+    return result
+
+
+@pytest.fixture(autouse=True)
+def _mock_charter_resolve(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Patch charter.resolve_action_sequence so tests run without MissionTypeRepository.
+
+    After WP07, _should_dispatch_via_composition and _composition_dispatch_inputs
+    call charter.resolve_action_sequence.  The MissionTypeRepository is provided
+    by a later WP; this autouse fixture patches the call for all tests in this
+    module so they remain self-contained.
+    """
+    import charter.mission_type_profiles as _cmt
+
+    monkeypatch.setattr(
+        _cmt,
+        "resolve_action_sequence",
+        _mock_resolve_action_sequence,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -123,23 +163,76 @@ def feature_dir_with_full_tasks(tmp_path: Path) -> Path:
 # ---------------------------------------------------------------------------
 
 
-def test_should_dispatch_fires_for_software_dev_composed_actions() -> None:
-    """All five composed actions on software-dev route through composition."""
-    for action in ("specify", "plan", "tasks", "implement", "review"):
-        assert _should_dispatch_via_composition("software-dev", action) is True
+def test_should_dispatch_fires_for_software_dev_composed_actions(
+    tmp_path: Path,
+) -> None:
+    """All five composed actions on software-dev route through composition.
+
+    After WP07, dispatch is driven by charter.resolve_action_sequence, not a
+    static frozenset.  The MissionTypeRepository is mocked so the test stays
+    self-contained.
+    """
+    from unittest.mock import patch
+
+    sw_actions = ["specify", "plan", "tasks", "implement", "review"]
+    with patch(
+        "charter.mission_type_profiles.resolve_action_sequence",
+        return_value=sw_actions,
+    ):
+        for action in sw_actions:
+            assert _should_dispatch_via_composition(
+                "software-dev", action, repo_root=tmp_path
+            ) is True
 
 
-def test_should_dispatch_falls_through_for_unknown_mission_helper() -> None:
-    """Any mission other than software-dev falls through (C-008)."""
-    for mission in ("documentation", "architecture", "doctrine-rewrite", "other"):
+def test_should_dispatch_falls_through_for_unknown_mission_helper(
+    tmp_path: Path,
+) -> None:
+    """Any mission type unknown to charter falls through (C-008)."""
+    from charter.mission_type_profiles import UnknownMissionTypeError
+    from unittest.mock import patch
+
+    with patch(
+        "charter.mission_type_profiles.resolve_action_sequence",
+        side_effect=UnknownMissionTypeError("documentation"),
+    ):
         for action in ("specify", "plan", "tasks", "implement", "review"):
-            assert _should_dispatch_via_composition(mission, action) is False
+            assert (
+                _should_dispatch_via_composition(
+                    "documentation", action, repo_root=tmp_path
+                )
+                is False
+            )
+
+    with patch(
+        "charter.mission_type_profiles.resolve_action_sequence",
+        side_effect=UnknownMissionTypeError("other"),
+    ):
+        for action in ("specify", "plan", "tasks", "implement", "review"):
+            assert (
+                _should_dispatch_via_composition("other", action, repo_root=tmp_path)
+                is False
+            )
 
 
-def test_should_dispatch_falls_through_for_unknown_step_id_helper() -> None:
+def test_should_dispatch_falls_through_for_unknown_step_id_helper(
+    tmp_path: Path,
+) -> None:
     """Step IDs outside the composed set fall through (e.g. ``accept``)."""
-    for step_id in ("accept", "merge", "bootstrap", "unknown_step"):
-        assert _should_dispatch_via_composition("software-dev", step_id) is False
+    from unittest.mock import patch
+
+    sw_actions = ["specify", "plan", "tasks", "implement", "review"]
+    with patch(
+        "charter.mission_type_profiles.resolve_action_sequence",
+        return_value=sw_actions,
+    ):
+        for step_id in ("accept", "merge", "bootstrap", "unknown_step"):
+            assert (
+                _should_dispatch_via_composition(
+                    "software-dev", step_id, repo_root=tmp_path
+                )
+                is False
+            )
 
 
 def test_normalize_collapses_legacy_tasks_step_ids() -> None:
@@ -247,12 +340,27 @@ def test_dispatch_falls_through_for_unknown_mission(tmp_path: Path) -> None:
     We assert the routing predicate returns False — the bridge's caller
     only invokes composition when the predicate fires, so a False result
     proves the legacy DAG handler is the only dispatch path.
+
+    After WP07, the predicate calls charter.resolve_action_sequence; missions
+    unknown to charter raise UnknownMissionTypeError and the predicate degrades
+    to False gracefully.
     """
+    from charter.mission_type_profiles import UnknownMissionTypeError
+
     # Pre-condition: the executor is never called when the predicate is False.
-    with patch("specify_cli.mission_step_contracts.executor.StepContractExecutor.execute") as mock_execute:
+    def _raise_unknown(mission_type_id: str, _repo_root: object) -> list[str]:
+        raise UnknownMissionTypeError(mission_type_id)
+
+    with (
+        patch("specify_cli.mission_step_contracts.executor.StepContractExecutor.execute") as mock_execute,
+        patch(
+            "charter.mission_type_profiles.resolve_action_sequence",
+            side_effect=_raise_unknown,
+        ),
+    ):
         for mission in ("other-mission", "documentation", "architecture"):
             for step_id in ("specify", "plan", "tasks", "implement", "review"):
-                assert _should_dispatch_via_composition(mission, step_id) is False
+                assert _should_dispatch_via_composition(mission, step_id, repo_root=tmp_path) is False
         # Predicate never matched → the bridge would never call _dispatch.
         mock_execute.assert_not_called()
 
@@ -262,16 +370,25 @@ def test_dispatch_falls_through_for_unknown_mission(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_dispatch_falls_through_for_unknown_step_id() -> None:
+def test_dispatch_falls_through_for_unknown_step_id(tmp_path: Path) -> None:
     """``software-dev`` step IDs outside the composed set fall through.
 
     Examples: ``accept``, ``merge``, ``bootstrap`` — these are legitimate
     runtime DAG steps but are not part of the composition layer in this
     slice. The predicate must return False so the bridge keeps using the
     legacy DAG handler for them.
+
+    After WP07, the predicate uses charter.resolve_action_sequence so a
+    repo_root must be provided; the charter call is mocked to return only the
+    five composed actions.
     """
-    for step_id in ("accept", "merge", "bootstrap", "unknown_step"):
-        assert _should_dispatch_via_composition("software-dev", step_id) is False
+    sw_actions = ["specify", "plan", "tasks", "implement", "review"]
+    with patch(
+        "charter.mission_type_profiles.resolve_action_sequence",
+        return_value=sw_actions,
+    ):
+        for step_id in ("accept", "merge", "bootstrap", "unknown_step"):
+            assert _should_dispatch_via_composition("software-dev", step_id, repo_root=tmp_path) is False
 
 
 # ---------------------------------------------------------------------------
@@ -1524,9 +1641,9 @@ class TestCustomMissionComposition:
         ``MissionStepContractRepository.get_by_action(...)`` which has
         no record and raises :class:`StepContractExecutionError`.
         """
-        from doctrine.mission_step_contracts.models import (
-            MissionStep,
+        from doctrine.missions.step_contracts import (
             MissionStepContract,
+            MissionStepContractStep as MissionStep,
         )
 
         from specify_cli.mission_loader.registry import (

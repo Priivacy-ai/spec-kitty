@@ -176,3 +176,79 @@ class TestCharterBoundary:
             .access_layers_that()
             .are_named("specify_cli")
         ).assert_applies(evaluable)
+
+
+# --- Invariant 4: WP01 — unified MissionStep model location ---
+
+
+class TestUnifiedMissionStepBoundary:
+    """WP01 (mission charter-doctrine-mission-type-configuration-01KSWJVX).
+
+    After the unification, the legacy ``doctrine.mission_step_contracts``
+    subpackage is gone. The unified :class:`MissionStep` model lives at
+    ``doctrine.missions.models``; the legacy step-contract types relocate
+    to ``doctrine.missions.step_contracts``. Charter modules import from
+    ``doctrine.*`` directly (allowed: charter sits above doctrine in the
+    dependency stack); the runtime layer reaches doctrine artifacts
+    through the charter facades whenever possible.
+    """
+
+    def test_legacy_subpackage_is_gone(self) -> None:
+        """The legacy ``doctrine.mission_step_contracts`` import path must
+        not resolve. WP01 retired this subpackage; any code importing it
+        would silently shadow the unified model and reintroduce the
+        fragmentation that this WP eliminated.
+
+        We tolerate a leftover ``__pycache__`` directory (pytest may
+        recreate the parent on import-error paths even after the source
+        files are gone). The invariant the WP enforces is that none of
+        the source ``__init__.py`` / ``models.py`` / ``repository.py``
+        files exist; the package itself becomes unimportable as a
+        consequence.
+        """
+        legacy = Path(__file__).resolve().parents[2] / "src" / "doctrine" / "mission_step_contracts"
+        forbidden_source_files = ("__init__.py", "models.py", "repository.py")
+        present = [name for name in forbidden_source_files if (legacy / name).exists()]
+        assert not present, (
+            f"Legacy subpackage source files present after WP01: {present}. "
+            "Use doctrine.missions.models.MissionStep (unified) or "
+            "doctrine.missions.step_contracts (legacy contract types) instead."
+        )
+        import importlib.util
+
+        spec = importlib.util.find_spec("doctrine.mission_step_contracts")
+        assert spec is None, (
+            "doctrine.mission_step_contracts is still importable after WP01. "
+            "Remove the package source files."
+        )
+
+    def test_unified_model_resolves_at_new_location(self) -> None:
+        """The unified :class:`MissionStep` must live at the documented
+        ``doctrine.missions.models`` path. This anchor prevents drift if
+        a future refactor relocates the model again.
+        """
+        from doctrine.missions.models import MissionStep
+
+        assert MissionStep.__module__ == "doctrine.missions.models"
+
+    def test_legacy_contract_types_resolve_at_new_location(self) -> None:
+        """The relocated legacy step-contract types live in
+        ``doctrine.missions.step_contracts`` (not the deleted subpackage).
+        """
+        from doctrine.missions.step_contracts import (
+            DelegatesTo,
+            MissionStepContract,
+            MissionStepContractRepository,
+            MissionStepContractStep,
+        )
+
+        for cls in (
+            DelegatesTo,
+            MissionStepContract,
+            MissionStepContractRepository,
+            MissionStepContractStep,
+        ):
+            assert cls.__module__ == "doctrine.missions.step_contracts", (
+                f"{cls.__name__} must live in doctrine.missions.step_contracts; "
+                f"found at {cls.__module__}."
+            )

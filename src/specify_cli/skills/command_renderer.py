@@ -1,9 +1,9 @@
 """Command-Skill Renderer for shared-root command-skill agents.
 
-Turns a ``command-templates/<command>.md`` source file into a
-:class:`RenderedSkill` (YAML frontmatter + markdown body) that can be written
-as a ``SKILL.md`` file for command-skill agents such as Codex, Vibe, Pi,
-and Letta Code.
+Turns a ``src/doctrine/missions/mission-steps/<mission_type>/<step_id>/prompt.md``
+source file into a :class:`RenderedSkill` (YAML frontmatter + markdown body)
+that can be written as a ``SKILL.md`` file for command-skill agents such as
+Codex, Vibe, Pi, and Letta Code.
 
 Three invariants are enforced by this module:
 
@@ -395,7 +395,9 @@ def render(
     Parameters
     ----------
     template_path:
-        Absolute path to a ``command-templates/<command>.md`` source file.
+        Absolute path to a
+        ``src/doctrine/missions/mission-steps/<mission_type>/<step_id>/prompt.md``
+        source file.
     agent_key:
         Must be one of :data:`SUPPORTED_AGENTS`.
     spec_kitty_version:
@@ -459,8 +461,12 @@ def render(
                 excerpt=line,
             )
 
-    # Derive the skill name from the template filename (drop the .md extension).
-    command = template_path.stem  # e.g. "specify", "tasks-outline"
+    # Derive the skill name from the template path.
+    # New doctrine layout: .../mission-steps/<mission_type>/<step_id>/prompt.md
+    # → step_id is the parent directory name.
+    # Legacy fallback: .../command-templates/<command>.md
+    # → command is the stem.
+    command = template_path.parent.name if template_path.name == "prompt.md" else template_path.stem
     name = f"spec-kitty.{command}"
 
     # Build a version of the stripped body with the User-Input section removed

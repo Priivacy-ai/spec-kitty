@@ -36,17 +36,22 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from ruamel.yaml import YAML
 
 from charter.activations import ActivationEntry
+
+if TYPE_CHECKING:
+    from charter.pack_context import PackContext
 
 __all__ = [
     "GovernancePolicy",
     "OrgCharterPolicy",
     "MissingDoctrinePackError",
+    "OrgCharterCycleError",
+    "OrgCharterExtensionError",
     "REQUIRED_KIND_FIELDS",
     "load_org_charter_policy",
     "load_org_charter_policies",
@@ -122,7 +127,24 @@ class OrgCharterPolicy(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    schema_version: str = "1"
+    schema_version: int = 1
+    """Schema version for the org-charter format.
+
+    Backward-compat: YAML files may store this as a string (``"1"``)
+    or an integer.  The ``_coerce_schema_version`` validator normalises
+    both forms to ``int`` before validation so existing packs continue
+    to parse unchanged (FR-001 / WP09 T053).
+    """
+
+    extends: str | None = None
+    """Optional base pack name to extend (FR-001 / WP09 T054).
+
+    When set, the pack inherits from the named base pack via the
+    :func:`_resolve_chain` resolver.  ``None`` preserves the
+    backward-compatible flat-union behaviour for packs that pre-date
+    the extends mechanism.
+    """
+
     org_name: str | None = None
     interview_defaults: dict[str, str | bool] = Field(default_factory=dict)
     required_directives: list[str] = Field(default_factory=list)
@@ -140,6 +162,27 @@ class OrgCharterPolicy(BaseModel):
     them and deduplicates on the 4-tuple identity
     ``(activation_context, doctrine_pack_id, artifact_id, artifact_kind)``
     keeping the *last* occurrence (declaration-order precedence)."""
+
+    @field_validator("schema_version", mode="before")
+    @classmethod
+    def _coerce_schema_version(cls, v: object) -> int:
+        """Coerce a string ``schema_version`` (e.g. ``"1"``) to ``int``.
+
+        Backward-compat for org-charter YAML files written before WP09
+        switched the field type from ``str`` to ``int``.  Non-numeric
+        strings raise ``ValueError`` (surfaced as ``ValidationError``).
+        """
+        if isinstance(v, bool):
+            # bool is a subclass of int; reject explicitly because a
+            # boolean schema_version is never meaningful.
+            raise ValueError("schema_version must be an integer, not bool")
+        if isinstance(v, int):
+            return v
+        if isinstance(v, str):
+            return int(v)
+        raise ValueError(
+            f"schema_version must be an int or numeric string, got {type(v).__name__}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -171,6 +214,37 @@ class MissingDoctrinePackError(RuntimeError):
             f"`{self.local_path}` does not exist on disk. Run "
             f"`spec-kitty doctrine fetch --pack {pack_name}` to populate it, "
             f"or remove the pack from .kittify/config.yaml."
+        )
+
+
+class OrgCharterCycleError(Exception):
+    """Raised when an ``extends:`` chain contains a cycle (FR-002 / WP09 T056).
+
+    The full cycle path (including the repeated node) is preserved on
+    :attr:`cycle_path` so callers can render an operator-friendly diagnostic.
+    """
+
+    def __init__(self, cycle_path: list[str]) -> None:
+        self.cycle_path = list(cycle_path)
+        super().__init__(
+            f"Cycle detected in extends: chain: {' → '.join(self.cycle_path)}"
+        )
+
+
+class OrgCharterExtensionError(Exception):
+    """Raised when a named base pack is not present in the loaded pack set.
+
+    FR-002 / WP09 T057: when a pack's ``extends:`` field names a pack that
+    has not been loaded, the chain resolver fails loudly with the missing
+    pack name and the chain walked so far.
+    """
+
+    def __init__(self, missing_pack: str, chain: list[str]) -> None:
+        self.missing_pack = missing_pack
+        self.chain = list(chain)
+        super().__init__(
+            f"Base pack '{missing_pack}' not found. "
+            f"Chain: {' → '.join(self.chain)}"
         )
 
 
@@ -226,7 +300,169 @@ def _activation_identity_key(entry: ActivationEntry) -> tuple[str, str, str, str
     )
 
 
-def load_org_charter_policies(repo_root: Path) -> OrgCharterPolicy:
+def _build_pack_set(
+    pack_context: PackContext,
+) -> dict[str, OrgCharterPolicy]:
+    """Scan ``pack_context.pack_roots`` for ``org-charter.yaml`` files.
+
+    Returns a dict keyed by pack directory name (``pack_root.name``)
+    mapping to the loaded :class:`OrgCharterPolicy`.  Roots that lack an
+    ``org-charter.yaml`` or fail to parse are skipped (the loader returns
+    ``None`` for both cases — malformed packs surface their own errors
+    elsewhere in the pipeline).
+
+    WP09 T062-chain: this helper replaces direct ``config.yaml`` reads
+    inside :func:`_resolve_chain` whenever a :class:`PackContext` is
+    supplied to :func:`load_org_charter_policies`.
+    """
+    pack_set: dict[str, OrgCharterPolicy] = {}
+    for pack_root in pack_context.pack_roots:
+        try:
+            policy = load_org_charter_policy(pack_root)
+        except Exception:  # noqa: BLE001, S112 — malformed pack policy is skipped
+            continue
+        if policy is None:
+            continue
+        pack_set[pack_root.name] = policy
+    return pack_set
+
+
+def _resolve_chain(
+    pack_name: str,
+    pack_set: dict[str, OrgCharterPolicy],
+) -> list[OrgCharterPolicy]:
+    """Resolve the ``extends:`` chain starting from ``pack_name``.
+
+    Walks ``extends:`` pointers depth-first from the overlay (``pack_name``)
+    down to the root base, then reverses the result so the returned list
+    is ordered base-first (``[root_base, ..., overlay]``).
+
+    Parameters
+    ----------
+    pack_name:
+        Name of the overlay pack whose chain to resolve.  Must be a key
+        in ``pack_set``.
+    pack_set:
+        Name-keyed dict of all loaded policies, typically produced by
+        :func:`_build_pack_set`.
+
+    Returns
+    -------
+    list[OrgCharterPolicy]
+        Chain in resolution order, base first.
+
+    Raises
+    ------
+    OrgCharterExtensionError
+        When a pack's ``extends:`` field names a pack absent from
+        ``pack_set``.
+    OrgCharterCycleError
+        When a cycle is detected (a pack already in the chain re-appears).
+    """
+    chain_names: list[str] = []
+    chain_policies: list[OrgCharterPolicy] = []
+    visited: set[str] = set()
+
+    current: str | None = pack_name
+    while current is not None:
+        if current in visited:
+            # Reveal the full cycle, appending the repeat for clarity.
+            cycle_path = [*chain_names, current]
+            raise OrgCharterCycleError(cycle_path)
+        if current not in pack_set:
+            raise OrgCharterExtensionError(current, chain_names)
+        visited.add(current)
+        chain_names.append(current)
+        policy = pack_set[current]
+        chain_policies.append(policy)
+        current = policy.extends
+
+    # chain_policies is [overlay, ..., root_base]; reverse for base-first.
+    chain_policies.reverse()
+    return chain_policies
+
+
+def _merge_chain(chain: list[OrgCharterPolicy]) -> OrgCharterPolicy:
+    """Merge a base-first ``chain`` into a single resolved :class:`OrgCharterPolicy`.
+
+    Merge semantics (C-002 / WP09 T058):
+
+    * ``required_<kind>`` (all 8) — **union** across layers; overlay adds,
+      never removes.  Result preserves first-seen order.
+    * ``interview_defaults`` — **per-key replacement**; iterate base→overlay
+      applying ``dict.update``.  Overlay key wins; unmentioned base keys
+      survive.
+    * ``schema_version`` — **must match** across all layers (WP09 T059).
+      Mismatch raises ``ValueError`` with both versions surfaced.
+    * ``governance_policies`` — concatenated and deduplicated by
+      ``(field, value)`` keeping the *last* (overlay) occurrence.
+    * ``activations`` — concatenated and deduplicated on the 4-tuple
+      identity key keeping the *last* occurrence.
+    * ``org_name`` — last non-empty value wins.
+    * ``extends`` — always ``None`` on the merged result (the merged
+      policy is the resolved snapshot, not a chain link).
+    """
+    if not chain:
+        return OrgCharterPolicy()
+
+    # --- T059: schema_version must match across the chain -----------------
+    versions = {p.schema_version for p in chain}
+    if len(versions) > 1:
+        raise ValueError(
+            "schema_version mismatch in extends: chain. "
+            f"Versions found: {sorted(versions)}. All packs in a chain "
+            "must share the same schema_version."
+        )
+
+    merged_interview_defaults: dict[str, str | bool] = {}
+    merged_required: dict[str, list[str]] = {kind: [] for kind in REQUIRED_KIND_FIELDS}
+    merged_governance: list[GovernancePolicy] = []
+    activation_dedup: dict[tuple[str, str, str, str], ActivationEntry] = {}
+    org_name: str | None = None
+
+    for policy in chain:
+        if policy.org_name:
+            org_name = policy.org_name
+        # Per-key replacement: overlay key wins; base keys not overridden
+        # remain in place.
+        merged_interview_defaults.update(policy.interview_defaults)
+        # Union semantics for every required_<kind>.
+        for kind in REQUIRED_KIND_FIELDS:
+            for item in getattr(policy, f"required_{kind}"):
+                if item not in merged_required[kind]:
+                    merged_required[kind].append(item)
+        merged_governance.extend(policy.governance_policies)
+        for entry in policy.activations:
+            activation_dedup[_activation_identity_key(entry)] = entry
+
+    # Dedupe governance policies by (field, value), keeping the LAST entry.
+    seen: dict[tuple[str, str | bool], GovernancePolicy] = {}
+    for gp in merged_governance:
+        seen[(gp.field, gp.value)] = gp
+    deduped_governance = list(seen.values())
+
+    return OrgCharterPolicy(
+        schema_version=next(iter(versions)),
+        extends=None,
+        org_name=org_name,
+        interview_defaults=merged_interview_defaults,
+        required_directives=merged_required["directives"],
+        required_tactics=merged_required["tactics"],
+        required_paradigms=merged_required["paradigms"],
+        required_styleguides=merged_required["styleguides"],
+        required_toolguides=merged_required["toolguides"],
+        required_procedures=merged_required["procedures"],
+        required_agent_profiles=merged_required["agent_profiles"],
+        required_mission_step_contracts=merged_required["mission_step_contracts"],
+        governance_policies=deduped_governance,
+        activations=list(activation_dedup.values()),
+    )
+
+
+def load_org_charter_policies(
+    repo_root: Path,
+    pack_context: PackContext | None = None,
+) -> OrgCharterPolicy:
     """Load and merge ``org-charter.yaml`` across all configured packs.
 
     Merge semantics (declaration order, last pack wins on collisions):
@@ -244,7 +480,22 @@ def load_org_charter_policies(repo_root: Path) -> OrgCharterPolicy:
 
     Returns an *empty* :class:`OrgCharterPolicy` (all defaults) when no
     packs are configured or none ship an ``org-charter.yaml``.
+
+    Parameters
+    ----------
+    repo_root:
+        Repository root containing ``.kittify/config.yaml``.
+    pack_context:
+        Optional pre-validated :class:`charter.pack_context.PackContext`
+        (FR-001 / WP09 T061-sig).  When supplied, pack discovery and
+        ``extends:`` chain resolution use
+        :attr:`PackContext.pack_roots` instead of reading
+        ``.kittify/config.yaml`` directly.  Defaults to ``None`` for
+        backward compatibility — callers migrate in WP10.
     """
+    if pack_context is not None:
+        return _load_with_pack_context(pack_context)
+
     # Lazy import avoids a circular module load at package-init time.
     from specify_cli.doctrine.config import load_pack_registry
 
@@ -256,7 +507,7 @@ def load_org_charter_policies(repo_root: Path) -> OrgCharterPolicy:
     merged_required: dict[str, list[str]] = {kind: [] for kind in REQUIRED_KIND_FIELDS}
     merged_governance: list[GovernancePolicy] = []
     activation_dedup: dict[tuple[str, str, str, str], ActivationEntry] = {}
-    schema_version: str | None = None
+    schema_version: int | None = None
     org_name: str | None = None
 
     for pack in registry.packs:
@@ -286,7 +537,80 @@ def load_org_charter_policies(repo_root: Path) -> OrgCharterPolicy:
     deduped_governance = list(seen.values())
 
     return OrgCharterPolicy(
-        schema_version=schema_version or "1",
+        schema_version=schema_version if schema_version is not None else 1,
+        org_name=org_name,
+        interview_defaults=merged_interview_defaults,
+        required_directives=merged_required["directives"],
+        required_tactics=merged_required["tactics"],
+        required_paradigms=merged_required["paradigms"],
+        required_styleguides=merged_required["styleguides"],
+        required_toolguides=merged_required["toolguides"],
+        required_procedures=merged_required["procedures"],
+        required_agent_profiles=merged_required["agent_profiles"],
+        required_mission_step_contracts=merged_required["mission_step_contracts"],
+        governance_policies=deduped_governance,
+        activations=list(activation_dedup.values()),
+    )
+
+
+def _load_with_pack_context(pack_context: PackContext) -> OrgCharterPolicy:
+    """Load and merge org-charter policies via a :class:`PackContext`.
+
+    Builds the pack set from ``pack_context.pack_roots``, then for each
+    pack that declares ``extends:`` resolves and merges the chain.  Packs
+    without ``extends:`` collapse into the flat-union path so callers
+    that never adopt ``extends:`` see no behavioural change (FR-001 /
+    WP09 T062-chain).
+
+    The cross-pack merge then folds the per-pack resolved policies into a
+    single :class:`OrgCharterPolicy` using the same union/per-key/dedup
+    semantics as the legacy ``config.yaml`` path above.
+    """
+    pack_set = _build_pack_set(pack_context)
+    if not pack_set:
+        return OrgCharterPolicy()
+
+    # Resolve each pack's chain.  Packs that act as a "base" for another
+    # pack will be re-walked via that overlay's chain, but the merge
+    # union semantics handle this idempotently.
+    resolved_per_pack: list[OrgCharterPolicy] = []
+    for pack_root in pack_context.pack_roots:
+        name = pack_root.name
+        if name not in pack_set:
+            continue
+        chain = _resolve_chain(name, pack_set)
+        resolved_per_pack.append(_merge_chain(chain))
+
+    # Cross-pack fold: union required_<kind>, per-key interview_defaults,
+    # last non-empty org_name, dedup governance + activations.
+    merged_interview_defaults: dict[str, str | bool] = {}
+    merged_required: dict[str, list[str]] = {kind: [] for kind in REQUIRED_KIND_FIELDS}
+    merged_governance: list[GovernancePolicy] = []
+    activation_dedup: dict[tuple[str, str, str, str], ActivationEntry] = {}
+    schema_version: int | None = None
+    org_name: str | None = None
+
+    for policy in resolved_per_pack:
+        if policy.schema_version:
+            schema_version = policy.schema_version
+        if policy.org_name:
+            org_name = policy.org_name
+        merged_interview_defaults.update(policy.interview_defaults)
+        for kind in REQUIRED_KIND_FIELDS:
+            for item in getattr(policy, f"required_{kind}"):
+                if item not in merged_required[kind]:
+                    merged_required[kind].append(item)
+        merged_governance.extend(policy.governance_policies)
+        for entry in policy.activations:
+            activation_dedup[_activation_identity_key(entry)] = entry
+
+    seen: dict[tuple[str, str | bool], GovernancePolicy] = {}
+    for gp in merged_governance:
+        seen[(gp.field, gp.value)] = gp
+    deduped_governance = list(seen.values())
+
+    return OrgCharterPolicy(
+        schema_version=schema_version if schema_version is not None else 1,
         org_name=org_name,
         interview_defaults=merged_interview_defaults,
         required_directives=merged_required["directives"],

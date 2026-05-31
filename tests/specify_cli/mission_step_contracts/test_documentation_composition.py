@@ -38,8 +38,8 @@ _SHIPPED: Path = (
     Path(__file__).resolve().parents[3]
     / "src"
     / "doctrine"
-    / "mission_step_contracts"
-    / "built-in"
+    / "missions"
+    / "built_in_step_contracts"
 )
 
 _ALLOWED_TOP_LEVEL_KEYS: frozenset[str] = frozenset(

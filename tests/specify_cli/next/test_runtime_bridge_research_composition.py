@@ -39,6 +39,39 @@ RESEARCH_ACTIONS: tuple[str, ...] = (
     "output",
 )
 
+_KNOWN_ACTION_SEQUENCES: dict[str, list[str]] = {
+    "software-dev": ["specify", "plan", "tasks", "implement", "review"],
+    "documentation": ["discover", "audit", "design", "generate", "validate", "publish", "accept"],
+    "research": list(RESEARCH_ACTIONS),
+    "plan": [],
+}
+
+
+def _mock_resolve_action_sequence(mission_type_id: str, _repo_root: object) -> list[str]:
+    from charter.mission_type_profiles import UnknownMissionTypeError
+
+    result = _KNOWN_ACTION_SEQUENCES.get(mission_type_id)
+    if result is None:
+        raise UnknownMissionTypeError(mission_type_id)
+    return result
+
+
+@pytest.fixture(autouse=True)
+def _mock_charter_resolve(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Patch charter.resolve_action_sequence so tests run without MissionTypeRepository.
+
+    After WP07, _should_dispatch_via_composition calls charter.resolve_action_sequence.
+    The MissionTypeRepository is provided by a later WP; this fixture patches it for
+    all tests in this module.
+    """
+    import charter.mission_type_profiles as _cmt
+
+    monkeypatch.setattr(
+        _cmt,
+        "resolve_action_sequence",
+        _mock_resolve_action_sequence,
+    )
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -100,37 +133,42 @@ def feature_dir_full(tmp_path: Path) -> Path:
 @pytest.mark.parametrize("action", RESEARCH_ACTIONS)
 def test_should_dispatch_via_composition_for_each_research_action(
     action: str,
+    tmp_path: Path,
 ) -> None:
-    """All five research actions route through composition (built-in fast path)."""
-    assert _should_dispatch_via_composition("research", action) is True
+    """All five research actions route through composition via charter lookup.
+
+    After WP07, dispatch is driven by charter.resolve_action_sequence (mocked
+    by the autouse _mock_charter_resolve fixture) rather than a static frozenset.
+    """
+    assert _should_dispatch_via_composition("research", action, repo_root=tmp_path) is True
 
 
 @pytest.mark.parametrize("action", ["foo", "bar", "init", "publish"])
-def test_should_not_dispatch_for_unknown_research_action(action: str) -> None:
-    """Unknown research actions fall through (built-in fast-path miss).
+def test_should_not_dispatch_for_unknown_research_action(action: str, tmp_path: Path) -> None:
+    """Unknown research actions fall through (charter lookup miss).
 
-    No ``run_dir`` is provided, so the custom-mission widening branch also
-    short-circuits to ``False``. The combined result is the dispatch gate
-    refusing to route, which is what the runtime engine fall-through needs.
+    With repo_root provided, the charter lookup is attempted but "foo" etc. are
+    not in the research action sequence, so the predicate returns False.
     """
-    assert _should_dispatch_via_composition("research", action) is False
+    assert _should_dispatch_via_composition("research", action, repo_root=tmp_path) is False
 
 
 def test_fast_path_does_not_load_frozen_template(tmp_path: Path) -> None:
-    """Built-in research dispatch must short-circuit without I/O on the frozen template.
+    """Charter lookup must short-circuit without I/O on the frozen template.
 
-    Pure structural proof per the WP05 brief: pass a ``run_dir`` that does
-    NOT exist on disk. If the implementation accidentally fell through to
-    ``_resolve_step_binding`` (which calls ``_load_frozen_template``), the
-    loader would fail on the missing directory and the gate would return
-    ``False``. The gate returning ``True`` is structural proof the fast
-    path was taken without I/O — no patches required (C-007 strict).
+    Pure structural proof: pass a ``run_dir`` that does NOT exist on disk.
+    If the implementation accidentally fell through to ``_resolve_step_binding``
+    (which calls ``_load_frozen_template``), the loader would fail on the missing
+    directory.  The gate returning ``True`` proves the charter path was taken
+    (via the autouse mock) before reaching the frozen-template branch.
     """
     nonexistent = tmp_path / "does" / "not" / "exist"
     assert not nonexistent.exists()
     for action in RESEARCH_ACTIONS:
         assert (
-            _should_dispatch_via_composition("research", action, run_dir=nonexistent)
+            _should_dispatch_via_composition(
+                "research", action, run_dir=nonexistent, repo_root=tmp_path
+            )
             is True
         )
 

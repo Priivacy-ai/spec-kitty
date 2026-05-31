@@ -23,9 +23,11 @@ test_no_dead_modules:
   # src/specify_cli/upgrade/migrations/m_*.py. Grows when a new
   # migration ships; growth here is expected and routine.
   category_1_auto_discovered_migrations: 71
-  # justification: 4 schema generator modules consumed by
+  # justification: 3 schema generator modules consumed by
   # scripts/generate_schemas.py via importlib.import_module.
-  category_2_build_schema_generators: 4
+  # Shrunk from 4 → 3 when doctrine.missions.models gained a live
+  # src/ caller via MissionTypeRepository (WP14 mission-type commands).
+  category_2_build_schema_generators: 3
   # justification: 4 external/CLI entry points invoked outside the
   # spec-kitty import graph (commit_guard_hook + 3 task helpers).
   category_3_external_cli_entrypoints: 4

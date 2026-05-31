@@ -11,7 +11,7 @@ from unittest.mock import patch
 import pytest
 from ruamel.yaml import YAML
 
-from doctrine.mission_step_contracts.repository import MissionStepContractRepository
+from doctrine.missions.step_contracts import MissionStepContractRepository
 from specify_cli.invocation.writer import EVENTS_DIR
 from specify_cli.mission_step_contracts.executor import (
     StepContractExecutionContext,

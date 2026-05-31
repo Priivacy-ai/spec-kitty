@@ -43,7 +43,6 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 from ruamel.yaml import YAML
@@ -55,7 +54,9 @@ __all__ = [
     "GovernancePayload",
     "MissionTypeProfile",
     "UnknownMissionTypeError",
+    "existing_mission_types",
     "load_profile",
+    "resolve_action_sequence",
     "resolve_mission_type_governance",
 ]
 
@@ -98,7 +99,7 @@ class MissionTypeProfile(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    mission_type: Literal["software-dev", "documentation", "research", "plan"]
+    mission_type: str
     template_set: str | None = None
     selected_directives: list[str] = Field(default_factory=list)
     selected_tactics: list[str] = Field(default_factory=list)
@@ -126,14 +127,44 @@ class GovernancePayload:
 
 
 class UnknownMissionTypeError(ValueError):
-    """Raised when ``meta.json mission_type`` matches no built-in profile.
+    """Raised when ``meta.json mission_type`` matches no activated mission type.
 
     The hard-fail behaviour is the FR-011 / journey 4 contract: there
     MUST NOT be a silent ``software-dev-default`` fallback for
     non-software missions.  The message MUST contain the unknown
     ``mission_type`` verbatim so operators can diagnose typos or missing
     profile files.
+
+    FR-009: The message MUST also list the registered (activated) mission
+    type IDs so operators know what values are valid.
+
+    Attributes
+    ----------
+    mission_type_id:
+        The unknown mission type ID that was looked up.
+    registered_ids:
+        Sorted list of activated mission type IDs at the time of the error.
     """
+
+    def __init__(
+        self,
+        mission_type_id: str,
+        registered_ids: list[str] | None = None,
+    ) -> None:
+        self.mission_type_id = mission_type_id
+        self.registered_ids: list[str] = registered_ids if registered_ids is not None else []
+        if self.registered_ids:
+            ids_str = ", ".join(self.registered_ids)
+            message = (
+                f"Unknown mission type {mission_type_id!r}. "
+                f"Registered types: {ids_str}."
+            )
+        else:
+            message = (
+                f"Unknown mission type {mission_type_id!r}. "
+                "No registered mission types are available."
+            )
+        super().__init__(message)
 
 
 # ---------------------------------------------------------------------------
@@ -157,8 +188,7 @@ def load_profile(mission_type: str) -> MissionTypeProfile | None:
     Raises
     ------
     pydantic.ValidationError
-        When the YAML is structurally malformed or the declared
-        ``mission_type`` is outside the closed ``Literal`` vocabulary.
+        When the YAML is structurally malformed.
     ValueError
         When the YAML's top-level ``mission_type`` field does not match
         the parent directory name.  This catches accidental
@@ -187,6 +217,104 @@ def load_profile(mission_type: str) -> MissionTypeProfile | None:
         )
 
     return profile
+
+
+# ---------------------------------------------------------------------------
+# Charter API functions
+# ---------------------------------------------------------------------------
+
+
+def existing_mission_types(repo_root: Path) -> list[str]:
+    """Return sorted, deduplicated IDs of activated mission types for the project.
+
+    Only types that are explicitly activated in the project charter are returned.
+    Non-activated types are excluded regardless of their presence in the doctrine
+    layer.
+
+    Reads ``.kittify/config.yaml`` via :class:`~charter.pack_context.PackContext`
+    to obtain the activation set.  When the config file is absent or the
+    ``mission_type_activations`` key is missing, all four built-in types are
+    returned (new-project / pre-migration fallback handled by
+    :meth:`~charter.pack_context.PackContext.from_config`).
+
+    FR-018: This function is the **single source of truth** for
+    "what mission types are activated".  Do not duplicate this logic elsewhere.
+
+    Parameters
+    ----------
+    repo_root:
+        Repository root containing ``.kittify/config.yaml``.
+
+    Returns
+    -------
+    list[str]
+        Sorted, deduplicated activated mission type IDs.
+    """
+    try:
+        from charter.pack_context import PackContext  # noqa: PLC0415 — lazy; avoids circular
+    except ImportError:
+        # PackContext is provided by WP06 (charter.pack_context).  When that
+        # module is not yet available (parallel WP development before merge),
+        # fall back to the canonical built-in set so existing callers do not
+        # hard-fail.
+        return sorted(CANONICAL_MISSION_TYPES)
+
+    pack_context = PackContext.from_config(repo_root)
+    return sorted(pack_context.activated_mission_types)
+
+
+def resolve_action_sequence(
+    mission_type_id: str,
+    repo_root: Path,
+) -> list[str]:
+    """Return the live action sequence for the given mission type.
+
+    Reads the :class:`~doctrine.missions.mission_type_repository.MissionTypeRepository`
+    through the built-in → org → project DRG chain.  Called fresh at each
+    invocation; not cached across calls (FR-007: ≤100ms budget applies).
+
+    Parameters
+    ----------
+    mission_type_id:
+        The mission type ID to resolve (e.g. ``"software-dev"``).
+    repo_root:
+        Repository root used to determine which mission types are activated.
+
+    Returns
+    -------
+    list[str]
+        Ordered action sequence (e.g. ``["specify", "plan", "tasks",
+        "implement", "review"]``).
+
+    Raises
+    ------
+    UnknownMissionTypeError
+        When ``mission_type_id`` is not in
+        :func:`existing_mission_types(repo_root) <existing_mission_types>`.
+        The exception carries the sorted list of activated IDs in
+        ``registered_ids``.
+    """
+    registered = existing_mission_types(repo_root)
+    if mission_type_id not in registered:
+        raise UnknownMissionTypeError(mission_type_id, registered_ids=registered)
+
+    from doctrine.missions.mission_type_repository import MissionTypeRepository  # noqa: PLC0415
+
+    repo = MissionTypeRepository.default()
+    mission_type = repo.get(mission_type_id)
+    if mission_type is None:
+        # The type is activated but has no YAML definition in the built-in
+        # doctrine bundle.  This is a configuration inconsistency; report it
+        # clearly rather than returning an empty sequence.
+        raise UnknownMissionTypeError(mission_type_id, registered_ids=registered)
+
+    # Resolve extends: chain (single level — top-level extends only)
+    if mission_type.extends is not None:
+        parent = repo.get(mission_type.extends)
+        if parent is not None and not mission_type.action_sequence:
+            return list(parent.action_sequence)
+
+    return list(mission_type.action_sequence)
 
 
 # ---------------------------------------------------------------------------
@@ -251,22 +379,18 @@ def resolve_mission_type_governance(repo_root: Path, feature_dir: Path) -> Gover
 
     mission_type = meta.get("mission_type")
     if not mission_type:
-        raise UnknownMissionTypeError(
+        raise ValueError(
             f"meta.json at {meta_path} is missing the 'mission_type' key. "
             "Every mission MUST declare its mission_type so the charter "
             "resolver can route it to the matching governance profile."
         )
 
+    registered = existing_mission_types(repo_root)
     profile = load_profile(mission_type)
     project_has_overrides = _project_has_doctrine_overrides(repo_root)
 
-    if profile is None and not project_has_overrides:
-        raise UnknownMissionTypeError(
-            f"No governance profile found for mission_type {mission_type!r} "
-            "and project charter declared no selected_* overrides. Either "
-            f"add src/doctrine/missions/{mission_type}/governance-profile.yaml "
-            "or declare selected_* fields in .kittify/charter/governance.yaml."
-        )
+    if mission_type not in registered and not project_has_overrides:
+        raise UnknownMissionTypeError(mission_type, registered_ids=registered)
 
     rendered = _render_profile_payload(profile, mission_type)
     return GovernancePayload(text=rendered, mission_type=mission_type)

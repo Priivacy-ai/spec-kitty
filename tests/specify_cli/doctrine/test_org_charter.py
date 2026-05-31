@@ -18,7 +18,12 @@ from ruamel.yaml import YAML
 from charter.interview import apply_org_charter_pre_fill_to_answers
 from specify_cli.doctrine.org_charter import (
     GovernancePolicy,
+    OrgCharterCycleError,
+    OrgCharterExtensionError,
     OrgCharterPolicy,
+    _build_pack_set,
+    _merge_chain,
+    _resolve_chain,
     apply_org_charter_pre_fill,
     apply_org_charter_to_interview,
     load_org_charter_policies,
@@ -83,7 +88,7 @@ class TestLoadOrgCharterPolicy:
         policy = load_org_charter_policy(pack)
 
         assert policy is not None
-        assert policy.schema_version == "1"
+        assert policy.schema_version == 1
         assert policy.org_name == "Acme"
         assert policy.interview_defaults == {
             "human_in_command": True,
@@ -593,7 +598,8 @@ class TestContextJsonOrgCharter:
 class TestOrgCharterPolicyModel:
     def test_empty_policy_is_valid(self) -> None:
         policy = OrgCharterPolicy()
-        assert policy.schema_version == "1"
+        assert policy.schema_version == 1
+        assert policy.extends is None
         assert policy.org_name is None
         assert policy.interview_defaults == {}
         assert policy.required_directives == []
@@ -613,3 +619,401 @@ class TestOrgCharterPolicyModel:
 
         with pytest.raises(ValidationError):
             OrgCharterPolicy.model_validate({"unknown_field": "x"})
+
+    def test_schema_version_accepts_int(self) -> None:
+        """WP09 T053: ``schema_version`` is an ``int`` on the model."""
+        policy = OrgCharterPolicy.model_validate({"schema_version": 1})
+        assert policy.schema_version == 1
+        assert isinstance(policy.schema_version, int)
+
+    def test_schema_version_coerces_string(self) -> None:
+        """WP09 T053: existing YAML stores ``"1"``; the validator coerces to int."""
+        policy = OrgCharterPolicy.model_validate({"schema_version": "1"})
+        assert policy.schema_version == 1
+        assert isinstance(policy.schema_version, int)
+
+    def test_schema_version_rejects_non_numeric_string(self) -> None:
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            OrgCharterPolicy.model_validate({"schema_version": "not-a-number"})
+
+    def test_extends_defaults_to_none(self) -> None:
+        """WP09 T054: ``extends`` is optional and defaults to ``None``."""
+        policy = OrgCharterPolicy()
+        assert policy.extends is None
+
+    def test_extends_accepts_string(self) -> None:
+        policy = OrgCharterPolicy.model_validate({"extends": "base-pack"})
+        assert policy.extends == "base-pack"
+
+
+# ---------------------------------------------------------------------------
+# WP09 T060: extends: chain resolution, merge semantics, error classes
+# ---------------------------------------------------------------------------
+
+
+def _policy(name: str | None = None, **kwargs: object) -> OrgCharterPolicy:
+    """Convenience: build an :class:`OrgCharterPolicy` for chain tests.
+
+    ``name`` is unused (the pack-set key is set by the caller); kwargs
+    flow straight into ``OrgCharterPolicy.model_validate`` so test
+    intent stays close to the raw field shape.
+    """
+    return OrgCharterPolicy.model_validate(kwargs)
+
+
+class TestResolveChain:
+    def test_single_pack_no_extends(self) -> None:
+        pack_set = {"A": _policy(required_directives=["a"])}
+        chain = _resolve_chain("A", pack_set)
+        assert len(chain) == 1
+        assert chain[0].required_directives == ["a"]
+
+    def test_simple_extends_pair(self) -> None:
+        pack_set = {
+            "A": _policy(required_directives=["a"]),
+            "B": _policy(extends="A", required_directives=["b"]),
+        }
+        chain = _resolve_chain("B", pack_set)
+        # Base-first ordering: A then B.
+        assert [p.required_directives for p in chain] == [["a"], ["b"]]
+
+    def test_depth_two_chain(self) -> None:
+        pack_set = {
+            "A": _policy(required_directives=["a"]),
+            "B": _policy(extends="A", required_directives=["b"]),
+            "C": _policy(extends="B", required_directives=["c"]),
+        }
+        chain = _resolve_chain("C", pack_set)
+        assert [p.required_directives for p in chain] == [["a"], ["b"], ["c"]]
+
+    def test_cycle_two_packs(self) -> None:
+        pack_set = {
+            "A": _policy(extends="B", required_directives=["a"]),
+            "B": _policy(extends="A", required_directives=["b"]),
+        }
+        with pytest.raises(OrgCharterCycleError) as exc:
+            _resolve_chain("A", pack_set)
+        # Cycle path includes the repeated node so operators see the loop.
+        assert "A" in exc.value.cycle_path
+        assert "B" in exc.value.cycle_path
+        assert exc.value.cycle_path[-1] == exc.value.cycle_path[0] or len(
+            exc.value.cycle_path
+        ) >= 2
+
+    def test_self_reference(self) -> None:
+        pack_set = {"A": _policy(extends="A", required_directives=["a"])}
+        with pytest.raises(OrgCharterCycleError) as exc:
+            _resolve_chain("A", pack_set)
+        assert exc.value.cycle_path == ["A", "A"]
+
+    def test_missing_base_raises(self) -> None:
+        pack_set = {
+            "B": _policy(extends="nonexistent", required_directives=["b"]),
+        }
+        with pytest.raises(OrgCharterExtensionError) as exc:
+            _resolve_chain("B", pack_set)
+        assert exc.value.missing_pack == "nonexistent"
+        assert exc.value.chain == ["B"]
+
+
+class TestMergeChain:
+    def test_union_required_directives(self) -> None:
+        chain = [
+            _policy(required_directives=["a", "b"]),
+            _policy(required_directives=["b", "c"]),
+        ]
+        merged = _merge_chain(chain)
+        assert merged.required_directives == ["a", "b", "c"]
+
+    def test_union_required_toolguides(self) -> None:
+        chain = [
+            _policy(required_toolguides=["tg-1"]),
+            _policy(required_toolguides=["tg-2"]),
+        ]
+        merged = _merge_chain(chain)
+        assert merged.required_toolguides == ["tg-1", "tg-2"]
+
+    def test_interview_defaults_per_key_replacement(self) -> None:
+        chain = [
+            _policy(interview_defaults={"foo": "base", "bar": "base"}),
+            _policy(interview_defaults={"foo": "overlay"}),
+        ]
+        merged = _merge_chain(chain)
+        # Overlay key wins; unmentioned key inherits from base.
+        assert merged.interview_defaults == {"foo": "overlay", "bar": "base"}
+
+    def test_merged_result_has_no_extends(self) -> None:
+        chain = [_policy(extends=None), _policy(extends="base-name")]
+        merged = _merge_chain(chain)
+        assert merged.extends is None
+
+    def test_schema_version_mismatch_raises(self) -> None:
+        chain = [
+            _policy(schema_version=1, required_directives=["a"]),
+            _policy(schema_version=2, required_directives=["b"]),
+        ]
+        with pytest.raises(ValueError, match="schema_version mismatch"):
+            _merge_chain(chain)
+
+    def test_empty_chain_returns_default_policy(self) -> None:
+        merged = _merge_chain([])
+        assert merged.schema_version == 1
+        assert merged.required_directives == []
+
+    def test_org_name_last_non_empty_wins(self) -> None:
+        chain = [
+            _policy(org_name="Base"),
+            _policy(org_name=None),
+            _policy(org_name="Overlay"),
+        ]
+        merged = _merge_chain(chain)
+        assert merged.org_name == "Overlay"
+
+
+class TestBuildPackSet:
+    def test_indexes_packs_by_directory_name(self, tmp_path: Path) -> None:
+        from charter.pack_context import PackContext
+
+        pack_a = tmp_path / "corp-baseline"
+        _write_org_charter(
+            pack_a,
+            """
+            schema_version: 1
+            org_name: "Corp"
+            required_directives:
+              - core-001
+            """,
+        )
+        pack_b = tmp_path / "team-overlay"
+        _write_org_charter(
+            pack_b,
+            """
+            schema_version: 1
+            extends: "corp-baseline"
+            required_directives:
+              - team-001
+            """,
+        )
+
+        ctx = PackContext(
+            activated_kinds=frozenset({"directives"}),
+            activated_mission_types=frozenset({"software-dev"}),
+            pack_roots=(pack_a, pack_b),
+            org_pack_names=("corp-baseline", "team-overlay"),
+            repo_root=tmp_path,
+        )
+
+        pack_set = _build_pack_set(ctx)
+        assert set(pack_set.keys()) == {"corp-baseline", "team-overlay"}
+        assert pack_set["team-overlay"].extends == "corp-baseline"
+
+    def test_skips_packs_without_org_charter(self, tmp_path: Path) -> None:
+        from charter.pack_context import PackContext
+
+        # First pack ships an org-charter.yaml; second is bare.
+        pack_a = tmp_path / "alpha"
+        _write_org_charter(pack_a, "schema_version: 1\n")
+        pack_b = tmp_path / "bravo"
+        pack_b.mkdir(parents=True)
+
+        ctx = PackContext(
+            activated_kinds=frozenset({"directives"}),
+            activated_mission_types=frozenset({"software-dev"}),
+            pack_roots=(pack_a, pack_b),
+            org_pack_names=("alpha", "bravo"),
+            repo_root=tmp_path,
+        )
+
+        pack_set = _build_pack_set(ctx)
+        assert set(pack_set.keys()) == {"alpha"}
+
+
+class TestLoadOrgCharterPoliciesWithPackContext:
+    def test_extends_chain_merges_via_pack_context(self, tmp_path: Path) -> None:
+        """WP09 T061-sig + T062-chain: ``PackContext`` drives chain resolution."""
+        from charter.pack_context import PackContext
+
+        base = tmp_path / "base-pack"
+        _write_org_charter(
+            base,
+            """
+            schema_version: 1
+            required_directives:
+              - base-001
+            interview_defaults:
+              human_in_command: true
+              security_review: "Required"
+            """,
+        )
+        overlay = tmp_path / "overlay-pack"
+        _write_org_charter(
+            overlay,
+            """
+            schema_version: 1
+            extends: "base-pack"
+            required_directives:
+              - overlay-001
+            interview_defaults:
+              security_review: "Optional"
+            """,
+        )
+
+        ctx = PackContext(
+            activated_kinds=frozenset({"directives"}),
+            activated_mission_types=frozenset({"software-dev"}),
+            pack_roots=(base, overlay),
+            org_pack_names=("base-pack", "overlay-pack"),
+            repo_root=tmp_path,
+        )
+
+        merged = load_org_charter_policies(tmp_path, pack_context=ctx)
+
+        assert "base-001" in merged.required_directives
+        assert "overlay-001" in merged.required_directives
+        # Per-key replacement: overlay wins for security_review,
+        # base preserved for human_in_command.
+        assert merged.interview_defaults["security_review"] == "Optional"
+        assert merged.interview_defaults["human_in_command"] is True
+
+    def test_backward_compat_pack_without_extends(self, tmp_path: Path) -> None:
+        """Packs without ``extends:`` still merge as before (FR-001 backward compat)."""
+        from charter.pack_context import PackContext
+
+        pack_a = tmp_path / "flat-a"
+        _write_org_charter(
+            pack_a,
+            """
+            schema_version: 1
+            required_directives:
+              - a-001
+            """,
+        )
+        pack_b = tmp_path / "flat-b"
+        _write_org_charter(
+            pack_b,
+            """
+            schema_version: 1
+            required_directives:
+              - b-001
+            """,
+        )
+
+        ctx = PackContext(
+            activated_kinds=frozenset({"directives"}),
+            activated_mission_types=frozenset({"software-dev"}),
+            pack_roots=(pack_a, pack_b),
+            org_pack_names=("flat-a", "flat-b"),
+            repo_root=tmp_path,
+        )
+
+        merged = load_org_charter_policies(tmp_path, pack_context=ctx)
+        assert merged.required_directives == ["a-001", "b-001"]
+
+    def test_empty_pack_context_returns_default(self, tmp_path: Path) -> None:
+        from charter.pack_context import PackContext
+
+        ctx = PackContext(
+            activated_kinds=frozenset({"directives"}),
+            activated_mission_types=frozenset({"software-dev"}),
+            pack_roots=(),
+            org_pack_names=(),
+            repo_root=tmp_path,
+        )
+        merged = load_org_charter_policies(tmp_path, pack_context=ctx)
+        assert merged == OrgCharterPolicy()
+
+    def test_cycle_propagates(self, tmp_path: Path) -> None:
+        from charter.pack_context import PackContext
+
+        pack_a = tmp_path / "A"
+        _write_org_charter(
+            pack_a,
+            """
+            schema_version: 1
+            extends: "B"
+            """,
+        )
+        pack_b = tmp_path / "B"
+        _write_org_charter(
+            pack_b,
+            """
+            schema_version: 1
+            extends: "A"
+            """,
+        )
+
+        ctx = PackContext(
+            activated_kinds=frozenset({"directives"}),
+            activated_mission_types=frozenset({"software-dev"}),
+            pack_roots=(pack_a, pack_b),
+            org_pack_names=("A", "B"),
+            repo_root=tmp_path,
+        )
+        with pytest.raises(OrgCharterCycleError):
+            load_org_charter_policies(tmp_path, pack_context=ctx)
+
+    def test_missing_base_propagates(self, tmp_path: Path) -> None:
+        from charter.pack_context import PackContext
+
+        pack = tmp_path / "child"
+        _write_org_charter(
+            pack,
+            """
+            schema_version: 1
+            extends: "ghost-pack"
+            """,
+        )
+        ctx = PackContext(
+            activated_kinds=frozenset({"directives"}),
+            activated_mission_types=frozenset({"software-dev"}),
+            pack_roots=(pack,),
+            org_pack_names=("child",),
+            repo_root=tmp_path,
+        )
+        with pytest.raises(OrgCharterExtensionError):
+            load_org_charter_policies(tmp_path, pack_context=ctx)
+
+    def test_schema_version_mismatch_propagates(self, tmp_path: Path) -> None:
+        from charter.pack_context import PackContext
+
+        base = tmp_path / "base"
+        _write_org_charter(
+            base,
+            """
+            schema_version: 1
+            """,
+        )
+        overlay = tmp_path / "overlay"
+        _write_org_charter(
+            overlay,
+            """
+            schema_version: 2
+            extends: "base"
+            """,
+        )
+
+        ctx = PackContext(
+            activated_kinds=frozenset({"directives"}),
+            activated_mission_types=frozenset({"software-dev"}),
+            pack_roots=(base, overlay),
+            org_pack_names=("base", "overlay"),
+            repo_root=tmp_path,
+        )
+        with pytest.raises(ValueError, match="schema_version mismatch"):
+            load_org_charter_policies(tmp_path, pack_context=ctx)
+
+
+class TestOrgCharterErrorClasses:
+    def test_cycle_error_includes_path(self) -> None:
+        err = OrgCharterCycleError(["A", "B", "A"])
+        assert err.cycle_path == ["A", "B", "A"]
+        assert "A → B → A" in str(err)
+
+    def test_extension_error_includes_chain_and_missing(self) -> None:
+        err = OrgCharterExtensionError("ghost", ["A", "B"])
+        assert err.missing_pack == "ghost"
+        assert err.chain == ["A", "B"]
+        assert "ghost" in str(err)
+        assert "A → B" in str(err)

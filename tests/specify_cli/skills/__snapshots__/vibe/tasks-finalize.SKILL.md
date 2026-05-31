@@ -3,7 +3,6 @@ name: spec-kitty.tasks-finalize
 description: "Validate dependencies, finalize WP metadata, and commit all task artifacts."
 user-invocable: true
 ---
-
 # /spec-kitty.tasks-finalize - Finalize Tasks
 
 **Version**: 3.2.0

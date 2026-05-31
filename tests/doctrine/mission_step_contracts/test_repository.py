@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from doctrine.mission_step_contracts.repository import MissionStepContractRepository
+from doctrine.missions.step_contracts import MissionStepContractRepository
 
 pytestmark = pytest.mark.fast
 
@@ -39,7 +39,7 @@ class TestMissionStepContractRepository:
         assert repo.list_all() == []
 
     def test_save_writes_valid_yaml(self, tmp_path: Path, minimal_step_contract_data: dict) -> None:
-        from doctrine.mission_step_contracts.models import MissionStepContract
+        from doctrine.missions.step_contracts import MissionStepContract
 
         project_dir = tmp_path / "project"
         repo = MissionStepContractRepository(built_in_dir=tmp_path / "empty", project_dir=project_dir)
@@ -55,7 +55,7 @@ class TestMissionStepContractRepository:
         assert data["id"] == "test-implement"
 
     def test_save_raises_without_project_dir(self, tmp_path: Path, minimal_step_contract_data: dict) -> None:
-        from doctrine.mission_step_contracts.models import MissionStepContract
+        from doctrine.missions.step_contracts import MissionStepContract
 
         repo = MissionStepContractRepository(built_in_dir=tmp_path / "empty")
         contract = MissionStepContract.model_validate(minimal_step_contract_data)
@@ -102,7 +102,7 @@ class TestMissionStepContractRepository:
 
     def test_save_and_reload_preserves_fields(self, tmp_path: Path, full_step_contract_data: dict) -> None:
         """Acceptance: saving and reloading preserves all fields."""
-        from doctrine.mission_step_contracts.models import MissionStepContract
+        from doctrine.missions.step_contracts import MissionStepContract
 
         project_dir = tmp_path / "project"
         repo = MissionStepContractRepository(built_in_dir=tmp_path / "empty", project_dir=project_dir)

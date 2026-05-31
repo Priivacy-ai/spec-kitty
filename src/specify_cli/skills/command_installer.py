@@ -43,8 +43,8 @@ from specify_cli.skills import command_renderer
 SUPPORTED_AGENTS: tuple[str, ...] = ("codex", "vibe", "pi", "letta")
 
 #: The canonical command templates that exist in the current codebase.
-#: Matches the files under
-#: ``src/specify_cli/missions/software-dev/command-templates/``.
+#: Matches the step directories under
+#: ``src/doctrine/missions/mission-steps/software-dev/``.
 #: ``checklist`` was retired in 3.2.0a5 (FR-003 / FR-004 / #815).
 CANONICAL_COMMANDS: tuple[str, ...] = (
     "analyze",
@@ -60,21 +60,28 @@ CANONICAL_COMMANDS: tuple[str, ...] = (
     "tasks-packages",
 )
 
-def _package_templates_dir() -> Path:
-    """Return the directory containing canonical command templates inside the
-    installed ``specify_cli`` package.
+def _package_templates_dir(mission_type: str = "software-dev") -> Path:
+    """Return the directory containing canonical command step directories inside
+    the installed ``doctrine`` package.
 
-    Templates ship as regular files inside the package directory (not inside a
-    zipapp), so deriving their path from ``specify_cli.__file__`` yields a real
-    :class:`pathlib.Path` that works identically in editable and wheel installs.
+    Templates ship as regular files inside the doctrine package under
+    ``missions/mission-steps/<mission_type>/``.  Deriving the path from
+    ``doctrine.__file__`` yields a real :class:`pathlib.Path` that works
+    identically in editable and wheel installs.
+
+    Parameters
+    ----------
+    mission_type:
+        The mission type sub-directory to resolve (defaults to
+        ``"software-dev"``).
     """
-    import specify_cli  # noqa: PLC0415 — deferred to avoid import-time side effects
+    import doctrine  # noqa: PLC0415 — deferred to avoid import-time side effects
 
     return (
-        Path(specify_cli.__file__).parent
+        Path(doctrine.__file__).parent
         / "missions"
-        / "software-dev"
-        / "command-templates"
+        / "mission-steps"
+        / mission_type
     )
 
 
@@ -199,15 +206,18 @@ class VerifyReport:
 
 
 def _resolve_template(repo_root: Path, command: str) -> Path:
-    """Return the absolute path to the command template for *command*.
+    """Return the absolute path to the command prompt template for *command*.
 
-    Templates live inside the installed ``specify_cli`` package (not under the
-    user's project root). ``repo_root`` is retained in the signature for call-site
-    symmetry but is intentionally unused — the template location is package
-    state, not project state.
+    Templates live inside the installed ``doctrine`` package (not under the
+    user's project root). ``repo_root`` is retained in the signature for
+    call-site symmetry but is intentionally unused — the template location is
+    package state, not project state.
+
+    New doctrine layout:
+    ``doctrine/missions/mission-steps/<mission_type>/<step_id>/prompt.md``
     """
     del repo_root  # not used; kept for call-site consistency
-    return _package_templates_dir() / f"{command}.md"
+    return _package_templates_dir() / command / "prompt.md"
 
 
 def _atomic_write(path: Path, content: bytes) -> None:
