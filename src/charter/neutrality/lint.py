@@ -78,7 +78,8 @@ class _CompiledTerm:
     term_id: str
     kind: str  # "literal" | "regex"
     pattern: str
-    compiled: re.Pattern[str] | None  # None for literal
+    case_sensitive: bool
+    compiled: re.Pattern[str] | None  # regex terms, plus case-insensitive literals
 
 
 def _is_glob_pattern(path_spec: str) -> bool:
@@ -94,13 +95,25 @@ def _load_banned_terms(path: Path) -> list[_CompiledTerm]:
         term_id: str = entry["id"]
         kind: str = entry["kind"]
         pattern: str = entry["pattern"]
+        case_sensitive: bool = entry.get("case_sensitive", True)
         compiled: re.Pattern[str] | None = None
+        flags = re.MULTILINE if case_sensitive else re.MULTILINE | re.IGNORECASE
         if kind == "regex":
             try:
-                compiled = re.compile(pattern, re.MULTILINE)
+                compiled = re.compile(pattern, flags)
             except re.error as exc:
                 raise ValueError(f"Banned term {term_id!r} has invalid regex pattern {pattern!r}: {exc}") from exc
-        terms.append(_CompiledTerm(term_id=term_id, kind=kind, pattern=pattern, compiled=compiled))
+        elif not case_sensitive:
+            compiled = re.compile(re.escape(pattern), flags)
+        terms.append(
+            _CompiledTerm(
+                term_id=term_id,
+                kind=kind,
+                pattern=pattern,
+                case_sensitive=case_sensitive,
+                compiled=compiled,
+            )
+        )
     return terms
 
 
@@ -219,6 +232,13 @@ def _scan_literal_matches(
 ) -> list[BannedTermHit]:
     """Return all literal matches for one term on one line."""
     hits: list[BannedTermHit] = []
+    if not term.case_sensitive:
+        assert term.compiled is not None
+        return [
+            _make_hit(repo_relative, lineno, match.start() + 1, term, match.group(0))
+            for match in term.compiled.finditer(line_text)
+        ]
+
     idx = 0
     while True:
         pos = line_text.find(term.pattern, idx)
