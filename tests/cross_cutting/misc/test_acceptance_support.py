@@ -182,6 +182,37 @@ def test_accept_command_reports_approved_wps_without_closing(
     assert summary.lanes["done"] == []
 
 
+def test_accept_diagnose_json_reports_missing_events_bootstrap_issue(
+    feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tests.utils import run
+
+    feature_dir = feature_repo / "kitty-specs" / mission_slug
+    _write_acceptance_meta(feature_repo, mission_slug)
+    (feature_dir / "status.events.jsonl").unlink()
+    run(["git", "add", "-A"], cwd=feature_repo)
+    run(["git", "commit", "-m", "Add meta and remove status event log"], cwd=feature_repo)
+
+    monkeypatch.chdir(feature_repo)
+    result = runner.invoke(
+        cli_app,
+        [
+            "accept",
+            "--mission",
+            mission_slug,
+            "--diagnose",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["diagnose"] is True
+    assert any("status.events.jsonl" in issue for issue in payload["activity_issues"])
+    assert any("finalize-tasks" in issue for issue in payload["activity_issues"])
+    assert "Traceback" not in result.output
+
+
 def test_accept_no_commit_reports_merge_pending_without_mutation(
     feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
