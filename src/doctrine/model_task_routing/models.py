@@ -74,7 +74,7 @@ class TaskType(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     id: str = Field(pattern=TASK_TYPE_PATTERN)
-    title: str
+    title: str = Field(min_length=1)
     description: str | None = None
     quality_sensitivity: Sensitivity | None = None
     cost_sensitivity: Sensitivity | None = None
@@ -108,8 +108,8 @@ class ModelEntry(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    id: str
-    provider: str
+    id: str = Field(min_length=1)
+    provider: str = Field(min_length=1)
     family: str | None = None
     tools: list[str] = Field(default_factory=list)
     strengths: list[str] = Field(default_factory=list)
@@ -173,10 +173,10 @@ class DataSource(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    name: str
-    url: str
+    name: str = Field(min_length=1)
+    url: str = Field(min_length=1)
     access_method: AccessMethod
-    snapshot_at: str
+    snapshot_at: str = Field(min_length=1)
     license_notes: str | None = None
 
 
@@ -191,7 +191,7 @@ class ModelToTaskType(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     schema_version: str = Field(pattern=r"^1\.0$")
-    generated_at: str
+    generated_at: str = Field(min_length=1)
     source_snapshot: str | None = None
     task_types: list[TaskType] = Field(min_length=1)
     models: list[ModelEntry] = Field(min_length=1)
