@@ -24,7 +24,9 @@ from specify_cli.audit import AuditOptions, run_audit
 from specify_cli.audit.classifiers.meta import classify_meta_json
 from specify_cli.audit.classifiers.status_events import classify_status_events_jsonl
 from specify_cli.audit.classifiers.status_json import classify_status_json
+from specify_cli.audit.models import is_teamspace_blocker
 from specify_cli.audit.classifiers.wp_files import classify_wp_files
+from spec_kitty_events.decisionpoint import DECISION_POINT_OPENED
 
 # ---------------------------------------------------------------------------
 # Fixture root
@@ -120,6 +122,27 @@ def test_forbidden_event_name() -> None:
     """forbidden_event_name: event_name key triggers FORBIDDEN_KEY."""
     findings, _ = classify_status_events_jsonl(FX / "forbidden_event_name")
     assert "FORBIDDEN_KEY" in _codes(findings)
+
+
+def test_decisionpoint_events_in_status_events_are_not_teamspace_blockers(tmp_path: Path) -> None:
+    """DecisionPoint event envelopes share status.events.jsonl but are not status transitions."""
+    mission_dir = tmp_path / "kitty-specs" / "001-decisionpoint"
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "status.events.jsonl").write_text(
+        (
+            '{"event_id":"01KTESTDECISIONEVENT0000001",'
+            '"at":"2026-05-31T12:00:00+00:00",'
+            f'"event_type":"{DECISION_POINT_OPENED}",'
+            '"payload":{"decision_point_id":"01KTESTDECISION0000000001"}}\n'
+        ),
+        encoding="utf-8",
+    )
+
+    findings, has_corrupt = classify_status_events_jsonl(mission_dir)
+
+    assert not has_corrupt
+    assert _codes(findings).isdisjoint({"FORBIDDEN_KEY", "UNKNOWN_SHAPE"})
+    assert not any(is_teamspace_blocker(finding) for finding in findings)
 
 
 # ---------------------------------------------------------------------------

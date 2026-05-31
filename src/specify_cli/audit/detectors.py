@@ -116,12 +116,12 @@ def detect_forbidden_keys(
 ) -> list[MissionFinding]:
     """Return one ``FORBIDDEN_KEY`` finding for each forbidden key in *obj*.
 
-    Row-family scoping: rows classified as mission-lifecycle rows by
-    :func:`specify_cli.audit.shape_registry.is_mission_lifecycle_row` are
-    skipped entirely — they legitimately carry ``event_type``. All other
-    rows are checked against :data:`FORBIDDEN_KEYS`, so a malformed
-    status-transition row that carries ``event_type`` without
-    ``aggregate_type == "Mission"`` is still flagged.
+    Row-family scoping: rows classified as mission-lifecycle rows or
+    DecisionPoint event envelopes by ``shape_registry`` are skipped entirely
+    — they legitimately carry ``event_type``. All other rows are checked
+    against :data:`FORBIDDEN_KEYS`, so a malformed status-transition row
+    that carries ``event_type`` without an accepted event-row shape is still
+    flagged.
 
     Args:
         obj: Parsed artifact dict.
@@ -129,13 +129,13 @@ def detect_forbidden_keys(
 
     Returns:
         A list of :class:`~specify_cli.audit.models.MissionFinding` objects.
-        Empty list when none are found or when *obj* is a lifecycle row.
+        Empty list when none are found or when *obj* is an accepted event row.
     """
     # Local import to avoid a module-load cycle with ``shape_registry``,
     # which imports ``FORBIDDEN_KEYS`` / ``LEGACY_KEYS`` from this module.
-    from .shape_registry import is_mission_lifecycle_row
+    from .shape_registry import is_decisionpoint_status_event_row, is_mission_lifecycle_row
 
-    if is_mission_lifecycle_row(obj):
+    if is_mission_lifecycle_row(obj) or is_decisionpoint_status_event_row(obj):
         return []
 
     findings: list[MissionFinding] = []
