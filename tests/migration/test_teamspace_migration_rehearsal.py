@@ -179,9 +179,9 @@ def test_teamspace_mission_state_rehearsal_is_deterministic_across_clones(tmp_pa
     assert {error["error"] for error in raw_dry_run.errors} == {
         "MISSION_STATE_AUDIT_BLOCKER",
     }
-    assert {"FORBIDDEN_KEY", "LEGACY_KEY"} <= {
-        error["finding_code"] for error in raw_dry_run.errors
-    }
+    finding_codes = {error["finding_code"] for error in raw_dry_run.errors}
+    assert "LEGACY_KEY" in finding_codes
+    assert "FORBIDDEN_KEY" not in finding_codes
     first_raw_row = _jsonl_rows(clone_a / "kitty-specs/042-historical-shape/status.events.jsonl")[0]
     with pytest.raises(ValidationError):
         Event.model_validate(first_raw_row)

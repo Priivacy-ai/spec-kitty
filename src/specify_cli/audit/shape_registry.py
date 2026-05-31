@@ -7,16 +7,10 @@ name to the set of top-level keys that are expected in that artifact type.
 for any top-level key that is not in the known set, not a legacy key, and not
 a forbidden key (those have dedicated finding codes).
 
-Also exposes ``is_mission_lifecycle_row()`` — a row-family classifier that
-distinguishes legitimate lifecycle event rows (those carrying a non-empty
-``event_type`` AND an ``aggregate_type`` in the known lifecycle set
-``{"Mission", "Project", "WorkPackage", "MissionDossier"}``) from canonical
-status-transition rows (``from_lane`` / ``to_lane``). The audit engine
-consults this predicate to scope the ``FORBIDDEN_KEYS`` rule to non-lifecycle
-rows. Issue #1142 broadened the accepted set beyond ``"Mission"`` so that
-``Project``, ``WorkPackage``, and ``MissionDossier`` lifecycle rows emitted
-by the events package no longer raise ``FORBIDDEN_KEY`` findings on
-legitimate keys.
+Also exposes row-family classifiers for mixed ``status.events.jsonl`` rows.
+The audit engine uses these predicates to scope status-transition-only
+``FORBIDDEN_KEYS`` checks away from legitimate lifecycle and DecisionPoint
+event envelopes while still flagging malformed transition rows.
 
 Reference: ``kitty-specs/unblock-sync-identity-boundary-canary-01KRZJ07/
 contracts/audit-row-family.md``.
@@ -182,6 +176,9 @@ KNOWN_TOP_LEVEL_KEYS_BY_ARTIFACT: dict[str, frozenset[str]] = {
 LIFECYCLE_AGGREGATE_TYPES: frozenset[str] = frozenset(
     {"Mission", "Project", "WorkPackage", "MissionDossier"}
 )
+DECISIONPOINT_STATUS_EVENT_KEYS: frozenset[str] = KNOWN_TOP_LEVEL_KEYS_BY_ARTIFACT[
+    "decision_event_row"
+]
 
 
 def is_mission_lifecycle_row(row: Mapping[str, Any]) -> bool:
@@ -223,6 +220,31 @@ def is_mission_lifecycle_row(row: Mapping[str, Any]) -> bool:
         return False
     event_type = row.get("event_type")
     return isinstance(event_type, str) and bool(event_type)
+
+
+def is_decisionpoint_status_event_row(row: Mapping[str, Any]) -> bool:
+    """Return ``True`` iff *row* matches a DecisionPoint event envelope.
+
+    Decision Moment producers append DecisionPoint events to
+    ``status.events.jsonl`` with ``{event_id, at, event_type, payload}``.
+    These rows are mission-level events, not lane-transition rows, and match
+    the same skip boundary used by ``status.store.read_events()``.
+    """
+    if not isinstance(row, Mapping):
+        return False
+    if not set(row).issubset(DECISIONPOINT_STATUS_EVENT_KEYS):
+        return False
+    event_type = row.get("event_type")
+    if not (isinstance(event_type, str) and event_type.startswith("DecisionPoint")):
+        return False
+    return isinstance(row.get("payload"), Mapping)
+
+
+def status_event_row_artifact_type(row: Mapping[str, Any]) -> str:
+    """Return the shape registry artifact type for a ``status.events.jsonl`` row."""
+    if is_decisionpoint_status_event_row(row):
+        return "decision_event_row"
+    return "status_event_row"
 
 
 # ---------------------------------------------------------------------------

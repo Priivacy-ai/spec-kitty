@@ -40,7 +40,10 @@ pytestmark = [pytest.mark.unit]
 from specify_cli.audit.detectors import detect_forbidden_keys
 from specify_cli.audit.engine import run_audit
 from specify_cli.audit.models import AuditOptions
-from specify_cli.audit.shape_registry import is_mission_lifecycle_row
+from specify_cli.audit.shape_registry import (
+    is_decisionpoint_status_event_row,
+    is_mission_lifecycle_row,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -165,6 +168,33 @@ class TestIsMissionLifecycleRow:
         assert is_mission_lifecycle_row(row) is False
 
 
+class TestIsDecisionPointStatusEventRow:
+    """Direct tests for DecisionPoint rows sharing ``status.events.jsonl``."""
+
+    def test_decisionpoint_event_envelope_is_decisionpoint_row(self) -> None:
+        row = {
+            "event_id": "01KTESTDECISIONEVENT0000001",
+            "at": "2026-05-31T12:00:00+00:00",
+            "event_type": "DecisionPointOpened",
+            "payload": {"decision_point_id": "01KTESTDECISION0000000001"},
+        }
+        assert is_decisionpoint_status_event_row(row) is True
+
+    def test_decisionpoint_event_without_payload_is_not_decisionpoint_row(self) -> None:
+        row = {"event_type": "DecisionPointOpened"}
+        assert is_decisionpoint_status_event_row(row) is False
+
+    def test_hybrid_transition_keys_are_not_decisionpoint_row(self) -> None:
+        row = {
+            "event_id": "01KTESTDECISIONEVENT0000001",
+            "at": "2026-05-31T12:00:00+00:00",
+            "event_type": "DecisionPointOpened",
+            "payload": {"decision_point_id": "01KTESTDECISION0000000001"},
+            "wp_id": "WP01",
+        }
+        assert is_decisionpoint_status_event_row(row) is False
+
+
 # ---------------------------------------------------------------------------
 # Behavioral contract matrix — one test per row in the contract table
 # ---------------------------------------------------------------------------
@@ -259,6 +289,34 @@ class TestDetectForbiddenKeysRowFamily:
     def test_event_name_without_aggregate_is_flagged(self) -> None:
         """Sibling regression guard for the second forbidden key (event_name)."""
         row: dict[str, object] = {"event_name": "legacy_thing"}
+        findings = detect_forbidden_keys(row, "status.events.jsonl")
+        codes = _finding_codes(findings)
+        assert codes == ["FORBIDDEN_KEY"]
+
+    def test_decisionpoint_event_envelope_skipped(self) -> None:
+        row: dict[str, object] = {
+            "event_id": "01KTESTDECISIONEVENT0000001",
+            "at": "2026-05-31T12:00:00+00:00",
+            "event_type": "DecisionPointOpened",
+            "payload": {"decision_point_id": "01KTESTDECISION0000000001"},
+        }
+        findings = detect_forbidden_keys(row, "status.events.jsonl")
+        assert findings == []
+
+    def test_decisionpoint_event_without_payload_is_flagged(self) -> None:
+        row: dict[str, object] = {"event_type": "DecisionPointOpened"}
+        findings = detect_forbidden_keys(row, "status.events.jsonl")
+        codes = _finding_codes(findings)
+        assert codes == ["FORBIDDEN_KEY"]
+
+    def test_hybrid_decisionpoint_transition_row_is_flagged(self) -> None:
+        row: dict[str, object] = {
+            "event_id": "01KTESTDECISIONEVENT0000001",
+            "at": "2026-05-31T12:00:00+00:00",
+            "event_type": "DecisionPointOpened",
+            "payload": {"decision_point_id": "01KTESTDECISION0000000001"},
+            "wp_id": "WP01",
+        }
         findings = detect_forbidden_keys(row, "status.events.jsonl")
         codes = _finding_codes(findings)
         assert codes == ["FORBIDDEN_KEY"]

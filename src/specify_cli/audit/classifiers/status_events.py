@@ -12,7 +12,7 @@ from ..detectors import (
     detect_legacy_keys,
 )
 from ..models import MissionFinding, Severity
-from ..shape_registry import check_unknown_keys
+from ..shape_registry import check_unknown_keys, status_event_row_artifact_type
 from ._details import format_exception_detail
 
 # Actor format research (from real event logs and tests):
@@ -129,6 +129,12 @@ def classify_status_events_jsonl(
             )
 
         # Unknown key detection
-        findings.extend(check_unknown_keys("status_event_row", obj, "status.events.jsonl"))
+        findings.extend(
+            check_unknown_keys(
+                status_event_row_artifact_type(obj),
+                obj,
+                "status.events.jsonl",
+            )
+        )
 
     return findings, has_corrupt_jsonl

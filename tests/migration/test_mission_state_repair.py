@@ -153,7 +153,10 @@ def test_repair_canonicalizes_historical_meta_and_status_events(tmp_path: Path) 
 
     assert dry_run.valid
     assert dry_run.schema_version == "3.0.0"
-    assert dry_run.events_package_version == "5.0.0"
+    import spec_kitty_events
+
+    assert dry_run.events_package_version == spec_kitty_events.__version__
+    assert Version(dry_run.events_package_version) >= Version("5.0.0")
     assert dry_run.envelope_count == 1
     assert dry_run.errors == ()
     assert len(dry_run.row_mappings) == 1
