@@ -14,6 +14,7 @@ These cover the FR-024 / FR-018 lifecycle contract:
 from __future__ import annotations
 
 import subprocess
+import shutil
 from pathlib import Path
 
 import pytest
@@ -37,6 +38,13 @@ COORD_BRANCH = f"kitty/mission-{MISSION_SLUG}-{MID8}"
 
 def _git(repo: Path, *args: str) -> None:
     subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True)
+
+
+def _worktree_list(repo: Path) -> str:
+    return subprocess.check_output(
+        ["git", "-C", str(repo), "worktree", "list", "--porcelain"],
+        text=True,
+    )
 
 
 @pytest.fixture
@@ -104,6 +112,25 @@ def test_resolve_reuses_existing(repo_with_coord_branch: Path) -> None:
     assert marker.read_text() == "preserved\n"
 
 
+def test_resolve_recovers_stale_prunable_registration(
+    repo_with_coord_branch: Path,
+) -> None:
+    path = CoordinationWorkspace.resolve(
+        repo_with_coord_branch, MISSION_SLUG, MID8,
+    )
+    shutil.rmtree(path)
+    assert not path.exists()
+    assert "prunable" in _worktree_list(repo_with_coord_branch)
+
+    recovered = CoordinationWorkspace.resolve(
+        repo_with_coord_branch, MISSION_SLUG, MID8,
+    )
+
+    assert recovered == path
+    assert recovered.exists()
+    assert "prunable" not in _worktree_list(repo_with_coord_branch)
+
+
 def test_resolve_branch_mismatch_raises(repo_with_coord_branch: Path) -> None:
     path = CoordinationWorkspace.resolve(
         repo_with_coord_branch, MISSION_SLUG, MID8,
@@ -139,6 +166,25 @@ def test_teardown_idempotent(repo_with_coord_branch: Path) -> None:
         repo_with_coord_branch, MISSION_SLUG, MID8,
     )
     assert not path.exists()
+
+
+def test_teardown_prunes_stale_missing_registration(
+    repo_with_coord_branch: Path,
+) -> None:
+    path = CoordinationWorkspace.resolve(
+        repo_with_coord_branch, MISSION_SLUG, MID8,
+    )
+    shutil.rmtree(path)
+    assert not path.exists()
+    assert "prunable" in _worktree_list(repo_with_coord_branch)
+
+    CoordinationWorkspace.teardown(
+        repo_with_coord_branch, MISSION_SLUG, MID8,
+    )
+
+    worktree_list = _worktree_list(repo_with_coord_branch)
+    assert str(path) not in worktree_list
+    assert "prunable" not in worktree_list
 
 
 def test_teardown_does_not_delete_branch(
