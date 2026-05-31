@@ -328,6 +328,78 @@ def test_regex_term_reports_accurate_column(tmp_path: Path) -> None:
     assert hit.match == "pip install"
 
 
+def test_case_sensitive_false_matches_literal_and_regex_terms(tmp_path: Path) -> None:
+    """Per-term ``case_sensitive: false`` must make literal and regex terms ignore case."""
+    scan_root = tmp_path / "src" / "doctrine"
+    scan_root.mkdir(parents=True)
+    target = scan_root / "mixed-case.md"
+    target.write_text("Run PyTest, then use PIP INSTALL foo.\n", encoding="utf-8")
+
+    banned_terms = tmp_path / "banned.yaml"
+    banned_terms.write_text(
+        "schema_version: '1'\n"
+        "terms:\n"
+        "  - id: PY-900\n"
+        "    kind: literal\n"
+        "    pattern: pytest\n"
+        "    rationale: Case-insensitive literal regression fixture.\n"
+        "    case_sensitive: false\n"
+        "  - id: PY-901\n"
+        "    kind: regex\n"
+        "    pattern: \"\\\\bpip install\\\\b\"\n"
+        "    rationale: Case-insensitive regex regression fixture.\n"
+        "    case_sensitive: false\n",
+        encoding="utf-8",
+    )
+    empty_allowlist = tmp_path / "allow.yaml"
+    empty_allowlist.write_text("schema_version: '1'\npaths: []\n", encoding="utf-8")
+
+    result = run_neutrality_lint(
+        repo_root=tmp_path,
+        scan_roots=[scan_root],
+        banned_terms_path=banned_terms,
+        allowlist_path=empty_allowlist,
+    )
+
+    hits_by_id = {hit.term_id: hit for hit in result.hits}
+    assert hits_by_id["PY-900"].match == "PyTest"
+    assert hits_by_id["PY-901"].match == "PIP INSTALL"
+
+
+def test_banned_terms_remain_case_sensitive_by_default(tmp_path: Path) -> None:
+    """Omitted ``case_sensitive`` keeps the schema default: exact-case matching."""
+    scan_root = tmp_path / "src" / "doctrine"
+    scan_root.mkdir(parents=True)
+    target = scan_root / "mixed-case-default.md"
+    target.write_text("Run PyTest, then use PIP INSTALL foo.\n", encoding="utf-8")
+
+    banned_terms = tmp_path / "banned.yaml"
+    banned_terms.write_text(
+        "schema_version: '1'\n"
+        "terms:\n"
+        "  - id: PY-900\n"
+        "    kind: literal\n"
+        "    pattern: pytest\n"
+        "    rationale: Default-sensitive literal regression fixture.\n"
+        "  - id: PY-901\n"
+        "    kind: regex\n"
+        "    pattern: \"\\\\bpip install\\\\b\"\n"
+        "    rationale: Default-sensitive regex regression fixture.\n",
+        encoding="utf-8",
+    )
+    empty_allowlist = tmp_path / "allow.yaml"
+    empty_allowlist.write_text("schema_version: '1'\npaths: []\n", encoding="utf-8")
+
+    result = run_neutrality_lint(
+        repo_root=tmp_path,
+        scan_roots=[scan_root],
+        banned_terms_path=banned_terms,
+        allowlist_path=empty_allowlist,
+    )
+
+    assert result.passed, f"Expected no case-mismatched hits by default; got hits={result.hits}"
+
+
 # ---------------------------------------------------------------------------
 # T012 — Runtime budget (NFR-001)
 # ---------------------------------------------------------------------------
