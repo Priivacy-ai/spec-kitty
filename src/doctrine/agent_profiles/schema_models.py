@@ -19,7 +19,9 @@ The generated schema targets Draft 2020-12 (like all other generated schemas).
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Self
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 # ---------------------------------------------------------------------------
@@ -154,7 +156,15 @@ class AgentProfileSchema(BaseModel):
     see ``doctrine.agent_profiles.profile.AgentProfile``.
     """
 
-    model_config = ConfigDict(frozen=True, extra="forbid", populate_by_name=True)
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        populate_by_name=True,
+        json_schema_extra={
+            "$comment": "schema-version: 2 — roles list support added",
+            "anyOf": [{"required": ["role"]}, {"required": ["roles"]}],
+        },
+    )
 
     # Core identity
     profile_id: str = Field(alias="profile-id", pattern=r"^[a-z][a-z0-9-]*$")
@@ -164,15 +174,33 @@ class AgentProfileSchema(BaseModel):
         default=None, alias="schema-version", pattern=r"^1\.0$"
     )
     purpose: str
-    role: str | None = None
-    roles: list[str] | None = Field(default=None, min_length=1)
+    role: str | None = Field(
+        default=None,
+        description="Agent role - deprecated scalar form; prefer roles array",
+    )
+    roles: list[str] | None = Field(
+        default=None,
+        min_length=1,
+        description="Agent roles list (first entry is primary role)",
+    )
     avatar_image: str | None = Field(default=None, alias="avatar-image")
     sentinel: bool = Field(default=False)
     tags: list[str] = Field(default_factory=list)
     capabilities: list[str] = Field(default_factory=list)
     specializes_from: str | None = Field(default=None, alias="specializes-from")
+    overrides: str | None = Field(
+        default=None,
+        pattern=r"^[a-z][a-z0-9-]*$",
+        description="ID of a built-in agent profile this artifact replaces in full.",
+    )
+    enhances: str | None = Field(
+        default=None,
+        pattern=r"^[a-z][a-z0-9-]*$",
+        description="ID of a built-in agent profile this artifact augments via field-merge.",
+    )
     routing_priority: int | None = Field(default=None, alias="routing-priority", ge=0, le=100)
     max_concurrent_tasks: int | None = Field(default=None, alias="max-concurrent-tasks", ge=1)
+    applies_to_languages: list[str] = Field(default_factory=list)
 
     # Section 1: Context sources
     context_sources: AgentContextSources | None = Field(default=None, alias="context-sources")
@@ -218,3 +246,9 @@ class AgentProfileSchema(BaseModel):
     self_review_protocol: SelfReviewProtocol | None = Field(
         default=None, alias="self-review-protocol"
     )
+
+    @model_validator(mode="after")
+    def _requires_role_or_roles(self) -> Self:
+        if self.role is None and self.roles is None:
+            raise ValueError("agent profile requires either role or roles")
+        return self
