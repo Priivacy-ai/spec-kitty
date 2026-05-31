@@ -172,7 +172,7 @@ set (which may be empty), and the command to activate it. The review does not st
 | FR-017 | `spec-kitty agent mission finalize-tasks` validates that every WP-assigned profile is present in the charter's activated profile set; any violation is a hard fail with the WP ID, the inactive profile, and the resolution command | Must | Proposed |
 | FR-018 | `spec-kitty agent action implement` validates that the WP's assigned profile is activated in the charter before creating or entering a worktree; this is a non-optional precondition that hard-fails with an actionable error | Must | Proposed |
 | FR-019 | DRG resolution and tactic lookup through the charter module hard-fail when the requested artifact is not in the activated set; errors include the artifact identifier, the activated set, and the resolution command | Must | Proposed |
-| FR-020 | The C-004 architectural boundary violation in `src/doctrine/missions/mission_step_repository.py` is resolved; the module no longer imports from `charter.*` via `TYPE_CHECKING` | Must | Proposed |
+| FR-020 | The C-004 architectural boundary violation in `src/doctrine/missions/mission_step_repository.py` is resolved; the module no longer imports from `charter.*` via `TYPE_CHECKING`; a narrow `ProjectContextProtocol` defined in `doctrine.*` replaces the direct `PackContext` annotation, satisfying both pytestarch (no charter import) and mypy strict (type is defined) | Must | Proposed |
 | FR-021 | The `test_legacy_subpackage_is_gone` test false positive from namespace package semantics is corrected; the `find_spec` assertion is replaced with a source-file-only check | Must | Proposed |
 | FR-022 | The eight tests in `test_template_governance_payload_contract.py` that reference deleted `command-templates/` paths are updated to the current doctrine layout | Must | Proposed |
 | FR-023 | The `m_3_2_7_activate_builtin_mission_types` migration (WP12) is added to the dead-modules architectural test allowlist | Must | Proposed |
@@ -244,6 +244,9 @@ set (which may be empty), and the command to activate it. The review does not st
 | `CascadeScope` | The set of artifact kinds to include in a cascade operation: any combination of the nine activation kind names, or the shorthand `all` |
 | `ConsistencyReport` | The output of `charter pack consistency-check`; lists violations, passing axes, and resolution commands |
 | `CharterBackup` | A timestamped copy of an existing charter file created before an upgrade merge |
+| `ProjectContext` | Immutable value object carrying project-level runtime state (repo root, pack context, org root, specs dir); owned by `charter.*`; populated by `specify_cli.context` factories; guard methods enforce field presence at API boundaries |
+| `OperationalContext` | Immutable value object carrying agent-invocation-level state (active model, profile, role, activity, tech stack); specced in this mission, wiring deferred to follow-on work |
+| `ContextPreconditionError` | Raised by `ProjectContext`/`OperationalContext` guard methods when a required field is absent; replaces ad-hoc None-checks throughout the codebase |
 
 ---
 
@@ -295,6 +298,7 @@ implemented to ensure the wiring gap does not repeat:
 | FR-037 | `load_org_charter_policies()` call sites that currently pass `pack_context=None` are updated to supply `PackContext.from_config(repo_root)`; the `None` default is retained only for test isolation | Must | Proposed |
 | FR-038 | `_node_is_activated` in `src/charter/drg.py` is extended to check per-artifact-ID frozensets (`activated_directives`, `activated_tactics`, `activated_styleguides`, `activated_toolguides`, `activated_paradigms`, `activated_procedures`, `activated_agent_profiles`, `activated_mission_step_contracts`) when the corresponding `PackContext` field is non-`None`; kind-level gating via `activated_kinds` remains as the outer check | Must | Proposed |
 | FR-039 | The `from_config()` reader for per-kind activation fields treats an empty YAML list as an explicit empty frozenset (zero artifacts available); the silent fallback that collapses `[]` to all built-ins (present in the existing `_read_activated_kinds` implementation via the `and raw` guard) is removed; the upgrade command's default-pack write is the mechanism that prevents newly-upgraded projects from inadvertently having an empty activation set | Must | Proposed |
+| FR-040 | A new `src/charter/invocation_context.py` module is created defining `ProjectContext`, `OperationalContext`, and `ContextPreconditionError`; a `src/specify_cli/context/` package re-exports these types and provides population factories; `CharterPackManager` and all wiring sites introduced in this mission accept `ProjectContext` as their primary context parameter; guard methods (`require_repo_root()`, `require_pack_context()`) are called at method entry for any method that uses those fields | Must | Proposed |
 
 ### Wiring Acceptance Criteria
 

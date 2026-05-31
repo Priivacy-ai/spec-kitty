@@ -108,7 +108,16 @@ The DRG comment block explicitly names these callers as required (lines 712–73
 2. Wire in the runtime path where action sequences drive step execution — `specify_cli/next/` or `charter/mission_type_profiles.py` should call `MissionStepRepository.default().resolve(mission_type_id, step_id, pack_context)` for org/project step overrides
 
 ### C-004 Fix
-`src/doctrine/missions/mission_step_repository.py:43` has `if TYPE_CHECKING: from charter.pack_context import PackContext`. This violates the `doctrine ← charter` isolation rule (pytestarch follows TYPE_CHECKING imports). Fix: replace with a string literal annotation `"PackContext"` for the method signatures and remove the `TYPE_CHECKING` import entirely.
+`src/doctrine/missions/mission_step_repository.py:43` has `if TYPE_CHECKING: from charter.pack_context import PackContext`. This violates the `doctrine ← charter` isolation rule (pytestarch follows TYPE_CHECKING imports).
+
+Correct fix (per FR-020):
+1. Define a narrow `ProjectContextProtocol` in `src/doctrine/missions/` matching only the fields `MissionStepRepository` actually uses (likely `activated_mission_step_contracts` and `activated_mission_types` — verify at implementation time).
+2. Replace the `PackContext` annotation in `mission_step_repository.py` method signatures with `ProjectContextProtocol`.
+3. Remove the `TYPE_CHECKING` import block entirely.
+
+`ProjectContext` (from `src/charter/invocation_context.py`) satisfies the protocol structurally — no changes to `ProjectContext` needed. Pytestarch sees no charter import; mypy strict sees a defined protocol — both are satisfied.
+
+Do NOT use a bare string literal annotation (`"PackContext"`) as the fix. With `from __future__ import annotations` active, all annotations are already lazy strings at runtime — the `TYPE_CHECKING` guard exists specifically for mypy. Removing it without a protocol replacement causes `error: Name "PackContext" is not defined [name-defined]` under mypy strict.
 
 ---
 
