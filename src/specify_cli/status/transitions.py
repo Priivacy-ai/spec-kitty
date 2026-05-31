@@ -8,26 +8,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from specify_cli.status_lanes import CANONICAL_LANES as CANONICAL_LANES
+from specify_cli.status_lanes import LANE_ALIASES, TERMINAL_LANES
+
 from .models import GuardContext, Lane
-
-CANONICAL_LANES: tuple[str, ...] = (
-    "planned",
-    "claimed",
-    "in_progress",
-    "for_review",
-    "in_review",
-    "approved",
-    "done",
-    "blocked",
-    "canceled",
-)
-
-LANE_ALIASES: dict[str, str] = {
-    "doing": "in_progress",
-    # NOTE: "in_review" is NO LONGER an alias — it is a first-class lane (FR-012a)
-}
-
-TERMINAL_LANES: frozenset[str] = frozenset({"done", "canceled"})
 
 # Boy Scout (DIRECTIVE_025): Extract duplicated error messages to constants.
 _FORCE_REQUIRES_ACTOR_AND_REASON = "Force transitions require actor and reason"

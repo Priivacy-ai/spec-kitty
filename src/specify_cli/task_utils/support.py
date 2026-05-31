@@ -14,8 +14,9 @@ from typing import Any, cast
 from specify_cli.core.paths import get_main_repo_root, locate_project_root
 from specify_cli.legacy_detector import is_legacy_format
 
-# Canonical lane tuple — imported from the status package (single source of truth).
-from specify_cli.status import CANONICAL_LANES
+# Canonical lane tuple — imported from the leaf module to avoid pulling in the
+# full status orchestration package during cold command imports.
+from specify_cli.status_lanes import CANONICAL_LANES
 
 LANES: tuple[str, ...] = CANONICAL_LANES
 LANE_ALIASES: dict[str, str] = {"doing": "in_progress"}

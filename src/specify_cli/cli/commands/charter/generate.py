@@ -8,7 +8,6 @@ from typing import Any
 
 import typer
 
-from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.task_utils import TaskCliError
 
 from specify_cli.cli.commands.charter._app import charter_app, console
@@ -232,6 +231,8 @@ def generate(
         answers_path = _interview_path(repo_root)
         resolved_mission_type = None
         if mission_type is not None or mission is not None:
+            from specify_cli.cli.selector_resolution import resolve_selector
+
             resolved = resolve_selector(
                 canonical_value=mission_type,
                 canonical_flag="--mission-type",
