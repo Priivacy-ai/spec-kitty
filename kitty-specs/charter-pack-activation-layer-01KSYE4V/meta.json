@@ -1,0 +1,13 @@
+{
+  "coordination_branch": "kitty/mission-charter-pack-activation-layer-01KSYE4V",
+  "created_at": "2026-05-31T07:14:35.113875+00:00",
+  "friendly_name": "Charter Pack Activation Layer",
+  "mission_id": "01KSYE4VZ9V0S14NRC87XX92BP",
+  "mission_number": null,
+  "mission_slug": "charter-pack-activation-layer-01KSYE4V",
+  "mission_type": "software-dev",
+  "purpose_context": "Phase 1 (charter-doctrine-mission-type-configuration) delivered mission-type activation but left the reader gap open, other doctrine artifact kinds unactivatable, two WPs producing dead code, and six architectural tests broken. This mission wires the full activation layer: the charter module becomes the authoritative filtered view over doctrine, a default charter pack ships with spec-kitty to preserve backward compatibility for all existing users, and the upgrade pipeline gains safe charter migration behavior with backup and user guidance.",
+  "purpose_tldr": "Complete the charter activation model across all doctrine artifact kinds with hard restriction, explicit cascade control, and a shipped default charter pack.",
+  "slug": "charter-pack-activation-layer-01KSYE4V",
+  "target_branch": "pr/charter-doctrine-mission-type-configuration"
+}
