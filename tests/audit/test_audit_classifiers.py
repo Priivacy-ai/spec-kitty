@@ -10,6 +10,7 @@ import json
 from pathlib import Path
 
 
+from specify_cli.audit.classifiers._details import format_exception_detail
 from specify_cli.audit.classifiers.decisions_events import classify_decisions_events_jsonl
 from specify_cli.audit.classifiers.handoff_events import classify_handoff_events_jsonl
 from specify_cli.audit.classifiers.meta import classify_meta_json
@@ -55,6 +56,40 @@ def _write_corrupt_jsonl(path: Path, corrupt_line: str = "NOT JSON {{") -> None:
 
 def _codes(findings: list) -> list[str]:
     return [f.code for f in findings]
+
+
+def test_oserror_detail_preserves_non_path_message() -> None:
+    """Message-only OSError details without paths should not be erased."""
+    assert (
+        format_exception_detail(OSError("network share unavailable"))
+        == "OSError: network share unavailable"
+    )
+
+
+def test_oserror_detail_redacts_absolute_paths_with_spaces() -> None:
+    """OSError messages may carry POSIX, Windows, or UNC paths with spaces."""
+    cases = [
+        OSError("failed reading /tmp/My Project/secret.txt"),
+        OSError(5, "failed reading /tmp/My Project/secret.txt"),
+        OSError(5, r"failed reading C:\Users\Rob Douglass\secret.txt"),
+        OSError(5, r"failed reading \\server\My Share\secret.txt"),
+    ]
+
+    for exc in cases:
+        detail = format_exception_detail(exc)
+        assert detail.endswith("failed reading <path>")
+        assert "secret.txt" not in detail
+        assert "My Project" not in detail
+        assert "Rob Douglass" not in detail
+        assert "My Share" not in detail
+
+
+def test_oserror_detail_does_not_redact_non_path_slashes_or_urls() -> None:
+    """Slash commands and URLs are stable messages, not local path evidence."""
+    assert (
+        format_exception_detail(OSError("open /help or https://example.com/path/file"))
+        == "OSError: open /help or https://example.com/path/file"
+    )
 
 
 # Minimal valid ULID
@@ -221,7 +256,7 @@ def test_status_events_read_oserror_without_errno_does_not_echo_message_path(
     findings, flag = classify_status_events_jsonl(tmp_path)
 
     assert flag is True
-    assert findings[0].detail == "could not read file: OSError"
+    assert findings[0].detail == "could not read file: OSError: failed reading <path>"
     _assert_no_absolute_path_leak(findings[0].detail, path)
 
 

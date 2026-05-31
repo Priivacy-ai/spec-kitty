@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import re
 
-_POSIX_ABSOLUTE_PATH_RE = re.compile(r"(?<!\w)/(?:[^\s'\"<>:]+/)*[^\s'\"<>:]+")
+_POSIX_ABSOLUTE_PATH_RE = re.compile(
+    r"(?<![\w:/])/(?:[^/:\r\n'\"<>]+/)[^:\r\n'\"<>]*"
+)
 _WINDOWS_ABSOLUTE_PATH_RE = re.compile(
-    r"(?i)\b[A-Z]:\\(?:[^\\\s'\"<>:]+\\)*[^\\\s'\"<>:]+"
+    r"(?i)\b[A-Z]:\\[^\r\n'\"<>|]*"
 )
 _WINDOWS_UNC_PATH_RE = re.compile(
-    r"\\\\[^\\\s'\"<>:]+\\[^\\\s'\"<>:]+(?:\\[^\\\s'\"<>:]+)*"
+    r"\\\\[^\\\r\n'\"<>|]+\\[^\r\n'\"<>|]*"
 )
 
 
@@ -31,6 +33,8 @@ def _format_os_error_detail(exc: OSError) -> str:
         return f"{exc_type}: [Errno {errno}] {strerror}"
     if strerror:
         return f"{exc_type}: {strerror}"
+    if len(exc.args) == 1 and isinstance(exc.args[0], str) and exc.args[0]:
+        return f"{exc_type}: {_sanitize_run_varying_paths(exc.args[0])}"
 
     return exc_type
 
