@@ -26,7 +26,7 @@ from charter.mission_type_profiles import (
 )
 
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 
 # ---------------------------------------------------------------------------

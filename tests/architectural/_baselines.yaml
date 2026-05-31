@@ -135,7 +135,7 @@ test_no_dead_symbols:
   # prompt_builder imports build_with_scope which pulls CharterScope*
   # into the live src/ import graph. All four symbols now have live
   # callers; category shrunk from 4 to 0.
-  category_c_wp_in_flight_charter_scope: 7  # justification: OperationalContext family + ContextPreconditionError specced, wiring deferred (charter-pack-activation-layer WP03); ConsistencyReport + run_consistency_check consumed by CLI command (WP06 lane-f, wiring deferred)
+  category_c_wp_in_flight_charter_scope: 6  # justification: OperationalContext family (×4) + ConsistencyReport + ContextPreconditionError; ProjectContext/run_consistency_check wired in charter-pack-activation-layer-01KSYE4V post-merge remediation
   # WP11 removal trigger reached: all 4 workflow registry symbols now have
   # live src/ callers (planner.py imports get_workflow, UnknownWorkflowError,
   # list_available_workflows from workflow_registry, and ActionStep from
@@ -145,4 +145,5 @@ test_no_dead_symbols:
   # charter-pack-activation-layer-01KSYE4V whose production callers (CLI
   # activation command, DRG pipeline) are in-flight in later WPs of the same
   # mission. All symbols ship ahead of wiring per the activation-layer design.
-  category_c_wp_in_flight_charter_activation: 13  # justification: charter-pack-activation-layer WP05/WP06 symbols; production callers land in WP06/WP08
+  category_c_wp_in_flight_charter_pack_activation: 6  # justification: charter.drg::PackContext, AffectedMission, StepRemovalWarning, activate_cmd, OrgCharterCycle/ExtensionError; filter_graph/helpers wired in post-merge remediation
+  category_c_wp_in_flight_charter_activation: 9  # justification: 4 wired in post-merge remediation (MissionStepRepository + 3 helpers); remaining 9 are type/error symbols with no direct src/ caller yet

@@ -31,7 +31,6 @@ __all__ = [
     "find_removed_steps",
     "scan_inflight_missions",
     "emit_step_removal_warnings",
-    "activate_mission_type_override",
 ]
 
 # ---------------------------------------------------------------------------

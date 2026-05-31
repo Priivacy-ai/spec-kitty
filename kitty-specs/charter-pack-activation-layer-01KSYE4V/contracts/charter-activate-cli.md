@@ -52,7 +52,7 @@ Cascade-activated (tactic): test-driven-development, clean-arch
 
 ## State Written (config.yaml)
 
-```yaml
+```
 activated_directives:
   - python-style-guide
 activated_tactics:           # only if --cascade tactic was used

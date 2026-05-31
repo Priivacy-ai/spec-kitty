@@ -222,44 +222,22 @@ _Charter management commands_
 
 ## spec-kitty charter activate
 
-_Activate a mission-type override for this project (FR-008)._
+_Activate a doctrine artifact for this project._
 
 ```
- Usage: spec-kitty charter activate [OPTIONS] COMMAND [ARGS]...
+ Usage: spec-kitty charter activate [OPTIONS] [KIND] [ARTIFACT_ID] COMMAND
+                                    [ARGS]...
 
- Activate a mission-type override for this project (FR-008).
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help          Show this message and exit.                                  │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ mission-type  Activate a mission-type override (FR-008).                     │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty charter activate mission-type
-
-```
- Usage: spec-kitty charter activate mission-type [OPTIONS] MISSION_TYPE_ID
-
- Activate a mission-type override (FR-008).
-
- Writes ``.kittify/overrides/mission-types/<id>.yaml`` with the supplied
- ``action_sequence``.  Before writing, computes removed steps and emits
- a warning for each in-flight WP affected by the removal.
-
- The warning is non-blocking: the override is always written.
+ Activate a doctrine artifact for this project.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    mission_type_id      TEXT  Mission type to override (e.g.               │
-│                                 software-dev).                               │
-│                                 [required]                                   │
+│   kind             [KIND]         Activation kind (e.g. directive,           │
+│                                   agent-profile).                            │
+│   artifact_id      [ARTIFACT_ID]  Artifact ID to activate.                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --action-sequence  -s      TEXT  Ordered action step IDs for the override │
-│                                     (repeat or space-separated).             │
-│                                     [required]                               │
-│    --help                           Show this message and exit.              │
+│ --cascade        TEXT  Enable cascade activation of referenced artifacts.    │
+│ --help                 Show this message and exit.                           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -290,6 +268,74 @@ _Charter bundle validation commands._
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json          Emit structured JSON to stdout instead of a human-readable   │
 │                 report.                                                      │
+│ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter deactivate
+
+_Deactivate a doctrine artifact from this project._
+
+```
+ Usage: spec-kitty charter deactivate [OPTIONS] [KIND] [ARTIFACT_ID] COMMAND
+                                      [ARGS]...
+
+ Deactivate a doctrine artifact from this project.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│   kind             [KIND]         Activation kind (e.g. directive,           │
+│                                   agent-profile).                            │
+│   artifact_id      [ARTIFACT_ID]  Artifact ID to deactivate.                 │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --cascade        TEXT  Enable cascade deactivation of exclusively-referenced │
+│                        artifacts.                                            │
+│ --help                 Show this message and exit.                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter list
+
+_List activated doctrine artifacts by kind._
+
+```
+ Usage: spec-kitty charter list [OPTIONS] COMMAND [ARGS]...
+
+ List activated doctrine artifacts by kind.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --show-available          Also show available-but-not-activated artifacts.   │
+│ --help                    Show this message and exit.                        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter pack
+
+_Charter pack management commands._
+
+```
+ Usage: spec-kitty charter pack [OPTIONS] COMMAND [ARGS]...
+
+ Charter pack management commands.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ consistency-check  Run consistency check against activated doctrine          │
+│                    artifacts (FR-011).                                       │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter pack consistency-check
+
+```
+ Usage: spec-kitty charter pack consistency-check [OPTIONS]
+
+ Run consistency check against activated doctrine artifacts (FR-011).
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json          Output as JSON.                                              │
 │ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```

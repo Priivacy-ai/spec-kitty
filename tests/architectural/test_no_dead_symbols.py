@@ -408,11 +408,12 @@ _CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE: frozenset[str] = frozenset(
         "charter.invocation_context::build_operational_context",
         "charter.invocation_context::OperationalContext.require_active_profile",
         "charter.invocation_context::OperationalContext.require_active_role",
+        # ProjectContext: live callers landed in charter-pack-activation-layer-01KSYE4V
+        # ContextPreconditionError: raised internally; no direct import in other src/ modules yet
         "charter.invocation_context::ContextPreconditionError",
-        # consumed by charter pack consistency-check CLI command (WP06,
-        # charter-pack-activation-layer lane-f); wiring deferred
+        # run_consistency_check: live callers landed in charter/pack.py (WP06)
+        # ConsistencyReport: no src/ caller yet — remains allowlisted
         "charter.consistency_check::ConsistencyReport",
-        "charter.consistency_check::run_consistency_check",
     }
 )
 
@@ -487,6 +488,41 @@ _CATEGORY_C_WP_IN_FLIGHT_UNIFIED_MISSION_STEP: frozenset[str] = frozenset(
         "doctrine.missions.models::MissionStateObject",
         "doctrine.missions.models::MissionTransition",
         "doctrine.missions.step_contracts::DelegatesTo",
+        # MissionStepRepository: live caller landed in charter.mission_steps (WP09)
+        "doctrine.missions.mission_step_repository::StepKey",
+    }
+)
+
+
+# ---------- C. WP-in-flight charter-pack activation layer (01KSYE4V) ----------
+# Mission ``charter-pack-activation-layer-01KSYE4V`` ships the charter-pack
+# activation subsystem ahead of full runtime wiring. The modules below
+# export public symbols that are exercised by tests but not yet imported by
+# any live src/ production path. Wiring is the responsibility of later WPs
+# in this mission (WP02 – WP11). Removal trigger: once each WP wires its
+# target symbol(s), remove the corresponding entry from this set.
+_CATEGORY_C_WP_IN_FLIGHT_CHARTER_PACK_ACTIVATION: frozenset[str] = frozenset(
+    {
+        # charter.drg: PackContext is the type boundary for the activation context.
+        # filter_graph_by_activation: live callers landed in charter-pack-activation-layer-01KSYE4V
+        "charter.drg::PackContext",
+        # specify_cli.charter_activate: AffectedMission and StepRemovalWarning are
+        # return/field types for the step-removal warning helpers; they are used
+        # indirectly via the wired call sites but not directly imported.
+        # emit_step_removal_warnings / find_removed_steps / scan_inflight_missions
+        # now have live callers in cli/commands/charter/activate.py (wired in
+        # charter-pack-activation-layer-01KSYE4V post-merge remediation).
+        "specify_cli.charter_activate::AffectedMission",
+        "specify_cli.charter_activate::StepRemovalWarning",
+        # specify_cli.cli.commands.charter.activate: the CLI entry-point for
+        # the charter activate command. Wired into the charter CLI app by
+        # WP06 of this mission.
+        "specify_cli.cli.commands.charter.activate::activate_cmd",
+        # specify_cli.doctrine.org_charter: org-level charter extension and
+        # cycle-guard error types. WP07 wires them into the org-charter
+        # validation path.
+        "specify_cli.doctrine.org_charter::OrgCharterCycleError",
+        "specify_cli.doctrine.org_charter::OrgCharterExtensionError",
     }
 )
 
@@ -507,19 +543,18 @@ _CATEGORY_C_WP_IN_FLIGHT_CHARTER_ACTIVATION: frozenset[str] = frozenset(
         # activation command (WP06 wiring deferred)
         "charter.pack_manager::ActivationResult",
         "charter.pack_manager::MergeResult",
-        # doctrine.missions.mission_step_repository: MissionStepRepository and StepKey
-        # ship ahead of the charter.resolve_action_sequence caller (WP08)
-        "doctrine.missions.mission_step_repository::MissionStepRepository",
+        # doctrine.missions.mission_step_repository: MissionStepRepository live caller landed
+        # in charter.mission_steps (WP09); StepKey still has test-only callers
         "doctrine.missions.mission_step_repository::StepKey",
-        # specify_cli.charter_activate: activation helper functions consumed by
-        # CLI activate command (WP06 wiring deferred to activation CLI WP)
+        # specify_cli.charter_activate: AffectedMission and StepRemovalWarning are
+        # return/field types used indirectly; emit_step_removal_warnings,
+        # find_removed_steps, scan_inflight_missions wired from activate.py
+        # in charter-pack-activation-layer-01KSYE4V post-merge remediation.
         "specify_cli.charter_activate::AffectedMission",
         "specify_cli.charter_activate::StepRemovalWarning",
-        "specify_cli.charter_activate::emit_step_removal_warnings",
-        "specify_cli.charter_activate::find_removed_steps",
-        "specify_cli.charter_activate::scan_inflight_missions",
         # specify_cli.cli.commands.charter.activate: activate_cmd is the CLI
-        # entry point registered via the charter command group (WP06 wiring deferred)
+        # entry point registered via the charter command group (typer callback,
+        # no direct src/ import needed)
         "specify_cli.cli.commands.charter.activate::activate_cmd",
         # specify_cli.doctrine.org_charter: cycle/extension error types consumed
         # by CLI validation (WP06 wiring deferred)

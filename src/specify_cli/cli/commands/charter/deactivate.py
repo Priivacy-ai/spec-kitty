@@ -10,7 +10,7 @@ from rich.console import Console
 from charter.invocation_context import ProjectContext
 from charter.pack_manager import YAML_KEY_MAP, CharterPackManager
 
-__all__ = ["charter_deactivate_app", "deactivate_cmd"]
+__all__ = ["charter_deactivate_app"]
 
 charter_deactivate_app = typer.Typer(
     name="deactivate",

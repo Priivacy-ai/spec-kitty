@@ -275,13 +275,8 @@ _CATEGORY_5_WP_IN_FLIGHT_ADAPTERS: frozenset[str] = frozenset(
         # Priivacy-ai/spec-kitty#1356; once landed, the module gains a
         # runtime caller and this entry can be removed.
         "specify_cli.coordination.outbound",
-        # NOTE: WP01 (charter-pack-activation-layer-01KSYE4V) was expected to
-        # add the entry below.  doctrine.missions.mission_step_repository
-        # landed in charter-doctrine-mission-type-configuration-01KSWJVX as
-        # the compound-key layered resolver for MissionStep definitions.  WP02
-        # of charter-pack-activation-layer-01KSYE4V is the wiring trigger; once
-        # WP02 merges and a live src/ caller exists, remove this entry.
-        "doctrine.missions.mission_step_repository",
+        # doctrine.missions.mission_step_repository: live caller landed in
+        # charter.mission_steps (charter-pack-activation-layer-01KSYE4V WP09)
     }
 )
 

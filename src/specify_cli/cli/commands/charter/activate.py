@@ -48,6 +48,32 @@ def activate_cmd(
     ctx_project = ProjectContext.from_repo(repo_root)
     # WP04 API: cascade is bool. --cascade <any-value> enables it.
     cascade_bool: bool = bool(cascade)
+
+    if kind == "mission-type":
+        # FR-008: emit step-removal warnings for in-flight missions before activating.
+        from specify_cli.charter_activate import (  # noqa: PLC0415
+            emit_step_removal_warnings,
+            find_removed_steps,
+            scan_inflight_missions,
+        )
+        from doctrine.missions.mission_type_repository import MissionTypeRepository  # noqa: PLC0415
+
+        try:
+            from charter.mission_type_profiles import resolve_action_sequence  # noqa: PLC0415
+            current_seq: list[str] = resolve_action_sequence(artifact_id, repo_root)
+        except Exception:  # noqa: BLE001 — type not yet activated or unknown
+            current_seq = []
+
+        _mt_repo = MissionTypeRepository.default()
+        _mt = _mt_repo.get(artifact_id)
+        incoming_seq: list[str] = list(_mt.action_sequence) if _mt is not None else []
+
+        removed = find_removed_steps(current_seq, incoming_seq)
+        if removed:
+            kitty_specs_dir = repo_root / "kitty-specs"
+            step_warnings = scan_inflight_missions(removed, kitty_specs_dir)
+            emit_step_removal_warnings(step_warnings, console)
+
     result = CharterPackManager().activate(ctx_project, kind, artifact_id, cascade=cascade_bool)
     for msg in result.activated:
         console.print(f"[green]Activated[/green]: {msg}")

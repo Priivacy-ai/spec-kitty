@@ -14,6 +14,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+
+pytestmark = pytest.mark.upgrade
 from ruamel.yaml import YAML
 
 from specify_cli.upgrade.migrations import m_3_2_8_default_charter_pack

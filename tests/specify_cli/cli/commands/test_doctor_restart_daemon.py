@@ -31,7 +31,7 @@ from specify_cli.cli.commands import doctor as doctor_module
 from specify_cli.cli.commands import _is_doctor_restart_daemon_fast_path
 from specify_cli.sync.daemon import DaemonIntent, DaemonStartOutcome
 
-pytestmark = pytest.mark.fast
+pytestmark = pytest.mark.unit
 
 
 # ---------------------------------------------------------------------------

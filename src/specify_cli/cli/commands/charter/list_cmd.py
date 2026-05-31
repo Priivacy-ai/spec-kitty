@@ -11,7 +11,7 @@ from rich.table import Table
 from charter.invocation_context import ProjectContext
 from charter.pack_manager import CharterPackManager
 
-__all__ = ["charter_list_app", "list_cmd"]
+__all__ = ["charter_list_app"]
 
 charter_list_app = typer.Typer(
     name="list",

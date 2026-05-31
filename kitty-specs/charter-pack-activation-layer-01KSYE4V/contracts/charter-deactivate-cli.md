@@ -59,7 +59,7 @@ Shared (skipped): test-driven-development (still referenced by directive/clean-c
 
 ## State Written (config.yaml)
 
-```yaml
+```
 activated_directives:        # python-style-guide removed
   - clean-code
 activated_tactics:           # only if --cascade tactic removed something
