@@ -365,7 +365,7 @@ WP11 subtasks T048–T051 are fully independent and can be executed in any order
 **Agent profile**: python-pedro
 
 - [x] T044 Add charter profile gate to `spec-kitty agent mission finalize-tasks` (FR-017)
-- [ ] T045 Add charter profile precondition to `spec-kitty agent action implement` before worktree creation (FR-018)
+- [x] T045 Add charter profile precondition to `spec-kitty agent action implement` before worktree creation (FR-018)
 - [ ] T046 Wire hard-fail on non-activated artifact lookup in DRG/tactic resolution paths (FR-019)
 - [ ] T047 Write tests for lifecycle gates: finalize-tasks hard-fail + implement hard-fail scenarios
 
