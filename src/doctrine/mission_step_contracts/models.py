@@ -26,6 +26,16 @@ class DelegatesTo(BaseModel):
     candidates: list[str] = Field(min_length=1)
 
 
+class MissionStepInput(BaseModel):
+    """Declared runtime input for a command-backed mission step."""
+
+    model_config = ConfigDict(frozen=True)
+
+    flag: str = Field(min_length=1)
+    source: str = Field(min_length=1)
+    optional: bool = False
+
+
 class MissionStep(BaseModel):
     """A single structural step within a mission action contract.
 
@@ -37,6 +47,7 @@ class MissionStep(BaseModel):
     id: str
     description: str
     command: str | None = None
+    inputs: list[MissionStepInput] = Field(default_factory=list)
     delegates_to: DelegatesTo | None = None
     guidance: str | None = None
 

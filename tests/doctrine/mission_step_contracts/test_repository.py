@@ -126,6 +126,26 @@ class TestMissionStepContractRepository:
         # Verify guidance survived round-trip
         assert loaded.steps[4].guidance is not None
 
+        # Verify command inputs survived round-trip.
+        bootstrap_step = loaded.steps[0]
+        assert [input.flag for input in bootstrap_step.inputs] == ["--profile", "--tool"]
+        assert [input.source for input in bootstrap_step.inputs] == [
+            "wp.agent_profile",
+            "env.agent_tool",
+        ]
+
+    def test_shipped_contract_inputs_are_preserved(self) -> None:
+        repo = MissionStepContractRepository()
+        contract = repo.get_by_action("software-dev", "implement")
+
+        assert contract is not None
+        bootstrap_step = contract.steps[0]
+        assert [input.flag for input in bootstrap_step.inputs] == ["--profile", "--tool"]
+        assert [input.source for input in bootstrap_step.inputs] == [
+            "wp.agent_profile",
+            "env.agent_tool",
+        ]
+
 
 class TestMissionStepContractRepositoryLookup:
     """Tests for the by_action lookup method."""
