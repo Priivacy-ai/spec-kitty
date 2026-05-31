@@ -66,6 +66,42 @@ _CHARTER_WITHOUT_REGRESSION_VIGILANCE = textwrap.dedent(
 )
 
 
+_CHARTER_WITH_FENCED_MARKDOWN_HEADINGS = textwrap.dedent(
+    """\
+    # Project Charter
+
+    ## Terminology Canon
+
+    - canonical term is **Mission**.
+
+    ## Regression Vigilance
+
+    Preserve cleanup instructions around command examples:
+
+    ```bash
+    ## STEP 1
+    spec-kitty glossary scan
+        ```
+    ## STEP 2
+    spec-kitty glossary validate
+    ```
+
+    After cleanup, rerun the mission review.
+
+    ## Code Review Checklist
+
+    - This is the next section and not part of Regression Vigilance.
+    """
+)
+
+
+def _rendered_section_body(rendered: str, heading: str) -> str:
+    section_start = rendered.index(f"### {heading}")
+    body_start = rendered.index("\n", section_start) + 1
+    fetch_start = rendered.index("  Run: spec-kitty charter context --include", body_start)
+    return rendered[body_start:fetch_start].rstrip()
+
+
 class TestVerbatimBodies:
     """Existing headings render their body verbatim under a ``### <heading>`` line."""
 
@@ -80,6 +116,18 @@ class TestVerbatimBodies:
             "The canonical term for a unit of governed work is **Mission**"
             in result
         )
+
+    def test_fenced_markdown_headings_do_not_truncate_section_body(self) -> None:
+        result = render_critical_section_bodies(
+            _CHARTER_WITH_FENCED_MARKDOWN_HEADINGS, action="implement"
+        )
+
+        body = _rendered_section_body(result, "Regression Vigilance")
+
+        assert "## STEP 1" in body
+        assert "## STEP 2" in body
+        assert "After cleanup, rerun the mission review." in body
+        assert "This is the next section" not in body
 
 
 class TestMissingSectionFetchStanza:

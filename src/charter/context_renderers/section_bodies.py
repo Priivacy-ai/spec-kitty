@@ -96,13 +96,50 @@ def _heading_pattern(heading: str) -> re.Pattern[str]:
     return re.compile(rf"^##\s+{escaped}\b.*$", re.MULTILINE)
 
 
+_FENCE_OPEN_RE = re.compile(r"^[ \t]{0,3}(`{3,}|~{3,})")
+
+
+def _is_fence_close(line: str, fence_marker: str, fence_length: int) -> bool:
+    """Return whether *line* closes the active Markdown fence."""
+
+    close_pattern = rf"^[ \t]{{0,3}}{re.escape(fence_marker)}{{{fence_length},}}[ \t]*\r?\n?$"
+    return re.match(close_pattern, line) is not None
+
+
+def _find_next_section_start(body: str) -> int | None:
+    """Return the offset of the next level-two heading outside code fences."""
+
+    fence_marker: str | None = None
+    fence_length = 0
+    offset = 0
+
+    for line in body.splitlines(keepends=True):
+        if fence_marker is not None:
+            if _is_fence_close(line, fence_marker, fence_length):
+                fence_marker = None
+                fence_length = 0
+        else:
+            if re.match(r"^##\s+", line):
+                return offset
+
+            fence_match = _FENCE_OPEN_RE.match(line)
+            if fence_match is not None:
+                fence_marker = fence_match.group(1)[0]
+                fence_length = len(fence_match.group(1))
+
+        offset += len(line)
+
+    return None
+
+
 def _extract_section_body(charter_content: str, heading: str) -> str | None:
     """Return the body of ``## <heading>`` from *charter_content*, or ``None``.
 
     The body is everything from the line **after** the heading up to (but
     not including) the next line that begins with ``## `` at the same
-    level.  Nested ``###`` headings are preserved verbatim so callers can
-    embed multi-paragraph governance text without losing structure.
+    level outside fenced code blocks.  Nested ``###`` headings are preserved
+    verbatim so callers can embed multi-paragraph governance text without
+    losing structure.
     """
 
     pattern = _heading_pattern(heading)
@@ -111,11 +148,12 @@ def _extract_section_body(charter_content: str, heading: str) -> str | None:
         return None
 
     body_start = match.end()
-    next_section = re.search(r"^##\s+", charter_content[body_start:], re.MULTILINE)
+    remainder = charter_content[body_start:]
+    next_section_start = _find_next_section_start(remainder)
     body = (
-        charter_content[body_start:]
-        if next_section is None
-        else charter_content[body_start : body_start + next_section.start()]
+        remainder
+        if next_section_start is None
+        else charter_content[body_start : body_start + next_section_start]
     )
 
     return body.strip("\n").rstrip()
