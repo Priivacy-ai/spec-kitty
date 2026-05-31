@@ -191,6 +191,19 @@ def test_meta_classifier_corrupt_json(tmp_path: Path) -> None:
     assert findings[0].severity == Severity.ERROR
 
 
+@pytest.mark.parametrize("payload", ["[]", '"x"', "42", "true", "null"])
+def test_meta_classifier_non_object_json_returns_corrupt_json(
+    tmp_path: Path, payload: str
+) -> None:
+    """Valid non-object meta.json → CORRUPT_JSON finding, not a crash."""
+    (tmp_path / "meta.json").write_text(payload, encoding="utf-8")
+    findings = classify_meta_json(tmp_path)
+    assert len(findings) == 1
+    assert findings[0].code == "CORRUPT_JSON"
+    assert findings[0].severity == Severity.ERROR
+    assert findings[0].detail == "top-level JSON value must be an object"
+
+
 def test_meta_classifier_unknown_key(tmp_path: Path) -> None:
     """meta.json with unrecognised key → UNKNOWN_SHAPE finding (info)."""
     data = {**_MODERN_META, "unrecognised_field_xyz": "value"}
@@ -365,6 +378,19 @@ def test_status_json_corrupt_json(tmp_path: Path) -> None:
     (tmp_path / "status.json").write_text("{broken", encoding="utf-8")
     findings = classify_status_json(tmp_path)
     assert "CORRUPT_JSON" in _codes(findings)
+
+
+@pytest.mark.parametrize("payload", ["[]", '"x"', "42", "true", "null"])
+def test_status_json_non_object_json_returns_corrupt_json(
+    tmp_path: Path, payload: str
+) -> None:
+    """Valid non-object status.json → CORRUPT_JSON finding, not a crash."""
+    (tmp_path / "status.json").write_text(payload, encoding="utf-8")
+    findings = classify_status_json(tmp_path)
+    assert len(findings) == 1
+    assert findings[0].code == "CORRUPT_JSON"
+    assert findings[0].severity == Severity.ERROR
+    assert findings[0].detail == "top-level JSON value must be an object"
 
 
 def test_status_json_read_oserror_detail_is_deterministic(
