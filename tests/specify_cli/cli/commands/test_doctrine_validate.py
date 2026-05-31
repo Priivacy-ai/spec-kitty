@@ -116,7 +116,8 @@ def test_validate_rejects_unknown_suffix(tmp_path: Path) -> None:
     result = runner.invoke(doctrine_app, ["validate", str(target)], catch_exceptions=False)
 
     assert result.exit_code == 1
-    assert "unrecognised artifact filename suffix" in result.stdout
+    flat = " ".join(result.stdout.split())
+    assert "unrecognised artifact filename suffix" in flat
 
 
 def test_validate_missing_path_returns_2(tmp_path: Path) -> None:
