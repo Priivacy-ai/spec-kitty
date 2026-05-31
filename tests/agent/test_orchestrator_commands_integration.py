@@ -367,6 +367,33 @@ class TestStartImplementation:
         data = json.loads(result.output)
         assert data["error_code"] == "POLICY_METADATA_REQUIRED"
 
+    def test_dangerous_flags_secret_returns_json_error_without_leak(self, tmp_path):
+        policy = json.loads(_valid_policy_json())
+        policy["dangerous_flags"] = ["AWS_SECRET_ACCESS_KEY=abc123"]
+
+        result = runner.invoke(
+            app,
+            [
+                "start-implementation",
+                "--mission",
+                "099-test-mission",
+                "--wp",
+                "WP01",
+                "--actor",
+                "claude",
+                "--policy",
+                json.dumps(policy),
+            ],
+        )
+
+        assert result.exit_code == 1
+        data = json.loads(result.output)
+        assert data["success"] is False
+        assert data["error_code"] == "POLICY_VALIDATION_FAILED"
+        assert "dangerous_flags[0]" in data["data"]["message"]
+        assert "AWS_SECRET_ACCESS_KEY" not in result.output
+        assert "abc123" not in result.output
+
     def test_planned_wp_composite_transition(self, tmp_path):
         repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
         mission_slug = "099-test-mission"

@@ -41,6 +41,15 @@ _REQUIRED_POLICY_FIELDS = (
     "dangerous_flags",
 )
 
+_STRING_POLICY_FIELDS = (
+    "orchestrator_id",
+    "orchestrator_version",
+    "agent_family",
+    "approval_mode",
+    "sandbox_mode",
+    "network_mode",
+)
+
 
 def _new_correlation_id() -> str:
     return "corr-" + uuid.uuid4().hex
@@ -88,6 +97,24 @@ class PolicyMetadata:
     tool_restrictions: str | None = None
 
 
+def _reject_secret_like_policy_value(field_path: str, value: Any) -> None:
+    if isinstance(value, str):
+        if SECRET_PATTERN.search(value):
+            raise ValueError(
+                f"--policy field '{field_path}' appears to contain a secret "
+                f"(matched pattern: token|secret|key|password|credential). "
+                f"Do not pass secrets via --policy."
+            )
+        return
+    if isinstance(value, list):
+        for index, item in enumerate(value):
+            _reject_secret_like_policy_value(f"{field_path}[{index}]", item)
+        return
+    if isinstance(value, dict):
+        for key, item in value.items():
+            _reject_secret_like_policy_value(f"{field_path}.{key}", item)
+
+
 def parse_and_validate_policy(raw_json: str) -> PolicyMetadata:
     """Parse --policy JSON, validate structure, reject secret-like values.
 
@@ -116,28 +143,35 @@ def parse_and_validate_policy(raw_json: str) -> PolicyMetadata:
         if field_name not in data:
             raise ValueError(f"--policy missing required field: '{field_name}'")
 
+    for field_name in _STRING_POLICY_FIELDS:
+        if not isinstance(data[field_name], str):
+            raise ValueError(f"--policy.{field_name} must be a string")
+
     # Validate dangerous_flags is a list
     if not isinstance(data["dangerous_flags"], list):
         raise ValueError("--policy.dangerous_flags must be a JSON array")
 
-    # Validate all values: reject secret-like strings
+    for flag in data["dangerous_flags"]:
+        if not isinstance(flag, str):
+            raise ValueError("--policy.dangerous_flags entries must be strings")
+
+    tool_restrictions = data.get("tool_restrictions")
+    if tool_restrictions is not None and not isinstance(tool_restrictions, str):
+        raise ValueError("--policy.tool_restrictions must be a string or null")
+
+    # Validate all policy values: reject secret-like strings at every depth.
     for field_name, value in data.items():
-        if isinstance(value, str) and SECRET_PATTERN.search(value):
-            raise ValueError(
-                f"--policy field '{field_name}' appears to contain a secret "
-                f"(matched pattern: token|secret|key|password|credential). "
-                f"Do not pass secrets via --policy."
-            )
+        _reject_secret_like_policy_value(field_name, value)
 
     return PolicyMetadata(
-        orchestrator_id=str(data["orchestrator_id"]),
-        orchestrator_version=str(data["orchestrator_version"]),
-        agent_family=str(data["agent_family"]),
-        approval_mode=str(data["approval_mode"]),
-        sandbox_mode=str(data["sandbox_mode"]),
-        network_mode=str(data["network_mode"]),
+        orchestrator_id=data["orchestrator_id"],
+        orchestrator_version=data["orchestrator_version"],
+        agent_family=data["agent_family"],
+        approval_mode=data["approval_mode"],
+        sandbox_mode=data["sandbox_mode"],
+        network_mode=data["network_mode"],
         dangerous_flags=list(data["dangerous_flags"]),
-        tool_restrictions=data.get("tool_restrictions"),
+        tool_restrictions=tool_restrictions,
     )
 
 
