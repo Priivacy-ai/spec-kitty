@@ -106,6 +106,38 @@ We use pytest as our framework and mypy --strict for type checking.
         assert config.testing.min_coverage == 90
         assert not any("Run 'spec-kitty charter sync'" in record.message for record in caplog.records)
 
+    @pytest.mark.requires_symlinks
+    def test_sync_reads_symlinked_charter_and_writes_bundle_next_to_link(self, tmp_path: Path) -> None:
+        public_dir = tmp_path / "spec"
+        public_dir.mkdir()
+        public_charter = public_dir / "constitution.md"
+        public_charter.write_text(
+            """
+## Testing Standards
+
+We require 87% test coverage. TDD required.
+We use pytest as our framework and mypy --strict for type checking.
+""",
+            encoding="utf-8",
+        )
+
+        charter_dir = tmp_path / ".kittify" / "charter"
+        charter_dir.mkdir(parents=True)
+        charter_path = charter_dir / "charter.md"
+        try:
+            charter_path.symlink_to(public_charter)
+        except OSError as exc:
+            pytest.skip(f"symlinks unavailable: {exc}")
+
+        result = sync(charter_path)
+
+        assert result.synced
+        assert (charter_dir / "governance.yaml").exists()
+        assert not (public_dir / "governance.yaml").exists()
+
+        config = load_governance_config(tmp_path)
+        assert config.testing.min_coverage == 87
+
 
 class TestPostSaveHook:
     def test_post_save_hook_success(self, tmp_path: Path) -> None:

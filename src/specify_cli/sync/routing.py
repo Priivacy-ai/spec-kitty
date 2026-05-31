@@ -10,7 +10,7 @@ from specify_cli.core.paths import locate_project_root
 from .body_queue import OfflineBodyUploadQueue
 from .config import SyncConfig
 from .git_metadata import GitMetadataResolver
-from specify_cli.identity.project import ensure_identity
+from specify_cli.identity.project import ProjectIdentity, ensure_identity, load_identity
 from .queue import OfflineQueue
 
 
@@ -45,6 +45,20 @@ def resolve_checkout_sync_routing(start: Path | None = None) -> CheckoutSyncRout
         return None
 
     identity = ensure_identity(repo_root)
+    return _build_checkout_sync_routing(repo_root, identity)
+
+
+def resolve_checkout_sync_routing_readonly(start: Path | None = None) -> CheckoutSyncRouting | None:
+    """Resolve checkout sync policy without creating or updating project identity."""
+    repo_root = locate_project_root((start or Path.cwd()).resolve())
+    if repo_root is None:
+        return None
+
+    identity = load_identity(repo_root / ".kittify" / "config.yaml")
+    return _build_checkout_sync_routing(repo_root, identity)
+
+
+def _build_checkout_sync_routing(repo_root: Path, identity: ProjectIdentity) -> CheckoutSyncRouting:
     git_metadata = GitMetadataResolver(
         repo_root=repo_root,
         repo_slug_override=identity.repo_slug,

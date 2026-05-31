@@ -51,7 +51,7 @@ class TestDetector:
         monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: tm)
         routing = SimpleNamespace(repo_slug="acme-eng", project_slug="acme")
         monkeypatch.setattr(
-            "specify_cli.sync.routing.resolve_checkout_sync_routing",
+            "specify_cli.sync.routing.resolve_checkout_sync_routing_readonly",
             lambda start=None: routing,
         )
         assert detect_logged_out_with_connected_teamspace() == "acme-eng"
@@ -62,7 +62,7 @@ class TestDetector:
         monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: tm)
         routing = SimpleNamespace(repo_slug=None, project_slug="acme")
         monkeypatch.setattr(
-            "specify_cli.sync.routing.resolve_checkout_sync_routing",
+            "specify_cli.sync.routing.resolve_checkout_sync_routing_readonly",
             lambda start=None: routing,
         )
         assert detect_logged_out_with_connected_teamspace() == "acme"
@@ -73,13 +73,13 @@ class TestDetector:
         monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: tm)
         seen: list[object] = []
 
-        def fake_resolve_checkout_sync_routing(*, start=None):
+        def fake_resolve_checkout_sync_routing_readonly(*, start=None):
             seen.append(start)
             return SimpleNamespace(repo_slug="acme-eng", project_slug=None)
 
         monkeypatch.setattr(
-            "specify_cli.sync.routing.resolve_checkout_sync_routing",
-            fake_resolve_checkout_sync_routing,
+            "specify_cli.sync.routing.resolve_checkout_sync_routing_readonly",
+            fake_resolve_checkout_sync_routing_readonly,
         )
 
         assert detect_logged_out_with_connected_teamspace(tmp_path) == "acme-eng"
@@ -91,13 +91,13 @@ class TestDetector:
         monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: tm)
         seen: list[object] = []
 
-        def fake_resolve_checkout_sync_routing(*, start=None):
+        def fake_resolve_checkout_sync_routing_readonly(*, start=None):
             seen.append(start)
             return SimpleNamespace(repo_slug="acme-eng", project_slug=None)
 
         monkeypatch.setattr(
-            "specify_cli.sync.routing.resolve_checkout_sync_routing",
-            fake_resolve_checkout_sync_routing,
+            "specify_cli.sync.routing.resolve_checkout_sync_routing_readonly",
+            fake_resolve_checkout_sync_routing_readonly,
         )
 
         assert detect_logged_out_with_connected_teamspace() == "acme-eng"
@@ -111,7 +111,7 @@ class TestDetector:
         tm.get_current_session.return_value = session
         monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: tm)
         monkeypatch.setattr(
-            "specify_cli.sync.routing.resolve_checkout_sync_routing",
+            "specify_cli.sync.routing.resolve_checkout_sync_routing_readonly",
             lambda start=None: None,
         )
         assert detect_logged_out_with_connected_teamspace() == "Engineering"
@@ -122,7 +122,7 @@ class TestDetector:
         tm.get_current_session.return_value = None
         monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: tm)
         monkeypatch.setattr(
-            "specify_cli.sync.routing.resolve_checkout_sync_routing",
+            "specify_cli.sync.routing.resolve_checkout_sync_routing_readonly",
             lambda start=None: None,
         )
         assert detect_logged_out_with_connected_teamspace() is None
@@ -134,7 +134,7 @@ class TestDetector:
         monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: tm)
         routing = SimpleNamespace(repo_slug="   ", project_slug="")
         monkeypatch.setattr(
-            "specify_cli.sync.routing.resolve_checkout_sync_routing",
+            "specify_cli.sync.routing.resolve_checkout_sync_routing_readonly",
             lambda start=None: routing,
         )
         assert detect_logged_out_with_connected_teamspace() is None

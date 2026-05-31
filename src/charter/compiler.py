@@ -200,9 +200,8 @@ def write_compiled_charter(
 
     if charter_path.is_symlink():
         raise FileExistsError(
-            f"Charter path {charter_path} is a symlink. Replace it with a normal "
-            "hand-authored .kittify/charter/charter.md file before running "
-            "charter generate."
+            f"Refusing to overwrite symlinked charter at {charter_path}; it is a symlink. "
+            "Remove the symlink or update the symlink target directly."
         )
     if charter_path.exists() and not force:
         raise FileExistsError(f"Charter already exists at {charter_path}. Use --force to overwrite.")

@@ -8,6 +8,7 @@ from pathlib import Path
 from ..detectors import detect_legacy_keys
 from ..models import MissionFinding, Severity
 from ..shape_registry import check_unknown_keys
+from ._details import format_exception_detail
 
 
 def classify_status_json(
@@ -41,6 +42,15 @@ def classify_status_json(
     try:
         raw_text = path.read_text(encoding="utf-8")
         obj: dict[str, object] = json.loads(raw_text)
+    except OSError as exc:
+        return [
+            MissionFinding(
+                code="CORRUPT_JSON",
+                severity=Severity.ERROR,
+                artifact_path="status.json",
+                detail=f"could not read file: {format_exception_detail(exc)}",
+            )
+        ]
     except json.JSONDecodeError as exc:
         return [
             MissionFinding(
@@ -74,7 +84,10 @@ def classify_status_json(
                 code="SNAPSHOT_DRIFT",
                 severity=Severity.ERROR,
                 artifact_path="status.json",
-                detail=f"reducer raised during drift check: {exc}",
+                detail=(
+                    "reducer raised during drift check: "
+                    f"{format_exception_detail(exc)}"
+                ),
             )
         )
         return findings

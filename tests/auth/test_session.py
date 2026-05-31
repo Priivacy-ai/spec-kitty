@@ -200,6 +200,20 @@ def test_from_dict_backward_compat_no_generation() -> None:
     assert session.generation is None
 
 
+def test_from_dict_coerces_naive_expiry_fields_to_utc() -> None:
+    """Legacy/encrypted payloads with offset-less expiry strings must not crash freshness checks."""
+    d = _make_session(refresh_token_expires_at=None).to_dict()
+    d["access_token_expires_at"] = "2099-01-01T00:00:00"
+    d["refresh_token_expires_at"] = "2099-01-02T00:00:00"
+
+    session = StoredSession.from_dict(d)
+
+    assert session.access_token_expires_at == datetime(2099, 1, 1, tzinfo=UTC)
+    assert session.refresh_token_expires_at == datetime(2099, 1, 2, tzinfo=UTC)
+    assert session.is_access_token_expired() is False
+    assert session.is_refresh_token_expired() is False
+
+
 def _make_session_with_teams(
     teams: list[Team], *, default_team_id: str | None = None
 ) -> StoredSession:

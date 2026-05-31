@@ -20,12 +20,15 @@ and status. Access doctrine artifacts programmatically via `DoctrineService`.
 Resolve agent profiles for role-scoped behavior. Load governance context
 iteratively at action boundaries rather than dumping everything upfront.
 
-The charter is the single authoritative governance document for a Spec
-Kitty project. All structured config (governance.yaml, directives.yaml,
-references.yaml) is derived from it. The doctrine layer (`src/doctrine/`)
-provides the reusable knowledge artifacts (directives, tactics, paradigms,
-styleguides, toolguides, procedures, agent profiles, step contracts) that
-the charter references.
+`.kittify/charter/charter.md` is the Spec Kitty runtime governance
+source for a project. A repository may also keep public governance docs
+outside `.kittify/`; those docs are human-facing authority unless the
+runtime charter summarizes or references them. All structured config
+(`governance.yaml`, `directives.yaml`, `references.yaml`) is derived from
+the runtime charter. The doctrine layer (`src/doctrine/`) provides the
+reusable knowledge artifacts (directives, tactics, paradigms, styleguides,
+toolguides, procedures, agent profiles, step contracts) that the charter
+references.
 
 ---
 
@@ -187,8 +190,11 @@ it to constrain what agents see and do during workflow actions.
 
 ### The 3-Layer Model
 
-1. **Charter** (`charter.md`) — Human-editable markdown. The single
-   authoritative source. Created via interview or written by hand.
+1. **Runtime charter** (`.kittify/charter/charter.md`) — Human-editable
+   markdown consumed by Spec Kitty. Created via interview or written by hand.
+   If the repository also has a public constitution or handbook, keep the
+   runtime charter concise: summarize binding directives and reference the
+   public authority through prose or `authority_paths`.
 
 2. **Extracted config** — Machine-readable YAML derived deterministically by
    sync. Never edit these directly — they are overwritten on every sync.
@@ -207,7 +213,7 @@ Interview Answers (answers.yaml)
         ↓
   [generate command]  ← doctrine templates, mission config
         ↓
-Charter (charter.md)  ← authoritative source
+Runtime Charter (charter.md)  ← Spec Kitty runtime source
         ↓
   [auto-sync triggered]
         ↓

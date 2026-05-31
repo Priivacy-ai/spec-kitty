@@ -30,6 +30,25 @@ pytestmark = pytest.mark.fast
 runner = CliRunner()
 
 
+def test_logged_out_teamspace_detector_does_not_create_project_identity(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    (repo_root / ".git").mkdir()
+    (repo_root / ".kittify").mkdir()
+
+    fake_tm = MagicMock()
+    fake_tm.is_authenticated = False
+    fake_tm.get_current_session.return_value = None
+    monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: fake_tm)
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+
+    assert recovery.detect_logged_out_with_connected_teamspace(repo_root=repo_root) is None
+    assert not (repo_root / ".kittify" / "config.yaml").exists()
+
+
 # ---------------------------------------------------------------------------
 # sync now  --  non-interactive structured exit
 # ---------------------------------------------------------------------------

@@ -13,6 +13,7 @@ from ..detectors import (
 )
 from ..models import MissionFinding, Severity
 from ..shape_registry import check_unknown_keys, status_event_row_artifact_type
+from ._details import format_exception_detail
 
 # Actor format research (from real event logs and tests):
 #
@@ -68,7 +69,7 @@ def classify_status_events_jsonl(
                 code="CORRUPT_JSONL",
                 severity=Severity.ERROR,
                 artifact_path="status.events.jsonl",
-                detail=f"could not read file: {exc}",
+                detail=f"could not read file: {format_exception_detail(exc)}",
             )
         ], True
 

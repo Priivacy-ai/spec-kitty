@@ -205,6 +205,10 @@ def generate(
     - When the cwd is not inside a git working tree, ``generate`` exits
       non-zero before any side effect with an actionable error message that
       names the remediation (``git init``).
+    - When ``.kittify/charter/charter.md`` is a symlink, ``generate`` exits
+      non-zero before interview/default loading, compilation, sync,
+      gitignore updates, or staging. Update the symlink target directly or
+      replace it with a regular runtime charter.
     """
     from charter.compiler import compile_charter, write_compiled_charter
     from charter.sync import sync as sync_charter
@@ -228,6 +232,18 @@ def generate(
             )
             raise typer.Exit(code=1)
         charter_dir = repo_root / ".kittify" / "charter"
+        charter_path = charter_dir / "charter.md"
+        if charter_path.is_symlink():
+            _emit_error(
+                console,
+                json_output=json_output,
+                message=(
+                    f"Refusing to overwrite symlinked charter at {charter_path}. "
+                    "Remove the symlink or update the symlink target directly."
+                ),
+            )
+            raise typer.Exit(code=1)
+
         answers_path = _interview_path(repo_root)
         resolved_mission_type = None
         if mission_type is not None or mission is not None:

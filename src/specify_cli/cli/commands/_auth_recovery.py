@@ -72,8 +72,8 @@ def detect_logged_out_with_connected_teamspace(
     Resolution order:
       1. If TokenManager reports an authenticated session, return ``None``
          (caller has no recovery work to do).
-      2. ``resolve_checkout_sync_routing().repo_slug`` if non-empty.
-      3. ``resolve_checkout_sync_routing().project_slug`` if non-empty.
+      2. ``resolve_checkout_sync_routing_readonly().repo_slug`` if non-empty.
+      3. ``resolve_checkout_sync_routing_readonly().project_slug`` if non-empty.
       4. Stored session's first private-teamspace ``team.name`` if non-empty.
       5. ``None``.
     """
@@ -97,9 +97,9 @@ def detect_logged_out_with_connected_teamspace(
 
     # 2/3) Routing-derived handle.
     try:
-        from specify_cli.sync.routing import resolve_checkout_sync_routing  # lazy
+        from specify_cli.sync.routing import resolve_checkout_sync_routing_readonly  # lazy
 
-        routing = resolve_checkout_sync_routing(start=repo_root)
+        routing = resolve_checkout_sync_routing_readonly(start=repo_root)
     except Exception:  # pragma: no cover - defensive
         routing = None
 

@@ -128,6 +128,13 @@ class MigrationRunner:
             if not dry_run and REQUIRED_SCHEMA_VERSION is not None:
                 self._stamp_schema_version(self.kittify_dir, REQUIRED_SCHEMA_VERSION)
 
+            if include_worktrees and from_version == target_version:
+                worktrees_result = self._upgrade_worktrees(target_version, migrations, dry_run)
+                result.warnings.extend(worktrees_result.get("warnings", []))
+                if worktrees_result.get("errors"):
+                    result.errors.extend(worktrees_result["errors"])
+                    result.warnings.append("Some worktrees had issues - check errors above")
+
             result.warnings.append(f"No migrations needed from {from_version} to {target_version}")
             return result
 
@@ -276,7 +283,7 @@ class MigrationRunner:
         result: dict[str, Any] = {"warnings": [], "errors": []}
         worktree_migrations = [migration for migration in migrations if migration.runs_on_worktrees]
 
-        if not worktree_migrations:
+        if migrations and not worktree_migrations:
             return result
 
         worktrees_dir = self.project_path / WORKTREES_DIR
@@ -289,7 +296,10 @@ class MigrationRunner:
                 continue
 
             wt_kittify = worktree / KITTIFY_DIR
-            has_upgradeable_state = wt_kittify.exists() or (worktree / "kitty-specs").exists() or (worktree / ".specify").exists()
+            has_upgradeable_state = wt_kittify.exists() or (
+                bool(worktree_migrations)
+                and ((worktree / "kitty-specs").exists() or (worktree / ".specify").exists())
+            )
             if not has_upgradeable_state:
                 continue
 
@@ -352,6 +362,10 @@ class MigrationRunner:
                 wt_metadata.version = target_version
                 wt_metadata.last_upgraded_at = datetime.now()
                 wt_metadata.save(wt_kittify)
+                # ProjectMetadata.save() rewrites metadata.yaml from its fixed
+                # model, so stamp after save just like the main project path.
+                if REQUIRED_SCHEMA_VERSION is not None:
+                    self._stamp_schema_version(wt_kittify, REQUIRED_SCHEMA_VERSION)
 
         return result
 

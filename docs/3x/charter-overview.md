@@ -10,11 +10,12 @@ structured context that every agent mission action automatically receives. This 
 mental model. For a step-by-step walkthrough, see the
 [Governed Charter Workflow Tutorial](../tutorials/charter-governed-workflow.md).
 
-> **Key invariant**: `.kittify/charter/charter.md` is the Spec Kitty runtime governance center
-> and the human policy source of truth. External governance docs such as
-> `spec/constitution.md` are supporting context referenced from the charter, not alternate
-> authoritative charter paths. Do not
-> hand-edit derived files such as `governance.yaml`, `directives.yaml`, `metadata.yaml`,
+> **Key invariant**: `.kittify/charter/charter.md` is the Spec Kitty runtime policy source. A
+> project may also keep a public constitution or governance document outside `.kittify/`, but
+> `charter sync` extracts the runtime bundle from `.kittify/charter/charter.md`. External
+> governance docs such as `spec/constitution.md` are supporting context referenced from the
+> charter, not alternate authoritative charter paths. Do not hand-edit derived files such as
+> `governance.yaml`, `directives.yaml`, `metadata.yaml`,
 > `references.yaml`, `context-state.json`, synthesis manifests, or provenance sidecars. Agent
 > synthesis input under `.kittify/charter/generated/` is produced by the harness, not by routine
 > operator edits.
@@ -24,7 +25,7 @@ mental model. For a step-by-step walkthrough, see the
 ## What Charter Does
 
 Charter solves a specific problem: agent prompts need consistent, project-accurate policy context,
-but that context must come from a single authoritative source that you as an operator control.
+but the runtime context must come from one operator-controlled charter surface.
 
 The mechanism:
 
@@ -141,7 +142,7 @@ compact-context mode, causing agents to receive less detail.
 
 | File | Written by | Purpose |
 |---|---|---|
-| `.kittify/charter/charter.md` | **Human** | Policy source of truth — the only file you edit |
+| `.kittify/charter/charter.md` | **Human** | Spec Kitty runtime policy source; summarize or reference public governance docs here |
 | `.kittify/charter/governance.yaml` | Auto-generated (`charter sync`) | Testing, quality, performance, branch, and doctrine-selection config |
 | `.kittify/charter/directives.yaml` | Auto-generated (`charter sync`) | Extracted directive list |
 | `.kittify/charter/metadata.yaml` | Auto-generated (`charter sync`) | Charter hash, extraction timestamp, and parser metadata |
