@@ -36,6 +36,16 @@ class GateResult:
     warnings: list[str] = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class GitDiffFilesResult:
+    """Outcome of resolving the review-time file diff."""
+
+    ok: bool
+    files: list[str] = field(default_factory=list)
+    stderr: str = ""
+    returncode: int | None = None
+
+
 def ensure_occurrence_classification_ready(feature_dir: Path) -> GateResult:
     """Check if a bulk_edit mission has a valid occurrence map.
 
@@ -106,14 +116,43 @@ def _git_diff_files(
     repo_root: Path,
     base_ref: str,
     head_ref: str,
-) -> list[str]:
+) -> GitDiffFilesResult:
     """Return the list of files changed between *base_ref* and *head_ref*.
 
     Uses ``git diff --name-only <base>..<head>`` and returns one path per
-    line, relative to *repo_root*. Returns an empty list on any git failure;
-    the caller is responsible for deciding whether an empty diff is
-    acceptable.
+    line, relative to *repo_root*. Git failures are returned explicitly so
+    callers can fail closed instead of confusing them with valid empty diffs.
     """
+    for label, ref in (("base_ref", base_ref), ("head_ref", head_ref)):
+        if not ref.strip():
+            return GitDiffFilesResult(
+                ok=False,
+                stderr=f"{label} is empty",
+                returncode=None,
+            )
+        try:
+            verified = subprocess.run(
+                ["git", "rev-parse", "--verify", f"{ref}^{{commit}}"],
+                cwd=str(repo_root),
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=30,
+            )
+        except (subprocess.SubprocessError, OSError) as exc:
+            return GitDiffFilesResult(
+                ok=False,
+                stderr=f"failed to verify {label} {ref!r}: {exc}",
+                returncode=None,
+            )
+        if verified.returncode != 0:
+            stderr = verified.stderr.strip() or f"{label} {ref!r} could not be resolved"
+            return GitDiffFilesResult(
+                ok=False,
+                stderr=stderr,
+                returncode=verified.returncode,
+            )
+
     try:
         completed = subprocess.run(
             ["git", "diff", "--name-only", f"{base_ref}..{head_ref}"],
@@ -123,11 +162,24 @@ def _git_diff_files(
             check=False,
             timeout=30,
         )
-    except (subprocess.SubprocessError, OSError):
-        return []
+    except (subprocess.SubprocessError, OSError) as exc:
+        return GitDiffFilesResult(
+            ok=False,
+            stderr=str(exc),
+            returncode=None,
+        )
     if completed.returncode != 0:
-        return []
-    return [line.strip() for line in completed.stdout.splitlines() if line.strip()]
+        return GitDiffFilesResult(
+            ok=False,
+            stderr=completed.stderr.strip(),
+            returncode=completed.returncode,
+        )
+    return GitDiffFilesResult(
+        ok=True,
+        files=[line.strip() for line in completed.stdout.splitlines() if line.strip()],
+        stderr=completed.stderr.strip(),
+        returncode=completed.returncode,
+    )
 
 
 def check_review_diff_compliance(
@@ -164,8 +216,19 @@ def check_review_diff_compliance(
             ],
         )
 
-    changed_files = _git_diff_files(repo_root, base_ref, head_ref)
-    return check_diff_compliance(changed_files, omap)
+    diff_files = _git_diff_files(repo_root, base_ref, head_ref)
+    if not diff_files.ok:
+        details = [
+            "Review diff check cannot run: git diff failed.",
+            f"base_ref={base_ref!r}",
+            f"head_ref={head_ref!r}",
+            f"returncode={diff_files.returncode!r}",
+        ]
+        if diff_files.stderr:
+            details.append(f"stderr={diff_files.stderr}")
+        return DiffCheckResult(passed=False, errors=["; ".join(details)])
+
+    return check_diff_compliance(diff_files.files, omap)
 
 
 def render_diff_check_failure(
