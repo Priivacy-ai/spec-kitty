@@ -842,6 +842,7 @@ def implement(
         if repo_root is None:
             print("Error: Could not locate project root")
             raise typer.Exit(1)
+        repo_root = get_main_repo_root(repo_root)
 
         mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, repo_root=repo_root)
 
