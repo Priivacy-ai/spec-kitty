@@ -124,6 +124,36 @@ _CHARTER_WITH_FENCED_SECTION_HEADING_EXAMPLE = textwrap.dedent(
 )
 
 
+_CHARTER_WITH_NESTED_CRITICAL_SECTIONS = textwrap.dedent(
+    """\
+    # Project Charter
+
+    ## Code Quality
+
+    ### Code Review Checklist
+
+    - Tests added for new functionality.
+    - Type annotations present.
+
+    ### Quality Gates
+
+    - Required pytest surface passes.
+
+    ## Terminology Canon (Mission vs Feature)
+
+    - canonical term is **Mission**.
+
+    ### Regression Vigilance (2026-04-06)
+
+    Reviewers MUST grep the diff for the old term before approving.
+
+    ## Charter Resolution Hints
+
+    Not part of the critical section.
+    """
+)
+
+
 _CHARTER_WITH_UNBALANCED_FENCE = textwrap.dedent(
     """\
     # Project Charter
@@ -215,6 +245,28 @@ class TestVerbatimBodies:
         assert result is not None
         assert "consult glossary/contexts/" in result
         assert "This is example text" not in result
+
+    def test_nested_critical_headings_are_recoverable(self) -> None:
+        result = render_critical_section_bodies(
+            _CHARTER_WITH_NESTED_CRITICAL_SECTIONS,
+            action="implement",
+        )
+
+        assert "Tests added for new functionality." in result
+        assert "Reviewers MUST grep the diff" in result
+        assert "Required pytest surface passes." not in result
+        assert "Not part of the critical section." not in result
+
+    def test_section_include_recovers_nested_critical_heading(self) -> None:
+        result = render_critical_section_include(
+            _CHARTER_WITH_NESTED_CRITICAL_SECTIONS,
+            "regression-vigilance",
+        )
+
+        assert result is not None
+        assert result.startswith("### Regression Vigilance")
+        assert "Reviewers MUST grep the diff" in result
+        assert "Not part of the critical section." not in result
 
     def test_section_include_fail_closed_on_unbalanced_fence(self) -> None:
         result = render_critical_section_include(

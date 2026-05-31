@@ -85,7 +85,7 @@ def _slugify_heading(heading: str) -> str:
 
 
 def _heading_pattern(heading: str) -> re.Pattern[str]:
-    """Compile the regex matching ``## <heading>`` (with optional date suffix).
+    """Compile the regex matching an ATX ``<heading>`` (with optional date suffix).
 
     The charter convention permits a parenthetical suffix after the
     heading text (``## Regression Vigilance (2026-04-06)``) — the ATDD
@@ -94,7 +94,7 @@ def _heading_pattern(heading: str) -> re.Pattern[str]:
     """
 
     escaped = re.escape(heading.strip())
-    return re.compile(rf"^##\s+{escaped}\b.*$", re.MULTILINE)
+    return re.compile(rf"^(#{{2,6}})\s+{escaped}\b.*$", re.MULTILINE)
 
 
 _FENCE_OPEN_RE = re.compile(r"^[ \t]{0,3}(`{3,}|~{3,})")
@@ -107,7 +107,9 @@ def _is_fence_close(line: str, fence_marker: str, fence_length: int) -> bool:
     return re.match(close_pattern, line) is not None
 
 
-def _has_fence_close(lines: list[str], start_index: int, fence_marker: str, fence_length: int) -> bool:
+def _has_fence_close(
+    lines: list[str], start_index: int, fence_marker: str, fence_length: int
+) -> bool:
     """Return whether the active Markdown fence closes after ``start_index``."""
 
     return any(
@@ -116,8 +118,8 @@ def _has_fence_close(lines: list[str], start_index: int, fence_marker: str, fenc
     )
 
 
-def _find_next_section_start(body: str) -> int | None:
-    """Return the offset of the next level-two heading outside code fences."""
+def _find_next_section_start(body: str, heading_level: int) -> int | None:
+    """Return the next same-or-higher heading offset outside code fences."""
 
     fence_marker: str | None = None
     fence_length = 0
@@ -130,7 +132,11 @@ def _find_next_section_start(body: str) -> int | None:
                 fence_marker = None
                 fence_length = 0
         else:
-            if re.match(r"^##\s+", line):
+            heading_match = re.match(r"^(#{1,6})\s+", line)
+            if (
+                heading_match is not None
+                and len(heading_match.group(1)) <= heading_level
+            ):
                 return offset
 
             fence_match = _FENCE_OPEN_RE.match(line)
@@ -145,8 +151,8 @@ def _find_next_section_start(body: str) -> int | None:
     return None
 
 
-def _find_heading_end(charter_content: str, heading: str) -> int | None:
-    """Return the end offset for ``## <heading>`` outside code fences."""
+def _find_heading_end(charter_content: str, heading: str) -> tuple[int, int] | None:
+    """Return ``(end offset, level)`` for ``heading`` outside code fences."""
 
     pattern = _heading_pattern(heading)
     fence_marker: str | None = None
@@ -161,7 +167,7 @@ def _find_heading_end(charter_content: str, heading: str) -> int | None:
         else:
             match = pattern.match(line)
             if match is not None:
-                return offset + match.end()
+                return offset + match.end(), len(match.group(1))
 
             fence_match = _FENCE_OPEN_RE.match(line)
             if fence_match is not None:
@@ -183,12 +189,13 @@ def _extract_section_body(charter_content: str, heading: str) -> str | None:
     losing structure.
     """
 
-    body_start = _find_heading_end(charter_content, heading)
-    if body_start is None:
+    heading_match = _find_heading_end(charter_content, heading)
+    if heading_match is None:
         return None
 
+    body_start, heading_level = heading_match
     remainder = charter_content[body_start:]
-    next_section_start = _find_next_section_start(remainder)
+    next_section_start = _find_next_section_start(remainder, heading_level)
     body = (
         remainder
         if next_section_start is None
