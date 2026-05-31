@@ -349,6 +349,22 @@ class TestGenerateGraph:
         h2 = hashlib.sha256(out2.read_bytes()).hexdigest()  # noqa: TID251 — DRG-output file-integrity idempotency check, not charter freshness hashing
         assert h1 == h2, "generate_graph is not idempotent"
 
+    @pytest.mark.fast
+    def test_shipped_graph_yaml_is_fresh(self, tmp_path: Path) -> None:
+        """Committed shipped DRG must match generator output byte-for-byte."""
+        generated = tmp_path / "graph.yaml"
+        committed = DOCTRINE_ROOT / "graph.yaml"
+
+        generate_graph(DOCTRINE_ROOT, generated)
+
+        assert generated.read_text(encoding="utf-8") == committed.read_text(
+            encoding="utf-8"
+        ), (
+            "src/doctrine/graph.yaml is stale. Regenerate the shipped DRG with "
+            "doctrine.drg.migration.extractor.generate_graph(Path('src/doctrine'), "
+            "Path('src/doctrine/graph.yaml')) and commit the result."
+        )
+
     def test_surface_inequalities(self, tmp_path: Path) -> None:
         """Verify governance surface inequalities after calibration."""
         output = tmp_path / "graph.yaml"

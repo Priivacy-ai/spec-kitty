@@ -2,6 +2,9 @@ schema_version: '1.0'
 generated_at: STATIC
 generated_by: drg-migration-v1
 nodes:
+- urn: action:documentation/accept
+  kind: action
+  label: accept
 - urn: action:documentation/audit
   kind: action
   label: audit
@@ -17,6 +20,9 @@ nodes:
 - urn: action:documentation/publish
   kind: action
   label: publish
+- urn: action:documentation/retrospect
+  kind: action
+  label: retrospect
 - urn: action:documentation/validate
   kind: action
   label: validate
@@ -29,6 +35,9 @@ nodes:
 - urn: action:research/output
   kind: action
   label: output
+- urn: action:research/retrospect
+  kind: action
+  label: retrospect
 - urn: action:research/scoping
   kind: action
   label: scoping
@@ -41,6 +50,9 @@ nodes:
 - urn: action:software-dev/plan
   kind: action
   label: plan
+- urn: action:software-dev/retrospect
+  kind: action
+  label: retrospect
 - urn: action:software-dev/review
   kind: action
   label: review
@@ -91,13 +103,16 @@ nodes:
   label: Test-First Development
 - urn: directive:DIRECTIVE_035
   kind: directive
-  label: Bulk-Edit Occurrence Classification
+  label: Bulk Edit Occurrence Classification
 - urn: directive:DIRECTIVE_036
   kind: directive
   label: Black-Box Integration Testing
 - urn: directive:DIRECTIVE_037
   kind: directive
   label: Living Documentation Sync
+- urn: directive:DIRECTIVE_038
+  kind: directive
+  label: Structured Prompt Change-Boundary
 - urn: directive:DIRECTIVE_039
   kind: directive
   label: Lynn Cole Engineering Culture
@@ -109,6 +124,9 @@ nodes:
 - urn: paradigm:atomic-design
   kind: paradigm
   label: Atomic Design
+- urn: paradigm:behaviour-driven-development
+  kind: paradigm
+  label: Behaviour-Driven Development
 - urn: paradigm:big-ball-of-mud
   kind: paradigm
 - urn: paradigm:big-upfront-design
@@ -130,6 +148,12 @@ nodes:
 - urn: paradigm:specification-by-example
   kind: paradigm
   label: Specification by Example
+- urn: paradigm:structured-prompt-driven-development
+  kind: paradigm
+  label: Structured-Prompt-Driven Development
+- urn: procedure:bdd-scenario-lifecycle
+  kind: procedure
+  label: BDD Scenario Lifecycle
 - urn: procedure:disciplined-defect-diagnosis
   kind: procedure
   label: Disciplined Defect Diagnosis
@@ -172,24 +196,42 @@ nodes:
 - urn: styleguide:deployable-skill-authoring
   kind: styleguide
   label: Deployable Skill Authoring Styleguide
+- urn: styleguide:java-conventions
+  kind: styleguide
+  label: Java Conventions Styleguide
 - urn: styleguide:kitty-glossary-writing
   kind: styleguide
   label: Kitty Glossary Writing Styleguide
+- urn: styleguide:mutation-aware-test-design
+  kind: styleguide
+  label: Mutation-Aware Test Design
 - urn: styleguide:python-conventions
   kind: styleguide
   label: Python Conventions Styleguide
+- urn: styleguide:reasons-canvas-writing
+  kind: styleguide
+  label: REASONS Canvas Writing Styleguide
+- urn: styleguide:testing-principles
+  kind: styleguide
+  label: Testing Principles Styleguide
 - urn: tactic:acceptance-test-first
   kind: tactic
   label: Acceptance Test Driven Development (ATDD)
 - urn: tactic:adr-drafting-workflow
   kind: tactic
   label: ADR Drafting Workflow
+- urn: tactic:adversarial-qa-handoff
+  kind: tactic
+  label: Adversarial QA Handoff
 - urn: tactic:aggregate-boundary-design
   kind: tactic
   label: Aggregate Boundary Design
 - urn: tactic:ammerse-impact-analysis
   kind: tactic
   label: AMMERSE Impact Analysis
+- urn: tactic:analysis-extract-before-interpret
+  kind: tactic
+  label: Extract Before Interpret
 - urn: tactic:anti-corruption-layer
   kind: tactic
   label: Anti-Corruption Layer
@@ -199,9 +241,6 @@ nodes:
 - urn: tactic:atdd-adversarial-acceptance
   kind: tactic
   label: Adversarial Acceptance Test Definition
-- urn: tactic:adversarial-qa-handoff
-  kind: tactic
-  label: Adversarial QA Handoff
 - urn: tactic:atomic-design-review-checklist
   kind: tactic
   label: Atomic Design Review Checklist
@@ -214,27 +253,36 @@ nodes:
 - urn: tactic:avoid-gold-plating
   kind: tactic
   label: Avoid Gold Plating
+- urn: tactic:behavior-driven-development
+  kind: tactic
+  label: Behavior-Driven Development
 - urn: tactic:black-box-integration-testing
   kind: tactic
   label: Black-Box Integration Testing
 - urn: tactic:boring-code-review
   kind: tactic
   label: Boring Code Review
-- urn: tactic:bug-fixing-checklist
-  kind: tactic
-  label: Bug-Fixing Checklist
 - urn: tactic:bounded-context-canvas-fill
   kind: tactic
   label: Bounded Context Canvas Fill
 - urn: tactic:bounded-context-identification
   kind: tactic
   label: Bounded Context Identification
+- urn: tactic:bug-fixing-checklist
+  kind: tactic
+  label: Test-First Bug Fixing Checklist
 - urn: tactic:c4-zoom-in-architecture-documentation
   kind: tactic
   label: C4 Zoom-In Architecture Documentation
+- urn: tactic:chain-of-responsibility-rule-pipeline
+  kind: tactic
+  label: Chain of Responsibility — Rule-Based Pipeline
 - urn: tactic:change-apply-smallest-viable-diff
   kind: tactic
   label: Change Apply Smallest Viable Diff
+- urn: tactic:code-documentation-analysis
+  kind: tactic
+  label: Code and Documentation Analysis for Boundary Discovery
 - urn: tactic:code-review-incremental
   kind: tactic
   label: Incremental Code Review
@@ -244,6 +292,9 @@ nodes:
 - urn: tactic:connascence-analysis
   kind: tactic
   label: Connascence Analysis
+- urn: tactic:context-boundary-inference
+  kind: tactic
+  label: Context Boundary Inference
 - urn: tactic:context-mapping-classification
   kind: tactic
   label: Context Mapping Classification
@@ -252,12 +303,18 @@ nodes:
   label: Cross-Cutting State via Store
 - urn: tactic:database-driven-design
   kind: tactic
-- urn: tactic:deepening-opportunity-assessment
-  kind: tactic
-  label: Deepening Opportunity Assessment
 - urn: tactic:decision-marker-capture
   kind: tactic
   label: Decision Marker Capture
+- urn: tactic:deepening-opportunity-assessment
+  kind: tactic
+  label: Deepening Opportunity Assessment
+- urn: tactic:dependency-hygiene
+  kind: tactic
+  label: Dependency Hygiene
+- urn: tactic:development-bdd
+  kind: tactic
+  label: BDD as Behavioral Contract Design
 - urn: tactic:documentation-curation-audit
   kind: tactic
   label: Documentation Curation Audit
@@ -273,18 +330,21 @@ nodes:
 - urn: tactic:entity-value-object-classification
   kind: tactic
   label: Entity vs Value Object Classification
-- urn: tactic:forensic-repository-audit
-  kind: tactic
-  label: Forensic Repository Audit
 - urn: tactic:five-paradigm-parallel-debugging
   kind: tactic
   label: Five-Paradigm Parallel Debugging
-- urn: tactic:paula-patterns-architecture-scout-review
-  kind: tactic
-  label: Paula Patterns Architecture Scout Review
 - urn: tactic:focused-function-complexity-check
   kind: tactic
   label: Focused Function Complexity Check
+- urn: tactic:forensic-repository-audit
+  kind: tactic
+  label: Forensic Repository Audit
+- urn: tactic:formalized-constraint-testing
+  kind: tactic
+  label: Formalized Constraint Testing
+- urn: tactic:function-over-form-testing
+  kind: tactic
+  label: Function Over Form Testing
 - urn: tactic:generated-code-stewardship
   kind: tactic
   label: Generated Code Stewardship
@@ -300,15 +360,21 @@ nodes:
 - urn: tactic:language-driven-design
   kind: tactic
   label: Language-Driven Design
-- urn: tactic:usage-examples-sync
+- urn: tactic:locality-of-change
   kind: tactic
-  label: Usage Examples Sync
+  label: Locality of Change Assessment
+- urn: tactic:mutation-testing-workflow
+  kind: tactic
+  label: Mutation Testing Workflow
 - urn: tactic:no-parallel-duplicate-test-runs
   kind: tactic
   label: No Parallel Duplicate Test Runs
 - urn: tactic:occurrence-classification-workflow
   kind: tactic
   label: Occurrence Classification Workflow
+- urn: tactic:paula-patterns-architecture-scout-review
+  kind: tactic
+  label: Paula Patterns Architecture Scout Review
 - urn: tactic:premortem-risk-identification
   kind: tactic
   label: Premortem Risk Identification
@@ -318,6 +384,12 @@ nodes:
 - urn: tactic:quality-gate-verification
   kind: tactic
   label: Quality Gate Verification
+- urn: tactic:reasons-canvas-fill
+  kind: tactic
+  label: REASONS Canvas Fill
+- urn: tactic:reasons-canvas-review
+  kind: tactic
+  label: REASONS Canvas Review
 - urn: tactic:refactoring-change-function-declaration
   kind: tactic
   label: 'Refactoring: Change Function Declaration'
@@ -372,6 +444,9 @@ nodes:
 - urn: tactic:refactoring-strangler-fig
   kind: tactic
   label: Refactoring Strangler Fig
+- urn: tactic:reference-architectural-patterns
+  kind: tactic
+  label: Reference Architectural Patterns Selection
 - urn: tactic:requirements-validation-workflow
   kind: tactic
   label: Requirements Validation Workflow
@@ -384,6 +459,12 @@ nodes:
 - urn: tactic:safe-to-fail-experiment
   kind: tactic
   label: Safe-to-Fail Experiment
+- urn: tactic:secure-design-checklist
+  kind: tactic
+  label: Secure Design Checklist
+- urn: tactic:secure-regex-catastrophic-backtracking
+  kind: tactic
+  label: Secure Regex — Avoid Catastrophic Backtracking
 - urn: tactic:single-diagram-architecture
   kind: tactic
 - urn: tactic:stakeholder-alignment
@@ -398,57 +479,65 @@ nodes:
 - urn: tactic:tdd-red-green-refactor
   kind: tactic
   label: Test Driven Development (TDD)
+- urn: tactic:terminology-extraction-mapping
+  kind: tactic
+  label: Terminology Extraction and Mapping
 - urn: tactic:test-boundaries-by-responsibility
   kind: tactic
   label: Test Boundaries by Functional Responsibility
+- urn: tactic:test-minimisation
+  kind: tactic
+  label: Test Minimisation
 - urn: tactic:test-pyramid-progression
   kind: tactic
   label: Test Pyramid Progression
+- urn: tactic:test-readability-clarity-check
+  kind: tactic
+  label: Test Readability and Clarity Check
+- urn: tactic:test-to-system-reconstruction
+  kind: tactic
+  label: Test-to-System Reconstruction
 - urn: tactic:testing-select-appropriate-level
   kind: tactic
   label: Select Appropriate Test Level
+- urn: tactic:traceable-decisions
+  kind: tactic
+  label: Traceable Decisions
+- urn: tactic:usage-examples-sync
+  kind: tactic
+  label: Usage Examples Sync
+- urn: tactic:work-package-completion-validation
+  kind: tactic
+  label: Work Package Completion Validation
 - urn: tactic:zombies-tdd
   kind: tactic
   label: ZOMBIES TDD
 - urn: template:agent-brief-template
   kind: template
-  label: Agent Brief Template
 - urn: template:ammerse-analysis-template
   kind: template
-  label: AMMERSE Analysis Template
 - urn: template:bounded-context-canvas-template
   kind: template
-  label: Bounded Context Canvas Template
 - urn: template:c4-component-mermaid-template
   kind: template
-  label: C4 Component Mermaid Template
 - urn: template:c4-container-mermaid-template
   kind: template
-  label: C4 Container Mermaid Template
 - urn: template:c4-context-mermaid-template
   kind: template
-  label: C4 Context Mermaid Template
 - urn: template:glossary-template
   kind: template
-  label: Glossary Template
 - urn: template:lightweight-prestudy-template
   kind: template
-  label: Lightweight Prestudy Template
 - urn: template:out-of-scope-record-template
   kind: template
-  label: Out-of-Scope Record Template
 - urn: template:quality-attribute-assessment-template
   kind: template
-  label: Quality Attribute Assessment Template
 - urn: template:risk-identification-assessment-template
   kind: template
-  label: Risk Identification Assessment Template
 - urn: template:stakeholder-persona-template
   kind: template
-  label: Stakeholder Persona Template
 - urn: template:system-context-canvas-template
   kind: template
-  label: System Context Canvas Template
 - urn: toolguide:contextive
   kind: toolguide
   label: Contextive
@@ -458,131 +547,190 @@ nodes:
 - urn: toolguide:git-agent-commit-signing
   kind: toolguide
   label: Git Agent Commit Signing
+- urn: toolguide:maven-review-checks
+  kind: toolguide
+  label: Maven Review Checks
 - urn: toolguide:mermaid-diagramming
   kind: toolguide
   label: Mermaid Diagramming
 - urn: toolguide:plantuml-diagramming
   kind: toolguide
   label: PlantUML Diagramming
-- urn: toolguide:python-review-checks
-  kind: toolguide
-  label: Python Review Checks
-- urn: styleguide:mutation-aware-test-design
-  kind: styleguide
-  label: Mutation-Aware Test Design
-- urn: tactic:mutation-testing-workflow
-  kind: tactic
-  label: Mutation Testing Workflow
 - urn: toolguide:python-mutation-tools
   kind: toolguide
   label: Python Mutation Testing with mutmut
+- urn: toolguide:python-review-checks
+  kind: toolguide
+  label: Python Review Checks
 - urn: toolguide:typescript-mutation-tools
   kind: toolguide
   label: TypeScript Mutation Testing with Stryker
-- urn: agent_profile:implementer-ivan
-  kind: agent_profile
-  label: Implementer Ivan
-- urn: agent_profile:java-jenny
-  kind: agent_profile
-  label: Java Jenny
-- urn: agent_profile:python-pedro
-  kind: agent_profile
-  label: Python Pedro
-- urn: styleguide:java-conventions
-  kind: styleguide
-  label: Java Conventions Styleguide
-- urn: styleguide:testing-principles
-  kind: styleguide
-  label: Testing Principles Styleguide
-- urn: toolguide:maven-review-checks
-  kind: toolguide
-  label: Maven Review Checks
-- urn: tactic:test-minimisation
-  kind: tactic
-  label: Test Minimisation
-- urn: tactic:formalized-constraint-testing
-  kind: tactic
-  label: Formalized Constraint Testing
-# reviewer tactics
-- urn: tactic:test-to-system-reconstruction
-  kind: tactic
-  label: Test-to-System Reconstruction
-- urn: tactic:work-package-completion-validation
-  kind: tactic
-  label: Work Package Completion Validation
-- urn: tactic:secure-design-checklist
-  kind: tactic
-  label: Secure Design Checklist
-- urn: tactic:code-documentation-analysis
-  kind: tactic
-  label: Code and Documentation Analysis
-# analyst/architect tactics
-- urn: tactic:dependency-hygiene
-  kind: tactic
-  label: Dependency Hygiene
-- urn: tactic:context-boundary-inference
-  kind: tactic
-  label: Context Boundary Inference
-- urn: tactic:analysis-extract-before-interpret
-  kind: tactic
-  label: Extract Before Interpret
-- urn: tactic:behavior-driven-development
-  kind: tactic
-  label: Behavior-Driven Development
-# approach-derived tactics
-- urn: tactic:locality-of-change
-  kind: tactic
-  label: Locality of Change Assessment
-- urn: tactic:traceable-decisions
-  kind: tactic
-  label: Traceable Decisions
-- urn: tactic:function-over-form-testing
-  kind: tactic
-  label: Function Over Form Testing
-# reviewer profile node
-- urn: agent_profile:reviewer-renata
-  kind: agent_profile
-  label: Reviewer Renata
-- urn: agent_profile:architect-alphonso
-  kind: agent_profile
-  label: Architect Alphonso
-- urn: agent_profile:curator-carla
-  kind: agent_profile
-  label: Curator Carla
-- urn: agent_profile:debugger-debbie
-  kind: agent_profile
-  label: Debugger Debbie
-- urn: agent_profile:designer-dagmar
-  kind: agent_profile
-  label: Designer Dagmar
-- urn: agent_profile:generic-agent
-  kind: agent_profile
-  label: Generic Agent
-- urn: agent_profile:human-in-charge
-  kind: agent_profile
-  label: Human In Charge
-- urn: agent_profile:planner-priti
-  kind: agent_profile
-  label: Planner Priti
-- urn: agent_profile:researcher-robbie
-  kind: agent_profile
-  label: Researcher Robbie
-# ---------------------------------------------------------------------------
-# Retrospective learning loop — WP01 additions
-# ---------------------------------------------------------------------------
-- urn: agent_profile:retrospective-facilitator
-  kind: agent_profile
-  label: Retrospective Facilitator
-- urn: action:software-dev/retrospect
-  kind: action
-  label: retrospect
-- urn: action:research/retrospect
-  kind: action
-  label: retrospect
-- urn: action:documentation/retrospect
-  kind: action
-  label: retrospect
 edges:
+- source: action:documentation/accept
+  target: directive:DIRECTIVE_010
+  relation: scope
+- source: action:documentation/accept
+  target: directive:DIRECTIVE_037
+  relation: scope
+- source: action:documentation/accept
+  target: tactic:requirements-validation-workflow
+  relation: scope
+- source: action:documentation/audit
+  target: directive:DIRECTIVE_003
+  relation: scope
+- source: action:documentation/audit
+  target: directive:DIRECTIVE_037
+  relation: scope
+- source: action:documentation/audit
+  target: tactic:requirements-validation-workflow
+  relation: scope
+- source: action:documentation/design
+  target: directive:DIRECTIVE_001
+  relation: scope
+- source: action:documentation/design
+  target: directive:DIRECTIVE_003
+  relation: scope
+- source: action:documentation/design
+  target: directive:DIRECTIVE_010
+  relation: scope
+- source: action:documentation/design
+  target: tactic:adr-drafting-workflow
+  relation: scope
+- source: action:documentation/design
+  target: tactic:requirements-validation-workflow
+  relation: scope
+- source: action:documentation/discover
+  target: directive:DIRECTIVE_003
+  relation: scope
+- source: action:documentation/discover
+  target: directive:DIRECTIVE_010
+  relation: scope
+- source: action:documentation/discover
+  target: tactic:premortem-risk-identification
+  relation: scope
+- source: action:documentation/discover
+  target: tactic:requirements-validation-workflow
+  relation: scope
+- source: action:documentation/generate
+  target: directive:DIRECTIVE_010
+  relation: scope
+- source: action:documentation/generate
+  target: directive:DIRECTIVE_037
+  relation: scope
+- source: action:documentation/generate
+  target: tactic:requirements-validation-workflow
+  relation: scope
+- source: action:documentation/publish
+  target: directive:DIRECTIVE_010
+  relation: scope
+- source: action:documentation/publish
+  target: directive:DIRECTIVE_037
+  relation: scope
+- source: action:documentation/publish
+  target: tactic:requirements-validation-workflow
+  relation: scope
+- source: action:documentation/retrospect
+  target: directive:DIRECTIVE_003
+  relation: scope
+- source: action:documentation/retrospect
+  target: directive:DIRECTIVE_010
+  relation: scope
+- source: action:documentation/retrospect
+  target: directive:DIRECTIVE_018
+  relation: scope
+- source: action:documentation/retrospect
+  target: tactic:autonomous-operation-protocol
+  relation: scope
+- source: action:documentation/retrospect
+  target: tactic:requirements-validation-workflow
+  relation: scope
+- source: action:documentation/retrospect
+  target: tactic:stopping-conditions
+  relation: scope
+- source: action:documentation/validate
+  target: directive:DIRECTIVE_010
+  relation: scope
+- source: action:documentation/validate
+  target: directive:DIRECTIVE_037
+  relation: scope
+- source: action:documentation/validate
+  target: tactic:premortem-risk-identification
+  relation: scope
+- source: action:documentation/validate
+  target: tactic:requirements-validation-workflow
+  relation: scope
+- source: action:research/gathering
+  target: directive:DIRECTIVE_003
+  relation: scope
+- source: action:research/gathering
+  target: directive:DIRECTIVE_037
+  relation: scope
+- source: action:research/gathering
+  target: tactic:requirements-validation-workflow
+  relation: scope
+- source: action:research/methodology
+  target: directive:DIRECTIVE_003
+  relation: scope
+- source: action:research/methodology
+  target: directive:DIRECTIVE_010
+  relation: scope
+- source: action:research/methodology
+  target: tactic:adr-drafting-workflow
+  relation: scope
+- source: action:research/methodology
+  target: tactic:requirements-validation-workflow
+  relation: scope
+- source: action:research/output
+  target: directive:DIRECTIVE_010
+  relation: scope
+- source: action:research/output
+  target: directive:DIRECTIVE_037
+  relation: scope
+- source: action:research/output
+  target: tactic:requirements-validation-workflow
+  relation: scope
+- source: action:research/retrospect
+  target: directive:DIRECTIVE_003
+  relation: scope
+- source: action:research/retrospect
+  target: directive:DIRECTIVE_010
+  relation: scope
+- source: action:research/retrospect
+  target: directive:DIRECTIVE_018
+  relation: scope
+- source: action:research/retrospect
+  target: tactic:autonomous-operation-protocol
+  relation: scope
+- source: action:research/retrospect
+  target: tactic:requirements-validation-workflow
+  relation: scope
+- source: action:research/retrospect
+  target: tactic:stopping-conditions
+  relation: scope
+- source: action:research/scoping
+  target: directive:DIRECTIVE_003
+  relation: scope
+- source: action:research/scoping
+  target: directive:DIRECTIVE_010
+  relation: scope
+- source: action:research/scoping
+  target: tactic:premortem-risk-identification
+  relation: scope
+- source: action:research/scoping
+  target: tactic:requirements-validation-workflow
+  relation: scope
+- source: action:research/synthesis
+  target: directive:DIRECTIVE_003
+  relation: scope
+- source: action:research/synthesis
+  target: directive:DIRECTIVE_010
+  relation: scope
+- source: action:research/synthesis
+  target: tactic:premortem-risk-identification
+  relation: scope
+- source: action:research/synthesis
+  target: tactic:requirements-validation-workflow
+  relation: scope
 - source: action:software-dev/implement
   target: directive:DIRECTIVE_024
   relation: scope
@@ -629,6 +777,9 @@ edges:
   target: directive:DIRECTIVE_010
   relation: scope
 - source: action:software-dev/plan
+  target: procedure:domain-aware-decision-interview
+  relation: scope
+- source: action:software-dev/plan
   target: tactic:adr-drafting-workflow
   relation: scope
 - source: action:software-dev/plan
@@ -638,16 +789,25 @@ edges:
   target: tactic:interface-variation-design
   relation: scope
 - source: action:software-dev/plan
-  target: tactic:premortem-risk-identification
-  relation: scope
-- source: action:software-dev/plan
-  target: tactic:problem-decomposition
-  relation: scope
-- source: action:software-dev/plan
   target: tactic:requirements-validation-workflow
   relation: scope
-- source: action:software-dev/plan
-  target: procedure:domain-aware-decision-interview
+- source: action:software-dev/retrospect
+  target: directive:DIRECTIVE_003
+  relation: scope
+- source: action:software-dev/retrospect
+  target: directive:DIRECTIVE_010
+  relation: scope
+- source: action:software-dev/retrospect
+  target: directive:DIRECTIVE_018
+  relation: scope
+- source: action:software-dev/retrospect
+  target: tactic:autonomous-operation-protocol
+  relation: scope
+- source: action:software-dev/retrospect
+  target: tactic:requirements-validation-workflow
+  relation: scope
+- source: action:software-dev/retrospect
+  target: tactic:stopping-conditions
   relation: scope
 - source: action:software-dev/review
   target: directive:DIRECTIVE_010
@@ -668,16 +828,7 @@ edges:
   target: directive:DIRECTIVE_030
   relation: scope
 - source: action:software-dev/review
-  target: directive:DIRECTIVE_034
-  relation: scope
-- source: action:software-dev/review
   target: directive:DIRECTIVE_037
-  relation: scope
-- source: action:software-dev/review
-  target: tactic:acceptance-test-first
-  relation: scope
-- source: action:software-dev/review
-  target: tactic:usage-examples-sync
   relation: scope
 - source: action:software-dev/review
   target: tactic:quality-gate-verification
@@ -688,6 +839,9 @@ edges:
 - source: action:software-dev/review
   target: tactic:stopping-conditions
   relation: scope
+- source: action:software-dev/review
+  target: tactic:usage-examples-sync
+  relation: scope
 - source: action:software-dev/specify
   target: directive:DIRECTIVE_003
   relation: scope
@@ -705,6 +859,9 @@ edges:
   relation: scope
 - source: action:software-dev/tasks
   target: directive:DIRECTIVE_024
+  relation: scope
+- source: action:software-dev/tasks
+  target: procedure:issue-triage-state-machine
   relation: scope
 - source: action:software-dev/tasks
   target: tactic:adr-drafting-workflow
@@ -715,225 +872,24 @@ edges:
 - source: action:software-dev/tasks
   target: tactic:requirements-validation-workflow
   relation: scope
-- source: action:software-dev/tasks
-  target: procedure:issue-triage-state-machine
-  relation: scope
-- source: action:research/scoping
-  target: directive:DIRECTIVE_003
-  relation: scope
-- source: action:research/scoping
-  target: directive:DIRECTIVE_010
-  relation: scope
-- source: action:research/scoping
-  target: tactic:requirements-validation-workflow
-  relation: scope
-- source: action:research/scoping
-  target: tactic:premortem-risk-identification
-  relation: scope
-- source: action:research/methodology
-  target: directive:DIRECTIVE_003
-  relation: scope
-- source: action:research/methodology
-  target: directive:DIRECTIVE_010
-  relation: scope
-- source: action:research/methodology
-  target: tactic:adr-drafting-workflow
-  relation: scope
-- source: action:research/methodology
-  target: tactic:requirements-validation-workflow
-  relation: scope
-- source: action:research/gathering
-  target: directive:DIRECTIVE_003
-  relation: scope
-- source: action:research/gathering
-  target: directive:DIRECTIVE_037
-  relation: scope
-- source: action:research/gathering
-  target: tactic:requirements-validation-workflow
-  relation: scope
-- source: action:research/synthesis
-  target: directive:DIRECTIVE_003
-  relation: scope
-- source: action:research/synthesis
-  target: directive:DIRECTIVE_010
-  relation: scope
-- source: action:research/synthesis
-  target: tactic:premortem-risk-identification
-  relation: scope
-- source: action:research/synthesis
-  target: tactic:requirements-validation-workflow
-  relation: scope
-- source: action:research/output
-  target: directive:DIRECTIVE_010
-  relation: scope
-- source: action:research/output
-  target: directive:DIRECTIVE_037
-  relation: scope
-- source: action:research/output
-  target: tactic:requirements-validation-workflow
-  relation: scope
-- source: action:documentation/audit
-  target: directive:DIRECTIVE_003
-  relation: scope
-- source: action:documentation/audit
-  target: directive:DIRECTIVE_037
-  relation: scope
-- source: action:documentation/audit
-  target: tactic:requirements-validation-workflow
-  relation: scope
-- source: action:documentation/design
-  target: directive:DIRECTIVE_001
-  relation: scope
-- source: action:documentation/design
-  target: directive:DIRECTIVE_003
-  relation: scope
-- source: action:documentation/design
-  target: directive:DIRECTIVE_010
-  relation: scope
-- source: action:documentation/design
-  target: tactic:adr-drafting-workflow
-  relation: scope
-- source: action:documentation/design
-  target: tactic:requirements-validation-workflow
-  relation: scope
-- source: action:documentation/discover
-  target: directive:DIRECTIVE_003
-  relation: scope
-- source: action:documentation/discover
-  target: directive:DIRECTIVE_010
-  relation: scope
-- source: action:documentation/discover
-  target: tactic:premortem-risk-identification
-  relation: scope
-- source: action:documentation/discover
-  target: tactic:requirements-validation-workflow
-  relation: scope
-- source: action:documentation/generate
-  target: directive:DIRECTIVE_010
-  relation: scope
-- source: action:documentation/generate
-  target: directive:DIRECTIVE_037
-  relation: scope
-- source: action:documentation/generate
-  target: tactic:requirements-validation-workflow
-  relation: scope
-- source: action:documentation/publish
-  target: directive:DIRECTIVE_010
-  relation: scope
-- source: action:documentation/publish
-  target: directive:DIRECTIVE_037
-  relation: scope
-- source: action:documentation/publish
-  target: tactic:requirements-validation-workflow
-  relation: scope
-- source: action:documentation/validate
-  target: directive:DIRECTIVE_010
-  relation: scope
-- source: action:documentation/validate
-  target: directive:DIRECTIVE_037
-  relation: scope
-- source: action:documentation/validate
-  target: tactic:premortem-risk-identification
-  relation: scope
-- source: action:documentation/validate
-  target: tactic:requirements-validation-workflow
-  relation: scope
-- source: directive:DIRECTIVE_001
-  target: tactic:adr-drafting-workflow
-  relation: requires
-- source: directive:DIRECTIVE_001
-  target: tactic:connascence-analysis
-  relation: requires
-- source: directive:DIRECTIVE_001
-  target: tactic:easy-to-change
-  relation: requires
-- source: directive:DIRECTIVE_001
-  target: tactic:language-driven-design
-  relation: requires
-- source: directive:DIRECTIVE_001
-  target: tactic:paula-patterns-architecture-scout-review
-  relation: requires
-- source: directive:DIRECTIVE_001
-  target: tactic:premortem-risk-identification
-  relation: requires
-- source: directive:DIRECTIVE_003
-  target: tactic:adr-drafting-workflow
-  relation: requires
-- source: directive:DIRECTIVE_003
-  target: tactic:premortem-risk-identification
-  relation: requires
-- source: directive:DIRECTIVE_018
-  target: tactic:adr-drafting-workflow
-  relation: requires
 - source: directive:DIRECTIVE_024
   target: directive:DIRECTIVE_025
   relation: replaces
   reason: "The Boy Scout Rule endorses opportunistic improvement of touched areas,
     which can justify expanding a change beyond the strict locality boundary this
     directive enforces.\n"
-- source: directive:DIRECTIVE_024
-  target: tactic:change-apply-smallest-viable-diff
-  relation: requires
-- source: directive:DIRECTIVE_024
-  target: tactic:code-review-incremental
-  relation: requires
 - source: directive:DIRECTIVE_025
   target: directive:DIRECTIVE_024
   relation: replaces
   reason: "Locality of Change constrains edits to the minimum required by the goal.
     Opportunistic cleanup endorsed by the Boy Scout Rule expands the diff beyond that
     minimum, increasing review complexity and regression risk.\n"
-- source: directive:DIRECTIVE_025
-  target: tactic:refactoring-conditional-to-strategy
-  relation: requires
-- source: directive:DIRECTIVE_025
-  target: tactic:refactoring-extract-class-by-responsibility-split
-  relation: requires
-- source: directive:DIRECTIVE_025
-  target: tactic:refactoring-extract-first-order-concept
-  relation: requires
-- source: directive:DIRECTIVE_025
-  target: tactic:refactoring-guard-clauses-before-polymorphism
-  relation: requires
-- source: directive:DIRECTIVE_025
-  target: tactic:refactoring-inline-temp
-  relation: requires
-- source: directive:DIRECTIVE_025
-  target: tactic:refactoring-introduce-null-object
-  relation: requires
-- source: directive:DIRECTIVE_025
-  target: tactic:refactoring-move-field
-  relation: requires
-- source: directive:DIRECTIVE_025
-  target: tactic:refactoring-move-method
-  relation: requires
-- source: directive:DIRECTIVE_025
-  target: tactic:refactoring-replace-magic-number-with-symbolic-constant
-  relation: requires
-- source: directive:DIRECTIVE_025
-  target: tactic:refactoring-replace-temp-with-query
-  relation: requires
-- source: directive:DIRECTIVE_025
-  target: tactic:refactoring-retry-pattern
-  relation: requires
-- source: directive:DIRECTIVE_025
-  target: tactic:refactoring-strangler-fig
-  relation: requires
 - source: directive:DIRECTIVE_028
   target: toolguide:efficient-local-tooling
   relation: suggests
 - source: directive:DIRECTIVE_029
   target: toolguide:git-agent-commit-signing
   relation: suggests
-- source: directive:DIRECTIVE_030
-  target: tactic:quality-gate-verification
-  relation: requires
-- source: directive:DIRECTIVE_030
-  target: tactic:test-pyramid-progression
-  relation: requires
-- source: directive:DIRECTIVE_030
-  target: tactic:testing-select-appropriate-level
-  relation: requires
 - source: directive:DIRECTIVE_031
   target: directive:DIRECTIVE_001
   relation: requires
@@ -949,15 +905,21 @@ edges:
 - source: directive:DIRECTIVE_032
   target: tactic:language-driven-design
   relation: suggests
-- source: directive:DIRECTIVE_034
-  target: tactic:acceptance-test-first
+- source: directive:DIRECTIVE_036
+  target: directive:DIRECTIVE_030
   relation: requires
-- source: directive:DIRECTIVE_034
-  target: tactic:tdd-red-green-refactor
+- source: directive:DIRECTIVE_036
+  target: directive:DIRECTIVE_034
   relation: requires
-- source: directive:DIRECTIVE_034
-  target: tactic:zombies-tdd
-  relation: requires
+- source: directive:DIRECTIVE_038
+  target: paradigm:structured-prompt-driven-development
+  relation: suggests
+- source: directive:DIRECTIVE_038
+  target: tactic:reasons-canvas-fill
+  relation: suggests
+- source: directive:DIRECTIVE_038
+  target: tactic:reasons-canvas-review
+  relation: suggests
 - source: directive:DIRECTIVE_039
   target: directive:DIRECTIVE_001
   relation: requires
@@ -969,43 +931,42 @@ edges:
   relation: requires
 - source: directive:DIRECTIVE_039
   target: tactic:adversarial-qa-handoff
-  relation: requires
-- source: directive:DIRECTIVE_039
-  target: tactic:avoid-gold-plating
-  relation: requires
+  relation: suggests
 - source: directive:DIRECTIVE_039
   target: tactic:boring-code-review
-  relation: requires
-- source: directive:DIRECTIVE_039
-  target: tactic:easy-to-change
-  relation: requires
+  relation: suggests
 - source: directive:DIRECTIVE_039
   target: tactic:focused-function-complexity-check
-  relation: requires
+  relation: suggests
 - source: directive:DIRECTIVE_039
   target: tactic:generated-code-stewardship
+  relation: suggests
+- source: paradigm:behaviour-driven-development
+  target: directive:DIRECTIVE_034
   relation: requires
-- source: directive:DIRECTIVE_040
+- source: paradigm:behaviour-driven-development
+  target: directive:DIRECTIVE_037
+  relation: requires
+- source: paradigm:brownfield-onboarding
+  target: directive:DIRECTIVE_001
+  relation: requires
+- source: paradigm:brownfield-onboarding
   target: directive:DIRECTIVE_003
   relation: requires
-- source: directive:DIRECTIVE_040
-  target: directive:DIRECTIVE_030
-  relation: requires
-- source: directive:DIRECTIVE_040
-  target: tactic:five-paradigm-parallel-debugging
-  relation: requires
-- source: paradigm:atomic-design
-  target: tactic:atomic-design-review-checklist
-  relation: requires
-- source: paradigm:atomic-design
-  target: tactic:atomic-state-ownership
-  relation: requires
-- source: paradigm:atomic-design
-  target: tactic:compositional-stream-boundaries
-  relation: requires
-- source: paradigm:atomic-design
-  target: tactic:cross-cutting-state-via-store
-  relation: requires
+- source: paradigm:brownfield-onboarding
+  target: paradigm:big-ball-of-mud
+  relation: replaces
+  reason: "A Big Ball of Mud is the failure mode brownfield onboarding is built to
+    interrupt. Where Big Ball of Mud lets coupling and concepts leak without investigation,
+    brownfield onboarding insists that the leaks be mapped and named before they are
+    either preserved or removed.\n"
+- source: paradigm:brownfield-onboarding
+  target: paradigm:big-upfront-design
+  relation: replaces
+  reason: "Big Upfront Design assumes the right structure can be derived from first
+    principles before contact with the existing system. Brownfield onboarding inverts
+    the priority: the existing system is the primary evidence, and design proposals
+    must be grounded in what the codebase, its history, and its SMEs already encode.\n"
 - source: paradigm:c4-incremental-detail-modeling
   target: directive:DIRECTIVE_001
   relation: requires
@@ -1024,48 +985,11 @@ edges:
     C4 provides visual abstractions that make architecture accessible without requiring
     code literacy.\n"
 - source: paradigm:c4-incremental-detail-modeling
-  target: tactic:adr-drafting-workflow
-  relation: requires
-- source: paradigm:c4-incremental-detail-modeling
-  target: tactic:architecture-diagram-review-checklist
-  relation: requires
-- source: paradigm:c4-incremental-detail-modeling
-  target: tactic:c4-zoom-in-architecture-documentation
-  relation: requires
-- source: paradigm:c4-incremental-detail-modeling
-  target: tactic:connascence-analysis
-  relation: requires
-- source: paradigm:c4-incremental-detail-modeling
-  target: tactic:premortem-risk-identification
-  relation: requires
-- source: paradigm:c4-incremental-detail-modeling
   target: tactic:single-diagram-architecture
   relation: replaces
   reason: "A single all-in-one architecture diagram conflates audiences and abstraction
     levels, producing a poster that nobody can review in a reasonable time. C4 explicitly
     separates concerns into distinct levels.\n"
-- source: paradigm:brownfield-onboarding
-  target: directive:DIRECTIVE_001
-  relation: requires
-- source: paradigm:brownfield-onboarding
-  target: directive:DIRECTIVE_003
-  relation: requires
-- source: paradigm:brownfield-onboarding
-  target: tactic:forensic-repository-audit
-  relation: suggests
-  when: Use when starting investigation of a mature codebase to surface hotspots, change coupling, and ownership signals before proposing structural change.
-- source: paradigm:brownfield-onboarding
-  target: procedure:legacy-codebase-triage
-  relation: suggests
-  when: Use to bucket findings from forensic and qualitative investigation into action categories before any non-trivial restructure.
-- source: paradigm:brownfield-onboarding
-  target: paradigm:domain-driven-design
-  relation: suggests
-  when: Apply strategic DDD (Bounded Contexts, Context Mapping) as the structural overlay for interpreting forensic findings on a mature codebase.
-- source: paradigm:brownfield-onboarding
-  target: paradigm:deep-module-design
-  relation: suggests
-  when: Use deep-module heuristics to read complexity findings -- distinguishing shallow interfaces in need of deepening from genuinely necessary depth.
 - source: paradigm:deep-module-design
   target: directive:DIRECTIVE_001
   relation: requires
@@ -1075,14 +999,6 @@ edges:
 - source: paradigm:deep-module-design
   target: directive:DIRECTIVE_030
   relation: requires
-- source: paradigm:deep-module-design
-  target: tactic:deepening-opportunity-assessment
-  relation: suggests
-  when: Use to determine whether a shallow design should be deepened.
-- source: paradigm:deep-module-design
-  target: tactic:interface-variation-design
-  relation: suggests
-  when: Use to compare candidate interfaces for a deep module.
 - source: paradigm:domain-driven-design
   target: directive:DIRECTIVE_001
   relation: requires
@@ -1106,33 +1022,12 @@ edges:
     language. Concepts leak across modules, coupling grows unchecked, and model integrity
     becomes impossible to maintain.\n"
 - source: paradigm:domain-driven-design
-  target: tactic:anti-corruption-layer
-  relation: requires
-- source: paradigm:domain-driven-design
-  target: tactic:bounded-context-identification
-  relation: requires
-- source: paradigm:domain-driven-design
   target: tactic:database-driven-design
   relation: replaces
   reason: "Starting from a database schema and generating code around it inverts the
     DDD priority: the domain model should drive persistence, not the other way around.
     Schema-first thinking produces models shaped by storage constraints rather than
     business rules.\n"
-- source: paradigm:domain-driven-design
-  target: tactic:domain-event-capture
-  relation: requires
-- source: paradigm:domain-driven-design
-  target: tactic:glossary-curation-interview
-  relation: requires
-- source: paradigm:domain-driven-design
-  target: tactic:language-driven-design
-  relation: requires
-- source: paradigm:domain-driven-design
-  target: tactic:problem-decomposition
-  relation: requires
-- source: paradigm:domain-driven-design
-  target: tactic:refactoring-strangler-fig
-  relation: requires
 - source: paradigm:specification-by-example
   target: directive:DIRECTIVE_010
   relation: requires
@@ -1142,15 +1037,180 @@ edges:
 - source: paradigm:specification-by-example
   target: directive:DIRECTIVE_037
   relation: requires
-- source: paradigm:specification-by-example
+- source: paradigm:structured-prompt-driven-development
+  target: directive:DIRECTIVE_038
+  relation: requires
+- source: procedure:bdd-scenario-lifecycle
+  target: directive:DIRECTIVE_034
+  relation: requires
+- source: procedure:bdd-scenario-lifecycle
+  target: directive:DIRECTIVE_037
+  relation: requires
+- source: procedure:bdd-scenario-lifecycle
+  target: procedure:example-mapping-workshop
+  relation: suggests
+- source: procedure:bdd-scenario-lifecycle
   target: tactic:acceptance-test-first
+  relation: suggests
+- source: procedure:bdd-scenario-lifecycle
+  target: tactic:behavior-driven-development
+  relation: suggests
+- source: procedure:disciplined-defect-diagnosis
+  target: directive:DIRECTIVE_030
   relation: requires
-- source: paradigm:specification-by-example
+- source: procedure:disciplined-defect-diagnosis
+  target: procedure:test-first-bug-fixing
+  relation: suggests
+- source: procedure:disciplined-defect-diagnosis
+  target: tactic:bug-fixing-checklist
+  relation: suggests
+- source: procedure:disciplined-defect-diagnosis
+  target: tactic:testing-select-appropriate-level
+  relation: suggests
+- source: procedure:domain-aware-decision-interview
+  target: procedure:situational-assessment
+  relation: suggests
+- source: procedure:domain-aware-decision-interview
+  target: tactic:adr-drafting-workflow
+  relation: suggests
+- source: procedure:domain-aware-decision-interview
+  target: tactic:glossary-curation-interview
+  relation: suggests
+- source: procedure:domain-aware-decision-interview
+  target: tactic:language-driven-design
+  relation: suggests
+- source: procedure:drill-down-documentation
+  target: directive:DIRECTIVE_001
+  relation: requires
+- source: procedure:drill-down-documentation
+  target: directive:DIRECTIVE_003
+  relation: requires
+- source: procedure:event-storming-discovery
+  target: tactic:aggregate-boundary-design
+  relation: suggests
+- source: procedure:event-storming-discovery
+  target: tactic:bounded-context-identification
+  relation: suggests
+- source: procedure:event-storming-discovery
+  target: tactic:domain-event-capture
+  relation: suggests
+- source: procedure:example-mapping-workshop
+  target: directive:DIRECTIVE_037
+  relation: requires
+- source: procedure:example-mapping-workshop
+  target: procedure:event-storming-discovery
+  relation: suggests
+- source: procedure:example-mapping-workshop
+  target: tactic:acceptance-test-first
+  relation: suggests
+- source: procedure:example-mapping-workshop
   target: tactic:atdd-adversarial-acceptance
-  relation: requires
-- source: paradigm:specification-by-example
+  relation: suggests
+- source: procedure:example-mapping-workshop
+  target: tactic:reverse-speccing
+  relation: suggests
+- source: procedure:example-mapping-workshop
   target: tactic:usage-examples-sync
+  relation: suggests
+- source: procedure:issue-triage-state-machine
+  target: procedure:disciplined-defect-diagnosis
+  relation: suggests
+- source: procedure:issue-triage-state-machine
+  target: procedure:test-first-bug-fixing
+  relation: suggests
+- source: procedure:issue-triage-state-machine
+  target: tactic:requirements-validation-workflow
+  relation: suggests
+- source: procedure:issue-triage-state-machine
+  target: template:agent-brief-template
+  relation: suggests
+- source: procedure:issue-triage-state-machine
+  target: template:out-of-scope-record-template
+  relation: suggests
+- source: procedure:legacy-codebase-triage
+  target: directive:DIRECTIVE_001
   relation: requires
+- source: procedure:legacy-codebase-triage
+  target: directive:DIRECTIVE_003
+  relation: requires
+- source: procedure:legacy-codebase-triage
+  target: directive:DIRECTIVE_028
+  relation: requires
+- source: procedure:legacy-codebase-triage
+  target: procedure:situational-assessment
+  relation: suggests
+- source: procedure:legacy-codebase-triage
+  target: tactic:connascence-analysis
+  relation: suggests
+- source: procedure:legacy-codebase-triage
+  target: tactic:eisenhower-prioritisation
+  relation: suggests
+- source: procedure:legacy-codebase-triage
+  target: tactic:forensic-repository-audit
+  relation: suggests
+- source: procedure:legacy-codebase-triage
+  target: tactic:premortem-risk-identification
+  relation: suggests
+- source: procedure:legacy-codebase-triage
+  target: tactic:strategic-domain-classification
+  relation: suggests
+- source: procedure:migrate-project-guidance-to-spec-kitty-charter
+  target: directive:DIRECTIVE_003
+  relation: requires
+- source: procedure:migrate-project-guidance-to-spec-kitty-charter
+  target: directive:DIRECTIVE_010
+  relation: requires
+- source: procedure:migrate-project-guidance-to-spec-kitty-charter
+  target: directive:DIRECTIVE_018
+  relation: requires
+- source: procedure:refactoring
+  target: tactic:change-apply-smallest-viable-diff
+  relation: suggests
+- source: procedure:situational-assessment
+  target: directive:DIRECTIVE_001
+  relation: requires
+- source: procedure:situational-assessment
+  target: directive:DIRECTIVE_003
+  relation: requires
+- source: procedure:situational-assessment
+  target: tactic:ammerse-impact-analysis
+  relation: suggests
+- source: procedure:situational-assessment
+  target: tactic:eisenhower-prioritisation
+  relation: suggests
+- source: procedure:situational-assessment
+  target: tactic:premortem-risk-identification
+  relation: suggests
+- source: procedure:situational-assessment
+  target: tactic:problem-decomposition
+  relation: suggests
+- source: procedure:situational-assessment
+  target: tactic:safe-to-fail-experiment
+  relation: suggests
+- source: procedure:situational-assessment
+  target: tactic:stakeholder-alignment
+  relation: suggests
+- source: procedure:situational-assessment
+  target: template:ammerse-analysis-template
+  relation: suggests
+- source: procedure:situational-assessment
+  target: template:lightweight-prestudy-template
+  relation: suggests
+- source: procedure:situational-assessment
+  target: template:quality-attribute-assessment-template
+  relation: suggests
+- source: procedure:situational-assessment
+  target: template:system-context-canvas-template
+  relation: suggests
+- source: procedure:test-first-bug-fixing
+  target: directive:DIRECTIVE_030
+  relation: requires
+- source: procedure:test-first-bug-fixing
+  target: tactic:tdd-red-green-refactor
+  relation: suggests
+- source: procedure:test-first-bug-fixing
+  target: tactic:test-boundaries-by-responsibility
+  relation: suggests
 - source: tactic:acceptance-test-first
   target: tactic:tdd-red-green-refactor
   relation: suggests
@@ -1160,6 +1220,14 @@ edges:
   target: tactic:premortem-risk-identification
   relation: suggests
   when: Decision has high impact or limited reversibility.
+- source: tactic:adversarial-qa-handoff
+  target: tactic:quality-gate-verification
+  relation: suggests
+  when: Use to verify the automated gates before handoff.
+- source: tactic:adversarial-qa-handoff
+  target: tactic:review-intent-and-risk-first
+  relation: suggests
+  when: Use during review to compare the stated behavior contract with the diff.
 - source: tactic:aggregate-boundary-design
   target: styleguide:aggregate-design-rules
   relation: suggests
@@ -1177,6 +1245,20 @@ edges:
   target: tactic:entity-value-object-classification
   relation: suggests
   when: Classifying objects inside the aggregate as entities or value objects.
+- source: tactic:ammerse-impact-analysis
+  target: template:ammerse-analysis-template
+  relation: suggests
+  when: When recording the analysis as a standalone durable artifact.
+- source: tactic:analysis-extract-before-interpret
+  target: tactic:acceptance-test-first
+  relation: suggests
+  when: Extracting observable acceptance criteria before interpreting 
+    implementation requirements
+- source: tactic:analysis-extract-before-interpret
+  target: tactic:review-intent-and-risk-first
+  relation: suggests
+  when: The intent-first review tactic applies extraction-before-interpretation 
+    to the review context
 - source: tactic:anti-corruption-layer
   target: tactic:bounded-context-identification
   relation: suggests
@@ -1243,6 +1325,60 @@ edges:
   relation: suggests
   when: "After confirming the design is not gold-plated, use easy-to-change to verify
     that the simpler design still supports anticipated future change.\n"
+- source: tactic:behavior-driven-development
+  target: directive:DIRECTIVE_034
+  relation: suggests
+  when: BDD scenarios become the failing acceptance tests in the test-first 
+    cycle
+- source: tactic:behavior-driven-development
+  target: paradigm:behaviour-driven-development
+  relation: suggests
+  when: For the philosophical and collaborative framing of BDD — 
+    Discovery/Formulation/Automation cycle, Three Amigos practice
+- source: tactic:behavior-driven-development
+  target: procedure:bdd-scenario-lifecycle
+  relation: suggests
+  when: After scenarios are written in Given/When/Then, use this procedure to 
+    wire them to executable tests and maintain them as living documentation
+- source: tactic:behavior-driven-development
+  target: styleguide:testing-principles
+  relation: suggests
+  when: BDD scenarios should satisfy the Inspiring and Exemplary test desiderata
+- source: tactic:behavior-driven-development
+  target: tactic:acceptance-test-first
+  relation: suggests
+  when: BDD provides the scenario format; ATDD provides the workflow for writing
+    those scenarios before implementation
+- source: tactic:black-box-integration-testing
+  target: directive:DIRECTIVE_030
+  relation: suggests
+  when: Black-box integration tests are part of the integration-level gate that 
+    must pass before handoff.
+- source: tactic:black-box-integration-testing
+  target: directive:DIRECTIVE_034
+  relation: suggests
+  when: Black-box integration tests can be written first to capture the external
+    contract before implementation.
+- source: tactic:black-box-integration-testing
+  target: tactic:acceptance-test-first
+  relation: suggests
+  when: Acceptance tests define the outer behavioral boundary that black-box 
+    integration tests can refine at intermediate scopes.
+- source: tactic:black-box-integration-testing
+  target: tactic:test-boundaries-by-responsibility
+  relation: suggests
+  when: Use this tactic first to select which components are inside vs. outside 
+    the responsibility boundary before applying black-box integration testing.
+- source: tactic:boring-code-review
+  target: tactic:avoid-gold-plating
+  relation: suggests
+  when: Use when a proposed abstraction is speculative rather than justified by 
+    current complexity.
+- source: tactic:boring-code-review
+  target: tactic:easy-to-change
+  relation: suggests
+  when: Use after simplifying a design to verify that the simpler form still 
+    supports expected change.
 - source: tactic:bounded-context-canvas-fill
   target: tactic:aggregate-boundary-design
   relation: suggests
@@ -1270,6 +1406,14 @@ edges:
   relation: suggests
   when: Applying the classification framework to this context.
 - source: tactic:bounded-context-canvas-fill
+  target: template:bounded-context-canvas-template
+  relation: suggests
+  when: Recording terms in the canvas's Ubiquitous Language section.
+- source: tactic:bounded-context-canvas-fill
+  target: template:glossary-template
+  relation: suggests
+  when: Structuring glossary entries extracted during canvas fill.
+- source: tactic:bounded-context-canvas-fill
   target: toolguide:contextive
   relation: suggests
   when: Enforcing the glossary in code via IDE-integrated ubiquitous language 
@@ -1278,6 +1422,15 @@ edges:
   target: tactic:language-driven-design
   relation: suggests
   when: Detecting linguistic conflicts that signal a bounded context boundary.
+- source: tactic:bug-fixing-checklist
+  target: directive:DIRECTIVE_030
+  relation: suggests
+  when: The full test suite must pass before a fix is considered complete
+- source: tactic:bug-fixing-checklist
+  target: directive:DIRECTIVE_034
+  relation: suggests
+  when: Bug fixing is a test-first activity; the reproduction test is the 
+    failing test in the red-green cycle
 - source: tactic:c4-zoom-in-architecture-documentation
   target: directive:DIRECTIVE_001
   relation: suggests
@@ -1288,6 +1441,55 @@ edges:
   relation: suggests
   when: Recording architectural decisions that change container or component 
     boundaries shown in C4 diagrams.
+- source: tactic:c4-zoom-in-architecture-documentation
+  target: template:c4-component-mermaid-template
+  relation: suggests
+  when: Documenting logical structure inside a container that has non-trivial 
+    internal boundaries.
+- source: tactic:c4-zoom-in-architecture-documentation
+  target: template:c4-container-mermaid-template
+  relation: suggests
+  when: Documenting the internal structure of a software system at the 
+    deployment-unit level.
+- source: tactic:c4-zoom-in-architecture-documentation
+  target: template:c4-context-mermaid-template
+  relation: suggests
+  when: Starting a new system context diagram from scratch.
+- source: tactic:chain-of-responsibility-rule-pipeline
+  target: directive:DIRECTIVE_034
+  relation: suggests
+  when: Characterization tests of the monolith come first; rules are extracted 
+    with the tests already green
+- source: tactic:chain-of-responsibility-rule-pipeline
+  target: tactic:function-over-form-testing
+  relation: suggests
+  when: Each rule is tested as a value transformer (input → expected output); 
+    the composition is tested end-to-end on realistic fixtures
+- source: tactic:chain-of-responsibility-rule-pipeline
+  target: tactic:refactoring-extract-first-order-concept
+  relation: suggests
+  when: Each rule is a first-order concept extracted from a monolithic function;
+    name it explicitly and give it a single responsibility
+- source: tactic:chain-of-responsibility-rule-pipeline
+  target: tactic:refactoring-guard-clauses-before-polymorphism
+  relation: suggests
+  when: Use guard clauses to flatten the source function before extracting 
+    per-rule helpers; the flattened form makes rule boundaries visible
+- source: tactic:code-documentation-analysis
+  target: directive:DIRECTIVE_001
+  relation: suggests
+  when: Context boundary proposals must be validated against the existing 
+    architectural integrity constraints
+- source: tactic:code-documentation-analysis
+  target: directive:DIRECTIVE_032
+  relation: suggests
+  when: Terminology conflicts discovered during analysis must be resolved to 
+    maintain conceptual alignment
+- source: tactic:code-documentation-analysis
+  target: tactic:language-driven-design
+  relation: suggests
+  when: Terminology analysis feeds directly into the language-driven design 
+    process for naming decisions
 - source: tactic:code-review-incremental
   target: tactic:change-apply-smallest-viable-diff
   relation: suggests
@@ -1301,6 +1503,26 @@ edges:
   target: tactic:atomic-state-ownership
   relation: suggests
   when: Determining which atomic level owns state before deciding stream scope.
+- source: tactic:context-boundary-inference
+  target: directive:DIRECTIVE_001
+  relation: suggests
+  when: Proposed context boundaries must be evaluated against the existing 
+    architectural integrity constraints
+- source: tactic:context-boundary-inference
+  target: directive:DIRECTIVE_032
+  relation: suggests
+  when: Context boundaries make conceptual alignment explicit; terminology 
+    violations at boundaries are directive violations
+- source: tactic:context-boundary-inference
+  target: tactic:code-documentation-analysis
+  relation: suggests
+  when: Code and documentation analysis provides the terminology extraction and 
+    co-occurrence data used in steps 1-2
+- source: tactic:context-boundary-inference
+  target: tactic:language-driven-design
+  relation: suggests
+  when: Terminology clusters from boundary inference become the ubiquitous 
+    language inputs for language-driven design
 - source: tactic:context-mapping-classification
   target: tactic:anti-corruption-layer
   relation: suggests
@@ -1320,10 +1542,158 @@ edges:
   target: tactic:refactoring-strangler-fig
   relation: suggests
   when: Remediating Big Ball of Mud boundaries discovered in the context map.
+- source: tactic:deepening-opportunity-assessment
+  target: paradigm:deep-module-design
+  relation: suggests
+  when: This tactic operationalizes the paradigm's interface-leverage model.
+- source: tactic:deepening-opportunity-assessment
+  target: procedure:refactoring
+  relation: suggests
+  when: Use when the selected deepening is an internal behavior-preserving 
+    restructuring.
+- source: tactic:deepening-opportunity-assessment
+  target: tactic:easy-to-change
+  relation: suggests
+  when: Use after identifying a candidate to test whether deepening improves 
+    future change cost.
+- source: tactic:deepening-opportunity-assessment
+  target: tactic:locality-of-change
+  relation: suggests
+  when: Use to require evidence that the added structure solves an observed 
+    locality problem.
+- source: tactic:dependency-hygiene
+  target: directive:DIRECTIVE_001
+  relation: suggests
+  when: Dependency decisions affect the architectural integrity of the system; 
+    treat supply-chain choices as first-class architectural decisions
+- source: tactic:dependency-hygiene
+  target: tactic:secure-design-checklist
+  relation: suggests
+  when: Dependency hygiene is a prerequisite for the Least Common Mechanism 
+    principle in the secure design checklist
+- source: tactic:development-bdd
+  target: procedure:example-mapping-workshop
+  relation: suggests
+  when: Use to collaboratively validate and refine the behavioral contracts with
+    stakeholders
+- source: tactic:development-bdd
+  target: tactic:behavior-driven-development
+  relation: suggests
+  when: Use this tactic to translate the behavioral contracts into executable 
+    Given/When/Then scenarios
 - source: tactic:entity-value-object-classification
   target: tactic:language-driven-design
   relation: suggests
   when: Domain expert language reveals whether identity matters for a concept.
+- source: tactic:five-paradigm-parallel-debugging
+  target: directive:DIRECTIVE_040
+  relation: suggests
+  when: When a bug class has recurred and reactive PRs have not stopped the 
+    chain, this directive REQUIRES a structural intervention rather than another
+    point fix
+- source: tactic:five-paradigm-parallel-debugging
+  target: tactic:code-review-incremental
+  relation: suggests
+  when: Apply during convergence synthesis to each sub-agent's output before 
+    authoring the fix plan
+- source: tactic:five-paradigm-parallel-debugging
+  target: tactic:review-intent-and-risk-first
+  relation: suggests
+  when: Evaluate the structural-fix plan for intent (does it close the class?) 
+    and risk (blast radius of structural change) before handoff
+- source: tactic:focused-function-complexity-check
+  target: directive:DIRECTIVE_034
+  relation: suggests
+  when: Use test-first cycles before reshaping behavior.
+- source: tactic:focused-function-complexity-check
+  target: tactic:refactoring-guard-clauses-before-polymorphism
+  relation: suggests
+  when: Use when nested conditionals can be flattened without inventing a 
+    strategy hierarchy.
+- source: tactic:forensic-repository-audit
+  target: directive:DIRECTIVE_001
+  relation: suggests
+  when: Audit findings that surface load-bearing complexity or single-author 
+    critical modules feed back into architectural-integrity decisions and ADRs.
+- source: tactic:forensic-repository-audit
+  target: directive:DIRECTIVE_028
+  relation: suggests
+  when: The recipes rely on local `git`, `cloc`, and language-specific 
+    complexity tools; the directive governs how those tools are configured and 
+    invoked.
+- source: tactic:forensic-repository-audit
+  target: procedure:legacy-codebase-triage
+  relation: suggests
+  when: This tactic is the evidence-gathering core of the legacy-codebase triage
+    procedure; run it there to feed prioritisation and bucketing.
+- source: tactic:forensic-repository-audit
+  target: tactic:connascence-analysis
+  relation: suggests
+  when: After hotspots are identified, use connascence analysis on the 
+    highest-priority files to classify the coupling that drives the churn.
+- source: tactic:forensic-repository-audit
+  target: tactic:eisenhower-prioritisation
+  relation: suggests
+  when: Hotspot tables, bug overlaps, and bus-factor concentrations populate the
+    urgency-and-importance grid that drives the triage buckets.
+- source: tactic:forensic-repository-audit
+  target: tactic:premortem-risk-identification
+  relation: suggests
+  when: Use the audit findings as input to a premortem on the planned 
+    remediation path; high-firefighting projects warrant a premortem before any 
+    large refactor is scheduled.
+- source: tactic:formalized-constraint-testing
+  target: directive:DIRECTIVE_030
+  relation: suggests
+  when: Constraint tests must pass as part of the quality gate before merge
+- source: tactic:formalized-constraint-testing
+  target: directive:DIRECTIVE_034
+  relation: suggests
+  when: Contract tests are written test-first; write the failing constraint test
+    before the implementation
+- source: tactic:formalized-constraint-testing
+  target: tactic:acceptance-test-first
+  relation: suggests
+  when: Define acceptance criteria first, then formalise constraints as contract
+    tests
+- source: tactic:formalized-constraint-testing
+  target: tactic:black-box-integration-testing
+  relation: suggests
+  when: Contract tests complement black-box integration tests at system 
+    boundaries
+- source: tactic:formalized-constraint-testing
+  target: tactic:test-minimisation
+  relation: suggests
+  when: Once contract tests cover a behavior class, use minimisation to identify
+    which spot-checks are now redundant
+- source: tactic:function-over-form-testing
+  target: directive:DIRECTIVE_034
+  relation: suggests
+  when: Function-over-form tests are written test-first, expressing the 
+    behavioral requirement before implementation
+- source: tactic:function-over-form-testing
+  target: styleguide:testing-principles
+  relation: suggests
+  when: Function-over-form aligns with the Truthful, Specific, and Minimal test 
+    desiderata
+- source: tactic:function-over-form-testing
+  target: tactic:acceptance-test-first
+  relation: suggests
+  when: Acceptance tests are the canonical behavioral tests that 
+    function-over-form produces
+- source: tactic:function-over-form-testing
+  target: tactic:behavior-driven-development
+  relation: suggests
+  when: BDD scenarios express the observable outcomes that function-over-form 
+    tests should validate
+- source: tactic:generated-code-stewardship
+  target: directive:DIRECTIVE_030
+  relation: suggests
+  when: Generated code must pass the same gates as handwritten code.
+- source: tactic:generated-code-stewardship
+  target: tactic:boring-code-review
+  relation: suggests
+  when: Use to remove clever or over-abstracted generated output.
 - source: tactic:glossary-curation-interview
   target: styleguide:kitty-glossary-writing
   relation: suggests
@@ -1337,6 +1707,61 @@ edges:
   target: styleguide:python-conventions
   relation: suggests
   when: Implementing guard clause patterns at the code level
+- source: tactic:interface-variation-design
+  target: paradigm:deep-module-design
+  relation: suggests
+  when: Interface options are evaluated by the paradigm's depth and leverage 
+    criteria.
+- source: tactic:interface-variation-design
+  target: tactic:deepening-opportunity-assessment
+  relation: suggests
+  when: Run first to confirm that a real deepening opportunity exists.
+- source: tactic:interface-variation-design
+  target: tactic:traceable-decisions
+  relation: suggests
+  when: Record the selected interface when the trade-off is durable and 
+    non-obvious.
+- source: tactic:locality-of-change
+  target: directive:DIRECTIVE_001
+  relation: suggests
+  when: Proposed changes that expand architectural scope must pass the integrity
+    standard check
+- source: tactic:locality-of-change
+  target: directive:DIRECTIVE_003
+  relation: suggests
+  when: The rationale for accepting or rejecting a change must be documented per
+    the decision documentation requirement
+- source: tactic:locality-of-change
+  target: directive:DIRECTIVE_024
+  relation: suggests
+  when: This tactic is the practical application protocol for Directive 024; use
+    the directive for policy, this tactic for evaluation procedure
+- source: tactic:paula-patterns-architecture-scout-review
+  target: directive:DIRECTIVE_001
+  relation: suggests
+  when: Paula Patterns is triggered by missing or violated architecture 
+    boundaries.
+- source: tactic:paula-patterns-architecture-scout-review
+  target: directive:DIRECTIVE_032
+  relation: suggests
+  when: Scout findings reveal language drift or confused ownership concepts.
+- source: tactic:paula-patterns-architecture-scout-review
+  target: tactic:anti-corruption-layer
+  relation: suggests
+  when: External system details leak into domain or application decisions.
+- source: tactic:paula-patterns-architecture-scout-review
+  target: tactic:domain-event-capture
+  relation: suggests
+  when: Durable state transitions, replay, or provenance are missing.
+- source: tactic:paula-patterns-architecture-scout-review
+  target: tactic:review-intent-and-risk-first
+  relation: suggests
+  when: Evaluate whether the release fix closes the observed issue and what 
+    blast radius it carries.
+- source: tactic:premortem-risk-identification
+  target: template:risk-identification-assessment-template
+  relation: suggests
+  when: When recording the premortem assessment as a durable artifact.
 - source: tactic:problem-decomposition
   target: tactic:eisenhower-prioritisation
   relation: suggests
@@ -1354,6 +1779,11 @@ edges:
     or organisational dynamics are a significant source of the problem. Run stakeholder
     alignment before clustering so that social and political factors are visible in
     the decomposition.\n"
+- source: tactic:problem-decomposition
+  target: template:lightweight-prestudy-template
+  relation: suggests
+  when: When recording the decomposition as part of a prestudy or design 
+    document.
 - source: tactic:refactoring-encapsulate-record
   target: tactic:refactoring-encapsulate-variable
   relation: suggests
@@ -1389,6 +1819,20 @@ edges:
   relation: suggests
   when: Choosing between State and Strategy — State is for lifecycle-driven 
     transitions, Strategy for interchangeable algorithms.
+- source: tactic:reference-architectural-patterns
+  target: tactic:adr-drafting-workflow
+  relation: suggests
+  when: Document the selected pattern and its rationale in an ADR
+- source: tactic:reference-architectural-patterns
+  target: tactic:ammerse-impact-analysis
+  relation: suggests
+  when: Use for high-stakes decisions to quantify trade-offs across the seven 
+    AMMERSE dimensions
+- source: tactic:reference-architectural-patterns
+  target: tactic:architecture-diagram-review-checklist
+  relation: suggests
+  when: After selecting a pattern, use this tactic to validate the design 
+    diagram
 - source: tactic:reverse-speccing
   target: tactic:acceptance-test-first
   relation: suggests
@@ -1402,6 +1846,41 @@ edges:
   target: tactic:test-boundaries-by-responsibility
   relation: suggests
   when: Well-defined test boundaries make reconstruction clearer
+- source: tactic:secure-design-checklist
+  target: directive:DIRECTIVE_001
+  relation: suggests
+  when: Security boundaries are architectural boundaries; enforce both during 
+    design review
+- source: tactic:secure-design-checklist
+  target: tactic:black-box-integration-testing
+  relation: suggests
+  when: Verify security enforcement at integration boundaries, not only via unit
+    tests
+- source: tactic:secure-design-checklist
+  target: tactic:code-review-incremental
+  relation: suggests
+  when: Use the nine-principle checklist as a secondary review lens during code 
+    review of security-relevant changes
+- source: tactic:secure-regex-catastrophic-backtracking
+  target: directive:DIRECTIVE_030
+  relation: suggests
+  when: Add the regression test alongside the rewrite so the quality gate 
+    enforces linear runtime on every CI pass
+- source: tactic:secure-regex-catastrophic-backtracking
+  target: tactic:secure-design-checklist
+  relation: suggests
+  when: Treat regex hardening as a design-phase property of any component that 
+    parses untrusted input, not as a post-hoc fix
+- source: tactic:stakeholder-alignment
+  target: template:stakeholder-persona-template
+  relation: suggests
+  when: When producing detailed stakeholder profiles for complex or long-running
+    initiatives.
+- source: tactic:stakeholder-alignment
+  target: template:system-context-canvas-template
+  relation: suggests
+  when: When recording stakeholder findings as part of a full situational 
+    assessment.
 - source: tactic:strategic-domain-classification
   target: tactic:bounded-context-identification
   relation: suggests
@@ -1411,6 +1890,15 @@ edges:
   relation: suggests
   when: Understanding relationships between contexts informs classification 
     decisions.
+- source: tactic:terminology-extraction-mapping
+  target: tactic:code-documentation-analysis
+  relation: suggests
+  when: Use as the upstream term-extraction step before mapping relationships
+- source: tactic:terminology-extraction-mapping
+  target: tactic:language-driven-design
+  relation: suggests
+  when: Apply after the glossary is validated to enforce the ubiquitous language
+    in code
 - source: tactic:test-boundaries-by-responsibility
   target: tactic:acceptance-test-first
   relation: suggests
@@ -1420,6 +1908,45 @@ edges:
   target: tactic:tdd-red-green-refactor
   relation: suggests
   when: Driving implementation inside the boundaries defined by this tactic
+- source: tactic:test-minimisation
+  target: directive:DIRECTIVE_030
+  relation: suggests
+  when: Coverage must meet the quality gate after removals
+- source: tactic:test-minimisation
+  target: directive:DIRECTIVE_034
+  relation: suggests
+  when: Test minimisation applies after a test-first cycle has produced coverage
+    — never use it to avoid writing tests
+- source: tactic:test-readability-clarity-check
+  target: tactic:behavior-driven-development
+  relation: suggests
+  when: BDD scenarios are the highest-readability form of test; use BDD if 
+    reconstruction consistently fails
+- source: tactic:test-readability-clarity-check
+  target: tactic:test-boundaries-by-responsibility
+  relation: suggests
+  when: After identifying coverage gaps, use this tactic to determine the 
+    correct level at which to add missing tests
+- source: tactic:test-to-system-reconstruction
+  target: directive:DIRECTIVE_034
+  relation: suggests
+  when: Test-first discipline is a prerequisite for the test suite to serve as a
+    living specification
+- source: tactic:test-to-system-reconstruction
+  target: styleguide:testing-principles
+  relation: suggests
+  when: Inspiring and Exemplary test desiderata define what a 
+    reconstruction-worthy test suite looks like
+- source: tactic:test-to-system-reconstruction
+  target: tactic:acceptance-test-first
+  relation: suggests
+  when: ATDD produces the behavioral test scenarios whose clarity is evaluated 
+    by this tactic
+- source: tactic:test-to-system-reconstruction
+  target: tactic:reverse-speccing
+  relation: suggests
+  when: Reverse speccing provides the evaluative philosophy; this tactic is the 
+    scored execution procedure
 - source: tactic:testing-select-appropriate-level
   target: tactic:acceptance-test-first
   relation: suggests
@@ -1432,846 +1959,42 @@ edges:
   target: tactic:test-pyramid-progression
   relation: suggests
   when: Executing tests in pyramid order after they are written
-# ---------------------------------------------------------------------------
-# Edges promoted from inline procedure-step `tactic_refs` during WP02 of the
-# excise-doctrine-curation-and-inline-references-01KP54J6 mission. These
-# relationships previously lived embedded in procedure YAML `steps[*].tactic_refs`;
-# Phase 1 excision lifts them into the canonical DRG so the graph is the sole
-# cross-artifact reference authority (see FR-005/FR-006/FR-013 and R-1 audit).
-# ---------------------------------------------------------------------------
-- source: procedure:refactoring
-  target: tactic:change-apply-smallest-viable-diff
-  relation: requires
-- source: procedure:refactoring
-  target: tactic:refactoring-change-function-declaration
-  relation: requires
-- source: procedure:refactoring
-  target: tactic:refactoring-combine-functions-into-transform
-  relation: requires
-- source: procedure:refactoring
-  target: tactic:refactoring-conditional-to-strategy
-  relation: requires
-- source: procedure:refactoring
-  target: tactic:refactoring-consolidate-conditional-expression
-  relation: requires
-- source: procedure:refactoring
-  target: tactic:refactoring-encapsulate-record
-  relation: requires
-- source: procedure:refactoring
-  target: tactic:refactoring-encapsulate-variable
-  relation: requires
-- source: procedure:refactoring
-  target: tactic:refactoring-extract-class-by-responsibility-split
-  relation: requires
-- source: procedure:refactoring
-  target: tactic:refactoring-extract-first-order-concept
-  relation: requires
-- source: procedure:refactoring
-  target: tactic:refactoring-guard-clauses-before-polymorphism
-  relation: requires
-- source: procedure:refactoring
-  target: tactic:refactoring-inline-temp
-  relation: requires
-- source: procedure:refactoring
-  target: tactic:refactoring-introduce-null-object
-  relation: requires
-- source: procedure:refactoring
-  target: tactic:refactoring-move-field
-  relation: requires
-- source: procedure:refactoring
-  target: tactic:refactoring-move-method
-  relation: requires
-- source: procedure:refactoring
-  target: tactic:refactoring-replace-magic-number-with-symbolic-constant
-  relation: requires
-- source: procedure:refactoring
-  target: tactic:refactoring-replace-temp-with-query
-  relation: requires
-- source: procedure:refactoring
-  target: tactic:refactoring-retry-pattern
-  relation: requires
-- source: procedure:refactoring
-  target: tactic:refactoring-state-pattern-for-behavior
-  relation: requires
-- source: procedure:refactoring
-  target: tactic:refactoring-strangler-fig
-  relation: requires
-- source: procedure:situational-assessment
-  target: tactic:ammerse-impact-analysis
-  relation: requires
-- source: procedure:situational-assessment
-  target: tactic:eisenhower-prioritisation
-  relation: requires
-- source: procedure:situational-assessment
-  target: tactic:premortem-risk-identification
-  relation: requires
-- source: procedure:situational-assessment
-  target: tactic:problem-decomposition
-  relation: requires
-- source: procedure:situational-assessment
-  target: tactic:safe-to-fail-experiment
-  relation: requires
-- source: procedure:situational-assessment
-  target: tactic:stakeholder-alignment
-  relation: requires
-- source: procedure:example-mapping-workshop
-  target: tactic:acceptance-test-first
-  relation: requires
-- source: procedure:example-mapping-workshop
-  target: tactic:atdd-adversarial-acceptance
-  relation: requires
-- source: procedure:example-mapping-workshop
-  target: tactic:usage-examples-sync
-  relation: requires
-- source: procedure:example-mapping-workshop
-  target: tactic:stakeholder-alignment
-  relation: requires
-# ---------------------------------------------------------------------------
-# Forensic Repository Audit (tactic) and Legacy Codebase Triage (procedure)
-# Authored by Curator Cassidy from ratified Decision Moment outcome DM-A.
-# Tactic encodes git-only audit recipes; procedure orchestrates triage
-# bucketing on top of the tactic, with optional DDD overlay.
-# ---------------------------------------------------------------------------
-- source: procedure:legacy-codebase-triage
-  target: tactic:forensic-repository-audit
-  relation: requires
-- source: procedure:legacy-codebase-triage
-  target: tactic:strategic-domain-classification
-  relation: suggests
-- source: procedure:legacy-codebase-triage
-  target: tactic:eisenhower-prioritisation
-  relation: requires
-- source: procedure:legacy-codebase-triage
-  target: tactic:connascence-analysis
-  relation: suggests
-- source: procedure:legacy-codebase-triage
-  target: tactic:premortem-risk-identification
-  relation: suggests
-- source: procedure:legacy-codebase-triage
-  target: procedure:situational-assessment
-  relation: suggests
-- source: procedure:legacy-codebase-triage
-  target: directive:DIRECTIVE_028
-  relation: requires
-- source: procedure:legacy-codebase-triage
+- source: tactic:traceable-decisions
   target: directive:DIRECTIVE_001
   relation: suggests
-- source: procedure:legacy-codebase-triage
+  when: Decisions that affect architectural integrity must be traced before 
+    implementation begins
+- source: tactic:traceable-decisions
   target: directive:DIRECTIVE_003
   relation: suggests
-- source: tactic:forensic-repository-audit
-  target: tactic:connascence-analysis
-  relation: suggests
-- source: tactic:forensic-repository-audit
-  target: tactic:premortem-risk-identification
-  relation: suggests
-- source: tactic:forensic-repository-audit
-  target: tactic:eisenhower-prioritisation
-  relation: suggests
-- source: tactic:forensic-repository-audit
-  target: directive:DIRECTIVE_028
-  relation: requires
-- source: tactic:forensic-repository-audit
-  target: directive:DIRECTIVE_001
-  relation: suggests
-- source: tactic:five-paradigm-parallel-debugging
-  target: agent_profile:debugger-debbie
-  relation: suggests
-  when: Use the persona when the investigation should be run as an explicit agent identity.
-- source: tactic:five-paradigm-parallel-debugging
-  target: tactic:code-review-incremental
-  relation: suggests
-  when: Apply during convergence synthesis before writing the structural fix plan.
-- source: tactic:five-paradigm-parallel-debugging
-  target: tactic:review-intent-and-risk-first
-  relation: suggests
-  when: Evaluate whether the structural fix plan closes the class and what blast radius it carries.
-- source: tactic:paula-patterns-architecture-scout-review
-  target: directive:DIRECTIVE_001
-  relation: suggests
-  when: Use when scout findings point to missing or violated architecture boundaries.
-- source: tactic:paula-patterns-architecture-scout-review
-  target: directive:DIRECTIVE_032
-  relation: suggests
-  when: Use when scout findings point to language drift or confused ownership concepts.
-- source: tactic:paula-patterns-architecture-scout-review
-  target: tactic:anti-corruption-layer
-  relation: suggests
-  when: Use when external system details leak into core domain or application decisions.
-- source: tactic:paula-patterns-architecture-scout-review
-  target: tactic:domain-event-capture
-  relation: suggests
-  when: Use when durable state transitions, replay, or provenance are missing.
-- source: tactic:paula-patterns-architecture-scout-review
-  target: tactic:review-intent-and-risk-first
-  relation: suggests
-  when: Use when separating release-safe fixes from long-term architecture work.
-- source: directive:DIRECTIVE_035
-  target: tactic:occurrence-classification-workflow
-  relation: requires
-- source: directive:DIRECTIVE_036
-  target: tactic:black-box-integration-testing
-  relation: requires
-- source: directive:DIRECTIVE_036
-  target: tactic:test-boundaries-by-responsibility
-  relation: requires
-- source: directive:DIRECTIVE_037
-  target: tactic:acceptance-test-first
-  relation: requires
-- source: directive:DIRECTIVE_037
-  target: tactic:atdd-adversarial-acceptance
-  relation: requires
-- source: directive:DIRECTIVE_037
-  target: tactic:usage-examples-sync
-  relation: requires
-- source: directive:DIRECTIVE_034
-  target: tactic:mutation-testing-workflow
-  relation: requires
-- source: tactic:mutation-testing-workflow
-  target: styleguide:mutation-aware-test-design
-  relation: requires
-- source: tactic:mutation-testing-workflow
-  target: tactic:tdd-red-green-refactor
-  relation: suggests
-- source: tactic:mutation-testing-workflow
-  target: toolguide:python-mutation-tools
-  relation: suggests
-- source: tactic:mutation-testing-workflow
-  target: toolguide:typescript-mutation-tools
-  relation: suggests
-- source: toolguide:python-mutation-tools
-  target: tactic:mutation-testing-workflow
-  relation: requires
-- source: toolguide:typescript-mutation-tools
-  target: tactic:mutation-testing-workflow
-  relation: requires
-- source: toolguide:python-mutation-tools
-  target: styleguide:mutation-aware-test-design
-  relation: requires
-
-# ---------------------------------------------------------------------------
-# Template reference edges — templates are first-class DRG nodes so procedure
-# and tactic references can resolve through the graph instead of being skipped.
-# ---------------------------------------------------------------------------
-- source: tactic:ammerse-impact-analysis
-  target: template:ammerse-analysis-template
-  relation: suggests
-- source: tactic:bounded-context-canvas-fill
-  target: template:bounded-context-canvas-template
-  relation: suggests
-- source: tactic:bounded-context-canvas-fill
-  target: template:glossary-template
-  relation: suggests
-- source: tactic:c4-zoom-in-architecture-documentation
-  target: template:c4-context-mermaid-template
-  relation: suggests
-- source: tactic:c4-zoom-in-architecture-documentation
-  target: template:c4-container-mermaid-template
-  relation: suggests
-- source: tactic:c4-zoom-in-architecture-documentation
-  target: template:c4-component-mermaid-template
-  relation: suggests
-- source: tactic:premortem-risk-identification
-  target: template:risk-identification-assessment-template
-  relation: suggests
-- source: tactic:problem-decomposition
-  target: template:lightweight-prestudy-template
-  relation: suggests
-- source: tactic:stakeholder-alignment
-  target: template:stakeholder-persona-template
-  relation: suggests
-- source: tactic:stakeholder-alignment
-  target: template:system-context-canvas-template
-  relation: suggests
-- source: procedure:situational-assessment
-  target: template:system-context-canvas-template
-  relation: suggests
-- source: procedure:situational-assessment
-  target: template:lightweight-prestudy-template
-  relation: suggests
-- source: procedure:situational-assessment
-  target: template:quality-attribute-assessment-template
-  relation: suggests
-- source: procedure:situational-assessment
-  target: template:ammerse-analysis-template
-  relation: suggests
-
-# ---------------------------------------------------------------------------
-# Curated Matt Pocock skill-pattern doctrine.
-# Upstream: https://github.com/mattpocock/skills/tree/49cec7be019bc408e87b77670f3d442f536da254
-# ---------------------------------------------------------------------------
-- source: procedure:disciplined-defect-diagnosis
-  target: directive:DIRECTIVE_030
-  relation: requires
-- source: procedure:disciplined-defect-diagnosis
-  target: procedure:test-first-bug-fixing
-  relation: suggests
-- source: procedure:disciplined-defect-diagnosis
-  target: tactic:bug-fixing-checklist
-  relation: suggests
-- source: procedure:disciplined-defect-diagnosis
-  target: tactic:testing-select-appropriate-level
-  relation: suggests
-- source: procedure:domain-aware-decision-interview
-  target: tactic:glossary-curation-interview
-  relation: suggests
-- source: procedure:domain-aware-decision-interview
-  target: tactic:language-driven-design
-  relation: suggests
-- source: procedure:domain-aware-decision-interview
-  target: tactic:adr-drafting-workflow
-  relation: suggests
-- source: procedure:domain-aware-decision-interview
-  target: procedure:situational-assessment
-  relation: suggests
-- source: procedure:issue-triage-state-machine
-  target: template:agent-brief-template
-  relation: suggests
-- source: procedure:issue-triage-state-machine
-  target: template:out-of-scope-record-template
-  relation: suggests
-- source: procedure:issue-triage-state-machine
-  target: procedure:disciplined-defect-diagnosis
-  relation: suggests
-- source: procedure:issue-triage-state-machine
-  target: procedure:test-first-bug-fixing
-  relation: suggests
-- source: procedure:issue-triage-state-machine
-  target: tactic:requirements-validation-workflow
-  relation: suggests
-- source: tactic:deepening-opportunity-assessment
-  target: paradigm:deep-module-design
-  relation: suggests
-- source: tactic:deepening-opportunity-assessment
-  target: tactic:easy-to-change
-  relation: suggests
-- source: tactic:deepening-opportunity-assessment
-  target: tactic:locality-of-change
-  relation: suggests
-- source: tactic:deepening-opportunity-assessment
-  target: procedure:refactoring
-  relation: suggests
-- source: tactic:interface-variation-design
-  target: paradigm:deep-module-design
-  relation: suggests
-- source: tactic:interface-variation-design
-  target: tactic:deepening-opportunity-assessment
-  relation: suggests
-- source: tactic:interface-variation-design
-  target: tactic:traceable-decisions
-  relation: suggests
-- source: styleguide:deployable-skill-authoring
+  when: This tactic is the practical implementation protocol for Directive 003; 
+    use the directive for policy, this tactic for execution
+- source: tactic:traceable-decisions
   target: directive:DIRECTIVE_037
   relation: suggests
-- source: agent_profile:architect-alphonso
-  target: tactic:deepening-opportunity-assessment
-  relation: suggests
-- source: agent_profile:architect-alphonso
-  target: tactic:interface-variation-design
-  relation: suggests
-- source: agent_profile:curator-carla
-  target: styleguide:deployable-skill-authoring
-  relation: suggests
-# ---------------------------------------------------------------------------
-# Agent profile nodes — specialisation hierarchy and doctrine context wiring
-# ---------------------------------------------------------------------------
-- source: agent_profile:implementer-ivan
+  when: Decision records are living documentation; apply the sync discipline 
+    when updating superseded decisions
+- source: tactic:usage-examples-sync
   target: directive:DIRECTIVE_010
-  relation: requires
-- source: agent_profile:implementer-ivan
-  target: tactic:tdd-red-green-refactor
   relation: suggests
-- source: agent_profile:implementer-ivan
+  when: Use this directive to reject documentation and behavior drift during 
+    review
+- source: tactic:usage-examples-sync
   target: tactic:acceptance-test-first
   relation: suggests
-- source: agent_profile:implementer-ivan
-  target: procedure:test-first-bug-fixing
-  relation: suggests
-# python-pedro specialises from implementer
-- source: agent_profile:python-pedro
-  target: agent_profile:implementer-ivan
-  relation: delegates_to
-- source: agent_profile:python-pedro
-  target: directive:DIRECTIVE_010
-  relation: requires
-- source: agent_profile:python-pedro
-  target: directive:DIRECTIVE_024
-  relation: requires
-- source: agent_profile:python-pedro
-  target: directive:DIRECTIVE_025
-  relation: requires
-- source: agent_profile:python-pedro
+  when: Use this tactic when a canonical example should be represented by an 
+    executable acceptance check
+- source: tactic:work-package-completion-validation
   target: directive:DIRECTIVE_030
-  relation: requires
-- source: agent_profile:python-pedro
+  relation: suggests
+  when: The quality gate must be green before any WP status transition
+- source: tactic:work-package-completion-validation
   target: directive:DIRECTIVE_034
-  relation: requires
-- source: agent_profile:python-pedro
-  target: styleguide:python-conventions
-  relation: requires
-- source: agent_profile:python-pedro
-  target: toolguide:python-review-checks
-  relation: requires
-- source: agent_profile:python-pedro
-  target: tactic:tdd-red-green-refactor
-  relation: requires
-- source: agent_profile:python-pedro
-  target: tactic:acceptance-test-first
-  relation: requires
-- source: agent_profile:python-pedro
-  target: procedure:test-first-bug-fixing
-  relation: requires
-- source: agent_profile:python-pedro
-  target: styleguide:testing-principles
   relation: suggests
-- source: agent_profile:python-pedro
-  target: tactic:mutation-testing-workflow
-  relation: suggests
-# java-jenny specialises from implementer
-- source: agent_profile:java-jenny
-  target: agent_profile:implementer-ivan
-  relation: delegates_to
-- source: agent_profile:java-jenny
-  target: directive:DIRECTIVE_010
-  relation: requires
-- source: agent_profile:java-jenny
-  target: directive:DIRECTIVE_024
-  relation: requires
-- source: agent_profile:java-jenny
-  target: directive:DIRECTIVE_025
-  relation: requires
-- source: agent_profile:java-jenny
-  target: directive:DIRECTIVE_030
-  relation: requires
-- source: agent_profile:java-jenny
-  target: directive:DIRECTIVE_034
-  relation: requires
-- source: agent_profile:java-jenny
-  target: styleguide:java-conventions
-  relation: requires
-- source: agent_profile:java-jenny
-  target: toolguide:maven-review-checks
-  relation: requires
-- source: agent_profile:java-jenny
-  target: tactic:tdd-red-green-refactor
-  relation: requires
-- source: agent_profile:java-jenny
-  target: tactic:acceptance-test-first
-  relation: requires
-- source: agent_profile:java-jenny
-  target: procedure:test-first-bug-fixing
-  relation: requires
-- source: agent_profile:java-jenny
-  target: styleguide:testing-principles
-  relation: suggests
-- source: agent_profile:java-jenny
-  target: tactic:formalized-constraint-testing
-  relation: suggests
-# ---------------------------------------------------------------------------
-# New testing tactics
-# ---------------------------------------------------------------------------
-- source: tactic:formalized-constraint-testing
-  target: directive:DIRECTIVE_034
-  relation: requires
-- source: tactic:formalized-constraint-testing
-  target: directive:DIRECTIVE_030
-  relation: requires
-- source: tactic:formalized-constraint-testing
-  target: tactic:black-box-integration-testing
-  relation: suggests
-  when: Contract tests complement black-box integration tests — apply both at system boundaries
-- source: tactic:formalized-constraint-testing
-  target: tactic:acceptance-test-first
-  relation: suggests
-  when: Define acceptance criteria first, then formalise constraints as contract tests
-- source: tactic:formalized-constraint-testing
+  when: Tests validating acceptance criteria must exist before the WP is marked 
+    complete
+- source: tactic:work-package-completion-validation
   target: tactic:test-minimisation
   relation: suggests
-  when: Once contract tests cover a behavior class, minimise redundant spot-checks
-- source: tactic:test-minimisation
-  target: tactic:formalized-constraint-testing
-  relation: suggests
-  when: Contract tests establish the coverage baseline that makes spot-check removal safe
-- source: tactic:test-minimisation
-  target: directive:DIRECTIVE_034
-  relation: requires
-- source: tactic:test-minimisation
-  target: directive:DIRECTIVE_030
-  relation: requires
-# maven-review-checks toolguide
-- source: toolguide:maven-review-checks
-  target: tactic:mutation-testing-workflow
-  relation: suggests
-  when: PIT mutation testing is the optional high-cost gate in the Maven quality stack
-
-# reviewer agent profile
-- source: agent_profile:reviewer-renata
-  target: directive:DIRECTIVE_001
-  relation: requires
-- source: agent_profile:reviewer-renata
-  target: directive:DIRECTIVE_024
-  relation: requires
-- source: agent_profile:reviewer-renata
-  target: directive:DIRECTIVE_030
-  relation: requires
-- source: agent_profile:reviewer-renata
-  target: directive:DIRECTIVE_032
-  relation: requires
-- source: agent_profile:reviewer-renata
-  target: tactic:code-review-incremental
-  relation: requires
-- source: agent_profile:reviewer-renata
-  target: tactic:reverse-speccing
-  relation: requires
-- source: agent_profile:reviewer-renata
-  target: tactic:secure-design-checklist
-  relation: requires
-- source: agent_profile:reviewer-renata
-  target: tactic:test-to-system-reconstruction
-  relation: suggests
-  when: Validates test suite documentation quality during review
-- source: agent_profile:reviewer-renata
-  target: tactic:work-package-completion-validation
-  relation: requires
-- source: agent_profile:reviewer-renata
-  target: tactic:code-documentation-analysis
-  relation: suggests
-  when: Boundary ambiguity or ubiquitous-language drift detected in a diff
-- source: agent_profile:reviewer-renata
-  target: tactic:analysis-extract-before-interpret
-  relation: requires
-  when: Separating observations from judgments in review feedback
-
-# debugger agent profile
-- source: agent_profile:debugger-debbie
-  target: directive:DIRECTIVE_001
-  relation: requires
-- source: agent_profile:debugger-debbie
-  target: directive:DIRECTIVE_003
-  relation: requires
-- source: agent_profile:debugger-debbie
-  target: directive:DIRECTIVE_030
-  relation: requires
-- source: agent_profile:debugger-debbie
-  target: directive:DIRECTIVE_032
-  relation: requires
-- source: agent_profile:debugger-debbie
-  target: directive:DIRECTIVE_040
-  relation: requires
-- source: agent_profile:debugger-debbie
-  target: tactic:five-paradigm-parallel-debugging
-  relation: requires
-- source: agent_profile:debugger-debbie
-  target: tactic:code-review-incremental
-  relation: suggests
-  when: Review each paradigm verdict before convergence synthesis.
-- source: agent_profile:debugger-debbie
-  target: tactic:review-intent-and-risk-first
-  relation: suggests
-  when: Evaluate the structural fix plan before handoff to the implementer.
-
-# review action scope edges for new reviewer tactics
-- source: action:software-dev/review
-  target: tactic:secure-design-checklist
-  relation: scope
-- source: action:software-dev/review
-  target: tactic:test-to-system-reconstruction
-  relation: scope
-- source: action:software-dev/review
-  target: tactic:work-package-completion-validation
-  relation: scope
-- source: action:software-dev/review
-  target: tactic:analysis-extract-before-interpret
-  relation: scope
-- source: action:software-dev/review
-  target: tactic:code-documentation-analysis
-  relation: scope
-
-# inter-tactic edges for reviewer tactics
-- source: tactic:test-to-system-reconstruction
-  target: tactic:acceptance-test-first
-  relation: requires
-- source: tactic:test-to-system-reconstruction
-  target: styleguide:testing-principles
-  relation: suggests
-- source: tactic:test-to-system-reconstruction
-  target: tactic:reverse-speccing
-  relation: suggests
-  when: reverse-speccing provides the evaluative philosophy; test-to-system-reconstruction is the execution procedure
-- source: tactic:secure-design-checklist
-  target: directive:DIRECTIVE_001
-  relation: requires
-- source: tactic:secure-design-checklist
-  target: tactic:code-review-incremental
-  relation: suggests
-- source: tactic:work-package-completion-validation
-  target: directive:DIRECTIVE_030
-  relation: requires
-- source: tactic:work-package-completion-validation
-  target: directive:DIRECTIVE_034
-  relation: requires
-- source: tactic:code-documentation-analysis
-  target: tactic:language-driven-design
-  relation: requires
-- source: tactic:code-documentation-analysis
-  target: directive:DIRECTIVE_001
-  relation: requires
-- source: tactic:code-documentation-analysis
-  target: directive:DIRECTIVE_032
-  relation: requires
-
-# architect agent profile edges
-- source: agent_profile:architect-alphonso
-  target: directive:DIRECTIVE_001
-  relation: requires
-- source: agent_profile:architect-alphonso
-  target: directive:DIRECTIVE_003
-  relation: requires
-- source: agent_profile:architect-alphonso
-  target: directive:DIRECTIVE_024
-  relation: requires
-- source: agent_profile:architect-alphonso
-  target: directive:DIRECTIVE_032
-  relation: requires
-- source: agent_profile:architect-alphonso
-  target: tactic:context-boundary-inference
-  relation: requires
-- source: agent_profile:architect-alphonso
-  target: tactic:code-documentation-analysis
-  relation: requires
-- source: agent_profile:architect-alphonso
-  target: tactic:traceable-decisions
-  relation: requires
-- source: agent_profile:architect-alphonso
-  target: tactic:dependency-hygiene
-  relation: suggests
-- source: agent_profile:architect-alphonso
-  target: tactic:locality-of-change
-  relation: suggests
-- source: agent_profile:architect-alphonso
-  target: tactic:analysis-extract-before-interpret
-  relation: suggests
-- source: agent_profile:architect-alphonso
-  target: tactic:secure-design-checklist
-  relation: suggests
-
-# inter-tactic edges for architect tactics
-- source: tactic:context-boundary-inference
-  target: tactic:language-driven-design
-  relation: requires
-- source: tactic:context-boundary-inference
-  target: tactic:code-documentation-analysis
-  relation: requires
-  when: Code and documentation analysis provides the terminology extraction input
-- source: tactic:context-boundary-inference
-  target: directive:DIRECTIVE_001
-  relation: requires
-- source: tactic:context-boundary-inference
-  target: directive:DIRECTIVE_032
-  relation: requires
-- source: tactic:dependency-hygiene
-  target: directive:DIRECTIVE_001
-  relation: requires
-- source: tactic:dependency-hygiene
-  target: tactic:secure-design-checklist
-  relation: suggests
-- source: tactic:locality-of-change
-  target: directive:DIRECTIVE_024
-  relation: requires
-- source: tactic:locality-of-change
-  target: directive:DIRECTIVE_001
-  relation: requires
-- source: tactic:locality-of-change
-  target: directive:DIRECTIVE_003
-  relation: requires
-- source: tactic:traceable-decisions
-  target: directive:DIRECTIVE_003
-  relation: requires
-- source: tactic:traceable-decisions
-  target: directive:DIRECTIVE_001
-  relation: requires
-- source: tactic:analysis-extract-before-interpret
-  target: tactic:review-intent-and-risk-first
-  relation: suggests
-
-# implementer profile edges for new approach-derived tactics
-- source: agent_profile:implementer-ivan
-  target: tactic:behavior-driven-development
-  relation: requires
-- source: agent_profile:implementer-ivan
-  target: tactic:function-over-form-testing
-  relation: requires
-- source: agent_profile:java-jenny
-  target: tactic:behavior-driven-development
-  relation: requires
-- source: agent_profile:java-jenny
-  target: tactic:function-over-form-testing
-  relation: requires
-- source: agent_profile:python-pedro
-  target: tactic:behavior-driven-development
-  relation: requires
-- source: agent_profile:python-pedro
-  target: tactic:function-over-form-testing
-  relation: requires
-
-# inter-tactic edges for approach-derived tactics
-- source: tactic:behavior-driven-development
-  target: tactic:acceptance-test-first
-  relation: suggests
-- source: tactic:behavior-driven-development
-  target: directive:DIRECTIVE_034
-  relation: requires
-- source: tactic:behavior-driven-development
-  target: styleguide:testing-principles
-  relation: suggests
-- source: tactic:function-over-form-testing
-  target: styleguide:testing-principles
-  relation: requires
-- source: tactic:function-over-form-testing
-  target: tactic:acceptance-test-first
-  relation: suggests
-- source: tactic:function-over-form-testing
-  target: tactic:behavior-driven-development
-  relation: suggests
-
-# implement action scope edges for new implementer tactics
-- source: action:software-dev/implement
-  target: tactic:behavior-driven-development
-  relation: scope
-- source: action:software-dev/implement
-  target: tactic:function-over-form-testing
-  relation: scope
-
-# ---------------------------------------------------------------------------
-# Retrospective learning loop — WP01: retrospect action scope edges
-# (FR-001 through FR-004)
-#
-# The retrospect action resolves governance context that surfaces:
-#   - charter/doctrine artifacts (DIRECTIVE_003, DIRECTIVE_010, DIRECTIVE_018)
-#   - DRG slice artifacts (DIRECTIVE_018 + adr-drafting-workflow chain)
-#   - glossary artifacts (glossary-curation-interview, kitty-glossary-writing)
-#   - mission event-stream & metadata context (via requirements-validation-workflow)
-#   - mission output context (via stopping-conditions)
-#   - autonomous operation context (autonomous-operation-protocol)
-#
-# Three per-mission action nodes share identical scope since built-in missions
-# (software-dev, research, documentation) have no mission-specific scope
-# differences for the retrospective. Custom missions use a marker step
-# that resolves to this action without redefining it.
-# ---------------------------------------------------------------------------
-
-# agent_profile node edges
-- source: agent_profile:retrospective-facilitator
-  target: directive:DIRECTIVE_003
-  relation: requires
-- source: agent_profile:retrospective-facilitator
-  target: directive:DIRECTIVE_010
-  relation: requires
-- source: agent_profile:retrospective-facilitator
-  target: directive:DIRECTIVE_018
-  relation: requires
-- source: agent_profile:retrospective-facilitator
-  target: tactic:requirements-validation-workflow
-  relation: requires
-- source: agent_profile:retrospective-facilitator
-  target: tactic:glossary-curation-interview
-  relation: suggests
-- source: agent_profile:retrospective-facilitator
-  target: styleguide:kitty-glossary-writing
-  relation: suggests
-
-# software-dev retrospect action scope edges
-- source: action:software-dev/retrospect
-  target: directive:DIRECTIVE_003
-  relation: scope
-- source: action:software-dev/retrospect
-  target: directive:DIRECTIVE_010
-  relation: scope
-- source: action:software-dev/retrospect
-  target: directive:DIRECTIVE_018
-  relation: scope
-- source: action:software-dev/retrospect
-  target: tactic:requirements-validation-workflow
-  relation: scope
-- source: action:software-dev/retrospect
-  target: tactic:stopping-conditions
-  relation: scope
-- source: action:software-dev/retrospect
-  target: tactic:autonomous-operation-protocol
-  relation: scope
-- source: action:software-dev/retrospect
-  target: tactic:adr-drafting-workflow
-  relation: scope
-- source: action:software-dev/retrospect
-  target: tactic:glossary-curation-interview
-  relation: scope
-- source: action:software-dev/retrospect
-  target: styleguide:kitty-glossary-writing
-  relation: scope
-- source: action:software-dev/retrospect
-  target: agent_profile:retrospective-facilitator
-  relation: scope
-
-# research retrospect action scope edges
-- source: action:research/retrospect
-  target: directive:DIRECTIVE_003
-  relation: scope
-- source: action:research/retrospect
-  target: directive:DIRECTIVE_010
-  relation: scope
-- source: action:research/retrospect
-  target: directive:DIRECTIVE_018
-  relation: scope
-- source: action:research/retrospect
-  target: tactic:requirements-validation-workflow
-  relation: scope
-- source: action:research/retrospect
-  target: tactic:stopping-conditions
-  relation: scope
-- source: action:research/retrospect
-  target: tactic:autonomous-operation-protocol
-  relation: scope
-- source: action:research/retrospect
-  target: tactic:adr-drafting-workflow
-  relation: scope
-- source: action:research/retrospect
-  target: tactic:glossary-curation-interview
-  relation: scope
-- source: action:research/retrospect
-  target: styleguide:kitty-glossary-writing
-  relation: scope
-- source: action:research/retrospect
-  target: agent_profile:retrospective-facilitator
-  relation: scope
-
-# documentation retrospect action scope edges
-- source: action:documentation/retrospect
-  target: directive:DIRECTIVE_003
-  relation: scope
-- source: action:documentation/retrospect
-  target: directive:DIRECTIVE_010
-  relation: scope
-- source: action:documentation/retrospect
-  target: directive:DIRECTIVE_018
-  relation: scope
-- source: action:documentation/retrospect
-  target: tactic:requirements-validation-workflow
-  relation: scope
-- source: action:documentation/retrospect
-  target: tactic:stopping-conditions
-  relation: scope
-- source: action:documentation/retrospect
-  target: tactic:autonomous-operation-protocol
-  relation: scope
-- source: action:documentation/retrospect
-  target: tactic:adr-drafting-workflow
-  relation: scope
-- source: action:documentation/retrospect
-  target: tactic:glossary-curation-interview
-  relation: scope
-- source: action:documentation/retrospect
-  target: styleguide:kitty-glossary-writing
-  relation: scope
-- source: action:documentation/retrospect
-  target: agent_profile:retrospective-facilitator
-  relation: scope
+  when: Redundant test removal is only safe after the completion validation 
+    confirms coverage is intact
