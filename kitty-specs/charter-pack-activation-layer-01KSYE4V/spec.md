@@ -12,14 +12,15 @@
 Phase 1 (`charter-doctrine-mission-type-configuration`) introduced mission-type configuration
 in the doctrine layer and the first `charter activate mission-type` command. Three post-implementation
 reviews identified that the work was architecturally sound but incomplete: the charter activation
-state is written but never read, other doctrine artifact kinds (profiles, directives, tactics) have
-no activation mechanism, two WPs produced correctly-implemented components that are never called,
-and six architectural tests fail on the branch.
+state is written but never read, other doctrine artifact kinds (directives, tactics, styleguides,
+toolguides, paradigms, procedures, agent profiles, mission step contracts) have no activation
+mechanism, two WPs produced correctly-implemented components that are never called, and six
+architectural tests fail on the branch.
 
 This mission completes the intent. The charter module becomes the authoritative filtered view over
 doctrine. A default charter pack ships with spec-kitty so that existing users retain all currently
 available behavior under the new hard-restriction model. The upgrade pipeline gains safe migration
-behavior. The activation surface extends to all doctrine artifact kinds, with explicit cascade
+behavior. The activation surface extends to all nine doctrine artifact kinds, with explicit cascade
 control and a consistency validation command.
 
 ---
@@ -36,8 +37,24 @@ control and a consistency validation command.
 | **hard restriction** | When a charter has explicit activations for an artifact kind, only those artifacts are available; no implicit fallback to the full doctrine catalog | Soft restriction, recommendation |
 | **cascade** | Propagating an activation or deactivation to referenced artifacts of other kinds | Automatic cascade (cascade is always explicit opt-in) |
 | **orphaned artifact** | An artifact in the charter whose kind is no longer referenced by any other active artifact | Dead code |
-| **activation kind** | One of the four axes: `mission-type`, `profile`, `directive`, `tactic` | |
+| **activation kind** | One of the nine activatable axes — `mission-type`, `directive`, `tactic`, `styleguide`, `toolguide`, `paradigm`, `procedure`, `agent_profile`, `mission_step_contract` (legacy) | DRG-internal node kinds (`action`, `glossary_scope`, `glossary`) which are graph infrastructure, not user-activatable |
 | **consistency violation** | A charter pack that references an artifact absent from the active doctrine pack, or a WP that references an artifact absent from the charter pack | |
+
+### Activation Kinds Reference
+
+| CLI kind | Doctrine service property | Description |
+|----------|--------------------------|-------------|
+| `mission-type` | _(managed separately via `PackContext`)_ | Which mission types this project can run |
+| `directive` | `directives` | Governance directives defining principles and constraints |
+| `tactic` | `tactics` | Implementation tactics describing how directives are applied |
+| `styleguide` | `styleguides` | Code style and format guidelines |
+| `toolguide` | `toolguides` | Tool usage and integration guides |
+| `paradigm` | `paradigms` | Design paradigms and architectural patterns |
+| `procedure` | `procedures` | Step-by-step operational procedures |
+| `agent_profile` | `agent_profiles` | LLM agent behavioral profiles for WP assignment |
+| `mission_step_contract` | `mission_step_contracts` | Mission step execution contracts _(legacy; present for completeness)_ |
+
+> **DRG-only node kinds** (`action`, `glossary_scope`, `glossary`) are internal graph infrastructure and are not user-activatable artifacts.
 
 ---
 
@@ -47,7 +64,7 @@ control and a consistency validation command.
 
 A developer runs `spec-kitty upgrade` on a project that has no charter file. The upgrade
 writes the default charter pack to `.kittify/charter/charter.md`. The terminal displays a
-summary of what was written: all four activation axes, with all built-in artifacts listed
+summary of what was written: all nine activation kinds, with all built-in artifacts listed
 and marked as activated. The developer takes no further action; all previously available
 behavior continues to work unchanged.
 
@@ -64,33 +81,37 @@ were explicitly set by the user are overwritten.
 ### Journey 3 — Activating a mission type without cascade
 
 A developer runs `charter activate mission-type research`. The mission type is added to the
-charter's activated mission types. The command then prints a warning listing the profiles,
-directives, and tactics referenced by the `research` mission type that are not currently
-activated, and suggests either running `charter activate mission-type research --cascade profiles`
-or `charter pack consistency-check` to review the full picture.
+charter's activated mission types. The command then prints a warning listing the agent profiles,
+directives, tactics, styleguides, toolguides, paradigms, and procedures referenced by the
+`research` mission type that are not currently activated, and suggests either running
+`charter activate mission-type research --cascade agent_profile,tactic` or
+`charter pack consistency-check` to review the full picture.
 
 ### Journey 4 — Activating with cascade
 
-A developer runs `charter activate mission-type research --cascade profiles,tactics`. The
-mission type is activated. All profiles referenced by `research` are also activated. All
-tactics referenced by `research` are also activated. Directives are not cascaded because
-`directives` was not included in `--cascade`. The terminal confirms which artifacts were
-activated and which were skipped by scope.
+A developer runs `charter activate mission-type research --cascade agent_profile,tactic`. The
+mission type is activated. All agent profiles referenced by `research` are also activated. All
+tactics referenced by `research` are also activated. Directives, styleguides, toolguides,
+paradigms, and procedures are not cascaded because those kinds were not included in `--cascade`.
+The terminal confirms which artifacts were activated and which were skipped by scope.
 
 ### Journey 5 — Deactivating with cascade
 
-A developer runs `charter deactivate mission-type software-dev --cascade profiles`. The
-`software-dev` mission type is deactivated. The cascade then deactivates all profiles that
-are exclusively referenced by `software-dev` (i.e., not referenced by any other currently
-active mission type). Profiles shared with other active mission types are left untouched,
+A developer runs `charter deactivate mission-type software-dev --cascade agent_profile`. The
+`software-dev` mission type is deactivated. The cascade then deactivates all agent profiles
+that are exclusively referenced by `software-dev` (i.e., not referenced by any other currently
+active mission type). Agent profiles shared with other active mission types are left untouched,
 and the terminal lists which ones were skipped and why ("shared with: research").
 
 ### Journey 6 — Reviewing activation state
 
-A developer runs `charter list`. The terminal shows all activated artifacts grouped by kind:
-mission types, profiles, directives, tactics. Running `charter list --show-available` adds
-the full doctrine catalog alongside the activated set, with visual distinction between
-activated and available-but-not-activated artifacts.
+A developer runs `charter list`. The terminal shows all activated artifacts grouped by kind,
+covering all nine activation kinds (mission-type, directive, tactic, styleguide, toolguide,
+paradigm, procedure, agent_profile, mission_step_contract). Kinds with zero activated
+artifacts are shown with an empty marker so the operator can see which axes are fully
+restricted. Running `charter list --show-available` adds the full doctrine catalog alongside
+the activated set, with visual distinction between activated and available-but-not-activated
+artifacts.
 
 ### Journey 7 — Consistency check reveals a gap
 
@@ -130,14 +151,14 @@ set (which may be empty), and the command to activate it. The review does not st
 
 | ID | Description | Priority | Status |
 |----|-------------|----------|--------|
-| FR-001 | A default charter pack ships as a first-party artifact of spec-kitty, covering all four activation axes (mission types, profiles, directives, tactics) and listing all artifacts available in the built-in doctrine pack | Must | Proposed |
+| FR-001 | A default charter pack ships as a first-party artifact of spec-kitty, covering all nine activation kinds (mission-type, directive, tactic, styleguide, toolguide, paradigm, procedure, agent_profile, mission_step_contract) and listing all artifacts available in the built-in doctrine pack | Must | Proposed |
 | FR-002 | `spec-kitty upgrade` on a project with no charter file writes the default charter pack and displays a summary of the activated artifacts | Must | Proposed |
 | FR-003 | `spec-kitty upgrade` on a project with an existing charter file creates a timestamped backup before writing, merges default entries for any activation kind not yet present, and displays a prominent warning to review the resulting charter | Must | Proposed |
-| FR-004 | `charter activate <kind> <id>` accepts all four activation kinds: `mission-type`, `profile`, `directive`, `tactic` | Must | Proposed |
-| FR-005 | `charter deactivate <kind> <id>` is a first-class command accepting all four activation kinds | Must | Proposed |
+| FR-004 | `charter activate <kind> <id>` accepts all nine activation kinds: `mission-type`, `directive`, `tactic`, `styleguide`, `toolguide`, `paradigm`, `procedure`, `agent_profile`, `mission_step_contract` | Must | Proposed |
+| FR-005 | `charter deactivate <kind> <id>` is a first-class command accepting all nine activation kinds | Must | Proposed |
 | FR-006 | When `charter activate` or `charter deactivate` is run without `--cascade`, the command warns the user that artifacts of other kinds referenced by the target were not cascaded, and lists what was not cascaded | Must | Proposed |
-| FR-007 | `--cascade all\|profiles\|directives\|tactics` (comma-separated) on `charter activate` cascades activation to all artifacts of the selected kinds that the target artifact references | Must | Proposed |
-| FR-008 | `--cascade all\|profiles\|directives\|tactics` on `charter deactivate` cascades deactivation to artifacts of the selected kinds that are **exclusively** referenced by the deactivated artifact; shared artifacts are left untouched and listed as skipped in the output | Must | Proposed |
+| FR-007 | `--cascade all\|<kind>[,<kind>...]` (comma-separated list of activation kinds, or the shorthand `all`) on `charter activate` cascades activation to all artifacts of the selected kinds that the target artifact references | Must | Proposed |
+| FR-008 | `--cascade all\|<kind>[,<kind>...]` on `charter deactivate` cascades deactivation to artifacts of the selected kinds that are **exclusively** referenced by the deactivated artifact; shared artifacts are left untouched and listed as skipped in the output | Must | Proposed |
 | FR-009 | `charter list` displays all activated artifacts grouped by kind | Must | Proposed |
 | FR-010 | `charter list --show-available` displays activated artifacts alongside all available artifacts from the doctrine pack, with visual distinction | Should | Proposed |
 | FR-011 | `charter pack consistency-check` validates that every artifact in the charter pack exists in the active doctrine pack, and that every artifact referenced by WP templates or base prompt templates is activated | Must | Proposed |
@@ -182,7 +203,7 @@ set (which may be empty), and the command to activate it. The review does not st
 | C-001 | `doctrine.*` modules must not import from `charter.*` at module level or via `TYPE_CHECKING`; the C-004 architectural boundary is preserved and enforced by `tests/architectural/` | Binding |
 | C-002 | `doctrine.drg` returns the full unfiltered dependency resolution graph; no filtering logic may be added to `doctrine.drg` itself | Binding |
 | C-003 | A charter pack that references an artifact absent from the active doctrine pack is always a consistency violation; there is no silent fallback or degraded mode | Binding |
-| C-004 | The default charter pack must list every artifact available in the built-in spec-kitty doctrine pack at the time of the release that ships this mission; no artifact may be silently dropped by upgrading | Binding |
+| C-004 | The default charter pack must list every artifact available in the built-in spec-kitty doctrine pack across all nine activation kinds at the time of the release that ships this mission; no artifact may be silently dropped by upgrading | Binding |
 | C-005 | `charter deactivate --cascade` must never deactivate an artifact that is referenced by another still-active artifact of the same kind, regardless of cascade scope | Binding |
 | C-006 | The WP start precondition check (assigned profile present in charter) must execute in the same process and transaction as the claim transition; it may not be deferred | Binding |
 | C-007 | The `src/charter/packs/` directory is owned by the charter module; no other module may write to it | Binding |
@@ -192,9 +213,9 @@ set (which may be empty), and the command to activate it. The review does not st
 
 ## Success Criteria
 
-1. A project with no charter file runs `spec-kitty upgrade` and receives the default charter pack; `charter list` confirms all built-in artifacts are activated; no other behavior changes
+1. A project with no charter file runs `spec-kitty upgrade` and receives the default charter pack; `charter list` confirms all built-in artifacts across all nine activation kinds are activated; no other behavior changes
 2. Running `charter activate mission-type research` activates the mission type, emits the no-cascade warning, and the change is reflected in `charter list`
-3. Running `charter deactivate mission-type software-dev --cascade profiles` deactivates `software-dev` and all exclusively-referenced profiles, while shared profiles remain activated and are listed as skipped
+3. Running `charter deactivate mission-type software-dev --cascade agent_profile` deactivates `software-dev` and all exclusively-referenced agent profiles, while shared agent profiles remain activated and are listed as skipped
 4. `charter pack consistency-check` detects and reports at least one planted violation within the 2-second budget, with a resolvable error message
 5. A WP with an inactive profile assigned in frontmatter fails `finalize-tasks` with a non-zero exit code and a message identifying the WP, the inactive profile, and the resolution command
 6. The same WP also fails `agent action implement` at precondition check, before any worktree is created
@@ -210,7 +231,7 @@ set (which may be empty), and the command to activate it. The review does not st
 
 | Entity | Description |
 |--------|-------------|
-| `CharterPack` | Container holding the project's activation selections for all four kinds; serialized in the charter file |
+| `CharterPack` | Container holding the project's activation selections across all nine activation kinds; serialized in the charter file |
 | `PackContext` | Runtime combination of an active `CharterPack` and a `DoctrinePack`; the context in which WP lifecycle decisions are evaluated |
 | `DoctrinePack` | The inventory of artifacts available for activation; defaults to the built-in spec-kitty doctrine pack |
 | `ActivationKind` | Enumeration: `mission_type`, `profile`, `directive`, `tactic` |
