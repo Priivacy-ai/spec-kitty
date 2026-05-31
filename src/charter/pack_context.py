@@ -105,6 +105,39 @@ class PackContext:
     """Repository root path (for resolving project-layer overrides)."""
 
     # ------------------------------------------------------------------
+    # Per-kind activation fields (three-state: None / frozenset() / {ids})
+    # ------------------------------------------------------------------
+
+    activated_directives: frozenset[str] | None = None
+    """Directive IDs activated for this project.
+
+    ``None`` → key absent from config (all built-ins available).
+    ``frozenset()`` → key present but empty (nothing activated).
+    Non-empty frozenset → explicit set of activated IDs.
+    """
+
+    activated_tactics: frozenset[str] | None = None
+    """Tactic IDs activated for this project (three-state)."""
+
+    activated_styleguides: frozenset[str] | None = None
+    """Styleguide IDs activated for this project (three-state)."""
+
+    activated_toolguides: frozenset[str] | None = None
+    """Toolguide IDs activated for this project (three-state)."""
+
+    activated_paradigms: frozenset[str] | None = None
+    """Paradigm IDs activated for this project (three-state)."""
+
+    activated_procedures: frozenset[str] | None = None
+    """Procedure IDs activated for this project (three-state)."""
+
+    activated_agent_profiles: frozenset[str] | None = None
+    """Agent profile IDs activated for this project (three-state)."""
+
+    activated_mission_step_contracts: frozenset[str] | None = None
+    """Mission step contract IDs activated for this project (three-state)."""
+
+    # ------------------------------------------------------------------
     # Constructor
     # ------------------------------------------------------------------
 
@@ -148,6 +181,14 @@ class PackContext:
             pack_roots=pack_roots,
             org_pack_names=org_pack_names,
             repo_root=repo_root,
+            activated_directives=_read_activated_directives(data),
+            activated_tactics=_read_activated_tactics(data),
+            activated_styleguides=_read_activated_styleguides(data),
+            activated_toolguides=_read_activated_toolguides(data),
+            activated_paradigms=_read_activated_paradigms(data),
+            activated_procedures=_read_activated_procedures(data),
+            activated_agent_profiles=_read_activated_agent_profiles(data),
+            activated_mission_step_contracts=_read_activated_mission_step_contracts(data),
         )
 
 
@@ -190,11 +231,11 @@ def _load_config(repo_root: Path) -> dict[str, Any]:
 def _read_activated_kinds(data: dict[str, Any]) -> frozenset[str]:
     """Extract ``activated_kinds`` from parsed config data.
 
-    Falls back to all eight built-in kinds when the key is absent or
-    the value is not a non-empty list.
+    Falls back to all eight built-in kinds when the key is absent.
+    An explicit empty list ``[]`` returns ``frozenset()`` (FR-039 fix).
     """
     raw = data.get("activated_kinds")
-    if isinstance(raw, list) and raw:
+    if isinstance(raw, list):
         return frozenset(str(k) for k in raw)
     return _BUILTIN_ARTIFACT_KINDS
 
@@ -203,13 +244,100 @@ def _read_activated_mission_types(data: dict[str, Any]) -> frozenset[str]:
     """Extract ``mission_type_activations`` from parsed config data.
 
     Falls back to the four built-in mission type IDs when the key is
-    absent or the value is not a non-empty list (new project /
-    pre-migration state — FR-019 migration intent).
+    absent (new project / pre-migration state — FR-019 migration intent).
+    An explicit empty list ``[]`` returns ``frozenset()`` (FR-039 fix).
     """
     raw = data.get("mission_type_activations")
-    if isinstance(raw, list) and raw:
+    if isinstance(raw, list):
         return frozenset(str(mt) for mt in raw)
     return _BUILTIN_MISSION_TYPE_IDS
+
+
+def _read_activated_directives(data: dict[str, Any]) -> frozenset[str] | None:
+    """Extract ``activated_directives`` from parsed config data (three-state).
+
+    ``None`` → key absent (all built-ins available).
+    ``frozenset()`` → key present with empty list (nothing activated).
+    Non-empty frozenset → explicit set of activated IDs.
+    """
+    raw = data.get("activated_directives")
+    if raw is None:
+        return None
+    if isinstance(raw, list):
+        return frozenset(str(x) for x in raw)
+    return None  # malformed value → safe fallback
+
+
+def _read_activated_tactics(data: dict[str, Any]) -> frozenset[str] | None:
+    """Extract ``activated_tactics`` from parsed config data (three-state)."""
+    raw = data.get("activated_tactics")
+    if raw is None:
+        return None
+    if isinstance(raw, list):
+        return frozenset(str(x) for x in raw)
+    return None
+
+
+def _read_activated_styleguides(data: dict[str, Any]) -> frozenset[str] | None:
+    """Extract ``activated_styleguides`` from parsed config data (three-state)."""
+    raw = data.get("activated_styleguides")
+    if raw is None:
+        return None
+    if isinstance(raw, list):
+        return frozenset(str(x) for x in raw)
+    return None
+
+
+def _read_activated_toolguides(data: dict[str, Any]) -> frozenset[str] | None:
+    """Extract ``activated_toolguides`` from parsed config data (three-state)."""
+    raw = data.get("activated_toolguides")
+    if raw is None:
+        return None
+    if isinstance(raw, list):
+        return frozenset(str(x) for x in raw)
+    return None
+
+
+def _read_activated_paradigms(data: dict[str, Any]) -> frozenset[str] | None:
+    """Extract ``activated_paradigms`` from parsed config data (three-state)."""
+    raw = data.get("activated_paradigms")
+    if raw is None:
+        return None
+    if isinstance(raw, list):
+        return frozenset(str(x) for x in raw)
+    return None
+
+
+def _read_activated_procedures(data: dict[str, Any]) -> frozenset[str] | None:
+    """Extract ``activated_procedures`` from parsed config data (three-state)."""
+    raw = data.get("activated_procedures")
+    if raw is None:
+        return None
+    if isinstance(raw, list):
+        return frozenset(str(x) for x in raw)
+    return None
+
+
+def _read_activated_agent_profiles(data: dict[str, Any]) -> frozenset[str] | None:
+    """Extract ``activated_agent_profiles`` from parsed config data (three-state)."""
+    raw = data.get("activated_agent_profiles")
+    if raw is None:
+        return None
+    if isinstance(raw, list):
+        return frozenset(str(x) for x in raw)
+    return None
+
+
+def _read_activated_mission_step_contracts(
+    data: dict[str, Any],
+) -> frozenset[str] | None:
+    """Extract ``activated_mission_step_contracts`` from parsed config data (three-state)."""
+    raw = data.get("activated_mission_step_contracts")
+    if raw is None:
+        return None
+    if isinstance(raw, list):
+        return frozenset(str(x) for x in raw)
+    return None
 
 
 def _read_org_packs(

@@ -259,42 +259,6 @@ def test_activated_mission_types_is_frozenset(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Additional: empty mission_type_activations list → fallback to built-ins
-# ---------------------------------------------------------------------------
-
-
-def test_empty_mission_type_activations_uses_builtin_fallback(tmp_path: Path) -> None:
-    """An empty mission_type_activations list falls back to built-in defaults."""
-    content = """\
-vcs:
-  type: git
-mission_type_activations: []
-"""
-    _write_config(tmp_path, content)
-    ctx = PackContext.from_config(tmp_path)
-
-    assert ctx.activated_mission_types == _BUILTIN_MISSION_TYPE_IDS
-
-
-# ---------------------------------------------------------------------------
-# Additional: empty activated_kinds list → fallback to built-in kinds
-# ---------------------------------------------------------------------------
-
-
-def test_empty_activated_kinds_uses_builtin_fallback(tmp_path: Path) -> None:
-    """An empty activated_kinds list falls back to all built-in kinds."""
-    content = """\
-vcs:
-  type: git
-activated_kinds: []
-"""
-    _write_config(tmp_path, content)
-    ctx = PackContext.from_config(tmp_path)
-
-    assert ctx.activated_kinds == _BUILTIN_ARTIFACT_KINDS
-
-
-# ---------------------------------------------------------------------------
 # Additional: PackContext exported from charter namespace
 # ---------------------------------------------------------------------------
 
@@ -304,3 +268,133 @@ def test_pack_context_exported_from_charter_namespace() -> None:
     from charter import PackContext as PackContextFromCharter  # noqa: PLC0415
 
     assert PackContextFromCharter is PackContext
+
+
+# ---------------------------------------------------------------------------
+# FR-039: empty list must produce frozenset(), not built-in fallback
+# ---------------------------------------------------------------------------
+
+
+def test_activated_kinds_empty_list_returns_frozenset_not_builtin_fallback(
+    tmp_path: Path,
+) -> None:
+    """FR-039 regression: [] must produce frozenset(), not built-in fallback."""
+    content = """\
+vcs:
+  type: git
+activated_kinds: []
+"""
+    _write_config(tmp_path, content)
+    ctx = PackContext.from_config(tmp_path)
+
+    assert ctx.activated_kinds == frozenset()
+    assert ctx.activated_kinds is not None  # extra clarity: frozenset() != None
+
+
+# ---------------------------------------------------------------------------
+# Three-state tests: activated_directives (T010)
+# ---------------------------------------------------------------------------
+
+
+def test_activated_directives_absent_returns_none(tmp_path: Path) -> None:
+    """Absent key → None (all built-ins available)."""
+    _write_config(tmp_path, _MINIMAL_CONFIG)
+    ctx = PackContext.from_config(tmp_path)
+
+    assert ctx.activated_directives is None
+
+
+def test_activated_directives_empty_list_returns_empty_frozenset(tmp_path: Path) -> None:
+    """[] → frozenset() (explicitly nothing activated)."""
+    content = """\
+vcs:
+  type: git
+activated_directives: []
+"""
+    _write_config(tmp_path, content)
+    ctx = PackContext.from_config(tmp_path)
+
+    assert ctx.activated_directives == frozenset()
+
+
+def test_activated_directives_populated_returns_frozenset(tmp_path: Path) -> None:
+    """Non-empty list → frozenset of IDs."""
+    content = """\
+vcs:
+  type: git
+activated_directives:
+  - dir-001
+  - dir-002
+"""
+    _write_config(tmp_path, content)
+    ctx = PackContext.from_config(tmp_path)
+
+    assert ctx.activated_directives == frozenset({"dir-001", "dir-002"})
+
+
+# ---------------------------------------------------------------------------
+# Three-state tests: activated_agent_profiles (T010)
+# ---------------------------------------------------------------------------
+
+
+def test_activated_agent_profiles_absent_returns_none(tmp_path: Path) -> None:
+    """Absent key → None (all built-ins available)."""
+    _write_config(tmp_path, _MINIMAL_CONFIG)
+    ctx = PackContext.from_config(tmp_path)
+
+    assert ctx.activated_agent_profiles is None
+
+
+def test_activated_agent_profiles_empty_list_returns_empty_frozenset(
+    tmp_path: Path,
+) -> None:
+    """[] → frozenset() (explicitly nothing activated)."""
+    content = """\
+vcs:
+  type: git
+activated_agent_profiles: []
+"""
+    _write_config(tmp_path, content)
+    ctx = PackContext.from_config(tmp_path)
+
+    assert ctx.activated_agent_profiles == frozenset()
+
+
+def test_activated_agent_profiles_populated_returns_frozenset(tmp_path: Path) -> None:
+    """Non-empty list → frozenset of IDs."""
+    content = """\
+vcs:
+  type: git
+activated_agent_profiles:
+  - python-pedro
+  - reviewer-renata
+"""
+    _write_config(tmp_path, content)
+    ctx = PackContext.from_config(tmp_path)
+
+    assert ctx.activated_agent_profiles == frozenset({"python-pedro", "reviewer-renata"})
+
+
+# ---------------------------------------------------------------------------
+# Structural test: all 10 activated_* fields exist (T010)
+# ---------------------------------------------------------------------------
+
+
+def test_packcontext_has_all_ten_activated_fields(tmp_path: Path) -> None:
+    """Structural guard: all 10 activated_* fields exist with correct defaults."""
+    _write_config(tmp_path, _MINIMAL_CONFIG)
+    ctx = PackContext.from_config(tmp_path)
+
+    # Existing fields (no key absent → built-in fallback for these two)
+    assert ctx.activated_kinds is not None
+    assert ctx.activated_mission_types is not None
+
+    # New fields (all default to None when key is absent)
+    assert ctx.activated_directives is None
+    assert ctx.activated_tactics is None
+    assert ctx.activated_styleguides is None
+    assert ctx.activated_toolguides is None
+    assert ctx.activated_paradigms is None
+    assert ctx.activated_procedures is None
+    assert ctx.activated_agent_profiles is None
+    assert ctx.activated_mission_step_contracts is None
