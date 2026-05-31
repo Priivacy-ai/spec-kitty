@@ -11,11 +11,16 @@ This file is a **pure re-export** module — no behaviour, no wrappers, no
 type aliases.
 """
 
-from doctrine.mission_step_contracts.models import MissionStep, MissionStepContract
+from doctrine.mission_step_contracts.models import (
+    MissionStep,
+    MissionStepContract,
+    MissionStepInput,
+)
 from doctrine.mission_step_contracts.repository import MissionStepContractRepository
 
 __all__ = [
     "MissionStep",
     "MissionStepContract",
+    "MissionStepInput",
     "MissionStepContractRepository",
 ]

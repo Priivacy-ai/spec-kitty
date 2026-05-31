@@ -41,12 +41,20 @@ class TestMissionStep:
         assert step.command is None
         assert step.delegates_to is None
         assert step.guidance is None
+        assert step.inputs == []
 
     def test_full_construction(self) -> None:
         step = MissionStep(
             id="workspace",
             description="Create workspace",
             command="spec-kitty implement {wp_id}",
+            inputs=[
+                {
+                    "flag": "--profile",
+                    "source": "wp.agent_profile",
+                    "optional": True,
+                },
+            ],
             delegates_to=DelegatesTo(
                 kind=ArtifactKind.PARADIGM,
                 candidates=["execution-lanes", "shared-branch-ci"],
@@ -58,6 +66,46 @@ class TestMissionStep:
         assert step.delegates_to.kind == ArtifactKind.PARADIGM
         assert len(step.delegates_to.candidates) == 2
         assert step.guidance is not None
+        assert len(step.inputs) == 1
+        assert step.inputs[0].flag == "--profile"
+        assert step.inputs[0].source == "wp.agent_profile"
+        assert step.inputs[0].optional is True
+
+    def test_inputs_require_non_empty_flag_and_source(self) -> None:
+        with pytest.raises(ValidationError):
+            MissionStep(
+                id="bootstrap",
+                description="Load context",
+                inputs=[{"flag": "", "source": "wp.agent_profile"}],
+            )
+        with pytest.raises(ValidationError):
+            MissionStep(
+                id="bootstrap",
+                description="Load context",
+                inputs=[{"flag": "--profile", "source": ""}],
+            )
+
+    def test_unknown_step_fields_are_rejected(self) -> None:
+        with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+            MissionStep(
+                id="bootstrap",
+                description="Load context",
+                inputz=[{"flag": "--profile", "source": "wp.agent_profile"}],  # type: ignore[call-arg]
+            )
+
+    def test_unknown_input_fields_are_rejected(self) -> None:
+        with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+            MissionStep(
+                id="bootstrap",
+                description="Load context",
+                inputs=[
+                    {
+                        "flag": "--profile",
+                        "source": "wp.agent_profile",
+                        "optional_typo": True,
+                    },
+                ],
+            )
 
 
 class TestMissionStepContract:
@@ -84,6 +132,14 @@ class TestMissionStepContract:
         commit_step = contract.steps[4]
         assert commit_step.guidance is not None
         assert "conventional commit" in commit_step.guidance
+
+        # Check command inputs are schema-owned, not silently discarded.
+        bootstrap_step = contract.steps[0]
+        assert [input.flag for input in bootstrap_step.inputs] == ["--profile", "--tool"]
+        assert [input.source for input in bootstrap_step.inputs] == [
+            "wp.agent_profile",
+            "env.agent_tool",
+        ]
 
     def test_frozen_model(self, minimal_step_contract_data: dict) -> None:
         contract = MissionStepContract.model_validate(minimal_step_contract_data)
@@ -139,3 +195,32 @@ class TestMissionStepContract:
             }
         )
         assert contract.schema_version == "1.0"
+
+    def test_unknown_contract_fields_are_rejected(self) -> None:
+        with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+            MissionStepContract.model_validate(
+                {
+                    "schema_version": "1.0",
+                    "id": "bad",
+                    "action": "implement",
+                    "mission": "software-dev",
+                    "steps": [{"id": "s1", "description": "S1"}],
+                    "inputz": [],
+                }
+            )
+
+    def test_json_schema_exposes_step_inputs_and_forbids_unknown_fields(self) -> None:
+        schema = MissionStepContract.model_json_schema()
+
+        step_schema = schema["$defs"]["MissionStep"]
+        assert step_schema["additionalProperties"] is False
+        assert step_schema["properties"]["inputs"] == {
+            "items": {"$ref": "#/$defs/MissionStepInput"},
+            "title": "Inputs",
+            "type": "array",
+        }
+
+        input_schema = schema["$defs"]["MissionStepInput"]
+        assert input_schema["additionalProperties"] is False
+        assert input_schema["required"] == ["flag", "source"]
+        assert input_schema["properties"]["optional"]["default"] is False
