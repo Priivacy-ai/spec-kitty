@@ -302,7 +302,7 @@ def render_already_widened_prompt(
             return
 
         elif raw.lower() in ("d", "defer", "[d]efer"):
-            # Defer path — also removes from store
+            # Defer path — remove from store only after write-back succeeds.
             try:
                 rationale = (
                     console.input(
@@ -312,7 +312,7 @@ def render_already_widened_prompt(
             except (KeyboardInterrupt, EOFError):
                 rationale = ""
 
-            with contextlib.suppress(Exception):
+            try:
                 dm_service.defer_decision(
                     repo_root=repo_root,
                     mission_slug=mission_slug,
@@ -320,6 +320,11 @@ def render_already_widened_prompt(
                     rationale=rationale or "deferred from already-widened prompt",
                     actor=actor,
                 )
+            except Exception as exc:  # noqa: BLE001
+                console.print(
+                    f"[red]Write-back failed: {exc}. Your deferral was NOT saved.[/red]"
+                )
+                return
             console.print("[yellow]Decision deferred.[/yellow]")
             with contextlib.suppress(Exception):
                 widen_store.remove_pending(decision_id)
@@ -330,7 +335,7 @@ def render_already_widened_prompt(
 
         elif raw:
             # Plain text → local resolve
-            with contextlib.suppress(Exception):
+            try:
                 dm_service.resolve_decision(
                     repo_root=repo_root,
                     mission_slug=mission_slug,
@@ -338,6 +343,11 @@ def render_already_widened_prompt(
                     final_answer=raw,
                     actor=actor,
                 )
+            except Exception as exc:  # noqa: BLE001
+                console.print(
+                    f"[red]Write-back failed: {exc}. Your answer was NOT saved.[/red]"
+                )
+                return
             console.print(
                 "[green]Resolved locally.[/green] "
                 "SaaS will close the Slack thread shortly."

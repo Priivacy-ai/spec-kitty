@@ -67,6 +67,13 @@ def _console_output(console: Console) -> str:
     return console.file.getvalue()  # type: ignore[union-attr]
 
 
+def _make_decision_error() -> Exception:
+    from specify_cli.decisions.models import DecisionErrorCode
+    from specify_cli.decisions.service import DecisionError
+
+    return DecisionError(code=DecisionErrorCode.TERMINAL_CONFLICT)
+
+
 # ---------------------------------------------------------------------------
 # T040 — run_end_of_interview_pending_pass
 # ---------------------------------------------------------------------------
@@ -486,6 +493,33 @@ class TestRenderAlreadyWidenedPrompt:
         mock_dm.resolve_decision.assert_called_once()
         assert store.list_pending() == []
 
+    def test_local_answer_write_back_failure_keeps_pending(self, tmp_path: Path) -> None:
+        """Regression G0085: failed already-widened local resolve leaves pending."""
+        store, entry = self._make_store_with_entry(tmp_path)
+        console = _capture_console()
+        mock_dm = MagicMock()
+        mock_dm.resolve_decision.side_effect = _make_decision_error()
+
+        with patch.object(console, "input", return_value="PostgreSQL"):
+            render_already_widened_prompt(
+                question_text="Which database?",
+                decision_id="dec-001",
+                mission_slug=MISSION_SLUG,
+                repo_root=tmp_path,
+                saas_client=MagicMock(),
+                widen_store=store,
+                dm_service=mock_dm,
+                actor="test",
+                console=console,
+            )
+
+        pending = store.list_pending()
+        assert len(pending) == 1
+        assert pending[0].decision_id == entry.decision_id
+        output = _console_output(console).lower()
+        assert "not saved" in output
+        assert "resolved locally" not in output
+
     def test_defer_path(self, tmp_path: Path) -> None:
         """d input → defer_decision called, entry removed."""
         store, entry = self._make_store_with_entry(tmp_path)
@@ -511,6 +545,34 @@ class TestRenderAlreadyWidenedPrompt:
 
         mock_dm.defer_decision.assert_called_once()
         assert store.list_pending() == []
+
+    def test_defer_write_back_failure_keeps_pending(self, tmp_path: Path) -> None:
+        """Regression G0085: failed already-widened direct defer leaves pending."""
+        store, entry = self._make_store_with_entry(tmp_path)
+        console = _capture_console()
+        mock_dm = MagicMock()
+        mock_dm.defer_decision.side_effect = _make_decision_error()
+        inputs_iter = iter(["d", "not ready"])
+
+        with patch.object(console, "input", side_effect=inputs_iter):
+            render_already_widened_prompt(
+                question_text="Tech stack?",
+                decision_id="dec-001",
+                mission_slug=MISSION_SLUG,
+                repo_root=tmp_path,
+                saas_client=MagicMock(),
+                widen_store=store,
+                dm_service=mock_dm,
+                actor="test",
+                console=console,
+            )
+
+        pending = store.list_pending()
+        assert len(pending) == 1
+        assert pending[0].decision_id == entry.decision_id
+        output = _console_output(console).lower()
+        assert "not saved" in output
+        assert "decision deferred" not in output
 
     def test_fetch_path(self, tmp_path: Path) -> None:
         """f input → fetch + run_candidate_review, entry removed."""
