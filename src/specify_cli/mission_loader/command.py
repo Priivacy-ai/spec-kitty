@@ -45,6 +45,7 @@ from specify_cli.mission_loader.errors import (
 )
 from specify_cli.mission_loader.registry import get_runtime_contract_registry
 from specify_cli.mission_loader.validator import validate_custom_mission
+from specify_cli.mission_metadata import write_meta
 from specify_cli.next import runtime_bridge
 from specify_cli.next._internal_runtime.discovery import DiscoveryContext
 from specify_cli.next._internal_runtime.schema import MissionTemplate
@@ -292,10 +293,7 @@ def _ensure_feature_metadata(feature_dir: Path, mission_key: str) -> None:
     data["mission_type"] = mission_key
     data["mission_key"] = mission_key
     data.setdefault("mission", mission_key)
-    meta_path.write_text(
-        json.dumps(data, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+    write_meta(feature_dir, data, validate=False)
 
 
 def _read_mission_id(feature_dir: Path) -> str | None:
