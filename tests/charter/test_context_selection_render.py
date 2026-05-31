@@ -357,6 +357,106 @@ class TestFetchSelectorRecovery:
         assert "Procedure review-before-merge: Review" in text
         assert "Run focused tests" in text
 
+    def test_doctrine_artifact_include_recovers_fields_outside_inline_summary(self) -> None:
+        sg = _DummyStyleguide(title="Caveman", principles=["Prefer concrete names."])
+        sg.anti_patterns = [
+            {"name": "soft recovery", "description": "Do not drop governance."}
+        ]
+        toolguide = _DummyToolguide(title="Pytest", tool="pytest", summary="Run tests.")
+        toolguide.commands = ["pytest tests/charter"]
+        procedure = _DummyProcedure(
+            name="Review",
+            purpose="keep merge checks honest",
+            entry="diff ready",
+            exit_="review complete",
+            steps=[_DummyStep(title="Run focused tests")],
+        )
+        procedure.anti_patterns = [{"name": "skip repro", "description": "No repro."}]
+        profile = _DummyAgentProfile(
+            name="Python Pedro",
+            purpose="Implement Python work with TDD discipline.",
+            roles=["implementer"],
+        )
+        profile.initialization_declaration = "Acknowledge governance before coding."
+        contract_step = _DummyStep(
+            title="t",
+            id_="s1",
+            description="First step",
+        )
+        contract_step.guidance = "Recover contract guidance."
+        contract = _DummyContract(
+            action="implement",
+            mission="software-dev",
+            steps=[contract_step],
+        )
+        paradigm = _DummyParadigm(name="SPDD", summary="Use structured prompts.")
+        paradigm.directive_refs = ["DIRECTIVE_039"]
+        service = _StubService(
+            paradigms=_StubRepo(items={"structured-prompt-driven-development": paradigm}),
+            styleguides=_StubRepo(items={"caveman-comments": sg}),
+            toolguides=_StubRepo(items={"pytest-runner": toolguide}),
+            procedures=_StubRepo(items={"review-before-merge": procedure}),
+            agent_profiles=_StubRepo(items={"python-pedro": profile}),
+            mission_step_contracts=_StubRepo(items={"implement-contract": contract}),
+        )
+
+        cases = (
+            ("paradigm", "structured-prompt-driven-development", "DIRECTIVE_039"),
+            ("styleguide", "caveman-comments", "Do not drop governance."),
+            ("toolguide", "pytest-runner", "pytest tests/charter"),
+            ("procedure", "review-before-merge", "No repro."),
+            ("agent_profile", "python-pedro", "Acknowledge governance before coding."),
+            ("mission_step_contract", "implement-contract", "Recover contract guidance."),
+        )
+        for kind, artifact_id, marker in cases:
+            text = _render_doctrine_artifact_include(service, kind, artifact_id)
+            assert text is not None
+            assert "Full artifact:" in text
+            assert marker in text
+
+    def test_directive_and_tactic_include_recovers_fields_outside_inline_summary(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        directive = _DummyDirective(
+            title="Security Baseline",
+            intent="Never leak secrets.",
+        )
+        directive.enforcement = "lenient-adherence"
+        directive.explicit_allowances = ["Documented exception marker."]
+        step = _DummyStep(title="Map trust boundaries")
+        step.description = "Full tactic step marker."
+        step.examples = ["Run a concrete abuse-path check."]
+        tactic = _DummyTactic(
+            name="Threat Model First",
+            purpose="Find attacker paths before coding.",
+            steps=[step],
+        )
+        service = _StubService(
+            directives=_StubRepo(items={"DIRECTIVE_999": directive}),
+            tactics=_StubRepo(items={"threat-model-first": tactic}),
+        )
+        monkeypatch.setattr(
+            context_module,
+            "_build_doctrine_service",
+            lambda repo_root, org_roots=None: service,
+        )
+
+        directive_text = context_module.build_charter_context_include(
+            tmp_path,
+            "directive:DIRECTIVE_999",
+        )
+        tactic_text = context_module.build_charter_context_include(
+            tmp_path,
+            "tactic:threat-model-first",
+        )
+
+        assert "Full artifact:" in directive_text
+        assert "Documented exception marker." in directive_text
+        assert "Full artifact:" in tactic_text
+        assert "Run a concrete abuse-path check." in tactic_text
+
     def test_styleguide_selector_round_trips_through_context_include(
         self,
         monkeypatch: pytest.MonkeyPatch,

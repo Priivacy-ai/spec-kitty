@@ -308,14 +308,24 @@ def build_charter_context_include(
             raise ValueError(f"No directive found for selector '{selector}'.")
         title = getattr(directive, "title", directive_id)
         return "\n".join(
-            [f"Directive {directive_id}: {title}", *_format_inline_directive_body(directive)]
+            [
+                f"Directive {directive_id}: {title}",
+                *_format_inline_directive_body(directive),
+                *_format_full_artifact_payload_body(directive),
+            ]
         )
     if kind == "tactic":
         tactic = service.tactics.get(identifier)  # type: ignore[attr-defined]
         if tactic is None:
             raise ValueError(f"No tactic found for selector '{selector}'.")
         name = getattr(tactic, "name", identifier)
-        return "\n".join([f"Tactic {identifier}: {name}", *_format_inline_tactic_body(tactic)])
+        return "\n".join(
+            [
+                f"Tactic {identifier}: {name}",
+                *_format_inline_tactic_body(tactic),
+                *_format_full_artifact_payload_body(tactic),
+            ]
+        )
     artifact = _render_doctrine_artifact_include(service, kind, identifier)
     if artifact is not None:
         return artifact
@@ -378,7 +388,13 @@ def _render_doctrine_artifact_include(
     if artifact is None:
         raise ValueError(f"No {kind} found for selector '{kind}:{identifier}'.")
     title = getattr(artifact, title_attr, identifier)
-    return "\n".join([f"{label} {identifier}: {title}", *body_formatter(artifact)])
+    return "\n".join(
+        [
+            f"{label} {identifier}: {title}",
+            *body_formatter(artifact),
+            *_format_full_artifact_payload_body(artifact),
+        ]
+    )
 
 
 def _prepare_context_state(
@@ -1379,6 +1395,56 @@ def _format_profile_directive_code(raw: object) -> str:
     if match:
         return f"DIRECTIVE_{match.group(1).zfill(3)}"
     return text
+
+
+def _jsonable_artifact_value(value: object) -> object:
+    """Return a deterministic JSON-safe representation of a doctrine object."""
+
+    if value is None or isinstance(value, str | int | float | bool):
+        return value
+
+    model_dump = getattr(value, "model_dump", None)
+    if callable(model_dump):
+        try:
+            dumped = model_dump(by_alias=True, mode="json", exclude_none=True)
+        except TypeError:
+            dumped = model_dump()
+        return _jsonable_artifact_value(dumped)
+
+    enum_value = getattr(value, "value", None)
+    if isinstance(enum_value, str | int | float | bool):
+        return enum_value
+
+    if isinstance(value, dict):
+        return {
+            str(key): _jsonable_artifact_value(item)
+            for key, item in value.items()
+            if item is not None
+        }
+
+    if isinstance(value, list | tuple | set):
+        return [_jsonable_artifact_value(item) for item in value]
+
+    attrs = getattr(value, "__dict__", None)
+    if isinstance(attrs, dict):
+        return {
+            key: _jsonable_artifact_value(item)
+            for key, item in attrs.items()
+            if not key.startswith("_") and item is not None
+        }
+
+    return str(value)
+
+
+def _format_full_artifact_payload_body(artifact: object) -> list[str]:
+    """Render the full doctrine payload for fetch-selector recovery."""
+
+    payload = _jsonable_artifact_value(artifact)
+    if not isinstance(payload, dict) or not payload:
+        return []
+
+    json_lines = json.dumps(payload, indent=2, sort_keys=True).splitlines()
+    return ["    Full artifact:", *(f"      {line}" for line in json_lines)]
 
 
 def _format_inline_directive_body(directive: object) -> list[str]:
