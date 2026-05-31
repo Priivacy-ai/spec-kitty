@@ -49,15 +49,20 @@ Resolved via `load_validated_graph()` → `resolve_context()` from `doctrine.drg
 
 The `drg.py` inline comment block (lines 712–738) explicitly documents that `filter_graph_by_activation` is the FR-018 access point for runtime resolvers.
 
-### Pattern B: Flat catalog (paradigm, procedure)
+### Pattern B: Flat catalog AND DRG (paradigm, procedure)
 
-Resolved via `DoctrineService.paradigms` / `DoctrineService.procedures`. `DoctrineService` is constructed with built_in_root, org_roots, project_root — no `PackContext` plumbing.
+**Classification correction**: `paradigm` and `procedure` nodes DO appear in the DRG (`NodeKind.PARADIGM`, `NodeKind.PROCEDURE` exist in `doctrine/drg/models.py:35-38`; `drg/query.py:231,234` populates paradigm/procedure buckets from DRG traversal). However, `_classify_artifact_urns()` in `context.py:318-332` discards them — it only processes `DIRECTIVE`, `TACTIC`, `STYLEGUIDE`, and `TOOLGUIDE`. So paradigm/procedure nodes exist in the DRG but are NOT extracted through the charter context builder's DRG path.
+
+The activation filter must therefore be wired in **two places** for paradigm/procedure:
+1. The `filter_graph_by_activation` call in the DRG path (covers any future callers that do include paradigm/procedure nodes)
+2. The flat catalog path (`DoctrineService.paradigms` / `.procedures` properties) — the currently active resolution path
 
 | Call Site | File | Line | Fix |
 |-----------|------|------|-----|
 | `generate.py` charter generation | `src/specify_cli/cli/commands/charter/generate.py` | 47 | Construct `DoctrineService` with `pack_context`; filter in `.paradigms`/`.procedures` property |
 | `org_layer.py` linter | `src/specify_cli/charter_runtime/lint/checks/org_layer.py` | 218, 236 | Add `pack_context` parameter |
-| `load_org_charter_policies()` | `src/specify_cli/doctrine/org_charter.py` | 464 (signature), 660, 710 (callers) | Already has `pack_context` parameter; 3 production callers don't pass it |
+| `load_org_charter_policies()` callers | `src/specify_cli/doctrine/org_charter.py` | 464 (signature), 660, 710 | Already has `pack_context` parameter; 3 callers don't pass it |
+| `doctor.py` org charter summary | `src/specify_cli/cli/commands/doctor.py` | 2332 | **4th caller**: calls `load_org_charter_policies(repo_root)` without `pack_context`; `spec-kitty doctor` will show unfiltered policy picture without this fix |
 
 ### Pattern C: Direct repository (agent_profile, mission_step_contract)
 
@@ -111,11 +116,23 @@ The DRG comment block explicitly names these callers as required (lines 712–73
 `src/doctrine/missions/mission_step_repository.py:43` has `if TYPE_CHECKING: from charter.pack_context import PackContext`. This violates the `doctrine ← charter` isolation rule (pytestarch follows TYPE_CHECKING imports).
 
 Correct fix (per FR-020):
-1. Define a narrow `ProjectContextProtocol` in `src/doctrine/missions/` matching only the fields `MissionStepRepository` actually uses (likely `activated_mission_step_contracts` and `activated_mission_types` — verify at implementation time).
-2. Replace the `PackContext` annotation in `mission_step_repository.py` method signatures with `ProjectContextProtocol`.
+1. Define a narrow `ProjectContextProtocol` in `src/doctrine/missions/` matching only the fields `MissionStepRepository` actually uses. Code inspection confirmed the only `PackContext` accesses are:
+   - `pack_context.pack_roots` — lines 289, 312, 325 (org layer iteration)
+   - `pack_context.repo_root` — lines 256, 347 (project layer path construction)
+   
+   The protocol must expose these two fields only:
+   ```python
+   class _PackContextLike(Protocol):
+       pack_roots: tuple[Path, ...]
+       repo_root: Path
+   ```
+   
+   **IMPORTANT**: The implementer must grep for all `pack_context.` attribute accesses in `mission_step_repository.py` to verify this list is complete before finalizing the protocol. Do not add fields that are not accessed.
+
+2. Replace the `PackContext` annotation in `mission_step_repository.py` method signatures with `_PackContextLike` (or a suitably named protocol).
 3. Remove the `TYPE_CHECKING` import block entirely.
 
-`ProjectContext` (from `src/charter/invocation_context.py`) satisfies the protocol structurally — no changes to `ProjectContext` needed. Pytestarch sees no charter import; mypy strict sees a defined protocol — both are satisfied.
+`PackContext` structurally satisfies `_PackContextLike` (it has both `pack_roots` and `repo_root`). Pytestarch sees no charter import; mypy strict sees a defined protocol — both are satisfied.
 
 Do NOT use a bare string literal annotation (`"PackContext"`) as the fix. With `from __future__ import annotations` active, all annotations are already lazy strings at runtime — the `TYPE_CHECKING` guard exists specifically for mypy. Removing it without a protocol replacement causes `error: Name "PackContext" is not defined [name-defined]` under mypy strict.
 
@@ -141,8 +158,17 @@ Confirmed: `m_3_2_7_activate_builtin_mission_types.py` uses `YAML()` round-trip 
 
 ### Upgrade Algorithm
 ```
-detect():   project has .kittify/ AND no activated_directives in config.yaml
-            (presence of the new per-kind keys signals the migration has already run)
+_PER_KIND_KEYS = [
+    "activated_directives", "activated_tactics", "activated_styleguides",
+    "activated_toolguides", "activated_paradigms", "activated_procedures",
+    "activated_agent_profiles", "activated_mission_step_contracts",
+]
+
+detect():   project has .kittify/ AND
+            at least ONE of the 8 _PER_KIND_KEYS is absent from config.yaml
+            (incremental: if a user manually pre-added some keys before upgrade,
+             the migration still fires to fill in the missing ones; already-present
+             keys are NOT overwritten — only absent keys are written)
 can_apply(): detect() returns True
 
 apply():
@@ -151,19 +177,20 @@ apply():
     warn user: "Existing charter backed up. Defaults merged. Review recommended."
   
   read src/charter/packs/default.yaml
-  write ALL of the following to config.yaml (round-trip, comment-preserving):
-    activated_kinds          ← from default pack (8-element set of plural kind names)
-    mission_type_activations ← from default pack (all built-in mission type IDs)
-    activated_directives     ← all built-in directive IDs from default pack
-    activated_tactics        ← all built-in tactic IDs from default pack
-    activated_styleguides    ← all built-in styleguide IDs from default pack
-    activated_toolguides     ← all built-in toolguide IDs from default pack
-    activated_paradigms      ← all built-in paradigm IDs from default pack
-    activated_procedures     ← all built-in procedure IDs from default pack
-    activated_agent_profiles ← all built-in agent profile IDs from default pack
-    activated_mission_step_contracts ← all built-in MSC IDs from default pack
+  for each per-kind key K in _PER_KIND_KEYS:
+    if K is absent from config.yaml:
+      write K ← all built-in IDs for that kind from default pack
+      (round-trip, comment-preserving; preserve_quotes=True)
   
-  inform user: "Default charter pack written. All built-in artifacts activated."
+  # Also write activated_kinds and mission_type_activations if absent
+  if "activated_kinds" absent: write activated_kinds ← from default pack
+  if "mission_type_activations" absent: write mission_type_activations ← from default pack
+  
+  inform user: "Default charter pack written/merged. All absent per-kind keys populated."
+  inform user which keys were written vs already present.
+
+  # Guard: if default.yaml is absent (broken install), raise MigrationResult(success=False, errors=["default.yaml not found at <path>"])
+  # Do NOT let FileNotFoundError propagate as an unformatted exception
 ```
 
 The default pack values come from `src/charter/packs/default.yaml` (new file). The migration reads it at runtime (not hardcoded inline) so it stays in sync with any future updates to the shipped pack.
@@ -171,6 +198,8 @@ The default pack values come from `src/charter/packs/default.yaml` (new file). T
 **After migration, no per-kind field is `None`.** Every kind has an explicit activation frozenset populated from the default pack. The `None` = all-built-ins fallback applies only to pre-migration projects that have not yet run `spec-kitty upgrade`. Post-upgrade, the hard-restriction model is fully active for all kinds.
 
 **Empty-set state post-upgrade**: A per-kind field can become `frozenset()` only through explicit user action (`charter deactivate` until the set is empty, or manual config.yaml edit). This is a valid intentional state meaning "nothing available for this kind." It is not the same as `None` (absent key). The default pack is the guarantee that users do not accidentally enter this state.
+
+**RC testing note (A13)**: `target_version = "3.2.8"` means the migration does NOT fire during rc release testing (e.g., `Version("3.2.8") > Version("3.2.0rc30")`). Tests for `m_3_2_8` must call `detect()` and `apply()` directly, not via the end-to-end upgrade pipeline. Any integration test that runs `spec-kitty upgrade` against the current rc version will not trigger this migration and will give a false green for the migration code path.
 
 ### Alternatives Considered
 - **Write a new charter.md from scratch**: Too destructive for existing users with customizations. Rejected.
