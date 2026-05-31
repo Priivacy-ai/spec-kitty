@@ -48,6 +48,7 @@ from charter.context_renderers.token_budget import (
     BUDGET_DEFAULT,
     RenderedSection,
     apply_token_budget,
+    budget_without_warning_line,
     warning_line,
 )
 
@@ -61,6 +62,7 @@ __all__ = [
     "DEFAULT_WHEN_CLAUSE",
     "RenderedSection",
     "apply_token_budget",
+    "budget_without_warning_line",
     "critical_section_header",
     "fetch_stanza",
     "fetch_stanza_lines",

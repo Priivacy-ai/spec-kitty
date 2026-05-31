@@ -46,6 +46,7 @@ __all__ = [
     "BUDGET_DEFAULT",
     "RenderedSection",
     "apply_token_budget",
+    "budget_without_warning_line",
     "warning_line",
 ]
 
@@ -110,6 +111,14 @@ def warning_line(count: int, budget: int) -> str:
         f"# Governance payload: {count} sections substituted with fetch "
         f"commands (budget={budget})."
     )
+
+
+def budget_without_warning_line(count: int, budget: int) -> int:
+    """Return pre-warning content budget after reserving warning-line space."""
+
+    if count <= 0:
+        return budget
+    return budget - len(f"\n\n{warning_line(count, budget)}")
 
 
 def _join_sections(sections: list[RenderedSection]) -> str:
@@ -199,7 +208,7 @@ def apply_token_budget(
     if len(joined) <= budget:
         return joined, notes
 
-    while len(joined) > budget:
+    while len(joined) > budget_without_warning_line(len(notes), budget):
         # Pick the longest substitutable section with a non-empty selector.
         candidates = [
             (idx, sec)

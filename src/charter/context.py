@@ -26,6 +26,7 @@ from charter._doctrine_paths import resolve_project_root
 from charter.context_renderers import (
     BUDGET_DEFAULT,
     RenderedSection,
+    budget_without_warning_line,
     render_authority_paths,
     render_critical_section_bodies,
 )
@@ -791,7 +792,7 @@ def _enforce_token_budget(
     current_text = text
     swapped_ids: list[str] = []
     for section in candidates:
-        if len(current_text) <= budget:
+        if len(current_text) <= budget_without_warning_line(len(swapped_ids), budget):
             break
         stanza = "\n".join(
             _shared_fetch_stanza_lines(

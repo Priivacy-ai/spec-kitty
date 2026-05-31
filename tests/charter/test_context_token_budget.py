@@ -172,6 +172,59 @@ class TestWarningLine:
         assert notes == []
         assert "# Governance payload" not in joined
 
+    def test_warning_line_counts_against_budget_after_substitution(self) -> None:
+        long_body = "L" * 1_000
+        short_body = "S" * 400
+        sections = [
+            _make_section("longest", long_body, selector="directive:DIRECTIVE_010"),
+            _make_section("short", short_body, selector="tactic:TACTIC_010"),
+        ]
+        first_swap_text = "\n\n".join(
+            [
+                fetch_stanza("directive:DIRECTIVE_010", "are about to apply a code change"),
+                short_body,
+            ]
+        )
+        budget = len(first_swap_text) + 30
+
+        joined, notes = apply_token_budget(sections, budget=budget)
+
+        assert len(joined) <= budget
+        assert long_body not in joined
+        assert short_body not in joined
+        assert len(notes) == 2
+        assert joined.rstrip().endswith(warning_line(len(notes), budget))
+
+    def test_production_context_budget_counts_warning_line(self) -> None:
+        from charter.context import _enforce_token_budget
+
+        section_block = "S" * 1_000
+        profile_block = "P" * 400
+        text = f"Charter Context (Bootstrap):\n\n{section_block}\n\n{profile_block}"
+        first_swap_text = text.replace(
+            section_block,
+            fetch_stanza(
+                "section:critical-implement",
+                "need to consult the action-critical charter sections",
+                indent="  ",
+            ),
+            1,
+        )
+        budget = len(first_swap_text) + 30
+
+        result = _enforce_token_budget(
+            text,
+            action="implement",
+            profile_block=profile_block,
+            section_block=section_block,
+            budget=budget,
+        )
+
+        assert len(result) <= budget
+        assert section_block not in result
+        assert profile_block not in result
+        assert result.rstrip().endswith(warning_line(2, budget))
+
 
 # ---------------------------------------------------------------------------
 # Fetch stanza contract
