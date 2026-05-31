@@ -409,6 +409,8 @@ _CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE: frozenset[str] = frozenset(
         "charter.invocation_context::build_operational_context",
         "charter.invocation_context::OperationalContext.require_active_profile",
         "charter.invocation_context::OperationalContext.require_active_role",
+        "charter.invocation_context::ProjectContext",
+        "charter.invocation_context::ContextPreconditionError",
     }
 )
 
