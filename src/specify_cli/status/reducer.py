@@ -33,10 +33,15 @@ def _now_utc() -> str:
 def _is_rollback_event(event: StatusEvent) -> bool:
     """Check if an event represents a reviewer rollback.
 
-    A rollback is a transition from for_review back to in_progress
-    with a review reference (indicating a reviewer requested changes).
+    Current review rejection rolls back from in_review to in_progress.
+    Legacy logs represented the same outcome as for_review to in_progress
+    with a review reference.
     """
-    return event.from_lane == Lane.FOR_REVIEW and event.to_lane == Lane.IN_PROGRESS and event.review_ref is not None
+    if event.to_lane != Lane.IN_PROGRESS:
+        return False
+    if event.from_lane == Lane.IN_REVIEW:
+        return True
+    return event.from_lane == Lane.FOR_REVIEW and event.review_ref is not None
 
 
 def _wp_state_from_event(
