@@ -326,6 +326,38 @@ class TestShippedProfilesContextSources:
         assert profile is not None
         assert len(profile.directive_references) > 0, f"Profile '{profile_id}' has no directive references"
 
+    @pytest.mark.parametrize(
+        "profile_id,expected_tactics",
+        [
+            (
+                "debugger-debbie",
+                [
+                    "five-paradigm-parallel-debugging",
+                    "code-review-incremental",
+                    "review-intent-and-risk-first",
+                ],
+            ),
+            (
+                "reviewer-renata",
+                [
+                    "code-review-incremental",
+                    "language-driven-design",
+                    "reverse-speccing",
+                ],
+            ),
+        ],
+    )
+    def test_context_sources_preserve_shipped_tactic_lists(
+        self,
+        repo: AgentProfileRepository,
+        profile_id: str,
+        expected_tactics: list[str],
+    ):
+        """Shipped context-sources.tactics survive repository validation/loading."""
+        profile = repo.get(profile_id)
+        assert profile is not None
+        assert profile.context_sources.tactics == expected_tactics
+
 
 class TestShippedProfilesPerformance:
     """Performance gate: loading all shipped profiles must complete quickly."""
