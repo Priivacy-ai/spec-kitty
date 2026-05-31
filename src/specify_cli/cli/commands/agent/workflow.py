@@ -1421,6 +1421,10 @@ def implement(
         print(f'  3. spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --mission {mission_slug} --note "Ready for review"')
         print("     (Pre-flight check will verify no uncommitted changes)")
 
+    except typer.Exit:
+        with contextlib.suppress(Exception):
+            _print_commit_summary(command_name="implement")
+        raise
     except Exception as e:
         # WP06 T029: surface any partial commit summary before exiting,
         # so operators see what got recorded vs. refused.
@@ -2294,6 +2298,10 @@ def review(
         print(f'  ✅ spec-kitty agent tasks move-task {normalized_wp_id} --to approved --mission {mission_slug} --note "Review passed"')
         print(f"  ❌ spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path} --mission {mission_slug}")
 
+    except typer.Exit:
+        with contextlib.suppress(Exception):
+            _print_commit_summary(command_name="review")
+        raise
     except Exception as e:
         with contextlib.suppress(Exception):
             _print_commit_summary(command_name="review")

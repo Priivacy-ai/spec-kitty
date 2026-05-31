@@ -116,6 +116,23 @@ def test_workflow_review_rejects_planned_lane(workflow_repo: Path) -> None:
     assert extract_scalar(frontmatter, "lane") == "planned"
 
 
+@pytest.mark.parametrize("command", ["implement", "review"])
+def test_workflow_commands_do_not_print_spurious_error_for_handled_exit(
+    command: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("specify_cli.cli.commands.agent.workflow.locate_project_root", lambda: None)
+
+    result = CliRunner().invoke(
+        workflow.app,
+        [command, "WP01", "--mission", "001-test-feature", "--agent", "test-agent"],
+    )
+
+    assert result.exit_code == 1
+    assert "Error: Could not locate project root" in result.stdout
+    assert "Error: 1" not in result.stdout
+
+
 def test_workflow_review_accepts_for_review_lane(workflow_repo: Path) -> None:
     mission_slug = "001-test-feature"
     feature_dir = workflow_repo / "kitty-specs" / mission_slug
