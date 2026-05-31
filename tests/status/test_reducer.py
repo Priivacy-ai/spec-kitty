@@ -262,6 +262,71 @@ class TestReduceForceCount:
         assert snapshot.work_packages["WP01"]["force_count"] == 2
 
 
+class TestReduceConcurrentRollbackPrecedence:
+    """Tests for rollback-aware conflict resolution."""
+
+    def test_in_review_to_in_progress_rollback_beats_concurrent_approval(self) -> None:
+        """Current reviewer rollback transition wins over same-timestamp approval."""
+        at = "2026-02-08T15:00:00Z"
+        events = [
+            _make_event(
+                event_id="01HXYZ0000000000000000000A",
+                wp_id="WP01",
+                from_lane=Lane.IN_REVIEW,
+                to_lane=Lane.IN_PROGRESS,
+                at=at,
+                actor="reviewer-a",
+            ),
+            _make_event(
+                event_id="01HXYZ0000000000000000000B",
+                wp_id="WP01",
+                from_lane=Lane.IN_REVIEW,
+                to_lane=Lane.APPROVED,
+                at=at,
+                actor="reviewer-b",
+                review_ref="review://WP01/approved",
+            ),
+        ]
+
+        snapshot = reduce(events)
+
+        assert snapshot.work_packages["WP01"]["lane"] == "in_progress"
+        assert snapshot.work_packages["WP01"]["last_event_id"] == "01HXYZ0000000000000000000A"
+        assert snapshot.summary["in_progress"] == 1
+        assert snapshot.summary["approved"] == 0
+
+    def test_legacy_for_review_to_in_progress_rollback_still_beats_concurrent_forward_event(self) -> None:
+        """Legacy reviewer rollback shape keeps rollback precedence."""
+        at = "2026-02-08T15:00:00Z"
+        events = [
+            _make_event(
+                event_id="01HXYZ0000000000000000000A",
+                wp_id="WP01",
+                from_lane=Lane.FOR_REVIEW,
+                to_lane=Lane.IN_PROGRESS,
+                at=at,
+                actor="reviewer-a",
+                review_ref="review://WP01/changes-requested",
+            ),
+            _make_event(
+                event_id="01HXYZ0000000000000000000B",
+                wp_id="WP01",
+                from_lane=Lane.FOR_REVIEW,
+                to_lane=Lane.APPROVED,
+                at=at,
+                actor="reviewer-b",
+                review_ref="review://WP01/approved",
+            ),
+        ]
+
+        snapshot = reduce(events)
+
+        assert snapshot.work_packages["WP01"]["lane"] == "in_progress"
+        assert snapshot.work_packages["WP01"]["last_event_id"] == "01HXYZ0000000000000000000A"
+        assert snapshot.summary["in_progress"] == 1
+        assert snapshot.summary["approved"] == 0
+
+
 class TestSummaryCounts:
     """Tests that summary counts match WP states."""
 
