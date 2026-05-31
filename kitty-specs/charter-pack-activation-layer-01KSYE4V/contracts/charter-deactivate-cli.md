@@ -12,7 +12,7 @@ Removes an artifact from the project's activated set for its kind. This is a fir
 |----------|------|----------|-------------|
 | `kind` | ActivationKind | Yes | One of: `mission-type`, `directive`, `tactic`, `styleguide`, `toolguide`, `paradigm`, `procedure`, `agent-profile`, `mission-step-contract` |
 | `id` | string | Yes | Artifact ID to deactivate |
-| `--cascade` | string | No | Cascade scope: `all`, `profiles`, `directives`, `tactics`, or comma-separated subset. Default: no cascade. |
+| `--cascade` | string | No | Cascade scope: `all`, or one or more comma-separated CLI kind names (hyphen form: `directive`, `tactic`, `styleguide`, `toolguide`, `paradigm`, `procedure`, `agent-profile`, `mission-step-contract`). Default: no cascade. |
 
 ## Behavior
 
@@ -46,14 +46,14 @@ An artifact is considered "shared" if any other activated artifact (of any kind)
 Deactivated: directive/python-style-guide
 Shared artifacts not deactivated (still referenced by other activated artifacts):
   - tactic/test-driven-development (referenced by: directive/clean-code)
-Cross-references not evaluated (use --cascade tactics to check):
+Cross-references not evaluated (use --cascade tactic to check):
   - tactic/clean-arch
 ```
 
-With `--cascade tactics`:
+With `--cascade tactic`:
 ```
 Deactivated: directive/python-style-guide
-Cascade-deactivated (tactics): clean-arch
+Cascade-deactivated (tactic): clean-arch
 Shared (skipped): test-driven-development (still referenced by directive/clean-code)
 ```
 
@@ -62,7 +62,7 @@ Shared (skipped): test-driven-development (still referenced by directive/clean-c
 ```yaml
 activated_directives:        # python-style-guide removed
   - clean-code
-activated_tactics:           # only if --cascade tactics removed something
+activated_tactics:           # only if --cascade tactic removed something
   - test-driven-development  # preserved (shared)
   # clean-arch removed
 ```

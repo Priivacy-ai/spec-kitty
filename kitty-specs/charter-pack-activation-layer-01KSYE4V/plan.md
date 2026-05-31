@@ -18,7 +18,7 @@ Complete the charter activation model across all 9 doctrine artifact kinds. Phas
 **Testing**: pytest with `fast`, `doctrine`, `architectural` marks; `pytestarch` for layer rules; `pytest-benchmark` for NFR-001 real-I/O performance  
 **Target Platform**: Linux/macOS/Windows (cross-platform, path handling via pathlib)  
 **Project Type**: Single Python package (`src/` layout)  
-**Performance Goals**: Charter activation read path ≤ 100ms p95 under real filesystem I/O (NFR-001)  
+**Performance Goals**: Charter activation read path ≤ 100ms p99 under real filesystem I/O (NFR-001); use multi-run percentile measurement, not single wall-clock check  
 **Constraints**: Strict layer rule — `doctrine.*` must never import `charter.*`; `specify_cli.*` may import both; all activation state changes go through `charter.*` APIs  
 **Scale/Scope**: Per-project activation state (small YAML); shipped pack is static YAML; upgrade path is single-pass migration
 
@@ -65,6 +65,7 @@ src/
 │   ├── pack_context.py           # PackContext — reads activated_kinds from config.yaml
 │   ├── drg.py                    # filter_graph_by_activation — WIRE THIS (FR-035)
 │   ├── activations.py            # Per-action artifact registry (unchanged)
+│   ├── invocation_context.py     # NEW — ProjectContext, OperationalContext, ContextPreconditionError (FR-040)
 │   ├── packs/
 │   │   └── default.yaml          # NEW — shipped default activation pack (all built-ins)
 │   ├── pack_manager.py           # NEW — CharterPackManager: load/save/merge pack state
@@ -93,6 +94,7 @@ tests/
 │   └── test_no_dead_symbols.py                       # Wire or allowlist 12 dead symbols
 ├── charter/
 │   ├── test_pack_manager.py      # NEW
+│   ├── test_invocation_context.py # NEW — ProjectContext.from_repo(), guard methods, ContextPreconditionError
 │   ├── test_drg_filtering.py     # NEW — production wiring tests (FR-035)
 │   └── test_consistency_check.py # NEW
 ├── specify_cli/
@@ -113,6 +115,8 @@ tests/
 | 9 artifact kinds, 3 resolution patterns | Kinds use different resolution paths (DRG, flat catalog, direct repo) | Pattern-A/B/C wiring table in research.md; common `PackContext` read API for all |
 | Backward-compatibility on upgrade | Existing projects with no activation config must lose nothing | Default pack ships fully-populated; `from_config()` fallback already handles absent keys |
 | Cascade semantics (activate vs deactivate differ) | Activation pulls in references; deactivation only removes exclusively-owned artifacts | Separate `_cascade_activate` / `_cascade_deactivate` helpers with shared-artifact protection |
+| `mission-type` YAML key is `mission_type_activations` | Phase 1 used a different naming convention; all other kinds use `activated_<kind>` | Use explicit `YAML_KEY_MAP` dict in CharterPackManager (see data-model.md); do NOT use a generic formatter |
+| `activated_kinds`/`mission_type_activations` retain two-state reader semantics | Backward compat: `[]` → all built-ins for these two grandfathered keys | New per-kind readers use three-state; add comment to `pack_context.py` explaining the asymmetry |
 
 ## Phase 0: Research Agenda
 
@@ -141,7 +145,7 @@ Key entities (detail in `data-model.md`):
 - **`CharterPack`**: Immutable value object. Contains `activated_mission_types`, `activated_kinds`, and per-kind artifact lists (`activated_directives`, `activated_tactics`, etc.). Deserialized from `src/charter/packs/default.yaml`.
 - **`PackContext`** (existing, extended): Gains `activated_directives`, `activated_tactics`, `activated_styleguides`, `activated_toolguides`, `activated_paradigms`, `activated_procedures`, `activated_agent_profiles`, `activated_mission_step_contracts` — each a `frozenset[str] | None` (None = all built-ins available). Read from config.yaml; written by `charter activate/deactivate`.
 - **`ActivationKind`**: Enum or Literal over the 9 activatable kinds (singular form used in CLI, plural in `PackContext`).
-- **`CascadeScope`**: Literal `"none" | "all" | "profiles" | "directives" | "tactics"` (comma-separated parsed to set).
+- **`CascadeScope`**: Parsed from the `--cascade` flag. Accepts `"all"` or any comma-separated set of CLI kind names (`"directive"`, `"tactic"`, `"styleguide"`, `"toolguide"`, `"paradigm"`, `"procedure"`, `"agent-profile"`, `"mission-step-contract"`). Absent flag = no cascade.
 - **`ConsistencyReport`**: Result of `charter pack consistency-check` — list of coherent/incoherent entries, missing artifacts, unknown references.
 - **`CharterBackup`**: Metadata record written alongside backup file: original path, backup path, timestamp, trigger.
 

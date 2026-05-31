@@ -25,7 +25,7 @@ Immutable snapshot of a full activation configuration. Loaded from `src/charter/
 
 **Invariant**: Absence of a key in config.yaml means "all built-ins available" (backward-compat for pre-upgrade projects — `None` in Python). An empty list `[]` / empty frozenset means "nothing available for this kind" (explicit restriction). A non-empty frozenset means "only these IDs are available." These three states are distinct and all legitimate.
 
-**Reader rule (FR-039)**: The `from_config()` reader must NOT apply a silent fallback when it encounters an empty list `[]`. An empty YAML list maps to `frozenset()`, not to the default built-in set. The existing `and raw` guard in `_read_activated_kinds` (which collapses `[]` to all built-ins) must be removed from all per-kind readers. Projects are protected from an empty-set state by the upgrade command writing the default pack — not by a silent reader fallback.
+**Reader rule (FR-039)**: The NEW per-kind readers (`_read_activated_directives`, `_read_activated_tactics`, etc.) must NOT apply a silent fallback when they encounter an empty list `[]`. An empty YAML list maps to `frozenset()`, not to the default built-in set. The existing `_read_activated_kinds` and `_read_activated_mission_types` readers retain their current two-state behavior (`[]` → all built-ins) for backward compatibility — these readers are **not changed**. The asymmetry is intentional and documented: `activated_kinds`/`mission_type_activations` are grandfathered keys from Phase 1 with established semantics; the new per-kind fields use the stricter three-state model from their first introduction. Projects are protected from an accidental empty per-kind set by the upgrade command writing the default pack. Add a comment to `pack_context.py` explaining this asymmetry to prevent future contributors from "fixing" the apparent inconsistency.
 
 **Serialization**: YAML under `src/charter/packs/default.yaml`. Kind keys use plural snake_case matching `PackContext` existing keys. `None` / absent key is represented by absence of the YAML key (round-trip safe).
 
@@ -33,7 +33,7 @@ Immutable snapshot of a full activation configuration. Loaded from `src/charter/
 
 ### PackContext (existing, extended)
 
-Existing Pydantic dataclass in `src/charter/pack_context.py`. Extended with per-kind activation fields.
+Existing **stdlib `@dataclass(frozen=True)`** in `src/charter/pack_context.py` (not Pydantic — do not use `Field()`, `@validator`, or Pydantic APIs). Extended with per-kind activation fields.
 
 | Field | Type | Source in config.yaml |
 |-------|------|----------------------|
@@ -70,20 +70,29 @@ Maps CLI kind names (singular) to `PackContext` field names (plural).
 | `agent-profile` | `activated_agent_profiles` | `activated_agent_profiles` |
 | `mission-step-contract` | `activated_mission_step_contracts` | `activated_mission_step_contracts` |
 
+**`mission_step_contract` naming bug**: `drg.py:592 _SINGULAR_TO_PLURAL` maps `"mission_step_contract"` → `"mission_steps"`, while `pack_context.py:58 _BUILTIN_ARTIFACT_KINDS` uses `"mission_step_contracts"`. These strings do not match, causing kind-level activation checks for ownerless MSC nodes to always fail. The implementer must fix the mismatch: the canonical plural is `"mission_step_contracts"` (per `_BUILTIN_ARTIFACT_KINDS`). Update `_SINGULAR_TO_PLURAL["mission_step_contract"]` to `"mission_step_contracts"`. Verify that `FR-028`'s test fix uses `"mission_step_contracts"` consistently.
+
 ---
 
 ### CascadeScope (value object)
 
-Parsed from the `--cascade` CLI flag.
+Parsed from the `--cascade` CLI flag. The cascade token is the CLI kind name (hyphen form), not the Python identifier (underscore form).
 
 | Value | Meaning |
 |-------|---------|
-| `none` (default, absent flag) | No cascade; warn user about cross-kind references |
+| _(absent flag)_ | No cascade; warn user about cross-kind references |
 | `all` | Cascade to all applicable artifact kinds |
-| `profiles` | Cascade to agent-profile kind only |
-| `directives` | Cascade to directive kind only |
-| `tactics` | Cascade to tactic kind only |
-| Comma-separated e.g. `profiles,directives` | Cascade to the named subset |
+| `directive` | Cascade to directive kind only |
+| `tactic` | Cascade to tactic kind only |
+| `styleguide` | Cascade to styleguide kind only |
+| `toolguide` | Cascade to toolguide kind only |
+| `paradigm` | Cascade to paradigm kind only |
+| `procedure` | Cascade to procedure kind only |
+| `agent-profile` | Cascade to agent-profile kind only |
+| `mission-step-contract` | Cascade to mission-step-contract kind only |
+| Comma-separated e.g. `agent-profile,tactic` | Cascade to the named subset |
+
+**Note**: The `--cascade` flag accepts the CLI kind names (hyphen form, same as the `<kind>` argument). The shorthand aliases `profiles`, `directives`, `tactics` are removed — only the canonical CLI kind names and `all` are accepted, to maintain a single consistent set of tokens across the CLI surface.
 
 **Activation cascade semantics**: When activating artifact X with `--cascade K`, also activate all artifacts of kind K that X references (follows DRG edges or flat-catalog cross-references from X).
 
@@ -103,20 +112,64 @@ Responsibilities:
 - Compute cascade targets for activate/deactivate operations
 - Emit warnings for skipped shared artifacts during deactivation cascade
 
-Key methods:
-```
-activate(repo_root, kind, artifact_id, cascade) -> ActivationResult
-deactivate(repo_root, kind, artifact_id, cascade) -> ActivationResult
-list_activated(repo_root) -> dict[str, frozenset[str]]
-list_available(repo_root, kind) -> frozenset[str]
-merge_defaults(repo_root) -> MergeResult
+Key methods (all take `ctx: ProjectContext` as first parameter):
+```python
+def activate(ctx: ProjectContext, kind: str, artifact_id: str, cascade: CascadeScope) -> ActivationResult: ...
+def deactivate(ctx: ProjectContext, kind: str, artifact_id: str, cascade: CascadeScope) -> ActivationResult: ...
+def list_activated(ctx: ProjectContext) -> dict[str, frozenset[str]]: ...
+def list_available(ctx: ProjectContext, kind: str) -> frozenset[str]: ...
+def merge_defaults(ctx: ProjectContext) -> MergeResult: ...
 ```
 
-**Activation from `None` state**: When `activated_<kind>` is `None` (absent key — pre-upgrade project), `activate()` must first materialize the starting set. The source is `src/charter/packs/default.yaml` — the manager reads the default pack for that kind, writes all its artifact IDs as the initial explicit activation list, then adds the requested artifact. This is deterministic and independent of the live doctrine catalog (catalog changes do not retroactively alter an explicit activation list).
+**`kind` parameter**: always the CLI kind name (hyphen form, e.g. `"agent-profile"`). The manager maps it to the config.yaml key internally. The special-case dispatch is:
+```python
+# mission-type maps to the Phase 1 key (not activated_mission_types)
+YAML_KEY_MAP = {
+    "mission-type": "mission_type_activations",
+    "directive":    "activated_directives",
+    "tactic":       "activated_tactics",
+    "styleguide":   "activated_styleguides",
+    "toolguide":    "activated_toolguides",
+    "paradigm":     "activated_paradigms",
+    "procedure":    "activated_procedures",
+    "agent-profile":           "activated_agent_profiles",
+    "mission-step-contract":   "activated_mission_step_contracts",
+}
+```
+Do NOT use a generic `f"activated_{kind.replace('-', '_')}s"` formatter — `mission-type` is the outlier that requires explicit dispatch.
+
+**Activation from `None` state**: When `activated_<kind>` is `None` (absent key — pre-upgrade project), `activate()` must first materialize the starting set. The source is `src/charter/packs/default.yaml` — the manager reads the default pack for that kind, writes all its artifact IDs as the initial explicit activation list, then adds the requested artifact. This is deterministic and independent of the live doctrine catalog (catalog changes do not retroactively alter an explicit activation list). **Warning required**: if the project has third-party doctrine artifacts of this kind that are absent from `default.yaml`, the materialized set will not include them and those artifacts will become unavailable. The manager must emit a visible warning: `"Warning: materialized activation set from default pack; any third-party <kind> artifacts not in the default pack are now excluded. Review 'charter list --show-available' to verify."` This warning should only fire when a third-party artifact would be lost (i.e., the doctrine catalog for this kind has entries not in `default.yaml`).
 
 **Deactivation from `None` state**: `deactivate()` on a kind whose activation field is `None` (no explicit set) is an error. Exit with code 1 and message: `"Kind '<kind>' has no explicit activation set. Run 'spec-kitty upgrade' to initialize the default pack before modifying individual activations."` This prevents an implicit materialization step on a destructive path and guides the user to the correct remediation.
 
 **Empty activation set**: A kind whose activation field is `frozenset()` (empty) has its entire DRG slice excluded from resolution — no artifact of that kind resolves, regardless of what the doctrine catalog contains. This is a valid intentional state reachable only by explicit user action (deactivating all artifacts one by one, or manual config.yaml edit). The default charter pack written by `spec-kitty upgrade` ensures this state is never reached accidentally.
+
+---
+
+### ActivationResult (value object)
+
+Return type of `CharterPackManager.activate()` and `deactivate()`.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `activated` | `list[str]` | IDs that were added to the activation set |
+| `deactivated` | `list[str]` | IDs that were removed from the activation set |
+| `cascade_activated` | `dict[str, list[str]]` | Kind → IDs cascade-activated (keyed by CLI kind name) |
+| `cascade_deactivated` | `dict[str, list[str]]` | Kind → IDs cascade-deactivated |
+| `skipped_shared` | `dict[str, list[str]]` | Kind → IDs skipped because referenced by another active artifact |
+| `warnings` | `list[str]` | Human-readable warnings (cross-kind references not cascaded, third-party artifact loss) |
+
+---
+
+### MergeResult (value object)
+
+Return type of `CharterPackManager.merge_defaults()`.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `kinds_written` | `list[str]` | Per-kind keys written to config.yaml (CLI kind names) |
+| `backup_path` | `Path \| None` | Path to charter.md backup if one was created |
+| `warnings` | `list[str]` | Human-readable warnings |
 
 ---
 
@@ -141,12 +194,23 @@ def from_repo(cls, repo_root: Path) -> "ProjectContext":
     """Construct a fully-populated ProjectContext from a repository root."""
 ```
 
+`from_repo()` field resolution rules:
+- `repo_root`: the passed-in argument (always non-None after construction)
+- `pack_context`: `PackContext.from_config(repo_root)` — always returns a populated instance (defaults if `.kittify/config.yaml` is absent); never `None` after construction via `from_repo()`
+- `org_root`: from `doctrine.drg.org_pack_config.resolve_org_roots(repo_root)` first entry if non-empty, else `None`
+- `specs_dir`: `repo_root / "kitty-specs"` if that directory exists, else `None`
+- `architecture_dir`: `repo_root / "architecture"` if that directory exists, else `None`
+
+**Missing `.kittify/` behavior**: `from_repo()` does NOT raise when `.kittify/config.yaml` is absent — `PackContext.from_config()` returns a default-filled instance silently. `require_pack_context()` therefore always passes for a context constructed via `from_repo()`. The guard is an assertion against mis-construction (e.g., partially-built instances in tests), not a "is this a kittify project?" check. CLI commands that need to validate project setup should check `(repo_root / ".kittify").is_dir()` explicitly before calling `from_repo()`.
+
 **Guard methods** (raise `ContextPreconditionError` if the field is `None`):
 ```python
 def require_repo_root(self) -> Path: ...
 def require_pack_context(self) -> PackContext: ...
 def require_org_root(self) -> Path: ...
 ```
+
+`specs_dir` and `architecture_dir` have no corresponding guard methods — callers that use them must None-check directly. These fields are optional convenience paths; no mission-critical logic in this mission depends on them.
 
 **Usage at method entry**:
 ```python
@@ -170,7 +234,11 @@ Immutable snapshot of agent-invocation-level runtime state. Defined in `src/char
 | `current_activity` | `str \| None` | Activity type (`"implement"`, `"review"`, `"specify"`, `"plan"`) |
 | `tech_stack` | `frozenset[str]` | Active technology identifiers (e.g. `{"python", "pytest"}`) |
 
-All fields default to `None` / empty frozenset. `OperationalContext` is **specced but not wired** in this mission — it is reserved for future context-aware activation filtering (e.g., profile-scoped activation, model-aware resolution). Wiring everywhere is deferred to a follow-on mission.
+All fields default to `None` / empty frozenset. `OperationalContext` is **specced but not wired** in this mission — it is reserved for future context-aware activation filtering (e.g., profile-scoped activation, model-aware resolution). Wiring is deferred to a follow-on mission.
+
+**Scope in this mission**: Define the class body and guard methods only. `build_operational_context()` is a stub returning `OperationalContext()` with all defaults. Zero production call sites are required or expected.
+
+**Dead-symbol disposal**: The four `OperationalContext`-family symbols (`OperationalContext`, `build_operational_context`, `require_active_profile`, `require_active_role`) are added to `_CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE` in `tests/architectural/test_no_dead_symbols.py` with per-symbol justification `"specced, wiring deferred to follow-on mission"`. The `_baselines.yaml` entry for this category must be updated accordingly.
 
 **Guard methods**:
 ```python
@@ -248,9 +316,10 @@ Written alongside `.kittify/charter/backups/charter-{timestamp}.md`.
 
 ```
 user: charter activate directive python-style-guide
-  → CharterPackManager.activate(repo_root, "directive", "python-style-guide", CascadeScope.none)
-  → read current activated_directives from config.yaml
-  → if None: initialize to all built-ins, then add python-style-guide
+  → ctx = ProjectContext.from_repo(repo_root)
+  → CharterPackManager.activate(ctx, "directive", "python-style-guide", CascadeScope.none)
+  → read current activated_directives from config.yaml via ctx.pack_context
+  → if None: initialize to all built-ins from default.yaml, warn if third-party loss, then add python-style-guide
   → if frozenset: add python-style-guide
   → write back to config.yaml via ruamel.yaml round-trip
   → if no cascade: warn "The following cross-references were not cascaded: ..."
@@ -260,12 +329,14 @@ user: charter activate directive python-style-guide
 ### charter deactivate flow with cascade
 
 ```
-user: charter deactivate directive python-style-guide --cascade tactics
-  → CharterPackManager.deactivate(repo_root, "directive", "python-style-guide", CascadeScope({"tactics"}))
+user: charter deactivate directive python-style-guide --cascade tactic
+  → ctx = ProjectContext.from_repo(repo_root)
+  → CharterPackManager.deactivate(ctx, "directive", "python-style-guide", CascadeScope({"tactic"}))
+  → if activated_directives is None: exit 1 with upgrade guidance
   → remove python-style-guide from activated_directives
   → find all tactic IDs referenced by python-style-guide (DRG edges)
   → for each referenced tactic T:
-      → if T is referenced by any OTHER activated directive: skip, warn "T is shared, not deactivated"
+      → if T is referenced by any OTHER currently-activated artifact of any kind: skip, warn "T is shared, not deactivated"
       → else: remove T from activated_tactics
   → write back to config.yaml
   → emit result: deactivated, skipped (shared), warnings
