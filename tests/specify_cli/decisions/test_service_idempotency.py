@@ -134,6 +134,64 @@ def test_second_open_no_new_event_emitted(tmp_path: Path) -> None:
     assert mock_emit.call_count == 1
 
 
+def test_on_minted_receives_persisted_id_for_idempotent_open(tmp_path: Path) -> None:
+    _setup_meta(tmp_path)
+    minted_ids: list[str] = []
+    with patch("specify_cli.decisions.emit.emit_decision_opened", return_value=1):
+        resp1 = open_decision(
+            tmp_path,
+            MISSION_SLUG,
+            origin_flow=OriginFlow.CHARTER,
+            step_id="step-1",
+            input_key="team_size",
+            question="How large?",
+            options=("1-5",),
+            actor="alice",
+            on_minted=minted_ids.append,
+        )
+        resp2 = open_decision(
+            tmp_path,
+            MISSION_SLUG,
+            origin_flow=OriginFlow.CHARTER,
+            step_id="step-1",
+            input_key="team_size",
+            question="How large?",
+            options=("1-5",),
+            actor="alice",
+            on_minted=minted_ids.append,
+        )
+
+    assert resp2.idempotent is True
+    assert resp2.decision_id == resp1.decision_id
+    assert minted_ids == [resp1.decision_id, resp1.decision_id]
+
+
+def test_on_minted_runs_before_fresh_open_writes_artifact(tmp_path: Path) -> None:
+    _setup_meta(tmp_path)
+    observations: list[tuple[str, bool]] = []
+
+    def record_minted(decision_id: str) -> None:
+        observations.append(
+            (decision_id, _store.artifact_path(_mission_dir(tmp_path), decision_id).exists())
+        )
+
+    with patch("specify_cli.decisions.emit.emit_decision_opened", return_value=1):
+        resp = open_decision(
+            tmp_path,
+            MISSION_SLUG,
+            origin_flow=OriginFlow.CHARTER,
+            step_id="step-1",
+            input_key="team_size",
+            question="How large?",
+            options=("1-5",),
+            actor="alice",
+            on_minted=record_minted,
+        )
+
+    assert observations == [(resp.decision_id, False)]
+    assert _store.artifact_path(_mission_dir(tmp_path), resp.decision_id).exists()
+
+
 # ---------------------------------------------------------------------------
 # T017c — Open on terminal entry raises ALREADY_CLOSED
 # ---------------------------------------------------------------------------

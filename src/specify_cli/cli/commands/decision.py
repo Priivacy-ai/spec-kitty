@@ -19,7 +19,6 @@ import sys
 from pathlib import Path
 
 import typer
-import ulid as _ulid_mod
 
 from specify_cli.decisions.models import (
     DecisionErrorCode,
@@ -195,13 +194,11 @@ def cmd_open(  # noqa: PLR0913
 
     repo_root, mission_slug = _resolve_repo_root_and_slug(mission)
 
-    # FR-003: mint decision_id BEFORE any artifact write or event emission,
-    # and emit it to stdout immediately so callers always receive the id even
-    # if the process is killed mid-write.  dry_run uses "DRY_RUN" as the id
-    # (matching the service-layer convention) so callers can detect the mode.
-    minted_id = "DRY_RUN" if dry_run else str(_ulid_mod.ULID())
-    typer.echo(json.dumps({"decision_id": minted_id, "phase": "minted"}, sort_keys=True))
-    sys.stdout.flush()
+    def emit_minted(decision_id: str) -> None:
+        typer.echo(
+            json.dumps({"decision_id": decision_id, "phase": "minted"}, sort_keys=True)
+        )
+        sys.stdout.flush()
 
     try:
         resp = open_decision(
@@ -215,7 +212,7 @@ def cmd_open(  # noqa: PLR0913
             slot_key=slot_key,
             actor=actor,
             dry_run=dry_run,
-            decision_id=minted_id if not dry_run else None,
+            on_minted=emit_minted,
         )
     except DecisionError as exc:
         _handle_decision_error(exc)
