@@ -7,6 +7,7 @@ import pytest
 from specify_cli.lanes.merge import (
     LaneMergeResult,
     MissionMergeResult,
+    _merge_branch_into,
     merge_lane_to_mission,
     merge_mission_to_target,
 )
@@ -18,6 +19,16 @@ pytestmark = pytest.mark.git_repo
 
 def _run(cmd, cwd):
     subprocess.run(cmd, cwd=str(cwd), capture_output=True, check=True)
+
+
+def _git_stdout(repo, *args):
+    return subprocess.run(
+        ["git", *args],
+        cwd=str(repo),
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
 
 
 def _commit(repo, filename, content, message):
@@ -292,3 +303,53 @@ class TestMergeMissionToTarget:
 
         assert result.success is False
         assert "does not exist" in result.errors[0]
+
+    def test_rebase_strategy_does_not_mutate_main_checkout_before_worktree(self, tmp_path):
+        repo = _make_repo(tmp_path)
+        source_branch = "kitty/mission-010-feat"
+
+        _run(["git", "branch", source_branch], repo)
+        _run(["git", "checkout", source_branch], repo)
+        _commit(repo, "src/rebased.py", "mission work\n", "mission work")
+        _run(["git", "checkout", "main"], repo)
+
+        source_before = _git_stdout(repo, "rev-parse", source_branch)
+
+        changed = _merge_branch_into(
+            repo,
+            source_branch,
+            "main",
+            strategy=MergeStrategy.REBASE,
+        )
+
+        assert changed is True
+        assert _git_stdout(repo, "branch", "--show-current") == "main"
+        assert _git_stdout(repo, "rev-parse", source_branch) == source_before
+        assert _git_stdout(repo, "show", "main:src/rebased.py") == "mission work"
+
+    def test_rebase_strategy_conflict_leaves_main_checkout_and_refs_unchanged(self, tmp_path):
+        repo = _make_repo(tmp_path)
+        source_branch = "kitty/mission-010-feat"
+
+        _commit(repo, "src/conflict.py", "base\n", "base conflict file")
+        _run(["git", "branch", source_branch], repo)
+        _run(["git", "checkout", source_branch], repo)
+        _commit(repo, "src/conflict.py", "source\n", "source conflict")
+        _run(["git", "checkout", "main"], repo)
+        _commit(repo, "src/conflict.py", "target\n", "target conflict")
+
+        source_before = _git_stdout(repo, "rev-parse", source_branch)
+        target_before = _git_stdout(repo, "rev-parse", "main")
+
+        with pytest.raises(RuntimeError, match="Rebase of .* failed"):
+            _merge_branch_into(
+                repo,
+                source_branch,
+                "main",
+                strategy=MergeStrategy.REBASE,
+            )
+
+        assert _git_stdout(repo, "branch", "--show-current") == "main"
+        assert _git_stdout(repo, "rev-parse", source_branch) == source_before
+        assert _git_stdout(repo, "rev-parse", "main") == target_before
+        assert not (repo / ".git" / "rebase-merge").exists()
