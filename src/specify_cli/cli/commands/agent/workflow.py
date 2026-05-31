@@ -370,6 +370,12 @@ def _commit_workflow_change(
             )
             return
         except typer.Exit:
+            _restore_status_artifacts(
+                events_path=events_path,
+                pre_emit_event_size=pre_emit_event_size,
+                status_path=status_path,
+                pre_emit_status_bytes=pre_emit_status_bytes,
+            )
             raise
         except Exception as exc:  # noqa: BLE001 — surface + exit
             recovery_commit_sha = _safe_commit_recovery_commit_sha(exc)
