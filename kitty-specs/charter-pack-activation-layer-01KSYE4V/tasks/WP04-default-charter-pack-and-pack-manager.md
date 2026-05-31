@@ -10,13 +10,17 @@ tracker_refs: []
 planning_base_branch: pr/charter-doctrine-mission-type-configuration
 merge_target_branch: pr/charter-doctrine-mission-type-configuration
 branch_strategy: Planning artifacts for this mission were generated on pr/charter-doctrine-mission-type-configuration. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into pr/charter-doctrine-mission-type-configuration unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-charter-pack-activation-layer-01KSYE4V
+base_commit: 7a89ab05447996add74571261933a31b60bf92f5
+created_at: '2026-05-31T13:58:08.026612+00:00'
 subtasks:
 - T015
 - T016
 - T017
 - T018
 - T019
-agent: claude
+agent: "claude:sonnet-4-6:python-pedro:implementer"
+shell_pid: "4151579"
 history:
 - at: '2026-05-31T11:44:22Z'
   event: created
@@ -1104,3 +1108,7 @@ assert YAML_KEY_MAP['mission-type'] == 'mission_type_activations'
 print('YAML_KEY_MAP OK')
 "
 ```
+
+## Activity Log
+
+- 2026-05-31T13:58:08Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=4151579 – Assigned agent via action command
