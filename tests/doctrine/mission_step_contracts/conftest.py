@@ -38,7 +38,12 @@ def full_step_contract_data() -> dict:
                         "flag": "--profile",
                         "source": "wp.agent_profile",
                         "optional": True,
-                    }
+                    },
+                    {
+                        "flag": "--tool",
+                        "source": "env.agent_tool",
+                        "optional": True,
+                    },
                 ],
             },
             {

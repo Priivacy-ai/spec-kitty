@@ -9,7 +9,6 @@ invocation primitive.
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -18,8 +17,8 @@ from charter.drg import ArtifactKind, DRGGraph, NodeKind, ResolvedContext, resol
 from charter.mission_steps import (
     MissionStep,
     MissionStepContract,
-    MissionStepInput,
     MissionStepContractRepository,
+    MissionStepInput,
 )
 from specify_cli.invocation.executor import InvocationPayload, ProfileInvocationExecutor
 from specify_cli.invocation.modes import ModeOfWork
@@ -202,8 +201,8 @@ class StepContractExecutor:
                         sequence=sequence,
                         description=step.description,
                         command=step.command,
-                        inputs=tuple(step.inputs),
                         command_declared=step.command is not None,
+                        inputs=tuple(step.inputs),
                         guidance=step.guidance,
                         resolved_delegations=tuple(resolved),
                         unresolved_candidates=tuple(unresolved),
@@ -332,14 +331,13 @@ class StepContractExecutor:
         if context.request_text:
             lines.append(f"Run request: {context.request_text}")
         if step.command:
-            lines.append(f"Declared command: {step.command}")
+            lines.append(f"Declared command: {self._render_declared_command(step)}")
             lines.append("Command status: declared only; the host/operator owns execution.")
-        if step.inputs:
-            lines.append("Declared inputs:")
-            lines.extend(
-                f"- {self._format_step_input(step_input)}"
-                for step_input in step.inputs
+        elif step.inputs:
+            joined = " ".join(
+                self._format_step_input(input_spec) for input_spec in step.inputs
             )
+            lines.append(f"Declared step inputs: {joined}")
         if resolved_delegations:
             joined = ", ".join(delegation.urn for delegation in resolved_delegations)
             lines.append(f"Resolved delegations: {joined}")
@@ -350,12 +348,20 @@ class StepContractExecutor:
             lines.append(f"Step guidance: {step.guidance}")
         return "\n".join(lines)
 
-    @staticmethod
-    def _format_step_input(step_input: MissionStepInput) -> str:
-        return json.dumps(
-            step_input.model_dump(mode="json", exclude_none=True),
-            sort_keys=True,
+    def _render_declared_command(self, step: MissionStep) -> str:
+        if not step.command or not step.inputs:
+            return step.command or ""
+        joined = " ".join(
+            self._format_step_input(input_spec) for input_spec in step.inputs
         )
+        return f"{step.command} {joined}"
+
+    @staticmethod
+    def _format_step_input(input_spec: MissionStepInput) -> str:
+        rendered = f"{input_spec.flag} {{{input_spec.source}}}"
+        if input_spec.optional:
+            return f"[{rendered}]"
+        return rendered
 
 
 __all__ = [
