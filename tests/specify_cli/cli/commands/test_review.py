@@ -27,9 +27,14 @@ pytestmark = [pytest.mark.fast, pytest.mark.non_sandbox]
 
 _MISSION_SLUG = "test-review-mission-01KQTEST0"
 _MISSION_ID = "01KQTEST000000000000000000"
+_MISSING_BASELINE = object()
 
 
-def _write_meta(feature_dir: Path, *, baseline_merge_commit: str | None = None) -> None:
+def _write_meta(
+    feature_dir: Path,
+    *,
+    baseline_merge_commit: str | None | object = _MISSING_BASELINE,
+) -> None:
     """Write a minimal meta.json to feature_dir."""
     meta: dict[str, object] = {
         "mission_id": _MISSION_ID,
@@ -38,7 +43,7 @@ def _write_meta(feature_dir: Path, *, baseline_merge_commit: str | None = None) 
         "mission_type": "software-dev",
         "mission_number": None,
     }
-    if baseline_merge_commit is not None:
+    if baseline_merge_commit is not _MISSING_BASELINE:
         meta["baseline_merge_commit"] = baseline_merge_commit
     feature_dir.mkdir(parents=True, exist_ok=True)
     (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
@@ -82,7 +87,7 @@ def _setup_fixture(
     tmp_path: Path,
     wp_lanes: dict[str, str],
     *,
-    baseline_merge_commit: str | None = None,
+    baseline_merge_commit: str | None | object = _MISSING_BASELINE,
 ) -> tuple[Path, Path]:
     """Create a minimal mission fixture.
 
@@ -414,6 +419,54 @@ def test_review_lightweight_modern_missing_baseline_exits_nonzero(
     assert "LIGHTWEIGHT_REVIEW_MISSING_BASELINE" in result.output
     assert "LIGHTWEIGHT_REVIEW_MISSING_BASELINE" in report_text
     assert "issue_matrix_present: not_applicable" in report_text
+
+
+def test_review_lightweight_modern_null_baseline_exits_nonzero(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Issue #1428: explicit null baseline_merge_commit must fail lightweight review."""
+    repo_root, feature_dir = _setup_fixture(
+        tmp_path,
+        {"WP01": "done"},
+        baseline_merge_commit=None,
+    )
+    meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+    assert "baseline_merge_commit" in meta
+    assert meta["baseline_merge_commit"] is None
+
+    monkeypatch.chdir(repo_root)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.find_repo_root",
+        lambda: repo_root,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.assert_pytest_available",
+        lambda _: None,
+    )
+    _mock_resolved = _make_mock_resolved(feature_dir)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.resolve_mission_handle",
+        lambda handle, repo_root: _mock_resolved,
+    )
+
+    app = _build_cli_app()
+    runner = CliRunner()
+    result = runner.invoke(app, ["--mission", _MISSION_SLUG, "--mode", "lightweight"])
+
+    assert result.exit_code == 1, result.output
+
+    report_text = (feature_dir / "mission-review-report.md").read_text(encoding="utf-8")
+    assert "verdict: fail" in report_text
+    assert "LIGHTWEIGHT_REVIEW_MISSING_BASELINE" in result.output
+    assert "LIGHTWEIGHT_REVIEW_MISSING_BASELINE" in report_text
+    assert (
+        "  - id: gate_2\n"
+        "    name: dead_code_scan\n"
+        "    command: spec-kitty review (internal gate 2)\n"
+        "    exit_code: 1\n"
+        "    result: fail"
+    ) in report_text
 
 
 def test_dead_code_baseline_missing_is_hard_failure(tmp_path: Path) -> None:
