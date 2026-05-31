@@ -259,12 +259,12 @@ WP11 subtasks T048–T051 are fully independent and can be executed in any order
 **Subtasks**: T024–T029
 **Agent profile**: python-pedro
 
-- [ ] T024 Refactor `activate.py` CLI to call `CharterPackManager.activate()` for all 9 kinds + `--cascade`
-- [ ] T025 Fix reader gap (FR-014): refactor `charter_activate.py` `activate_mission_type_override()` to write `mission_type_activations` to `config.yaml` instead of override files
-- [ ] T026 Create `deactivate.py` with all 9 kinds and shared-artifact cascade protection
-- [ ] T027 Create `list.py` with `charter list` and `--show-available` Rich table output (FR-009, FR-010)
-- [ ] T028 Create `pack.py` `charter pack consistency-check` subcommand; register all new commands in `_app.py`
-- [ ] T029 Update/write CLI tests for activate (all 9 kinds), deactivate, list, and pack consistency-check
+- [x] T024 Refactor `activate.py` CLI to call `CharterPackManager.activate()` for all 9 kinds + `--cascade`
+- [x] T025 Fix reader gap (FR-014): refactor `charter_activate.py` `activate_mission_type_override()` to write `mission_type_activations` to `config.yaml` instead of override files
+- [x] T026 Create `deactivate.py` with all 9 kinds and shared-artifact cascade protection
+- [x] T027 Create `list.py` with `charter list` and `--show-available` Rich table output (FR-009, FR-010)
+- [x] T028 Create `pack.py` `charter pack consistency-check` subcommand; register all new commands in `_app.py`
+- [x] T029 Update/write CLI tests for activate (all 9 kinds), deactivate, list, and pack consistency-check
 
 **Implementation Notes**:
 - T024: Replace current per-kind dispatch in `activate.py` with a unified `activate <kind> <artifact-id> [--cascade <scope>]` command backed by `CharterPackManager.activate()`. The `--cascade` flag accepts `all` or a comma-separated list of kind names.
