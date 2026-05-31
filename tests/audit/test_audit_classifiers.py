@@ -534,6 +534,41 @@ def test_status_json_retrospective_materialized_snapshot_is_not_drift(
     assert "SNAPSHOT_DRIFT" not in _codes(findings)
 
 
+def test_status_json_non_ascii_materialized_snapshot_is_not_drift(
+    tmp_path: Path,
+) -> None:
+    """Fresh UTF-8 status.json content must not be normalised into drift."""
+    from specify_cli.status.reducer import materialize
+
+    _write_json(
+        tmp_path / "meta.json",
+        {
+            "mission_id": _VALID_ULID,
+            "mission_slug": "test-mission",
+            "mission_number": 1,
+            "mission_type": "software-dev",
+        },
+    )
+    _write_jsonl(
+        tmp_path / "status.events.jsonl",
+        [
+            {
+                **_MODERN_EVENT,
+                "actor": "José",
+                "reason": "résolu",
+            },
+        ],
+    )
+    materialize(tmp_path)
+
+    status_text = (tmp_path / "status.json").read_text(encoding="utf-8")
+    assert "José" in status_text
+
+    findings = classify_status_json(tmp_path)
+
+    assert "SNAPSHOT_DRIFT" not in _codes(findings)
+
+
 # ---------------------------------------------------------------------------
 # T014/mission_events.jsonl classifier
 # ---------------------------------------------------------------------------
