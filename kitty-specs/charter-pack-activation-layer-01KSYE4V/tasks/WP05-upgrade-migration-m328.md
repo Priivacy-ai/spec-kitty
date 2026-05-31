@@ -10,12 +10,16 @@ tracker_refs: []
 planning_base_branch: pr/charter-doctrine-mission-type-configuration
 merge_target_branch: pr/charter-doctrine-mission-type-configuration
 branch_strategy: Planning artifacts for this mission were generated on pr/charter-doctrine-mission-type-configuration. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into pr/charter-doctrine-mission-type-configuration unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-charter-pack-activation-layer-01KSYE4V
+base_commit: 905b3450cea84655d82aac8d471b72e9ad14bdb3
+created_at: '2026-05-31T14:19:32.030524+00:00'
 subtasks:
 - T020
 - T021
 - T022
 - T023
-agent: claude
+agent: "claude:sonnet-4-6:python-pedro:implementer"
+shell_pid: "6774"
 history:
 - at: '2026-05-31T11:44:22Z'
   event: created
@@ -391,3 +395,7 @@ Before marking WP05 as `for_review`:
 - [ ] `mypy src/specify_cli/upgrade/migrations/m_3_2_8_default_charter_pack.py
   --strict` — no type errors.
 - [ ] No files outside `owned_files` were modified.
+
+## Activity Log
+
+- 2026-05-31T14:19:32Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=6774 – Assigned agent via action command
