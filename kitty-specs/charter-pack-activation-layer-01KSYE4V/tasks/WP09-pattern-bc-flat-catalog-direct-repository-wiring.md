@@ -23,8 +23,8 @@ subtasks:
 - T041
 - T042
 - T043
-agent: "claude:sonnet-4-6:reviewer-renata:reviewer"
-shell_pid: "205562"
+agent: "claude:sonnet-4-6:python-pedro:implementer"
+shell_pid: "319643"
 history:
 - at: '2026-05-31T11:44:22Z'
   event: created
@@ -359,3 +359,5 @@ grep -r "MissionStepRepository" src/ --include="*.py" \
 - 2026-05-31T14:43:03Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=6774 – Ready for review: all 10 call-site propagation tests pass. test_agent_action_implement_passes_acknowledge_default_false is a pre-existing worktree-context false failure unrelated to WP09.
 - 2026-05-31T14:47:27Z – claude:sonnet-4-6:reviewer-renata:reviewer – shell_pid=205562 – Started review via action command
 - 2026-05-31T15:08:39Z – claude:sonnet-4-6:reviewer-renata:reviewer – shell_pid=205562 – Moved to planned
+- 2026-05-31T15:10:29Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=319643 – Started implementation via action command
+- 2026-05-31T15:10:46Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=319643 – Cycle-2: removed resolve_mission_steps from __all__ in charter/resolver.py
