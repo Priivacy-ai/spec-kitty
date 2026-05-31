@@ -520,3 +520,4 @@ Before marking WP07 as `for_review`:
 - 2026-05-31T14:19:41Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=6774 – Assigned agent via action command
 - 2026-05-31T14:30:56Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=6774 – Ready for review: ConsistencyReport + run_consistency_check implemented with unknown-reference detection (FR-011), cross-kind DRG edge validation (FR-012), duplicate/kind-violation detection, and performance test < 2s (NFR-003). All 7 tests pass. Ruff and mypy strict clean.
 - 2026-05-31T14:31:19Z – claude:sonnet-4-6:reviewer-renata:reviewer – shell_pid=95404 – Started review via action command
+- 2026-05-31T14:35:18Z – claude:sonnet-4-6:reviewer-renata:reviewer – shell_pid=95404 – Moved to planned
