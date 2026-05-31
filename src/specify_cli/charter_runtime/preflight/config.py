@@ -16,8 +16,10 @@ Behaviour:
 * Missing ``preflight`` section → default config.
 * Corrupt YAML / unreadable file → default config (best-effort; we never
   break unrelated commands because the config is malformed).
-* Non-bool values for ``preflight.enabled`` / ``preflight.auto_refresh`` → coerced via ``bool()``,
-  matching the lenient policy of the merge-config loader.
+* Null / value-less ``preflight.enabled`` → default ``True``. A missing value
+  is a reset-to-default, not a safety-gate opt-out.
+* Other non-bool values for ``preflight.enabled`` / ``preflight.auto_refresh`` → coerced via
+  ``bool()``, matching the lenient policy of the merge-config loader.
 """
 
 from __future__ import annotations
@@ -75,6 +77,6 @@ def load_preflight_config(repo_root: Path) -> PreflightConfig:
     raw_enabled = section.get("enabled", True)
     raw_auto_refresh = section.get("auto_refresh", False)
     return PreflightConfig(
-        enabled=bool(raw_enabled),
+        enabled=True if raw_enabled is None else bool(raw_enabled),
         auto_refresh=bool(raw_auto_refresh),
     )
