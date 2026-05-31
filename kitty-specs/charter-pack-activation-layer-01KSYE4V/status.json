@@ -1,7 +1,7 @@
 {
-  "event_count": 54,
-  "last_event_id": "01KSZ6V12M446SX5DQM0CQJCHG",
-  "materialized_at": "2026-05-31T14:26:07.060350+00:00",
+  "event_count": 56,
+  "last_event_id": "01KSZ73W19MNHGBBBS94AD1BAK",
+  "materialized_at": "2026-05-31T14:30:56.809773+00:00",
   "mission_number": "",
   "mission_slug": "charter-pack-activation-layer-01KSYE4V",
   "mission_type": "software-dev",
@@ -12,8 +12,8 @@
     "claimed": 0,
     "done": 0,
     "for_review": 1,
-    "in_progress": 5,
-    "in_review": 0,
+    "in_progress": 4,
+    "in_review": 1,
     "planned": 0
   },
   "work_packages": {
@@ -60,11 +60,11 @@
       "last_transition_at": "2026-05-31T14:19:36.282422+00:00"
     },
     "WP07": {
-      "actor": "claude:sonnet-4-6:python-pedro:implementer",
+      "actor": "user",
       "force_count": 1,
-      "lane": "in_progress",
-      "last_event_id": "01KSZ6F7MRQ8HAQZ0H3AMRM81A",
-      "last_transition_at": "2026-05-31T14:19:40.567955+00:00"
+      "lane": "for_review",
+      "last_event_id": "01KSZ73W19MNHGBBBS94AD1BAK",
+      "last_transition_at": "2026-05-31T14:30:56.809773+00:00"
     },
     "WP08": {
       "actor": "user",
@@ -88,11 +88,11 @@
       "last_transition_at": "2026-05-31T14:19:49.329369+00:00"
     },
     "WP11": {
-      "actor": "user",
+      "actor": "claude:sonnet-4-6:reviewer-renata:reviewer",
       "force_count": 1,
-      "lane": "for_review",
-      "last_event_id": "01KSZ6V12M446SX5DQM0CQJCHG",
-      "last_transition_at": "2026-05-31T14:26:07.060350+00:00"
+      "lane": "in_review",
+      "last_event_id": "01KSZ6VQQK3KN2JGP20TXA4KEH",
+      "last_transition_at": "2026-05-31T14:26:30.259185+00:00"
     }
   }
 }
