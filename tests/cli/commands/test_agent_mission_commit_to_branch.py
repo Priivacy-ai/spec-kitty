@@ -1,0 +1,127 @@
+"""Regression tests for mission artifact commit handling."""
+
+from __future__ import annotations
+
+import io
+import subprocess
+from pathlib import Path
+
+import pytest
+from rich.console import Console
+
+import specify_cli.cli.commands.agent.mission as mission_module
+from specify_cli.cli.commands.agent.mission import _commit_to_branch
+
+pytestmark = pytest.mark.git_repo
+
+
+def _run_git(repo: Path, *args: str) -> str:
+    return subprocess.run(
+        ["git", *args],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
+
+def _init_repo(repo: Path) -> None:
+    _run_git(repo, "init")
+    _run_git(repo, "config", "user.email", "test@example.com")
+    _run_git(repo, "config", "user.name", "Test User")
+    (repo / "plan.md").write_text("# Plan\n")
+    _run_git(repo, "add", "plan.md")
+    _run_git(repo, "commit", "-m", "Initial plan")
+    _run_git(repo, "checkout", "-b", "mission/work")
+
+
+def test_commit_to_branch_treats_empty_safe_commit_as_benign(tmp_path: Path) -> None:
+    _init_repo(tmp_path)
+    plan_file = tmp_path / "plan.md"
+    head_before = _run_git(tmp_path, "rev-parse", "HEAD")
+
+    _commit_to_branch(
+        plan_file,
+        "001-demo",
+        "plan",
+        tmp_path,
+        "mission/work",
+        json_output=True,
+    )
+
+    assert _run_git(tmp_path, "rev-parse", "HEAD") == head_before
+
+
+def test_commit_to_branch_legacy_called_process_empty_commit_does_not_print_success(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _init_repo(tmp_path)
+    plan_file = tmp_path / "plan.md"
+    output = io.StringIO()
+
+    def fake_safe_commit(**_kwargs: object) -> None:
+        raise subprocess.CalledProcessError(
+            1,
+            ["git", "commit"],
+            stderr="nothing to commit, working tree clean",
+        )
+
+    monkeypatch.setattr(mission_module, "safe_commit", fake_safe_commit)
+    monkeypatch.setattr(
+        mission_module,
+        "console",
+        Console(file=output, force_terminal=False, color_system=None, width=120),
+    )
+
+    _commit_to_branch(
+        plan_file,
+        "001-demo",
+        "plan",
+        tmp_path,
+        "mission/work",
+        json_output=False,
+    )
+
+    rendered = output.getvalue()
+    assert "Plan unchanged, no commit needed" in rendered
+    assert "Plan committed" not in rendered
+
+
+def test_commit_to_branch_still_commits_changed_artifact(tmp_path: Path) -> None:
+    _init_repo(tmp_path)
+    plan_file = tmp_path / "plan.md"
+    plan_file.write_text("# Plan\n\nUpdated.\n")
+
+    _commit_to_branch(
+        plan_file,
+        "001-demo",
+        "plan",
+        tmp_path,
+        "mission/work",
+        json_output=True,
+    )
+
+    assert _run_git(tmp_path, "log", "-1", "--pretty=%s") == "Add plan for feature 001-demo"
+
+
+def test_commit_to_branch_reraises_empty_safe_commit_shape_when_artifact_is_dirty(tmp_path: Path) -> None:
+    _init_repo(tmp_path)
+    plan_file = tmp_path / "plan.md"
+    plan_file.write_text("# Plan\n\nUpdated.\n")
+
+    hook = tmp_path / ".git" / "hooks" / "pre-commit"
+    hook.write_text("#!/bin/sh\nexit 1\n")
+    hook.chmod(0o755)
+
+    with pytest.raises(RuntimeError, match="safe_commit: git commit failed"):
+        _commit_to_branch(
+            plan_file,
+            "001-demo",
+            "plan",
+            tmp_path,
+            "mission/work",
+            json_output=True,
+        )
+
+    assert _run_git(tmp_path, "status", "--porcelain", "--", "plan.md") == "M plan.md"
