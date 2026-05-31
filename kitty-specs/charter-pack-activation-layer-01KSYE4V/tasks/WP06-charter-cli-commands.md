@@ -609,3 +609,4 @@ Before marking WP06 as `for_review`:
 - 2026-05-31T14:19:36Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=6774 – Assigned agent via action command
 - 2026-05-31T14:33:33Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=6774 – Ready for review: WP06 implements charter activate/deactivate/list/pack CLI commands, fixes FR-014 reader gap, adds 30 tests. All pass, ruff clean.
 - 2026-05-31T14:33:58Z – claude:sonnet-4-6:reviewer-renata:reviewer – shell_pid=114664 – Started review via action command
+- 2026-05-31T14:36:00Z – claude:sonnet-4-6:reviewer-renata:reviewer – shell_pid=114664 – Review passed: charter CLI commands activate/deactivate/list/pack implemented, FR-014 reader gap fixed
