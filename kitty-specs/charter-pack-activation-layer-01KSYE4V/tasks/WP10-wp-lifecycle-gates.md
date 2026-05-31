@@ -13,12 +13,16 @@ tracker_refs: []
 planning_base_branch: pr/charter-doctrine-mission-type-configuration
 merge_target_branch: pr/charter-doctrine-mission-type-configuration
 branch_strategy: Planning artifacts for this mission were generated on pr/charter-doctrine-mission-type-configuration. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into pr/charter-doctrine-mission-type-configuration unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-charter-pack-activation-layer-01KSYE4V
+base_commit: 43af0827cf1ceecfc5327594776a23bb3ba2844c
+created_at: '2026-05-31T14:19:49.322202+00:00'
 subtasks:
 - T044
 - T045
 - T046
 - T047
 agent: claude
+shell_pid: '6774'
 history:
 - at: '2026-05-31T11:44:22Z'
   event: created
