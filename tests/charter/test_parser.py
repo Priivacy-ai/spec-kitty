@@ -292,7 +292,7 @@ We believe in clear specifications."""
         from pathlib import Path
 
 
-        charter_path = Path(".kittify/memory/charter.md")
+        charter_path = Path(".kittify/charter/charter.md")
         if not charter_path.exists():
             pytest.skip("Real charter not found")
 

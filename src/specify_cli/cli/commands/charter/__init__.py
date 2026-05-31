@@ -64,6 +64,7 @@ from specify_cli.cli.commands.charter.lint import charter_lint  # noqa: F401
 from specify_cli.cli.commands.charter._status_collectors import (  # noqa: F401
     _collect_charter_sync_status,
     _collect_generated_input_status,
+    _collect_governance_reference_status,
     _collect_manifest_status,
     _collect_org_layer_status,
     _collect_provenance_status,
@@ -156,6 +157,7 @@ __all__ = [
     # Status collectors
     "_collect_charter_sync_status",
     "_collect_generated_input_status",
+    "_collect_governance_reference_status",
     "_collect_manifest_status",
     "_collect_provenance_status",
     "_summarize_evidence",

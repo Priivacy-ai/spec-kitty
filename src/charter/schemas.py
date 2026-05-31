@@ -114,6 +114,11 @@ class DoctrineSelectionConfig(BaseModel):
     charter's fenced YAML block; consumed by WP04 renderer when building the
     ``Project authority paths:`` section. Default empty preserves backwards
     compatibility (NFR-005): existing YAML without this key parses unchanged."""
+    governance_references: list[str] = Field(default_factory=list)
+    """Repository-relative supporting governance documents that should be
+    included in charter context as required reading (e.g.
+    ``spec/constitution.md``). These are supporting references only:
+    ``.kittify/charter/charter.md`` remains the runtime governance center."""
 
 
 class GovernanceConfig(BaseModel):
@@ -192,6 +197,7 @@ class ExtractionMetadata(BaseModel):
 _OPTIONAL_EMPTY_OMIT_KEYS: frozenset[str] = frozenset({
     "references",                        # Directive.references (cross-link list)
     "authority_paths",                   # DoctrineSelectionConfig.authority_paths
+    "governance_references",             # DoctrineSelectionConfig.governance_references
     # WP01 (charter-mediated-doctrine-selection): additive `selected_<kind>`
     # parity fields. Keep empty values out of emitted YAML so existing
     # serialized fixtures and user charters stay byte-identical pre-/post-

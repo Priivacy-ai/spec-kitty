@@ -18,7 +18,11 @@ Governance is built on three layers. Only the first layer is human-edited; the o
 
 ### Layer 1: Charter (`charter.md`)
 
-The single authoritative policy document. It lives at `.kittify/charter/charter.md` and is written in markdown. You create it through the interview process or write it by hand. This is the only governance file you should ever edit directly.
+The single authoritative Spec Kitty runtime policy document. It lives at `.kittify/charter/charter.md` and is written in markdown. You create it through the interview process or write it by hand. This is the only Spec Kitty governance file you should ever edit directly.
+
+If your project already has a public governance document such as `spec/constitution.md`, keep it
+there and reference it from `charter.md`; do not copy it into `.kittify/` unless your project
+deliberately wants a mirror policy.
 
 ### Layer 2: Extracted Config (YAML files)
 
@@ -34,6 +38,16 @@ Machine-readable config derived deterministically from your charter. These files
 `charter synthesize` can then promote project-local doctrine artifacts into `.kittify/doctrine/`.
 Current `charter generate` does not copy doctrine pages into an authoritative `library/*.md`
 tree; runtime context resolves doctrine through the reference manifest and doctrine service.
+
+Supporting public governance documents are declared in the charter as repository-relative paths:
+
+```yaml
+governance_references:
+  - spec/constitution.md
+```
+
+These references are required reading in `charter context` output. `charter status` warns if a
+declared file is missing, absolute, or resolves outside the repository root.
 
 ### How the Layers Connect
 
@@ -180,6 +194,7 @@ This reports:
 - **stale** -- The charter has been edited since the last sync
 
 When status shows "stale", agents may be working with outdated policy. Run sync to fix it.
+Status also reports missing supporting governance references declared by `governance_references`.
 
 ---
 
@@ -252,6 +267,19 @@ Running generate without an interview produces generic defaults. The charter is 
 ### Working with a Stale Charter
 
 If you edit `charter.md` but forget to sync, agents will work with outdated policy from the previous extraction. Run `spec-kitty charter status --json` to check, and `spec-kitty charter sync --json` to fix.
+
+### Enforcing Public-Charter Equality
+
+Do not require `spec/constitution.md` and `.kittify/charter/charter.md` to be markdown-equal
+unless your project explicitly chooses that mirror policy. Spec Kitty treats external governance
+docs as supporting context and `.kittify/charter/charter.md` as the runtime governance center.
+
+### Keeping Constitution-Era Paths
+
+Do not use `.kittify/memory/constitution.md`, `.kittify/constitution/constitution.md`, or
+`.kittify/constitution/{governance,directives,metadata}.yaml` as current runtime paths. Migrate
+current policy into `.kittify/charter/charter.md`; move any still-useful public document to a
+normal repo path such as `spec/constitution.md` and declare it in `governance_references`.
 
 ---
 

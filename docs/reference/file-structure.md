@@ -40,8 +40,8 @@ Contains Spec Kitty configuration, templates, and project memory.
 │   │   └── mission.yaml
 │   └── documentation/
 │       └── mission.yaml
-└── memory/                       # Project memory
-    └── charter.md           # Project principles (optional)
+└── charter/                      # Charter governance
+    └── charter.md                # Project principles (optional)
 ```
 
 ### Key Files
@@ -50,7 +50,7 @@ Contains Spec Kitty configuration, templates, and project memory.
 |------|---------|
 | `templates/*.md` | Templates used by `/spec-kitty.specify`, `/spec-kitty.plan`, etc. |
 | `missions/*/mission.yaml` | Mission-specific configuration and phases |
-| `memory/charter.md` | Project-wide principles referenced by all commands |
+| `charter/charter.md` | Project-wide principles referenced by governed commands |
 
 ---
 

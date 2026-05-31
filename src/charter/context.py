@@ -32,6 +32,10 @@ from charter.context_renderers import (
 from charter.context_renderers.fetch_stanza import (
     fetch_stanza_lines as _shared_fetch_stanza_lines,
 )
+from charter.governance_references import (
+    collect_governance_reference_status,
+    render_governance_references,
+)
 from charter.language_scope import infer_repo_languages
 from charter.schemas import DoctrineSelectionConfig
 from doctrine.agent_profiles import AgentProfile, AgentProfileRepository
@@ -600,6 +604,16 @@ def _render_bootstrap_text(
     if authority_block:
         lines.append("")
         lines.append(authority_block)
+
+    reference_block = ""
+    if repo_root is not None and doctrine_selection is not None:
+        reference_block = render_governance_references(
+            repo_root,
+            doctrine_selection.governance_references,
+        )
+    if reference_block:
+        lines.append("")
+        lines.append(reference_block)
 
     # WP04 (FR-001) — action-critical charter section bodies.  When a
     # heading is absent from the charter the renderer emits a fetch
@@ -2088,6 +2102,12 @@ def _render_compact_governance(
     authority_block = render_authority_paths(repo_root, doctrine_selection)
     if authority_block:
         augmented_blocks.append(authority_block)
+    reference_block = render_governance_references(
+        repo_root,
+        doctrine_selection.governance_references,
+    )
+    if reference_block:
+        augmented_blocks.append(reference_block)
 
     if action:
         charter_path = repo_root / KITTIFY_DIRNAME / "charter" / "charter.md"
@@ -2438,7 +2458,16 @@ def build_charter_context_json(
         "org_charter": (
             dict(org_charter_block) if org_charter_block is not None else dict(_EMPTY_ORG_CHARTER)
         ),
+        "governance_references": [],
     }
+    selection = _load_doctrine_selection(repo_root)
+    payload["governance_references"] = [
+        status.to_dict()
+        for status in collect_governance_reference_status(
+            repo_root,
+            selection.governance_references,
+        )
+    ]
 
     if normalized not in BOOTSTRAP_ACTIONS:
         payload["mode"] = "compact"

@@ -9,7 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-No notable changes yet.
+### Added
+
+- Charter governance references: `governance_references` declarations in `charter.md`
+  now surface supporting public governance docs in `charter context` text/JSON and
+  `charter status` diagnostics, with repo-root-scoped path safety.
+
+### Fixed
+
+- `charter generate --force` now refuses to overwrite symlinked `charter.md` paths,
+  preventing silent writes through symlink targets.
+
+### Documentation
+
+- Clarified that `.kittify/charter/charter.md` is the Spec Kitty runtime governance
+  center, while public docs such as `spec/constitution.md` are supporting context
+  rather than alternate authoritative charter paths.
+- Added migration guidance for constitution-era `.kittify/memory/constitution.md`
+  and `.kittify/constitution/*` layouts.
 
 ## [3.2.0rc30] - 2026-05-29
 

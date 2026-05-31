@@ -231,6 +231,44 @@ class TestBuildContextV2:
         assert "Tactics:" in result.text
         assert "tdd-red-green-refactor" in result.text
 
+    def test_text_contains_governance_reference_diagnostics(self, tmp_path: Path) -> None:
+        """Declared supporting governance docs appear in rendered context."""
+        _setup_fixture_repo(tmp_path)
+        (tmp_path / "spec").mkdir()
+        (tmp_path / "spec" / "constitution.md").write_text("# Public Constitution\n", encoding="utf-8")
+        (tmp_path / ".kittify" / "charter" / "charter.md").write_text(
+            _CHARTER_MD
+            + textwrap.dedent("""\
+
+                ## Supporting Governance
+
+                ```yaml
+                governance_references:
+                  - spec/constitution.md
+                  - docs/missing-governance.md
+                ```
+            """),
+            encoding="utf-8",
+        )
+
+        patched_load_graph = _write_graph_fixture(tmp_path)
+
+        with (
+            patch("doctrine.drg.loader.load_graph", side_effect=patched_load_graph),
+            patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("doctrine.drg.validator.assert_valid"),
+        ):
+            result = build_charter_context(
+                tmp_path,
+                action="implement",
+                depth=2,
+                mark_loaded=False,
+            )
+
+        assert "Required Governance Reading:" in result.text
+        assert "spec/constitution.md" in result.text
+        assert "Missing governance reference docs/missing-governance.md" in result.text
+
     def test_selected_directive_closure_contributes_action_context(self, tmp_path: Path) -> None:
         """Selected directives contribute their DRG closure even without action-scope edges."""
         _setup_fixture_repo(tmp_path)

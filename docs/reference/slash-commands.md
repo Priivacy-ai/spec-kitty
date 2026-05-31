@@ -241,7 +241,7 @@ Syntax format in this reference:
 - Writes project-wide principles to the charter file.
 
 **Creates/updates**:
-- `.kittify/memory/charter.md`
+- `.kittify/charter/charter.md`
 
 **Related**: `/spec-kitty.specify`, `/spec-kitty.plan`
 
