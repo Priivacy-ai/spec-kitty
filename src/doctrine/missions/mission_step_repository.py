@@ -30,17 +30,25 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any, Protocol
 
 from ruamel.yaml import YAML
 
 from .models import MissionStep
 
-if TYPE_CHECKING:
-    # Avoid a hard import-time dependency on charter.pack_context.
-    # At runtime the caller passes the real PackContext; at type-check time
-    # we only need the structural interface (pack_roots, repo_root).
-    from charter.pack_context import PackContext
+
+class _PackContextLike(Protocol):
+    """Narrow structural protocol for the pack-context object.
+
+    Replaces the ``TYPE_CHECKING`` import of ``charter.pack_context.PackContext``
+    (C-004: doctrine must not import from charter).  Only the two attributes
+    accessed by this module are declared; the protocol is intentionally
+    minimal so that any conforming object — including test fakes — satisfies
+    it without needing to depend on the charter package.
+    """
+
+    pack_roots: tuple[Path, ...]
+    repo_root: Path
 
 __all__ = [
     "StepKey",
@@ -171,7 +179,7 @@ class MissionStepRepository:
         self,
         mission_type_id: str,
         step_id: str,
-        pack_context: PackContext | None = None,
+        pack_context: _PackContextLike | None = None,
     ) -> MissionStep | None:
         """Return the highest-precedence MissionStep for the given compound key.
 
@@ -213,7 +221,7 @@ class MissionStepRepository:
     def resolve_all_for_mission_type(
         self,
         mission_type_id: str,
-        pack_context: PackContext | None = None,
+        pack_context: _PackContextLike | None = None,
     ) -> dict[str, MissionStep]:
         """Return all steps for a mission type, with shadowing applied.
 
@@ -277,7 +285,7 @@ class MissionStepRepository:
     # ------------------------------------------------------------------
 
     def _collect_org_step_ids(
-        self, mission_type_id: str, pack_context: PackContext
+        self, mission_type_id: str, pack_context: _PackContextLike
     ) -> set[str]:
         """Collect step_ids discoverable in org packs for *mission_type_id*.
 
@@ -307,7 +315,7 @@ class MissionStepRepository:
         self,
         mission_type_id: str,
         step_id: str,
-        pack_context: PackContext,
+        pack_context: _PackContextLike,
     ) -> MissionStep | None:
         """Iterate over ``pack_context.pack_roots`` in order.
 
@@ -337,7 +345,7 @@ class MissionStepRepository:
         self,
         mission_type_id: str,
         step_id: str,
-        pack_context: PackContext,
+        pack_context: _PackContextLike,
     ) -> MissionStep | None:
         """Check ``.kittify/overrides/mission-steps/{mission_type_id}/{step_id}/step.yaml``.
 

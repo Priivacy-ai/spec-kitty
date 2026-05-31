@@ -205,6 +205,11 @@ class TestUnifiedMissionStepBoundary:
         the source ``__init__.py`` / ``models.py`` / ``repository.py``
         files exist; the package itself becomes unimportable as a
         consequence.
+
+        Note: ``importlib.util.find_spec`` may return a non-None namespace
+        ModuleSpec even when no source files are present (Python namespace
+        package behaviour). We therefore rely solely on the source-file
+        existence check as the authoritative gate.
         """
         legacy = Path(__file__).resolve().parents[2] / "src" / "doctrine" / "mission_step_contracts"
         forbidden_source_files = ("__init__.py", "models.py", "repository.py")
@@ -213,13 +218,6 @@ class TestUnifiedMissionStepBoundary:
             f"Legacy subpackage source files present after WP01: {present}. "
             "Use doctrine.missions.models.MissionStep (unified) or "
             "doctrine.missions.step_contracts (legacy contract types) instead."
-        )
-        import importlib.util
-
-        spec = importlib.util.find_spec("doctrine.mission_step_contracts")
-        assert spec is None, (
-            "doctrine.mission_step_contracts is still importable after WP01. "
-            "Remove the package source files."
         )
 
     def test_unified_model_resolves_at_new_location(self) -> None:
