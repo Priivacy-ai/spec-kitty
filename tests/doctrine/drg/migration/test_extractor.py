@@ -82,6 +82,9 @@ def _count_inline_refs(doctrine_root: Path) -> int:  # noqa: C901
                 continue
             total += len(data.get("tactic_refs", []) or [])
             total += len(data.get("directive_refs", []) or [])
+            for ref in data.get("references", []) or []:
+                if ref.get("type", "") not in _SKIP_REF_TYPES:
+                    total += 1
             for opp in data.get("opposed_by", []) or []:
                 if opp.get("type", "") not in _SKIP_REF_TYPES:
                     total += 1
@@ -104,8 +107,26 @@ def _count_inline_refs(doctrine_root: Path) -> int:  # noqa: C901
             data = _yaml.load(index_path)
             if not data:
                 continue
-            for field in ("directives", "tactics", "styleguides", "toolguides", "procedures"):
+            for field in (
+                "directives",
+                "tactics",
+                "styleguides",
+                "toolguides",
+                "procedures",
+                "agent_profiles",
+            ):
                 total += len(data.get(field, []) or [])
+
+    # Agent profiles
+    profiles_dir = doctrine_root / "agent_profiles" / "built-in"
+    if profiles_dir.is_dir():
+        for path in sorted(profiles_dir.glob("*.agent.yaml")):
+            data = _yaml.load(path)
+            if not data:
+                continue
+            context_sources = data.get("context-sources", {}) or {}
+            total += len(context_sources.get("directives", []) or [])
+            total += len(data.get("tactic-references", []) or [])
 
     return total
 
@@ -180,6 +201,17 @@ class TestExtractArtifactEdges:
         assert "directive:DIRECTIVE_031" in targets
         assert "directive:DIRECTIVE_032" in targets
 
+    def test_curated_paradigm_tactic_edges_are_preserved(self) -> None:
+        """Curated paradigm tactic edges should survive regeneration."""
+        _, edges = extract_artifact_edges(DOCTRINE_ROOT)
+        targets = {
+            e.target
+            for e in edges
+            if e.source == "paradigm:specification-by-example"
+            and e.relation == Relation.REQUIRES
+        }
+        assert "tactic:usage-examples-sync" in targets
+
     def test_tactic_references_produce_suggests(self) -> None:
         """Tactic references should produce 'suggests' edges."""
         _, edges = extract_artifact_edges(DOCTRINE_ROOT)
@@ -206,6 +238,22 @@ class TestExtractArtifactEdges:
         targets = {e.target for e in issue_triage_suggests}
         assert "template:agent-brief-template" in targets
         assert "template:out-of-scope-record-template" in targets
+
+    def test_agent_profile_references_produce_requires(self) -> None:
+        """Agent profile context and tactic references should enter the DRG."""
+        nodes, edges = extract_artifact_edges(DOCTRINE_ROOT)
+        assert any(
+            n.urn == "agent_profile:debugger-debbie"
+            and n.kind == NodeKind.AGENT_PROFILE
+            for n in nodes
+        )
+        targets = {
+            e.target
+            for e in edges
+            if e.source == "agent_profile:debugger-debbie"
+            and e.relation == Relation.REQUIRES
+        }
+        assert "tactic:five-paradigm-parallel-debugging" in targets
 
     def test_walks_all_built_in_directives(self) -> None:
         nodes, _ = extract_artifact_edges(DOCTRINE_ROOT)
@@ -283,6 +331,21 @@ class TestExtractActionEdges:
         ]
         # specify has 2 directives + 1 tactic = 3 scope edges
         assert len(specify_edges) == 3
+
+    def test_agent_profile_scope_edges(self) -> None:
+        """Action indexes may scope built-in agent profiles."""
+        nodes, edges = extract_action_edges(DOCTRINE_ROOT)
+        assert any(
+            n.urn == "agent_profile:retrospective-facilitator"
+            and n.kind == NodeKind.AGENT_PROFILE
+            for n in nodes
+        )
+        assert any(
+            e.source == "action:software-dev/retrospect"
+            and e.target == "agent_profile:retrospective-facilitator"
+            and e.relation == Relation.SCOPE
+            for e in edges
+        )
 
     def test_tasks_action_has_seven_refs(self) -> None:
         """The tasks action index should produce 7 scope edges."""
@@ -487,7 +550,14 @@ class TestEdgeCountCompleteness:
             action_edges = [e for e in edges if e.source == action_urn]
 
             expected_count = 0
-            for field in ("directives", "tactics", "styleguides", "toolguides", "procedures"):
+            for field in (
+                "directives",
+                "tactics",
+                "styleguides",
+                "toolguides",
+                "procedures",
+                "agent_profiles",
+            ):
                 expected_count += len(data.get(field, []) or [])
 
             assert len(action_edges) == expected_count, (
