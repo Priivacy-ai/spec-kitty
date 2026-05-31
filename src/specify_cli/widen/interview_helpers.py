@@ -299,7 +299,11 @@ def render_already_widened_prompt(
             if review is not None:
                 with contextlib.suppress(Exception):
                     widen_store.remove_pending(decision_id)
-            return
+                return
+            console.print(
+                "[yellow]Decision is still pending. Choose another action or !cancel.[/yellow]"
+            )
+            continue
 
         elif raw.lower() in ("d", "defer", "[d]efer"):
             # Defer path — remove from store only after write-back succeeds.
@@ -324,7 +328,7 @@ def render_already_widened_prompt(
                 console.print(
                     f"[red]Write-back failed: {exc}. Your deferral was NOT saved.[/red]"
                 )
-                return
+                continue
             console.print("[yellow]Decision deferred.[/yellow]")
             with contextlib.suppress(Exception):
                 widen_store.remove_pending(decision_id)
@@ -347,7 +351,7 @@ def render_already_widened_prompt(
                 console.print(
                     f"[red]Write-back failed: {exc}. Your answer was NOT saved.[/red]"
                 )
-                return
+                continue
             console.print(
                 "[green]Resolved locally.[/green] "
                 "SaaS will close the Slack thread shortly."

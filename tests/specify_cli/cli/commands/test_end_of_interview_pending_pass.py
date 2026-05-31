@@ -493,14 +493,20 @@ class TestRenderAlreadyWidenedPrompt:
         mock_dm.resolve_decision.assert_called_once()
         assert store.list_pending() == []
 
-    def test_local_answer_write_back_failure_keeps_pending(self, tmp_path: Path) -> None:
+    def test_local_answer_write_back_failure_keeps_pending_and_reprompts(self, tmp_path: Path) -> None:
         """Regression G0085: failed already-widened local resolve leaves pending."""
+        import typer
+
         store, entry = self._make_store_with_entry(tmp_path)
         console = _capture_console()
         mock_dm = MagicMock()
         mock_dm.resolve_decision.side_effect = _make_decision_error()
+        inputs = iter(["PostgreSQL", "!cancel"])
 
-        with patch.object(console, "input", return_value="PostgreSQL"):
+        with (
+            patch.object(console, "input", side_effect=lambda _prompt="": next(inputs)),
+            pytest.raises(typer.Exit),
+        ):
             render_already_widened_prompt(
                 question_text="Which database?",
                 decision_id="dec-001",
@@ -546,15 +552,20 @@ class TestRenderAlreadyWidenedPrompt:
         mock_dm.defer_decision.assert_called_once()
         assert store.list_pending() == []
 
-    def test_defer_write_back_failure_keeps_pending(self, tmp_path: Path) -> None:
+    def test_defer_write_back_failure_keeps_pending_and_reprompts(self, tmp_path: Path) -> None:
         """Regression G0085: failed already-widened direct defer leaves pending."""
+        import typer
+
         store, entry = self._make_store_with_entry(tmp_path)
         console = _capture_console()
         mock_dm = MagicMock()
         mock_dm.defer_decision.side_effect = _make_decision_error()
-        inputs_iter = iter(["d", "not ready"])
+        inputs_iter = iter(["d", "not ready", "!cancel"])
 
-        with patch.object(console, "input", side_effect=inputs_iter):
+        with (
+            patch.object(console, "input", side_effect=inputs_iter),
+            pytest.raises(typer.Exit),
+        ):
             render_already_widened_prompt(
                 question_text="Tech stack?",
                 decision_id="dec-001",
@@ -646,6 +657,8 @@ class TestRenderAlreadyWidenedPrompt:
 
     def test_fetch_path_keeps_pending_when_review_is_cancelled(self, tmp_path: Path) -> None:
         """A non-terminal already-widened review cancellation leaves pending state retryable."""
+        import typer
+
         store, entry = self._make_store_with_entry(tmp_path)
         console = Console(highlight=False, markup=False)
         mock_dm = MagicMock()
@@ -658,9 +671,15 @@ class TestRenderAlreadyWidenedPrompt:
             thread_url="https://slack.com/abc", messages=["Use PG"], truncated=False,
         )
 
-        with patch.object(console, "input", return_value="f"), \
+        inputs_iter = iter(["f", "!cancel"])
+
+        with patch.object(console, "input", side_effect=inputs_iter), \
              patch.object(console, "print"), \
-             patch("specify_cli.widen.review.run_candidate_review", MagicMock(return_value=None)):
+             patch(
+                 "specify_cli.widen.review.run_candidate_review",
+                 MagicMock(return_value=None),
+             ), \
+             pytest.raises(typer.Exit):
             render_already_widened_prompt(
                 question_text="DB choice?",
                 decision_id="dec-001",
