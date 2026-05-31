@@ -94,6 +94,29 @@ def _read_last_line(path: Path) -> dict | None:  # type: ignore[type-arg]
         return None
 
 
+def _read_completed_record(path: Path, invocation_id: str) -> dict | None:  # type: ignore[type-arg]
+    """Return the first completed event for *invocation_id*, wherever it appears."""
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            for raw_line in f:
+                line = raw_line.strip()
+                if not line:
+                    continue
+                try:
+                    data = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if (
+                    isinstance(data, dict)
+                    and data.get("event") == "completed"
+                    and data.get("invocation_id") == invocation_id
+                ):
+                    return data
+    except OSError:
+        return None
+    return None
+
+
 def append_to_index(repo_root: Path, record: dict) -> None:  # type: ignore[type-arg]
     """Append a lightweight index entry for one invocation.
 
@@ -200,16 +223,12 @@ def _iter_records_from_index(
             continue
         # Determine open / closed by checking the per-invocation file.
         inv_file = events_dir / f"{inv_id}.jsonl"
-        last = _read_last_line(inv_file)
         record: dict = dict(entry)  # type: ignore[type-arg]
-        if (
-            last is not None
-            and last.get("event") == "completed"
-            and last.get("invocation_id") == inv_id
-        ):
-            record["completed_at"] = last.get("completed_at")
-            record["outcome"] = last.get("outcome")
-            record["evidence_ref"] = last.get("evidence_ref")
+        completed = _read_completed_record(inv_file, inv_id)
+        if completed is not None:
+            record["completed_at"] = completed.get("completed_at")
+            record["outcome"] = completed.get("outcome")
+            record["evidence_ref"] = completed.get("evidence_ref")
             record["status"] = "closed"
         else:
             record["status"] = "open"
@@ -249,17 +268,13 @@ def _iter_records_from_dir(
             continue
         if profile_filter and started.get("profile_id") != profile_filter:
             continue
-        last = _read_last_line(path)
         record: dict = dict(started)  # type: ignore[type-arg]
         inv_id = record.get("invocation_id")
-        if (
-            last is not None
-            and last.get("event") == "completed"
-            and last.get("invocation_id") == inv_id
-        ):
-            record["completed_at"] = last.get("completed_at")
-            record["outcome"] = last.get("outcome")
-            record["evidence_ref"] = last.get("evidence_ref")
+        completed = _read_completed_record(path, inv_id) if isinstance(inv_id, str) else None
+        if completed is not None:
+            record["completed_at"] = completed.get("completed_at")
+            record["outcome"] = completed.get("outcome")
+            record["evidence_ref"] = completed.get("evidence_ref")
             record["status"] = "closed"
         else:
             record["status"] = "open"
