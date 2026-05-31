@@ -143,7 +143,7 @@ def scan_spec_file(feature_dir: Path) -> InferenceResult:
             triggered=False,
         )
 
-    content = spec_path.read_text(encoding="utf-8")
+    content = spec_path.read_text(encoding="utf-8", errors="replace")
     return score_spec_for_bulk_edit(content)
 
 

@@ -156,3 +156,29 @@ class TestScanSpecFile:
 
         assert result.score == 0
         assert result.triggered is False
+
+    def test_scan_non_utf8_spec_does_not_raise(self, tmp_path: Path) -> None:
+        spec_file = tmp_path / "spec.md"
+        spec_file.write_bytes(
+            b"\xff\xfeRegular feature work with no occurrence-sensitive wording."
+        )
+
+        result = scan_spec_file(tmp_path)
+
+        assert result.score == 0
+        assert result.triggered is False
+
+    def test_scan_non_utf8_spec_preserves_ascii_bulk_edit_signals(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        spec_file = tmp_path / "spec.md"
+        spec_file.write_bytes(
+            b"\xff\xfeRename across the codebase with find-and-replace."
+        )
+
+        result = scan_spec_file(tmp_path)
+
+        assert result.triggered is True
+        assert ("rename across", 3) in result.matched_phrases
+        assert ("find-and-replace", 3) in result.matched_phrases
