@@ -196,3 +196,4 @@ Use `tmp_path` and write synthetic `status.events.jsonl` to simulate in-flight m
 - 2026-05-30T21:20:13Z – claude:opus:reviewer-renata:reviewer – shell_pid=3462566 – Started review via action command
 - 2026-05-31T17:31:54Z – claude:opus:reviewer-renata:reviewer – shell_pid=3462566 – Re-queueing stalled review (previous reviewer PID dead)
 - 2026-05-31T17:32:01Z – claude:sonnet:reviewer-renata:reviewer – shell_pid=491930 – Started review via action command
+- 2026-05-31T17:35:56Z – claude:sonnet:reviewer-renata:reviewer – shell_pid=491930 – Review passed: charter_activate.py fully wired into charter activate CLI (charter_app.add_typer). 34/34 tests pass, mypy --strict clean, ruff clean. FR-008 contract satisfied: warnings emitted before write, non-blocking activation, output includes mission_slug/wp_id/current_lane. No dead code, no synthetic fixtures. Implementation commits already merged into mission branch before review restart.
