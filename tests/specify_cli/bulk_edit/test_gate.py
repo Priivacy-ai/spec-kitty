@@ -15,7 +15,7 @@ from specify_cli.bulk_edit.gate import (
 )
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 
 def _write_meta(feature_dir: Path, meta: dict) -> None:

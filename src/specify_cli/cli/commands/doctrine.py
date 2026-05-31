@@ -38,7 +38,7 @@ import json
 from pathlib import Path
 
 import typer
-from doctrine.artifact_kinds import ArtifactKind
+from charter.drg import ArtifactKind
 from rich.console import Console
 from rich.table import Table
 

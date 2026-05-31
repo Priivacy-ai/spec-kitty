@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
+
+pytestmark = [pytest.mark.unit]
 
 from specify_cli.cli.commands.workflow import app
 

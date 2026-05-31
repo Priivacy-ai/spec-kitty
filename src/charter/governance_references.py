@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 __all__ = [
-    "GovernanceReferenceStatus",
     "collect_governance_reference_status",
     "render_governance_references",
 ]
