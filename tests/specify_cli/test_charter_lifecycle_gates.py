@@ -17,6 +17,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
+from charter.exceptions import CharterActivationError
 from specify_cli.cli.commands.agent.mission import app as mission_app
 from specify_cli.cli.commands.agent.workflow import app as workflow_app
 
@@ -367,3 +368,89 @@ class TestResolutionCommandInErrorMessage:
 
         assert result.exit_code != 0
         assert "charter activate agent-profile researcher-robbie" in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# Test 7 — CharterActivationError is raised (FR-019)
+# ---------------------------------------------------------------------------
+
+
+class TestCharterActivationErrorRaised:
+    """FR-019: CharterActivationError must be raised (not just printed) when the gate fires."""
+
+    def test_finalize_tasks_raises_charter_activation_error(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """finalize-tasks gate raises CharterActivationError for deactivated profile.
+
+        Intercepts CharterActivationError at the module level so the locally-
+        imported name inside the gate function resolves to the tracking subclass.
+        """
+        feature_dir, _ = _build_finalize_tasks_feature(
+            tmp_path,
+            agent_profile="researcher-robbie",
+        )
+        mock_proj_ctx = _make_project_context(
+            activated_agent_profiles=frozenset({"python-pedro"})
+        )
+
+        instances_raised: list[CharterActivationError] = []
+
+        class _TrackingError(CharterActivationError):
+            def __init__(self, *args: object, **kwargs: object) -> None:
+                super().__init__(*args, **kwargs)
+                instances_raised.append(self)
+
+        with (
+            _finalize_tasks_context(tmp_path, feature_dir, mock_proj_ctx),
+            patch("charter.exceptions.CharterActivationError", _TrackingError),
+        ):
+            result = runner.invoke(mission_app, ["finalize-tasks", "--mission", "099-test"])
+
+        assert result.exit_code != 0, (
+            f"Expected non-zero exit, got {result.exit_code}\n{result.stdout}"
+        )
+        assert instances_raised, (
+            "CharterActivationError was never raised by the finalize-tasks gate; "
+            "the gate must raise it (FR-019), not just call typer.Exit(1)"
+        )
+
+    def test_implement_raises_charter_activation_error(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """agent action implement gate raises CharterActivationError for deactivated profile."""
+        mock_wp = MagicMock()
+        mock_wp.frontmatter = (
+            "work_package_id: WP01\n"
+            "agent_profile: researcher-robbie\n"
+            "title: Test WP\n"
+        )
+        mock_proj_ctx = _make_project_context(
+            activated_agent_profiles=frozenset({"python-pedro"})
+        )
+
+        instances_raised: list[CharterActivationError] = []
+
+        class _TrackingError(CharterActivationError):
+            def __init__(self, *args: object, **kwargs: object) -> None:
+                super().__init__(*args, **kwargs)
+                instances_raised.append(self)
+
+        with (
+            _implement_context(tmp_path, mock_wp, mock_proj_ctx),
+            patch("charter.exceptions.CharterActivationError", _TrackingError),
+        ):
+            result = runner.invoke(
+                workflow_app,
+                ["implement", "WP01", "--agent", "claude", "--mission", "099-test"],
+            )
+
+        assert result.exit_code != 0, (
+            f"Expected non-zero exit, got {result.exit_code}\n{result.stdout}"
+        )
+        assert instances_raised, (
+            "CharterActivationError was never raised by the implement gate; "
+            "the gate must raise it (FR-019), not just call typer.Exit(1)"
+        )
