@@ -193,6 +193,17 @@ _MIGRATIONS: dict[int, Callable[[Path, bool], MigrationResult]] = {}
 PRE_PHASE7_MIGRATION_SENTINEL = "(pre-phase7-migration)"
 
 
+def _compute_v2_synthesis_manifest_hash(manifest_data: dict[str, object]) -> str:
+    """Hash a migrated v2 synthesis manifest using verifier-visible defaults."""
+    fields_for_hash = {
+        k: v for k, v in manifest_data.items() if k != "manifest_hash"
+    }
+    fields_for_hash["schema_version"] = "2"
+    fields_for_hash.setdefault("mission_id", None)
+    fields_for_hash.setdefault("built_in_only", False)
+    return hashlib.sha256(canonical_yaml(fields_for_hash)).hexdigest()
+
+
 def _register_migration(
     from_version: int,
     fn: Callable[[Path, bool], MigrationResult],
@@ -304,20 +315,11 @@ def migrate_v1_to_v2(bundle_root: Path, dry_run: bool = False) -> MigrationResul
 
         if isinstance(manifest_data, dict) and manifest_data.get("schema_version") != "2":
             manifest_data.setdefault("synthesizer_version", PRE_PHASE7_MIGRATION_SENTINEL)
-
-            # Compute manifest_hash over all fields except manifest_hash itself.
-            fields_for_hash = {
-                k: v for k, v in manifest_data.items() if k != "manifest_hash"
-            }
-            # Set schema_version to "2" in the hash-input fields too, so the
-            # hash covers the post-migration state.
-            fields_for_hash["schema_version"] = "2"
-            fields_for_hash.setdefault("mission_id", None)
-            fields_for_hash.setdefault("built_in_only", False)
-            manifest_hash = hashlib.sha256(canonical_yaml(fields_for_hash)).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
+            manifest_data.setdefault("mission_id", None)
+            manifest_data.setdefault("built_in_only", False)
+            manifest_hash = _compute_v2_synthesis_manifest_hash(manifest_data)
 
             manifest_data["schema_version"] = "2"
-            manifest_data.setdefault("mission_id", None)
             manifest_data["manifest_hash"] = manifest_hash
             manifest_data.setdefault("built_in_only", False)
 

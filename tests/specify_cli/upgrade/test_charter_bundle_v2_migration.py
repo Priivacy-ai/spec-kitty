@@ -125,12 +125,14 @@ def _create_v2_bundle(project_path: Path) -> None:
 
     fields_for_hash = {
         "schema_version": "2",
+        "mission_id": None,
         "created_at": "2026-01-01T00:00:00Z",
         "run_id": "01TEST000000000000000000001",
         "adapter_id": "fixture",
         "adapter_version": "1.0.0",
         "synthesizer_version": "3.2.6",
         "artifacts": [],
+        "built_in_only": False,
     }
     manifest_hash = hashlib.sha256(canonical_yaml(fields_for_hash)).hexdigest()  # noqa: TID251 — migration preserves existing manifest hash verbatim, not charter.hasher.hash_content() freshness
 
@@ -138,6 +140,7 @@ def _create_v2_bundle(project_path: Path) -> None:
         charter_dir / "synthesis-manifest.yaml",
         {
             "schema_version": "2",
+            "mission_id": None,
             "created_at": "2026-01-01T00:00:00Z",
             "run_id": "01TEST000000000000000000001",
             "adapter_id": "fixture",
@@ -145,6 +148,7 @@ def _create_v2_bundle(project_path: Path) -> None:
             "synthesizer_version": "3.2.6",
             "manifest_hash": manifest_hash,
             "artifacts": [],
+            "built_in_only": False,
         },
     )
 
@@ -246,17 +250,21 @@ def test_apply_updates_metadata_yaml(tmp_path: Path) -> None:
 
 def test_apply_manifest_gets_v2_fields(tmp_path: Path) -> None:
     """apply() upgrades synthesis-manifest.yaml to v2 with schema_version and manifest_hash."""
+    from charter.synthesizer.manifest import load_yaml, verify_manifest_hash
+
     _create_v1_bundle(tmp_path)
     CharterBundleV2Migration().apply(tmp_path)
 
-    manifest = _load_yaml(
-        tmp_path / ".kittify" / "charter" / "synthesis-manifest.yaml"
-    )
+    manifest_path = tmp_path / ".kittify" / "charter" / "synthesis-manifest.yaml"
+    manifest = _load_yaml(manifest_path)
     assert manifest["schema_version"] == "2"
     assert "synthesizer_version" in manifest
+    assert manifest["mission_id"] is None
+    assert manifest["built_in_only"] is False
     assert len(manifest["manifest_hash"]) == 64, (
         f"manifest_hash should be a 64-char hex digest, got: {manifest['manifest_hash']!r}"
     )
+    verify_manifest_hash(load_yaml(manifest_path))
 
 
 def test_apply_manifest_hash_verifies_after_v2_migration(tmp_path: Path) -> None:

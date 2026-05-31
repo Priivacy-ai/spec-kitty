@@ -318,16 +318,22 @@ def test_run_migration_v1_returns_migration_result(tmp_path: Path) -> None:
 
 
 def test_run_migration_v1_backfills_manifest_and_sidecar_fields(tmp_path: Path) -> None:
+    from charter.synthesizer.manifest import load_yaml, verify_manifest_hash
+
     _write_v1_bundle(tmp_path)
 
     result = run_migration(1, tmp_path)
 
     assert result.errors == []
-    manifest = (tmp_path / "synthesis-manifest.yaml").read_text(encoding="utf-8")
+    manifest_path = tmp_path / "synthesis-manifest.yaml"
+    manifest = manifest_path.read_text(encoding="utf-8")
     sidecar = (tmp_path / "provenance" / "directive-use-prs.yaml").read_text(
         encoding="utf-8"
     )
     assert "synthesizer_version: (pre-phase7-migration)" in manifest
+    assert "mission_id:" in manifest
+    assert "built_in_only: false" in manifest
+    verify_manifest_hash(load_yaml(manifest_path))
     assert "synthesizer_version: (pre-phase7-migration)" in sidecar
     assert "synthesis_run_id: (pre-phase7-migration)" in sidecar
     assert "source_input_ids:" in sidecar
