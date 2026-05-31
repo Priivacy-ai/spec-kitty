@@ -121,7 +121,17 @@ from specify_cli.charter_runtime.preflight.cli import charter_preflight as _char
 
 charter_app.command("preflight")(_charter_preflight)
 
+# WP14 (FR-016): ``charter mission-type`` sub-group — re-export for downstream
+# imports and test fixtures.
+from specify_cli.cli.commands.charter.mission_type import (  # noqa: E402, F401
+    charter_mission_type_app,
+    charter_mission_type_list,
+)
+
 __all__ = [
+    # WP14 mission-type sub-group
+    "charter_mission_type_app",
+    "charter_mission_type_list",
     # Test-patch surface (legacy ``patch("…charter.X", …)`` consumers)
     "find_repo_root",
     "_dm_service",

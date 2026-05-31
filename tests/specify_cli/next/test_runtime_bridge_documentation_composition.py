@@ -18,9 +18,12 @@ from pathlib import Path
 
 import pytest
 
+import sys
+import types
+from unittest.mock import MagicMock, patch
+
 from specify_cli.mission_step_contracts.executor import _ACTION_PROFILE_DEFAULTS
 from specify_cli.next.runtime_bridge import (
-    _COMPOSED_ACTIONS_BY_MISSION,
     _check_composed_action_guard,
 )
 
@@ -47,10 +50,44 @@ _GATE_ARTIFACT = {
 }
 
 
-def test_documentation_in_composed_actions() -> None:
-    """FR-002 + FR-015: documentation entry present with the 6 expected verbs."""
-    assert "documentation" in _COMPOSED_ACTIONS_BY_MISSION
-    assert _COMPOSED_ACTIONS_BY_MISSION["documentation"] == frozenset(_DOC_ACTIONS)
+def test_documentation_in_composed_actions(tmp_path: Path) -> None:
+    """FR-002 + FR-015: documentation entry present with the 6 expected verbs.
+
+    After WP07 (_COMPOSED_ACTIONS_BY_MISSION removed), the action sequence is
+    sourced from charter.resolve_action_sequence.  This test mocks the
+    MissionTypeRepository so the test remains self-contained.
+    """
+    doc_mt = MagicMock()
+    doc_mt.id = "documentation"
+    doc_mt.action_sequence = list(_DOC_ACTIONS)
+    doc_mt.extends = None
+
+    mock_repo = MagicMock()
+    mock_repo.get.side_effect = lambda k: doc_mt if k == "documentation" else None
+
+    mock_repo_cls = MagicMock()
+    mock_repo_cls.default.return_value = mock_repo
+
+    fake_module = types.ModuleType("doctrine.missions.mission_type_repository")
+    fake_module.MissionTypeRepository = mock_repo_cls  # type: ignore[attr-defined]
+
+    saved = sys.modules.get("doctrine.missions.mission_type_repository")
+    sys.modules["doctrine.missions.mission_type_repository"] = fake_module
+    try:
+        from charter.mission_type_profiles import resolve_action_sequence
+
+        with patch(
+            "charter.mission_type_profiles.existing_mission_types",
+            return_value=["documentation", "plan", "research", "software-dev"],
+        ):
+            result = resolve_action_sequence("documentation", tmp_path)
+    finally:
+        if saved is None:
+            sys.modules.pop("doctrine.missions.mission_type_repository", None)
+        else:
+            sys.modules["doctrine.missions.mission_type_repository"] = saved
+
+    assert set(result) == frozenset(_DOC_ACTIONS)
 
 
 @pytest.mark.parametrize("action,profile", list(_PROFILE_DEFAULTS.items()))

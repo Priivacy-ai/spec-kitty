@@ -213,6 +213,7 @@ _Charter management commands_
 │ resynthesize  Regenerate a bounded set of project-local doctrine artifacts   │
 │               (partial resynthesis).                                         │
 │ lint          Detect decay in charter artifacts via graph-native checks.     │
+│ mission-type  Mission type commands (activated types only).                  │
 │ preflight     Verify charter-derived state before a governed session begins. │
 │ bundle        Charter bundle validation commands.                            │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -354,6 +355,42 @@ _Charter bundle validation commands._
 │ --severity              TEXT  Minimum severity (low/medium/high/critical)    │
 │                               [default: low]                                 │
 │ --help                        Show this message and exit.                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter mission-type
+
+_Mission type commands (activated types only)._
+
+```
+ Usage: spec-kitty charter mission-type [OPTIONS] COMMAND [ARGS]...
+
+ Mission type commands (activated types only).
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ list  List activated mission types for the current project (FR-016).         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter mission-type list
+
+```
+ Usage: spec-kitty charter mission-type list [OPTIONS]
+
+ List activated mission types for the current project (FR-016).
+
+ Returns only mission types that are explicitly activated in this
+ project's charter.  To see all doctrine-layer types regardless of
+ activation state, use ``spec-kitty doctrine mission-type list``.
+
+ Output columns (table): ID, SOURCE, DISPLAY NAME, ACTION SEQUENCE.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json          Output as JSON.                                              │
+│ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1077,12 +1114,14 @@ _Manage org-layer doctrine packs_
 │ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ fetch     Fetch org doctrine pack(s) from their configured remote sources.   │
-│ new       Scaffold a stub doctrine artifact YAML (FR-016).                   │
-│ validate  Validate project-layer doctrine artifacts against their schemas    │
-│           (FR-017).                                                          │
-│ pack      Validate or assemble doctrine packs.                               │
-│ org       Manage org-layer doctrine pack authoring (init, validate).         │
+│ fetch         Fetch org doctrine pack(s) from their configured remote        │
+│               sources.                                                       │
+│ new           Scaffold a stub doctrine artifact YAML (FR-016).               │
+│ validate      Validate project-layer doctrine artifacts against their        │
+│               schemas (FR-017).                                              │
+│ pack          Validate or assemble doctrine packs.                           │
+│ org           Manage org-layer doctrine pack authoring (init, validate).     │
+│ mission-type  Mission type commands.                                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1258,6 +1297,44 @@ _Validate or assemble doctrine packs._
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json          Emit machine-readable JSON instead of rich text.             │
+│ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctrine mission-type
+
+_Mission type commands._
+
+```
+ Usage: spec-kitty doctrine mission-type [OPTIONS] COMMAND [ARGS]...
+
+ Mission type commands.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ list  List all mission types in the doctrine layer (FR-013).                 │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctrine mission-type list
+
+```
+ Usage: spec-kitty doctrine mission-type list [OPTIONS]
+
+ List all mission types in the doctrine layer (FR-013).
+
+ Enumerates built-in, org, and project mission types regardless of
+ activation state.  The DRG resolution chain applies: built-in →
+ org → project.  An org type with the same id shadows the built-in
+ type; a project type shadows the org type.
+
+ Use ``spec-kitty charter mission-type list`` to see only types that
+ are currently activated for this project.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json          Output as JSON.                                              │
 │ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -1973,6 +2050,30 @@ _View available Spec Kitty mission types. Mission types are selected per mission
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty mission show
+
+```
+ Usage: spec-kitty mission show [OPTIONS] MISSION_TYPE_ID
+
+ Show the fully resolved MissionType definition for this project (FR-017).
+
+ Displays all fields of the activated mission type:
+ id, display_name, action_sequence, governance_refs, template_set,
+ source_layer, extends.
+
+ Exits with code 1 and lists registered IDs when ``mission_type_id``
+ is not an activated type.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    mission_type_id      TEXT  Mission type ID (e.g. software-dev).         │
+│                                 [required]                                   │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json          Output as JSON.                                              │
+│ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty mission run
 
 ```
@@ -2014,20 +2115,24 @@ _View available Spec Kitty mission types. Mission types are selected per mission
 
 ## spec-kitty mission-type
 
-_View available Spec Kitty mission types. Mission types are selected per mission run during /spec-kitty.specify._
+_Inspect mission types for this project._
 
 ```
  Usage: spec-kitty mission-type [OPTIONS] COMMAND [ARGS]...
 
- View available Spec Kitty mission types. Mission types are selected per
- mission run during /spec-kitty.specify.
+ Inspect mission types for this project.
+
+ Use 'list' to see activated types (charter-filtered) and 'show <id>' for a
+ full resolved definition.
+
+ Mission types are selected per mission run during /spec-kitty.specify.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ list     List all available missions with their source                       │
-│          (project/built-in).                                                 │
+│ list     List activated mission types for the current project                │
+│          (FR-016).                                                           │
 │ current  Show currently active mission for a mission                         │
 │          (auto-detects mission from cwd).                                    │
 │ info     Show details for a specific mission without                         │
@@ -2036,8 +2141,11 @@ _View available Spec Kitty mission types. Mission types are selected per mission
 │          brief.                                                              │
 │ run      Start (or attach to) a runtime for a                                │
 │          project-authored custom mission definition.                         │
+│ close    Close a mission. Wraps FR-016 lifecycle teardown.                   │
 │ switch   [REMOVED] Switch active mission - this command was    (deprecated)  │
 │          removed in v0.8.0.                                                  │
+│ show     Show the fully resolved MissionType definition for                  │
+│          this project (FR-017).                                              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2122,6 +2230,30 @@ _View available Spec Kitty mission types. Mission types are selected per mission
  List all available missions with their source (project/built-in).
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty mission-type show
+
+```
+ Usage: spec-kitty mission-type show [OPTIONS] MISSION_TYPE_ID
+
+ Show the fully resolved MissionType definition for this project (FR-017).
+
+ Displays all fields of the activated mission type:
+ id, display_name, action_sequence, governance_refs, template_set,
+ source_layer, extends.
+
+ Exits with code 1 and lists registered IDs when ``mission_type_id``
+ is not an activated type.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    mission_type_id      TEXT  Mission type ID (e.g. software-dev).         │
+│                                 [required]                                   │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json          Output as JSON.                                              │
 │ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```

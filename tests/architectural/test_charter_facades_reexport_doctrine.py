@@ -33,9 +33,10 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         ("DEFAULT_ROLE_CAPABILITIES", "doctrine.agent_profiles.capabilities"),
     ],
     "charter.mission_steps": [
-        ("MissionStep", "doctrine.mission_step_contracts.models"),
-        ("MissionStepContract", "doctrine.mission_step_contracts.models"),
-        ("MissionStepContractRepository", "doctrine.mission_step_contracts.repository"),
+        ("MissionStep", "doctrine.missions.models"),
+        ("MissionStepContract", "doctrine.missions.step_contracts"),
+        ("MissionStepContractRepository", "doctrine.missions.step_contracts"),
+        ("MissionStepContractStep", "doctrine.missions.step_contracts"),
     ],
     "charter.drg": [
         ("ArtifactKind", "doctrine.artifact_kinds"),

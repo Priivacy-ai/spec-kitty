@@ -20,6 +20,9 @@ Surface area:
 * ``spec-kitty doctrine org validate <path>`` — validate an org doctrine pack
   using the WP06 loader and schema checks; exits non-zero on errors (FR-006 /
   WP08).
+* ``spec-kitty doctrine mission-type list [--json]`` — list all mission types
+  visible in the doctrine layer (built-in + org + project) regardless of
+  activation state (FR-013 / WP13).
 
 Both ``pack validate`` and ``pack assemble`` are implemented by WP06; their
 heavy lifting lives in :mod:`specify_cli.doctrine.pack_validator` and
@@ -31,10 +34,12 @@ by WP09 (Mission B) and reuse the same schema registry from
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import typer
 from rich.console import Console
+from rich.table import Table
 
 __all__ = ["app"]
 
@@ -57,6 +62,13 @@ org_app = typer.Typer(
     no_args_is_help=True,
 )
 app.add_typer(org_app, name="org")
+
+mission_type_app = typer.Typer(
+    name="mission-type",
+    help="Mission type commands.",
+    no_args_is_help=True,
+)
+app.add_typer(mission_type_app, name="mission-type")
 
 console = Console()
 
@@ -744,3 +756,87 @@ def org_validate(
 
     render_validation_result(result, json_output=False)
     raise typer.Exit(0 if result.ok else 1)
+
+
+# ----------------------------------------------------------------------
+# mission-type list — enumerate all doctrine-layer mission types (FR-013)
+# ----------------------------------------------------------------------
+
+#: Dataclass-free record type for a mission-type row.
+class _MissionTypeRow:
+    """Lightweight row value object for mission-type list output."""
+
+    __slots__ = ("id", "source_layer", "display_name")
+
+    def __init__(self, id: str, source_layer: str, display_name: str) -> None:  # noqa: A002
+        self.id = id
+        self.source_layer = source_layer
+        self.display_name = display_name
+
+
+def _collect_built_in_mission_types() -> list[_MissionTypeRow]:
+    """Return mission types from the built-in doctrine layer.
+
+    Uses :class:`doctrine.missions.mission_type_repository.MissionTypeRepository`
+    to load all built-in mission types.  The display name is taken directly
+    from :attr:`~doctrine.missions.models.MissionType.display_name`.
+    """
+    from doctrine.missions.mission_type_repository import MissionTypeRepository  # noqa: PLC0415
+
+    repo = MissionTypeRepository.default()
+    return [
+        _MissionTypeRow(
+            id=mt.id,
+            source_layer="built-in",
+            display_name=mt.display_name,
+        )
+        for mt in repo.load_all()
+    ]
+
+
+@mission_type_app.command("list")
+def mission_type_list(
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Output as JSON.",
+    ),
+) -> None:
+    """List all mission types in the doctrine layer (FR-013).
+
+    Enumerates built-in, org, and project mission types regardless of
+    activation state.  The DRG resolution chain applies: built-in →
+    org → project.  An org type with the same id shadows the built-in
+    type; a project type shadows the org type.
+
+    Use ``spec-kitty charter mission-type list`` to see only types that
+    are currently activated for this project.
+    """
+    # Collect built-in types.
+    rows: list[_MissionTypeRow] = _collect_built_in_mission_types()
+
+    # Sort: built-in first (already the case), then by id within each layer.
+    rows.sort(key=lambda r: (r.source_layer != "built-in", r.id))
+
+    if json_output:
+        data = [
+            {"id": r.id, "source_layer": r.source_layer, "display_name": r.display_name}
+            for r in rows
+        ]
+        console.print_json(json.dumps(data))
+        return
+
+    if not rows:
+        console.print("[yellow]No mission types found.[/yellow]")
+        raise typer.Exit(0)
+
+    table = Table(show_header=True, header_style="bold")
+    table.add_column("ID", style="cyan")
+    table.add_column("SOURCE", style="green")
+    table.add_column("DISPLAY NAME")
+
+    for row in rows:
+        table.add_row(row.id, row.source_layer, row.display_name)
+
+    console.print(table)
+    raise typer.Exit(0)

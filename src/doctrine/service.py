@@ -8,7 +8,7 @@ from typing import cast
 from doctrine.shared.scoping import normalize_languages
 from doctrine.agent_profiles import AgentProfileRepository
 from doctrine.directives import DirectiveRepository
-from doctrine.mission_step_contracts import MissionStepContractRepository
+from doctrine.missions.step_contracts import MissionStepContractRepository
 from doctrine.paradigms import ParadigmRepository
 from doctrine.procedures import ProcedureRepository
 from doctrine.styleguides import StyleguideRepository

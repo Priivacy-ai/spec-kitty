@@ -13,7 +13,9 @@ import logging
 import typer
 from rich.console import Console
 
+from specify_cli.cli.commands.charter.activate import charter_activate_app
 from specify_cli.cli.commands.charter_bundle import app as charter_bundle_app
+from specify_cli.cli.commands.charter.mission_type import charter_mission_type_app
 
 logger = logging.getLogger("specify_cli.cli.commands.charter")
 
@@ -34,6 +36,12 @@ app = charter_app
 # ``spec-kitty charter bundle validate`` from the unified CLI surface
 # (FR-013).
 charter_app.add_typer(charter_bundle_app, name="bundle")
+
+# WP14 (FR-016): ``spec-kitty charter mission-type list`` — activated types only.
+charter_app.add_typer(charter_mission_type_app, name="mission-type")
+
+# WP15 (FR-008): ``spec-kitty charter activate mission-type <id>`` — in-flight warning.
+charter_app.add_typer(charter_activate_app, name="activate")
 
 #: Module-level Rich console for all subcommand handlers.
 console = Console()

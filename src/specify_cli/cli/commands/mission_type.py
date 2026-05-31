@@ -1,4 +1,16 @@
-"""Mission management CLI commands."""
+"""Mission management CLI commands.
+
+The top-level ``spec-kitty mission-type`` group exposes:
+
+* ``mission-type list [--json]``   — alias for ``charter mission-type list``
+  (activated types only, charter-filtered).
+* ``mission-type show <id> [--json]`` — fully resolved doctrine MissionType
+  definition for an activated mission type.
+
+The older commands in this module (``current``, ``info``, ``create``,
+``run``, ``close``, ``switch``) remain on the ``spec-kitty mission``
+surface; they operate on per-mission metadata, not doctrine mission types.
+"""
 
 from __future__ import annotations
 
@@ -26,7 +38,12 @@ from specify_cli.mission import (
 
 app = typer.Typer(
     name="mission-type",
-    help="View available Spec Kitty mission types. Mission types are selected per mission run during /spec-kitty.specify.",
+    help=(
+        "Inspect mission types for this project.\n\n"
+        "Use 'list' to see activated types (charter-filtered) and "
+        "'show <id>' for a full resolved definition.\n\n"
+        "Mission types are selected per mission run during /spec-kitty.specify."
+    ),
     no_args_is_help=True,
 )
 
@@ -725,3 +742,121 @@ def switch_cmd(
     console.print()
     console.print("[dim]See: https://github.com/your-org/spec-kitty#mission-types[/dim]")
     raise typer.Exit(1)
+
+
+# ---------------------------------------------------------------------------
+# FR-016: spec-kitty mission-type list (alias for charter mission-type list)
+# FR-017: spec-kitty mission-type show <id>
+# ---------------------------------------------------------------------------
+
+
+@app.command("list")
+def list_mission_types(
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Output as JSON.",
+    ),
+) -> None:
+    """List activated mission types for the current project (FR-016).
+
+    Alias for ``spec-kitty charter mission-type list``.
+
+    Returns only mission types that are explicitly activated in this
+    project's charter (activation-filtered).  For all doctrine-layer
+    types regardless of activation, use ``spec-kitty doctrine mission-type list``.
+    """
+    from specify_cli.cli.commands.charter.mission_type import (  # noqa: PLC0415
+        charter_mission_type_list,
+    )
+
+    charter_mission_type_list(json_output=json_output)
+
+
+@app.command("show")
+def show_mission_type(
+    mission_type_id: str = typer.Argument(..., help="Mission type ID (e.g. software-dev)."),
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Output as JSON.",
+    ),
+) -> None:
+    """Show the fully resolved MissionType definition for this project (FR-017).
+
+    Displays all fields of the activated mission type:
+    id, display_name, action_sequence, governance_refs, template_set,
+    source_layer, extends.
+
+    Exits with code 1 and lists registered IDs when ``mission_type_id``
+    is not an activated type.
+    """
+    from charter.mission_type_profiles import (  # noqa: PLC0415
+        UnknownMissionTypeError,
+        existing_mission_types,
+        resolve_action_sequence,
+    )
+    from doctrine.missions.mission_type_repository import MissionTypeRepository  # noqa: PLC0415
+
+    repo_root = Path.cwd()
+    activated_ids = existing_mission_types(repo_root)
+
+    if mission_type_id not in activated_ids:
+        err = UnknownMissionTypeError(mission_type_id, registered_ids=activated_ids)
+        console.print(f"[red]Error:[/red] {err}")
+        raise typer.Exit(1)
+
+    repo = MissionTypeRepository.default()
+    mt = repo.get(mission_type_id)
+    if mt is None:
+        err = UnknownMissionTypeError(mission_type_id, registered_ids=activated_ids)
+        console.print(f"[red]Error:[/red] {err}")
+        raise typer.Exit(1)
+
+    try:
+        action_seq = resolve_action_sequence(mission_type_id, repo_root)
+    except UnknownMissionTypeError:
+        action_seq = list(mt.action_sequence)
+
+    if json_output:
+        data = {
+            "id": mt.id,
+            "display_name": mt.display_name,
+            "action_sequence": action_seq,
+            "governance_refs": list(mt.governance_refs),
+            "template_set": mt.template_set,
+            "source_layer": "built-in",
+            "extends": mt.extends,
+        }
+        print(json.dumps(data, indent=2))
+        raise typer.Exit(0)
+
+    # Human-readable panel output.
+    from rich.panel import Panel as _Panel  # noqa: PLC0415
+
+    lines: list[str] = [
+        f"[cyan]ID:[/cyan] {mt.id}",
+        f"[cyan]Display Name:[/cyan] {mt.display_name}",
+        "[cyan]Source Layer:[/cyan] built-in",
+    ]
+    if mt.extends:
+        lines.append(f"[cyan]Extends:[/cyan] {mt.extends}")
+    lines.append(f"[cyan]Action Sequence:[/cyan] {', '.join(action_seq)}")
+    if mt.governance_refs:
+        lines.append(f"[cyan]Governance Refs:[/cyan] {', '.join(mt.governance_refs)}")
+    else:
+        lines.append("[cyan]Governance Refs:[/cyan] (none)")
+    if mt.template_set:
+        tset_parts = [f"{k}={v}" for k, v in sorted(mt.template_set.items())]
+        lines.append(f"[cyan]Template Set:[/cyan] {', '.join(tset_parts)}")
+    else:
+        lines.append("[cyan]Template Set:[/cyan] (none)")
+
+    console.print(
+        _Panel(
+            "\n".join(lines),
+            title=f"Mission Type · {mt.id}",
+            border_style="cyan",
+        )
+    )
+    raise typer.Exit(0)

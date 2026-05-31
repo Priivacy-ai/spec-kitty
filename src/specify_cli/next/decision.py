@@ -523,22 +523,6 @@ def _build_prompt_safe(
     return path
 
 
-# Composed-action registry: actions dispatched via the composition layer rather
-# than file-based prompt templates. ``_build_prompt_or_error`` uses this to
-# emit a marker prompt file (satisfying the ``Decision.__post_init__`` invariant
-# that kind=step requires a non-empty, on-disk ``prompt_file``) without trying
-# to resolve a template that does not exist.
-#
-# Note: this mirrors ``_COMPOSED_ACTIONS_BY_MISSION`` in ``runtime_bridge`` —
-# the two must stay in sync. ``runtime_bridge`` cannot be imported here
-# (circular dependency), so a minimal read-only copy lives here.
-_COMPOSED_ACTIONS_FOR_PROMPT: dict[str, frozenset[str]] = {
-    "software-dev": frozenset({"specify", "plan", "tasks", "implement", "review"}),
-    "research": frozenset({"scoping", "methodology", "gathering", "synthesis", "output"}),
-    "documentation": frozenset(
-        {"discover", "audit", "design", "generate", "validate", "publish", "accept"}
-    ),
-}
 
 
 def _build_prompt_or_error(
@@ -570,7 +554,17 @@ def _build_prompt_or_error(
     # lightweight marker file and return its path so callers can emit a
     # ``kind=step`` Decision without hitting the ``if prompt_file is None``
     # blocked branch in ``_map_runtime_decision``.
-    if wp_id is None and action in _COMPOSED_ACTIONS_FOR_PROMPT.get(mission_type, frozenset()):
+    _is_composed_action = False
+    try:
+        from charter.mission_type_profiles import (  # noqa: PLC0415
+            resolve_action_sequence as _charter_resolve_action_sequence,
+        )
+
+        action_sequence = _charter_resolve_action_sequence(mission_type, repo_root)
+        _is_composed_action = wp_id is None and action in action_sequence
+    except Exception:
+        pass
+    if _is_composed_action:
         composed_prompt = (
             f"# {mission_type} — {action}\n\n"
             f"This step is dispatched via composition.\n"

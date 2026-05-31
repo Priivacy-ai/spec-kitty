@@ -241,7 +241,7 @@ class TestMissionStepContractNestedDiscovery:
             MISSION_STEP_CONTRACT,
         )
 
-        from doctrine.mission_step_contracts.repository import MissionStepContractRepository
+        from doctrine.missions.step_contracts import MissionStepContractRepository
 
         repo = MissionStepContractRepository(built_in_dir=built_in)
         ids = [c.id for c in repo.list_all()]
@@ -254,7 +254,7 @@ class TestMissionStepContractNestedDiscovery:
             MISSION_STEP_CONTRACT,
         )
 
-        from doctrine.mission_step_contracts.repository import MissionStepContractRepository
+        from doctrine.missions.step_contracts import MissionStepContractRepository
 
         repo = MissionStepContractRepository(built_in_dir=built_in)
         assert repo.get("nested-action") is not None

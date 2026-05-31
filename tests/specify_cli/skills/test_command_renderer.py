@@ -1,4 +1,4 @@
-"""Tests for the command-skill renderer (WP02 — T011).
+"""Tests for the command-skill renderer (WP02 — T011; NFR-004 gate — T052).
 
 Snapshot tests cover all canonical command templates × representative agents.
 Snapshots are committed under ``tests/specify_cli/skills/__snapshots__/<agent>/``.
@@ -40,7 +40,22 @@ from specify_cli.skills.command_renderer import (
 
 pytestmark = [pytest.mark.unit]
 
-TEMPLATES_DIR = (
+# New doctrine layout: src/doctrine/missions/mission-steps/<mission_type>/
+DOCTRINE_MISSION_STEPS_DIR = (
+    Path(__file__).parent.parent.parent.parent
+    / "src"
+    / "doctrine"
+    / "missions"
+    / "mission-steps"
+)
+
+# Default mission type used in most tests.
+_DEFAULT_MISSION_TYPE = "software-dev"
+
+TEMPLATES_DIR = DOCTRINE_MISSION_STEPS_DIR / _DEFAULT_MISSION_TYPE
+
+# Old command-templates path — must NOT exist after WP02 migration.
+_LEGACY_COMMAND_TEMPLATES_DIR = (
     Path(__file__).parent.parent.parent.parent
     / "src"
     / "specify_cli"
@@ -65,19 +80,35 @@ _UPDATE = os.environ.get("PYTEST_UPDATE_SNAPSHOTS", "0") not in ("", "0", "false
 
 
 def _all_templates() -> list[Path]:
-    """Return sorted list of all canonical command-template paths."""
-    return sorted(TEMPLATES_DIR.glob("*.md"))
+    """Return sorted list of all canonical command prompt.md paths.
+
+    Under the new doctrine layout each step lives in its own sub-directory:
+    ``src/doctrine/missions/mission-steps/<mission_type>/<step_id>/prompt.md``
+    """
+    return sorted(TEMPLATES_DIR.glob("*/prompt.md"))
 
 
 def _snapshot_path(agent: str, command: str) -> Path:
     return SNAPSHOTS_DIR / agent / f"{command}.SKILL.md"
 
 
+def _command_name(template_path: Path) -> str:
+    """Derive the command name from a template path.
+
+    New doctrine layout: ``.../mission-steps/<mission_type>/<step_id>/prompt.md``
+    → command = step_id (parent directory name).
+
+    Legacy layout: ``.../command-templates/<command>.md``
+    → command = file stem.
+    """
+    return template_path.parent.name if template_path.name == "prompt.md" else template_path.stem
+
+
 def _render_and_compare(template_path: Path, agent_key: str) -> None:
     """Render *template_path* for *agent_key* and assert or update snapshot."""
     skill = render(template_path, agent_key, _TEST_VERSION)
     output = skill.to_skill_md()
-    snap = _snapshot_path(agent_key, template_path.stem)
+    snap = _snapshot_path(agent_key, _command_name(template_path))
 
     if _UPDATE:
         snap.parent.mkdir(parents=True, exist_ok=True)
@@ -100,7 +131,7 @@ def _render_and_compare(template_path: Path, agent_key: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("template_path", _all_templates(), ids=lambda p: p.stem)
+@pytest.mark.parametrize("template_path", _all_templates(), ids=_command_name)
 @pytest.mark.parametrize("agent_key", SNAPSHOT_AGENTS)
 def test_snapshot(template_path: Path, agent_key: str) -> None:
     """Representative agent renders must match their committed snapshots."""
@@ -112,7 +143,7 @@ def test_snapshot(template_path: Path, agent_key: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("template_path", _all_templates(), ids=lambda p: p.stem)
+@pytest.mark.parametrize("template_path", _all_templates(), ids=_command_name)
 @pytest.mark.parametrize("agent_key", SUPPORTED_AGENTS)
 def test_deterministic(template_path: Path, agent_key: str) -> None:
     """Rendering the same template twice produces byte-identical output."""
@@ -359,7 +390,7 @@ def test_rendered_skill_no_arguments_in_body(tmp_path: Path) -> None:
     for tmpl in _all_templates():
         skill = render(tmpl, "codex", _TEST_VERSION)
         assert "$ARGUMENTS" not in skill.body, (
-            f"$ARGUMENTS found in rendered body for {tmpl.name}"
+            f"$ARGUMENTS found in rendered body for {_command_name(tmpl)}"
         )
 
 
@@ -480,4 +511,119 @@ def test_replacement_block_constant_unchanged() -> None:
     assert expected == REPLACEMENT_BLOCK, (
         "REPLACEMENT_BLOCK has drifted from its locked value. "
         "This is a load-bearing constant — any change requires a deliberate version bump."
+    )
+
+
+# ---------------------------------------------------------------------------
+# NFR-004 gate tests: doctrine mission-steps path (T052)
+# ---------------------------------------------------------------------------
+
+
+def test_nfr004_doctrine_path_exists() -> None:
+    """NFR-004: The doctrine mission-steps directory must exist after WP02 migration.
+
+    This test is a canary — if the directory is missing, the whole deployment
+    pipeline is broken and nothing will render.
+    """
+    assert DOCTRINE_MISSION_STEPS_DIR.is_dir(), (
+        f"doctrine mission-steps directory missing: {DOCTRINE_MISSION_STEPS_DIR}\n"
+        "WP02 should have moved command-templates into this location."
+    )
+    assert TEMPLATES_DIR.is_dir(), (
+        f"software-dev mission-steps directory missing: {TEMPLATES_DIR}"
+    )
+
+
+def test_nfr004_legacy_command_templates_absent() -> None:
+    """NFR-004: The old command-templates/ path must NOT exist after WP02 migration.
+
+    The template source of truth is now ``src/doctrine/missions/mission-steps/``.
+    If the old path still exists, the migration was incomplete.
+    """
+    assert not _LEGACY_COMMAND_TEMPLATES_DIR.exists(), (
+        f"Legacy command-templates directory still exists: {_LEGACY_COMMAND_TEMPLATES_DIR}\n"
+        "WP02 should have removed it; template source is now doctrine/missions/mission-steps/."
+    )
+
+
+def test_nfr004_specify_step_renders_from_doctrine() -> None:
+    """NFR-004: The 'specify' step renders from the new doctrine path.
+
+    Given the software-dev/specify step at the new doctrine path,
+    When render() is called with the doctrine prompt.md path,
+    Then the output is the content of that file (not the old command-templates path).
+    """
+    specify_prompt = TEMPLATES_DIR / "specify" / "prompt.md"
+    assert specify_prompt.is_file(), (
+        f"software-dev/specify/prompt.md missing at: {specify_prompt}\n"
+        "WP02 should have created this file."
+    )
+
+    skill = render(specify_prompt, "codex", _TEST_VERSION)
+
+    assert skill.name == "spec-kitty.specify", (
+        f"Expected name 'spec-kitty.specify', got '{skill.name}'"
+    )
+    assert skill.source_template == specify_prompt.resolve(), (
+        f"source_template mismatch: expected {specify_prompt.resolve()}, "
+        f"got {skill.source_template}"
+    )
+    assert "$ARGUMENTS" not in skill.body, "Rendered body must not contain $ARGUMENTS"
+
+
+def test_nfr004_all_canonical_steps_render() -> None:
+    """NFR-004: All canonical steps under software-dev render without error.
+
+    This exercises the full deployment pipeline contract: every step that
+    command_installer.CANONICAL_COMMANDS references must be renderable from
+    the new doctrine path.
+    """
+    from specify_cli.skills.command_installer import CANONICAL_COMMANDS
+
+    missing: list[str] = []
+    render_errors: list[str] = []
+
+    for command in CANONICAL_COMMANDS:
+        prompt_path = TEMPLATES_DIR / command / "prompt.md"
+        if not prompt_path.is_file():
+            missing.append(command)
+            continue
+        try:
+            skill = render(prompt_path, "codex", _TEST_VERSION)
+            assert skill.name == f"spec-kitty.{command}", (
+                f"Wrong skill name for {command}: {skill.name}"
+            )
+        except Exception as exc:  # noqa: BLE001
+            render_errors.append(f"{command}: {exc}")
+
+    assert not missing, (
+        f"Canonical commands missing prompt.md in doctrine path: {missing}\n"
+        f"Expected files under: {TEMPLATES_DIR}"
+    )
+    assert not render_errors, (
+        f"Commands failed to render: {render_errors}"
+    )
+
+
+def test_nfr004_command_installer_resolves_doctrine_path() -> None:
+    """NFR-004: command_installer._resolve_template uses the doctrine path.
+
+    Verify that the installer's path resolver points into doctrine, not into
+    the old specify_cli/missions/software-dev/command-templates/ directory.
+    """
+    from specify_cli.skills.command_installer import _resolve_template
+
+    template_path = _resolve_template(Path("/unused"), "specify")
+
+    assert template_path.name == "prompt.md", (
+        f"Expected template filename 'prompt.md', got '{template_path.name}'"
+    )
+    assert "doctrine" in str(template_path), (
+        f"Resolved template path does not go through 'doctrine': {template_path}"
+    )
+    assert "command-templates" not in str(template_path), (
+        f"Resolved template path still references legacy 'command-templates': {template_path}"
+    )
+    assert template_path.is_file(), (
+        f"Resolved template path does not exist on disk: {template_path}"
     )

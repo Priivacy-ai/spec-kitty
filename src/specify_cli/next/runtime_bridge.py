@@ -824,12 +824,6 @@ def _has_raw_dependencies_field(wp_file: Path) -> bool:
 #     ``emit_status_transition`` -- this bridge writes no raw lane strings.
 #   - C-008: dispatch is hard-guarded on ``mission == "software-dev"``.
 
-_COMPOSED_ACTIONS_BY_MISSION: dict[str, frozenset[str]] = {
-    "software-dev": frozenset({"specify", "plan", "tasks", "implement", "review"}),
-    "research": frozenset({"scoping", "methodology", "gathering", "synthesis", "output"}),
-    "documentation": frozenset({"discover", "audit", "design", "generate", "validate", "publish", "accept"}),
-}
-
 # Legacy run snapshots and project-local templates may still contain the old
 # tasks substep IDs. Normalize them into the single public ``tasks`` action so
 # existing in-flight missions can advance through the composition path.
@@ -856,26 +850,41 @@ def _should_dispatch_via_composition(
     step_id: str,
     *,
     run_dir: Path | None = None,
+    repo_root: Path | None = None,
 ) -> bool:
     """Return True iff ``(mission, step_id)`` routes through composition.
 
     Order is critical and load-bearing:
 
-    1. **Built-in fast path** (PR #797 invariant): the
-       ``_COMPOSED_ACTIONS_BY_MISSION`` lookup short-circuits without loading
-       the frozen template, so built-in dispatch (e.g., ``software-dev``)
-       remains byte-identical to its pre-Phase-6 behavior.
+    1. **Live charter lookup** (FR-007 / FR-008): calls
+       ``charter.resolve_action_sequence(mission, repo_root)`` to obtain the
+       action sequence from the resolved mission-type profile.  When
+       ``repo_root`` is ``None`` (e.g., the very first ``decide_next`` call
+       before a run is started), fall through directly to the custom widening
+       path below without a charter lookup.
     2. **Custom mission widening** (Phase 6 / R-005): consulted only when
-       ``run_dir`` is provided AND the mission is NOT a built-in entry in
-       ``_COMPOSED_ACTIONS_BY_MISSION``. The active step's explicit binding is
-       read from the frozen template; a non-empty ``agent_profile`` OR
-       ``contract_ref`` triggers composition. Empty / missing bindings fall
-       through to the legacy DAG handler unchanged.
+       ``run_dir`` is provided AND the charter lookup did not already return
+       ``True``. The active step's explicit binding is read from the frozen
+       template; a non-empty ``agent_profile`` OR ``contract_ref`` triggers
+       composition. Empty / missing bindings fall through to the legacy DAG
+       handler unchanged.
     """
-    # Built-in fast path — short-circuits without touching the frozen template.
-    composed = _COMPOSED_ACTIONS_BY_MISSION.get(mission)
-    if composed is not None and _normalize_action_for_composition(step_id) in composed:
-        return True
+    # Live charter lookup path (FR-007 / FR-008).  ``repo_root`` is required;
+    # without it skip directly to the custom widening path.
+    if repo_root is not None:
+        try:
+            from charter.mission_type_profiles import (  # noqa: PLC0415
+                resolve_action_sequence as _charter_resolve_action_sequence,
+            )
+
+            action_sequence = _charter_resolve_action_sequence(mission, repo_root)
+            if _normalize_action_for_composition(step_id) in action_sequence:
+                return True
+        except Exception:
+            # Degrade gracefully: if charter is unavailable or the mission type
+            # is unknown, fall through to the custom widening path below so
+            # in-flight missions are not broken.
+            pass
 
     # Custom mission widening (R-005). ``run_dir`` is required to read the
     # frozen template; without it (e.g., on the very first decide_next call
@@ -942,7 +951,7 @@ def _resolve_runtime_contract_for_step(
     only handoff for synthesized contracts.
     """
     try:
-        from doctrine.mission_step_contracts.repository import (
+        from doctrine.missions.step_contracts import (
             MissionStepContractRepository,
         )
         from specify_cli.mission_loader.contract_synthesis import synthesize_contracts
@@ -985,8 +994,16 @@ def _composition_dispatch_inputs(
     action: str,
 ) -> tuple[str | None, Any | None]:
     """Return ``(profile_hint, contract)`` for a composition dispatch."""
-    if action in _COMPOSED_ACTIONS_BY_MISSION.get(mission, frozenset()):
-        return None, None
+    try:
+        from charter.mission_type_profiles import (  # noqa: PLC0415
+            resolve_action_sequence as _charter_resolve_action_sequence,
+        )
+
+        action_sequence = _charter_resolve_action_sequence(mission, repo_root)
+        if action in action_sequence:
+            return None, None
+    except Exception:
+        pass
     return (
         _resolve_step_agent_profile(run_dir, step_id),
         _resolve_runtime_contract_for_step(
@@ -2091,6 +2108,7 @@ def decide_next_via_runtime(  # noqa: C901
             mission_type,
             current_step_id,
             run_dir=Path(run_ref.run_dir),
+            repo_root=repo_root,
         )
     ):
         run_dir = Path(run_ref.run_dir)
