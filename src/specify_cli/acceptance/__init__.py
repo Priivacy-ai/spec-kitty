@@ -579,11 +579,19 @@ def _check_lane_gates(
     mutate_matrix: bool = True,
 ) -> None:
     """Enforce lane-based acceptance gates: branch check + acceptance matrix."""
-    try:
-        from specify_cli.lanes.persistence import read_lanes_json
+    from specify_cli.lanes.persistence import CorruptLanesError, read_lanes_json
 
+    try:
         lanes_manifest = read_lanes_json(feature_dir)
-    except Exception:
+    except CorruptLanesError as exc:
+        message = str(exc)
+        activity_issues.append(message)
+        blocked_checks.append(AcceptanceCheckDiagnostic(check="lanes_manifest", detail=message))
+        _append_skipped_lane_checks(
+            skipped_checks,
+            reason="lanes.json is corrupt or malformed",
+            include_matrix_presence=True,
+        )
         return
 
     if lanes_manifest is None:
@@ -773,6 +781,8 @@ def _build_recommended_fix_order(
         recommendations.append("Resolve open NEEDS CLARIFICATION markers.")
     if any(item.check == "acceptance_matrix" for item in blocked_checks):
         recommendations.append("Create or restore kitty-specs/<mission>/acceptance-matrix.json.")
+    if any(item.check == "lanes_manifest" for item in blocked_checks):
+        recommendations.append("Restore or regenerate kitty-specs/<mission>/lanes.json.")
     if any("Evidence:" in issue for issue in activity_issues):
         recommendations.append("Fill missing acceptance matrix evidence fields.")
     if any("Acceptance matrix verdict is" in issue for issue in activity_issues):
