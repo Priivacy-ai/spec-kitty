@@ -497,6 +497,7 @@ def _commit_to_branch(
         if "nothing to commit" in stderr or "nothing added to commit" in stderr:
             # Benign - file unchanged
             _print_artifact_unchanged(artifact_type, json_output)
+            return
         else:
             # Actual error
             _warn_commit_failed(artifact_type, file_path, e, json_output)

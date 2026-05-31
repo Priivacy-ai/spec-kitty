@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import io
 import subprocess
 from pathlib import Path
 
 import pytest
+from rich.console import Console
 
+import specify_cli.cli.commands.agent.mission as mission_module
 from specify_cli.cli.commands.agent.mission import _commit_to_branch
 
 pytestmark = pytest.mark.git_repo
@@ -47,6 +50,42 @@ def test_commit_to_branch_treats_empty_safe_commit_as_benign(tmp_path: Path) -> 
     )
 
     assert _run_git(tmp_path, "rev-parse", "HEAD") == head_before
+
+
+def test_commit_to_branch_legacy_called_process_empty_commit_does_not_print_success(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _init_repo(tmp_path)
+    plan_file = tmp_path / "plan.md"
+    output = io.StringIO()
+
+    def fake_safe_commit(**_kwargs: object) -> None:
+        raise subprocess.CalledProcessError(
+            1,
+            ["git", "commit"],
+            stderr="nothing to commit, working tree clean",
+        )
+
+    monkeypatch.setattr(mission_module, "safe_commit", fake_safe_commit)
+    monkeypatch.setattr(
+        mission_module,
+        "console",
+        Console(file=output, force_terminal=False, color_system=None, width=120),
+    )
+
+    _commit_to_branch(
+        plan_file,
+        "001-demo",
+        "plan",
+        tmp_path,
+        "mission/work",
+        json_output=False,
+    )
+
+    rendered = output.getvalue()
+    assert "Plan unchanged, no commit needed" in rendered
+    assert "Plan committed" not in rendered
 
 
 def test_commit_to_branch_still_commits_changed_artifact(tmp_path: Path) -> None:
