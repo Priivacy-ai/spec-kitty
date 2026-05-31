@@ -1,6 +1,6 @@
 """WP04 unit tests — charter-level global selection renderers.
 
-This module pins the behaviour of the 5 ``_render_selected_<kind>``
+This module pins the behaviour of the ``_render_selected_<kind>``
 helpers introduced by WP04 of mission
 ``charter-mediated-doctrine-selection-01KRTZCA``.
 
@@ -79,12 +79,18 @@ class _StubService:
     def __init__(
         self,
         *,
+        paradigms: _StubRepo | None = None,
+        directives: _StubRepo | None = None,
+        tactics: _StubRepo | None = None,
         styleguides: _StubRepo | None = None,
         toolguides: _StubRepo | None = None,
         procedures: _StubRepo | None = None,
         agent_profiles: _StubRepo | None = None,
         mission_step_contracts: _StubRepo | None = None,
     ) -> None:
+        self.paradigms = paradigms or _StubRepo()
+        self.directives = directives or _StubRepo()
+        self.tactics = tactics or _StubRepo()
         self.styleguides = styleguides or _StubRepo()
         self.toolguides = toolguides or _StubRepo()
         self.procedures = procedures or _StubRepo()
@@ -97,6 +103,25 @@ class _DummyStyleguide:
         self.title = title
         self.scope = scope
         self.principles = principles
+
+
+class _DummyParadigm:
+    def __init__(self, *, name: str, summary: str) -> None:
+        self.name = name
+        self.summary = summary
+
+
+class _DummyDirective:
+    def __init__(self, *, title: str, intent: str) -> None:
+        self.title = title
+        self.intent = intent
+
+
+class _DummyTactic:
+    def __init__(self, *, name: str, purpose: str, steps: list[Any]) -> None:
+        self.name = name
+        self.purpose = purpose
+        self.steps = steps
 
 
 class _DummyToolguide:
@@ -387,12 +412,43 @@ class TestDeduplication:
 
 
 # ---------------------------------------------------------------------------
-# Combined block — all 5 sections compose correctly
+# Combined block — selected sections compose correctly
 # ---------------------------------------------------------------------------
 
 
 class TestCombinedSelectionBlock:
-    """``_render_selection_block`` composes all 5 sections in fixed order."""
+    """``_render_selection_block`` composes selected sections in fixed order."""
+
+    def test_directives_tactics_and_paradigms_render_from_global_selection(self) -> None:
+        paradigm = _DummyParadigm(name="SPDD", summary="Use structured prompts.")
+        directive = _DummyDirective(title="Security Baseline", intent="Never leak secrets.")
+        tactic = _DummyTactic(
+            name="Threat Model First",
+            purpose="Find attacker paths before coding.",
+            steps=[_DummyStep(title="Map trust boundaries")],
+        )
+        service = _StubService(
+            paradigms=_StubRepo(items={"structured-prompt-driven-development": paradigm}),
+            directives=_StubRepo(items={"DIRECTIVE_999": directive}),
+            tactics=_StubRepo(items={"threat-model-first": tactic}),
+        )
+        selection = DoctrineSelectionConfig(
+            selected_paradigms=["structured-prompt-driven-development"],
+            selected_directives=["DIRECTIVE_999"],
+            selected_tactics=["threat-model-first"],
+        )
+
+        block = _render_selection_block(selection, service)
+
+        assert "Selected paradigms:" in block
+        assert "structured-prompt-driven-development" in block
+        assert "Use structured prompts." in block
+        assert "Selected directives:" in block
+        assert "DIRECTIVE_999" in block
+        assert "Never leak secrets." in block
+        assert "Selected tactics:" in block
+        assert "threat-model-first" in block
+        assert "Find attacker paths before coding." in block
 
     def test_all_five_kinds_appear_in_order(self) -> None:
         sg = _DummyStyleguide(title="SG", principles=["a"])
