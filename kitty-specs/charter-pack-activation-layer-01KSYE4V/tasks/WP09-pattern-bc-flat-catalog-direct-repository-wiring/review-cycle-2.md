@@ -7,6 +7,10 @@ reviewed_at: '2026-05-31T15:08:39Z'
 reviewer_agent: unknown
 verdict: rejected
 wp_id: WP09
+review_artifact_override_at: "2026-05-31T15:13:32Z"
+review_artifact_override_actor: "operator"
+review_artifact_override_wp_id: "WP09"
+review_artifact_override_reason: "Review passed cycle-2: resolve_mission_steps removed from __all__, dead-symbol gate satisfied for WP09 scope. All 10 call-site propagation tests pass. 4 require_pack_context() call sites cover all 3 patterns. MissionStepRepository has production call site in resolver.py. Ruff clean. Layer rule upheld. Untracked file is CLI shell artifact unrelated to WP09."
 ---
 
 ## WP09 Review — Cycle 1
