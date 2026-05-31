@@ -19,6 +19,7 @@ class ActionIndex:
     styleguides: list[str] = field(default_factory=list)
     toolguides: list[str] = field(default_factory=list)
     procedures: list[str] = field(default_factory=list)
+    agent_profiles: list[str] = field(default_factory=list)
 
 
 def load_action_index(missions_root: Path, mission: str, action: str) -> ActionIndex:
@@ -59,6 +60,7 @@ def load_action_index(missions_root: Path, mission: str, action: str) -> ActionI
             styleguides=_str_list("styleguides"),
             toolguides=_str_list("toolguides"),
             procedures=_str_list("procedures"),
+            agent_profiles=_str_list("agent_profiles"),
         )
     except (OSError, UnicodeDecodeError, YAMLError):
         return fallback

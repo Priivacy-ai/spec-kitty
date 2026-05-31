@@ -7,6 +7,10 @@ tactics:
   - requirements-validation-workflow
   - stopping-conditions
   - autonomous-operation-protocol
-styleguides: []
+  - glossary-curation-interview
+styleguides:
+  - kitty-glossary-writing
 toolguides: []
 procedures: []
+agent_profiles:
+  - retrospective-facilitator
