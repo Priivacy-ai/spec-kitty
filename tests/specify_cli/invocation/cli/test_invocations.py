@@ -280,6 +280,39 @@ class TestInvocationsListJSON:
         assert statuses[open_id] == "open"
         assert statuses[closed_id] == "closed"
 
+    def test_status_closed_when_correlation_links_follow_completion(self, tmp_path: Path) -> None:
+        """Closed status must not depend on completed being the final JSONL line."""
+        events_dir = _make_events_dir(tmp_path)
+        invocation_id = _new_ulid()
+        path = _write_started(events_dir, invocation_id=invocation_id)
+        _write_completed(path, invocation_id=invocation_id, outcome="done")
+        with path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps({"event": "artifact_link", "invocation_id": invocation_id, "ref": "spec.md"}) + "\n")
+            f.write(json.dumps({"event": "commit_link", "invocation_id": invocation_id, "sha": "abc123"}) + "\n")
+
+        records = list(_iter_records(events_dir, None, 10, repo_root=tmp_path))
+        record = next(r for r in records if r["invocation_id"] == invocation_id)
+        assert record["status"] == "closed"
+        assert record["outcome"] == "done"
+
+    def test_indexed_status_closed_when_correlation_links_follow_completion(
+        self, tmp_path: Path
+    ) -> None:
+        """Index path must also scan for completed before post-terminal links."""
+        events_dir = _make_events_dir(tmp_path)
+        invocation_id = _new_ulid()
+        path = _write_started(events_dir, invocation_id=invocation_id)
+        started = json.loads(path.read_text(encoding="utf-8").splitlines()[0])
+        append_to_index(tmp_path, started)
+        _write_completed(path, invocation_id=invocation_id, outcome="done")
+        with path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps({"event": "artifact_link", "invocation_id": invocation_id, "ref": "spec.md"}) + "\n")
+
+        records = list(_iter_records(events_dir, None, 10, repo_root=tmp_path))
+        record = next(r for r in records if r["invocation_id"] == invocation_id)
+        assert record["status"] == "closed"
+        assert record["outcome"] == "done"
+
     def test_no_events_dir_returns_empty(self, tmp_path: Path) -> None:
         """When .kittify/events/profile-invocations does not exist, return []."""
         with pytest.MonkeyPatch().context() as mp:

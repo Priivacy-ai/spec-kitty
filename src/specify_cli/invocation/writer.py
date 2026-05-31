@@ -139,15 +139,14 @@ class InvocationWriter:
         if not path.exists():
             raise InvocationError(f"Invocation record not found: {invocation_id}")
 
-        # Already-closed check: read last line to see if a completed event exists.
         raw = path.read_text(encoding="utf-8")
         lines = [line.strip() for line in raw.splitlines() if line.strip()]
-        last = json.loads(lines[-1]) if lines else {}
-        if last.get("event") == "completed":
+        records = [json.loads(line) for line in lines]
+        if any(record.get("event") == "completed" for record in records):
             raise AlreadyClosedError(invocation_id)
 
         # Read profile_id from the started event (first line) for the completed record.
-        first = json.loads(lines[0]) if lines else {}
+        first = records[0] if records else {}
         profile_id = first.get("profile_id", "")
 
         completed = InvocationRecord(
