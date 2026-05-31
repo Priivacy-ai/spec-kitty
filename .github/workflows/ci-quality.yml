@@ -139,6 +139,7 @@ jobs:
             lanes:
               - 'src/specify_cli/lanes/**'
               - 'tests/lanes/**'
+              - 'tests/specify_cli/lanes/**'
             dashboard:
               - 'src/specify_cli/dashboard/**'
               - 'tests/test_dashboard/**'
@@ -1019,7 +1020,7 @@ jobs:
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — lanes"
         run: |
-          uv run python -m pytest tests/lanes/ -m "fast and not windows_ci" -q --tb=short \
+          uv run python -m pytest tests/lanes/ tests/specify_cli/lanes/ -m "fast and not windows_ci" -q --tb=short \
             --cov=src/specify_cli/lanes \
             --cov-report=xml:out/reports/coverage/coverage-fast-lanes.xml
       - name: "Upload fast-lanes coverage"
@@ -1601,7 +1602,7 @@ jobs:
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — lanes"
         run: |
-          uv run python -m pytest tests/lanes/ \
+          uv run python -m pytest tests/lanes/ tests/specify_cli/lanes/ \
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             --cov=src/specify_cli/lanes \
