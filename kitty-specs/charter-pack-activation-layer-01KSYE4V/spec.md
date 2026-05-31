@@ -37,7 +37,7 @@ control and a consistency validation command.
 | **hard restriction** | When a charter has explicit activations for an artifact kind, only those artifacts are available; no implicit fallback to the full doctrine catalog | Soft restriction, recommendation |
 | **cascade** | Propagating an activation or deactivation to referenced artifacts of other kinds | Automatic cascade (cascade is always explicit opt-in) |
 | **orphaned artifact** | An artifact in the charter whose kind is no longer referenced by any other active artifact _(detection deferred to a follow-on mission; not reported by `charter pack consistency-check` in this release)_ | Dead code |
-| **activation kind** | One of the nine activatable axes — `mission-type`, `directive`, `tactic`, `styleguide`, `toolguide`, `paradigm`, `procedure`, `agent_profile`, `mission_step_contract` (legacy) | DRG-internal node kinds (`action`, `glossary_scope`, `glossary`) which are graph infrastructure, not user-activatable |
+| **activation kind** | One of the nine activatable axes — `mission-type`, `directive`, `tactic`, `styleguide`, `toolguide`, `paradigm`, `procedure`, `agent-profile`, `mission-step-contract` (legacy) | DRG-internal node kinds (`action`, `glossary_scope`, `glossary`) which are graph infrastructure, not user-activatable |
 | **consistency violation** | A charter pack that references an artifact absent from the active doctrine pack, or a WP that references an artifact absent from the charter pack | |
 
 ### Activation Kinds Reference
@@ -51,8 +51,8 @@ control and a consistency validation command.
 | `toolguide` | `toolguides` | Tool usage and integration guides |
 | `paradigm` | `paradigms` | Design paradigms and architectural patterns |
 | `procedure` | `procedures` | Step-by-step operational procedures |
-| `agent_profile` | `agent_profiles` | LLM agent behavioral profiles for WP assignment |
-| `mission_step_contract` | `mission_step_contracts` | Mission step execution contracts _(legacy; present for completeness)_ |
+| `agent-profile` | `agent_profiles` | LLM agent behavioral profiles for WP assignment |
+| `mission-step-contract` | `mission_step_contracts` | Mission step execution contracts _(legacy; present for completeness)_ |
 
 > **DRG-only node kinds** (`action`, `glossary_scope`, `glossary`) are internal graph infrastructure and are not user-activatable artifacts.
 
@@ -88,12 +88,12 @@ A developer runs `charter activate mission-type research`. The mission type is a
 charter's activated mission types. The command then prints a warning listing the agent profiles,
 directives, tactics, styleguides, toolguides, paradigms, and procedures referenced by the
 `research` mission type that are not currently activated, and suggests either running
-`charter activate mission-type research --cascade agent_profile,tactic` or
+`charter activate mission-type research --cascade agent-profile,tactic` or
 `charter pack consistency-check` to review the full picture.
 
 ### Journey 4 — Activating with cascade
 
-A developer runs `charter activate mission-type research --cascade agent_profile,tactic`. The
+A developer runs `charter activate mission-type research --cascade agent-profile,tactic`. The
 mission type is activated. All agent profiles referenced by `research` are also activated. All
 tactics referenced by `research` are also activated. Directives, styleguides, toolguides,
 paradigms, and procedures are not cascaded because those kinds were not included in `--cascade`.
@@ -101,7 +101,7 @@ The terminal confirms which artifacts were activated and which were skipped by s
 
 ### Journey 5 — Deactivating with cascade
 
-A developer runs `charter deactivate mission-type software-dev --cascade agent_profile`. The
+A developer runs `charter deactivate mission-type software-dev --cascade agent-profile`. The
 `software-dev` mission type is deactivated. The cascade then deactivates all agent profiles
 that are exclusively referenced by `software-dev` (i.e., not referenced by any other currently
 active mission type). Agent profiles shared with other active mission types are left untouched,
@@ -111,7 +111,7 @@ and the terminal lists which ones were skipped and why ("shared with: research")
 
 A developer runs `charter list`. The terminal shows all activated artifacts grouped by kind,
 covering all nine activation kinds (mission-type, directive, tactic, styleguide, toolguide,
-paradigm, procedure, agent_profile, mission_step_contract). Kinds with zero activated
+paradigm, procedure, agent-profile, mission-step-contract). Kinds with zero activated
 artifacts are shown with an empty marker so the operator can see which axes are fully
 restricted. Running `charter list --show-available` adds the full doctrine catalog alongside
 the activated set, with visual distinction between activated and available-but-not-activated
@@ -155,10 +155,10 @@ set (which may be empty), and the command to activate it. The review does not st
 
 | ID | Description | Priority | Status |
 |----|-------------|----------|--------|
-| FR-001 | A default charter pack ships as a first-party artifact of spec-kitty, covering all nine activation kinds (mission-type, directive, tactic, styleguide, toolguide, paradigm, procedure, agent_profile, mission_step_contract) and listing all artifacts available in the built-in doctrine pack | Must | Proposed |
+| FR-001 | A default charter pack ships as a first-party artifact of spec-kitty, covering all nine activation kinds (mission-type, directive, tactic, styleguide, toolguide, paradigm, procedure, agent-profile, mission-step-contract) and listing all artifacts available in the built-in doctrine pack | Must | Proposed |
 | FR-002 | `spec-kitty upgrade` on a project with no charter file writes the default charter pack and displays a summary of the activated artifacts | Must | Proposed |
 | FR-003 | `spec-kitty upgrade` on a project with an existing charter file creates a timestamped backup before writing, merges default entries for any activation kind not yet present, and displays a prominent warning to review the resulting charter | Must | Proposed |
-| FR-004 | `charter activate <kind> <id>` accepts all nine activation kinds: `mission-type`, `directive`, `tactic`, `styleguide`, `toolguide`, `paradigm`, `procedure`, `agent_profile`, `mission_step_contract` | Must | Proposed |
+| FR-004 | `charter activate <kind> <id>` accepts all nine activation kinds: `mission-type`, `directive`, `tactic`, `styleguide`, `toolguide`, `paradigm`, `procedure`, `agent-profile`, `mission-step-contract` | Must | Proposed |
 | FR-005 | `charter deactivate <kind> <id>` is a first-class command accepting all nine activation kinds | Must | Proposed |
 | FR-006 | When `charter activate` or `charter deactivate` is run without `--cascade`, the command warns the user that artifacts of other kinds referenced by the target were not cascaded, and lists what was not cascaded | Must | Proposed |
 | FR-007 | `--cascade all\|<kind>[,<kind>...]` (comma-separated list of activation kinds, or the shorthand `all`) on `charter activate` cascades activation to all artifacts of the selected kinds that the target artifact references | Must | Proposed |
@@ -219,14 +219,14 @@ set (which may be empty), and the command to activate it. The review does not st
 
 1. A project with no charter file runs `spec-kitty upgrade` and receives the default charter pack; `charter list` confirms all built-in artifacts across all nine activation kinds are activated; no other behavior changes
 2. Running `charter activate mission-type research` activates the mission type, emits the no-cascade warning, and the change is reflected in `charter list`
-3. Running `charter deactivate mission-type software-dev --cascade agent_profile` deactivates `software-dev` and all exclusively-referenced agent profiles, while shared agent profiles remain activated and are listed as skipped
+3. Running `charter deactivate mission-type software-dev --cascade agent-profile` deactivates `software-dev` and all exclusively-referenced agent profiles, while shared agent profiles remain activated and are listed as skipped
 4. `charter pack consistency-check` detects and reports at least one planted violation within the 2-second budget, with a resolvable error message
 5. A WP with an inactive profile assigned in frontmatter fails `finalize-tasks` with a non-zero exit code and a message identifying the WP, the inactive profile, and the resolution command
 6. The same WP also fails `agent action implement` at precondition check, before any worktree is created
 7. `charter.resolve_action_sequence` returns only activated mission types when `mission_type_activations` is explicitly set; the override file is no longer ignored
 8. `filter_graph_by_activation` is called from the charter module in at least one live code path that affects a user-visible command; `grep src/ -r filter_graph_by_activation` returns at least one non-test, non-`__all__` hit
 9. `MissionStepRepository` is instantiated and called from a production path accessible via a user-facing command
-10. `PackContext.activated_kinds` is demonstrably read in each of the three resolution patterns (DRG-based, charter-internal, direct repository); a codebase grep for `activated_kinds` returns consumer call sites, not only the constructor
+10. The three resolution patterns (DRG-based, flat catalog, direct repository) each demonstrate a call chain from a user-facing command through `ProjectContext.from_repo()` → `ctx.require_pack_context()` → activation-filtered doctrine accessor; `grep -r 'ctx\.require_pack_context()' src/` returns at least three distinct call sites, one per pattern
 11. Activating only one directive ID in a test project's `config.yaml`, running `spec-kitty charter context --action implement --json`, and asserting that the `all_directives` field in the JSON output contains exactly that one ID and no others — other built-in directives must be absent (end-to-end per-artifact-ID hard restriction via FR-038 verified)
 12. Setting `activated_directives: []` in `config.yaml`, running `spec-kitty charter context --action implement --json`, and asserting that `all_directives` is empty — the empty list must not be silently treated as "all built-ins" (FR-039 verified)
 13. `pytest tests/architectural/` exits with 0 failures after all changes
@@ -282,7 +282,7 @@ These kinds bypass the DRG entirely and are resolved through a flat catalog look
 `selected_paradigms` / `selected_procedures` in the charter. The activation state must gate
 the available set before selection is evaluated.
 
-**Pattern C — Direct repository lookup** (`agent_profile`, `mission_step_contract`)
+**Pattern C — Direct repository lookup** (`agent-profile`, `mission-step-contract`)
 These kinds are resolved via direct repository instantiation without any PackContext.
 The resolution call must receive and apply the charter activation state.
 
@@ -294,10 +294,10 @@ implemented to ensure the wiring gap does not repeat:
 | FR-031 | `PackContext.activated_kinds` is read by every artifact resolution path for its respective kind; no kind may be resolved at runtime without consulting the activated set when one is explicitly declared in the charter | Must | Proposed |
 | FR-032 | For Pattern A kinds (directive, tactic, styleguide, toolguide): the merged DRG returned to all charter context construction paths is filtered by the project's charter activation state before any artifact extraction occurs | Must | Proposed |
 | FR-033 | For Pattern B kinds (paradigm, procedure): the activation state is consulted to bound the set of available artifacts before charter-internal selection is evaluated; a deactivated paradigm or procedure is not available for selection regardless of whether it exists in the doctrine catalog | Must | Proposed |
-| FR-034 | For Pattern C kinds (agent_profile, mission_step_contract): the repository call that resolves the artifact receives the project's current PackContext and applies activation filtering; an artifact not activated in the charter is unavailable regardless of whether it exists in the doctrine directory | Must | Proposed |
+| FR-034 | For Pattern C kinds (`agent-profile`, `mission-step-contract`): the repository call that resolves the artifact receives the project's current PackContext and applies activation filtering; an artifact not activated in the charter is unavailable regardless of whether it exists in the doctrine directory | Must | Proposed |
 | FR-035 | `filter_graph_by_activation` must have at least one verified production call site reachable by a user-facing command; the architectural dead-symbols test must not flag it as unused after this mission | Must | Proposed |
 | FR-036 | All call sites of `load_validated_graph()` in the charter module that supply context to user-facing commands pass the project's current PackContext so the returned graph is activation-filtered; passing `None` is permitted only in test isolation | Must | Proposed |
-| FR-037 | All 4 production callers of `load_org_charter_policies()` are updated to supply `pack_context`: `org_charter.py:660`, `org_charter.py:710`, `org_layer.py:218,236`, and `doctor.py:2332` (the last is a `spec-kitty doctor` health check that currently receives no activation filtering); the `None` default is retained only for test isolation. Acceptance: grep for `load_org_charter_policies` in `src/` and assert every call passes `pack_context`. | Must | Proposed |
+| FR-037 | All 3 production callers of `load_org_charter_policies()` are updated to supply `pack_context`: `org_charter.py:660`, `org_charter.py:710`, and `doctor.py:2332` (the last is a `spec-kitty doctor` health check that currently receives no activation filtering); the `None` default is retained only for test isolation. Additionally, `org_layer.py:218,236` (the org-layer linter, a **separate** wiring site — not a caller of `load_org_charter_policies()`) must receive `pack_context` as a direct parameter. Acceptance: grep for `load_org_charter_policies` in `src/` and assert every call passes `pack_context`; separately assert `org_layer.py` linter methods accept and use `pack_context`. | Must | Proposed |
 | FR-038 | `_node_is_activated` in `src/charter/drg.py` is extended to check per-artifact-ID frozensets (`activated_directives`, `activated_tactics`, `activated_styleguides`, `activated_toolguides`, `activated_paradigms`, `activated_procedures`, `activated_agent_profiles`, `activated_mission_step_contracts`) when the corresponding `PackContext` field is non-`None`; kind-level gating via `activated_kinds` remains as the outer check. For malformed URNs where `_split_urn` returns an empty artifact ID, the per-kind frozenset check is **bypassed** (default-allow, matching the existing behavior for unknown kinds) — malformed nodes must not be silently excluded by the new per-kind check. Additionally, `_SINGULAR_TO_PLURAL["mission_step_contract"]` must be corrected from `"mission_steps"` to `"mission_step_contracts"` before the per-kind check for MSC nodes will function correctly. | Must | Proposed |
 | FR-039 | The `and raw` guard that collapses `[]` to all built-ins is removed from **all** per-kind readers — including the existing `_read_activated_kinds` and `_read_activated_mission_types`. An empty YAML list maps to `frozenset()` (explicit restriction, nothing available) for every activation field without exception. The existing test `test_empty_activated_kinds_uses_builtin_fallback` encodes the old two-state behavior and must be **deleted** as part of this FR. The upgrade command's default-pack write is the mechanism that prevents newly-upgraded projects from inadvertently having an empty activation set; there is no reader-side fallback. | Must | Proposed |
 | FR-040 | A new `src/charter/invocation_context.py` module is created defining `ProjectContext`, `OperationalContext`, and `ContextPreconditionError`; no new `specify_cli.*` package is needed — callers import directly from `charter.invocation_context`; `CharterPackManager` and all wiring sites introduced in this mission accept `ProjectContext` as their primary context parameter; guard methods (`require_repo_root()`, `require_pack_context()`) are called at method entry for any method that uses those fields. `OperationalContext` is **defined in class body only with zero required production call sites in this mission** — `build_operational_context` is a stub returning an empty `OperationalContext()` with all-None fields; all four `OperationalContext`-family symbols (`OperationalContext`, `build_operational_context`, `require_active_profile`, `require_active_role`) are pre-added to `_CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE` with justification `"specced, wiring deferred to follow-on mission"`. CLI command entrypoints that construct `ProjectContext` via `from_repo()` do not need to catch `ContextPreconditionError` — `from_repo()` always populates all fields, making guard failures assertions rather than user-facing errors. | Must | Proposed |
@@ -311,7 +311,7 @@ of a correct implementation:
 1. Deactivate `directive` kind entirely in a test project's charter. Run `spec-kitty charter context --action implement --json`. Assert `all_directives` in JSON output is empty — not a reduced set, zero.
 2. Deactivate a specific `tactic` in a test project's charter. Run `spec-kitty charter context --action implement --json`. Assert that tactic ID is absent from `all_tactics` in the JSON output. (A full review dispatch is not required for this criterion — the charter context command is the authoritative surface for verifying activation filtering.)
 3. Deactivate a `styleguide` or `toolguide`. Run `charter pack consistency-check`. Assert the check reports zero artifacts for that kind as activated.
-4. Deactivate an `agent_profile`. Attempt `agent action implement` on a WP that assigns that profile. Assert hard fail at precondition check.
+4. Deactivate an `agent-profile`. Attempt `agent action implement` on a WP that assigns that profile. Assert hard fail at precondition check.
 5. Grep `src/` for callers of `filter_graph_by_activation` after implementation. Assert at least **four** non-test callers exist — one for each of the four confirmed call sites in `research.md` §3 (`context.py`, `reference_resolver.py`, `compiler.py`, `executor.py`). (This grep is a required step in the review checklist.)
 6. Grep `src/` for patterns matching `ctx\.require_pack_context\(\)` in charter module callers. Assert every resolution path that reads doctrine artifacts calls `ctx.require_pack_context()` at method entry (ProjectContext-threaded access is the correct pattern; stand-alone `PackContext` construction without threading through `ctx` is a wiring gap).
 
