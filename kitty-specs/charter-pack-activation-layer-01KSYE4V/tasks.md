@@ -209,11 +209,11 @@ WP11 subtasks T048–T051 are fully independent and can be executed in any order
 **Subtasks**: T015–T019
 **Agent profile**: python-pedro
 
-- [ ] T015 Create `src/charter/packs/default.yaml` with all 9 activation kinds fully populated
-- [ ] T016 Create `src/charter/pack_manager.py` with `ActivationResult`, `MergeResult` value objects and `YAML_KEY_MAP`
-- [ ] T017 Implement `CharterPackManager.activate()` and `deactivate()` with cascade logic
-- [ ] T018 Implement `CharterPackManager.list_activated()`, `list_available()`, and `merge_defaults()`
-- [ ] T019 Write `tests/charter/test_pack_manager.py`
+- [x] T015 Create `src/charter/packs/default.yaml` with all 9 activation kinds fully populated
+- [x] T016 Create `src/charter/pack_manager.py` with `ActivationResult`, `MergeResult` value objects and `YAML_KEY_MAP`
+- [x] T017 Implement `CharterPackManager.activate()` and `deactivate()` with cascade logic
+- [x] T018 Implement `CharterPackManager.list_activated()`, `list_available()`, and `merge_defaults()`
+- [x] T019 Write `tests/charter/test_pack_manager.py`
 
 **Implementation Notes**:
 - T015: `default.yaml` must enumerate every built-in artifact ID for all 9 kinds. This is a static shipped file under `src/charter/packs/`; it is never written at runtime. IDs come from the doctrine package.
