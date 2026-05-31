@@ -173,11 +173,11 @@ def test_safe_commit_protected_branch_allows_documented_exception(tmp_path: Path
     assert result.destination_ref == "main"
 
 
-def test_safe_commit_protected_branch_allows_test_mode(
+def test_safe_commit_protected_branch_rejects_test_mode(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Test fixtures may commit status artifacts on their isolated main branch."""
+    """Test mode must not bypass safe_commit protected-branch policy."""
     repo = tmp_path / "repo"
     _init_repo(repo, initial_branch="main")
     monkeypatch.setenv("SPEC_KITTY_TEST_MODE", "1")
@@ -185,16 +185,14 @@ def test_safe_commit_protected_branch_allows_test_mode(
     target = repo / "alpha.txt"
     target.write_text("alpha v1\n", encoding="utf-8")
 
-    result = safe_commit(
-        repo_root=repo,
-        worktree_root=repo,
-        destination_ref="main",
-        message="WP01: add alpha",
-        paths=(target,),
-    )
-
-    assert isinstance(result, CommitResult)
-    assert result.destination_ref == "main"
+    with pytest.raises(ProtectedBranchRefused):
+        safe_commit(
+            repo_root=repo,
+            worktree_root=repo,
+            destination_ref="main",
+            message="WP01: add alpha",
+            paths=(target,),
+        )
 
 
 def test_safe_commit_protected_branch_rejects_planning_artifact_message(tmp_path: Path) -> None:

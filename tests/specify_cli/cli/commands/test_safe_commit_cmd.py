@@ -83,3 +83,54 @@ def test_public_safe_commit_does_not_honor_internal_protected_branch_exceptions(
     assert payload["success"] is False
     assert "protected branch 'main'" in payload["error"]
     assert head_after == head_before
+
+
+def test_public_safe_commit_rejects_protected_branch_in_test_mode(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """SPEC_KITTY_TEST_MODE must not let public safe-commit write to main."""
+    monkeypatch.setenv("SPEC_KITTY_TEST_MODE", "1")
+    monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
+    _init_spec_kitty_repo(tmp_path)
+    (tmp_path / "change.txt").write_text("protected branch change\n", encoding="utf-8")
+    head_before = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
+    old_cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+        result = runner.invoke(
+            cli_app,
+            [
+                "safe-commit",
+                "--to-branch",
+                "main",
+                "--message",
+                "WP01: arbitrary status write",
+                "--json",
+                "change.txt",
+            ],
+            catch_exceptions=False,
+        )
+    finally:
+        os.chdir(old_cwd)
+
+    payload = json.loads(result.stdout)
+    head_after = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
+    assert result.exit_code == 1
+    assert payload["success"] is False
+    assert "protected branch 'main'" in payload["error"]
+    assert head_after == head_before

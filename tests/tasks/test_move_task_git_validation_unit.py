@@ -27,16 +27,10 @@ runner = CliRunner()
 def _disable_move_task_sync_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep command unit tests hermetic even when global SaaS test flag is on.
 
-    Also sets ``SPEC_KITTY_TEST_MODE=1`` so the protected-branch guard at
-    ``assert_not_protected_branch`` allows the ``chore: Move WPxx`` status
-    auto-commit to land on ``main`` inside the in-process test repos. The
-    guard's docstring explicitly designates this env var as the test-mode
-    bypass; without it, ``safe_commit`` silently raises on every move-task
-    run here because the fixture's repo is on ``main`` (a protected branch).
-    The bypass is required to test the auto-commit contract at all -- the
-    guard otherwise turns the commit into a no-op that the
-    ``test_move_for_review_from_worktree_does_not_mirror_commit_to_lane_branch``
-    contract assertion cannot observe. See commit ``93546d0e2``.
+    Also sets ``SPEC_KITTY_TEST_MODE=1`` for command paths that call
+    ``assert_not_protected_branch`` directly. Tests that need to observe a
+    ``safe_commit`` result use non-protected fixture branches instead of relying
+    on test mode to bypass safe-commit protected-branch policy.
     """
     import specify_cli.status.emit as status_emit
 
@@ -541,6 +535,12 @@ class TestMoveTaskGitValidation:
         repo_root, worktree = git_repo_with_worktree
         mock_root.return_value = repo_root
         mock_slug.return_value = "017-test-feature"
+        subprocess.run(
+            ["git", "checkout", "-b", "test/status-root", "main"],
+            cwd=repo_root,
+            check=True,
+            capture_output=True,
+        )
         monkeypatch.chdir(worktree)
 
         result = runner.invoke(app, ["move-task", "WP01", "--to", "for_review", "--json"])
@@ -550,7 +550,7 @@ class TestMoveTaskGitValidation:
         assert payload["result"] == "success"
         assert payload["new_lane"] == "for_review"
 
-        main_head_msg = subprocess.run(
+        root_head_msg = subprocess.run(
             ["git", "log", "-1", "--pretty=%s"],
             cwd=repo_root,
             check=True,
@@ -565,7 +565,7 @@ class TestMoveTaskGitValidation:
             text=True,
         ).stdout.strip()
 
-        assert "Move WP01 to for_review" in main_head_msg
+        assert "Move WP01 to for_review" in root_head_msg
         assert "Move WP01 to for_review" not in wp_head_msg
         assert "Add implementation" in wp_head_msg
 
