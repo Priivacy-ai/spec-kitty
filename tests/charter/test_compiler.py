@@ -143,6 +143,31 @@ def test_write_compiled_charter_requires_force_when_existing(tmp_path: Path) -> 
         write_compiled_charter(tmp_path, compiled, force=False)
 
 
+@pytest.mark.requires_symlinks
+def test_write_compiled_charter_refuses_symlinked_charter(tmp_path: Path) -> None:
+    """Generate must not write through a symlinked charter into an external public doc."""
+    public_dir = tmp_path / "spec"
+    public_dir.mkdir()
+    public_charter = public_dir / "constitution.md"
+    public_charter.write_text("# Public Constitution\n", encoding="utf-8")
+
+    output_dir = tmp_path / ".kittify" / "charter"
+    output_dir.mkdir(parents=True)
+    charter_link = output_dir / "charter.md"
+    try:
+        charter_link.symlink_to(public_charter)
+    except OSError as exc:
+        pytest.skip(f"symlinks unavailable: {exc}")
+
+    interview = default_interview(mission="software-dev", profile="minimal")
+    compiled = compile_charter(mission="software-dev", interview=interview)
+
+    with pytest.raises(FileExistsError, match="Refusing to overwrite symlinked charter"):
+        write_compiled_charter(output_dir, compiled, force=True)
+
+    assert public_charter.read_text(encoding="utf-8") == "# Public Constitution\n"
+
+
 def test_compile_with_doctrine_service_none_uses_drg_backed_path() -> None:
     """Calling compile_charter without DoctrineService must NOT emit a YAML
     fallback diagnostic.

@@ -33,6 +33,12 @@ the Charter era) to the current Charter-era 3.x.
 As of 3.1.0 (mission 063), `spec-kitty constitution` has been removed. All references must
 be updated to `spec-kitty charter`.
 
+**Note on public constitutions**: Some projects have both a public file such as
+`spec/constitution.md` and the Spec Kitty runtime file `.kittify/charter/charter.md`. In current
+3.x, `.kittify/charter/charter.md` is the runtime doctrine source consumed by `charter sync`,
+`charter context`, and governed mission prompts. The public constitution can remain the long-form
+human-facing governance document, but it is not automatically synced into the runtime charter.
+
 ---
 
 ## Migration steps
@@ -89,6 +95,21 @@ uv run spec-kitty charter status
 
 After synthesis, confirm `charter status` reports no drift between `charter.md` and the bundle.
 If drift is reported, re-run `charter sync` followed by `charter synthesize`.
+
+### Step 4a: Resolve duplicate constitutions
+
+If an upgraded project now has both a public constitution and `.kittify/charter/charter.md`,
+choose an explicit ownership model:
+
+| Model | Use when | Migration step |
+|---|---|---|
+| Runtime summary with external authority | The public constitution is long-form or public-facing, and agents only need concise binding directives. | Keep `spec/constitution.md`; edit `.kittify/charter/charter.md` to summarize operative rules and reference the public document. Add the containing directory, such as `spec/`, to `authority_paths` if agents should inspect it. |
+| Committed mirror | The project deliberately wants the public constitution and runtime charter to match. | Keep an explicit copy/sync process outside `charter sync`, then run `spec-kitty charter sync` after the mirror has been refreshed. |
+| Symlink | The project can rely on symlink support in every checkout and wants sync-only extraction from one physical markdown file. | Point `.kittify/charter/charter.md` at the chosen source file. `charter sync` follows the symlink for reads and writes generated YAML into `.kittify/charter/`; `charter generate` refuses to overwrite a symlinked charter. |
+
+Do not leave this implicit. Equality checks between `spec/constitution.md` and
+`.kittify/charter/charter.md` should exist only for projects that intentionally picked the
+committed-mirror model.
 
 ### Step 5: Update mission execution patterns
 
@@ -152,6 +173,13 @@ a full synthesis with agent-generated content.
 After migrating, agents may receive compact-context mode warnings if your governance layer is
 large. This is expected — see [Troubleshooting Charter Failures](../how-to/troubleshoot-charter.md)
 for workarounds.
+
+### 6. Duplicate public constitution and runtime charter drift
+
+If governance checks fail because `spec/constitution.md` differs from
+`.kittify/charter/charter.md`, first decide whether the project wants a mirror. Current Spec Kitty
+does not require duplication. The recommended current model is a concise runtime charter that
+references the public constitution and extracts cleanly with `spec-kitty charter sync`.
 
 ---
 

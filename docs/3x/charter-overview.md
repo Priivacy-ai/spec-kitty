@@ -10,11 +10,12 @@ structured context that every agent mission action automatically receives. This 
 mental model. For a step-by-step walkthrough, see the
 [Governed Charter Workflow Tutorial](../tutorials/charter-governed-workflow.md).
 
-> **Key invariant**: `.kittify/charter/charter.md` is the human policy source of truth. Do not
-> hand-edit derived files such as `governance.yaml`, `directives.yaml`, `metadata.yaml`,
-> `references.yaml`, `context-state.json`, synthesis manifests, or provenance sidecars. Agent
-> synthesis input under `.kittify/charter/generated/` is produced by the harness, not by routine
-> operator edits.
+> **Key invariant**: `.kittify/charter/charter.md` is the Spec Kitty runtime policy source. A
+> project may also keep a public constitution outside `.kittify/`, but `charter sync` extracts the
+> runtime bundle from `.kittify/charter/charter.md`. Do not hand-edit derived files such as
+> `governance.yaml`, `directives.yaml`, `metadata.yaml`, `references.yaml`, `context-state.json`,
+> synthesis manifests, or provenance sidecars. Agent synthesis input under
+> `.kittify/charter/generated/` is produced by the harness, not by routine operator edits.
 
 ---
 

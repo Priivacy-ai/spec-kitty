@@ -199,6 +199,16 @@ sync updates the YAML config from prose; synthesize promotes DRG-backed doctrine
 
 Run sync after manually editing `charter.md`. Sync is idempotent.
 
+Sync input is always `.kittify/charter/charter.md` as resolved by the project root. If that path
+is a regular hand-authored file, its current markdown content is extracted. If it is a generated
+copy, sync extracts the generated copy and does not refresh it from the upstream document. If it is
+a symlink, sync follows the symlink for reads; the generated YAML files are still written into
+`.kittify/charter/`, not beside the symlink target. `charter generate` refuses to overwrite a
+symlinked `charter.md`; use symlinks only for sync-only extraction or update the target directly.
+See
+[Governance Files Reference](../3x/governance-files.md#external-governance-documents) for the
+source-of-truth model when a project also has a public constitution.
+
 | Flag | Description | Default |
 |---|---|---|
 | `--force`, `-f` | Force sync even if not stale | — |

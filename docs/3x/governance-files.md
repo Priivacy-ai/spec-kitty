@@ -10,9 +10,9 @@ doctrine under `.kittify/doctrine/`. Most files are derived, runtime-managed, or
 inputs and must not be hand-edited. This page describes the common Charter-era files and the
 commands that own them.
 
-> **Key rule**: edit `.kittify/charter/charter.md` for policy changes. Re-run `charter sync` and
-> `charter synthesize` instead of patching derived YAML, runtime state, or synthesis outputs by
-> hand.
+> **Key rule**: `.kittify/charter/charter.md` is the Spec Kitty runtime doctrine source. Edit it
+> for policy changes, then re-run `charter sync` and `charter synthesize` instead of patching
+> derived YAML, runtime state, or synthesis outputs by hand.
 
 ---
 
@@ -40,6 +40,64 @@ content is resolved through `references.yaml` and the built-in/project doctrine 
 
 ---
 
+## External Governance Documents
+
+Some repositories already have a public constitution, governance policy, or engineering handbook
+outside `.kittify/` (for example `spec/constitution.md`). Do not treat `.kittify/charter/charter.md`
+as a second full copy that must stay byte-for-byte equal to that document.
+
+Use this ownership model instead:
+
+| Document | Role |
+|---|---|
+| Public governance document outside `.kittify/` | Human-facing policy, historical record, or public project constitution. |
+| `.kittify/charter/charter.md` | Runtime charter consumed by Spec Kitty. It should contain the operative directives agents need, plus pointers to external authority when useful. |
+| `.kittify/charter/governance.yaml`, `directives.yaml`, `metadata.yaml` | Generated runtime bundle derived only from the current contents of `.kittify/charter/charter.md`. |
+
+Recommended pattern:
+
+1. Keep the external constitution as the public source for long-form governance.
+2. Keep `.kittify/charter/charter.md` concise and runtime-oriented: summarize the binding
+   directives, name the public constitution, and record where agents should look for supporting
+   policy.
+3. If agents should inspect a directory of supporting policy, declare that directory in the
+   charter's fenced `authority_paths` block:
+
+````markdown
+## External Governance Authority
+
+The public project constitution lives in `spec/constitution.md`. The Spec Kitty runtime charter
+summarizes the directives that must be injected into mission prompts; the public constitution
+remains the long-form public governance record.
+
+```yaml
+authority_paths:
+  - spec/
+```
+````
+
+Current Spec Kitty does not support a configured external charter path that replaces
+`.kittify/charter/charter.md`. If a project needs a single physical file for sync-only extraction,
+a symlink can point `.kittify/charter/charter.md` at another markdown file, subject to the sync and
+generate behavior below.
+
+### Sync Behavior by Charter Shape
+
+`spec-kitty charter sync` always treats `.kittify/charter/charter.md` as the input path and writes
+the generated YAML bundle into `.kittify/charter/`.
+
+| Charter shape | Command behavior | Operator responsibility |
+|---|---|---|
+| Hand-authored `.kittify/charter/charter.md` | `charter sync` reads that file and writes `governance.yaml`, `directives.yaml`, and `metadata.yaml` next to it. `charter generate --force` may overwrite it. | Edit `charter.md`, run `spec-kitty charter sync`, then review drift with `charter status`. |
+| Generated copy in `.kittify/charter/charter.md` | `charter sync` reads the generated copy as the source for runtime extraction. It does not pull from the external document that produced the copy. | Re-run the external copy/generation step first, then run `spec-kitty charter sync`. Do not hand-edit the generated copy unless it has become the runtime source. |
+| Symlink at `.kittify/charter/charter.md` | `charter sync` follows the symlink for reading charter content. Generated YAML still lands in `.kittify/charter/`, not beside the symlink target. `charter generate` refuses to overwrite a symlinked charter. | Treat this as a sync-only model. Keep the symlink target committed and available on every checkout. Broken or platform-incompatible symlinks make sync fail. |
+
+Avoid equality checks between a public constitution and `.kittify/charter/charter.md` unless the
+project has deliberately adopted a mirror policy. A better check is that the runtime charter
+names the public authority and that `charter status` reports no drift in the generated bundle.
+
+---
+
 ## Git Policy
 
 Fresh checkouts must contain human-owned policy and must not require operators
@@ -48,7 +106,7 @@ projects:
 
 | Path | Git policy | Refresh command |
 |---|---|---|
-| `.kittify/charter/charter.md` | Commit. This is the human policy source of truth. | Edit directly, then run `spec-kitty charter sync`. |
+| `.kittify/charter/charter.md` | Commit. This is the Spec Kitty runtime policy source. | Edit directly, then run `spec-kitty charter sync`. |
 | `.kittify/charter/governance.yaml` | Do not commit. Generated from `charter.md`. | `spec-kitty charter sync` |
 | `.kittify/charter/directives.yaml` | Do not commit. Generated from `charter.md`. | `spec-kitty charter sync` |
 | `.kittify/charter/metadata.yaml` | Do not commit. Generated hash/parser state. | `spec-kitty charter sync` |

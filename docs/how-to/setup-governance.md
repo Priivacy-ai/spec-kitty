@@ -18,7 +18,15 @@ Governance is built on three layers. Only the first layer is human-edited; the o
 
 ### Layer 1: Charter (`charter.md`)
 
-The single authoritative policy document. It lives at `.kittify/charter/charter.md` and is written in markdown. You create it through the interview process or write it by hand. This is the only governance file you should ever edit directly.
+The Spec Kitty runtime policy document. It lives at `.kittify/charter/charter.md` and is written
+in markdown. You create it through the interview process or write it by hand. This is the only
+Spec Kitty governance file you should ever edit directly.
+
+If your repository already has a public constitution or governance document outside `.kittify/`,
+keep that document in place and make `charter.md` the concise runtime charter: summarize the
+binding directives agents need, name the external public authority, and point agents at its
+directory through `authority_paths` when useful. Do not duplicate the full public document unless
+your project deliberately wants a committed mirror.
 
 ### Layer 2: Extracted Config (YAML files)
 
@@ -164,6 +172,33 @@ spec-kitty charter generate \
 
 Available template sets: `software-dev-default`, `plan-default`, `documentation-default`, `research-default`.
 
+### Existing Public Constitution
+
+For projects with a document such as `spec/constitution.md`, prefer a runtime charter that
+references it rather than copying it wholesale:
+
+````markdown
+## External Governance Authority
+
+The public project constitution lives in `spec/constitution.md`. This runtime charter summarizes
+the directives Spec Kitty injects into mission prompts.
+
+```yaml
+authority_paths:
+  - spec/
+```
+````
+
+Then run:
+
+```bash
+spec-kitty charter sync --json
+spec-kitty charter status --json
+```
+
+`authority_paths` entries are directories. Use the containing directory for a single public
+constitution file.
+
 ---
 
 ## Step 3: Check Status
@@ -196,6 +231,12 @@ Sync is idempotent. If the charter hash has not changed since the last sync, ext
 ```bash
 spec-kitty charter sync --force --json
 ```
+
+Sync reads only `.kittify/charter/charter.md`. If that file is a generated copy, regenerate the
+copy from your external constitution before running sync. If it is a symlink, sync follows the
+symlink for reads but still writes generated YAML into `.kittify/charter/`. `charter generate`
+refuses to overwrite a symlinked `charter.md`; update the symlink target directly or replace the
+symlink with a regular runtime charter before regenerating.
 
 ---
 
