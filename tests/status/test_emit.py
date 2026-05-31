@@ -8,6 +8,7 @@ alias resolution, and pipeline ordering guarantees.
 from __future__ import annotations
 
 import json
+from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -293,6 +294,12 @@ class TestLoadMissionId:
 class TestEmitStatusTransition:
     """Tests for the main emit orchestration function."""
 
+    def test_feature_status_lock_root_falls_back_to_feature_dir(self, tmp_path: Path) -> None:
+        """Non-standard feature dirs still get a deterministic local lock root."""
+        feature_dir = tmp_path / "standalone-feature"
+
+        assert emit_module._feature_status_lock_root(feature_dir, repo_root=None) == feature_dir
+
     def test_transition_request_rejects_mixed_legacy_args(self, feature_dir: Path):
         """TransitionRequest calls must not also pass legacy arguments."""
         request = TransitionRequest(
@@ -345,6 +352,66 @@ class TestEmitStatusTransition:
         assert snapshot_path.exists()
         data = json.loads(snapshot_path.read_text(encoding="utf-8"))
         assert data["work_packages"]["WP01"]["lane"] == "claimed"
+
+    def test_transition_holds_feature_lock_through_canonical_mutation(
+        self,
+        feature_dir: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Derive, append, and materialize must share the feature status lock."""
+        lock_root = feature_dir.parent.parent
+        lock_state = {"held": False}
+        observed: list[str] = []
+
+        @contextmanager
+        def tracking_lock(repo_root: Path, mission_slug: str):  # type: ignore[no-untyped-def]
+            assert repo_root == lock_root
+            assert mission_slug == "034-test-feature"
+            lock_state["held"] = True
+            try:
+                yield lock_root / ".git" / "spec-kitty-locks" / f"{mission_slug}.status.lock"
+            finally:
+                lock_state["held"] = False
+
+        real_derive = emit_module._derive_from_lane
+        real_append = emit_module._store.append_event_verified
+        real_materialize = emit_module._reducer.materialize
+
+        def tracking_derive(*args: object, **kwargs: object):
+            assert lock_state["held"] is True
+            observed.append("derive")
+            return real_derive(*args, **kwargs)
+
+        def tracking_append(*args: object, **kwargs: object):
+            assert lock_state["held"] is True
+            observed.append("append")
+            return real_append(*args, **kwargs)
+
+        def tracking_materialize(*args: object, **kwargs: object):
+            assert lock_state["held"] is True
+            observed.append("materialize")
+            return real_materialize(*args, **kwargs)
+
+        monkeypatch.setattr(emit_module, "feature_status_lock", tracking_lock, raising=False)
+        monkeypatch.setattr(emit_module, "_derive_from_lane", tracking_derive)
+        monkeypatch.setattr(emit_module._store, "append_event_verified", tracking_append)
+        monkeypatch.setattr(emit_module._reducer, "materialize", tracking_materialize)
+
+        event = emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="claimed",
+                actor="claude-opus",
+                repo_root=lock_root,
+            ),
+            ensure_sync_daemon=False,
+            sync_dossier=False,
+        )
+
+        assert event.to_lane == Lane.CLAIMED
+        assert observed == ["derive", "append", "materialize"]
 
     def test_chained_transitions(self, feature_dir: Path):
         """Multiple transitions chain correctly, deriving from_lane."""
@@ -401,6 +468,37 @@ class TestEmitStatusTransition:
             actor="agent-1",
         ))
         assert event.to_lane == Lane.IN_PROGRESS
+
+    def test_alias_collapse_noop_returns_without_new_event(self, feature_dir: Path, caplog: pytest.LogCaptureFixture) -> None:
+        """Legacy alias to the current lane is a locked no-op, not a duplicate event."""
+        emit_status_transition(TransitionRequest(
+            feature_dir=feature_dir,
+            mission_slug="034-test-feature",
+            wp_id="WP01",
+            to_lane="claimed",
+            actor="agent-1",
+        ))
+        emit_status_transition(TransitionRequest(
+            feature_dir=feature_dir,
+            mission_slug="034-test-feature",
+            wp_id="WP01",
+            to_lane="doing",
+            actor="agent-1",
+        ))
+
+        with caplog.at_level("INFO"):
+            event = emit_status_transition(TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="doing",
+                actor="agent-1",
+            ))
+
+        assert event.from_lane == Lane.IN_PROGRESS
+        assert event.to_lane == Lane.IN_PROGRESS
+        assert len(read_events(feature_dir)) == 2
+        assert "Collapsing legacy alias doing to existing lane in_progress" in caplog.text
 
     def test_invalid_transition_rejected_no_persistence(self, feature_dir: Path):
         """Invalid transition raises TransitionError and persists nothing."""
