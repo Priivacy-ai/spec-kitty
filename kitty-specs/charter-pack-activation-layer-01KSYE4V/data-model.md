@@ -120,6 +120,93 @@ merge_defaults(repo_root) -> MergeResult
 
 ---
 
+### ProjectContext (value object)
+
+Immutable snapshot of project-level runtime state. Defined in `src/charter/invocation_context.py`. Owned by the charter module; populated by `specify_cli.*`.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `repo_root` | `Path \| None` | Absolute path to the repository root |
+| `pack_context` | `PackContext \| None` | Charter activation state for this project |
+| `org_root` | `Path \| None` | Absolute path to the org-level doctrine root, if any |
+| `specs_dir` | `Path \| None` | Absolute path to the `kitty-specs/` directory |
+| `architecture_dir` | `Path \| None` | Absolute path to the `architecture/` directory |
+
+All fields are optional so the object can be constructed incrementally or partially in tests. Guard methods enforce presence at method-call boundaries.
+
+**Factory**:
+```python
+@classmethod
+def from_repo(cls, repo_root: Path) -> "ProjectContext":
+    """Construct a fully-populated ProjectContext from a repository root."""
+```
+
+**Guard methods** (raise `ContextPreconditionError` if the field is `None`):
+```python
+def require_repo_root(self) -> Path: ...
+def require_pack_context(self) -> PackContext: ...
+def require_org_root(self) -> Path: ...
+```
+
+**Usage at method entry**:
+```python
+def activate(ctx: ProjectContext, kind: str, artifact_id: str, ...) -> ActivationResult:
+    repo_root = ctx.require_repo_root()      # raises if absent
+    pack_context = ctx.require_pack_context() # raises if absent
+    ...
+```
+
+---
+
+### OperationalContext (value object)
+
+Immutable snapshot of agent-invocation-level runtime state. Defined in `src/charter/invocation_context.py`. Owned by the charter module; populated by `specify_cli.context` factories when an agent invocation is live.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `active_model` | `str \| None` | LLM model identifier (e.g. `"claude-sonnet-4-6"`) |
+| `active_profile` | `str \| None` | Agent profile ID currently in use (e.g. `"python-pedro"`) |
+| `active_role` | `str \| None` | Role label (`"implementer"`, `"reviewer"`, `"planner"`) |
+| `current_activity` | `str \| None` | Activity type (`"implement"`, `"review"`, `"specify"`, `"plan"`) |
+| `tech_stack` | `frozenset[str]` | Active technology identifiers (e.g. `{"python", "pytest"}`) |
+
+All fields default to `None` / empty frozenset. `OperationalContext` is **specced but not wired** in this mission — it is reserved for future context-aware activation filtering (e.g., profile-scoped activation, model-aware resolution). Wiring everywhere is deferred to a follow-on mission.
+
+**Guard methods**:
+```python
+def require_active_profile(self) -> str: ...
+def require_active_role(self) -> str: ...
+```
+
+---
+
+### ContextPreconditionError (exception)
+
+Raised by `require_*()` guard methods when a required context field is absent.
+
+```python
+class ContextPreconditionError(RuntimeError):
+    field: str         # e.g. "repo_root"
+    context_type: str  # e.g. "ProjectContext"
+    # message: "Context precondition failed: 'repo_root' is required but absent in ProjectContext"
+```
+
+**When to use**: Any method that operates on repository state must call `ctx.require_repo_root()` at entry. Any method that filters by activation state must call `ctx.require_pack_context()` at entry. The guard replaces ad-hoc `if repo_root is None: raise ValueError(...)` patterns throughout the codebase.
+
+---
+
+### Module Ownership
+
+| Module | Role |
+|--------|------|
+| `src/charter/invocation_context.py` | Defines `ProjectContext`, `OperationalContext`, `ContextPreconditionError` — the charter module owns these types |
+| `src/specify_cli/context/__init__.py` | Re-exports the charter-owned types; provides population factories |
+| `src/specify_cli/context/factory.py` | `build_project_context(repo_root: Path) -> ProjectContext`; `build_operational_context(...) -> OperationalContext` — specify_cli knows how to read agent config, profile, role from CLI state |
+
+`charter.*` functions import `ProjectContext` from `charter.invocation_context` (no layer violation). `specify_cli.*` functions import from `specify_cli.context` for construction and from `charter.invocation_context` for type annotations. `doctrine.*` defines a narrow `ProjectContextProtocol` matching only the fields it uses (resolves C-004 / A2 cleanly — no charter import needed in doctrine).
+
+---
+
 ### ConsistencyReport (value object)
 
 Result of `charter pack consistency-check`.
