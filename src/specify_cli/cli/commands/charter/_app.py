@@ -14,6 +14,9 @@ import typer
 from rich.console import Console
 
 from specify_cli.cli.commands.charter.activate import charter_activate_app
+from specify_cli.cli.commands.charter.deactivate import charter_deactivate_app
+from specify_cli.cli.commands.charter.list_cmd import charter_list_app
+from specify_cli.cli.commands.charter.pack import charter_pack_app
 from specify_cli.cli.commands.charter_bundle import app as charter_bundle_app
 from specify_cli.cli.commands.charter.mission_type import charter_mission_type_app
 
@@ -42,6 +45,15 @@ charter_app.add_typer(charter_mission_type_app, name="mission-type")
 
 # WP15 (FR-008): ``spec-kitty charter activate mission-type <id>`` — in-flight warning.
 charter_app.add_typer(charter_activate_app, name="activate")
+
+# WP06 (FR-005): ``spec-kitty charter deactivate <kind> <id>`` — pack deactivation.
+charter_app.add_typer(charter_deactivate_app, name="deactivate")
+
+# WP06 (FR-004/005/006/007): ``spec-kitty charter list`` — activation state table.
+charter_app.add_typer(charter_list_app, name="list")
+
+# WP06 (FR-011): ``spec-kitty charter pack consistency-check`` — pack management.
+charter_app.add_typer(charter_pack_app, name="pack")
 
 #: Module-level Rich console for all subcommand handlers.
 console = Console()

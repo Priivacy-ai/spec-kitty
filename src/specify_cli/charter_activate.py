@@ -7,6 +7,9 @@ corresponding to the removed step, before completing activation.
 
 The warning is **non-blocking**: activation completes after warning emission.
 
+FR-014: Activation now writes to ``config.yaml`` via ``CharterPackManager``
+instead of writing ``.kittify/overrides/`` files that nothing reads.
+
 Layer note
 ----------
 This module lives in ``specify_cli`` (not ``charter``); it is permitted to
@@ -245,11 +248,8 @@ def emit_step_removal_warnings(
 
 
 # ---------------------------------------------------------------------------
-# Override writer — used by the CLI command (T087, T091)
+# Activation via CharterPackManager — FR-014
 # ---------------------------------------------------------------------------
-
-#: Path pattern for project-level mission-type overrides.
-_OVERRIDE_SUBDIR: tuple[str, ...] = (".kittify", "overrides", "mission-types")
 
 
 def activate_mission_type_override(
@@ -257,17 +257,17 @@ def activate_mission_type_override(
     incoming_sequence: list[str],
     repo_root: Path,
     console: Console,
-) -> Path:
-    """Activate a mission-type override by writing it to disk.
+) -> None:
+    """Activate a mission-type override by writing to config.yaml (FR-014).
 
     Implements the full FR-008 contract:
 
     1. Resolve the current active action sequence for *mission_type_id*.
     2. Compute removed steps (present in current, absent in incoming).
     3. Scan in-flight missions; emit structured warnings for each removed
-       step that has affected WPs — **before** writing the override.
-    4. Write the override YAML to
-       ``.kittify/overrides/mission-types/<id>.yaml``.
+       step that has affected WPs — **before** completing activation.
+    4. Write the mission-type activation to ``.kittify/config.yaml`` via
+       ``CharterPackManager`` (FR-014: closes the reader gap).
     5. Print ``Activation complete.``
 
     The warning is non-blocking: activation always completes.
@@ -275,18 +275,13 @@ def activate_mission_type_override(
     Parameters
     ----------
     mission_type_id:
-        The mission type to override (e.g. ``"software-dev"``).
+        The mission type to activate (e.g. ``"software-dev"``).
     incoming_sequence:
         The new action_sequence being activated.
     repo_root:
         Repository root (contains ``kitty-specs/`` and ``.kittify/``).
     console:
         Rich console for warning and status output.
-
-    Returns
-    -------
-    Path
-        Path of the written override file.
 
     Raises
     ------
@@ -313,26 +308,11 @@ def activate_mission_type_override(
         step_warnings = scan_inflight_missions(removed, kitty_specs_dir)
         emit_step_removal_warnings(step_warnings, console)
 
-    # --- T091: write override to disk (activation completes regardless) -----
-    override_dir = repo_root.joinpath(*_OVERRIDE_SUBDIR)
-    override_dir.mkdir(parents=True, exist_ok=True)
-    override_path = override_dir / f"{mission_type_id}.yaml"
+    # --- FR-014: write to config.yaml via CharterPackManager ----------------
+    from charter.pack_manager import CharterPackManager  # noqa: PLC0415
+    from charter.invocation_context import ProjectContext  # noqa: PLC0415
 
-    # Build YAML content (ruamel.yaml for consistent formatting)
-    from ruamel.yaml import YAML as _YAML  # noqa: PLC0415
-
-    yaml = _YAML()
-    yaml.default_flow_style = False
-    data: dict[str, object] = {
-        "extends": mission_type_id,
-        "action_sequence": list(incoming_sequence),
-    }
-
-    import io  # noqa: PLC0415
-
-    buf = io.StringIO()
-    yaml.dump(data, buf)
-    override_path.write_text(buf.getvalue(), encoding="utf-8")
+    ctx = ProjectContext.from_repo(repo_root)
+    CharterPackManager().activate(ctx, "mission-type", mission_type_id, cascade=False)
 
     console.print("[green]Activation complete.[/green]")
-    return override_path
