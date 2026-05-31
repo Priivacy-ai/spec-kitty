@@ -20,7 +20,7 @@ class DelegatesTo(BaseModel):
     the charter's selections determine which one actually applies at runtime.
     """
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
     kind: ArtifactKind
     candidates: list[str] = Field(min_length=1)
@@ -29,7 +29,7 @@ class DelegatesTo(BaseModel):
 class MissionStepInput(BaseModel):
     """Declared runtime input for a command-backed mission step."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
     flag: str = Field(min_length=1)
     source: str = Field(min_length=1)
@@ -42,7 +42,7 @@ class MissionStep(BaseModel):
     Steps describe *what* must happen, not *how* (governance comes from doctrine).
     """
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
     id: str
     description: str
@@ -61,7 +61,7 @@ class MissionStepContract(BaseModel):
     freeform ``guidance`` for step-specific instructions.
     """
 
-    model_config = ConfigDict(frozen=True, populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", frozen=True, populate_by_name=True)
 
     id: str
     schema_version: str = Field(alias="schema_version")

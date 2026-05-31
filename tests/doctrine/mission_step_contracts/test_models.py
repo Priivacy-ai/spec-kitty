@@ -85,6 +85,28 @@ class TestMissionStep:
                 inputs=[{"flag": "--profile", "source": ""}],
             )
 
+    def test_unknown_step_fields_are_rejected(self) -> None:
+        with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+            MissionStep(
+                id="bootstrap",
+                description="Load context",
+                inputz=[{"flag": "--profile", "source": "wp.agent_profile"}],  # type: ignore[call-arg]
+            )
+
+    def test_unknown_input_fields_are_rejected(self) -> None:
+        with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+            MissionStep(
+                id="bootstrap",
+                description="Load context",
+                inputs=[
+                    {
+                        "flag": "--profile",
+                        "source": "wp.agent_profile",
+                        "optional_typo": True,
+                    },
+                ],
+            )
+
 
 class TestMissionStepContract:
     def test_minimal_construction(self, minimal_step_contract_data: dict) -> None:
@@ -173,3 +195,16 @@ class TestMissionStepContract:
             }
         )
         assert contract.schema_version == "1.0"
+
+    def test_unknown_contract_fields_are_rejected(self) -> None:
+        with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+            MissionStepContract.model_validate(
+                {
+                    "schema_version": "1.0",
+                    "id": "bad",
+                    "action": "implement",
+                    "mission": "software-dev",
+                    "steps": [{"id": "s1", "description": "S1"}],
+                    "inputz": [],
+                }
+            )
