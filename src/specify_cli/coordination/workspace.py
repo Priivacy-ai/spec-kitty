@@ -77,6 +77,39 @@ def _compose_mission_dir(mission_slug: str, mid8: str) -> str:
     return f"{mission_slug}-{mid8}"
 
 
+def _has_stale_worktree_registration(repo_root: Path, path: Path) -> bool:
+    """Return whether git records ``path`` as prunable/missing."""
+    output = subprocess.check_output(
+        ["git", "-C", str(repo_root), "worktree", "list", "--porcelain"],
+        text=True,
+    )
+    expected = path.resolve(strict=False)
+    current_path: Path | None = None
+    current_prunable = False
+
+    for line in output.splitlines() + [""]:
+        if line.startswith("worktree "):
+            current_path = Path(line.removeprefix("worktree ")).resolve(strict=False)
+            current_prunable = False
+            continue
+        if line.startswith("prunable"):
+            current_prunable = True
+            continue
+        if line == "" and current_path is not None:
+            if current_path == expected and current_prunable:
+                return True
+            current_path = None
+            current_prunable = False
+    return False
+
+
+def _remove_worktree_registration(repo_root: Path, path: Path) -> None:
+    subprocess.run(
+        ["git", "-C", str(repo_root), "worktree", "remove", "--force", str(path)],
+        check=True,
+    )
+
+
 class CoordinationWorkspace:
     """Resolve / create / teardown a per-mission coordination worktree.
 
@@ -137,6 +170,8 @@ class CoordinationWorkspace:
         # The caller is responsible for ensuring the branch already
         # exists (WP03's mission create does this).
         path.parent.mkdir(parents=True, exist_ok=True)
+        if _has_stale_worktree_registration(repo_root, path):
+            _remove_worktree_registration(repo_root, path)
         subprocess.run(
             ["git", "-C", str(repo_root), "worktree", "add", str(path), branch],
             check=True,
@@ -155,6 +190,8 @@ class CoordinationWorkspace:
         """
         path = cls.worktree_path(repo_root, mission_slug, mid8)
         if not path.exists():
+            if _has_stale_worktree_registration(repo_root, path):
+                _remove_worktree_registration(repo_root, path)
             return
         subprocess.run(
             ["git", "-C", str(repo_root), "worktree", "remove",
