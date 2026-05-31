@@ -116,7 +116,7 @@ tests/
 | Backward-compatibility on upgrade | Existing projects with no activation config must lose nothing | Default pack ships fully-populated; `from_config()` fallback already handles absent keys |
 | Cascade semantics (activate vs deactivate differ) | Activation pulls in references; deactivation only removes exclusively-owned artifacts | Separate `_cascade_activate` / `_cascade_deactivate` helpers with shared-artifact protection |
 | `mission-type` YAML key is `mission_type_activations` | Phase 1 used a different naming convention; all other kinds use `activated_<kind>` | Use explicit `YAML_KEY_MAP` dict in CharterPackManager (see data-model.md); do NOT use a generic formatter |
-| `activated_kinds`/`mission_type_activations` retain two-state reader semantics | Backward compat: `[]` → all built-ins for these two grandfathered keys | New per-kind readers use three-state; add comment to `pack_context.py` explaining the asymmetry |
+| Three-state semantics applied universally | `[]` → `frozenset()` (nothing) for ALL activation fields including `activated_kinds` and `mission_type_activations`; delete `test_empty_activated_kinds_uses_builtin_fallback` | No reader-side fallback anywhere; default pack is the only safety net |
 
 ## Phase 0: Research Agenda
 
