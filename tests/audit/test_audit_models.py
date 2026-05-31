@@ -261,6 +261,47 @@ class TestMissionAuditResult:
         d = r.to_dict()
         assert isinstance(d["mission_dir"], str)
 
+    def test_to_dict_mission_dir_under_kitty_specs_is_repo_relative(self, tmp_path: Path) -> None:
+        slug = "stable-mission"
+        r = MissionAuditResult(
+            mission_slug=slug,
+            mission_dir=tmp_path / "repo-a" / "kitty-specs" / slug,
+            findings=[],
+        )
+
+        mission_dir = r.to_dict()["mission_dir"]
+
+        assert mission_dir == f"kitty-specs/{slug}"
+        assert str(tmp_path) not in str(mission_dir)
+
+    def test_to_dict_fixture_mission_dir_does_not_leak_absolute_root(self, tmp_path: Path) -> None:
+        slug = "fixture-mission"
+        r = MissionAuditResult(
+            mission_slug=slug,
+            mission_dir=tmp_path / "fixtures" / slug,
+            findings=[],
+        )
+
+        mission_dir = r.to_dict()["mission_dir"]
+
+        assert mission_dir == slug
+        assert str(tmp_path) not in str(mission_dir)
+
+    def test_to_dict_fixture_dir_under_unrelated_kitty_specs_ancestor_uses_slug(
+        self, tmp_path: Path
+    ) -> None:
+        slug = "fixture-mission"
+        r = MissionAuditResult(
+            mission_slug=slug,
+            mission_dir=tmp_path / "kitty-specs" / "install-root" / "fixtures" / slug,
+            findings=[],
+        )
+
+        mission_dir = r.to_dict()["mission_dir"]
+
+        assert mission_dir == slug
+        assert "install-root" not in str(mission_dir)
+
     def test_to_dict_finding_count(self) -> None:
         r = _make_result(
             findings=[
