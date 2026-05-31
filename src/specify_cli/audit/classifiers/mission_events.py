@@ -8,6 +8,7 @@ from pathlib import Path
 from ..detectors import detect_legacy_keys
 from ..models import MissionFinding, Severity
 from ..shape_registry import check_unknown_keys
+from ._details import format_exception_detail
 
 
 def _classify_jsonl_file(
@@ -43,7 +44,7 @@ def _classify_jsonl_file(
                 code="CORRUPT_JSONL",
                 severity=Severity.ERROR,
                 artifact_path=artifact_path,
-                detail=f"could not read file: {exc}",
+                detail=f"could not read file: {format_exception_detail(exc)}",
             )
         ]
 

@@ -29,6 +29,12 @@ import pytest
 
 pytestmark = [pytest.mark.integration]
 
+
+def _assert_no_absolute_path_leak(detail: str | None, leaked_path: Path) -> None:
+    assert detail is not None
+    assert str(leaked_path) not in detail
+    assert leaked_path.name not in detail
+
 def _write_json(path: Path, data: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, sort_keys=True, indent=2) + "\n", encoding="utf-8")
@@ -169,6 +175,56 @@ def test_status_events_corrupt_line(tmp_path: Path) -> None:
     assert flag is True
 
 
+def test_status_events_read_oserror_detail_is_deterministic(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unreadable status.events.jsonl must not leak absolute paths."""
+    path = tmp_path / "status.events.jsonl"
+    path.write_text("{}\n", encoding="utf-8")
+    original_read_text = Path.read_text
+
+    def raise_for_status_events(self: Path, *args: object, **kwargs: object) -> str:
+        if self == path:
+            raise PermissionError(13, "Permission denied", str(path))
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", raise_for_status_events)
+
+    findings, flag = classify_status_events_jsonl(tmp_path)
+
+    assert flag is True
+    assert len(findings) == 1
+    assert findings[0].code == "CORRUPT_JSONL"
+    assert findings[0].detail == (
+        "could not read file: PermissionError: [Errno 13] Permission denied"
+    )
+    _assert_no_absolute_path_leak(findings[0].detail, path)
+
+
+def test_status_events_read_oserror_without_errno_does_not_echo_message_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """OSError args without errno may include paths and must not be copied."""
+    path = tmp_path / "status.events.jsonl"
+    path.write_text("{}\n", encoding="utf-8")
+    original_read_text = Path.read_text
+
+    def raise_for_status_events(self: Path, *args: object, **kwargs: object) -> str:
+        if self == path:
+            raise OSError(f"failed reading {path}")
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", raise_for_status_events)
+
+    findings, flag = classify_status_events_jsonl(tmp_path)
+
+    assert flag is True
+    assert findings[0].detail == "could not read file: OSError"
+    _assert_no_absolute_path_leak(findings[0].detail, path)
+
+
 def test_status_events_legacy_key(tmp_path: Path) -> None:
     """Event row with work_package_id → LEGACY_KEY finding."""
     row = {**_MODERN_EVENT, "work_package_id": "WP01"}
@@ -234,6 +290,32 @@ def test_status_json_corrupt_json(tmp_path: Path) -> None:
     assert "CORRUPT_JSON" in _codes(findings)
 
 
+def test_status_json_read_oserror_detail_is_deterministic(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unreadable status.json must not raise or leak absolute paths."""
+    path = tmp_path / "status.json"
+    path.write_text("{}", encoding="utf-8")
+    original_read_text = Path.read_text
+
+    def raise_for_status_json(self: Path, *args: object, **kwargs: object) -> str:
+        if self == path:
+            raise PermissionError(13, "Permission denied", str(path))
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", raise_for_status_json)
+
+    findings = classify_status_json(tmp_path)
+
+    assert len(findings) == 1
+    assert findings[0].code == "CORRUPT_JSON"
+    assert findings[0].detail == (
+        "could not read file: PermissionError: [Errno 13] Permission denied"
+    )
+    _assert_no_absolute_path_leak(findings[0].detail, path)
+
+
 def test_status_json_skip_drift_true(tmp_path: Path) -> None:
     """skip_drift=True → no SNAPSHOT_DRIFT even with mismatched content."""
     # Write a status.json with content that would normally cause drift
@@ -260,6 +342,33 @@ def test_snapshot_drift_detected(tmp_path: Path) -> None:
     drift = [f for f in findings if f.code == "SNAPSHOT_DRIFT"]
     assert len(drift) >= 1
     assert drift[0].severity == Severity.ERROR
+
+
+def test_status_json_reducer_oserror_detail_is_deterministic(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Reducer OSError details must not leak absolute paths into findings."""
+    path = tmp_path / "status.events.jsonl"
+    (tmp_path / "status.json").write_text("{}", encoding="utf-8")
+
+    from specify_cli.status import reducer
+
+    def raise_reducer_oserror(mission_dir: Path) -> object:
+        assert mission_dir == tmp_path
+        raise FileNotFoundError(2, "No such file or directory", str(path))
+
+    monkeypatch.setattr(reducer, "materialize_snapshot", raise_reducer_oserror)
+
+    findings = classify_status_json(tmp_path)
+
+    drift = [f for f in findings if f.code == "SNAPSHOT_DRIFT"]
+    assert len(drift) == 1
+    assert drift[0].detail == (
+        "reducer raised during drift check: FileNotFoundError: "
+        "[Errno 2] No such file or directory"
+    )
+    _assert_no_absolute_path_leak(drift[0].detail, path)
 
 
 def test_status_json_retrospective_materialized_snapshot_is_not_drift(
@@ -324,6 +433,32 @@ def test_mission_events_corrupt(tmp_path: Path) -> None:
     _write_corrupt_jsonl(tmp_path / "mission-events.jsonl")
     findings = classify_mission_events_jsonl(tmp_path)
     assert "CORRUPT_JSONL" in _codes(findings)
+
+
+def test_mission_events_read_oserror_detail_is_deterministic(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unreadable mission-events.jsonl must not leak absolute paths."""
+    path = tmp_path / "mission-events.jsonl"
+    path.write_text("{}\n", encoding="utf-8")
+    original_read_text = Path.read_text
+
+    def raise_for_mission_events(self: Path, *args: object, **kwargs: object) -> str:
+        if self == path:
+            raise PermissionError(13, "Permission denied", str(path))
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", raise_for_mission_events)
+
+    findings = classify_mission_events_jsonl(tmp_path)
+
+    assert len(findings) == 1
+    assert findings[0].code == "CORRUPT_JSONL"
+    assert findings[0].detail == (
+        "could not read file: PermissionError: [Errno 13] Permission denied"
+    )
+    _assert_no_absolute_path_leak(findings[0].detail, path)
 
 
 def test_mission_events_legacy_key(tmp_path: Path) -> None:
