@@ -220,8 +220,10 @@ set (which may be empty), and the command to activate it. The review does not st
 5. A WP with an inactive profile assigned in frontmatter fails `finalize-tasks` with a non-zero exit code and a message identifying the WP, the inactive profile, and the resolution command
 6. The same WP also fails `agent action implement` at precondition check, before any worktree is created
 7. `charter.resolve_action_sequence` returns only activated mission types when `mission_type_activations` is explicitly set; the override file is no longer ignored
-8. `filter_graph_by_activation` is called from the charter module in at least one live code path that affects a user-visible command
+8. `filter_graph_by_activation` is called from the charter module in at least one live code path that affects a user-visible command; `grep src/ -r filter_graph_by_activation` returns at least one non-test, non-`__all__` hit
 9. `MissionStepRepository` is instantiated and called from a production path accessible via a user-facing command
+10. `PackContext.activated_kinds` is demonstrably read in each of the three resolution patterns (DRG-based, charter-internal, direct repository); a codebase grep for `activated_kinds` returns consumer call sites, not only the constructor
+11. Deactivating `directive` in a test project's charter and running `charter context` produces zero directives in the output (end-to-end activation enforcement verified for at least one DRG-based kind)
 10. `pytest tests/architectural/` exits with 0 failures after all changes
 11. `pytest tests/ -m "fast or doctrine"` continues to exit with 0 failures
 
@@ -252,10 +254,62 @@ set (which may be empty), and the command to activate it. The review does not st
 
 ---
 
+## Wiring Verification Requirements
+
+A pre-implementation audit of the codebase revealed that `PackContext.activated_kinds` — the
+data structure that holds activation state for all 8 DoctrineService artifact kinds — is
+currently **populated but never read** in any runtime resolution path. This is the same
+dead-code pattern that produced the wiring failures in phase 1. Eight of the nine activation
+kinds carry HIGH dead-code risk today.
+
+Three distinct resolution patterns exist, each requiring its own wiring approach:
+
+**Pattern A — DRG-based resolution** (`directive`, `tactic`, `styleguide`, `toolguide`)
+These kinds are extracted from the merged Doctrine Reference Graph during charter context
+construction. The merged graph is currently returned unfiltered to all callers. The activation
+filter must be applied to the merged graph before artifact extraction.
+
+**Pattern B — Charter-internal flat catalog** (`paradigm`, `procedure`)
+These kinds bypass the DRG entirely and are resolved through a flat catalog lookup against
+`selected_paradigms` / `selected_procedures` in the charter. The activation state must gate
+the available set before selection is evaluated.
+
+**Pattern C — Direct repository lookup** (`agent_profile`, `mission_step_contract`)
+These kinds are resolved via direct repository instantiation without any PackContext.
+The resolution call must receive and apply the charter activation state.
+
+The following requirements are **in addition to FR-013 through FR-016** and must be
+implemented to ensure the wiring gap does not repeat:
+
+| ID | Requirement | Priority | Status |
+|----|------------|---------|--------|
+| FR-031 | `PackContext.activated_kinds` is read by every artifact resolution path for its respective kind; no kind may be resolved at runtime without consulting the activated set when one is explicitly declared in the charter | Must | Proposed |
+| FR-032 | For Pattern A kinds (directive, tactic, styleguide, toolguide): the merged DRG returned to all charter context construction paths is filtered by the project's charter activation state before any artifact extraction occurs | Must | Proposed |
+| FR-033 | For Pattern B kinds (paradigm, procedure): the activation state is consulted to bound the set of available artifacts before charter-internal selection is evaluated; a deactivated paradigm or procedure is not available for selection regardless of whether it exists in the doctrine catalog | Must | Proposed |
+| FR-034 | For Pattern C kinds (agent_profile, mission_step_contract): the repository call that resolves the artifact receives the project's current PackContext and applies activation filtering; an artifact not activated in the charter is unavailable regardless of whether it exists in the doctrine directory | Must | Proposed |
+| FR-035 | `filter_graph_by_activation` must have at least one verified production call site reachable by a user-facing command; the architectural dead-symbols test must not flag it as unused after this mission | Must | Proposed |
+| FR-036 | All call sites of `load_validated_graph()` in the charter module that supply context to user-facing commands pass the project's current PackContext so the returned graph is activation-filtered; passing `None` is permitted only in test isolation | Must | Proposed |
+| FR-037 | `load_org_charter_policies()` call sites that currently pass `pack_context=None` are updated to supply `PackContext.from_config(repo_root)`; the `None` default is retained only for test isolation | Must | Proposed |
+
+### Wiring Acceptance Criteria
+
+The following acceptance criteria are specifically designed to prevent the "implemented but
+not wired" failure mode. Each criterion requires a verified call chain, not just the existence
+of a correct implementation:
+
+1. Deactivate `directive` kind entirely in a test project's charter. Run `spec-kitty charter context`. Assert zero directives appear in the output — not a reduced set, zero.
+2. Deactivate a specific `tactic` in the charter. Trigger a review dispatch. Assert that tactic is absent from the resolved prompt context.
+3. Deactivate a `styleguide` or `toolguide`. Run `charter pack consistency-check`. Assert the check reports zero artifacts for that kind as activated.
+4. Deactivate an `agent_profile`. Attempt `agent action implement` on a WP that assigns that profile. Assert hard fail at precondition check.
+5. Grep `src/` for callers of `filter_graph_by_activation` after implementation. Assert at least one non-test caller exists. (This grep is a required step in the review checklist.)
+6. Grep `src/` for resolution paths that construct `PackContext` with `activated_kinds` set but never pass it downstream. Assert zero such paths exist.
+
+---
+
 ## Out of Scope
 
 - Org-level or project-level doctrine pack support (only the built-in doctrine pack is the baseline for this mission)
-- `charter activate` for artifact kinds beyond mission-type, profile, directive, and tactic (e.g., step templates, contract schemas)
+- `charter activate` for artifact kinds beyond the nine activatable kinds defined in this spec (e.g., step templates, contract schemas, DRG-internal node types)
 - SaaS synchronization of charter pack state
 - Visual / GUI charter management
 - Automatic migration of WP frontmatter when a profile is deactivated
