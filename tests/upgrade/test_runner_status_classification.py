@@ -179,6 +179,43 @@ def test_worktree_upgrade_stamps_schema_version_after_metadata_save(
     assert worktree_metadata["spec_kitty"]["schema_version"] == REQUIRED_SCHEMA_VERSION
 
 
+def test_no_migrations_stamps_existing_worktree_schema_version(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    project_path = _setup_project(tmp_path)
+    ProjectMetadata(
+        version="1.0.0",
+        initialized_at=datetime.now(),
+    ).save(project_path / ".kittify")
+    worktree = project_path / ".worktrees" / "001-feature-lane-a"
+    (worktree / ".kittify").mkdir(parents=True)
+    ProjectMetadata(
+        version="1.0.0",
+        initialized_at=datetime.now(),
+    ).save(worktree / ".kittify")
+
+    runner = MigrationRunner(project_path)
+
+    monkeypatch.setattr(runner.detector, "detect_version", lambda: "1.0.0")
+    monkeypatch.setattr(
+        "specify_cli.upgrade.runner.MigrationRegistry.get_applicable",
+        lambda _from, _to, project_path=None: [],  # noqa: ARG005
+    )
+
+    result = runner.upgrade("1.0.0", include_worktrees=True)
+
+    assert result.success is True
+    main_metadata = yaml.safe_load(
+        (project_path / ".kittify" / "metadata.yaml").read_text(encoding="utf-8")
+    )
+    worktree_metadata = yaml.safe_load(
+        (worktree / ".kittify" / "metadata.yaml").read_text(encoding="utf-8")
+    )
+    assert main_metadata["spec_kitty"]["schema_version"] == REQUIRED_SCHEMA_VERSION
+    assert worktree_metadata["spec_kitty"]["schema_version"] == REQUIRED_SCHEMA_VERSION
+
+
 def test_upgrade_rejects_downgrade_target(monkeypatch, tmp_path: Path) -> None:
     project_path = _setup_project(tmp_path)
     runner = MigrationRunner(project_path)
