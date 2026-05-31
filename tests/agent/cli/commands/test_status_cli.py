@@ -693,3 +693,28 @@ class TestLifecycleCommand:
         assert data["mission_slug"] == "034-test-feature"
         assert data["state"] == "active"
         assert data["surface_state"] == "active"
+
+    def test_lifecycle_json_reports_corrupt_event_log(
+        self,
+        tmp_path: Path,
+        feature_dir: Path,
+    ):
+        (feature_dir / "status.events.jsonl").write_text("not json\n", encoding="utf-8")
+        patches = _patch_detection(tmp_path)
+        with (
+            patches["locate_project_root"],
+            patches["get_main_repo_root"],
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "lifecycle",
+                    "--mission",
+                    "034-test-feature",
+                    "--json",
+                ],
+            )
+
+        assert result.exit_code == 1
+        data = _extract_json(result.output)
+        assert data["error"] == "Invalid JSON on line 1: Expecting value: line 1 column 1 (char 0)"

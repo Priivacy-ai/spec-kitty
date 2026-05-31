@@ -19,7 +19,7 @@ from rich.table import Table
 from specify_cli.cli.selector_resolution import resolve_mission_handle, resolve_selector
 from specify_cli.core.paths import locate_project_root, get_main_repo_root
 from specify_cli.status.locking import feature_status_lock
-from specify_cli.status.store import EVENTS_FILENAME, EventPersistenceError
+from specify_cli.status.store import EVENTS_FILENAME, EventPersistenceError, StoreError
 
 logger = logging.getLogger(__name__)
 
@@ -533,7 +533,11 @@ def lifecycle(
     from specify_cli.status.lifecycle import derive_mission_lifecycle
 
     feature_dir, mission_slug, _repo_root = _resolve_feature_dir(mission, feature, json_output=json_output)
-    result = derive_mission_lifecycle(feature_dir)
+    try:
+        result = derive_mission_lifecycle(feature_dir)
+    except StoreError as exc:
+        _output_error(json_output, str(exc))
+        raise typer.Exit(1)
 
     if json_output:
         print(json.dumps(result.to_dict()))
@@ -696,6 +700,42 @@ def migrate(
 # ---------------------------------------------------------------------------
 
 
+def _collect_status_validation_findings(feature_dir: Path, result: Any) -> bool:
+    """Populate validation findings from status.events.jsonl.
+
+    Returns False when there are no events to validate.
+    """
+    from specify_cli.status.store import read_events, read_events_raw
+    from specify_cli.status.validate import (
+        validate_done_evidence,
+        validate_event_schema,
+        validate_materialization_drift,
+        validate_transition_legality,
+    )
+
+    try:
+        raw_events = read_events_raw(feature_dir)
+
+        if not raw_events:
+            return False
+
+        status_events = [event.to_dict() for event in read_events(feature_dir)]
+
+        for event in status_events:
+            result.errors.extend(validate_event_schema(event))
+
+        result.errors.extend(validate_transition_legality(status_events))
+        result.errors.extend(validate_done_evidence(status_events))
+
+        # Drift detection: event log is sole authority, drift is always an error
+        drift_findings = validate_materialization_drift(feature_dir)
+        result.errors.extend(drift_findings)
+    except StoreError as exc:
+        result.errors.append(f"status.events.jsonl is corrupt: {exc}")
+
+    return True
+
+
 @app.command()
 def validate(
     mission: Annotated[
@@ -724,14 +764,7 @@ def validate(
         spec-kitty agent status validate --mission 034-my-feature
         spec-kitty agent status validate --json
     """
-    from specify_cli.status.store import read_events, read_events_raw
-    from specify_cli.status.validate import (
-        ValidationResult,
-        validate_done_evidence,
-        validate_event_schema,
-        validate_materialization_drift,
-        validate_transition_legality,
-    )
+    from specify_cli.status.validate import ValidationResult
 
     cwd = Path.cwd().resolve()
     repo_root = locate_project_root(cwd)
@@ -757,9 +790,8 @@ def validate(
 
     result = ValidationResult()
 
-    raw_events = read_events_raw(feature_dir)
-
-    if not raw_events:
+    has_events = _collect_status_validation_findings(feature_dir, result)
+    if not has_events:
         if json_output:
             print(
                 json.dumps(
@@ -780,18 +812,6 @@ def validate(
             console.print("No events to validate.")
             console.print("[green]Result: PASS[/green]")
         raise typer.Exit(0)
-
-    status_events = [event.to_dict() for event in read_events(feature_dir)]
-
-    for event in status_events:
-        result.errors.extend(validate_event_schema(event))
-
-    result.errors.extend(validate_transition_legality(status_events))
-    result.errors.extend(validate_done_evidence(status_events))
-
-    # Drift detection: event log is sole authority, drift is always an error
-    drift_findings = validate_materialization_drift(feature_dir)
-    result.errors.extend(drift_findings)
 
     if json_output:
         print(

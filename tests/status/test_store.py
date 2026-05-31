@@ -377,6 +377,15 @@ def test_corruption_invalid_event_structure(tmp_path: Path) -> None:
         read_events(tmp_path)
 
 
+def test_corruption_non_object_event_line(tmp_path: Path) -> None:
+    """Valid JSON that is not an object raises StoreError."""
+    events_file = tmp_path / EVENTS_FILENAME
+    events_file.write_text('["not", "an", "object"]\n', encoding="utf-8")
+
+    with pytest.raises(StoreError, match="Invalid event structure on line 1"):
+        read_events(tmp_path)
+
+
 # --- read_events_raw ---
 
 
@@ -389,6 +398,15 @@ def test_read_raw_returns_dicts(tmp_path: Path) -> None:
     assert len(raw) == 1
     assert isinstance(raw[0], dict)
     assert raw[0]["wp_id"] == "WP01"
+
+
+def test_read_raw_rejects_non_object_event_line(tmp_path: Path) -> None:
+    """read_events_raw returns dicts or fails closed."""
+    events_file = tmp_path / EVENTS_FILENAME
+    events_file.write_text('["not", "an", "object"]\n', encoding="utf-8")
+
+    with pytest.raises(StoreError, match="Invalid event structure on line 1"):
+        read_events_raw(tmp_path)
 
 
 # --- deterministic ordering ---

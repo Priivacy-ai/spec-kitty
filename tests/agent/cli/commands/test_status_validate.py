@@ -273,6 +273,37 @@ class TestValidateCommand:
         result = runner.invoke(app, ["validate", "--mission", mission_slug])
         assert result.exit_code == 1
 
+    @patch("specify_cli.cli.commands.agent.status.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.status.get_main_repo_root")
+    def test_validate_json_reports_corrupt_event_log(
+        self,
+        mock_main_root,
+        mock_locate,
+        tmp_path,
+    ):
+        """Corrupt status.events.jsonl returns a JSON error payload."""
+        mission_slug = "034-test-feature"
+        feature_dir = _setup_feature(
+            tmp_path,
+            mission_slug,
+            events=None,
+            materialize=False,
+        )
+        (feature_dir / "status.events.jsonl").write_text("not json\n", encoding="utf-8")
+
+        mock_locate.return_value = tmp_path
+        mock_main_root.return_value = tmp_path
+
+        result = runner.invoke(
+            app, ["validate", "--mission", mission_slug, "--json"]
+        )
+
+        assert result.exit_code == 1
+        data = _extract_json(result.output)
+        assert data["mission_slug"] == mission_slug
+        assert data["passed"] is False
+        assert data["error_count"] == 1
+        assert "Invalid JSON on line 1" in data["errors"][0]
 
     @patch("specify_cli.cli.commands.agent.status.locate_project_root")
     @patch("specify_cli.cli.commands.agent.status.get_main_repo_root")
