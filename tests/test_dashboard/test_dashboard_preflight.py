@@ -131,6 +131,30 @@ def test_dashboard_hook_clears_warning_on_success(
     assert read_preflight_warning(tmp_path) is None
 
 
+def test_null_project_config_enabled_still_runs_dashboard_preflight(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Null enabled must not silently skip the dashboard warning gate."""
+    from specify_cli.charter_preflight import hook as hook_mod
+
+    config_path = tmp_path / ".kittify" / "config.yaml"
+    config_path.parent.mkdir()
+    config_path.write_text("preflight:\n  enabled: null\n", encoding="utf-8")
+    runner_calls: list[dict] = []
+
+    def _run_charter_preflight(**kwargs):
+        runner_calls.append(kwargs)
+        return _pass_result()
+
+    monkeypatch.setattr(hook_mod, "run_charter_preflight", _run_charter_preflight)
+
+    result = hook_mod.run_preflight_for_dashboard(tmp_path)
+
+    assert result.passed is True
+    assert runner_calls == [{"repo_root": tmp_path, "auto_refresh": False, "strict": False}]
+
+
 # ---------------------------------------------------------------------------
 # API surface — /api/health response shape
 # ---------------------------------------------------------------------------
