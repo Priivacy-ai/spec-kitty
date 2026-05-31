@@ -356,7 +356,8 @@ spec-kitty next --agent <agent> --mission <mission-slug> --result blocked --json
 > Always use `--mission` in new scripts.
 
 The `--result` flag tells the runtime the outcome of the previous step.
-Defaults to `success` if omitted.
+If omitted, `spec-kitty next` returns current state without advancing (query mode).
+It does not report success for the previous step.
 
 ---
 
