@@ -302,35 +302,88 @@ def build_charter_context_include(
     org_roots = [org_root] if org_root is not None else None
     service = _build_doctrine_service(repo_root, org_roots=org_roots)
     if kind == "directive":
-        directive_id = _format_profile_directive_code(identifier)
-        directive = service.directives.get(directive_id)  # type: ignore[attr-defined]
-        if directive is None:
-            raise ValueError(f"No directive found for selector '{selector}'.")
-        title = getattr(directive, "title", directive_id)
-        return "\n".join(
-            [
-                f"Directive {directive_id}: {title}",
-                *_format_inline_directive_body(directive),
-                *_format_full_artifact_payload_body(directive),
-            ]
-        )
+        return _render_directive_include(service, identifier, selector)
     if kind == "tactic":
-        tactic = service.tactics.get(identifier)  # type: ignore[attr-defined]
-        if tactic is None:
-            raise ValueError(f"No tactic found for selector '{selector}'.")
-        name = getattr(tactic, "name", identifier)
-        return "\n".join(
-            [
-                f"Tactic {identifier}: {name}",
-                *_format_inline_tactic_body(tactic),
-                *_format_full_artifact_payload_body(tactic),
-            ]
-        )
+        return _render_tactic_include(service, identifier, selector)
+    if kind == "artifact":
+        return _render_generic_artifact_include(service, identifier)
     artifact = _render_doctrine_artifact_include(service, kind, identifier)
     if artifact is not None:
         return artifact
 
     raise ValueError(f"Unsupported --include selector kind '{kind}'.")
+
+
+def _render_directive_include(service: object, identifier: str, selector: str) -> str:
+    """Render a directive selector for ``--include``."""
+
+    directive_id = _format_profile_directive_code(identifier)
+    directive = service.directives.get(directive_id)  # type: ignore[attr-defined]
+    if directive is None:
+        raise ValueError(f"No directive found for selector '{selector}'.")
+    title = getattr(directive, "title", directive_id)
+    return "\n".join(
+        [
+            f"Directive {directive_id}: {title}",
+            *_format_inline_directive_body(directive),
+            *_format_full_artifact_payload_body(directive),
+        ]
+    )
+
+
+def _render_tactic_include(service: object, identifier: str, selector: str) -> str:
+    """Render a tactic selector for ``--include``."""
+
+    tactic = service.tactics.get(identifier)  # type: ignore[attr-defined]
+    if tactic is None:
+        raise ValueError(f"No tactic found for selector '{selector}'.")
+    name = getattr(tactic, "name", identifier)
+    return "\n".join(
+        [
+            f"Tactic {identifier}: {name}",
+            *_format_inline_tactic_body(tactic),
+            *_format_full_artifact_payload_body(tactic),
+        ]
+    )
+
+
+def _render_generic_artifact_include(service: object, identifier: str) -> str:
+    """Resolve a best-effort ``artifact:<id>`` selector emitted by activations."""
+
+    matches: list[tuple[str, str]] = []
+    for candidate_kind in (
+        "directive",
+        "tactic",
+        "paradigm",
+        "styleguide",
+        "toolguide",
+        "procedure",
+        "agent_profile",
+        "mission_step_contract",
+    ):
+        selector = f"{candidate_kind}:{identifier}"
+        try:
+            if candidate_kind == "directive":
+                rendered = _render_directive_include(service, identifier, selector)
+            elif candidate_kind == "tactic":
+                rendered = _render_tactic_include(service, identifier, selector)
+            else:
+                rendered = _render_doctrine_artifact_include(
+                    service, candidate_kind, identifier
+                )
+        except ValueError:
+            continue
+        if rendered is not None:
+            matches.append((candidate_kind, rendered))
+
+    if not matches:
+        raise ValueError(f"No artifact found for selector 'artifact:{identifier}'.")
+    if len(matches) > 1:
+        kinds = ", ".join(kind for kind, _text in matches)
+        raise ValueError(
+            f"Ambiguous artifact selector 'artifact:{identifier}' matched kinds: {kinds}."
+        )
+    return matches[0][1]
 
 
 def _render_doctrine_artifact_include(
@@ -1422,7 +1475,14 @@ def _jsonable_artifact_value(value: object) -> object:
             if item is not None
         }
 
-    if isinstance(value, list | tuple | set):
+    if isinstance(value, set):
+        normalized = [_jsonable_artifact_value(item) for item in value]
+        return sorted(
+            normalized,
+            key=lambda item: json.dumps(item, sort_keys=True),
+        )
+
+    if isinstance(value, list | tuple):
         return [_jsonable_artifact_value(item) for item in value]
 
     attrs = getattr(value, "__dict__", None)

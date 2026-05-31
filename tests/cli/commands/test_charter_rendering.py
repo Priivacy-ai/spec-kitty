@@ -342,6 +342,50 @@ def test_context_include_renders_selector_without_action(tmp_path: Path) -> None
     )
 
 
+def test_context_include_json_renders_machine_envelope(tmp_path: Path) -> None:
+    """Arrange: include selector + JSON; Act: context --include --json; Assert: envelope emits."""
+
+    project = _project(tmp_path)
+
+    with (
+        patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
+        patch("specify_cli.doctrine.config.resolve_org_roots", return_value=[]),
+        patch(
+            "charter.context.build_charter_context_include",
+            return_value="### Regression Vigilance\nRule body.",
+        ),
+    ):
+        result = runner.invoke(
+            app,
+            ["context", "--include", "section:regression-vigilance", "--json"],
+        )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["success"] is True
+    assert payload["include"] == "section:regression-vigilance"
+    assert payload["text"] == "### Regression Vigilance\nRule body."
+
+
+def test_context_include_renders_value_error(tmp_path: Path) -> None:
+    """Arrange: include builder rejects selector; Act: context --include; Assert: exit 1."""
+
+    project = _project(tmp_path)
+
+    with (
+        patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
+        patch("specify_cli.doctrine.config.resolve_org_roots", return_value=[]),
+        patch(
+            "charter.context.build_charter_context_include",
+            side_effect=ValueError("bad selector"),
+        ),
+    ):
+        result = runner.invoke(app, ["context", "--include", "bad"])
+
+    assert result.exit_code == 1
+    assert "bad selector" in result.output
+
+
 def test_context_requires_action_without_include(tmp_path: Path) -> None:
     """Arrange: no action/include; Act: context; Assert: command fails closed."""
 
