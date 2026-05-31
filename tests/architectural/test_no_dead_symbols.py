@@ -495,38 +495,6 @@ _CATEGORY_C_WP_IN_FLIGHT_UNIFIED_MISSION_STEP: frozenset[str] = frozenset(
 
 
 # ---------- C. WP-in-flight charter-pack activation layer (01KSYE4V) ----------
-# Mission ``charter-pack-activation-layer-01KSYE4V`` ships the charter-pack
-# activation subsystem ahead of full runtime wiring. The modules below
-# export public symbols that are exercised by tests but not yet imported by
-# any live src/ production path. Wiring is the responsibility of later WPs
-# in this mission (WP02 – WP11). Removal trigger: once each WP wires its
-# target symbol(s), remove the corresponding entry from this set.
-_CATEGORY_C_WP_IN_FLIGHT_CHARTER_PACK_ACTIVATION: frozenset[str] = frozenset(
-    {
-        # charter.drg: PackContext is the type boundary for the activation context.
-        # filter_graph_by_activation: live callers landed in charter-pack-activation-layer-01KSYE4V
-        "charter.drg::PackContext",
-        # specify_cli.charter_activate: AffectedMission and StepRemovalWarning are
-        # return/field types for the step-removal warning helpers; they are used
-        # indirectly via the wired call sites but not directly imported.
-        # emit_step_removal_warnings / find_removed_steps / scan_inflight_missions
-        # now have live callers in cli/commands/charter/activate.py (wired in
-        # charter-pack-activation-layer-01KSYE4V post-merge remediation).
-        "specify_cli.charter_activate::AffectedMission",
-        "specify_cli.charter_activate::StepRemovalWarning",
-        # specify_cli.cli.commands.charter.activate: the CLI entry-point for
-        # the charter activate command. Wired into the charter CLI app by
-        # WP06 of this mission.
-        "specify_cli.cli.commands.charter.activate::activate_cmd",
-        # specify_cli.doctrine.org_charter: org-level charter extension and
-        # cycle-guard error types. WP07 wires them into the org-charter
-        # validation path.
-        "specify_cli.doctrine.org_charter::OrgCharterCycleError",
-        "specify_cli.doctrine.org_charter::OrgCharterExtensionError",
-    }
-)
-
-
 # ---------- C. WP-in-flight charter pack activation layer (mission 01KSYE4V) ----------
 # Mission ``charter-pack-activation-layer-01KSYE4V`` WP05/WP06 introduce
 # new public symbols across charter, doctrine, and specify_cli whose only
@@ -552,10 +520,6 @@ _CATEGORY_C_WP_IN_FLIGHT_CHARTER_ACTIVATION: frozenset[str] = frozenset(
         # in charter-pack-activation-layer-01KSYE4V post-merge remediation.
         "specify_cli.charter_activate::AffectedMission",
         "specify_cli.charter_activate::StepRemovalWarning",
-        # specify_cli.cli.commands.charter.activate: activate_cmd is the CLI
-        # entry point registered via the charter command group (typer callback,
-        # no direct src/ import needed)
-        "specify_cli.cli.commands.charter.activate::activate_cmd",
         # specify_cli.doctrine.org_charter: cycle/extension error types consumed
         # by CLI validation (WP06 wiring deferred)
         "specify_cli.doctrine.org_charter::OrgCharterCycleError",

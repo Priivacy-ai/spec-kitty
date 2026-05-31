@@ -146,5 +146,4 @@ test_no_dead_symbols:
   # charter-pack-activation-layer-01KSYE4V whose production callers (CLI
   # activation command, DRG pipeline) are in-flight in later WPs of the same
   # mission. All symbols ship ahead of wiring per the activation-layer design.
-  category_c_wp_in_flight_charter_pack_activation: 6  # justification: charter.drg::PackContext, AffectedMission, StepRemovalWarning, activate_cmd, OrgCharterCycle/ExtensionError; filter_graph/helpers wired in post-merge remediation
-  category_c_wp_in_flight_charter_activation: 9  # justification: 4 wired in post-merge remediation (MissionStepRepository + 3 helpers); remaining 9 are type/error symbols with no direct src/ caller yet
+  category_c_wp_in_flight_charter_activation: 8  # justification: activate_cmd removed from __all__ (typer callback, consistent with deactivate/list); remaining 8 are type/error symbols with no direct src/ caller yet

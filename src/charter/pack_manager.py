@@ -17,9 +17,10 @@ Cascade deferral (FR-006/007)
 ------------------------------
 ``activate()`` and ``deactivate()`` accept ``cascade=True`` but DRG edge
 traversal is **not** implemented in this WP.  A warning is emitted when
-``cascade=True`` is passed.  FR-008 (warn on no-cascade) is satisfied by
-this warning; FR-006 and FR-007 are explicitly deferred to a follow-on
-mission.  This is intentional scope control, not a defect.
+``cascade=True`` is passed.  FR-006 (warn on no-cascade) is satisfied by
+a static coherence hint emitted on every activation; FR-007 (cascade
+execute) is explicitly deferred to a follow-on mission.  This is
+intentional scope control, not a defect.
 
 Layer rule
 ----------
@@ -232,7 +233,15 @@ class CharterPackManager:
                 f"'{artifact_id}' is already activated for kind '{kind}'."
             )
 
-        # Cascade: DRG edge traversal deferred to follow-on mission.
+        # FR-006: warn about non-cascaded cross-kind dependencies (static hint;
+        # DRG traversal deferred to follow-on mission per FR-007).
+        if not cascade and result.activated:
+            result.warnings.append(
+                f"'{artifact_id}' may reference artifacts of other kinds that were "
+                "not activated. Run `charter pack consistency-check` to verify "
+                "coherence, or re-run with `--cascade` to activate referenced kinds "
+                "automatically (cascade execution deferred to a follow-on mission)."
+            )
         if cascade:
             result.warnings.append(
                 "cascade=True requested but DRG edge traversal is not yet implemented "
