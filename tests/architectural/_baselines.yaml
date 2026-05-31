@@ -19,10 +19,12 @@
 # tests/architectural/test_no_dead_modules.py
 # Per-category breakdown (FR-112 refactor).
 test_no_dead_modules:
-  # justification: 71 auto-discovered migration modules under
-  # src/specify_cli/upgrade/migrations/m_*.py. Grows when a new
-  # migration ships; growth here is expected and routine.
-  category_1_auto_discovered_migrations: 71
+  # justification: 74 auto-discovered migration modules under
+  # src/specify_cli/upgrade/migrations/m_*.py. +3 for
+  # m_3_2_0rc28_github_diff_attributes, m_3_2_7_activate_builtin_mission_types
+  # (WP01 gap filled here), and m_3_2_8_default_charter_pack (WP05,
+  # charter-pack-activation-layer-01KSYE4V). Growth here is expected/routine.
+  category_1_auto_discovered_migrations: 74
   # justification: 3 schema generator modules consumed by
   # scripts/generate_schemas.py via importlib.import_module.
   # Shrunk from 4 → 3 when doctrine.missions.models gained a live
@@ -43,7 +45,7 @@ test_no_dead_modules:
   # the mission's post-merge review). Migration is tracked under
   # Priivacy-ai/spec-kitty#1356; once landed, the module gains a
   # runtime caller and this baseline can drop back to 3.
-  category_5_wp_in_flight_adapters: 4
+  category_5_wp_in_flight_adapters: 5  # justification: +1 for doctrine.missions.mission_step_repository (WP01 gap filled by WP05, charter-pack-activation-layer-01KSYE4V)
   # justification: 3 frozen-contract internal re-exports under
   # next/_internal_runtime/ frozen by shared-package-boundary-cutover.
   category_6_frozen_runtime_reexports: 3
