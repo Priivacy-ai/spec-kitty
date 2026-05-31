@@ -143,6 +143,16 @@ _INTERVIEW_SECTION_ALIASES: dict[str, tuple[str, ...]] = {
     "language_scope": ("languages_frameworks",),
 }
 
+_MISSION_IDENTIFIER_ANSWERS: frozenset[str] = frozenset(
+    {
+        "documentation",
+        "plan",
+        "research",
+        "software_dev",
+        "software-dev",
+    }
+)
+
 # Gated sections without a direct producer key. These remain accepted for
 # legacy/synthetic synthesis snapshots and are documented so contract tests do
 # not silently bless missing real interview data.
@@ -229,7 +239,15 @@ def _section_answer_with_source(
     Returns ("", section_label) when the section and aliases are absent or not
     strings. The canonical section takes precedence over aliases.
     """
-    for key in (section_label, *_INTERVIEW_SECTION_ALIASES.get(section_label, ())):
+    keys = (section_label, *_INTERVIEW_SECTION_ALIASES.get(section_label, ()))
+    if section_label == "mission_type":
+        canonical = snapshot.get(section_label, "")
+        if isinstance(canonical, str):
+            normalized_canonical = _normalize_section_selector(canonical)
+            if normalized_canonical in _MISSION_IDENTIFIER_ANSWERS:
+                keys = (*_INTERVIEW_SECTION_ALIASES.get(section_label, ()), section_label)
+
+    for key in keys:
         value = snapshot.get(key, "")
         if isinstance(value, str):
             answer = value.strip()

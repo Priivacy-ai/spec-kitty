@@ -445,3 +445,22 @@ class TestNormalizeInterviewSnapshot:
         assert "testing_requirements" not in normalized
         assert "risk_boundaries" not in normalized
         assert "languages_frameworks" not in normalized
+
+    def test_project_intent_wins_over_legacy_mission_identifier_collision(self) -> None:
+        """Production snapshots must not treat workflow mission ids as intent text."""
+        snapshot = {
+            "mission_type": "software-dev",
+            "project_intent": "Build a patient safety workflow assistant",
+            "testing_requirements": "pytest coverage and browser tests",
+            "risk_boundaries": "no credential leaks",
+        }
+
+        normalized = normalize_interview_snapshot(snapshot)
+        contexts = dict(resolve_sections(normalized))
+
+        assert normalized["mission_type"] == "Build a patient safety workflow assistant"
+        assert "project_intent" not in normalized
+        assert contexts["mission_type"]["answer"] == (
+            "Build a patient safety workflow assistant"
+        )
+        assert contexts["mission_type"]["answer_source"] == "mission_type"

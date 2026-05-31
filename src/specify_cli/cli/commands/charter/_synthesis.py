@@ -47,7 +47,7 @@ def _build_synthesis_request(
 
     # Build a minimal interview snapshot from the interview data
     interview_snapshot: dict[str, Any] = {
-        "mission_type": interview_data.mission,
+        "mission_id": interview_data.mission,
         "selected_directives": interview_data.selected_directives,
         "selected_paradigms": interview_data.selected_paradigms,
     }
