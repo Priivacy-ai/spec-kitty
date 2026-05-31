@@ -1,7 +1,7 @@
 {
-  "event_count": 74,
-  "last_event_id": "01KSZ8299Q996YXN381V97W82F",
-  "materialized_at": "2026-05-31T14:47:33.431166+00:00",
+  "event_count": 75,
+  "last_event_id": "01KSZ8NXAF1TCXSJXAH8YF2SDE",
+  "materialized_at": "2026-05-31T14:58:16.527355+00:00",
   "mission_number": "",
   "mission_slug": "charter-pack-activation-layer-01KSYE4V",
   "mission_type": "software-dev",
@@ -13,8 +13,8 @@
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
-    "in_review": 2,
-    "planned": 0
+    "in_review": 1,
+    "planned": 1
   },
   "work_packages": {
     "WP01": {
@@ -81,11 +81,11 @@
       "last_transition_at": "2026-05-31T14:47:27.819034+00:00"
     },
     "WP10": {
-      "actor": "claude:sonnet-4-6:reviewer-renata:reviewer",
-      "force_count": 1,
-      "lane": "in_review",
-      "last_event_id": "01KSZ8299Q996YXN381V97W82F",
-      "last_transition_at": "2026-05-31T14:47:33.431166+00:00"
+      "actor": "user",
+      "force_count": 2,
+      "lane": "planned",
+      "last_event_id": "01KSZ8NXAF1TCXSJXAH8YF2SDE",
+      "last_transition_at": "2026-05-31T14:58:16.527355+00:00"
     },
     "WP11": {
       "actor": "user",
