@@ -11,6 +11,7 @@ Structure: AAA (Arrange / Act / Assert).
 from __future__ import annotations
 
 import json
+import shlex
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -353,6 +354,52 @@ def test_context_include_renders_selector_without_action(tmp_path: Path) -> None
     include_builder.assert_called_once_with(
         project,
         "section:regression-vigilance",
+        action=None,
+        org_root=None,
+    )
+
+
+def test_activation_stanza_include_command_is_registered_cli_surface(
+    tmp_path: Path,
+) -> None:
+    """Regression for #1464: activation stanzas must not point at a missing option."""
+
+    from charter._activation_render import render_activation_stanza
+    from charter.activations import ActivationEntry
+
+    project = _project(tmp_path)
+    stanza = render_activation_stanza(
+        [
+            ActivationEntry(
+                activation_context={"action": "write_comment"},
+                doctrine_pack_id="project",
+                artifact_id="caveman-comments",
+                artifact_kind="styleguide",
+            )
+        ],
+        service=None,
+        mission_type="software-dev",
+        action="implement",
+    )
+    run_line = next(line for line in stanza.splitlines() if line.startswith("Run: "))
+    args = shlex.split(run_line.removeprefix("Run: spec-kitty charter "))
+
+    with (
+        patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
+        patch("specify_cli.doctrine.config.resolve_org_roots", return_value=[]),
+        patch(
+            "charter.context.build_charter_context_include",
+            return_value="Styleguide caveman-comments: Caveman",
+        ) as include_builder,
+    ):
+        result = runner.invoke(app, args)
+
+    assert result.exit_code == 0, result.output
+    assert "No such option: --include" not in result.output
+    assert "Styleguide caveman-comments: Caveman" in result.output
+    include_builder.assert_called_once_with(
+        project,
+        "styleguide:caveman-comments",
         action=None,
         org_root=None,
     )
