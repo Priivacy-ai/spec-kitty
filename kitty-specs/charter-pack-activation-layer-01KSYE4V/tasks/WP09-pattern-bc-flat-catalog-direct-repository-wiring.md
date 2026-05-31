@@ -362,3 +362,4 @@ grep -r "MissionStepRepository" src/ --include="*.py" \
 - 2026-05-31T15:10:29Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=319643 – Started implementation via action command
 - 2026-05-31T15:10:46Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=319643 – Cycle-2: removed resolve_mission_steps from __all__ in charter/resolver.py
 - 2026-05-31T15:11:06Z – claude:sonnet-4-6:reviewer-renata:reviewer – shell_pid=321527 – Started review via action command
+- 2026-05-31T15:13:32Z – claude:sonnet-4-6:reviewer-renata:reviewer – shell_pid=321527 – Review passed cycle-2: resolve_mission_steps removed from __all__, dead-symbol gate satisfied for WP09 scope. All 10 call-site propagation tests pass. 4 require_pack_context() call sites cover all 3 patterns. MissionStepRepository has production call site in resolver.py. Ruff clean. Layer rule upheld. Untracked file is CLI shell artifact unrelated to WP09.
