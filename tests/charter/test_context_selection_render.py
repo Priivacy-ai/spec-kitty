@@ -24,10 +24,12 @@ shipped tree so failures isolate to the renderer logic.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import pytest
 
+import charter.context as context_module
 from charter.context import (
     _PROFILE_INLINE_BODY_LIMIT_CHARS,
     _SELECTED_AGENT_PROFILES_HEADER,
@@ -37,6 +39,7 @@ from charter.context import (
     _SELECTED_TOOLGUIDES_HEADER,
     _collect_org_source_map,
     _provenance_suffix,
+    _render_doctrine_artifact_include,
     _render_selected_agent_profiles,
     _render_selected_mission_step_contracts,
     _render_selected_procedures,
@@ -316,6 +319,64 @@ class TestTokenBudgetOverflow:
         lines = _render_selected_procedures(["bloated-proc"], service)
         joined = "\n".join(lines)
         assert "spec-kitty charter context --include procedure:bloated-proc" in joined
+
+
+# ---------------------------------------------------------------------------
+# Fetch-selector recovery — emitted selectors must round-trip through --include
+# ---------------------------------------------------------------------------
+
+
+class TestFetchSelectorRecovery:
+    """Every selection kind that can emit a fetch stanza is recoverable."""
+
+    def test_selected_styleguide_include_recovers_body(self) -> None:
+        sg = _DummyStyleguide(title="Caveman", principles=["Prefer concrete names."])
+        service = _StubService(styleguides=_StubRepo(items={"caveman-comments": sg}))
+
+        text = _render_doctrine_artifact_include(service, "styleguide", "caveman-comments")
+
+        assert text is not None
+        assert "Styleguide caveman-comments: Caveman" in text
+        assert "Prefer concrete names." in text
+
+    def test_selected_procedure_include_recovers_body(self) -> None:
+        procedure = _DummyProcedure(
+            name="Review",
+            purpose="keep merge checks honest",
+            entry="diff ready",
+            exit_="review complete",
+            steps=[_DummyStep(title="Run focused tests")],
+        )
+        service = _StubService(procedures=_StubRepo(items={"review-before-merge": procedure}))
+
+        text = _render_doctrine_artifact_include(
+            service, "procedure", "review-before-merge"
+        )
+
+        assert text is not None
+        assert "Procedure review-before-merge: Review" in text
+        assert "Run focused tests" in text
+
+    def test_styleguide_selector_round_trips_through_context_include(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        sg = _DummyStyleguide(title="Caveman", principles=["Prefer concrete names."])
+        service = _StubService(styleguides=_StubRepo(items={"caveman-comments": sg}))
+        monkeypatch.setattr(
+            context_module,
+            "_build_doctrine_service",
+            lambda repo_root, org_roots=None: service,
+        )
+
+        text = context_module.build_charter_context_include(
+            tmp_path,
+            "styleguide:caveman-comments",
+        )
+
+        assert "Styleguide caveman-comments: Caveman" in text
+        assert "Prefer concrete names." in text
 
 
 # ---------------------------------------------------------------------------

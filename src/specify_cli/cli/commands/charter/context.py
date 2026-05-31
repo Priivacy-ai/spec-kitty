@@ -26,7 +26,7 @@ def context(
     include: str | None = typer.Option(
         None,
         "--include",
-        help="Fetch one governance selector (directive:<id>|tactic:<id>|section:<slug>)",
+        help="Fetch one governance selector (<kind>:<id>, e.g. directive:<id>|styleguide:<id>|section:<slug>)",
     ),
     mark_loaded: bool = typer.Option(True, "--mark-loaded/--no-mark-loaded", help="Persist first-load state"),
     json_output: bool = typer.Option(

@@ -316,8 +316,69 @@ def build_charter_context_include(
             raise ValueError(f"No tactic found for selector '{selector}'.")
         name = getattr(tactic, "name", identifier)
         return "\n".join([f"Tactic {identifier}: {name}", *_format_inline_tactic_body(tactic)])
+    artifact = _render_doctrine_artifact_include(service, kind, identifier)
+    if artifact is not None:
+        return artifact
 
     raise ValueError(f"Unsupported --include selector kind '{kind}'.")
+
+
+def _render_doctrine_artifact_include(
+    service: object,
+    kind: str,
+    identifier: str,
+) -> str | None:
+    """Render non-directive/tactic doctrine artifacts addressed by ``--include``."""
+
+    renderers = {
+        "paradigm": (
+            "paradigms",
+            "Paradigm",
+            "name",
+            _format_inline_paradigm_body,
+        ),
+        "styleguide": (
+            "styleguides",
+            "Styleguide",
+            "title",
+            _format_inline_styleguide_body,
+        ),
+        "toolguide": (
+            "toolguides",
+            "Toolguide",
+            "title",
+            _format_inline_toolguide_body,
+        ),
+        "procedure": (
+            "procedures",
+            "Procedure",
+            "name",
+            _format_inline_procedure_body,
+        ),
+        "agent_profile": (
+            "agent_profiles",
+            "Agent profile",
+            "name",
+            _format_inline_agent_profile_body,
+        ),
+        "mission_step_contract": (
+            "mission_step_contracts",
+            "Mission step contract",
+            "action",
+            _format_inline_step_contract_body,
+        ),
+    }
+    renderer = renderers.get(kind)
+    if renderer is None:
+        return None
+
+    repo_attr, label, title_attr, body_formatter = renderer
+    repo = getattr(service, repo_attr, None)
+    artifact = repo.get(identifier) if repo is not None else None  # type: ignore[attr-defined]
+    if artifact is None:
+        raise ValueError(f"No {kind} found for selector '{kind}:{identifier}'.")
+    title = getattr(artifact, title_attr, identifier)
+    return "\n".join([f"{label} {identifier}: {title}", *body_formatter(artifact)])
 
 
 def _prepare_context_state(
