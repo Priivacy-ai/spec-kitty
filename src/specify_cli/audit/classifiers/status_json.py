@@ -105,7 +105,13 @@ def classify_status_json(
     # Normalise both sides: parse + re-serialise with identical options
     try:
         persisted_normalised = (
-            json.dumps(json.loads(raw_text), sort_keys=True, indent=2) + "\n"
+            json.dumps(
+                json.loads(raw_text),
+                sort_keys=True,
+                indent=2,
+                ensure_ascii=False,
+            )
+            + "\n"
         )
     except Exception:
         # raw_text is already parsed above, so this branch is unreachable in practice
