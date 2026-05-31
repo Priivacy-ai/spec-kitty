@@ -20,7 +20,7 @@ import pytest
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.cli.commands import _auth_doctor
 from specify_cli.cli.commands._auth_doctor import doctor_impl
-from specify_cli.core.file_lock import LockRecord
+from specify_cli.core.file_lock import LockRecord, read_lock_record
 from specify_cli.sync.daemon import SyncDaemonStatus
 from specify_cli.sync.orphan_sweep import OrphanDaemon, SweepReport
 
@@ -232,7 +232,7 @@ def test_reset_repairs_recorded_unhealthy_daemon(
 def test_unstick_drops_old_lock(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """120-second-old lock + ``--unstick-lock`` ⇒ lock file removed."""
+    """120-second-old lock + ``--unstick-lock`` ⇒ lock record cleared."""
     session = _make_session()
     lock_path = tmp_path / "auth" / "refresh.lock"
     _write_lock_record(lock_path, age_s=120.0)
@@ -248,7 +248,7 @@ def test_unstick_drops_old_lock(
         json_output=True, reset=False, unstick_lock=True, stuck_threshold=60.0
     )
 
-    assert not lock_path.exists()
+    assert read_lock_record(lock_path) is None
     # F-003 was the only critical finding; after the unstick repair the
     # second pass finds nothing critical so exit 0.
     assert exit_code == 0
@@ -307,6 +307,6 @@ def test_combined_flags_run_both(
     )
 
     assert sweep_calls == [[orphan]]
-    assert not lock_path.exists()
+    assert read_lock_record(lock_path) is None
     # After both repairs nothing critical remains.
     assert exit_code == 0
