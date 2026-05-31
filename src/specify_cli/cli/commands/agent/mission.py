@@ -2218,6 +2218,25 @@ def finalize_tasks(
                 console.print(f"[yellow]Warning:[/yellow] Could not read {wp_file.name}: {e}")
                 continue
 
+            # --- T044 / FR-017: Charter activation gate ---
+            # Fires before any write or commit. Silently skipped when
+            # activated_agent_profiles is None (no explicit restriction).
+            if profile := wp_meta.agent_profile:
+                from charter.invocation_context import ProjectContext  # noqa: PLC0415
+
+                _pack_ctx = ProjectContext.from_repo(repo_root).require_pack_context()
+                activated_profiles = _pack_ctx.activated_agent_profiles
+                if activated_profiles is not None and profile not in activated_profiles:
+                    activated_list = ", ".join(sorted(activated_profiles)) or "(none)"
+                    console.print(
+                        f"[red]✗ Charter activation gate FAILED[/red]\n"
+                        f"  WP {wp_id} assigns profile: [bold]{profile}[/bold]\n"
+                        f"  '{profile}' is not in the activated agent-profile set.\n"
+                        f"  Currently activated: {activated_list}\n"
+                        f"  Resolution: spec-kitty charter activate agent-profile {profile}"
+                    )
+                    raise typer.Exit(code=1)
+
             # --- Dependency resolution with preserve-existing (T004) ---
             parsed_deps = wp_dependencies.get(wp_id, [])
             existing_deps = list(wp_meta.dependencies)

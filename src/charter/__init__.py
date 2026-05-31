@@ -78,6 +78,7 @@ from .resolver import (
 )
 from .template_resolver import CharterTemplateResolver
 from .pack_context import PackContext
+from .exceptions import CharterActivationError
 
 __all__ = [
     "CANONICAL_MANIFEST",
@@ -137,4 +138,5 @@ __all__ = [
     "resolve_mission_type_governance",
     "CharterTemplateResolver",
     "PackContext",
+    "CharterActivationError",
 ]

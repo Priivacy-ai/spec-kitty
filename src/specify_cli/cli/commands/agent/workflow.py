@@ -909,6 +909,25 @@ def implement(
             print(f"Error locating work package: {e}")
             raise typer.Exit(1)
 
+        # C-006 charter precondition: check BEFORE any worktree creation or
+        # status transition.
+        _wp_profile = extract_scalar(getattr(wp, "frontmatter", None) or "", "agent_profile")
+        if _wp_profile:
+            from charter.invocation_context import ProjectContext  # noqa: PLC0415
+
+            _pack_ctx = ProjectContext.from_repo(main_repo_root).require_pack_context()
+            _activated = _pack_ctx.activated_agent_profiles
+            if _activated is not None and _wp_profile not in _activated:
+                _activated_list = ", ".join(sorted(_activated)) or "(none)"
+                print(
+                    f"Error: WP{normalized_wp_id} charter precondition FAILED\n"
+                    f"  Assigned profile '{_wp_profile}' is not accessible through "
+                    f"the active charter.\n"
+                    f"  Currently activated: {_activated_list}\n"
+                    f"  Run: spec-kitty charter activate agent-profile {_wp_profile}"
+                )
+                raise typer.Exit(code=1)
+
         workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)
         workspace_path = workspace.worktree_path
         status_execution_mode = "direct_repo" if workspace.resolution_kind == "repo_root" else "worktree"
