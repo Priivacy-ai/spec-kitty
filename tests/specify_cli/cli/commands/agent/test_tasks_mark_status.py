@@ -230,6 +230,149 @@ def test_existing_checkbox_unchanged(tmp_path: Path) -> None:
     assert "- [x] T001 First task" in (mission_dir / "tasks.md").read_text(encoding="utf-8")
 
 
+def test_history_added_uses_owning_wp_for_checkbox_task(tmp_path: Path) -> None:
+    slug = "007-history-checkbox"
+    _write_mission(tmp_path, slug, "# Tasks\n\n## WP01 Build\n- [ ] T001 First task\n")
+
+    with (
+        patch("specify_cli.cli.commands.agent.tasks.locate_project_root", return_value=tmp_path),
+        patch("specify_cli.cli.commands.agent.tasks._find_mission_slug", return_value=slug),
+        patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out", return_value=(tmp_path, "main")),
+        patch("specify_cli.cli.commands.agent.tasks._emit_sparse_session_warning"),
+        patch("specify_cli.cli.commands.agent.tasks.feature_status_lock", _null_lock),
+        patch("specify_cli.cli.commands.agent.tasks.emit_history_added") as emit_history,
+    ):
+        result = runner.invoke(
+            app,
+            [
+                "mark-status",
+                "T001",
+                "--status",
+                "done",
+                "--mission",
+                slug,
+                "--json",
+                "--no-auto-commit",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    emit_history.assert_called_once()
+    assert emit_history.call_args.kwargs["wp_id"] == "WP01"
+
+
+def test_history_added_uses_work_package_heading_for_checkbox_task(tmp_path: Path) -> None:
+    slug = "007-history-work-package-heading"
+    _write_mission(tmp_path, slug, "# Tasks\n\n## Work Package WP01: Build\n- [ ] T001 First task\n")
+
+    with (
+        patch("specify_cli.cli.commands.agent.tasks.locate_project_root", return_value=tmp_path),
+        patch("specify_cli.cli.commands.agent.tasks._find_mission_slug", return_value=slug),
+        patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out", return_value=(tmp_path, "main")),
+        patch("specify_cli.cli.commands.agent.tasks._emit_sparse_session_warning"),
+        patch("specify_cli.cli.commands.agent.tasks.feature_status_lock", _null_lock),
+        patch("specify_cli.cli.commands.agent.tasks.emit_history_added") as emit_history,
+    ):
+        result = runner.invoke(
+            app,
+            [
+                "mark-status",
+                "T001",
+                "--status",
+                "done",
+                "--mission",
+                slug,
+                "--json",
+                "--no-auto-commit",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    emit_history.assert_called_once()
+    assert emit_history.call_args.kwargs["wp_id"] == "WP01"
+
+
+def test_history_added_uses_explicit_wp_column_for_non_derivable_task_id(tmp_path: Path) -> None:
+    slug = "007-history-pipe-table"
+    _write_mission(
+        tmp_path,
+        slug,
+        (
+            "# Tasks\n\n"
+            "| ID | Description | WP | Parallel |\n"
+            "|----|-------------|----|----------|\n"
+            "| T010 | Tenth task | WP02 | [P] |\n"
+        ),
+    )
+
+    with (
+        patch("specify_cli.cli.commands.agent.tasks.locate_project_root", return_value=tmp_path),
+        patch("specify_cli.cli.commands.agent.tasks._find_mission_slug", return_value=slug),
+        patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out", return_value=(tmp_path, "main")),
+        patch("specify_cli.cli.commands.agent.tasks._emit_sparse_session_warning"),
+        patch("specify_cli.cli.commands.agent.tasks.feature_status_lock", _null_lock),
+        patch("specify_cli.cli.commands.agent.tasks.emit_history_added") as emit_history,
+    ):
+        result = runner.invoke(
+            app,
+            [
+                "mark-status",
+                "T010",
+                "--status",
+                "done",
+                "--mission",
+                slug,
+                "--json",
+                "--no-auto-commit",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    emit_history.assert_called_once()
+    assert emit_history.call_args.kwargs["wp_id"] == "WP02"
+
+
+def test_history_added_groups_multi_wp_updates_by_owning_wp(tmp_path: Path) -> None:
+    slug = "007-history-multi-wp"
+    _write_mission(
+        tmp_path,
+        slug,
+        "# Tasks\n\n## WP01 Build\n- [ ] T001 First task\n\n## WP02 Ship\n- [ ] T010 Tenth task\n",
+    )
+
+    with (
+        patch("specify_cli.cli.commands.agent.tasks.locate_project_root", return_value=tmp_path),
+        patch("specify_cli.cli.commands.agent.tasks._find_mission_slug", return_value=slug),
+        patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out", return_value=(tmp_path, "main")),
+        patch("specify_cli.cli.commands.agent.tasks._emit_sparse_session_warning"),
+        patch("specify_cli.cli.commands.agent.tasks.feature_status_lock", _null_lock),
+        patch("specify_cli.cli.commands.agent.tasks.emit_history_added") as emit_history,
+    ):
+        result = runner.invoke(
+            app,
+            [
+                "mark-status",
+                "T001",
+                "T010",
+                "--status",
+                "done",
+                "--mission",
+                slug,
+                "--json",
+                "--no-auto-commit",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert [
+        (call.kwargs["wp_id"], call.kwargs["entry_content"])
+        for call in emit_history.call_args_list
+    ] == [
+        ("WP01", "Subtask(s) T001 marked as done"),
+        ("WP02", "Subtask(s) T010 marked as done"),
+    ]
+
+
 def test_existing_pipe_table_unchanged(tmp_path: Path) -> None:
     slug = "008-pipe-table"
     mission_dir = _write_mission(

@@ -2131,6 +2131,81 @@ def _update_pipe_table_status(line: str, status: str, header_map: dict[str, int]
     return "|" + "|".join(inner_cells) + "|"
 
 
+_WP_HEADING_RE = re.compile(r"^\s{0,3}#{1,6}\s+(?P<title>.+?)\s*$")
+_WP_ID_TITLE_RE = re.compile(r"^(?:Work Package\s+)?(?P<wp_id>WP\d+)(?:\b|:)", re.IGNORECASE)
+
+
+def _match_history_wp_heading(line: str) -> str | None:
+    """Return the owning WP id from supported tasks.md section headings."""
+    heading_match = _WP_HEADING_RE.match(line)
+    if not heading_match:
+        return None
+
+    title = heading_match.group("title").strip()
+    if wp_match := _WP_ID_TITLE_RE.match(title):
+        return wp_match.group("wp_id").upper()
+    work_package_prefix = "Work Package "
+    if title.startswith(work_package_prefix):
+        suffix = title[len(work_package_prefix) :]
+        digit_count = 0
+        while digit_count < len(suffix) and digit_count < 2 and suffix[digit_count].isdigit():
+            digit_count += 1
+        if digit_count and (digit_count == len(suffix) or not suffix[digit_count].isdigit()):
+            remainder = suffix[digit_count:]
+            if not remainder or remainder[0].isspace() or remainder[0] in ":-" or ord(remainder[0]) == 0x2014:
+                return f"WP{int(suffix[:digit_count]):02d}"
+    return None
+
+
+def _extract_pipe_table_wp_id(line: str, header_map: dict[str, int]) -> str | None:
+    """Return the owning WP id from a pipe-table task row, when present."""
+    cells = [cell.strip() for cell in line.split("|")[1:-1]]
+    for column_name in ("wp", "work package", "work_package", "work package id", "work_package_id"):
+        column_index = header_map.get(column_name)
+        if column_index is not None and column_index < len(cells):
+            candidate = cells[column_index].upper()
+            wp_match = re.search(r"\b(WP\d+)\b", candidate)
+            if wp_match:
+                return wp_match.group(1)
+    for cell in cells:
+        candidate = cell.upper()
+        if re.fullmatch(r"WP\d+", candidate):
+            return candidate
+    return None
+
+
+def _resolve_history_wp_id(tasks_content: str, task_id: str) -> str | None:
+    """Resolve the WP that owns *task_id* from tasks.md structure."""
+    normalized_task_id = task_id.upper()
+    current_wp_id: str | None = None
+    lines = tasks_content.split("\n")
+
+    for line_index, line in enumerate(lines):
+        heading_wp_id = _match_history_wp_heading(line)
+        if heading_wp_id:
+            current_wp_id = heading_wp_id
+
+        if _is_pipe_table_task_row(line, normalized_task_id):
+            header_map = _parse_pipe_table_header(lines, line_index)
+            return _extract_pipe_table_wp_id(line, header_map) or current_wp_id
+
+        if re.search(rf"-\s*\[[ x]\]\s*{re.escape(normalized_task_id)}\b", line, re.IGNORECASE):
+            if current_wp_id:
+                return current_wp_id
+            explicit_wp = re.search(r"\b(WP\d+)\b", line, re.IGNORECASE)
+            if explicit_wp:
+                return explicit_wp.group(1).upper()
+            return None
+
+        inline_match = _INLINE_SUBTASKS_RE.search(line)
+        if inline_match:
+            ids = [value.strip().upper() for value in inline_match.group("ids").split(",")]
+            if normalized_task_id in ids:
+                return current_wp_id
+
+    return None
+
+
 _INLINE_SUBTASKS_RE = re.compile(
     r"(?:Subtasks|\*\*Subtasks\*\*):\s*(?P<ids>(?:T|WP)\d+(?:\s*,\s*(?:T|WP)\d+)*)",
     re.IGNORECASE,
@@ -2526,13 +2601,29 @@ def mark_status(
         # Emit HistoryAdded event for subtask status changes (T014)
         try:
             if updated_tasks:
-                task_list_str = ", ".join(updated_tasks)
-                emit_history_added(
-                    wp_id=updated_tasks[0].replace("T", "WP")[:4],
-                    entry_type="note",
-                    entry_content=f"Subtask(s) {task_list_str} marked as {status}",
-                    author="user",
-                )
+                resolved_tasks_by_wp: dict[str, list[str]] = {}
+                unresolved_tasks: list[str] = []
+                tasks_content = tasks_md.read_text(encoding="utf-8")
+                for task_id in updated_tasks:
+                    history_wp_id = _resolve_history_wp_id(tasks_content, task_id)
+                    if history_wp_id is None:
+                        unresolved_tasks.append(task_id)
+                    else:
+                        resolved_tasks_by_wp.setdefault(history_wp_id, []).append(task_id)
+
+                for history_wp_id, task_ids_for_wp in resolved_tasks_by_wp.items():
+                    task_list_str = ", ".join(task_ids_for_wp)
+                    emit_history_added(
+                        wp_id=history_wp_id,
+                        entry_type="note",
+                        entry_content=f"Subtask(s) {task_list_str} marked as {status}",
+                        author="user",
+                    )
+                if unresolved_tasks and not json_output:
+                    console.print(
+                        "[yellow]Warning:[/yellow] Could not resolve owning WP for HistoryAdded event: "
+                        + ", ".join(unresolved_tasks)
+                    )
         except Exception as e:
             if not json_output:
                 console.print(f"[yellow]Warning:[/yellow] Event emission failed: {e}")
