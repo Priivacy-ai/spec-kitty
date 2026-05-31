@@ -23,6 +23,7 @@ This file is a **pure re-export** module — no behaviour, no wrappers, no
 type aliases.
 """
 
+from doctrine.missions.mission_step_repository import MissionStepRepository
 from doctrine.missions.models import MissionStep
 from doctrine.missions.step_contracts import (
     MissionStepContract,
@@ -35,4 +36,5 @@ __all__ = [
     "MissionStepContract",
     "MissionStepContractRepository",
     "MissionStepContractStep",
+    "MissionStepRepository",
 ]

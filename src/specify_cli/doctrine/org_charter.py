@@ -651,13 +651,21 @@ def apply_org_charter_pre_fill(repo_root: Path) -> list[str]:
     ``charter`` layer (which cannot import ``specify_cli``) so the
     dependency direction is preserved.
     """
+    from charter.invocation_context import ProjectContext
     from specify_cli.doctrine.config import load_pack_registry
 
     registry = load_pack_registry(repo_root)
     if not registry.packs:
         return []
 
-    merged_policy = load_org_charter_policies(repo_root)
+    pack_context = None
+    try:
+        ctx = ProjectContext.from_repo(repo_root)
+        pack_context = ctx.require_pack_context()
+    except Exception:  # noqa: BLE001 — pack_context is best-effort
+        pass
+
+    merged_policy = load_org_charter_policies(repo_root, pack_context=pack_context)
     if (
         not merged_policy.interview_defaults
         and not _policy_has_any_required(merged_policy)
@@ -680,6 +688,7 @@ def apply_org_charter_pre_fill(repo_root: Path) -> list[str]:
 def apply_org_charter_to_interview(
     interview_data: Any,
     repo_root: Path,
+    pack_context: PackContext | None = None,
 ) -> list[str]:
     """Pre-fill an in-memory ``CharterInterview`` with org charter defaults.
 
@@ -707,7 +716,7 @@ def apply_org_charter_to_interview(
     if not registry.packs:
         return []
 
-    merged_policy = load_org_charter_policies(repo_root)
+    merged_policy = load_org_charter_policies(repo_root, pack_context=pack_context)
     if (
         not merged_policy.interview_defaults
         and not _policy_has_any_required(merged_policy)

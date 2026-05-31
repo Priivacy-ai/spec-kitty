@@ -1,5 +1,7 @@
 """Regression tests for the silent-swallow finding (S1/S2) from the
-post-merge mission review of ``review-merge-gate-hardening-3-2-x-01KRC57C``.
+post-merge mission review of ``review-merge-gate-hardening-3-2-x-01KRC57C``,
+plus ATDD for Pattern C activation filtering in ``charter.resolver.DoctrineService``
+(WP09, T042).
 
 The chokepoint at ``src/charter/_io.py`` correctly raises ``CharterEncodingError``
 (a subclass of ``KittyInternalConsistencyError``) when encoding detection
@@ -16,11 +18,28 @@ These tests verify that the diagnostic propagates through the call sites:
 The tests target *behavior*, not file line numbers. A future refactor that
 moves the function or changes its name should still pass these tests as
 long as the diagnostic propagation contract is honored.
+
+Pattern C ATDD (T042)
+---------------------
+``DoctrineService.agent_profiles`` applies a three-state activation filter:
+
+* ``pack_context=None`` → unfiltered (all profiles returned)
+* ``pack_context.activated_agent_profiles is None`` → unfiltered (key absent from config)
+* ``pack_context.activated_agent_profiles == frozenset()`` → empty dict (explicit opt-out)
+* ``pack_context.activated_agent_profiles = {ids}`` → only those IDs returned
+
+These tests use lightweight ``types.SimpleNamespace`` objects as mock pack
+contexts because ``PackContext``'s per-kind three-state fields are added by
+WP02 (approved dependency) and may not yet be available in the merged tree.
+The ``DoctrineService`` wrapper only requires duck-typing on the per-kind
+fields, so ``SimpleNamespace`` is the simplest correct fixture.
 """
 
 from __future__ import annotations
 
+import types
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -150,3 +169,129 @@ def test_unsafe_bypass_propagates_through_compiler(tmp_path: Path) -> None:
     # is no longer hit.
     # What we DO assert: no KittyInternalConsistencyError was raised
     # (the pytest.raises wrapper above would have caught it).
+
+
+# ---------------------------------------------------------------------------
+# Pattern C ATDD — DoctrineService.agent_profiles activation filter (WP09 T042)
+# ---------------------------------------------------------------------------
+#
+# These tests verify the three-state activation semantics for
+# ``DoctrineService.agent_profiles``:
+#
+#   1. ``pack_context=None``                         → full unfiltered dict
+#   2. ``pack_context.activated_agent_profiles=None``  → full unfiltered dict
+#   3. ``pack_context.activated_agent_profiles=frozenset()`` → empty dict
+#   4. ``pack_context.activated_agent_profiles={"alpha"}``   → single-entry dict
+#
+# A ``SimpleNamespace`` is used as a stand-in for a real ``PackContext``
+# because the three-state per-kind fields are added by WP02 (approved
+# dependency) and may not yet be present in the dataclass.  The wrapper in
+# ``charter.resolver.DoctrineService`` only duck-types the per-kind fields,
+# so the namespace fixture is fully faithful.
+
+
+def _make_mock_inner_with_profiles(
+    profiles: dict[str, object],
+) -> MagicMock:
+    """Construct a mock inner doctrine service whose ``agent_profiles`` repo
+    returns the supplied ``profiles`` dict when ``list_all()`` is called.
+    """
+    mock_inner = MagicMock()
+    mock_profiles_repo = MagicMock()
+
+    # Build mock profile objects with a ``profile_id`` attribute.
+    mock_profile_objects = []
+    for profile_id_val, profile_obj in profiles.items():
+        if isinstance(profile_obj, MagicMock):
+            profile_obj.profile_id = profile_id_val
+            mock_profile_objects.append(profile_obj)
+        else:
+            mock_obj = MagicMock()
+            mock_obj.profile_id = profile_id_val
+            mock_profile_objects.append(mock_obj)
+
+    mock_profiles_repo.list_all.return_value = mock_profile_objects
+    mock_inner.agent_profiles = mock_profiles_repo
+    return mock_inner
+
+
+def test_doctrine_service_agent_profiles_no_pack_context_returns_all() -> None:
+    """``pack_context=None`` → ``agent_profiles`` returns the full unfiltered dict.
+
+    This is the backward-compat contract: callers that do not supply a
+    ``PackContext`` receive every profile the inner service exposes.
+    """
+    from charter.resolver import DoctrineService
+
+    profiles = {"alpha": MagicMock(), "beta": MagicMock()}
+    mock_inner = _make_mock_inner_with_profiles(profiles)
+
+    wrapper = DoctrineService(mock_inner, pack_context=None)
+    result = wrapper.agent_profiles
+
+    assert set(result.keys()) == {"alpha", "beta"}
+
+
+def test_doctrine_service_agent_profiles_none_field_returns_all() -> None:
+    """``pack_context.activated_agent_profiles=None`` → full unfiltered dict.
+
+    The ``None`` sentinel means "key absent from config.yaml" → all built-in
+    profiles are available (three-state: absent = all built-ins).
+    """
+    from charter.resolver import DoctrineService
+
+    profiles = {"alpha": MagicMock(), "beta": MagicMock()}
+    mock_inner = _make_mock_inner_with_profiles(profiles)
+
+    pack_ctx = types.SimpleNamespace(
+        activated_agent_profiles=None,
+    )
+    wrapper = DoctrineService(mock_inner, pack_context=pack_ctx)
+    result = wrapper.agent_profiles
+
+    assert set(result.keys()) == {"alpha", "beta"}
+
+
+def test_doctrine_service_agent_profiles_empty_frozenset_returns_empty() -> None:
+    """``pack_context.activated_agent_profiles=frozenset()`` → empty dict.
+
+    The empty frozenset sentinel means "key present but empty list in
+    config.yaml" → explicit opt-out; no profiles should be surfaced.
+    This is the primary T042 ATDD assertion.
+    """
+    from charter.resolver import DoctrineService
+
+    profiles = {"alpha": MagicMock(), "beta": MagicMock()}
+    mock_inner = _make_mock_inner_with_profiles(profiles)
+
+    pack_ctx = types.SimpleNamespace(
+        activated_agent_profiles=frozenset(),
+    )
+    wrapper = DoctrineService(mock_inner, pack_context=pack_ctx)
+    result = wrapper.agent_profiles
+
+    assert result == {}, (
+        "activated_agent_profiles=frozenset() must return an empty dict "
+        "(explicit opt-out), not the full profile set."
+    )
+
+
+def test_doctrine_service_agent_profiles_specific_ids_returns_subset() -> None:
+    """``pack_context.activated_agent_profiles={ids}`` → only those IDs returned.
+
+    Profiles whose ID is NOT in the activated set must be excluded.
+    """
+    from charter.resolver import DoctrineService
+
+    profiles = {"alpha": MagicMock(), "beta": MagicMock(), "gamma": MagicMock()}
+    mock_inner = _make_mock_inner_with_profiles(profiles)
+
+    pack_ctx = types.SimpleNamespace(
+        activated_agent_profiles=frozenset({"alpha", "gamma"}),
+    )
+    wrapper = DoctrineService(mock_inner, pack_context=pack_ctx)
+    result = wrapper.agent_profiles
+
+    assert set(result.keys()) == {"alpha", "gamma"}, (
+        "Only activated profile IDs should be returned."
+    )

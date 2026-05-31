@@ -2327,9 +2327,17 @@ def _build_selection_block(repo_root: Path) -> dict[str, list[dict[str, str]]]:
     # Merged org-charter required_<kind> (best-effort).
     org_required: dict[str, list[str]] = {kind: [] for kind in _SELECTION_KIND_PLURALS}
     try:
+        from charter.invocation_context import ProjectContext
         from specify_cli.doctrine.org_charter import load_org_charter_policies
 
-        policy = load_org_charter_policies(repo_root)
+        _pack_ctx = None
+        try:
+            _ctx = ProjectContext.from_repo(repo_root)
+            _pack_ctx = _ctx.require_pack_context()
+        except Exception:  # noqa: BLE001 — pack_context is best-effort
+            pass
+
+        policy = load_org_charter_policies(repo_root, pack_context=_pack_ctx)
         for kind in _SELECTION_KIND_PLURALS:
             org_required[kind] = list(getattr(policy, f"required_{kind}", []) or [])
     except Exception:  # noqa: BLE001 — diagnostics must never crash on missing/invalid org

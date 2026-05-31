@@ -22,19 +22,28 @@ __all__ = ["generate"]
 
 
 def _build_doctrine_service_with_org_layer(repo_root: Path) -> Any:
-    """Return a ``DoctrineService`` rooted at built-in doctrine + project + configured org packs.
+    """Return an activation-filtered ``DoctrineService`` for charter generation.
 
-    The org-layer roots are resolved from ``.kittify/config.yaml`` via
-    :func:`specify_cli.doctrine.config.resolve_org_roots`.  Packs missing from
-    disk are silently dropped (a fresh checkout that has not yet run
+    Constructs a :class:`doctrine.service.DoctrineService` rooted at
+    built-in doctrine + project + configured org packs, then wraps it in
+    :class:`charter.resolver.DoctrineService` with the current
+    :class:`~charter.pack_context.PackContext`.  The wrapper applies
+    per-kind activation filters (Pattern B for paradigms/procedures,
+    Pattern C for agent_profiles).
+
+    Org-layer roots are resolved from ``.kittify/config.yaml`` via
+    :func:`specify_cli.doctrine.config.resolve_org_roots`.  Packs missing
+    from disk are silently dropped (a fresh checkout that has not yet run
     ``spec-kitty doctrine fetch`` must not fail charter generation).
 
     Architectural note: this helper lives in ``specify_cli`` because it
-    depends on the ``specify_cli.doctrine.config`` reader, which the
-    ``charter`` layer is forbidden from importing.
+    depends on the ``specify_cli.doctrine.config`` reader and
+    ``charter.invocation_context.ProjectContext``, which the ``charter``
+    layer is forbidden from importing.
     """
     from charter._doctrine_paths import resolve_project_root
     from charter.catalog import resolve_doctrine_root
+    from charter.resolver import DoctrineService as ActivationDoctrineService
     from doctrine.service import DoctrineService
 
     from specify_cli.doctrine.config import resolve_org_roots
@@ -43,11 +52,26 @@ def _build_doctrine_service_with_org_layer(repo_root: Path) -> Any:
     project_root = resolve_project_root(repo_root) if repo_root is not None else None
     org_roots = [p for p in resolve_org_roots(repo_root) if p.exists()]
 
-    return DoctrineService(
+    inner = DoctrineService(
         built_in_root=doctrine_root,
         project_root=project_root,
         org_roots=org_roots,
     )
+
+    # Obtain pack_context for activation filtering (Pattern B + C).
+    # Degrades silently when charter.invocation_context is not yet available
+    # (WP03 dependency) — returns unfiltered service in that case.
+    pack_context = None
+    if repo_root is not None:
+        try:
+            from charter.invocation_context import ProjectContext  # noqa: PLC0415
+
+            ctx = ProjectContext.from_repo(repo_root)
+            pack_context = ctx.require_pack_context()
+        except Exception:  # noqa: BLE001 — activation filter is best-effort; degraded to unfiltered
+            pass
+
+    return ActivationDoctrineService(inner, pack_context=pack_context)
 
 
 def _is_inside_git_worktree(repo_root: Path) -> bool:
