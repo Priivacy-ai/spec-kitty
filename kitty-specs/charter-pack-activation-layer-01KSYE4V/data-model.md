@@ -112,6 +112,12 @@ list_available(repo_root, kind) -> frozenset[str]
 merge_defaults(repo_root) -> MergeResult
 ```
 
+**Activation from `None` state**: When `activated_<kind>` is `None` (absent key — pre-upgrade project), `activate()` must first materialize the starting set. The source is `src/charter/packs/default.yaml` — the manager reads the default pack for that kind, writes all its artifact IDs as the initial explicit activation list, then adds the requested artifact. This is deterministic and independent of the live doctrine catalog (catalog changes do not retroactively alter an explicit activation list).
+
+**Deactivation from `None` state**: `deactivate()` on a kind whose activation field is `None` (no explicit set) is an error. Exit with code 1 and message: `"Kind '<kind>' has no explicit activation set. Run 'spec-kitty upgrade' to initialize the default pack before modifying individual activations."` This prevents an implicit materialization step on a destructive path and guides the user to the correct remediation.
+
+**Empty activation set**: A kind whose activation field is `frozenset()` (empty) has its entire DRG slice excluded from resolution — no artifact of that kind resolves, regardless of what the doctrine catalog contains. This is a valid intentional state reachable only by explicit user action (deactivating all artifacts one by one, or manual config.yaml edit). The default charter pack written by `spec-kitty upgrade` ensures this state is never reached accidentally.
+
 ---
 
 ### ConsistencyReport (value object)
