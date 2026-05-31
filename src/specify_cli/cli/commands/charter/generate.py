@@ -206,6 +206,10 @@ def generate(
     - When the cwd is not inside a git working tree, ``generate`` exits
       non-zero before any side effect with an actionable error message that
       names the remediation (``git init``).
+    - When ``.kittify/charter/charter.md`` is a symlink, ``generate`` exits
+      non-zero before interview/default loading, compilation, sync,
+      gitignore updates, or staging. Update the symlink target directly or
+      replace it with a regular runtime charter.
     """
     from charter.compiler import compile_charter, write_compiled_charter
     from charter.sync import sync as sync_charter

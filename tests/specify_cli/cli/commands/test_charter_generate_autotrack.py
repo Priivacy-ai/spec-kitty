@@ -291,6 +291,7 @@ def _assert_generate_refuses_symlinked_charter_before_side_effects(tmp_path: Pat
     assert not (charter_dir / "directives.yaml").exists()
     assert not (charter_dir / "metadata.yaml").exists()
     assert not (tmp_path / ".gitignore").exists()
+    assert not (tmp_path / ".kittify" / "config.yaml").exists()
 
 
 @pytest.mark.requires_symlinks

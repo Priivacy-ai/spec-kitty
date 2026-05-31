@@ -8,7 +8,7 @@ File layout, authority classes, and data flow for the charter subsystem.
 
 ```
 .kittify/charter/
-  charter.md                  # Authoritative governance document
+  charter.md                  # Runtime governance source consumed by Spec Kitty
   governance.yaml             # Derived: testing, quality, commits, performance, branching
   directives.yaml             # Derived: numbered rules with severity and scope
   references.yaml             # Derived: manifest of reference docs
@@ -28,7 +28,7 @@ Each file has an authority class that determines how it should be treated.
 
 | File | Authority | Meaning |
 |------|-----------|---------|
-| `charter.md` | **Authoritative** | Single source of truth for governance. Edit this file to change policy. |
+| `charter.md` | **Runtime source** | Spec Kitty runtime policy source. Edit this file to change injected agent policy, or reference public governance docs from it. |
 | `interview/answers.yaml` | **Authoritative** | Captured interview input. Re-run interview or edit directly to change. |
 | `governance.yaml` | **Derived** | Auto-generated from charter.md by sync. Do not edit directly. |
 | `directives.yaml` | **Derived** | Auto-generated from charter.md by sync. Do not edit directly. |
@@ -51,7 +51,7 @@ Interview Answers (answers.yaml)
     [generate]  <-- doctrine templates + mission config
         |
         v
-Charter (charter.md)  <-- authoritative source
+Runtime Charter (charter.md)  <-- Spec Kitty runtime source
         |
         v
       [sync]  <-- deterministic extraction

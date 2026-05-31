@@ -22,7 +22,7 @@ mental model. For a step-by-step walkthrough, see the
 ## What Charter Does
 
 Charter solves a specific problem: agent prompts need consistent, project-accurate policy context,
-but that context must come from a single authoritative source that you as an operator control.
+but the runtime context must come from one operator-controlled charter surface.
 
 The mechanism:
 
@@ -120,7 +120,7 @@ compact-context mode, causing agents to receive less detail.
 
 | File | Written by | Purpose |
 |---|---|---|
-| `.kittify/charter/charter.md` | **Human** | Policy source of truth — the only file you edit |
+| `.kittify/charter/charter.md` | **Human** | Spec Kitty runtime policy source; summarize or reference public governance docs here |
 | `.kittify/charter/governance.yaml` | Auto-generated (`charter sync`) | Testing, quality, performance, branch, and doctrine-selection config |
 | `.kittify/charter/directives.yaml` | Auto-generated (`charter sync`) | Extracted directive list |
 | `.kittify/charter/metadata.yaml` | Auto-generated (`charter sync`) | Charter hash, extraction timestamp, and parser metadata |
