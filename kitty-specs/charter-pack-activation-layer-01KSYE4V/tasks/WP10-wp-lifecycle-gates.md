@@ -450,3 +450,4 @@ All five commands must complete without errors or failures.
 - 2026-05-31T14:59:06Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=254485 – Started implementation via action command
 - 2026-05-31T15:03:27Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=254485 – Cycle-2: CharterActivationError raised in gate paths, FR-019 satisfied
 - 2026-05-31T15:03:53Z – claude:sonnet-4-6:reviewer-renata:reviewer – shell_pid=279946 – Started review via action command
+- 2026-05-31T15:04:08Z – claude:sonnet-4-6:reviewer-renata:reviewer – shell_pid=279946 – Moved to for_review
