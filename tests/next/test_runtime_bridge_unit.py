@@ -176,6 +176,42 @@ class TestRuntimeTemplateKey:
         result = runtime_bridge._runtime_template_key("software-dev", repo_root)
         assert "src/specify_cli/missions/software-dev/mission-runtime.yaml" in result
 
+
+class TestWorkflowRuntimeTemplate:
+    pytestmark = pytest.mark.git_repo
+
+    def test_workflow_id_composes_frozen_runtime_template(self, tmp_path: Path) -> None:
+        """meta.json::workflow_id affects the canonical run template used by `next`."""
+        repo_root = _scaffold_project(tmp_path)
+        mission_dir = repo_root / "kitty-specs" / "042-test-feature"
+        (mission_dir / "meta.json").write_text(
+            json.dumps(
+                {
+                    "mission_type": "software-dev",
+                    "workflow_id": "our-team-design-first",
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        from specify_cli.next._internal_runtime.engine import _load_frozen_template
+        from specify_cli.next.runtime_bridge import get_or_start_run
+
+        run_ref = get_or_start_run("042-test-feature", repo_root, "software-dev")
+        template = _load_frozen_template(Path(run_ref.run_dir))
+        step_ids = [step.id for step in template.steps]
+
+        assert step_ids == [
+            "discovery",
+            "specify",
+            "plan",
+            "design-review",
+            "tasks",
+            "implement",
+            "review",
+            "merge",
+        ]
+
     def test_software_dev_builtin_outranks_stale_user_global(
         self,
         tmp_path: Path,

@@ -87,6 +87,81 @@ class PlanResult:
     workflow_id: str
 
 
+def compose_template_with_workflow(
+    template: MissionTemplate,
+    workflow: WorkflowSequence,
+) -> MissionTemplate:
+    """Return a runtime template whose steps follow *workflow*.
+
+    The workflow artifact owns public action ordering; the runtime still needs
+    a ``MissionTemplate`` DAG. This adapter keeps the live ``spec-kitty next``
+    path on the same planner while preserving existing step metadata when an
+    action matches a shipped/custom mission step.
+    """
+    by_id = {step.id: step for step in template.steps}
+    composed: list[PromptStep] = []
+    previous_id: str | None = None
+
+    if workflow.initial == "specify" and "discovery" in by_id and "discovery" not in {
+        action.action_name for action in workflow.actions
+    }:
+        discovery = by_id["discovery"]
+        composed.append(
+            PromptStep(
+                id=discovery.id,
+                title=discovery.title,
+                description=discovery.description,
+                prompt=discovery.prompt,
+                prompt_template=discovery.prompt_template,
+                expected_output=discovery.expected_output,
+                requires_inputs=discovery.requires_inputs,
+                depends_on=[],
+                raci=discovery.raci,
+                raci_override_reason=discovery.raci_override_reason,
+                agent_profile=discovery.agent_profile,
+                contract_ref=discovery.contract_ref,
+            )
+        )
+        previous_id = "discovery"
+
+    for action in workflow.actions:
+        source = by_id.get(action.action_name)
+        depends_on = [previous_id] if previous_id is not None else []
+        if source is not None:
+            step = PromptStep(
+                id=source.id,
+                title=source.title,
+                description=action.description or source.description,
+                prompt=source.prompt,
+                prompt_template=source.prompt_template,
+                expected_output=source.expected_output,
+                requires_inputs=source.requires_inputs,
+                depends_on=depends_on,
+                raci=source.raci,
+                raci_override_reason=source.raci_override_reason,
+                agent_profile=action.agent_profile or source.agent_profile,
+                contract_ref=source.contract_ref,
+            )
+        else:
+            step = PromptStep(
+                id=action.action_name,
+                title=action.action_name.replace("-", " ").title(),
+                description=action.description,
+                prompt_template=f"{action.action_name}.md",
+                requires_inputs=[action.human_in_the_loop] if action.human_in_the_loop else [],
+                depends_on=depends_on,
+                agent_profile=action.agent_profile,
+            )
+        composed.append(step)
+        previous_id = action.action_name
+
+    return MissionTemplate(
+        mission=template.mission,
+        steps=composed,
+        audit_steps=template.audit_steps,
+    )
+
+
 def _resolve_workflow_for_mission(mission_dir: Path) -> WorkflowSequence:
     """Return the ``WorkflowSequence`` for the mission rooted at *mission_dir*.
 

@@ -185,10 +185,12 @@ def start_mission_run(
     context: DiscoveryContext | None = None,
     run_store: Path | None = None,
     emitter: RuntimeEventEmitter | None = None,
+    template_override: MissionTemplate | None = None,
+    template_path_override: str | None = None,
 ) -> MissionRunRef:
     """Start and persist a new mission run with template freezing."""
     emitter = emitter or NullEmitter()
-    template = load_mission_template(template_key, context=context)
+    template = template_override or load_mission_template(template_key, context=context)
 
     runs_dir = _runtime_runs_dir(run_store)
     run_id = uuid4().hex
@@ -196,7 +198,7 @@ def start_mission_run(
     run_dir.mkdir(parents=True, exist_ok=False)
 
     # Always resolve to a real filesystem path for drift detection.
-    template_path = _resolve_template_path(template_key, context)
+    template_path = template_path_override or _resolve_template_path(template_key, context)
 
     # Freeze template and compute hash.
     template_hash = _freeze_template(run_dir, template, template_path)
