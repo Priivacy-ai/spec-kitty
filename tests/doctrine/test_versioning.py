@@ -15,6 +15,7 @@ from doctrine.versioning import (
     MigrationResult,
     check_bundle_compatibility,
     get_bundle_schema_version,
+    repair_v2_synthesis_manifest_defaults,
     run_migration,
 )
 
@@ -359,6 +360,149 @@ def test_run_migration_v1_uses_sentinel_when_sidecar_stat_fails(
         encoding="utf-8"
     )
     assert "produced_at: (pre-phase7-migration)" in sidecar
+
+
+def _write_legacy_v2_manifest(
+    bundle_root: Path,
+    *,
+    stored_hash: str | None = None,
+) -> Path:
+    import hashlib
+
+    from doctrine.yaml_utils import canonical_yaml
+    from ruamel.yaml import YAML
+
+    manifest_data = {
+        "schema_version": "2",
+        "mission_id": None,
+        "created_at": "2026-01-01T00:00:00Z",
+        "run_id": "01TEST000000000000000000001",
+        "adapter_id": "fixture",
+        "adapter_version": "1.0.0",
+        "synthesizer_version": "3.2.6",
+        "artifacts": [],
+    }
+    manifest_data["manifest_hash"] = stored_hash or hashlib.sha256(  # noqa: TID251 — legacy v2 manifest self-hash fixture
+        canonical_yaml(manifest_data)
+    ).hexdigest()
+
+    manifest_path = bundle_root / "synthesis-manifest.yaml"
+    yaml = YAML()
+    yaml.default_flow_style = False
+    yaml.explicit_start = False
+    yaml.dump(manifest_data, manifest_path)
+    return manifest_path
+
+
+def test_repair_v2_manifest_no_manifest_is_noop(tmp_path: Path) -> None:
+    result = repair_v2_synthesis_manifest_defaults(tmp_path)
+
+    assert result.changes_made == []
+    assert result.errors == []
+
+
+def test_repair_v2_manifest_load_error_is_reported(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import doctrine.versioning as versioning
+
+    (tmp_path / "synthesis-manifest.yaml").write_text("schema_version: '2'\n")
+
+    class BrokenYaml:
+        default_flow_style = False
+        explicit_start = False
+
+        def load(self, _text: str) -> dict:
+            raise RuntimeError("boom")
+
+    monkeypatch.setattr(versioning, "YAML", BrokenYaml)
+
+    result = repair_v2_synthesis_manifest_defaults(tmp_path)
+
+    assert result.changes_made == []
+    assert result.errors == ["Failed to load synthesis-manifest.yaml: boom"]
+
+
+def test_repair_v2_manifest_ignores_non_v2_and_already_current(tmp_path: Path) -> None:
+    from ruamel.yaml import YAML
+
+    manifest_path = tmp_path / "synthesis-manifest.yaml"
+    yaml = YAML()
+    yaml.dump({"schema_version": "1"}, manifest_path)
+    assert repair_v2_synthesis_manifest_defaults(tmp_path).changes_made == []
+
+    yaml.dump({"schema_version": "2", "built_in_only": False}, manifest_path)
+    assert repair_v2_synthesis_manifest_defaults(tmp_path).changes_made == []
+
+
+def test_repair_v2_manifest_missing_hash_is_error(tmp_path: Path) -> None:
+    from ruamel.yaml import YAML
+
+    YAML().dump({"schema_version": "2"}, tmp_path / "synthesis-manifest.yaml")
+
+    result = repair_v2_synthesis_manifest_defaults(tmp_path)
+
+    assert result.changes_made == []
+    assert result.errors == [
+        "Cannot repair synthesis-manifest.yaml: manifest_hash is missing or invalid."
+    ]
+
+
+def test_repair_v2_manifest_hash_mismatch_is_error(tmp_path: Path) -> None:
+    _write_legacy_v2_manifest(tmp_path, stored_hash="0" * 64)
+
+    result = repair_v2_synthesis_manifest_defaults(tmp_path)
+
+    assert result.changes_made == []
+    assert result.errors == [
+        "Cannot repair synthesis-manifest.yaml: existing manifest_hash does not "
+        "match the pre-built_in_only v2 payload."
+    ]
+
+
+def test_repair_v2_manifest_writes_canonical_default(tmp_path: Path) -> None:
+    from charter.synthesizer.manifest import load_yaml, verify_manifest_hash
+    from ruamel.yaml import YAML
+
+    manifest_path = _write_legacy_v2_manifest(tmp_path)
+
+    result = repair_v2_synthesis_manifest_defaults(tmp_path)
+
+    assert result.changes_made == [str(manifest_path)]
+    assert result.errors == []
+    assert YAML().load(manifest_path)["built_in_only"] is False
+    verify_manifest_hash(load_yaml(manifest_path))
+
+
+def test_repair_v2_manifest_dry_run_reports_without_write(tmp_path: Path) -> None:
+    from ruamel.yaml import YAML
+
+    manifest_path = _write_legacy_v2_manifest(tmp_path)
+
+    result = repair_v2_synthesis_manifest_defaults(tmp_path, dry_run=True)
+
+    assert result.changes_made == [str(manifest_path)]
+    assert result.errors == []
+    assert "built_in_only" not in YAML().load(manifest_path)
+
+
+def test_repair_v2_manifest_write_error_is_reported(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    manifest_path = _write_legacy_v2_manifest(tmp_path)
+    original_write_bytes = Path.write_bytes
+
+    def patched_write_bytes(path: Path, data: bytes) -> int:
+        if path == manifest_path:
+            raise OSError("disk full")
+        return original_write_bytes(path, data)
+
+    monkeypatch.setattr(Path, "write_bytes", patched_write_bytes)
+
+    result = repair_v2_synthesis_manifest_defaults(tmp_path)
+
+    assert result.changes_made == []
+    assert result.errors == ["Failed to write synthesis-manifest.yaml: disk full"]
 
 
 # ---------------------------------------------------------------------------
