@@ -199,11 +199,10 @@ class ContextPreconditionError(RuntimeError):
 
 | Module | Role |
 |--------|------|
-| `src/charter/invocation_context.py` | Defines `ProjectContext`, `OperationalContext`, `ContextPreconditionError` — the charter module owns these types |
-| `src/specify_cli/context/__init__.py` | Re-exports the charter-owned types; provides population factories |
-| `src/specify_cli/context/factory.py` | `build_project_context(repo_root: Path) -> ProjectContext`; `build_operational_context(...) -> OperationalContext` — specify_cli knows how to read agent config, profile, role from CLI state |
+| `src/charter/invocation_context.py` | Defines `ProjectContext`, `OperationalContext`, `ContextPreconditionError`, and all guard methods — charter owns these types entirely |
+| call sites in `specify_cli.*` | Import directly from `charter.invocation_context`; construct `ProjectContext.from_repo(repo_root)` inline at CLI entry points — no wrapper package or factory module needed |
 
-`charter.*` functions import `ProjectContext` from `charter.invocation_context` (no layer violation). `specify_cli.*` functions import from `specify_cli.context` for construction and from `charter.invocation_context` for type annotations. `doctrine.*` defines a narrow `ProjectContextProtocol` matching only the fields it uses (resolves C-004 / A2 cleanly — no charter import needed in doctrine).
+`charter.*` functions import `ProjectContext` from `charter.invocation_context` (same-package, no violation). `specify_cli.*` functions import from `charter.invocation_context` directly — the `specify_cli → charter` direction is allowed by the layer rules. No new `specify_cli.*` package is created for this purpose; `src/specify_cli/context/` is an existing MissionContext identity package with unrelated semantics and must not be extended with charter types. `doctrine.*` defines a narrow `ProjectContextProtocol` matching only the fields it uses (resolves C-004 / A2 — no charter import needed in doctrine).
 
 ---
 
