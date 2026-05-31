@@ -272,6 +272,14 @@ def test_context_json_uses_same_depth_as_rendered_context(tmp_path: Path) -> Non
             "tactics": [],
             "styleguides": [],
             "toolguides": [],
+            "governance_references": [
+                {
+                    "path": "docs/missing-governance.md",
+                    "exists": False,
+                    "safe": True,
+                    "warning": "Missing governance reference docs/missing-governance.md.",
+                }
+            ],
             "project_charter": {
                 "present": True,
                 "path": ".kittify/charter/charter.md",
@@ -295,6 +303,14 @@ def test_context_json_uses_same_depth_as_rendered_context(tmp_path: Path) -> Non
     payload = json.loads(result.output)
     assert payload["mode"] == "bootstrap"
     assert payload["directives"] == [{"id": "DIRECTIVE_001", "source": "builtin"}]
+    assert payload["governance_references"] == [
+        {
+            "path": "docs/missing-governance.md",
+            "exists": False,
+            "safe": True,
+            "warning": "Missing governance reference docs/missing-governance.md.",
+        }
+    ]
     assert "DIRECTIVE_001" in payload["text"]
 
 

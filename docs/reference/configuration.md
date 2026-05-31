@@ -174,7 +174,7 @@ Each entry has:
 
 Optional file defining project-wide coding principles and standards.
 
-**Location**: `.kittify/memory/charter.md`
+**Location**: `.kittify/charter/charter.md`
 
 **Purpose**: When present, all slash commands reference these principles. Claude and other agents will follow these guidelines during implementation.
 

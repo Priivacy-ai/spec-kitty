@@ -9,4 +9,4 @@ principles:
   - Keep functions focused and side effects minimal.
   - Prefer clear names over abbreviated names.
 references:
-  - ".kittify/memory/charter.md"
+  - ".kittify/charter/charter.md"

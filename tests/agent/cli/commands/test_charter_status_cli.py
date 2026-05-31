@@ -11,6 +11,7 @@ from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.charter import app
+from specify_cli.cli.commands.charter._status_collectors import _collect_governance_reference_status
 from specify_cli.tasks_support import TaskCliError
 
 pytestmark = pytest.mark.fast
@@ -62,6 +63,20 @@ charter:
     )
 
 
+def _write_governance_yaml(repo_root: Path) -> None:
+    path = repo_root / ".kittify" / "charter" / "governance.yaml"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        """\
+doctrine:
+  governance_references:
+    - spec/constitution.md
+    - docs/missing-governance.md
+""",
+        encoding="utf-8",
+    )
+
+
 def _write_generated_directive(repo_root: Path, body: dict[str, object]) -> None:
     path = (
         repo_root
@@ -78,6 +93,22 @@ def _write_generated_directive(repo_root: Path, body: dict[str, object]) -> None
 
 
 class TestCharterStatus:
+    def test_status_collector_reports_missing_governance_reference(
+        self, tmp_path: Path
+    ) -> None:
+        _write_governance_yaml(tmp_path)
+        (tmp_path / "spec").mkdir()
+        (tmp_path / "spec" / "constitution.md").write_text("# Public Constitution\n", encoding="utf-8")
+
+        status = _collect_governance_reference_status(tmp_path)
+
+        assert status["available"] is True
+        assert len(status["references"]) == 2
+        assert status["warnings"] == [
+            "Missing governance reference docs/missing-governance.md. Create it under the repository root "
+            "or remove it from governance_references in .kittify/charter/charter.md."
+        ]
+
     def test_status_json_gracefully_degrades_without_charter_bundle(
         self, tmp_path: Path
     ) -> None:

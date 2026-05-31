@@ -84,6 +84,9 @@ def context(
                         "tactics": structured.get("tactics", []),
                         "styleguides": structured.get("styleguides", []),
                         "toolguides": structured.get("toolguides", []),
+                        "governance_references": structured.get(
+                            "governance_references", []
+                        ),
                         "project_charter": structured.get(
                             "project_charter",
                             {

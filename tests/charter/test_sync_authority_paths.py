@@ -42,6 +42,8 @@ available_tools:
 authority_paths:
   - glossary/contexts/
   - architecture/2.x/adr/
+governance_references:
+  - spec/constitution.md
 ```
 """
 
@@ -59,6 +61,35 @@ def test_fenced_yaml_authority_paths_extracted(tmp_path: Path) -> None:
     assert doctrine.get("authority_paths") == [
         "glossary/contexts/",
         "architecture/2.x/adr/",
+    ]
+    assert doctrine.get("governance_references") == ["spec/constitution.md"]
+
+
+def test_fenced_yaml_required_reading_alias_extracted(tmp_path: Path) -> None:
+    charter = """\
+# Charter
+
+## Supporting Governance
+
+```yaml
+required_reading:
+  - spec/constitution.md
+reading_list:
+  - docs/security-policy.md
+```
+"""
+    charter_file = tmp_path / "charter.md"
+    charter_file.write_text(charter, encoding="utf-8")
+
+    result = sync(charter_file, tmp_path)
+    assert result.synced is True
+
+    data = _load_governance(tmp_path / "governance.yaml")
+    doctrine = data["doctrine"]
+    assert isinstance(doctrine, dict)
+    assert doctrine.get("governance_references") == [
+        "spec/constitution.md",
+        "docs/security-policy.md",
     ]
 
 
@@ -124,6 +155,7 @@ Minimum 80% coverage; pytest.
     body = governance_yaml.read_text(encoding="utf-8")
     # NFR-005: the new authority_paths key MUST NOT be emitted when empty.
     assert "authority_paths" not in body
+    assert "governance_references" not in body
 
     directives_body = (tmp_path / "directives.yaml").read_text(encoding="utf-8")
     # NFR-005: references MUST NOT be emitted when empty (per contract §2).
@@ -163,6 +195,23 @@ authority_paths:
 """
     extractor = Extractor()
     with pytest.raises(ValueError, match="authority_paths"):
+        extractor.extract(charter)
+
+
+def test_non_string_governance_reference_rejected() -> None:
+    charter = """\
+# Charter
+
+## Resolution
+
+```yaml
+governance_references:
+  - spec/constitution.md
+  - 12345
+```
+"""
+    extractor = Extractor()
+    with pytest.raises(ValueError, match="governance_references"):
         extractor.extract(charter)
 
 

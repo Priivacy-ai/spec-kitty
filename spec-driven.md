@@ -437,7 +437,7 @@ The templates transform the LLM from a creative writer into a disciplined specif
 
 ## The Charteral Foundation: Enforcing Architectural Discipline
 
-At the heart of SDD lies a charter—a set of immutable principles that govern how specifications become code. The charter (`memory/charter.md`) acts as the architectural DNA of the system, ensuring that every generated implementation maintains consistency, simplicity, and quality.
+At the heart of SDD lies a charter—a set of immutable principles that govern how specifications become code. The charter (`.kittify/charter/charter.md`) acts as the architectural DNA of the system, ensuring that every generated implementation maintains consistency, simplicity, and quality.
 
 ### The Core Articles of Development
 

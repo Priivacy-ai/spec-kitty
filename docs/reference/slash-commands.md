@@ -241,7 +241,7 @@ Syntax format in this reference:
 - Writes project-wide principles to the charter file.
 
 **Creates/updates**:
-- `.kittify/memory/charter.md`
+- `.kittify/charter/charter.md`
 
 **Related**: `/spec-kitty.specify`, `/spec-kitty.plan`
 
@@ -289,9 +289,11 @@ Syntax format in this reference:
 **Related**: `/spec-kitty.tasks`, `/spec-kitty.implement`
 
 ## Getting Started
+
 - [Claude Code Integration](../tutorials/claude-code-integration.md)
 - [Claude Code Workflow](../tutorials/claude-code-workflow.md)
 
 ## Practical Usage
+
 - [Use the Dashboard](../how-to/use-dashboard.md)
 - [Non-Interactive Init](../how-to/non-interactive-init.md)
