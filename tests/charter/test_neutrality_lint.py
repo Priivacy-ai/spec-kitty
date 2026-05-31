@@ -303,6 +303,52 @@ def test_glob_allowlist_matches_files(tmp_path: Path) -> None:
     assert result.passed, f"Expected glob allowlist to suppress all hits; got hits={result.hits} stale={result.stale_allowlist_entries}"
 
 
+def test_glob_allowlist_star_does_not_cross_directory_segments(tmp_path: Path) -> None:
+    """Allowlist exemption matching must use the same segment semantics as stale checks."""
+    scoped_dir = tmp_path / "src" / "doctrine" / "python-scoped"
+    nested_dir = scoped_dir / "nested"
+    nested_dir.mkdir(parents=True)
+    (scoped_dir / "allowed.md").write_text("run pytest here\n", encoding="utf-8")
+    (nested_dir / "not-allowed.md").write_text("run pytest here too\n", encoding="utf-8")
+
+    allowlist = tmp_path / "allow.yaml"
+    allowlist.write_text(
+        "schema_version: '1'\npaths:\n  - path: src/doctrine/python-scoped/*.md\n    rationale: One directory only.\n    added_in: '3.2.0'\n",
+        encoding="utf-8",
+    )
+
+    result = run_neutrality_lint(
+        repo_root=tmp_path,
+        scan_roots=[tmp_path / "src" / "doctrine"],
+        allowlist_path=allowlist,
+    )
+
+    assert not result.stale_allowlist_entries
+    hit_files = {hit.file.as_posix() for hit in result.hits}
+    assert hit_files == {"src/doctrine/python-scoped/nested/not-allowed.md"}
+
+
+def test_glob_allowlist_double_star_matches_zero_directory_segments(tmp_path: Path) -> None:
+    """``**`` exemptions must match the same paths that make the entry non-stale."""
+    scoped_dir = tmp_path / "src" / "doctrine" / "python-scoped"
+    scoped_dir.mkdir(parents=True)
+    (scoped_dir / "guide.md").write_text("run pytest here\n", encoding="utf-8")
+
+    allowlist = tmp_path / "allow.yaml"
+    allowlist.write_text(
+        "schema_version: '1'\npaths:\n  - path: src/doctrine/python-scoped/**/*.md\n    rationale: Recursive python guide exemption.\n    added_in: '3.2.0'\n",
+        encoding="utf-8",
+    )
+
+    result = run_neutrality_lint(
+        repo_root=tmp_path,
+        scan_roots=[tmp_path / "src" / "doctrine"],
+        allowlist_path=allowlist,
+    )
+
+    assert result.passed, f"Expected ** glob to suppress top-level guide; got hits={result.hits} stale={result.stale_allowlist_entries}"
+
+
 def test_regex_term_reports_accurate_column(tmp_path: Path) -> None:
     """A regex-kind banned term must report file:line:column that points at the match."""
     scan_root = tmp_path / "src" / "doctrine"
