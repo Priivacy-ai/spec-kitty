@@ -24,6 +24,7 @@ from typing import Any, Literal
 from collections.abc import Mapping, Sequence
 
 from .errors import TopicSelectorUnresolvedError
+from .interview_mapping import canonicalize_interview_section_label
 from .request import SynthesisTarget
 
 # ---------------------------------------------------------------------------
@@ -171,10 +172,11 @@ def _normalize_interview_section_label(label: str) -> str:
 
     The stored section labels are underscore-delimited (`testing_philosophy`),
     but operators naturally type hyphenated forms (`testing-philosophy`).
-    Normalize both to the canonical underscore form for matching and error
-    suggestions without changing the persisted provenance keys.
+    Normalize both to the canonical underscore form and map real interview
+    producer keys (for example ``testing_requirements``) back to the legacy
+    synthesis section labels stored in provenance.
     """
-    return label.strip().replace("-", "_").replace(" ", "_")
+    return canonicalize_interview_section_label(label)
 
 
 # ---------------------------------------------------------------------------
@@ -266,7 +268,8 @@ def _resolve_interview_section(
     known interview section set.
     """
     normalized_sections = {
-        _normalize_interview_section_label(section): section for section in interview_sections
+        _normalize_interview_section_label(section): _normalize_interview_section_label(section)
+        for section in interview_sections
     }
     normalized_raw = _normalize_interview_section_label(raw)
     canonical_section = normalized_sections.get(normalized_raw)
@@ -371,7 +374,8 @@ def resolve(
         section_results = _resolve_interview_section(raw, project_artifacts, interview_sections)
         if section_results is not None:
             normalized_sections = {
-                _normalize_interview_section_label(section): section for section in interview_sections
+                _normalize_interview_section_label(section): _normalize_interview_section_label(section)
+                for section in interview_sections
             }
             matched_value = normalized_sections[_normalize_interview_section_label(raw)]
             return ResolvedTopic(

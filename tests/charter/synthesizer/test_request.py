@@ -20,6 +20,7 @@ from charter.synthesizer.evidence import (
     CorpusSnapshot,
     EvidenceBundle,
 )
+from charter.synthesizer.interview_mapping import normalize_interview_snapshot
 from charter.synthesizer.request import (
     SynthesisRequest,
     SynthesisTarget,
@@ -258,6 +259,33 @@ def test_run_id_excluded_from_hash() -> None:
     h_b = compute_inputs_hash(request_b, _ADAPTER_ID, _ADAPTER_VERSION)
 
     assert h_a == h_b
+
+
+def test_alias_equivalent_interview_snapshots_hash_identically_after_normalization() -> None:
+    """Producer-key snapshots canonicalize before fixture/provenance hashing."""
+    canonical = {
+        "mission_type": "Ship trustworthy agent workflows",
+        "language_scope": ["python", "typescript"],
+        "testing_philosophy": "pytest coverage and browser tests",
+        "risk_appetite": "no credential leaks",
+    }
+    producer = {
+        "project_intent": "Ship trustworthy agent workflows",
+        "languages_frameworks": "Python 3.11 and TypeScript",
+        "testing_requirements": "pytest coverage and browser tests",
+        "risk_boundaries": "no credential leaks",
+    }
+
+    request_a = _make_base_request(
+        interview_snapshot=normalize_interview_snapshot(canonical)
+    )
+    request_b = _make_base_request(
+        interview_snapshot=normalize_interview_snapshot(producer)
+    )
+
+    assert compute_inputs_hash(request_a, _ADAPTER_ID, _ADAPTER_VERSION) == compute_inputs_hash(
+        request_b, _ADAPTER_ID, _ADAPTER_VERSION
+    )
 
 
 # ---------------------------------------------------------------------------

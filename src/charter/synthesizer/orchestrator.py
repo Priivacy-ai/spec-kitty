@@ -130,6 +130,7 @@ def synthesize(
         from doctrine.drg.models import DRGGraph as _DRGGraph  # noqa: PLC0415
         from importlib.metadata import version as _pkg_version  # noqa: PLC0415
         _SPEC_KITTY_VERSION = _pkg_version("spec-kitty-cli")
+        from .interview_mapping import normalize_interview_snapshot as _normalize_interview_snapshot  # noqa: PLC0415
         from .interview_mapping import resolve_sections as _resolve_sections  # noqa: PLC0415
         from .project_drg import apply_post_condition as _apply_post_condition  # noqa: PLC0415
         from .project_drg import emit_project_layer as _emit_project_layer  # noqa: PLC0415
@@ -151,9 +152,10 @@ def synthesize(
     results = _run_all(request, adapter=adapter)
 
     built_in_drg = _DRGGraph.model_validate(_built_in_drg_from_snapshot(request.drg_snapshot))
-    sections = _resolve_sections(dict(request.interview_snapshot))
+    interview_snapshot = _normalize_interview_snapshot(dict(request.interview_snapshot))
+    sections = _resolve_sections(interview_snapshot)
     targets = _build_targets(
-        interview_snapshot=dict(request.interview_snapshot),
+        interview_snapshot=interview_snapshot,
         mappings=sections,
         drg_snapshot=dict(request.drg_snapshot),
     )

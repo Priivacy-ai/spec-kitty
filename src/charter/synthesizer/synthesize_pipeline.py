@@ -45,7 +45,7 @@ from ruamel.yaml import YAML
 
 from .adapter import AdapterOutput, SynthesisAdapter
 from .errors import SynthesisSchemaError
-from .interview_mapping import resolve_sections
+from .interview_mapping import normalize_interview_snapshot, resolve_sections
 from .orchestrator import SynthesisResult
 from .request import SynthesisRequest, SynthesisTarget, compute_inputs_hash, _evidence_to_jsonable
 from .targets import build_targets, detect_duplicates, order_targets
@@ -365,12 +365,13 @@ def run(
             "Pass a FixtureAdapter instance explicitly."
         )
 
-    # Stage 1: resolve sections from the interview snapshot
-    sections = resolve_sections(dict(request.interview_snapshot))
+    # Stage 1: resolve sections from the synthesis-canonical interview snapshot
+    interview_snapshot = normalize_interview_snapshot(dict(request.interview_snapshot))
+    sections = resolve_sections(interview_snapshot)
 
     # Stage 2: build targets (validates source URNs against drg_snapshot)
     all_targets = build_targets(
-        interview_snapshot=dict(request.interview_snapshot),
+        interview_snapshot=interview_snapshot,
         mappings=sections,
         drg_snapshot=dict(request.drg_snapshot),
     )
@@ -391,7 +392,7 @@ def run(
         per_target_requests.append(
             SynthesisRequest(
                 target=target,
-                interview_snapshot=request.interview_snapshot,
+                interview_snapshot=interview_snapshot,
                 doctrine_snapshot=request.doctrine_snapshot,
                 drg_snapshot=request.drg_snapshot,
                 run_id=request.run_id,
@@ -514,9 +515,10 @@ def run_all(
             "Production adapter wiring is not yet implemented (WP05)."
         )
 
-    sections = resolve_sections(dict(request.interview_snapshot))
+    interview_snapshot = normalize_interview_snapshot(dict(request.interview_snapshot))
+    sections = resolve_sections(interview_snapshot)
     all_targets = build_targets(
-        interview_snapshot=dict(request.interview_snapshot),
+        interview_snapshot=interview_snapshot,
         mappings=sections,
         drg_snapshot=dict(request.drg_snapshot),
     )
@@ -529,7 +531,7 @@ def run_all(
     per_target_requests: list[SynthesisRequest] = [
         SynthesisRequest(
             target=t,
-            interview_snapshot=request.interview_snapshot,
+            interview_snapshot=interview_snapshot,
             doctrine_snapshot=request.doctrine_snapshot,
             drg_snapshot=request.drg_snapshot,
             run_id=request.run_id,
