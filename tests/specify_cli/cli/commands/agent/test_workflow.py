@@ -520,7 +520,7 @@ class TestTransactionPathFor:
 class TestCommitWorkflowChange:
     """``_commit_workflow_change`` preserves helper-level exit semantics."""
 
-    def test_modern_policy_exit_is_not_rehandled(
+    def test_modern_policy_exit_restores_pre_emit_status_artifacts(
         self,
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
@@ -531,6 +531,10 @@ class TestCommitWorkflowChange:
 
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         feature_dir.mkdir(parents=True)
+        events_path = feature_dir / "status.events.jsonl"
+        status_path = feature_dir / "status.json"
+        events_path.write_text("before\nnew-event\n", encoding="utf-8")
+        status_path.write_text('{"lane":"new"}', encoding="utf-8")
         (feature_dir / "meta.json").write_text(
             json.dumps({
                 "mission_id": "01ABCDEFGHJKMNPQRSTVWXYZ12",
@@ -568,13 +572,20 @@ class TestCommitWorkflowChange:
                 message="chore: WP01 claimed [claude]",
                 operation="implement",
                 wp_id="WP01",
-                pre_emit_event_size=0,
-                pre_emit_status_bytes=None,
+                pre_emit_event_size=len("before\n"),
+                pre_emit_status_bytes=b'{"lane":"old"}',
             )
 
         assert len(workflow._WORKFLOW_COMMIT_RECEIPTS) == 1
         assert workflow._WORKFLOW_COMMIT_RECEIPTS[0]["outcome"] == "refused"
-        assert restore_calls == []
+        assert restore_calls == [
+            {
+                "events_path": events_path,
+                "pre_emit_event_size": len("before\n"),
+                "status_path": status_path,
+                "pre_emit_status_bytes": b'{"lane":"old"}',
+            }
+        ]
         workflow._reset_workflow_receipts()
 
 

@@ -21,6 +21,7 @@ import pytest
 from specify_cli.workspace.root_resolver import (
     WorkspaceRootNotFound,
     _reset_cache,
+    canonicalize_feature_dir,
     resolve_canonical_root,
 )
 
@@ -97,6 +98,21 @@ def test_subdirectory_inside_worktree_returns_canonical(tmp_path: Path) -> None:
     nested.mkdir(parents=True)
 
     assert resolve_canonical_root(nested) == repo
+
+
+@pytest.mark.git_repo
+def test_coord_worktree_feature_dir_is_not_rewritten_to_primary(tmp_path: Path) -> None:
+    repo = _init_repo(tmp_path / "repo")
+    mission_slug = "demo-feature-01ABCDEF"
+    primary_feature_dir = repo / "kitty-specs" / mission_slug
+    primary_feature_dir.mkdir(parents=True)
+    coord_worktree = repo / ".worktrees" / f"{mission_slug}-coord"
+    _git(repo, "worktree", "add", "-b", "coord", str(coord_worktree))
+    coord_feature_dir = coord_worktree / "kitty-specs" / mission_slug
+    coord_feature_dir.mkdir(parents=True)
+
+    assert canonicalize_feature_dir(coord_feature_dir) == coord_feature_dir
+    assert canonicalize_feature_dir(coord_feature_dir) != primary_feature_dir
 
 
 def test_non_git_directory_raises(tmp_path: Path) -> None:

@@ -187,6 +187,10 @@ def canonicalize_feature_dir(feature_dir: Path) -> Path:
     if parent.name != "kitty-specs":
         return feature_dir
 
+    for candidate in (feature_dir, *feature_dir.parents):
+        if candidate.parent.name == ".worktrees" and candidate.name.endswith("-coord"):
+            return feature_dir
+
     try:
         canonical_root = resolve_canonical_root(feature_dir)
     except WorkspaceRootNotFound:
