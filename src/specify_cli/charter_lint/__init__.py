@@ -8,6 +8,7 @@ Eager sys.modules aliasing — see
 from __future__ import annotations
 
 import importlib
+import importlib.machinery
 import pkgutil
 import sys
 import types
@@ -25,7 +26,14 @@ for _sub in ("_drg", "engine", "findings"):
 _canonical_checks = importlib.import_module(f"{_CANONICAL}.checks")
 _checks_shim_name = f"{__name__}.checks"
 _checks_shim = types.ModuleType(_checks_shim_name, _canonical_checks.__doc__)
+_checks_shim.__loader__ = None
 _checks_shim.__package__ = _checks_shim_name
+_checks_shim.__spec__ = importlib.machinery.ModuleSpec(
+    _checks_shim_name,
+    loader=None,
+    is_package=True,
+)
+_checks_shim.__spec__.submodule_search_locations = []
 _checks_shim.__path__ = []
 _checks_shim.__all__ = getattr(_canonical_checks, "__all__", ())  # type: ignore[attr-defined]
 sys.modules[_checks_shim_name] = _checks_shim

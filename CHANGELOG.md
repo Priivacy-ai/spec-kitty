@@ -19,9 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `charter generate --force` now refuses to overwrite symlinked `charter.md` paths,
   preventing silent writes through symlink targets.
-- Legacy `specify_cli.charter_lint.checks.*` shim imports now preserve canonical
-  `specify_cli.charter_runtime.lint.checks.*` module identity and fail loudly if a
-  nested alias is missing, preventing duplicate checker module instances.
 
 ### Documentation
 
@@ -30,6 +27,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rather than alternate authoritative charter paths.
 - Added migration guidance for constitution-era `.kittify/memory/constitution.md`
   and `.kittify/constitution/*` layouts.
+
+## [3.2.0rc31] - 2026-05-31
+
+### Fixed
+
+- Legacy `specify_cli.charter_lint.checks.*` shim imports now preserve canonical
+  `specify_cli.charter_runtime.lint.checks.*` module identity and fail loudly if a
+  nested alias is missing, preventing duplicate checker module instances.
 
 ## [3.2.0rc30] - 2026-05-29
 
