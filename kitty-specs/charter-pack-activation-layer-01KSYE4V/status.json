@@ -1,7 +1,7 @@
 {
-  "event_count": 53,
-  "last_event_id": "01KSZ6FMFZ7T7W61CCS9F174MW",
-  "materialized_at": "2026-05-31T14:19:53.727542+00:00",
+  "event_count": 54,
+  "last_event_id": "01KSZ6V12M446SX5DQM0CQJCHG",
+  "materialized_at": "2026-05-31T14:26:07.060350+00:00",
   "mission_number": "",
   "mission_slug": "charter-pack-activation-layer-01KSYE4V",
   "mission_type": "software-dev",
@@ -11,8 +11,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 6,
+    "for_review": 1,
+    "in_progress": 5,
     "in_review": 0,
     "planned": 0
   },
@@ -88,11 +88,11 @@
       "last_transition_at": "2026-05-31T14:19:49.329369+00:00"
     },
     "WP11": {
-      "actor": "claude:sonnet-4-6:python-pedro:implementer",
+      "actor": "user",
       "force_count": 1,
-      "lane": "in_progress",
-      "last_event_id": "01KSZ6FMFZ7T7W61CCS9F174MW",
-      "last_transition_at": "2026-05-31T14:19:53.727542+00:00"
+      "lane": "for_review",
+      "last_event_id": "01KSZ6V12M446SX5DQM0CQJCHG",
+      "last_transition_at": "2026-05-31T14:26:07.060350+00:00"
     }
   }
 }
