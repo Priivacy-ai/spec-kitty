@@ -208,3 +208,19 @@ class TestMissionStepContract:
                     "inputz": [],
                 }
             )
+
+    def test_json_schema_exposes_step_inputs_and_forbids_unknown_fields(self) -> None:
+        schema = MissionStepContract.model_json_schema()
+
+        step_schema = schema["$defs"]["MissionStep"]
+        assert step_schema["additionalProperties"] is False
+        assert step_schema["properties"]["inputs"] == {
+            "items": {"$ref": "#/$defs/MissionStepInput"},
+            "title": "Inputs",
+            "type": "array",
+        }
+
+        input_schema = schema["$defs"]["MissionStepInput"]
+        assert input_schema["additionalProperties"] is False
+        assert input_schema["required"] == ["flag", "source"]
+        assert input_schema["properties"]["optional"]["default"] is False

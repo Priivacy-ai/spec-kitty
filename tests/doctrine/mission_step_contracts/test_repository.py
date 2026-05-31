@@ -134,17 +134,33 @@ class TestMissionStepContractRepository:
             "env.agent_tool",
         ]
 
-    def test_shipped_contract_inputs_are_preserved(self) -> None:
+    def test_shipped_contract_inputs_are_preserved_for_every_declaring_contract(self) -> None:
         repo = MissionStepContractRepository()
-        contract = repo.get_by_action("software-dev", "implement")
+        shipped_dir = Path("src/doctrine/mission_step_contracts/built-in")
+        yaml = YAML(typ="safe")
 
-        assert contract is not None
-        bootstrap_step = contract.steps[0]
-        assert [input.flag for input in bootstrap_step.inputs] == ["--profile", "--tool"]
-        assert [input.source for input in bootstrap_step.inputs] == [
-            "wp.agent_profile",
-            "env.agent_tool",
-        ]
+        declared: dict[str, list[dict[str, object]]] = {}
+        for contract_path in sorted(shipped_dir.glob("*.step-contract.yaml")):
+            raw = yaml.load(contract_path)
+            first_step = raw["steps"][0]
+            if first_step.get("inputs"):
+                declared[raw["id"]] = first_step["inputs"]
+
+        assert declared
+
+        for contract_id, expected_inputs in declared.items():
+            contract = repo.get(contract_id)
+            assert contract is not None
+            bootstrap_step = contract.steps[0]
+            assert [input.flag for input in bootstrap_step.inputs] == [
+                input_data["flag"] for input_data in expected_inputs
+            ]
+            assert [input.source for input in bootstrap_step.inputs] == [
+                input_data["source"] for input_data in expected_inputs
+            ]
+            assert [input.optional for input in bootstrap_step.inputs] == [
+                input_data.get("optional", False) for input_data in expected_inputs
+            ]
 
 
 class TestMissionStepContractRepositoryLookup:
