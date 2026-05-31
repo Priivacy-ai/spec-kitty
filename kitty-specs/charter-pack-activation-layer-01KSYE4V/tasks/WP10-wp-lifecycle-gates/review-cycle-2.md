@@ -7,6 +7,10 @@ reviewed_at: '2026-05-31T14:58:16Z'
 reviewer_agent: unknown
 verdict: rejected
 wp_id: WP10
+review_artifact_override_at: "2026-05-31T15:05:25Z"
+review_artifact_override_actor: "operator"
+review_artifact_override_wp_id: "WP10"
+review_artifact_override_reason: "Arbiter override: cycle-2 rejection resolved. CharterActivationError is now raised in both workflow.py and mission.py gates, FR-019 satisfied, all 9 tests pass including 2 new TestCharterActivationErrorRaised tests that verify the exception is genuinely raised."
 ---
 
 # WP10 Review Feedback — Cycle 1
