@@ -21,32 +21,41 @@ Each profile defines:
 5. **Mode Defaults** — Operating modes with descriptions and use-cases
 6. **Initialization Declaration** — Self-description loaded at session start
 
-## Two-Source Loading
+## Layered Loading
 
-Profiles are loaded from two sources with field-level merge:
+Profiles are loaded from layered sources with field-level merge:
 
-- **Shipped profiles** (`shipped/`) — 7 reference profiles included in the package
+- **Shipped profiles** (`built-in/`) — Reference profiles included in the package
+- **Organization profiles** — Optional organization-level pack overlays
 - **Project profiles** (`.kittify/charter/agents/`) — Custom overrides per project
 
-Project profiles override shipped profiles at field level when sharing the same
-`profile-id`.
+Each higher layer can override a lower-layer profile at field level when sharing
+the same `profile-id`; project profiles have final precedence.
 
 ## Shipped Profiles
 
-| Profile ID    | Name               | Role        |
-|---------------|--------------------|-------------|
-| `implementer` | Implementer Ivan   | implementer |
-| `reviewer`    | Reviewer Renata    | reviewer    |
-| `architect`   | Architect Alphonso | architect   |
-| `planner`     | Planner Petra      | planner     |
-| `designer`    | Designer           | designer    |
-| `researcher`  | Researcher Rosa    | researcher  |
-| `curator`     | Curator Carla      | curator     |
+| Profile ID | Name | Role |
+|------------|------|------|
+| `architect-alphonso` | Architect Alphonso | architect |
+| `curator-carla` | Curator Carla | curator |
+| `debugger-debbie` | Debugger Debbie | investigator |
+| `designer-dagmar` | Designer Dagmar | designer |
+| `frontend-freddy` | Frontend Freddy | implementer |
+| `generic-agent` | Generic Agent | implementer |
+| `human-in-charge` | Human in Charge | human-in-charge |
+| `implementer-ivan` | Implementer Ivan | implementer |
+| `java-jenny` | Java Jenny | implementer |
+| `node-norris` | Node Norris | implementer |
+| `planner-priti` | Planner Priti | planner |
+| `python-pedro` | Python Pedro | implementer |
+| `researcher-robbie` | Researcher Robbie | researcher |
+| `retrospective-facilitator` | Retrospective Facilitator | facilitator |
+| `reviewer-renata` | Reviewer Renata | reviewer |
 
 ## Python API
 
 - `AgentProfile` — Pydantic domain model
-- `AgentProfileRepository` — Two-source loading, hierarchy, weighted matching
+- `AgentProfileRepository` — Layered loading, hierarchy, weighted matching
 - `validate_agent_profile_yaml()` — JSON Schema (Draft 7) validation
 - `RoleCapabilities` / `DEFAULT_ROLE_CAPABILITIES` — Role-based capability defaults
 
