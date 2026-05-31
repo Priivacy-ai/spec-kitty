@@ -81,7 +81,7 @@ def read_lanes_json(feature_dir: Path) -> LanesManifest | None:
     try:
         data = json.loads(lanes_path.read_text(encoding="utf-8"))
         return LanesManifest.from_dict(data)
-    except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
+    except (OSError, json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
         raise CorruptLanesError(
             f"lanes.json at {lanes_path} is corrupt or malformed: {exc}"
         ) from exc

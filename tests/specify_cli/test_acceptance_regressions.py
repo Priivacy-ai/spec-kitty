@@ -486,6 +486,31 @@ def test_collect_feature_summary_blocks_corrupt_lanes_json(tmp_path: Path, lanes
     assert any("lanes.json" in item for item in summary.recommended_fix_order)
 
 
+def test_collect_feature_summary_blocks_unreadable_lanes_path(tmp_path: Path) -> None:
+    repo_root, feature_dir = _create_test_feature(tmp_path)
+    subprocess.run(["git", "-C", str(repo_root), "branch", "-M", "main"], check=True, capture_output=True)
+
+    from tests.lane_test_utils import write_single_lane_manifest
+
+    write_single_lane_manifest(feature_dir)
+    (feature_dir / "lanes.json").unlink()
+    (feature_dir / "lanes.json").mkdir()
+    (feature_dir / "lanes.json" / ".keep").write_text("", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo_root), "add", "."], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(repo_root), "commit", "-m", "Add unreadable lanes manifest"], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-C", str(repo_root), "checkout", "-b", f"kitty/mission-{_FEATURE_SLUG}"],
+        check=True,
+        capture_output=True,
+    )
+
+    summary = collect_feature_summary(repo_root, _FEATURE_SLUG, mutate_matrix=False)
+
+    assert summary.ok is False
+    assert any("lanes.json" in issue and "corrupt or malformed" in issue for issue in summary.activity_issues)
+    assert any(item.check == "lanes_manifest" for item in summary.blocked_checks)
+
+
 # ---------------------------------------------------------------------------
 # Integration branch guard: merge guidance must not target integration branch
 # ---------------------------------------------------------------------------
