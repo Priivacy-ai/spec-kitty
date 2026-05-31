@@ -21,7 +21,7 @@ from specify_cli.configured_command import ConfiguredCommandUnsupported, run_con
 from specify_cli.mission_metadata import mission_identity_fields, resolve_mission_identity
 
 CRITERION_VERDICTS = frozenset({"pass", "fail", "pending"})
-NEGATIVE_INVARIANT_RESULTS = frozenset({"confirmed_absent", "still_present", "pending"})
+NEGATIVE_INVARIANT_RESULTS = frozenset({"confirmed_absent", "still_present", "pending", "verification_error"})
 
 
 def _is_allowed_value(value: Any, allowed: frozenset[str]) -> bool:
@@ -75,7 +75,7 @@ class NegativeInvariant:
     description: str
     verification_method: str  # "grep_absence" | "route_check" | "custom_command"
     verification_command: str | None = None
-    result: str = "pending"  # "confirmed_absent" | "still_present" | "pending"
+    result: str = "pending"  # "confirmed_absent" | "still_present" | "pending" | "verification_error"
     evidence: str | None = None
     extras: dict[str, Any] = field(default_factory=dict)
 
@@ -120,7 +120,7 @@ class AcceptanceMatrix:
             return "fail"
         if any(v == "fail" for v in criterion_results):
             return "fail"
-        if any(v == "still_present" for v in invariant_results):
+        if any(v in {"still_present", "verification_error"} for v in invariant_results):
             return "fail"
         if any(v == "pending" for v in criterion_results + invariant_results):
             return "pending"
@@ -321,7 +321,7 @@ def enforce_negative_invariants(
     """Run all negative invariant checks. Returns updated invariants.
 
     Verification methods:
-    - grep_absence: Run grep for pattern in repo, assert zero matches.
+    - grep_absence: Run grep for pattern in repo; exit code 1 means absent.
     - custom_command: Run a command, check exit code (0 = absent/pass).
     """
     results: list[NegativeInvariant] = []
@@ -351,7 +351,7 @@ def _check_invariant(repo_root: Path, ni: NegativeInvariant) -> NegativeInvarian
 
 
 def _check_grep_absence(repo_root: Path, ni: NegativeInvariant) -> NegativeInvariant:
-    """Grep for pattern — zero matches means confirmed absent."""
+    """Grep for pattern; exit code 1 means confirmed absent."""
     if not ni.verification_command:
         return NegativeInvariant(
             invariant_id=ni.invariant_id,
@@ -363,21 +363,32 @@ def _check_grep_absence(repo_root: Path, ni: NegativeInvariant) -> NegativeInvar
             extras=ni.extras,
         )
 
-    result = subprocess.run(
-        [
-            "grep",
-            "-r",
-            "--exclude=acceptance-matrix.json",
-            "--exclude-dir=.git",
-            "--",
-            ni.verification_command,
-            ".",
-        ],
-        cwd=str(repo_root),
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0 and not result.stdout.strip():
+    try:
+        result = subprocess.run(
+            [
+                "grep",
+                "-r",
+                "--exclude=acceptance-matrix.json",
+                "--exclude-dir=.git",
+                "--",
+                ni.verification_command,
+                ".",
+            ],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+        )
+    except OSError as exc:
+        return NegativeInvariant(
+            invariant_id=ni.invariant_id,
+            description=ni.description,
+            verification_method=ni.verification_method,
+            verification_command=ni.verification_command,
+            result="verification_error",
+            evidence=f"grep failed to start: {exc}",
+            extras=ni.extras,
+        )
+    if result.returncode == 1:
         # No matches — pattern is absent
         return NegativeInvariant(
             invariant_id=ni.invariant_id,
@@ -388,7 +399,7 @@ def _check_grep_absence(repo_root: Path, ni: NegativeInvariant) -> NegativeInvar
             evidence="grep found zero matches",
             extras=ni.extras,
         )
-    else:
+    if result.returncode == 0:
         matches = result.stdout.strip().splitlines()[:5]
         return NegativeInvariant(
             invariant_id=ni.invariant_id,
@@ -399,6 +410,16 @@ def _check_grep_absence(repo_root: Path, ni: NegativeInvariant) -> NegativeInvar
             evidence=f"grep found matches: {'; '.join(matches)}",
             extras=ni.extras,
         )
+    details = (result.stderr or result.stdout).strip()[:500]
+    return NegativeInvariant(
+        invariant_id=ni.invariant_id,
+        description=ni.description,
+        verification_method=ni.verification_method,
+        verification_command=ni.verification_command,
+        result="verification_error",
+        evidence=f"grep verification failed (exit {result.returncode}): {details}",
+        extras=ni.extras,
+    )
 
 
 def _check_custom_command(repo_root: Path, ni: NegativeInvariant) -> NegativeInvariant:
