@@ -133,18 +133,6 @@ _EVENTS_FILENAME = "status.events.jsonl"
 _SNAPSHOT_FILENAME = "status.json"
 
 
-def _confine_transaction_artifact_path(path: Path, worktree_root: Path) -> Path:
-    """Return a resolved artifact path confined to the coordination worktree."""
-    candidate = path.resolve()
-    try:
-        candidate.relative_to(worktree_root.resolve())
-    except ValueError as exc:
-        raise ValueError(
-            f"Refusing to write artifact outside coordination worktree: {candidate}"
-        ) from exc
-    return candidate
-
-
 def _kitty_specs_dir_name(mission_slug: str, mid8: str) -> str:
     """Return the kitty-specs sub-directory name for this mission.
 
@@ -684,21 +672,35 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         previously exist). C-009: no ``git checkout --`` in the
         rollback path.
         """
-        path = _confine_path_to_worktree(self.worktree_root, path)
+        try:
+            candidate = _confine_path_to_worktree(self.worktree_root, path)
+        except ValueError as exc:
+            raise ValueError(
+                "Refusing to write artifact outside coordination worktree "
+                "(outside worktree): "
+                f"{path}"
+            ) from exc
+        resolved_worktree = self.worktree_root.resolve()
         # Capture snapshot ONLY if we have not seen this path yet.
         # Re-writing the same path repeatedly in one transaction still
         # rolls back to the *original* pre-transaction state.
-        path = _confine_transaction_artifact_path(path, self.worktree_root)
-        if path not in self._snapshots:
-            self._snapshots[path] = (
-                path.read_bytes() if path.exists() else None
+        resolved_path = candidate.resolve(strict=False)
+        if not resolved_path.is_relative_to(resolved_worktree):
+            raise ValueError(
+                "Refusing to write artifact outside coordination worktree "
+                "(outside worktree): "
+                f"{resolved_path}"
+            )
+        if resolved_path not in self._snapshots:
+            self._snapshots[resolved_path] = (
+                resolved_path.read_bytes() if resolved_path.exists() else None
             )
 
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(content)
+        resolved_path.parent.mkdir(parents=True, exist_ok=True)
+        resolved_path.write_bytes(content)
 
-        if path not in self._staged_paths:
-            self._staged_paths.append(path)
+        if resolved_path not in self._staged_paths:
+            self._staged_paths.append(resolved_path)
 
     def stage_path(self, path: Path) -> None:
         """Add ``path`` to the commit changeset without snapshot tracking.
