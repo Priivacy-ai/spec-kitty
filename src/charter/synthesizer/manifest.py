@@ -183,7 +183,7 @@ def verify_manifest_hash(manifest: SynthesisManifest) -> None:
     """
     data = manifest.model_dump(mode="python")
     data_without_hash = {k: v for k, v in data.items() if k != "manifest_hash"}
-    computed = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()
+    computed = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
     if computed != manifest.manifest_hash:
         raise ValueError(
             f"manifest_hash mismatch (stored {manifest.manifest_hash[:12]}..., "
@@ -263,7 +263,7 @@ def verify(manifest: SynthesisManifest, repo_root: Path) -> None:
                 offending_artifact=entry.path,
             )
         on_disk_bytes = artifact_path.read_bytes()
-        on_disk_hash = hashlib.sha256(on_disk_bytes).hexdigest()
+        on_disk_hash = hashlib.sha256(on_disk_bytes).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
         if on_disk_hash != entry.content_hash:
             raise ManifestIntegrityError(
                 manifest_path=manifest_path,

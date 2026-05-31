@@ -90,7 +90,7 @@ def compute_input_hash(inputs: dict[str, Any]) -> str:
         64-character lowercase hex string (SHA256 hash)
     """
     canonical = json.dumps(inputs, sort_keys=True, ensure_ascii=False)
-    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
 
 
 def create_checkpoint(

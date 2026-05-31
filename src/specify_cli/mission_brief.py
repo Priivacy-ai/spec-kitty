@@ -73,7 +73,7 @@ def write_mission_brief(
         brief_path.unlink(missing_ok=True)
         source_path.unlink(missing_ok=True)
 
-    brief_hash = hashlib.sha256(content.encode()).hexdigest()
+    brief_hash = hashlib.sha256(content.encode()).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
     ingested_at = datetime.now(tz=UTC).isoformat()
 
     # WP02 T007: provenance strings come from operator-controlled file

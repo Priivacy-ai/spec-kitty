@@ -81,7 +81,7 @@ class BaselineKey:
             64-character SHA256 hash in hex format.
         """
         data = json.dumps(self.to_dict(), sort_keys=True)
-        return hashlib.sha256(data.encode()).hexdigest()
+        return hashlib.sha256(data.encode()).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
 
     def __eq__(self, other: object) -> bool:
         """Check equality with another BaselineKey.

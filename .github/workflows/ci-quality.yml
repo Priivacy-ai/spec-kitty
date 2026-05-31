@@ -107,8 +107,11 @@ jobs:
             missions:
               - 'src/specify_cli/mission.py'
               - 'src/specify_cli/mission_metadata.py'
+              - 'src/specify_cli/missions/**'
               - 'src/doctrine/missions/**'
+              - 'tests/fixtures/missions/**'
               - 'tests/missions/**'
+              - 'tests/specify_cli/missions/**'
             post_merge:
               - 'src/specify_cli/post_merge/**'
               - 'tests/post_merge/**'
@@ -140,6 +143,7 @@ jobs:
             lanes:
               - 'src/specify_cli/lanes/**'
               - 'tests/lanes/**'
+              - 'tests/specify_cli/lanes/**'
             dashboard:
               - 'src/specify_cli/dashboard/**'
               - 'tests/test_dashboard/**'
@@ -465,6 +469,12 @@ jobs:
           # '# noqa: TID251 — <justification>'. This realises the ADR Decision Outcome:
           # "automated enforcement rather than convention".
           uv run python -m ruff check src tests --select TID251
+
+      - name: "[ENFORCED] Typer 0.26 JSON error surface"
+        id: typer026
+        if: always()
+        run: |
+          uv run --with 'typer>=0.26' python -m pytest tests/agent/test_json_group_typer_surface.py -q
 
       - name: "[INFO] Run mypy report (advisory)"
         id: mypy
@@ -798,7 +808,7 @@ jobs:
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — missions"
         run: |
-          uv run python -m pytest tests/missions/ -m "fast and not windows_ci" -q --tb=short \
+          uv run python -m pytest tests/missions/ tests/specify_cli/missions/ -m "fast and not windows_ci" -q --tb=short \
             --cov=src/specify_cli/mission \
             --cov=src/specify_cli/mission_metadata \
             --cov=src/doctrine/missions \
@@ -1015,7 +1025,7 @@ jobs:
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — lanes"
         run: |
-          uv run python -m pytest tests/lanes/ -m "fast and not windows_ci" -q --tb=short \
+          uv run python -m pytest tests/lanes/ tests/specify_cli/lanes/ -m "fast and not windows_ci" -q --tb=short \
             --cov=src/specify_cli/lanes \
             --cov-report=xml:out/reports/coverage/coverage-fast-lanes.xml
       - name: "Upload fast-lanes coverage"
@@ -1411,7 +1421,7 @@ jobs:
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — missions"
         run: |
-          uv run python -m pytest tests/missions/ \
+          uv run python -m pytest tests/missions/ tests/specify_cli/missions/ \
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             --cov=src/specify_cli/mission \
@@ -1598,7 +1608,7 @@ jobs:
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — lanes"
         run: |
-          uv run python -m pytest tests/lanes/ \
+          uv run python -m pytest tests/lanes/ tests/specify_cli/lanes/ \
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             --cov=src/specify_cli/lanes \

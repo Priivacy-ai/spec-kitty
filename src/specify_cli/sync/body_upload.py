@@ -111,7 +111,7 @@ def _read_and_rehash(
         )
 
     # Hash raw bytes to match dossier/hasher.py hash_file() convention
-    actual_hash = hashlib.sha256(raw_bytes).hexdigest()
+    actual_hash = hashlib.sha256(raw_bytes).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
     if actual_hash != expected_hash:
         return UploadOutcome(
             artifact_path=relative_path,

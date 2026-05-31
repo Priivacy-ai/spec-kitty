@@ -246,10 +246,10 @@ ignore = [
 # manifest scheme, fingerprint-definition tests, migration sentinel checks, …), OR call
 # ``charter.hasher.hash_content()`` when it genuinely mirrors the charter freshness hash.
 #
-# Only production (src/**) and tooling (scripts/**) stay dir-exempt: src/ legitimately uses
-# hashlib directly (charter/hasher.py) and click via the typer compatibility shim, and
-# scripts/ are tooling helpers — neither is test code the Gap-3/Gap-5 contract governs.
-"src/**" = ["TID251"]
+# Production code has legitimate raw SHA-256 owners, but file-level TID251
+# ignores also disarm the Gap-5 click.exceptions ban for those files. Keep
+# production raw-SHA exceptions inline at each call site so click.exceptions.*
+# remains enforced across all src files.
 "scripts/**" = ["TID251"]
 
 [tool.ruff.lint.flake8-tidy-imports]

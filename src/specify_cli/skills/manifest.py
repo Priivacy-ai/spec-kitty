@@ -119,5 +119,5 @@ def clear_manifest(project_path: Path) -> None:
 def compute_content_hash(file_path: Path) -> str:
     """Compute sha256 hash of file content."""
     content = file_path.read_bytes()
-    digest = hashlib.sha256(content).hexdigest()
+    digest = hashlib.sha256(content).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
     return f"sha256:{digest}"

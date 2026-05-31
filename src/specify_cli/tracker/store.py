@@ -91,7 +91,7 @@ def build_tracker_scope(
     user = (username or "anonymous").strip().lower()
     team = (team_slug or "no-team").strip().lower()
     identity = f"{provider.strip().lower()}|{workspace.strip().lower()}|{server}|{user}|{team}"
-    return hashlib.sha256(identity.encode("utf-8")).hexdigest()[:16]
+    return hashlib.sha256(identity.encode("utf-8")).hexdigest()[:16]  # noqa: TID251 - production raw SHA-256 owner
 
 
 def default_tracker_db_path(

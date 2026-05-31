@@ -466,7 +466,7 @@ class _CanonicalRowResult:
 def deterministic_ulid(seed: bytes | str) -> str:
     """Return a deterministic 26-char Crockford identifier from *seed*."""
     raw = seed.encode("utf-8") if isinstance(seed, str) else seed
-    value = int.from_bytes(hashlib.sha256(raw).digest()[:16], "big")
+    value = int.from_bytes(hashlib.sha256(raw).digest()[:16], "big")  # noqa: TID251 - production raw SHA-256 owner
     chars: list[str] = []
     for _ in range(26):
         chars.append(_CROCKFORD[value & 31])
@@ -607,11 +607,11 @@ def teamspace_dry_run(
                     synthesized_event_type=envelope["event_type"],
                     aggregate_id=envelope["aggregate_id"],
                     row_sha256=(
-                        hashlib.sha256(row_location.text.encode("utf-8")).hexdigest()
+                        hashlib.sha256(row_location.text.encode("utf-8")).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
                         if row_location is not None
                         else None
                     ),
-                    envelope_sha256=hashlib.sha256(
+                    envelope_sha256=hashlib.sha256(  # noqa: TID251 - production raw SHA-256 owner
                         json.dumps(envelope, sort_keys=True, separators=(",", ":")).encode("utf-8")
                     ).hexdigest(),
                 )
@@ -1592,7 +1592,7 @@ def _valid_event_id(value: object) -> bool:
 
 
 def _compute_run_id(repo_root: Path, mission_dirs: Sequence[Path]) -> str:
-    digest = hashlib.sha256()
+    digest = hashlib.sha256()  # noqa: TID251 - production raw SHA-256 owner
     digest.update(b"spec-kitty:mission-state:v1\n")
     for mission_dir in mission_dirs:
         for name in (META_FILENAME, EVENTS_FILENAME, STATUS_FILENAME):
@@ -1611,7 +1611,7 @@ def _file_fingerprint(path: Path) -> tuple[str | None, int | None]:
     if not path.exists():
         return None, None
     data = path.read_bytes()
-    return hashlib.sha256(data).hexdigest(), len(data)
+    return hashlib.sha256(data).hexdigest(), len(data)  # noqa: TID251 - production raw SHA-256 owner
 
 
 def _file_change(
@@ -1630,7 +1630,7 @@ def _file_change(
 
 
 def _sha256_text(text: str) -> str:
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
 
 
 def _repo_relpath(repo_root: Path, path: Path) -> str:

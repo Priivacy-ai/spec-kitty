@@ -204,7 +204,7 @@ def _doctrine_kind_subdir(kind: str) -> str:
 
 def _compute_content_hash(yaml_bytes: bytes) -> str:
     """SHA-256 hex digest of artifact YAML bytes (matches synthesize_pipeline)."""
-    return hashlib.sha256(yaml_bytes).hexdigest()
+    return hashlib.sha256(yaml_bytes).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
 
 
 # ---------------------------------------------------------------------------
@@ -552,7 +552,7 @@ def promote(
         "synthesizer_version": synthesizer_ver,
         "artifacts": [e.model_dump(mode="python") for e in sorted_artifacts],
     }
-    manifest_hash = hashlib.sha256(canonical_yaml(manifest_data_without_hash)).hexdigest()
+    manifest_hash = hashlib.sha256(canonical_yaml(manifest_data_without_hash)).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
 
     manifest = SynthesisManifest(
         mission_id=mission_id,

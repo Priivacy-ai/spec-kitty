@@ -289,7 +289,7 @@ def compute_inputs_hash(
     stability guarantees with zero new dependencies.
     """
     raw = normalize_request_for_hash(request, adapter_id, adapter_version)
-    return hashlib.sha256(raw).hexdigest()
+    return hashlib.sha256(raw).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
 
 
 def short_hash(full_hex: str, length: int = 12) -> str:

@@ -136,7 +136,7 @@ def _rewrite_manifest(
 
         filename = artifact_filename(kind, slug, artifact_id)
         yaml_bytes = canonical_yaml(body)
-        content_hash = hashlib.sha256(yaml_bytes).hexdigest()
+        content_hash = hashlib.sha256(yaml_bytes).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
 
         rel_content = (
             f"{_KITTIFY_DIRNAME}/doctrine/{doctrine_kind_subdir(kind)}/{filename}"
@@ -194,7 +194,7 @@ def _rewrite_manifest(
         "synthesizer_version": synthesizer_ver,
         "artifacts": [e.model_dump(mode="python") for e in sorted_merged],
     }
-    manifest_hash = hashlib.sha256(canonical_yaml(manifest_data_without_hash)).hexdigest()
+    manifest_hash = hashlib.sha256(canonical_yaml(manifest_data_without_hash)).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
 
     return SynthesisManifest(
         mission_id=existing.mission_id,

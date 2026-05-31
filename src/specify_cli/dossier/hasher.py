@@ -41,7 +41,7 @@ def hash_file(file_path: Path) -> str:
         >>> len(hash1)
         64
     """
-    hasher = hashlib.sha256()
+    hasher = hashlib.sha256()  # noqa: TID251 - production raw SHA-256 owner
     try:
         with open(file_path, "rb") as f:
             # Read in 8KB chunks to avoid memory issues with large files
@@ -112,7 +112,7 @@ def hash_file_with_validation(file_path: Path) -> tuple[str | None, str | None]:
             return None, "invalid_utf8"
 
         # Hash the bytes directly
-        hasher = hashlib.sha256()
+        hasher = hashlib.sha256()  # noqa: TID251 - production raw SHA-256 owner
         hasher.update(content_bytes)
         return hasher.hexdigest(), None
 
@@ -203,7 +203,7 @@ class Hasher:
         combined = "".join(sorted_hashes)
 
         # Compute SHA256 of concatenated string
-        parity_hasher = hashlib.sha256()
+        parity_hasher = hashlib.sha256()  # noqa: TID251 - production raw SHA-256 owner
         parity_hasher.update(combined.encode("utf-8"))
 
         return parity_hasher.hexdigest()

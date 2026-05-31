@@ -93,7 +93,7 @@ def _compute_hash(path: Path) -> str:
     import hashlib  # noqa: PLC0415
 
     try:
-        return hashlib.sha256(path.read_bytes()).hexdigest()
+        return hashlib.sha256(path.read_bytes()).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
     except OSError:
         return ""
 

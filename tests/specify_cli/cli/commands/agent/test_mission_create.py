@@ -145,12 +145,12 @@ def test_ensure_creates_branch_when_missing(tmp_path: Path) -> None:
 def test_ensure_is_idempotent_when_branch_at_target(tmp_path: Path) -> None:
     """Re-running against an existing branch that is at the target is a silent no-op."""
     _init_repo(tmp_path)
-    args = dict(
-        repo_root=tmp_path,
-        mission_slug="my-feature-01KSPTVW",
-        mission_id="01KSPTVWZ9ABCDEFGHJKMNPQRS",
-        target_branch="main",
-    )
+    args = {
+        "repo_root": tmp_path,
+        "mission_slug": "my-feature-01KSPTVW",
+        "mission_id": "01KSPTVWZ9ABCDEFGHJKMNPQRS",
+        "target_branch": "main",
+    }
 
     first = ensure_coordination_branch(**args)
     sha_after_first = _branch_sha(tmp_path, first.branch_name)
@@ -165,12 +165,12 @@ def test_ensure_is_idempotent_when_branch_at_target(tmp_path: Path) -> None:
 def test_ensure_raises_when_branch_diverged(tmp_path: Path) -> None:
     """A branch advanced past the target raises CoordinationBranchDiverged with structured fields."""
     _init_repo(tmp_path)
-    args = dict(
-        repo_root=tmp_path,
-        mission_slug="my-feature-01KSPTVW",
-        mission_id="01KSPTVWZ9ABCDEFGHJKMNPQRS",
-        target_branch="main",
-    )
+    args = {
+        "repo_root": tmp_path,
+        "mission_slug": "my-feature-01KSPTVW",
+        "mission_id": "01KSPTVWZ9ABCDEFGHJKMNPQRS",
+        "target_branch": "main",
+    }
     first = ensure_coordination_branch(**args)
     branch = first.branch_name
 
@@ -197,12 +197,12 @@ def test_ensure_raises_when_branch_diverged(tmp_path: Path) -> None:
 
 def test_force_recreate_resets_diverged_branch_to_target(tmp_path: Path) -> None:
     _init_repo(tmp_path)
-    args = dict(
-        repo_root=tmp_path,
-        mission_slug="my-feature-01KSPTVW",
-        mission_id="01KSPTVWZ9ABCDEFGHJKMNPQRS",
-        target_branch="main",
-    )
+    args = {
+        "repo_root": tmp_path,
+        "mission_slug": "my-feature-01KSPTVW",
+        "mission_id": "01KSPTVWZ9ABCDEFGHJKMNPQRS",
+        "target_branch": "main",
+    }
     first = ensure_coordination_branch(**args)
     branch = first.branch_name
 

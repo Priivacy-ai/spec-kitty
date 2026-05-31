@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -280,17 +279,16 @@ def test_legacy_mission_forced_commit_failure_rolls_back(
         actor="claude",
     )
 
-    with pytest.raises(BookkeepingCommitFailed):
-        with BookkeepingTransaction.acquire(
-            repo_root=repo_root,
-            mission_id=legacy_mission["mission_id"],
-            mission_slug=legacy_mission["mission_slug"],
-            mid8=legacy_mission["mid8"],
-            destination_ref="kitty/x",
-            operation="legacy_forced_failure",
-        ) as txn:
-            txn.append_event(event)
-            txn.commit("chore: legacy rollback regression test")
+    with pytest.raises(BookkeepingCommitFailed), BookkeepingTransaction.acquire(
+        repo_root=repo_root,
+        mission_id=legacy_mission["mission_id"],
+        mission_slug=legacy_mission["mission_slug"],
+        mid8=legacy_mission["mid8"],
+        destination_ref="kitty/x",
+        operation="legacy_forced_failure",
+    ) as txn:
+        txn.append_event(event)
+        txn.commit("chore: legacy rollback regression test")
 
     # SHA-256 must match pre-emit: rollback is byte-identical.
     post_digest = _sha256(events_path)

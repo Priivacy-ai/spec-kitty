@@ -345,7 +345,7 @@ def fingerprint(content: bytes) -> str:
     snapshot tests, and migration to ensure all components agree on the
     content-hash format stored in ``ManifestEntry.content_hash``.
     """
-    return hashlib.sha256(content).hexdigest()
+    return hashlib.sha256(content).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
 
 
 def fingerprint_file(path: Path) -> str:
