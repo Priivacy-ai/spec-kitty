@@ -199,6 +199,91 @@ def test_workflow_implement_moves_planned_to_doing(workflow_repo: Path) -> None:
     assert extract_scalar(frontmatter, "agent") == "test-agent"
 
 
+def test_workflow_implement_reads_canonical_status_from_main_when_run_in_sparse_lane(
+    workflow_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Implement from a sparse lane must not read lane-local status events."""
+    mission_slug = "001-test-feature"
+    feature_dir = workflow_repo / "kitty-specs" / mission_slug
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
+    (feature_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
+    main_wp_path = tasks_dir / "WP01-test.md"
+    _write_wp_file(main_wp_path, "WP01", lane="planned")
+    _seed_wp_lane(feature_dir, "WP01", "planned")
+
+    workspace = lane_worktree_path(workflow_repo, mission_slug)
+    workspace_tasks_dir = workspace / "kitty-specs" / mission_slug / "tasks"
+    workspace_tasks_dir.mkdir(parents=True)
+    workspace_wp_path = workspace_tasks_dir / "WP01-test.md"
+    _write_wp_file(workspace_wp_path, "WP01", lane="planned")
+    assert not (workspace / "kitty-specs" / mission_slug / "status.events.jsonl").exists()
+
+    monkeypatch.setattr(workflow, "locate_project_root", lambda: workspace)
+    monkeypatch.setattr(workflow, "get_main_repo_root", lambda _repo_root: workflow_repo)
+    monkeypatch.setattr("specify_cli.core.paths.get_main_repo_root", lambda _repo_root: workflow_repo)
+    monkeypatch.setattr(
+        workflow,
+        "_ensure_target_branch_checked_out",
+        lambda _repo_root, _mission_slug: (workflow_repo, "main"),
+    )
+
+    result = CliRunner().invoke(
+        workflow.app,
+        ["implement", "WP01", "--mission", mission_slug, "--agent", "test-agent"],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    frontmatter, _, _ = split_frontmatter(main_wp_path.read_text(encoding="utf-8"))
+    assert extract_scalar(frontmatter, "agent") == "test-agent"
+
+
+def test_workflow_implement_uses_main_current_lane_for_rework_from_sparse_lane(
+    workflow_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Rework eligibility must use canonical main state, not sparse lane state."""
+    mission_slug = "001-test-feature"
+    feature_dir = workflow_repo / "kitty-specs" / mission_slug
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
+    (feature_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
+    main_wp_path = tasks_dir / "WP01-test.md"
+    _write_wp_file(main_wp_path, "WP01", lane="for_review")
+    _seed_wp_lane(feature_dir, "WP01", "for_review")
+
+    workspace = lane_worktree_path(workflow_repo, mission_slug)
+    workspace_tasks_dir = workspace / "kitty-specs" / mission_slug / "tasks"
+    workspace_tasks_dir.mkdir(parents=True)
+    workspace_wp_path = workspace_tasks_dir / "WP01-test.md"
+    _write_wp_file(workspace_wp_path, "WP01", lane="planned")
+    assert not (workspace / "kitty-specs" / mission_slug / "status.events.jsonl").exists()
+
+    monkeypatch.setattr(workflow, "locate_project_root", lambda: workspace)
+    monkeypatch.setattr(workflow, "get_main_repo_root", lambda _repo_root: workflow_repo)
+    monkeypatch.setattr("specify_cli.core.paths.get_main_repo_root", lambda _repo_root: workflow_repo)
+    monkeypatch.setattr(
+        workflow,
+        "_ensure_target_branch_checked_out",
+        lambda _repo_root, _mission_slug: (workflow_repo, "main"),
+    )
+
+    result = CliRunner().invoke(
+        workflow.app,
+        ["implement", "WP01", "--mission", mission_slug, "--agent", "test-agent"],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    from specify_cli.status.reducer import reduce
+    from specify_cli.status.store import read_events
+
+    snapshot = reduce(read_events(feature_dir))
+    assert snapshot.work_packages["WP01"]["lane"] == Lane.IN_PROGRESS
+
+
 def test_workflow_review_tracks_reviewer_agent_name(workflow_repo: Path) -> None:
     """Review command should write the reviewer agent name into WP frontmatter.
 
