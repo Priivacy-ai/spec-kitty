@@ -75,6 +75,13 @@ def _parse_open_output(output: str) -> dict:  # type: ignore[type-arg]
     return json.loads(lines[-1])
 
 
+def _parse_open_lines(output: str) -> tuple[dict, dict]:  # type: ignore[type-arg]
+    """Parse ``decision open`` stdout into minted-phase and response dicts."""
+    lines = [line for line in output.splitlines() if line.strip()]
+    assert len(lines) == 2, f"expected 2 JSON lines, got: {output!r}"
+    return json.loads(lines[0]), json.loads(lines[1])
+
+
 def _open_decision(
     tmp_path: Path,
     *,
@@ -606,6 +613,57 @@ def test_open_idempotent_second_call(tmp_path: Path) -> None:
     data2 = _parse_open_output(result2.output)
     assert data2["idempotent"] is True
     assert data2["decision_id"] == data1["decision_id"]
+
+
+def test_open_idempotent_minted_phase_uses_persisted_decision_id(tmp_path: Path) -> None:
+    _setup_mission(tmp_path)
+    with patch("specify_cli.decisions.emit.emit_decision_opened", return_value=1):
+        result1 = _invoke(
+            [
+                "decision",
+                "open",
+                "--mission",
+                MISSION_SLUG,
+                "--flow",
+                "charter",
+                "--step-id",
+                "s-idem-minted",
+                "--input-key",
+                "idem_minted_key",
+                "--question",
+                "Same Q?",
+            ],
+            cwd=tmp_path,
+        )
+        result2 = _invoke(
+            [
+                "decision",
+                "open",
+                "--mission",
+                MISSION_SLUG,
+                "--flow",
+                "charter",
+                "--step-id",
+                "s-idem-minted",
+                "--input-key",
+                "idem_minted_key",
+                "--question",
+                "Same Q?",
+            ],
+            cwd=tmp_path,
+        )
+
+    assert result1.exit_code == 0
+    assert result2.exit_code == 0
+
+    _, first_response = _parse_open_lines(result1.output)
+    second_minted, second_response = _parse_open_lines(result2.output)
+    assert second_response["idempotent"] is True
+    assert second_response["decision_id"] == first_response["decision_id"]
+    assert second_minted == {
+        "decision_id": first_response["decision_id"],
+        "phase": "minted",
+    }
 
 
 # ---------------------------------------------------------------------------
