@@ -367,7 +367,7 @@ WP11 subtasks T048–T051 are fully independent and can be executed in any order
 - [x] T044 Add charter profile gate to `spec-kitty agent mission finalize-tasks` (FR-017)
 - [x] T045 Add charter profile precondition to `spec-kitty agent action implement` before worktree creation (FR-018)
 - [x] T046 Wire hard-fail on non-activated artifact lookup in DRG/tactic resolution paths (FR-019)
-- [ ] T047 Write tests for lifecycle gates: finalize-tasks hard-fail + implement hard-fail scenarios
+- [x] T047 Write tests for lifecycle gates: finalize-tasks hard-fail + implement hard-fail scenarios
 
 **Implementation Notes**:
 - T044: In `finalize-tasks`, after loading the WP metadata, call `ProjectContext.from_repo()` and then `require_artifact_activated("agent-profile", wp_meta.agent_profile)` if the WP declares an `agent_profile`. Raise `ContextPreconditionError` with a message that names the missing profile and suggests running `charter activate agent-profile <id>`.
