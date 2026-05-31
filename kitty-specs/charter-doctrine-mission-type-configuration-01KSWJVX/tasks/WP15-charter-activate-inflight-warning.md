@@ -194,3 +194,4 @@ Use `tmp_path` and write synthetic `status.events.jsonl` to simulate in-flight m
 - 2026-05-30T21:11:11Z – claude:sonnet:python-pedro:implementer – shell_pid=3447930 – Assigned agent via action command
 - 2026-05-30T21:19:48Z – claude:sonnet:python-pedro:implementer – shell_pid=3447930 – Ready for review: charter activate in-flight warning fully implemented and tested (34 tests, 0 failures)
 - 2026-05-30T21:20:13Z – claude:opus:reviewer-renata:reviewer – shell_pid=3462566 – Started review via action command
+- 2026-05-31T17:31:54Z – claude:opus:reviewer-renata:reviewer – shell_pid=3462566 – Re-queueing stalled review (previous reviewer PID dead)
