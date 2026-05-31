@@ -29,14 +29,17 @@ git configuration or sparse-checkout state; remediation lives in WP03.
 
 from __future__ import annotations
 
+import enum
+import json
 import logging
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 __all__ = [
+    "SparseCheckoutKind",
     "SparseCheckoutState",
     "SparseCheckoutScanReport",
     "SparseCheckoutPreflightError",
@@ -46,6 +49,14 @@ __all__ = [
     "require_no_sparse_checkout",
     "_reset_session_warning_state",
 ]
+
+
+class SparseCheckoutKind(enum.StrEnum):
+    """Classification for active sparse-checkout state."""
+
+    LEGACY_USER = "legacy_user_sparse_checkout"
+    MANAGED_LANE = "managed_lane_sparse_checkout"
+    UNKNOWN = "unknown_sparse_checkout"
 
 
 @dataclass(frozen=True)
@@ -58,6 +69,7 @@ class SparseCheckoutState:
     pattern_file_present: bool
     pattern_line_count: int
     is_worktree: bool
+    sparse_checkout_kind: SparseCheckoutKind = SparseCheckoutKind.LEGACY_USER
 
     @property
     def is_active(self) -> bool:
@@ -69,6 +81,16 @@ class SparseCheckoutState:
         ``is_active`` to True.
         """
         return self.config_enabled
+
+    @property
+    def is_managed_lane(self) -> bool:
+        """True iff this active sparse-checkout state is owned by lane policy."""
+        return self.is_active and self.sparse_checkout_kind is SparseCheckoutKind.MANAGED_LANE
+
+    @property
+    def is_blocking(self) -> bool:
+        """True iff sparse-checkout should block legacy preflights/remediation."""
+        return self.is_active and not self.is_managed_lane
 
 
 @dataclass(frozen=True)
@@ -84,12 +106,17 @@ class SparseCheckoutScanReport:
         return self.primary.is_active or any(w.is_active for w in self.worktrees)
 
     @property
+    def any_blocking(self) -> bool:
+        """True iff legacy/unknown sparse-checkout state is active."""
+        return self.primary.is_blocking or any(w.is_blocking for w in self.worktrees)
+
+    @property
     def affected_paths(self) -> tuple[Path, ...]:
-        """Paths (primary + worktrees) where sparse-checkout is active."""
+        """Paths where legacy/unknown sparse-checkout is active."""
         hits: list[Path] = []
-        if self.primary.is_active:
+        if self.primary.is_blocking:
             hits.append(self.primary.path)
-        hits.extend(w.path for w in self.worktrees if w.is_active)
+        hits.extend(w.path for w in self.worktrees if w.is_blocking)
         return tuple(hits)
 
 
@@ -196,6 +223,139 @@ def scan_path(path: Path, *, is_worktree: bool) -> SparseCheckoutState:
     )
 
 
+@dataclass(frozen=True)
+class _ManagedLanePolicy:
+    mission_slug: str
+    coordination_branch: str
+    expected_patterns: frozenset[str]
+
+    def matches_path(self, path: Path) -> bool:
+        return path.name.startswith(f"{self.mission_slug}-lane-")
+
+    def expected_branch_for(self, path: Path) -> str | None:
+        prefix = f"{self.mission_slug}-"
+        if not path.name.startswith(prefix):
+            return None
+        lane_id = path.name.removeprefix(prefix)
+        return f"{self.coordination_branch}-{lane_id}"
+
+
+def _read_patterns(path: Path) -> frozenset[str] | None:
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+    return frozenset(
+        line.strip()
+        for line in text.splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    )
+
+
+def _load_managed_lane_policies(repo_root: Path) -> tuple[_ManagedLanePolicy, ...]:
+    specs_dir = repo_root / "kitty-specs"
+    if not specs_dir.is_dir():
+        return ()
+
+    try:
+        from specify_cli.coordination.workspace import lane_sparse_checkout_patterns
+    except ImportError:
+        return ()
+
+    policies: list[_ManagedLanePolicy] = []
+    for meta_path in sorted(specs_dir.glob("*/meta.json")):
+        try:
+            raw = json.loads(meta_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if not isinstance(raw, dict):
+            continue
+        coord_branch = raw.get("coordination_branch")
+        mission_slug = raw.get("mission_slug") or raw.get("slug")
+        mission_id = raw.get("mission_id")
+        if not (
+            isinstance(coord_branch, str)
+            and coord_branch
+            and isinstance(mission_slug, str)
+            and mission_slug
+            and isinstance(mission_id, str)
+            and len(mission_id) >= 8
+        ):
+            continue
+        mid8 = mission_id[:8]
+        policies.append(
+            _ManagedLanePolicy(
+                mission_slug=mission_slug,
+                coordination_branch=coord_branch,
+                expected_patterns=frozenset(
+                    lane_sparse_checkout_patterns(mission_slug, mid8)
+                ),
+            )
+        )
+    return tuple(policies)
+
+
+def _registered_worktree_paths(repo_root: Path) -> frozenset[Path]:
+    try:
+        output = subprocess.check_output(
+            ["git", "-C", str(repo_root), "worktree", "list", "--porcelain"],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return frozenset()
+    paths: set[Path] = set()
+    for line in output.splitlines():
+        if line.startswith("worktree "):
+            paths.add(Path(line.removeprefix("worktree ")).resolve(strict=False))
+    return frozenset(paths)
+
+
+def _current_branch(path: Path) -> str | None:
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(path), "branch", "--show-current"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if result.returncode != 0:
+        return None
+    branch = result.stdout.strip()
+    return branch or None
+
+
+def _classify_worktree_state(
+    state: SparseCheckoutState,
+    *,
+    policies: tuple[_ManagedLanePolicy, ...],
+    registered_worktrees: frozenset[Path],
+) -> SparseCheckoutState:
+    if not state.is_active:
+        return state
+    candidates = [policy for policy in policies if policy.matches_path(state.path)]
+    if not candidates:
+        return state
+    if len(candidates) != 1:
+        return replace(state, sparse_checkout_kind=SparseCheckoutKind.UNKNOWN)
+    expected_branch = candidates[0].expected_branch_for(state.path)
+    if expected_branch is None or _current_branch(state.path) != expected_branch:
+        return replace(state, sparse_checkout_kind=SparseCheckoutKind.UNKNOWN)
+    if state.path.resolve(strict=False) not in registered_worktrees:
+        return replace(state, sparse_checkout_kind=SparseCheckoutKind.UNKNOWN)
+    if not state.pattern_file_present or state.pattern_file_path is None:
+        return replace(state, sparse_checkout_kind=SparseCheckoutKind.UNKNOWN)
+
+    present = _read_patterns(state.pattern_file_path)
+    if present is None:
+        return replace(state, sparse_checkout_kind=SparseCheckoutKind.UNKNOWN)
+    if candidates[0].expected_patterns.issubset(present):
+        return replace(state, sparse_checkout_kind=SparseCheckoutKind.MANAGED_LANE)
+    return replace(state, sparse_checkout_kind=SparseCheckoutKind.UNKNOWN)
+
+
 def scan_repo(repo_root: Path) -> SparseCheckoutScanReport:
     """Probe the primary repo and every lane worktree beneath ``.worktrees/``.
 
@@ -204,6 +364,8 @@ def scan_repo(repo_root: Path) -> SparseCheckoutScanReport:
     use a file pointer). Non-worktree directories are skipped silently.
     """
     primary = scan_path(repo_root, is_worktree=False)
+    policies = _load_managed_lane_policies(repo_root)
+    registered_worktrees = _registered_worktree_paths(repo_root)
     worktrees_dir = repo_root / ".worktrees"
     worktree_states: list[SparseCheckoutState] = []
     if worktrees_dir.exists() and worktrees_dir.is_dir():
@@ -212,7 +374,14 @@ def scan_repo(repo_root: Path) -> SparseCheckoutScanReport:
                 continue
             if not (child / ".git").exists():
                 continue
-            worktree_states.append(scan_path(child, is_worktree=True))
+            state = scan_path(child, is_worktree=True)
+            worktree_states.append(
+                _classify_worktree_state(
+                    state,
+                    policies=policies,
+                    registered_worktrees=registered_worktrees,
+                )
+            )
     return SparseCheckoutScanReport(primary=primary, worktrees=tuple(worktree_states))
 
 
@@ -242,7 +411,7 @@ def warn_if_sparse_once(repo_root: Path, *, command: str) -> None:
         report = scan_repo(repo_root)
     except Exception:  # noqa: BLE001 — never let detection block the command
         return
-    if not report.any_active:
+    if not report.any_blocking:
         return
     affected = ", ".join(str(p) for p in report.affected_paths)
     logger.warning(
@@ -308,7 +477,7 @@ def require_no_sparse_checkout(
     ``override_flag``.
     """
     report = scan_repo(repo_root)
-    if not report.any_active:
+    if not report.any_blocking:
         return
     if override_flag:
         logger.warning(

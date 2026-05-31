@@ -830,7 +830,7 @@ def _render_sparse_finding(report: object) -> None:
                 f"    pattern file: {pf_rel} ({report.primary.pattern_line_count} lines)",
                 soft_wrap=True,
             )
-    active_wts = [w for w in report.worktrees if w.is_active]
+    active_wts = [w for w in report.worktrees if w.is_blocking]
     if active_wts:
         console.print(
             f"  Lane worktrees: {len(active_wts)} affected", soft_wrap=True
@@ -872,7 +872,7 @@ def _render_remediation_plan(report: object) -> None:
     step += 1
     console.print(f"  {step}. git checkout HEAD -- . (primary)")
     for wt in report.worktrees:
-        if not wt.is_active:
+        if not wt.is_blocking:
             continue
         step += 1
         console.print(f"  {step}. repeat steps 1–4 in {wt.path}")
@@ -921,7 +921,7 @@ def sparse_checkout(
 
     # No state detected — emit the "nothing to do" message in both modes
     # and exit cleanly.
-    if not report.any_active:
+    if not report.any_blocking:
         if fix:
             console.print("No sparse-checkout state to remediate.")
         else:
