@@ -406,6 +406,47 @@ def test_collect_feature_summary_reports_missing_matrix_skipped_checks(tmp_path:
     assert any("acceptance-matrix.json" in item for item in summary.recommended_fix_order)
 
 
+def test_collect_feature_summary_blocks_malformed_matrix_verdict_values(tmp_path: Path) -> None:
+    repo_root, feature_dir = _create_test_feature(tmp_path)
+    subprocess.run(["git", "-C", str(repo_root), "branch", "-M", "main"], check=True, capture_output=True)
+
+    from tests.lane_test_utils import write_single_lane_manifest
+
+    write_single_lane_manifest(feature_dir)
+    (feature_dir / "acceptance-matrix.json").write_text(
+        json.dumps(
+            {
+                "mission_slug": _FEATURE_SLUG,
+                "criteria": [
+                    {
+                        "criterion_id": "AC-01",
+                        "description": "Automated acceptance proof",
+                        "proof_type": "automated_test",
+                        "pass_fail": "failed",
+                    }
+                ],
+                "negative_invariants": [],
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    subprocess.run(["git", "-C", str(repo_root), "add", "."], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(repo_root), "commit", "-m", "Add malformed acceptance matrix"], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-C", str(repo_root), "checkout", "-b", f"kitty/mission-{_FEATURE_SLUG}"],
+        check=True,
+        capture_output=True,
+    )
+
+    summary = collect_feature_summary(repo_root, _FEATURE_SLUG, mutate_matrix=False)
+
+    assert "Evidence: AC-01: pass_fail must be one of fail, pass, pending; got 'failed'" in summary.activity_issues
+    assert "Acceptance matrix verdict is 'fail' — negative invariants or criteria not satisfied" in summary.activity_issues
+    assert summary.ok is False
+
+
 # ---------------------------------------------------------------------------
 # Integration branch guard: merge guidance must not target integration branch
 # ---------------------------------------------------------------------------
