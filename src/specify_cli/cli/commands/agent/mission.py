@@ -733,11 +733,23 @@ def create_mission(
             current_branch=current_branch,
             merge_target_branch=effective_merge_target,
             branch_strategy=branch_strategy,
-            prompt=lambda message: typer.confirm(message, default=False),
+            prompt=None if json_output else lambda message: typer.confirm(message, default=False),
         )
     except BranchStrategyGateError as exc:
         if json_output:
-            _emit_json({"error": str(exc)})
+            _emit_json(
+                {
+                    "error_code": "BRANCH_STRATEGY_CONFIRMATION_REQUIRED",
+                    "error": (
+                        "PR-bound mission creation requires explicit branch-strategy "
+                        "confirmation in --json mode."
+                    ),
+                    "branch_strategy_gate": "confirmation_required",
+                    "current_branch": current_branch,
+                    "merge_target_branch": effective_merge_target,
+                    "remediation": "Pass `--branch-strategy already-confirmed` or run without --json to confirm interactively.",
+                }
+            )
         else:
             console.print(f"[bold red]Error:[/bold red] {exc}")
         raise typer.Exit(1) from exc
