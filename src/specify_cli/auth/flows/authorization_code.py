@@ -46,7 +46,8 @@ from ..loopback.callback_handler import CallbackHandler
 from ..loopback.callback_server import CallbackServer
 from ..loopback.state import PKCEState
 from ..loopback.state_manager import StateManager
-from ..session import StorageBackend, StoredSession, Team, pick_default_team_id
+from ..session import StorageBackend, StoredSession, pick_default_team_id
+from ._session_payload import parse_me_payload, parse_me_teams, require_me_field
 
 log = logging.getLogger(__name__)
 
@@ -257,21 +258,15 @@ class AuthorizationCodeFlow:
             )
 
         try:
-            me = response.json()
+            me = parse_me_payload(response.json())
         except ValueError as exc:
             raise AuthenticationError(
                 f"User info response was not JSON: {exc}"
             ) from exc
 
-        teams = [
-            Team(
-                id=t["id"],
-                name=t["name"],
-                role=t["role"],
-                is_private_teamspace=bool(t.get("is_private_teamspace", False)),
-            )
-            for t in me.get("teams", [])
-        ]
+        user_id = require_me_field(me, "user_id")
+        email = require_me_field(me, "email")
+        teams = parse_me_teams(me)
         if not teams:
             raise AuthenticationError(
                 "User has no team memberships. Contact your administrator."
@@ -291,9 +286,9 @@ class AuthorizationCodeFlow:
         refresh_token_expires_at = self._resolve_refresh_expiry(tokens, me, now)
 
         return StoredSession(
-            user_id=me["user_id"],
-            email=me["email"],  # sourced from /api/v1/me .email per C-011
-            name=me.get("name", me["email"]),
+            user_id=user_id,
+            email=email,  # sourced from /api/v1/me .email per C-011
+            name=me.get("name", email),
             teams=teams,
             default_team_id=default_team_id,
             access_token=tokens["access_token"],

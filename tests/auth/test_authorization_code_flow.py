@@ -84,11 +84,11 @@ def _me_response(
     return body
 
 
-def _mock_httpx_response(status_code: int, json_body: dict | None = None, text: str = ""):
+def _mock_httpx_response(status_code: int, json_body: object | None = None, text: str = ""):
     r = Mock(spec=httpx.Response)
     r.status_code = status_code
     r.text = text or (str(json_body) if json_body else "")
-    r.json = Mock(return_value=json_body or {})
+    r.json = Mock(return_value=json_body if json_body is not None else {})
     return r
 
 
@@ -372,6 +372,52 @@ class TestBuildSession:
             mock_client.get.return_value = _mock_httpx_response(200, me)
 
             with pytest.raises(AuthenticationError, match="no team memberships"):
+                await flow._build_session(tokens)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("field", ["user_id", "email"])
+    async def test_missing_me_identity_field_raises_authentication_error(self, field):
+        flow = AuthorizationCodeFlow(saas_base_url="https://saas.test")
+        tokens = _token_response()
+        me = _me_response()
+        del me[field]
+
+        with patch("specify_cli.auth.flows.authorization_code.PublicHttpClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            mock_client.get.return_value = _mock_httpx_response(200, me)
+
+            with pytest.raises(AuthenticationError, match=f"missing required field '{field}'"):
+                await flow._build_session(tokens)
+
+    @pytest.mark.asyncio
+    async def test_non_object_me_payload_raises_authentication_error(self):
+        flow = AuthorizationCodeFlow(saas_base_url="https://saas.test")
+        tokens = _token_response()
+
+        with patch("specify_cli.auth.flows.authorization_code.PublicHttpClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            mock_client.get.return_value = _mock_httpx_response(200, [])
+
+            with pytest.raises(AuthenticationError, match="must be a JSON object"):
+                await flow._build_session(tokens)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("field", ["id", "name", "role"])
+    async def test_missing_me_team_field_raises_authentication_error(self, field):
+        flow = AuthorizationCodeFlow(saas_base_url="https://saas.test")
+        tokens = _token_response()
+        team = {"id": "t1", "name": "Team One", "role": "owner"}
+        del team[field]
+        me = _me_response(teams=[team])
+
+        with patch("specify_cli.auth.flows.authorization_code.PublicHttpClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            mock_client.get.return_value = _mock_httpx_response(200, me)
+
+            with pytest.raises(AuthenticationError, match=f"missing required team field '{field}'"):
                 await flow._build_session(tokens)
 
     @pytest.mark.asyncio
