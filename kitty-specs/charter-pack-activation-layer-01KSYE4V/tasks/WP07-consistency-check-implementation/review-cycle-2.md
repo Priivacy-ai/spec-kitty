@@ -7,6 +7,10 @@ reviewed_at: '2026-05-31T14:35:18Z'
 reviewer_agent: unknown
 verdict: rejected
 wp_id: WP07
+review_artifact_override_at: "2026-05-31T14:44:06Z"
+review_artifact_override_actor: "operator"
+review_artifact_override_wp_id: "WP07"
+review_artifact_override_reason: "Review passed cycle-2: dead-symbol gate fixed, all AC met. 7/7 tests pass (1.07s), ruff clean, mypy strict clean. ConsistencyReport+run_consistency_check correctly allowlisted in _CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE (WP06 lane-f is documented consumer). All anti-patterns PASS. Cycle-2 rejection resolved."
 ---
 
 ---
