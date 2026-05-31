@@ -185,10 +185,10 @@ WP11 subtasks T048–T051 are fully independent and can be executed in any order
 **Subtasks**: T011–T014
 **Agent profile**: python-pedro
 
-- [ ] T011 Create `invocation_context.py` with `ProjectContext`, `OperationalContext`, `ContextPreconditionError` class bodies
-- [ ] T012 Implement `from_repo()` factory and `require_*()` guard methods on `ProjectContext`
-- [ ] T013 Add 4 `OperationalContext`-family symbols to `_CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE`; update `_baselines.yaml` (FR-024 / FR-040)
-- [ ] T014 Write `tests/charter/test_invocation_context.py` covering `from_repo()`, guards, and `ContextPreconditionError`
+- [x] T011 Create `invocation_context.py` with `ProjectContext`, `OperationalContext`, `ContextPreconditionError` class bodies
+- [x] T012 Implement `from_repo()` factory and `require_*()` guard methods on `ProjectContext`
+- [x] T013 Add 4 `OperationalContext`-family symbols to `_CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE`; update `_baselines.yaml` (FR-024 / FR-040)
+- [x] T014 Write `tests/charter/test_invocation_context.py` covering `from_repo()`, guards, and `ContextPreconditionError`
 
 **Implementation Notes**:
 - T011: `ProjectContext` is a dataclass holding `repo_root: Path`, `pack_context: PackContext`, and `charter_loaded: bool`. `OperationalContext` is a lightweight wrapper that adds the current WP state (claimed WP ID, agent profile). `ContextPreconditionError` is a `RuntimeError` subclass raised by guard methods when preconditions fail.
