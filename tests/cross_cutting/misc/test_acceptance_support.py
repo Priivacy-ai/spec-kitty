@@ -265,6 +265,45 @@ def test_accept_diagnose_json_reports_skipped_checks_without_mutation(
     assert status.stdout == ""
 
 
+def test_accept_diagnose_json_blocks_corrupt_lanes_json(
+    feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tests.lane_test_utils import write_single_lane_manifest
+    from tests.utils import run
+
+    _write_acceptance_meta(feature_repo, mission_slug)
+    feature_dir = feature_repo / "kitty-specs" / mission_slug
+    write_single_lane_manifest(feature_dir)
+    (feature_dir / "lanes.json").write_text("{not-json", encoding="utf-8")
+    run(["git", "branch", "-M", "main"], cwd=feature_repo)
+    run(["git", "add", "."], cwd=feature_repo)
+    run(["git", "commit", "-m", "Add corrupt lane metadata"], cwd=feature_repo)
+    run(["git", "checkout", "-b", f"kitty/mission-{mission_slug}"], cwd=feature_repo)
+
+    before_meta = (feature_dir / "meta.json").read_text(encoding="utf-8")
+    monkeypatch.chdir(feature_repo)
+    result = runner.invoke(
+        cli_app,
+        [
+            "accept",
+            "--mission",
+            mission_slug,
+            "--diagnose",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["ok"] is False
+    assert any(item["check"] == "lanes_manifest" for item in payload["blocked_checks"])
+    assert any(item["check"] == "acceptance_matrix_presence" for item in payload["skipped_checks"])
+    assert any("lanes.json" in item for item in payload["recommended_fix_order"])
+    assert (feature_dir / "meta.json").read_text(encoding="utf-8") == before_meta
+    status = run(["git", "status", "--short"], cwd=feature_repo)
+    assert status.stdout == ""
+
+
 def test_accept_diagnose_does_not_mutate_matrix_metadata_or_events(
     feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -447,6 +447,45 @@ def test_collect_feature_summary_blocks_malformed_matrix_verdict_values(tmp_path
     assert summary.ok is False
 
 
+@pytest.mark.parametrize(
+    "lanes_payload",
+    [
+        "{not-json",
+        '{"version": 1}',
+    ],
+)
+def test_collect_feature_summary_blocks_corrupt_lanes_json(tmp_path: Path, lanes_payload: str) -> None:
+    repo_root, feature_dir = _create_test_feature(tmp_path)
+    subprocess.run(["git", "-C", str(repo_root), "branch", "-M", "main"], check=True, capture_output=True)
+
+    from tests.lane_test_utils import write_single_lane_manifest
+
+    write_single_lane_manifest(feature_dir)
+    (feature_dir / "lanes.json").write_text(lanes_payload, encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo_root), "add", "."], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(repo_root), "commit", "-m", "Add corrupt lanes manifest"], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-C", str(repo_root), "checkout", "-b", f"kitty/mission-{_FEATURE_SLUG}"],
+        check=True,
+        capture_output=True,
+    )
+
+    summary = collect_feature_summary(repo_root, _FEATURE_SLUG, mutate_matrix=False)
+
+    assert summary.all_done is True
+    assert summary.ok is False
+    assert any("lanes.json" in issue and "corrupt or malformed" in issue for issue in summary.activity_issues)
+    assert any(item.check == "lanes_manifest" for item in summary.blocked_checks)
+    skipped = {item.check for item in summary.skipped_checks}
+    assert {
+        "acceptance_matrix_presence",
+        "acceptance_matrix_evidence",
+        "negative_invariants",
+        "acceptance_matrix_verdict",
+    } <= skipped
+    assert any("lanes.json" in item for item in summary.recommended_fix_order)
+
+
 # ---------------------------------------------------------------------------
 # Integration branch guard: merge guidance must not target integration branch
 # ---------------------------------------------------------------------------
