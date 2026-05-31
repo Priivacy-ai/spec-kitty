@@ -21,8 +21,8 @@ subtasks:
 - T045
 - T046
 - T047
-agent: claude
-shell_pid: '6774'
+agent: "claude:sonnet-4-6:python-pedro:implementer"
+shell_pid: "6774"
 history:
 - at: '2026-05-31T11:44:22Z'
   event: created
@@ -440,3 +440,7 @@ All five commands must complete without errors or failures.
 - `pytest tests/specify_cli/test_charter_lifecycle_gates.py -x` passes.
 - `pytest tests/ -m fast -x -q` passes (zero regressions in fast suite).
 - `ruff check` and `mypy --strict` pass on all modified files.
+
+## Activity Log
+
+- 2026-05-31T14:19:49Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=6774 – Assigned agent via action command
