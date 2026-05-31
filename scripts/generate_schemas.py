@@ -317,10 +317,8 @@ def _agent_profile_fixups(schema: dict) -> dict:
         "description": "Optional brief description",
         "schema-version": "Schema version for compatibility",
         "purpose": "The agent's primary purpose or mission statement",
-        "role": (
-            "Agent role (architect, implementer, reviewer, planner, etc.) "
-            "- accepts both known roles and custom roles"
-        ),
+        "role": "Agent role - deprecated scalar form; prefer roles array",
+        "avatar-image": "Path or URL to agent avatar image",
         "capabilities": "List of capabilities this agent can perform",
         "specializes-from": "Parent profile ID this agent specializes from (for hierarchy)",
         "routing-priority": "Priority for routing tasks to this agent (0-100, higher is more preferred)",
@@ -783,11 +781,13 @@ def _order_schema(schema: dict) -> OrderedDict:
     key_order = [
         "$schema",
         "$id",
+        "$comment",
         "title",
         "description",
         "type",
         "additionalProperties",
         "required",
+        "anyOf",
         "definitions",
         "properties",
         "allOf",
