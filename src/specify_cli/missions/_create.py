@@ -152,12 +152,7 @@ def coordination_branch_name(mission_slug: str, mission_id: str) -> str:
     """
     mid8_token = _mid8(mission_id)
     suffix = f"-{mid8_token}"
-    if mission_slug.endswith(suffix):
-        # Formatted slug already carries the mid8 — use as-is.
-        human_part = mission_slug
-    else:
-        # Bare slug (with or without numeric prefix) — derive the formatted form.
-        human_part = f"{strip_numeric_prefix(mission_slug)}{suffix}"
+    human_part = mission_slug if mission_slug.endswith(suffix) else f"{strip_numeric_prefix(mission_slug)}{suffix}"
     return f"kitty/mission-{human_part}"
 
 

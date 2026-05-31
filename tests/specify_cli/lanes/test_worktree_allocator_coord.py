@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import json
 import subprocess
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 
 import pytest
@@ -64,7 +64,7 @@ def _make_manifest(
             depends_on_lanes=(),
             parallel_group=0,
         )],
-        computed_at=datetime.now(timezone.utc).isoformat(),
+        computed_at=datetime.now(UTC).isoformat(),
         computed_from="test",
     )
 

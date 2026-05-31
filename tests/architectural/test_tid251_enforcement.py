@@ -23,6 +23,8 @@ This guard pins the enforcement so neither regression can recur:
 3. Functionally, with the repository's real ruff config, an unannotated raw
    ``hashlib.sha256`` in a *formerly-exempt* directory (``tests/charter/``) is flagged,
    while the same call carrying ``# noqa: TID251`` is allowed.
+4. The production ``src/**`` tree is not blanket-exempt, so Gap-5
+   ``click.exceptions.*`` usage is enforced outside exact raw-SHA owners.
 """
 
 from __future__ import annotations
@@ -94,6 +96,22 @@ def test_no_whole_dir_tid251_exemption_for_tests() -> None:
     )
 
 
+def test_no_blanket_src_tid251_exemption() -> None:
+    """No ``src/**`` per-file-ignore may disable Gap-5 for all production code."""
+    config = tomllib.loads(_PYPROJECT.read_text(encoding="utf-8"))
+    per_file = config["tool"]["ruff"]["lint"]["per-file-ignores"]
+    offenders = {
+        pattern: codes
+        for pattern, codes in per_file.items()
+        if pattern.rstrip("/") in {"src", "src/**"} and "TID251" in codes
+    }
+    assert not offenders, (
+        "Whole-tree src TID251 ignores make the click.exceptions ban dead config "
+        f"for production code: {offenders}. Keep exceptions scoped to exact "
+        "raw-SHA owner files."
+    )
+
+
 def _ruff_probe(snippet: str, stdin_filename: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [
@@ -141,3 +159,16 @@ def test_annotated_sha256_is_allowed() -> None:
         f"`# noqa: TID251` did not suppress the ban.\nstdout:\n{proc.stdout}\n"
         f"stderr:\n{proc.stderr}"
     )
+
+
+def test_click_exceptions_probe_in_src_is_flagged() -> None:
+    """Gap-5 must be live for production files, not just tests."""
+    proc = _ruff_probe(
+        "import click\nraise click.exceptions.UsageError('bad')\n",
+        "src/specify_cli/orchestrator_api/_tid251_probe.py",
+    )
+    assert proc.returncode != 0, (
+        "Bare click.exceptions.UsageError under src/ was NOT flagged — "
+        f"Gap-5 enforcement is dead for production code.\nstdout:\n{proc.stdout}"
+    )
+    assert "TID251" in proc.stdout

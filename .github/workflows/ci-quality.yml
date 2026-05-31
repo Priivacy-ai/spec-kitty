@@ -216,11 +216,6 @@ jobs:
       - name: "[ENFORCED] Install Python dependencies"
         run: |
           uv sync --frozen --all-extras
-          # spec-kitty-runtime is required by next/runtime tests and patch-target
-          # validation, but its published wheel pins an older spec-kitty-events.
-          # Install it without deps so this repo's spec-kitty-events==4.0.0 pin
-          # remains authoritative.
-          uv pip install spec-kitty-runtime==0.4.5 --no-deps
 
       - name: "[ENFORCED] Prepare report directories"
         run: |
@@ -465,6 +460,12 @@ jobs:
           # '# noqa: TID251 — <justification>'. This realises the ADR Decision Outcome:
           # "automated enforcement rather than convention".
           uv run python -m ruff check src tests --select TID251
+
+      - name: "[ENFORCED] Typer 0.26 JSON error surface"
+        id: typer026
+        if: always()
+        run: |
+          uv run --with 'typer>=0.26' python -m pytest tests/agent/test_json_group_typer_surface.py -q
 
       - name: "[INFO] Run mypy report (advisory)"
         id: mypy
@@ -949,7 +950,6 @@ jobs:
           python-version: '3.12'
       - run: |
           uv sync --frozen --all-extras
-          uv pip install spec-kitty-runtime==0.4.5 --no-deps
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — next"
         run: |
@@ -1567,7 +1567,6 @@ jobs:
           python-version: '3.12'
       - run: |
           uv sync --frozen --all-extras
-          uv pip install spec-kitty-runtime==0.4.5 --no-deps
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — next"
         run: |
