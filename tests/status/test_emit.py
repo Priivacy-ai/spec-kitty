@@ -294,6 +294,12 @@ class TestLoadMissionId:
 class TestEmitStatusTransition:
     """Tests for the main emit orchestration function."""
 
+    def test_feature_status_lock_root_falls_back_to_feature_dir(self, tmp_path: Path) -> None:
+        """Non-standard feature dirs still get a deterministic local lock root."""
+        feature_dir = tmp_path / "standalone-feature"
+
+        assert emit_module._feature_status_lock_root(feature_dir, repo_root=None) == feature_dir
+
     def test_transition_request_rejects_mixed_legacy_args(self, feature_dir: Path):
         """TransitionRequest calls must not also pass legacy arguments."""
         request = TransitionRequest(
@@ -462,6 +468,37 @@ class TestEmitStatusTransition:
             actor="agent-1",
         ))
         assert event.to_lane == Lane.IN_PROGRESS
+
+    def test_alias_collapse_noop_returns_without_new_event(self, feature_dir: Path, caplog: pytest.LogCaptureFixture) -> None:
+        """Legacy alias to the current lane is a locked no-op, not a duplicate event."""
+        emit_status_transition(TransitionRequest(
+            feature_dir=feature_dir,
+            mission_slug="034-test-feature",
+            wp_id="WP01",
+            to_lane="claimed",
+            actor="agent-1",
+        ))
+        emit_status_transition(TransitionRequest(
+            feature_dir=feature_dir,
+            mission_slug="034-test-feature",
+            wp_id="WP01",
+            to_lane="doing",
+            actor="agent-1",
+        ))
+
+        with caplog.at_level("INFO"):
+            event = emit_status_transition(TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="doing",
+                actor="agent-1",
+            ))
+
+        assert event.from_lane == Lane.IN_PROGRESS
+        assert event.to_lane == Lane.IN_PROGRESS
+        assert len(read_events(feature_dir)) == 2
+        assert "Collapsing legacy alias doing to existing lane in_progress" in caplog.text
 
     def test_invalid_transition_rejected_no_persistence(self, feature_dir: Path):
         """Invalid transition raises TransitionError and persists nothing."""
