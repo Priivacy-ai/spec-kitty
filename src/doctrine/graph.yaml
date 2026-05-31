@@ -998,6 +998,18 @@ edges:
   target: directive:DIRECTIVE_037
   relation: scope
 - source: action:software-dev/review
+  target: paradigm:execution-lanes
+  relation: scope
+- source: action:software-dev/review
+  target: paradigm:git-flow
+  relation: scope
+- source: action:software-dev/review
+  target: paradigm:shared-branch-ci
+  relation: scope
+- source: action:software-dev/review
+  target: paradigm:trunk-based
+  relation: scope
+- source: action:software-dev/review
   target: procedure:disciplined-defect-diagnosis
   relation: scope
 - source: action:software-dev/review
@@ -1026,9 +1038,6 @@ edges:
   relation: scope
 - source: action:software-dev/review
   target: tactic:dependency-hygiene
-  relation: scope
-- source: action:software-dev/review
-  target: tactic:focused-function-complexity-check
   relation: scope
 - source: action:software-dev/review
   target: tactic:quality-gate-verification

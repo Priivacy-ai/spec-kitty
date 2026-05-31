@@ -28,6 +28,11 @@ tactics:
   - stopping-conditions
   - test-boundaries-by-responsibility
   - testing-select-appropriate-level
+paradigms:
+  - execution-lanes
+  - shared-branch-ci
+  - git-flow
+  - trunk-based
 styleguides: []
 toolguides:
   - efficient-local-tooling

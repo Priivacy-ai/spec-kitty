@@ -125,6 +125,7 @@ class TestLoadActionIndexFields:
             "action: custom-action\n"
             "directives:\n  - DIR-001\n"
             "tactics:\n  - tactic-a\n"
+            "paradigms:\n  - paradigm-b\n"
             "styleguides:\n  - style-b\n"
             "toolguides:\n  - tool-c\n"
             "procedures:\n  - proc-d\n"
@@ -134,6 +135,7 @@ class TestLoadActionIndexFields:
         assert result.action == "custom-action"
         assert result.directives == ["DIR-001"]
         assert result.tactics == ["tactic-a"]
+        assert result.paradigms == ["paradigm-b"]
         assert result.styleguides == ["style-b"]
         assert result.toolguides == ["tool-c"]
         assert result.procedures == ["proc-d"]
@@ -142,6 +144,7 @@ class TestLoadActionIndexFields:
         _write_index(tmp_path, "m", "a", "directives:\n  - DIR-001\n")
         result = load_action_index(tmp_path, "m", "a")
         assert result.tactics == []
+        assert result.paradigms == []
         assert result.styleguides == []
         assert result.toolguides == []
         assert result.procedures == []
