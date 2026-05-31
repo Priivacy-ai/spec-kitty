@@ -279,6 +279,9 @@ nodes:
 - urn: tactic:five-paradigm-parallel-debugging
   kind: tactic
   label: Five-Paradigm Parallel Debugging
+- urn: tactic:paula-patterns-architecture-scout-review
+  kind: tactic
+  label: Paula Patterns Architecture Scout Review
 - urn: tactic:focused-function-complexity-check
   kind: tactic
   label: Focused Function Complexity Check
@@ -846,6 +849,9 @@ edges:
   relation: requires
 - source: directive:DIRECTIVE_001
   target: tactic:language-driven-design
+  relation: requires
+- source: directive:DIRECTIVE_001
+  target: tactic:paula-patterns-architecture-scout-review
   relation: requires
 - source: directive:DIRECTIVE_001
   target: tactic:premortem-risk-identification
@@ -1580,6 +1586,26 @@ edges:
   target: tactic:review-intent-and-risk-first
   relation: suggests
   when: Evaluate whether the structural fix plan closes the class and what blast radius it carries.
+- source: tactic:paula-patterns-architecture-scout-review
+  target: directive:DIRECTIVE_001
+  relation: suggests
+  when: Use when scout findings point to missing or violated architecture boundaries.
+- source: tactic:paula-patterns-architecture-scout-review
+  target: directive:DIRECTIVE_032
+  relation: suggests
+  when: Use when scout findings point to language drift or confused ownership concepts.
+- source: tactic:paula-patterns-architecture-scout-review
+  target: tactic:anti-corruption-layer
+  relation: suggests
+  when: Use when external system details leak into core domain or application decisions.
+- source: tactic:paula-patterns-architecture-scout-review
+  target: tactic:domain-event-capture
+  relation: suggests
+  when: Use when durable state transitions, replay, or provenance are missing.
+- source: tactic:paula-patterns-architecture-scout-review
+  target: tactic:review-intent-and-risk-first
+  relation: suggests
+  when: Use when separating release-safe fixes from long-term architecture work.
 - source: directive:DIRECTIVE_035
   target: tactic:occurrence-classification-workflow
   relation: requires
