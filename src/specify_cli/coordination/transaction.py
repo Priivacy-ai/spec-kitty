@@ -134,15 +134,16 @@ _SNAPSHOT_FILENAME = "status.json"
 
 
 def _confine_transaction_artifact_path(path: Path, worktree_root: Path) -> Path:
-    """Return a resolved artifact path confined to the coordination worktree."""
+    """Return a canonical artifact path rebuilt from the trusted worktree root."""
+    resolved_root = worktree_root.resolve()
     candidate = path.resolve()
     try:
-        candidate.relative_to(worktree_root.resolve())
+        relative_candidate = candidate.relative_to(resolved_root)
     except ValueError as exc:
         raise ValueError(
             f"Refusing to write artifact outside coordination worktree: {candidate}"
         ) from exc
-    return candidate
+    return resolved_root / relative_candidate
 
 
 def _kitty_specs_dir_name(mission_slug: str, mid8: str) -> str:
