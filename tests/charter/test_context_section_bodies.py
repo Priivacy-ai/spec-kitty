@@ -95,6 +95,34 @@ _CHARTER_WITH_FENCED_MARKDOWN_HEADINGS = textwrap.dedent(
 )
 
 
+_CHARTER_WITH_FENCED_SECTION_HEADING_EXAMPLE = textwrap.dedent(
+    """\
+    # Project Charter
+
+    ## Purpose
+
+    A documentation example can mention a critical section heading:
+
+    ```markdown
+    ## Regression Vigilance
+    This is example text, not the charter rule.
+    ```
+
+    ## Terminology Canon
+
+    - canonical term is **Mission**.
+
+    ## Regression Vigilance
+
+    The real rule requires the reviewer to consult glossary/contexts/.
+
+    ## Code Review Checklist
+
+    - check terminology alignment.
+    """
+)
+
+
 def _rendered_section_body(rendered: str, heading: str) -> str:
     section_start = rendered.index(f"### {heading}")
     body_start = rendered.index("\n", section_start) + 1
@@ -128,6 +156,18 @@ class TestVerbatimBodies:
         assert "## STEP 2" in body
         assert "After cleanup, rerun the mission review." in body
         assert "This is the next section" not in body
+
+    def test_fenced_section_heading_example_does_not_spoof_section_start(self) -> None:
+        result = render_critical_section_bodies(
+            _CHARTER_WITH_FENCED_SECTION_HEADING_EXAMPLE, action="implement"
+        )
+
+        body = _rendered_section_body(result, "Regression Vigilance")
+
+        assert "consult glossary/contexts/" in body
+        assert "This is example text" not in body
+        assert "canonical term is **Mission**" not in body
+        assert "check terminology alignment" not in body
 
 
 class TestMissingSectionFetchStanza:

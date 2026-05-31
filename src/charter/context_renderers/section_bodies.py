@@ -132,6 +132,34 @@ def _find_next_section_start(body: str) -> int | None:
     return None
 
 
+def _find_heading_end(charter_content: str, heading: str) -> int | None:
+    """Return the end offset for ``## <heading>`` outside code fences."""
+
+    pattern = _heading_pattern(heading)
+    fence_marker: str | None = None
+    fence_length = 0
+    offset = 0
+
+    for line in charter_content.splitlines(keepends=True):
+        if fence_marker is not None:
+            if _is_fence_close(line, fence_marker, fence_length):
+                fence_marker = None
+                fence_length = 0
+        else:
+            match = pattern.match(line)
+            if match is not None:
+                return offset + match.end()
+
+            fence_match = _FENCE_OPEN_RE.match(line)
+            if fence_match is not None:
+                fence_marker = fence_match.group(1)[0]
+                fence_length = len(fence_match.group(1))
+
+        offset += len(line)
+
+    return None
+
+
 def _extract_section_body(charter_content: str, heading: str) -> str | None:
     """Return the body of ``## <heading>`` from *charter_content*, or ``None``.
 
@@ -142,12 +170,10 @@ def _extract_section_body(charter_content: str, heading: str) -> str | None:
     losing structure.
     """
 
-    pattern = _heading_pattern(heading)
-    match = pattern.search(charter_content)
-    if match is None:
+    body_start = _find_heading_end(charter_content, heading)
+    if body_start is None:
         return None
 
-    body_start = match.end()
     remainder = charter_content[body_start:]
     next_section_start = _find_next_section_start(remainder)
     body = (
