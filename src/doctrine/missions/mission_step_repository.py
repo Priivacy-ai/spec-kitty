@@ -90,13 +90,13 @@ def _load_step_yaml(step_file: Path) -> MissionStep | None:
     step.yaml field   → MissionStep field
     ─────────────────────────────────────
     id                → id
-    display_name      → title   (human-readable label)
+    display_name      → display_name  (human-readable label; also accessible as .title)
+    step_type         → step_type     (executor discriminant)
     prompt_template   → prompt_template
-    agent_profile     → agent_profile  (stored as ``agent-profile`` alias)
+    agent_profile     → agent-profile (alias)
     depends_on        → depends_on
-    (step_type)       → (not in model — stripped before validation)
-    (guidance)        → (not in model — stripped before validation)
-    (delegates_to)    → (not in model — stripped before validation)
+    (guidance)        → stripped (not in MissionStep)
+    (delegates_to)    → stripped (not in MissionStep)
     """
     if not step_file.exists():
         return None
@@ -110,12 +110,11 @@ def _load_step_yaml(step_file: Path) -> MissionStep | None:
     # Map step.yaml fields → MissionStep fields and strip unknown keys.
     _STEP_YAML_TO_MODEL: dict[str, str] = {
         "id": "id",
-        "display_name": "title",
+        "display_name": "display_name",
+        "step_type": "step_type",
         "prompt_template": "prompt_template",
         "agent_profile": "agent-profile",  # alias
         "depends_on": "depends_on",
-        "description": "description",
-        "name": "name",
     }
     mapped: dict[str, Any] = {}
     for src_key, dst_key in _STEP_YAML_TO_MODEL.items():
