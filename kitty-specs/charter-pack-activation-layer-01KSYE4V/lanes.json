@@ -2,7 +2,7 @@
   "version": 1,
   "mission_slug": "charter-pack-activation-layer-01KSYE4V",
   "mission_id": "01KSYE4VZ9V0S14NRC87XX92BP",
-  "mission_branch": "kitty/mission-charter-pack-activation-layer-01KSYE4V",
+  "mission_branch": "pr/charter-doctrine-mission-type-configuration",
   "target_branch": "pr/charter-doctrine-mission-type-configuration",
   "lanes": [
     {
