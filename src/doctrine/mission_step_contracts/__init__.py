@@ -11,6 +11,7 @@ from doctrine.mission_step_contracts.models import (
     DelegatesTo,
     MissionStep,
     MissionStepContract,
+    MissionStepInput,
 )
 from doctrine.mission_step_contracts.repository import MissionStepContractRepository
 
@@ -19,5 +20,6 @@ __all__ = [
     "DelegatesTo",
     "MissionStep",
     "MissionStepContract",
+    "MissionStepInput",
     "MissionStepContractRepository",
 ]

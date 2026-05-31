@@ -33,6 +33,13 @@ def full_step_contract_data() -> dict:
                 "id": "bootstrap",
                 "description": "Load charter context for this action",
                 "command": "spec-kitty charter context --action implement --json",
+                "inputs": [
+                    {
+                        "flag": "--profile",
+                        "source": "wp.agent_profile",
+                        "optional": True,
+                    }
+                ],
             },
             {
                 "id": "workspace",

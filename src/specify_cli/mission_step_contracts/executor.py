@@ -9,6 +9,7 @@ invocation primitive.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -17,6 +18,7 @@ from charter.drg import ArtifactKind, DRGGraph, NodeKind, ResolvedContext, resol
 from charter.mission_steps import (
     MissionStep,
     MissionStepContract,
+    MissionStepInput,
     MissionStepContractRepository,
 )
 from specify_cli.invocation.executor import InvocationPayload, ProfileInvocationExecutor
@@ -98,6 +100,7 @@ class StepContractStepResult:
     command: str | None
     command_declared: bool
     guidance: str | None
+    inputs: tuple[MissionStepInput, ...] = field(default_factory=tuple)
     resolved_delegations: tuple[ResolvedStepDelegation, ...] = field(default_factory=tuple)
     unresolved_candidates: tuple[str, ...] = field(default_factory=tuple)
     invocation_payload: InvocationPayload | None = None
@@ -199,6 +202,7 @@ class StepContractExecutor:
                         sequence=sequence,
                         description=step.description,
                         command=step.command,
+                        inputs=tuple(step.inputs),
                         command_declared=step.command is not None,
                         guidance=step.guidance,
                         resolved_delegations=tuple(resolved),
@@ -330,6 +334,12 @@ class StepContractExecutor:
         if step.command:
             lines.append(f"Declared command: {step.command}")
             lines.append("Command status: declared only; the host/operator owns execution.")
+        if step.inputs:
+            lines.append("Declared inputs:")
+            lines.extend(
+                f"- {self._format_step_input(step_input)}"
+                for step_input in step.inputs
+            )
         if resolved_delegations:
             joined = ", ".join(delegation.urn for delegation in resolved_delegations)
             lines.append(f"Resolved delegations: {joined}")
@@ -339,6 +349,13 @@ class StepContractExecutor:
         if step.guidance:
             lines.append(f"Step guidance: {step.guidance}")
         return "\n".join(lines)
+
+    @staticmethod
+    def _format_step_input(step_input: MissionStepInput) -> str:
+        return json.dumps(
+            step_input.model_dump(mode="json", exclude_none=True),
+            sort_keys=True,
+        )
 
 
 __all__ = [

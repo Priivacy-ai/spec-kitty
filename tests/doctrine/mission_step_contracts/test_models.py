@@ -8,6 +8,7 @@ from doctrine.mission_step_contracts.models import (
     DelegatesTo,
     MissionStep,
     MissionStepContract,
+    MissionStepInput,
 )
 
 pytestmark = pytest.mark.fast
@@ -39,6 +40,7 @@ class TestMissionStep:
         assert step.id == "bootstrap"
         assert step.description == "Load context"
         assert step.command is None
+        assert step.inputs == []
         assert step.delegates_to is None
         assert step.guidance is None
 
@@ -47,6 +49,13 @@ class TestMissionStep:
             id="workspace",
             description="Create workspace",
             command="spec-kitty implement {wp_id}",
+            inputs=[
+                MissionStepInput(
+                    flag="--profile",
+                    source="wp.agent_profile",
+                    optional=True,
+                )
+            ],
             delegates_to=DelegatesTo(
                 kind=ArtifactKind.PARADIGM,
                 candidates=["execution-lanes", "shared-branch-ci"],
@@ -54,6 +63,9 @@ class TestMissionStep:
             guidance="Execution lanes own worktrees.",
         )
         assert step.command is not None
+        assert step.inputs[0].flag == "--profile"
+        assert step.inputs[0].source == "wp.agent_profile"
+        assert step.inputs[0].optional is True
         assert step.delegates_to is not None
         assert step.delegates_to.kind == ArtifactKind.PARADIGM
         assert len(step.delegates_to.candidates) == 2
@@ -75,6 +87,10 @@ class TestMissionStepContract:
         assert len(contract.steps) == 6
 
         # Check delegation wiring
+        bootstrap_step = contract.steps[0]
+        assert bootstrap_step.inputs[0].flag == "--profile"
+        assert bootstrap_step.inputs[0].source == "wp.agent_profile"
+
         workspace_step = contract.steps[1]
         assert workspace_step.delegates_to is not None
         assert workspace_step.delegates_to.kind == ArtifactKind.PARADIGM

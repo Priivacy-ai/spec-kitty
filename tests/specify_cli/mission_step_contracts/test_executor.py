@@ -239,6 +239,88 @@ def test_command_step_is_declared_not_shell_executed(tmp_path: Path) -> None:
     assert len(result.invocation_ids) == 1
 
 
+def test_step_contract_inputs_are_passed_to_invocation_boundary(tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    _write_project_graph(repo_root)
+
+    contract = {
+        "schema_version": "1.0",
+        "id": "inputs-contract",
+        "mission": "fixture",
+        "action": "composer",
+        "steps": [
+            {
+                "id": "bootstrap",
+                "description": "Load charter context",
+                "command": "spec-kitty charter context --action composer --json",
+                "inputs": [
+                    {
+                        "flag": "--profile",
+                        "source": "wp.agent_profile",
+                        "optional": True,
+                    },
+                    {
+                        "flag": "--tool",
+                        "source": "env.agent_tool",
+                        "optional": True,
+                        "runtime": "host",
+                    },
+                ],
+            }
+        ],
+    }
+    built_in_dir = tmp_path / "contracts"
+    _write_yaml(built_in_dir / "inputs.step-contract.yaml", contract)
+
+    class FakeInvocationExecutor:
+        def __init__(self) -> None:
+            self.requests: list[str] = []
+            self.completed: list[tuple[str, str]] = []
+
+        def invoke(self, request_text: str, **kwargs: object) -> SimpleNamespace:
+            self.requests.append(request_text)
+            return SimpleNamespace(invocation_id="invocation-1")
+
+        def complete_invocation(self, invocation_id: str, outcome: str) -> None:
+            self.completed.append((invocation_id, outcome))
+
+    invocation_executor = FakeInvocationExecutor()
+
+    result = StepContractExecutor(
+        repo_root=repo_root,
+        contract_repository=MissionStepContractRepository(built_in_dir=built_in_dir),
+        invocation_executor=invocation_executor,  # type: ignore[arg-type]
+    ).execute(
+        StepContractExecutionContext(
+            repo_root=repo_root,
+            mission="fixture",
+            action="composer",
+            actor="pytest",
+            profile_hint="implementer-fixture",
+        )
+    )
+
+    assert [step_input.model_dump() for step_input in result.steps[0].inputs] == [
+        {"flag": "--profile", "source": "wp.agent_profile", "optional": True},
+        {"flag": "--tool", "source": "env.agent_tool", "optional": True, "runtime": "host"},
+    ]
+    assert invocation_executor.requests == [
+        "\n".join(
+            [
+                "Execute mission step contract inputs-contract (fixture/composer).",
+                "Step bootstrap: Load charter context",
+                "Declared command: spec-kitty charter context --action composer --json",
+                "Command status: declared only; the host/operator owns execution.",
+                "Declared inputs:",
+                '- {"flag": "--profile", "optional": true, "source": "wp.agent_profile"}',
+                '- {"flag": "--tool", "optional": true, "runtime": "host", "source": "env.agent_tool"}',
+            ]
+        )
+    ]
+    assert invocation_executor.completed == [("invocation-1", "done")]
+
+
 def test_directive_slug_candidate_resolves_to_drg_urn(tmp_path: Path) -> None:
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
