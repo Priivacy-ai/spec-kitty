@@ -96,11 +96,48 @@ class TestParsePolicyValid:
         with pytest.raises(ValueError, match="appears to contain a secret"):
             parse_and_validate_policy(raw)
 
+    def test_parse_policy_required_fields_must_be_strings(self):
+        """Structured required fields cannot bypass policy metadata scanning."""
+        policy_dict = self._valid_policy(orchestrator_id=["API_KEY=abc123"])
+        raw = json.dumps(policy_dict)
+        with pytest.raises(ValueError, match="orchestrator_id must be a string"):
+            parse_and_validate_policy(raw)
+
     def test_parse_policy_dangerous_flags_must_be_list(self):
         """dangerous_flags as string raises ValueError."""
         policy_dict = self._valid_policy(dangerous_flags="--full-auto")
         raw = json.dumps(policy_dict)
         with pytest.raises(ValueError, match="must be a JSON array"):
+            parse_and_validate_policy(raw)
+
+    def test_parse_policy_rejects_secret_in_dangerous_flags_entry(self):
+        """Secret-like dangerous_flags entries are rejected before persistence."""
+        policy_dict = self._valid_policy(
+            dangerous_flags=["AWS_SECRET_ACCESS_KEY=abc123"]
+        )
+        raw = json.dumps(policy_dict)
+        with pytest.raises(ValueError, match="appears to contain a secret"):
+            parse_and_validate_policy(raw)
+
+    def test_parse_policy_dangerous_flags_entries_must_be_strings(self):
+        """Structured dangerous_flags entries cannot bypass string scanning."""
+        policy_dict = self._valid_policy(dangerous_flags=[{"name": "--full-auto"}])
+        raw = json.dumps(policy_dict)
+        with pytest.raises(ValueError, match="entries must be strings"):
+            parse_and_validate_policy(raw)
+
+    def test_parse_policy_preserves_valid_dangerous_flags_entries(self):
+        """Non-secret dangerous_flags entries survive validation unchanged."""
+        policy_dict = self._valid_policy(dangerous_flags=["--full-auto"])
+        raw = json.dumps(policy_dict)
+        policy = parse_and_validate_policy(raw)
+        assert policy.dangerous_flags == ["--full-auto"]
+
+    def test_parse_policy_tool_restrictions_must_be_string_or_null(self):
+        """Structured tool_restrictions cannot bypass policy metadata scanning."""
+        policy_dict = self._valid_policy(tool_restrictions=["API_KEY=abc123"])
+        raw = json.dumps(policy_dict)
+        with pytest.raises(ValueError, match="tool_restrictions must be a string or null"):
             parse_and_validate_policy(raw)
 
     def test_parse_policy_invalid_json(self):
