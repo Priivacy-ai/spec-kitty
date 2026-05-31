@@ -15,8 +15,6 @@ from specify_cli.core.wps_manifest import (
     WpsManifest,
     generate_tasks_md_from_manifest,
 )
-from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event, read_events
 
 import pytest
 
@@ -46,7 +44,7 @@ def _null_lock(repo_root: Path, mission_slug: str):  # type: ignore[no-untyped-d
     yield
 
 
-def _invoke_mark_status(repo: Path, slug: str, *ids: str) -> dict:
+def _invoke_mark_status(repo: Path, slug: str, *ids: str, expected_exit_code: int = 0) -> dict:
     with (
         patch("specify_cli.cli.commands.agent.tasks.locate_project_root", return_value=repo),
         patch("specify_cli.cli.commands.agent.tasks._find_mission_slug", return_value=slug),
@@ -68,30 +66,12 @@ def _invoke_mark_status(repo: Path, slug: str, *ids: str) -> dict:
                 "--no-auto-commit",
             ],
         )
-    assert result.exit_code == 0, result.output
+    assert result.exit_code == expected_exit_code, result.output
     return json.loads(result.stdout)
 
 
 def _result_by_id(payload: dict, task_id: str) -> dict:
     return next(result for result in payload["results"] if result["id"] == task_id)
-
-
-def _seed_done_event(mission_dir: Path, slug: str, wp_id: str) -> None:
-    append_event(
-        mission_dir,
-        StatusEvent(
-            event_id=f"01TEST{wp_id}DONE000000000000",
-            mission_slug=slug,
-            wp_id=wp_id,
-            from_lane=Lane.PLANNED,
-            to_lane=Lane.DONE,
-            at="2026-05-05T00:00:00+00:00",
-            actor="test",
-            force=True,
-            reason="test seed",
-            execution_mode="direct_repo",
-        ),
-    )
 
 
 def test_inline_subtasks_single(tmp_path: Path) -> None:
@@ -146,28 +126,31 @@ def test_generated_bold_inline_subtasks_are_markable(tmp_path: Path) -> None:
     assert "- [x] T014" in (mission_dir / "tasks.md").read_text(encoding="utf-8")
 
 
-def test_wp_id_mark_done(tmp_path: Path) -> None:
+def test_wp_id_rejected_with_move_task_guidance(tmp_path: Path) -> None:
     slug = "003-wp-mark-done"
-    mission_dir = _write_mission(tmp_path, slug, "# Tasks\n\n## WP02\n", wp_ids=("WP02",))
+    _write_mission(tmp_path, slug, "# Tasks\n\n## WP02\n", wp_ids=("WP02",))
 
-    payload = _invoke_mark_status(tmp_path, slug, "WP02")
+    with patch("specify_cli.cli.commands.agent.tasks.emit_status_transition") as emit_mock:
+        payload = _invoke_mark_status(tmp_path, slug, "WP02", expected_exit_code=1)
 
     result = _result_by_id(payload, "WP02")
-    assert result["outcome"] == "updated"
+    assert result["outcome"] == "not_found"
     assert result["format"] == "wp_id"
-    assert any(event.wp_id == "WP02" and event.to_lane == Lane.DONE for event in read_events(mission_dir))
+    assert "mark-status does not change work-package lanes" in result["message"]
+    assert "move-task" in result["message"]
+    emit_mock.assert_not_called()
 
 
-def test_wp_id_already_done(tmp_path: Path) -> None:
+def test_wp_id_rejection_does_not_consult_lane_state(tmp_path: Path) -> None:
     slug = "004-wp-already-done"
-    mission_dir = _write_mission(tmp_path, slug, "# Tasks\n\n## WP02\n", wp_ids=("WP02",))
-    _seed_done_event(mission_dir, slug, "WP02")
+    _write_mission(tmp_path, slug, "# Tasks\n\n## WP02\n", wp_ids=("WP02",))
 
-    payload = _invoke_mark_status(tmp_path, slug, "WP02")
+    payload = _invoke_mark_status(tmp_path, slug, "WP02", expected_exit_code=1)
 
     result = _result_by_id(payload, "WP02")
-    assert result["outcome"] == "already_satisfied"
+    assert result["outcome"] == "not_found"
     assert result["format"] == "wp_id"
+    assert "move-task" in result["message"]
 
 
 def test_unknown_id_not_found(tmp_path: Path) -> None:
@@ -195,10 +178,11 @@ def test_mixed_formats(tmp_path: Path) -> None:
     assert _result_by_id(payload, "T001")["format"] == "checkbox"
     assert _result_by_id(payload, "T002")["format"] == "inline_subtasks"
     assert _result_by_id(payload, "WP03")["format"] == "wp_id"
+    assert _result_by_id(payload, "WP03")["outcome"] == "not_found"
+    assert "move-task" in _result_by_id(payload, "WP03")["message"]
     content = (mission_dir / "tasks.md").read_text(encoding="utf-8")
     assert "- [x] T001" in content
     assert "- [x] T002" in content
-    assert any(event.wp_id == "WP03" and event.to_lane == Lane.DONE for event in read_events(mission_dir))
 
 
 def test_existing_checkbox_unchanged(tmp_path: Path) -> None:

@@ -2298,62 +2298,21 @@ def _resolve_wp_id(
     mission_slug: str | None,
     feature_dir: Path,
 ) -> TaskIdResult | None:
-    """Resolve a bare WP ID by appending a canonical status event."""
+    """Reject bare WP IDs; mark-status is scoped to task/subtask updates."""
     if not re.match(r"^WP\d+$", wp_id, re.IGNORECASE):
         return None
 
     normalized_wp_id = wp_id.upper()
-    if not _wp_id_exists(feature_dir, normalized_wp_id):
-        return TaskIdResult(
-            id=normalized_wp_id,
-            outcome=TaskIdResolutionOutcome.NOT_FOUND,
-            format=TaskIdResolutionFormat.WP_ID,
-            message=f"{normalized_wp_id}: no matching work package artifact found.",
-        )
-
-    to_lane = resolve_lane_alias(status)
-
-    try:
-        from specify_cli.status.lane_reader import get_wp_lane
-
-        current_lane = get_wp_lane(feature_dir, normalized_wp_id)
-        current_lane_value = getattr(current_lane, "value", current_lane)
-        if current_lane_value == to_lane:
-            return TaskIdResult(
-                id=normalized_wp_id,
-                outcome=TaskIdResolutionOutcome.ALREADY_SATISFIED,
-                format=TaskIdResolutionFormat.WP_ID,
-                message=f"{normalized_wp_id} is already in lane '{to_lane}'.",
-            )
-    except Exception:
-        current_lane_value = None
-
-    try:
-        emit_status_transition(
-            feature_dir=feature_dir,
-            mission_slug=mission_slug or feature_dir.name,
-            wp_id=normalized_wp_id,
-            to_lane=to_lane,
-            actor="agent",
-            force=True,
-            reason="mark-status WP ID resolution",
-            execution_mode="direct_repo",
-            ensure_sync_daemon=False,
-            sync_dossier=False,
-        )
-        return TaskIdResult(
-            id=normalized_wp_id,
-            outcome=TaskIdResolutionOutcome.UPDATED,
-            format=TaskIdResolutionFormat.WP_ID,
-            message=f"Emitted status transition for {normalized_wp_id} to lane '{to_lane}'.",
-        )
-    except Exception as exc:
-        return TaskIdResult(
-            id=normalized_wp_id,
-            outcome=TaskIdResolutionOutcome.NOT_FOUND,
-            format=TaskIdResolutionFormat.WP_ID,
-            message=f"{normalized_wp_id}: transition failed - {exc}",
-        )
+    del status, mission_slug, feature_dir
+    return TaskIdResult(
+        id=normalized_wp_id,
+        outcome=TaskIdResolutionOutcome.NOT_FOUND,
+        format=TaskIdResolutionFormat.WP_ID,
+        message=(
+            f"{normalized_wp_id}: mark-status does not change work-package lanes. "
+            "Use `spec-kitty agent tasks move-task <WP_ID> --to <lane>`."
+        ),
+    )
 
 
 def _mark_status_json_payload(results: list[TaskIdResult]) -> dict[str, object]:
@@ -2518,7 +2477,11 @@ def mark_status(
                 if json_output:
                     print(json.dumps(_mark_status_json_payload(results)))
                 else:
-                    _output_error(json_output, f"No task IDs found in tasks.md: {', '.join(not_found_tasks)}")
+                    if any(result.format == TaskIdResolutionFormat.WP_ID for result in results):
+                        detail = "; ".join(result.message for result in results if result.message)
+                        _output_error(json_output, detail)
+                    else:
+                        _output_error(json_output, f"No task IDs found in tasks.md: {', '.join(not_found_tasks)}")
                 raise typer.Exit(1)
 
             # Write updated content (single write for all changes)
