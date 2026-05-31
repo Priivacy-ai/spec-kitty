@@ -19,6 +19,7 @@ from specify_cli.decisions.store import load_index
 from specify_cli.git.commit_helpers import assert_not_protected_branch
 from specify_cli.mission import MissionError, get_mission_for_feature
 from specify_cli.mission_metadata import load_meta, record_acceptance, resolve_mission_identity, write_meta
+from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
 from specify_cli.status.models import Lane
 from specify_cli.status.store import EVENTS_FILENAME, StoreError
 from specify_cli.validators.paths import PathValidationError, validate_mission_paths
@@ -282,7 +283,10 @@ def _iter_work_packages(repo_root: Path, feature: str) -> Iterable[WorkPackage]:
                 continue
             text = _read_text_strict(path)
             front, body, padding = split_frontmatter(text)
-            lane = get_lane_from_frontmatter(path, warn_on_missing=False)
+            try:
+                lane = get_lane_from_frontmatter(path, warn_on_missing=False)
+            except CanonicalStatusNotFoundError:
+                lane = "uninitialized"
             relative = path.relative_to(tasks_dir)
             yield WorkPackage(
                 feature=feature,
@@ -513,7 +517,7 @@ def _collect_snapshot_wps(feature: str, feature_dir: Path, activity_issues: list
     _missing_msg = (
         f"No canonical state found for feature '{feature}'. "
         "Cannot validate acceptance without status.events.jsonl. "
-        "Run status migration to bootstrap the event log."
+        f"Run 'spec-kitty agent mission finalize-tasks --mission {feature}' to bootstrap the event log."
     )
     if not events_path.exists():
         activity_issues.append(_missing_msg)

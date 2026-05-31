@@ -93,6 +93,7 @@ def _create_test_feature(
     mission_slug: str = _FEATURE_SLUG,
     *,
     malformed_events: str | None = None,
+    omit_status_events: bool = False,
 ) -> Tuple[Path, Path]:
     """Create a minimal but valid feature for acceptance testing.
 
@@ -151,7 +152,9 @@ def _create_test_feature(
     (tasks_dir / "WP01-test.md").write_text(wp_content)
 
     # Status event log
-    if malformed_events is not None:
+    if omit_status_events:
+        pass
+    elif malformed_events is not None:
         (feature_dir / "status.events.jsonl").write_text(malformed_events)
     else:
         # Build a valid transition chain: planned -> done (with force to skip intermediate)
@@ -709,6 +712,19 @@ class TestMalformedJsonlRaisesAcceptanceError:
         summary = collect_feature_summary(repo_root, _FEATURE_SLUG)
         # But the feature won't be "ok" because there's no canonical state
         assert isinstance(summary, AcceptanceSummary)
+
+    def test_missing_events_file_reports_bootstrap_issue(self, tmp_path: Path) -> None:
+        """Missing status.events.jsonl reports bootstrap guidance instead of crashing."""
+        repo_root, _feature_dir = _create_test_feature(
+            tmp_path,
+            omit_status_events=True,
+        )
+
+        summary = collect_feature_summary(repo_root, _FEATURE_SLUG)
+
+        assert isinstance(summary, AcceptanceSummary)
+        assert any("status.events.jsonl" in issue for issue in summary.activity_issues)
+        assert any("finalize-tasks" in issue for issue in summary.activity_issues)
 
 
 # ---------------------------------------------------------------------------
