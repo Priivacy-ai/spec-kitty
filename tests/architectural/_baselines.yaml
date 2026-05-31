@@ -133,7 +133,7 @@ test_no_dead_symbols:
   # prompt_builder imports build_with_scope which pulls CharterScope*
   # into the live src/ import graph. All four symbols now have live
   # callers; category shrunk from 4 to 0.
-  category_c_wp_in_flight_charter_scope: 0
+  category_c_wp_in_flight_charter_scope: 4  # justification: OperationalContext family specced, wiring deferred (charter-pack-activation-layer WP03)
   # WP11 removal trigger reached: all 4 workflow registry symbols now have
   # live src/ callers (planner.py imports get_workflow, UnknownWorkflowError,
   # list_available_workflows from workflow_registry, and ActionStep from

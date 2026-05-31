@@ -402,7 +402,15 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
 # CharterScopeConflict, CharterScopeNotFound into the live src/ import
 # graph. All four symbols have live callers; the allowlist is empty.
 # See HIGH-1 in the mission-review-report.md for the full rationale.
-_CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE: frozenset[str] = frozenset()
+# specced, wiring deferred to follow-on mission (charter-pack-activation-layer WP03)
+_CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE: frozenset[str] = frozenset(
+    {
+        "charter.invocation_context::OperationalContext",
+        "charter.invocation_context::build_operational_context",
+        "charter.invocation_context::OperationalContext.require_active_profile",
+        "charter.invocation_context::OperationalContext.require_active_role",
+    }
+)
 
 # ---------- C. WP-in-flight Slice F workflow registry symbols ----------
 # WP11 removal trigger reached: get_workflow, UnknownWorkflowError,
