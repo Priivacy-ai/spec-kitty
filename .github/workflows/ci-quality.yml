@@ -105,8 +105,11 @@ jobs:
             missions:
               - 'src/specify_cli/mission.py'
               - 'src/specify_cli/mission_metadata.py'
+              - 'src/specify_cli/missions/**'
               - 'src/doctrine/missions/**'
+              - 'tests/fixtures/missions/**'
               - 'tests/missions/**'
+              - 'tests/specify_cli/missions/**'
             post_merge:
               - 'src/specify_cli/post_merge/**'
               - 'tests/post_merge/**'
