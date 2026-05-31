@@ -2601,21 +2601,28 @@ def mark_status(
         # Emit HistoryAdded event for subtask status changes (T014)
         try:
             if updated_tasks:
-                task_list_str = ", ".join(updated_tasks)
-                history_wp_id = _resolve_history_wp_id(
-                    tasks_md.read_text(encoding="utf-8"),
-                    updated_tasks[0],
-                )
-                if history_wp_id is not None:
+                resolved_tasks_by_wp: dict[str, list[str]] = {}
+                unresolved_tasks: list[str] = []
+                tasks_content = tasks_md.read_text(encoding="utf-8")
+                for task_id in updated_tasks:
+                    history_wp_id = _resolve_history_wp_id(tasks_content, task_id)
+                    if history_wp_id is None:
+                        unresolved_tasks.append(task_id)
+                    else:
+                        resolved_tasks_by_wp.setdefault(history_wp_id, []).append(task_id)
+
+                for history_wp_id, task_ids_for_wp in resolved_tasks_by_wp.items():
+                    task_list_str = ", ".join(task_ids_for_wp)
                     emit_history_added(
                         wp_id=history_wp_id,
                         entry_type="note",
                         entry_content=f"Subtask(s) {task_list_str} marked as {status}",
                         author="user",
                     )
-                elif not json_output:
+                if unresolved_tasks and not json_output:
                     console.print(
-                        f"[yellow]Warning:[/yellow] Could not resolve owning WP for HistoryAdded event: {updated_tasks[0]}"
+                        "[yellow]Warning:[/yellow] Could not resolve owning WP for HistoryAdded event: "
+                        + ", ".join(unresolved_tasks)
                     )
         except Exception as e:
             if not json_output:

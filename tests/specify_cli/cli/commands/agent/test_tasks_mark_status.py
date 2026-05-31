@@ -332,6 +332,47 @@ def test_history_added_uses_explicit_wp_column_for_non_derivable_task_id(tmp_pat
     assert emit_history.call_args.kwargs["wp_id"] == "WP02"
 
 
+def test_history_added_groups_multi_wp_updates_by_owning_wp(tmp_path: Path) -> None:
+    slug = "007-history-multi-wp"
+    _write_mission(
+        tmp_path,
+        slug,
+        "# Tasks\n\n## WP01 Build\n- [ ] T001 First task\n\n## WP02 Ship\n- [ ] T010 Tenth task\n",
+    )
+
+    with (
+        patch("specify_cli.cli.commands.agent.tasks.locate_project_root", return_value=tmp_path),
+        patch("specify_cli.cli.commands.agent.tasks._find_mission_slug", return_value=slug),
+        patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out", return_value=(tmp_path, "main")),
+        patch("specify_cli.cli.commands.agent.tasks._emit_sparse_session_warning"),
+        patch("specify_cli.cli.commands.agent.tasks.feature_status_lock", _null_lock),
+        patch("specify_cli.cli.commands.agent.tasks.emit_history_added") as emit_history,
+    ):
+        result = runner.invoke(
+            app,
+            [
+                "mark-status",
+                "T001",
+                "T010",
+                "--status",
+                "done",
+                "--mission",
+                slug,
+                "--json",
+                "--no-auto-commit",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert [
+        (call.kwargs["wp_id"], call.kwargs["entry_content"])
+        for call in emit_history.call_args_list
+    ] == [
+        ("WP01", "Subtask(s) T001 marked as done"),
+        ("WP02", "Subtask(s) T010 marked as done"),
+    ]
+
+
 def test_existing_pipe_table_unchanged(tmp_path: Path) -> None:
     slug = "008-pipe-table"
     mission_dir = _write_mission(
