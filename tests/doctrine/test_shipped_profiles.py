@@ -21,6 +21,8 @@ from doctrine.agent_profiles.validation import validate_agent_profile_yaml
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 BUILT_IN_DIR = Path(__file__).parent.parent.parent / "src" / "doctrine" / "agent_profiles" / "built-in"
+AGENT_PROFILES_README = BUILT_IN_DIR.parent / "README.md"
+BUILT_IN_README = BUILT_IN_DIR / "README.md"
 
 EXPECTED_PROFILE_IDS = {
     "architect-alphonso",
@@ -44,6 +46,33 @@ EXPECTED_PROFILE_IDS = {
 # have empty context sources and directive references.
 _SENTINEL_PROFILES = {"human-in-charge"}
 _AGENT_PROFILE_IDS = EXPECTED_PROFILE_IDS - _SENTINEL_PROFILES
+
+
+def _profile_ids_from_yaml_files() -> set[str]:
+    yaml = YAML(typ="safe")
+    profile_ids = set()
+    for yaml_file in BUILT_IN_DIR.glob("*.agent.yaml"):
+        with yaml_file.open() as f:
+            data = yaml.load(f)
+        profile_ids.add(data["profile-id"])
+    return profile_ids
+
+
+def _profile_ids_from_readme_table(readme_path: Path, profile_id_column: str) -> set[str]:
+    lines = readme_path.read_text().splitlines()
+    for index, line in enumerate(lines):
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if profile_id_column not in cells:
+            continue
+        column_index = cells.index(profile_id_column)
+        profile_ids = set()
+        for row in lines[index + 2 :]:
+            if not row.startswith("|"):
+                break
+            row_cells = [cell.strip() for cell in row.strip().strip("|").split("|")]
+            profile_ids.add(row_cells[column_index].strip("`"))
+        return profile_ids
+    raise AssertionError(f"No markdown table with column {profile_id_column!r} in {readme_path}")
 
 
 @pytest.fixture(scope="module")
@@ -91,6 +120,23 @@ class TestShippedProfilesLoad:
         profile = repo.get(profile_id)
         assert profile is not None, f"Profile '{profile_id}' not found in repository"
         assert profile.profile_id == profile_id
+
+    @pytest.mark.parametrize(
+        "readme_path,profile_id_column",
+        [
+            (AGENT_PROFILES_README, "Profile ID"),
+            (BUILT_IN_README, "Profile ID"),
+        ],
+    )
+    def test_readme_profile_ids_match_shipped_yaml(
+        self,
+        readme_path: Path,
+        profile_id_column: str,
+    ):
+        """README shipped-profile tables list exactly the packaged profile ids."""
+        actual_ids = _profile_ids_from_yaml_files()
+        readme_ids = _profile_ids_from_readme_table(readme_path, profile_id_column)
+        assert readme_ids == actual_ids, f"{readme_path} drifted from shipped profiles"
 
 
 class TestShippedProfilesRoles:
