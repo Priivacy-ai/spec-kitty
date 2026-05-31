@@ -108,6 +108,21 @@ class TestImplementContractStructure:
         assert workspace.delegates_to.kind == ArtifactKind.PARADIGM
         assert "execution-lanes" in workspace.delegates_to.candidates
 
+    def test_workspace_paradigm_candidates_exist_as_shipped_artifacts(
+        self, contract: MissionStepContract
+    ) -> None:
+        workspace = next((s for s in contract.steps if s.id == "workspace"), None)
+        assert workspace is not None
+        assert workspace.delegates_to is not None
+
+        paradigms = DoctrineService().paradigms
+        missing = [
+            candidate
+            for candidate in workspace.delegates_to.candidates
+            if paradigms.get(candidate) is None
+        ]
+        assert missing == []
+
     def test_has_quality_gate_step(self, contract: MissionStepContract) -> None:
         gate = next((s for s in contract.steps if s.id == "quality_gate"), None)
         assert gate is not None

@@ -111,6 +111,7 @@ def _count_inline_refs(doctrine_root: Path) -> int:  # noqa: C901
             for field in (
                 "directives",
                 "tactics",
+                "paradigms",
                 "styleguides",
                 "toolguides",
                 "procedures",
@@ -344,6 +345,21 @@ class TestExtractActionEdges:
         assert any(
             e.source == "action:software-dev/retrospect"
             and e.target == "agent_profile:retrospective-facilitator"
+            and e.relation == Relation.SCOPE
+            for e in edges
+        )
+
+    def test_paradigm_scope_edges(self) -> None:
+        """Action indexes may scope built-in paradigms."""
+        nodes, edges = extract_action_edges(DOCTRINE_ROOT)
+        assert any(
+            n.urn == "paradigm:execution-lanes"
+            and n.kind == NodeKind.PARADIGM
+            for n in nodes
+        )
+        assert any(
+            e.source == "action:software-dev/implement"
+            and e.target == "paradigm:execution-lanes"
             and e.relation == Relation.SCOPE
             for e in edges
         )
@@ -585,6 +601,7 @@ class TestEdgeCountCompleteness:
             for field in (
                 "directives",
                 "tactics",
+                "paradigms",
                 "styleguides",
                 "toolguides",
                 "procedures",

@@ -486,6 +486,7 @@ def extract_action_edges(
         scope_fields: list[tuple[str, str]] = [
             ("directives", "directive"),
             ("tactics", "tactic"),
+            ("paradigms", "paradigm"),
             ("styleguides", "styleguide"),
             ("toolguides", "toolguide"),
             ("procedures", "procedure"),

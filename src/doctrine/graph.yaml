@@ -190,12 +190,24 @@ nodes:
 - urn: paradigm:domain-driven-design
   kind: paradigm
   label: Domain-Driven Design
+- urn: paradigm:execution-lanes
+  kind: paradigm
+  label: Execution Lanes
+- urn: paradigm:git-flow
+  kind: paradigm
+  label: Git Flow
+- urn: paradigm:shared-branch-ci
+  kind: paradigm
+  label: Shared-Branch CI
 - urn: paradigm:specification-by-example
   kind: paradigm
   label: Specification by Example
 - urn: paradigm:structured-prompt-driven-development
   kind: paradigm
   label: Structured-Prompt-Driven Development
+- urn: paradigm:trunk-based
+  kind: paradigm
+  label: Trunk-Based Development
 - urn: procedure:bdd-scenario-lifecycle
   kind: procedure
   label: BDD Scenario Lifecycle
@@ -830,6 +842,18 @@ edges:
   target: directive:DIRECTIVE_037
   relation: scope
 - source: action:software-dev/implement
+  target: paradigm:execution-lanes
+  relation: scope
+- source: action:software-dev/implement
+  target: paradigm:git-flow
+  relation: scope
+- source: action:software-dev/implement
+  target: paradigm:shared-branch-ci
+  relation: scope
+- source: action:software-dev/implement
+  target: paradigm:trunk-based
+  relation: scope
+- source: action:software-dev/implement
   target: procedure:disciplined-defect-diagnosis
   relation: scope
 - source: action:software-dev/implement
@@ -974,6 +998,18 @@ edges:
   target: directive:DIRECTIVE_037
   relation: scope
 - source: action:software-dev/review
+  target: paradigm:execution-lanes
+  relation: scope
+- source: action:software-dev/review
+  target: paradigm:git-flow
+  relation: scope
+- source: action:software-dev/review
+  target: paradigm:shared-branch-ci
+  relation: scope
+- source: action:software-dev/review
+  target: paradigm:trunk-based
+  relation: scope
+- source: action:software-dev/review
   target: procedure:disciplined-defect-diagnosis
   relation: scope
 - source: action:software-dev/review
@@ -1002,9 +1038,6 @@ edges:
   relation: scope
 - source: action:software-dev/review
   target: tactic:dependency-hygiene
-  relation: scope
-- source: action:software-dev/review
-  target: tactic:focused-function-complexity-check
   relation: scope
 - source: action:software-dev/review
   target: tactic:quality-gate-verification
@@ -1378,6 +1411,39 @@ edges:
   target: tactic:database-driven-design
   relation: replaces
   reason: 'Starting from a database schema and generating code around it inverts the DDD priority: the domain model should drive persistence, not the other way around. Schema-first thinking produces models shaped by storage constraints rather than business rules.'
+- source: paradigm:execution-lanes
+  target: directive:DIRECTIVE_024
+  relation: requires
+- source: paradigm:execution-lanes
+  target: directive:DIRECTIVE_028
+  relation: requires
+- source: paradigm:execution-lanes
+  target: directive:DIRECTIVE_029
+  relation: requires
+- source: paradigm:execution-lanes
+  target: directive:DIRECTIVE_030
+  relation: requires
+- source: paradigm:execution-lanes
+  target: directive:DIRECTIVE_033
+  relation: requires
+- source: paradigm:git-flow
+  target: directive:DIRECTIVE_029
+  relation: requires
+- source: paradigm:git-flow
+  target: directive:DIRECTIVE_030
+  relation: requires
+- source: paradigm:git-flow
+  target: directive:DIRECTIVE_033
+  relation: requires
+- source: paradigm:shared-branch-ci
+  target: directive:DIRECTIVE_029
+  relation: requires
+- source: paradigm:shared-branch-ci
+  target: directive:DIRECTIVE_030
+  relation: requires
+- source: paradigm:shared-branch-ci
+  target: directive:DIRECTIVE_033
+  relation: requires
 - source: paradigm:specification-by-example
   target: directive:DIRECTIVE_010
   relation: requires
@@ -1398,6 +1464,15 @@ edges:
   relation: requires
 - source: paradigm:structured-prompt-driven-development
   target: directive:DIRECTIVE_038
+  relation: requires
+- source: paradigm:trunk-based
+  target: directive:DIRECTIVE_029
+  relation: requires
+- source: paradigm:trunk-based
+  target: directive:DIRECTIVE_030
+  relation: requires
+- source: paradigm:trunk-based
+  target: directive:DIRECTIVE_033
   relation: requires
 - source: procedure:bdd-scenario-lifecycle
   target: directive:DIRECTIVE_034

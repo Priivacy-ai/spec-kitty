@@ -16,6 +16,7 @@ class ActionIndex:
     action: str
     directives: list[str] = field(default_factory=list)
     tactics: list[str] = field(default_factory=list)
+    paradigms: list[str] = field(default_factory=list)
     styleguides: list[str] = field(default_factory=list)
     toolguides: list[str] = field(default_factory=list)
     procedures: list[str] = field(default_factory=list)
@@ -57,6 +58,7 @@ def load_action_index(missions_root: Path, mission: str, action: str) -> ActionI
             action=str(data.get("action", action)),
             directives=_str_list("directives"),
             tactics=_str_list("tactics"),
+            paradigms=_str_list("paradigms"),
             styleguides=_str_list("styleguides"),
             toolguides=_str_list("toolguides"),
             procedures=_str_list("procedures"),
