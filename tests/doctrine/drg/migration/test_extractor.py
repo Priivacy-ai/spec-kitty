@@ -24,6 +24,7 @@ from doctrine.drg.migration.extractor import (
     generate_graph,
 )
 from doctrine.drg.models import NodeKind, Relation
+from doctrine.drg.query import resolve_context
 from doctrine.drg.validator import validate_graph
 
 # Path to the shipped doctrine root inside the repo.
@@ -444,6 +445,37 @@ class TestGenerateGraph:
         assert tasks < implement, f"|tasks| ({tasks}) should be < |implement| ({implement})"
         assert review >= 0.80 * implement, (
             f"|review| ({review}) should be >= 80% of |implement| ({implement})"
+        )
+
+    def test_resolved_surface_inequalities(self, tmp_path: Path) -> None:
+        """Generated graph must satisfy shipped resolved-context calibration."""
+        output = tmp_path / "graph.yaml"
+        graph = generate_graph(DOCTRINE_ROOT, output)
+
+        def _resolved(action: str) -> int:
+            return len(
+                resolve_context(
+                    graph,
+                    f"action:software-dev/{action}",
+                    depth=2,
+                ).artifact_urns
+            )
+
+        specify = _resolved("specify")
+        plan = _resolved("plan")
+        tasks = _resolved("tasks")
+        implement = _resolved("implement")
+        review = _resolved("review")
+
+        assert specify < plan, f"resolved specify ({specify}) should be < plan ({plan})"
+        assert plan < implement, (
+            f"resolved plan ({plan}) should be < implement ({implement})"
+        )
+        assert tasks < implement, (
+            f"resolved tasks ({tasks}) should be < implement ({implement})"
+        )
+        assert review >= 0.80 * implement, (
+            f"resolved review ({review}) should be >= 80% of implement ({implement})"
         )
 
     def test_discovers_styleguide_nodes(self, tmp_path: Path) -> None:
