@@ -63,6 +63,7 @@ from specify_cli.auth.errors import (
     TokenRefreshError,
 )
 from specify_cli.auth.http import request_with_fallback_sync
+from specify_cli.auth.refresh_transaction import RefreshLockTimeoutError
 from specify_cli.diagnostics import report_once
 
 
@@ -70,6 +71,7 @@ logger = logging.getLogger(__name__)
 AUTH_RELOGIN_MESSAGE = (
     "Authentication expired. Run `spec-kitty auth login` to re-authenticate."
 )
+REFRESH_LOCK_TIMEOUT_ERROR_CODE = "refresh_lock_timeout"
 
 
 # ---------------------------------------------------------------------------
@@ -172,6 +174,19 @@ def _user_facing_failure_was_emitted() -> bool:
         return _user_facing_failure_emitted
 
 
+def _message_for_auth_refresh_failure(exc: AuthRefreshFailed) -> str:
+    if exc.error_code == REFRESH_LOCK_TIMEOUT_ERROR_CODE:
+        return str(exc)
+    return AUTH_RELOGIN_MESSAGE
+
+
+def _refresh_lock_timeout_cause(exc: BaseException) -> RefreshLockTimeoutError | None:
+    cause = exc.__cause__
+    if isinstance(cause, RefreshLockTimeoutError):
+        return cause
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Refresh helpers (sync bridge over the async TokenManager)
 # ---------------------------------------------------------------------------
@@ -202,6 +217,11 @@ def _fetch_access_token_sync() -> str | None:
     try:
         token = _run_in_fresh_loop(tm.get_access_token())
         return str(token) if token is not None else None
+    except RefreshLockTimeoutError as exc:
+        raise AuthRefreshFailed(
+            str(exc),
+            error_code=REFRESH_LOCK_TIMEOUT_ERROR_CODE,
+        ) from exc
     except AuthenticationError:
         return None
 
@@ -223,6 +243,11 @@ def _force_refresh_sync() -> None:
     session.access_token_expires_at = datetime.now(UTC) - timedelta(seconds=60)
     try:
         _run_in_fresh_loop(tm.refresh_if_needed())
+    except RefreshLockTimeoutError as exc:
+        raise AuthRefreshFailed(
+            str(exc),
+            error_code=REFRESH_LOCK_TIMEOUT_ERROR_CODE,
+        ) from exc
     except TokenRefreshError as exc:
         raise AuthRefreshFailed(
             f"Token refresh failed: {exc}",
@@ -294,7 +319,11 @@ class AuthenticatedClient:
             NotAuthenticatedError: No session available.
             AuthRefreshFailed: Forced refresh exhausted recoverable paths.
         """
-        access_token = _fetch_access_token_sync()
+        try:
+            access_token = _fetch_access_token_sync()
+        except AuthRefreshFailed as exc:
+            _emit_user_facing_failure_once(_message_for_auth_refresh_failure(exc))
+            raise
         if access_token is None:
             raise NotAuthenticatedError(
                 "Authentication required. Run `spec-kitty auth login`."
@@ -308,12 +337,14 @@ class AuthenticatedClient:
             try:
                 _force_refresh_sync()
             except AuthRefreshFailed as exc:
-                _emit_user_facing_failure_once(
-                    AUTH_RELOGIN_MESSAGE
-                )
+                _emit_user_facing_failure_once(_message_for_auth_refresh_failure(exc))
                 raise exc
 
-            access_token = _fetch_access_token_sync()
+            try:
+                access_token = _fetch_access_token_sync()
+            except AuthRefreshFailed as exc:
+                _emit_user_facing_failure_once(_message_for_auth_refresh_failure(exc))
+                raise
             if access_token is None:
                 _emit_user_facing_failure_once(AUTH_RELOGIN_MESSAGE)
                 raise AuthRefreshFailed(
@@ -411,7 +442,20 @@ class AsyncAuthenticatedClient:
     ) -> httpx.Response:
         try:
             return await self._inner.request(method, url, **kwargs)
+        except RefreshLockTimeoutError as exc:
+            _emit_user_facing_failure_once(str(exc))
+            raise AuthRefreshFailed(
+                str(exc),
+                error_code=REFRESH_LOCK_TIMEOUT_ERROR_CODE,
+            ) from exc
         except TokenRefreshError as exc:
+            lock_exc = _refresh_lock_timeout_cause(exc)
+            if lock_exc is not None:
+                _emit_user_facing_failure_once(str(lock_exc))
+                raise AuthRefreshFailed(
+                    str(lock_exc),
+                    error_code=REFRESH_LOCK_TIMEOUT_ERROR_CODE,
+                ) from exc
             _emit_user_facing_failure_once(AUTH_RELOGIN_MESSAGE)
             raise AuthRefreshFailed(str(exc), error_code="refresh_token_invalid") from exc
 
