@@ -222,6 +222,41 @@ def test_init_writes_event_log_merge_attributes(
     assert ".kittify/migrations/** -diff" in attributes
 
 
+def test_ensure_event_log_merge_attributes_preserves_existing_file(tmp_path: Path) -> None:
+    attributes_path = tmp_path / ".gitattributes"
+    original_line = "*.png binary"
+    attributes_path.write_text(
+        "\n".join(
+            [
+                original_line,
+                "kitty-specs/**/status.events.jsonl merge=spec-kitty-event-log",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    changed = init_module._ensure_event_log_merge_attributes(tmp_path)
+
+    lines = attributes_path.read_text(encoding="utf-8").splitlines()
+    assert changed is True
+    assert lines[0] == original_line
+    assert lines.count("kitty-specs/**/status.events.jsonl merge=spec-kitty-event-log") == 1
+    assert "kitty-specs/**/status.json linguist-generated=true" in lines
+    assert ".kittify/migrations/** -diff" in lines
+
+
+def test_ensure_event_log_merge_attributes_is_idempotent(tmp_path: Path) -> None:
+    init_module._ensure_event_log_merge_attributes(tmp_path)
+
+    changed = init_module._ensure_event_log_merge_attributes(tmp_path)
+
+    lines = (tmp_path / ".gitattributes").read_text(encoding="utf-8").splitlines()
+    assert changed is False
+    assert lines.count("kitty-specs/**/status.events.jsonl merge=spec-kitty-event-log") == 1
+    assert lines.count(".kittify/workspaces/** -diff") == 1
+
+
 # test_init_amends_initial_commit_after_cleanup deleted in feature 076:
 # the initial git commit block was removed from init.py.
 

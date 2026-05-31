@@ -58,6 +58,26 @@ def test_apply_preserves_existing_attributes_and_is_idempotent(tmp_path: Path) -
     assert attributes[0] == "kitty-specs/**/status.events.jsonl merge=spec-kitty-event-log"
 
 
+def test_can_apply_rejects_missing_project_path(tmp_path: Path) -> None:
+    migration = GitHubDiffAttributesMigration()
+
+    ok, reason = migration.can_apply(tmp_path / "missing")
+
+    assert ok is False
+    assert "Project path does not exist" in reason
+
+
+def test_apply_dry_run_reports_missing_entries_without_writing(tmp_path: Path) -> None:
+    migration = GitHubDiffAttributesMigration()
+
+    result = migration.apply(tmp_path, dry_run=True)
+
+    assert result.success is True
+    assert result.changes_made
+    assert result.changes_made[0].startswith("Would add .gitattributes entry:")
+    assert not (tmp_path / ".gitattributes").exists()
+
+
 def test_attributes_match_nested_generated_artifacts(tmp_path: Path) -> None:
     _git(["init", "-b", "main"], tmp_path)
     migration = GitHubDiffAttributesMigration()
