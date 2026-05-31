@@ -128,14 +128,19 @@ test_no_dead_symbols:
   # specify_cli whose ``__all__`` predates the WP02 gate. C-007 /
   # FR-121 scopes WP02 to charter+kernel; this category is the
   # carry-over surface for the next mission that widens the convention.
-  category_b_grandfathered_legacy: 276
+  category_b_grandfathered_legacy: 275
   # Removal trigger reached (post-merge remediation cycle 1, 2026-05-19):
   # prompt_builder imports build_with_scope which pulls CharterScope*
   # into the live src/ import graph. All four symbols now have live
   # callers; category shrunk from 4 to 0.
-  category_c_wp_in_flight_charter_scope: 6  # justification: OperationalContext family + ProjectContext/ContextPreconditionError specced, wiring deferred (charter-pack-activation-layer WP03)
+  category_c_wp_in_flight_charter_scope: 7  # justification: OperationalContext family + ContextPreconditionError specced, wiring deferred (charter-pack-activation-layer WP03); ConsistencyReport + run_consistency_check consumed by CLI command (WP06 lane-f, wiring deferred)
   # WP11 removal trigger reached: all 4 workflow registry symbols now have
   # live src/ callers (planner.py imports get_workflow, UnknownWorkflowError,
   # list_available_workflows from workflow_registry, and ActionStep from
   # workflow_schema). Category shrunk to 0.
   category_c_wp_in_flight_workflow_registry: 0
+  # justification: 13 new public symbols introduced by WP05/WP06 of mission
+  # charter-pack-activation-layer-01KSYE4V whose production callers (CLI
+  # activation command, DRG pipeline) are in-flight in later WPs of the same
+  # mission. All symbols ship ahead of wiring per the activation-layer design.
+  category_c_wp_in_flight_charter_activation: 13  # justification: charter-pack-activation-layer WP05/WP06 symbols; production callers land in WP06/WP08

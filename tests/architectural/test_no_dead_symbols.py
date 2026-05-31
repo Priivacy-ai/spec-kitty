@@ -115,7 +115,6 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
         "doctrine.missions.models::Mission",
         "doctrine.missions.models::MissionOrchestration",
         "doctrine.missions.models::MissionStateObject",
-        "doctrine.missions.models::MissionStep",
         "doctrine.missions.models::MissionTransition",
         "doctrine.procedures::ArtifactKind",
         "doctrine.shared::ConflictType",
@@ -409,8 +408,11 @@ _CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE: frozenset[str] = frozenset(
         "charter.invocation_context::build_operational_context",
         "charter.invocation_context::OperationalContext.require_active_profile",
         "charter.invocation_context::OperationalContext.require_active_role",
-        "charter.invocation_context::ProjectContext",
         "charter.invocation_context::ContextPreconditionError",
+        # consumed by charter pack consistency-check CLI command (WP06,
+        # charter-pack-activation-layer lane-f); wiring deferred
+        "charter.consistency_check::ConsistencyReport",
+        "charter.consistency_check::run_consistency_check",
     }
 )
 
@@ -489,6 +491,44 @@ _CATEGORY_C_WP_IN_FLIGHT_UNIFIED_MISSION_STEP: frozenset[str] = frozenset(
 )
 
 
+# ---------- C. WP-in-flight charter pack activation layer (mission 01KSYE4V) ----------
+# Mission ``charter-pack-activation-layer-01KSYE4V`` WP05/WP06 introduce
+# new public symbols across charter, doctrine, and specify_cli whose only
+# callers today are in the test suite or in later WPs still being developed
+# in parallel lanes. Production callers (CLI commands, activation pipeline)
+# will wire these in follow-on WPs within the same mission.
+# Follow-up tracker: mission-internal WP06/WP08 (CLI wiring).
+_CATEGORY_C_WP_IN_FLIGHT_CHARTER_ACTIVATION: frozenset[str] = frozenset(
+    {
+        # charter.drg: PackContext is the DRG traversal context for pack-scoped
+        # activation; consumed by charter activation pipeline (WP06 wiring deferred)
+        "charter.drg::PackContext",
+        # charter.pack_manager: activation/merge result types consumed by CLI
+        # activation command (WP06 wiring deferred)
+        "charter.pack_manager::ActivationResult",
+        "charter.pack_manager::MergeResult",
+        # doctrine.missions.mission_step_repository: MissionStepRepository and StepKey
+        # ship ahead of the charter.resolve_action_sequence caller (WP08)
+        "doctrine.missions.mission_step_repository::MissionStepRepository",
+        "doctrine.missions.mission_step_repository::StepKey",
+        # specify_cli.charter_activate: activation helper functions consumed by
+        # CLI activate command (WP06 wiring deferred to activation CLI WP)
+        "specify_cli.charter_activate::AffectedMission",
+        "specify_cli.charter_activate::StepRemovalWarning",
+        "specify_cli.charter_activate::emit_step_removal_warnings",
+        "specify_cli.charter_activate::find_removed_steps",
+        "specify_cli.charter_activate::scan_inflight_missions",
+        # specify_cli.cli.commands.charter.activate: activate_cmd is the CLI
+        # entry point registered via the charter command group (WP06 wiring deferred)
+        "specify_cli.cli.commands.charter.activate::activate_cmd",
+        # specify_cli.doctrine.org_charter: cycle/extension error types consumed
+        # by CLI validation (WP06 wiring deferred)
+        "specify_cli.doctrine.org_charter::OrgCharterCycleError",
+        "specify_cli.doctrine.org_charter::OrgCharterExtensionError",
+    }
+)
+
+
 # Aggregate. The gate consults this; the per-category frozensets are
 # the surface introspected by the ratchet-baseline meta-test
 # (``tests/architectural/test_ratchet_baselines.py``).
@@ -500,6 +540,7 @@ _SYMBOL_ALLOWLIST: frozenset[str] = (
     | _CATEGORY_C_CHARTER_SPLIT_LEGACY_PATCH_SURFACE
     | _CATEGORY_C_WP_IN_FLIGHT_COORDINATION_BRANCH
     | _CATEGORY_C_WP_IN_FLIGHT_UNIFIED_MISSION_STEP
+    | _CATEGORY_C_WP_IN_FLIGHT_CHARTER_ACTIVATION
 )
 
 
