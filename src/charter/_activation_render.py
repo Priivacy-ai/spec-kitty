@@ -14,16 +14,17 @@ emits a two-line *fetch + when-doing* stanza pinned by the
 prompt-governance contract::
 
     Run: spec-kitty charter context --include <kind>:<artifact_id>
-    When you <verb-clause>, run this command and apply the returned rule.
+    When you are about to <verb-clause>, run this command and apply the returned rule.
 
 Verb-clause synthesis (per WP05 T022 wildcard handling):
 
 * declared ``mission_type`` is absent / ``generic`` / ``any``
-  -> qualifier omitted ("When you <action>, ...")
+  -> qualifier omitted ("When you are about to <action>, ...")
 * declared ``mission_type`` is concrete
-  -> qualifier appended ("When you <action> in a <mission_type> mission, ...")
+  -> qualifier appended ("When you are about to <action> in a
+  <mission_type> mission, ...")
 * declared ``action`` is absent / ``generic`` / ``any``
-  -> the runtime action label is used ("When you implement, ...")
+  -> the runtime action label is used ("When you are about to implement, ...")
 * declared ``action`` is concrete
   -> the declared action label is used, with underscores expanded into
   natural prose for the four fine-grained tokens (``write_comment``
@@ -83,15 +84,24 @@ _WILDCARD_TOKENS: frozenset[str] = frozenset({"generic", "any"})
 
 #: Operator-friendly prose for the four fine-grained sub-action tokens
 #: that live in ``REGISTERED_TRIGGERS`` but not ``ALLOWED_ACTIONS``.  The
-#: ATDD test ``test_case_1_styleguide_render_includes_trigger_stanza``
-#: pins the regex ``when\s+you\s+write\s+(a\s+)?(code\s+)?comment`` so
-#: the ``write_comment`` mapping in particular MUST resolve to the
-#: phrase "write a code comment".
+#: ATDD test ``test_case_1_styleguide_render_includes_trigger_stanza`` pins
+#: the canonical conditional plus the phrase "write a code comment", so the
+#: ``write_comment`` mapping in particular MUST resolve to that phrase.
 _FINE_GRAINED_ACTION_PROSE: dict[str, str] = {
     "write_comment": "write a code comment",
     "write_docstring": "write a docstring",
     "rename_identifier": "rename an identifier",
     "add_dependency": "add a dependency",
+}
+
+
+#: Operator-facing prose for mission/action tokens whose raw token is not
+#: grammatical after ``are about to``.
+_ACTION_PROSE: dict[str, str] = {
+    "tasks": "work on tasks",
+    "charter.interview": "conduct a charter interview",
+    "charter.generate": "generate a charter",
+    "charter.context": "load charter context",
 }
 
 
@@ -206,15 +216,15 @@ def _render_when_clause(
     *,
     action: str,
 ) -> str:
-    """Synthesise the ``when you <clause>`` verb-phrase for *entry*.
+    """Synthesise the canonical when-doing verb phrase for *entry*.
 
     See module docstring for the full wildcard / fine-grained rules.
     The returned string is passed verbatim to
     :func:`fetch_stanza_lines`, which prepends ``"When you "`` and
     appends the trailing clause ``", run this command and apply the
     returned rule."`` — so this function returns ONLY the verb-clause
-    body (``"write a code comment"``, ``"implement in a software-dev
-    mission"``, etc.).
+    body (``"are about to write a code comment"``,
+    ``"are about to implement in a software-dev mission"``, etc.).
     """
     declared_mt = entry.activation_context.get("mission_type")
     declared_action = entry.activation_context.get("action")
@@ -235,7 +245,7 @@ def _render_when_clause(
         else f" in a {declared_mt} mission"
     )
 
-    return f"{action_label}{qualifier}"
+    return f"are about to {action_label}{qualifier}"
 
 
 def _action_label_for(action_token: str) -> str:
@@ -245,11 +255,14 @@ def _action_label_for(action_token: str) -> str:
     ``rename_identifier``, ``add_dependency``) get explicit natural-prose
     mappings -- the ATDD test pins ``"write a code comment"`` for
     ``write_comment``.  Mission-type / charter-loop verbs in
-    ``ALLOWED_ACTIONS`` (``implement``, ``review``, etc.) are used
-    verbatim.  Unknown tokens fall through verbatim.
+    ``ALLOWED_ACTIONS`` (``implement``, ``review``, etc.) are usually
+    used verbatim; non-verb tokens are mapped to grammatical prose.
+    Unknown tokens fall through verbatim.
     """
     if action_token in _FINE_GRAINED_ACTION_PROSE:
         return _FINE_GRAINED_ACTION_PROSE[action_token]
+    if action_token in _ACTION_PROSE:
+        return _ACTION_PROSE[action_token]
     if action_token in ALLOWED_ACTIONS:
         return action_token
     return action_token

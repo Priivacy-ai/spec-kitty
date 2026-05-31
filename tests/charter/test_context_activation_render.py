@@ -20,13 +20,21 @@ Coverage (per WP05 T025):
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from charter._activation_render import render_activation_stanza
-from charter.activations import ActivationEntry
+from charter.activations import ALLOWED_ACTIONS, ActivationEntry, REGISTERED_TRIGGERS
 
 
 pytestmark = [pytest.mark.unit]
+
+
+_CANONICAL_WHEN_DOING_RE = re.compile(
+    r"when\s+you\s+(are\s+about\s+to|need\s+to|encounter|introduce|rename|review)",
+    re.IGNORECASE,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -96,7 +104,9 @@ def test_single_entry_with_both_qualifiers_renders_one_stanza(
         "Run: spec-kitty charter context --include styleguide:caveman-comments"
         in rendered
     ), rendered
-    assert "When you implement in a software-dev mission" in rendered, rendered
+    assert (
+        "When you are about to implement in a software-dev mission" in rendered
+    ), rendered
 
 
 # ---------------------------------------------------------------------------
@@ -127,11 +137,42 @@ def test_entry_with_fine_grained_action_only_renders_without_mission_qualifier(
     )
 
     assert "Selected activations:" in rendered
-    assert "When you write a code comment," in rendered, rendered
+    assert "When you are about to write a code comment," in rendered, rendered
     # Mission-type qualifier MUST be dropped (the entry's mission_type is
     # absent, which is wildcard).
     assert "in a software-dev mission" not in rendered, rendered
     assert "in a generic mission" not in rendered, rendered
+
+
+@pytest.mark.parametrize("declared_action", sorted(REGISTERED_TRIGGERS))
+def test_activation_when_clauses_match_canonical_when_doing_contract(
+    service_with_caveman: _FakeService,
+    declared_action: str,
+) -> None:
+    """Every activation trigger must emit a fetch stanza whose conditional
+    satisfies the canonical prompt-governance ``_WHEN_DOING_RE``.
+    """
+    runtime_action = (
+        declared_action if declared_action in ALLOWED_ACTIONS else "implement"
+    )
+    entry = ActivationEntry(
+        activation_context={"action": declared_action},
+        doctrine_pack_id="project",
+        artifact_id="caveman-comments",
+        artifact_kind="styleguide",
+    )
+
+    rendered = render_activation_stanza(
+        [entry],
+        service_with_caveman,
+        mission_type="software-dev",
+        action=runtime_action,
+    )
+
+    assert (
+        "spec-kitty charter context --include styleguide:caveman-comments" in rendered
+    )
+    assert _CANONICAL_WHEN_DOING_RE.search(rendered), rendered
 
 
 # ---------------------------------------------------------------------------
@@ -157,7 +198,7 @@ def test_entry_with_generic_mission_type_renders_without_qualifier(
     )
 
     assert "Selected activations:" in rendered
-    assert "When you implement," in rendered, rendered
+    assert "When you are about to implement," in rendered, rendered
     assert "in a generic mission" not in rendered, rendered
     assert "in a software-dev mission" not in rendered, rendered
 
@@ -202,8 +243,8 @@ def test_two_matching_entries_render_two_stanzas_in_declaration_order(
     assert fetch_count == 2, rendered
     # Declaration order: ``implement`` clause appears before
     # ``write a code comment`` clause.
-    first_idx = rendered.find("When you implement,")
-    second_idx = rendered.find("When you write a code comment,")
+    first_idx = rendered.find("When you are about to implement,")
+    second_idx = rendered.find("When you are about to write a code comment,")
     assert first_idx != -1 and second_idx != -1, rendered
     assert first_idx < second_idx, (
         "Stanzas must render in declaration order (concatenation policy). "
@@ -277,7 +318,7 @@ def test_wildcard_only_entry_matches_every_context(
         action="implement",
     )
     assert "Selected activations:" in rendered_a
-    assert "When you implement," in rendered_a
+    assert "When you are about to implement," in rendered_a
     assert "in a" not in rendered_a, rendered_a
 
     # Documentation / review
@@ -288,7 +329,7 @@ def test_wildcard_only_entry_matches_every_context(
         action="review",
     )
     assert "Selected activations:" in rendered_b
-    assert "When you review," in rendered_b
+    assert "When you are about to review," in rendered_b
     assert "in a" not in rendered_b, rendered_b
 
 
