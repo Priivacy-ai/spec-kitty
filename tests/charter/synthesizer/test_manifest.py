@@ -16,8 +16,10 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
+import jsonschema
 import pytest
 from pydantic import ValidationError
+from ruamel.yaml import YAML
 
 from charter.synthesizer.errors import ManifestIntegrityError
 from charter.synthesizer.manifest import (
@@ -26,6 +28,7 @@ from charter.synthesizer.manifest import (
     dump_yaml,
     load_yaml,
     verify,
+    verify_manifest_hash,
 )
 from charter.synthesizer.path_guard import PathGuard
 from charter.synthesizer.synthesize_pipeline import canonical_yaml
@@ -172,6 +175,34 @@ def test_manifest_round_trip(tmp_path: Path, guard: PathGuard) -> None:
     assert loaded.artifacts[0].kind == "tactic"
     assert loaded.artifacts[0].slug == "my-tactic"
     assert loaded.artifacts[0].content_hash == "a" * 64
+
+
+def test_manifest_rejects_unknown_top_level_fields(tmp_path: Path) -> None:
+    """Unknown manifest fields must not be silently dropped before hashing."""
+    manifest = _make_manifest()
+    data = manifest.model_dump(mode="python")
+    data["tamper_marker"] = "unexpected"
+    manifest_path = tmp_path / "synthesis-manifest.yaml"
+    manifest_path.write_text(canonical_yaml(data).decode("utf-8"), encoding="utf-8")
+
+    with pytest.raises(ValidationError):
+        load_yaml(manifest_path)
+
+
+def test_manifest_v2_schema_accepts_runtime_model_dump() -> None:
+    """Runtime SynthesisManifest output must remain compatible with v2 schema."""
+    schema_path = (
+        Path(__file__).parents[3]
+        / "kitty-specs"
+        / "charter-p7-schema-versioning-provenance-01KQEG13"
+        / "contracts"
+        / "synthesis-manifest-v2.schema.yaml"
+    )
+    schema = YAML(typ="safe").load(schema_path.read_text(encoding="utf-8"))
+
+    jsonschema.Draft202012Validator(schema).validate(
+        _make_manifest().model_dump(mode="python")
+    )
 
 
 def test_manifest_with_mission_id(tmp_path: Path, guard: PathGuard) -> None:
@@ -497,6 +528,33 @@ def test_manifest_hash_validates(tmp_path: Path, guard: PathGuard) -> None:
     # canonical_yaml() returns bytes — hash directly, no .encode()
     computed = hashlib.sha256(canonical_yaml(fields_without_hash)).hexdigest()  # noqa: TID251 — charter synthesizer's own manifest/content-hash scheme, not the charter.hasher.hash_content() freshness algorithm
     assert computed == manifest.manifest_hash
+
+
+def test_legacy_v2_manifest_hash_without_built_in_only_verifies(tmp_path: Path) -> None:
+    """Pre-built_in_only v2 manifests remain readable and self-hash-valid."""
+    manifest_data = {
+        "schema_version": "2",
+        "mission_id": None,
+        "created_at": "2026-04-17T12:00:00+00:00",
+        "run_id": "01KPE222TESTRUNID0000000001",
+        "adapter_id": "fixture",
+        "adapter_version": "1.0.0",
+        "synthesizer_version": "3.2.0a5",
+        "artifacts": [],
+    }
+    manifest_data["manifest_hash"] = hashlib.sha256(  # noqa: TID251 — legacy manifest self-hash compatibility
+        canonical_yaml(manifest_data)
+    ).hexdigest()
+    path = tmp_path / "synthesis-manifest.yaml"
+    yaml = YAML()
+    yaml.default_flow_style = False
+    with path.open("w", encoding="utf-8") as fh:
+        yaml.dump(manifest_data, fh)
+
+    loaded = load_yaml(path)
+
+    assert loaded.built_in_only is False
+    verify_manifest_hash(loaded)
 
 
 def test_manifest_synthesizer_version_empty_raises() -> None:

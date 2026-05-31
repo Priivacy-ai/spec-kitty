@@ -14,11 +14,14 @@ must NEVER be reachable from the synthesizer.  Exercises the dedicated
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 from textwrap import dedent
 from unittest.mock import patch
 
 import pytest
+
+from charter.synthesizer.synthesize_pipeline import canonical_yaml
 
 pytestmark = [pytest.mark.integration]
 
@@ -31,6 +34,18 @@ pytestmark = [pytest.mark.integration]
 def _seed_manifest(repo: Path, *, built_in_only: bool) -> Path:
     manifest_path = repo / ".kittify" / "charter" / "synthesis-manifest.yaml"
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_data = {
+        "schema_version": "2",
+        "mission_id": None,
+        "created_at": "2099-01-01T00:00:00+00:00",
+        "run_id": "01JTESTRUNIDXXXXXXXXXXXXXX",
+        "adapter_id": "test",
+        "adapter_version": "0.0.0",
+        "synthesizer_version": "0.0.0",
+        "artifacts": [],
+        "built_in_only": built_in_only,
+    }
+    manifest_hash = hashlib.sha256(canonical_yaml(manifest_data)).hexdigest()  # noqa: TID251 — charter synthesizer manifest self-hash, not charter.hasher.hash_content() freshness
     manifest_path.write_text(
         dedent(
             f"""\
@@ -41,7 +56,7 @@ def _seed_manifest(repo: Path, *, built_in_only: bool) -> Path:
             adapter_id: test
             adapter_version: '0.0.0'
             synthesizer_version: '0.0.0'
-            manifest_hash: {"a" * 64}
+            manifest_hash: {manifest_hash}
             artifacts: []
             built_in_only: {str(built_in_only).lower()}
             """
@@ -89,9 +104,24 @@ def test_post_condition_sets_built_in_only_and_removes_graph(tmp_path: Path) -> 
     assert _read_built_in_only(manifest_path) is True
 
 
+def test_post_condition_recomputes_hash_when_built_in_only_changes(tmp_path: Path) -> None:
+    """Changing built_in_only must also refresh manifest_hash."""
+    from charter.synthesizer.manifest import load_yaml, verify_manifest_hash
+    from charter.synthesizer.project_drg import apply_post_condition
+
+    _seed_manifest(tmp_path, built_in_only=False)
+    _seed_graph(tmp_path)
+
+    apply_post_condition(tmp_path, has_project_graph=False)
+
+    manifest_path = tmp_path / ".kittify" / "charter" / "synthesis-manifest.yaml"
+    verify_manifest_hash(load_yaml(manifest_path))
+
+
 def test_post_condition_preserves_graph_and_clears_built_in_only(tmp_path: Path) -> None:
     """When synthesis emitted a project graph, the helper must leave the
     graph in place and ensure ``built_in_only=false`` in the manifest."""
+    from charter.synthesizer.manifest import load_yaml, verify_manifest_hash
     from charter.synthesizer.project_drg import apply_post_condition
 
     _seed_manifest(tmp_path, built_in_only=True)
@@ -103,6 +133,7 @@ def test_post_condition_preserves_graph_and_clears_built_in_only(tmp_path: Path)
     assert manifest_path.exists()
     assert graph_path.exists(), "graph.yaml must be retained"
     assert _read_built_in_only(manifest_path) is False
+    verify_manifest_hash(load_yaml(manifest_path))
 
 
 def test_post_condition_no_op_when_manifest_already_consistent(tmp_path: Path) -> None:

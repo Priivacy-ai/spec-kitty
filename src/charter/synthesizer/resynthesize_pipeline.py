@@ -44,6 +44,7 @@ from .manifest import (
     MANIFEST_PATH,
     ManifestArtifactEntry,
     SynthesisManifest,
+    compute_manifest_hash,
     load_yaml as load_manifest,
 )
 from .request import SynthesisRequest, SynthesisTarget
@@ -183,7 +184,6 @@ def _rewrite_manifest(
     created_at = datetime.now(tz=UTC).isoformat()
 
     # Compute manifest_hash over all fields except manifest_hash itself.
-    # canonical_yaml() returns bytes — do NOT call .encode() on its result.
     manifest_data_without_hash: dict[str, Any] = {
         "schema_version": "2",
         "mission_id": existing.mission_id,
@@ -194,7 +194,7 @@ def _rewrite_manifest(
         "synthesizer_version": synthesizer_ver,
         "artifacts": [e.model_dump(mode="python") for e in sorted_merged],
     }
-    manifest_hash = hashlib.sha256(canonical_yaml(manifest_data_without_hash)).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
+    manifest_hash = compute_manifest_hash(manifest_data_without_hash)
 
     return SynthesisManifest(
         mission_id=existing.mission_id,

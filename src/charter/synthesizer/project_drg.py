@@ -262,7 +262,13 @@ def apply_post_condition(
     import os  # noqa: PLC0415
     import tempfile  # noqa: PLC0415
 
-    from .manifest import MANIFEST_PATH, SynthesisManifest, dump_yaml, load_yaml  # noqa: PLC0415
+    from .manifest import (  # noqa: PLC0415
+        MANIFEST_PATH,
+        SynthesisManifest,
+        compute_manifest_hash,
+        dump_yaml,
+        load_yaml,
+    )
     from .path_guard import PathGuard  # noqa: PLC0415
 
     manifest_path = repo_root / MANIFEST_PATH
@@ -283,6 +289,14 @@ def apply_post_condition(
         return
 
     # Build the post-condition manifest (immutable Pydantic model -> copy).
+    manifest_hash = compute_manifest_hash(
+        manifest.model_copy(
+            update={
+                "built_in_only": desired_built_in_only,
+                "manifest_hash": "0" * 64,
+            }
+        )
+    )
     new_manifest = SynthesisManifest(
         schema_version=manifest.schema_version,
         mission_id=manifest.mission_id,
@@ -291,7 +305,7 @@ def apply_post_condition(
         adapter_id=manifest.adapter_id,
         adapter_version=manifest.adapter_version,
         synthesizer_version=manifest.synthesizer_version,
-        manifest_hash=manifest.manifest_hash,
+        manifest_hash=manifest_hash,
         artifacts=list(manifest.artifacts),
         built_in_only=desired_built_in_only,
     )

@@ -65,6 +65,14 @@ properties:
       $ref: "#/$defs/ManifestArtifactEntry"
     description: "One entry per committed artifact, in deterministic order."
 
+  built_in_only:
+    type: boolean
+    default: false
+    description: |
+      True when synthesis legitimately produced no project DRG. Readers treat
+      this as authoritative built-in-only state and ignore stale project graph
+      files.
+
 $defs:
   ManifestArtifactEntry:
     type: object

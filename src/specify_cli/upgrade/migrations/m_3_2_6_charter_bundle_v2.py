@@ -22,6 +22,7 @@ from charter.versioning import (
     BundleCompatibilityStatus,
     check_bundle_compatibility,
     get_bundle_schema_version,
+    repair_v2_synthesis_manifest_defaults,
     run_migration,
 )
 
@@ -81,11 +82,11 @@ class CharterBundleV2Migration(BaseMigration):
         current = bundle_version if bundle_version is not None else 1
 
         if current >= CURRENT_BUNDLE_SCHEMA_VERSION:
-            # Bundle is already current — nothing to do.
+            repair = repair_v2_synthesis_manifest_defaults(charter_dir, dry_run=dry_run)
             return BaseMigrationResult(
-                success=True,
-                changes_made=[],
-                errors=[],
+                success=len(repair.errors) == 0,
+                changes_made=repair.changes_made,
+                errors=repair.errors,
             )
 
         all_changes: list[str] = []
@@ -96,6 +97,11 @@ class CharterBundleV2Migration(BaseMigration):
             all_changes.extend(result.changes_made)
             all_errors.extend(result.errors)
             current += 1
+
+        if not all_errors:
+            repair = repair_v2_synthesis_manifest_defaults(charter_dir, dry_run=dry_run)
+            all_changes.extend(repair.changes_made)
+            all_errors.extend(repair.errors)
 
         return BaseMigrationResult(
             success=len(all_errors) == 0,

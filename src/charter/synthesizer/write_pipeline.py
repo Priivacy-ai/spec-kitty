@@ -43,6 +43,7 @@ from .manifest import (
     MANIFEST_PATH,
     ManifestArtifactEntry,
     SynthesisManifest,
+    compute_manifest_hash,
     dump_yaml as dump_manifest,
 )
 from .provenance import dump_yaml as dump_provenance, provenance_path_for
@@ -541,7 +542,6 @@ def promote(
     sorted_artifacts = sorted(manifest_entries, key=lambda e: (e.kind, e.slug))
 
     # Build the manifest data dict without manifest_hash first, then hash it.
-    # canonical_yaml() returns bytes — do NOT call .encode() on its result.
     manifest_data_without_hash: dict[str, Any] = {
         "schema_version": "2",
         "mission_id": mission_id,
@@ -552,7 +552,7 @@ def promote(
         "synthesizer_version": synthesizer_ver,
         "artifacts": [e.model_dump(mode="python") for e in sorted_artifacts],
     }
-    manifest_hash = hashlib.sha256(canonical_yaml(manifest_data_without_hash)).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
+    manifest_hash = compute_manifest_hash(manifest_data_without_hash)
 
     manifest = SynthesisManifest(
         mission_id=mission_id,
