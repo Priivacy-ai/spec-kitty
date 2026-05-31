@@ -10,7 +10,7 @@ requirement_refs:
 tracker_refs: []
 planning_base_branch: pr/charter-doctrine-mission-type-configuration
 merge_target_branch: pr/charter-doctrine-mission-type-configuration
-branch_strategy: All changes land on pr/charter-doctrine-mission-type-configuration. Worktree allocated by finalize-tasks.
+branch_strategy: Planning artifacts for this mission were generated on pr/charter-doctrine-mission-type-configuration. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into pr/charter-doctrine-mission-type-configuration unless the human explicitly redirects the landing branch.
 subtasks:
 - T044
 - T045
@@ -22,12 +22,12 @@ history:
   event: created
   actor: claude
 agent_profile: python-pedro
-authoritative_surface: src/specify_cli/cli/commands/agent/mission.py and src/specify_cli/cli/commands/agent/workflow.py
+authoritative_surface: src/specify_cli/cli/commands/agent/
 execution_mode: code_change
 owned_files:
 - src/specify_cli/cli/commands/agent/mission.py
 - src/specify_cli/cli/commands/agent/workflow.py
-- src/charter/context.py
+- src/charter/exceptions.py
 - tests/specify_cli/test_charter_lifecycle_gates.py
 role: implementer
 tags: []

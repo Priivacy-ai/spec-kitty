@@ -2,6 +2,7 @@
 work_package_id: WP03
 title: ProjectContext + Invocation Context Module
 dependencies:
+- WP01
 - WP02
 requirement_refs:
 - FR-024
@@ -9,7 +10,7 @@ requirement_refs:
 tracker_refs: []
 planning_base_branch: pr/charter-doctrine-mission-type-configuration
 merge_target_branch: pr/charter-doctrine-mission-type-configuration
-branch_strategy: All changes land on pr/charter-doctrine-mission-type-configuration. Worktree allocated by finalize-tasks lane computation.
+branch_strategy: Planning artifacts for this mission were generated on pr/charter-doctrine-mission-type-configuration. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into pr/charter-doctrine-mission-type-configuration unless the human explicitly redirects the landing branch.
 subtasks:
 - T011
 - T012
@@ -27,7 +28,6 @@ owned_files:
 - src/charter/invocation_context.py
 - tests/charter/test_invocation_context.py
 - tests/architectural/test_no_dead_symbols.py
-- tests/architectural/_baselines.yaml
 role: implementer
 tags: []
 ---

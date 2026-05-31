@@ -12,7 +12,7 @@ requirement_refs:
 tracker_refs: []
 planning_base_branch: pr/charter-doctrine-mission-type-configuration
 merge_target_branch: pr/charter-doctrine-mission-type-configuration
-branch_strategy: All changes land on pr/charter-doctrine-mission-type-configuration. Worktree allocated by finalize-tasks.
+branch_strategy: Planning artifacts for this mission were generated on pr/charter-doctrine-mission-type-configuration. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into pr/charter-doctrine-mission-type-configuration unless the human explicitly redirects the landing branch.
 subtasks:
 - T048
 - T049
@@ -28,7 +28,7 @@ authoritative_surface: tests/
 execution_mode: code_change
 owned_files:
 - tests/specify_cli/next/test_runtime_bridge_dispatch.py
-- tests/charter/test_pack_context.py
+- tests/charter/test_mission_type_activation.py
 - tests/specify_cli/next/test_decision_dispatch.py
 - tests/release/test_diff_coverage_policy.py
 role: implementer

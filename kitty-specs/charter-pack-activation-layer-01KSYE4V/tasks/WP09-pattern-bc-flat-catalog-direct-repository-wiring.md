@@ -12,7 +12,7 @@ requirement_refs:
 tracker_refs: []
 planning_base_branch: pr/charter-doctrine-mission-type-configuration
 merge_target_branch: pr/charter-doctrine-mission-type-configuration
-branch_strategy: All changes land on pr/charter-doctrine-mission-type-configuration.
+branch_strategy: Planning artifacts for this mission were generated on pr/charter-doctrine-mission-type-configuration. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into pr/charter-doctrine-mission-type-configuration unless the human explicitly redirects the landing branch.
 subtasks:
 - T039
 - T040
@@ -150,18 +150,21 @@ pytest tests/specify_cli/cli/commands/charter/ -x 2>&1 | tail -10
 `load_org_charter_policies()` at line 464 already has `pack_context: ... = None`.
 The two internal call sites at lines 660 and 710 do not forward it.
 
-1. Locate both call sites. Update each:
+1. Read `load_org_charter_policies()` and the two enclosing functions that call it
+   (around lines 660 and 710) in full to understand the context chain.
+2. Locate both call sites. Update each to forward `pack_context`:
    ```python
    load_org_charter_policies(repo_root, pack_context=pack_context)
    ```
-2. If the enclosing functions do not yet have `pack_context` in scope, add it to
-   their signatures and thread from their callers.
-
-**Validation**:
-```bash
-grep -n "load_org_charter_policies" src/specify_cli/doctrine/org_charter.py
-# Every non-def line must include pack_context=
-```
+3. If the enclosing function(s) do not yet have `pack_context` in their own
+   signature, add `pack_context: PackContext | None = None` and thread it from
+   their callers. Trace as far up the call chain as needed.
+4. Verify no other call to `load_org_charter_policies` inside this file is missing
+   `pack_context`:
+   ```bash
+   grep -n "load_org_charter_policies" src/specify_cli/doctrine/org_charter.py
+   # Every non-def line must include pack_context=
+   ```
 
 ---
 
@@ -222,13 +225,24 @@ python -c "from specify_cli.charter_runtime.lint.checks.org_layer import *; prin
 3. Apply the same pattern to `mission_step_contracts` property (if it exists),
    filtering by `activated_mission_step_contracts`.
 
-4. `pack_context=None` must leave behaviour identical to pre-WP09 (backward compat).
+4. Verify that `self._pack_context` is properly stored during `DoctrineService.__init__`.
+   If `DoctrineService` does not already store a `_pack_context` attribute (from T039),
+   add it: `self._pack_context = pack_context`.
+
+5. `pack_context=None` must leave behaviour identical to pre-WP09 (backward compat).
+   The `if self._pack_context is not None and ... is not None:` double guard ensures
+   that both absent context and absent per-kind config produce the unfiltered result.
 
 **ATDD**: If `tests/charter/test_call_site_propagation.py` tests `agent_profiles`
 access, verify it still passes. Optionally add a test asserting that
-`activated_agent_profiles=frozenset()` returns an empty dict.
+`activated_agent_profiles=frozenset()` returns an empty dict when service is
+constructed with a `PackContext` holding that frozenset.
 
-**Validation**: `python -c "from charter.resolver import DoctrineService; print('OK')"`
+**Validation**:
+```bash
+cd /home/stijn/Documents/_code/SDD/fork/spec-kitty
+python -c "from charter.resolver import DoctrineService; print('OK')"
+```
 
 ---
 
@@ -247,8 +261,9 @@ access, verify it still passes. Optionally add a test asserting that
    signatures before writing any call site — do not guess.
 
 3. Based on `research.md §4`, the natural caller is in `charter/mission_type_profiles.py`
-   or `specify_cli/next/` where action sequences drive step execution. Add the
-   call site there using the confirmed API:
+   or `specify_cli/next/` where action sequences drive step execution. Read the target
+   file before editing to ensure the call site integrates cleanly with surrounding logic.
+   Add the call site there using the confirmed API:
    ```python
    from charter.mission_steps import MissionStepRepository
    repo = MissionStepRepository.default()
