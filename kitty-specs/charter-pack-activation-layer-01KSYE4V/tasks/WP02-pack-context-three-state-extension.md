@@ -17,8 +17,8 @@ subtasks:
 - T008
 - T009
 - T010
-agent: "claude:sonnet-4-6:python-pedro:implementer"
-shell_pid: "4073577"
+agent: "claude:sonnet-4-6:reviewer-renata:reviewer"
+shell_pid: "4091832"
 history:
 - at: '2026-05-31T11:44:22Z'
   event: created
@@ -542,3 +542,5 @@ Reviewers must verify:
 ## Activity Log
 
 - 2026-05-31T13:16:53Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=4073577 – Assigned agent via action command
+- 2026-05-31T13:24:12Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=4073577 – Ready for review: T007 8 new activated_* fields added to PackContext; T008 8 reader functions with three-state contract wired into from_config(); T009 FR-039 and-raw guards fixed, stale tests deleted; T010 three-state tests for activated_directives and activated_agent_profiles, structural test, FR-039 regression test. All 22 tests pass, ruff clean, mypy errors are pre-existing jsonschema stubs only.
+- 2026-05-31T13:24:29Z – claude:sonnet-4-6:reviewer-renata:reviewer – shell_pid=4091832 – Started review via action command

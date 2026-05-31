@@ -161,10 +161,10 @@ WP11 subtasks T048–T051 are fully independent and can be executed in any order
 **Subtasks**: T007–T010
 **Agent profile**: python-pedro
 
-- [ ] T007 Add 8 `activated_*` fields to `PackContext` dataclass
-- [ ] T008 Add 8 per-kind reader functions + hook into `from_config()`
-- [ ] T009 Fix FR-039: remove `and raw` guard from `_read_activated_kinds` + `_read_activated_mission_types`; delete `test_empty_activated_kinds_uses_builtin_fallback`
-- [ ] T010 Write/extend `test_pack_context.py` for three-state coverage
+- [x] T007 Add 8 `activated_*` fields to `PackContext` dataclass
+- [x] T008 Add 8 per-kind reader functions + hook into `from_config()`
+- [x] T009 Fix FR-039: remove `and raw` guard from `_read_activated_kinds` + `_read_activated_mission_types`; delete `test_empty_activated_kinds_uses_builtin_fallback`
+- [x] T010 Write/extend `test_pack_context.py` for three-state coverage
 
 **Implementation Notes**:
 - T007: The 8 new fields are `activated_directives`, `activated_tactics`, `activated_styleguides`, `activated_toolguides`, `activated_paradigms`, `activated_procedures`, `activated_agent_profiles`, `activated_mission_step_contracts`. All are `frozenset[str] | None` with default `None` (None = all built-ins available).
