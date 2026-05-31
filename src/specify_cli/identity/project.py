@@ -200,7 +200,7 @@ def generate_node_id() -> str:
     hostname = socket.gethostname()
     username = getpass.getuser()
     raw = f"{hostname}:{username}"
-    return hashlib.sha256(raw.encode()).hexdigest()[:12]
+    return hashlib.sha256(raw.encode()).hexdigest()[:12]  # noqa: TID251 - production raw SHA-256 owner
 
 
 def is_writable(path: Path) -> bool:

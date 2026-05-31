@@ -224,7 +224,7 @@ def _check_template_drift(
     if not live_template_path.exists():
         return None
     live_bytes = live_template_path.read_bytes()
-    live_hash = hashlib.sha256(live_bytes).hexdigest()
+    live_hash = hashlib.sha256(live_bytes).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
     if live_hash != snapshot.template_hash:
         return "Template changed during active run. Migration required."
     return None

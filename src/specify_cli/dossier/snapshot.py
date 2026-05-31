@@ -47,7 +47,7 @@ def compute_parity_hash_from_dossier(dossier: MissionDossier) -> str:
     combined = "".join(sorted_hashes)
 
     # 4. Hash
-    parity_hash = hashlib.sha256(combined.encode()).hexdigest()
+    parity_hash = hashlib.sha256(combined.encode()).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
 
     return parity_hash
 

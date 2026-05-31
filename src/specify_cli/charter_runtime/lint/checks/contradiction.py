@@ -27,7 +27,7 @@ def _content_hash(text: str | None) -> str:
     """Return a short SHA-256 hex digest for *text*, or '' when None."""
     if text is None:
         return ""
-    return hashlib.sha256(text.encode()).hexdigest()[:16]
+    return hashlib.sha256(text.encode()).hexdigest()[:16]  # noqa: TID251 - production raw SHA-256 owner
 
 
 class ContradictionChecker:

@@ -93,7 +93,7 @@ def utc_now_for_review_prompt() -> str:
 def safe_repo_identifier(repo_root: Path) -> str:
     """Return a filesystem-safe repo identity component with a path hash."""
     resolved = str(repo_root.expanduser().resolve())
-    digest = hashlib.sha256(resolved.encode("utf-8")).hexdigest()[:12]
+    digest = hashlib.sha256(resolved.encode("utf-8")).hexdigest()[:12]  # noqa: TID251 - production raw SHA-256 owner
     safe_name = re.sub(r"[^A-Za-z0-9._-]+", "-", repo_root.name).strip("-") or "repo"
     return f"{safe_name}-{digest}"
 

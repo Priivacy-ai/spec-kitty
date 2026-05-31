@@ -183,7 +183,7 @@ class ProfileInvocationExecutor:
             action=action,
             mark_loaded=False,
         )
-        ctx_hash = hashlib.sha256(ctx_result.text.encode()).hexdigest()[:16]
+        ctx_hash = hashlib.sha256(ctx_result.text.encode()).hexdigest()[:16]  # noqa: TID251 - production raw SHA-256 owner
         ctx_available = ctx_result.mode != "missing"
 
         # 2a. Run glossary chokepoint scan (T016/T017)

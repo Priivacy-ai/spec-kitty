@@ -274,4 +274,4 @@ def _expected_content_hash(source: Path, skill_name: str, source_file: str) -> s
         return compute_content_hash(source)
     content = source.read_text(encoding="utf-8")
     normalized = ensure_skill_frontmatter(content, skill_name).encode("utf-8")
-    return "sha256:" + hashlib.sha256(normalized).hexdigest()
+    return "sha256:" + hashlib.sha256(normalized).hexdigest()  # noqa: TID251 - production raw SHA-256 owner

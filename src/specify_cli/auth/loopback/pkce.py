@@ -43,7 +43,7 @@ def generate_code_challenge(verifier: str) -> str:
     Returns:
         A base64url-encoded SHA256 digest with no trailing ``=`` characters.
     """
-    digest = hashlib.sha256(verifier.encode("ascii")).digest()
+    digest = hashlib.sha256(verifier.encode("ascii")).digest()  # noqa: TID251 - production raw SHA-256 owner
     return base64.urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
 
 

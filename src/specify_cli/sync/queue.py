@@ -490,7 +490,7 @@ def read_queue_scope_from_session(*, allow_rehydrate: bool = True) -> str | None
 
 def scope_db_path(scope: str) -> Path:
     """Resolve a deterministic queue DB path for a given scope."""
-    digest = hashlib.sha256(scope.encode("utf-8")).hexdigest()[:16]
+    digest = hashlib.sha256(scope.encode("utf-8")).hexdigest()[:16]  # noqa: TID251 - production raw SHA-256 owner
     return _scoped_queue_dir() / f"queue-{digest}.db"
 
 

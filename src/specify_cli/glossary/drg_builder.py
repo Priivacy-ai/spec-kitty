@@ -44,7 +44,7 @@ def glossary_urn(surface_text: str) -> str:
         >>> glossary_urn("lane")
         'glossary:d93244e7'
     """
-    hex_id = hashlib.sha256(surface_text.encode()).hexdigest()[:8]
+    hex_id = hashlib.sha256(surface_text.encode()).hexdigest()[:8]  # noqa: TID251 - production raw SHA-256 owner
     return f"glossary:{hex_id}"
 
 

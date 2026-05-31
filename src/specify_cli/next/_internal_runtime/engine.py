@@ -143,7 +143,7 @@ def _freeze_template(run_dir: Path, template: MissionTemplate, template_path: st
     frozen_path = run_dir / "mission_template_frozen.yaml"
     frozen_path.write_bytes(yaml_bytes)
 
-    return hashlib.sha256(yaml_bytes).hexdigest()
+    return hashlib.sha256(yaml_bytes).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
 
 
 def _load_frozen_template(run_dir: Path) -> MissionTemplate:

@@ -432,7 +432,7 @@ def render(
         raise SkillRenderError("template_not_found", path=str(template_path))
 
     raw_bytes = template_path.read_bytes()
-    source_hash = hashlib.sha256(raw_bytes).hexdigest()
+    source_hash = hashlib.sha256(raw_bytes).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
     raw_text = raw_bytes.decode("utf-8")
 
     # Apply the SPDD/REASONS conditional prompt fragment renderer before any

@@ -246,42 +246,10 @@ ignore = [
 # manifest scheme, fingerprint-definition tests, migration sentinel checks, …), OR call
 # ``charter.hasher.hash_content()`` when it genuinely mirrors the charter freshness hash.
 #
-# Production code has legitimate raw SHA-256 owners, but the old blanket
-# src/** ignore also disarmed the Gap-5 click.exceptions ban. Keep the hash
-# carve-out exact so new production click.exceptions.* uses are linted.
-"src/charter/hasher.py" = ["TID251"]
-"src/charter/synthesizer/manifest.py" = ["TID251"]
-"src/charter/synthesizer/request.py" = ["TID251"]
-"src/charter/synthesizer/resynthesize_pipeline.py" = ["TID251"]
-"src/charter/synthesizer/synthesize_pipeline.py" = ["TID251"]
-"src/charter/synthesizer/write_pipeline.py" = ["TID251"]
-"src/doctrine/versioning.py" = ["TID251"]
-"src/specify_cli/auth/loopback/pkce.py" = ["TID251"]
-"src/specify_cli/charter_runtime/lint/checks/contradiction.py" = ["TID251"]
-"src/specify_cli/cli/commands/charter/_fresh_doctrine.py" = ["TID251"]
-"src/specify_cli/doctrine_synthesizer/provenance.py" = ["TID251"]
-"src/specify_cli/dossier/drift_detector.py" = ["TID251"]
-"src/specify_cli/dossier/hasher.py" = ["TID251"]
-"src/specify_cli/dossier/snapshot.py" = ["TID251"]
-"src/specify_cli/glossary/checkpoint.py" = ["TID251"]
-"src/specify_cli/glossary/drg_builder.py" = ["TID251"]
-"src/specify_cli/identity/project.py" = ["TID251"]
-"src/specify_cli/invocation/executor.py" = ["TID251"]
-"src/specify_cli/migration/mission_state.py" = ["TID251"]
-"src/specify_cli/migration/rebuild_state.py" = ["TID251"]
-"src/specify_cli/mission_brief.py" = ["TID251"]
-"src/specify_cli/next/_internal_runtime/engine.py" = ["TID251"]
-"src/specify_cli/next/_internal_runtime/planner.py" = ["TID251"]
-"src/specify_cli/review/prompt_metadata.py" = ["TID251"]
-"src/specify_cli/skills/command_renderer.py" = ["TID251"]
-"src/specify_cli/skills/manifest.py" = ["TID251"]
-"src/specify_cli/skills/manifest_store.py" = ["TID251"]
-"src/specify_cli/skills/verifier.py" = ["TID251"]
-"src/specify_cli/sync/body_upload.py" = ["TID251"]
-"src/specify_cli/sync/clock.py" = ["TID251"]
-"src/specify_cli/sync/queue.py" = ["TID251"]
-"src/specify_cli/tracker/store.py" = ["TID251"]
-"src/specify_cli/upgrade/migrations/m_3_2_0_codex_to_skills.py" = ["TID251"]
+# Production code has legitimate raw SHA-256 owners, but file-level TID251
+# ignores also disarm the Gap-5 click.exceptions ban for those files. Keep
+# production raw-SHA exceptions inline at each call site so click.exceptions.*
+# remains enforced across all src files.
 "scripts/**" = ["TID251"]
 
 [tool.ruff.lint.flake8-tidy-imports]

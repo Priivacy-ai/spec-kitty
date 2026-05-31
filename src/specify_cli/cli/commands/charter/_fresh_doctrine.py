@@ -75,7 +75,7 @@ def _fresh_seed_manifest_text() -> str:
         "artifacts": [],
         "built_in_only": True,
     }
-    manifest_hash = hashlib.sha256(canonical_yaml(without_hash)).hexdigest()
+    manifest_hash = hashlib.sha256(canonical_yaml(without_hash)).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
     manifest = SynthesisManifest.model_validate(
         {**without_hash, "manifest_hash": manifest_hash}
     )

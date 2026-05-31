@@ -23,7 +23,7 @@ def hash_content(content: str) -> str:
     """
     # Normalize whitespace (strip trailing newlines)
     normalized = content.strip()
-    digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+    digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
     return f"sha256:{digest}"
 
 

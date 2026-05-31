@@ -47,7 +47,7 @@ def _safe_path_component(value: str) -> str:
     if not cleaned:
         cleaned = "artifact"
     if cleaned != value or len(cleaned) > 128:
-        digest = hashlib.sha256(value.encode("utf-8")).hexdigest()[:12]
+        digest = hashlib.sha256(value.encode("utf-8")).hexdigest()[:12]  # noqa: TID251 - production raw SHA-256 owner
         cleaned = f"{cleaned[:115]}-{digest}"
     return cleaned
 

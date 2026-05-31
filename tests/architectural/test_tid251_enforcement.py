@@ -23,8 +23,8 @@ This guard pins the enforcement so neither regression can recur:
 3. Functionally, with the repository's real ruff config, an unannotated raw
    ``hashlib.sha256`` in a *formerly-exempt* directory (``tests/charter/``) is flagged,
    while the same call carrying ``# noqa: TID251`` is allowed.
-4. The production ``src/**`` tree is not blanket-exempt, so Gap-5
-   ``click.exceptions.*`` usage is enforced outside exact raw-SHA owners.
+4. The production ``src/**`` tree has no file-level TID251 exemptions, so Gap-5
+   ``click.exceptions.*`` usage is enforced even in raw-SHA owner files.
 """
 
 from __future__ import annotations
@@ -112,6 +112,21 @@ def test_no_blanket_src_tid251_exemption() -> None:
     )
 
 
+def test_no_src_file_level_tid251_exemptions() -> None:
+    """Production raw-SHA exceptions must be inline, not file-level."""
+    config = tomllib.loads(_PYPROJECT.read_text(encoding="utf-8"))
+    per_file = config["tool"]["ruff"]["lint"]["per-file-ignores"]
+    offenders = {
+        pattern: codes
+        for pattern, codes in per_file.items()
+        if pattern.startswith("src/") and "TID251" in codes
+    }
+    assert not offenders, (
+        "File-level src TID251 ignores also disable the click.exceptions ban "
+        f"inside raw-SHA owner files: {offenders}. Keep raw-SHA exceptions inline."
+    )
+
+
 def _ruff_probe(snippet: str, stdin_filename: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [
@@ -170,5 +185,18 @@ def test_click_exceptions_probe_in_src_is_flagged() -> None:
     assert proc.returncode != 0, (
         "Bare click.exceptions.UsageError under src/ was NOT flagged — "
         f"Gap-5 enforcement is dead for production code.\nstdout:\n{proc.stdout}"
+    )
+    assert "TID251" in proc.stdout
+
+
+def test_click_exceptions_probe_in_raw_sha_owner_file_is_flagged() -> None:
+    """Gap-5 must stay live in files that also own legitimate raw SHA calls."""
+    proc = _ruff_probe(
+        "import click\nraise click.exceptions.UsageError('bad')\n",
+        "src/specify_cli/sync/body_upload.py",
+    )
+    assert proc.returncode != 0, (
+        "Bare click.exceptions.UsageError inside a raw-SHA owner file was NOT "
+        f"flagged.\nstdout:\n{proc.stdout}"
     )
     assert "TID251" in proc.stdout

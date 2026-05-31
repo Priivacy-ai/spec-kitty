@@ -247,7 +247,7 @@ def _content_hash(yaml_bytes: bytes) -> str:
     ``compute_inputs_hash``. The full 64-char hex digest is stored in
     ``ProvenanceEntry.artifact_content_hash``.
     """
-    return hashlib.sha256(yaml_bytes).hexdigest()
+    return hashlib.sha256(yaml_bytes).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
 
 
 # ---------------------------------------------------------------------------
@@ -266,7 +266,7 @@ def _compute_evidence_hashes(request: SynthesisRequest) -> tuple[str | None, str
     evidence_bytes = json.dumps(
         _evidence_to_jsonable(request.evidence), sort_keys=True, ensure_ascii=True
     ).encode("utf-8")
-    evidence_hash = hashlib.sha256(evidence_bytes).hexdigest()
+    evidence_hash = hashlib.sha256(evidence_bytes).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
     corpus_id = (
         request.evidence.corpus_snapshot.snapshot_id
         if request.evidence.corpus_snapshot is not None

@@ -82,7 +82,7 @@ def _deterministic_id(*parts: str) -> str:
     minted by this module are reproducible across runs.
     """
     seed = "|".join(parts).encode("utf-8")
-    value = int.from_bytes(hashlib.sha256(seed).digest()[:16], "big")
+    value = int.from_bytes(hashlib.sha256(seed).digest()[:16], "big")  # noqa: TID251 - production raw SHA-256 owner
     chars: list[str] = []
     for _ in range(26):
         chars.append(_CROCKFORD[value & 31])
