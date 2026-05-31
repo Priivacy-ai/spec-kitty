@@ -23,6 +23,8 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from doctrine.agent_profiles.schema_version import AGENT_PROFILE_SCHEMA_VERSION_PATTERN
+
 
 # ---------------------------------------------------------------------------
 # Value objects
@@ -161,7 +163,7 @@ class AgentProfileSchema(BaseModel):
         extra="forbid",
         populate_by_name=True,
         json_schema_extra={
-            "$comment": "schema-version: 2 — roles list support added",
+            "$comment": "schema-version: 2 — roles list support added; legacy 1.0 remains accepted",
             "anyOf": [{"required": ["role"]}, {"required": ["roles"]}],
         },
     )
@@ -171,7 +173,7 @@ class AgentProfileSchema(BaseModel):
     name: str
     description: str | None = None
     schema_version: str | None = Field(
-        default=None, alias="schema-version", pattern=r"^1\.0$"
+        default=None, alias="schema-version", pattern=AGENT_PROFILE_SCHEMA_VERSION_PATTERN
     )
     purpose: str
     role: str | None = Field(
