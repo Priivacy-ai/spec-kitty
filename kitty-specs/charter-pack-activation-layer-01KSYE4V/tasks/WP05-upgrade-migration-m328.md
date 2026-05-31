@@ -399,3 +399,4 @@ Before marking WP05 as `for_review`:
 ## Activity Log
 
 - 2026-05-31T14:19:32Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=6774 – Assigned agent via action command
+- 2026-05-31T14:34:46Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=6774 – Ready for review: m_3_2_8_default_charter_pack migration. Writes per-kind activation keys from default.yaml into .kittify/config.yaml incrementally. Includes charter.md backup. 7/7 tests pass. Architectural gate passes. Pre-existing WP01 gap entries also fixed.
