@@ -7,6 +7,10 @@ reviewed_at: '2026-05-31T13:52:05Z'
 reviewer_agent: unknown
 verdict: rejected
 wp_id: WP03
+review_artifact_override_at: "2026-05-31T13:56:58Z"
+review_artifact_override_actor: "operator"
+review_artifact_override_wp_id: "WP03"
+review_artifact_override_reason: "Cycle-2 review passed: dead-symbol gate fixed (ProjectContext + ContextPreconditionError added to _CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE, baseline updated to 6), all 27 tests pass, no new dead-symbol failures vs main branch"
 ---
 
 # WP03 Review Cycle 1 — Changes Required
