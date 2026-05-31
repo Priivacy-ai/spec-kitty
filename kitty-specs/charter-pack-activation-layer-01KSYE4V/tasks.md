@@ -287,10 +287,10 @@ WP11 subtasks T048–T051 are fully independent and can be executed in any order
 **Subtasks**: T030–T033
 **Agent profile**: python-pedro
 
-- [ ] T030 Create `consistency_check.py` with `ConsistencyReport` and unknown-reference algorithm
-- [ ] T031 Implement cross-kind DRG-edge reference validation in `consistency_check.py`
-- [ ] T032 Implement kind-level duplicate-detection and kind-violation checks
-- [ ] T033 Write `tests/charter/test_consistency_check.py` with at least one planted violation per check type
+- [x] T030 Create `consistency_check.py` with `ConsistencyReport` and unknown-reference algorithm
+- [x] T031 Implement cross-kind DRG-edge reference validation in `consistency_check.py`
+- [x] T032 Implement kind-level duplicate-detection and kind-violation checks
+- [x] T033 Write `tests/charter/test_consistency_check.py` with at least one planted violation per check type
 
 **Implementation Notes**:
 - T030: `ConsistencyReport` is a dataclass with `violations: list[ConsistencyViolation]`, `passed: bool`, and `summary: str`. Unknown-reference check: for each artifact ID in the charter pack, verify the ID exists in the loaded doctrine catalog for its kind.
