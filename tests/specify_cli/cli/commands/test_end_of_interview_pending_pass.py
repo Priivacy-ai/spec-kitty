@@ -406,6 +406,47 @@ class TestResolvePendingEntry:
         assert len(pending) == 1
         assert pending[0].decision_id == entry.decision_id
 
+    def test_keeps_entry_when_review_write_back_fails(self, tmp_path: Path) -> None:
+        """Regression G0085: failed terminal write-back leaves pending entry retryable."""
+        from specify_cli.decisions.models import DecisionErrorCode
+        from specify_cli.decisions.service import DecisionError
+        from specify_cli.widen.models import DiscussionFetch
+
+        entry = _make_entry()
+        store = _make_store(tmp_path, [entry])
+        console = _capture_console()
+        mock_saas = MagicMock()
+        mock_saas.fetch_discussion.return_value = DiscussionFetch(
+            participants=[], message_count=0, thread_url=None, messages=[], truncated=False,
+        )
+        mock_dm = MagicMock()
+        mock_dm.resolve_decision.side_effect = DecisionError(
+            code=DecisionErrorCode.TERMINAL_CONFLICT
+        )
+        llm_payload = {
+            "candidate_summary": "Team chose Postgres",
+            "candidate_answer": "PostgreSQL",
+            "source_hint": "slack_extraction",
+        }
+
+        with patch.object(console, "input", return_value="a"), patch(
+            "specify_cli.widen.review._read_llm_response", return_value=llm_payload
+        ):
+            _resolve_pending_entry(
+                entry=entry,
+                store=store,
+                saas_client=mock_saas,
+                mission_slug=MISSION_SLUG,
+                repo_root=tmp_path,
+                console=console,
+                dm_service=mock_dm,
+                actor="test",
+            )
+
+        pending = store.list_pending()
+        assert len(pending) == 1
+        assert pending[0].decision_id == entry.decision_id
+
 
 # ---------------------------------------------------------------------------
 # T045 — render_already_widened_prompt

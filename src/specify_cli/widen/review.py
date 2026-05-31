@@ -16,7 +16,6 @@ Prompt-contract model (R-7):
 
 from __future__ import annotations
 
-import contextlib
 import difflib
 import json
 import os
@@ -366,8 +365,13 @@ def _handle_defer(
     dm_service: Any,
     actor: str,
     console: Console,
-) -> None:
-    """Defer the decision with a required rationale (§6.3)."""
+) -> bool:
+    """Defer the decision with a required rationale (§6.3).
+
+    Returns:
+        ``True`` on successful persistence; ``False`` when a
+        ``DecisionError`` prevents the write-back (user is notified).
+    """
     from specify_cli.decisions.service import DecisionError  # local import
 
     try:
@@ -375,7 +379,7 @@ def _handle_defer(
     except (KeyboardInterrupt, EOFError):
         rationale = ""
 
-    with contextlib.suppress(DecisionError):
+    try:
         dm_service.defer_decision(
             repo_root=repo_root,
             mission_slug=mission_slug,
@@ -383,7 +387,13 @@ def _handle_defer(
             rationale=rationale or "deferred during candidate review",
             actor=actor,
         )
+    except DecisionError as exc:
+        console.print(
+            f"[red]Write-back failed: {exc}. Your deferral was NOT saved.[/red]"
+        )
+        return False
     console.print("[yellow]Decision deferred.[/yellow]")
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -409,13 +419,12 @@ def run_candidate_review(
     3. Parse into ``CandidateReview``; fall back on timeout / parse failure.
     4. Render §6 Candidate Review Panel.
     5. Prompt owner for ``[a]ccept`` / ``[e]dit`` / ``[d]efer``.
-    6. Dispatch to the appropriate handler and return the ``CandidateReview``.
+    6. Dispatch to the appropriate handler and return the ``CandidateReview``
+       only after the terminal action is persisted.
 
     Returns:
-        The ``CandidateReview`` on accept or edit (decision resolved).
-        The ``CandidateReview`` on defer (decision deferred, still pending).
-        ``None`` only if the user cancels (KeyboardInterrupt / EOFError at the
-        prompt before choosing an action).
+        The ``CandidateReview`` on persisted accept/edit/defer.
+        ``None`` if the user cancels or the terminal write-back fails.
     """
     # ------------------------------------------------------------------
     # Step 1 — emit instruction block
@@ -472,16 +481,19 @@ def run_candidate_review(
             return None
 
         if choice in ("a", "accept"):
-            _handle_accept(candidate, mission_slug, repo_root, dm_service, actor, console)
-            return candidate
+            if _handle_accept(candidate, mission_slug, repo_root, dm_service, actor, console):
+                return candidate
+            return None
 
         if choice in ("e", "edit"):
-            _handle_edit(candidate, mission_slug, repo_root, dm_service, actor, console)
-            return candidate
+            if _handle_edit(candidate, mission_slug, repo_root, dm_service, actor, console):
+                return candidate
+            return None
 
         if choice in ("d", "defer"):
-            _handle_defer(candidate, mission_slug, repo_root, dm_service, actor, console)
-            return candidate
+            if _handle_defer(candidate, mission_slug, repo_root, dm_service, actor, console):
+                return candidate
+            return None
 
         console.print(
             "[yellow]Invalid choice. Please enter 'a' (accept), 'e' (edit), or 'd' (defer).[/yellow]"
