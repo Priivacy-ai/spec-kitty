@@ -1,0 +1,13 @@
+{
+  "coordination_branch": "kitty/mission-test-feature-01KSY68P",
+  "created_at": "2026-05-31T04:56:52.328153+00:00",
+  "friendly_name": "123 test feature",
+  "mission_id": "01KSY68PV730H83TRX8W83C68V",
+  "mission_number": null,
+  "mission_slug": "test-feature-01KSY68P",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances 123 test feature on pr/charter-doctrine-mission-type-configuration so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "123 test feature",
+  "slug": "test-feature-01KSY68P",
+  "target_branch": "pr/charter-doctrine-mission-type-configuration"
+}
