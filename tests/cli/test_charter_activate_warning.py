@@ -31,7 +31,6 @@ from typer.testing import CliRunner
 from specify_cli.charter_activate import (
     AffectedMission,
     StepRemovalWarning,
-    activate_mission_type_override,
     emit_step_removal_warnings,
     find_removed_steps,
     scan_inflight_missions,
@@ -343,136 +342,6 @@ class TestEmitStepRemovalWarnings:
 
 
 # ---------------------------------------------------------------------------
-# T091 — activation_completes_non_blockingly
-# ---------------------------------------------------------------------------
-
-
-class TestActivateMissionTypeOverride:
-    def test_override_file_written_when_no_inflight(self, tmp_path: Path) -> None:
-        """Override file is always written even when no in-flight WPs."""
-        console, buf = _make_console()
-        with patch(
-            "charter.mission_type_profiles.resolve_action_sequence",
-            return_value=["specify", "plan", "review"],
-        ):
-            out = activate_mission_type_override(
-                mission_type_id="software-dev",
-                incoming_sequence=["specify", "plan"],  # removes 'review'
-                repo_root=tmp_path,
-                console=console,
-            )
-        assert out.exists()
-        assert "software-dev.yaml" in out.name
-
-    def test_override_file_written_when_inflight_wps_exist(self, tmp_path: Path) -> None:
-        """Activation always completes regardless of in-flight warnings."""
-        kitty_specs = tmp_path / "kitty-specs"
-        _seed_mission_via_append(kitty_specs, "active-mission", [("WP01", Lane.FOR_REVIEW)])
-        console, buf = _make_console()
-        with patch(
-            "charter.mission_type_profiles.resolve_action_sequence",
-            return_value=["specify", "plan", "review"],
-        ):
-            out = activate_mission_type_override(
-                mission_type_id="software-dev",
-                incoming_sequence=["specify", "plan"],
-                repo_root=tmp_path,
-                console=console,
-            )
-        assert out.exists()
-        output = buf.getvalue()
-        # Warning was emitted.
-        assert "review" in output
-        # Activation still completed.
-        assert "Activation complete." in output
-
-    def test_activation_complete_message_always_present(self, tmp_path: Path) -> None:
-        console, buf = _make_console()
-        with patch(
-            "charter.mission_type_profiles.resolve_action_sequence",
-            return_value=["specify", "plan"],
-        ):
-            activate_mission_type_override(
-                mission_type_id="software-dev",
-                incoming_sequence=["specify", "plan"],  # no removals
-                repo_root=tmp_path,
-                console=console,
-            )
-        assert "Activation complete." in buf.getvalue()
-
-    def test_no_warning_when_no_removals(self, tmp_path: Path) -> None:
-        """Adding a step (no removals) → no warning emitted."""
-        console, buf = _make_console()
-        with patch(
-            "charter.mission_type_profiles.resolve_action_sequence",
-            return_value=["specify", "plan"],
-        ):
-            activate_mission_type_override(
-                mission_type_id="software-dev",
-                incoming_sequence=["specify", "plan", "extra-step"],
-                repo_root=tmp_path,
-                console=console,
-            )
-        output = buf.getvalue()
-        assert "removed by mission-type override" not in output
-        assert "Activation complete." in output
-
-    def test_empty_action_sequence_raises(self, tmp_path: Path) -> None:
-        console, _ = _make_console()
-        with pytest.raises(ValueError, match="non-empty"):
-            activate_mission_type_override(
-                mission_type_id="software-dev",
-                incoming_sequence=[],
-                repo_root=tmp_path,
-                console=console,
-            )
-
-    def test_duplicate_step_ids_raises(self, tmp_path: Path) -> None:
-        console, _ = _make_console()
-        with pytest.raises(ValueError, match="unique"):
-            activate_mission_type_override(
-                mission_type_id="software-dev",
-                incoming_sequence=["specify", "specify"],
-                repo_root=tmp_path,
-                console=console,
-            )
-
-    def test_override_file_in_correct_directory(self, tmp_path: Path) -> None:
-        console, _ = _make_console()
-        with patch(
-            "charter.mission_type_profiles.resolve_action_sequence",
-            return_value=["specify"],
-        ):
-            out = activate_mission_type_override(
-                mission_type_id="my-type",
-                incoming_sequence=["specify"],
-                repo_root=tmp_path,
-                console=console,
-            )
-        expected = tmp_path / ".kittify" / "overrides" / "mission-types" / "my-type.yaml"
-        assert out == expected
-
-    def test_multiple_removed_steps_emit_separate_warnings(self, tmp_path: Path) -> None:
-        kitty_specs = tmp_path / "kitty-specs"
-        _seed_mission_via_append(kitty_specs, "mission-x", [("WP01", Lane.IN_PROGRESS)])
-        console, buf = _make_console()
-        with patch(
-            "charter.mission_type_profiles.resolve_action_sequence",
-            return_value=["specify", "plan", "tasks", "implement", "review"],
-        ):
-            activate_mission_type_override(
-                mission_type_id="software-dev",
-                incoming_sequence=["specify", "implement"],
-                repo_root=tmp_path,
-                console=console,
-            )
-        output = buf.getvalue()
-        # Both removed steps ('plan', 'tasks', 'review') have affected missions.
-        assert "plan" in output or "tasks" in output or "review" in output
-        assert "Activation complete." in output
-
-
-# ---------------------------------------------------------------------------
 # T087 — CLI command wired into charter_app
 # ---------------------------------------------------------------------------
 
@@ -484,61 +353,36 @@ class TestCharterActivateCLI:
         assert result.exit_code == 0, result.output
         assert "activate" in result.output.lower()
 
-    def test_activate_mission_type_subcommand_exists(self) -> None:
-        """``charter activate mission-type --help`` exits 0."""
-        result = runner.invoke(charter_app, ["activate", "mission-type", "--help"])
-        assert result.exit_code == 0, result.output
-        assert "action-sequence" in result.output.lower() or "action_sequence" in result.output.lower()
-
-    def test_activate_mission_type_writes_override(self, tmp_path: Path) -> None:
-        """End-to-end: CLI activate writes the override file."""
-        with (
-            patch(
-                "charter.mission_type_profiles.resolve_action_sequence",
-                return_value=["specify", "plan", "review"],
-            ),
-            patch("specify_cli.cli.commands.charter.activate.Path.cwd", return_value=tmp_path),
-        ):
-            result = runner.invoke(
-                charter_app,
-                [
-                    "activate",
-                    "mission-type",
-                    "software-dev",
-                    "--action-sequence",
-                    "specify",
-                    "--action-sequence",
-                    "plan",
-                ],
-                catch_exceptions=False,
-            )
-        # activation completes
-        assert "Activation complete." in result.output
-
     def test_activate_mission_type_emits_warning_when_inflight(self, tmp_path: Path) -> None:
-        """CLI activate emits warning for in-flight WPs."""
+        """CLI activate mission-type emits in-flight step-removal warning (FR-008)."""
+        from unittest.mock import MagicMock
+
         kitty_specs = tmp_path / "kitty-specs"
         _seed_mission_via_append(kitty_specs, "live-mission", [("WP02", Lane.FOR_REVIEW)])
+        (tmp_path / ".kittify").mkdir(exist_ok=True)
+        (tmp_path / ".kittify" / "config.yaml").write_text("# empty\n", encoding="utf-8")
+
+        mock_mt = MagicMock()
+        mock_mt.action_sequence = ["specify", "plan"]
+        mock_repo = MagicMock()
+        mock_repo.get.return_value = mock_mt
 
         with (
             patch(
                 "charter.mission_type_profiles.resolve_action_sequence",
                 return_value=["specify", "plan", "review"],
             ),
-            patch("specify_cli.cli.commands.charter.activate.Path.cwd", return_value=tmp_path),
+            patch(
+                "doctrine.missions.mission_type_repository.MissionTypeRepository.default",
+                return_value=mock_repo,
+            ),
         ):
             result = runner.invoke(
                 charter_app,
-                [
-                    "activate",
-                    "mission-type",
-                    "software-dev",
-                    "--action-sequence",
-                    "specify",
-                    "--action-sequence",
-                    "plan",
-                ],
+                ["activate", "--repo-root", str(tmp_path), "mission-type", "software-dev"],
                 catch_exceptions=False,
             )
 
-        assert "Activation complete." in result.output
+        assert result.exit_code == 0, result.output
+        # Step removal warning emitted for in-flight WPs.
+        assert "review" in result.output

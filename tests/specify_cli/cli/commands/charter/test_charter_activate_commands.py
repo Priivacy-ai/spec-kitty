@@ -1,11 +1,12 @@
-"""Tests for WP06/T024+T025: spec-kitty charter activate refactored command.
+"""Tests for WP06/T024: spec-kitty charter activate refactored command.
 
 Covers:
 - T024: New activate API: <kind> <id> [--cascade], writes to config.yaml
-- T025: charter_activate.activate_mission_type_override writes to config.yaml (FR-014)
 
 The old API (--action-sequence, mission-type subcommand, override file) is removed.
 All assertions for override-file behavior are also removed.
+The activate_mission_type_override function is removed (FR-014: activation now goes
+through CharterPackManager.activate() which writes to config.yaml directly).
 """
 
 from __future__ import annotations
@@ -17,7 +18,6 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
-from specify_cli.charter_activate import activate_mission_type_override
 from specify_cli.cli.commands.charter import charter_app
 
 runner = CliRunner()
@@ -151,92 +151,3 @@ class TestActivateCommand:
         assert result.exit_code == 0, result.output
         assert "Activated" in result.output
 
-
-# ---------------------------------------------------------------------------
-# T025 — FR-014: activate_mission_type_override writes to config.yaml
-# ---------------------------------------------------------------------------
-
-
-class TestActivateMissionTypeOverrideRefactored:
-    """Tests that activate_mission_type_override now writes to config.yaml."""
-
-    def _make_console(self):
-        from io import StringIO
-        from rich.console import Console
-
-        buf = StringIO()
-        return Console(file=buf, highlight=False, markup=True), buf
-
-    def test_writes_to_config_yaml(self, project_root: Path) -> None:
-        """activate_mission_type_override now writes to config.yaml (FR-014)."""
-        console, buf = self._make_console()
-        with patch(
-            "charter.mission_type_profiles.resolve_action_sequence",
-            return_value=["specify", "plan", "review"],
-        ):
-            activate_mission_type_override(
-                mission_type_id="software-dev",
-                incoming_sequence=["specify", "plan"],
-                repo_root=project_root,
-                console=console,
-            )
-        config = project_root / ".kittify" / "config.yaml"
-        data = yaml.safe_load(config.read_text())
-        assert "software-dev" in data["mission_type_activations"]
-
-    def test_activation_complete_message_present(self, project_root: Path) -> None:
-        """activate_mission_type_override still emits 'Activation complete.'."""
-        console, buf = self._make_console()
-        with patch(
-            "charter.mission_type_profiles.resolve_action_sequence",
-            return_value=["specify", "plan"],
-        ):
-            activate_mission_type_override(
-                mission_type_id="software-dev",
-                incoming_sequence=["specify", "plan"],
-                repo_root=project_root,
-                console=console,
-            )
-        assert "Activation complete." in buf.getvalue()
-
-    def test_no_override_file_written(self, project_root: Path) -> None:
-        """activate_mission_type_override no longer writes to overrides/ directory."""
-        console, _ = self._make_console()
-        with patch(
-            "charter.mission_type_profiles.resolve_action_sequence",
-            return_value=["specify", "plan"],
-        ):
-            activate_mission_type_override(
-                mission_type_id="software-dev",
-                incoming_sequence=["specify", "plan"],
-                repo_root=project_root,
-                console=console,
-            )
-        override_path = (
-            project_root / ".kittify" / "overrides" / "mission-types" / "software-dev.yaml"
-        )
-        assert not override_path.exists(), (
-            "Override file should NOT be written (FR-014 reader gap fix)"
-        )
-
-    def test_empty_action_sequence_raises(self, project_root: Path) -> None:
-        """Empty action_sequence raises ValueError (behavior unchanged)."""
-        console, _ = self._make_console()
-        with pytest.raises(ValueError, match="non-empty"):
-            activate_mission_type_override(
-                mission_type_id="software-dev",
-                incoming_sequence=[],
-                repo_root=project_root,
-                console=console,
-            )
-
-    def test_duplicate_steps_raises(self, project_root: Path) -> None:
-        """Duplicate steps raise ValueError (behavior unchanged)."""
-        console, _ = self._make_console()
-        with pytest.raises(ValueError, match="unique"):
-            activate_mission_type_override(
-                mission_type_id="software-dev",
-                incoming_sequence=["specify", "specify"],
-                repo_root=project_root,
-                console=console,
-            )
