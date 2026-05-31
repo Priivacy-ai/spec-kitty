@@ -315,3 +315,43 @@ def test_context_renders_error_on_task_cli_error(tmp_path: Path) -> None:
 
     assert result.exit_code == 1
     assert "Error" in result.output
+
+
+def test_context_include_renders_selector_without_action(tmp_path: Path) -> None:
+    """Arrange: include selector; Act: context --include; Assert: selector text emits."""
+
+    project = _project(tmp_path)
+
+    with (
+        patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
+        patch("specify_cli.doctrine.config.resolve_org_roots", return_value=[]),
+        patch(
+            "charter.context.build_charter_context_include",
+            return_value="### Regression Vigilance\nRule body.",
+        ) as include_builder,
+    ):
+        result = runner.invoke(app, ["context", "--include", "section:regression-vigilance"])
+
+    assert result.exit_code == 0
+    assert "Rule body." in result.output
+    include_builder.assert_called_once_with(
+        project,
+        "section:regression-vigilance",
+        action=None,
+        org_root=None,
+    )
+
+
+def test_context_requires_action_without_include(tmp_path: Path) -> None:
+    """Arrange: no action/include; Act: context; Assert: command fails closed."""
+
+    project = _project(tmp_path)
+
+    with (
+        patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
+        patch("specify_cli.doctrine.config.resolve_org_roots", return_value=[]),
+    ):
+        result = runner.invoke(app, ["context"])
+
+    assert result.exit_code == 1
+    assert "--action is required unless --include is provided" in result.output

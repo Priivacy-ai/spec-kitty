@@ -43,6 +43,7 @@ from charter.context_renderers.section_bodies import (
     CRITICAL_SECTION_WHEN_CLAUSES,
     critical_section_header,
     render_critical_section_bodies,
+    render_critical_section_include,
 )
 from charter.context_renderers.token_budget import (
     BUDGET_DEFAULT,
@@ -67,5 +68,6 @@ __all__ = [
     "format_selector",
     "render_authority_paths",
     "render_critical_section_bodies",
+    "render_critical_section_include",
     "warning_line",
 ]

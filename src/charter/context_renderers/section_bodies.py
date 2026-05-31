@@ -27,6 +27,7 @@ __all__ = [
     "CRITICAL_SECTION_WHEN_CLAUSES",
     "critical_section_header",
     "render_critical_section_bodies",
+    "render_critical_section_include",
 ]
 
 
@@ -267,3 +268,37 @@ def render_critical_section_bodies(
         blocks.extend(_render_fetch_stanza(heading))
 
     return "\n".join(blocks)
+
+
+def render_critical_section_include(
+    charter_content: str,
+    selector_id: str,
+    *,
+    action: str | None = None,
+) -> str | None:
+    """Render the body addressed by a ``section:<selector_id>`` fetch selector."""
+
+    cleaned = selector_id.strip()
+    if not cleaned:
+        return None
+
+    if cleaned.startswith("critical-"):
+        action_name = cleaned.removeprefix("critical-").strip()
+        if action is not None and action.strip() and action.strip().lower() != action_name:
+            return None
+        return render_critical_section_bodies(charter_content, action_name) or None
+
+    headings = {
+        heading
+        for section_headings in ACTION_CRITICAL_SECTIONS.values()
+        for heading in section_headings
+    }
+    for heading in sorted(headings):
+        if _slugify_heading(heading) != cleaned:
+            continue
+        body = _extract_section_body(charter_content, heading)
+        if body is None:
+            return None
+        return f"### {heading}\n{body}" if body else f"### {heading}"
+
+    return None

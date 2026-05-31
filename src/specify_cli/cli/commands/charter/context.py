@@ -18,7 +18,16 @@ __all__ = ["context"]
 
 @charter_app.command()
 def context(
-    action: str = typer.Option(..., "--action", help="Workflow action (specify|plan|implement|review)"),
+    action: str | None = typer.Option(
+        None,
+        "--action",
+        help="Workflow action (specify|plan|implement|review)",
+    ),
+    include: str | None = typer.Option(
+        None,
+        "--include",
+        help="Fetch one governance selector (directive:<id>|tactic:<id>|section:<slug>)",
+    ),
     mark_loaded: bool = typer.Option(True, "--mark-loaded/--no-mark-loaded", help="Persist first-load state"),
     json_output: bool = typer.Option(
         False,
@@ -34,6 +43,7 @@ def context(
     from charter.context import (
         BOOTSTRAP_ACTIONS,
         build_charter_context,
+        build_charter_context_include,
         build_charter_context_json,
     )
 
@@ -47,6 +57,33 @@ def context(
         # ``charter`` must not import ``specify_cli`` (ADR 2026-03-27-1).
         org_roots = [p for p in resolve_org_roots(repo_root) if p.exists()]
         org_root = org_roots[0] if org_roots else None
+        if include:
+            included_text = build_charter_context_include(
+                repo_root,
+                include,
+                action=action,
+                org_root=org_root,
+            )
+            if json_output:
+                print(
+                    json.dumps(
+                        {
+                            "result": "success",
+                            "success": True,
+                            "include": include,
+                            "context": included_text,
+                            "text": included_text,
+                        },
+                        indent=2,
+                    )
+                )
+                return
+            console.print(included_text)
+            return
+
+        if action is None:
+            raise TaskCliError("--action is required unless --include is provided.")
+
         result = build_charter_context(
             repo_root,
             action=action,
@@ -105,6 +142,9 @@ def context(
         console.print(result.text)
 
     except TaskCliError as e:
+        _emit_error(console, json_output=json_output, message=str(e))
+        raise typer.Exit(code=1) from e
+    except ValueError as e:
         _emit_error(console, json_output=json_output, message=str(e))
         raise typer.Exit(code=1) from e
     except Exception as e:

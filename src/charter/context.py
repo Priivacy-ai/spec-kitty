@@ -28,6 +28,7 @@ from charter.context_renderers import (
     RenderedSection,
     render_authority_paths,
     render_critical_section_bodies,
+    render_critical_section_include,
 )
 from charter.context_renderers.fetch_stanza import (
     fetch_stanza_lines as _shared_fetch_stanza_lines,
@@ -42,6 +43,7 @@ __all__ = [
     "BOOTSTRAP_ACTIONS",
     "CharterContextResult",
     "build_charter_context",
+    "build_charter_context_include",
     "build_charter_context_json",
 ]
 
@@ -265,6 +267,57 @@ def build_charter_context(
         references_count=len(references),
         depth=state_bundle.effective_depth,
     )
+
+
+def build_charter_context_include(
+    repo_root: Path,
+    selector: str,
+    *,
+    action: str | None = None,
+    org_root: Path | None = None,
+) -> str:
+    """Render one fetch-deferred governance selector."""
+
+    kind, separator, identifier = selector.partition(":")
+    kind = kind.strip().lower()
+    identifier = identifier.strip()
+    if not separator or not kind or not identifier:
+        raise ValueError("Expected --include selector in '<kind>:<id>' form.")
+
+    if kind == "section":
+        canonical_root = _bundle_root_for_json(repo_root)
+        charter_path = canonical_root / KITTIFY_DIRNAME / "charter" / "charter.md"
+        if not charter_path.exists():
+            raise ValueError("No charter.md found for section selector.")
+        charter_content = charter_path.read_text(encoding="utf-8")
+        section = render_critical_section_include(
+            charter_content,
+            identifier,
+            action=action.strip().lower() if action else None,
+        )
+        if section is None:
+            raise ValueError(f"No charter section found for selector '{selector}'.")
+        return section
+
+    org_roots = [org_root] if org_root is not None else None
+    service = _build_doctrine_service(repo_root, org_roots=org_roots)
+    if kind == "directive":
+        directive_id = _format_profile_directive_code(identifier)
+        directive = service.directives.get(directive_id)  # type: ignore[attr-defined]
+        if directive is None:
+            raise ValueError(f"No directive found for selector '{selector}'.")
+        title = getattr(directive, "title", directive_id)
+        return "\n".join(
+            [f"Directive {directive_id}: {title}", *_format_inline_directive_body(directive)]
+        )
+    if kind == "tactic":
+        tactic = service.tactics.get(identifier)  # type: ignore[attr-defined]
+        if tactic is None:
+            raise ValueError(f"No tactic found for selector '{selector}'.")
+        name = getattr(tactic, "name", identifier)
+        return "\n".join([f"Tactic {identifier}: {name}", *_format_inline_tactic_body(tactic)])
+
+    raise ValueError(f"Unsupported --include selector kind '{kind}'.")
 
 
 def _prepare_context_state(

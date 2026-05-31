@@ -20,6 +20,7 @@ from charter.context_renderers import (
     CRITICAL_SECTION_WHEN_CLAUSES,
     critical_section_header,
     render_critical_section_bodies,
+    render_critical_section_include,
 )
 
 pytestmark = pytest.mark.fast
@@ -204,6 +205,24 @@ class TestVerbatimBodies:
         assert "## STEP 1" not in body
         assert "This is the next section" not in body
         assert result.count("  Run: spec-kitty charter context --include") == 3
+
+    def test_section_include_ignores_fenced_heading_examples(self) -> None:
+        result = render_critical_section_include(
+            _CHARTER_WITH_FENCED_SECTION_HEADING_EXAMPLE,
+            "regression-vigilance",
+        )
+
+        assert result is not None
+        assert "consult glossary/contexts/" in result
+        assert "This is example text" not in result
+
+    def test_section_include_fail_closed_on_unbalanced_fence(self) -> None:
+        result = render_critical_section_include(
+            _CHARTER_WITH_UNBALANCED_FENCE,
+            "code-review-checklist",
+        )
+
+        assert result is None
 
 
 class TestMissingSectionFetchStanza:
