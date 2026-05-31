@@ -37,12 +37,8 @@ def _stable_mission_dir_for_json(mission_dir: Path, mission_slug: str) -> str:
     if not mission_dir.is_absolute():
         return mission_dir.as_posix()
 
-    parts = mission_dir.parts
-    matching_indexes = [
-        index for index, part in enumerate(parts) if part == _MISSION_ROOT_DIRNAME
-    ]
-    if matching_indexes:
-        return Path(*parts[matching_indexes[-1] :]).as_posix()
+    if mission_dir.parent.name == _MISSION_ROOT_DIRNAME:
+        return Path(_MISSION_ROOT_DIRNAME, mission_dir.name).as_posix()
 
     return mission_slug or mission_dir.name
 
