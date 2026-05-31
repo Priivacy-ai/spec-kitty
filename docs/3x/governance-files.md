@@ -79,7 +79,9 @@ authority_paths:
 Current Spec Kitty does not support a configured external charter path that replaces
 `.kittify/charter/charter.md`. If a project needs a single physical file for sync-only extraction,
 a symlink can point `.kittify/charter/charter.md` at another markdown file, subject to the sync and
-generate behavior below.
+generate behavior below. Do not use the symlink model for Windows or mixed-platform projects unless
+native Windows CI proves the checkout can create and preserve the symlink; use a runtime summary or
+generated copy instead.
 
 ### Sync Behavior by Charter Shape
 
@@ -90,7 +92,7 @@ the generated YAML bundle into `.kittify/charter/`.
 |---|---|---|
 | Hand-authored `.kittify/charter/charter.md` | `charter sync` reads that file and writes `governance.yaml`, `directives.yaml`, and `metadata.yaml` next to it. `charter generate --force` may overwrite it. | Edit `charter.md`, run `spec-kitty charter sync`, then review drift with `charter status`. |
 | Generated copy in `.kittify/charter/charter.md` | `charter sync` reads the generated copy as the source for runtime extraction. It does not pull from the external document that produced the copy. | Re-run the external copy/generation step first, then run `spec-kitty charter sync`. Do not hand-edit the generated copy unless it has become the runtime source. |
-| Symlink at `.kittify/charter/charter.md` | `charter sync` follows the symlink for reading charter content. Generated YAML still lands in `.kittify/charter/`, not beside the symlink target. `charter generate` refuses to overwrite a symlinked charter. | Treat this as a sync-only model. Keep the symlink target committed and available on every checkout. Broken or platform-incompatible symlinks make sync fail. |
+| Symlink at `.kittify/charter/charter.md` | `charter sync` follows the symlink for reading charter content. Generated YAML still lands in `.kittify/charter/`, not beside the symlink target. `charter generate` refuses to overwrite a symlinked charter before compilation, sync, gitignore updates, or staging. | Treat this as a sync-only, Unix-oriented model. Keep the symlink target committed and available on every checkout. Broken or platform-incompatible symlinks make sync fail. Prefer another model for Windows/shared checkouts. |
 
 Avoid equality checks between a public constitution and `.kittify/charter/charter.md` unless the
 project has deliberately adopted a mirror policy. A better check is that the runtime charter

@@ -105,7 +105,7 @@ choose an explicit ownership model:
 |---|---|---|
 | Runtime summary with external authority | The public constitution is long-form or public-facing, and agents only need concise binding directives. | Keep `spec/constitution.md`; edit `.kittify/charter/charter.md` to summarize operative rules and reference the public document. Add the containing directory, such as `spec/`, to `authority_paths` if agents should inspect it. |
 | Committed mirror | The project deliberately wants the public constitution and runtime charter to match. | Keep an explicit copy/sync process outside `charter sync`, then run `spec-kitty charter sync` after the mirror has been refreshed. |
-| Symlink | The project can rely on symlink support in every checkout and wants sync-only extraction from one physical markdown file. | Point `.kittify/charter/charter.md` at the chosen source file. `charter sync` follows the symlink for reads and writes generated YAML into `.kittify/charter/`; `charter generate` refuses to overwrite a symlinked charter. |
+| Symlink | The project can rely on symlink support in every checkout and wants sync-only extraction from one physical markdown file. Avoid this for Windows or mixed-platform projects unless native Windows CI proves symlink support. | Point `.kittify/charter/charter.md` at the chosen source file. `charter sync` follows the symlink for reads and writes generated YAML into `.kittify/charter/`; `charter generate` refuses to overwrite a symlinked charter before compilation or generated-file writes. |
 
 Do not leave this implicit. Equality checks between `spec/constitution.md` and
 `.kittify/charter/charter.md` should exist only for projects that intentionally picked the

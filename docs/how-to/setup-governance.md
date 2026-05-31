@@ -235,8 +235,10 @@ spec-kitty charter sync --force --json
 Sync reads only `.kittify/charter/charter.md`. If that file is a generated copy, regenerate the
 copy from your external constitution before running sync. If it is a symlink, sync follows the
 symlink for reads but still writes generated YAML into `.kittify/charter/`. `charter generate`
-refuses to overwrite a symlinked `charter.md`; update the symlink target directly or replace the
-symlink with a regular runtime charter before regenerating.
+refuses to overwrite a symlinked `charter.md` before compilation or generated-file writes; update
+the symlink target directly or replace the symlink with a regular runtime charter before
+regenerating. For Windows or mixed-platform teams, prefer a runtime summary or generated copy unless
+native Windows CI has already proven symlink support for the checkout.
 
 ---
 

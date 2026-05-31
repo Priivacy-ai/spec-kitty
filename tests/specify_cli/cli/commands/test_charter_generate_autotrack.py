@@ -253,6 +253,59 @@ def test_generate_from_interview_missing_answers_json_is_parseable(tmp_path: Pat
     assert "No charter interview answers found" in payload["error"]
 
 
+def _assert_generate_refuses_symlinked_charter_before_side_effects(tmp_path: Path) -> None:
+    _git_init(tmp_path)
+    public_dir = tmp_path / "spec"
+    public_dir.mkdir()
+    public_charter = public_dir / "constitution.md"
+    public_charter.write_text("# Public Constitution\n", encoding="utf-8")
+
+    charter_dir = tmp_path / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True)
+    charter_link = charter_dir / "charter.md"
+    try:
+        charter_link.symlink_to(public_charter)
+    except OSError as exc:
+        pytest.skip(f"symlinks unavailable: {exc}")
+
+    old_cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+        result = runner.invoke(
+            charter_app, ["generate", "--no-from-interview", "--force", "--json"],
+            catch_exceptions=False,
+        )
+    finally:
+        os.chdir(old_cwd)
+
+    payload = json.loads(result.stdout)
+    assert result.exit_code != 0
+    assert payload["success"] is False
+    assert payload["result"] == "error"
+    assert "Refusing to overwrite symlinked charter" in payload["error"]
+    assert public_charter.read_text(encoding="utf-8") == "# Public Constitution\n"
+
+    assert not (tmp_path / ".kittify" / "encoding-provenance").exists()
+    assert not (charter_dir / "references.yaml").exists()
+    assert not (charter_dir / "governance.yaml").exists()
+    assert not (charter_dir / "directives.yaml").exists()
+    assert not (charter_dir / "metadata.yaml").exists()
+    assert not (tmp_path / ".gitignore").exists()
+
+
+@pytest.mark.requires_symlinks
+def test_generate_refuses_symlinked_charter_before_side_effects(tmp_path: Path) -> None:
+    """A symlinked runtime charter must fail before generate dirties the repo."""
+    _assert_generate_refuses_symlinked_charter_before_side_effects(tmp_path)
+
+
+@pytest.mark.requires_symlinks
+@pytest.mark.windows_ci
+def test_windows_generate_refuses_symlinked_charter_before_side_effects(tmp_path: Path) -> None:
+    """Native Windows CI covers symlink-generate refusal when symlinks are available."""
+    _assert_generate_refuses_symlinked_charter_before_side_effects(tmp_path)
+
+
 def test_status_json_error_is_parseable() -> None:
     """``charter status --json`` must not emit Rich-formatted error text."""
     with patch(

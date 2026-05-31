@@ -229,6 +229,18 @@ def generate(
             )
             raise typer.Exit(code=1)
         charter_dir = repo_root / ".kittify" / "charter"
+        charter_path = charter_dir / "charter.md"
+        if charter_path.is_symlink():
+            _emit_error(
+                console,
+                json_output=json_output,
+                message=(
+                    f"Refusing to overwrite symlinked charter at {charter_path}. "
+                    "Remove the symlink or update the symlink target directly."
+                ),
+            )
+            raise typer.Exit(code=1)
+
         answers_path = _interview_path(repo_root)
         resolved_mission_type = None
         if mission_type is not None or mission is not None:

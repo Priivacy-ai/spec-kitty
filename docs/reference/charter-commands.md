@@ -204,8 +204,8 @@ is a regular hand-authored file, its current markdown content is extracted. If i
 copy, sync extracts the generated copy and does not refresh it from the upstream document. If it is
 a symlink, sync follows the symlink for reads; the generated YAML files are still written into
 `.kittify/charter/`, not beside the symlink target. `charter generate` refuses to overwrite a
-symlinked `charter.md`; use symlinks only for sync-only extraction or update the target directly.
-See
+symlinked `charter.md` before compilation, sync, gitignore updates, or staging; use symlinks only
+for sync-only extraction or update the target directly. See
 [Governance Files Reference](../3x/governance-files.md#external-governance-documents) for the
 source-of-truth model when a project also has a public constitution.
 
