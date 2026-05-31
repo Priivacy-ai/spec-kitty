@@ -64,7 +64,15 @@ class TestBuildPromptOrError:
         assert error is None
         assert os.path.exists(path)
 
-    def test_returns_error_when_build_raises(self, tmp_path: Path) -> None:
+    def test_non_wp_step_gets_composition_marker_when_no_template(
+        self, tmp_path: Path
+    ) -> None:
+        """Non-WP steps with no file template get a composition marker, not a block.
+
+        Workflow-inserted steps (e.g. ``design-review``) and global-runtime steps
+        (e.g. ``discovery``) have no mission-step prompt file.  The composition
+        fallback writes a lightweight marker so ``kind=step`` is satisfied.
+        """
         with patch(
             "specify_cli.next.prompt_builder.build_prompt",
             side_effect=FileNotFoundError("no template for 'discovery'"),
@@ -79,10 +87,30 @@ class TestBuildPromptOrError:
                 mission_type="software-dev",
             )
 
+        assert path is not None
+        assert error is None
+        assert os.path.exists(path)
+        assert "discovery" in path
+
+    def test_wp_step_returns_error_when_build_raises(self, tmp_path: Path) -> None:
+        """WP-scoped steps that fail template resolution return an error (no marker)."""
+        with patch(
+            "specify_cli.next.prompt_builder.build_prompt",
+            side_effect=FileNotFoundError("no template for 'implement'"),
+        ):
+            path, error = _build_prompt_or_error(
+                action="implement",
+                feature_dir=tmp_path,
+                mission_slug="042-test",
+                wp_id="WP01",
+                agent="claude",
+                repo_root=tmp_path,
+                mission_type="software-dev",
+            )
+
         assert path is None
         assert error is not None
-        assert "discovery" in error
-        assert "FileNotFoundError" in error
+        assert "implement" in error
 
     def test_returns_error_when_path_missing_on_disk(self, tmp_path: Path) -> None:
         # build_prompt returns a path but the file does not exist.

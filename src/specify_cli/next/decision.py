@@ -603,6 +603,30 @@ def _build_prompt_or_error(
                 f"prompt template path is not stat-able for action '{action}': {exc}"
             )
         return path_str, None
+    except FileNotFoundError:
+        # No file-based template for this non-WP step (e.g. workflow-inserted
+        # steps like ``design-review``, or global-runtime steps like
+        # ``discovery`` that have no mission-step prompt file).  Rather than
+        # returning an error and causing ``_map_runtime_decision`` to emit a
+        # ``kind=blocked`` decision, write a minimal composition marker so the
+        # ``kind=step`` invariant is satisfied (FR-007 / T019).
+        if wp_id is None:
+            composed_prompt = (
+                f"# {mission_type} — {action}\n\n"
+                f"This step is dispatched via composition.\n"
+                f"Run `spec-kitty next --agent <name>` to advance.\n"
+            )
+            marker_fd, marker_path = tempfile.mkstemp(
+                prefix=f"spec-kitty-composed-{action}-",
+                suffix=".md",
+            )
+            os.write(marker_fd, composed_prompt.encode("utf-8"))
+            os.close(marker_fd)
+            return marker_path, None
+        return None, (
+            f"prompt resolution failed for action '{action}': "
+            f"FileNotFoundError: no template found"
+        )
     except Exception as exc:
         return None, (
             f"prompt resolution failed for action '{action}': "
