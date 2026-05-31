@@ -517,6 +517,20 @@ class TestBuildSession:
         )
 
     @pytest.mark.asyncio
+    async def test_invalid_me_refresh_expiry_raises_authentication_error(self):
+        flow = DeviceCodeFlow(saas_base_url=_SAAS)
+        tokens = _token_response(refresh_token_expires_at=None)
+        me = _me_response(refresh_token_expires_at=123)
+
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            mock_client.get.return_value = _mock_httpx_response(200, me)
+
+            with pytest.raises(AuthenticationError, match="must be an ISO-8601 timestamp"):
+                await flow._build_session(tokens)
+
+    @pytest.mark.asyncio
     async def test_no_teams_raises(self):
         flow = DeviceCodeFlow(saas_base_url=_SAAS)
         tokens = _token_response()

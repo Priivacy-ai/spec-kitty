@@ -323,7 +323,13 @@ class AuthorizationCodeFlow:
             "refresh_token_expires_at"
         )
         if absolute is not None:
-            return _parse_iso_utc(absolute)
+            try:
+                return _parse_iso_utc(absolute)
+            except (AttributeError, TypeError, ValueError) as exc:
+                raise AuthenticationError(
+                    "Refresh token expiry field 'refresh_token_expires_at' "
+                    "must be an ISO-8601 timestamp."
+                ) from exc
 
         relative = tokens.get("refresh_token_expires_in")
         if relative is not None:
