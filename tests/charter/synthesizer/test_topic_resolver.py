@@ -278,6 +278,60 @@ class TestTier3InterviewSection:
         assert "how-we-apply-directive-003" in slugs
         assert "python-testing-style" in slugs
 
+    def test_producer_key_resolves_to_legacy_source_section(
+        self, all_artifacts, merged_drg, tactic_artifact, styleguide_artifact
+    ) -> None:
+        """testing_requirements selects artifacts stored as testing_philosophy."""
+        result = resolve(
+            "testing_requirements",
+            all_artifacts,
+            merged_drg,
+            ["testing_requirements"],
+        )
+
+        assert result.matched_form == "interview_section"
+        assert result.matched_value == "testing_philosophy"
+        assert result.targets == [tactic_artifact, styleguide_artifact]
+
+    def test_legacy_section_resolves_when_interview_sections_are_producer_keys(
+        self, all_artifacts, merged_drg
+    ) -> None:
+        """testing_philosophy remains accepted for production-shaped snapshots."""
+        result = resolve(
+            "testing_philosophy",
+            all_artifacts,
+            merged_drg,
+            ["testing_requirements"],
+        )
+
+        assert result.matched_form == "interview_section"
+        assert result.matched_value == "testing_philosophy"
+        slugs = {target.slug for target in result.targets}
+        assert slugs == {"how-we-apply-directive-003", "python-testing-style"}
+
+    def test_language_frameworks_resolves_to_language_scope_artifacts(
+        self, all_artifacts, merged_drg
+    ) -> None:
+        """languages_frameworks selects artifacts stored as language_scope."""
+        language_artifact = SynthesisTarget(
+            kind="styleguide",
+            slug="python-style-guide",
+            title="Python Style Guide",
+            artifact_id="python-style-guide",
+            source_section="language_scope",
+        )
+
+        result = resolve(
+            "languages_frameworks",
+            [*all_artifacts, language_artifact],
+            merged_drg,
+            ["languages_frameworks"],
+        )
+
+        assert result.matched_form == "interview_section"
+        assert result.matched_value == "language_scope"
+        assert result.targets == [language_artifact]
+
     def test_section_hit_with_no_artifacts(
         self, all_artifacts, merged_drg, interview_sections
     ) -> None:

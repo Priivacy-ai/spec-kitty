@@ -147,7 +147,7 @@ def _build_synthesis_validation_callback(request: Any) -> Any:
     from doctrine.drg.models import DRGGraph
     from importlib.metadata import version as pkg_version
 
-    from charter.synthesizer.interview_mapping import resolve_sections
+    from charter.synthesizer.interview_mapping import normalize_interview_snapshot, resolve_sections
     from charter.synthesizer.orchestrator import _built_in_drg_from_snapshot
     from charter.synthesizer.project_drg import emit_project_layer, persist as persist_project_graph
     from charter.synthesizer.targets import build_targets, detect_duplicates, order_targets
@@ -155,9 +155,10 @@ def _build_synthesis_validation_callback(request: Any) -> Any:
 
     spec_kitty_version = pkg_version("spec-kitty-cli")
     built_in_drg = DRGGraph.model_validate(_built_in_drg_from_snapshot(request.drg_snapshot))
-    sections = resolve_sections(dict(request.interview_snapshot))
+    interview_snapshot = normalize_interview_snapshot(dict(request.interview_snapshot))
+    sections = resolve_sections(interview_snapshot)
     targets = build_targets(
-        interview_snapshot=dict(request.interview_snapshot),
+        interview_snapshot=interview_snapshot,
         mappings=sections,
         drg_snapshot=dict(request.drg_snapshot),
     )

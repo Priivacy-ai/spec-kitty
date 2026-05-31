@@ -49,6 +49,8 @@ from typing import Any, Literal
 from charter.language_scope import extract_declared_languages
 
 __all__ = [
+    "canonicalize_interview_section_label",
+    "normalize_interview_snapshot",
     "resolve_sections",
 ]
 
@@ -135,6 +137,7 @@ INTERVIEW_MAPPINGS: tuple[InterviewSectionMapping, ...] = (
 
 # Real interview producer keys that feed legacy synthesis section labels.
 _INTERVIEW_SECTION_ALIASES: dict[str, tuple[str, ...]] = {
+    "mission_type": ("project_intent",),
     "testing_philosophy": ("testing_requirements",),
     "risk_appetite": ("risk_boundaries",),
     "language_scope": ("languages_frameworks",),
@@ -148,6 +151,12 @@ _SYNTHETIC_SECTIONS: dict[str, str] = {
         "Legacy synthesis topic with no current CharterInterview producer key; "
         "accepted only when callers provide it explicitly."
     ),
+}
+
+_ALIAS_TO_SECTION: dict[str, str] = {
+    alias: section
+    for section, aliases in _INTERVIEW_SECTION_ALIASES.items()
+    for alias in aliases
 }
 
 # Interview sections that receive special per-item expansion in resolve_sections().
@@ -164,6 +173,51 @@ _EXPANDED_SECTIONS: frozenset[str] = frozenset(
 # ---------------------------------------------------------------------------
 # Resolution helpers
 # ---------------------------------------------------------------------------
+
+
+def _normalize_section_selector(label: str) -> str:
+    return label.strip().replace("-", "_").replace(" ", "_")
+
+
+def canonicalize_interview_section_label(label: str) -> str:
+    """Return the legacy synthesis section label for a producer/alias key."""
+    normalized = _normalize_section_selector(label)
+    return _ALIAS_TO_SECTION.get(normalized, normalized)
+
+
+def normalize_interview_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
+    """Return a synthesis-canonical interview snapshot.
+
+    Real ``CharterInterview.answers`` producer keys are copied into the legacy
+    synthesis section labels before target resolution, adapter dispatch, and
+    provenance hashing. Non-alias keys remain untouched.
+    """
+    normalized = dict(snapshot)
+
+    for section_label, aliases in _INTERVIEW_SECTION_ALIASES.items():
+        if section_label == "language_scope":
+            continue
+        answer, source_key = _section_answer_with_source(normalized, section_label)
+        if answer and source_key != section_label:
+            normalized[section_label] = answer
+        if answer:
+            for alias in aliases:
+                normalized.pop(alias, None)
+
+    languages = _iter_clean_strings(normalized.get("language_scope", []))
+    if not languages and "languages_frameworks" in normalized:
+        raw_alias = normalized["languages_frameworks"]
+        languages = (
+            tuple(extract_declared_languages(raw_alias))
+            if isinstance(raw_alias, str)
+            else _iter_clean_strings(raw_alias)
+        )
+        if languages:
+            normalized["language_scope"] = list(languages)
+    if languages:
+        normalized.pop("languages_frameworks", None)
+
+    return normalized
 
 
 def _section_answer_with_source(

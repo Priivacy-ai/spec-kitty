@@ -20,6 +20,7 @@ from charter.synthesizer.interview_mapping import (
     _EXPANDED_SECTIONS,
     _INTERVIEW_SECTION_ALIASES,
     _SYNTHETIC_SECTIONS,
+    normalize_interview_snapshot,
     resolve_sections,
 )
 
@@ -88,15 +89,12 @@ class TestInterviewMappingsTable:
             )
 
     def test_mapping_rows_have_producer_alias_or_synthetic_reason(self) -> None:
-        """Every gated mapping has a real producer, alias, or documented exception."""
+        """Every mapping has a real producer, alias, or documented exception."""
         producer_keys = set(QUESTION_ORDER)
         alias_targets = set(_INTERVIEW_SECTION_ALIASES)
         synthetic_targets = set(_SYNTHETIC_SECTIONS)
 
         for mapping in INTERVIEW_MAPPINGS:
-            if not mapping.requires_nonempty:
-                continue
-
             assert (
                 mapping.section_label in producer_keys
                 or mapping.section_label in alias_targets
@@ -389,6 +387,7 @@ class TestResolveFullSnapshot:
     def test_real_interview_answer_keys_emit_intended_sections(self) -> None:
         """Production-shaped CharterInterview.answers keys are accepted."""
         snapshot = {
+            "project_intent": "Ship trustworthy agent workflows",
             "languages_frameworks": "Python 3.11 and TypeScript",
             "testing_requirements": "pytest coverage and browser tests",
             "quality_gates": "coverage >= 90%",
@@ -399,7 +398,10 @@ class TestResolveFullSnapshot:
 
         results = resolve_sections(snapshot)
         labels = [label for label, _ in results]
+        contexts = dict(results)
 
+        assert contexts["mission_type"]["answer"] == "Ship trustworthy agent workflows"
+        assert contexts["mission_type"]["answer_source"] == "project_intent"
         assert "testing_philosophy" in labels
         assert "risk_appetite" in labels
         assert "quality_gates" in labels
@@ -420,3 +422,26 @@ class TestResolveFullSnapshot:
         result = resolve_sections({"testing_philosophy": "tdd"})
         for _, ctx in result:
             assert isinstance(ctx, dict)
+
+
+class TestNormalizeInterviewSnapshot:
+    def test_producer_keys_are_canonicalized_for_synthesis_requests(self) -> None:
+        """Pipeline-facing snapshots use legacy synthesis labels, not aliases."""
+        snapshot = {
+            "project_intent": "Ship trustworthy agent workflows",
+            "languages_frameworks": "Python 3.11 and TypeScript",
+            "testing_requirements": "pytest coverage and browser tests",
+            "risk_boundaries": "no credential leaks",
+            "quality_gates": "coverage >= 90%",
+        }
+
+        normalized = normalize_interview_snapshot(snapshot)
+
+        assert normalized["mission_type"] == "Ship trustworthy agent workflows"
+        assert normalized["testing_philosophy"] == "pytest coverage and browser tests"
+        assert normalized["risk_appetite"] == "no credential leaks"
+        assert normalized["language_scope"] == ["python", "typescript"]
+        assert "project_intent" not in normalized
+        assert "testing_requirements" not in normalized
+        assert "risk_boundaries" not in normalized
+        assert "languages_frameworks" not in normalized
