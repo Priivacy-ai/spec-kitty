@@ -235,10 +235,10 @@ WP11 subtasks T048–T051 are fully independent and can be executed in any order
 **Subtasks**: T020–T023
 **Agent profile**: python-pedro
 
-- [ ] T020 Create `m_3_2_8_default_charter_pack.py` with `detect()`, `can_apply()`, `apply()`
-- [ ] T021 Implement backup-before-write pattern in `apply()` (C-008, NFR-002)
-- [ ] T022 Write tests for `detect()` and `apply()` called directly (not via upgrade pipeline)
-- [ ] T023 Register migration + verify baseline includes both m_3_2_7 and m_3_2_8
+- [x] T020 Create `m_3_2_8_default_charter_pack.py` with `detect()`, `can_apply()`, `apply()`
+- [x] T021 Implement backup-before-write pattern in `apply()` (C-008, NFR-002)
+- [x] T022 Write tests for `detect()` and `apply()` called directly (not via upgrade pipeline)
+- [x] T023 Register migration + verify baseline includes both m_3_2_7 and m_3_2_8
 
 **Implementation Notes**:
 - T020: `detect()` returns `True` if `.kittify/config.yaml` exists but lacks one or more `activated_*` keys (i.e., not yet migrated). `can_apply()` returns `True` if `.kittify/` directory exists. `apply()` calls `CharterPackManager.merge_defaults()` to populate missing keys.
