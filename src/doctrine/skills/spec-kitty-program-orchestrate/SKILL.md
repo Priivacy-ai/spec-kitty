@@ -90,7 +90,7 @@ gated on the prior phase producing a clean artifact.
 3. /spec-kitty.tasks                   → tasks.md + tasks/WPxx-*.md + finalize-tasks
 4. Implement-review loop               (dispatch sub-agents per spec-kitty-implement-review)
 5. spec-kitty accept + merge           → readiness nudge, then squash commit on main
-6. Post-merge mark-status done         (handle invariant-check workarounds)
+6. Post-merge move WPs done           (handle invariant-check workarounds)
 7. spec-kitty-mission-review skill     → structured report with verdict
 8. Retrospective workflow              → capture learning while context is fresh
 9. Post-merge remediation branch       (address any HIGH/MEDIUM findings)
@@ -188,14 +188,16 @@ is: `cd .worktrees/<slug>-lane-<letter> && git merge kitty/mission-<slug>`,
 resolve conflicts (usually union-merge on TOML/imports/comments), commit, retry
 the outer merge. See issue #771 for planned auto-rebase support.
 
-### 2g. Phase 6 — Mark WPs Done (workaround for the invariant check)
+### 2g. Phase 6 — Move WPs Done (workaround for the invariant check)
 
 The post-merge bookkeeping often fails on `.worktrees/` being untracked.
 Workaround:
 
 ```bash
 mv .worktrees /tmp/<slug>-worktrees-parked
-spec-kitty agent tasks mark-status WP01 WP02 ... --status done --mission <slug>
+for wp in WP01 WP02 ...; do
+  spec-kitty agent tasks move-task "$wp" --to done --mission <slug>
+done
 mv /tmp/<slug>-worktrees-parked .worktrees
 ```
 
@@ -339,7 +341,7 @@ the workaround ready in your dispatch prompts.
 |---|---|---|---|
 | Test-DB collisions across parallel lanes | Django-backed projects with ≥2 concurrent lane runs | `DJANGO_TEST_DATABASE_NAME=test_<proj>_lane_<letter> <project-test-command> --create-db` | #770 |
 | Stale lane on merge | Missions where multiple WPs touched `pyproject.toml` / `urls.py` / shared `__init__.py` | `cd .worktrees/<slug>-lane-<letter> && git merge kitty/mission-<slug>` per stale lane, resolve, retry outer merge | #771 |
-| Post-merge invariant check on `.worktrees/` | Every successful merge | `mv .worktrees /tmp/park && mark-status done && mv back` | #772 |
+| Post-merge invariant check on `.worktrees/` | Every successful merge | `mv .worktrees /tmp/park && move-task WP## --to done && mv back` | #772 |
 | Silent repo fallback when target isn't initialized | Phase 1 on a repo without `.kittify/` scaffold | Detect via `ls <target>/kitty-specs/` after ceremony; if empty and another repo got the artifacts, relocate + `spec-kitty init --ai <agent>` in the real target | #773 |
 | `spec-kitty decision` not found | Sub-agents referencing the `decision` command group | Use `spec-kitty agent decision ...` | #774 |
 | `review-request` is not a real command | Sub-agents trying to submit a WP for review | Use `spec-kitty agent tasks move-task WP## --to for_review` | #775 |
