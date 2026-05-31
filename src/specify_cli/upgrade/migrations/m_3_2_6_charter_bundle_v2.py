@@ -45,7 +45,12 @@ class CharterBundleV2Migration(BaseMigration):
         if not charter_dir.exists():
             return False
         bundle_version = get_bundle_schema_version(charter_dir)
-        return bundle_version is None or bundle_version < CURRENT_BUNDLE_SCHEMA_VERSION
+        if bundle_version is None or bundle_version < CURRENT_BUNDLE_SCHEMA_VERSION:
+            return True
+        if bundle_version == CURRENT_BUNDLE_SCHEMA_VERSION:
+            repair = repair_v2_synthesis_manifest_defaults(charter_dir, dry_run=True)
+            return bool(repair.changes_made or repair.errors)
+        return False
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
         """Return (True, '') when the charter directory is present."""
