@@ -257,7 +257,12 @@ def generate(
             repo_root=repo_root,
             doctrine_service=_build_doctrine_service_with_org_layer(repo_root),
         )
-        bundle_result = write_compiled_charter(charter_dir, compiled, force=force)
+        bundle_result = write_compiled_charter(
+            charter_dir,
+            compiled,
+            force=force,
+            repo_root=repo_root,
+        )
         if interview_source == "defaults":
             # Legacy CLI contract: default generation materializes an empty
             # library/ directory for older consumers. Interview-driven flows

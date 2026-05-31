@@ -225,7 +225,7 @@ my-project/
 │   │   ├── software-dev/
 │   │   ├── research/
 │   │   └── documentation/
-│   └── memory/
+│   └── charter/
 │       └── charter.md
 ├── .claude/
 │   └── commands/

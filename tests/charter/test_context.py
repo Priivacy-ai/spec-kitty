@@ -208,6 +208,35 @@ class TestBuildContextV2:
         assert result.mode == "compact"
         assert result.first_load is False
 
+    def test_compact_text_contains_governance_reference_diagnostics(self, tmp_path: Path) -> None:
+        """Compact context preserves declared supporting governance docs."""
+        _setup_fixture_repo(tmp_path)
+        (tmp_path / "spec").mkdir()
+        (tmp_path / "spec" / "constitution.md").write_text("# Public Constitution\n", encoding="utf-8")
+        (tmp_path / ".kittify" / "charter" / "charter.md").write_text(
+            _CHARTER_MD
+            + textwrap.dedent("""\
+
+                ## Supporting Governance
+
+                ```yaml
+                governance_references:
+                  - spec/constitution.md
+                ```
+            """),
+            encoding="utf-8",
+        )
+
+        result = build_charter_context(
+            tmp_path,
+            action="custom-action",
+            mark_loaded=False,
+        )
+
+        assert result.mode == "compact"
+        assert "Required Governance Reading:" in result.text
+        assert "spec/constitution.md" in result.text
+
     def test_text_contains_charter_context_header(self, tmp_path: Path) -> None:
         """Output text starts with Charter Context header."""
         result = self._call(tmp_path)
