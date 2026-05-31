@@ -129,12 +129,12 @@ WP11 subtasks T048–T051 are fully independent and can be executed in any order
 **Subtasks**: T001–T006
 **Agent profile**: python-pedro
 
-- [ ] T001 Fix `test_legacy_subpackage_is_gone` find_spec (FR-021)
-- [ ] T002 Fix 8 `test_template_governance_payload_contract` tests (FR-022)
-- [ ] T003 Add m_3_2_7/m_3_2_8 to dead-modules allowlist; bump baseline 71→73 (FR-023)
-- [ ] T004 Remove tracked test fixture files from `kitty-specs/` (FR-025)
-- [ ] T005 Fix `_SINGULAR_TO_PLURAL["mission_step_contract"]` in `drg.py` (FR-028)
-- [ ] T006 Fix C-004 TYPE_CHECKING import in `mission_step_repository.py` (FR-020)
+- [x] T001 Fix `test_legacy_subpackage_is_gone` find_spec (FR-021)
+- [x] T002 Fix 8 `test_template_governance_payload_contract` tests (FR-022)
+- [x] T003 Add m_3_2_7/m_3_2_8 to dead-modules allowlist; bump baseline 71→73 (FR-023)
+- [x] T004 Remove tracked test fixture files from `kitty-specs/` (FR-025)
+- [x] T005 Fix `_SINGULAR_TO_PLURAL["mission_step_contract"]` in `drg.py` (FR-028)
+- [x] T006 Fix C-004 TYPE_CHECKING import in `mission_step_repository.py` (FR-020)
 
 **Implementation Notes**:
 - T001: `test_legacy_subpackage_is_gone` uses `importlib.util.find_spec()` which returns non-None for namespace packages; fix by checking for `__file__` attribute on the returned spec or using a more precise check.
