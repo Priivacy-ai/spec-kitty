@@ -119,6 +119,11 @@ class MissionStep(BaseModel):
     delegates_to: list[str] = Field(default_factory=list)
     depends_on: list[str] = Field(default_factory=list)
 
+    @property
+    def title(self) -> str:
+        """Alias for ``display_name``; satisfies runtime callers that use ``.title``."""
+        return self.display_name
+
 
 class Mission(BaseModel):
     """Top-level mission definition.

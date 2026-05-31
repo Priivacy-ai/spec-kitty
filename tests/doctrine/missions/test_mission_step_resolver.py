@@ -61,7 +61,7 @@ def _write_step(
         items = "\n".join(f"- {d}" for d in depends_on)
         depends_on_yaml = f"\ndepends_on:\n{items}"
     (step_dir / "step.yaml").write_text(
-        f"id: {step_id}\ndisplay_name: {display_name!r}\nstep_type: agent{depends_on_yaml}\n",
+        f"id: {step_id}\ndisplay_name: {display_name!r}\nstep_type: agent\nprompt_template: prompt.md{depends_on_yaml}\n",
         encoding="utf-8",
     )
     return step_dir
@@ -82,7 +82,7 @@ def _write_org_step(
     step_dir = org_root / "mission-steps" / mission_type_id / step_id
     step_dir.mkdir(parents=True, exist_ok=True)
     (step_dir / "step.yaml").write_text(
-        f"id: {step_id}\ndisplay_name: {display_name!r}\nstep_type: agent\n",
+        f"id: {step_id}\ndisplay_name: {display_name!r}\nstep_type: agent\nprompt_template: prompt.md\n",
         encoding="utf-8",
     )
     return step_dir
@@ -101,7 +101,7 @@ def _write_project_step(
     )
     step_dir.mkdir(parents=True, exist_ok=True)
     (step_dir / "step.yaml").write_text(
-        f"id: {step_id}\ndisplay_name: {display_name!r}\nstep_type: agent\n",
+        f"id: {step_id}\ndisplay_name: {display_name!r}\nstep_type: agent\nprompt_template: prompt.md\n",
         encoding="utf-8",
     )
     return step_dir

@@ -213,9 +213,53 @@ _Charter management commands_
 │ resynthesize  Regenerate a bounded set of project-local doctrine artifacts   │
 │               (partial resynthesis).                                         │
 │ lint          Detect decay in charter artifacts via graph-native checks.     │
-│ mission-type  Mission type commands (activated types only).                  │
 │ preflight     Verify charter-derived state before a governed session begins. │
 │ bundle        Charter bundle validation commands.                            │
+│ mission-type  Mission type commands (activated types only).                  │
+│ activate      Activate a mission-type override for this project (FR-008).    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter activate
+
+_Activate a mission-type override for this project (FR-008)._
+
+```
+ Usage: spec-kitty charter activate [OPTIONS] COMMAND [ARGS]...
+
+ Activate a mission-type override for this project (FR-008).
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ mission-type  Activate a mission-type override (FR-008).                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter activate mission-type
+
+```
+ Usage: spec-kitty charter activate mission-type [OPTIONS] MISSION_TYPE_ID
+
+ Activate a mission-type override (FR-008).
+
+ Writes ``.kittify/overrides/mission-types/<id>.yaml`` with the supplied
+ ``action_sequence``.  Before writing, computes removed steps and emits
+ a warning for each in-flight WP affected by the removal.
+
+ The warning is non-blocking: the override is always written.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    mission_type_id      TEXT  Mission type to override (e.g.               │
+│                                 software-dev).                               │
+│                                 [required]                                   │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --action-sequence  -s      TEXT  Ordered action step IDs for the override │
+│                                     (repeat or space-separated).             │
+│                                     [required]                               │
+│    --help                           Show this message and exit.              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

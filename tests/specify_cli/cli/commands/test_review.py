@@ -834,6 +834,21 @@ def test_uv_tool_remediation_omits_uv_tool_dir_for_default_tool_dir(
     tool_env = Path.home() / ".local" / "share" / "uv" / "tools" / "spec-kitty-cli"
     bin_dir = tool_env / "bin"
 
+    # Stub out all receipt-based paths so the function reaches detect_install_method.
+    # A real uv receipt on disk short-circuits the function before the mocked
+    # detect_install_method / get_version are ever reached without these stubs.
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review._uv_tool_reinstall_command",
+        lambda: None,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review._active_uv_tool_receipt_has_spec_kitty",
+        lambda: False,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review._active_uv_tool_receipt_path",
+        lambda: None,
+    )
     monkeypatch.setattr(
         "specify_cli.cli.commands.review.detect_install_method",
         lambda: review_mod.InstallMethod.UV_TOOL,
