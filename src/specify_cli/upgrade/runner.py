@@ -352,6 +352,10 @@ class MigrationRunner:
                 wt_metadata.version = target_version
                 wt_metadata.last_upgraded_at = datetime.now()
                 wt_metadata.save(wt_kittify)
+                # ProjectMetadata.save() rewrites metadata.yaml from its fixed
+                # model, so stamp after save just like the main project path.
+                if REQUIRED_SCHEMA_VERSION is not None:
+                    self._stamp_schema_version(wt_kittify, REQUIRED_SCHEMA_VERSION)
 
         return result
 
