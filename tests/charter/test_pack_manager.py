@@ -315,3 +315,66 @@ class TestMergeDefaults:
     ) -> None:
         result = manager.merge_defaults(ctx)
         assert result.backup_path is None
+
+
+# ---------------------------------------------------------------------------
+# TestActivateCascadeWarning
+# ---------------------------------------------------------------------------
+
+
+class TestActivateCascadeWarning:
+    def test_cascade_true_appends_warning(
+        self, manager: CharterPackManager, project_root: Path
+    ) -> None:
+        """activate(cascade=True) emits a warning that DRG traversal is deferred."""
+        config = project_root / ".kittify" / "config.yaml"
+        config.write_text("activated_directives:\n  - existing\n", encoding="utf-8")
+        ctx = ProjectContext.from_repo(project_root)
+        result = manager.activate(ctx, kind="directive", artifact_id="new-one", cascade=True)
+        assert any("cascade" in w.lower() for w in result.warnings)
+
+
+# ---------------------------------------------------------------------------
+# TestDeactivateCascadeAndInvalidKind
+# ---------------------------------------------------------------------------
+
+
+class TestDeactivateCascadeAndInvalidKind:
+    def test_cascade_true_appends_warning(
+        self, manager: CharterPackManager, project_root: Path
+    ) -> None:
+        """deactivate(cascade=True) emits a warning that cascade analysis is deferred."""
+        config = project_root / ".kittify" / "config.yaml"
+        config.write_text("activated_directives:\n  - to-remove\n", encoding="utf-8")
+        ctx = ProjectContext.from_repo(project_root)
+        result = manager.deactivate(ctx, kind="directive", artifact_id="to-remove", cascade=True)
+        assert any("cascade" in w.lower() for w in result.warnings)
+
+    def test_raises_value_error_for_unknown_kind(
+        self, manager: CharterPackManager, ctx: ProjectContext
+    ) -> None:
+        """deactivate() with an unknown kind raises ValueError."""
+        with pytest.raises(ValueError, match="Unknown activation kind"):
+            manager.deactivate(ctx, kind="not-a-kind", artifact_id="x")
+
+
+# ---------------------------------------------------------------------------
+# TestListAvailable
+# ---------------------------------------------------------------------------
+
+
+class TestListAvailable:
+    def test_raises_value_error_for_unknown_kind(
+        self, manager: CharterPackManager, ctx: ProjectContext
+    ) -> None:
+        """list_available() with an unknown kind raises ValueError."""
+        with pytest.raises(ValueError, match="Unknown activation kind"):
+            manager.list_available(ctx, kind="bogus-kind")
+
+    def test_returns_nonempty_frozenset_for_directive(
+        self, manager: CharterPackManager, ctx: ProjectContext
+    ) -> None:
+        """list_available('directive') returns at least one built-in directive ID."""
+        result = manager.list_available(ctx, kind="directive")
+        assert isinstance(result, frozenset)
+        assert len(result) > 0

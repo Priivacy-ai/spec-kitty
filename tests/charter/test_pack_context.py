@@ -398,3 +398,47 @@ def test_packcontext_has_all_ten_activated_fields(tmp_path: Path) -> None:
     assert ctx.activated_procedures is None
     assert ctx.activated_agent_profiles is None
     assert ctx.activated_mission_step_contracts is None
+
+
+# ---------------------------------------------------------------------------
+# Malformed-value fallback: activated_* treats non-list as None (T010 edge)
+# ---------------------------------------------------------------------------
+
+
+def test_activated_directives_malformed_value_returns_none(tmp_path: Path) -> None:
+    """A non-list value for activated_directives is treated as None (safe fallback)."""
+    content = """\
+vcs:
+  type: git
+activated_directives: not-a-list
+"""
+    _write_config(tmp_path, content)
+    ctx = PackContext.from_config(tmp_path)
+
+    assert ctx.activated_directives is None
+
+
+def test_activated_tactics_malformed_value_returns_none(tmp_path: Path) -> None:
+    """A non-list value for activated_tactics is treated as None (safe fallback)."""
+    content = """\
+vcs:
+  type: git
+activated_tactics: 42
+"""
+    _write_config(tmp_path, content)
+    ctx = PackContext.from_config(tmp_path)
+
+    assert ctx.activated_tactics is None
+
+
+# ---------------------------------------------------------------------------
+# charter.mission_steps re-export surface (FR-011 facade)
+# ---------------------------------------------------------------------------
+
+
+def test_charter_mission_steps_exports_repository_and_model() -> None:
+    """charter.mission_steps must re-export MissionStepRepository and MissionStep."""
+    from charter.mission_steps import MissionStep, MissionStepRepository  # noqa: PLC0415
+
+    assert MissionStepRepository is not None
+    assert MissionStep is not None
