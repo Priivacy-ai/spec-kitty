@@ -6,6 +6,7 @@ Total: ≥ 25 test cases.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 import json
 from pathlib import Path
 
@@ -82,6 +83,22 @@ def test_oserror_detail_redacts_absolute_paths_with_spaces() -> None:
         assert "My Project" not in detail
         assert "Rob Douglass" not in detail
         assert "My Share" not in detail
+
+
+def test_oserror_detail_redacts_posix_edge_paths() -> None:
+    """POSIX absolute paths may be single-segment or contain colons."""
+    cases = [
+        OSError("failed reading /tmp"),
+        OSError("failed reading /secret.txt"),
+        OSError("failed reading /tmp/project:secret.txt"),
+    ]
+
+    for exc in cases:
+        detail = format_exception_detail(exc)
+        assert detail == "OSError: failed reading <path>"
+        assert "/tmp" not in detail
+        assert "/secret.txt" not in detail
+        assert "project:secret.txt" not in detail
 
 
 def test_oserror_detail_does_not_redact_non_path_slashes_or_urls() -> None:
@@ -538,6 +555,42 @@ def test_mission_events_read_oserror_detail_is_deterministic(
     monkeypatch.setattr(Path, "read_text", raise_for_mission_events)
 
     findings = classify_mission_events_jsonl(tmp_path)
+
+    assert len(findings) == 1
+    assert findings[0].code == "CORRUPT_JSONL"
+    assert findings[0].detail == (
+        "could not read file: PermissionError: [Errno 13] Permission denied"
+    )
+    _assert_no_absolute_path_leak(findings[0].detail, path)
+
+
+@pytest.mark.parametrize(
+    ("relative_path", "classifier"),
+    [
+        (Path("decisions/events.jsonl"), classify_decisions_events_jsonl),
+        (Path("handoff/events.jsonl"), classify_handoff_events_jsonl),
+    ],
+)
+def test_shared_jsonl_classifiers_read_oserror_detail_is_deterministic(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    relative_path: Path,
+    classifier: Callable[[Path], list],
+) -> None:
+    """Shared JSONL classifiers must sanitize OSError details."""
+    path = tmp_path / relative_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("{}\n", encoding="utf-8")
+    original_read_text = Path.read_text
+
+    def raise_for_shared_jsonl(self: Path, *args: object, **kwargs: object) -> str:
+        if self == path:
+            raise PermissionError(13, "Permission denied", str(path))
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", raise_for_shared_jsonl)
+
+    findings = classifier(tmp_path)
 
     assert len(findings) == 1
     assert findings[0].code == "CORRUPT_JSONL"

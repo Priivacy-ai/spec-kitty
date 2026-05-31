@@ -5,7 +5,13 @@ from __future__ import annotations
 import re
 
 _POSIX_ABSOLUTE_PATH_RE = re.compile(
-    r"(?<![\w:/])/(?:[^/:\r\n'\"<>]+/)[^:\r\n'\"<>]*"
+    r"(?<![\w:/])/(?:[^/:\r\n'\"<>]+/)[^\r\n'\"<>]*"
+)
+_POSIX_SINGLE_COMPONENT_PATH_RE = re.compile(
+    r"(?<![\w:/])/(?:"
+    r"tmp|var|private|Users|home|etc|opt|usr|bin|sbin|dev|Volumes|"
+    r"System|Library|Applications|[^/\s:\r\n'\"<>]*\.[^/\s:\r\n'\"<>]+"
+    r")(?![\w/.-])"
 )
 _WINDOWS_ABSOLUTE_PATH_RE = re.compile(
     r"(?i)\b[A-Z]:\\[^\r\n'\"<>|]*"
@@ -42,4 +48,5 @@ def _format_os_error_detail(exc: OSError) -> str:
 def _sanitize_run_varying_paths(text: str) -> str:
     text = _WINDOWS_UNC_PATH_RE.sub("<path>", text)
     text = _WINDOWS_ABSOLUTE_PATH_RE.sub("<path>", text)
-    return _POSIX_ABSOLUTE_PATH_RE.sub("<path>", text)
+    text = _POSIX_ABSOLUTE_PATH_RE.sub("<path>", text)
+    return _POSIX_SINGLE_COMPONENT_PATH_RE.sub("<path>", text)
