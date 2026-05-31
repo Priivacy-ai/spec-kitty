@@ -73,3 +73,14 @@ def test_runtime_next_skill_references_resolve() -> None:
             continue
         target = (skill.parent / link).resolve()
         assert target.exists(), f"Broken link in runtime-next/SKILL.md: {link}"
+
+
+def test_runtime_next_skill_documents_omitted_result_as_query_mode() -> None:
+    skill = REPO_ROOT / "src/doctrine/skills/spec-kitty-runtime-next/SKILL.md"
+    content = skill.read_text()
+
+    assert "Defaults to `success` if omitted." not in content
+    assert (
+        "If omitted, `spec-kitty next` returns current state without advancing "
+        "(query mode)."
+    ) in content
