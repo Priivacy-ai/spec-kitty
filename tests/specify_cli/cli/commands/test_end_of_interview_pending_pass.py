@@ -4,7 +4,7 @@ Tests cover:
 - Empty pending list → no panel rendered (silent no-op).
 - Non-empty pending list → §7 Panel rendered + entries resolved.
 - Failed fetch → fallback DiscussionFetch used; entry still removed from store.
-- T042: unexpected exception in run_candidate_review → entry still removed (always-progress).
+- Unexpected exception in run_candidate_review → entry stays pending for retry.
 - T045: already-widened question prompt for [f]etch, [d]efer, local answer, !cancel paths.
 - Charter interview end-of-interview pass integration.
 """
@@ -65,6 +65,13 @@ def _capture_console() -> Console:
 
 def _console_output(console: Console) -> str:
     return console.file.getvalue()  # type: ignore[union-attr]
+
+
+def _make_decision_error() -> Exception:
+    from specify_cli.decisions.models import DecisionErrorCode
+    from specify_cli.decisions.service import DecisionError
+
+    return DecisionError(code=DecisionErrorCode.TERMINAL_CONFLICT)
 
 
 # ---------------------------------------------------------------------------
@@ -133,7 +140,7 @@ class TestRunEndOfInterviewPendingPassWithEntries:
         mock_saas.fetch_discussion.return_value = DiscussionFetch(
             participants=[], message_count=0, thread_url=None, messages=[], truncated=False,
         )
-        with patch("specify_cli.widen.review.run_candidate_review", MagicMock(return_value=None)):
+        with patch("specify_cli.widen.review.run_candidate_review", MagicMock(return_value=object())):
             run_end_of_interview_pending_pass(
                 widen_store=store,
                 saas_client=mock_saas,
@@ -159,7 +166,7 @@ class TestRunEndOfInterviewPendingPassWithEntries:
             participants=[], message_count=0, thread_url=None,
             messages=[], truncated=False,
         ))
-        mock_review = MagicMock(return_value=None)
+        mock_review = MagicMock(return_value=object())
 
         with patch("specify_cli.widen.review.run_candidate_review", mock_review), \
              patch.object(
@@ -189,8 +196,8 @@ class TestRunEndOfInterviewPendingPassWithEntries:
 
         assert store.list_pending() == [], "All entries should be removed from store after pending pass"
 
-    def test_entry_removed_even_on_review_exception(self, tmp_path: Path) -> None:
-        """T042: unexpected exception in run_candidate_review → entry still removed."""
+    def test_entry_stays_pending_on_review_exception(self, tmp_path: Path) -> None:
+        """Regression G0085: candidate-review crashes must not clear pending state."""
         entry = _make_entry()
         store = _make_store(tmp_path, [entry])
         console = _capture_console()
@@ -216,7 +223,9 @@ class TestRunEndOfInterviewPendingPassWithEntries:
                 actor="test",
             )
 
-        assert store.list_pending() == [], "Entry must be removed from store even on unexpected exception (T042)"
+        pending = store.list_pending()
+        assert len(pending) == 1
+        assert pending[0].decision_id == entry.decision_id
 
     def test_fetch_failure_uses_fallback_discussion(self, tmp_path: Path) -> None:
         """Fetch failure → fallback DiscussionFetch; run_candidate_review still called."""
@@ -229,7 +238,7 @@ class TestRunEndOfInterviewPendingPassWithEntries:
         mock_saas = MagicMock()
         mock_saas.fetch_discussion.side_effect = SaasClientError("network error")
 
-        mock_review = MagicMock(return_value=None)
+        mock_review = MagicMock(return_value=object())
         with patch("specify_cli.widen.review.run_candidate_review", mock_review):
             run_end_of_interview_pending_pass(
                 widen_store=store,
@@ -266,7 +275,7 @@ class TestRunEndOfInterviewPendingPassWithEntries:
             participants=[], message_count=0, thread_url=None, messages=[], truncated=False,
         )
 
-        with patch("specify_cli.widen.review.run_candidate_review", MagicMock(return_value=None)):
+        with patch("specify_cli.widen.review.run_candidate_review", MagicMock(return_value=object())):
             run_end_of_interview_pending_pass(
                 widen_store=store,
                 saas_client=mock_saas,
@@ -294,7 +303,7 @@ class TestRunEndOfInterviewPendingPassWithEntries:
             participants=[], message_count=0, thread_url=None, messages=[], truncated=False,
         )
 
-        with patch("specify_cli.widen.review.run_candidate_review", MagicMock(return_value=None)):
+        with patch("specify_cli.widen.review.run_candidate_review", MagicMock(return_value=object())):
             run_end_of_interview_pending_pass(
                 widen_store=store,
                 saas_client=mock_saas,
@@ -329,7 +338,7 @@ class TestResolvePendingEntry:
             participants=["Alice"], message_count=3, thread_url=None, messages=["Hi"], truncated=False,
         )
 
-        with patch("specify_cli.widen.review.run_candidate_review", MagicMock(return_value=None)):
+        with patch("specify_cli.widen.review.run_candidate_review", MagicMock(return_value=object())):
             _resolve_pending_entry(
                 entry=entry,
                 store=store,
@@ -343,8 +352,8 @@ class TestResolvePendingEntry:
 
         assert store.list_pending() == []
 
-    def test_removes_entry_on_exception(self, tmp_path: Path) -> None:
-        """T042 always-progress: entry removed even if run_candidate_review raises."""
+    def test_keeps_entry_on_review_exception(self, tmp_path: Path) -> None:
+        """Regression G0085: review/write-back crash leaves pending entry retryable."""
         entry = _make_entry()
         store = _make_store(tmp_path, [entry])
         console = _capture_console()
@@ -371,7 +380,79 @@ class TestResolvePendingEntry:
                 actor="test",
             )
 
-        assert store.list_pending() == [], "T042: entry must be removed even after exception"
+        pending = store.list_pending()
+        assert len(pending) == 1
+        assert pending[0].decision_id == entry.decision_id
+
+    def test_keeps_entry_when_review_is_cancelled(self, tmp_path: Path) -> None:
+        """A non-terminal candidate-review cancellation leaves pending state retryable."""
+        entry = _make_entry()
+        store = _make_store(tmp_path, [entry])
+        console = _capture_console()
+
+        from specify_cli.widen.models import DiscussionFetch
+
+        mock_saas = MagicMock()
+        mock_saas.fetch_discussion.return_value = DiscussionFetch(
+            participants=[], message_count=0, thread_url=None, messages=[], truncated=False,
+        )
+
+        with patch("specify_cli.widen.review.run_candidate_review", MagicMock(return_value=None)):
+            _resolve_pending_entry(
+                entry=entry,
+                store=store,
+                saas_client=mock_saas,
+                mission_slug=MISSION_SLUG,
+                repo_root=tmp_path,
+                console=console,
+                dm_service=MagicMock(),
+                actor="test",
+            )
+
+        pending = store.list_pending()
+        assert len(pending) == 1
+        assert pending[0].decision_id == entry.decision_id
+
+    def test_keeps_entry_when_review_write_back_fails(self, tmp_path: Path) -> None:
+        """Regression G0085: failed terminal write-back leaves pending entry retryable."""
+        from specify_cli.decisions.models import DecisionErrorCode
+        from specify_cli.decisions.service import DecisionError
+        from specify_cli.widen.models import DiscussionFetch
+
+        entry = _make_entry()
+        store = _make_store(tmp_path, [entry])
+        console = _capture_console()
+        mock_saas = MagicMock()
+        mock_saas.fetch_discussion.return_value = DiscussionFetch(
+            participants=[], message_count=0, thread_url=None, messages=[], truncated=False,
+        )
+        mock_dm = MagicMock()
+        mock_dm.resolve_decision.side_effect = DecisionError(
+            code=DecisionErrorCode.TERMINAL_CONFLICT
+        )
+        llm_payload = {
+            "candidate_summary": "Team chose Postgres",
+            "candidate_answer": "PostgreSQL",
+            "source_hint": "slack_extraction",
+        }
+
+        with patch.object(console, "input", return_value="a"), patch(
+            "specify_cli.widen.review._read_llm_response", return_value=llm_payload
+        ):
+            _resolve_pending_entry(
+                entry=entry,
+                store=store,
+                saas_client=mock_saas,
+                mission_slug=MISSION_SLUG,
+                repo_root=tmp_path,
+                console=console,
+                dm_service=mock_dm,
+                actor="test",
+            )
+
+        pending = store.list_pending()
+        assert len(pending) == 1
+        assert pending[0].decision_id == entry.decision_id
 
 
 # ---------------------------------------------------------------------------
@@ -412,6 +493,39 @@ class TestRenderAlreadyWidenedPrompt:
         mock_dm.resolve_decision.assert_called_once()
         assert store.list_pending() == []
 
+    def test_local_answer_write_back_failure_keeps_pending_and_reprompts(self, tmp_path: Path) -> None:
+        """Regression G0085: failed already-widened local resolve leaves pending."""
+        import typer
+
+        store, entry = self._make_store_with_entry(tmp_path)
+        console = _capture_console()
+        mock_dm = MagicMock()
+        mock_dm.resolve_decision.side_effect = _make_decision_error()
+        inputs = iter(["PostgreSQL", "!cancel"])
+
+        with (
+            patch.object(console, "input", side_effect=lambda _prompt="": next(inputs)),
+            pytest.raises(typer.Exit),
+        ):
+            render_already_widened_prompt(
+                question_text="Which database?",
+                decision_id="dec-001",
+                mission_slug=MISSION_SLUG,
+                repo_root=tmp_path,
+                saas_client=MagicMock(),
+                widen_store=store,
+                dm_service=mock_dm,
+                actor="test",
+                console=console,
+            )
+
+        pending = store.list_pending()
+        assert len(pending) == 1
+        assert pending[0].decision_id == entry.decision_id
+        output = _console_output(console).lower()
+        assert "not saved" in output
+        assert "resolved locally" not in output
+
     def test_defer_path(self, tmp_path: Path) -> None:
         """d input → defer_decision called, entry removed."""
         store, entry = self._make_store_with_entry(tmp_path)
@@ -438,6 +552,39 @@ class TestRenderAlreadyWidenedPrompt:
         mock_dm.defer_decision.assert_called_once()
         assert store.list_pending() == []
 
+    def test_defer_write_back_failure_keeps_pending_and_reprompts(self, tmp_path: Path) -> None:
+        """Regression G0085: failed already-widened direct defer leaves pending."""
+        import typer
+
+        store, entry = self._make_store_with_entry(tmp_path)
+        console = _capture_console()
+        mock_dm = MagicMock()
+        mock_dm.defer_decision.side_effect = _make_decision_error()
+        inputs_iter = iter(["d", "not ready", "!cancel"])
+
+        with (
+            patch.object(console, "input", side_effect=inputs_iter),
+            pytest.raises(typer.Exit),
+        ):
+            render_already_widened_prompt(
+                question_text="Tech stack?",
+                decision_id="dec-001",
+                mission_slug=MISSION_SLUG,
+                repo_root=tmp_path,
+                saas_client=MagicMock(),
+                widen_store=store,
+                dm_service=mock_dm,
+                actor="test",
+                console=console,
+            )
+
+        pending = store.list_pending()
+        assert len(pending) == 1
+        assert pending[0].decision_id == entry.decision_id
+        output = _console_output(console).lower()
+        assert "not saved" in output
+        assert "decision deferred" not in output
+
     def test_fetch_path(self, tmp_path: Path) -> None:
         """f input → fetch + run_candidate_review, entry removed."""
         store, entry = self._make_store_with_entry(tmp_path)
@@ -452,7 +599,7 @@ class TestRenderAlreadyWidenedPrompt:
             thread_url="https://slack.com/abc", messages=["Use PG"], truncated=False,
         )
 
-        mock_review = MagicMock(return_value=None)
+        mock_review = MagicMock(return_value=object())
         with patch.object(console, "input", return_value="f"), \
              patch.object(console, "print"), \
              patch("specify_cli.widen.review.run_candidate_review", mock_review):
@@ -470,6 +617,84 @@ class TestRenderAlreadyWidenedPrompt:
 
         mock_review.assert_called_once()
         assert store.list_pending() == []
+
+    def test_fetch_path_keeps_pending_on_review_exception(self, tmp_path: Path) -> None:
+        """Regression G0085: already-widened fetch crash leaves pending entry retryable."""
+        store, entry = self._make_store_with_entry(tmp_path)
+        console = Console(highlight=False, markup=False)
+        mock_dm = MagicMock()
+
+        from specify_cli.widen.models import DiscussionFetch
+
+        mock_saas = MagicMock()
+        mock_saas.fetch_discussion.return_value = DiscussionFetch(
+            participants=["Alice"], message_count=1,
+            thread_url="https://slack.com/abc", messages=["Use PG"], truncated=False,
+        )
+
+        with patch.object(console, "input", return_value="f"), \
+             patch.object(console, "print"), \
+             patch(
+                 "specify_cli.widen.review.run_candidate_review",
+                 side_effect=RuntimeError("review crash"),
+             ), \
+             pytest.raises(RuntimeError, match="review crash"):
+            render_already_widened_prompt(
+                question_text="DB choice?",
+                decision_id="dec-001",
+                mission_slug=MISSION_SLUG,
+                repo_root=tmp_path,
+                saas_client=mock_saas,
+                widen_store=store,
+                dm_service=mock_dm,
+                actor="test",
+                console=console,
+            )
+
+        pending = store.list_pending()
+        assert len(pending) == 1
+        assert pending[0].decision_id == entry.decision_id
+
+    def test_fetch_path_keeps_pending_when_review_is_cancelled(self, tmp_path: Path) -> None:
+        """A non-terminal already-widened review cancellation leaves pending state retryable."""
+        import typer
+
+        store, entry = self._make_store_with_entry(tmp_path)
+        console = Console(highlight=False, markup=False)
+        mock_dm = MagicMock()
+
+        from specify_cli.widen.models import DiscussionFetch
+
+        mock_saas = MagicMock()
+        mock_saas.fetch_discussion.return_value = DiscussionFetch(
+            participants=["Alice"], message_count=1,
+            thread_url="https://slack.com/abc", messages=["Use PG"], truncated=False,
+        )
+
+        inputs_iter = iter(["f", "!cancel"])
+
+        with patch.object(console, "input", side_effect=inputs_iter), \
+             patch.object(console, "print"), \
+             patch(
+                 "specify_cli.widen.review.run_candidate_review",
+                 MagicMock(return_value=None),
+             ), \
+             pytest.raises(typer.Exit):
+            render_already_widened_prompt(
+                question_text="DB choice?",
+                decision_id="dec-001",
+                mission_slug=MISSION_SLUG,
+                repo_root=tmp_path,
+                saas_client=mock_saas,
+                widen_store=store,
+                dm_service=mock_dm,
+                actor="test",
+                console=console,
+            )
+
+        pending = store.list_pending()
+        assert len(pending) == 1
+        assert pending[0].decision_id == entry.decision_id
 
     def test_cancel_raises_exit(self, tmp_path: Path) -> None:
         """!cancel → typer.Exit raised."""
@@ -531,7 +756,7 @@ class TestRenderAlreadyWidenedPrompt:
         mock_saas = MagicMock()
         mock_saas.fetch_discussion.side_effect = SaasClientError("net error")
 
-        mock_review = MagicMock(return_value=None)
+        mock_review = MagicMock(return_value=object())
         with patch.object(console, "input", return_value="f"), \
              patch.object(console, "print"), \
              patch("specify_cli.widen.review.run_candidate_review", mock_review):

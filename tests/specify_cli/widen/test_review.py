@@ -11,6 +11,7 @@ Coverage:
 - _handle_edit: editor used, minor edit → SLACK_EXTRACTION, major → OVERRIDE
 - _handle_edit: None from click.edit falls back to original text
 - _handle_defer: calls dm_service.defer_decision, prints deferred, default rationale
+- run_candidate_review: write-back failures return None
 - run_candidate_review: accept path returns CandidateReview
 - run_candidate_review: edit path returns CandidateReview
 - run_candidate_review: defer path returns CandidateReview
@@ -81,6 +82,13 @@ def make_dm_service() -> MagicMock:
     svc.resolve_decision.return_value = MagicMock()
     svc.defer_decision.return_value = MagicMock()
     return svc
+
+
+def make_decision_error() -> Exception:
+    from specify_cli.decisions.models import DecisionErrorCode
+    from specify_cli.decisions.service import DecisionError
+
+    return DecisionError(code=DecisionErrorCode.TERMINAL_CONFLICT)
 
 
 # ---------------------------------------------------------------------------
@@ -625,6 +633,40 @@ class TestHandleDefer:
             _handle_defer(candidate, "m", Path("/r"), svc, "actor", console)
         assert "deferred" in buf.getvalue().lower()
 
+    def test_decision_error_surfaces_clear_message_and_returns_false(self) -> None:
+        """DecisionError on defer must print a visible error and return False."""
+        console, buf = _console_with_capture()
+        svc = make_dm_service()
+        svc.defer_decision.side_effect = make_decision_error()
+        discussion = make_discussion()
+        candidate = CandidateReview(
+            decision_id="D01",
+            discussion_fetch=discussion,
+            candidate_summary="",
+            candidate_answer="",
+            source_hint=SummarySource.MANUAL,
+        )
+        with patch.object(console, "input", return_value="will decide later"):
+            result = _handle_defer(candidate, "m", Path("/r"), svc, "actor", console)
+        assert result is False
+        assert "deferred" not in buf.getvalue().lower()
+
+    def test_defer_returns_true_on_success(self) -> None:
+        """_handle_defer returns True when defer_decision succeeds."""
+        console, buf = _console_with_capture()
+        svc = make_dm_service()
+        discussion = make_discussion()
+        candidate = CandidateReview(
+            decision_id="D01",
+            discussion_fetch=discussion,
+            candidate_summary="",
+            candidate_answer="",
+            source_hint=SummarySource.MANUAL,
+        )
+        with patch.object(console, "input", return_value="will decide later"):
+            result = _handle_defer(candidate, "m", Path("/r"), svc, "actor", console)
+        assert result is True
+
 
 # ---------------------------------------------------------------------------
 # run_candidate_review (T035 integration)
@@ -688,6 +730,35 @@ class TestRunCandidateReview:
         result, output = _run_review_with_responses(llm_payload, "d", extra_inputs=["need more info"])
         assert isinstance(result, CandidateReview)
 
+    def test_accept_write_back_failure_returns_none(self) -> None:
+        llm_payload = {
+            "candidate_summary": "Team chose Postgres",
+            "candidate_answer": "PostgreSQL",
+            "source_hint": "slack_extraction",
+        }
+        console, buf = _console_with_capture()
+        svc = make_dm_service()
+        svc.resolve_decision.side_effect = make_decision_error()
+        discussion = make_discussion()
+
+        with (
+            patch.object(console, "input", return_value="a"),
+            patch("specify_cli.widen.review._read_llm_response", return_value=llm_payload),
+        ):
+            result = run_candidate_review(
+                discussion_data=discussion,
+                decision_id="D01",
+                question_text="Which database?",
+                mission_slug="m",
+                repo_root=Path("/r"),
+                console=console,
+                dm_service=svc,
+                actor="actor",
+            )
+
+        assert result is None
+        assert "not saved" in buf.getvalue().lower()
+
     def test_edit_path_returns_candidate_review(self) -> None:
         llm_payload = {
             "candidate_summary": "S",
@@ -714,6 +785,69 @@ class TestRunCandidateReview:
                 actor="actor",
             )
         assert isinstance(result, CandidateReview)
+
+    def test_edit_write_back_failure_returns_none(self) -> None:
+        llm_payload = {
+            "candidate_summary": "S",
+            "candidate_answer": "A",
+            "source_hint": "slack_extraction",
+        }
+        console, buf = _console_with_capture()
+        svc = make_dm_service()
+        svc.resolve_decision.side_effect = make_decision_error()
+        discussion = make_discussion()
+
+        with (
+            patch.object(console, "input", return_value="e"),
+            patch("specify_cli.widen.review._read_llm_response", return_value=llm_payload),
+            patch("specify_cli.widen.review.click.edit", return_value="A edited"),
+        ):
+            result = run_candidate_review(
+                discussion_data=discussion,
+                decision_id="D01",
+                question_text="Q?",
+                mission_slug="m",
+                repo_root=Path("/r"),
+                console=console,
+                dm_service=svc,
+                actor="actor",
+            )
+
+        assert result is None
+        assert "not saved" in buf.getvalue().lower()
+
+    def test_defer_write_back_failure_returns_none(self) -> None:
+        llm_payload = {
+            "candidate_summary": "S",
+            "candidate_answer": "A",
+            "source_hint": "slack_extraction",
+        }
+        console, buf = _console_with_capture()
+        svc = make_dm_service()
+        svc.defer_decision.side_effect = make_decision_error()
+        discussion = make_discussion()
+        inputs = iter(["d", "need more info"])
+
+        def fake_input(_prompt: str = "") -> str:
+            return next(inputs)
+
+        with (
+            patch.object(console, "input", side_effect=fake_input),
+            patch("specify_cli.widen.review._read_llm_response", return_value=llm_payload),
+        ):
+            result = run_candidate_review(
+                discussion_data=discussion,
+                decision_id="D01",
+                question_text="Q?",
+                mission_slug="m",
+                repo_root=Path("/r"),
+                console=console,
+                dm_service=svc,
+                actor="actor",
+            )
+
+        assert result is None
+        assert "not saved" in buf.getvalue().lower()
 
     def test_keyboard_interrupt_at_prompt_returns_none(self) -> None:
         console, buf = _console_with_capture()

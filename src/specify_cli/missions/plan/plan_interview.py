@@ -244,7 +244,7 @@ def run_plan_interview(  # noqa: C901
 
                 if result.action == WidenAction.CONTINUE:
                     if widen_store is not None:
-                        with contextlib.suppress(Exception):
+                        try:
                             widen_store.add_pending(
                                 WidenPendingEntry(
                                     decision_id=result.decision_id or current_decision_id,
@@ -255,6 +255,12 @@ def run_plan_interview(  # noqa: C901
                                     widen_endpoint_response={},
                                 )
                             )
+                        except Exception as exc:  # noqa: BLE001
+                            console.print(
+                                "[red]Could not save pending widen marker: "
+                                f"{exc}. Question was NOT parked.[/red]"
+                            )
+                            continue
                     user_answer = ""
                     break
 

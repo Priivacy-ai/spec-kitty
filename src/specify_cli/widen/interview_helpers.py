@@ -73,8 +73,8 @@ def _resolve_pending_entry(
 ) -> None:
     """Fetch discussion + run candidate review for one pending widen entry.
 
-    Removes the entry from the store after any terminal action (accept, edit,
-    defer) or on unexpected exception (T042 — always-progress rule).
+    Removes the entry from the store after a terminal candidate-review action.
+    Review/write-back crashes or review cancellation leave the marker intact.
 
     Args:
         entry:        A WidenPendingEntry.
@@ -94,9 +94,8 @@ def _resolve_pending_entry(
         f"      Widened at: {entry.entered_pending_at.strftime('%Y-%m-%d %H:%M UTC')}"
     )
 
-    # T042 — always remove from store even on unexpected failure.
-    # Wrap the entire body so any exception (fetch failure, validation error,
-    # run_candidate_review error) is suppressed and the interview always progresses.
+    # Fetch failures can fall back to an empty discussion, but review/write-back
+    # crashes must not erase the pending marker.
     try:
         # Fetch discussion from SaaS
         console.print("      Fetching discussion...")
@@ -128,7 +127,7 @@ def _resolve_pending_entry(
                 truncated=False,
             )
 
-        run_candidate_review(
+        review = run_candidate_review(
             discussion_data=discussion,
             decision_id=entry.decision_id,
             question_text=entry.question_text,
@@ -138,11 +137,11 @@ def _resolve_pending_entry(
             dm_service=dm_service,
             actor=actor,
         )
+        if review is not None:
+            with contextlib.suppress(Exception):
+                store.remove_pending(entry.decision_id)
     except Exception:  # noqa: BLE001
         pass  # never block the interview
-    finally:
-        with contextlib.suppress(Exception):
-            store.remove_pending(entry.decision_id)
 
 
 # ---------------------------------------------------------------------------
@@ -287,24 +286,27 @@ def render_already_widened_prompt(
                     messages=[],
                     truncated=False,
                 )
-            try:
-                run_candidate_review(
-                    discussion_data=discussion,
-                    decision_id=decision_id,
-                    question_text=question_text,
-                    mission_slug=mission_slug,
-                    repo_root=repo_root,
-                    console=console,
-                    dm_service=dm_service,
-                    actor=actor,
-                )
-            finally:
+            review = run_candidate_review(
+                discussion_data=discussion,
+                decision_id=decision_id,
+                question_text=question_text,
+                mission_slug=mission_slug,
+                repo_root=repo_root,
+                console=console,
+                dm_service=dm_service,
+                actor=actor,
+            )
+            if review is not None:
                 with contextlib.suppress(Exception):
                     widen_store.remove_pending(decision_id)
-            return
+                return
+            console.print(
+                "[yellow]Decision is still pending. Choose another action or !cancel.[/yellow]"
+            )
+            continue
 
         elif raw.lower() in ("d", "defer", "[d]efer"):
-            # Defer path — also removes from store
+            # Defer path — remove from store only after write-back succeeds.
             try:
                 rationale = (
                     console.input(
@@ -314,7 +316,7 @@ def render_already_widened_prompt(
             except (KeyboardInterrupt, EOFError):
                 rationale = ""
 
-            with contextlib.suppress(Exception):
+            try:
                 dm_service.defer_decision(
                     repo_root=repo_root,
                     mission_slug=mission_slug,
@@ -322,6 +324,11 @@ def render_already_widened_prompt(
                     rationale=rationale or "deferred from already-widened prompt",
                     actor=actor,
                 )
+            except Exception as exc:  # noqa: BLE001
+                console.print(
+                    f"[red]Write-back failed: {exc}. Your deferral was NOT saved.[/red]"
+                )
+                continue
             console.print("[yellow]Decision deferred.[/yellow]")
             with contextlib.suppress(Exception):
                 widen_store.remove_pending(decision_id)
@@ -332,7 +339,7 @@ def render_already_widened_prompt(
 
         elif raw:
             # Plain text → local resolve
-            with contextlib.suppress(Exception):
+            try:
                 dm_service.resolve_decision(
                     repo_root=repo_root,
                     mission_slug=mission_slug,
@@ -340,6 +347,11 @@ def render_already_widened_prompt(
                     final_answer=raw,
                     actor=actor,
                 )
+            except Exception as exc:  # noqa: BLE001
+                console.print(
+                    f"[red]Write-back failed: {exc}. Your answer was NOT saved.[/red]"
+                )
+                continue
             console.print(
                 "[green]Resolved locally.[/green] "
                 "SaaS will close the Slack thread shortly."

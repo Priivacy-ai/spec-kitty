@@ -118,9 +118,9 @@ def _resolve_locally(
     final_answer: str,
     actor: str,
     console: Console,
-) -> None:
+) -> bool:
     """FR-018: resolve with source=manual at the blocked widen prompt."""
-    with contextlib.suppress(_DecisionError):
+    try:
         _dm_service.resolve_decision(
             repo_root=repo_root,
             mission_slug=mission_slug,
@@ -128,7 +128,13 @@ def _resolve_locally(
             final_answer=final_answer,
             actor=actor,
         )
+    except _DecisionError as exc:
+        console.print(
+            f"[red]Write-back failed: {exc}. Your answer was NOT saved.[/red]"
+        )
+        return False
     console.print("[green]Resolved locally.[/green] SaaS will close the Slack thread shortly.")
+    return True
 
 
 def _defer_from_blocked_prompt(
@@ -137,14 +143,14 @@ def _defer_from_blocked_prompt(
     repo_root: Path,
     actor: str,
     console: Console,
-) -> None:
+) -> bool:
     """T032: defer the widened decision from the blocked prompt."""
     try:
         rationale = console.input("Rationale for deferral (press Enter to skip): ").strip()
     except (KeyboardInterrupt, EOFError):
         rationale = ""
 
-    with contextlib.suppress(_DecisionError):
+    try:
         _dm_service.defer_decision(
             repo_root=repo_root,
             mission_slug=mission_slug,
@@ -152,7 +158,13 @@ def _defer_from_blocked_prompt(
             rationale=rationale or "deferred from blocked widen prompt",
             actor=actor,
         )
+    except _DecisionError as exc:
+        console.print(
+            f"[red]Write-back failed: {exc}. Your deferral was NOT saved.[/red]"
+        )
+        return False
     console.print("[yellow]Decision deferred.[/yellow]")
+    return True
 
 
 def _fetch_and_review_from_blocked(
@@ -372,7 +384,7 @@ def _dispatch_widen_input(  # noqa: C901
     if result.action == WidenAction.CONTINUE:
         # Write WidenPendingEntry (T024 pattern — caller does persistence)
         if widen_store is not None:
-            with contextlib.suppress(Exception):
+            try:
                 widen_store.add_pending(WidenPendingEntry(
                     decision_id=result.decision_id or current_decision_id,
                     mission_slug=mission_slug,
@@ -381,6 +393,12 @@ def _dispatch_widen_input(  # noqa: C901
                     entered_pending_at=datetime.now(tz=UTC),
                     widen_endpoint_response={},
                 ))
+            except Exception as exc:  # noqa: BLE001
+                console.print(
+                    "[red]Could not save pending widen marker: "
+                    f"{exc}. Question was NOT parked.[/red]"
+                )
+                return None, False
         answers_override[question_id] = ""
         return "", True  # advance to next question
 
@@ -444,14 +462,16 @@ def _run_blocked_prompt_loop(
             _inactivity_timer = _schedule_inactivity_reminder(console)
         elif cmd.lower() == "d":
             _inactivity_timer.cancel()
-            _defer_from_blocked_prompt(
+            deferred = _defer_from_blocked_prompt(
                 decision_id=decision_id,
                 mission_slug=mission_slug,
                 repo_root=repo_root,
                 actor=actor,
                 console=console,
             )
-            break
+            if deferred:
+                break
+            _inactivity_timer = _schedule_inactivity_reminder(console)
         elif cmd.lower() == "!cancel":
             _inactivity_timer.cancel()
             console.print("[dim]Interview canceled.[/dim]")
@@ -459,7 +479,7 @@ def _run_blocked_prompt_loop(
         else:
             # Plain text → local answer (FR-018)
             _inactivity_timer.cancel()
-            _resolve_locally(
+            resolved = _resolve_locally(
                 decision_id=decision_id,
                 mission_slug=mission_slug,
                 repo_root=repo_root,
@@ -467,4 +487,6 @@ def _run_blocked_prompt_loop(
                 actor=actor,
                 console=console,
             )
-            break
+            if resolved:
+                break
+            _inactivity_timer = _schedule_inactivity_reminder(console)
