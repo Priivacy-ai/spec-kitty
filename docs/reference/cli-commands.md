@@ -3434,4 +3434,77 @@ _Tracker synchronization commands_
 ```
 
 ```
+
+## spec-kitty workflow
+
+_Manage mission workflow definitions_
+
+```
+ Usage: spec-kitty workflow [OPTIONS] COMMAND [ARGS]...
+
+ Manage mission workflow definitions
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ list    List workflow ids available to a project.                            │
+│ export  Export a resolvable workflow YAML file.                              │
+│ import  Import a workflow YAML into `.kittify/overrides/workflows`.          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty workflow export
+
+```
+ Usage: spec-kitty workflow export [OPTIONS] WORKFLOW_ID OUTPUT
+
+ Export a resolvable workflow YAML file.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    workflow_id      TEXT  Workflow id to export. [required]                │
+│ *    output           PATH  Destination file or directory. [required]        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --project-root        PATH  Project root used for .kittify workflow          │
+│                             discovery.                                       │
+│                             [default: .]                                     │
+│ --force                     Overwrite an existing destination file.           │
+│ --help                      Show this message and exit.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty workflow import
+
+```
+ Usage: spec-kitty workflow import [OPTIONS] SOURCE
+
+ Import a workflow YAML into `.kittify/overrides/workflows`.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    source      PATH  Workflow YAML file to import. [required]              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --project-root        PATH  Project root that receives the workflow          │
+│                             override.                                        │
+│                             [default: .]                                     │
+│ --force                     Overwrite an existing workflow file.              │
+│ --help                      Show this message and exit.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty workflow list
+
+```
+ Usage: spec-kitty workflow list [OPTIONS]
+
+ List workflow ids available to a project.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --project-root        PATH  Project root used for .kittify workflow          │
+│                             discovery.                                       │
+│                             [default: .]                                     │
+│ --help                      Show this message and exit.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
 <!-- END GENERATED -->

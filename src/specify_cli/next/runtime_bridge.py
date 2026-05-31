@@ -1738,6 +1738,36 @@ def _runtime_template_key(mission_type: str, repo_root: Path) -> str:
     return mission_type
 
 
+def _workflow_runtime_template(
+    mission_slug: str,
+    mission_type: str,
+    repo_root: Path,
+    template_key: str,
+):
+    """Compose a runtime template when mission meta selects a workflow."""
+    del mission_type
+    mission_dir = repo_root / "kitty-specs" / mission_slug
+    meta_path = mission_dir / "meta.json"
+    if not meta_path.exists():
+        return None, None
+
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    workflow_id = meta.get("workflow_id")
+    if workflow_id is None:
+        return None, None
+
+    from specify_cli.next._internal_runtime.discovery import load_mission_template
+    from specify_cli.next._internal_runtime.planner import compose_template_with_workflow
+    from specify_cli.next._internal_runtime.workflow_registry import get_workflow
+
+    context = _build_discovery_context(repo_root)
+    base_template = load_mission_template(template_key, context=context)
+    workflow = get_workflow(str(workflow_id), project_root=repo_root)
+    template = compose_template_with_workflow(base_template, workflow)
+    template_path = f"{template_key}#workflow:{workflow.workflow_id}"
+    return template, template_path
+
+
 def _existing_run_ref(
     mission_slug: str,
     repo_root: Path,
@@ -1777,6 +1807,9 @@ def _start_ephemeral_query_run(
     run_store = Path(tempfile.mkdtemp(prefix="spec-kitty-query-run-"))
     try:
         template_key = _runtime_template_key(mission_type, repo_root)
+        template_override, template_path_override = _workflow_runtime_template(
+            mission_slug, mission_type, repo_root, template_key
+        )
         context = _build_discovery_context(repo_root)
 
         run_ref = start_mission_run(
@@ -1786,6 +1819,8 @@ def _start_ephemeral_query_run(
             context=context,
             run_store=run_store,
             emitter=NullEmitter(),
+            template_override=template_override,
+            template_path_override=template_path_override,
         )
     except Exception:
         shutil.rmtree(run_store, ignore_errors=True)
@@ -1821,6 +1856,9 @@ def get_or_start_run(
     # Start a new run
     run_store = repo_root / ".kittify" / "runtime" / "runs"
     template_key = _runtime_template_key(mission_type, repo_root)
+    template_override, template_path_override = _workflow_runtime_template(
+        mission_slug, mission_type, repo_root, template_key
+    )
     context = _build_discovery_context(repo_root)
 
     run_ref = start_mission_run(
@@ -1830,6 +1868,8 @@ def get_or_start_run(
         context=context,
         run_store=run_store,
         emitter=emitter or NullEmitter(),
+        template_override=template_override,
+        template_path_override=template_path_override,
     )
 
     # Persist to index

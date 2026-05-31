@@ -10,6 +10,8 @@ as data by ``workflow_registry``; they are not imported as Python modules.
 """
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 __all__ = ["WorkflowSequence", "ActionStep"]
@@ -24,12 +26,21 @@ class ActionStep(BaseModel):
     next: list[str] = Field(default_factory=list)
     description: str
     terminal: bool = False
+    agent_profile: str | None = None
+    human_in_the_loop: str | None = None
+    integration: str | None = None
+    outputs: dict[str, str] = Field(default_factory=dict)
 
     @model_validator(mode="after")
-    def _validate_terminal_has_no_next(self) -> ActionStep:
+    def _validate_step_shape(self) -> ActionStep:
         if self.terminal and self.next:
             raise ValueError(
                 f"action {self.action_name!r}: terminal=True forbids non-empty `next`"
+            )
+        if len(self.next) > 1:
+            raise ValueError(
+                f"action {self.action_name!r}: workflows are linear in v1; "
+                "`next` may name at most one action"
             )
         return self
 
@@ -52,6 +63,7 @@ class WorkflowSequence(BaseModel):
     actions: list[ActionStep]
     initial: str
     version: int = Field(ge=1)
+    integrations: dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def _validate_invariants(self) -> WorkflowSequence:

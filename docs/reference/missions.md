@@ -322,6 +322,69 @@ The loader queries seven tiers in priority order; the highest-precedence tier wi
 6. **Project config (mission packs)** — `.kittify/config.yaml mission_packs: [...]` referencing `mission-pack.yaml` manifests.
 7. **Built-in** — `software-dev`, `research`, `documentation`, `plan`.
 
+## Authoring Custom Workflows
+
+Workflows are the project-authored execution sequence for a mission. A mission's `meta.json` may set `workflow_id`; when absent, Spec Kitty uses the shipped `software-dev-default` workflow. Project workflow files are discovered before shipped workflows, so teams can opt into a named local sequence without forking the runtime.
+
+Workflow files live in `.kittify/overrides/workflows/` and may use either `<workflow-id>.workflow.yaml` or `<workflow-id>.yaml`. The file's top-level `workflow_id` MUST match the requested slug. Slugs are lowercase URL-style identifiers matching `[a-z0-9][a-z0-9-]*`; path traversal, spaces, uppercase letters, and special characters are rejected before filesystem lookup.
+
+Minimal valid example:
+
+```yaml
+workflow_id: solo-fast
+description: Solo workflow that skips review.
+version: 1
+initial: specify
+actions:
+  - action_name: specify
+    description: Create a mission specification
+    next: [plan]
+  - action_name: plan
+    description: Create an implementation plan
+    next: [implement]
+  - action_name: implement
+    description: Implement directly
+    next: [accept]
+  - action_name: accept
+    description: Accept without review
+    terminal: true
+```
+
+### Workflow fields
+
+| Field | Required | Type | Notes |
+| --- | --- | --- | --- |
+| `workflow_id` | yes | str | Must match the filename slug requested by `meta.json::workflow_id`. |
+| `description` | yes | str | Human-readable summary. |
+| `version` | yes | int | Schema version, currently `1`. |
+| `initial` | yes | str | First action in the workflow. Must name an action in `actions[]`. |
+| `integrations` | no | object | Declarative provider bindings, such as `vcs.provider` or `issue_tracker.provider`. Runtime support is provider-specific. |
+| `actions` | yes | list | Ordered action graph. v1 workflows are linear: each action can name at most one successor in `next`. |
+
+Each `actions[]` entry supports:
+
+| Field | Required | Type | Notes |
+| --- | --- | --- | --- |
+| `action_name` | yes | str | Unique action identifier. |
+| `description` | yes | str | Human-readable step summary. |
+| `next` | no | list[str] | Empty or omitted for terminal actions; otherwise one successor action. |
+| `terminal` | no | bool | Terminal actions must not declare `next`. |
+| `agent_profile` | no | str | Optional profile binding for workflow-aware callers. |
+| `human_in_the_loop` | no | str | Optional checkpoint marker for non-agent actions. |
+| `integration` | no | str | Optional reference such as `vcs.open_pr`. |
+| `outputs` | no | object | Optional output names/templates declared by the action. |
+
+Validation rejects duplicate action names, unresolved `next` references, unreachable actions, cycles, terminal actions with successors, and branching `next` lists. Unknown workflow ids fail closed and list available workflow ids; they do not silently fall back to `software-dev-default`.
+
+When a workflow introduces a new software-dev action, make sure a matching command
+template such as `.kittify/overrides/command-templates/<action-name>.md` is
+available. Actions that reuse shipped names such as `specify`, `plan`, `tasks`,
+`implement`, `review`, `accept`, or `design-review` resolve to bundled templates.
+
+### Workflow portability commands
+
+Use `spec-kitty workflow list` to see the workflow ids visible from the current project. Use `spec-kitty workflow export <workflow-id> <path>` to copy the resolved workflow YAML to a portable file, preserving project override precedence. Use `spec-kitty workflow import <path>` to validate a workflow file and copy it into `.kittify/overrides/workflows/<workflow-id>.yaml`. Both import and export refuse to overwrite existing files unless `--force` is supplied.
+
 ### Validation error codes
 
 The loader emits a closed enumeration of error and warning codes. Wire spellings are stable: removal or rename is a breaking change requiring a deprecation cycle. Additions are non-breaking. Tooling MAY rely on string equality on `error_code` / warning `code` and MUST NOT fail on unknown `details` keys.
