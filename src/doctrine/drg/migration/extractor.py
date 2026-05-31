@@ -71,6 +71,11 @@ _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
         "tactic:paula-patterns-architecture-scout-review",
         Relation.REQUIRES,
     ),
+    (
+        "directive:DIRECTIVE_003",
+        "tactic:traceable-decisions",
+        Relation.REQUIRES,
+    ),
 )
 
 

@@ -797,6 +797,15 @@ edges:
   target: tactic:requirements-validation-workflow
   relation: scope
 - source: action:software-dev/implement
+  target: directive:DIRECTIVE_001
+  relation: scope
+- source: action:software-dev/implement
+  target: directive:DIRECTIVE_003
+  relation: scope
+- source: action:software-dev/implement
+  target: directive:DIRECTIVE_010
+  relation: scope
+- source: action:software-dev/implement
   target: directive:DIRECTIVE_024
   relation: scope
 - source: action:software-dev/implement
@@ -815,22 +824,70 @@ edges:
   target: directive:DIRECTIVE_034
   relation: scope
 - source: action:software-dev/implement
+  target: directive:DIRECTIVE_036
+  relation: scope
+- source: action:software-dev/implement
+  target: directive:DIRECTIVE_037
+  relation: scope
+- source: action:software-dev/implement
+  target: procedure:disciplined-defect-diagnosis
+  relation: scope
+- source: action:software-dev/implement
+  target: procedure:legacy-codebase-triage
+  relation: scope
+- source: action:software-dev/implement
+  target: procedure:refactoring
+  relation: scope
+- source: action:software-dev/implement
+  target: procedure:test-first-bug-fixing
+  relation: scope
+- source: action:software-dev/implement
   target: tactic:acceptance-test-first
   relation: scope
 - source: action:software-dev/implement
   target: tactic:autonomous-operation-protocol
   relation: scope
 - source: action:software-dev/implement
+  target: tactic:black-box-integration-testing
+  relation: scope
+- source: action:software-dev/implement
+  target: tactic:boring-code-review
+  relation: scope
+- source: action:software-dev/implement
   target: tactic:change-apply-smallest-viable-diff
   relation: scope
 - source: action:software-dev/implement
+  target: tactic:dependency-hygiene
+  relation: scope
+- source: action:software-dev/implement
+  target: tactic:focused-function-complexity-check
+  relation: scope
+- source: action:software-dev/implement
+  target: tactic:function-over-form-testing
+  relation: scope
+- source: action:software-dev/implement
+  target: tactic:generated-code-stewardship
+  relation: scope
+- source: action:software-dev/implement
+  target: tactic:input-validation-fail-fast
+  relation: scope
+- source: action:software-dev/implement
   target: tactic:quality-gate-verification
+  relation: scope
+- source: action:software-dev/implement
+  target: tactic:secure-design-checklist
   relation: scope
 - source: action:software-dev/implement
   target: tactic:stopping-conditions
   relation: scope
 - source: action:software-dev/implement
   target: tactic:tdd-red-green-refactor
+  relation: scope
+- source: action:software-dev/implement
+  target: tactic:test-boundaries-by-responsibility
+  relation: scope
+- source: action:software-dev/implement
+  target: tactic:testing-select-appropriate-level
   relation: scope
 - source: action:software-dev/implement
   target: toolguide:efficient-local-tooling
@@ -884,6 +941,12 @@ edges:
   target: tactic:stopping-conditions
   relation: scope
 - source: action:software-dev/review
+  target: directive:DIRECTIVE_001
+  relation: scope
+- source: action:software-dev/review
+  target: directive:DIRECTIVE_003
+  relation: scope
+- source: action:software-dev/review
   target: directive:DIRECTIVE_010
   relation: scope
 - source: action:software-dev/review
@@ -902,7 +965,46 @@ edges:
   target: directive:DIRECTIVE_030
   relation: scope
 - source: action:software-dev/review
+  target: directive:DIRECTIVE_034
+  relation: scope
+- source: action:software-dev/review
+  target: directive:DIRECTIVE_036
+  relation: scope
+- source: action:software-dev/review
   target: directive:DIRECTIVE_037
+  relation: scope
+- source: action:software-dev/review
+  target: procedure:disciplined-defect-diagnosis
+  relation: scope
+- source: action:software-dev/review
+  target: procedure:legacy-codebase-triage
+  relation: scope
+- source: action:software-dev/review
+  target: procedure:refactoring
+  relation: scope
+- source: action:software-dev/review
+  target: procedure:test-first-bug-fixing
+  relation: scope
+- source: action:software-dev/review
+  target: tactic:acceptance-test-first
+  relation: scope
+- source: action:software-dev/review
+  target: tactic:autonomous-operation-protocol
+  relation: scope
+- source: action:software-dev/review
+  target: tactic:black-box-integration-testing
+  relation: scope
+- source: action:software-dev/review
+  target: tactic:boring-code-review
+  relation: scope
+- source: action:software-dev/review
+  target: tactic:change-apply-smallest-viable-diff
+  relation: scope
+- source: action:software-dev/review
+  target: tactic:dependency-hygiene
+  relation: scope
+- source: action:software-dev/review
+  target: tactic:focused-function-complexity-check
   relation: scope
 - source: action:software-dev/review
   target: tactic:quality-gate-verification
@@ -1136,6 +1238,9 @@ edges:
   reason: 'Apply the dual-perspective reconstruction check during review: read only the test suite and attempt to reconstruct system behavior, then compare against the specification. Tests that fail reconstruction are documentation gaps.'
 - source: directive:DIRECTIVE_001
   target: tactic:paula-patterns-architecture-scout-review
+  relation: requires
+- source: directive:DIRECTIVE_003
+  target: tactic:traceable-decisions
   relation: requires
 - source: directive:DIRECTIVE_024
   target: directive:DIRECTIVE_025
