@@ -9,5 +9,7 @@
   "purpose_context": "Phase 1 delivered mission-type activation but left critical gaps: filter_graph_by_activation and MissionStepRepository as dead code, a reader gap where charter activate wrote override files that PackContext never read, and six broken architectural tests. This mission closes all of that by wiring the full activation layer across all 9 doctrine artifact kinds under a hard restriction model (empty activation = nothing available — no reader-side fallbacks, ever). It ships a default charter pack (src/charter/packs/default.yaml) as the sole safety net for backward compatibility, adds charter deactivate as a first-class command with cascade semantics, introduces ProjectContext as the unified context threading mechanism through charter.*, and adds a charter pack consistency-check command. It also fixes the C-004 isolation violation in mission_step_repository.py and all six broken architectural tests.",
   "purpose_tldr": "Complete the charter activation model across all 9 doctrine artifact kinds with hard restriction, explicit cascade control, a shipped default charter pack, ProjectContext threading, and architectural test fixes.",
   "slug": "charter-pack-activation-layer-01KSYE4V",
-  "target_branch": "pr/charter-doctrine-mission-type-configuration"
+  "target_branch": "pr/charter-doctrine-mission-type-configuration",
+  "vcs": "git",
+  "vcs_locked_at": "2026-05-31T13:03:14.954088+00:00"
 }
