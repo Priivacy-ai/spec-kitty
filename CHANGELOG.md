@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `charter generate --force` now refuses to overwrite symlinked `charter.md` paths,
   preventing silent writes through symlink targets.
+- Legacy `specify_cli.charter_lint.checks.*` shim imports now preserve canonical
+  `specify_cli.charter_runtime.lint.checks.*` module identity and fail loudly if a
+  nested alias is missing, preventing duplicate checker module instances.
 
 ### Documentation
 
