@@ -311,11 +311,11 @@ WP11 subtasks T048–T051 are fully independent and can be executed in any order
 **Subtasks**: T034–T038
 **Agent profile**: python-pedro
 
-- [ ] T034 Extend `_node_is_activated` in `drg.py` with per-artifact-ID frozenset checks (FR-038)
-- [ ] T035 Wire `filter_graph_by_activation` in `context.py:_load_action_doctrine_bundle()`
-- [ ] T036 Wire in `reference_resolver.py:resolve_references_transitively()`
-- [ ] T037 Wire in `compiler.py:_resolve_transitive_reference_graph()`
-- [ ] T038 Wire in `executor.py` step contract execution path
+- [x] T034 Extend `_node_is_activated` in `drg.py` with per-artifact-ID frozenset checks (FR-038)
+- [x] T035 Wire `filter_graph_by_activation` in `context.py:_load_action_doctrine_bundle()`
+- [x] T036 Wire in `reference_resolver.py:resolve_references_transitively()`
+- [x] T037 Wire in `compiler.py:_resolve_transitive_reference_graph()`
+- [x] T038 Wire in `executor.py` step contract execution path
 
 **Implementation Notes**:
 - T034: Current `_node_is_activated` checks only kind-level activation (`activated_kinds`). Extend it to additionally check whether the specific artifact ID is in the per-kind frozenset (e.g., `activated_directives`). When the per-kind frozenset is `None`, all IDs pass. When empty, no IDs pass. When non-empty, only listed IDs pass.
