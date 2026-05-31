@@ -73,8 +73,8 @@ def _resolve_pending_entry(
 ) -> None:
     """Fetch discussion + run candidate review for one pending widen entry.
 
-    Removes the entry from the store after any terminal action (accept, edit,
-    defer) or on unexpected exception (T042 — always-progress rule).
+    Removes the entry from the store after a terminal candidate-review action.
+    Review/write-back crashes or review cancellation leave the marker intact.
 
     Args:
         entry:        A WidenPendingEntry.
@@ -94,9 +94,8 @@ def _resolve_pending_entry(
         f"      Widened at: {entry.entered_pending_at.strftime('%Y-%m-%d %H:%M UTC')}"
     )
 
-    # T042 — always remove from store even on unexpected failure.
-    # Wrap the entire body so any exception (fetch failure, validation error,
-    # run_candidate_review error) is suppressed and the interview always progresses.
+    # Fetch failures can fall back to an empty discussion, but review/write-back
+    # crashes must not erase the pending marker.
     try:
         # Fetch discussion from SaaS
         console.print("      Fetching discussion...")
@@ -128,7 +127,7 @@ def _resolve_pending_entry(
                 truncated=False,
             )
 
-        run_candidate_review(
+        review = run_candidate_review(
             discussion_data=discussion,
             decision_id=entry.decision_id,
             question_text=entry.question_text,
@@ -138,11 +137,11 @@ def _resolve_pending_entry(
             dm_service=dm_service,
             actor=actor,
         )
+        if review is not None:
+            with contextlib.suppress(Exception):
+                store.remove_pending(entry.decision_id)
     except Exception:  # noqa: BLE001
         pass  # never block the interview
-    finally:
-        with contextlib.suppress(Exception):
-            store.remove_pending(entry.decision_id)
 
 
 # ---------------------------------------------------------------------------
@@ -287,18 +286,17 @@ def render_already_widened_prompt(
                     messages=[],
                     truncated=False,
                 )
-            try:
-                run_candidate_review(
-                    discussion_data=discussion,
-                    decision_id=decision_id,
-                    question_text=question_text,
-                    mission_slug=mission_slug,
-                    repo_root=repo_root,
-                    console=console,
-                    dm_service=dm_service,
-                    actor=actor,
-                )
-            finally:
+            review = run_candidate_review(
+                discussion_data=discussion,
+                decision_id=decision_id,
+                question_text=question_text,
+                mission_slug=mission_slug,
+                repo_root=repo_root,
+                console=console,
+                dm_service=dm_service,
+                actor=actor,
+            )
+            if review is not None:
                 with contextlib.suppress(Exception):
                     widen_store.remove_pending(decision_id)
             return
