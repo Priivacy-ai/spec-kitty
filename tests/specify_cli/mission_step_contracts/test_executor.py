@@ -11,6 +11,8 @@ from unittest.mock import patch
 import pytest
 from ruamel.yaml import YAML
 
+from charter._drg_helpers import load_validated_graph
+from charter.drg import resolve_context
 from doctrine.mission_step_contracts.repository import MissionStepContractRepository
 from specify_cli.invocation.writer import EVENTS_DIR
 from specify_cli.mission_step_contracts.executor import (
@@ -264,6 +266,40 @@ def test_directive_slug_candidate_resolves_to_drg_urn(tmp_path: Path) -> None:
 
     assert result.steps[0].resolved_delegations[0].urn == "directive:DIRECTIVE_030"
     assert result.steps[0].unresolved_candidates == ()
+
+
+def test_shipped_implement_workspace_paradigms_resolve_through_built_in_drg(
+    tmp_path: Path,
+) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    graph = load_validated_graph(repo_root)
+    contract = MissionStepContractRepository().get_by_action("software-dev", "implement")
+    assert contract is not None
+    workspace = next(step for step in contract.steps if step.id == "workspace")
+
+    resolved, unresolved = StepContractExecutor(
+        repo_root=repo_root,
+        graph=graph,
+    )._resolve_step_delegations(
+        graph=graph,
+        action_context=resolve_context(graph, "action:software-dev/implement"),
+        step=workspace,
+    )
+
+    assert unresolved == []
+    assert [delegation.candidate for delegation in resolved] == [
+        "execution-lanes",
+        "shared-branch-ci",
+        "git-flow",
+        "trunk-based",
+    ]
+    assert [delegation.urn for delegation in resolved] == [
+        "paradigm:execution-lanes",
+        "paradigm:shared-branch-ci",
+        "paradigm:git-flow",
+        "paradigm:trunk-based",
+    ]
 
 
 def test_profile_hint_required_when_no_action_default_exists(tmp_path: Path) -> None:
