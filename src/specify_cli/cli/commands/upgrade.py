@@ -531,6 +531,7 @@ def upgrade(  # noqa: C901
         auto_committed = False
         auto_commit_paths: list[str] = []
         auto_commit_warning: str | None = None
+        worktree_warnings: list[str] = []
 
         # Still stamp the version even when no migrations are needed
         from specify_cli.upgrade.metadata import ProjectMetadata
@@ -546,6 +547,17 @@ def upgrade(  # noqa: C901
 
             if REQUIRED_SCHEMA_VERSION is not None:
                 MigrationRunner._stamp_schema_version(kittify_dir, REQUIRED_SCHEMA_VERSION)
+
+        if not no_worktrees and current_version == target_version:
+            worktrees_result = MigrationRunner(project_path, console)._upgrade_worktrees(
+                target_version,
+                [],
+                dry_run,
+            )
+            worktree_warnings.extend(worktrees_result.get("warnings", []))
+            if worktrees_result.get("errors"):
+                worktree_warnings.extend(worktrees_result["errors"])
+                worktree_warnings.append("Some worktrees had issues - check errors above")
 
         if not dry_run:
             auto_committed, auto_commit_paths, auto_commit_warning = _auto_commit_upgrade_changes(
@@ -564,7 +576,9 @@ def upgrade(  # noqa: C901
             )
 
         if json_output:
-            warnings = [auto_commit_warning] if auto_commit_warning else []
+            warnings = list(worktree_warnings)
+            if auto_commit_warning:
+                warnings.append(auto_commit_warning)
             print(
                 json.dumps(
                     {
@@ -579,6 +593,8 @@ def upgrade(  # noqa: C901
             )
         else:
             console.print("[green]Project is already up to date![/green]")
+            for warning in worktree_warnings:
+                console.print(f"[yellow]Warning:[/yellow] {warning}")
             if auto_committed:
                 console.print(f"[cyan]→ Auto-committed upgrade changes ({len(auto_commit_paths)} files)[/cyan]")
             if auto_commit_warning:

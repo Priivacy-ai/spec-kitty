@@ -566,6 +566,125 @@ def test_upgrade_no_migrations_stamps_missing_schema_version(
     assert safe_commit_calls == [[".kittify/metadata.yaml"]]
 
 
+def test_upgrade_no_migrations_stamps_existing_worktree_schema_version(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    """CLI no-migrations path must repair existing worktree schema metadata."""
+    import yaml
+
+    from specify_cli.migration.schema_version import REQUIRED_SCHEMA_VERSION
+
+    project_path = _setup_upgrade_project(tmp_path)
+    worktree_kittify = project_path / ".worktrees" / "001-feature-lane-a" / ".kittify"
+    worktree_kittify.mkdir(parents=True)
+    (worktree_kittify / "metadata.yaml").write_text(
+        "spec_kitty:\n"
+        "  version: '1.0.0a1'\n"
+        "  initialized_at: '2026-01-01T00:00:00'\n"
+        "environment:\n"
+        "  python_version: '3.12'\n"
+        "  platform: linux\n"
+        "  platform_version: ''\n"
+        "migrations:\n"
+        "  applied: []\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(Path, "cwd", lambda: project_path)
+
+    status_calls = {"count": 0}
+
+    def _fake_status(_repo_path: Path) -> set[str]:
+        status_calls["count"] += 1
+        if status_calls["count"] == 1:
+            return set()
+        return {
+            ".kittify/metadata.yaml",
+            ".worktrees/001-feature-lane-a/.kittify/metadata.yaml",
+        }
+
+    safe_commit_calls: list[list[str]] = []
+
+    def _fake_safe_commit(**kwargs: object) -> object:
+        safe_commit_calls.append([str(path) for path in kwargs["paths"]])
+        return object()
+
+    monkeypatch.setattr(upgrade_cmd, "_git_status_paths", _fake_status)
+    monkeypatch.setattr(upgrade_cmd, "safe_commit", _fake_safe_commit)
+
+    upgrade_cmd.upgrade(
+        dry_run=False,
+        force=True,
+        target="1.0.0a1",
+        json_output=True,
+        verbose=False,
+        no_worktrees=False,
+        cli=False,
+        project=False,
+    )
+
+    data = json.loads(capsys.readouterr().out.strip())
+    assert data["status"] == "up_to_date"
+    assert data["auto_commit_paths"] == [
+        ".kittify/metadata.yaml",
+        ".worktrees/001-feature-lane-a/.kittify/metadata.yaml",
+    ]
+    worktree_metadata = yaml.safe_load((worktree_kittify / "metadata.yaml").read_text(encoding="utf-8"))
+    assert worktree_metadata["spec_kitty"]["schema_version"] == REQUIRED_SCHEMA_VERSION
+    assert safe_commit_calls == [
+        [
+            ".kittify/metadata.yaml",
+            ".worktrees/001-feature-lane-a/.kittify/metadata.yaml",
+        ]
+    ]
+
+
+def test_upgrade_no_migrations_respects_no_worktrees_for_schema_stamp(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    """--no-worktrees must keep the same-version repair scoped to the root project."""
+    import yaml
+
+    project_path = _setup_upgrade_project(tmp_path)
+    worktree_kittify = project_path / ".worktrees" / "001-feature-lane-a" / ".kittify"
+    worktree_kittify.mkdir(parents=True)
+    (worktree_kittify / "metadata.yaml").write_text(
+        "spec_kitty:\n"
+        "  version: '1.0.0a1'\n"
+        "  initialized_at: '2026-01-01T00:00:00'\n"
+        "environment:\n"
+        "  python_version: '3.12'\n"
+        "  platform: linux\n"
+        "  platform_version: ''\n"
+        "migrations:\n"
+        "  applied: []\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(Path, "cwd", lambda: project_path)
+    monkeypatch.setattr(upgrade_cmd, "_git_status_paths", lambda _repo_path: {".kittify/metadata.yaml"})
+    monkeypatch.setattr(upgrade_cmd, "safe_commit", lambda **_kw: object())
+
+    upgrade_cmd.upgrade(
+        dry_run=False,
+        force=True,
+        target="1.0.0a1",
+        json_output=True,
+        verbose=False,
+        no_worktrees=True,
+        cli=False,
+        project=False,
+    )
+
+    assert json.loads(capsys.readouterr().out.strip())["status"] == "up_to_date"
+    worktree_metadata = yaml.safe_load((worktree_kittify / "metadata.yaml").read_text(encoding="utf-8"))
+    assert "schema_version" not in worktree_metadata["spec_kitty"]
+
+
 def test_upgrade_no_migrations_surfaces_teamspace_mission_state_prompt(
     tmp_path: Path,
     monkeypatch,
