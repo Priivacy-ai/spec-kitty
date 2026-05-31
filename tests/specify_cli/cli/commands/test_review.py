@@ -185,6 +185,7 @@ def test_review_report_frontmatter_structure(tmp_path: Path, monkeypatch: pytest
     repo_root, feature_dir = _setup_fixture(
         tmp_path,
         {"WP01": "done"},
+        baseline_merge_commit="0000000000000000000000000000000000000000",
     )
 
     monkeypatch.chdir(repo_root)
@@ -200,7 +201,7 @@ def test_review_report_frontmatter_structure(tmp_path: Path, monkeypatch: pytest
 
     app = _build_cli_app()
     runner = CliRunner()
-    result = runner.invoke(app, ["--mission", _MISSION_SLUG])
+    result = runner.invoke(app, ["--mission", _MISSION_SLUG, "--mode", "lightweight"])
 
     assert result.exit_code == 0, result.output
 
@@ -280,12 +281,175 @@ def test_review_post_merge_requires_issue_matrix(
     runner = CliRunner()
     result = runner.invoke(app, ["--mission", _MISSION_SLUG, "--mode", "post-merge"])
 
-    assert result.exit_code == 0, result.output
+    assert result.exit_code == 1, result.output
 
     report_text = (feature_dir / "mission-review-report.md").read_text(encoding="utf-8")
-    assert "verdict: pass_with_notes" in report_text
+    assert "verdict: fail" in report_text
     assert "ISSUE_MATRIX_MISSING" in result.output
     assert "issue_matrix_present: false" in report_text
+
+
+def test_review_post_merge_invalid_issue_matrix_exits_nonzero(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Post-merge mode must fail when issue-matrix.md validator diagnostics fire."""
+    repo_root, feature_dir = _setup_fixture(
+        tmp_path,
+        {"WP01": "done"},
+        baseline_merge_commit="0000000000000000000000000000000000000000",
+    )
+    (feature_dir / "issue-matrix.md").write_text(
+        "\n".join(
+            [
+                "# Issue Matrix",
+                "",
+                "| issue | verdict | evidence_ref |",
+                "|-------|---------|--------------|",
+                "| #123 | deferred | commit abc123 |",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(repo_root)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.find_repo_root",
+        lambda: repo_root,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.assert_pytest_available",
+        lambda _: None,
+    )
+    _mock_resolved = _make_mock_resolved(feature_dir)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.resolve_mission_handle",
+        lambda handle, repo_root: _mock_resolved,
+    )
+
+    app = _build_cli_app()
+    runner = CliRunner()
+    result = runner.invoke(app, ["--mission", _MISSION_SLUG, "--mode", "post-merge"])
+
+    assert result.exit_code == 1, result.output
+
+    report_text = (feature_dir / "mission-review-report.md").read_text(encoding="utf-8")
+    assert "verdict: fail" in report_text
+    assert "ISSUE_MATRIX_VERDICT_UNKNOWN" in result.output
+    assert "ISSUE_MATRIX_VERDICT_UNKNOWN" in report_text
+    assert "issue_matrix_present: true" in report_text
+
+
+def test_issue_matrix_violation_is_hard_failure(tmp_path: Path) -> None:
+    """Report writer must fail-hard on issue-matrix violations."""
+    import io
+
+    import typer
+    from rich.console import Console
+
+    from specify_cli.cli.commands.review._report import write_review_report
+
+    repo_root = tmp_path / "repo"
+    feature_dir = repo_root / "kitty-specs" / _MISSION_SLUG
+    feature_dir.mkdir(parents=True)
+
+    findings = [
+        {
+            "type": "issue_matrix_violation",
+            "diagnostic_code": "MISSION_REVIEW_ISSUE_MATRIX_MISSING",
+            "message": "issue-matrix.md is required in post-merge mode",
+        }
+    ]
+
+    with pytest.raises(typer.Exit) as exc_info:
+        write_review_report(
+            feature_dir,
+            repo_root,
+            findings,
+            Console(file=io.StringIO()),
+            mode="post-merge",
+            issue_matrix_present=False,
+        )
+
+    assert exc_info.value.exit_code == 1
+    report_text = (feature_dir / "mission-review-report.md").read_text(encoding="utf-8")
+    assert "verdict: fail" in report_text
+    assert "MISSION_REVIEW_ISSUE_MATRIX_MISSING" in report_text
+
+
+def test_review_lightweight_modern_missing_baseline_exits_nonzero(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Modern lightweight review must fail when baseline_merge_commit is missing."""
+    repo_root, feature_dir = _setup_fixture(
+        tmp_path,
+        {"WP01": "done"},
+    )
+
+    monkeypatch.chdir(repo_root)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.find_repo_root",
+        lambda: repo_root,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.assert_pytest_available",
+        lambda _: None,
+    )
+    _mock_resolved = _make_mock_resolved(feature_dir)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.resolve_mission_handle",
+        lambda handle, repo_root: _mock_resolved,
+    )
+
+    app = _build_cli_app()
+    runner = CliRunner()
+    result = runner.invoke(app, ["--mission", _MISSION_SLUG, "--mode", "lightweight"])
+
+    assert result.exit_code == 1, result.output
+
+    report_text = (feature_dir / "mission-review-report.md").read_text(encoding="utf-8")
+    assert "verdict: fail" in report_text
+    assert "LIGHTWEIGHT_REVIEW_MISSING_BASELINE" in result.output
+    assert "LIGHTWEIGHT_REVIEW_MISSING_BASELINE" in report_text
+    assert "issue_matrix_present: not_applicable" in report_text
+
+
+def test_dead_code_baseline_missing_is_hard_failure(tmp_path: Path) -> None:
+    """Report writer must fail-hard on missing dead-code baselines."""
+    import io
+
+    import typer
+    from rich.console import Console
+
+    from specify_cli.cli.commands.review._report import write_review_report
+
+    repo_root = tmp_path / "repo"
+    feature_dir = repo_root / "kitty-specs" / _MISSION_SLUG
+    feature_dir.mkdir(parents=True)
+
+    findings = [
+        {
+            "type": "dead_code_baseline_missing",
+            "diagnostic_code": "LIGHTWEIGHT_REVIEW_MISSING_BASELINE",
+            "remediation": "Run `spec-kitty merge` to bake baseline_merge_commit into meta.json.",
+        }
+    ]
+
+    with pytest.raises(typer.Exit) as exc_info:
+        write_review_report(
+            feature_dir,
+            repo_root,
+            findings,
+            Console(file=io.StringIO()),
+            mode="lightweight",
+        )
+
+    assert exc_info.value.exit_code == 1
+    report_text = (feature_dir / "mission-review-report.md").read_text(encoding="utf-8")
+    assert "verdict: fail" in report_text
+    assert "LIGHTWEIGHT_REVIEW_MISSING_BASELINE" in report_text
 
 
 def test_review_emits_json_diagnostic_when_pytest_missing(
@@ -918,7 +1082,7 @@ def test_review_passes_with_notes_when_dead_code_scan_finds_symbol(
 
     app = _build_cli_app()
     runner = CliRunner()
-    result = runner.invoke(app, ["--mission", _MISSION_SLUG])
+    result = runner.invoke(app, ["--mission", _MISSION_SLUG, "--mode", "lightweight"])
 
     assert result.exit_code == 0, result.output
     report_path = feature_dir / "mission-review-report.md"

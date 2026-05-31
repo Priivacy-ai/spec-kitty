@@ -16,6 +16,16 @@ from rich.console import Console
 
 from specify_cli.cli.commands.review._ble001_audit import _BLE001_REMEDIATION
 
+_HARD_FAILURE_FINDING_TYPES = frozenset(
+    {
+        "wp_not_done",
+        "rejected_review_artifact",
+        "ble001_suppression",
+        "issue_matrix_violation",
+        "dead_code_baseline_missing",
+    }
+)
+
 
 @dataclass(frozen=True)
 class GateRecord:
@@ -26,6 +36,50 @@ class GateRecord:
     command: str
     exit_code: int
     result: Literal["pass", "fail", "skip"]
+
+
+def _format_finding_line(finding: dict[str, str]) -> str | None:
+    finding_type = finding["type"]
+    if finding_type == "wp_not_done":
+        return (
+            f"- **wp_not_done** `{finding['wp_id']}`: "
+            f"lane is `{finding.get('lane', 'unknown')}`"
+        )
+    if finding_type == "dead_code":
+        return (
+            f"- **dead_code** `{finding['file']}` — `{finding['symbol']}`: "
+            "no non-test callers found"
+        )
+    if finding_type == "dead_code_baseline_missing":
+        return (
+            f"- **dead_code_baseline_missing** "
+            f"`{finding.get('diagnostic_code', 'unknown')}`: "
+            f"{finding.get('remediation', 'unknown')}"
+        )
+    if finding_type == "ble001_suppression":
+        return (
+            f"- **ble001_suppression** `{finding['file']}:{finding['line']}`: "
+            f"`{finding.get('content', 'unknown')}`; "
+            f"remediation=`{finding.get('remediation', _BLE001_REMEDIATION)}`"
+        )
+    if finding_type == "rejected_review_artifact":
+        return (
+            f"- **rejected_review_artifact** `{finding['wp_id']}`: lane is "
+            f"`{finding.get('lane', 'unknown')}`, latest artifact is "
+            f"`{finding.get('artifact_path', 'unknown')}`; "
+            f"diagnostic_code=`{finding.get('diagnostic_code', 'unknown')}`, "
+            "branch_or_work_package="
+            f"`{finding.get('branch_or_work_package', 'unknown')}`, "
+            f"violated_invariant=`{finding.get('violated_invariant', 'unknown')}`, "
+            f"remediation=`{finding.get('remediation', 'unknown')}`"
+        )
+    if finding_type == "issue_matrix_violation":
+        return (
+            f"- **issue_matrix_violation** "
+            f"`{finding.get('diagnostic_code', 'unknown')}`: "
+            f"{finding.get('message', 'unknown')}"
+        )
+    return None
 
 
 def write_review_report(
@@ -53,10 +107,7 @@ def write_review_report(
     import typer
 
     hard_failure_count = sum(
-        1
-        for f in findings
-        if f["type"]
-        in {"wp_not_done", "rejected_review_artifact", "ble001_suppression"}
+        1 for f in findings if f["type"] in _HARD_FAILURE_FINDING_TYPES
     )
     if hard_failure_count > 0:
         verdict = "fail"
@@ -96,30 +147,9 @@ def write_review_report(
         report_lines.append("## Findings")
         report_lines.append("")
         for f in findings:
-            if f["type"] == "wp_not_done":
-                report_lines.append(
-                    f"- **wp_not_done** `{f['wp_id']}`: lane is `{f.get('lane', 'unknown')}`"
-                )
-            elif f["type"] == "dead_code":
-                report_lines.append(
-                    f"- **dead_code** `{f['file']}` — `{f['symbol']}`: no non-test callers found"
-                )
-            elif f["type"] == "ble001_suppression":
-                report_lines.append(
-                    f"- **ble001_suppression** `{f['file']}:{f['line']}`: "
-                    f"`{f.get('content', 'unknown')}`; "
-                    f"remediation=`{f.get('remediation', _BLE001_REMEDIATION)}`"
-                )
-            elif f["type"] == "rejected_review_artifact":
-                report_lines.append(
-                    f"- **rejected_review_artifact** `{f['wp_id']}`: lane is "
-                    f"`{f.get('lane', 'unknown')}`, latest artifact is "
-                    f"`{f.get('artifact_path', 'unknown')}`; "
-                    f"diagnostic_code=`{f.get('diagnostic_code', 'unknown')}`, "
-                    f"branch_or_work_package=`{f.get('branch_or_work_package', 'unknown')}`, "
-                    f"violated_invariant=`{f.get('violated_invariant', 'unknown')}`, "
-                    f"remediation=`{f.get('remediation', 'unknown')}`"
-                )
+            finding_line = _format_finding_line(f)
+            if finding_line is not None:
+                report_lines.append(finding_line)
     else:
         report_lines.append("No findings.")
 
