@@ -18,14 +18,15 @@ Removes an artifact from the project's activated set for its kind. This is a fir
 
 1. Validate `kind` and `id`.
 2. Read current activation state from `.kittify/config.yaml`.
-3. Remove `id` from the activation set for `kind`.
-4. If `--cascade` is absent: emit a warning listing cross-kind references from `id` that were NOT evaluated for cascade deactivation.
-5. If `--cascade <scope>` is present:
+3. If the activation field for `kind` is absent (no explicit activation set): exit 1 with message `"Kind '<kind>' has no explicit activation set. Run 'spec-kitty upgrade' to initialize the default pack before modifying individual activations."` Do NOT implicitly materialize.
+4. Remove `id` from the activation set for `kind`.
+5. If `--cascade` is absent: emit a warning listing cross-kind references from `id` that were NOT evaluated for cascade deactivation.
+6. If `--cascade <scope>` is present:
    - For each artifact of the cascade kinds referenced by `id`:
      - If it is referenced by at least one OTHER currently-activated artifact: skip it, emit "Shared — not deactivated: `<kind>/<id>`"
      - If it is exclusively referenced by `id`: deactivate it.
-6. Write updated activation state to `.kittify/config.yaml`.
-7. Print confirmation: deactivated artifacts, skipped shared artifacts, cascade warnings.
+7. Write updated activation state to `.kittify/config.yaml`.
+8. Print confirmation: deactivated artifacts, skipped shared artifacts, cascade warnings.
 
 ## Shared Artifact Protection
 
@@ -36,7 +37,7 @@ An artifact is considered "shared" if any other activated artifact (of any kind)
 | Code | Meaning |
 |------|---------|
 | 0 | Deactivation successful |
-| 1 | Unknown kind, unknown artifact ID, or artifact not in activated set |
+| 1 | Unknown kind; artifact ID not found in doctrine; artifact not in activated set; or kind has no explicit activation set (run `spec-kitty upgrade` first) |
 | 2 | config.yaml write error |
 
 ## Output (human-readable)

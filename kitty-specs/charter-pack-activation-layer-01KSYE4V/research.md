@@ -132,20 +132,36 @@ Confirmed: `m_3_2_7_activate_builtin_mission_types.py` uses `YAML()` round-trip 
 
 ### Upgrade Algorithm
 ```
-detect():   project has .kittify/ AND no activated_kinds in config.yaml
+detect():   project has .kittify/ AND no activated_directives in config.yaml
+            (presence of the new per-kind keys signals the migration has already run)
 can_apply(): detect() returns True
 
 apply():
   if .kittify/charter/charter.md exists:
     backup to .kittify/charter/backups/charter-{timestamp}.md
     warn user: "Existing charter backed up. Defaults merged. Review recommended."
-    merge pack defaults into config.yaml activated_kinds / mission_type_activations
-  else:
-    write default pack values to config.yaml activated_kinds / mission_type_activations
-    inform user: "Default charter pack written. All built-in artifacts activated."
+  
+  read src/charter/packs/default.yaml
+  write ALL of the following to config.yaml (round-trip, comment-preserving):
+    activated_kinds          ← from default pack (8-element set of plural kind names)
+    mission_type_activations ← from default pack (all built-in mission type IDs)
+    activated_directives     ← all built-in directive IDs from default pack
+    activated_tactics        ← all built-in tactic IDs from default pack
+    activated_styleguides    ← all built-in styleguide IDs from default pack
+    activated_toolguides     ← all built-in toolguide IDs from default pack
+    activated_paradigms      ← all built-in paradigm IDs from default pack
+    activated_procedures     ← all built-in procedure IDs from default pack
+    activated_agent_profiles ← all built-in agent profile IDs from default pack
+    activated_mission_step_contracts ← all built-in MSC IDs from default pack
+  
+  inform user: "Default charter pack written. All built-in artifacts activated."
 ```
 
 The default pack values come from `src/charter/packs/default.yaml` (new file). The migration reads it at runtime (not hardcoded inline) so it stays in sync with any future updates to the shipped pack.
+
+**After migration, no per-kind field is `None`.** Every kind has an explicit activation frozenset populated from the default pack. The `None` = all-built-ins fallback applies only to pre-migration projects that have not yet run `spec-kitty upgrade`. Post-upgrade, the hard-restriction model is fully active for all kinds.
+
+**Empty-set state post-upgrade**: A per-kind field can become `frozenset()` only through explicit user action (`charter deactivate` until the set is empty, or manual config.yaml edit). This is a valid intentional state meaning "nothing available for this kind." It is not the same as `None` (absent key). The default pack is the guarantee that users do not accidentally enter this state.
 
 ### Alternatives Considered
 - **Write a new charter.md from scratch**: Too destructive for existing users with customizations. Rejected.
