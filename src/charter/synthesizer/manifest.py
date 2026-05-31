@@ -191,7 +191,7 @@ def compute_manifest_hash(manifest_or_data: SynthesisManifest | Mapping[str, Any
         ).model_dump(mode="python")
 
     data_without_hash = {k: v for k, v in data.items() if k != "manifest_hash"}
-    return hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()
+    return hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
 
 
 def verify_manifest_hash(manifest: SynthesisManifest) -> None:
@@ -212,7 +212,7 @@ def verify_manifest_hash(manifest: SynthesisManifest) -> None:
             legacy_data = manifest.model_dump(mode="python")
             legacy_data.pop("manifest_hash", None)
             legacy_data.pop("built_in_only", None)
-            legacy_computed = hashlib.sha256(canonical_yaml(legacy_data)).hexdigest()
+            legacy_computed = hashlib.sha256(canonical_yaml(legacy_data)).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
             if legacy_computed == manifest.manifest_hash:
                 return
 

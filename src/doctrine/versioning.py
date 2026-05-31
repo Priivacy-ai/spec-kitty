@@ -201,7 +201,7 @@ def _compute_v2_synthesis_manifest_hash(manifest_data: dict[str, object]) -> str
     fields_for_hash["schema_version"] = "2"
     fields_for_hash.setdefault("mission_id", None)
     fields_for_hash.setdefault("built_in_only", False)
-    return hashlib.sha256(canonical_yaml(fields_for_hash)).hexdigest()
+    return hashlib.sha256(canonical_yaml(fields_for_hash)).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
 
 
 def repair_v2_synthesis_manifest_defaults(
@@ -244,7 +244,7 @@ def repair_v2_synthesis_manifest_defaults(
     legacy_fields_for_hash = {
         k: v for k, v in manifest_data.items() if k != "manifest_hash"
     }
-    legacy_hash = hashlib.sha256(canonical_yaml(legacy_fields_for_hash)).hexdigest()
+    legacy_hash = hashlib.sha256(canonical_yaml(legacy_fields_for_hash)).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
     if legacy_hash != stored_hash:
         return MigrationResult(
             changes_made=[],
