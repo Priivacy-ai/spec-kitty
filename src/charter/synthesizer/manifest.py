@@ -19,8 +19,9 @@ All filesystem writes go through ``PathGuard`` (FR-016).
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Mapping
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 from ruamel.yaml import YAML
@@ -45,7 +46,7 @@ _PROVENANCE_PATH_PREFIX = Path(".kittify/charter/provenance")
 class ManifestArtifactEntry(BaseModel):
     """One synthesized artifact listed in the synthesis manifest (data-model §E-6a)."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     kind: Literal["directive", "tactic", "styleguide"]
     slug: str
@@ -72,7 +73,7 @@ class SynthesisManifest(BaseModel):
     except manifest_hash)`` — allows readers to verify manifest self-integrity.
     """
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     schema_version: Literal["2"] = "2"
     mission_id: str | None = None
@@ -170,6 +171,25 @@ def load_yaml(path: Path) -> SynthesisManifest:
     return SynthesisManifest.model_validate(raw)
 
 
+def compute_manifest_hash(manifest_or_data: SynthesisManifest | Mapping[str, Any]) -> str:
+    """Compute the canonical manifest self-hash.
+
+    The contract is intentionally identical to ``verify_manifest_hash``:
+    SHA-256 of ``canonical_yaml(all manifest fields except manifest_hash)``.
+    Mapping inputs are validated through ``SynthesisManifest`` first so model
+    defaults, including future fields, participate in the hash consistently.
+    """
+    if isinstance(manifest_or_data, SynthesisManifest):
+        data = manifest_or_data.model_dump(mode="python")
+    else:
+        data = SynthesisManifest.model_validate(
+            {**manifest_or_data, "manifest_hash": "0" * 64}
+        ).model_dump(mode="python")
+
+    data_without_hash = {k: v for k, v in data.items() if k != "manifest_hash"}
+    return hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()
+
+
 def verify_manifest_hash(manifest: SynthesisManifest) -> None:
     """Verify the manifest self-hash field.
 
@@ -181,9 +201,7 @@ def verify_manifest_hash(manifest: SynthesisManifest) -> None:
     ValueError
         If the computed hash does not match ``manifest.manifest_hash``.
     """
-    data = manifest.model_dump(mode="python")
-    data_without_hash = {k: v for k, v in data.items() if k != "manifest_hash"}
-    computed = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
+    computed = compute_manifest_hash(manifest)
     if computed != manifest.manifest_hash:
         raise ValueError(
             f"manifest_hash mismatch (stored {manifest.manifest_hash[:12]}..., "
@@ -277,6 +295,7 @@ __all__ = [
     "MANIFEST_PATH",
     "dump_yaml",
     "load_yaml",
+    "compute_manifest_hash",
     "verify",
     "verify_manifest_hash",
 ]

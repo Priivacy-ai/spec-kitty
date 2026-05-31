@@ -30,6 +30,7 @@ from charter.synthesizer.manifest import (
     MANIFEST_PATH,
     SynthesisManifest,
     load_yaml as load_manifest,
+    verify_manifest_hash,
 )
 from charter.synthesizer.resynthesize_pipeline import run as resynthesize_run
 
@@ -232,6 +233,7 @@ class TestUs3KindSlug:
 
         # New run_id
         assert result.manifest.run_id != prior_run_id
+        verify_manifest_hash(load_manifest(repo / MANIFEST_PATH))
 
     def test_resynthesize_kind_slug_preserves_unrelated_hashes(
         self,

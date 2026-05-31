@@ -344,3 +344,57 @@ def test_gate_preserves_staging_on_violation(tmp_path: Path) -> None:
 
     # Staging root must still exist — gate must NOT wipe it
     assert staging_root.exists(), "Gate must not wipe staging dir on violation"
+
+
+def test_promote_writes_manifest_with_valid_self_hash(tmp_path: Path) -> None:
+    """promote() writes a manifest whose self-hash verifies after reload."""
+    from charter.synthesizer.manifest import MANIFEST_PATH, load_yaml, verify_manifest_hash
+    from charter.synthesizer.request import SynthesisRequest, SynthesisTarget
+    from charter.synthesizer.staging import StagingDir
+    from charter.synthesizer.synthesize_pipeline import ProvenanceEntry
+    from charter.synthesizer.write_pipeline import promote
+
+    target = SynthesisTarget(
+        kind="tactic",
+        slug="testing-philosophy",
+        title="Testing Philosophy",
+        artifact_id="testing-philosophy",
+        source_urns=("directive:DIRECTIVE_003",),
+    )
+    request = SynthesisRequest(
+        target=target,
+        interview_snapshot={"testing_philosophy": "layered tests"},
+        doctrine_snapshot={},
+        drg_snapshot={"nodes": [], "edges": [], "schema_version": "1"},
+        run_id="01KMANIFESTHASH000000000001",
+    )
+    provenance = ProvenanceEntry(
+        schema_version="2",
+        artifact_urn="tactic:testing-philosophy",
+        artifact_kind="tactic",
+        artifact_slug="testing-philosophy",
+        artifact_content_hash="a" * 64,
+        inputs_hash="b" * 64,
+        adapter_id="fixture",
+        adapter_version="1.0.0",
+        synthesizer_version="3.2.0a5",
+        source_section="testing_philosophy",
+        source_urns=["directive:DIRECTIVE_003"],
+        source_input_ids=["directive:DIRECTIVE_003"],
+        generated_at="2026-04-19T00:00:00+00:00",
+        produced_at="2026-04-19T00:00:00+00:00",
+        corpus_snapshot_id="(none)",
+        synthesis_run_id="01KMANIFESTHASH000000000001",
+    )
+    stage = StagingDir.create(tmp_path, "01KMANIFESTHASH000000000001")
+
+    promote(
+        request=request,
+        staging_dir=stage,
+        results=[({"title": "Testing Philosophy", "body": "Use layered tests."}, provenance)],
+        validation_callback=lambda _stage: None,
+        repo_root=tmp_path,
+    )
+
+    loaded = load_yaml(tmp_path / MANIFEST_PATH)
+    verify_manifest_hash(loaded)

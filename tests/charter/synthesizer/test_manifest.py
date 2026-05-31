@@ -16,8 +16,10 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
+import jsonschema
 import pytest
 from pydantic import ValidationError
+from ruamel.yaml import YAML
 
 from charter.synthesizer.errors import ManifestIntegrityError
 from charter.synthesizer.manifest import (
@@ -172,6 +174,34 @@ def test_manifest_round_trip(tmp_path: Path, guard: PathGuard) -> None:
     assert loaded.artifacts[0].kind == "tactic"
     assert loaded.artifacts[0].slug == "my-tactic"
     assert loaded.artifacts[0].content_hash == "a" * 64
+
+
+def test_manifest_rejects_unknown_top_level_fields(tmp_path: Path) -> None:
+    """Unknown manifest fields must not be silently dropped before hashing."""
+    manifest = _make_manifest()
+    data = manifest.model_dump(mode="python")
+    data["tamper_marker"] = "unexpected"
+    manifest_path = tmp_path / "synthesis-manifest.yaml"
+    manifest_path.write_text(canonical_yaml(data).decode("utf-8"), encoding="utf-8")
+
+    with pytest.raises(ValidationError):
+        load_yaml(manifest_path)
+
+
+def test_manifest_v2_schema_accepts_runtime_model_dump() -> None:
+    """Runtime SynthesisManifest output must remain compatible with v2 schema."""
+    schema_path = (
+        Path(__file__).parents[3]
+        / "kitty-specs"
+        / "charter-p7-schema-versioning-provenance-01KQEG13"
+        / "contracts"
+        / "synthesis-manifest-v2.schema.yaml"
+    )
+    schema = YAML(typ="safe").load(schema_path.read_text(encoding="utf-8"))
+
+    jsonschema.Draft202012Validator(schema).validate(
+        _make_manifest().model_dump(mode="python")
+    )
 
 
 def test_manifest_with_mission_id(tmp_path: Path, guard: PathGuard) -> None:

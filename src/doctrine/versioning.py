@@ -312,10 +312,14 @@ def migrate_v1_to_v2(bundle_root: Path, dry_run: bool = False) -> MigrationResul
             # Set schema_version to "2" in the hash-input fields too, so the
             # hash covers the post-migration state.
             fields_for_hash["schema_version"] = "2"
+            fields_for_hash.setdefault("mission_id", None)
+            fields_for_hash.setdefault("built_in_only", False)
             manifest_hash = hashlib.sha256(canonical_yaml(fields_for_hash)).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
 
             manifest_data["schema_version"] = "2"
+            manifest_data.setdefault("mission_id", None)
             manifest_data["manifest_hash"] = manifest_hash
+            manifest_data.setdefault("built_in_only", False)
 
             changes_made.append(str(manifest_path))
             if not dry_run:

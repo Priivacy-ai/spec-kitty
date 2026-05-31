@@ -259,6 +259,19 @@ def test_apply_manifest_gets_v2_fields(tmp_path: Path) -> None:
     )
 
 
+def test_apply_manifest_hash_verifies_after_v2_migration(tmp_path: Path) -> None:
+    """Migrated manifests must satisfy the v2 self-hash contract."""
+    from charter.synthesizer.manifest import load_yaml, verify_manifest_hash
+
+    _create_v1_bundle(tmp_path)
+    CharterBundleV2Migration().apply(tmp_path)
+
+    manifest = load_yaml(
+        tmp_path / ".kittify" / "charter" / "synthesis-manifest.yaml"
+    )
+    verify_manifest_hash(manifest)
+
+
 def test_apply_dry_run_makes_no_changes(tmp_path: Path) -> None:
     """apply(dry_run=True) reports what would change but does not mutate files."""
     _create_v1_bundle(tmp_path)
