@@ -4,9 +4,11 @@ title: WP Lifecycle Gates
 dependencies:
 - WP02
 - WP04
+- WP08
 requirement_refs:
 - FR-017
 - FR-018
+- FR-019
 tracker_refs: []
 planning_base_branch: pr/charter-doctrine-mission-type-configuration
 merge_target_branch: pr/charter-doctrine-mission-type-configuration
@@ -125,20 +127,20 @@ is loaded but before any artifact is written.
      src/specify_cli/cli/commands/agent/mission.py | head -20
    ```
 
-2. Import `PackContext` at the top of the module (after other charter imports):
+2. Import `ProjectContext` at the top of the module (after other charter imports):
    ```python
-   from charter.pack_context import PackContext
+   from charter.invocation_context import ProjectContext
    ```
    Check first whether it is already imported:
    ```bash
-   grep -n "PackContext\|pack_context" src/specify_cli/cli/commands/agent/mission.py | head -10
+   grep -n "ProjectContext\|PackContext\|pack_context" src/specify_cli/cli/commands/agent/mission.py | head -10
    ```
 
 3. After loading WP frontmatter and extracting `agent_profile`, add:
    ```python
    if profile := frontmatter.get("agent_profile"):
-       pack_context = PackContext.from_config(repo_root)
-       activated_profiles = pack_context.activated_agent_profiles
+       _pack_ctx = ProjectContext.from_repo(repo_root).require_pack_context()
+       activated_profiles = _pack_ctx.activated_agent_profiles
        if activated_profiles is not None and profile not in activated_profiles:
            activated_list = ", ".join(sorted(activated_profiles)) or "(none)"
            console.print(
@@ -176,9 +178,9 @@ WP file (the `locate_work_package` call at approximately line 901) but **before*
      src/specify_cli/cli/commands/agent/workflow.py | head -20
    ```
 
-2. Import `PackContext` if not already present:
+2. Import `ProjectContext` if not already present:
    ```bash
-   grep -n "PackContext" src/specify_cli/cli/commands/agent/workflow.py | head -5
+   grep -n "ProjectContext\|PackContext" src/specify_cli/cli/commands/agent/workflow.py | head -5
    ```
 
 3. After `wp = locate_work_package(...)` succeeds, read the `agent_profile` from
@@ -197,8 +199,8 @@ WP file (the `locate_work_package` call at approximately line 901) but **before*
        wp.frontmatter.get("agent_profile") if hasattr(wp, "frontmatter") else None
    )
    if _wp_profile:
-       from charter.pack_context import PackContext  # noqa: PLC0415
-       _pack_ctx = PackContext.from_config(main_repo_root)
+       from charter.invocation_context import ProjectContext  # noqa: PLC0415
+       _pack_ctx = ProjectContext.from_repo(main_repo_root).require_pack_context()
        _activated = _pack_ctx.activated_agent_profiles
        if _activated is not None and _wp_profile not in _activated:
            _activated_list = ", ".join(sorted(_activated)) or "(none)"
@@ -223,26 +225,25 @@ created on disk, when the WP's profile is not activated.
 
 ### T046 — Wire hard-fail on non-activated artifact lookup (FR-019)
 
-**File**: `src/charter/context.py`
+**File**: `src/charter/exceptions.py` (new file — this WP owns it)
 
-After WP08 wires `filter_graph_by_activation`, the filtered DRG will be empty for
-kinds that are explicitly deactivated. The charter context builder needs to detect
-when a specific requested artifact is absent from the filtered graph and raise a
-structured error.
+WP08 wires `filter_graph_by_activation` into the DRG resolution paths. After that
+filtering, any artifact directly requested but absent from the filtered graph must
+raise `CharterActivationError` (not return silently).
 
-1. Understand the current context build flow. Run:
-   ```bash
-   grep -n "def _prepare_context_state\|filter_graph\|artifact\|tactic\|directive" \
-     src/charter/context.py | head -20
-   ```
+**Dependency check**: WP08 must be `approved` or `done` before implementing T046.
+The `filter_graph_by_activation` call sites (WP08 T035–T038) are the insertion
+points; T046 adds the hard-fail guard after each filter call.
 
-2. Define `CharterActivationError` at module level in `src/charter/context.py`
-   (or in `src/charter/drg.py` if a shared location is preferred — check first):
-   ```bash
-   grep -rn "CharterActivationError" src/charter/ --include="*.py" | head -5
-   ```
-   If it does not exist, add it as a `RuntimeError` subclass:
+1. **Create `src/charter/exceptions.py`** (WP10 owns this file). Define:
    ```python
+   """Charter-layer activation exceptions."""
+
+   from __future__ import annotations
+
+   __all__ = ["CharterActivationError"]
+
+
    class CharterActivationError(RuntimeError):
        """Raised when a requested artifact is not in the activated charter set.
 
@@ -250,29 +251,49 @@ structured error.
        command so callers can surface an actionable error to the operator.
        """
    ```
-   Export it from `src/charter/__init__.py` if other modules will catch it:
-   ```bash
-   grep -n "CharterActivationError\|__all__" src/charter/__init__.py | head -5
-   ```
 
-3. In the path that resolves a specific artifact by ID (after the filtered DRG is
-   produced), add a presence check:
+2. **Verify `CharterActivationError` does not already exist elsewhere**:
+   ```bash
+   grep -rn "CharterActivationError" src/charter/ --include="*.py" | head -5
+   ```
+   If it already exists in another file (e.g., from a prior attempt), remove the
+   duplicate and ensure `src/charter/exceptions.py` is the single definition.
+
+3. **Export from `src/charter/__init__.py`** (check first whether it uses `__all__`):
+   ```bash
+   grep -n "CharterActivationError\|from .exceptions\|__all__" src/charter/__init__.py | head -10
+   ```
+   Add `from charter.exceptions import CharterActivationError` and include it in
+   `__all__` if that module uses explicit exports.
+
+4. **Wire the hard-fail guard** into the DRG resolution path in `src/charter/context.py`
+   (owned by WP08, so read-only for WP10 — add calls at the places WP08 T035 has
+   already inserted `filter_graph_by_activation`). The guard fires ONLY when a
+   specific artifact is directly requested (not during traversal of the full graph):
    ```python
+   from charter.exceptions import CharterActivationError
+
    filtered_graph = filter_graph_by_activation(raw_graph, pack_context)
    artifact_node = _find_node_in_graph(filtered_graph, artifact_id)
-   if artifact_node is None:
-       activated_ids = _ids_for_kind(pack_context, kind)
-       raise CharterActivationError(
-           f"Artifact '{artifact_id}' (kind: {kind}) is not in the activated "
-           f"charter set.\n"
-           f"Activated {kind}: {sorted(activated_ids) if activated_ids is not None else '(all)'}\n"
-           f"Resolution:\n  spec-kitty charter activate {kind} {artifact_id}"
-       )
+   if artifact_node is None and pack_context is not None:
+       activated_ids = getattr(pack_context, f"activated_{kind}s", None)
+       if activated_ids is not None:
+           raise CharterActivationError(
+               f"Artifact '{artifact_id}' (kind: {kind}) is not in the activated "
+               f"charter set.\n"
+               f"Activated {kind}: {sorted(activated_ids)}\n"
+               f"Resolution: spec-kitty charter activate {kind} {artifact_id}"
+           )
    ```
+   Adapt the attribute lookup to use `YAML_KEY_MAP` from `charter.pack_manager` if
+   the per-kind attribute name differs. The guard only fires when `activated_ids is not None`
+   (explicit restriction). When `None`, the artifact is considered available.
 
-4. The hard-fail applies only when `activated_ids is not None` — i.e. an explicit
-   restriction is in place. When `activated_ids is None`, the artifact is considered
-   available (backward compatibility / no restriction configured).
+   **IMPORTANT**: WP10 owns `src/charter/exceptions.py` but does NOT own
+   `src/charter/context.py` (owned by WP08). To comply with ownership, the call
+   site in `context.py` should be part of WP08 T035's scope. Add a comment in T046
+   for the reviewer: "if `context.py` changes are needed, coordinate with WP08's
+   implementer or add as a follow-on in WP08's scope."
 
 ---
 

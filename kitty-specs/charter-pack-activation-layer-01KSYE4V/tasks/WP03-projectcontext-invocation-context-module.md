@@ -322,7 +322,17 @@ _CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE: frozenset[str] = frozenset(
 
 ### Step-by-step: `_baselines.yaml`
 
-1. Open `tests/architectural/_baselines.yaml`. Navigate to line 136 (confirmed by grep):
+> **Cross-lane coordination note**: `tests/architectural/_baselines.yaml` is listed
+> in WP01's `owned_files`. WP01 bumps `category_1_auto_discovered_migrations`
+> (a different YAML key on a different line). WP03 bumps `category_c_wp_in_flight_charter_scope`.
+> These two changes touch different keys and will **auto-merge cleanly** at lane merge
+> time. This dual-WP edit is intentional and documented here so reviewers do not flag
+> it as an ownership violation. When your worktree is active, read the current file
+> before editing — if WP01 has already merged, that key will show 71 or 73; do not
+> overwrite it.
+
+1. Open `tests/architectural/_baselines.yaml`. Navigate to the line containing
+   `category_c_wp_in_flight_charter_scope` (confirmed near line 136):
 
 ```yaml
   category_c_wp_in_flight_charter_scope: 0

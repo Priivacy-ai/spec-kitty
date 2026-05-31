@@ -1064,6 +1064,7 @@ All of the following must hold before this WP is marked `for_review`:
 4. `YAML_KEY_MAP["mission-type"] == "mission_type_activations"` (the outlier mapping is explicit, not computed).
 5. `tests/charter/test_pack_manager.py` exists and all tests pass.
 6. `ruamel.yaml` round-trip is used for all writes; config.yaml comments are preserved (verified by the comment-preservation test in T019).
+7. **Cascade deferral explicitly documented**: `cascade=True` is accepted by `activate()` and `deactivate()` without error, but DRG edge traversal is NOT implemented in this WP (deferred to a follow-on mission). A warning message is emitted when `cascade=True` is passed. FR-008 (warn on no-cascade) is satisfied by this warning; FR-006 and FR-007 (DRG traversal cascade) are explicitly deferred. This is intentional scope control, not a defect.
 
 ### Final validation commands
 

@@ -73,10 +73,10 @@ The existing `charter_activate.py` reader gap (FR-014) is also closed: activatio
 now writes to `config.yaml` via `CharterPackManager` instead of writing
 `.kittify/overrides/` files that nothing reads.
 
-This WP depends on WP03 (which delivers `CharterPackManager`, `CascadeScope`,
-`ProjectContext`, and `YAML_KEY_MAP`) and WP04 (which delivers `default.yaml` and
-the pack reader used by `CharterPackManager.list_activated`/`list_available`). Both
-must be in `approved` or `done` before you start.
+This WP depends on WP03 (which delivers `ProjectContext`) and WP04 (which delivers
+`CharterPackManager`, `YAML_KEY_MAP`, `default.yaml`, and the pack reader used by
+`CharterPackManager.list_activated`/`list_available`). Both must be in `approved`
+or `done` before you start.
 
 ---
 
@@ -85,14 +85,14 @@ must be in `approved` or `done` before you start.
 The current `activate.py` exposes only `charter activate mission-type <id>
 --action-sequence ...`. That command writes a YAML override file to
 `.kittify/overrides/mission-types/`, which `PackContext.from_config()` never reads —
-making it a dead write. WP03 introduced `CharterPackManager`, which reads and writes
+making it a dead write. WP04 introduced `CharterPackManager`, which reads and writes
 `config.yaml` keys directly. This WP pivots all CLI activate/deactivate paths to go
 through `CharterPackManager`, closing the reader gap (FR-014).
 
 The nine activation kinds (CLI names): `directive`, `tactic`, `styleguide`,
 `toolguide`, `paradigm`, `procedure`, `agent-profile`, `mission-step-contract`,
 `mission-type`. Their mapping to `config.yaml` keys lives in
-`charter.pack_manager.YAML_KEY_MAP` (delivered by WP03).
+`charter.pack_manager.YAML_KEY_MAP` (delivered by WP04).
 
 **ATDD rule**: Every subtask that changes existing behavior MUST update or delete the
 affected tests in the same subtask.
@@ -146,8 +146,7 @@ FR-004, FR-005, FR-006, FR-007, FR-008, FR-009, FR-010, FR-014
    import typer
    from rich.console import Console
    from charter.pack_manager import CharterPackManager, YAML_KEY_MAP
-   from charter.cascade import CascadeScope
-   from specify_cli.cli.commands.charter.context import ProjectContext
+   from charter.invocation_context import ProjectContext
 
    __all__ = ["charter_activate_app", "activate_cmd"]
 
@@ -163,7 +162,7 @@ FR-004, FR-005, FR-006, FR-007, FR-008, FR-009, FR-010, FR-014
        kind: str = typer.Argument(..., help="Activation kind (e.g. directive, agent-profile)."),
        artifact_id: str = typer.Argument(..., help="Artifact ID to activate."),
        cascade: str | None = typer.Option(None, "--cascade",
-           help="Cascade scope: 'all' or comma-separated kind names."),
+           help="Enable cascade activation of referenced artifacts."),
        repo_root: Path = typer.Option(Path("."), hidden=True),
    ) -> None:
        """Activate a doctrine artifact by kind and ID (FR-004)."""
@@ -172,12 +171,15 @@ FR-004, FR-005, FR-006, FR-007, FR-008, FR-009, FR-010, FR-014
                          f"Valid kinds: {', '.join(sorted(YAML_KEY_MAP))}.")
            raise typer.Exit(1)
        ctx = ProjectContext.from_repo(repo_root)
-       cascade_scope = CascadeScope.from_string(cascade) if cascade else CascadeScope.none()
-       result = CharterPackManager().activate(ctx, kind, artifact_id, cascade_scope)
+       # WP04 API: cascade is bool. --cascade <any-value> enables it.
+       cascade_bool: bool = bool(cascade)
+       result = CharterPackManager().activate(ctx, kind, artifact_id, cascade=cascade_bool)
        for msg in result.activated:
            console.print(f"[green]Activated[/green]: {msg}")
-       for msg in result.cascade_activated:
-           console.print(f"[cyan]Cascade-activated[/cyan]: {msg}")
+       # result.cascade_activated is dict[str, list[str]] — kind → list of IDs
+       for kind_name, ids in result.cascade_activated.items():
+           for cid in ids:
+               console.print(f"[cyan]Cascade-activated[/cyan]: {kind_name}/{cid}")
        for warn in result.warnings:
            console.print(f"[yellow]Warning[/yellow]: {warn}")
    ```
@@ -227,11 +229,10 @@ Expected: all tests pass with no references to `--action-sequence` or override f
 2. Refactor the function body so that instead of writing an override YAML file it calls:
    ```python
    from charter.pack_manager import CharterPackManager
-   from charter.cascade import CascadeScope
-   from specify_cli.cli.commands.charter.context import ProjectContext
+   from charter.invocation_context import ProjectContext
 
    ctx = ProjectContext.from_repo(repo_root)
-   CharterPackManager().activate(ctx, "mission-type", mission_type_id, CascadeScope.none())
+   CharterPackManager().activate(ctx, "mission-type", mission_type_id, cascade=False)
    ```
    Retain the in-flight WP warning logic (scan for removed steps and emit console
    warnings). Only the final write destination changes.
@@ -279,8 +280,7 @@ Expected: passes.
    import typer
    from rich.console import Console
    from charter.pack_manager import CharterPackManager, YAML_KEY_MAP
-   from charter.cascade import CascadeScope
-   from specify_cli.cli.commands.charter.context import ProjectContext
+   from charter.invocation_context import ProjectContext
 
    __all__ = ["charter_deactivate_app", "deactivate_cmd"]
 
@@ -296,7 +296,7 @@ Expected: passes.
        kind: str = typer.Argument(..., help="Activation kind (e.g. directive, agent-profile)."),
        artifact_id: str = typer.Argument(..., help="Artifact ID to deactivate."),
        cascade: str | None = typer.Option(None, "--cascade",
-           help="Cascade scope: 'all' or comma-separated kind names."),
+           help="Enable cascade deactivation of exclusively-referenced artifacts."),
        repo_root: Path = typer.Option(Path("."), hidden=True),
    ) -> None:
        """Deactivate a doctrine artifact by kind and ID (FR-005)."""
@@ -305,9 +305,10 @@ Expected: passes.
                          f"Valid kinds: {', '.join(sorted(YAML_KEY_MAP))}.")
            raise typer.Exit(1)
        ctx = ProjectContext.from_repo(repo_root)
-       cascade_scope = CascadeScope.from_string(cascade) if cascade else CascadeScope.none()
+       # WP04 API: cascade is bool. --cascade <any-value> enables it.
+       cascade_bool: bool = bool(cascade)
        try:
-           result = CharterPackManager().deactivate(ctx, kind, artifact_id, cascade_scope)
+           result = CharterPackManager().deactivate(ctx, kind, artifact_id, cascade=cascade_bool)
        except ValueError as exc:
            # None-state kind: config key absent, migration not yet run
            console.print(f"[red]Error:[/red] {exc}")
@@ -318,8 +319,10 @@ Expected: passes.
            raise typer.Exit(1) from exc
        for msg in result.deactivated:
            console.print(f"[green]Deactivated[/green]: {msg}")
-       for msg in result.cascade_deactivated:
-           console.print(f"[cyan]Cascade-deactivated[/cyan]: {msg}")
+       # result.cascade_deactivated is dict[str, list[str]] — kind → list of IDs
+       for kind_name, ids in result.cascade_deactivated.items():
+           for cid in ids:
+               console.print(f"[cyan]Cascade-deactivated[/cyan]: {kind_name}/{cid}")
        for msg in result.skipped_shared:
            console.print(f"[yellow]Skipped (shared artifact)[/yellow]: {msg}")
        for warn in result.warnings:
@@ -362,7 +365,7 @@ shadow the Python built-in `list`, causing subtle import failures.
    from rich.console import Console
    from rich.table import Table
    from charter.pack_manager import CharterPackManager
-   from specify_cli.cli.commands.charter.context import ProjectContext
+   from charter.invocation_context import ProjectContext
 
    __all__ = ["charter_list_app", "list_cmd"]
 
@@ -452,7 +455,7 @@ Expected: `import ok`.
    from pathlib import Path
    import typer
    from rich.console import Console
-   from specify_cli.cli.commands.charter.context import ProjectContext
+   from charter.invocation_context import ProjectContext
 
    __all__ = ["charter_pack_app"]
 

@@ -214,18 +214,27 @@ test is excluded from `pytest -m fast`.
 
 ### T049 — Add FR-027 `mission_type_activations` filter test
 
-**File**: `tests/charter/test_pack_context.py`
+**File**: `tests/charter/test_mission_type_activation.py`
 
-Add a new test at the end of the file. The file already has
-`pytestmark = [pytest.mark.fast]` set at module level, so the new test is
-automatically marked `fast`.
+**OWNERSHIP NOTE**: This WP owns `tests/charter/test_mission_type_activation.py`,
+NOT `tests/charter/test_pack_context.py` (the latter is owned by WP02). Write
+this test to the owned file. Create the file if it does not exist.
 
-1. Read the end of the file to find the insertion point:
+1. Check whether the file exists:
    ```bash
-   grep -n "^def test_\|^class Test" tests/charter/test_pack_context.py | tail -10
+   ls tests/charter/test_mission_type_activation.py 2>/dev/null || echo "CREATE NEW"
+   ```
+   If it does not exist, create it with the standard header:
+   ```python
+   """FR-027 tests: mission_type_activations filtering semantics."""
+   from __future__ import annotations
+   from pathlib import Path
+   import pytest
+   from charter.pack_context import PackContext
+   pytestmark = [pytest.mark.fast]
    ```
 
-2. Add the test:
+2. Add the test (to the existing file or at the end of the newly created one):
 
    ```python
    def test_only_specified_mission_type_is_activated(tmp_path: Path) -> None:
@@ -254,12 +263,7 @@ automatically marked `fast`.
        )
    ```
 
-   Note: `PackContext` is already imported at the top of `test_pack_context.py`
-   (verify with `grep -n "^from\|^import" tests/charter/test_pack_context.py | head -10`).
-   `Path` is available via `pytest`'s `tmp_path` fixture. Add `from pathlib import Path`
-   if missing.
-
-**Acceptance criterion**: `pytest tests/charter/test_pack_context.py -x -k "test_only_specified_mission_type"` passes.
+**Acceptance criterion**: `pytest tests/charter/test_mission_type_activation.py -x -k "test_only_specified_mission_type"` passes.
 
 ---
 

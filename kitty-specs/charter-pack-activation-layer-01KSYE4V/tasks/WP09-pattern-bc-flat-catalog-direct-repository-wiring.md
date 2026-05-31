@@ -3,6 +3,7 @@ work_package_id: WP09
 title: 'Pattern B+C: Flat Catalog + Direct Repository Wiring'
 dependencies:
 - WP02
+- WP03
 - WP08
 requirement_refs:
 - FR-016
@@ -234,9 +235,10 @@ python -c "from specify_cli.charter_runtime.lint.checks.org_layer import *; prin
    that both absent context and absent per-kind config produce the unfiltered result.
 
 **ATDD**: If `tests/charter/test_call_site_propagation.py` tests `agent_profiles`
-access, verify it still passes. Optionally add a test asserting that
-`activated_agent_profiles=frozenset()` returns an empty dict when service is
-constructed with a `PackContext` holding that frozenset.
+access, verify it still passes. **Required**: add a test asserting that
+`activated_agent_profiles=frozenset()` returns an empty dict when `DoctrineService` is
+constructed with a `PackContext` holding that frozenset, and a test asserting that
+`activated_agent_profiles=None` returns the full unfiltered dict (backward-compat).
 
 **Validation**:
 ```bash

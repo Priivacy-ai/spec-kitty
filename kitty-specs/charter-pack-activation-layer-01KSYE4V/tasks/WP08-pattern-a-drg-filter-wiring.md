@@ -8,7 +8,6 @@ dependencies:
 requirement_refs:
 - FR-013
 - FR-015
-- FR-019
 - FR-028
 - FR-031
 - FR-032
@@ -42,6 +41,7 @@ owned_files:
 - tests/charter/test_activation_filtered_drg.py
 - tests/charter/test_context.py
 - tests/charter/test_drg_filtering.py
+- tests/charter/test_resolver.py
 role: implementer
 tags: []
 ---
@@ -137,8 +137,31 @@ editing. The existing function currently checks only `activated_kinds`.
    python -c "from charter.drg import filter_graph_by_activation, _node_is_activated; print('OK')"
    ```
 
-4. Confirm that `_SINGULAR_TO_PLURAL` still exists unchanged — you must not modify
-   the existing kind-level gate logic, only append the second gate after it.
+4. **Also fix the FR-028 plural mapping** (this WP owns `drg.py`; WP01 originally
+   held this task but transferred it here after the ownership conflict resolution):
+
+   In `_SINGULAR_TO_PLURAL`, find the entry:
+   ```python
+   "mission_step_contract": "mission_steps",
+   ```
+   Change it to:
+   ```python
+   "mission_step_contract": "mission_step_contracts",
+   ```
+   Then check the reverse map (plural → singular, around lines 139–140). If an entry
+   `"mission_step_contracts": "mission_step_contract"` is absent, add it. Do NOT
+   remove the old `"mission_steps": "mission_step_contract"` entry (backward compat).
+
+   In `tests/charter/test_activation_filtered_drg.py`, search for any assertion on
+   `"mission_steps"` as the plural for `"mission_step_contract"` and update it to
+   `"mission_step_contracts"`.
+
+5. **Remove dead `PackContext` re-export (FR-024)**. In `drg.py`'s `__all__` list,
+   check if `"PackContext"` appears. It is a dead re-export because no production
+   file imports `PackContext` from `charter.drg` — all imports come from
+   `charter.pack_context` directly. Remove `"PackContext"` from `__all__` if
+   present. Do NOT remove the import of `PackContext` that `filter_graph_by_activation`
+   uses internally — only remove it from `__all__`.
 
 **ATDD**: `pytest tests/charter/test_activation_filtered_drg.py -x -v` must pass.
 Existing tests rely on `None` per-kind-sets, which bypass the new gate — they should
@@ -316,6 +339,20 @@ real assertions before marking this WP done.
 Also update `tests/charter/test_context.py` (if it exists) for any function whose
 signature changed in T035–T036. Updated tests must pass `pack_context` explicitly.
 
+**`tests/charter/test_resolver.py` (ATDD — required)**:
+
+T036 changes the signature of `resolve_references_transitively()`. Search for
+tests of this function in `tests/charter/test_resolver.py`:
+
+```bash
+grep -n "resolve_references_transitively\|patch.*reference_resolver" \
+  tests/charter/test_resolver.py 2>/dev/null | head -10
+```
+
+For each call or mock of `resolve_references_transitively` that does not yet pass
+`pack_context`, update it to pass `pack_context=None` explicitly. Stale mocks that
+do not forward the new parameter will cause `TypeError` at runtime.
+
 ---
 
 ## Definition of Done
@@ -324,6 +361,9 @@ signature changed in T035–T036. Updated tests must pass `pack_context` explici
 - [ ] `_node_is_activated` has both kind-level and per-artifact-ID gate; `_SINGULAR_TO_PER_KIND_FIELD` lists all 8 kinds
 - [ ] Both `TestFilterGraphByActivationPerArtifactId` tests pass without `pytest.skip`
 - [ ] All 6 `TestNodeIsActivatedPerArtifactIdGate` tests pass
+- [ ] `_SINGULAR_TO_PLURAL["mission_step_contract"]` equals `"mission_step_contracts"` (FR-028)
+- [ ] Dead `PackContext` re-export removed from `charter.drg.__all__` (FR-024)
+- [ ] `tests/charter/test_resolver.py` updated: any call/mock of `resolve_references_transitively` passes `pack_context=None` or a real `PackContext`
 - [ ] `pytest tests/charter/ -x` passes (no stale mocks, no signature mismatches)
 - [ ] `ruff check src/charter/drg.py src/charter/context.py src/charter/reference_resolver.py src/charter/compiler.py src/specify_cli/mission_step_contracts/executor.py` passes
 - [ ] `python -m mypy src/charter/drg.py --strict` passes (or no new errors introduced)

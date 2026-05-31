@@ -56,9 +56,9 @@ and by tests.
 
 WP template scanning is **explicitly out of scope** for this WP.
 
-This WP depends on WP03 (for `CharterPackManager`, `PackContext`, DRG filtering) and
-WP04 (for `default.yaml` and `DoctrineReader`). Both must be in `approved` or `done`
-before you start.
+This WP depends on WP04 (for `CharterPackManager`, `YAML_KEY_MAP`, `default.yaml`,
+and `DoctrineReader`) and WP03 (for `ProjectContext` and `require_pack_context()`).
+Both must be in `approved` or `done` before you start.
 
 ---
 
@@ -139,7 +139,7 @@ FR-011, FR-012, NFR-003
    from dataclasses import dataclass, field
 
    from charter.pack_context import PackContext
-   from specify_cli.cli.commands.charter.context import ProjectContext
+   from charter.invocation_context import ProjectContext
 
 
    @dataclass(frozen=True)
@@ -202,11 +202,11 @@ FR-011, FR-012, NFR-003
 
    a. `pack_context = ctx.require_pack_context()` — obtain the `PackContext`.
 
-   b. Load the project's doctrine reader once. Use whatever `DoctrineReader` or
-      equivalent WP03/WP04 provides to iterate known artifact IDs for a given kind.
-      If WP03 provides a convenience function such as
-      `CharterPackManager().get_doctrine_ids(ctx, kind)` use that. If not, access the
-      doctrine filesystem directly via `ctx.doctrine_root` or similar.
+   b. Load the project's doctrine reader once. Use
+      `CharterPackManager().list_available(ctx, kind)` (delivered by WP04) to retrieve
+      the full set of known doctrine IDs for a given kind. Read
+      `src/charter/pack_manager.py` first to confirm the exact signature and return
+      type. If the method name differs from `list_available`, adapt — do not guess.
 
    c. For each CLI kind name in `YAML_KEY_MAP` (all 9):
       - Get the activated IDs for this kind from `pack_context` (use the relevant
@@ -268,7 +268,12 @@ Expected: prints `coherent: True` and a JSON snippet, no errors.
    # Pattern A kinds carry edges to other kinds in the DRG.
    _DRG_SOURCE_KINDS = {"directive", "tactic", "styleguide", "toolguide"}
 
-   drg = ctx.require_drg()          # or however WP03/WP04 exposes the DRG
+   # Load the DRG: read src/charter/context.py (_load_action_doctrine_bundle) and
+   # src/charter/drg.py to find the correct load path available in this charter
+   # module. filter_graph_by_activation is in charter.drg.
+   # Example pattern (adapt to actual API):
+   #   from charter.drg import filter_graph_by_activation
+   #   drg = _load_drg_for_consistency_check(ctx)  # helper you define after reading the API
    activated_drg = filter_graph_by_activation(drg, pack_context)
 
    for edge in activated_drg.edges():
@@ -382,8 +387,9 @@ Expected: `True`. DRG traversal path will be exercised fully by T033 tests.
    structurally impossible and the loop is a no-op.
 
 3. Add `_get_doctrine_ids(ctx: ProjectContext, kind: str) -> list[str]` that returns
-   all known IDs for a kind from the project's doctrine. Reuse the same loader
-   function from T030 to avoid a second full scan.
+   all known IDs for a kind from the project's doctrine by calling
+   `CharterPackManager().list_available(ctx, kind)`. Reuse the same loader
+   from T030 (load once, pass the result around) to avoid a second full scan.
 
 **Validation**:
 ```bash
