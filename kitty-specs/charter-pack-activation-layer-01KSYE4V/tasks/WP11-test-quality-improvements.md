@@ -21,8 +21,8 @@ subtasks:
 - T049
 - T050
 - T051
-agent: claude
-shell_pid: '6774'
+agent: "claude:sonnet-4-6:python-pedro:implementer"
+shell_pid: "6774"
 history:
 - at: '2026-05-31T11:44:22Z'
   event: created
@@ -451,3 +451,7 @@ All commands must complete without errors or test failures.
   passes.
 - `ruff check` passes on all four owned files.
 - `pytest tests/ -m fast -x -q` passes with no regressions.
+
+## Activity Log
+
+- 2026-05-31T14:19:54Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=6774 – Assigned agent via action command
