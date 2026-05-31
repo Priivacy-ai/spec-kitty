@@ -102,6 +102,7 @@ SAFETY_REGISTRY: dict[tuple[str, ...], SafetyPredicate | None] = {
     # NOTE: ("agent", "mission", "setup-plan") is intentionally absent — it
     # scaffolds plan.md and commits to the target branch (project mutation) and
     # must therefore be treated as UNSAFE under schema mismatch.
+    ("agent", "check-prerequisites"): None,
     ("agent", "mission", "branch-context"): None,
     ("agent", "mission", "check-prerequisites"): None,
     ("agent", "context", "resolve"): None,

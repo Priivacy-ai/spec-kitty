@@ -75,6 +75,7 @@ _NESTED_SAFE_COMMANDS = [
     # NOTE: "setup-plan" is intentionally excluded — it scaffolds plan.md and
     # commits to the target branch, making it a project mutation.  It is
     # therefore UNSAFE and must block under schema mismatch.  See FIX A.
+    (["agent", "check-prerequisites"], "agent_check-prerequisites_alias"),
     (["agent", "mission", "branch-context"], "agent_mission_branch-context"),
     (["agent", "mission", "check-prerequisites"], "agent_mission_check-prerequisites"),
     (["agent", "context", "resolve"], "agent_context_resolve"),
