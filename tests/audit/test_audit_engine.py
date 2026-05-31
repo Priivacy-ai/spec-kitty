@@ -205,6 +205,33 @@ def test_corrupt_jsonl_does_not_crash_engine(tmp_path: Path) -> None:
     assert "SNAPSHOT_DRIFT" not in codes, f"SNAPSHOT_DRIFT should be suppressed, got {codes}"
 
 
+def test_non_object_meta_and_status_json_do_not_crash_engine(tmp_path: Path) -> None:
+    """Engine emits findings for valid non-object meta/status JSON roots."""
+    specs_dir = tmp_path / "kitty-specs"
+    mission_dir = specs_dir / "non-object-json-mission"
+    mission_dir.mkdir(parents=True, exist_ok=True)
+    (mission_dir / "meta.json").write_text("[]", encoding="utf-8")
+    (mission_dir / "status.json").write_text("true", encoding="utf-8")
+
+    report = run_audit(_options(tmp_path))
+
+    assert len(report.missions) == 1
+    result = report.missions[0]
+    findings_by_artifact = {
+        (finding.artifact_path, finding.code): finding for finding in result.findings
+    }
+    assert ("meta.json", "CORRUPT_JSON") in findings_by_artifact
+    assert ("status.json", "CORRUPT_JSON") in findings_by_artifact
+    assert (
+        findings_by_artifact[("meta.json", "CORRUPT_JSON")].detail
+        == "top-level JSON value must be an object"
+    )
+    assert (
+        findings_by_artifact[("status.json", "CORRUPT_JSON")].detail
+        == "top-level JSON value must be an object"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Test 6: test_repo_summary_counts
 # ---------------------------------------------------------------------------
