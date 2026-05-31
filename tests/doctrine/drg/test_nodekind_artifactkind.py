@@ -1,0 +1,27 @@
+"""Regression coverage for the DRG node-kind artifact-kind contract."""
+
+from __future__ import annotations
+
+import pytest
+
+from doctrine.artifact_kinds import ArtifactKind
+from doctrine.drg.models import DRGNode, NodeKind
+
+
+pytestmark = [pytest.mark.fast]
+
+
+def test_node_kind_remains_superset_of_artifact_kind() -> None:
+    artifact_values = {kind.value for kind in ArtifactKind}
+    node_values = {kind.value for kind in NodeKind}
+
+    assert artifact_values <= node_values
+
+
+def test_mission_step_contract_is_valid_drg_node_kind() -> None:
+    node = DRGNode(
+        urn="mission_step_contract:implement-step",
+        kind=NodeKind.MISSION_STEP_CONTRACT,
+    )
+
+    assert node.kind is NodeKind.MISSION_STEP_CONTRACT

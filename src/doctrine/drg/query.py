@@ -149,6 +149,7 @@ class ResolveTransitiveRefsResult:
     toolguides: list[str] = field(default_factory=list)
     procedures: list[str] = field(default_factory=list)
     agent_profiles: list[str] = field(default_factory=list)
+    mission_step_contracts: list[str] = field(default_factory=list)
     templates: list[str] = field(default_factory=list)
     # Edges whose target URN was not found in the graph, stored as
     # ``(source_urn, target_urn)``. Always ``[]`` when the input graph has
@@ -233,6 +234,7 @@ def resolve_transitive_refs(
         toolguides=buckets[NodeKind.TOOLGUIDE],
         procedures=buckets[NodeKind.PROCEDURE],
         agent_profiles=buckets[NodeKind.AGENT_PROFILE],
+        mission_step_contracts=buckets[NodeKind.MISSION_STEP_CONTRACT],
         templates=buckets[NodeKind.TEMPLATE],
         unresolved=unresolved,
     )
