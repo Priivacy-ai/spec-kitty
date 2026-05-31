@@ -283,6 +283,34 @@ class TestEndToEndDetection:
         assert report.affected_paths == (lane_path,)
         assert report.worktrees[0].sparse_checkout_kind is SparseCheckoutKind.UNKNOWN
 
+    def test_manual_matching_worktree_is_blocking_unknown(
+        self, tmp_path: Path
+    ) -> None:
+        repo = tmp_path / "r"
+        _init_coordination_lane_repo(repo)
+        manual_path = repo / ".worktrees" / f"{MISSION_SLUG}-lane-b"
+        _run(
+            [
+                "git",
+                "-C",
+                str(repo),
+                "worktree",
+                "add",
+                "-b",
+                "feature/unrelated-sparse-worktree",
+                str(manual_path),
+                COORD_BRANCH,
+            ],
+        )
+        register_lane_sparse_checkout(manual_path, MISSION_SLUG, MID8)
+
+        report = scan_repo(repo)
+        manual_state = next(w for w in report.worktrees if w.path == manual_path)
+
+        assert manual_state.sparse_checkout_kind is SparseCheckoutKind.UNKNOWN
+        assert manual_state.is_blocking is True
+        assert manual_path in report.affected_paths
+
 
 # ---------------------------------------------------------------------------
 # Preflight wiring

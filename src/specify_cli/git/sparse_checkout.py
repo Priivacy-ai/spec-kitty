@@ -226,10 +226,18 @@ def scan_path(path: Path, *, is_worktree: bool) -> SparseCheckoutState:
 @dataclass(frozen=True)
 class _ManagedLanePolicy:
     mission_slug: str
+    coordination_branch: str
     expected_patterns: frozenset[str]
 
     def matches_path(self, path: Path) -> bool:
         return path.name.startswith(f"{self.mission_slug}-lane-")
+
+    def expected_branch_for(self, path: Path) -> str | None:
+        prefix = f"{self.mission_slug}-"
+        if not path.name.startswith(prefix):
+            return None
+        lane_id = path.name.removeprefix(prefix)
+        return f"{self.coordination_branch}-{lane_id}"
 
 
 def _read_patterns(path: Path) -> frozenset[str] | None:
@@ -278,6 +286,7 @@ def _load_managed_lane_policies(repo_root: Path) -> tuple[_ManagedLanePolicy, ..
         policies.append(
             _ManagedLanePolicy(
                 mission_slug=mission_slug,
+                coordination_branch=coord_branch,
                 expected_patterns=frozenset(
                     lane_sparse_checkout_patterns(mission_slug, mid8)
                 ),
@@ -302,6 +311,22 @@ def _registered_worktree_paths(repo_root: Path) -> frozenset[Path]:
     return frozenset(paths)
 
 
+def _current_branch(path: Path) -> str | None:
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(path), "branch", "--show-current"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if result.returncode != 0:
+        return None
+    branch = result.stdout.strip()
+    return branch or None
+
+
 def _classify_worktree_state(
     state: SparseCheckoutState,
     *,
@@ -314,6 +339,9 @@ def _classify_worktree_state(
     if not candidates:
         return state
     if len(candidates) != 1:
+        return replace(state, sparse_checkout_kind=SparseCheckoutKind.UNKNOWN)
+    expected_branch = candidates[0].expected_branch_for(state.path)
+    if expected_branch is None or _current_branch(state.path) != expected_branch:
         return replace(state, sparse_checkout_kind=SparseCheckoutKind.UNKNOWN)
     if state.path.resolve(strict=False) not in registered_worktrees:
         return replace(state, sparse_checkout_kind=SparseCheckoutKind.UNKNOWN)

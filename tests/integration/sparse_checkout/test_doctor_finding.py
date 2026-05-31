@@ -83,7 +83,18 @@ def _init_managed_lane_repo(repo: Path) -> Path:
     _run(["git", "-C", str(repo), "commit", "-m", "mission"])
     _run(["git", "-C", str(repo), "branch", COORD_BRANCH])
     wt = _add_worktree(repo, f"{MISSION_SLUG}-lane-a")
-    _run(["git", "-C", str(wt), "checkout", "-q", COORD_BRANCH])
+    _run(
+        [
+            "git",
+            "-C",
+            str(wt),
+            "checkout",
+            "-q",
+            "-B",
+            f"{COORD_BRANCH}-lane-a",
+            COORD_BRANCH,
+        ],
+    )
     register_lane_sparse_checkout(wt, MISSION_SLUG, MID8)
     return wt
 

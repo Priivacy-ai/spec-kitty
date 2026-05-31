@@ -624,7 +624,7 @@ class TestCheckSparseCheckout:
             assert check_sparse_checkout(tmp_path) == []
 
     def test_inactive_repo_returns_empty(self, tmp_path: Path):
-        fake_report = SimpleNamespace(any_active=False)
+        fake_report = SimpleNamespace(any_active=False, any_blocking=False)
         fake_module = SimpleNamespace(scan_repo=lambda _repo_root: fake_report)
 
         with patch.dict(sys.modules, {"specify_cli.git.sparse_checkout": fake_module}):
@@ -634,15 +634,17 @@ class TestCheckSparseCheckout:
         primary_pattern = tmp_path / ".git" / "info" / "sparse-checkout"
         primary = SimpleNamespace(
             is_active=True,
+            is_blocking=True,
             path=tmp_path,
             pattern_file_present=True,
             pattern_file_path=primary_pattern,
             pattern_line_count=3,
         )
         lane_path = tmp_path / ".worktrees" / "mission-lane-a"
-        lane = SimpleNamespace(is_active=True, path=lane_path)
+        lane = SimpleNamespace(is_active=True, is_blocking=True, path=lane_path)
         fake_report = SimpleNamespace(
             any_active=True,
+            any_blocking=True,
             affected_paths=(tmp_path, lane_path),
             primary=primary,
             worktrees=(lane,),
