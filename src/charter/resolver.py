@@ -31,7 +31,6 @@ __all__ = [
     "GovernanceResolutionError",
     "collect_governance_diagnostics",
     "resolve_governance_for_profile",
-    "resolve_mission_steps",
     "resolve_project_governance",
 ]
 
