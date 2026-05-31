@@ -182,16 +182,16 @@ def test_read_lock_record_returns_none_for_non_mapping_json(tmp_path: Path) -> N
     assert result is None
 
 
-def test_force_release_removes_stale_lock(tmp_path: Path) -> None:
+def test_force_release_clears_stale_lock(tmp_path: Path) -> None:
     """Arrange: lock file with 2-minute-old record;
     Act: force_release with 60s threshold;
-    Assert: file removed, True returned."""
+    Assert: stale record cleared, True returned."""
     lock_path = tmp_path / "stale.lock"
     _write_synthetic_record(lock_path, age_s=120.0)
 
     result = force_release(lock_path, only_if_age_s=60.0)
     assert result is True
-    assert not lock_path.exists()
+    assert read_lock_record(lock_path) is None
 
 
 def test_force_release_does_not_remove_fresh_lock(tmp_path: Path) -> None:

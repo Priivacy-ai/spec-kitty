@@ -228,6 +228,25 @@ def _record_from_payload(payload: object) -> LockRecord | None:
     )
 
 
+def _record_from_bytes(raw: bytes) -> LockRecord | None:
+    if not raw:
+        return None
+    try:
+        payload = json.loads(raw)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return None
+    return _record_from_payload(payload)
+
+
+def _read_lock_record_from_fd(fd: int) -> LockRecord | None:
+    try:
+        os.lseek(fd, 0, os.SEEK_SET)
+        raw = os.read(fd, 65536)
+    except OSError:
+        return None
+    return _record_from_bytes(raw)
+
+
 def read_lock_record(path: Path) -> LockRecord | None:
     """Return the lock record at ``path`` without acquiring the OS lock.
 
@@ -246,23 +265,18 @@ def read_lock_record(path: Path) -> LockRecord | None:
         return None
     except OSError:
         return None
-    if not raw:
-        return None
-    try:
-        payload = json.loads(raw)
-    except (json.JSONDecodeError, UnicodeDecodeError):
-        return None
-    return _record_from_payload(payload)
+    return _record_from_bytes(raw)
 
 
 def force_release(path: Path, *, only_if_age_s: float = STALE_AFTER_S_DEFAULT) -> bool:
-    """Remove the lock file at ``path`` iff the record is older than ``only_if_age_s``.
+    """Clear the lock record at ``path`` iff it is older than ``only_if_age_s``.
 
-    Returns ``True`` when the file was removed (it existed and was stuck);
-    ``False`` when the file is missing, unreadable, or still considered fresh.
+    Returns ``True`` when the record was cleared (it existed and was stuck);
+    ``False`` when the file is missing, unreadable, held, or still considered fresh.
 
-    A fresh lock cannot be ripped out from under a running process — the age
-    check is performed before any filesystem mutation.
+    A lock cannot be ripped out from under a running process: force release
+    first proves the OS lock is available, then truncates the existing inode
+    under that lock instead of unlinking the path.
     """
     record = read_lock_record(path)
     if record is None:
@@ -270,10 +284,28 @@ def force_release(path: Path, *, only_if_age_s: float = STALE_AFTER_S_DEFAULT) -
     if record.age_s <= only_if_age_s:
         return False
     try:
-        path.unlink(missing_ok=True)
+        fd = os.open(str(path), os.O_RDWR)
     except OSError:
         return False
-    return True
+    try:
+        try:
+            _os_lock(fd)
+        except OSError as exc:
+            if _is_contention_error(exc):
+                return False
+            return False
+        locked_record = _read_lock_record_from_fd(fd)
+        if locked_record is None or locked_record.age_s <= only_if_age_s:
+            return False
+        try:
+            _atomic_write_under_lock(fd, b"")
+        except OSError:
+            return False
+        return True
+    finally:
+        _os_unlock(fd)
+        with contextlib.suppress(OSError):
+            os.close(fd)
 
 
 class MachineFileLock:
@@ -295,10 +327,9 @@ class MachineFileLock:
     ``_RETRY_SLEEP_S`` seconds for at most ``acquire_timeout_s`` seconds. If
     contention persists past the timeout :class:`LockAcquireTimeout` is raised.
 
-    Stale-lock adoption: when the existing record is older than
-    ``stale_after_s`` the helper deletes the file and retries the OS lock once
-    to reclaim ownership. Concurrent adopters are tolerated — the loop simply
-    re-enters bounded wait if the second attempt also contends.
+    Stale-lock adoption: age is diagnostic only while another process holds
+    the OS lock. A stale record without a live OS holder is adopted by taking
+    the lock on the existing inode and rewriting the record.
 
     The protected block is the caller's responsibility; ``max_hold_s`` is
     advisory and callers SHOULD wrap the work in :func:`asyncio.wait_for` to
@@ -337,7 +368,6 @@ class MachineFileLock:
     async def __aenter__(self) -> LockRecord:
         _ensure_dir(self.path)
         deadline = asyncio.get_event_loop().time() + self.acquire_timeout_s
-        adopted_once = False
         while True:
             fd = self._open_fd()
             try:
@@ -346,19 +376,6 @@ class MachineFileLock:
                 os.close(fd)
                 if not _is_contention_error(exc):
                     raise
-                # Contention path — consider staleness adoption then sleep.
-                existing = read_lock_record(self.path)
-                if (
-                    not adopted_once
-                    and existing is not None
-                    and existing.age_s > self.stale_after_s
-                ):
-                    adopted_once = True
-                    # Another process may have already adopted; fall through.
-                    with contextlib.suppress(OSError):
-                        self.path.unlink(missing_ok=True)
-                    # Immediate retry of the OS lock without sleep.
-                    continue
                 if asyncio.get_event_loop().time() >= deadline:
                     raise LockAcquireTimeout(path=str(self.path)) from None
                 await asyncio.sleep(_RETRY_SLEEP_S)
