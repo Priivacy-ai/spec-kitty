@@ -306,6 +306,10 @@ def read_events_raw(feature_dir: Path) -> list[dict[str, Any]]:
                 obj = json.loads(stripped)
             except json.JSONDecodeError as exc:
                 raise StoreError(f"Invalid JSON on line {line_number}: {exc}") from exc
+            if not isinstance(obj, dict):
+                raise StoreError(
+                    f"Invalid event structure on line {line_number}: expected JSON object"
+                )
             results.append(obj)
     return results
 
@@ -376,6 +380,10 @@ def read_events(feature_dir: Path) -> list[StatusEvent]:
                 obj = json.loads(stripped)
             except json.JSONDecodeError as exc:
                 raise StoreError(f"Invalid JSON on line {line_number}: {exc}") from exc
+            if not isinstance(obj, dict):
+                raise StoreError(
+                    f"Invalid event structure on line {line_number}: expected JSON object"
+                )
             if _should_skip_status_event(obj):
                 continue
 
