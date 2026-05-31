@@ -290,3 +290,60 @@ class TestPerformance:
         assert elapsed_ms < 100, (
             f"charter.resolve_action_sequence took {elapsed_ms:.1f}ms — exceeds 100ms NFR-001 budget"
         )
+
+
+class TestPerformanceRealIO:
+    """NFR-001: PackContext.from_config() ≤100ms p99 under real filesystem I/O."""
+
+    @pytest.mark.slow
+    def test_pack_context_from_config_p99_under_100ms(self, tmp_path: Path) -> None:
+        """Real I/O: PackContext.from_config() p99 ≤ 100ms over 50 runs."""
+        import time
+
+        from charter.pack_context import PackContext
+
+        kittify = tmp_path / ".kittify"
+        kittify.mkdir()
+        config_text = (
+            "mission_type_activations:\n"
+            "  - software-dev\n"
+            "  - documentation\n"
+            "  - research\n"
+            "  - plan\n"
+            "activated_kinds:\n"
+            "  - directives\n"
+            "  - tactics\n"
+            "  - styleguides\n"
+            "  - toolguides\n"
+            "  - paradigms\n"
+            "  - procedures\n"
+            "  - agent_profiles\n"
+            "  - mission_step_contracts\n"
+            "activated_directives:\n"
+            "  - python-style-guide\n"
+            "  - clean-code\n"
+            "activated_agent_profiles:\n"
+            "  - python-pedro\n"
+            "  - reviewer-renata\n"
+        )
+        (kittify / "config.yaml").write_text(config_text, encoding="utf-8")
+
+        # Warm run — excludes import overhead from the measurement.
+        PackContext.from_config(tmp_path)
+
+        timings_ms: list[float] = []
+        for _ in range(50):
+            start = time.monotonic()
+            PackContext.from_config(tmp_path)
+            elapsed_ms = (time.monotonic() - start) * 1000
+            timings_ms.append(elapsed_ms)
+
+        timings_ms.sort()
+        # Index 49 of 50 sorted values = 98th percentile proxy; use index 49
+        # for the worst observed value in a 50-run sample as the p99 estimate.
+        p99 = timings_ms[49]
+        p50 = timings_ms[24]
+        assert p99 <= 100, (
+            f"PackContext.from_config() p99={p99:.2f}ms > 100ms NFR-001 budget. "
+            f"p50={p50:.2f}ms, max={timings_ms[-1]:.2f}ms"
+        )

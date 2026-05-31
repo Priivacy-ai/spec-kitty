@@ -203,11 +203,23 @@ class TestWpIdGuard:
                 mission_type="software-dev",
             )
 
-        # Either a real prompt path or an error message — but NOT a composed marker.
-        # The key assertion is that the function handled this without crashing.
-        # If the template builder fails, path is None and error is set.
-        # Either is acceptable as long as we didn't produce a marker for a WP-scoped action.
-        assert True  # No exception = pass; the WP-scoped path was taken
+        # The WP-scoped path skips the composed marker entirely.
+        # When wp_id is set, _is_composed_action is always False (because
+        # `wp_id is None` is False), so the composed marker fast-path is never
+        # taken.  Either the template builder succeeds (path is a real path) or
+        # it fails gracefully (path is None, error is set) — but a composed
+        # marker path must never be produced for a WP-scoped action.
+        if path is not None:
+            assert "spec-kitty-composed-" not in str(path), (
+                "WP-scoped actions must not produce a composed marker; "
+                f"got path: {path}"
+            )
+        else:
+            # path is None = template builder failed gracefully; that is acceptable,
+            # but _error must explain why (not be an empty string).
+            assert _error, (
+                "When _build_prompt_or_error returns path=None, error must be non-empty"
+            )
 
 
 # ---------------------------------------------------------------------------
