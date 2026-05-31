@@ -15,6 +15,8 @@ from typing import Annotated, Any, ClassVar, Self
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from pydantic.functional_validators import BeforeValidator
 
+from doctrine.agent_profiles.schema_version import AGENT_PROFILE_SCHEMA_VERSION_PATTERN
+
 
 def _normalize_role_value(value: str) -> str:
     return value.lower()
@@ -222,7 +224,7 @@ class AgentProfile(BaseModel):
     profile_id: str = Field(alias="profile-id")
     name: str
     description: str = ""
-    schema_version: str = Field(default="1.0", alias="schema-version")
+    schema_version: str = Field(default="1.0", alias="schema-version", pattern=AGENT_PROFILE_SCHEMA_VERSION_PATTERN)
     roles: list[Role] = Field(min_length=1)
     avatar_image: str | None = Field(default=None, alias="avatar-image")
     capabilities: list[str] = Field(default_factory=list)

@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
+from doctrine.agent_profiles.profile import AgentProfile
 from doctrine.agent_profiles.validation import (
     is_agent_profile_file,
     validate_agent_profile_yaml,
@@ -170,6 +171,37 @@ class TestSchemaValidation:
         }
         errors = validate_agent_profile_yaml(data)
         assert len(errors) > 0
+
+
+class TestAgentProfileSchemaVersionContract:
+    """Schema and runtime model agree on agent-profile schema-version values."""
+
+    def _profile_with_schema_version(self, schema_version: str) -> dict:
+        return {
+            "profile-id": "schema-version-test",
+            "name": "Schema Version Test",
+            "purpose": "Prove schema-version validation is consistent.",
+            "schema-version": schema_version,
+            "roles": ["implementer"],
+            "specialization": {"primary-focus": "Schema validation"},
+        }
+
+    @pytest.mark.parametrize("schema_version", ["1.0", "2"])
+    def test_schema_and_runtime_accept_supported_schema_versions(self, schema_version: str) -> None:
+        data = self._profile_with_schema_version(schema_version)
+
+        assert validate_agent_profile_yaml(data) == []
+        assert AgentProfile.model_validate(data).schema_version == schema_version
+
+    @pytest.mark.parametrize("schema_version", ["1", "2.0", "3", "latest", ""])
+    def test_schema_and_runtime_reject_unsupported_schema_versions(self, schema_version: str) -> None:
+        data = self._profile_with_schema_version(schema_version)
+
+        errors = validate_agent_profile_yaml(data)
+        assert any("schema-version" in error for error in errors)
+
+        with pytest.raises(ValueError, match="schema-version|schema_version|String should match pattern"):
+            AgentProfile.model_validate(data)
 
 
 class TestFileTypeDetection:
