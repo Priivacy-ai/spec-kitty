@@ -388,10 +388,10 @@ WP11 subtasks T048–T051 are fully independent and can be executed in any order
 **Subtasks**: T048–T051
 **Agent profile**: python-pedro
 
-- [ ] T048 Extend NFR-001 test to real filesystem I/O, multi-run p99 methodology (FR-026)
-- [ ] T049 Add FR-027 test: `mission_type_activations: [software-dev]` → documentation/research/plan excluded
-- [ ] T050 Fix FR-029: move subprocess call from fast-marked unit test to integration mark
-- [ ] T051 Fix FR-030: replace vacuous assertion in decision dispatch test with meaningful invariant
+- [x] T048 Extend NFR-001 test to real filesystem I/O, multi-run p99 methodology (FR-026)
+- [x] T049 Add FR-027 test: `mission_type_activations: [software-dev]` → documentation/research/plan excluded
+- [x] T050 Fix FR-029: move subprocess call from fast-marked unit test to integration mark
+- [x] T051 Fix FR-030: replace vacuous assertion in decision dispatch test with meaningful invariant
 
 **Implementation Notes**:
 - T048: The existing NFR-001 test uses an in-memory mock and measures a single wall-clock run. Replace with a temp-directory fixture that creates a real `.kittify/config.yaml` and measures 20 runs; compute p99 and assert ≤ 100ms. Use `pytest-benchmark` or `timeit` with explicit percentile logic.
