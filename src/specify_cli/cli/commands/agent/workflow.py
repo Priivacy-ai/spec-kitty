@@ -260,6 +260,9 @@ def _commit_via_coordination_transaction(
             for path in paths:
                 if not path.exists():
                     continue
+                if path.resolve().is_relative_to(txn.worktree_root.resolve()):
+                    txn.stage_path(path)
+                    continue
                 txn_path = _transaction_path_for(
                     source_path=path,
                     repo_root=repo_root,
@@ -1071,7 +1074,7 @@ def implement(
             # Capture current shell PID
             shell_pid = str(os.getppid())  # Parent process ID (the shell running this command)
 
-            _impl_feature_dir = main_repo_root / "kitty-specs" / mission_slug
+            _impl_feature_dir = _wf_feature_dir
             _actor = agent or "unknown"
             # WP06 T027: capture the pre-emit size of status.events.jsonl
             # so we can surgically truncate on commit failure. This is

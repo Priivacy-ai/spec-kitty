@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import tempfile
+import json
 from pathlib import Path
 
 import pytest
@@ -11,6 +12,7 @@ from typer.testing import CliRunner
 from tests.lane_test_utils import lane_worktree_path, write_single_lane_manifest
 
 from specify_cli.cli.commands.agent import workflow
+from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.status.emit import emit_status_transition
 from specify_cli.status.store import append_event
@@ -282,6 +284,73 @@ def test_workflow_implement_uses_main_current_lane_for_rework_from_sparse_lane(
 
     snapshot = reduce(read_events(feature_dir))
     assert snapshot.work_packages["WP01"]["lane"] == Lane.IN_PROGRESS
+
+
+def test_workflow_implement_emits_rework_to_coord_status_path(
+    workflow_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Modern missions must read and write the same coord canonical status path."""
+    mission_slug = "demo-feature-01J6XW9K"
+    mid8 = "01J6XW9K"
+    mission_id = "01J6XW9KABCDEFGHJKMNPQRSTV"
+    coord_branch = f"kitty/mission-{mission_slug}"
+    feature_dir = workflow_repo / "kitty-specs" / mission_slug
+    coord_feature_dir = (
+        CoordinationWorkspace.worktree_path(workflow_repo, mission_slug, mid8)
+        / "kitty-specs"
+        / mission_slug
+    )
+    for mission_dir in (feature_dir, coord_feature_dir):
+        tasks_dir = mission_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+        (mission_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
+        (mission_dir / "meta.json").write_text(
+            json.dumps(
+                {
+                    "mission_slug": mission_slug,
+                    "mission_id": mission_id,
+                    "mid8": mid8,
+                    "coordination_branch": coord_branch,
+                }
+            ),
+            encoding="utf-8",
+        )
+        write_single_lane_manifest(mission_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
+        _write_wp_file(tasks_dir / "WP01-test.md", "WP01", lane="for_review")
+
+    _seed_wp_lane(feature_dir, "WP01", "planned")
+    _seed_wp_lane(coord_feature_dir, "WP01", "for_review")
+    workspace = lane_worktree_path(workflow_repo, mission_slug)
+    (workspace / "kitty-specs" / mission_slug / "tasks").mkdir(parents=True)
+
+    monkeypatch.setattr(workflow, "locate_project_root", lambda: workspace)
+    monkeypatch.setattr(workflow, "get_main_repo_root", lambda _repo_root: workflow_repo)
+    monkeypatch.setattr("specify_cli.core.paths.get_main_repo_root", lambda _repo_root: workflow_repo)
+    monkeypatch.setattr(
+        workflow,
+        "_ensure_target_branch_checked_out",
+        lambda _repo_root, _mission_slug: (workflow_repo, "main"),
+    )
+    monkeypatch.setattr(workflow, "_commit_workflow_change", lambda **_kwargs: None)
+
+    result = CliRunner().invoke(
+        workflow.app,
+        ["implement", "WP01", "--mission", mission_slug, "--agent", "test-agent"],
+    )
+
+    assert result.exit_code == 0, result.stdout
+
+    from specify_cli.status.reducer import reduce
+    from specify_cli.status.store import read_events
+
+    coord_events = [event for event in read_events(coord_feature_dir) if event.wp_id == "WP01"]
+    assert coord_events[-1].from_lane == Lane.FOR_REVIEW
+    assert coord_events[-1].to_lane == Lane.IN_PROGRESS
+    assert coord_events[-1].force is True
+
+    primary_snapshot = reduce(read_events(feature_dir))
+    assert primary_snapshot.work_packages["WP01"]["lane"] == Lane.PLANNED
 
 
 def test_workflow_review_tracks_reviewer_agent_name(workflow_repo: Path) -> None:
