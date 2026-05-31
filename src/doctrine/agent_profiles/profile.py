@@ -16,6 +16,10 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from pydantic.functional_validators import BeforeValidator
 
 
+def _normalize_role_value(value: str) -> str:
+    return value.lower()
+
+
 class Role(str):
     """Half-open role value object.
 
@@ -51,12 +55,12 @@ class Role(str):
     def __new__(cls, value: str) -> Role:
         if not value:
             raise ValueError("Role value must be a non-empty string")
-        return str.__new__(cls, value)
+        return str.__new__(cls, _normalize_role_value(value))
 
     @classmethod
     def is_known(cls, role: Role | str) -> bool:
         """Return True iff *role* is one of the well-known static constants."""
-        return str(role) in cls._KNOWN
+        return _normalize_role_value(str(role)) in cls._KNOWN
 
     @classmethod
     def __get_pydantic_core_schema__(cls, source_type: Any, handler: Any) -> Any:

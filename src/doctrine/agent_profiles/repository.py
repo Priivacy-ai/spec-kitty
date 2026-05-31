@@ -459,7 +459,11 @@ class AgentProfileRepository:
         Returns:
             List of all profiles where role appears at any position in profile.roles
         """
-        return [p for p in self._profiles.values() if role in p.roles]
+        role_value = str(role)
+        if not role_value:
+            return []
+        normalized_role = Role(role_value)
+        return [p for p in self._profiles.values() if normalized_role in p.roles]
 
     def _build_hierarchy_index(self) -> None:
         """Build hierarchy index mapping parent_id -> [child_ids]."""
