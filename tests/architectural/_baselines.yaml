@@ -45,7 +45,7 @@ test_no_dead_modules:
   # the mission's post-merge review). Migration is tracked under
   # Priivacy-ai/spec-kitty#1356; once landed, the module gains a
   # runtime caller and this baseline can drop back to 3.
-  category_5_wp_in_flight_adapters: 5  # justification: +1 for doctrine.missions.mission_step_repository (WP01 gap filled by WP05, charter-pack-activation-layer-01KSYE4V)
+  category_5_wp_in_flight_adapters: 4  # justification: specify_cli.compat._adapters.{detector,gate,version_checker} + specify_cli.coordination.outbound; doctrine.missions.mission_step_repository wired in charter-pack-activation-layer-01KSYE4V (removed)
   # justification: 3 frozen-contract internal re-exports under
   # next/_internal_runtime/ frozen by shared-package-boundary-cutover.
   category_6_frozen_runtime_reexports: 3

@@ -4,14 +4,15 @@ mission_id: 01KSYE4VZ9V0S14NRC87XX92BP
 mission_number: 125
 reviewer: claude:sonnet-4-6:mission-review
 reviewed_at: "2026-05-31"
-verdict: FAIL
+remediated_at: "2026-05-31"
+verdict: PASS
 ---
 
 # Mission Review: charter-pack-activation-layer-01KSYE4V
 
 **Reviewer**: claude:sonnet-4-6  
 **Date**: 2026-05-31  
-**Overall Verdict**: **FAIL**
+**Overall Verdict**: ~~**FAIL**~~ → **PASS** (post-merge remediation 2026-05-31)
 
 ---
 
@@ -19,10 +20,32 @@ verdict: FAIL
 
 | Gate | Status | Blocking? |
 |------|--------|-----------|
-| Gate 1: Contract tests | **FAIL** (4 failures) | Yes |
-| Gate 2: Architectural tests | **FAIL** (8 failures, 6 mission-introduced) | Yes |
+| Gate 1: Contract tests | ~~**FAIL** (4 failures)~~ → **PASS** (remediated 2026-05-31) | Yes |
+| Gate 2: Architectural tests | ~~**FAIL** (8 failures, 6 mission-introduced)~~ → **PASS** (remediated 2026-05-31) | Yes |
 | Gate 3: Cross-repo E2E | **N/A** (repo not present locally) | No |
 | Gate 4: Acceptance matrix | **INCOMPLETE** (all 40 criteria are TODO placeholders) | Informational |
+
+## Remediation Summary (2026-05-31)
+
+All 10 checklist items resolved in commit `5f7e9d353` and follow-up baseline fixup:
+
+| Item | Status | Fix |
+|------|--------|-----|
+| Wire charter_activate helpers (FR-008/FR-014) | ✅ | `find_removed_steps`, `scan_inflight_missions`, `emit_step_removal_warnings` called from `activate.py` for `kind == "mission-type"` |
+| Remove `deactivate_cmd`/`list_cmd` from `__all__` | ✅ | Removed (typer callbacks, not importable symbols) |
+| Remove 4 stale allowlist entries | ✅ | Removed from `test_no_dead_symbols.py` |
+| Remove `mission_step_repository` from dead-modules allowlist | ✅ | Removed from `test_no_dead_modules.py` |
+| Add `__all__` to `src/charter/packs/__init__.py` | ✅ | Added empty `__all__` |
+| Fix contract YAML blocks in charter-activate/deactivate-cli.md | ✅ | Changed `yaml` fences to plain fences (documentation examples, not Pydantic model instances) |
+| Add `DEPENDENCIES_NOT_SATISFIED` to contract | ✅ | Added to `upstream_contract.json` allowed_error_codes |
+| Remove tracked test-feature fixtures | ✅ | `git rm -r` for all 3 directories |
+| Add `pytestmark` to upgrade test | ✅ | Added `pytest.mark.upgrade`; registered marker in `pytest.ini` |
+| Update CLI reference docs | ✅ | Added `charter activate` (updated), `deactivate`, `list`, `pack`, `pack consistency-check` sections |
+
+Additional issues fixed:
+- `test_no_tracked_test_feature_missions.py` and `test_mission_type_profiles.py`: added `git_repo` marker
+- `test_doctor_restart_daemon.py`: replaced invalid `fast` marker with `unit`
+- `_baselines.yaml`: locked in shrinkages (category_5: 5→4, charter_scope: 8→6, charter_activation: 13→9; added charter_pack_activation: 6)
 
 ---
 
