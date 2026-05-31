@@ -335,6 +335,10 @@ class TestPlanWidenBlockPath:
                     return_value=mock_flow,
                 ),
                 patch(
+                    "specify_cli.cli.commands.charter._widen._dm_service.resolve_decision",
+                    return_value=MagicMock(),
+                ),
+                patch(
                     "specify_cli.widen.state.WidenPendingStore",
                 ) as mock_store_cls,
             ):

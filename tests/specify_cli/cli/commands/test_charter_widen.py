@@ -15,11 +15,13 @@ from __future__ import annotations
 import json
 import os
 import time
+from io import StringIO
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 from charter.interview import MINIMAL_QUESTION_ORDER
+from rich.console import Console
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.charter import app as charter_app
@@ -87,9 +89,86 @@ def _invoke_interview(
         os.chdir(old_cwd)
 
 
+def _make_decision_error() -> Exception:
+    from specify_cli.decisions.models import DecisionErrorCode
+    from specify_cli.decisions.service import DecisionError
+
+    return DecisionError(code=DecisionErrorCode.TERMINAL_CONFLICT)
+
+
 # ---------------------------------------------------------------------------
 # [w]iden affordance visibility
 # ---------------------------------------------------------------------------
+
+
+class TestBlockedPromptWriteBackFailures:
+    """Blocked prompt write-back failures must not fake terminal progress."""
+
+    def test_local_answer_failure_reprompts_before_advancing(self, tmp_path: Path) -> None:
+        from specify_cli.cli.commands.charter import _run_blocked_prompt_loop
+
+        console = Console(file=StringIO(), highlight=False, markup=False)
+        timer = MagicMock()
+
+        with (
+            patch.object(console, "input", side_effect=["first answer", "second answer"]),
+            patch(
+                "specify_cli.cli.commands.charter._widen._schedule_inactivity_reminder",
+                return_value=timer,
+            ),
+            patch(
+                "specify_cli.cli.commands.charter._widen._dm_service.resolve_decision",
+                side_effect=[_make_decision_error(), MagicMock()],
+            ) as mock_resolve,
+        ):
+            _run_blocked_prompt_loop(
+                decision_id="dec-001",
+                question_text="Which DB?",
+                invited=["Alice"],
+                mission_slug=MISSION_SLUG,
+                repo_root=tmp_path,
+                console=console,
+                saas_client=MagicMock(),
+                actor="tester",
+            )
+
+        assert mock_resolve.call_count == 2
+        output = console.file.getvalue()  # type: ignore[union-attr]
+        assert "not saved" in output.lower()
+        assert "Resolved locally" in output
+
+    def test_defer_failure_reprompts_before_advancing(self, tmp_path: Path) -> None:
+        from specify_cli.cli.commands.charter import _run_blocked_prompt_loop
+
+        console = Console(file=StringIO(), highlight=False, markup=False)
+        timer = MagicMock()
+
+        with (
+            patch.object(console, "input", side_effect=["d", "not ready", "d", "ready"]),
+            patch(
+                "specify_cli.cli.commands.charter._widen._schedule_inactivity_reminder",
+                return_value=timer,
+            ),
+            patch(
+                "specify_cli.cli.commands.charter._widen._dm_service.defer_decision",
+                side_effect=[_make_decision_error(), MagicMock()],
+            ) as mock_defer,
+        ):
+            _run_blocked_prompt_loop(
+                decision_id="dec-001",
+                question_text="Which DB?",
+                invited=["Alice"],
+                mission_slug=MISSION_SLUG,
+                repo_root=tmp_path,
+                console=console,
+                saas_client=MagicMock(),
+                actor="tester",
+            )
+
+        assert mock_defer.call_count == 2
+        output = console.file.getvalue()  # type: ignore[union-attr]
+        assert "not saved" in output.lower()
+        assert "Decision deferred" in output
 
 
 class TestWidenAffordanceVisibility:
@@ -197,6 +276,10 @@ class TestWidenHappyPathBlock:
                 ),
                 patch("specify_cli.widen.check_prereqs", return_value=prereq_ok),
                 patch("specify_cli.widen.flow.WidenFlow", return_value=mock_flow),
+                patch(
+                    "specify_cli.cli.commands.charter._widen._dm_service.resolve_decision",
+                    return_value=MagicMock(),
+                ),
                 patch("specify_cli.widen.state.WidenPendingStore") as mock_store_cls,
             ):
                 mock_store = MagicMock()
@@ -245,6 +328,10 @@ class TestWidenHappyPathBlock:
                 ),
                 patch("specify_cli.widen.check_prereqs", return_value=prereq_ok),
                 patch("specify_cli.widen.flow.WidenFlow", return_value=mock_flow),
+                patch(
+                    "specify_cli.cli.commands.charter._widen._dm_service.resolve_decision",
+                    return_value=MagicMock(),
+                ),
                 patch("specify_cli.widen.state.WidenPendingStore") as mock_store_cls,
             ):
                 mock_store = MagicMock()

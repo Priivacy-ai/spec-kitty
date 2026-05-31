@@ -401,6 +401,10 @@ class TestWidenBlockPath:
                 patch("specify_cli.saas_client.client.SaasClient.from_env", return_value=MagicMock(_token="tok")),
                 patch("specify_cli.widen.check_prereqs", return_value=prereq_ok),
                 patch("specify_cli.widen.flow.WidenFlow", return_value=mock_flow),
+                patch(
+                    "specify_cli.cli.commands.charter._widen._dm_service.resolve_decision",
+                    return_value=MagicMock(),
+                ),
                 patch("specify_cli.widen.state.WidenPendingStore") as mock_store_cls,
             ):
                 mock_store_inst = MagicMock()
@@ -447,6 +451,10 @@ class TestWidenBlockPath:
                 patch("specify_cli.saas_client.client.SaasClient.from_env", return_value=MagicMock(_token="tok")),
                 patch("specify_cli.widen.check_prereqs", return_value=prereq_ok),
                 patch("specify_cli.widen.flow.WidenFlow", return_value=mock_flow),
+                patch(
+                    "specify_cli.cli.commands.charter._widen._dm_service.defer_decision",
+                    return_value=MagicMock(),
+                ),
                 patch("specify_cli.widen.state.WidenPendingStore") as mock_store_cls,
             ):
                 mock_store_inst = MagicMock()
