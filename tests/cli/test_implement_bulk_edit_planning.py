@@ -164,3 +164,20 @@ def test_active_rewrite_wp_still_requires_acknowledgement(
     assert "Bulk Edit Inference Warning" in output
     assert "--acknowledge-not-bulk-edit" in output
     create_workspace.assert_not_called()
+
+
+def test_non_utf8_spec_without_bulk_edit_signal_does_not_block_implement(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    feature_dir = _build_feature(tmp_path, owned_file="src/runtime/**")
+    (feature_dir / "spec.md").write_bytes(
+        b"\xff\xfe# Spec\n\nRegular feature work with no occurrence-sensitive wording.\n"
+    )
+
+    with _patched_implement(tmp_path, feature_dir) as create_workspace:
+        implement("WP01", mission=feature_dir.name, recover=False, auto_commit=False)
+
+    output = capsys.readouterr().out
+    assert "Bulk Edit Inference Warning" not in output
+    create_workspace.assert_called_once()
