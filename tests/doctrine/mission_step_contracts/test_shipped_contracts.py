@@ -58,6 +58,17 @@ class TestShippedContractsExistAndValidate:
                 )
                 assert len(step.delegates_to.candidates) > 0
 
+    def test_all_builtin_bootstrap_inputs_are_preserved(self, repo: MissionStepContractRepository) -> None:
+        expected_inputs = [
+            {"flag": "--profile", "source": "wp.agent_profile", "optional": True},
+            {"flag": "--tool", "source": "env.agent_tool", "optional": True},
+        ]
+
+        for contract in repo.list_all():
+            bootstrap = contract.steps[0]
+            assert bootstrap.id == "bootstrap", contract.id
+            assert [step_input.model_dump() for step_input in bootstrap.inputs] == expected_inputs, contract.id
+
 
 class TestContractsAccessibleViaService:
     """DoctrineService exposes step contracts via lazy repository."""
@@ -100,6 +111,10 @@ class TestImplementContractStructure:
         assert bootstrap is not None
         assert bootstrap.command is not None
         assert "charter context" in bootstrap.command
+        assert [step_input.model_dump() for step_input in bootstrap.inputs] == [
+            {"flag": "--profile", "source": "wp.agent_profile", "optional": True},
+            {"flag": "--tool", "source": "env.agent_tool", "optional": True},
+        ]
 
     def test_has_workspace_step_with_paradigm_delegation(self, contract: MissionStepContract) -> None:
         workspace = next((s for s in contract.steps if s.id == "workspace"), None)
