@@ -13,6 +13,9 @@ from ruamel.yaml import YAML
 from specify_cli.upgrade.migrations.m_3_2_6_charter_bundle_v2 import (
     CharterBundleV2Migration,
 )
+from specify_cli.upgrade.migrations.m_3_2_6_charter_manifest_defaults_repair import (
+    CharterManifestDefaultsRepair,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -202,6 +205,71 @@ def test_detect_v2_bundle_returns_false(tmp_path: Path) -> None:
     _create_v2_bundle(tmp_path)
     migration = CharterBundleV2Migration()
     assert migration.detect(tmp_path) is False
+
+
+def test_detect_current_v2_manifest_repair_returns_true(tmp_path: Path) -> None:
+    """Current-version bundles still detect when the manifest repair is pending."""
+    _create_legacy_v2_bundle_without_built_in_only(tmp_path)
+
+    assert CharterBundleV2Migration().detect(tmp_path) is True
+
+
+def test_registry_includes_current_version_manifest_repair(tmp_path: Path) -> None:
+    """Same-version upgrade runs must include the repair migration."""
+    from specify_cli.upgrade.registry import MigrationRegistry
+
+    _create_legacy_v2_bundle_without_built_in_only(tmp_path)
+
+    migrations = MigrationRegistry.get_applicable(
+        "3.2.6",
+        "3.2.6",
+        project_path=tmp_path,
+    )
+
+    assert any(
+        migration.migration_id == CharterManifestDefaultsRepair.migration_id
+        for migration in migrations
+    )
+
+
+def test_runner_repairs_current_v2_after_original_migration_was_recorded(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Already-recorded original migration must not suppress same-version repair."""
+    from datetime import datetime
+
+    from charter.synthesizer.manifest import load_yaml, verify_manifest_hash
+    from specify_cli.upgrade.metadata import ProjectMetadata
+    from specify_cli.upgrade.runner import MigrationRunner
+
+    _create_legacy_v2_bundle_without_built_in_only(tmp_path)
+    metadata = ProjectMetadata(version="3.2.6", initialized_at=datetime.now())
+    metadata.record_migration(
+        CharterBundleV2Migration.migration_id,
+        "success",
+        "already applied by previous release",
+    )
+    metadata.save(tmp_path / ".kittify")
+
+    runner = MigrationRunner(tmp_path)
+    monkeypatch.setattr(runner.detector, "detect_version", lambda: "3.2.6")
+    monkeypatch.setattr(
+        "specify_cli.upgrade.runner.MigrationRegistry.get_applicable",
+        lambda _from, _to, project_path=None: [  # noqa: ARG005
+            CharterBundleV2Migration(),
+            CharterManifestDefaultsRepair(),
+        ],
+    )
+
+    result = runner.upgrade("3.2.6", include_worktrees=False)
+
+    assert result.success is True
+    assert result.migrations_skipped == [CharterBundleV2Migration.migration_id]
+    assert result.migrations_applied == [CharterManifestDefaultsRepair.migration_id]
+    manifest_path = tmp_path / ".kittify" / "charter" / "synthesis-manifest.yaml"
+    assert _load_yaml(manifest_path)["built_in_only"] is False
+    verify_manifest_hash(load_yaml(manifest_path))
 
 
 def test_detect_no_charter_returns_false(tmp_path: Path) -> None:
