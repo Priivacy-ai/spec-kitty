@@ -3,7 +3,7 @@
   "created_at": "2026-05-31T07:14:35.113875+00:00",
   "friendly_name": "Charter Pack Activation Layer",
   "mission_id": "01KSYE4VZ9V0S14NRC87XX92BP",
-  "mission_number": null,
+  "mission_number": 125,
   "mission_slug": "charter-pack-activation-layer-01KSYE4V",
   "mission_type": "software-dev",
   "purpose_context": "Phase 1 delivered mission-type activation but left critical gaps: filter_graph_by_activation and MissionStepRepository as dead code, a reader gap where charter activate wrote override files that PackContext never read, and six broken architectural tests. This mission closes all of that by wiring the full activation layer across all 9 doctrine artifact kinds under a hard restriction model (empty activation = nothing available — no reader-side fallbacks, ever). It ships a default charter pack (src/charter/packs/default.yaml) as the sole safety net for backward compatibility, adds charter deactivate as a first-class command with cascade semantics, introduces ProjectContext as the unified context threading mechanism through charter.*, and adds a charter pack consistency-check command. It also fixes the C-004 isolation violation in mission_step_repository.py and all six broken architectural tests.",
