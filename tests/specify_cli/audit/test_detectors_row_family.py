@@ -41,8 +41,10 @@ from specify_cli.audit.detectors import detect_forbidden_keys
 from specify_cli.audit.engine import run_audit
 from specify_cli.audit.models import AuditOptions
 from specify_cli.audit.shape_registry import (
+    check_unknown_keys,
     is_decisionpoint_status_event_row,
     is_mission_lifecycle_row,
+    status_event_row_artifact_type,
 )
 
 
@@ -157,6 +159,15 @@ class TestIsMissionLifecycleRow:
         ``FORBIDDEN_KEYS`` rule retains its teeth against malformed rows.
         """
         row = {"aggregate_type": "Foo", "event_type": "Bar"}
+        assert is_mission_lifecycle_row(row) is False
+
+    def test_transition_discriminators_are_not_lifecycle(self) -> None:
+        row = {
+            "aggregate_type": "WorkPackage",
+            "event_type": "WPStatusChanged",
+            "from_lane": "planned",
+            "to_lane": "claimed",
+        }
         assert is_mission_lifecycle_row(row) is False
 
     def test_none_aggregate_is_not_lifecycle(self) -> None:
@@ -383,6 +394,62 @@ class TestDetectForbiddenKeysRowFamily:
 
 
 # ---------------------------------------------------------------------------
+# Unknown-shape row-family tests — pins issue #1426
+# ---------------------------------------------------------------------------
+
+
+class TestStatusEventUnknownShapeRowFamily:
+    """Pins ``UNKNOWN_SHAPE`` routing for mixed ``status.events.jsonl`` rows."""
+
+    def test_lifecycle_envelope_keys_are_known_for_lifecycle_rows(self) -> None:
+        row: dict[str, object] = {
+            "event_id": "01KTESTLIFECYCLE00000000001",
+            "event_type": "WPStatusChanged",
+            "aggregate_id": "WP01",
+            "aggregate_type": "WorkPackage",
+            "schema_version": "5.0.0",
+            "timestamp": "2026-05-31T12:00:00+00:00",
+            "payload": {"wp_id": "WP01", "to_lane": "in_progress"},
+            "project_uuid": "01KTESTPROJECT0000000001",
+            "project_slug": "demo-project",
+        }
+
+        artifact_type = status_event_row_artifact_type(row)
+        findings = check_unknown_keys(artifact_type, row, "status.events.jsonl")
+
+        assert artifact_type == "mission_lifecycle_row"
+        assert findings == []
+
+    def test_malformed_transition_with_lifecycle_keys_still_uses_transition_shape(
+        self,
+    ) -> None:
+        row: dict[str, object] = {
+            "event_id": "01KTESTMALFORMED000000001",
+            "event_type": "WPStatusChanged",
+            "from_lane": "planned",
+            "to_lane": "claimed",
+            "wp_id": "WP01",
+            "aggregate_id": "WP01",
+            "aggregate_type": "WorkPackage",
+            "schema_version": "5.0.0",
+            "timestamp": "2026-05-31T12:00:00+00:00",
+            "payload": {"wp_id": "WP01"},
+        }
+
+        artifact_type = status_event_row_artifact_type(row)
+        findings = check_unknown_keys(artifact_type, row, "status.events.jsonl")
+
+        assert artifact_type == "status_event_row"
+        assert {f.detail for f in findings} >= {
+            "unknown key: 'aggregate_id' (artifact_type='status_event_row')",
+            "unknown key: 'aggregate_type' (artifact_type='status_event_row')",
+            "unknown key: 'schema_version' (artifact_type='status_event_row')",
+            "unknown key: 'timestamp' (artifact_type='status_event_row')",
+            "unknown key: 'payload' (artifact_type='status_event_row')",
+        }
+
+
+# ---------------------------------------------------------------------------
 # End-to-end integration: run_audit against a synthetic mission tree
 # ---------------------------------------------------------------------------
 
@@ -442,6 +509,43 @@ class TestRunAuditRowFamily:
         assert "FORBIDDEN_KEY" not in codes_001, (
             "WP01 regression (#1122): lifecycle rows triggered FORBIDDEN_KEY in "
             f"run_audit output: {codes_001!r}"
+        )
+
+    def test_lifecycle_envelope_rows_yield_no_unknown_shape_findings(
+        self, tmp_path: Path
+    ) -> None:
+        kitty_specs = tmp_path / "kitty-specs"
+        _seed_mission(
+            kitty_specs,
+            "004-lifecycle-envelope",
+            mission_id="01JZZZZZZZZZZZZZZZZZZZZZZC",
+            rows=[
+                {
+                    "event_id": "01KTESTLIFECYCLE00000000002",
+                    "event_type": "WPStatusChanged",
+                    "aggregate_id": "WP01",
+                    "aggregate_type": "WorkPackage",
+                    "schema_version": "5.0.0",
+                    "timestamp": "2026-05-31T12:00:00+00:00",
+                    "payload": {"wp_id": "WP01", "to_lane": "in_progress"},
+                    "project_uuid": "01KTESTPROJECT0000000002",
+                    "project_slug": "demo-project",
+                },
+            ],
+        )
+
+        report = run_audit(AuditOptions(repo_root=tmp_path, scan_root=kitty_specs))
+
+        unknown_findings = [
+            f
+            for m in report.missions
+            if m.mission_slug == "004-lifecycle-envelope"
+            for f in m.findings
+            if f.code == "UNKNOWN_SHAPE"
+        ]
+        assert unknown_findings == [], (
+            "Issue #1426 regression: lifecycle envelopes must not be checked "
+            f"against status_event_row. Got: {unknown_findings!r}"
         )
 
     def test_malformed_transition_row_still_flagged_in_run_audit(

@@ -81,6 +81,19 @@ KNOWN_TOP_LEVEL_KEYS_BY_ARTIFACT: dict[str, frozenset[str]] = {
             "event_name",
         }
     ),
+    "mission_lifecycle_row": frozenset(
+        {
+            "aggregate_id",
+            "aggregate_type",
+            "event_id",
+            "event_type",
+            "payload",
+            "project_slug",
+            "project_uuid",
+            "schema_version",
+            "timestamp",
+        }
+    ),
     "wp_frontmatter": frozenset(
         {
             "work_package_id",
@@ -176,6 +189,7 @@ KNOWN_TOP_LEVEL_KEYS_BY_ARTIFACT: dict[str, frozenset[str]] = {
 LIFECYCLE_AGGREGATE_TYPES: frozenset[str] = frozenset(
     {"Mission", "Project", "WorkPackage", "MissionDossier"}
 )
+STATUS_TRANSITION_DISCRIMINATORS: frozenset[str] = frozenset({"from_lane", "to_lane"})
 DECISIONPOINT_STATUS_EVENT_KEYS: frozenset[str] = KNOWN_TOP_LEVEL_KEYS_BY_ARTIFACT[
     "decision_event_row"
 ]
@@ -189,11 +203,10 @@ def is_mission_lifecycle_row(row: Mapping[str, Any]) -> bool:
     discriminator ``event_type`` (e.g. ``"MissionCreated"``,
     ``"SpecifyStarted"``, ``"WPStatusChanged"``) and identify the aggregate
     via ``aggregate_type`` set to one of
-    ``{"Mission", "Project", "WorkPackage", "MissionDossier"}``. **Both**
-    predicates must hold; either alone does NOT classify as a lifecycle
-    row — that distinction is what keeps the ``FORBIDDEN_KEYS`` audit rule
-    effective against malformed status-transition rows that carry
-    ``event_type`` without a matching ``aggregate_type``.
+    ``{"Mission", "Project", "WorkPackage", "MissionDossier"}``. It must
+    also avoid status-transition discriminators (``from_lane`` / ``to_lane``).
+    These predicates keep the ``FORBIDDEN_KEYS`` audit rule effective against
+    malformed status-transition rows that carry lifecycle-looking keys.
 
     Issue #1142 broadened the accepted ``aggregate_type`` set beyond the
     original ``"Mission"``-only check. The events package legitimately
@@ -206,14 +219,17 @@ def is_mission_lifecycle_row(row: Mapping[str, Any]) -> bool:
     Returns:
         ``True`` when *row* is a lifecycle row; ``False`` otherwise
         (including for non-mapping inputs, which are conservatively
-        rejected, and for rows whose ``aggregate_type`` is absent,
-        empty, or outside the known lifecycle set).
+        rejected, for rows whose ``aggregate_type`` is absent, empty, or outside
+        the known lifecycle set, and for hybrid rows that also carry transition
+        discriminators).
 
     Reference:
         ``kitty-specs/unblock-sync-identity-boundary-canary-01KRZJ07/
         contracts/audit-row-family.md``.
     """
     if not isinstance(row, Mapping):
+        return False
+    if STATUS_TRANSITION_DISCRIMINATORS.intersection(row):
         return False
     aggregate_type = row.get("aggregate_type")
     if aggregate_type not in LIFECYCLE_AGGREGATE_TYPES:
@@ -242,6 +258,8 @@ def is_decisionpoint_status_event_row(row: Mapping[str, Any]) -> bool:
 
 def status_event_row_artifact_type(row: Mapping[str, Any]) -> str:
     """Return the shape registry artifact type for a ``status.events.jsonl`` row."""
+    if is_mission_lifecycle_row(row):
+        return "mission_lifecycle_row"
     if is_decisionpoint_status_event_row(row):
         return "decision_event_row"
     return "status_event_row"
