@@ -152,6 +152,7 @@ class DecisionGitLog:
         else:
             payload_dict = dict(payload) if payload is not None else {}
 
+        # canonical-producer-exempt: #1198 -- canonical local-only decision git-log envelope.
         return {
             "at": datetime.now(UTC).isoformat(),
             "event_id": _generate_event_id(),
