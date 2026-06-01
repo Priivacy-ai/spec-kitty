@@ -45,7 +45,7 @@ def _get_recovery_transitions(current_lane: Lane) -> list[Lane]:
     canonical matrix and (b) at or below the ceiling (IN_PROGRESS) are included.
 
     Guard conditions (actor, workspace_context, etc.) are not checked here
-    because the actual ``emit_status_transition()`` call in ``reconcile_status``
+    because the actual transactional status emit in ``reconcile_status``
     uses ``RECOVERY_ACTOR`` and handles guard failures by catching exceptions.
     This function only validates structural matrix membership.
 
@@ -613,7 +613,7 @@ def reconcile_status(
 
     Returns the number of transitions emitted.
     """
-    from specify_cli.status.emit import emit_status_transition
+    from specify_cli.coordination.status_transition import emit_status_transition_transactional
     from specify_cli.status.models import TransitionRequest
 
     feature_dir = repo_root / "kitty-specs" / mission_slug
@@ -638,17 +638,19 @@ def reconcile_status(
     emitted = 0
     for next_lane in transitions:
         try:
-            emit_status_transition(TransitionRequest(
-                feature_dir=feature_dir,
-                mission_slug=mission_slug,
-                wp_id=state.wp_id,
-                to_lane=next_lane,
-                actor=RECOVERY_ACTOR,
-                reason=f"Recovered after crash -- branch {state.branch_name} exists"
-                + (" with commits" if state.has_commits else ""),
-                execution_mode="worktree",
-                repo_root=repo_root,
-            ))
+            emit_status_transition_transactional(
+                TransitionRequest(
+                    feature_dir=feature_dir,
+                    mission_slug=mission_slug,
+                    wp_id=state.wp_id,
+                    to_lane=next_lane,
+                    actor=RECOVERY_ACTOR,
+                    reason=f"Recovered after crash -- branch {state.branch_name} exists"
+                    + (" with commits" if state.has_commits else ""),
+                    execution_mode="worktree",
+                    repo_root=repo_root,
+                )
+            )
             emitted += 1
         except Exception:
             break

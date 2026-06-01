@@ -44,6 +44,7 @@ def queue_saas_emission(
     *,
     mission_slug: str | None = None,
     repo_root: Any = None,
+    ensure_sync_daemon: bool = True,
 ) -> None:
     """Register a SaaS outbound emission to fire after the local commit succeeds.
 
@@ -57,6 +58,8 @@ def queue_saas_emission(
         Optional override; defaults to ``txn.mission_slug`` when omitted.
     repo_root:
         Optional override; defaults to ``txn.repo_root`` when omitted.
+    ensure_sync_daemon:
+        Passed through to the SaaS sync adapter after commit.
 
     The emission is **not** fired synchronously.  It is appended to the
     transaction's ``_deferred`` queue and runs only after
@@ -72,7 +75,12 @@ def queue_saas_emission(
     resolved_repo = repo_root if repo_root is not None else txn.repo_root
 
     def _fire() -> None:
-        _send_to_saas(event, resolved_slug, resolved_repo)
+        _send_to_saas(
+            event,
+            resolved_slug,
+            resolved_repo,
+            ensure_sync_daemon=ensure_sync_daemon,
+        )
 
     txn.defer_outbound(_fire)
 
@@ -81,6 +89,8 @@ def _send_to_saas(
     event: StatusEvent,
     mission_slug: str,
     repo_root: Any,
+    *,
+    ensure_sync_daemon: bool = True,
 ) -> None:
     """Forward ``event`` to the canonical SaaS fanout adapter.
 
@@ -95,8 +105,21 @@ def _send_to_saas(
     """
     from specify_cli.status.adapters import fire_saas_fanout  # noqa: PLC0415
 
+    _ = repo_root
     fire_saas_fanout(
-        event=event,
+        wp_id=event.wp_id,
+        from_lane=str(event.from_lane),
+        to_lane=str(event.to_lane),
+        actor=event.actor,
         mission_slug=mission_slug,
-        repo_root=repo_root,
+        mission_id=event.mission_id,
+        causation_id=event.event_id,
+        policy_metadata=event.policy_metadata,
+        force=event.force,
+        reason=event.reason,
+        review_ref=event.review_ref,
+        execution_mode=event.execution_mode,
+        evidence=event.evidence.to_dict() if event.evidence else None,
+        occurred_at=event.at,
+        ensure_daemon=ensure_sync_daemon,
     )

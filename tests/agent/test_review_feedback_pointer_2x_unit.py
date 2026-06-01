@@ -154,7 +154,7 @@ def _patch_move_task_dependencies(monkeypatch: pytest.MonkeyPatch, repo: Path, m
             force=kwargs.get("force", False),
         )
     )
-    monkeypatch.setattr(tasks_module, "emit_status_transition", emit_mock)
+    monkeypatch.setattr(tasks_module, "emit_status_transition_transactional", emit_mock)
     return emit_mock
 
 

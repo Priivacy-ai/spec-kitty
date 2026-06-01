@@ -836,7 +836,7 @@ class TestTransition:
                 return_value=repo_root,
             ),
             patch(
-                "specify_cli.status.emit.emit_status_transition",
+                "specify_cli.coordination.status_transition.emit_status_transition_transactional",
                 emit_mock,
             ),
         ):
@@ -875,7 +875,7 @@ class TestTransition:
                 return_value=repo_root,
             ),
             patch(
-                "specify_cli.status.emit.emit_status_transition",
+                "specify_cli.coordination.status_transition.emit_status_transition_transactional",
                 emit_mock,
             ),
         ):

@@ -30,7 +30,7 @@ class _RecordingSink:
     """Records every SaaS-fanout call so tests can assert on it.
 
     The instance exposes a ``calls`` list of ``(args, kwargs)`` tuples
-    and convenience helpers (``call_count``, ``last_event``) that keep
+    and convenience helpers (``call_count``, ``last_kwargs``) that keep
     test code compact.
     """
 
@@ -48,10 +48,14 @@ class _RecordingSink:
     def last_event(self) -> Any:
         if not self.calls:
             return None
-        # fire_saas_fanout is invoked with ``event=event`` per the
-        # outbound.py contract, so it's always in kwargs.
         _, kwargs = self.calls[-1]
         return kwargs.get("event")
+
+    @property
+    def last_kwargs(self) -> dict[str, Any]:
+        if not self.calls:
+            return {}
+        return self.calls[-1][1]
 
 
 @pytest.fixture

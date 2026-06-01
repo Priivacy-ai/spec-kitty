@@ -11,11 +11,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from specify_cli.status.emit import TransitionError, emit_status_transition, emit_status_transition_batch
+from specify_cli.coordination.status_transition import (
+    emit_status_transition_batch_transactional,
+    emit_status_transition_transactional,
+    read_current_wp_state_transactional,
+)
+from specify_cli.status.emit import TransitionError
 from specify_cli.status.locking import feature_status_lock
 from specify_cli.status.models import Lane, StatusEvent, TransitionRequest
-from specify_cli.status.reducer import reduce
-from specify_cli.status.store import read_events
 from specify_cli.workspace import canonicalize_feature_dir
 
 _GENERIC_IMPLEMENTATION_ACTORS = frozenset({"implement-command", "unknown"})
@@ -78,23 +81,6 @@ def _actors_compatible(existing: object | None, requested: object | None, *, all
     return allow_generic_existing and existing_key in _GENERIC_IMPLEMENTATION_ACTORS
 
 
-def _current_lane_and_actor(feature_dir: Path, wp_id: str) -> tuple[Lane, str | None]:
-    events = read_events(feature_dir)
-    if not events:
-        return Lane.PLANNED, None
-
-    snapshot = reduce(events)
-    state = snapshot.work_packages.get(wp_id)
-    if not state:
-        return Lane.PLANNED, None
-
-    try:
-        lane = Lane(str(state.get("lane", Lane.PLANNED)))
-    except ValueError:
-        lane = Lane.PLANNED
-    return lane, _actor_key(state.get("actor"))
-
-
 def start_implementation_status(
     *,
     feature_dir: Path,
@@ -115,10 +101,15 @@ def start_implementation_status(
     lock_root = _repo_root_for_lock(feature_dir, repo_root)
 
     with feature_status_lock(lock_root, mission_slug):
-        current_lane, current_actor = _current_lane_and_actor(feature_dir, wp_id)
+        current_lane, current_actor = read_current_wp_state_transactional(
+            feature_dir=feature_dir,
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+            repo_root=repo_root,
+        )
 
         if current_lane == Lane.PLANNED:
-            events = emit_status_transition_batch(
+            events = emit_status_transition_batch_transactional(
                 [
                     TransitionRequest(
                         feature_dir=feature_dir,
@@ -150,7 +141,7 @@ def start_implementation_status(
         if current_lane == Lane.CLAIMED:
             if not _actors_compatible(current_actor, actor, allow_generic_existing=True):
                 raise WorkPackageClaimConflict(wp_id, current_actor or "unknown", actor)
-            events = emit_status_transition_batch(
+            events = emit_status_transition_batch_transactional(
                 [
                     TransitionRequest(
                         feature_dir=feature_dir,
@@ -175,7 +166,7 @@ def start_implementation_status(
             return WorkPackageStartResult(wp_id, Lane.IN_PROGRESS, Lane.IN_PROGRESS, actor, (), no_op=True, claimed_by=current_actor)
 
         if allow_rework and current_lane in {Lane.FOR_REVIEW, Lane.APPROVED, Lane.IN_REVIEW}:
-            event = emit_status_transition(
+            event = emit_status_transition_transactional(
                 TransitionRequest(
                     feature_dir=feature_dir,
                     mission_slug=mission_slug,
@@ -216,10 +207,15 @@ def start_review_status(
     lock_root = _repo_root_for_lock(feature_dir, repo_root)
 
     with feature_status_lock(lock_root, mission_slug):
-        current_lane, current_actor = _current_lane_and_actor(feature_dir, wp_id)
+        current_lane, current_actor = read_current_wp_state_transactional(
+            feature_dir=feature_dir,
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+            repo_root=repo_root,
+        )
 
         if current_lane == Lane.FOR_REVIEW:
-            event = emit_status_transition(
+            event = emit_status_transition_transactional(
                 TransitionRequest(
                     feature_dir=feature_dir,
                     mission_slug=mission_slug,

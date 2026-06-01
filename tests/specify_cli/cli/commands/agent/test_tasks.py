@@ -198,7 +198,7 @@ class TestVerdictGuardInMoveTask:
     """move_task blocks force-approve/force-done when verdict == rejected."""
 
     @patch("specify_cli.cli.commands.agent.tasks.safe_commit")
-    @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition")
+    @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional")
     @patch("specify_cli.cli.commands.agent.tasks.read_events")
     @patch("specify_cli.cli.commands.agent.tasks.feature_status_lock")
     @patch("specify_cli.cli.commands.agent.tasks._validate_ready_for_review")
@@ -271,7 +271,7 @@ class TestVerdictGuardInMoveTask:
         assert "arbiter override" in result.output
 
     @patch("specify_cli.cli.commands.agent.tasks.safe_commit")
-    @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition")
+    @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional")
     @patch("specify_cli.cli.commands.agent.tasks.read_events")
     @patch("specify_cli.cli.commands.agent.tasks.feature_status_lock")
     @patch("specify_cli.cli.commands.agent.tasks._validate_ready_for_review")
@@ -342,7 +342,7 @@ class TestVerdictGuardInMoveTask:
         mock_emit.assert_not_called()
 
     @patch("specify_cli.cli.commands.agent.tasks.safe_commit")
-    @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition")
+    @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional")
     @patch("specify_cli.cli.commands.agent.tasks.read_events")
     @patch("specify_cli.cli.commands.agent.tasks.feature_status_lock")
     @patch("specify_cli.cli.commands.agent.tasks._validate_ready_for_review")
@@ -415,7 +415,7 @@ class TestSkipReviewArtifactCheck:
     """--skip-review-artifact-check records a durable override."""
 
     @patch("specify_cli.cli.commands.agent.tasks.safe_commit")
-    @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition")
+    @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional")
     @patch("specify_cli.cli.commands.agent.tasks.read_events")
     @patch("specify_cli.cli.commands.agent.tasks.feature_status_lock")
     @patch("specify_cli.cli.commands.agent.tasks._validate_ready_for_review")
@@ -504,7 +504,7 @@ class TestSkipReviewArtifactCheck:
         assert "review_artifact_override_reason:" in artifact_text
 
     @patch("specify_cli.cli.commands.agent.tasks.safe_commit")
-    @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition")
+    @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional")
     @patch("specify_cli.cli.commands.agent.tasks.read_events")
     @patch("specify_cli.cli.commands.agent.tasks.feature_status_lock")
     @patch("specify_cli.cli.commands.agent.tasks._validate_ready_for_review")

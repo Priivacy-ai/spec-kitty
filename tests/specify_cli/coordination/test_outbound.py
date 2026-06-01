@@ -105,14 +105,16 @@ def test_saas_emits_after_commit_success(repo: Path, mock_saas_sink: Any) -> Non
     assert mock_saas_sink.call_count == 1, (
         f"expected 1 SaaS emission; got {mock_saas_sink.call_count}"
     )
-    assert mock_saas_sink.last_event is event
+    assert mock_saas_sink.last_kwargs["causation_id"] == event.event_id
+    assert mock_saas_sink.last_kwargs["wp_id"] == event.wp_id
+    assert mock_saas_sink.last_kwargs["from_lane"] == str(event.from_lane)
+    assert mock_saas_sink.last_kwargs["to_lane"] == str(event.to_lane)
 
 
 def test_saas_emission_preserves_mission_slug_and_repo_root(
     repo: Path, mock_saas_sink: Any,
 ) -> None:
-    """The deferred call routes through ``fire_saas_fanout(event=, mission_slug=,
-    repo_root=)`` with the txn's identity fields by default."""
+    """The deferred call routes through the canonical WPStatusChanged kwargs."""
     event = _make_event()
 
     with BookkeepingTransaction.acquire(
@@ -129,7 +131,8 @@ def test_saas_emission_preserves_mission_slug_and_repo_root(
     assert mock_saas_sink.call_count == 1
     _, kwargs = mock_saas_sink.calls[-1]
     assert kwargs["mission_slug"] == MISSION_SLUG
-    assert kwargs["repo_root"] == repo
+    assert kwargs["mission_id"] == MISSION_ID
+    assert kwargs["ensure_daemon"] is True
 
 
 # ---------------------------------------------------------------------------

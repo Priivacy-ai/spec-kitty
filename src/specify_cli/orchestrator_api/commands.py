@@ -911,30 +911,31 @@ def transition(
         _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {mission}")
         return
 
-    from specify_cli.status.reducer import materialize
-    from specify_cli.status.emit import emit_status_transition, TransitionError
+    from specify_cli.coordination.status_transition import emit_status_transition_transactional
+    from specify_cli.status.emit import TransitionError
     from specify_cli.status.models import TransitionRequest
 
-    snapshot = materialize(mission_dir)
-    wp_snapshot = snapshot.work_packages.get(wp, {})
-    from_lane = wp_snapshot.get("lane", Lane.PLANNED)
-
     try:
-        emit_status_transition(TransitionRequest(
-            feature_dir=mission_dir,
-            mission_slug=mission,
-            wp_id=wp,
-            to_lane=to_lane,
-            actor=actor,
-            reason=note,
-            force=force,
-            evidence=evidence,
-            review_ref=review_ref,
-            subtasks_complete=subtasks_complete,
-            implementation_evidence_present=implementation_evidence_present,
-            execution_mode="worktree",
-            policy_metadata=policy_dict,
-        ), ensure_sync_daemon=False, sync_dossier=False)
+        event = emit_status_transition_transactional(
+            TransitionRequest(
+                feature_dir=mission_dir,
+                mission_slug=mission,
+                wp_id=wp,
+                to_lane=to_lane,
+                actor=actor,
+                reason=note,
+                force=force,
+                evidence=evidence,
+                review_ref=review_ref,
+                subtasks_complete=subtasks_complete,
+                implementation_evidence_present=implementation_evidence_present,
+                execution_mode="worktree",
+                repo_root=main_repo_root,
+                policy_metadata=policy_dict,
+            ),
+            ensure_sync_daemon=False,
+            sync_dossier=False,
+        )
     except TransitionError as exc:
         _fail(cmd, "TRANSITION_REJECTED", str(exc))
         return
@@ -942,8 +943,8 @@ def transition(
     data = {
         **_mission_identity_payload(mission_dir),
         "wp_id": wp,
-        "from_lane": from_lane,
-        "to_lane": to_lane,
+        "from_lane": str(event.from_lane),
+        "to_lane": str(event.to_lane),
         "policy_metadata_recorded": policy_dict is not None,
     }
     validate_outbound_payload(data, "orchestrator_api")
