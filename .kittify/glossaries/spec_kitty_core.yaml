@@ -56,6 +56,11 @@ terms:
       - fr: FR-008
         description: Wall-clock regression test requirement for every regex change
 
+  - surface: ceremony commit
+    definition: "DEPRECATED. Replaced by `status commit`. This term obscures intent and is forbidden in active source. See the canonical `status commit` entry."
+    confidence: 1.0
+    status: deprecated
+
   - surface: change mode
     definition: "A mission-level metadata flag (change_mode: bulk_edit) that activates the bulk-edit guardrail workflow, requiring an occurrence map before any work package may be approved."
     confidence: 0.95
@@ -433,6 +438,17 @@ terms:
       GT 3%, new_security_hotspots_reviewed LT 100%.
     confidence: 0.95
     status: active
+
+  - surface: status commit
+    definition: An auto-commit created by spec-kitty to record workflow state changes (task status transitions, lane metadata, WP claims). Status commits target lane branches, not protected branches.
+    confidence: 0.95
+    status: active
+    synonyms_to_avoid: [ceremony commit, ceremony, ceremony write, status-writing operation, status-writing command]
+
+  - surface: status-writing operation
+    definition: "DEPRECATED. Replaced by `status commit`. This phrasing landed during a partial rename; it is forbidden in active source. See the canonical `status commit` entry."
+    confidence: 1.0
+    status: deprecated
 
   - surface: step contract
     definition: A formal specification of what a mission step must accomplish, including its inputs, outputs, and success criteria. The reviewer uses the step contract to validate work package completion.
