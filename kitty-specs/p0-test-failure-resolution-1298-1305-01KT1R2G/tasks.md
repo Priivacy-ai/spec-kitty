@@ -79,10 +79,10 @@ Run `PWHEADLESS=1 pytest tests/ -q --tb=no -p no:cacheprovider 2>&1 | tee /tmp/b
 
 #### Subtasks
 
-- [ ] T005 Run targeted tests to reproduce #1301 cluster (sync + contract) (WP02)
-- [ ] T006 Confirm `spec_kitty_events` installed version vs uv.lock pin; run uv sync if needed (WP02)
-- [ ] T007 Remove vendored events tree `src/specify_cli/spec_kitty_events/` if present (WP02)
-- [ ] T008 Fix daemon allowlist in `test_daemon_intent_gate.py` for missing call site (WP02)
+- [x] T005 Run targeted tests to reproduce #1301 cluster (sync + contract) (WP02)
+- [x] T006 Confirm `spec_kitty_events` installed version vs uv.lock pin; run uv sync if needed (WP02)
+- [x] T007 Remove vendored events tree `src/specify_cli/spec_kitty_events/` if present (WP02)
+- [x] T008 Fix daemon allowlist in `test_daemon_intent_gate.py` for missing call site (WP02)
 
 #### Implementation Notes
 

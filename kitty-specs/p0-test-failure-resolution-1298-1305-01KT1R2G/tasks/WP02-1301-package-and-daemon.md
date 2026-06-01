@@ -10,12 +10,16 @@ tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-p0-test-failure-resolution-1298-1305-01KT1R2G
+base_commit: da92d9f36f8eb7e41466e3a97f99c03cf8af9cc4
+created_at: '2026-06-01T17:06:05.053303+00:00'
 subtasks:
 - T005
 - T006
 - T007
 - T008
 agent: claude
+shell_pid: '25057'
 history: []
 agent_profile: python-pedro
 authoritative_surface: src/specify_cli/
@@ -229,3 +233,7 @@ spec-kitty agent action implement WP02 --agent claude
 - **uv.lock out of date**: If `uv sync --frozen` fails, stop and report — do not run `uv lock` without approval.
 - **Vendored tree not present**: T007 is a no-op in this case; proceed.
 - **Daemon allowlist ambiguity**: If unsure whether to update the test or the source, default to updating the test allowlist and note the decision in the commit message.
+
+## Activity Log
+
+- 2026-06-01T17:16:49Z – claude – shell_pid=25057 – Ready for review (cycle 1/3). Fixed test_adapter_emits_mission_run_and_lifecycle_sequence by aligning assertion with git-routed decision events architecture (#1546). Added FR-007 version drift regression guard. Tests pass (1951 passed, 0 failed), lint clean.
