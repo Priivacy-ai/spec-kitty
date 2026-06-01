@@ -82,8 +82,13 @@ jobs:
           mkdir -p /tmp/spec-kitty-release-contracts
 
           if [ "${HAS_SAAS_READ_TOKEN}" != "true" ]; then
-            echo "::error::SPEC_KITTY_SAAS_READ_TOKEN is required for shared-package and SaaS pin drift evidence."
-            exit 1
+            # The cross-repo drift evidence requires read access to the private
+            # spec-kitty-saas repo. That secret is unavailable to fork PRs (and to
+            # repos without it configured), so skip gracefully instead of hard-failing
+            # — the push-to-main CI, which has the secret, still enforces drift.
+            echo "::notice::SPEC_KITTY_SAAS_READ_TOKEN not available (e.g. fork PR); skipping shared-package/SaaS drift evidence. Enforced by push-to-main CI."
+            echo "skip_drift=true" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
           SAAS_PYPROJECT_URL="https://api.github.com/repos/${REPO_OWNER}/spec-kitty-saas/contents/pyproject.toml?ref=main"
@@ -103,6 +108,7 @@ jobs:
           echo "saas_pyproject=/tmp/spec-kitty-release-contracts/spec-kitty-saas-pyproject.toml" >> "$GITHUB_OUTPUT"
 
       - name: Validate shared package drift
+        if: steps.fetch_refs.outputs.skip_drift != 'true'
         run: |
           MANIFEST_ARGS=()
           if python scripts/release/check_shared_package_drift.py --help | grep -q -- '--compatibility-manifest'; then
