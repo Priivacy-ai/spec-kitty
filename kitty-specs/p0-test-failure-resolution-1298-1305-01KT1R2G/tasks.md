@@ -156,11 +156,11 @@ Run `pytest tests/next/ -q --tb=long -s` to see which code path is actually bein
 
 #### Subtasks
 
-- [ ] T019 Run targeted tests to reproduce #1304 cluster (WP05)
-- [ ] T020 Add `doctrine-pack` anchor to glossary contexts (WP05)
-- [ ] T021 Add `platform-darwin--platform-linux` anchor to glossary contexts (WP05)
-- [ ] T022 Fix `five-paradigm-parallel-debugging` tactic YAML — add missing schema fields and resolve refs (WP05)
-- [ ] T023 Run targeted tests and verify all 4 doctrine tests pass (WP05)
+- [x] T019 Run targeted tests to reproduce #1304 cluster (WP05)
+- [x] T020 Add `doctrine-pack` anchor to glossary contexts (WP05)
+- [x] T021 Add `platform-darwin--platform-linux` anchor to glossary contexts (WP05)
+- [x] T022 Fix `five-paradigm-parallel-debugging` tactic YAML — add missing schema fields and resolve refs (WP05)
+- [x] T023 Run targeted tests and verify all 4 doctrine tests pass (WP05)
 
 #### Implementation Notes
 
