@@ -26,9 +26,18 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from kernel.errors import KittyInternalConsistencyError
 from ruamel.yaml import YAML
 
-__all__ = ["PackContext"]
+__all__ = ["CharterPackConfigError", "PackContext"]
+
+
+class CharterPackConfigError(KittyInternalConsistencyError):
+    """Raised when ``.kittify/config.yaml`` has invalid charter pack shape."""
+
+    def __init__(self, body: str) -> None:
+        super().__init__("CHARTER_PACK_CONFIG_INVALID", body)
+
 
 # ---------------------------------------------------------------------------
 # Built-in constants
@@ -37,9 +46,7 @@ __all__ = ["PackContext"]
 #: IDs of the four built-in mission types shipped with spec-kitty.
 #: Used as the default for ``activated_mission_types`` when config.yaml
 #: has no ``mission_type_activations`` key (backward-compat / new project).
-_BUILTIN_MISSION_TYPE_IDS: frozenset[str] = frozenset(
-    {"software-dev", "documentation", "research", "plan"}
-)
+_BUILTIN_MISSION_TYPE_IDS: frozenset[str] = frozenset({"software-dev", "documentation", "research", "plan"})
 
 #: All eight built-in artifact kinds (plural form used by DoctrineService).
 #: Mirrors ``charter.activations._ALLOWED_KINDS`` and
@@ -204,12 +211,15 @@ def _yaml_loader() -> YAML:
     return yaml
 
 
+def _config_error(message: str) -> CharterPackConfigError:
+    return CharterPackConfigError(f"{message}\nRemediation: fix .kittify/config.yaml or run `spec-kitty upgrade` to restore the default charter pack shape.")
+
+
 def _load_config(repo_root: Path) -> dict[str, Any]:
     """Read and parse ``.kittify/config.yaml``.
 
-    Returns an empty dict when the file is absent or unreadable.
-    Emits a ``UserWarning`` on parse failure so callers can apply
-    defaults without hard-failing.
+    Returns an empty dict when the file is absent. Invalid YAML or a non-mapping
+    root is a hard error: activation filters must not fail open.
     """
     config_path = repo_root / ".kittify" / "config.yaml"
     if not config_path.exists():
@@ -217,15 +227,22 @@ def _load_config(repo_root: Path) -> dict[str, Any]:
     try:
         yaml = _yaml_loader()
         raw: Any = yaml.load(config_path.read_text(encoding="utf-8"))
-        if not isinstance(raw, dict):
-            return {}
-        return dict(raw)
-    except Exception as exc:  # pragma: no cover – defensive / unreadable YAML
-        warnings.warn(
-            f"Failed to read .kittify/config.yaml; using defaults: {exc}",
-            stacklevel=3,
-        )
+    except Exception as exc:
+        raise _config_error(f"Invalid YAML in .kittify/config.yaml: {exc}") from exc
+    if raw is None:
         return {}
+    if not isinstance(raw, dict):
+        raise _config_error(".kittify/config.yaml root must be a mapping.")
+    return dict(raw)
+
+
+def _read_list_key(data: dict[str, Any], key: str) -> frozenset[str] | None:
+    raw = data.get(key)
+    if raw is None:
+        return None
+    if not isinstance(raw, list):
+        raise _config_error(f".kittify/config.yaml key '{key}' must be a list, got {type(raw).__name__}.")
+    return frozenset(str(item) for item in raw)
 
 
 def _read_activated_kinds(data: dict[str, Any]) -> frozenset[str]:
@@ -234,10 +251,8 @@ def _read_activated_kinds(data: dict[str, Any]) -> frozenset[str]:
     Falls back to all eight built-in kinds when the key is absent.
     An explicit empty list ``[]`` returns ``frozenset()`` (FR-039 fix).
     """
-    raw = data.get("activated_kinds")
-    if isinstance(raw, list):
-        return frozenset(str(k) for k in raw)
-    return _BUILTIN_ARTIFACT_KINDS
+    activated = _read_list_key(data, "activated_kinds")
+    return _BUILTIN_ARTIFACT_KINDS if activated is None else activated
 
 
 def _read_activated_mission_types(data: dict[str, Any]) -> frozenset[str]:
@@ -247,10 +262,8 @@ def _read_activated_mission_types(data: dict[str, Any]) -> frozenset[str]:
     absent (new project / pre-migration state — FR-019 migration intent).
     An explicit empty list ``[]`` returns ``frozenset()`` (FR-039 fix).
     """
-    raw = data.get("mission_type_activations")
-    if isinstance(raw, list):
-        return frozenset(str(mt) for mt in raw)
-    return _BUILTIN_MISSION_TYPE_IDS
+    activated = _read_list_key(data, "mission_type_activations")
+    return _BUILTIN_MISSION_TYPE_IDS if activated is None else activated
 
 
 def _read_activated_directives(data: dict[str, Any]) -> frozenset[str] | None:
@@ -260,89 +273,47 @@ def _read_activated_directives(data: dict[str, Any]) -> frozenset[str] | None:
     ``frozenset()`` → key present with empty list (nothing activated).
     Non-empty frozenset → explicit set of activated IDs.
     """
-    raw = data.get("activated_directives")
-    if raw is None:
-        return None
-    if isinstance(raw, list):
-        return frozenset(str(x) for x in raw)
-    return None  # malformed value → safe fallback
+    return _read_list_key(data, "activated_directives")
 
 
 def _read_activated_tactics(data: dict[str, Any]) -> frozenset[str] | None:
     """Extract ``activated_tactics`` from parsed config data (three-state)."""
-    raw = data.get("activated_tactics")
-    if raw is None:
-        return None
-    if isinstance(raw, list):
-        return frozenset(str(x) for x in raw)
-    return None
+    return _read_list_key(data, "activated_tactics")
 
 
 def _read_activated_styleguides(data: dict[str, Any]) -> frozenset[str] | None:
     """Extract ``activated_styleguides`` from parsed config data (three-state)."""
-    raw = data.get("activated_styleguides")
-    if raw is None:
-        return None
-    if isinstance(raw, list):
-        return frozenset(str(x) for x in raw)
-    return None
+    return _read_list_key(data, "activated_styleguides")
 
 
 def _read_activated_toolguides(data: dict[str, Any]) -> frozenset[str] | None:
     """Extract ``activated_toolguides`` from parsed config data (three-state)."""
-    raw = data.get("activated_toolguides")
-    if raw is None:
-        return None
-    if isinstance(raw, list):
-        return frozenset(str(x) for x in raw)
-    return None
+    return _read_list_key(data, "activated_toolguides")
 
 
 def _read_activated_paradigms(data: dict[str, Any]) -> frozenset[str] | None:
     """Extract ``activated_paradigms`` from parsed config data (three-state)."""
-    raw = data.get("activated_paradigms")
-    if raw is None:
-        return None
-    if isinstance(raw, list):
-        return frozenset(str(x) for x in raw)
-    return None
+    return _read_list_key(data, "activated_paradigms")
 
 
 def _read_activated_procedures(data: dict[str, Any]) -> frozenset[str] | None:
     """Extract ``activated_procedures`` from parsed config data (three-state)."""
-    raw = data.get("activated_procedures")
-    if raw is None:
-        return None
-    if isinstance(raw, list):
-        return frozenset(str(x) for x in raw)
-    return None
+    return _read_list_key(data, "activated_procedures")
 
 
 def _read_activated_agent_profiles(data: dict[str, Any]) -> frozenset[str] | None:
     """Extract ``activated_agent_profiles`` from parsed config data (three-state)."""
-    raw = data.get("activated_agent_profiles")
-    if raw is None:
-        return None
-    if isinstance(raw, list):
-        return frozenset(str(x) for x in raw)
-    return None
+    return _read_list_key(data, "activated_agent_profiles")
 
 
 def _read_activated_mission_step_contracts(
     data: dict[str, Any],
 ) -> frozenset[str] | None:
     """Extract ``activated_mission_step_contracts`` from parsed config data (three-state)."""
-    raw = data.get("activated_mission_step_contracts")
-    if raw is None:
-        return None
-    if isinstance(raw, list):
-        return frozenset(str(x) for x in raw)
-    return None
+    return _read_list_key(data, "activated_mission_step_contracts")
 
 
-def _read_org_packs(
-    repo_root: Path, _data: dict[str, Any]
-) -> tuple[tuple[str, ...], tuple[Path, ...]]:
+def _read_org_packs(repo_root: Path, _data: dict[str, Any]) -> tuple[tuple[str, ...], tuple[Path, ...]]:
     """Resolve org pack names and root paths from config data.
 
     Delegates to ``doctrine.drg.org_pack_config.load_pack_registry``

@@ -77,9 +77,7 @@ class TestActivateCommand:
         assert "activated_directives" in data
         assert "003-decision-documentation-requirement" in data["activated_directives"]
 
-    def test_activate_unknown_artifact_id_exits_1_without_mutating(
-        self, project_root: Path
-    ) -> None:
+    def test_activate_unknown_artifact_id_exits_1_without_mutating(self, project_root: Path) -> None:
         result = _invoke_activate(project_root, "directive", "not-a-real-directive")
         assert result.exit_code == 1
         assert "Unknown artifact ID" in result.output
@@ -114,6 +112,25 @@ class TestActivateCommand:
         )
         assert result.exit_code == 0, result.output
         # CharterPackManager emits a cascade warning (deferred DRG traversal)
+        assert "cascade" in result.output.lower() or "Warning" in result.output
+
+    def test_activate_accepts_options_after_positional_args(self, project_root: Path) -> None:
+        """Contract examples place --cascade after <kind> <id>."""
+        result = runner.invoke(
+            charter_app,
+            [
+                "activate",
+                "directive",
+                "001-architectural-integrity-standard",
+                "--cascade",
+                "all",
+                "--repo-root",
+                str(project_root),
+            ],
+            catch_exceptions=False,
+        )
+
+        assert result.exit_code == 0, result.output
         assert "cascade" in result.output.lower() or "Warning" in result.output
 
     def test_activate_cascade_calls_with_true(self, project_root: Path) -> None:

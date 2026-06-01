@@ -40,12 +40,9 @@ def deactivate_cmd(
         console.print(ctx.get_help())
         raise typer.Exit(0)
     if kind not in YAML_KEY_MAP:
-        console.print(
-            f"[red]Error:[/red] Unknown kind '{kind}'. "
-            f"Valid kinds: {', '.join(sorted(YAML_KEY_MAP))}."
-        )
+        console.print(f"[red]Error:[/red] Unknown kind '{kind}'. Valid kinds: {', '.join(sorted(YAML_KEY_MAP))}.")
         raise typer.Exit(1)
-    ctx_project = ProjectContext.from_repo(repo_root)
+    ctx_project = ProjectContext(repo_root=repo_root)
     # WP04 API: cascade is bool. --cascade <any-value> enables it.
     cascade_bool: bool = bool(cascade)
     try:
@@ -53,18 +50,12 @@ def deactivate_cmd(
     except SystemExit:
         # None-state kind: config key absent, migration not yet run.
         # CharterPackManager.deactivate() calls sys.exit(1) for None-state.
-        console.print(
-            "[red]Error:[/red] Kind has no explicit activation set. "
-            "Run 'spec-kitty upgrade' first."
-        )
+        console.print("[red]Error:[/red] Kind has no explicit activation set. Run 'spec-kitty upgrade' first.")
         raise typer.Exit(1) from None
     except ValueError as exc:
         # None-state kind: config key absent, migration not yet run
         console.print(f"[red]Error:[/red] {exc}")
-        console.print(
-            "Kind has no explicit activation set. "
-            "Run 'spec-kitty upgrade' first."
-        )
+        console.print("Kind has no explicit activation set. Run 'spec-kitty upgrade' first.")
         raise typer.Exit(1) from exc
     for msg in result.deactivated:
         console.print(f"[green]Deactivated[/green]: {msg}")

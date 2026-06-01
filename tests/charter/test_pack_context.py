@@ -25,6 +25,7 @@ from pathlib import Path
 import pytest
 
 from charter.pack_context import (
+    CharterPackConfigError,
     PackContext,
     _BUILTIN_ARTIFACT_KINDS,
     _BUILTIN_MISSION_TYPE_IDS,
@@ -401,34 +402,42 @@ def test_packcontext_has_all_ten_activated_fields(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Malformed-value fallback: activated_* treats non-list as None (T010 edge)
+# Malformed values must not fail open.
 # ---------------------------------------------------------------------------
 
 
-def test_activated_directives_malformed_value_returns_none(tmp_path: Path) -> None:
-    """A non-list value for activated_directives is treated as None (safe fallback)."""
+def test_activated_directives_malformed_value_raises(tmp_path: Path) -> None:
+    """A non-list value for activated_directives must not fail open."""
     content = """\
 vcs:
   type: git
 activated_directives: not-a-list
 """
     _write_config(tmp_path, content)
-    ctx = PackContext.from_config(tmp_path)
 
-    assert ctx.activated_directives is None
+    with pytest.raises(CharterPackConfigError, match="CHARTER_PACK_CONFIG_INVALID"):
+        PackContext.from_config(tmp_path)
 
 
-def test_activated_tactics_malformed_value_returns_none(tmp_path: Path) -> None:
-    """A non-list value for activated_tactics is treated as None (safe fallback)."""
+def test_activated_tactics_malformed_value_raises(tmp_path: Path) -> None:
+    """A non-list value for activated_tactics must not fail open."""
     content = """\
 vcs:
   type: git
 activated_tactics: 42
 """
     _write_config(tmp_path, content)
-    ctx = PackContext.from_config(tmp_path)
 
-    assert ctx.activated_tactics is None
+    with pytest.raises(CharterPackConfigError, match="CHARTER_PACK_CONFIG_INVALID"):
+        PackContext.from_config(tmp_path)
+
+
+def test_invalid_config_yaml_raises_instead_of_using_defaults(tmp_path: Path) -> None:
+    """Malformed config.yaml must not restore default-all activation."""
+    _write_config(tmp_path, "activated_directives: [unterminated\n")
+
+    with pytest.raises(CharterPackConfigError, match="CHARTER_PACK_CONFIG_INVALID"):
+        PackContext.from_config(tmp_path)
 
 
 # ---------------------------------------------------------------------------

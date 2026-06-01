@@ -40,12 +40,9 @@ def activate_cmd(
         console.print(ctx.get_help())
         raise typer.Exit(0)
     if kind not in YAML_KEY_MAP:
-        console.print(
-            f"[red]Error:[/red] Unknown kind '{kind}'. "
-            f"Valid kinds: {', '.join(sorted(YAML_KEY_MAP))}."
-        )
+        console.print(f"[red]Error:[/red] Unknown kind '{kind}'. Valid kinds: {', '.join(sorted(YAML_KEY_MAP))}.")
         raise typer.Exit(1)
-    ctx_project = ProjectContext.from_repo(repo_root)
+    ctx_project = ProjectContext(repo_root=repo_root)
     # WP04 API: cascade is bool. --cascade <any-value> enables it.
     cascade_bool: bool = bool(cascade)
 
@@ -60,6 +57,7 @@ def activate_cmd(
 
         try:
             from charter.mission_type_profiles import resolve_action_sequence  # noqa: PLC0415
+
             current_seq: list[str] = resolve_action_sequence(artifact_id, repo_root)
         except Exception:  # noqa: BLE001 — type not yet activated or unknown
             current_seq = []

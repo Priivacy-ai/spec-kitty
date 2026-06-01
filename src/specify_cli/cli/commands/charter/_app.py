@@ -6,6 +6,7 @@ register their handler via ``@charter_app.command(...)``. ``app`` is kept as
 the canonical legacy alias so historic imports (and the registration of the
 ``charter_bundle`` sub-app + ``charter_preflight`` command) keep working.
 """
+
 from __future__ import annotations
 
 import logging
@@ -13,8 +14,8 @@ import logging
 import typer
 from rich.console import Console
 
-from specify_cli.cli.commands.charter.activate import charter_activate_app
-from specify_cli.cli.commands.charter.deactivate import charter_deactivate_app
+from specify_cli.cli.commands.charter.activate import activate_cmd
+from specify_cli.cli.commands.charter.deactivate import deactivate_cmd
 from specify_cli.cli.commands.charter.list_cmd import charter_list_app
 from specify_cli.cli.commands.charter.pack import charter_pack_app
 from specify_cli.cli.commands.charter_bundle import app as charter_bundle_app
@@ -44,10 +45,10 @@ charter_app.add_typer(charter_bundle_app, name="bundle")
 charter_app.add_typer(charter_mission_type_app, name="mission-type")
 
 # WP15 (FR-008): ``spec-kitty charter activate mission-type <id>`` — in-flight warning.
-charter_app.add_typer(charter_activate_app, name="activate")
+charter_app.command("activate")(activate_cmd)
 
 # WP06 (FR-005): ``spec-kitty charter deactivate <kind> <id>`` — pack deactivation.
-charter_app.add_typer(charter_deactivate_app, name="deactivate")
+charter_app.command("deactivate")(deactivate_cmd)
 
 # WP06 (FR-004/005/006/007): ``spec-kitty charter list`` — activation state table.
 charter_app.add_typer(charter_list_app, name="list")

@@ -62,9 +62,7 @@ def _invoke_deactivate(project_root: Path, *args: str) -> object:
 
 
 class TestDeactivateHappyPath:
-    def test_deactivate_directive_removes_from_config(
-        self, project_root_with_directive: Path
-    ) -> None:
+    def test_deactivate_directive_removes_from_config(self, project_root_with_directive: Path) -> None:
         """Deactivating a directive removes it from config.yaml."""
         result = _invoke_deactivate(project_root_with_directive, "directive", "some-directive")
         assert result.exit_code == 0, result.output
@@ -72,9 +70,7 @@ class TestDeactivateHappyPath:
         data = yaml.safe_load(config.read_text())
         assert "some-directive" not in (data.get("activated_directives") or [])
 
-    def test_deactivate_happy_path_prints_deactivated(
-        self, project_root_with_directive: Path
-    ) -> None:
+    def test_deactivate_happy_path_prints_deactivated(self, project_root_with_directive: Path) -> None:
         """Successful deactivation prints 'Deactivated' in output."""
         result = _invoke_deactivate(project_root_with_directive, "directive", "some-directive")
         assert result.exit_code == 0, result.output
@@ -138,6 +134,24 @@ class TestDeactivateCascade:
         )
         assert result.exit_code == 0, result.output
 
+    def test_deactivate_accepts_options_after_positional_args(self, project_root_with_directive: Path) -> None:
+        """Contract examples place --cascade after <kind> <id>."""
+        result = runner.invoke(
+            charter_app,
+            [
+                "deactivate",
+                "directive",
+                "some-directive",
+                "--cascade",
+                "all",
+                "--repo-root",
+                str(project_root_with_directive),
+            ],
+            catch_exceptions=False,
+        )
+
+        assert result.exit_code == 0, result.output
+
     def test_cascade_emits_warning(self, project_root_with_directive: Path) -> None:
         """--cascade emits the deferred-DRG warning from CharterPackManager."""
         result = runner.invoke(
@@ -163,13 +177,9 @@ class TestDeactivateCascade:
 
 
 class TestDeactivateSharedArtifactSkipped:
-    def test_not_in_activation_set_emits_warning(
-        self, project_root_with_directive: Path
-    ) -> None:
+    def test_not_in_activation_set_emits_warning(self, project_root_with_directive: Path) -> None:
         """Deactivating an artifact not in the set emits a warning and exits 0."""
-        result = _invoke_deactivate(
-            project_root_with_directive, "directive", "nonexistent-directive"
-        )
+        result = _invoke_deactivate(project_root_with_directive, "directive", "nonexistent-directive")
         # Not in set → warning, exit 0
         assert result.exit_code == 0, result.output
         assert "Warning" in result.output or "not in" in result.output.lower()

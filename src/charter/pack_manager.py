@@ -55,15 +55,15 @@ __all__ = [
 #: The ``mission-type`` → ``mission_type_activations`` mapping is the outlier:
 #: it does NOT follow the ``activated_*`` pattern.  All other kinds do.
 YAML_KEY_MAP: dict[str, str] = {
-    "mission-type":           "mission_type_activations",
-    "directive":              "activated_directives",
-    "tactic":                 "activated_tactics",
-    "styleguide":             "activated_styleguides",
-    "toolguide":              "activated_toolguides",
-    "paradigm":               "activated_paradigms",
-    "procedure":              "activated_procedures",
-    "agent-profile":          "activated_agent_profiles",
-    "mission-step-contract":  "activated_mission_step_contracts",
+    "mission-type": "mission_type_activations",
+    "directive": "activated_directives",
+    "tactic": "activated_tactics",
+    "styleguide": "activated_styleguides",
+    "toolguide": "activated_toolguides",
+    "paradigm": "activated_paradigms",
+    "procedure": "activated_procedures",
+    "agent-profile": "activated_agent_profiles",
+    "mission-step-contract": "activated_mission_step_contracts",
 }
 
 # ---------------------------------------------------------------------------
@@ -102,17 +102,15 @@ _DEFAULT_PACK_PATH = Path(__file__).parent / "packs" / "default.yaml"
 #: The ``relative_dir`` is relative to ``src/`` (i.e. the parent of the
 #: ``charter`` package root).
 _KIND_TO_DOCTRINE_DIR: dict[str, tuple[str, str]] = {
-    "directive":             ("doctrine/directives/built-in", ".directive.yaml"),
-    "tactic":                ("doctrine/tactics/built-in", ".tactic.yaml"),
-    "styleguide":            ("doctrine/styleguides/built-in", ".styleguide.yaml"),
-    "toolguide":             ("doctrine/toolguides/built-in", ".toolguide.yaml"),
-    "paradigm":              ("doctrine/paradigms/built-in", ".paradigm.yaml"),
-    "procedure":             ("doctrine/procedures/built-in", ".procedure.yaml"),
-    "agent-profile":         ("doctrine/agent_profiles/built-in", ".agent.yaml"),
-    "mission-type":          ("doctrine/missions/mission_types", ".yaml"),
-    "mission-step-contract": (
-        "doctrine/missions/built_in_step_contracts", ".step-contract.yaml"
-    ),
+    "directive": ("doctrine/directives/built-in", ".directive.yaml"),
+    "tactic": ("doctrine/tactics/built-in", ".tactic.yaml"),
+    "styleguide": ("doctrine/styleguides/built-in", ".styleguide.yaml"),
+    "toolguide": ("doctrine/toolguides/built-in", ".toolguide.yaml"),
+    "paradigm": ("doctrine/paradigms/built-in", ".paradigm.yaml"),
+    "procedure": ("doctrine/procedures/built-in", ".procedure.yaml"),
+    "agent-profile": ("doctrine/agent_profiles/built-in", ".agent.yaml"),
+    "mission-type": ("doctrine/missions/mission_types", ".yaml"),
+    "mission-step-contract": ("doctrine/missions/built_in_step_contracts", ".step-contract.yaml"),
 }
 
 
@@ -131,7 +129,18 @@ def _load_config(config_path: Path) -> tuple[Any, YAML]:
         data = {}
     if data is None:
         data = {}
+    if not isinstance(data, dict):
+        raise ValueError(".kittify/config.yaml root must be a mapping.")
     return data, yaml
+
+
+def _activation_list_or_error(data: Any, yaml_key: str) -> list[Any] | None:
+    raw = data.get(yaml_key)
+    if raw is None:
+        return None
+    if not isinstance(raw, list):
+        raise ValueError(f".kittify/config.yaml key '{yaml_key}' must be a list, got {type(raw).__name__}.")
+    return raw
 
 
 def _save_config(config_path: Path, data: Any, yaml: YAML) -> None:
@@ -204,39 +213,30 @@ class CharterPackManager:
         config_path = repo_root / ".kittify" / "config.yaml"
 
         if kind not in YAML_KEY_MAP:
-            raise ValueError(
-                f"Unknown activation kind '{kind}'. "
-                f"Valid kinds: {sorted(YAML_KEY_MAP)}"
-            )
+            raise ValueError(f"Unknown activation kind '{kind}'. Valid kinds: {sorted(YAML_KEY_MAP)}")
         if artifact_id not in self.list_available(ctx, kind):
-            raise ValueError(
-                f"Unknown artifact ID '{artifact_id}' for kind '{kind}'. "
-                "Run `charter list --show-available` to inspect available IDs."
-            )
+            raise ValueError(f"Unknown artifact ID '{artifact_id}' for kind '{kind}'. Run `charter list --show-available` to inspect available IDs.")
 
         yaml_key = YAML_KEY_MAP[kind]
         data, yaml_inst = _load_config(config_path)
         result = ActivationResult()
 
         # Materialize from default pack if this kind is absent
-        if yaml_key not in data or data[yaml_key] is None:
+        current_raw = _activation_list_or_error(data, yaml_key)
+        if current_raw is None:
             default_pack = _load_default_pack()
             default_ids: list[str] = default_pack.get(yaml_key, [])
             data[yaml_key] = list(default_ids)
-            result.warnings.append(
-                f"Kind '{kind}' had no explicit activation set. "
-                f"Initialized from default pack ({len(default_ids)} entries)."
-            )
+            current_raw = data[yaml_key]
+            result.warnings.append(f"Kind '{kind}' had no explicit activation set. Initialized from default pack ({len(default_ids)} entries).")
 
-        current: list[str] = list(data[yaml_key])
+        current: list[str] = [str(item) for item in current_raw]
         if artifact_id not in current:
             current.append(artifact_id)
             data[yaml_key] = current
             result.activated.append(artifact_id)
         else:
-            result.warnings.append(
-                f"'{artifact_id}' is already activated for kind '{kind}'."
-            )
+            result.warnings.append(f"'{artifact_id}' is already activated for kind '{kind}'.")
 
         # FR-006: warn about non-cascaded cross-kind dependencies (static hint;
         # DRG traversal deferred to follow-on mission per FR-007).
@@ -296,16 +296,14 @@ class CharterPackManager:
         config_path = repo_root / ".kittify" / "config.yaml"
 
         if kind not in YAML_KEY_MAP:
-            raise ValueError(
-                f"Unknown activation kind '{kind}'. "
-                f"Valid kinds: {sorted(YAML_KEY_MAP)}"
-            )
+            raise ValueError(f"Unknown activation kind '{kind}'. Valid kinds: {sorted(YAML_KEY_MAP)}")
 
         yaml_key = YAML_KEY_MAP[kind]
         data, yaml_inst = _load_config(config_path)
         result = ActivationResult()
 
-        if yaml_key not in data or data[yaml_key] is None:
+        current_raw = _activation_list_or_error(data, yaml_key)
+        if current_raw is None:
             # None-state: the project has not been upgraded to the pack model.
             # Modifying individual activations is unsafe without a known baseline.
             print(
@@ -316,13 +314,10 @@ class CharterPackManager:
             )
             sys.exit(1)
 
-        current: list[str] = list(data[yaml_key])
+        current: list[str] = [str(item) for item in current_raw]
 
         if artifact_id not in current:
-            result.warnings.append(
-                f"'{artifact_id}' is not in the activation set for kind '{kind}'. "
-                f"Nothing to deactivate."
-            )
+            result.warnings.append(f"'{artifact_id}' is not in the activation set for kind '{kind}'. Nothing to deactivate.")
             return result
 
         current.remove(artifact_id)
@@ -366,7 +361,7 @@ class CharterPackManager:
 
         result: dict[str, frozenset[str] | None] = {}
         for kind, yaml_key in YAML_KEY_MAP.items():
-            raw = data.get(yaml_key)
+            raw = _activation_list_or_error(data, yaml_key)
             if raw is None:
                 result[kind] = None
             else:
@@ -403,10 +398,7 @@ class CharterPackManager:
             If ``kind`` is not in ``_KIND_TO_DOCTRINE_DIR``.
         """
         if kind not in _KIND_TO_DOCTRINE_DIR:
-            raise ValueError(
-                f"Unknown activation kind '{kind}'. "
-                f"Valid kinds: {sorted(_KIND_TO_DOCTRINE_DIR)}"
-            )
+            raise ValueError(f"Unknown activation kind '{kind}'. Valid kinds: {sorted(_KIND_TO_DOCTRINE_DIR)}")
 
         rel_dir, suffix = _KIND_TO_DOCTRINE_DIR[kind]
         # Doctrine is installed alongside the charter package in src/
@@ -464,7 +456,8 @@ class CharterPackManager:
         default_pack = _load_default_pack()
 
         for yaml_key in YAML_KEY_MAP.values():
-            if yaml_key not in data or data[yaml_key] is None:
+            raw = _activation_list_or_error(data, yaml_key)
+            if raw is None:
                 default_ids = default_pack.get(yaml_key, [])
                 data[yaml_key] = list(default_ids)
                 # Map yaml_key back to CLI kind for the result
