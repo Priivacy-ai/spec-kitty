@@ -20,7 +20,7 @@ The slice intentionally starts with the org-pack profile integrity issues:
 2. #1584 - retain and surface agent profile load failures, so `doctor doctrine` cannot report a pack as healthy while invalid profiles are missing from repository results.
 3. #1557 - finish the charter activation follow-on deferred from PR #1535: artifact ID validation, no-cascade warnings, cascade activation, shared-safe cascade deactivation, OperationalContext production wiring, and cleanup of known dead-code/bookkeeping findings.
 
-Template discoverability (#1333) remains important but is not in this mission. It adds a new artifact surface and should follow after the current activation/catalog integrity path is dependable.
+Template discoverability (#1333) is **now in scope** (operator decision): doctrine templates become a discoverable, DRG-addressable artifact kind, integrated with the kind-vocabulary consolidation (R-009) and the DRG-as-source-of-truth direction (C-009). See Scenario 11 and FR-033..FR-035.
 
 ---
 
@@ -86,6 +86,18 @@ An org-pack author declares `enhances: <built-in-id>` on a mission step contract
 
 **Acceptance signal**: a fixture pack that declares `enhances`/`overrides` on a directive, toolguide, mission step contract, and mission type validates without the same-ID override advisory, the DRG auto-emits the corresponding `enhances`/`overrides` edge for the DRG-resident kinds, and for topology-bearing kinds (step contracts, mission types) the merged result preserves action-sequence ordering and step I/O contracts rather than silently corrupting them.
 
+### Scenario 11 - Doctrine templates are discoverable and resolvable (#1333)
+
+An operator wants to know which doctrine templates exist and to inspect one. Today templates are resolvable only by exact name through the 5-tier chain (`doctrine/resolver.py`), have no list/discovery surface, carry no file-extension glob (`ArtifactKind.TEMPLATE` glob is empty), and are absent from `charter list` and `charter context --include`. The operator runs a template listing and then fetches one template by selector.
+
+**Acceptance signal**: a discovery surface enumerates available templates (across missions/tiers, annotated by source tier), `charter list --all` includes the `template` kind, and `charter context --include template:<id>` resolves a named template — with templates addressed through the same canonical kind vocabulary as other kinds (R-009) and, where applicable, resolved via the DRG (C-009).
+
+### Scenario 12 - Malformed charter pack config fails closed with an actionable error
+
+An operator's `.kittify/config.yaml` has an invalid charter-pack shape. A charter activation or context command runs. Instead of proceeding on a half-understood config or surfacing an opaque traceback, the command fails closed with the typed `CharterPackConfigError` and its remediation text.
+
+**Acceptance signal**: the activation/context entry points catch `CharterPackConfigError` (today defined and raised internally but caught by no external caller) and present its `CHARTER_PACK_CONFIG_INVALID` code + remediation; no activation state is mutated; the dead-symbol gate no longer flags the error type.
+
 ---
 
 ## Functional Requirements
@@ -123,7 +135,11 @@ An org-pack author declares `enhances: <built-in-id>` on a mission step contract
 | FR-029 | Field-merge semantics for topology-bearing kinds (mission step contracts and mission types) under `enhances` SHALL be explicitly defined and consistent with ADR `2026-05-16-1-doctrine-layer-merge-semantics.md`: it MUST specify which fields field-merge versus replace, and MUST NOT silently corrupt action-sequence ordering or step input/output contracts; `overrides` remains a full replacement. | Must | Proposed |
 | FR-030 | The DRG auto-emit table (`_AUGMENTATION_PLURAL_TO_KIND`) and the pack-validator augmentation set (`_AUGMENTATION_PLURAL_KINDS`) SHALL cover all augmentation-eligible kinds and SHALL derive from a single shared source rather than two hand-synced copies. | Must | Proposed |
 | FR-031 | The pack validator SHALL apply the existing intent-aware collision behavior (suppress the same-ID advisory when intent is declared, hard-error on unknown `enhances`/`overrides` target, `intent_conflict` when both are declared) uniformly to the newly-covered kinds, at parity with the original five. | Must | Proposed |
-| FR-032 | Mission-type augmentation SHALL be resolved per research R-010: either the org-pack DRG canonical kind universe (`_ORG_DRG_CANONICAL_KINDS`) is expanded to include mission types as a C-009-binding change with the contract-test sweep updated, or a separate mission-type augmentation path is defined; mission types MUST NOT be silently dropped from augmentation coverage. | Must | Proposed |
+| FR-032 | Mission-type augmentation SHALL be resolved per research R-010: either the org-pack DRG canonical kind universe (`_ORG_DRG_CANONICAL_KINDS`) is expanded to include mission types as a binding change with the contract-test sweep updated, or a separate mission-type augmentation path is defined; mission types MUST NOT be silently dropped from augmentation coverage. | Must | Proposed |
+| FR-033 | Doctrine templates SHALL be discoverable: a listing surface SHALL enumerate available templates across mission/tier sources, annotated by source tier, without requiring the caller to know template names in advance. | Must | Proposed |
+| FR-034 | The `template` kind SHALL be addressable through the canonical kind vocabulary (R-009): `charter list --all` SHALL include templates, and `charter context --include template:<id>` SHALL resolve a named template. Template discovery/addressing MUST account for templates having no file-extension glob and living in mission-scoped tier directories rather than a flat `built-in` dir. | Must | Proposed |
+| FR-035 | Charter activation and context entry points SHALL catch the typed `CharterPackConfigError` (`charter.pack_context`) raised on malformed `.kittify/config.yaml` charter-pack shape and present its code + remediation as an actionable fail-closed error, with no activation state mutated; the symbol SHALL no longer be a dead symbol. | Must | Proposed |
+| FR-036 | The mission SHALL clear the in-scope inherited dead-symbol debt: remove the 7 stale `_SYMBOL_ALLOWLIST` entries that now have callers (`specify_cli.next._internal_runtime.events::*`, `specify_cli.lanes.auto_rebase::AutoRebaseReport`), alongside wiring/removing the charter sub-app exports (FR-020) and `CharterPackConfigError` (FR-035). The two git/lanes offenders are explicitly out of scope (see Out of Scope). | Must | Proposed |
 
 ---
 
@@ -136,7 +152,7 @@ An org-pack author declares `enhances: <built-in-id>` on a mission step contract
 | NFR-003 | Activation failure paths SHALL be non-mutating. | Tests prove configuration bytes are unchanged after unknown-ID activation failure. | Proposed |
 | NFR-004 | Runtime lifecycle precondition checks SHALL not create worktrees or emit status transitions before failure. | Inactive-profile and missing-context precondition tests observe zero new worktree paths and zero new status events. | Proposed |
 | NFR-005 | Existing shipped profile loading SHALL remain healthy. | All built-in agent profiles load with zero diagnostic errors. | Proposed |
-| NFR-006 | Architectural boundaries SHALL remain intact. | Existing layer-rule and dead-symbol architectural suites pass after the mission. | Proposed |
+| NFR-006 | Architectural boundaries SHALL remain intact and the mission SHALL not introduce new dead symbols. | Layer-rule suite passes. The dead-symbol suite passes for all in-scope symbols: the 2 charter sub-apps (FR-020), `CharterPackConfigError` (FR-035), and the 7 stale allowlist entries (FR-036) are resolved. The 2 git/lanes offenders (`SparseCheckoutKind`, `LANE_AUTO_REBASE_FAILED`) are a documented pre-existing `main` regression, explicitly excluded; if the gate cannot pass with them present, they are allowlisted with a tracker reference rather than silently fixed here. | Proposed |
 | NFR-007 | Adding the `overrides`/`enhances` augmentation fields SHALL NOT regress loading of existing artifacts. | Zero fixture failures loading every existing directive, toolguide, mission step contract, and mission type YAML in the repo (mirrors #1291 NFR-004). | Proposed |
 
 ---
@@ -172,6 +188,8 @@ An org-pack author declares `enhances: <built-in-id>` on a mission step contract
 | SC-009 | Agent profiles are reachable through the documented context selector. | A CLI test asserts `charter context --include agent-profile:<id>` renders the profile in human and JSON output, and the unsupported-kind path is no longer reached for hyphenated kinds. |
 | SC-010 | The charter catalog reflects the full activatable surface. | A `charter list --all` test asserts built-in, org-pack, and project artifacts all appear with their source layer for at least one fixture pack. |
 | SC-011 | Augmentation vocabulary covers every doctrine kind. | Fixture packs declaring `enhances`/`overrides` on a directive, toolguide, mission step contract, and mission type validate, auto-emit the augmentation edge for DRG-resident kinds, and pass the topology-integrity assertion for step contracts and mission types. |
+| SC-012 | Doctrine templates are discoverable and resolvable. | A listing surface enumerates templates by source tier; `charter list --all` shows the `template` kind; `charter context --include template:<id>` resolves a named template. |
+| SC-013 | In-scope inherited dead-symbol debt is cleared. | The dead-symbol gate passes for the 2 charter sub-apps, `CharterPackConfigError`, and the 7 stale allowlist entries; `CharterPackConfigError` has a live external caller (the activation/context fail-closed path). |
 
 ---
 
@@ -193,14 +211,14 @@ An org-pack author declares `enhances: <built-in-id>` on a mission step contract
 - The mission starts from upstream `main` at `518997ddd`, which includes PR #1576 transactional status emits.
 - PR #1535 delivered the base charter activation layer and explicitly deferred the #1557 follow-on scope.
 - #1583 and #1584 are treated as prerequisites for trustworthy org-pack activation because activation validation depends on accurate graph and profile catalog state.
-- #1333 is deferred to a later template-resolution mission.
+- #1333 (template discovery/resolution) is now in scope per operator decision (no longer deferred); it builds on the kind-vocabulary consolidation (R-009) and C-009.
 
 ---
 
 ## Out of Scope
 
 - Adding a full ADR primitive (#1040), beyond preserving any existing ADR-enabler notes.
-- Adding doctrine template listing/resolution (#1333).
 - Changing profile schema compatibility rules beyond making failures observable.
 - Allowing invalid profiles to participate in runtime assignment.
 - Redesigning the full workflow sequence model, already closed separately under #682.
+- Fixing the two pre-existing `main` dead-symbol offenders that fall outside the charter/doctrine theme — `specify_cli.git.sparse_checkout::SparseCheckoutKind` and `specify_cli.lanes.lifecycle_sync::LANE_AUTO_REBASE_FAILED` (git/lanes subsystems). These remain a separate `main`-hygiene fix; this mission does not green them. (The charter-relevant `CharterPackConfigError` IS pulled in — see FR-035.)
