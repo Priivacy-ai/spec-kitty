@@ -94,7 +94,7 @@ Make augmentation/lineage edges flow from **DRG fragments** (not artifact fields
 
 ### T017 — Mission-type augmentation resolution (FR-032)
 
-**Steps**: Resolve per R-010: **expand `_ORG_DRG_CANONICAL_KINDS`** to include mission types (preferred) as a binding change, updating `_ORG_DRG_KIND_ALIASES` and the contract-test sweep that guards drift against `charter.activations._ALLOWED_KINDS`; OR implement a documented separate mission-type augmentation path. Whichever is chosen, mission types MUST NOT be silently dropped. Document the choice inline (DIRECTIVE_003).
+**Steps**: **Decision locked (FR-032): expand `_ORG_DRG_CANONICAL_KINDS` to include mission types** — the separate-path alternative is rejected. Add mission types to the canonical universe, update `_ORG_DRG_KIND_ALIASES`, and update the contract-test sweep that guards drift against `charter.activations._ALLOWED_KINDS` **in lockstep** (binding change to the 8-kind universe). Mission types MUST NOT be silently dropped. Record the locked decision inline (DIRECTIVE_003).
 
 **Validation**: - [ ] mission-type fragment augmentation validates; contract-test sweep updated and green; no silent drop.
 

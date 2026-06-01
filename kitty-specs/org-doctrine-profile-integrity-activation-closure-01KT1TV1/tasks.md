@@ -236,6 +236,9 @@ WP13 ─▶ WP14 ─▶ WP15
 **Parallelization**: WP01, WP02, WP13 have no dependencies → 3 parallel starts. Wave 1 (WP04/WP05/WP06/WP07/WP08) forms a partially-ordered chain (WP07→WP06→WP05→WP08; WP04 feeds WP07). Wave 3 activation is a chain (WP09→WP10→WP11→WP12). Catalog UX (WP16/WP17) depends on WP18.
 
 ## Notes
+- **ATDD test-first (C-011, binding)**: each WP lists its test subtask **last for readability only** — execute it **first**. Commit the failing acceptance test as a separate commit (RED on `planning_base_branch`) BEFORE any implementation commit; reviewer verifies red→green. See contracts CC-3.
+- **C-007 `__all__` (binding)**: new `src/charter/` modules (`kind_vocabulary.py` WP01, `activation_engine.py` WP10, `cascade.py` WP11) declare `__all__`; their callers live in later-merging dependent WPs, so the dead-symbol gate is satisfied at mission-merge. Do not add net-new allowlist entries (Burn-down Policy).
 - **Bulk edit**: WP06 and WP07 are governed by `occurrence_map.yaml`; the `implement` gate enforces classification before edits.
 - **Risk-ordered**: WP07 (migration) + WP03 (merge relocation) are the highest-risk; both carry behavior-preservation/zero-loss tests.
-- **Pre-existing red gate**: WP15 greens in-scope symbols only; the 2 git/lanes offenders stay allowlisted-with-tracker (out of scope).
+- **WP05 coupling (known)**: WP05 bundles low-risk profile diagnostics with the lineage-via-DRG rewire (both edit `repository.py`), so diagnostics are gated behind WP03+WP06+WP07. Accepted due to file ownership; split only if `repository.py` is decomposed.
+- **Pre-existing red gate**: WP15 greens in-scope symbols only (net allowlist **shrinkage**). The 2 git/lanes offenders are out of scope, tracked by [#1588](https://github.com/Priivacy-ai/spec-kitty/issues/1588); any allowlisting requires an explicit `_baselines.yaml` baseline change (Burn-down Policy — no silent growth).

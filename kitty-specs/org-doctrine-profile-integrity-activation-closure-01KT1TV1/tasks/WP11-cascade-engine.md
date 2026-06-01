@@ -98,6 +98,7 @@ Implement scoped cascade activation and shared-reference-safe cascade deactivati
 ## Definition of Done
 
 - [ ] `CascadeScope`; scoped activation; no-cascade warning; shared-safe deactivation via reverse reachability; all pure graph logic. CC-2 pass.
+- [ ] **C-007 (binding):** `src/charter/cascade.py` declares `__all__`. Its symbols gain a caller in WP12 (depends on this WP, merges after); the dead-symbol gate is satisfied at mission-merge. No net allowlist growth (Burn-down Policy) — coordinate with WP15/#1588 if a lane evaluates the gate in isolation.
 
 ## Risks
 

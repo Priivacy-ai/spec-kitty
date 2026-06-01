@@ -121,6 +121,7 @@ Create the single canonical mapping for two vocabularies that are currently re-d
 - [ ] `ruff check .`, `mypy src`, and the new tests pass (CC-2).
 - [ ] Zero-dependency rule for `doctrine.artifact_kinds` preserved; `charter/kind_vocabulary.py` imports only `doctrine`+`kernel`.
 - [ ] No consumer rewiring done here (that is WP09/16/17 scope).
+- [ ] **C-007 (binding):** `src/charter/kind_vocabulary.py` declares `__all__`. Its exported symbols gain callers only in later-merging WPs (WP09/16/17); the dead-symbol gate is satisfied at mission-merge when those land. Do not add a permanent allowlist entry to paper over the interim (Burn-down Policy: no net allowlist growth) — coordinate with WP15/#1588 if a lane evaluates the gate in isolation.
 
 ## Risks
 

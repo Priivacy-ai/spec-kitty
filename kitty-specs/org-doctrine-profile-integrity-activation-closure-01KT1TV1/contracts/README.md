@@ -14,6 +14,6 @@ Behavioral/interface contracts for the mission. This is a CLI + library mission 
 
 - **CC-1 Layer rule**: no `import` from a higher layer (`kernel ← doctrine ← charter ← specify_cli`). `tests/architectural/test_layer_rules.py` passes; specifically `doctrine` imports neither `charter` nor `specify_cli` after the merge relocation.
 - **CC-2 Quality gate** (`DIRECTIVE_030`): `ruff check .`, `mypy`, and `pytest` pass per WP.
-- **CC-3 ATDD** (C-011): an acceptance/contract test exists and fails before the implementation WP, passes after.
+- **CC-3 ATDD test-first** (C-011, **binding**): the test subtask listed last in each WP is a **readability convention only** — execute it **first**. Author and commit the failing acceptance/contract test as a **separate commit BEFORE any implementation commit** (RED on the WP's `planning_base_branch`), then implement to green. The reviewer verifies red→green. Subtask numbering (e.g. the `Txxx` test row) does not imply execution order.
 - **CC-4 Canonical kinds** (I-K1): no module re-declares the kind set; all derive from `ArtifactKind` + `from_operator_token`.
 - **CC-5 Bulk-edit gate** (`DIRECTIVE_035`): WPs in the field-retirement surface comply with `occurrence_map.yaml`; `implement` refuses an unclassified occurrence.

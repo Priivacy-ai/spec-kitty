@@ -8,7 +8,8 @@ requirement_refs:
 - FR-019
 - FR-020
 - FR-036
-tracker_refs: []
+tracker_refs:
+- "1588"
 planning_base_branch: mission/org-doctrine-profile-integrity-activation-closure
 merge_target_branch: mission/org-doctrine-profile-integrity-activation-closure
 branch_strategy: Planning artifacts for this mission were generated on mission/org-doctrine-profile-integrity-activation-closure. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into mission/org-doctrine-profile-integrity-activation-closure unless the human explicitly redirects the landing branch.
@@ -28,6 +29,7 @@ execution_mode: code_change
 mission_slug: org-doctrine-profile-integrity-activation-closure-01KT1TV1
 owned_files:
 - tests/architectural/test_no_dead_symbols.py
+- tests/architectural/_baselines.yaml
 role: implementer
 tags: []
 ---
@@ -71,11 +73,17 @@ Bring the dead-symbol gate to green for the in-scope symbols (FR-036/019/020): r
 
 **Validation**: - [ ] OC entries removed; gate passes for them (callers exist post-WP14).
 
-### T068 — Delete orphan category; track out-of-scope offenders
+### T068 — Delete orphan category; track out-of-scope offenders (burn-down-compliant)
 
-**Steps**: Delete the empty `_CATEGORY_C_WP_IN_FLIGHT_WORKFLOW_REGISTRY` declaration and its union term. For the 2 git/lanes offenders (out of scope), keep them passing via an allowlist entry **with a tracker reference + rationale** (do not silently fix git/lanes code). Confirm the charter sub-app offenders are gone (fixed in WP12).
+**Steps**: Delete the empty `_CATEGORY_C_WP_IN_FLIGHT_WORKFLOW_REGISTRY` declaration and its union term. Confirm the charter sub-app offenders are gone (fixed in WP12).
 
-**Validation**: - [ ] orphan category removed; git/lanes offenders allowlisted-with-tracker; charter sub-apps no longer flagged.
+For the 2 git/lanes offenders (`SparseCheckoutKind`, `LANE_AUTO_REBASE_FAILED`, out of scope, tracked by [#1588](https://github.com/Priivacy-ai/spec-kitty/issues/1588)): the Burn-down Policy (charter §"Burn-down Policy" (a)) **fails CI on allowlist growth above baseline** (enforced by `tests/architectural/test_ratchet_baselines.py` against `tests/architectural/_baselines.yaml`), so **do not add a net-new allowlist entry without a baseline change**. Compliant path:
+- This WP removes **7 stale + 4 OC = 11** entries (shrinkage) — the allowlist net-shrinks well below baseline.
+- If the 2 external offenders must be allowlisted to keep CI green, add them **and** update `tests/architectural/_baselines.yaml` in the **same commit** with rationale + the #1588 reference, keeping net allowlist count ≤ the prior baseline (the 11 removals more than offset the 2 additions).
+- Prefer leaving them un-allowlisted if the gate is otherwise satisfiable; #1588 owns the actual offender fix.
+- **Never** silently fix the git/lanes source here (out of scope).
+
+**Validation**: - [ ] orphan category removed; charter sub-apps no longer flagged; if the 2 offenders are allowlisted, `_baselines.yaml` updated in the same commit (net count ≤ baseline) and `test_ratchet_baselines.py` passes; #1588 referenced.
 
 ### T069 — Tests / gate
 

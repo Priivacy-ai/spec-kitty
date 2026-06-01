@@ -91,6 +91,7 @@ Introduce a pure `plan_activation` → `commit_plan` seam so artifact-ID validat
 ## Definition of Done
 
 - [ ] Pure plan/commit seam; validation precedes write; non-mutating failure proven; FR-021 preserved. CC-2 pass.
+- [ ] **C-007 (binding):** `src/charter/activation_engine.py` declares `__all__`. Its symbols gain a caller in WP09 (depends on this WP, merges after); the dead-symbol gate is satisfied at mission-merge. No net allowlist growth (Burn-down Policy) — coordinate with WP15/#1588 if a lane evaluates the gate in isolation.
 
 ## Risks
 
