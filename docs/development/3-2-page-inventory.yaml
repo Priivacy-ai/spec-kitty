@@ -2759,6 +2759,13 @@
   current_target: false
   citation_refs: []
   notes: Migration runbook; planned migration banner at top of body.
+- path: docs/p0-baseline-refresh.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: P0 test-failure baseline refresh working note (dated snapshot); internal-only.
 - path: docs/recovery/logged-out-teamspace.md
   tag: current
   divio_type: how-to
