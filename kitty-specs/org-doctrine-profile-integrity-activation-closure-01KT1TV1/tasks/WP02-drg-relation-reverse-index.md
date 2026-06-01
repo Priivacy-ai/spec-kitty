@@ -114,3 +114,4 @@ Add the `specializes_from` relation (FR-001) as a first-class DRG relation disti
 - 2026-06-01T19:03:23Z – claude:opus:python-pedro:implementer – shell_pid=1545161 – workaround viability test
 - 2026-06-01T19:09:32Z – claude:opus:python-pedro:implementer – shell_pid=1545161 – reset after test
 - 2026-06-01T20:49:07Z – claude:opus:python-pedro:implementer – shell_pid=1545161 – facet3 fix e2e test
+- 2026-06-01T20:49:37Z – claude:opus:python-pedro:implementer – shell_pid=1545161 – reset
