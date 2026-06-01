@@ -438,8 +438,10 @@ async def test_ws_token_healthy_session_no_rehydrate(
     )
 
     fake_ws = _make_fake_ws({"type": "snapshot", "work_packages": []})
+    connect_calls: list[tuple[tuple[Any, ...], dict[str, Any]]] = []
 
-    async def _fake_connect(*args: Any, **kwargs: Any) -> AsyncMock:  # noqa: ARG001
+    async def _fake_connect(*args: Any, **kwargs: Any) -> AsyncMock:
+        connect_calls.append((args, kwargs))
         return fake_ws
 
     monkeypatch.setattr("specify_cli.sync.client.websockets.connect", _fake_connect)
@@ -455,3 +457,8 @@ async def test_ws_token_healthy_session_no_rehydrate(
     assert wstoken_route.call_count == 1
     body = json.loads(wstoken_route.calls[0].request.read().decode())
     assert body.get("team_id") == "t-private"
+    assert connect_calls
+    args, kwargs = connect_calls[0]
+    assert args == ("wss://saas.example/ws",)
+    assert "token=" not in args[0]
+    assert kwargs["additional_headers"] == {"Authorization": "Bearer ws-tok"}
