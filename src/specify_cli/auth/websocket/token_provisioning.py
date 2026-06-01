@@ -10,7 +10,7 @@ endpoint immediately before ``sync/client.py`` opens a WS upgrade. The flow is:
 2. POST ``/api/v1/ws-token`` with a Bearer access token and the target
    ``team_id`` in the body.
 3. Return the parsed ``{ws_token, ws_url, expires_in, session_id}`` dict to
-   the caller, which opens the WS at ``ws_url?token=<ws_token>``.
+   the caller, which sends ``ws_token`` as a Bearer token on the WS upgrade.
 
 All 4xx/5xx responses are translated into :class:`WebSocketProvisioningError`
 with user-facing recovery guidance; network-level failures propagate as
@@ -76,8 +76,8 @@ class WebSocketTokenProvisioner:
 
         Returns:
             Dict with keys ``ws_token``, ``ws_url``, ``expires_in``, and
-            ``session_id``. The caller opens the WS at
-            ``ws_url?token=<ws_token>``.
+            ``session_id``. The caller sends ``ws_token`` as a Bearer token
+            on the WS upgrade.
 
         Raises:
             NotAuthenticatedError: No active session. The user must run

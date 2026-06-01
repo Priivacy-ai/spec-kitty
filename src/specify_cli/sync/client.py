@@ -8,6 +8,7 @@ state directly.
 """
 
 import asyncio
+import inspect
 import json
 import logging
 import random
@@ -37,6 +38,17 @@ from specify_cli.sync.project_identity import ProjectIdentity
 logger = logging.getLogger(__name__)
 
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+
+
+def _websocket_auth_headers_kwarg(ws_token: str) -> dict[str, dict[str, str]]:
+    """Return the auth-header kwarg name supported by the installed websockets."""
+    parameters = inspect.signature(websockets.connect).parameters
+    header_kwarg = (
+        "extra_headers"
+        if "extra_headers" in parameters and "additional_headers" not in parameters
+        else "additional_headers"
+    )
+    return {header_kwarg: {"Authorization": f"Bearer {ws_token}"}}
 
 
 class ConnectionStatus:
@@ -98,7 +110,7 @@ class WebSocketClient:
         1. Gate on the SaaS-sync feature flag.
         2. Fetch a fresh ws_token + ws_url via ``provision_ws_token`` (which
            single-flight-refreshes the access token if needed).
-        3. Open the WS upgrade at ``ws_url?token=<ws_token>``.
+        3. Open the WS upgrade at ``ws_url`` with an Authorization Bearer header.
         4. Receive the initial snapshot and start the listener task.
         """
         if not is_saas_sync_enabled():
@@ -148,13 +160,10 @@ class WebSocketClient:
 
         ws_url = self._normalize_ws_url(ws_url)
 
-        # Token-in-query-string, matching the SaaS contract for ephemeral ws tokens.
-        separator = "&" if "?" in ws_url else "?"
-        uri = f"{ws_url}{separator}token={ws_token}"
-
         try:
             self.ws = await websockets.connect(
-                uri,
+                ws_url,
+                **_websocket_auth_headers_kwarg(ws_token),
                 ping_interval=None,  # We handle heartbeat manually
                 ping_timeout=None,
             )

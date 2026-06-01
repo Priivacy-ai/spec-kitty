@@ -241,7 +241,9 @@ SaaS HTTP/WebSocket client used by the sync subsystem.
    # WS connect needs an ephemeral token
    from specify_cli.auth.websocket import provision_ws_token  # WP09 module
    ws_token_response = await provision_ws_token(team_id=...)
-   ws_url_with_token = f"{ws_url}?token={ws_token_response['ws_token']}"
+   ws_headers = {
+       "Authorization": f"Bearer {ws_token_response['ws_token']}"
+   }
    ```
 
 6. Verify the diff: the file should have no references to `AuthClient`,
@@ -570,4 +572,4 @@ rewired any caller, shipped dead code. Reviewer must:
 - 2026-04-09T19:50:30Z – claude:opus-4-6:python-implementer:implementer – shell_pid=93744 – Started implementation via action command
 - 2026-04-09T20:53:21Z – claude:opus-4-6:python-implementer:implementer – shell_pid=93744 – Moved to for_review
 - 2026-04-09T20:54:10Z – claude:opus-4-6:python-reviewer:reviewer – shell_pid=22243 – Started review via action command
-- 2026-04-09T20:58:22Z – claude:opus-4-6:python-reviewer:reviewer – shell_pid=22243 – Review passed: T045 DoD grep returns zero hits (no AuthClient/CredentialStore outside auth/); T046 shows 35 get_token_manager calls across 18 files; OAuthHttpClient correctly injects bearer, retries once on 401 after force-expire+refresh, translates httpx errors to NetworkError, raises NotAuthenticatedError on persistent 401; 1530 tests pass / 3 skipped (2 with clear obsolescence reasons); no hardcoded URLs; no direct TokenManager construction outside factory. Scope-extended files (cli/commands/sync.py, sync/__init__.py, tests/sync/tracker/conftest.py) are legitimately required by the DoD grep gate or test compat.
+- 2026-04-09T20:58:22Z – claude:opus-4-6:python-reviewer:reviewer – shell_pid=22243 – Review passed: T045 DoD grep returns zero hits (no AuthClient/CredentialStore outside auth/); T046 shows 35 get_token_manager calls across 18 files; OAuthHttpClient correctly injects bearer, retries once on 401 after force-expire+refresh, translates httpx errors to NetworkError, raises NotAuthenticatedError on persistent 401; 1530 tests pass / 3 skipped (2 with clear obsolescence reasons); no hardcoded URLs; no direct TokenManager construction outside factory. Scope-extended files (`cli/commands/sync.py`, `sync/__init__.py`, `tests/sync/tracker/conftest.py`) are legitimately required by the DoD grep gate or test compat.

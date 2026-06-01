@@ -23,12 +23,44 @@ import respx
 from specify_cli.auth.secure_storage import SecureStorage
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.auth.token_manager import TokenManager
-from specify_cli.sync.client import WebSocketClient, ConnectionStatus
+from specify_cli.sync.client import (
+    WebSocketClient,
+    ConnectionStatus,
+    _websocket_auth_headers_kwarg,
+)
 from specify_cli.sync.project_identity import ProjectIdentity
 
 pytestmark = pytest.mark.fast
 
 _SAAS_BASE_URL = "https://saas.example"
+
+
+def test_websocket_auth_headers_kwarg_uses_additional_headers(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Current websockets releases expect Authorization in additional_headers."""
+
+    def _connect(_uri: str, *, additional_headers: dict[str, str] | None = None) -> None:
+        pass
+
+    monkeypatch.setattr("specify_cli.sync.client.websockets.connect", _connect)
+
+    assert _websocket_auth_headers_kwarg("ws-tok") == {
+        "additional_headers": {"Authorization": "Bearer ws-tok"}
+    }
+
+
+def test_websocket_auth_headers_kwarg_uses_extra_headers_for_legacy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Older supported websockets releases expect Authorization in extra_headers."""
+
+    def _connect(_uri: str, *, extra_headers: dict[str, str] | None = None) -> None:
+        pass
+
+    monkeypatch.setattr("specify_cli.sync.client.websockets.connect", _connect)
+
+    assert _websocket_auth_headers_kwarg("ws-tok") == {
+        "extra_headers": {"Authorization": "Bearer ws-tok"}
+    }
 
 
 @pytest.mark.asyncio
@@ -438,8 +470,10 @@ async def test_ws_token_healthy_session_no_rehydrate(
     )
 
     fake_ws = _make_fake_ws({"type": "snapshot", "work_packages": []})
+    connect_calls: list[tuple[tuple[Any, ...], dict[str, Any]]] = []
 
-    async def _fake_connect(*args: Any, **kwargs: Any) -> AsyncMock:  # noqa: ARG001
+    async def _fake_connect(*args: Any, **kwargs: Any) -> AsyncMock:
+        connect_calls.append((args, kwargs))
         return fake_ws
 
     monkeypatch.setattr("specify_cli.sync.client.websockets.connect", _fake_connect)
@@ -455,3 +489,8 @@ async def test_ws_token_healthy_session_no_rehydrate(
     assert wstoken_route.call_count == 1
     body = json.loads(wstoken_route.calls[0].request.read().decode())
     assert body.get("team_id") == "t-private"
+    assert connect_calls
+    args, kwargs = connect_calls[0]
+    assert args == ("wss://saas.example/ws",)
+    assert "token=" not in args[0]
+    assert kwargs["additional_headers"] == {"Authorization": "Bearer ws-tok"}

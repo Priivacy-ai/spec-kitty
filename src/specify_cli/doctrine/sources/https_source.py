@@ -229,7 +229,7 @@ def _safe_extract_tar(tf: tarfile.TarFile, target_dir: Path) -> None:
             raise tarfile.TarError(
                 f"Refusing path traversal entry: {member.name}"
             ) from exc
-    tf.extractall(target_dir)  # noqa: S202 - paths and types validated above
+    tf.extractall(target_dir)  # noqa: S202  # nosec B202 - paths and types validated above
 
 
 def _safe_extract_zip(zf: zipfile.ZipFile, target_dir: Path) -> None:
@@ -247,7 +247,7 @@ def _safe_extract_zip(zf: zipfile.ZipFile, target_dir: Path) -> None:
             raise zipfile.BadZipFile(
                 f"Refusing path traversal entry: {name}"
             ) from exc
-    zf.extractall(target_dir)  # noqa: S202 - paths validated above
+    zf.extractall(target_dir)  # noqa: S202  # nosec B202 - paths validated above
 
 
 def _flatten_single_top_dir(target_dir: Path) -> None:

@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `charter generate --force` now refuses to overwrite symlinked `charter.md` paths,
   preventing silent writes through symlink targets.
+- Sync WebSocket connections now send ephemeral `ws_token` credentials in the
+  `Authorization: Bearer` upgrade header instead of an ignored `?token=` query
+  parameter, restoring authenticated live event delivery.
 
 ### Documentation
 

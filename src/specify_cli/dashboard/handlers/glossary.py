@@ -142,7 +142,7 @@ def _recover_valid_senses(
             return []
         yaml = YAML()
         yaml.preserve_quotes = True
-        data = yaml.load(seed_path)
+        data = yaml.load(seed_path)  # nosec B506 - local glossary seed, schema-validated below
         raw_terms = (data or {}).get("terms") or []
 
         recovered: list[Any] = []
