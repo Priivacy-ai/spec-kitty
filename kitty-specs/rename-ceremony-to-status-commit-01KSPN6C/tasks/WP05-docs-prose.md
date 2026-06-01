@@ -20,8 +20,8 @@ subtasks:
 - T022
 - T023
 phase: Phase 1 - Foundation
-agent: claude
-shell_pid: '61077'
+agent: "claude:sonnet:reviewer:reviewer"
+shell_pid: "73732"
 history:
 - at: '2026-05-28T07:11:05Z'
   actor: system
@@ -234,3 +234,4 @@ Expected: **zero hits**. If any hit appears, classify per occurrence_map and app
 ## Activity Log
 
 - 2026-06-01T07:37:12Z – claude – shell_pid=61077 – Ready for review: 7 ceremony occurrences rewritten in 4 docs files per occurrence_map dd-007 through dd-014. grep -rn 'ceremony' docs/ returns zero hits. Config flag renamed to vcs.allow_status_commits_on_target_branch (FR-010). Only the 4 owned_files were modified.
+- 2026-06-01T07:43:52Z – claude:sonnet:reviewer:reviewer – shell_pid=73732 – Started review via action command
