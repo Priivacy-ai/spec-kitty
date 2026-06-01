@@ -9,7 +9,7 @@ It is intentionally **not** a place for architectural decisions (those go to `ar
 - Times a tool, skill, or runtime behaved in a way that did not match the operator's mental model.
 - Cases where a default produced a sensibly-functional-but-suboptimal output that needed a second pass to correct.
 - Workarounds discovered in passing that aren't yet codified into a skill or tactic.
-- Observations about how Spec Kitty's own ceremony surfaces interact with the project's protected-branch / pre-commit / CI configuration.
+- Observations about how Spec Kitty's own status commit surfaces interact with the project's protected-branch / pre-commit / CI configuration.
 - Friction or surprise notes from dogfooding the toolchain.
 
 ## Difference from `finding/` and `architectural-review/`

@@ -604,7 +604,7 @@ def _protected_branch_status_commit_error(branch: str, repo_root: Path, command:
         return None
     return (
         f"Refusing to run `{command}` with auto-commit on protected branch "
-        f"'{branch}' before mutating status files. Run ceremony write "
+        f"'{branch}' before mutating status files. Run status commit "
         "operations from an allowed coordination/lane branch, or rerun with "
         "--no-auto-commit when you intentionally want to handle the status "
         "artifact commit manually."

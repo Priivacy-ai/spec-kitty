@@ -254,14 +254,14 @@ the machine view, and one is generated from the other).
 
 ---
 
-## F-09 — Protected-branch guard blocks ceremony writes even from authorised operators on solo forks
+## F-09 — Protected-branch guard blocks status commit writes even from authorised operators on solo forks
 
 **What happened.** Every `spec-kitty agent mission setup-plan`,
 `finalize-tasks`, and `accept --no-commit` invocation on `main` produced:
 
 ```
 Error: Refusing to create commit '...' on protected branch 'main' in /home/.../spec-kitty.
-Run ceremony write operations from the mission lane branch/worktree.
+Run status commit operations from the mission lane branch/worktree.
 ```
 
 The operator (here, the orchestrator) is the sole maintainer of the fork
@@ -269,15 +269,15 @@ and has full write rights. The guard's blast radius assumption (multiple
 contributors, branch protection in force) does not match the actual
 deployment (solo fork, no enforcement).
 
-**Why it matters.** The guard forces extra ceremony (manual `git commit`,
+**Why it matters.** The guard forces extra manual steps (manual `git commit`,
 manual `git push`) without preventing anything the operator wouldn't have
 done anyway. For multi-contributor repos the guard is correct; for solo
 forks it's noise.
 
-**Workaround.** Every ceremony commit was authored manually via
+**Workaround.** Every status commit was authored manually via
 `git add ... && git commit ... && git push`.
 
-**Follow-up candidate.** A config flag (`vcs.allow_ceremony_commits_on_target_branch: true`) opt-in for solo forks. Default off (current
+**Follow-up candidate.** A config flag (`vcs.allow_status_commits_on_target_branch: true`) opt-in for solo forks. Default off (current
 behaviour) for safety; opt-in available for operators who know what they're
 doing.
 

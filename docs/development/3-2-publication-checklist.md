@@ -207,7 +207,7 @@ the matrix this checklist exists to prove.
 | **S5** Per-harness reachability | WP10 (harness research method + matrix), WP11 (14 harness pages) | Matrix is the operator-facing surface; pages are the per-harness depth. |
 | **S6** Cross-platform install lifecycle | WP12 (install/upgrade/uninstall outline + pages) | See §6c install matrix. |
 | **S7** No mixed-version leakage | WP02 (inventory), WP09 (archive plan), WP13 (leakage check) | Inventory + automated check. |
-| **S8** Plan-only gate respected | All planning WPs (specify/plan/tasks ceremony) — satisfied at planning, locked by C-001/C-002. | Audited via git-log path filter. |
+| **S8** Plan-only gate respected | All planning WPs (specify/plan/tasks workflow) — satisfied at planning, locked by C-001/C-002. | Audited via git-log path filter. |
 | **S9** Workspace operating-rule compliance | WP13 (freshness orchestrator uses `SPEC_KITTY_ENABLE_SAAS_SYNC=1`), WP05 (methodology uses the flag) | Flag must be in effect at capture and CI time. |
 
 ### §6b. Success criteria → artifact

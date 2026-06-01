@@ -14,7 +14,7 @@
 #   `# justification:` comment on the changed line naming why growth
 #   is acceptable. A PR that grows category_7_grandfathered must link
 #   a follow-up tracker ticket per FR-303.
-# - Shrinkage requires no ceremony (just edit the number).
+# - Shrinkage requires no extra workflow steps (just edit the number).
 
 # tests/architectural/test_no_dead_modules.py
 # Per-category breakdown (FR-112 refactor).

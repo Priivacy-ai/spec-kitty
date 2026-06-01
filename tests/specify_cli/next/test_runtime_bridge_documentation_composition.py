@@ -99,7 +99,7 @@ def test_known_action_passes_when_artifact_present(
         (tmp_path / "docs").mkdir()
         (tmp_path / "docs" / "intro.md").write_text("# intro", encoding="utf-8")
     elif action == "accept":
-        pass  # no gate artifact — terminal ceremony step
+        pass  # no gate artifact — terminal status commit step
     else:
         (tmp_path / _GATE_ARTIFACT[action]).write_text(f"# {action}", encoding="utf-8")
 
