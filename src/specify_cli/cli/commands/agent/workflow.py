@@ -49,6 +49,7 @@ from charter.context import build_charter_context
 from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts
 from specify_cli.cli.commands.implement import implement as top_level_implement
 from specify_cli.cli.selector_resolution import resolve_mission_handle, resolve_selector
+from specify_cli.coordination.types import CommitReceipt
 from specify_cli.core.dependency_graph import (
     build_dependency_graph,
     dependency_readiness_for_wp,
@@ -130,6 +131,14 @@ def _record_receipt(
         "sha": sha,
         "wp_id": wp_id,
     })
+
+
+def _mark_receipt_refused(*, commit_sha: str) -> None:
+    """Mark a previously committed receipt refused after rollback."""
+    for receipt in reversed(_WORKFLOW_COMMIT_RECEIPTS):
+        if receipt.get("sha") == commit_sha:
+            receipt["outcome"] = "refused"
+            return
 
 
 def _restore_status_artifacts(
@@ -241,7 +250,7 @@ def _commit_via_coordination_transaction(
     mission_id: str,
     mid8: str,
     wp_id: str,
-) -> None:
+) -> CommitReceipt:
     """Commit workflow changes via BookkeepingTransaction."""
     from specify_cli.coordination.transaction import (
         BookkeepingPolicyRefused,
@@ -293,6 +302,7 @@ def _commit_via_coordination_transaction(
         sha=receipt.commit_sha,
         wp_id=wp_id,
     )
+    return receipt
 
 
 def _render_lane_auto_rebase_failure(exc: BaseException) -> None:
@@ -327,6 +337,47 @@ def _sync_lane_after_coordination_commit(
         wp_id=wp_id,
         coordination_branch=coord_branch,
     )
+
+
+def _revert_coordination_commit(receipt: CommitReceipt) -> None:
+    """Undo a lifecycle coordination commit after lane sync refusal."""
+    head_result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=receipt.worktree_root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if head_result.returncode != 0:
+        raise RuntimeError(
+            "could not inspect coordination worktree HEAD before rollback: "
+            f"{(head_result.stderr or head_result.stdout).strip()}"
+        )
+    if head_result.stdout.strip() != receipt.commit_sha:
+        raise RuntimeError(
+            "refusing to rollback lifecycle commit because coordination branch "
+            f"advanced from {receipt.commit_sha} to {head_result.stdout.strip()}"
+        )
+
+    revert_result = subprocess.run(
+        [
+            "git",
+            "-c",
+            "commit.gpgsign=false",
+            "revert",
+            "--no-edit",
+            receipt.commit_sha,
+        ],
+        cwd=receipt.worktree_root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if revert_result.returncode != 0:
+        raise RuntimeError(
+            "failed to rollback lifecycle coordination commit after lane sync "
+            f"refusal: {(revert_result.stderr or revert_result.stdout).strip()}"
+        )
 
 
 def _commit_via_legacy_safe_commit(
@@ -392,7 +443,7 @@ def _commit_workflow_change(
 
     if coord_branch and mission_id and mid8:
         try:
-            _commit_via_coordination_transaction(
+            receipt = _commit_via_coordination_transaction(
                 coord_branch=str(coord_branch),
                 repo_root=repo_root,
                 mission_id=str(mission_id),
@@ -441,6 +492,17 @@ def _commit_workflow_change(
                     coord_branch=str(coord_branch),
                 )
             except Exception as exc:  # noqa: BLE001 — structured sync refusal
+                try:
+                    _revert_coordination_commit(receipt)
+                    _mark_receipt_refused(commit_sha=receipt.commit_sha)
+                    _restore_status_artifacts(
+                        events_path=events_path,
+                        pre_emit_event_size=pre_emit_event_size,
+                        status_path=status_path,
+                        pre_emit_status_bytes=pre_emit_status_bytes,
+                    )
+                except Exception as rollback_exc:  # noqa: BLE001
+                    print(f"Error: Failed to rollback lifecycle state after lane sync refusal: {rollback_exc}")
                 _render_lane_auto_rebase_failure(exc)
                 raise typer.Exit(1) from exc
         return

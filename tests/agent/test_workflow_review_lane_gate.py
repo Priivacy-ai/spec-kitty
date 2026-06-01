@@ -4,15 +4,19 @@ from __future__ import annotations
 
 import tempfile
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
+import typer
 from typer.testing import CliRunner
 
 from tests.lane_test_utils import lane_worktree_path, write_single_lane_manifest
 
 from specify_cli.cli.commands.agent import workflow
+from specify_cli.coordination.types import CommitReceipt
 from specify_cli.coordination.workspace import CoordinationWorkspace
+from specify_cli.lanes.lifecycle_sync import LaneAutoRebaseSyncError
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.status.emit import emit_status_transition
 from specify_cli.status.store import append_event
@@ -357,6 +361,7 @@ def test_commit_workflow_change_syncs_lane_after_coord_commit(
     workflow_repo: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    workflow._reset_workflow_receipts()
     mission_slug = "demo-feature-01J6XW9K"
     mid8 = "01J6XW9K"
     mission_id = "01J6XW9KABCDEFGHJKMNPQRSTV"
@@ -405,6 +410,94 @@ def test_commit_workflow_change_syncs_lane_after_coord_commit(
     )
 
     assert calls == ["commit", "sync"]
+
+
+def test_commit_workflow_change_reverts_coord_commit_on_lane_sync_refusal(
+    workflow_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workflow._reset_workflow_receipts()
+    mission_slug = "demo-feature-01J6XW9K"
+    mid8 = "01J6XW9K"
+    mission_id = "01J6XW9KABCDEFGHJKMNPQRSTV"
+    coord_branch = f"kitty/mission-{mission_slug}"
+    feature_dir = workflow_repo / "kitty-specs" / mission_slug
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_slug": mission_slug,
+                "mission_id": mission_id,
+                "mid8": mid8,
+                "coordination_branch": coord_branch,
+            }
+        ),
+        encoding="utf-8",
+    )
+    event_path = feature_dir / "status.events.jsonl"
+    event_path.write_text("before\n", encoding="utf-8")
+    status_path = feature_dir / "status.json"
+    status_path.write_text('{"lane":"planned"}\n', encoding="utf-8")
+    receipt = CommitReceipt(
+        commit_sha="abc123",
+        committed_at=datetime.now(UTC),
+        destination_ref=coord_branch,
+        worktree_root=workflow_repo / ".worktrees" / f"{mission_slug}-{mid8}-coord",
+        event_ids=("evt-1",),
+    )
+    calls: list[str] = []
+
+    def fake_commit(**_kwargs: object) -> CommitReceipt:
+        calls.append("commit")
+        event_path.write_text("before\nafter\n", encoding="utf-8")
+        status_path.write_text('{"lane":"claimed"}\n', encoding="utf-8")
+        workflow._record_receipt(
+            coord_branch,
+            "chore: Start WP01 implementation [agent]",
+            "committed",
+            sha=receipt.commit_sha,
+            wp_id="WP01",
+        )
+        return receipt
+
+    def fake_sync(**_kwargs: object) -> None:
+        calls.append("sync")
+        raise LaneAutoRebaseSyncError(
+            lane_id="lane-a",
+            lane_branch=f"{coord_branch}-lane-a",
+            lane_worktree_path=workflow_repo / ".worktrees" / f"{mission_slug}-lane-a",
+            coordination_branch=coord_branch,
+            coordination_head=receipt.commit_sha,
+            halt_reason="manual conflict",
+        )
+
+    def fake_revert(actual_receipt: CommitReceipt) -> None:
+        calls.append("revert")
+        assert actual_receipt is receipt
+
+    monkeypatch.setattr(workflow, "_commit_via_coordination_transaction", fake_commit)
+    monkeypatch.setattr(workflow, "_sync_lane_after_coordination_commit", fake_sync)
+    monkeypatch.setattr(workflow, "_revert_coordination_commit", fake_revert)
+
+    with pytest.raises(typer.Exit):
+        workflow._commit_workflow_change(
+            repo_root=workflow_repo,
+            feature_dir=feature_dir,
+            mission_slug=mission_slug,
+            target_branch="main",
+            paths=[event_path],
+            message="chore: Start WP01 implementation [agent]",
+            operation="planned -> claimed for WP01",
+            wp_id="WP01",
+            pre_emit_event_size=len("before\n"),
+            pre_emit_status_bytes=b'{"lane":"planned"}\n',
+            auto_rebase_lane_after_commit=True,
+        )
+
+    assert calls == ["commit", "sync", "revert"]
+    assert workflow._WORKFLOW_COMMIT_RECEIPTS[-1]["outcome"] == "refused"
+    assert event_path.read_text(encoding="utf-8") == "before\n"
+    assert status_path.read_text(encoding="utf-8") == '{"lane":"planned"}\n'
 
 
 def test_workflow_review_tracks_reviewer_agent_name(workflow_repo: Path) -> None:
