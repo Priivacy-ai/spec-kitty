@@ -80,6 +80,12 @@ An operator wants a complete inventory of what they could activate, not just wha
 
 **Acceptance signal**: `charter list --all` lists every artifact per kind across built-in, organisation-pack, and project layers with its source layer, and the availability computation no longer silently drops non-built-in artifacts.
 
+### Scenario 10 - Org packs can augment every doctrine kind, including workflow topology
+
+An org-pack author declares `enhances: <built-in-id>` on a mission step contract (and separately on a directive, a toolguide, and a mission type) to field-merge into the shipped artifact. Today these are rejected: the step-contract, directive, toolguide, and mission-type schemas use `extra="forbid"` and never gained the `enhances`/`overrides` fields, so the augmentation vocabulary covers only five of the doctrine kinds. The author expects the same authoring contract that already works for tactics and profiles.
+
+**Acceptance signal**: a fixture pack that declares `enhances`/`overrides` on a directive, toolguide, mission step contract, and mission type validates without the same-ID override advisory, the DRG auto-emits the corresponding `enhances`/`overrides` edge for the DRG-resident kinds, and for topology-bearing kinds (step contracts, mission types) the merged result preserves action-sequence ordering and step I/O contracts rather than silently corrupting them.
+
 ---
 
 ## Functional Requirements
@@ -113,6 +119,11 @@ An operator wants a complete inventory of what they could activate, not just wha
 | FR-025 | `charter list --all` SHALL list every available artifact per kind across built-in, organisation-pack, and project layers, annotated by source layer; `--all` implies and supersedes `--show-available`. | Must | Proposed |
 | FR-026 | `CharterPackManager.list_available()` SHALL include organisation-pack and project doctrine artifacts in addition to built-in artifacts, removing the built-in-only scan, so availability is not understated for packaged artifacts. | Must | Proposed |
 | FR-027 | The operator-facing kind vocabulary used by `charter context --include`, `activate`, `deactivate`, and `list` SHALL resolve through a single canonical kind mapping (building on `doctrine.artifact_kinds.ArtifactKind`) rather than re-declaring the kind set per command, so hyphenated kind tokens normalize consistently and FR-022/FR-023/FR-025/FR-026 are not per-kind special cases. See research R-009 (CL-1..CL-5). | Should | Proposed |
+| FR-028 | The `Directive`, `Toolguide`, mission step contract, and mission type Pydantic models (and any mirrored JSON Schemas) SHALL accept the optional declarative fields `overrides: <id>` and `enhances: <id>`, completing augmentation-vocabulary coverage across all doctrine artifact kinds; an org-pack artifact of these kinds declaring `enhances`/`overrides` against a built-in of the same kind SHALL validate instead of being rejected as an unknown field. See research R-010. | Must | Proposed |
+| FR-029 | Field-merge semantics for topology-bearing kinds (mission step contracts and mission types) under `enhances` SHALL be explicitly defined and consistent with ADR `2026-05-16-1-doctrine-layer-merge-semantics.md`: it MUST specify which fields field-merge versus replace, and MUST NOT silently corrupt action-sequence ordering or step input/output contracts; `overrides` remains a full replacement. | Must | Proposed |
+| FR-030 | The DRG auto-emit table (`_AUGMENTATION_PLURAL_TO_KIND`) and the pack-validator augmentation set (`_AUGMENTATION_PLURAL_KINDS`) SHALL cover all augmentation-eligible kinds and SHALL derive from a single shared source rather than two hand-synced copies. | Must | Proposed |
+| FR-031 | The pack validator SHALL apply the existing intent-aware collision behavior (suppress the same-ID advisory when intent is declared, hard-error on unknown `enhances`/`overrides` target, `intent_conflict` when both are declared) uniformly to the newly-covered kinds, at parity with the original five. | Must | Proposed |
+| FR-032 | Mission-type augmentation SHALL be resolved per research R-010: either the org-pack DRG canonical kind universe (`_ORG_DRG_CANONICAL_KINDS`) is expanded to include mission types as a C-009-binding change with the contract-test sweep updated, or a separate mission-type augmentation path is defined; mission types MUST NOT be silently dropped from augmentation coverage. | Must | Proposed |
 
 ---
 
@@ -126,6 +137,7 @@ An operator wants a complete inventory of what they could activate, not just wha
 | NFR-004 | Runtime lifecycle precondition checks SHALL not create worktrees or emit status transitions before failure. | Inactive-profile and missing-context precondition tests observe zero new worktree paths and zero new status events. | Proposed |
 | NFR-005 | Existing shipped profile loading SHALL remain healthy. | All built-in agent profiles load with zero diagnostic errors. | Proposed |
 | NFR-006 | Architectural boundaries SHALL remain intact. | Existing layer-rule and dead-symbol architectural suites pass after the mission. | Proposed |
+| NFR-007 | Adding the `overrides`/`enhances` augmentation fields SHALL NOT regress loading of existing artifacts. | Zero fixture failures loading every existing directive, toolguide, mission step contract, and mission type YAML in the repo (mirrors #1291 NFR-004). | Proposed |
 
 ---
 
@@ -158,6 +170,7 @@ An operator wants a complete inventory of what they could activate, not just wha
 | SC-008 | The mission clears inherited cleanup debt from #1557. | Dead-symbol and layer-rule tests pass without the deferred allowlist entries targeted by this mission. |
 | SC-009 | Agent profiles are reachable through the documented context selector. | A CLI test asserts `charter context --include agent-profile:<id>` renders the profile in human and JSON output, and the unsupported-kind path is no longer reached for hyphenated kinds. |
 | SC-010 | The charter catalog reflects the full activatable surface. | A `charter list --all` test asserts built-in, org-pack, and project artifacts all appear with their source layer for at least one fixture pack. |
+| SC-011 | Augmentation vocabulary covers every doctrine kind. | Fixture packs declaring `enhances`/`overrides` on a directive, toolguide, mission step contract, and mission type validate, auto-emit the augmentation edge for DRG-resident kinds, and pass the topology-integrity assertion for step contracts and mission types. |
 
 ---
 

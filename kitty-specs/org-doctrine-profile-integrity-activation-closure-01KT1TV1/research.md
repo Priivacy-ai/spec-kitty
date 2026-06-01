@@ -231,6 +231,38 @@ These are **enabling** refactors scoped to the kind-vocabulary surfaces this mis
 
 ---
 
+## R-010 - MissionStepContract rejects `enhances` (augmentation vocabulary gap)
+
+**Finding**: An org-pack `*.step-contract.yaml` that declares `enhances: <built-in-id>` (or `overrides:`) fails validation. The `MissionStep` / step-contract Pydantic models in `src/doctrine/missions/models.py` use `ConfigDict(extra="forbid")` and never gained the `enhances`/`overrides` fields, so the keys are rejected as unknown. The org-pack DRG auto-emitter (`_AUGMENTATION_PLURAL_TO_KIND` in `src/doctrine/drg/org_pack_loader.py`) likewise scans only 5 kinds, so even if the field were tolerated, no `enhances` edge would be auto-emitted for a step contract.
+
+**Why this happens**: The augmentation pair `enhances`/`overrides` was introduced in mission `charter-ux-and-org-pack-vocabulary-01KSAF14` (issue #1291), and its FR-010 deliberately scoped the fields to exactly **five** kinds: `Tactic`, `Styleguide`, `Paradigm`, `Procedure`, `AgentProfile`. Directives, toolguides, **mission step contracts**, and mission types were left out. The relation enum (`doctrine.drg.models.Relation`) *does* define `ENHANCES`/`OVERRIDES` globally — the gap is purely in the per-kind schema fields and the auto-emit table, not in the DRG vocabulary.
+
+**Is the exclusion principled?** Partly. There is a real design wrinkle: mission step contracts describe **workflow topology** (action sequence, step inputs/outputs), so "enhance = field-merge" needs explicitly defined merge semantics (which fields merge vs. replace, how a partial step overlay composes) in a way that content artifacts like tactics do not. ADR `2026-05-16-1-doctrine-layer-merge-semantics.md` ratifies layer field-merge generally but does **not** single out step contracts or document a reason to exclude them. So the current state reads as an **incomplete rollout scoped to the five content kinds**, not a deliberate, documented boundary. Treating "mission steps cannot be enhanced" as intended behavior would be a misread.
+
+**Relation to this mission**: This is adjacent to FR-001/FR-002 (adding `specializes_from` and keeping the relation vocabulary coherent) and to the kind-vocabulary consolidation in R-009 — all three touch how per-kind augmentation/lineage vocabulary is declared and validated. But extending `enhances`/`overrides` to step contracts is its own design unit: it needs step-contract field-merge semantics, a schema field addition (with the same `extra="forbid"` non-regression bar as NFR-004 of #1291), an entry in `_AUGMENTATION_PLURAL_TO_KIND`, and validator/advisory parity. **Scope decision pending** (see open question below) on whether to land it here or defer to a follow-on.
+
+**OQ-1 — RESOLVED (operator decision)**: Close the augmentation vocabulary **fully** in this mission — add `enhances`/`overrides` to all four currently-missing kinds: directives, toolguides, mission step contracts, and mission types. See FR-028..FR-032 and Scenario 10.
+
+### Surfaces that must change (all-4 decision)
+
+| Surface | File | Change |
+|---------|------|--------|
+| Per-kind schema fields | `doctrine/directives/models.py`, `doctrine/toolguides/models.py`, `doctrine/missions/models.py` (step contract + mission type) | Add optional `overrides: str \| None` / `enhances: str \| None`; keep `extra="forbid"` otherwise |
+| DRG auto-emit table | `doctrine/drg/org_pack_loader.py` `_AUGMENTATION_PLURAL_TO_KIND` | Add the newly-eligible kinds |
+| Validator augmentation set | `specify_cli/doctrine/pack_validator.py` `_AUGMENTATION_PLURAL_KINDS` | Add the same kinds (today a hand-synced copy — see CL note) |
+| JSON Schema mirrors (if present) | wherever the #1291 JSON Schemas live | Mirror the new optional fields |
+
+### Asymmetry to resolve in planning (binding design note)
+
+- Directives, toolguides, and mission step contracts (`mission_steps`) are **already** in the 8-kind org-pack DRG universe (`_ORG_DRG_CANONICAL_KINDS`), so they only need the schema fields + auto-emit/validator entries. This is the same shape as the WP05 work for the original five.
+- **Mission types are NOT in the org-pack DRG canonical universe** and are not org-pack DRG node kinds. Augmenting a mission type therefore cannot reuse the existing `enhances`-edge auto-emit path as-is. Planning must choose one of: (a) expand the canonical kind universe to include mission types — a **C-009-binding** change with contract-test sweep implications and drift checks against `charter.activations._ALLOWED_KINDS`; or (b) define a separate mission-type augmentation path (mission types are activated via the `mission-type` charter kind and may field-merge through a different mechanism). The topology-merge semantics from R-010 apply doubly to mission types, which own the action sequence itself.
+
+### Consolidation tie-in (R-009)
+
+`_AUGMENTATION_PLURAL_TO_KIND` (loader) and `_AUGMENTATION_PLURAL_KINDS` (validator) are two copies of the same set, kept aligned only by a "Kept in sync with…" comment. Completing augmentation coverage is the moment to make them derive from one canonical source (R-009 / CL-1..CL-3) instead of widening two hand-synced tables.
+
+---
+
 ## Deferred Research
 
 - #1333 should become a follow-on mission for doctrine template discovery and DRG-backed template resolution.
