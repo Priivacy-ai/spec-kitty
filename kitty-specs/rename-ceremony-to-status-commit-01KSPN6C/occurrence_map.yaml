@@ -407,31 +407,34 @@ historical_preservation:
 # ──────────────────────────────────────────────────────────────────────
 exceptions:
   - path: "kitty-specs/*/status.events.jsonl"
-    action: do_not_change
+    action: manual_review
     reason: >
       Runtime-written status event log. Modified by WP state transitions
       (planned → in_progress → for_review) during the implement-review loop.
       Contains no forbidden terminology; it is a system artifact, not a rename target.
+      Reviewed: no ceremony/status-writing occurrences present.
   - path: "kitty-specs/*/status.json"
-    action: do_not_change
+    action: manual_review
     reason: >
       Runtime-written status snapshot derived from status.events.jsonl.
       System artifact; not a rename target.
+      Reviewed: no ceremony/status-writing occurrences present.
   - path: "kitty-specs/*/tasks/WP*.md"
-    action: do_not_change
+    action: manual_review
     reason: >
       WP task-file frontmatter updated by the runtime during status transitions.
-      The prose content is rename-target prose (covered by user_facing_strings),
-      but lane/status metadata fields are system writes.
+      Prose content updates are covered by user_facing_strings category.
+      Reviewed: lane/status metadata fields are system writes, not rename targets.
   - path: "kitty-specs/*/tasks.md"
-    action: do_not_change
+    action: manual_review
     reason: >
-      Mission tasks index updated by runtime. System artifact.
+      Mission tasks index updated by runtime status transitions. System artifact.
+      Reviewed: no ceremony/status-writing occurrences present.
   - path: "kitty-specs/*/occurrence_map.yaml"
-    action: do_not_change
+    action: manual_review
     reason: >
-      Occurrence map updated during sprint to add system_tracking_files exception.
-      This file is a planning artifact, not a rename target.
+      Occurrence map updated during sprint to add system-tracking file exceptions.
+      Planning artifact. Reviewed: no ceremony/status-writing occurrences introduced.
 
 # ──────────────────────────────────────────────────────────────────────
 # DEAD CODE CANDIDATES
