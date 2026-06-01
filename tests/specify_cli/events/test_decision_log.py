@@ -303,7 +303,7 @@ class TestQueueExclusion:
 
         q = OfflineQueue.__new__(OfflineQueue)
         result = q.queue_event(
-            # canonical-producer-exempt: #1198 -- queue exclusion guard needs a minimal raw event envelope.
+            # canonical-producer-exempt: #1546 -- raw event fixture exercises queue exclusion
             {
                 "event_id": "e001",
                 "event_type": "DecisionInputRequested",
@@ -318,7 +318,7 @@ class TestQueueExclusion:
 
         q = OfflineQueue.__new__(OfflineQueue)
         result = q.queue_event(
-            # canonical-producer-exempt: #1198 -- queue exclusion guard needs a minimal raw event envelope.
+            # canonical-producer-exempt: #1546 -- raw event fixture exercises queue exclusion
             {
                 "event_id": "e002",
                 "event_type": "DecisionInputAnswered",
