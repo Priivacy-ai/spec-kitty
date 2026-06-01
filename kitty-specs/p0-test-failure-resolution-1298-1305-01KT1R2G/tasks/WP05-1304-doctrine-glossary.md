@@ -17,7 +17,7 @@ subtasks:
 - T021
 - T022
 - T023
-agent: claude
+agent: "claude:sonnet-4-6:reviewer:reviewer"
 history: []
 agent_profile: curator-carla
 authoritative_surface: glossary/contexts/
@@ -28,6 +28,7 @@ owned_files:
 - tests/doctrine/**
 role: curator
 tags: []
+shell_pid: "73444"
 ---
 
 ## ⚡ Do This First: Load Agent Profile
@@ -259,3 +260,5 @@ spec-kitty agent action implement WP05 --agent claude
 
 - 2026-06-01T17:46:14Z – claude – WP05 claimed by claude (lane-d worktree created)
 - 2026-06-01T17:49:30Z – claude – Ready for review (cycle 1/3). WP05 is stale — all #1304 doctrine tests pass pre-implementation. FR-007 guards confirmed active. FR-008 results appended to docs/p0-baseline-refresh.md.
+- 2026-06-01T17:49:47Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=73444 – Started review via action command
+- 2026-06-01T17:51:31Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=73444 – Review passed: WP05 correctly identified as stale (#1304 tests all passing pre-implementation). FR-007 guards confirmed active (no xfail/skip). FR-008 results documented in docs/p0-baseline-refresh.md. 1975 doctrine tests pass, 0 failed.
