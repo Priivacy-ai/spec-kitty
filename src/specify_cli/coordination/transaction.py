@@ -22,6 +22,7 @@ import errno
 import json as _json
 import logging
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -133,6 +134,7 @@ class BookkeepingLegacyResolutionFailed(BookkeepingError):
 
 _EVENTS_FILENAME = "status.events.jsonl"
 _SNAPSHOT_FILENAME = "status.json"
+_SAFE_PATH_SEGMENT_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 
 
 def _kitty_specs_dir_name(mission_slug: str, mid8: str) -> str:
@@ -145,6 +147,20 @@ def _kitty_specs_dir_name(mission_slug: str, mid8: str) -> str:
     if mission_slug.endswith(f"-{mid8}"):
         return mission_slug
     return f"{mission_slug}-{mid8}"
+
+
+def _validate_safe_segment(name: str, value: str) -> str:
+    """Return a single safe path segment or raise a bookkeeping error."""
+    candidate = value.strip()
+    if not candidate:
+        raise BookkeepingError(f"{name} cannot be empty")
+    if candidate in {".", ".."} or "/" in candidate or "\\" in candidate:
+        raise BookkeepingError(f"{name} must be a single safe path segment")
+    if _SAFE_PATH_SEGMENT_RE.fullmatch(candidate) is None:
+        raise BookkeepingError(
+            f"{name} contains unsupported characters: {candidate!r}"
+        )
+    return candidate
 
 
 def _generate_ulid() -> str:
@@ -618,6 +634,9 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         operation: str,
         lock_cm: AbstractContextManager[Path],
     ) -> BookkeepingTransaction:
+        safe_mission_slug = _validate_safe_segment("mission_slug", mission_slug)
+        safe_mid8 = _validate_safe_segment("mid8", mid8)
+
         # Resolve the worktree.  Two paths exist (WP08 T035–T036, SC-11):
         #
         # (a) **New topology** (default): the mission's meta.json carries
@@ -642,7 +661,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         # truncate rollback, and the outbound deferral — applies
         # uniformly to both paths.**  Only ``worktree_root`` and (in
         # legacy mode) ``destination_ref`` differ.
-        legacy_mode = _is_legacy_mission(repo_root, mission_slug, mid8)
+        legacy_mode = _is_legacy_mission(repo_root, safe_mission_slug, safe_mid8)
         if legacy_mode:
             try:
                 worktree_root, lane_branch = _resolve_legacy_lane_destination(
@@ -654,17 +673,17 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             # lane branch so policy + HEAD assertion both see truth.
             normalised_ref = _normalize_ref(lane_branch)
             destination_ref = normalised_ref
-            _emit_legacy_warning_once(repo_root, mission_id, mission_slug)
+            _emit_legacy_warning_once(repo_root, mission_id, safe_mission_slug)
         else:
             # New topology — create coord worktree on first call.
             try:
                 worktree_root = CoordinationWorkspace.resolve(
-                    repo_root, mission_slug, mid8,
+                    repo_root, safe_mission_slug, safe_mid8,
                 )
             except Exception as exc:  # noqa: BLE001 — domain error surface
                 raise BookkeepingWorktreeMissing(
                     f"Failed to resolve coordination worktree for "
-                    f"{mission_slug}-{mid8}: {exc}"
+                    f"{safe_mission_slug}-{safe_mid8}: {exc}"
                 ) from exc
 
         # 3. Compute the feature_dir + status files INSIDE the resolved
@@ -674,7 +693,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         # there is no sparse-checkout policy on the lane, so the files
         # are physically present and the surgical truncate rollback
         # works against the lane worktree without modification.
-        kitty_dir_name = _kitty_specs_dir_name(mission_slug, mid8)
+        kitty_dir_name = _kitty_specs_dir_name(safe_mission_slug, safe_mid8)
         feature_dir = worktree_root / "kitty-specs" / kitty_dir_name
         events_path = feature_dir / _EVENTS_FILENAME
         snapshot_path = feature_dir / _SNAPSHOT_FILENAME

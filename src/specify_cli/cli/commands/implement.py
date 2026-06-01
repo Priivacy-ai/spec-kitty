@@ -197,18 +197,9 @@ def _validate_base_ref(repo_root: Path, base_ref: str) -> str:
     return result.stdout.strip()
 
 
-def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestration helper; unrelated to issue #1386
-    repo_root: Path,
-    feature_dir: Path,
-    mission_slug: str,
-    wp_id: str,
-    planning_branch: str,
-    *,
-    auto_commit: bool,
-) -> None:
-    """Ensure planning artifacts are committed on the feature planning branch."""
+def _git_stdout(repo_root: Path, args: list[str]) -> str:
     result = subprocess.run(
-        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+        ["git", *args],
         cwd=repo_root,
         capture_output=True,
         text=True,
@@ -216,56 +207,53 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
         errors="replace",
         check=False,
     )
-    current_branch = result.stdout.strip() if result.returncode == 0 else ""
+    if result.returncode != 0:
+        return ""
+    return result.stdout.strip()
 
-    result = subprocess.run(
-        ["git", "status", "--porcelain", str(feature_dir)],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    if result.returncode != 0 or not result.stdout.strip():
-        return
 
-    files_to_commit: list[str] = []
-    for line in result.stdout.strip().splitlines():
-        if len(line) >= 4:
-            files_to_commit.append(line[3:].strip())
+def _feature_dir_status_paths(repo_root: Path, feature_dir: Path) -> list[str]:
+    output = _git_stdout(repo_root, ["status", "--porcelain", str(feature_dir)])
+    if not output:
+        return []
+    return [line[3:].strip() for line in output.splitlines() if len(line) >= 4]
 
-    if not files_to_commit:
-        return
 
+def _print_uncommitted_planning_artifacts(files_to_commit: list[str]) -> None:
     console.print("\n[cyan]Planning artifacts not committed:[/cyan]")
     for file_path in files_to_commit:
         console.print(f"  {file_path}")
 
+
+def _print_planning_artifact_commit_instructions(
+    current_branch: str,
+    planning_branch: str,
+    auto_commit: bool,
+    feature_dir: Path,
+    mission_slug: str,
+) -> None:
     if current_branch != planning_branch:
-        console.print(f"\n[red]Error:[/red] Planning artifacts must be committed on {planning_branch}.")
+        console.print(
+            f"\n[red]Error:[/red] Planning artifacts must be committed on {planning_branch}."
+        )
         console.print(f"Current branch: {current_branch}")
         raise typer.Exit(1)
 
-    if not auto_commit:
-        console.print("\n[yellow]Auto-commit disabled.[/yellow] Commit planning artifacts first:")
-        console.print(f"  git add -f {feature_dir}")
-        console.print(f'  git commit -m "chore: planning artifacts for {mission_slug}"')
-        raise typer.Exit(1)
+    if auto_commit:
+        return
 
-    commit_msg = (
-        f"chore: planning artifacts for {mission_slug}\n\n"
-        f"Auto-committed by spec-kitty before creating the lane worktree for {wp_id}"
+    console.print(
+        "\n[yellow]Auto-commit disabled.[/yellow] Commit planning artifacts first:"
     )
+    console.print(f"  git add -f {feature_dir}")
+    console.print(f'  git commit -m "chore: planning artifacts for {mission_slug}"')
+    raise typer.Exit(1)
 
-    # WP06 T026: route planning-artifact commits through
-    # BookkeepingTransaction so the commit lands on the mission's
-    # coordination branch (FR-005) and any write of status events is
-    # atomically reversible (FR-010).
-    #
-    # Legacy missions (created pre-WP03) have no ``coordination_branch``
-    # in meta.json. For those, fall back to the legacy raw-git path.
-    # WP08 will replace this fallback with a proper legacy bridge.
+
+def _resolve_bookkeeping_transaction_identifiers(
+    feature_dir: Path,
+    mission_slug: str,
+) -> tuple[str | None, str | None, str | None, str, str]:
     from specify_cli.mission_metadata import load_meta as _load_meta
 
     mission_meta: dict[str, Any] | None
@@ -283,6 +271,63 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
         mid8 = mission_meta.get("mid8") or (
             mission_id[:8] if isinstance(mission_id, str) and len(mission_id) >= 8 else None
         )
+
+    effective_mission_id = (
+        str(mission_id) if mission_id else f"legacy-{mission_slug}"
+    )
+    if mid8:
+        effective_mid8 = str(mid8)
+    elif mission_id and len(str(mission_id)) >= 8:
+        effective_mid8 = str(mission_id)[:8]
+    else:
+        effective_mid8 = (mission_slug.replace("-", "") + "00000000")[:8]
+    return coord_branch, mission_id, mid8, effective_mission_id, effective_mid8
+
+
+def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestration helper; unrelated to issue #1386
+    repo_root: Path,
+    feature_dir: Path,
+    mission_slug: str,
+    wp_id: str,
+    planning_branch: str,
+    *,
+    auto_commit: bool,
+) -> None:
+    """Ensure planning artifacts are committed on the feature planning branch."""
+    current_branch = _git_stdout(repo_root, ["rev-parse", "--abbrev-ref", "HEAD"])
+    files_to_commit = _feature_dir_status_paths(repo_root, feature_dir)
+    if not files_to_commit:
+        return
+
+    _print_uncommitted_planning_artifacts(files_to_commit)
+    _print_planning_artifact_commit_instructions(
+        current_branch,
+        planning_branch,
+        auto_commit,
+        feature_dir,
+        mission_slug,
+    )
+
+    commit_msg = (
+        f"chore: planning artifacts for {mission_slug}\n\n"
+        f"Auto-committed by spec-kitty before creating the lane worktree for {wp_id}"
+    )
+
+    # WP06 T026: route planning-artifact commits through
+    # BookkeepingTransaction so the commit lands on the mission's
+    # coordination branch (FR-005) and any write of status events is
+    # atomically reversible (FR-010).
+    #
+    # Legacy missions (created pre-WP03) have no ``coordination_branch``
+    # in meta.json. For those, fall back to the legacy raw-git path.
+    # WP08 will replace this fallback with a proper legacy bridge.
+    (
+        coord_branch,
+        mission_id,
+        mid8,
+        effective_mission_id,
+        effective_mid8,
+    ) = _resolve_bookkeeping_transaction_identifiers(feature_dir, mission_slug)
 
     # Route ALL planning-artifact commits through BookkeepingTransaction.
     # The transaction has a built-in legacy fallback (see
@@ -307,16 +352,6 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
     # destination_ref from HEAD, so the placeholder coord_branch value
     # below is never persisted; the routing just needs *some* shape-valid
     # ref name to satisfy the pre-flight policy gate's normalisation.
-    effective_mission_id = str(mission_id) if mission_id else f"legacy-{mission_slug}"
-    if mid8:
-        effective_mid8 = str(mid8)
-    elif mission_id and len(str(mission_id)) >= 8:
-        effective_mid8 = str(mission_id)[:8]
-    else:
-        # Pre-WP03 mission with no mission_id at all. Derive a stable
-        # 8-char prefix from the mission_slug so kitty_specs_dir_name
-        # resolution stays deterministic across invocations.
-        effective_mid8 = (mission_slug.replace("-", "") + "00000000")[:8]
     effective_destination_ref = (
         str(coord_branch) if coord_branch else planning_branch
     )

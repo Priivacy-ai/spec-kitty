@@ -991,6 +991,53 @@ def _record_baseline_merge_commit(
     return meta_path
 
 
+def _recorded_baseline_from_working_meta(feature_dir: Path | None) -> str:
+    if feature_dir is None:
+        return ""
+    try:
+        working_meta = load_meta(feature_dir)
+    except ValueError:
+        return ""
+    if not isinstance(working_meta, dict):
+        return ""
+    return str(working_meta.get("baseline_merge_commit") or "").strip()
+
+
+def _read_committed_meta_json(
+    main_repo: Path,
+    target_branch: str,
+    meta_rel: str,
+    mission_slug: str,
+) -> dict[str, object]:
+    ret, out, err = run_command(
+        ["git", "show", f"{target_branch}:{meta_rel}"],
+        capture=True,
+        check_return=False,
+        cwd=main_repo,
+    )
+    if ret != 0:
+        raise BaselineMergeCommitError(
+            f"Post-merge baseline validation failed for {mission_slug}: "
+            f"could not read {meta_rel} from {target_branch} "
+            f"({(err or '').strip() or 'git show failed'})."
+        )
+
+    try:
+        committed_meta = json.loads(out)
+    except json.JSONDecodeError as exc:
+        raise BaselineMergeCommitError(
+            f"Post-merge baseline validation failed for {mission_slug}: "
+            f"committed {meta_rel} on {target_branch} is not valid JSON ({exc})."
+        ) from exc
+
+    if not isinstance(committed_meta, dict):
+        raise BaselineMergeCommitError(
+            f"Post-merge baseline validation failed for {mission_slug}: "
+            f"committed {meta_rel} on {target_branch} is not a JSON object."
+        )
+    return committed_meta
+
+
 def _assert_baseline_merge_commit_on_target(
     main_repo: Path,
     mission_slug: str,
@@ -1028,15 +1075,7 @@ def _assert_baseline_merge_commit_on_target(
     if not (mission_id and str(mission_id).strip()):
         return
 
-    recorded = ""
-    if feature_dir is not None:
-        try:
-            working_meta = load_meta(feature_dir)
-        except ValueError:
-            working_meta = None
-        if isinstance(working_meta, dict):
-            recorded = str(working_meta.get("baseline_merge_commit") or "").strip()
-
+    recorded = _recorded_baseline_from_working_meta(feature_dir)
     expected = recorded or (expected_baseline or "").strip()
     if not expected:
         raise BaselineMergeCommitError(
@@ -1045,33 +1084,9 @@ def _assert_baseline_merge_commit_on_target(
         )
 
     meta_rel = f"kitty-specs/{mission_slug}/meta.json"
-    ret, out, err = run_command(
-        ["git", "show", f"{target_branch}:{meta_rel}"],
-        capture=True,
-        check_return=False,
-        cwd=main_repo,
+    committed_meta = _read_committed_meta_json(
+        main_repo, target_branch, meta_rel, mission_slug
     )
-    if ret != 0:
-        raise BaselineMergeCommitError(
-            f"Post-merge baseline validation failed for {mission_slug}: "
-            f"could not read {meta_rel} from {target_branch} "
-            f"({(err or '').strip() or 'git show failed'})."
-        )
-
-    try:
-        committed_meta = json.loads(out)
-    except json.JSONDecodeError as exc:
-        raise BaselineMergeCommitError(
-            f"Post-merge baseline validation failed for {mission_slug}: "
-            f"committed {meta_rel} on {target_branch} is not valid JSON ({exc})."
-        ) from exc
-
-    if not isinstance(committed_meta, dict):
-        raise BaselineMergeCommitError(
-            f"Post-merge baseline validation failed for {mission_slug}: "
-            f"committed {meta_rel} on {target_branch} is not a JSON object."
-        )
-
     committed_baseline = str(committed_meta.get("baseline_merge_commit") or "").strip()
     if not committed_baseline:
         raise BaselineMergeCommitError(

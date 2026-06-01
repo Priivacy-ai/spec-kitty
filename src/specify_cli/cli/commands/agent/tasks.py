@@ -759,7 +759,7 @@ def _check_unchecked_subtasks(repo_root: Path, mission_slug: str, wp_id: str, _f
         # Toggle fenced-code-block state on ``` or ~~~ markers. Task-like lines
         # inside fenced code blocks (examples in implementation notes) must not
         # be treated as real subtasks.
-        if stripped.startswith("```") or stripped.startswith("~~~"):
+        if stripped.startswith(("```", "~~~")):
             in_code_fence = not in_code_fence
             continue
 

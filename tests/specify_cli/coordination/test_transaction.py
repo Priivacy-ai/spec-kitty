@@ -27,6 +27,7 @@ import specify_cli.coordination.transaction as transaction_module
 from specify_cli.coordination.transaction import (
     BookkeepingCommitFailed,
     BookkeepingDoubleEventId,
+    BookkeepingError,
     BookkeepingLockTimeout,
     BookkeepingPolicyRefused,
     BookkeepingTransaction,
@@ -206,6 +207,19 @@ def test_destination_ref_refs_heads_prefix_refused(repo: Path) -> None:
             operation="long_form",
         )
     assert excinfo.value.verdict.error_code == "DESTINATION_REF_INVALID_SHAPE"
+
+
+def test_mission_slug_path_traversal_is_rejected(repo: Path) -> None:
+    """User-controlled mission selectors must not escape kitty-specs/."""
+    with pytest.raises(BookkeepingError, match="single safe path segment"):
+        BookkeepingTransaction.acquire(
+            repo_root=repo,
+            mission_id=MISSION_ID,
+            mission_slug="../escape",
+            mid8=MID8,
+            destination_ref=COORD_BRANCH,
+            operation="unsafe_slug",
+        )
 
 
 # ---------------------------------------------------------------------------

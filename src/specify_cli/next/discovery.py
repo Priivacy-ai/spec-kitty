@@ -134,15 +134,23 @@ def _preview_from_candidates(
             has_active_candidate = True
     return ClaimablePreview(
         wp_id=None,
-        selection_reason=(
-            "dependencies_not_satisfied"
-            if has_dependency_blocked_candidate
-            else "all_wps_in_progress"
-            if has_active_candidate
-            else "no_planned_wps"
+        selection_reason=_claimable_selection_reason(
+            has_dependency_blocked_candidate,
+            has_active_candidate,
         ),
         candidates=tuple(candidates),
     )
+
+
+def _claimable_selection_reason(
+    has_dependency_blocked_candidate: bool,
+    has_active_candidate: bool,
+) -> str:
+    if has_dependency_blocked_candidate:
+        return "dependencies_not_satisfied"
+    if has_active_candidate:
+        return "all_wps_in_progress"
+    return "no_planned_wps"
 
 
 def preview_claimable_wp(feature_dir: Path) -> ClaimablePreview:
