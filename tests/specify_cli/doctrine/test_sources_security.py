@@ -19,6 +19,7 @@ import subprocess
 import tarfile
 import zipfile
 from pathlib import Path
+from urllib.parse import quote
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -422,19 +423,20 @@ def test_git_source_redacts_injected_oauth_token_from_stderr(
 ) -> None:
     from specify_cli.doctrine.sources.git_source import GitSource  # noqa: PLC0415
 
-    token = "ghp_secret/with-slash"
+    token = "ghp_secret/with@reserved"
     monkeypatch.setenv("GIT_TOKEN", token)
     source = GitSource(url="https://github.com/acme/private-pack.git")
 
     def _fake_git(argv: list[str]) -> subprocess.CompletedProcess[str]:
-        assert any(token in part for part in argv)
+        assert all(token not in part for part in argv)
+        assert any(quote(token, safe="") in part for part in argv)
         return subprocess.CompletedProcess(
             argv,
             128,
             stdout="",
             stderr=(
                 "fatal: unable to access "
-                "'https://oauth2:ghp_secret/with-slash@github.com/acme/private-pack.git/'"
+                "'https://oauth2:ghp_secret/with@reserved@github.com/acme/private-pack.git/'"
             ),
         )
 

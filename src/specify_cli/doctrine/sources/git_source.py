@@ -18,6 +18,7 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import quote
 
 from .protocol import FetchResult
 
@@ -143,9 +144,9 @@ class GitSource:
             return url
         if not url.startswith("https://"):
             return url
-        # Insert token as oauth2 user. Git may echo argv URLs on failure; stderr
-        # is redacted before returning errors to callers.
-        return url.replace("https://", f"https://oauth2:{token}@", 1)
+        # Insert token as oauth2 user. URL-encode so reserved chars cannot
+        # split the credential field; stderr is redacted before returning.
+        return url.replace("https://", f"https://oauth2:{quote(token, safe='')}@", 1)
 
     @staticmethod
     def _run_git(argv: list[str]) -> subprocess.CompletedProcess[str]:
@@ -171,4 +172,8 @@ def _count_yaml_files(target_dir: Path) -> int:
 
 def _redact_git_tokens(text: str) -> str:
     """Remove OAuth2 credentials from git stderr before operator-facing output."""
-    return re.sub(r"oauth2:[^@\s'\"]+@", "oauth2:<redacted>@", text)
+    return re.sub(
+        r"oauth2:[^\s'\"]+@(?=[^@\s/'\"]+(?::\d+)?(?:/|$))",
+        "oauth2:<redacted>@",
+        text,
+    )
