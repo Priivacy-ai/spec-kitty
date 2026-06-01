@@ -333,6 +333,28 @@ def _resolve_confined_artifact_path(worktree_root: Path, path: Path) -> Path:
     return resolved_path
 
 
+def _coordination_feature_paths(
+    worktree_root: Path,
+    mission_slug: str,
+    mid8: str,
+) -> tuple[Path, Path, Path]:
+    """Return canonical feature/status paths confined to the coordination worktree."""
+    kitty_dir_name = _kitty_specs_dir_name(mission_slug, mid8)
+    feature_dir = _resolve_confined_artifact_path(
+        worktree_root,
+        worktree_root / "kitty-specs" / kitty_dir_name,
+    )
+    events_path = _resolve_confined_artifact_path(
+        worktree_root,
+        feature_dir / _EVENTS_FILENAME,
+    )
+    snapshot_path = _resolve_confined_artifact_path(
+        worktree_root,
+        feature_dir / _SNAPSHOT_FILENAME,
+    )
+    return feature_dir, events_path, snapshot_path
+
+
 def _write_confined_artifact_bytes(
     worktree_root: Path,
     path: Path,
@@ -674,10 +696,11 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         # there is no sparse-checkout policy on the lane, so the files
         # are physically present and the surgical truncate rollback
         # works against the lane worktree without modification.
-        kitty_dir_name = _kitty_specs_dir_name(mission_slug, mid8)
-        feature_dir = worktree_root / "kitty-specs" / kitty_dir_name
-        events_path = feature_dir / _EVENTS_FILENAME
-        snapshot_path = feature_dir / _SNAPSHOT_FILENAME
+        feature_dir, events_path, snapshot_path = _coordination_feature_paths(
+            worktree_root,
+            mission_slug,
+            mid8,
+        )
 
         # 4. Build the change set and run the pre-flight policy gate.
         # This still happens before any bookkeeping write; the lock is

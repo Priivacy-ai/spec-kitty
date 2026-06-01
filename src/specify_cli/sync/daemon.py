@@ -37,7 +37,7 @@ from enum import Enum
 from functools import cache
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Optional, Tuple
 
 if sys.platform == "win32":
     import msvcrt
@@ -619,11 +619,62 @@ def run_sync_daemon(port: int, daemon_token: str | None) -> None:
         token=daemon_token or "",
         allow_network=False,
     )
+    _write_initial_owner_record(write_owner_record, record)
+    _start_runtime_thread(
+        port=port,
+        daemon_token=daemon_token,
+        build_record_for_current_process=build_record_for_current_process,
+        write_owner_record=write_owner_record,
+    )
+
+    def _cleanup_owner_record() -> None:
+        _cleanup_owner_record_file(remove_owner_record)
+
+    atexit.register(_cleanup_owner_record)
+
+    def _signal_handler(signum: int, _frame: Any) -> None:
+        logger.info("Received signal %d; shutting down daemon", signum)
+        _cleanup_owner_record()
+        _shutdown_server_async(server)
+
+    # Best-effort signal handlers. ``signal.signal`` only works on the main
+    # thread, which is where ``run_sync_daemon`` always executes; if we are
+    # ever called off-main-thread (tests stubbing this in), we silently
+    # skip rather than raising.
+    for sig_name in ("SIGTERM", "SIGINT"):
+        sig = getattr(_signal, sig_name, None)
+        if sig is None:
+            continue
+        try:
+            _signal.signal(sig, _signal_handler)
+        except (ValueError, OSError):  # pragma: no cover - off main thread
+            pass
+
+    tick = _start_self_check_tick(server, my_port=port)
+    try:
+        server.serve_forever(poll_interval=DAEMON_SERVE_FOREVER_POLL_SECONDS)
+    finally:
+        tick.cancel()
+        _cleanup_owner_record()
+
+
+def _write_initial_owner_record(
+    write_owner_record: Callable[[Any], None],
+    record: Any,
+) -> None:
     try:
         write_owner_record(record)
     except OSError as exc:  # pragma: no cover - filesystem catastrophe
         logger.warning("Failed to write daemon owner record: %s", exc)
 
+
+def _start_runtime_thread(
+    *,
+    port: int,
+    daemon_token: str | None,
+    build_record_for_current_process: Callable[..., Any],
+    write_owner_record: Callable[[Any], None],
+) -> None:
     def _start_runtime_in_background() -> None:
         try:
             time.sleep(_RUNTIME_BACKGROUND_START_DELAY_SECONDS)
@@ -649,51 +700,22 @@ def run_sync_daemon(port: int, daemon_token: str | None) -> None:
         daemon=True,
     ).start()
 
-    def _cleanup_owner_record() -> None:
-        try:
-            remove_owner_record()
-        # Best-effort cleanup: never block daemon exit on owner-record removal.
-        except Exception:  # noqa: BLE001
-            logger.debug("Owner record cleanup raised; continuing")
 
-    atexit.register(_cleanup_owner_record)
-
-    def _signal_handler(signum: int, _frame: Any) -> None:
-        logger.info("Received signal %d; shutting down daemon", signum)
-        _cleanup_owner_record()
-        # ``HTTPServer.shutdown()`` blocks until ``serve_forever()`` returns.
-        # If we call it on the main thread (where ``serve_forever()`` is
-        # blocking), the signal handler deadlocks against the serve loop and
-        # the process never exits. Spawn a daemon thread so the signal
-        # handler returns immediately and ``serve_forever()`` is free to
-        # observe the shutdown flag and unwind.
-        def _shutdown_off_thread() -> None:
-            try:
-                server.shutdown()
-            except Exception:  # noqa: BLE001 — best-effort during shutdown
-                logger.debug("server.shutdown() raised during signal teardown")
-
-        threading.Thread(target=_shutdown_off_thread, daemon=True).start()
-
-    # Best-effort signal handlers. ``signal.signal`` only works on the main
-    # thread, which is where ``run_sync_daemon`` always executes; if we are
-    # ever called off-main-thread (tests stubbing this in), we silently
-    # skip rather than raising.
-    for sig_name in ("SIGTERM", "SIGINT"):
-        sig = getattr(_signal, sig_name, None)
-        if sig is None:
-            continue
-        try:
-            _signal.signal(sig, _signal_handler)
-        except (ValueError, OSError):  # pragma: no cover - off main thread
-            pass
-
-    tick = _start_self_check_tick(server, my_port=port)
+def _cleanup_owner_record_file(remove_owner_record: Callable[[], None]) -> None:
     try:
-        server.serve_forever(poll_interval=DAEMON_SERVE_FOREVER_POLL_SECONDS)
-    finally:
-        tick.cancel()
-        _cleanup_owner_record()
+        remove_owner_record()
+    except Exception:  # noqa: BLE001
+        logger.debug("Owner record cleanup raised; continuing")
+
+
+def _shutdown_server_async(server: HTTPServer) -> None:
+    def _shutdown_off_thread() -> None:
+        try:
+            server.shutdown()
+        except Exception:  # noqa: BLE001 — best-effort during shutdown
+            logger.debug("server.shutdown() raised during signal teardown")
+
+    threading.Thread(target=_shutdown_off_thread, daemon=True).start()
 
 
 def _background_script(port: int, daemon_token: str | None) -> str:
@@ -841,28 +863,16 @@ def ensure_sync_daemon_running(  # noqa: C901 — lifecycle decision matrix plus
     _daemon_root().mkdir(parents=True, exist_ok=True)
 
     lock_fd = open(DAEMON_LOCK_FILE, "w")  # noqa: SIM115
+    acquired = False
     try:
-        # Use a bounded wait instead of blocking indefinitely (#598).
-        # If another process is starting the daemon, we retry for up to
-        # ~10 seconds before giving up — the daemon is likely already
-        # running and will be reachable on the next CLI call.
-        acquired = False
-        for _ in range(100):
-            try:
-                if sys.platform == "win32":
-                    msvcrt.locking(lock_fd.fileno(), msvcrt.LK_NBLCK, 1)
-                else:
-                    fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                acquired = True
-                break
-            except OSError as exc:
-                if not _is_daemon_lock_contention(exc):
-                    return DaemonStartOutcome(
-                        started=False,
-                        skipped_reason=f"start_failed: {exc}",
-                        pid=None,
-                    )
-                time.sleep(0.1)
+        try:
+            acquired = _acquire_daemon_lock(lock_fd)
+        except OSError as exc:
+            return DaemonStartOutcome(
+                started=False,
+                skipped_reason=f"start_failed: {exc}",
+                pid=None,
+            )
         if not acquired:
             emit_sync_diagnostic(
                 SyncDiagnosticCode.LOCK_UNAVAILABLE,
@@ -874,25 +884,7 @@ def ensure_sync_daemon_running(  # noqa: C901 — lifecycle decision matrix plus
                 skipped_reason="start_failed: could not acquire daemon lock within 10s",
                 pid=None,
             )
-        try:
-            if health_wait_seconds is None:
-                _url, _port, _started = _ensure_sync_daemon_running_locked()
-            else:
-                _url, _port, _started = _ensure_sync_daemon_running_locked(
-                    health_wait_seconds=health_wait_seconds
-                )
-        except Exception as exc:
-            return DaemonStartOutcome(
-                started=False, skipped_reason=f"start_failed: {exc}", pid=None
-            )
-        # Retrieve the PID from the state file after successful start
-        pid: int | None = None
-        if DAEMON_STATE_FILE.exists():
-            try:
-                _u, _p, _t, pid = _parse_daemon_file(DAEMON_STATE_FILE)
-            except Exception:
-                pid = None
-        return DaemonStartOutcome(started=True, skipped_reason=None, pid=pid)
+        return _start_daemon_locked_outcome(health_wait_seconds)
     finally:
         if acquired:
             if sys.platform == "win32":
@@ -900,6 +892,52 @@ def ensure_sync_daemon_running(  # noqa: C901 — lifecycle decision matrix plus
             else:
                 fcntl.flock(lock_fd, fcntl.LOCK_UN)
         lock_fd.close()
+
+
+def _acquire_daemon_lock(lock_fd: Any) -> bool:
+    for _ in range(100):
+        try:
+            if sys.platform == "win32":
+                msvcrt.locking(lock_fd.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return True
+        except OSError as exc:
+            if not _is_daemon_lock_contention(exc):
+                raise
+            time.sleep(0.1)
+    return False
+
+
+def _start_daemon_locked_outcome(
+    health_wait_seconds: float | None,
+) -> DaemonStartOutcome:
+    try:
+        if health_wait_seconds is None:
+            _ensure_sync_daemon_running_locked()
+        else:
+            _ensure_sync_daemon_running_locked(
+                health_wait_seconds=health_wait_seconds
+            )
+    except Exception as exc:
+        return DaemonStartOutcome(
+            started=False, skipped_reason=f"start_failed: {exc}", pid=None
+        )
+    return DaemonStartOutcome(
+        started=True,
+        skipped_reason=None,
+        pid=_daemon_state_pid(),
+    )
+
+
+def _daemon_state_pid() -> int | None:
+    if not DAEMON_STATE_FILE.exists():
+        return None
+    try:
+        _u, _p, _t, pid = _parse_daemon_file(DAEMON_STATE_FILE)
+    except Exception:
+        return None
+    return pid
 
 
 def _bounded_retry_delays(
@@ -924,31 +962,9 @@ def _ensure_sync_daemon_running_locked(
     health_wait_seconds: float | None = None,
 ) -> tuple[str, int, bool]:
     """Inner implementation — caller must hold the daemon lock file."""
-    if DAEMON_STATE_FILE.exists():
-        existing_url, existing_port, existing_token, existing_pid = _parse_daemon_file(DAEMON_STATE_FILE)
-        if existing_port is not None and _check_sync_daemon_health(
-            existing_port,
-            existing_token,
-            timeout=_STARTUP_HEALTH_TIMEOUT_SECONDS,
-        ):
-            # Daemon is healthy — check whether it's running the current version.
-            if _daemon_version_matches(
-                existing_port,
-                existing_token,
-                timeout=_STARTUP_HEALTH_TIMEOUT_SECONDS,
-            ):
-                return existing_url or f"http://127.0.0.1:{existing_port}", existing_port, False
-
-            # Stale version — recycle the daemon.
-            logger.info("Recycling sync daemon (version mismatch)")
-            _stop_daemon_by_http(existing_url or f"http://127.0.0.1:{existing_port}", existing_token)
-            _kill_and_cleanup(existing_pid)
-        elif existing_pid is not None and not _is_process_alive(existing_pid):
-            DAEMON_STATE_FILE.unlink(missing_ok=True)
-        elif existing_pid is not None:
-            _kill_and_cleanup(existing_pid)
-        else:
-            DAEMON_STATE_FILE.unlink(missing_ok=True)
+    existing = _reconcile_existing_daemon_state()
+    if existing is not None:
+        return existing
 
     if preferred_port is not None:
         port = preferred_port
@@ -991,6 +1007,64 @@ def _ensure_sync_daemon_running_locked(
         _kill_and_cleanup(proc.pid)
 
     raise RuntimeError(f"Sync daemon failed health check on port {port}")
+
+
+def _reconcile_existing_daemon_state() -> tuple[str, int, bool] | None:
+    if not DAEMON_STATE_FILE.exists():
+        return None
+
+    existing_url, existing_port, existing_token, existing_pid = _parse_daemon_file(DAEMON_STATE_FILE)
+    if _existing_daemon_is_healthy(existing_port, existing_token):
+        return _reuse_or_recycle_daemon(
+            existing_url,
+            existing_port,
+            existing_token,
+            existing_pid,
+        )
+    _cleanup_unhealthy_existing_daemon(existing_pid)
+    return None
+
+
+def _existing_daemon_is_healthy(
+    existing_port: int | None,
+    existing_token: str | None,
+) -> bool:
+    return existing_port is not None and _check_sync_daemon_health(
+        existing_port,
+        existing_token,
+        timeout=_STARTUP_HEALTH_TIMEOUT_SECONDS,
+    )
+
+
+def _reuse_or_recycle_daemon(
+    existing_url: str | None,
+    existing_port: int | None,
+    existing_token: str | None,
+    existing_pid: int | None,
+) -> tuple[str, int, bool] | None:
+    if existing_port is None:
+        return None
+    if _daemon_version_matches(
+        existing_port,
+        existing_token,
+        timeout=_STARTUP_HEALTH_TIMEOUT_SECONDS,
+    ):
+        return existing_url or f"http://127.0.0.1:{existing_port}", existing_port, False
+
+    logger.info("Recycling sync daemon (version mismatch)")
+    _stop_daemon_by_http(existing_url or f"http://127.0.0.1:{existing_port}", existing_token)
+    _kill_and_cleanup(existing_pid)
+    return None
+
+
+def _cleanup_unhealthy_existing_daemon(existing_pid: int | None) -> None:
+    if existing_pid is not None and not _is_process_alive(existing_pid):
+        DAEMON_STATE_FILE.unlink(missing_ok=True)
+        return
+    if existing_pid is not None:
+        _kill_and_cleanup(existing_pid)
+        return
+    DAEMON_STATE_FILE.unlink(missing_ok=True)
 
 
 def _stop_daemon_by_http(url: str, token: str | None) -> None:

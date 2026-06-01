@@ -197,6 +197,56 @@ def _validate_base_ref(repo_root: Path, base_ref: str) -> str:
     return result.stdout.strip()
 
 
+def _tracked_feature_files(repo_root: Path, feature_dir: Path) -> list[str]:
+    """Return changed planning-artifact paths under ``feature_dir``."""
+    result = subprocess.run(
+        ["git", "status", "--porcelain", str(feature_dir)],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if result.returncode != 0 or not result.stdout.strip():
+        return []
+    return [line[3:].strip() for line in result.stdout.strip().splitlines() if len(line) >= 4]
+
+
+def _load_planning_mission_meta(feature_dir: Path) -> dict[str, Any] | None:
+    from specify_cli.mission_metadata import load_meta as _load_meta
+
+    try:
+        mission_meta = _load_meta(feature_dir)
+    except Exception:  # noqa: BLE001 — meta missing/corrupt is legacy
+        return None
+    return mission_meta if isinstance(mission_meta, dict) else None
+
+
+def _effective_bookkeeping_target(
+    mission_slug: str,
+    planning_branch: str,
+    mission_meta: dict[str, Any] | None,
+) -> tuple[str | None, str, str, str, bool]:
+    coord_branch = mission_meta.get("coordination_branch") if mission_meta else None
+    mission_id = mission_meta.get("mission_id") if mission_meta else None
+    mid8 = mission_meta.get("mid8") if mission_meta else None
+    if not mid8 and isinstance(mission_id, str) and len(mission_id) >= 8:
+        mid8 = mission_id[:8]
+
+    effective_mission_id = str(mission_id) if mission_id else f"legacy-{mission_slug}"
+    if mid8:
+        effective_mid8 = str(mid8)
+    elif mission_id and len(str(mission_id)) >= 8:
+        effective_mid8 = str(mission_id)[:8]
+    else:
+        effective_mid8 = (mission_slug.replace("-", "") + "00000000")[:8]
+
+    effective_destination_ref = str(coord_branch) if coord_branch else planning_branch
+    is_legacy = not (coord_branch and mission_id and mid8)
+    return coord_branch, effective_mission_id, effective_mid8, effective_destination_ref, is_legacy
+
+
 def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestration helper; unrelated to issue #1386
     repo_root: Path,
     feature_dir: Path,
@@ -218,22 +268,7 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
     )
     current_branch = result.stdout.strip() if result.returncode == 0 else ""
 
-    result = subprocess.run(
-        ["git", "status", "--porcelain", str(feature_dir)],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    if result.returncode != 0 or not result.stdout.strip():
-        return
-
-    files_to_commit: list[str] = []
-    for line in result.stdout.strip().splitlines():
-        if len(line) >= 4:
-            files_to_commit.append(line[3:].strip())
+    files_to_commit = _tracked_feature_files(repo_root, feature_dir)
 
     if not files_to_commit:
         return
@@ -266,23 +301,7 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
     # Legacy missions (created pre-WP03) have no ``coordination_branch``
     # in meta.json. For those, fall back to the legacy raw-git path.
     # WP08 will replace this fallback with a proper legacy bridge.
-    from specify_cli.mission_metadata import load_meta as _load_meta
-
-    mission_meta: dict[str, Any] | None
-    try:
-        mission_meta = _load_meta(feature_dir)
-    except Exception:  # noqa: BLE001 — meta missing/corrupt is legacy
-        mission_meta = None
-
-    coord_branch: str | None = None
-    mission_id: str | None = None
-    mid8: str | None = None
-    if isinstance(mission_meta, dict):
-        coord_branch = mission_meta.get("coordination_branch") or None
-        mission_id = mission_meta.get("mission_id") or None
-        mid8 = mission_meta.get("mid8") or (
-            mission_id[:8] if isinstance(mission_id, str) and len(mission_id) >= 8 else None
-        )
+    mission_meta = _load_planning_mission_meta(feature_dir)
 
     # Route ALL planning-artifact commits through BookkeepingTransaction.
     # The transaction has a built-in legacy fallback (see
@@ -307,21 +326,13 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
     # destination_ref from HEAD, so the placeholder coord_branch value
     # below is never persisted; the routing just needs *some* shape-valid
     # ref name to satisfy the pre-flight policy gate's normalisation.
-    effective_mission_id = str(mission_id) if mission_id else f"legacy-{mission_slug}"
-    if mid8:
-        effective_mid8 = str(mid8)
-    elif mission_id and len(str(mission_id)) >= 8:
-        effective_mid8 = str(mission_id)[:8]
-    else:
-        # Pre-WP03 mission with no mission_id at all. Derive a stable
-        # 8-char prefix from the mission_slug so kitty_specs_dir_name
-        # resolution stays deterministic across invocations.
-        effective_mid8 = (mission_slug.replace("-", "") + "00000000")[:8]
-    effective_destination_ref = (
-        str(coord_branch) if coord_branch else planning_branch
+    coord_branch, effective_mission_id, effective_mid8, effective_destination_ref, is_legacy = (
+        _effective_bookkeeping_target(
+            mission_slug,
+            planning_branch,
+            mission_meta,
+        )
     )
-
-    is_legacy = not (coord_branch and mission_id and mid8)
     if is_legacy:
         console.print(
             f"\n[cyan]Auto-committing planning artifacts to {planning_branch}...[/cyan] "
