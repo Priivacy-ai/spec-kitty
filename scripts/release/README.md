@@ -122,11 +122,10 @@ Tag-time publish workflow sequence:
 4. verify shared-package drift
 5. verify exact installability from the built wheel
 6. verify candidate compatibility against the SaaS consumer contract
-7. verify downstream consumer evidence
-8. verify artifacts and extract changelog notes
-9. create GitHub Release
-10. publish to PyPI
-11. verify exact installability from PyPI with `pip install spec-kitty-cli==X.Y.Z`
+7. verify artifacts and extract changelog notes
+8. create GitHub Release
+9. publish to PyPI
+10. verify exact installability from PyPI with `pip install spec-kitty-cli==X.Y.Z`
 
 ## Local Release Workflow
 
