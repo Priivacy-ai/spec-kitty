@@ -26,13 +26,17 @@ def has_event_log(feature_dir: Path) -> bool:
 
 
 def _require_event_log(feature_dir: Path) -> None:
-    """Raise ``CanonicalStatusNotFoundError`` when no event log exists."""
+    """Raise ``CanonicalStatusNotFoundError`` when no event log exists.
+
+    When the reason finalize-tasks never created the event log is an unresolved
+    WP dependency cycle, surface that as the root cause (#1589) instead of a
+    bare "run finalize-tasks" hint that loops forever on the same cycle.
+    """
     if not has_event_log(feature_dir):
-        slug = feature_dir.name
+        from .uninitialized_hint import feature_event_log_missing_error
+
         raise CanonicalStatusNotFoundError(
-            f"Canonical status not found for feature '{slug}'. "
-            f"Run 'spec-kitty agent mission finalize-tasks --mission {slug}' "
-            f"to bootstrap the event log."
+            feature_event_log_missing_error(feature_dir)
         )
 
 
