@@ -178,7 +178,7 @@ categories:
         file: src/specify_cli/git/commit_helpers.py
         line: 141
         source: 'exercise status-writing commands directly; forcing every fixture to fork a lane'
-        replacement: 'exercise status commit operations directly; forcing every fixture to fork a lane'
+        replacement: 'exercise status commit commands directly; forcing every fixture to fork a lane'
         sense: commit_class
         rule: R1
         visibility: developer_only
@@ -193,7 +193,7 @@ categories:
         file: src/doctrine/missions/software-dev/actions/tasks/guidelines.md
         line: 26
         source: 'inflating them with ceremony.'
-        replacement: 'inflating them with workflow overhead.'
+        replacement: 'inflating them with unnecessary overhead.'
         sense: workflow_sense
         rule: R2
       - id: dd-003
@@ -207,16 +207,16 @@ categories:
         file: src/doctrine/skills/spec-kitty-program-orchestrate/SKILL.md
         line: 269
         source: 'spawn the full-ceremony'
-        replacement: 'spawn the full-mission-workflow'
+        replacement: 'spawn the full-workflow'
         sense: workflow_sense
         rule: R2
       - id: dd-005
         file: src/doctrine/skills/spec-kitty-program-orchestrate/SKILL.md
         line: 343
         source: 'after ceremony;'
-        replacement: 'after the mission workflow runs;'
-        sense: workflow_sense
-        rule: R2
+        replacement: 'after the status commit phase;'
+        sense: commit_class
+        rule: R1
       - id: dd-006
         file: src/doctrine/skills/spec-kitty-program-orchestrate/SKILL.md
         line: 366
@@ -228,7 +228,7 @@ categories:
         file: docs/development/org-doctrine-layer-architecture-review.md
         line: 481
         source: 'Policy without mechanism degrades to ceremony.'
-        replacement: 'Policy without mechanism degrades to performative gesture.'
+        replacement: 'Policy without mechanism degrades to empty process.'
         sense: workflow_sense
         rule: R2
         notes: |
@@ -252,7 +252,7 @@ categories:
         file: docs/engineering_notes/finding/2026-05-24-mission-01KSAF14-orchestration-findings.md
         line: 257
         source: 'F-09 — Protected-branch guard blocks ceremony writes'
-        replacement: 'F-09 — Protected-branch guard blocks status commits'
+        replacement: 'F-09 — Protected-branch guard blocks status commit writes'
         sense: commit_class
         rule: R1
       - id: dd-011
@@ -267,7 +267,7 @@ categories:
         file: docs/engineering_notes/finding/2026-05-24-mission-01KSAF14-orchestration-findings.md
         line: 272
         source: 'The guard forces extra ceremony'
-        replacement: 'The guard forces extra workflow overhead'
+        replacement: 'The guard forces extra manual steps'
         sense: workflow_sense
         rule: R2
       - id: dd-013
@@ -303,7 +303,7 @@ categories:
         file: tests/e2e/conftest.py
         line: 215
         source: '"""Run ceremony-writing E2E workflows away from protected main/master."""'
-        replacement: '"""Run status-commit-writing E2E workflows away from protected main/master."""'
+        replacement: '"""Run status-commit E2E workflows away from protected main/master."""'
         sense: commit_class
         rule: R1
         paired_with: cs-002
@@ -472,7 +472,7 @@ acceptance_check:
 summary:
   total_files_modified: 12
   total_files_created: 1
-  total_occurrences: 25
+  total_occurrences: 26
   by_category:
     code_symbols: 4
     serialized_keys: 3
@@ -480,5 +480,5 @@ summary:
     tests_fixtures: 3
     not_applicable: [import_paths, filesystem_paths, cli_commands, logs_telemetry]
   by_sense:
-    commit_class: 14
+    commit_class: 15
     workflow_sense: 11
