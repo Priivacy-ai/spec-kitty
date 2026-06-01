@@ -204,3 +204,5 @@ Expected: **zero hits**. If any hit appears, classify per occurrence_map (commit
 
 - 2026-06-01T07:36:54Z – claude – shell_pid=59803 – Ready for review
 - 2026-06-01T07:43:45Z – claude:sonnet:reviewer:reviewer – shell_pid=72403 – Started review via action command
+- 2026-06-01T07:45:32Z – claude:sonnet:reviewer:reviewer – shell_pid=72403 – Review passed: All 6 doctrine prose occurrences replaced correctly per occurrence_map (dd-001 through dd-006). procedures/README.md T015, guidelines.md T016, SKILL.md T017 (4 occurrences). grep ceremony src/doctrine/ returns zero hits (T018). Only the 3 owned doctrine files modified in src/. Anti-pattern checklist: N/A (docs-only WP).
+- 2026-06-01T08:06:59Z – claude:sonnet:reviewer:reviewer – shell_pid=72403 – Done override: Mission merged via focused PR #1562 to main

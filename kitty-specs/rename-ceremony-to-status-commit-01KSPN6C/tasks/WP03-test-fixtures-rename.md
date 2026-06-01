@@ -268,3 +268,5 @@ Note: this grep covers all of `tests/`, not only this WP's owned files. Other WP
 
 - 2026-06-01T07:38:00Z – claude – shell_pid=58533 – Ready for review
 - 2026-06-01T07:43:39Z – claude:sonnet:reviewer:reviewer – shell_pid=71097 – Started review via action command
+- 2026-06-01T07:45:27Z – claude:sonnet:reviewer:reviewer – shell_pid=71097 – Review passed: T008-T012 all complete — E2E_CEREMONY_BRANCH→E2E_STATUS_COMMIT_BRANCH, _checkout_e2e_ceremony_branch→_checkout_e2e_status_commit_branch (def+2 callers+docstring+comment), mission-merge-ceremony→mission-merge-workflow (fixture+assertion), _baselines.yaml comment rewritten. One straggler in test_runtime_bridge_documentation_composition.py is out-of-scope for WP03.
+- 2026-06-01T08:06:58Z – claude:sonnet:reviewer:reviewer – shell_pid=71097 – Done override: Mission merged via focused PR #1562 to main

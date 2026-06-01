@@ -167,3 +167,8 @@ Expected output: `Glossary OK: 3 new entries present with correct statuses.`
 - 2026-06-01T07:39:59Z – claude:sonnet:reviewer:reviewer – shell_pid=27127 – Started review via action command
 - 2026-06-01T07:42:18Z – claude:sonnet:reviewer:reviewer – shell_pid=53636 – Started review via action command
 - 2026-06-01T07:43:24Z – claude:sonnet:reviewer:reviewer – shell_pid=67940 – Started review via action command
+- 2026-06-01T07:45:21Z – claude:sonnet:reviewer:reviewer – shell_pid=67940 – Review passed: glossary correctly updated. Exactly one WP01 commit modifies only .kittify/glossaries/spec_kitty_core.yaml (+16 lines). Three new entries added: 'status commit' (active) with synonyms_to_avoid, 'ceremony commit' (deprecated), 'status-writing operation' (deprecated). All entries in correct alphabetical position. T004 verification script passes.
+- 2026-06-01T08:06:52Z – claude:sonnet:reviewer:reviewer – shell_pid=67940 – Done override: Mission merged via focused PR #1562 to main
+- 2026-06-01T08:08:39Z – claude:sonnet:reviewer:reviewer – shell_pid=67940 – Done override: Mission merged via focused PR #1562 to main
+- 2026-06-01T08:09:20Z – claude:sonnet:reviewer:reviewer – shell_pid=67940 – Done override: Mission merged via focused PR #1562 to main
+- 2026-06-01T08:11:01Z – claude:sonnet:reviewer:reviewer – shell_pid=67940 – Done override: Mission merged via focused PR #1562 to main

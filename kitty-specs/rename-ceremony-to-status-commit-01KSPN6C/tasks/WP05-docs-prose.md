@@ -235,3 +235,5 @@ Expected: **zero hits**. If any hit appears, classify per occurrence_map and app
 
 - 2026-06-01T07:37:12Z – claude – shell_pid=61077 – Ready for review: 7 ceremony occurrences rewritten in 4 docs files per occurrence_map dd-007 through dd-014. grep -rn 'ceremony' docs/ returns zero hits. Config flag renamed to vcs.allow_status_commits_on_target_branch (FR-010). Only the 4 owned_files were modified.
 - 2026-06-01T07:43:52Z – claude:sonnet:reviewer:reviewer – shell_pid=73732 – Started review via action command
+- 2026-06-01T07:45:20Z – claude:sonnet:reviewer:reviewer – shell_pid=73732 – Review passed: all 7 ceremony occurrences rewritten in 4 docs files per occurrence_map dd-007–dd-014. grep 'ceremony' docs/ returns zero hits. Config flag renamed to vcs.allow_status_commits_on_target_branch (FR-010). Only owned_files modified. Anti-pattern checklist N/A (docs-only WP).
+- 2026-06-01T08:07:01Z – claude:sonnet:reviewer:reviewer – shell_pid=73732 – Done override: Mission merged via focused PR #1562 to main
