@@ -239,26 +239,6 @@ jobs:
           sha256sum dist/* > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
-      - name: Extract changelog for release
-        id: changelog
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          python scripts/release/extract_changelog.py "${VERSION}" > release-notes.md
-          cat release-notes.md
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3.0.0
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          body_path: release-notes.md
-          files: |
-            dist/*.whl
-            dist/*.tar.gz
-            SHA256SUMS.txt
-            sbom.cdx.json
-          draft: false
-          prerelease: ${{ steps.release_channel.outputs.is_prerelease }}
-
       - name: Upload test output
         uses: actions/upload-artifact@v7
         if: always()
@@ -275,6 +255,7 @@ jobs:
           path: |
             dist/
             SHA256SUMS.txt
+            sbom.cdx.json
           retention-days: 30
 
   downstream-consumer-verify:
@@ -393,19 +374,84 @@ jobs:
             downstream-verify.log
           retention-days: 90
 
+  canary-verify:
+    # Priivacy-ai/spec-kitty#1112: no release publication proceeds on narrative
+    # canary claims. Operators must provide a machine-readable artifact proving
+    # four clean spec-kitty-dev canary runs, or a structured release-owner waiver.
+    name: Spec Kitty dev canary verification
+    needs: build-release
+    runs-on: ubuntu-latest
+    env:
+      HAS_CANARY_VERIFICATION: ${{ secrets.SPEC_KITTY_CANARY_VERIFICATION_JSON != '' }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Materialize canary verification artifact
+        run: |
+          set -euo pipefail
+          if [ "${HAS_CANARY_VERIFICATION}" != "true" ]; then
+            echo "::error::SPEC_KITTY_CANARY_VERIFICATION_JSON is required before release publication."
+            echo "::error::Provide four clean spec-kitty-dev canary runs or a structured waiver for #1112."
+            exit 1
+          fi
+          mkdir -p .kittify/release
+          cat > .kittify/release/canary-verified.json <<'EOF'
+          ${{ secrets.SPEC_KITTY_CANARY_VERIFICATION_JSON }}
+          EOF
+
+      - name: Validate canary verification artifact
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          python scripts/release/check_canary_verification.py \
+            --artifact .kittify/release/canary-verified.json \
+            --candidate-version "${VERSION}" \
+            --expected-target "https://spec-kitty-dev.fly.dev/" \
+            --required-clean-runs 4 \
+            --allow-waiver
+
+      - name: Upload canary verification artifact
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: canary-verified
+          path: .kittify/release/canary-verified.json
+          retention-days: 90
+
   publish-pypi:
     name: Publish to PyPI
-    # FR-026: promotion to PyPI is gated on downstream-consumer-verify.
+    # FR-026 and #1112: promotion to PyPI is gated on downstream consumer and
+    # spec-kitty-dev canary verification artifacts.
     needs:
       - build-release
       - downstream-consumer-verify
+      - canary-verify
     runs-on: ubuntu-latest
     permissions:
+      contents: write
       id-token: write
     environment:
       name: pypi
       url: https://pypi.org/project/spec-kitty-cli/
     steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
       - name: Download build artifacts
         uses: actions/download-artifact@v8
         with:
@@ -416,6 +462,12 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: downstream-verified
+          path: .
+
+      - name: Download canary verification artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: canary-verified
           path: .
 
       - name: Verify downstream-consumer-verify produced a passing artifact
@@ -436,6 +488,58 @@ jobs:
             echo "::error::Downstream verification status='$STATUS'; promotion blocked."
             exit 1
           fi
+
+      - name: Verify canary-verify produced an acceptable artifact
+        # Defense in depth: even if `needs:` were ever loosened, refuse to
+        # publish without structured canary evidence (spec-kitty#1112).
+        run: |
+          set -euo pipefail
+          ARTIFACT=.kittify/release/canary-verified.json
+          if [ ! -f "$ARTIFACT" ]; then
+            ARTIFACT=$(find . -path '*/canary-verified.json' -type f | head -n 1 || true)
+            if [ -z "$ARTIFACT" ]; then
+              echo "::error::Missing canary verification artifact at .kittify/release/canary-verified.json."
+              exit 1
+            fi
+          fi
+          VERSION="${GITHUB_REF_NAME#v}"
+          python scripts/release/check_canary_verification.py \
+            --artifact "$ARTIFACT" \
+            --candidate-version "${VERSION}" \
+            --expected-target "https://spec-kitty-dev.fly.dev/" \
+            --required-clean-runs 4 \
+            --allow-waiver
+
+      - name: Extract changelog for release
+        id: changelog
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          python scripts/release/extract_changelog.py "${VERSION}" > release-notes.md
+          cat release-notes.md
+
+      - name: Classify release channel
+        id: release_channel
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(a|b|rc|alpha|beta)[0-9]*$ ]]; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+        shell: bash
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3.0.0
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          body_path: release-notes.md
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
+            SHA256SUMS.txt
+            sbom.cdx.json
+          draft: false
+          prerelease: ${{ steps.release_channel.outputs.is_prerelease }}
 
       - name: Publish distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1

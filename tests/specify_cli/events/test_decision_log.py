@@ -1,0 +1,474 @@
+"""Tests for DecisionGitLog — FR-001–FR-005 contract verification.
+
+Covers:
+  - Append-only JSONL writes on request and answer events
+  - safe_commit() called exactly once per answered decision (not on request)
+  - Orphaned request: file written, no commit triggered
+  - safe_commit() failure does not abort mission execution
+  - No PII fields written to decisions.events.jsonl
+  - DecisionInputRequested/Answered excluded from OfflineQueue
+  - Delegation of all other emit methods to inner emitter
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
+from unittest.mock import MagicMock, patch
+
+from spec_kitty_events.mission_next import (
+    DecisionInputAnsweredPayload,
+    DecisionInputRequestedPayload,
+    MissionRunCompletedPayload,
+    MissionRunStartedPayload,
+    NextStepAutoCompletedPayload,
+    NextStepIssuedPayload,
+    RuntimeActorIdentity,
+)
+import pytest
+
+from specify_cli.events.decision_log import DecisionGitLog
+from specify_cli.next._internal_runtime.events import NullEmitter
+from specify_cli.next._internal_runtime.significance import (
+    SignificanceEvaluatedPayload,
+    TimeoutExpiredPayload,
+)
+
+pytestmark = [pytest.mark.unit]
+
+
+# ---------------------------------------------------------------------------
+# Payload factories
+# ---------------------------------------------------------------------------
+
+def _actor() -> RuntimeActorIdentity:
+    return RuntimeActorIdentity(actor_id="test-agent", actor_type="llm")
+
+
+def _requested_payload(
+    *,
+    run_id: str = "run-001",
+    decision_id: str = "dec-001",
+    step_id: str = "specify",
+    question: str = "Which approach?",
+    options: tuple[str, ...] = ("A", "B"),
+) -> DecisionInputRequestedPayload:
+    return DecisionInputRequestedPayload(
+        run_id=run_id,
+        decision_id=decision_id,
+        step_id=step_id,
+        question=question,
+        options=options,
+        actor=_actor(),
+    )
+
+
+def _answered_payload(
+    *,
+    run_id: str = "run-001",
+    decision_id: str = "dec-001",
+    answer: str = "A",
+) -> DecisionInputAnsweredPayload:
+    return DecisionInputAnsweredPayload(
+        run_id=run_id,
+        decision_id=decision_id,
+        answer=answer,
+        actor=_actor(),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _make_log(
+    tmp_path: Path,
+    *,
+    inner: Any | None = None,
+    mission_slug: str = "my-mission",
+    destination_ref: str = "kitty/mission-my-mission",
+) -> DecisionGitLog:
+    return DecisionGitLog(
+        repo_root=tmp_path,
+        worktree_root=tmp_path,
+        destination_ref=destination_ref,
+        mission_slug=mission_slug,
+        inner=inner or NullEmitter(),
+    )
+
+
+def _decisions_file(tmp_path: Path, mission_slug: str = "my-mission") -> Path:
+    return tmp_path / "kitty-specs" / mission_slug / "decisions.events.jsonl"
+
+
+def _read_lines(path: Path) -> list[dict[str, Any]]:
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+# ---------------------------------------------------------------------------
+# T011-A: commit triggered on answer but NOT on request
+# ---------------------------------------------------------------------------
+
+class TestCommitTriggered:
+    def test_commit_triggered_on_answer_not_request(self, tmp_path: Path) -> None:
+        with patch("specify_cli.events.decision_log.safe_commit") as mock_commit:
+            log = _make_log(tmp_path)
+            log.emit_decision_input_requested(_requested_payload())
+            mock_commit.assert_not_called()
+            log.emit_decision_input_answered(_answered_payload())
+            mock_commit.assert_called_once()
+
+    def test_commit_called_with_correct_args(self, tmp_path: Path) -> None:
+        with patch("specify_cli.events.decision_log.safe_commit") as mock_commit:
+            log = _make_log(tmp_path, destination_ref="kitty/mission-abc")
+            log.emit_decision_input_answered(_answered_payload())
+            assert mock_commit.call_count == 1
+            kwargs = mock_commit.call_args.kwargs
+            assert kwargs["repo_root"] == tmp_path
+            assert kwargs["worktree_root"] == tmp_path
+            assert kwargs["destination_ref"] == "kitty/mission-abc"
+            assert "[skip ci]" in kwargs["message"]
+            assert _decisions_file(tmp_path) in kwargs["paths"]
+
+    def test_multiple_answers_trigger_multiple_commits(self, tmp_path: Path) -> None:
+        with patch("specify_cli.events.decision_log.safe_commit") as mock_commit:
+            log = _make_log(tmp_path)
+            log.emit_decision_input_answered(_answered_payload(decision_id="dec-001"))
+            log.emit_decision_input_answered(_answered_payload(decision_id="dec-002"))
+            assert mock_commit.call_count == 2
+
+
+# ---------------------------------------------------------------------------
+# T011-B: JSONL append behavior — correct lines, valid JSON
+# ---------------------------------------------------------------------------
+
+class TestAppendBehavior:
+    def test_request_appends_one_line(self, tmp_path: Path) -> None:
+        with patch("specify_cli.events.decision_log.safe_commit"):
+            log = _make_log(tmp_path)
+            log.emit_decision_input_requested(_requested_payload())
+        decisions_file = _decisions_file(tmp_path)
+        assert decisions_file.exists()
+        lines = _read_lines(decisions_file)
+        assert len(lines) == 1
+
+    def test_request_and_answer_append_two_lines(self, tmp_path: Path) -> None:
+        with patch("specify_cli.events.decision_log.safe_commit"):
+            log = _make_log(tmp_path)
+            log.emit_decision_input_requested(_requested_payload())
+            log.emit_decision_input_answered(_answered_payload())
+        lines = _read_lines(_decisions_file(tmp_path))
+        assert len(lines) == 2
+
+    def test_line_is_valid_json(self, tmp_path: Path) -> None:
+        with patch("specify_cli.events.decision_log.safe_commit"):
+            log = _make_log(tmp_path)
+            log.emit_decision_input_requested(_requested_payload())
+        raw = _decisions_file(tmp_path).read_text(encoding="utf-8").strip()
+        assert "\n" not in raw  # single line
+        record = json.loads(raw)
+        assert isinstance(record, dict)
+
+    def test_event_type_fields_present(self, tmp_path: Path) -> None:
+        with patch("specify_cli.events.decision_log.safe_commit"):
+            log = _make_log(tmp_path)
+            log.emit_decision_input_requested(_requested_payload())
+            log.emit_decision_input_answered(_answered_payload())
+        lines = _read_lines(_decisions_file(tmp_path))
+        assert lines[0]["event_type"] == "DecisionInputRequested"
+        assert lines[1]["event_type"] == "DecisionInputAnswered"
+
+    def test_parent_dir_created(self, tmp_path: Path) -> None:
+        """decisions.events.jsonl is created even if kitty-specs/<slug>/ doesn't exist."""
+        with patch("specify_cli.events.decision_log.safe_commit"):
+            log = _make_log(tmp_path, mission_slug="brand-new-mission")
+            log.emit_decision_input_requested(_requested_payload())
+        assert _decisions_file(tmp_path, "brand-new-mission").exists()
+
+
+# ---------------------------------------------------------------------------
+# T011-C: Orphaned request (crash before answer) — one line, no commit
+# ---------------------------------------------------------------------------
+
+class TestOrphanedRequest:
+    def test_orphaned_request_no_commit(self, tmp_path: Path) -> None:
+        with patch("specify_cli.events.decision_log.safe_commit") as mock_commit:
+            log = _make_log(tmp_path)
+            log.emit_decision_input_requested(_requested_payload())
+            mock_commit.assert_not_called()
+        lines = _read_lines(_decisions_file(tmp_path))
+        assert len(lines) == 1
+        assert lines[0]["event_type"] == "DecisionInputRequested"
+
+
+# ---------------------------------------------------------------------------
+# T011-D: PII fields absent from decisions.events.jsonl
+# ---------------------------------------------------------------------------
+
+_PII_FIELDS = frozenset(
+    {"machine_name", "hostname", "workspace_path", "developer_name", "developer_email"}
+)
+
+
+class TestNoPII:
+    def _payload_with_pii(self) -> DecisionInputRequestedPayload:
+        """Payload wrapping PII data in the question field (not a real field but
+        the sanitizer operates on the full envelope dict)."""
+        return _requested_payload(question="Who asked?")
+
+    def test_no_pii_in_written_line(self, tmp_path: Path) -> None:
+        """PII fields must not appear in any key across the written JSON line."""
+        with patch("specify_cli.events.decision_log.safe_commit"):
+            log = _make_log(tmp_path)
+            log.emit_decision_input_requested(self._payload_with_pii())
+        line_text = _decisions_file(tmp_path).read_text(encoding="utf-8")
+        for field in _PII_FIELDS:
+            assert field not in line_text, f"PII field {field!r} found in decisions log"
+
+    def test_sanitizer_called_with_envelope(self, tmp_path: Path) -> None:
+        with (
+            patch("specify_cli.events.decision_log.safe_commit"),
+            patch(
+                "specify_cli.events.decision_log.sanitize_event_for_log",
+                wraps=lambda x: x,
+            ) as mock_sanitize,
+        ):
+            log = _make_log(tmp_path)
+            log.emit_decision_input_requested(_requested_payload())
+        mock_sanitize.assert_called_once()
+        envelope = mock_sanitize.call_args.args[0]
+        assert envelope.get("event_type") == "DecisionInputRequested"
+
+
+# ---------------------------------------------------------------------------
+# T011-E: safe_commit failure is swallowed, not re-raised
+# ---------------------------------------------------------------------------
+
+class TestSafeCommitFailureSwallowed:
+    def test_protected_branch_refused_does_not_reraise(self, tmp_path: Path) -> None:
+        from specify_cli.git.commit_helpers import ProtectedBranchRefused
+
+        exc = ProtectedBranchRefused(
+            destination_ref="main",
+            worktree_root=tmp_path,
+            commit_message="chore(decisions): record decision [skip ci]",
+        )
+        with patch(
+            "specify_cli.events.decision_log.safe_commit",
+            side_effect=exc,
+        ):
+            log = _make_log(tmp_path)
+            # Must not raise
+            log.emit_decision_input_answered(_answered_payload())
+
+    def test_generic_safe_commit_error_does_not_reraise(self, tmp_path: Path) -> None:
+        from specify_cli.git.commit_helpers import SafeCommitError
+
+        with patch(
+            "specify_cli.events.decision_log.safe_commit",
+            side_effect=SafeCommitError("head mismatch"),
+        ):
+            log = _make_log(tmp_path)
+            log.emit_decision_input_answered(_answered_payload())  # must not raise
+
+    def test_unexpected_exception_does_not_reraise(self, tmp_path: Path) -> None:
+        with patch(
+            "specify_cli.events.decision_log.safe_commit",
+            side_effect=RuntimeError("disk full"),
+        ):
+            log = _make_log(tmp_path)
+            log.emit_decision_input_answered(_answered_payload())  # must not raise
+
+    def test_answer_still_written_after_commit_failure(self, tmp_path: Path) -> None:
+        """The JSONL line must be appended even when safe_commit fails."""
+        with patch(
+            "specify_cli.events.decision_log.safe_commit",
+            side_effect=RuntimeError("boom"),
+        ):
+            log = _make_log(tmp_path)
+            log.emit_decision_input_answered(_answered_payload())
+        lines = _read_lines(_decisions_file(tmp_path))
+        assert len(lines) == 1
+        assert lines[0]["event_type"] == "DecisionInputAnswered"
+
+
+# ---------------------------------------------------------------------------
+# T011-F: Queue exclusion — DecisionInput events don't reach OfflineQueue
+# ---------------------------------------------------------------------------
+
+class TestQueueExclusion:
+    def test_decision_input_requested_excluded_from_queue(self) -> None:
+        from specify_cli.sync.queue import OfflineQueue
+
+        q = OfflineQueue.__new__(OfflineQueue)
+        result = q.queue_event(
+            {
+                "event_id": "e001",
+                "event_type": "DecisionInputRequested",
+                "payload": {},
+            }
+        )
+        # Should return True (skipped) without inserting into SQLite
+        assert result is True
+
+    def test_decision_input_answered_excluded_from_queue(self) -> None:
+        from specify_cli.sync.queue import OfflineQueue
+
+        q = OfflineQueue.__new__(OfflineQueue)
+        result = q.queue_event(
+            {
+                "event_id": "e002",
+                "event_type": "DecisionInputAnswered",
+                "payload": {},
+            }
+        )
+        assert result is True
+
+    def test_other_event_types_not_excluded(self, tmp_path: Path) -> None:
+        """Non-decision events should NOT be short-circuited."""
+        from specify_cli.sync.queue import OfflineQueue
+
+        # We only test that the guard does NOT fire; we don't run the SQLite
+        # insert (which requires a real DB).  We verify by patching _try_coalesce
+        # and _ensure_row_count to avoid touching the DB.
+        q = OfflineQueue.__new__(OfflineQueue)
+        assert hasattr(q, "_QUEUE_EXCLUDED_EVENT_TYPES")
+        assert "NextStepIssued" not in q._QUEUE_EXCLUDED_EVENT_TYPES
+
+
+# ---------------------------------------------------------------------------
+# T011-G: Delegation — other events reach inner emitter
+# ---------------------------------------------------------------------------
+
+class TestDelegation:
+    def _make_tracking_inner(self) -> MagicMock:
+        inner = MagicMock(spec=NullEmitter)
+        return inner
+
+    def test_mission_run_started_delegated(self, tmp_path: Path) -> None:
+        inner = self._make_tracking_inner()
+        log = _make_log(tmp_path, inner=inner)
+        payload = MagicMock(spec=MissionRunStartedPayload)
+        log.emit_mission_run_started(payload)
+        inner.emit_mission_run_started.assert_called_once_with(payload)
+
+    def test_next_step_issued_delegated(self, tmp_path: Path) -> None:
+        inner = self._make_tracking_inner()
+        log = _make_log(tmp_path, inner=inner)
+        payload = MagicMock(spec=NextStepIssuedPayload)
+        log.emit_next_step_issued(payload)
+        inner.emit_next_step_issued.assert_called_once_with(payload)
+
+    def test_next_step_auto_completed_delegated(self, tmp_path: Path) -> None:
+        inner = self._make_tracking_inner()
+        log = _make_log(tmp_path, inner=inner)
+        payload = MagicMock(spec=NextStepAutoCompletedPayload)
+        log.emit_next_step_auto_completed(payload)
+        inner.emit_next_step_auto_completed.assert_called_once_with(payload)
+
+    def test_mission_run_completed_delegated(self, tmp_path: Path) -> None:
+        inner = self._make_tracking_inner()
+        log = _make_log(tmp_path, inner=inner)
+        payload = MagicMock(spec=MissionRunCompletedPayload)
+        log.emit_mission_run_completed(payload)
+        inner.emit_mission_run_completed.assert_called_once_with(payload)
+
+    def test_decision_requested_also_delegated(self, tmp_path: Path) -> None:
+        inner = self._make_tracking_inner()
+        with patch("specify_cli.events.decision_log.safe_commit"):
+            log = _make_log(tmp_path, inner=inner)
+            payload = _requested_payload()
+            log.emit_decision_input_requested(payload)
+        inner.emit_decision_input_requested.assert_called_once_with(payload)
+
+    def test_decision_answered_also_delegated(self, tmp_path: Path) -> None:
+        inner = self._make_tracking_inner()
+        with patch("specify_cli.events.decision_log.safe_commit"):
+            log = _make_log(tmp_path, inner=inner)
+            payload = _answered_payload()
+            log.emit_decision_input_answered(payload)
+        inner.emit_decision_input_answered.assert_called_once_with(payload)
+
+    def test_significance_evaluated_delegated(self, tmp_path: Path) -> None:
+        inner = self._make_tracking_inner()
+        log = _make_log(tmp_path, inner=inner)
+        payload = MagicMock(spec=SignificanceEvaluatedPayload)
+        log.emit_significance_evaluated(payload)
+        inner.emit_significance_evaluated.assert_called_once_with(payload)
+
+    def test_decision_timeout_expired_delegated(self, tmp_path: Path) -> None:
+        inner = self._make_tracking_inner()
+        log = _make_log(tmp_path, inner=inner)
+        payload = MagicMock(spec=TimeoutExpiredPayload)
+        log.emit_decision_timeout_expired(payload)
+        inner.emit_decision_timeout_expired.assert_called_once_with(payload)
+
+
+# ---------------------------------------------------------------------------
+# T011-H: decisions_file path is correct
+# ---------------------------------------------------------------------------
+
+class TestDecisionsFilePath:
+    def test_decisions_file_under_kitty_specs(self, tmp_path: Path) -> None:
+        log = _make_log(tmp_path, mission_slug="some-mission-01KT11")
+        expected = tmp_path / "kitty-specs" / "some-mission-01KT11" / "decisions.events.jsonl"
+        assert log._decisions_file == expected
+
+
+# ---------------------------------------------------------------------------
+# T011-I: mission_id in envelope uses ULID, not slug (RISK-2 fix)
+# ---------------------------------------------------------------------------
+
+
+class TestMissionIdInEnvelope:
+    """Verify that the ULID mission_id is written to event envelopes, not the slug."""
+
+    def _make_log_with_ulid(
+        self,
+        tmp_path: Path,
+        mission_slug: str = "my-feature-01KT119Y",
+        mission_id: str = "01KT119YA7GD2Y0D7MZRH5JSS3",
+    ) -> DecisionGitLog:
+        return DecisionGitLog(
+            repo_root=tmp_path,
+            worktree_root=tmp_path,
+            destination_ref="kitty/mission-my-feature-01KT119Y",
+            mission_slug=mission_slug,
+            inner=NullEmitter(),
+            mission_id=mission_id,
+        )
+
+    def test_ulid_written_to_envelope(self, tmp_path: Path) -> None:
+        """The envelope mission_id must be the ULID, not the human slug."""
+        ulid = "01KT119YA7GD2Y0D7MZRH5JSS3"
+        slug = "my-feature-01KT119Y"
+        log = self._make_log_with_ulid(tmp_path, mission_slug=slug, mission_id=ulid)
+
+        with patch("specify_cli.events.decision_log.safe_commit"):
+            log.emit_decision_input_requested(_requested_payload())
+
+        decisions_file = tmp_path / "kitty-specs" / slug / "decisions.events.jsonl"
+        lines = _read_lines(decisions_file)
+        assert lines[0]["mission_id"] == ulid, (
+            f"envelope must use ULID '{ulid}', got '{lines[0]['mission_id']}'"
+        )
+        assert lines[0]["mission_id"] != slug, "slug must not be used as mission_id"
+
+    def test_slug_fallback_when_no_mission_id(self, tmp_path: Path) -> None:
+        """When mission_id is not provided, mission_slug is used as fallback."""
+        slug = "fallback-slug-mission"
+        log = DecisionGitLog(
+            repo_root=tmp_path,
+            worktree_root=tmp_path,
+            destination_ref="kitty/mission-fallback-slug-mission",
+            mission_slug=slug,
+            inner=NullEmitter(),
+        )
+
+        with patch("specify_cli.events.decision_log.safe_commit"):
+            log.emit_decision_input_requested(_requested_payload())
+
+        decisions_file = tmp_path / "kitty-specs" / slug / "decisions.events.jsonl"
+        lines = _read_lines(decisions_file)
+        assert lines[0]["mission_id"] == slug

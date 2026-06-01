@@ -59,13 +59,17 @@ Any new exception requires a doctrine-level decision (DIRECTIVE_003).
 from __future__ import annotations
 
 import contextlib
+import logging
 import os
 import subprocess
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -739,6 +743,39 @@ def _run_commit_capture_sha(repo_path: Path, commit_message: str) -> str | None:
     return sha
 
 
+def _derive_mission_id(paths: list[str]) -> str:
+    """Extract the mission slug from the first path under ``kitty-specs/``.
+
+    For example, ``kitty-specs/my-mission-01KT119Y/file.jsonl`` → ``my-mission-01KT119Y``.
+    Returns ``""`` if extraction fails.
+    """
+    for p in paths:
+        parts = Path(p).parts
+        for i, part in enumerate(parts):
+            if part == "kitty-specs" and i + 1 < len(parts):
+                return parts[i + 1]
+    return ""
+
+
+def _get_current_build_id(repo_root: Path) -> str:
+    """Return the session-level build_id if available; fall back to ``generate_build_id()``.
+
+    Reads the project identity from ``.kittify/config.yaml`` (stored by
+    ``spec-kitty init``).  Falls back to a fresh UUID4 if none is found so each
+    commit gets a unique build_id that groups correctly at the SaaS level.
+    """
+    try:
+        from specify_cli.identity.project import generate_build_id, load_identity  # noqa: PLC0415
+
+        config_path = repo_root / ".kittify" / "config.yaml"
+        identity = load_identity(config_path)
+        if identity.build_id:
+            return identity.build_id
+        return generate_build_id()
+    except Exception:  # noqa: BLE001
+        return str(uuid.uuid4())
+
+
 def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms readability
     *,
     repo_root: Path,
@@ -961,6 +998,30 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
         raise backstop_error
 
     assert new_sha is not None  # type narrow: commit_created => new_sha set
+
+    # Emit a LocalCommit frame for any paths under kitty-specs/ (FR-010–FR-017).
+    # This is fire-and-forget: failures are logged and swallowed so a notification
+    # failure never aborts a successful commit.
+    kitty_specs_files = [
+        str(Path(p).relative_to(worktree_root)) if Path(p).is_absolute() else str(p)
+        for p in paths
+        if "kitty-specs" in Path(p).parts
+    ]
+    if kitty_specs_files:
+        try:
+            from specify_cli.sync.local_commit import emit_local_commit  # noqa: PLC0415
+
+            emit_local_commit(
+                repo_root=repo_root,
+                git_hash=new_sha,
+                mission_id=_derive_mission_id(kitty_specs_files),
+                build_id=_get_current_build_id(repo_root),
+                changed_files=kitty_specs_files,
+                committed_at=datetime.now(UTC).isoformat(),
+            )
+        except Exception:  # noqa: BLE001
+            logger.warning("emit_local_commit failed after safe_commit; commit succeeded", exc_info=True)
+
     return CommitResult(
         sha=new_sha,
         destination_ref=destination_ref,

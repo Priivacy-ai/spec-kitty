@@ -73,6 +73,19 @@ Use this checklist for releases from `main`.
     --package spec-kitty-cli \
     --consumer-contract ../spec-kitty-saas/contracts/consumer-compatibility.json
   ```
+- [ ] Record four clean `spec-kitty-dev` canary runs for the exact candidate
+      version in a machine-readable artifact. The release workflow reads the
+      same JSON shape from `SPEC_KITTY_CANARY_VERIFICATION_JSON`:
+  ```bash
+  python scripts/release/check_canary_verification.py \
+    --artifact /path/to/canary-verified.json \
+    --candidate-version X.Y.Z \
+    --expected-target https://spec-kitty-dev.fly.dev/ \
+    --required-clean-runs 4
+  ```
+  If the canary cannot run, create a structured waiver artifact with a
+  Priivacy-ai/spec-kitty issue link and explicit expiry, then validate it with
+  `--allow-waiver`. Do not rely on narrative release notes as canary evidence.
 
 ### Documentation and Metadata
 
@@ -179,8 +192,9 @@ package first, verify it is installable from PyPI, and only then tag the CLI.
   - checks shared-package drift
   - proves exact wheel installability with plain `pip`
   - validates candidate compatibility against the SaaS consumer contract
-  - validates downstream consumer evidence before PyPI publish
   - builds distributions
+  - validates downstream consumer evidence before PyPI publish
+  - validates four clean `spec-kitty-dev` canary runs or a structured waiver
   - creates the GitHub release
   - publishes to PyPI
   - verifies exact installability from PyPI with no local wheel

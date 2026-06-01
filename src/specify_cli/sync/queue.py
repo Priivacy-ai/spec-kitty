@@ -1337,6 +1337,15 @@ class OfflineQueue:
         self.clear()
         return count
 
+    # Decision event types excluded from the SQLite queue.  These events are
+    # written to git by DecisionGitLog instead (spec-kitty #1546, WP02).
+    _QUEUE_EXCLUDED_EVENT_TYPES: frozenset[str] = frozenset(
+        {
+            "DecisionInputRequested",
+            "DecisionInputAnswered",
+        }
+    )
+
     def queue_event(self, event: dict[str, Any]) -> bool:
         """
         Add event to offline queue.
@@ -1347,12 +1356,20 @@ class OfflineQueue:
         instead of inserting a new row.  This prevents dossier scans from
         flooding the queue.
 
+        ``DecisionInputRequested`` and ``DecisionInputAnswered`` are excluded
+        from the queue because they are written to git by ``DecisionGitLog``
+        instead (spec-kitty #1546).
+
         Args:
             event: Event dict with event_id, event_type, and payload
 
         Returns:
             True if queued successfully, False on database error
         """
+        # Decision events are recorded to git; skip the SQLite queue entirely.
+        if event.get("event_type") in self._QUEUE_EXCLUDED_EVENT_TYPES:
+            return True  # Written to git by DecisionGitLog instead
+
         c_key = _coalesce_key(event)
 
         # Attempt coalescing before checking the size cap.
