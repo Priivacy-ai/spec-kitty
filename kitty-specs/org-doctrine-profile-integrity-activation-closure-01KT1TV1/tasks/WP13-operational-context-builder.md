@@ -16,8 +16,8 @@ subtasks:
 - T059
 - T060
 - T061
-agent: claude
-shell_pid: '1545161'
+agent: "claude:opus:python-pedro:implementer"
+shell_pid: "1545161"
 history:
 - at: '2026-06-01T16:49:18Z'
   actor: claude
@@ -90,3 +90,7 @@ Turn `build_operational_context()` from an all-None stub into a **pure explicit-
 
 - Confirm the builder is pure and takes explicit params (C-006 by construction).
 - Confirm guards raise `ContextPreconditionError` with actionable messages.
+
+## Activity Log
+
+- 2026-06-01T17:29:16Z – claude:opus:python-pedro:implementer – shell_pid=1545161 – Assigned agent via action command
