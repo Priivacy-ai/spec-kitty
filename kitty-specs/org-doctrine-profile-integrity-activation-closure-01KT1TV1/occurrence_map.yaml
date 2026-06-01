@@ -1,0 +1,152 @@
+# DIRECTIVE_035 occurrence map — relationship-field retirement (hard cutover, OQ-2-i / FR-028).
+# Required because meta.json::change_mode == "bulk_edit".
+# Initiative: relationships are authored ONLY as DRG-fragment edges (C-009). The declarative
+# FIELDS enhances / overrides / specializes_from are retired from all artifact schemas and their
+# readers; existing field-authored relationships migrate to fragment edges with zero loss (NFR-007).
+# Implementing agents MUST consult this before touching any matching occurrence.
+#
+# NOTE ON LINE NUMBERS: anchors below are indicative (from the R-011 review at plan time) and MUST
+# be re-confirmed by grep during implementation, not trusted verbatim.
+
+targets:
+  - term: "enhances"        # YAML key + model field + reader; augmentation (field-merge)
+    operation: remove
+    replacement: "DRG fragment edge (relation: enhances)"
+  - term: "overrides"       # YAML key + model field + reader; full replacement
+    operation: remove
+    replacement: "DRG fragment edge (relation: overrides)"
+  - term: "specializes_from" # YAML key + model field + reader; profile lineage
+    operation: remove
+    replacement: "DRG fragment edge (relation: specializes_from)"
+
+# Scope boundary: this map governs ONLY the relationship-field retirement. It does NOT cover the
+# kind/ID resolver, doctor report, activation, OperationalContext, or template work (ordinary,
+# non-bulk WPs). The DRG `Relation` ENUM values (strings "enhances"/"overrides"/"specializes_from")
+# are KEPT — they are the canonical edge vocabulary; only the per-artifact FIELDS are removed.
+
+categories:
+
+  code_symbols:
+    action: remove
+    notes: |
+      Remove the `enhances` / `overrides` model fields from the 5 kinds that have them, and the
+      `specializes_from` field from AgentProfile. Do NOT add them to the 4 uncovered kinds.
+      Remove every reader that consumes the fields and migrate it to DRG traversal. KEEP the
+      Relation enum members and the org-pack auto-emit/validator augmentation logic (re-pointed
+      to read fragments, not fields).
+    occurrences:
+      - path: src/doctrine/tactics/models.py
+        decision: REMOVE
+        reason: "`enhances`/`overrides` Field declarations on Tactic (~:51-59)."
+      - path: src/doctrine/styleguides/models.py
+        decision: REMOVE
+        reason: "`enhances`/`overrides` fields on Styleguide."
+      - path: src/doctrine/paradigms/models.py
+        decision: REMOVE
+        reason: "`enhances`/`overrides` fields on Paradigm."
+      - path: src/doctrine/procedures/models.py
+        decision: REMOVE
+        reason: "`enhances`/`overrides` fields on Procedure."
+      - path: src/doctrine/agent_profiles/schema_models.py
+        decision: REMOVE
+        reason: "`enhances`/`overrides`/`specializes_from` fields on the AgentProfile schema model (~:192)."
+      - path: src/doctrine/agent_profiles/profile.py
+        decision: REMOVE
+        reason: "`specializes_from` field + accessors (~:231); hierarchy now resolves via DRG."
+      - path: src/doctrine/agent_profiles/repository.py
+        decision: REWIRE
+        reason: "Lineage reads at ~:476-580 migrate from `profile.specializes_from` to DRG SPECIALIZES_FROM traversal."
+      - path: src/doctrine/drg/org_pack_loader.py
+        decision: REWIRE
+        reason: "`_collect_augmentation_edges` (~:333-379) stops scanning artifact FIELDS; relationships come from authored fragment edges. KEEP edge emission for fragment-authored relations."
+      - path: src/specify_cli/doctrine/pack_validator.py
+        decision: REWIRE
+        reason: "Intent-aware collision checks (~:14-99) read fragment edges, not fields; single-source augmentation set (FR-030)."
+
+  import_paths:
+    action: manual_review
+    notes: |
+      No module path is renamed or moved by the field retirement. (The separate, non-bulk merge
+      relocation moves merge_three_layers into doctrine.drg.merge — tracked by plan Wave 0, not here.)
+    occurrences: []
+
+  filesystem_paths:
+    action: manual_review
+    notes: |
+      No files are renamed/deleted by the field retirement; artifact YAML files are EDITED in place
+      (see serialized_keys). Built-in artifact YAML lives under src/doctrine/<kind>/built-in/ and
+      per-mission dirs; fixture packs under tests/.
+    occurrences: []
+
+  serialized_keys:
+    action: remove
+    notes: |
+      Remove the `enhances:` / `overrides:` / `specializes_from:` KEYS from every artifact YAML that
+      declares them (built-in doctrine + shipped packs + fixtures) and re-author the equivalent
+      relationship as a DRG-fragment edge in the artifact's drg/fragment.yaml (or graph.yaml for
+      built-in). This is the zero-loss migration (NFR-007): each removed key => exactly one edge.
+    occurrences:
+      - path: src/doctrine/**/built-in/*.{tactic,styleguide,paradigm,procedure,agent}.yaml
+        decision: REMOVE_KEY_MIGRATE_TO_EDGE
+        reason: "Built-in artifacts currently field-authoring enhances/overrides/specializes_from. Grep to enumerate; migrate each to a graph.yaml edge."
+      - path: src/doctrine/graph.yaml
+        decision: ADD_EDGES
+        reason: "Destination for migrated built-in relationship edges."
+      - path: tests/**/fixtures/**/*.{tactic,styleguide,paradigm,procedure,agent}.yaml
+        decision: REMOVE_KEY_MIGRATE_TO_EDGE
+        reason: "Fixture packs using field form; migrate to fragment edges or convert to negative fixtures (see tests_fixtures)."
+
+  cli_commands:
+    action: manual_review
+    notes: |
+      No CLI command name changes. `spec-kitty doctrine pack validate`, `charter activate/...`
+      behavior changes (field now rejected) but the command surface/strings are unchanged.
+    occurrences: []
+
+  user_facing_strings:
+    action: rename
+    notes: |
+      Update authoring guidance/error text: where docs or schema errors previously told authors to
+      use the `enhances:`/`overrides:`/`specializes_from:` FIELDS, they must now describe DRG-fragment
+      edge authoring. The new validation error must clearly say fields are rejected and point to
+      fragment authoring.
+    occurrences:
+      - path: kitty-specs/charter-ux-and-org-pack-vocabulary-01KSAF14/**
+        decision: KEEP
+        reason: "Historical #1291 mission artifacts — do not rewrite history; this mission's spec/research document the supersession."
+      - path: docs/**
+        decision: UPDATE
+        reason: "Operator/author docs that describe field-based augmentation must point to fragment authoring (DIRECTIVE_037 living docs)."
+      - path: src/doctrine/**/built-in/*.directive.yaml
+        decision: REVIEW
+        reason: "DIRECTIVE_035's own intent text mentions augmentation vocabulary; ensure wording stays accurate after cutover."
+
+  tests_fixtures:
+    action: manual_review
+    notes: |
+      Two distinct actions. (a) Tests asserting the FIELD is accepted must flip to asserting it is
+      REJECTED (negative fixtures). (b) Tests relying on field-authored relationships must migrate
+      their fixtures to fragment edges. Add the zero-loss migration test (count/identity diff).
+    occurrences:
+      - path: tests/doctrine/**
+        decision: MIGRATE_OR_INVERT
+        reason: "Field-acceptance tests become field-rejection tests; relationship-behavior tests read migrated edges."
+      - path: tests/charter/**
+        decision: MIGRATE
+        reason: "Augmentation/validator tests assert fragment-edge behavior + intent-aware parity for the newly-covered kinds."
+      - path: tests/specify_cli/doctrine/**
+        decision: MIGRATE
+        reason: "pack_validator tests for enhances/overrides move to fragment-edge inputs."
+
+  logs_telemetry:
+    action: manual_review
+    notes: |
+      Any warning/log string referencing the field form (e.g. override advisories keyed on the field)
+      must be reworded to the fragment-edge model. No structured telemetry event keys are renamed.
+    occurrences:
+      - path: src/specify_cli/doctrine/pack_validator.py
+        decision: REWORD
+        reason: "Collision advisory text referencing declared `enhances`/`overrides` fields now references fragment-edge intent."
+
+# Completeness: all 8 standard categories above carry an explicit action. Empty `occurrences`
+# lists are deliberate (manual_review with rationale), satisfying the bulk-edit gate.
