@@ -24,6 +24,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+from specify_cli.events import sanitize_event_for_log
+
 from .models import StatusEvent
 
 logger = logging.getLogger(__name__)
@@ -191,7 +193,8 @@ def append_event(feature_dir: Path, event: StatusEvent) -> None:
     """
     path = _events_path(feature_dir)
     path.parent.mkdir(parents=True, exist_ok=True)
-    line = json.dumps(event.to_dict(), sort_keys=True)
+    sanitized = sanitize_event_for_log(event.to_dict())
+    line = json.dumps(sanitized, sort_keys=True)
     with path.open("a", encoding="utf-8") as fh:
         fh.write(line + "\n")
 
@@ -258,7 +261,10 @@ def append_events_atomic(feature_dir: Path, events: list[StatusEvent]) -> None:
         if existing and not existing.endswith("\n"):
             existing += "\n"
 
-    additions = "".join(json.dumps(event.to_dict(), sort_keys=True) + "\n" for event in events)
+    additions = "".join(
+        json.dumps(sanitize_event_for_log(event.to_dict()), sort_keys=True) + "\n"
+        for event in events
+    )
     tmp_path = path.with_name(f"{path.name}.tmp")
     with tmp_path.open("w", encoding="utf-8") as fh:
         fh.write(existing)

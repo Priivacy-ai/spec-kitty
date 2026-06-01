@@ -14,6 +14,7 @@ import logging
 import random
 from contextlib import suppress
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 from urllib.parse import ParseResult, urlparse
 
@@ -84,18 +85,23 @@ class WebSocketClient:
     def __init__(
         self,
         project_identity: ProjectIdentity | None = None,
+        repo_root: Path | None = None,
     ):
         """
         Initialize WebSocket client.
 
         Args:
             project_identity: ProjectIdentity for build_id in heartbeats.
+            repo_root: Path to the repository root, used for LocalCommit state
+                persistence (``sync-state.json``) and on-connect flush.
+                Defaults to ``Path.cwd()`` if not provided.
 
         Notes:
             Server URL and authentication are resolved on every ``connect()``
             call via ``provision_ws_token``. There is no direct token argument.
         """
         self._project_identity = project_identity
+        self._repo_root: Path = repo_root if repo_root is not None else Path.cwd()
         self.ws: websockets.ClientConnection | None = None
         self.connected = False
         self.status = ConnectionStatus.OFFLINE
@@ -172,6 +178,15 @@ class WebSocketClient:
 
             # Receive initial snapshot
             await self._receive_snapshot()
+
+            # Flush any LocalCommit frames that were queued while offline.
+            # Fire-and-forget: flush failure must not gate connection success.
+            try:
+                from specify_cli.sync.local_commit import flush_pending_local_commits  # noqa: PLC0415
+
+                flush_pending_local_commits(self._repo_root, self)
+            except Exception:  # noqa: BLE001
+                logger.warning("flush_pending_local_commits failed on connect; continuing", exc_info=True)
 
             # Start message listener
             self._listen_task = asyncio.create_task(self._listen())
@@ -362,6 +377,8 @@ class WebSocketClient:
             await self._handle_event(data)
         elif msg_type == "ping":
             await self._handle_ping(data)
+        elif msg_type == "LocalCommitAck":
+            await self._handle_local_commit_ack(data)
         else:
             # Unknown message type
             pass
@@ -395,6 +412,25 @@ class WebSocketClient:
         if self._project_identity is not None and self._project_identity.build_id:
             pong["build_id"] = self._project_identity.build_id
         await self.ws.send(json.dumps(pong))
+
+    async def _handle_local_commit_ack(self, data: dict):
+        """Handle a ``LocalCommitAck`` frame from the server.
+
+        Updates ``sync-state.json`` by recording the acknowledged git hash and
+        removing the corresponding pending entry.  Never raises — errors are
+        logged and swallowed so the listener loop is never killed by a
+        bookkeeping failure.
+        """
+        git_hash = data.get("git_hash", "")
+        if not git_hash:
+            logger.debug("LocalCommitAck received without git_hash; ignoring")
+            return
+        try:
+            from specify_cli.sync.local_commit import record_local_commit_ack  # noqa: PLC0415
+
+            record_local_commit_ack(self._repo_root, git_hash)
+        except Exception:  # noqa: BLE001
+            logger.warning("record_local_commit_ack failed for %s", git_hash, exc_info=True)
 
     def set_message_handler(self, handler: Callable):
         """Set handler for incoming events"""

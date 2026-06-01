@@ -61,6 +61,76 @@ from specify_cli.sync.runtime_event_emitter import SyncRuntimeEventEmitter
 logger = logging.getLogger(__name__)
 
 
+def _resolve_coordination_branch(mission_slug: str, repo_root: Path) -> str:
+    """Return the coordination branch for a mission from meta.json.
+
+    Falls back to ``kitty/mission-<slug>`` when meta.json is absent or
+    does not carry the ``coordination_branch`` key.
+    """
+    meta_path = repo_root / "kitty-specs" / mission_slug / "meta.json"
+    if meta_path.exists():
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            meta = {}
+        branch = meta.get("coordination_branch") if isinstance(meta, dict) else None
+        if isinstance(branch, str) and branch.strip():
+            return branch.strip()
+    return f"kitty/mission-{mission_slug}"
+
+
+def _resolve_mission_ulid(mission_slug: str, repo_root: Path) -> str:
+    """Read the canonical ULID mission_id from meta.json.
+
+    Returns the ULID string when present, or the slug as a fallback so that
+    callers always receive a non-empty identifier.
+    """
+    meta_path = repo_root / "kitty-specs" / mission_slug / "meta.json"
+    if meta_path.exists():
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            meta = {}
+        mission_id = meta.get("mission_id") if isinstance(meta, dict) else None
+        if isinstance(mission_id, str) and mission_id.strip():
+            return mission_id.strip()
+    return mission_slug
+
+
+def _wrap_with_decision_git_log(
+    emitter: SyncRuntimeEventEmitter,
+    mission_slug: str,
+    repo_root: Path,
+) -> Any:
+    """Wrap ``emitter`` with DecisionGitLog for durable decision recording.
+
+    Returns the wrapped emitter.  If construction fails (e.g. import error),
+    the original emitter is returned unchanged so mission execution is not
+    blocked.
+    """
+    try:
+        from specify_cli.events.decision_log import DecisionGitLog
+
+        coordination_branch = _resolve_coordination_branch(mission_slug, repo_root)
+        mission_id = _resolve_mission_ulid(mission_slug, repo_root)
+        return DecisionGitLog(
+            repo_root=repo_root,
+            worktree_root=repo_root,
+            destination_ref=coordination_branch,
+            mission_slug=mission_slug,
+            inner=emitter,
+            mission_id=mission_id,
+        )
+    except Exception:
+        logger.warning(
+            "DecisionGitLog construction failed for mission %s; "
+            "falling back to plain emitter.",
+            mission_slug,
+            exc_info=True,
+        )
+        return emitter
+
+
 class QueryModeValidationError(ValueError):
     """Raised when query mode cannot produce a truthful read-only preview."""
 
@@ -1944,6 +2014,11 @@ def decide_next_via_runtime(  # noqa: C901
         mission_slug=mission_slug,
         mission_type=mission_type,
     )
+    # Wrap with DecisionGitLog so decision events are durably committed to
+    # the coordination branch (spec-kitty #1546, FR-001–FR-005).
+    emitter_for_engine: Any = _wrap_with_decision_git_log(
+        sync_emitter, mission_slug, repo_root
+    )
 
     # Resolve origin info
     origin: dict[str, Any] = {}
@@ -1967,7 +2042,7 @@ def decide_next_via_runtime(  # noqa: C901
             mission_slug,
             repo_root,
             mission_type,
-            emitter=sync_emitter,
+            emitter=emitter_for_engine,
         )
     except Exception as exc:
         return Decision(
@@ -2278,7 +2353,9 @@ def decide_next_via_runtime(  # noqa: C901
 
     pre_state_bytes: bytes | None = None
     pre_events_size: int | None = None
-    engine_emitter: Any = sync_emitter
+    # Use the DecisionGitLog-wrapped emitter as the engine's emitter so that
+    # decision events are durably committed to the coordination branch.
+    engine_emitter: Any = emitter_for_engine
     buffer: _BufferingRuntimeEmitter | None = None
 
     if block_on_retrospective:
@@ -2710,13 +2787,18 @@ def answer_decision_via_runtime(
         sync_emitter.seed_from_snapshot(_read_snapshot(Path(run_ref.run_dir)))
     except Exception:
         pass
+    # Wrap with DecisionGitLog so the answered decision is committed to the
+    # coordination branch (spec-kitty #1546, FR-001–FR-005).
+    answer_emitter: Any = _wrap_with_decision_git_log(
+        sync_emitter, mission_slug, repo_root
+    )
     actor = ActorIdentity(actor_id=agent, actor_type=actor_type)
     runtime_provide_decision_answer(
         run_ref,
         decision_id,
         answer,
         actor,
-        emitter=sync_emitter,
+        emitter=answer_emitter,
     )
 
 
