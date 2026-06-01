@@ -73,6 +73,11 @@ def detect_execution_context(cwd: Path | None = None) -> CurrentContext:
     """
     cwd = Path.cwd().resolve() if cwd is None else cwd.resolve()
 
+    # Track the candidate root when .worktrees is in the path but unrecognized,
+    # so we can bound the upward repo_root search and avoid false positives from
+    # ambient git repos above the user's workspace (e.g. /tmp on macOS CI).
+    unrecognized_worktree_root: Path | None = None
+
     # Check if .worktrees is in path
     if ".worktrees" in cwd.parts:
         # Extract worktree information
@@ -82,27 +87,40 @@ def detect_execution_context(cwd: Path | None = None) -> CurrentContext:
                 if (candidate_root / ".kittify").exists() or (candidate_root / ".git").exists():
                     worktree_name = cwd.parts[i + 1]
                     worktree_path = Path(*cwd.parts[: i + 2])
-                    repo_root = candidate_root
 
                     return CurrentContext(
                         location=ExecutionContext.WORKTREE,
                         cwd=cwd,
-                        repo_root=repo_root,
+                        repo_root=candidate_root,
                         worktree_name=worktree_name,
                         worktree_path=worktree_path,
                     )
+                # Candidate root not recognized — remember it to bound the search below.
+                unrecognized_worktree_root = candidate_root
 
     # Not in worktree - assume main repo
     # Try to find repo root (directory containing .kittify or .git)
     repo_root = None
-    search_path = cwd
-    for _ in range(10):  # Limit depth
-        if (search_path / ".kittify").exists() or (search_path / ".git").exists():
-            repo_root = search_path
-            break
-        if search_path.parent == search_path:
-            break  # Reached filesystem root
-        search_path = search_path.parent
+
+    # A bare .git at the exact cwd is valid (fresh clone before `spec-kitty init`).
+    # We do NOT walk up looking for .git to avoid false-positives from ambient git
+    # repos higher in the filesystem (e.g. /tmp on macOS test environments).
+    if (cwd / ".git").exists():
+        repo_root = cwd
+    else:
+        # Walk up searching for .kittify (the spec-kitty project root marker).
+        search_path = cwd
+        for _ in range(10):  # Limit depth
+            if (search_path / ".kittify").exists():
+                repo_root = search_path
+                break
+            # If we came from an unrecognized .worktrees structure, stop at its root
+            # rather than escaping into ambient repos higher in the filesystem.
+            if unrecognized_worktree_root is not None and search_path == unrecognized_worktree_root:
+                break
+            if search_path.parent == search_path:
+                break  # Reached filesystem root
+            search_path = search_path.parent
 
     return CurrentContext(
         location=ExecutionContext.MAIN_REPO,
