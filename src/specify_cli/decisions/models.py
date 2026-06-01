@@ -54,6 +54,7 @@ class DecisionErrorCode(StrEnum):
 
     MISSING_STEP_OR_SLOT = "DECISION_MISSING_STEP_OR_SLOT"
     ALREADY_CLOSED = "DECISION_ALREADY_CLOSED"
+    EVENT_REPAIR_FAILED = "DECISION_EVENT_REPAIR_FAILED"
     TERMINAL_CONFLICT = "DECISION_TERMINAL_CONFLICT"
     NOT_FOUND = "DECISION_NOT_FOUND"
     MISSION_NOT_FOUND = "MISSION_NOT_FOUND"
@@ -85,6 +86,7 @@ class IndexEntry(BaseModel):
     created_at: datetime
     resolved_at: datetime | None = None
     resolved_by: str | None = None
+    opened_by: str | None = None
     mission_id: str
     mission_slug: str
 

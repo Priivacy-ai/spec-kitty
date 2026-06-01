@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import json
 import re as _re
-import sys
 from pathlib import Path
 
 import typer
@@ -104,14 +103,35 @@ def _resolve_repo_root_and_slug(mission_handle: str) -> tuple[Path, str]:
     return repo_root, mission_handle
 
 
-def _open_response_to_dict(resp: DecisionOpenResponse) -> dict:  # type: ignore[type-arg]
+def _open_response_to_dict(
+    resp: DecisionOpenResponse,
+    *,
+    origin_flow: OriginFlow,
+    mission_slug: str,
+    step_id: str | None,
+    slot_key: str | None,
+    input_key: str,
+) -> dict:  # type: ignore[type-arg]
     """Serialize DecisionOpenResponse to a plain dict."""
+    rerun_safe = resp.decision_id != "DRY_RUN"
     return {
+        "contract": "decision_open_v2",
         "decision_id": resp.decision_id,
         "idempotent": resp.idempotent,
         "mission_id": resp.mission_id,
         "artifact_path": resp.artifact_path,
         "event_lamport": resp.event_lamport,
+        "recovery": {
+            "rerun_safe": rerun_safe,
+            "idempotency_key": {
+                "mission_id": resp.mission_id,
+                "mission_slug": mission_slug,
+                "origin_flow": origin_flow.value,
+                "step_id": step_id,
+                "slot_key": slot_key,
+                "input_key": input_key,
+            },
+        },
     }
 
 
@@ -194,12 +214,6 @@ def cmd_open(  # noqa: PLR0913
 
     repo_root, mission_slug = _resolve_repo_root_and_slug(mission)
 
-    def emit_minted(decision_id: str) -> None:
-        typer.echo(
-            json.dumps({"decision_id": decision_id, "phase": "minted"}, sort_keys=True)
-        )
-        sys.stdout.flush()
-
     try:
         resp = open_decision(
             repo_root,
@@ -212,13 +226,24 @@ def cmd_open(  # noqa: PLR0913
             slot_key=slot_key,
             actor=actor,
             dry_run=dry_run,
-            on_minted=emit_minted,
         )
     except DecisionError as exc:
         _handle_decision_error(exc)
         return
 
-    typer.echo(json.dumps(_open_response_to_dict(resp), sort_keys=True))
+    typer.echo(
+        json.dumps(
+            _open_response_to_dict(
+                resp,
+                origin_flow=origin_flow,
+                mission_slug=mission_slug,
+                step_id=step_id,
+                slot_key=slot_key,
+                input_key=input_key,
+            ),
+            sort_keys=True,
+        )
+    )
 
 
 # ---------------------------------------------------------------------------

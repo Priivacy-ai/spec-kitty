@@ -19,6 +19,7 @@ import pytest
 from specify_cli.decisions.models import DecisionErrorCode, DecisionStatus, OriginFlow
 from specify_cli.decisions.service import DecisionError, open_decision
 from specify_cli.decisions import store as _store
+from spec_kitty_events.decisionpoint import DECISION_POINT_OPENED
 
 pytestmark = [pytest.mark.unit]
 
@@ -106,32 +107,95 @@ def test_second_open_same_logical_key_is_idempotent(tmp_path: Path) -> None:
     assert len(index.entries) == 1
 
 
-def test_second_open_no_new_event_emitted(tmp_path: Path) -> None:
+def test_second_open_no_new_event_emitted_when_event_exists(tmp_path: Path) -> None:
     _setup_meta(tmp_path)
-    with patch(
-        "specify_cli.decisions.emit.emit_decision_opened", return_value=1
-    ) as mock_emit:
-        open_decision(
-            tmp_path,
-            MISSION_SLUG,
-            origin_flow=OriginFlow.CHARTER,
-            step_id="step-1",
-            input_key="team_size",
-            question="How large?",
-            options=("1-5",),
-            actor="alice",
-        )
-        open_decision(
-            tmp_path,
-            MISSION_SLUG,
-            origin_flow=OriginFlow.CHARTER,
-            step_id="step-1",
-            input_key="team_size",
-            question="How large?",
-            options=("1-5",),
-            actor="alice",
-        )
-    assert mock_emit.call_count == 1
+    open_decision(
+        tmp_path,
+        MISSION_SLUG,
+        origin_flow=OriginFlow.CHARTER,
+        step_id="step-1",
+        input_key="team_size",
+        question="How large?",
+        options=("1-5",),
+        actor="alice",
+    )
+    open_decision(
+        tmp_path,
+        MISSION_SLUG,
+        origin_flow=OriginFlow.CHARTER,
+        step_id="step-1",
+        input_key="team_size",
+        question="How large?",
+        options=("1-5",),
+        actor="alice",
+    )
+    events_path = _mission_dir(tmp_path) / "status.events.jsonl"
+    assert len(events_path.read_text(encoding="utf-8").splitlines()) == 1
+
+
+def test_idempotent_retry_repairs_missing_opened_event(tmp_path: Path) -> None:
+    _setup_meta(tmp_path)
+    args = {
+        "origin_flow": OriginFlow.CHARTER,
+        "step_id": "step-1",
+        "input_key": "team_size",
+        "question": "How large?",
+        "options": ("1-5",),
+        "actor": "alice",
+    }
+    with pytest.raises(RuntimeError, match="emit failed"), patch(
+        "specify_cli.decisions.emit.emit_decision_opened",
+        side_effect=RuntimeError("emit failed"),
+    ):
+        open_decision(tmp_path, MISSION_SLUG, **args)
+
+    mission_dir = _mission_dir(tmp_path)
+    index = _store.load_index(mission_dir)
+    persisted = index.entries[0]
+    assert _store.artifact_path(mission_dir, persisted.decision_id).exists()
+    assert not (mission_dir / "status.events.jsonl").exists()
+
+    resp = open_decision(tmp_path, MISSION_SLUG, **args)
+
+    assert resp.idempotent is True
+    assert resp.decision_id == persisted.decision_id
+    assert resp.event_lamport == 1
+    events = [
+        json.loads(line)
+        for line in (mission_dir / "status.events.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    assert len(events) == 1
+    assert events[0]["event_type"] == DECISION_POINT_OPENED
+    assert events[0]["payload"]["decision_point_id"] == persisted.decision_id
+    assert events[0]["payload"]["actor_id"] == "alice"
+
+
+def test_idempotent_retry_without_persisted_actor_fails_closed(tmp_path: Path) -> None:
+    _setup_meta(tmp_path)
+    args = {
+        "origin_flow": OriginFlow.CHARTER,
+        "step_id": "step-1",
+        "input_key": "team_size",
+        "question": "How large?",
+        "options": ("1-5",),
+        "actor": "alice",
+    }
+    resp = open_decision(tmp_path, MISSION_SLUG, **args)
+    mission_dir = _mission_dir(tmp_path)
+    (mission_dir / "status.events.jsonl").unlink()
+
+    index_path = _store.index_path(mission_dir)
+    raw = json.loads(index_path.read_text(encoding="utf-8"))
+    raw["entries"][0].pop("opened_by")
+    index_path.write_text(json.dumps(raw), encoding="utf-8")
+
+    with pytest.raises(DecisionError) as exc_info:
+        open_decision(tmp_path, MISSION_SLUG, **args)
+
+    err = exc_info.value
+    assert err.code == DecisionErrorCode.EVENT_REPAIR_FAILED
+    assert err.details["decision_id"] == resp.decision_id
+    assert not (mission_dir / "status.events.jsonl").exists()
 
 
 def test_on_minted_receives_persisted_id_for_idempotent_open(tmp_path: Path) -> None:
@@ -166,7 +230,7 @@ def test_on_minted_receives_persisted_id_for_idempotent_open(tmp_path: Path) -> 
     assert minted_ids == [resp1.decision_id, resp1.decision_id]
 
 
-def test_on_minted_runs_before_fresh_open_writes_artifact(tmp_path: Path) -> None:
+def test_on_minted_runs_after_fresh_open_writes_artifact(tmp_path: Path) -> None:
     _setup_meta(tmp_path)
     observations: list[tuple[str, bool]] = []
 
@@ -188,7 +252,7 @@ def test_on_minted_runs_before_fresh_open_writes_artifact(tmp_path: Path) -> Non
             on_minted=record_minted,
         )
 
-    assert observations == [(resp.decision_id, False)]
+    assert observations == [(resp.decision_id, True)]
     assert _store.artifact_path(_mission_dir(tmp_path), resp.decision_id).exists()
 
 

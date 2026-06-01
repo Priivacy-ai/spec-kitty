@@ -66,20 +66,10 @@ def _invoke(args: list[str], cwd: Path | None = None) -> object:
 
 
 def _parse_open_output(output: str) -> dict:  # type: ignore[type-arg]
-    """Parse ``decision open`` stdout: first line is minted-phase, second is full response.
-
-    Returns the full response dict (second JSON line).
-    """
+    """Parse ``decision open`` stdout as exactly one JSON object."""
     lines = [line for line in output.splitlines() if line.strip()]
-    assert len(lines) >= 2, f"expected >=2 JSON lines, got: {output!r}"
-    return json.loads(lines[-1])
-
-
-def _parse_open_lines(output: str) -> tuple[dict, dict]:  # type: ignore[type-arg]
-    """Parse ``decision open`` stdout into minted-phase and response dicts."""
-    lines = [line for line in output.splitlines() if line.strip()]
-    assert len(lines) == 2, f"expected 2 JSON lines, got: {output!r}"
-    return json.loads(lines[0]), json.loads(lines[1])
+    assert len(lines) == 1, f"expected exactly 1 JSON line, got: {output!r}"
+    return json.loads(lines[0])
 
 
 def _open_decision(
@@ -114,12 +104,7 @@ def _open_decision(
         result = _invoke(base_args, cwd=tmp_path)
 
     assert result.exit_code == 0, f"open failed: {result.output}"
-    # dry-run emits only the minted-phase line (id="DRY_RUN"); non-dry-run emits two lines.
-    lines = [line for line in result.output.splitlines() if line.strip()]
-    if dry_run:
-        data = json.loads(lines[0])
-    else:
-        data = json.loads(lines[-1])
+    data = _parse_open_output(result.output)
     return data["decision_id"]
 
 
@@ -132,6 +117,33 @@ def test_open_dry_run_returns_dry_run_id(tmp_path: Path) -> None:
     _setup_mission(tmp_path)
     decision_id = _open_decision(tmp_path, dry_run=True)
     assert decision_id == "DRY_RUN"
+
+
+def test_open_dry_run_recovery_is_not_rerun_safe(tmp_path: Path) -> None:
+    _setup_mission(tmp_path)
+    result = _invoke(
+        [
+            "decision",
+            "open",
+            "--mission",
+            MISSION_SLUG,
+            "--flow",
+            "charter",
+            "--step-id",
+            "dry-run-step",
+            "--input-key",
+            "dry_run_key",
+            "--question",
+            "Dry run?",
+            "--dry-run",
+        ],
+        cwd=tmp_path,
+    )
+
+    assert result.exit_code == 0
+    data = _parse_open_output(result.output)
+    assert data["decision_id"] == "DRY_RUN"
+    assert data["recovery"]["rerun_safe"] is False
 
 
 def test_open_dry_run_no_index_written(tmp_path: Path) -> None:
@@ -172,9 +184,19 @@ def test_open_happy_path_exit_0(tmp_path: Path) -> None:
     data = _parse_open_output(result.output)
     assert data["decision_id"] != "DRY_RUN"
     assert len(data["decision_id"]) == 26
+    assert data["contract"] == "decision_open_v2"
     assert data["idempotent"] is False
     assert data["mission_id"] == MISSION_ID
     assert "artifact_path" in data
+    assert data["recovery"]["rerun_safe"] is True
+    assert data["recovery"]["idempotency_key"] == {
+        "mission_id": MISSION_ID,
+        "mission_slug": MISSION_SLUG,
+        "origin_flow": "specify",
+        "step_id": None,
+        "slot_key": "my-slot",
+        "input_key": "team_size",
+    }
 
 
 def test_open_happy_path_event_lamport(tmp_path: Path) -> None:
@@ -615,7 +637,7 @@ def test_open_idempotent_second_call(tmp_path: Path) -> None:
     assert data2["decision_id"] == data1["decision_id"]
 
 
-def test_open_idempotent_minted_phase_uses_persisted_decision_id(tmp_path: Path) -> None:
+def test_open_idempotent_single_json_uses_persisted_decision_id(tmp_path: Path) -> None:
     _setup_mission(tmp_path)
     with patch("specify_cli.decisions.emit.emit_decision_opened", return_value=1):
         result1 = _invoke(
@@ -656,14 +678,11 @@ def test_open_idempotent_minted_phase_uses_persisted_decision_id(tmp_path: Path)
     assert result1.exit_code == 0
     assert result2.exit_code == 0
 
-    _, first_response = _parse_open_lines(result1.output)
-    second_minted, second_response = _parse_open_lines(result2.output)
+    first_response = _parse_open_output(result1.output)
+    second_response = _parse_open_output(result2.output)
     assert second_response["idempotent"] is True
     assert second_response["decision_id"] == first_response["decision_id"]
-    assert second_minted == {
-        "decision_id": first_response["decision_id"],
-        "phase": "minted",
-    }
+    assert second_response["contract"] == "decision_open_v2"
 
 
 # ---------------------------------------------------------------------------
@@ -735,17 +754,12 @@ def test_open_mission_path_traversal_rejected(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# T020q-fr003 — FR-003: minted-phase JSON line appears FIRST in stdout
+# T020q-fr003 — FR-003: open emits a single JSON object on stdout
 # ---------------------------------------------------------------------------
 
 
-def test_open_emits_minted_phase_first(tmp_path: Path) -> None:
-    """FR-003: decision_id must be emitted on stdout before any artifact write.
-
-    The first stdout line must be a JSON object with decision_id and phase="minted".
-    The second stdout line is the full open response.  The decision_id in both
-    lines must match.
-    """
+def test_open_emits_single_parseable_json_object(tmp_path: Path) -> None:
+    """FR-003: decision open stdout is one stable machine JSON object."""
     _setup_mission(tmp_path)
     with patch("specify_cli.decisions.emit.emit_decision_opened", return_value=1):
         result = _invoke(
@@ -768,16 +782,12 @@ def test_open_emits_minted_phase_first(tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     lines = [line for line in result.output.splitlines() if line.strip()]
-    assert len(lines) == 2, f"expected 2 JSON lines, got: {result.output!r}"
+    assert len(lines) == 1, f"expected 1 JSON line, got: {result.output!r}"
 
-    first_line = json.loads(lines[0])
-    assert first_line["phase"] == "minted", "first line must be minted-phase"
-    assert len(first_line["decision_id"]) == 26, "minted decision_id must be a ULID"
-
-    second_line = json.loads(lines[1])
-    assert second_line["decision_id"] == first_line["decision_id"], (
-        "decision_id in minted-phase line must match the full response"
-    )
+    payload = json.loads(result.output)
+    assert len(payload["decision_id"]) == 26, "decision_id must be a ULID"
+    assert payload["contract"] == "decision_open_v2"
+    assert payload["recovery"]["idempotency_key"]["step_id"] == "fr003-step"
 
 
 # ---------------------------------------------------------------------------
