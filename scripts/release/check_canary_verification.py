@@ -79,7 +79,7 @@ def _validate_common(data: dict[str, Any], *, candidate_version: str, expected_t
     _parse_datetime(_require_str(data, "verified_at"), key="verified_at")
 
 
-def _validate_passed(data: dict[str, Any], *, required_clean_runs: int) -> None:
+def _validate_passed(data: dict[str, Any], *, required_clean_runs: int, expected_target: str) -> None:
     clean_runs = data.get("clean_runs")
     if not isinstance(clean_runs, list):
         raise SystemExit("Passed canary artifact must include clean_runs list")
@@ -89,15 +89,22 @@ def _validate_passed(data: dict[str, Any], *, required_clean_runs: int) -> None:
             f"artifact contains {len(clean_runs)}"
         )
 
+    seen_run_ids: set[str] = set()
     for index, raw_run in enumerate(clean_runs, start=1):
         if not isinstance(raw_run, dict):
             raise SystemExit(f"clean_runs[{index}] must be a JSON object")
         if raw_run.get("result") != "passed":
             raise SystemExit(f"clean_runs[{index}] result must be 'passed'")
-        _require_str(raw_run, "run_id")
+        run_id = _require_str(raw_run, "run_id")
+        if run_id in seen_run_ids:
+            raise SystemExit(f"clean_runs[{index}] run_id must be unique")
+        seen_run_ids.add(run_id)
         _parse_datetime(_require_str(raw_run, "completed_at"), key=f"clean_runs[{index}].completed_at")
-        if "target" in raw_run and not isinstance(raw_run["target"], str):
-            raise SystemExit(f"clean_runs[{index}].target must be a string when present")
+        run_target = _require_str(raw_run, "target")
+        if _normalise_url(run_target) != _normalise_url(expected_target):
+            raise SystemExit(
+                f"clean_runs[{index}].target mismatch: expected {expected_target!r}, got {run_target!r}"
+            )
         if "health_ready_status" in raw_run and raw_run["health_ready_status"] not in {"ok", "pass", "passed"}:
             raise SystemExit(
                 f"clean_runs[{index}].health_ready_status must be ok/pass/passed when present"
@@ -136,7 +143,11 @@ def main() -> int:
 
     status = data.get("status")
     if status == "passed":
-        _validate_passed(data, required_clean_runs=args.required_clean_runs)
+        _validate_passed(
+            data,
+            required_clean_runs=args.required_clean_runs,
+            expected_target=args.expected_target,
+        )
     elif status == "waived":
         _validate_waiver(data, allow_waiver=args.allow_waiver)
     else:

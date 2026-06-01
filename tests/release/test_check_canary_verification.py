@@ -39,6 +39,7 @@ def _passed_payload() -> dict[str, object]:
                 "run_id": f"canary-{idx}",
                 "result": "passed",
                 "completed_at": f"2026-06-01T08:0{idx}:00Z",
+                "target": "https://spec-kitty-dev.fly.dev/",
                 "health_ready_status": "ok",
             }
             for idx in range(1, 5)
@@ -71,6 +72,27 @@ def test_candidate_version_must_match_release_tag(tmp_path: Path) -> None:
 
     assert result.returncode == 1
     assert "candidate_version mismatch" in result.stderr
+
+
+def test_clean_runs_must_have_unique_run_ids(tmp_path: Path) -> None:
+    payload = _passed_payload()
+    for run in payload["clean_runs"]:  # type: ignore[union-attr]
+        run["run_id"] = "duplicated-run"  # type: ignore[index]
+
+    result = _run(tmp_path, payload)
+
+    assert result.returncode == 1
+    assert "run_id must be unique" in result.stderr
+
+
+def test_clean_run_targets_must_match_expected_target(tmp_path: Path) -> None:
+    payload = _passed_payload()
+    payload["clean_runs"][0]["target"] = "https://not-spec-kitty-dev.example/"  # type: ignore[index]
+
+    result = _run(tmp_path, payload)
+
+    assert result.returncode == 1
+    assert "clean_runs[1].target mismatch" in result.stderr
 
 
 def test_waiver_requires_explicit_allow_waiver(tmp_path: Path) -> None:
