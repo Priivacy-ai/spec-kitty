@@ -35,16 +35,25 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class ContextPreconditionError(RuntimeError):
-    """Raised by context guard methods when a required field is absent."""
+    """Raised by context guard methods when a required field is absent.
+
+    ``hint`` is an optional actionable remediation string explaining how the
+    caller can supply the missing field; when present it is appended to the
+    error message.
+    """
 
     field: str
     context_type: str
+    hint: str | None = None
 
     def __str__(self) -> str:
-        return (
+        base = (
             f"Context precondition failed: '{self.field}' is required "
             f"but absent in {self.context_type}"
         )
+        if self.hint:
+            return f"{base}. {self.hint}"
+        return base
 
     def __post_init__(self) -> None:
         # Ensure the RuntimeError base receives the message string so that
@@ -147,8 +156,14 @@ class ProjectContext:
 class OperationalContext:
     """Runtime context about the active agent session.
 
-    Stub — wiring to a live resolver is deferred to a follow-on mission
-    (charter-pack-activation-layer WP03).
+    Holds the runtime facts about the agent invocation that is currently
+    executing: the active model, profile, role, the activity being performed,
+    and the technology stack in scope.
+
+    All fields are optional so instances can be constructed partially in tests
+    and in partial-discovery scenarios.  Guard methods raise
+    ``ContextPreconditionError`` with actionable messages when a required field
+    is absent.
     """
 
     active_model: str | None = None
@@ -162,30 +177,85 @@ class OperationalContext:
     # ------------------------------------------------------------------
 
     def require_active_profile(self) -> str:
-        """Return ``active_profile`` or raise ``ContextPreconditionError``."""
+        """Return ``active_profile`` or raise ``ContextPreconditionError``.
+
+        When ``active_profile`` is absent the raised error explains how to
+        supply it: by passing ``active_profile=`` to
+        :func:`build_operational_context`.
+        """
         if self.active_profile is None:
             raise ContextPreconditionError(
-                field="active_profile", context_type="OperationalContext"
+                field="active_profile",
+                context_type="OperationalContext",
+                hint=(
+                    "Resolve the active agent profile and pass it as "
+                    "build_operational_context(active_profile=<profile_id>)."
+                ),
             )
         return self.active_profile
 
     def require_active_role(self) -> str:
-        """Return ``active_role`` or raise ``ContextPreconditionError``."""
+        """Return ``active_role`` or raise ``ContextPreconditionError``.
+
+        When ``active_role`` is absent the raised error explains how to supply
+        it: by passing ``active_role=`` to :func:`build_operational_context`.
+        """
         if self.active_role is None:
             raise ContextPreconditionError(
-                field="active_role", context_type="OperationalContext"
+                field="active_role",
+                context_type="OperationalContext",
+                hint=(
+                    "Resolve the active agent role and pass it as "
+                    "build_operational_context(active_role=<role>)."
+                ),
             )
         return self.active_role
 
 
 # ---------------------------------------------------------------------------
-# Module-level stub factory
+# Module-level assembler
 # ---------------------------------------------------------------------------
 
 
-def build_operational_context() -> OperationalContext:
-    """Stub factory — wiring to a live resolver is deferred to a follow-on mission."""
-    return OperationalContext()
+def build_operational_context(
+    *,
+    active_model: str | None = None,
+    active_profile: str | None = None,
+    active_role: str | None = None,
+    current_activity: str | None = None,
+    tech_stack: frozenset[str] | None = None,
+) -> OperationalContext:
+    """Assemble an :class:`OperationalContext` from explicit caller-supplied values.
+
+    This is a **pure assembler**: it packages the values its caller passes and
+    nothing else.  It does NOT read runtime, global, or environment state, and
+    it does NOT import ``specify_cli`` or ``doctrine`` runtime.  Callers are
+    responsible for resolving the runtime facts (which model, profile, role,
+    activity, and tech stack are active) and passing them in as data — this is
+    what keeps the ``charter.*`` layer free of upward dependencies (C-006).
+
+    Wiring this assembler to live call sites is performed by the callers
+    themselves; see the activation-layer call-site work package.
+
+    Args:
+        active_model: Identifier of the active model, or ``None`` if unknown.
+        active_profile: Identifier of the active agent profile, or ``None``.
+        active_role: Active agent role, or ``None``.
+        current_activity: The activity currently being performed, or ``None``.
+        tech_stack: Frozen set of in-scope technologies; ``None`` is normalised
+            to an empty frozenset.
+
+    Returns:
+        A populated :class:`OperationalContext` carrying exactly the values
+        provided.
+    """
+    return OperationalContext(
+        active_model=active_model,
+        active_profile=active_profile,
+        active_role=active_role,
+        current_activity=current_activity,
+        tech_stack=frozenset() if tech_stack is None else frozenset(tech_stack),
+    )
 
 
 # ---------------------------------------------------------------------------
