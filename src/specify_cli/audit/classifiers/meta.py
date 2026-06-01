@@ -34,7 +34,7 @@ def classify_meta_json(mission_dir: Path) -> list[MissionFinding]:
     findings: list[MissionFinding] = []
 
     try:
-        obj: dict[str, object] = json.loads(path.read_text(encoding="utf-8"))
+        obj = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         return [
             MissionFinding(
@@ -42,6 +42,16 @@ def classify_meta_json(mission_dir: Path) -> list[MissionFinding]:
                 severity=Severity.ERROR,
                 artifact_path="meta.json",
                 detail=f"JSON decode error: {exc.msg}",
+            )
+        ]
+
+    if not isinstance(obj, dict):
+        return [
+            MissionFinding(
+                code="CORRUPT_JSON",
+                severity=Severity.ERROR,
+                artifact_path="meta.json",
+                detail="top-level JSON value must be an object",
             )
         ]
 

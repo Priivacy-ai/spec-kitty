@@ -9,13 +9,16 @@ break first.
 
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 
 import pytest
 
+from specify_cli.coordination import register_lane_sparse_checkout
 from specify_cli.git.sparse_checkout import (
     SparseCheckoutPreflightError,
+    SparseCheckoutKind,
     require_no_sparse_checkout,
     scan_path,
     scan_repo,
@@ -47,6 +50,57 @@ def _init_repo_with_commit(repo: Path) -> None:
     (repo / "README.md").write_text("hello\n", encoding="utf-8")
     _run(["git", "-C", str(repo), "add", "README.md"])
     _run(["git", "-C", str(repo), "commit", "-m", "init"])
+
+
+MISSION_SLUG = "demo-feature-01J6XW9K"
+MISSION_ID = "01J6XW9KABCDEFGHJKMNPQRSTV"
+MID8 = "01J6XW9K"
+COORD_BRANCH = f"kitty/mission-{MISSION_SLUG}"
+
+
+def _init_coordination_lane_repo(repo: Path) -> Path:
+    repo.mkdir(parents=True, exist_ok=True)
+    _run(["git", "init", "-q", "-b", "main", str(repo)])
+    _run(["git", "-C", str(repo), "config", "user.email", "test@example.com"])
+    _run(["git", "-C", str(repo), "config", "user.name", "Test User"])
+    _run(["git", "-C", str(repo), "config", "commit.gpgsign", "false"])
+    (repo / ".kittify").mkdir()
+    spec_dir = repo / "kitty-specs" / MISSION_SLUG
+    spec_dir.mkdir(parents=True)
+    (spec_dir / "spec.md").write_text("# spec\n", encoding="utf-8")
+    (spec_dir / "status.events.jsonl").write_text("{}\n", encoding="utf-8")
+    (spec_dir / "status.json").write_text("{}\n", encoding="utf-8")
+    (spec_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_slug": MISSION_SLUG,
+                "mission_id": MISSION_ID,
+                "coordination_branch": COORD_BRANCH,
+            }
+        ),
+        encoding="utf-8",
+    )
+    _run(["git", "-C", str(repo), "add", "-A"])
+    _run(["git", "-C", str(repo), "commit", "-m", "seed"])
+    _run(["git", "-C", str(repo), "branch", COORD_BRANCH])
+    exclude = repo / ".git" / "info" / "exclude"
+    exclude.write_text(exclude.read_text(encoding="utf-8") + ".worktrees/\n")
+    lane_path = repo / ".worktrees" / f"{MISSION_SLUG}-lane-a"
+    _run(
+        [
+            "git",
+            "-C",
+            str(repo),
+            "worktree",
+            "add",
+            "-b",
+            f"{COORD_BRANCH}-lane-a",
+            str(lane_path),
+            COORD_BRANCH,
+        ],
+    )
+    register_lane_sparse_checkout(lane_path, MISSION_SLUG, MID8)
+    return lane_path
 
 
 # ---------------------------------------------------------------------------
@@ -191,6 +245,72 @@ class TestEndToEndDetection:
         assert state.pattern_file_present is True
         assert state.pattern_line_count == 3
 
+    def test_managed_lane_sparse_checkout_is_not_blocking(
+        self, tmp_path: Path
+    ) -> None:
+        repo = tmp_path / "r"
+        lane_path = _init_coordination_lane_repo(repo)
+
+        report = scan_repo(repo)
+
+        assert report.any_active is True
+        assert report.any_blocking is False
+        assert report.affected_paths == ()
+        assert len(report.worktrees) == 1
+        assert report.worktrees[0].path == lane_path
+        assert (
+            report.worktrees[0].sparse_checkout_kind
+            is SparseCheckoutKind.MANAGED_LANE
+        )
+
+    def test_managed_lane_sparse_checkout_with_drift_is_blocking_unknown(
+        self, tmp_path: Path
+    ) -> None:
+        repo = tmp_path / "r"
+        lane_path = _init_coordination_lane_repo(repo)
+        raw = _run(
+            ["git", "-C", str(lane_path), "rev-parse", "--git-path", "info/sparse-checkout"],
+        ).stdout.strip()
+        sparse_file = Path(raw)
+        if not sparse_file.is_absolute():
+            sparse_file = lane_path / sparse_file
+        sparse_file.write_text("/*\n", encoding="utf-8")
+
+        report = scan_repo(repo)
+
+        assert report.any_active is True
+        assert report.any_blocking is True
+        assert report.affected_paths == (lane_path,)
+        assert report.worktrees[0].sparse_checkout_kind is SparseCheckoutKind.UNKNOWN
+
+    def test_manual_matching_worktree_is_blocking_unknown(
+        self, tmp_path: Path
+    ) -> None:
+        repo = tmp_path / "r"
+        _init_coordination_lane_repo(repo)
+        manual_path = repo / ".worktrees" / f"{MISSION_SLUG}-lane-b"
+        _run(
+            [
+                "git",
+                "-C",
+                str(repo),
+                "worktree",
+                "add",
+                "-b",
+                "feature/unrelated-sparse-worktree",
+                str(manual_path),
+                COORD_BRANCH,
+            ],
+        )
+        register_lane_sparse_checkout(manual_path, MISSION_SLUG, MID8)
+
+        report = scan_repo(repo)
+        manual_state = next(w for w in report.worktrees if w.path == manual_path)
+
+        assert manual_state.sparse_checkout_kind is SparseCheckoutKind.UNKNOWN
+        assert manual_state.is_blocking is True
+        assert manual_path in report.affected_paths
+
 
 # ---------------------------------------------------------------------------
 # Preflight wiring
@@ -270,3 +390,18 @@ class TestPreflight:
         assert "mission_id=01HXYZ" in msg
         assert "actor=tester" in msg
         assert str(repo) in msg
+
+    def test_managed_lane_sparse_checkout_passes_preflight(
+        self, tmp_path: Path
+    ) -> None:
+        repo = tmp_path / "r"
+        _init_coordination_lane_repo(repo)
+
+        require_no_sparse_checkout(
+            repo,
+            command="merge",
+            override_flag=False,
+            actor="tester",
+            mission_slug=MISSION_SLUG,
+            mission_id=MISSION_ID,
+        )

@@ -77,6 +77,50 @@ def test_acceptance_summary_all_done_rejects_non_accepted_ready_lanes(tmp_path: 
     assert summary.ok is False
 
 
+@pytest.mark.parametrize(
+    ("lane", "expected_action"),
+    [
+        ("in_review", "complete the review"),
+        ("blocked", "resolve the blocker"),
+        ("canceled", "reopen or replace it"),
+    ],
+)
+def test_acceptance_summary_reports_actionable_lane_blockers(
+    tmp_path: Path, lane: str, expected_action: str
+) -> None:
+    summary = _summary_with_lanes(tmp_path, {"approved": ["WP01"], lane: ["WP02"]})
+
+    outstanding = summary.outstanding()
+    failed_checks = summary.failed_checks()
+    payload = summary.to_dict()
+
+    assert "lane_blockers" in outstanding
+    assert len(outstanding["lane_blockers"]) == 1
+    assert f"WP02: canonical lane is '{lane}'" in outstanding["lane_blockers"][0]
+    assert expected_action in outstanding["lane_blockers"][0]
+    assert "approved or done" in outstanding["lane_blockers"][0]
+    assert any(item.check == "lane_blockers" and expected_action in item.detail for item in failed_checks)
+    assert any(item["check"] == "lane_blockers" and expected_action in item["detail"] for item in payload["failed_checks"])
+
+
+def test_acceptance_summary_preserves_existing_not_done_bucket(tmp_path: Path) -> None:
+    summary = _summary_with_lanes(
+        tmp_path,
+        {
+            "planned": ["WP01"],
+            "claimed": ["WP02"],
+            "in_progress": ["WP03"],
+            "for_review": ["WP04"],
+            "in_review": ["WP05"],
+        },
+    )
+
+    outstanding = summary.outstanding()
+
+    assert outstanding["not_done"] == ["WP01", "WP02", "WP03", "WP04"]
+    assert any("WP05: canonical lane is 'in_review'" in item for item in outstanding["lane_blockers"])
+
+
 def test_acceptance_lane_derivations_are_shared(tmp_path: Path) -> None:
     summary = _summary_with_lanes(tmp_path, {"approved": ["WP01"], "done": ["WP02"]})
 

@@ -76,7 +76,7 @@ def locate_project_root(start: Path | None = None) -> Path | None:
     if env_root := os.getenv("SPECIFY_REPO_ROOT"):
         env_path = Path(env_root).resolve()
         if env_path.exists() and (env_path / KITTIFY_DIR).is_dir():
-            return env_path
+            return get_main_repo_root(env_path)
         # Invalid env var - fall through to other methods
 
     # Tier 2: Walk up directory tree, handling worktree .git files
@@ -248,6 +248,8 @@ def get_main_repo_root(current_path: Path) -> Path:
                 # Validate the gitdir path is not empty (bug discovered via mutation testing)
                 if gitdir_str:
                     gitdir = Path(gitdir_str)
+                    if not _is_worktree_gitdir(gitdir):
+                        return current_path.resolve()
                     # Navigate: .git/worktrees/name -> .git -> main repo root
                     main_git_dir = gitdir.parent.parent
                     main_repo_root = main_git_dir.parent

@@ -279,6 +279,42 @@ class TestImplementHardFailNoCanonical:
 
         assert result.exit_code == 0, f"Expected success: {result.stdout}"
 
+    def test_implement_uses_main_status_when_env_root_points_at_lane_worktree(
+        self,
+        workflow_repo: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A lane-scoped SPECIFY_REPO_ROOT must not make implement read lane-local status."""
+        mission_slug = "060-test-feature"
+        feature_dir = workflow_repo / "kitty-specs" / mission_slug
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+        write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
+        (feature_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
+        _write_wp_file(tasks_dir / "WP01-test.md", "WP01", lane="planned")
+        _seed_wp_lane(feature_dir, "WP01", "planned")
+
+        workspace = lane_worktree_path(workflow_repo, mission_slug)
+        workspace.mkdir(parents=True)
+        (workspace / ".kittify").mkdir()
+        gitdir = workflow_repo / ".git" / "worktrees" / workspace.name
+        gitdir.mkdir(parents=True)
+        (workspace / ".git").write_text(f"gitdir: {gitdir}\n", encoding="utf-8")
+        (workspace / "kitty-specs" / mission_slug).mkdir(parents=True)
+        monkeypatch.setenv("SPECIFY_REPO_ROOT", str(workspace))
+        monkeypatch.setattr(
+            workflow,
+            "_ensure_target_branch_checked_out",
+            lambda _repo_root, _mission_slug: (workflow_repo, "main"),
+        )
+
+        result = CliRunner().invoke(
+            workflow.app,
+            ["implement", "WP01", "--mission", mission_slug, "--agent", "test-agent"],
+        )
+
+        assert result.exit_code == 0, result.stdout
+
 
 # ---------------------------------------------------------------------------
 # T014: review hard-fails when no canonical state

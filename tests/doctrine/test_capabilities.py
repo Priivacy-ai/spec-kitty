@@ -3,7 +3,7 @@ Test suite for RoleCapabilities.
 """
 
 from doctrine.agent_profiles.capabilities import DEFAULT_ROLE_CAPABILITIES, RoleCapabilities, get_capabilities
-from doctrine.agent_profiles.profile import Role
+from doctrine.agent_profiles.profile import AgentProfile, Role
 import pytest
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
@@ -43,6 +43,21 @@ class TestRoleCapabilities:
         caps_upper = get_capabilities("REVIEWER")
         assert caps_upper is not None
         assert caps_upper.role == Role.REVIEWER
+
+    def test_get_capabilities_for_profile_role_from_mixed_case_roles_list(self):
+        """Profile-owned role normalization keeps capability lookup case-insensitive."""
+        profile = AgentProfile(
+            profile_id="casey",
+            name="Casey",
+            purpose="Case normalization",
+            roles=["IMPLEMENTER"],
+            specialization={"primary-focus": "Testing"},
+        )
+
+        caps = get_capabilities(profile.role)
+
+        assert caps is not None
+        assert caps.role == Role.IMPLEMENTER
 
     def test_get_capabilities_for_custom_role_returns_none(self):
         """get_capabilities() returns None for unknown custom roles."""

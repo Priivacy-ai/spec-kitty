@@ -15,6 +15,12 @@ from typing import Annotated, Any, ClassVar, Self
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from pydantic.functional_validators import BeforeValidator
 
+from doctrine.agent_profiles.schema_version import AGENT_PROFILE_SCHEMA_VERSION_PATTERN
+
+
+def _normalize_role_value(value: str) -> str:
+    return value.lower()
+
 
 class Role(str):
     """Half-open role value object.
@@ -51,12 +57,12 @@ class Role(str):
     def __new__(cls, value: str) -> Role:
         if not value:
             raise ValueError("Role value must be a non-empty string")
-        return str.__new__(cls, value)
+        return str.__new__(cls, _normalize_role_value(value))
 
     @classmethod
     def is_known(cls, role: Role | str) -> bool:
         """Return True iff *role* is one of the well-known static constants."""
-        return str(role) in cls._KNOWN
+        return _normalize_role_value(str(role)) in cls._KNOWN
 
     @classmethod
     def __get_pydantic_core_schema__(cls, source_type: Any, handler: Any) -> Any:
@@ -218,7 +224,7 @@ class AgentProfile(BaseModel):
     profile_id: str = Field(alias="profile-id")
     name: str
     description: str = ""
-    schema_version: str = Field(default="1.0", alias="schema-version")
+    schema_version: str = Field(default="1.0", alias="schema-version", pattern=AGENT_PROFILE_SCHEMA_VERSION_PATTERN)
     roles: list[Role] = Field(min_length=1)
     avatar_image: str | None = Field(default=None, alias="avatar-image")
     capabilities: list[str] = Field(default_factory=list)

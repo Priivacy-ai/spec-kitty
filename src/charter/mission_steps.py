@@ -27,6 +27,7 @@ from doctrine.missions.mission_step_repository import MissionStepRepository
 from doctrine.missions.models import MissionStep
 from doctrine.missions.step_contracts import (
     MissionStepContract,
+    MissionStepInput,
     MissionStepContractRepository,
     MissionStepContractStep,
 )
@@ -34,6 +35,7 @@ from doctrine.missions.step_contracts import (
 __all__ = [
     "MissionStep",
     "MissionStepContract",
+    "MissionStepInput",
     "MissionStepContractRepository",
     "MissionStepContractStep",
     "MissionStepRepository",

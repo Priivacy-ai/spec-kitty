@@ -18,6 +18,7 @@ would be triggered simultaneously.
 
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 
@@ -25,6 +26,7 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.doctor import app as doctor_app
+from specify_cli.coordination import register_lane_sparse_checkout
 
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -52,6 +54,49 @@ def _init_bare_repo(repo: Path) -> None:
     # Mark as a spec-kitty project so locate_project_root() resolves to
     # the fixture directory.
     (repo / ".kittify").mkdir()
+
+
+MISSION_SLUG = "demo-feature-01J6XW9K"
+MISSION_ID = "01J6XW9KABCDEFGHJKMNPQRSTV"
+MID8 = "01J6XW9K"
+COORD_BRANCH = f"kitty/mission-{MISSION_SLUG}"
+
+
+def _init_managed_lane_repo(repo: Path) -> Path:
+    _init_bare_repo(repo)
+    spec_dir = repo / "kitty-specs" / MISSION_SLUG
+    spec_dir.mkdir(parents=True)
+    (spec_dir / "spec.md").write_text("# spec\n", encoding="utf-8")
+    (spec_dir / "status.events.jsonl").write_text("{}\n", encoding="utf-8")
+    (spec_dir / "status.json").write_text("{}\n", encoding="utf-8")
+    (spec_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_slug": MISSION_SLUG,
+                "mission_id": MISSION_ID,
+                "coordination_branch": COORD_BRANCH,
+            }
+        ),
+        encoding="utf-8",
+    )
+    _run(["git", "-C", str(repo), "add", "-A"])
+    _run(["git", "-C", str(repo), "commit", "-m", "mission"])
+    _run(["git", "-C", str(repo), "branch", COORD_BRANCH])
+    wt = _add_worktree(repo, f"{MISSION_SLUG}-lane-a")
+    _run(
+        [
+            "git",
+            "-C",
+            str(wt),
+            "checkout",
+            "-q",
+            "-B",
+            f"{COORD_BRANCH}-lane-a",
+            COORD_BRANCH,
+        ],
+    )
+    register_lane_sparse_checkout(wt, MISSION_SLUG, MID8)
+    return wt
 
 
 def _enable_sparse(repo: Path, pattern: str = "README.md\n") -> None:
@@ -149,3 +194,49 @@ def test_doctor_sparse_primary_and_worktrees_lists_all_paths(
     assert str(wt_a) in result.stdout
     assert str(wt_b) in result.stdout
     assert str(repo) in result.stdout
+
+
+def test_doctor_managed_lane_sparse_checkout_is_not_legacy_finding(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Managed lane sparse-checkout must not be remediated as legacy state."""
+    repo = tmp_path / "managed"
+    wt = _init_managed_lane_repo(repo)
+
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.doctor.locate_project_root",
+        lambda: repo,
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(doctor_app, ["sparse-checkout"])
+    assert result.exit_code == 0, result.stdout
+    assert "No legacy sparse-checkout state detected" in result.stdout
+    assert "Legacy sparse-checkout state detected" not in result.stdout
+    assert "spec-kitty doctor sparse-checkout --fix" not in result.stdout
+    assert str(wt) not in result.stdout
+
+
+def test_doctor_fix_plan_skips_managed_lane_sparse_checkout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = tmp_path / "mixed"
+    wt = _init_managed_lane_repo(repo)
+    _enable_sparse(repo, pattern="README.md\n")
+
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.doctor.locate_project_root",
+        lambda: repo,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.doctor._is_interactive_environment",
+        lambda: True,
+    )
+    monkeypatch.setattr("builtins.input", lambda _prompt: "n")
+
+    runner = CliRunner()
+    result = runner.invoke(doctor_app, ["sparse-checkout", "--fix"])
+    assert result.exit_code == 0, result.stdout
+    assert "git sparse-checkout disable (primary)" in result.stdout
+    assert "repeat steps" not in result.stdout
+    assert str(wt) not in result.stdout

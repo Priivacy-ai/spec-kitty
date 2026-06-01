@@ -55,9 +55,10 @@ STATUS_EVENT_ONLY_LEGACY_KEYS: frozenset[str] = frozenset(
 #
 # Row-family scoping (mission ``unblock-sync-identity-boundary-canary``, WP01):
 # ``status.events.jsonl`` carries two distinct row families — status-transition
-# rows and mission-lifecycle rows (``aggregate_type == "Mission"`` plus an
-# ``event_type`` discriminator). The FORBIDDEN_KEYS rule applies only to the
-# non-lifecycle family. ``detect_forbidden_keys`` consults
+# rows and mission-lifecycle rows (accepted lifecycle aggregate type plus an
+# ``event_type`` discriminator, excluding status-transition discriminators).
+# The FORBIDDEN_KEYS rule applies only to the non-lifecycle family.
+# ``detect_forbidden_keys`` consults
 # :func:`specify_cli.audit.shape_registry.is_mission_lifecycle_row` to skip
 # legitimate lifecycle rows while still flagging malformed transition rows
 # that carry ``event_type`` / ``event_name``.

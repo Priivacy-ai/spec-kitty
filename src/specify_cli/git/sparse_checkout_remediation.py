@@ -359,7 +359,8 @@ def remediate(
         (report.primary.path, report.primary, False)
     ]
     for wt_state in report.worktrees:
-        targets.append((wt_state.path, wt_state, True))
+        if wt_state.is_blocking:
+            targets.append((wt_state.path, wt_state, True))
 
     # All-or-nothing dirty-tree pre-check. We probe EVERY target before
     # touching any of them.

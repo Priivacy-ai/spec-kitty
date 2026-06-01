@@ -15,6 +15,9 @@ This test locks the contract so the shim layer cannot be silently removed:
 from __future__ import annotations
 
 import importlib
+import importlib.util
+import pkgutil
+import sys
 
 import pytest
 
@@ -105,3 +108,57 @@ def test_legacy_submodules_resolve_via_shim() -> None:
         assert hasattr(legacy_mod, sentinel), (
             f"{legacy_path} missing sentinel symbol {sentinel!r}"
         )
+
+
+def test_all_canonical_lint_checks_have_legacy_aliases() -> None:
+    """Every canonical lint checker module must keep legacy identity."""
+    canonical_checks = importlib.import_module(
+        "specify_cli.charter_runtime.lint.checks"
+    )
+
+    for module_info in pkgutil.iter_modules(canonical_checks.__path__):
+        canonical_path = f"specify_cli.charter_runtime.lint.checks.{module_info.name}"
+        legacy_path = f"specify_cli.charter_lint.checks.{module_info.name}"
+
+        canonical_mod = importlib.import_module(canonical_path)
+        legacy_mod = importlib.import_module(legacy_path)
+
+        assert legacy_mod is canonical_mod, (
+            f"shim identity mismatch: {legacy_path} is not {canonical_path}"
+        )
+
+
+def test_legacy_lint_checks_parent_has_package_metadata() -> None:
+    """The synthetic parent package must remain discoverable by importlib."""
+    legacy_checks = importlib.import_module("specify_cli.charter_lint.checks")
+
+    spec = importlib.util.find_spec("specify_cli.charter_lint.checks")
+
+    assert spec is not None
+    assert spec.name == "specify_cli.charter_lint.checks"
+    assert spec.submodule_search_locations == []
+    assert legacy_checks.__spec__ is spec
+
+
+def test_missing_legacy_lint_check_alias_fails_loudly() -> None:
+    """Deleted/missing nested aliases must not import duplicate modules.
+
+    This guards issue #1459: if a nested legacy check alias disappears from
+    ``sys.modules``, Python must not discover the canonical file through the
+    legacy parent package and instantiate it as
+    ``specify_cli.charter_lint.checks.<name>``.
+    """
+    legacy_path = "specify_cli.charter_lint.checks.staleness"
+    canonical_path = "specify_cli.charter_runtime.lint.checks.staleness"
+
+    canonical_mod = importlib.import_module(canonical_path)
+    original_legacy_mod = importlib.import_module(legacy_path)
+    assert original_legacy_mod is canonical_mod
+
+    sys.modules.pop(legacy_path, None)
+    try:
+        with pytest.raises(ModuleNotFoundError):
+            importlib.import_module(legacy_path)
+        assert sys.modules.get(legacy_path) is None
+    finally:
+        sys.modules[legacy_path] = canonical_mod

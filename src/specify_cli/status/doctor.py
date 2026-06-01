@@ -303,7 +303,7 @@ def check_sparse_checkout(repo_root: Path) -> list[Finding]:
         logger.debug("sparse-checkout scan failed", exc_info=True)
         return findings
 
-    if not report.any_active:
+    if not report.any_blocking:
         return findings
 
     affected_paths = [str(p) for p in report.affected_paths]
@@ -319,7 +319,7 @@ def check_sparse_checkout(repo_root: Path) -> list[Finding]:
                 f"{report.primary.pattern_line_count} lines)"
             )
         lines.append(f"Primary: {report.primary.path}{pattern_note}")
-    active_wts = [w for w in report.worktrees if w.is_active]
+    active_wts = [w for w in report.worktrees if w.is_blocking]
     if active_wts:
         lines.append(f"Lane worktrees affected: {len(active_wts)}")
         for wt in active_wts:

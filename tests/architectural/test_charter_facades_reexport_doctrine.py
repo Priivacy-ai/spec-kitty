@@ -35,6 +35,7 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
     "charter.mission_steps": [
         ("MissionStep", "doctrine.missions.models"),
         ("MissionStepContract", "doctrine.missions.step_contracts"),
+        ("MissionStepInput", "doctrine.missions.step_contracts"),
         ("MissionStepContractRepository", "doctrine.missions.step_contracts"),
         ("MissionStepContractStep", "doctrine.missions.step_contracts"),
     ],

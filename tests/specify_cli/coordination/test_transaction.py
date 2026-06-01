@@ -437,6 +437,54 @@ def test_rollback_skips_deferred_outbound(repo: Path) -> None:
     assert ran == []
 
 
+def test_rollback_artifact_restore_refuses_parent_symlink_escape(
+    repo: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Rollback restore must not write snapshots through a swapped parent."""
+    outside_dir = tmp_path / "outside"
+    outside_dir.mkdir()
+    worktree = CoordinationWorkspace.resolve(repo, MISSION_SLUG, MID8)
+
+    def fail_commit(**_kwargs: object) -> None:
+        raise RuntimeError("forced commit failure")
+
+    monkeypatch.setattr(transaction_module, "safe_commit", fail_commit)
+
+    with (
+        caplog.at_level(logging.ERROR),
+        pytest.raises(BookkeepingCommitFailed),
+        BookkeepingTransaction.acquire(
+            repo_root=repo,
+            mission_id=MISSION_ID,
+            mission_slug=MISSION_SLUG,
+            mid8=MID8,
+            destination_ref=COORD_BRANCH,
+            operation="rollback_artifact_symlink_escape",
+        ) as txn,
+    ):
+        link_path = worktree / "kitty-specs" / FEATURE_DIRNAME / "rollback-link"
+        artifact = link_path / "artifact.txt"
+        link_path.mkdir(parents=True, exist_ok=True)
+        artifact.write_bytes(b"old-inside")
+
+        txn.write_artifact(artifact, b"new-inside")
+
+        backup_path = link_path.with_name("rollback-link-backup")
+        link_path.rename(backup_path)
+        link_path.symlink_to(outside_dir, target_is_directory=True)
+        txn.commit("status: should reject")
+
+    assert not (outside_dir / "artifact.txt").exists()
+    assert any(
+        "rollback: restore of" in record.getMessage()
+        and "resolves outside worktree" in record.getMessage()
+        for record in caplog.records
+    )
+
+
 # ---------------------------------------------------------------------------
 # Double event_id
 # ---------------------------------------------------------------------------
@@ -544,6 +592,109 @@ def test_write_artifact_refuses_symlink_escape(repo: Path, tmp_path: Path) -> No
 
         with pytest.raises(ValueError, match="outside worktree"):
             txn.write_artifact(link_path / "artifact.txt", b"bad")
+
+
+def test_write_artifact_rechecks_after_parent_creation(
+    repo: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Parent creation must not open a post-validation symlink escape."""
+    outside_dir = tmp_path / "outside"
+    outside_dir.mkdir()
+    original_mkdir = Path.mkdir
+    swapped = False
+
+    with BookkeepingTransaction.acquire(
+        repo_root=repo,
+        mission_id=MISSION_ID,
+        mission_slug=MISSION_SLUG,
+        mid8=MID8,
+        destination_ref=COORD_BRANCH,
+        operation="artifact_late_symlink_escape",
+    ) as txn:
+        link_path = txn.worktree_root / "kitty-specs" / FEATURE_DIRNAME / "late-link"
+
+        def swap_to_symlink_after_mkdir(
+            self: Path,
+            mode: int = 0o777,
+            parents: bool = False,
+            exist_ok: bool = False,
+        ) -> None:
+            nonlocal swapped
+            original_mkdir(self, mode=mode, parents=parents, exist_ok=exist_ok)
+            if self == link_path and not swapped:
+                swapped = True
+                self.rmdir()
+                self.symlink_to(outside_dir, target_is_directory=True)
+
+        monkeypatch.setattr(Path, "mkdir", swap_to_symlink_after_mkdir)
+
+        with pytest.raises(ValueError, match="outside worktree"):
+            txn.write_artifact(link_path / "artifact.txt", b"bad")
+        assert not (outside_dir / "artifact.txt").exists()
+
+
+def test_write_artifact_refuses_parent_swap_after_final_validation(
+    repo: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Final write must bind to a verified parent instead of a swapped symlink."""
+    outside_dir = tmp_path / "outside"
+    outside_dir.mkdir()
+    original_resolve = transaction_module._resolve_confined_artifact_path
+    resolve_count = 0
+
+    with BookkeepingTransaction.acquire(
+        repo_root=repo,
+        mission_id=MISSION_ID,
+        mission_slug=MISSION_SLUG,
+        mid8=MID8,
+        destination_ref=COORD_BRANCH,
+        operation="artifact_post_validation_symlink_escape",
+    ) as txn:
+        link_path = txn.worktree_root / "kitty-specs" / FEATURE_DIRNAME / "late-link"
+
+        def swap_after_final_validation(worktree_root: Path, path: Path) -> Path:
+            nonlocal resolve_count
+            resolved = original_resolve(worktree_root, path)
+            resolve_count += 1
+            if resolve_count == 3:
+                link_path.rmdir()
+                link_path.symlink_to(outside_dir, target_is_directory=True)
+            return resolved
+
+        monkeypatch.setattr(
+            transaction_module,
+            "_resolve_confined_artifact_path",
+            swap_after_final_validation,
+        )
+
+        with pytest.raises(ValueError, match="unsafe path changed during write"):
+            txn.write_artifact(link_path / "artifact.txt", b"bad")
+        assert not (outside_dir / "artifact.txt").exists()
+
+
+def test_write_artifact_preserves_existing_file_mode(repo: Path) -> None:
+    """Atomic temp replace must not strip executable/user mode bits."""
+    with BookkeepingTransaction.acquire(
+        repo_root=repo,
+        mission_id=MISSION_ID,
+        mission_slug=MISSION_SLUG,
+        mid8=MID8,
+        destination_ref=COORD_BRANCH,
+        operation="artifact_mode_preservation",
+    ) as txn:
+        artifact = txn.worktree_root / "kitty-specs" / FEATURE_DIRNAME / "script.sh"
+        artifact.parent.mkdir(parents=True, exist_ok=True)
+        artifact.write_bytes(b"old\n")
+        artifact.chmod(0o744)
+
+        txn.write_artifact(artifact, b"new\n")
+
+        assert artifact.read_bytes() == b"new\n"
+        assert artifact.stat().st_mode & 0o777 == 0o744
 
 
 # ---------------------------------------------------------------------------

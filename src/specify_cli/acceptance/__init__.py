@@ -56,6 +56,13 @@ PRIMARY_ARTIFACT_FILES = (
     DATA_MODEL_FILE,
 )
 _DECISION_ID_MARKER = "decision_id:"
+_ACCEPTED_READY_LANES = frozenset({"approved", "done"})
+_LEGACY_NOT_DONE_LANES = ("planned", "claimed", "doing", "in_progress", "for_review")
+_ACTIONABLE_LANE_BLOCKER_HINTS = {
+    "in_review": "review is still in progress; complete the review and move the work package to approved or done",
+    "blocked": "work package is blocked; resolve the blocker and move the work package to approved or done",
+    "canceled": "work package is canceled; reopen or replace it, then move the work package to approved or done",
+}
 
 
 class AcceptanceError(TaskCliError):
@@ -94,6 +101,13 @@ class AcceptanceCheckDiagnostic:
         return {"check": self.check, "detail": self.detail}
 
 
+def _format_lane_blocker(lane: str, wp_id: str) -> str:
+    hint = _ACTIONABLE_LANE_BLOCKER_HINTS.get(lane)
+    if hint is None:
+        hint = "move the work package to approved or done"
+    return f"{wp_id}: canonical lane is '{lane}'; {hint}."
+
+
 @dataclass
 class AcceptanceSummary:
     feature: str
@@ -121,8 +135,7 @@ class AcceptanceSummary:
     @property
     def all_done(self) -> bool:
         """True when all WPs are approved or done (no WPs still in progress or review)."""
-        accepted_ready_lanes = {"approved", "done"}
-        return not any(wp_ids for lane, wp_ids in self.lanes.items() if lane not in accepted_ready_lanes)
+        return not any(wp_ids for lane, wp_ids in self.lanes.items() if lane not in _ACCEPTED_READY_LANES)
 
     @property
     def ok(self) -> bool:
@@ -140,11 +153,12 @@ class AcceptanceSummary:
     def outstanding(self) -> dict[str, list[str]]:
         buckets = {
             "not_done": [
-                *self.lanes.get("planned", []),
-                *self.lanes.get("claimed", []),
-                *self.lanes.get("doing", []),
-                *self.lanes.get("in_progress", []),
-                *self.lanes.get("for_review", []),
+                *(wp_id for lane in _LEGACY_NOT_DONE_LANES for wp_id in self.lanes.get(lane, [])),
+            ],
+            "lane_blockers": [
+                _format_lane_blocker(lane, wp_id)
+                for lane in _ACTIONABLE_LANE_BLOCKER_HINTS
+                for wp_id in self.lanes.get(lane, [])
             ],
             "metadata": self.metadata_issues,
             "activity": self.activity_issues,

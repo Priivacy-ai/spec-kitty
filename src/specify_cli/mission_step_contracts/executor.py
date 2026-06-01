@@ -22,6 +22,7 @@ from charter.mission_steps import (
     MissionStep,
     MissionStepContract,
     MissionStepContractRepository,
+    MissionStepInput,
 )
 from specify_cli.invocation.executor import InvocationPayload, ProfileInvocationExecutor
 from specify_cli.invocation.modes import ModeOfWork
@@ -35,6 +36,7 @@ _ARTIFACT_TO_NODE_KIND: dict[ArtifactKind, NodeKind] = {
     ArtifactKind.TOOLGUIDE: NodeKind.TOOLGUIDE,
     ArtifactKind.PROCEDURE: NodeKind.PROCEDURE,
     ArtifactKind.AGENT_PROFILE: NodeKind.AGENT_PROFILE,
+    ArtifactKind.MISSION_STEP_CONTRACT: NodeKind.MISSION_STEP_CONTRACT,
     ArtifactKind.TEMPLATE: NodeKind.TEMPLATE,
 }
 
@@ -101,6 +103,7 @@ class StepContractStepResult:
     command: str | None
     command_declared: bool
     guidance: str | None
+    inputs: tuple[MissionStepInput, ...] = field(default_factory=tuple)
     resolved_delegations: tuple[ResolvedStepDelegation, ...] = field(default_factory=tuple)
     unresolved_candidates: tuple[str, ...] = field(default_factory=tuple)
     invocation_payload: InvocationPayload | None = None
@@ -207,6 +210,7 @@ class StepContractExecutor:
                         description=step.description,
                         command=step.command,
                         command_declared=step.command is not None,
+                        inputs=tuple(step.inputs),
                         guidance=step.guidance,
                         resolved_delegations=tuple(resolved),
                         unresolved_candidates=tuple(unresolved),
@@ -349,8 +353,13 @@ class StepContractExecutor:
         if context.request_text:
             lines.append(f"Run request: {context.request_text}")
         if step.command:
-            lines.append(f"Declared command: {step.command}")
+            lines.append(f"Declared command: {self._render_declared_command(step)}")
             lines.append("Command status: declared only; the host/operator owns execution.")
+        elif step.inputs:
+            joined = " ".join(
+                self._format_step_input(input_spec) for input_spec in step.inputs
+            )
+            lines.append(f"Declared step inputs: {joined}")
         if resolved_delegations:
             joined = ", ".join(delegation.urn for delegation in resolved_delegations)
             lines.append(f"Resolved delegations: {joined}")
@@ -360,6 +369,21 @@ class StepContractExecutor:
         if step.guidance:
             lines.append(f"Step guidance: {step.guidance}")
         return "\n".join(lines)
+
+    def _render_declared_command(self, step: MissionStep) -> str:
+        if not step.command or not step.inputs:
+            return step.command or ""
+        joined = " ".join(
+            self._format_step_input(input_spec) for input_spec in step.inputs
+        )
+        return f"{step.command} {joined}"
+
+    @staticmethod
+    def _format_step_input(input_spec: MissionStepInput) -> str:
+        rendered = f"{input_spec.flag} {{{input_spec.source}}}"
+        if input_spec.optional:
+            return f"[{rendered}]"
+        return rendered
 
 
 __all__ = [

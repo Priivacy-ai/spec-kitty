@@ -78,6 +78,28 @@ At minimum, the following must be checked where applicable:
 4. no fallback code path or secondary entrypoint can still render the removed
    surface.
 
+### Negative Invariant Verifier Model
+
+Negative invariant evidence MUST distinguish absence from verifier failure.
+`grep_absence` remains a cheap textual fallback, but only `grep` exit code 1
+proves absence. Exit code 0 means the forbidden surface is still present. Exit
+codes greater than 1 mean verifier failure and MUST produce a blocking
+`verification_error`, not `confirmed_absent`.
+
+Structured surfaces SHOULD use typed verifiers instead of grep:
+
+1. command registry inspection for command absence,
+2. route table inspection for route absence,
+3. AST or import graph checks for code-level bans,
+4. parsed config or manifest inspection for configuration invariants,
+5. orchestrator/state APIs for workflow-state invariants.
+
+Every verifier SHOULD declare the checked surface, absence semantics, evidence
+shape, and blocking behavior. Its tests MUST prove both positive detection
+(`still_present`) and negative absence (`confirmed_absent`), and SHOULD include
+a verifier-failure case (`verification_error`) where the verifier depends on
+parsing, external commands, or structured inputs.
+
 ### Manual QA Evidence Rule
 
 Manual QA evidence MUST include, at minimum:

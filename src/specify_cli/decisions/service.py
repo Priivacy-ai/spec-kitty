@@ -18,6 +18,7 @@ mission_id resolution:
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -159,6 +160,7 @@ def open_decision(
     actor: str,
     dry_run: bool = False,
     decision_id: str | None = None,
+    on_minted: Callable[[str], None] | None = None,
 ) -> DecisionOpenResponse:
     """Open a new decision or return idempotently if already open.
 
@@ -174,9 +176,9 @@ def open_decision(
         actor:        Identity of the opening actor.
         dry_run:      If True, validate and look up without writing.
         decision_id:  Pre-minted ULID to use as the decision_id.  If None, a
-                      new ULID is minted inside this function.  Callers that
-                      need to emit the id to stdout *before* any write should
-                      mint the ULID themselves and pass it here (FR-003).
+                      new ULID is minted inside this function.
+        on_minted:    Optional callback invoked once the usable decision_id is
+                      known and before any artifact write or event emission.
 
     Returns:
         DecisionOpenResponse
@@ -196,6 +198,8 @@ def open_decision(
     mission_dir = _mission_dir(repo_root, mission_slug)
 
     if dry_run:
+        if on_minted is not None:
+            on_minted("DRY_RUN")
         return DecisionOpenResponse(
             decision_id="DRY_RUN",
             idempotent=False,
@@ -217,6 +221,8 @@ def open_decision(
     if existing is not None:
         if not _is_terminal(existing.status):
             # Idempotent return — already open
+            if on_minted is not None:
+                on_minted(existing.decision_id)
             return DecisionOpenResponse(
                 decision_id=existing.decision_id,
                 idempotent=True,
@@ -240,6 +246,8 @@ def open_decision(
 
     # Mint new decision (use caller-supplied id if provided, else mint fresh)
     decision_id = decision_id if decision_id is not None else _mint_decision_id()
+    if on_minted is not None:
+        on_minted(decision_id)
     created_at = _now_utc()
     entry = IndexEntry(
         decision_id=decision_id,

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import shutil
 from collections.abc import Mapping
 from pathlib import Path
@@ -11,6 +12,8 @@ from unittest.mock import patch
 import pytest
 from ruamel.yaml import YAML
 
+from charter._drg_helpers import load_validated_graph
+from charter.drg import resolve_context
 from doctrine.missions.step_contracts import MissionStepContractRepository
 from specify_cli.invocation.writer import EVENTS_DIR
 from specify_cli.mission_step_contracts.executor import (
@@ -21,6 +24,15 @@ from specify_cli.mission_step_contracts.executor import (
 
 
 pytestmark = pytest.mark.fast
+
+
+def test_charter_mission_steps_facade_reexports_step_inputs() -> None:
+    """The runtime-facing facade exposes the doctrine input model by identity."""
+    from doctrine.missions.step_contracts import MissionStepInput
+
+    facade = importlib.reload(importlib.import_module("charter.mission_steps"))
+
+    assert facade.MissionStepInput is MissionStepInput
 
 
 def _write_yaml(path: Path, data: Mapping[str, object]) -> None:
@@ -62,9 +74,19 @@ def _write_project_graph(repo_root: Path) -> None:
                     "label": "Fixture directive composer action",
                 },
                 {
+                    "urn": "action:fixture/contract-composer",
+                    "kind": "action",
+                    "label": "Fixture contract composer action",
+                },
+                {
                     "urn": "directive:DIRECTIVE_030",
                     "kind": "directive",
                     "label": "Test and Typecheck Quality Gate",
+                },
+                {
+                    "urn": "mission_step_contract:child-contract",
+                    "kind": "mission_step_contract",
+                    "label": "Child contract",
                 },
             ],
             "edges": [
@@ -86,6 +108,11 @@ def _write_project_graph(repo_root: Path) -> None:
                 {
                     "source": "action:fixture/directive-composer",
                     "target": "directive:DIRECTIVE_030",
+                    "relation": "scope",
+                },
+                {
+                    "source": "action:fixture/contract-composer",
+                    "target": "mission_step_contract:child-contract",
                     "relation": "scope",
                 },
             ],
@@ -222,6 +249,149 @@ def test_command_step_is_declared_not_shell_executed(tmp_path: Path) -> None:
     assert len(result.invocation_ids) == 1
 
 
+def test_command_step_inputs_are_rendered_into_runtime_request_text(tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    _write_project_graph(repo_root)
+
+    contract = {
+        "schema_version": "1.0",
+        "id": "command-inputs-contract",
+        "mission": "fixture",
+        "action": "composer",
+        "steps": [
+            {
+                "id": "bootstrap",
+                "description": "Load context",
+                "command": "spec-kitty charter context --action composer --json",
+                "inputs": [
+                    {
+                        "flag": "--profile",
+                        "source": "wp.agent_profile",
+                        "optional": True,
+                    },
+                    {
+                        "flag": "--tool",
+                        "source": "env.agent_tool",
+                        "optional": True,
+                    },
+                ],
+            }
+        ],
+    }
+    built_in_dir = tmp_path / "contracts"
+    _write_yaml(built_in_dir / "command-inputs.step-contract.yaml", contract)
+
+    class FakeInvocationExecutor:
+        def __init__(self) -> None:
+            self.request_texts: list[str] = []
+
+        def invoke(self, request_text: str, **_kwargs: object) -> object:
+            self.request_texts.append(request_text)
+            return SimpleNamespace(invocation_id="inv-1")
+
+        def complete_invocation(self, _invocation_id: str, *, outcome: str) -> None:
+            assert outcome == "done"
+
+    fake_invocations = FakeInvocationExecutor()
+    result = StepContractExecutor(
+        repo_root=repo_root,
+        contract_repository=MissionStepContractRepository(built_in_dir=built_in_dir),
+        invocation_executor=fake_invocations,  # type: ignore[arg-type]
+    ).execute(
+        StepContractExecutionContext(
+            repo_root=repo_root,
+            mission="fixture",
+            action="composer",
+            actor="pytest",
+            profile_hint="implementer-fixture",
+        )
+    )
+
+    assert result.steps[0].command_declared is True
+    assert [input.flag for input in result.steps[0].inputs] == ["--profile", "--tool"]
+    assert [input.source for input in result.steps[0].inputs] == [
+        "wp.agent_profile",
+        "env.agent_tool",
+    ]
+    assert fake_invocations.request_texts == [
+        "\n".join(
+            [
+                "Execute mission step contract command-inputs-contract (fixture/composer).",
+                "Step bootstrap: Load context",
+                "Declared command: spec-kitty charter context --action composer --json [--profile {wp.agent_profile}] [--tool {env.agent_tool}]",
+                "Command status: declared only; the host/operator owns execution.",
+            ]
+        )
+    ]
+
+
+def test_input_only_step_renders_required_inputs_into_runtime_request_text(
+    tmp_path: Path,
+) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    _write_project_graph(repo_root)
+
+    contract = {
+        "schema_version": "1.0",
+        "id": "input-only-contract",
+        "mission": "fixture",
+        "action": "composer",
+        "steps": [
+            {
+                "id": "collect",
+                "description": "Collect required context",
+                "inputs": [
+                    {
+                        "flag": "--profile",
+                        "source": "wp.agent_profile",
+                    },
+                ],
+            }
+        ],
+    }
+    built_in_dir = tmp_path / "contracts"
+    _write_yaml(built_in_dir / "input-only.step-contract.yaml", contract)
+
+    class FakeInvocationExecutor:
+        def __init__(self) -> None:
+            self.request_texts: list[str] = []
+
+        def invoke(self, request_text: str, **_kwargs: object) -> object:
+            self.request_texts.append(request_text)
+            return SimpleNamespace(invocation_id="inv-1")
+
+        def complete_invocation(self, _invocation_id: str, *, outcome: str) -> None:
+            assert outcome == "done"
+
+    fake_invocations = FakeInvocationExecutor()
+    result = StepContractExecutor(
+        repo_root=repo_root,
+        contract_repository=MissionStepContractRepository(built_in_dir=built_in_dir),
+        invocation_executor=fake_invocations,  # type: ignore[arg-type]
+    ).execute(
+        StepContractExecutionContext(
+            repo_root=repo_root,
+            mission="fixture",
+            action="composer",
+            actor="pytest",
+            profile_hint="implementer-fixture",
+        )
+    )
+
+    assert result.steps[0].inputs[0].optional is False
+    assert fake_invocations.request_texts == [
+        "\n".join(
+            [
+                "Execute mission step contract input-only-contract (fixture/composer).",
+                "Step collect: Collect required context",
+                "Declared step inputs: --profile {wp.agent_profile}",
+            ]
+        )
+    ]
+
+
 def test_directive_slug_candidate_resolves_to_drg_urn(tmp_path: Path) -> None:
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
@@ -263,6 +433,87 @@ def test_directive_slug_candidate_resolves_to_drg_urn(tmp_path: Path) -> None:
         )
 
     assert result.steps[0].resolved_delegations[0].urn == "directive:DIRECTIVE_030"
+    assert result.steps[0].unresolved_candidates == ()
+
+
+def test_shipped_implement_workspace_paradigms_resolve_through_built_in_drg(
+    tmp_path: Path,
+) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    graph = load_validated_graph(repo_root)
+    contract = MissionStepContractRepository().get_by_action("software-dev", "implement")
+    assert contract is not None
+    workspace = next(step for step in contract.steps if step.id == "workspace")
+
+    resolved, unresolved = StepContractExecutor(
+        repo_root=repo_root,
+        graph=graph,
+    )._resolve_step_delegations(
+        graph=graph,
+        action_context=resolve_context(graph, "action:software-dev/implement"),
+        step=workspace,
+    )
+
+    assert unresolved == []
+    assert [delegation.candidate for delegation in resolved] == [
+        "execution-lanes",
+        "shared-branch-ci",
+        "git-flow",
+        "trunk-based",
+    ]
+    assert [delegation.urn for delegation in resolved] == [
+        "paradigm:execution-lanes",
+        "paradigm:shared-branch-ci",
+        "paradigm:git-flow",
+        "paradigm:trunk-based",
+    ]
+
+
+def test_mission_step_contract_candidate_resolves_to_drg_urn(tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    _setup_fixture_profiles(repo_root)
+    _write_project_graph(repo_root)
+
+    contract = {
+        "schema_version": "1.0",
+        "id": "contract-delegation",
+        "mission": "fixture",
+        "action": "contract-composer",
+        "steps": [
+            {
+                "id": "child",
+                "description": "Run child contract",
+                "delegates_to": {
+                    "kind": "mission_step_contract",
+                    "candidates": ["child-contract"],
+                },
+            }
+        ],
+    }
+    built_in_dir = tmp_path / "contracts"
+    _write_yaml(built_in_dir / "contract.step-contract.yaml", contract)
+
+    context_result = SimpleNamespace(mode="compact", text="fixture governance context")
+    with patch("specify_cli.invocation.executor.build_charter_context", return_value=context_result):
+        result = StepContractExecutor(
+            repo_root=repo_root,
+            contract_repository=MissionStepContractRepository(built_in_dir=built_in_dir),
+        ).execute(
+            StepContractExecutionContext(
+                repo_root=repo_root,
+                mission="fixture",
+                action="contract-composer",
+                actor="pytest",
+                profile_hint="implementer-fixture",
+            )
+        )
+
+    assert (
+        result.steps[0].resolved_delegations[0].urn
+        == "mission_step_contract:child-contract"
+    )
     assert result.steps[0].unresolved_candidates == ()
 
 

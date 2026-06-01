@@ -206,6 +206,30 @@ def _load_coord_branch_meta(feature_dir: Path) -> tuple[str | None, str | None, 
     return (coord, mid, mid8)
 
 
+def _mid8_for_mission_read_path(primary_feature_dir: Path, mission_slug: str) -> str:
+    """Return the mission mid8 token for topology-aware status reads."""
+    _, _, meta_mid8 = _load_coord_branch_meta(primary_feature_dir)
+    if meta_mid8:
+        return str(meta_mid8)
+
+    if "-" in mission_slug:
+        tail = mission_slug.rsplit("-", 1)[-1]
+        if len(tail) == 8 and tail.isalnum() and tail.isupper():
+            return tail
+
+    return ""
+
+
+def _canonical_status_feature_dir(main_repo_root: Path, mission_slug: str) -> Path:
+    """Resolve the canonical read-side mission directory for status state."""
+    primary_feature_dir = main_repo_root / "kitty-specs" / mission_slug
+    mid8 = _mid8_for_mission_read_path(primary_feature_dir, mission_slug)
+
+    from specify_cli.missions._read_path_resolver import resolve_mission_read_path
+
+    return resolve_mission_read_path(main_repo_root, mission_slug, mid8)
+
+
 def _commit_via_coordination_transaction(
     *,
     coord_branch: str,
@@ -235,6 +259,9 @@ def _commit_via_coordination_transaction(
         ) as txn:
             for path in paths:
                 if not path.exists():
+                    continue
+                if path.resolve().is_relative_to(txn.worktree_root.resolve()):
+                    txn.stage_path(path)
                     continue
                 txn_path = _transaction_path_for(
                     source_path=path,
@@ -343,6 +370,12 @@ def _commit_workflow_change(
             )
             return
         except typer.Exit:
+            _restore_status_artifacts(
+                events_path=events_path,
+                pre_emit_event_size=pre_emit_event_size,
+                status_path=status_path,
+                pre_emit_status_bytes=pre_emit_status_bytes,
+            )
             raise
         except Exception as exc:  # noqa: BLE001 — surface + exit
             recovery_commit_sha = _safe_commit_recovery_commit_sha(exc)
@@ -842,6 +875,7 @@ def implement(
         if repo_root is None:
             print("Error: Could not locate project root")
             raise typer.Exit(1)
+        repo_root = get_main_repo_root(repo_root)
 
         mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, repo_root=repo_root)
 
@@ -983,7 +1017,7 @@ def implement(
         from specify_cli.status.store import read_events as _dep_read_events
         from specify_cli.status.transitions import resolve_lane_alias as _dep_resolve_alias
 
-        _dependency_feature_dir = main_repo_root / "kitty-specs" / mission_slug
+        _dependency_feature_dir = _canonical_status_feature_dir(main_repo_root, mission_slug)
         _dependency_snapshot = _dep_reduce_events(_dep_read_events(_dependency_feature_dir))
         _dependency_lanes = {
             _wp_id: _state.get("lane", Lane.PLANNED)
@@ -1021,7 +1055,7 @@ def implement(
 
         # Move to in_progress lane if not already there, and ensure agent is recorded
         # Lane is event-log-only; read from canonical event log (no frontmatter fallback)
-        _wf_feature_dir = repo_root / "kitty-specs" / mission_slug
+        _wf_feature_dir = _canonical_status_feature_dir(main_repo_root, mission_slug)
         from specify_cli.status.lane_reader import get_wp_lane as _wf_get_wp_lane
         from specify_cli.status.store import read_events as _wf_read_events
         from specify_cli.status.reducer import reduce as _wf_reduce
@@ -1072,7 +1106,7 @@ def implement(
             # Capture current shell PID
             shell_pid = str(os.getppid())  # Parent process ID (the shell running this command)
 
-            _impl_feature_dir = main_repo_root / "kitty-specs" / mission_slug
+            _impl_feature_dir = _wf_feature_dir
             _actor = agent or "unknown"
             # WP06 T027: capture the pre-emit size of status.events.jsonl
             # so we can surgically truncate on commit failure. This is

@@ -39,6 +39,7 @@ SEEDED_SAFE_PATHS = [
     ("doctor",),
     ("help",),
     ("version",),
+    ("agent", "check-prerequisites"),
     ("agent", "mission", "branch-context"),
     ("agent", "mission", "check-prerequisites"),
     # NOTE: ("agent", "mission", "setup-plan") is intentionally absent —

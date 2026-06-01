@@ -41,7 +41,7 @@ def classify_status_json(
 
     try:
         raw_text = path.read_text(encoding="utf-8")
-        obj: dict[str, object] = json.loads(raw_text)
+        obj = json.loads(raw_text)
     except OSError as exc:
         return [
             MissionFinding(
@@ -58,6 +58,16 @@ def classify_status_json(
                 severity=Severity.ERROR,
                 artifact_path="status.json",
                 detail=f"JSON decode error: {exc.msg}",
+            )
+        ]
+
+    if not isinstance(obj, dict):
+        return [
+            MissionFinding(
+                code="CORRUPT_JSON",
+                severity=Severity.ERROR,
+                artifact_path="status.json",
+                detail="top-level JSON value must be an object",
             )
         ]
 
@@ -95,7 +105,13 @@ def classify_status_json(
     # Normalise both sides: parse + re-serialise with identical options
     try:
         persisted_normalised = (
-            json.dumps(json.loads(raw_text), sort_keys=True, indent=2) + "\n"
+            json.dumps(
+                json.loads(raw_text),
+                sort_keys=True,
+                indent=2,
+                ensure_ascii=False,
+            )
+            + "\n"
         )
     except Exception:
         # raw_text is already parsed above, so this branch is unreachable in practice
