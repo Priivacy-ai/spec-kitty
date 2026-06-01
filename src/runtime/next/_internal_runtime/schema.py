@@ -13,17 +13,12 @@ from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from spec_kitty_events.mission_next import RuntimeActorIdentity
 
 
 class MissionRuntimeError(RuntimeError):
     """Raised for runtime loading/planning errors."""
 
-
-# ---------------------------------------------------------------------------
-# Domain value objects
-# ---------------------------------------------------------------------------
-
-from spec_kitty_events.mission_next import RuntimeActorIdentity
 
 ActorIdentity = RuntimeActorIdentity
 
@@ -550,7 +545,7 @@ def load_mission_template_file(path: Path) -> MissionTemplate:
     if not path.exists():
         raise MissionRuntimeError(f"Mission template not found: {path}")
 
-    with open(path, "r", encoding="utf-8") as handle:
+    with open(path, encoding="utf-8") as handle:
         raw = yaml.safe_load(handle) or {}
 
     if not isinstance(raw, dict):

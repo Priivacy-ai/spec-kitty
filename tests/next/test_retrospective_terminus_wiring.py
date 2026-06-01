@@ -70,10 +70,10 @@ def test_no_none_facilitator_callback_in_source_ast() -> None:
     This locks the WP04 fix structurally — if anyone reintroduces the
     deferred-wiring placeholder the test fails with a precise error.
     """
-    src_path = Path("src/specify_cli/next/runtime_bridge.py")
+    src_path = Path("src/runtime/next/runtime_bridge.py")
     if not src_path.exists():
         # Resolve from file location in case pytest cwd differs.
-        src_path = Path(__file__).parent.parent.parent / "src" / "specify_cli" / "next" / "runtime_bridge.py"
+        src_path = Path(__file__).parent.parent.parent / "src" / "runtime" / "next" / "runtime_bridge.py"
     src = src_path.read_text(encoding="utf-8")
     tree = ast.parse(src)
     for node in ast.walk(tree):

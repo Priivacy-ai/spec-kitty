@@ -65,7 +65,9 @@ for _name in _INTERNAL_RUNTIME_SUBMODULES:
 
 
 def __getattr__(name: str) -> Any:
-    return getattr(_runtime_next, name)
+    value = getattr(_runtime_next, name)
+    globals()[name] = value
+    return value
 
 
 del _export

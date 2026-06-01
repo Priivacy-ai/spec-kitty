@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import importlib
 import json
 import sys
 
@@ -42,6 +43,13 @@ def decide_next(agent: str, mission_slug: str, result: str, repo_root):
     from runtime.next.decision import decide_next as _decide_next
 
     return _decide_next(agent, mission_slug, result, repo_root)
+
+
+def _runtime_bridge_module():
+    """Return patched legacy bridge when tests/consumers installed one."""
+    return sys.modules.get("specify_cli.next.runtime_bridge") or importlib.import_module(
+        "runtime.next.runtime_bridge"
+    )
 
 
 @require_main_repo
@@ -343,10 +351,11 @@ def _run_query_mode(
     answered_id: str | None,
     answer: str | None,
 ) -> None:
-    from runtime.next.runtime_bridge import QueryModeValidationError, query_current_state
+    runtime_bridge = _runtime_bridge_module()
+    QueryModeValidationError = runtime_bridge.QueryModeValidationError
 
     try:
-        decision = query_current_state(agent, mission_slug, repo_root)
+        decision = runtime_bridge.query_current_state(agent, mission_slug, repo_root)
     except QueryModeValidationError as exc:
         _print_error(f"Error: {exc}" if not json_output else str(exc), json_output)
         raise typer.Exit(1) from exc
@@ -401,12 +410,12 @@ def _handle_answer(
     repo_root_path = Path(str(repo_root)) if not isinstance(repo_root, Path) else repo_root
 
     try:
-        from runtime.next.runtime_bridge import answer_decision_via_runtime, get_or_start_run
+        runtime_bridge = _runtime_bridge_module()
         from specify_cli.mission import get_mission_type
 
         feature_dir = repo_root_path / "kitty-specs" / mission_slug
         mission_type = get_mission_type(feature_dir)
-        run_ref = get_or_start_run(mission_slug, repo_root_path, mission_type)
+        run_ref = runtime_bridge.get_or_start_run(mission_slug, repo_root_path, mission_type)
 
         # If no decision_id provided, try to auto-resolve
         if decision_id is None:
@@ -428,7 +437,7 @@ def _handle_answer(
                 )
                 raise typer.Exit(1)
 
-        answer_decision_via_runtime(
+        runtime_bridge.answer_decision_via_runtime(
             mission_slug,
             decision_id,
             answer,

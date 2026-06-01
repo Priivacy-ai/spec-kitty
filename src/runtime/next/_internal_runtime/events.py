@@ -148,7 +148,7 @@ class JsonlEventLog:
         if not self._path.exists():
             return []
         records: list[dict[str, Any]] = []
-        with open(self._path, "r", encoding="utf-8") as handle:
+        with open(self._path, encoding="utf-8") as handle:
             for line in handle:
                 stripped = line.strip()
                 if stripped:
