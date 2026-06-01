@@ -22,7 +22,7 @@ class CanonicalStatusNotFoundError(RuntimeError):
 
 def has_event_log(feature_dir: Path) -> bool:
     """Return True when the canonical event log file exists on disk."""
-    return (feature_dir / EVENTS_FILENAME).exists()
+    return bool((feature_dir / EVENTS_FILENAME).exists())
 
 
 def _require_event_log(feature_dir: Path) -> None:

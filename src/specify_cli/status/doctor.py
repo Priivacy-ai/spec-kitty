@@ -33,6 +33,7 @@ class Category(StrEnum):
     MATERIALIZATION_DRIFT = "materialization_drift"
     DERIVED_VIEW_DRIFT = "derived_view_drift"
     SPARSE_CHECKOUT = "sparse_checkout"
+    UNINITIALIZED_STATUS = "uninitialized_status"
 
 
 @dataclass
@@ -92,11 +93,59 @@ def _load_or_reduce_snapshot(
         events = read_events(feature_dir)
         if events:
             snapshot = reduce(events)
-            return snapshot.to_dict()
+            snapshot_dict: dict[str, Any] = snapshot.to_dict()
+            return snapshot_dict
     except Exception:
         logger.debug("Could not reduce from event log", exc_info=True)
 
     return None
+
+
+def check_uninitialized_status(
+    feature_dir: Path,
+    snapshot: dict[str, Any] | None,
+) -> list[Finding]:
+    """Flag a mission that has WP definitions but no canonical status (#1589).
+
+    When ``finalize-tasks`` never bootstrapped the event log (e.g. it aborted on
+    a dependency cycle), the snapshot is empty/absent and every WP-level check is
+    skipped — making the mission look "healthy" while its runtime is wedged. If
+    WP files exist but no canonical status does, emit a WARNING naming the real
+    cause (a dependency cycle, when present) so doctor does not green a broken
+    mission.
+    """
+    if snapshot and snapshot.get("work_packages"):
+        return []  # canonical status is initialized — nothing to flag here
+
+    tasks_dir = feature_dir / "tasks"
+    wp_files = sorted(tasks_dir.glob("WP*.md")) if tasks_dir.is_dir() else []
+    if not wp_files:
+        return []  # no WPs defined yet — legitimately nothing to initialize
+
+    from .uninitialized_hint import cycle_root_cause
+
+    root_cause = cycle_root_cause(feature_dir)
+    if root_cause is not None:
+        message = (
+            f"Mission has {len(wp_files)} work package(s) defined but canonical "
+            f"status is not initialized: {root_cause}"
+        )
+        action = "Resolve the dependency cycle, then run `spec-kitty agent mission finalize-tasks`."
+    else:
+        message = (
+            f"Mission has {len(wp_files)} work package(s) defined but canonical "
+            f"status is not initialized (event log missing/empty)."
+        )
+        action = "Run `spec-kitty agent mission finalize-tasks` to bootstrap the event log."
+    return [
+        Finding(
+            severity=Severity.WARNING,
+            category=Category.UNINITIALIZED_STATUS,
+            wp_id=None,
+            message=message,
+            recommended_action=action,
+        )
+    ]
 
 
 def check_stale_claims(
@@ -382,6 +431,11 @@ def run_doctor(
 
     # Load snapshot (from status.json or reduce from events)
     snapshot = _load_or_reduce_snapshot(feature_dir, mission_slug)
+
+    # #1589: a mission with WP files but no canonical status must not read as
+    # healthy. Checked before the snapshot-gated checks so it fires when the
+    # snapshot is empty/absent.
+    result.findings.extend(check_uninitialized_status(feature_dir, snapshot))
 
     if snapshot:
         result.findings.extend(
