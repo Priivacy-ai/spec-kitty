@@ -11,6 +11,6 @@
   "slug": "rename-ceremony-to-status-commit-01KSPN6C",
   "source_description": "GitHub Issue #1325: Excise \"ceremony\" terminology from codebase, replace with \"status commit\"",
   "target_branch": "main",
-  "coordination_branch": "kitty/mission-rename-ceremony-to-status-commit-01KSPN6C-01KSPN6C",
+  "coordination_branch": "kitty/mission-rename-ceremony-to-status-commit-01KSPN6C",
   "vcs": "git"
 }
