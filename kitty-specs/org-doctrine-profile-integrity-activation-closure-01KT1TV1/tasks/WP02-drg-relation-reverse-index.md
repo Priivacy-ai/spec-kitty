@@ -116,3 +116,4 @@ Add the `specializes_from` relation (FR-001) as a first-class DRG relation disti
 - 2026-06-01T20:49:07Z – claude:opus:python-pedro:implementer – shell_pid=1545161 – facet3 fix e2e test
 - 2026-06-01T20:49:37Z – claude:opus:python-pedro:implementer – shell_pid=1545161 – reset
 - 2026-06-01T22:53:19Z – claude:opus:python-pedro:implementer – shell_pid=1687431 – Assigned agent via action command
+- 2026-06-01T22:53:45Z – claude:opus:python-pedro:implementer – shell_pid=1687431 – WP02 recovered: SPECIALIZES_FROM + edges_to + no-leak; 7 tests green
