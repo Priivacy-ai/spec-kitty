@@ -215,6 +215,57 @@ An operator's `.kittify/config.yaml` has an invalid charter-pack shape. A charte
 
 ---
 
+## Applicable Built-in Doctrine
+
+The following shipped doctrine artifacts (`src/doctrine/<kind>/built-in/`) directly inform how this mission should be executed. They are guidance to apply during planning and implementation, not new requirements.
+
+### Directives (binding engineering rules)
+
+| Directive | ID | Why it applies here |
+|-----------|----|----|
+| Bulk Edit Occurrence Classification | `DIRECTIVE_035` | The hard-cutover retirement of `enhances`/`overrides`/`specializes_from` *fields* touches the same identifiers across many YAML files + code + tests. This is a bulk edit: the mission should set `change_mode: bulk_edit` and produce `occurrence_map.yaml` classifying all 8 occurrence categories. **Likely the single most consequential directive for this mission.** |
+| Doctrine Versioning Requirement | `DIRECTIVE_018` | DRG schema/relation vocabulary and per-kind schema changes (relation fields removed, `specializes_from` relation added, `template` kind) must respect doctrine versioning. |
+| Architectural Integrity Standard | `DIRECTIVE_001` | Relocating `merge_three_layers` from `charter` into `doctrine` and keeping `kernel ← doctrine ← charter ← specify_cli` intact (C-006, C-008) is an architectural-boundary change. |
+| Specification Fidelity Requirement | `DIRECTIVE_010` | Broad mission with 36 FRs across 12 scenarios — implementation must trace back to spec, not drift. |
+| Decision Documentation Requirement | `DIRECTIVE_003` | The DRG-source-of-truth, hard-cutover, and template-identity calls are architectural decisions warranting ADR capture (the decision-moment thread already records them). |
+| Test-First Development | `DIRECTIVE_034` | Charter C-011 ATDD-First is binding; acceptance tests precede implementation for each scenario. |
+| Test and Typecheck Quality Gate | `DIRECTIVE_030` | ruff + mypy + pytest gate (and the dead-symbol gate, FR-036) must pass per WP. |
+| Black-Box Integration Testing | `DIRECTIVE_036` | CLI surfaces (`charter activate/deactivate/list/context`, `doctor doctrine`) should be tested through their boundaries, not internals. |
+| Living Documentation Sync | `DIRECTIVE_037` | `CLAUDE.md`/operator docs describe the kind model, DRG, and activation surfaces being changed — keep them synced. |
+| Boy Scout Rule | `DIRECTIVE_025` | The enabling refactors (R-009/R-011) and dead-symbol cleanup (FR-035/036) embody leave-it-cleaner. |
+| Locality of Change | `DIRECTIVE_024` | Argues for the canonical kind/ID resolver so a kind change is one edit, not N scattered tables. |
+| Recurring-Bug Structural-Intervention Discipline | `DIRECTIVE_040` | The kind/ID-vocabulary fragmentation (R-009) is a recurring structural cause behind several findings — fix the structure, not each symptom. |
+
+### Procedures (playbooks)
+
+- **Refactoring** (`refactoring`) — the enabling refactors: method splits (`_load`, `doctrine_check`, `activate`), extracting the kind/ID resolver, the plan/commit seam.
+- **Domain-Aware Decision Interview** (`domain-aware-decision-interview`) — already used for the four plan decisions; continue for any residual clarifications.
+- **BDD Scenario Lifecycle** (`bdd-scenario-lifecycle`) — drive Scenarios 1–12 from acceptance tests through to done.
+- **Situational Assessment** (`situational-assessment`) — re-baseline before the high-risk migration WPs (already partly done via the R-011 fan-out).
+
+### Approaches / Tactics
+
+- **Refactoring Strangler Fig** (`refactoring-strangler-fig`) — the model for relocating `merge_three_layers` into `doctrine` and retiring the relationship fields: protect behavior with tests, build the new path, reroute, then delete the old.
+- **Refactoring Extract First-Order Concept** (`refactoring-extract-first-order-concept`) — the canonical kind/ID resolver (R-009): promote the implicit "kind" concept scattered across 5+ tables into one first-class type.
+- **Connascence Analysis** (`connascence-analysis`) — names exactly the smell behind R-009 (connascence of the kind vocabulary across modules) and the dual config-stem-vs-DRG-`id` system.
+- **Anti-Corruption Layer** (`anti-corruption-layer`) — frames `charter` as an aggregator over the doctrine-owned merged DRG (OQ-2(ii)) without leaking charter concerns downward.
+- **Aggregate Boundary Design** (`aggregate-boundary-design`) — relationship/edge modeling and the DRG as the relationship aggregate (C-009).
+- **Occurrence Classification Workflow** (`occurrence-classification-workflow`) — the how-to behind `DIRECTIVE_035` for the field-retirement bulk edit.
+- **Acceptance Test Driven Development** (`acceptance-test-first`) — primary test approach (charter C-011).
+- **Input Validation with Fail-Fast Feedback** (`input-validation-fail-fast`) — FR-011/FR-012 validate-before-write and `CharterPackConfigError` fail-closed (FR-035).
+- **Premortem Risk Identification** (`premortem-risk-identification`) — run before the migration wave; the hard cutover + merge relocation is the highest-risk slice.
+- **Refactoring Extract Class by Responsibility Split** (`refactoring-extract-class-by-responsibility-split`) + **Focused Function Complexity Check** (`focused-function-complexity-check`) — for the long methods flagged in R-011 (e.g. `doctrine_check` ~140 lines, `_load` ~85).
+- **Change: Apply Smallest Viable Diff** (`change-apply-smallest-viable-diff`) — keeps the granular-WP intent honest.
+- **Work Package Completion Validation** (`work-package-completion-validation`) + **Quality Gate Verification** (`quality-gate-verification`) — per-WP exit checks.
+
+### Paradigms
+
+- **Domain-Driven Design** (`domain-driven-design`) — the DRG as the relationship model and the doctrine/charter boundary are DDD bounded-context concerns.
+- **Deep Module Design** (`deep-module-design`) — the kind/ID resolver, the doctrine-owned merge, and the profile-diagnostics surface should be deep modules with narrow interfaces.
+- **Test-First Doctrine** (`test-first`) — reinforces ATDD-first.
+
+---
+
 ## Out of Scope
 
 - Adding a full ADR primitive (#1040), beyond preserving any existing ADR-enabler notes.
