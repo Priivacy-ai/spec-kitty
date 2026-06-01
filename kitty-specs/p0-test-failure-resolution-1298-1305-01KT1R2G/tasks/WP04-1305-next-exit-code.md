@@ -17,7 +17,7 @@ subtasks:
 - T016
 - T017
 - T018
-agent: claude
+agent: "claude:sonnet-4-6:reviewer:reviewer"
 history: []
 agent_profile: python-pedro
 authoritative_surface: src/specify_cli/next/
@@ -27,6 +27,7 @@ owned_files:
 - tests/next/**
 role: implementer
 tags: []
+shell_pid: "71784"
 ---
 
 ## ⚡ Do This First: Load Agent Profile
@@ -241,3 +242,4 @@ spec-kitty agent action implement WP04 --agent claude
 
 - 2026-06-01T17:41:42Z – claude – WP04 claimed by claude (all target tests already passing)
 - 2026-06-01T17:42:14Z – claude – Ready for review (cycle 1/3). All 4 target tests confirmed passing. WP04 was stale — no source changes required. 464 next tests pass, 1951 sync/contract tests pass.
+- 2026-06-01T17:42:33Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=71784 – Started review via action command
