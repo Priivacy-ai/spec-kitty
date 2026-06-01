@@ -6,6 +6,7 @@
 **Planning / merge target**: `mission/org-doctrine-profile-integrity-activation-closure`
 **Parent epic**: Priivacy-ai/spec-kitty#1111 - 3.2.0 release work: Charter / Doctrine enhancement and remediation
 **Primary source issues**: #1583, #1584, #1557
+**Additional findings**: agent-profile context selector + charter catalog visibility (see Scenarios 8-9, FR-022..FR-026)
 
 ---
 
@@ -67,6 +68,18 @@ A work package claim or `next` runtime decision needs active model, profile, rol
 
 **Acceptance signal**: production call sites populate the context, guard methods raise actionable errors when required fields are absent, and the previously allowlisted symbols have live callers.
 
+### Scenario 8 - Agent profiles are reachable through the charter context selector
+
+An operator (or agent prompt) wants to inline a specific agent profile into workflow context and runs `spec-kitty charter context --include agent-profile:<id>`, using the same hyphenated kind name accepted by `charter activate`. Today this fails with `Unsupported --include selector kind 'agent-profile'` because the selector renderer only matches the underscore form `agent_profile` and the kind name is not normalized; profiles are reachable only through the Python API or by reading the YAML files directly.
+
+**Acceptance signal**: `charter context --include agent-profile:<id>` renders the named profile (in both human and `--json` output), the `--include` help advertises the agent-profile kind, and hyphenated kind names resolve consistently with `charter activate`.
+
+### Scenario 9 - Operators can see every available artifact, built-in or packaged
+
+An operator wants a complete inventory of what they could activate, not just what ships built-in. They run `spec-kitty charter list --all`. Today only `--show-available` exists, and its availability scan reads built-in doctrine alone (org-pack and project layers are ignored), so packaged artifacts are invisible in the catalog.
+
+**Acceptance signal**: `charter list --all` lists every artifact per kind across built-in, organisation-pack, and project layers with its source layer, and the availability computation no longer silently drops non-built-in artifacts.
+
 ---
 
 ## Functional Requirements
@@ -94,6 +107,11 @@ A work package claim or `next` runtime decision needs active model, profile, rol
 | FR-019 | OperationalContext symbols currently allowlisted as deferred work SHALL be removed from dead-symbol allowlists after production wiring lands. | Must | Proposed |
 | FR-020 | Known cleanup items from #1557 SHALL be resolved: delete obsolete activation override code, remove orphaned dead-symbol categories, remove stale `activate_cmd` export, and correct FR-008 comment misattribution. | Must | Proposed |
 | FR-021 | Existing charter activation behavior from PR #1535 SHALL remain backward compatible for projects with no explicit activation restrictions. | Must | Proposed |
+| FR-022 | `charter context --include agent-profile:<id>` SHALL resolve and render the named agent profile in both human and `--json` output, instead of failing with an unsupported-selector-kind error. | Must | Proposed |
+| FR-023 | The `--include` selector parser SHALL normalize hyphenated kind names to their canonical doctrine kind (e.g. `agent-profile` -> `agent_profile`, `mission-step-contract` -> `mission_step_contract`) so kind names are consistent with `charter activate`/`deactivate`. | Must | Proposed |
+| FR-024 | The `charter context --include` help text SHALL advertise the agent-profile selector (alongside the existing directive/styleguide/section examples) so the supported kinds are discoverable. | Should | Proposed |
+| FR-025 | `charter list --all` SHALL list every available artifact per kind across built-in, organisation-pack, and project layers, annotated by source layer; `--all` implies and supersedes `--show-available`. | Must | Proposed |
+| FR-026 | `CharterPackManager.list_available()` SHALL include organisation-pack and project doctrine artifacts in addition to built-in artifacts, removing the built-in-only scan, so availability is not understated for packaged artifacts. | Must | Proposed |
 
 ---
 
@@ -121,6 +139,7 @@ A work package claim or `next` runtime decision needs active model, profile, rol
 | C-005 | Cascade deactivation must never remove an artifact still referenced by another active artifact. | Binding |
 | C-006 | Runtime OperationalContext wiring must not introduce a dependency from doctrine modules to charter or specify_cli modules. | Binding |
 | C-007 | The mission branch `mission/org-doctrine-profile-integrity-activation-closure` is the planning/base/merge target for this mission. | Binding |
+| C-008 | Org-pack/project root resolution for `list_available()` and the context selector MUST stay in the `specify_cli` layer and be passed as data into `charter`; `charter` must not import `specify_cli` (ADR 2026-03-27-1), consistent with how `charter context` already injects `org_root`. | Binding |
 
 ---
 
@@ -136,6 +155,8 @@ A work package claim or `next` runtime decision needs active model, profile, rol
 | SC-006 | Cascade activation and deactivation honor explicit scope and shared-reference safety. | CLI or service tests cover selected-kind activation, `all`, exclusive deactivation, and shared skip reporting. |
 | SC-007 | OperationalContext is no longer a dead extension point. | Production call-site tests prove active profile/role/activity are populated where available and guard methods fail loudly when absent. |
 | SC-008 | The mission clears inherited cleanup debt from #1557. | Dead-symbol and layer-rule tests pass without the deferred allowlist entries targeted by this mission. |
+| SC-009 | Agent profiles are reachable through the documented context selector. | A CLI test asserts `charter context --include agent-profile:<id>` renders the profile in human and JSON output, and the unsupported-kind path is no longer reached for hyphenated kinds. |
+| SC-010 | The charter catalog reflects the full activatable surface. | A `charter list --all` test asserts built-in, org-pack, and project artifacts all appear with their source layer for at least one fixture pack. |
 
 ---
 

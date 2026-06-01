@@ -157,6 +157,43 @@ Decision needed: retain structured load diagnostics in the repository and expose
 
 ---
 
+## R-007 - Agent Profile Context Selector Reachability
+
+**Decision**: Make `charter context --include agent-profile:<id>` work by normalizing hyphenated selector kinds to their canonical doctrine kind before dispatch, and advertise the kind in help.
+
+**Observed gap**:
+
+- `build_charter_context_include()` (`src/charter/context.py`) lowercases the kind but does not convert hyphens to underscores. `_render_doctrine_artifact_include()` keys its renderer table on `agent_profile` (underscore), while every user-facing surface (e.g. `charter activate`) documents and accepts the hyphenated `agent-profile`.
+- The result is that `--include agent-profile:<id>` raises `Unsupported --include selector kind 'agent-profile'`, even though the renderer for `agent_profile` exists. Operators currently reach profiles only via the Python API (`DoctrineService.agent_profiles`) or by reading the profile YAML directly.
+- The `--include` help text lists `directive|styleguide|section` but never mentions agent profiles, so the capability is undiscoverable even in its working underscore form.
+
+**Rationale**: The fix is a normalization + discoverability gap, not a new renderer. A single hyphen->underscore normalization of the selector kind aligns `--include` with the activation verbs and unblocks the documented `agent-profile` form (and `mission-step-contract`) without changing activation semantics.
+
+**Consequences**:
+
+- Add CLI coverage asserting human and `--json` rendering for `--include agent-profile:<id>`.
+- Confirm normalization does not regress existing underscore/lowercase selectors.
+
+---
+
+## R-008 - Charter Catalog Completeness (`charter list --all`)
+
+**Decision**: Add `charter list --all` that lists every available artifact per kind across built-in, org-pack, and project layers, and extend `CharterPackManager.list_available()` to include non-built-in artifacts.
+
+**Observed gap**:
+
+- `charter list` exposes only `--show-available`. Its availability source, `CharterPackManager.list_available()` (`src/charter/pack_manager.py`), scans only the built-in doctrine filesystem; the `ctx` parameter is explicitly ignored ("reserved for future org-pack support").
+- Packaged artifacts (org-pack, project) are therefore invisible in the catalog, so an operator cannot see the full set of artifacts they could activate.
+
+**Rationale**: This mission already makes org-pack profile state trustworthy (FR-005..FR-010) and validates activation IDs against the active catalog (FR-011). A catalog listing that silently omits the same packaged artifacts is inconsistent with that catalog-integrity goal. `--all` gives operators the complete activatable surface, annotated by source layer.
+
+**Consequences**:
+
+- `list_available()` must resolve org/project roots (reusing the same resolution used by activation validation) and annotate source layer.
+- `--all` implies and supersedes `--show-available`; tests cover a fixture pack so non-built-in artifacts appear with their layer.
+
+---
+
 ## Deferred Research
 
 - #1333 should become a follow-on mission for doctrine template discovery and DRG-backed template resolution.
