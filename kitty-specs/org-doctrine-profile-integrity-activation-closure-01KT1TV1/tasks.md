@@ -98,7 +98,7 @@
 ### WP01 — Canonical kind & ID vocabulary resolver
 - **Goal**: One canonical mapping from operator tokens to kinds and from config IDs to DRG URNs (R-009/FR-027), so downstream WPs stop re-declaring the kind set.
 - **Priority**: P0 (unblocks WP09/WP16/WP17). **Independent test**: `from_operator_token("agent-profile") == AGENT_PROFILE`; ID round-trip.
-- **Subtasks**: - [ ] T001 (WP01) · - [ ] T002 (WP01) · - [ ] T003 (WP01) · - [ ] T004 (WP01)
+- **Subtasks**: - [x] T001 (WP01) · - [x] T002 (WP01) · - [x] T003 (WP01) · - [x] T004 (WP01)
 - **Dependencies**: none. **Prompt**: [tasks/WP01-kind-id-vocabulary.md](tasks/WP01-kind-id-vocabulary.md) (~220 lines)
 
 ### WP02 — DRG relation vocabulary + reverse index
