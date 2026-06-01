@@ -123,7 +123,8 @@ def test_plan_and_tasks_delegate_to_agent_lifecycle(monkeypatch) -> None:
         captured["plan_feature"] = feature
         captured["plan_json"] = json_output
 
-    def fake_finalize_tasks(json_output: bool = False):
+    def fake_finalize_tasks(feature=None, json_output: bool = False):
+        captured["tasks_feature"] = feature
         captured["tasks_json"] = json_output
 
     monkeypatch.setattr(lifecycle_module.agent_feature, "setup_plan", fake_setup_plan)
@@ -131,12 +132,13 @@ def test_plan_and_tasks_delegate_to_agent_lifecycle(monkeypatch) -> None:
     monkeypatch.setattr(lifecycle_module, "assert_initialized", lambda **_kwargs: None)
 
     plan_result = runner.invoke(cli_app, ["plan", "--feature", "001-demo", "--json"])
-    tasks_result = runner.invoke(cli_app, ["tasks", "--json"])
+    tasks_result = runner.invoke(cli_app, ["tasks", "--mission", "001-demo", "--json"])
 
     assert plan_result.exit_code == 0
     assert tasks_result.exit_code == 0
     assert captured["plan_feature"] == "001-demo"
     assert captured["plan_json"] is True
+    assert captured["tasks_feature"] == "001-demo"
     assert captured["tasks_json"] is True
 
 

@@ -258,6 +258,63 @@ class TestCanonicalStateAuthority:
         assert summary.lanes.get("for_review", []) == [], f"for_review lane should be empty, got: {summary.lanes.get('for_review')}"
         assert summary.activity_issues == [], f"Expected no activity issues, got: {summary.activity_issues}"
 
+    def test_acceptance_reads_coord_status_when_primary_branch_is_stale(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Acceptance uses the coordination status view for modern missions."""
+        mission_slug = "099-test-feature-01J6XW9K"
+        mid8 = "01J6XW9K"
+        feature_dir = _setup_feature(
+            tmp_path,
+            mission_slug=mission_slug,
+            wp_ids=["WP01"],
+            include_events=True,
+            wp_lanes={"WP01": "planned"},
+        )
+        meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+        meta.update(
+            {
+                "mission_id": "01J6XW9KABCDEFGHJKMNPQRSTV",
+                "mid8": mid8,
+                "coordination_branch": f"kitty/mission-{mission_slug}",
+            }
+        )
+        (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+
+        coord_feature_dir = (
+            tmp_path
+            / ".worktrees"
+            / f"{mission_slug}-{mid8}-coord"
+            / "kitty-specs"
+            / mission_slug
+        )
+        coord_feature_dir.mkdir(parents=True)
+        append_event(
+            coord_feature_dir,
+            _make_event(
+                mission_slug,
+                "WP01",
+                "planned",
+                "approved",
+                event_id="01TESTCOORD000000000000000",
+            ),
+        )
+
+        with patch("specify_cli.acceptance.run_git") as mock_git, patch(
+            "specify_cli.acceptance.git_status_lines",
+            return_value=[],
+        ):
+            mock_git.return_value.stdout = f"kitty/mission-{mission_slug}\n"
+            summary = collect_feature_summary(
+                tmp_path,
+                mission_slug,
+                strict_metadata=False,
+            )
+
+        assert summary.activity_issues == []
+        assert summary.lanes["approved"] == ["WP01"]
+
     def test_acceptance_fails_despite_falsified_activity_log(self, tmp_path: Path) -> None:
         """Activity Log says 'done' but canonical state says 'for_review'.
 
