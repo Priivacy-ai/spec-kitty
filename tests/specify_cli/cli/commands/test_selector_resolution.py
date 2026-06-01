@@ -21,12 +21,25 @@ from typer.testing import CliRunner
 from specify_cli.cli import selector_resolution
 from specify_cli.cli.commands.agent.mission import app as agent_mission_app
 from specify_cli.cli.commands.agent.tasks import app as tasks_app
+from specify_cli.cli.commands.lifecycle import tasks as lifecycle_tasks
 from specify_cli.cli.commands.mission import app as mission_app
 from specify_cli.cli.commands.next_cmd import next_step
 from specify_cli.cli.selector_resolution import resolve_selector
 
 pytestmark = [pytest.mark.fast, pytest.mark.non_sandbox]  # non_sandbox: warning assertion fails in sandbox
 runner = CliRunner()
+
+
+def _build_top_level_lifecycle_app() -> typer.Typer:
+    """Build a fresh local app for top-level lifecycle command tests."""
+    app = typer.Typer()
+    app.command(name="tasks")(lifecycle_tasks)
+
+    @app.command(name="noop")
+    def _noop() -> None:
+        """Force Typer to exercise subcommand parsing in this local test app."""
+
+    return app
 
 
 @pytest.fixture(autouse=True)
@@ -601,3 +614,58 @@ def test_agent_tasks_status_dual_flag_conflict_fails(tmp_path: Path) -> None:
 
     assert result.exit_code != 0
     assert "Conflicting selectors" in result.output
+
+
+def test_top_level_tasks_mission_selector_forwards_to_finalize_tasks() -> None:
+    captured: dict[str, object] = {}
+
+    def fake_finalize_tasks(*, feature: str | None = None, json_output: bool = False) -> None:
+        captured["feature"] = feature
+        captured["json_output"] = json_output
+
+    with (
+        patch("specify_cli.cli.commands.lifecycle._enforce_initialized"),
+        patch("specify_cli.cli.commands.lifecycle.agent_feature.finalize_tasks", side_effect=fake_finalize_tasks),
+    ):
+        result = runner.invoke(
+            _build_top_level_lifecycle_app(),
+            ["tasks", "--mission", "077-demo-mission", "--json"],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert captured == {"feature": "077-demo-mission", "json_output": True}
+
+
+def test_top_level_tasks_selector_conflict_gives_ambiguity_guidance() -> None:
+    with patch("specify_cli.cli.commands.lifecycle._enforce_initialized"):
+        result = runner.invoke(
+            _build_top_level_lifecycle_app(),
+            ["tasks", "--mission", "077-a", "--feature", "077-b", "--json"],
+        )
+
+    assert result.exit_code != 0
+    assert "Conflicting selectors" in result.output
+    assert "pass only --mission" in result.output
+
+
+def test_top_level_tasks_without_selector_emits_mission_disambiguation(
+    tmp_path: Path,
+) -> None:
+    specs_dir = tmp_path / "kitty-specs"
+    for slug in ("077-alpha", "078-beta"):
+        mission_dir = specs_dir / slug
+        mission_dir.mkdir(parents=True)
+        (mission_dir / "spec.md").write_text(f"# {slug}\n", encoding="utf-8")
+
+    with (
+        patch("specify_cli.cli.commands.lifecycle._enforce_initialized"),
+        patch("specify_cli.cli.commands.lifecycle.locate_project_root", return_value=tmp_path),
+    ):
+        result = runner.invoke(_build_top_level_lifecycle_app(), ["tasks", "--json"])
+
+    assert result.exit_code == 1, result.output
+    payload = _extract_json(result.output)
+    assert payload["error"] == "2 missions found, pass --mission <slug> to disambiguate"
+    assert payload["available_missions"] == ["077-alpha", "078-beta"]
+    assert payload["example_command"] == "spec-kitty tasks --mission 077-alpha --json"
+    assert payload["remediation"] == "Re-run with --mission <slug>"
