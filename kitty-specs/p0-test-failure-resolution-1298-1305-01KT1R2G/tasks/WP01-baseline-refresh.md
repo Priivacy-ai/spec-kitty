@@ -14,7 +14,7 @@ subtasks:
 - T002
 - T003
 - T004
-agent: claude
+agent: "claude:sonnet-4-6:implementer:implementer"
 history: []
 agent_profile: debugger-debbie
 authoritative_surface: docs/
@@ -23,6 +23,7 @@ owned_files:
 - docs/p0-baseline-refresh.md
 role: investigator
 tags: []
+shell_pid: "92178"
 ---
 
 ## ⚡ Do This First: Load Agent Profile
@@ -210,3 +211,7 @@ spec-kitty agent action implement WP01 --agent claude
 - **Suite runtime**: ~15 min. If interrupted, the targeted runs in T003 are sufficient for gating; note the full run as incomplete.
 - **Stale issues**: If all four clusters are stale, the mission is complete after WP01. Report this and stop.
 - **uv sync failures**: If the venv can't be built, report as a blocker; do not proceed to fix WPs.
+
+## Activity Log
+
+- 2026-06-01T16:47:46Z – claude:sonnet-4-6:implementer:implementer – shell_pid=92178 – Started implementation via action command

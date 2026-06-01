@@ -54,10 +54,10 @@
 
 #### Subtasks
 
-- [ ] T001 Run full test suite on current main HEAD, capture commit SHA + counts (WP01)
-- [ ] T002 Group failures into clusters, compare to #1298 original baseline (WP01)
-- [ ] T003 Run targeted tests for each P0 cluster to confirm still-reproduces vs stale (WP01)
-- [ ] T004 Write baseline-refresh document in feature_dir (WP01)
+- [x] T001 Run full test suite on current main HEAD, capture commit SHA + counts (WP01)
+- [x] T002 Group failures into clusters, compare to #1298 original baseline (WP01)
+- [x] T003 Run targeted tests for each P0 cluster to confirm still-reproduces vs stale (WP01)
+- [x] T004 Write baseline-refresh document in feature_dir (WP01)
 
 #### Implementation Notes
 
