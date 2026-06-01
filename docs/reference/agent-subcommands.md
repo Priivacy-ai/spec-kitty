@@ -411,6 +411,13 @@ _Decision Moment ledger for interview questions._
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+Success stdout is exactly one JSON object. For `open`, the object includes
+`decision_id`, `contract: "decision_open_v2"`, and `recovery.idempotency_key`;
+rerunning the same logical open while the decision is still open returns the same
+`decision_id` with `idempotent: true`. The recovery key includes the CLI mission
+slug plus the logical decision tuple (`origin_flow`, `step_id`/`slot_key`,
+`input_key`) needed to rerun.
+
 ## spec-kitty agent decision resolve
 
 ```

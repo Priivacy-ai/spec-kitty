@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `spec-kitty agent decision open --json` now emits exactly one parseable JSON
+  object on stdout. The response includes a retry-safe idempotency key so callers
+  can rerun the same logical open by mission slug and recover the same
+  `decision_id` after wrapper parse/process failures.
 - `charter generate --force` now refuses to overwrite symlinked `charter.md` paths,
   preventing silent writes through symlink targets.
 - Sync WebSocket connections now send ephemeral `ws_token` credentials in the

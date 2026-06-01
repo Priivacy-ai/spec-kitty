@@ -177,8 +177,12 @@ def open_decision(
         dry_run:      If True, validate and look up without writing.
         decision_id:  Pre-minted ULID to use as the decision_id.  If None, a
                       new ULID is minted inside this function.
-        on_minted:    Optional callback invoked once the usable decision_id is
-                      known and before any artifact write or event emission.
+        on_minted:    Optional callback invoked with the recoverable
+                      decision_id after an existing open decision is found or a
+                      fresh open has been persisted. Machine callers should
+                      prefer the returned response; if a process exits before
+                      receiving it, rerun the same logical open command to
+                      recover the same idempotent decision_id.
 
     Returns:
         DecisionOpenResponse
@@ -246,8 +250,6 @@ def open_decision(
 
     # Mint new decision (use caller-supplied id if provided, else mint fresh)
     decision_id = decision_id if decision_id is not None else _mint_decision_id()
-    if on_minted is not None:
-        on_minted(decision_id)
     created_at = _now_utc()
     entry = IndexEntry(
         decision_id=decision_id,
@@ -272,6 +274,8 @@ def open_decision(
         entry=entry,
         actor=actor,
     )
+    if on_minted is not None:
+        on_minted(decision_id)
 
     return DecisionOpenResponse(
         decision_id=decision_id,

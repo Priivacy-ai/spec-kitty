@@ -166,7 +166,7 @@ def test_on_minted_receives_persisted_id_for_idempotent_open(tmp_path: Path) -> 
     assert minted_ids == [resp1.decision_id, resp1.decision_id]
 
 
-def test_on_minted_runs_before_fresh_open_writes_artifact(tmp_path: Path) -> None:
+def test_on_minted_runs_after_fresh_open_writes_artifact(tmp_path: Path) -> None:
     _setup_meta(tmp_path)
     observations: list[tuple[str, bool]] = []
 
@@ -188,7 +188,7 @@ def test_on_minted_runs_before_fresh_open_writes_artifact(tmp_path: Path) -> Non
             on_minted=record_minted,
         )
 
-    assert observations == [(resp.decision_id, False)]
+    assert observations == [(resp.decision_id, True)]
     assert _store.artifact_path(_mission_dir(tmp_path), resp.decision_id).exists()
 
 
