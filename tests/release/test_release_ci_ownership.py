@@ -139,16 +139,13 @@ def test_quality_gate_fails_closed_for_release_required_package_jobs() -> None:
         assert f"needs.{job_name}.result" in script
 
 
-def test_release_publish_requires_downstream_evidence_before_pypi() -> None:
+def test_release_publish_does_not_require_downstream_evidence_before_pypi() -> None:
     workflow = load_workflow("release.yml")
     jobs = workflow["jobs"]
-    downstream_dump = repr(jobs["downstream-consumer-verify"])
     publish_job = jobs["publish-pypi"]
 
-    assert "prerelease-waived" not in downstream_dump
-    assert "SPEC_KITTY_CANDIDATE_WHEEL" in downstream_dump
-    assert "SPEC_KITTY_SAAS_READ_TOKEN is required" in downstream_dump
-    assert "downstream-consumer-verify" in publish_job["needs"]
+    assert "downstream-consumer-verify" not in jobs
+    assert publish_job["needs"] == "build-release"
 
 
 def test_release_verifies_pypi_exact_install_after_publish() -> None:
@@ -161,26 +158,19 @@ def test_release_verifies_pypi_exact_install_after_publish() -> None:
     assert "spec-kitty-cli" in job_dump
 
 
-def test_publish_release_requires_canary_verification_artifact() -> None:
+def test_publish_release_does_not_require_canary_verification_artifact() -> None:
     workflow = load_workflow("release.yml")
     jobs = workflow["jobs"]
 
-    assert "canary-verify" in jobs
+    assert "canary-verify" not in jobs
     publish = jobs["publish-pypi"]
-    assert "canary-verify" in publish["needs"]
-
-    canary_job_dump = repr(jobs["canary-verify"])
-    assert "SPEC_KITTY_CANARY_VERIFICATION_JSON" in canary_job_dump
-    assert "check_canary_verification.py" in canary_job_dump
-    assert "--required-clean-runs 4" in canary_job_dump
-    assert "canary-verified" in canary_job_dump
+    assert publish["needs"] == "build-release"
 
     publish_dump = repr(publish)
     assert "actions/checkout" in publish_dump
     assert publish["permissions"]["contents"] == "write"
-    assert "Download canary verification artifact" in publish_dump
-    assert "Verify canary-verify produced an acceptable artifact" in publish_dump
-    assert "check_canary_verification.py" in publish_dump
+    assert "canary" not in publish_dump.lower()
+    assert "downstream" not in publish_dump.lower()
     assert "Create GitHub Release" in publish_dump
     assert "Create GitHub Release" not in repr(jobs["build-release"])
     assert "sbom.cdx.json" in repr(jobs["build-release"])
@@ -188,11 +178,5 @@ def test_publish_release_requires_canary_verification_artifact() -> None:
 
     step_names = [step.get("name", "") for step in publish["steps"]]
     assert step_names.index("Classify release channel") < step_names.index(
-        "Create GitHub Release"
-    )
-    assert step_names.index("Verify downstream-consumer-verify produced a passing artifact") < step_names.index(
-        "Create GitHub Release"
-    )
-    assert step_names.index("Verify canary-verify produced an acceptable artifact") < step_names.index(
         "Create GitHub Release"
     )
