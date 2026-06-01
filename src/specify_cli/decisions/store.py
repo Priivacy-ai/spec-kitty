@@ -171,6 +171,8 @@ def _render_artifact(entry: IndexEntry) -> str:
         lines.append(f"- **Resolved:** `{entry.resolved_at.isoformat()}`")
     if entry.resolved_by is not None:
         lines.append(f"- **Resolved by:** `{entry.resolved_by}`")
+    if entry.opened_by is not None:
+        lines.append(f"- **Opened by:** `{entry.opened_by}`")
     lines.append(f"- **Other answer:** `{str(entry.other_answer).lower()}`")
     lines.append("")
 

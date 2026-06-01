@@ -119,6 +119,33 @@ def test_open_dry_run_returns_dry_run_id(tmp_path: Path) -> None:
     assert decision_id == "DRY_RUN"
 
 
+def test_open_dry_run_recovery_is_not_rerun_safe(tmp_path: Path) -> None:
+    _setup_mission(tmp_path)
+    result = _invoke(
+        [
+            "decision",
+            "open",
+            "--mission",
+            MISSION_SLUG,
+            "--flow",
+            "charter",
+            "--step-id",
+            "dry-run-step",
+            "--input-key",
+            "dry_run_key",
+            "--question",
+            "Dry run?",
+            "--dry-run",
+        ],
+        cwd=tmp_path,
+    )
+
+    assert result.exit_code == 0
+    data = _parse_open_output(result.output)
+    assert data["decision_id"] == "DRY_RUN"
+    assert data["recovery"]["rerun_safe"] is False
+
+
 def test_open_dry_run_no_index_written(tmp_path: Path) -> None:
     _setup_mission(tmp_path)
     _open_decision(tmp_path, dry_run=True)

@@ -416,7 +416,8 @@ Success stdout is exactly one JSON object. For `open`, the object includes
 rerunning the same logical open while the decision is still open returns the same
 `decision_id` with `idempotent: true`. The recovery key includes the CLI mission
 slug plus the logical decision tuple (`origin_flow`, `step_id`/`slot_key`,
-`input_key`) needed to rerun.
+`input_key`) needed to rerun. Dry-run output keeps the same JSON shape but sets
+`recovery.rerun_safe: false` because no decision is persisted.
 
 ## spec-kitty agent decision resolve
 

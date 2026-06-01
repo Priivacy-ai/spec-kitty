@@ -34,6 +34,7 @@ from specify_cli.decisions.models import (
     IndexEntry,
     OriginFlow,
 )
+from spec_kitty_events.decisionpoint import DECISION_POINT_OPENED
 
 __all__ = [
     "DecisionError",
@@ -142,6 +143,88 @@ def _mission_dir(repo_root: Path, mission_slug: str) -> Path:
     return repo_root / "kitty-specs" / mission_slug
 
 
+def _events_path(repo_root: Path, mission_slug: str) -> Path:
+    """Return kitty-specs/<mission_slug>/status.events.jsonl."""
+    return _mission_dir(repo_root, mission_slug) / "status.events.jsonl"
+
+
+def _opened_event_exists(repo_root: Path, mission_slug: str, decision_id: str) -> bool:
+    """Return True when the canonical opened event already exists."""
+    path = _events_path(repo_root, mission_slug)
+    if not path.exists():
+        return False
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError as exc:
+        raise DecisionError(
+            code=DecisionErrorCode.EVENT_REPAIR_FAILED,
+            details={"decision_id": decision_id, "events_path": str(path)},
+            message=f"Failed to read decision event log for {decision_id!r}: {exc}",
+        ) from exc
+
+    for line_number, line in enumerate(lines, start=1):
+        if not line.strip():
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise DecisionError(
+                code=DecisionErrorCode.EVENT_REPAIR_FAILED,
+                details={
+                    "decision_id": decision_id,
+                    "events_path": str(path),
+                    "line": line_number,
+                    "parse_error": str(exc),
+                },
+                message=(
+                    f"Cannot verify opened event for {decision_id!r}: "
+                    f"malformed event log line {line_number}"
+                ),
+            ) from exc
+        payload = event.get("payload")
+        if (
+            event.get("event_type") == DECISION_POINT_OPENED
+            and isinstance(payload, dict)
+            and payload.get("decision_point_id") == decision_id
+        ):
+            return True
+    return False
+
+
+def _repair_missing_opened_event(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    entry: IndexEntry,
+) -> int | None:
+    """Re-emit a missing opened event for an already-persisted open decision."""
+    if _opened_event_exists(repo_root, mission_slug, entry.decision_id):
+        return None
+    if entry.opened_by is None:
+        raise DecisionError(
+            code=DecisionErrorCode.EVENT_REPAIR_FAILED,
+            details={"decision_id": entry.decision_id, "mission_slug": mission_slug},
+            message=(
+                f"Cannot repair opened event for decision {entry.decision_id!r}: "
+                "opening actor was not persisted"
+            ),
+        )
+    try:
+        return _emit.emit_decision_opened(
+            repo_root,
+            mission_slug,
+            decision_id=entry.decision_id,
+            entry=entry,
+            actor=entry.opened_by,
+        )
+    except Exception as exc:
+        raise DecisionError(
+            code=DecisionErrorCode.EVENT_REPAIR_FAILED,
+            details={"decision_id": entry.decision_id, "mission_slug": mission_slug},
+            message=f"Failed to repair opened event for decision {entry.decision_id!r}: {exc}",
+        ) from exc
+
+
 # ---------------------------------------------------------------------------
 # open_decision
 # ---------------------------------------------------------------------------
@@ -225,6 +308,11 @@ def open_decision(
     if existing is not None:
         if not _is_terminal(existing.status):
             # Idempotent return — already open
+            repaired_lamport = _repair_missing_opened_event(
+                repo_root,
+                mission_slug,
+                entry=existing,
+            )
             if on_minted is not None:
                 on_minted(existing.decision_id)
             return DecisionOpenResponse(
@@ -232,7 +320,7 @@ def open_decision(
                 idempotent=True,
                 mission_id=mission_id,
                 artifact_path=str(_store.artifact_path(mission_dir, existing.decision_id)),
-                event_lamport=None,
+                event_lamport=repaired_lamport,
             )
         else:
             # Already closed — reject
@@ -261,6 +349,7 @@ def open_decision(
         options=tuple(options),
         status=DecisionStatus.OPEN,
         created_at=created_at,
+        opened_by=actor,
         mission_id=mission_id,
         mission_slug=mission_slug,
     )

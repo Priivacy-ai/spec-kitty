@@ -113,6 +113,7 @@ def _open_response_to_dict(
     input_key: str,
 ) -> dict:  # type: ignore[type-arg]
     """Serialize DecisionOpenResponse to a plain dict."""
+    rerun_safe = resp.decision_id != "DRY_RUN"
     return {
         "contract": "decision_open_v2",
         "decision_id": resp.decision_id,
@@ -121,7 +122,7 @@ def _open_response_to_dict(
         "artifact_path": resp.artifact_path,
         "event_lamport": resp.event_lamport,
         "recovery": {
-            "rerun_safe": True,
+            "rerun_safe": rerun_safe,
             "idempotency_key": {
                 "mission_id": resp.mission_id,
                 "mission_slug": mission_slug,
