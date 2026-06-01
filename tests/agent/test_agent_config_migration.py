@@ -40,11 +40,12 @@ def mock_project_with_config(tmp_path):
     config = AgentConfig(available=["opencode"])
     save_agent_config(tmp_path, config)
 
-    # Create mission templates
+    # Create mission templates (must contain /spec-kitty.implement so migration
+    # deploys recognizable content; package command-templates/ removed in FR-010)
     missions = kittify / "missions" / "software-dev" / "command-templates"
     missions.mkdir(parents=True)
-    (missions / "implement.md").write_text("# Implement Template\n\nscroll to the BOTTOM")
-    (missions / "review.md").write_text("# Review Template\n\nscroll to the BOTTOM")
+    (missions / "implement.md").write_text("/spec-kitty.implement\n\n# Implement Template\n\nscroll to the BOTTOM")
+    (missions / "review.md").write_text("/spec-kitty.review\n\n# Review Template\n\nscroll to the BOTTOM")
 
     # Create opencode directory (configured)
     opencode = tmp_path / ".opencode" / "command"
@@ -256,10 +257,11 @@ class TestLegacyProjectSupport:
         kittify = tmp_path / ".kittify"
         kittify.mkdir()
 
-        # Create mission templates
+        # Create mission templates (must contain /spec-kitty.implement so migration
+        # deploys recognizable content; package command-templates/ removed in FR-010)
         missions = kittify / "missions" / "software-dev" / "command-templates"
         missions.mkdir(parents=True)
-        (missions / "implement.md").write_text("# Implement\nscroll to the BOTTOM")
+        (missions / "implement.md").write_text("/spec-kitty.implement\n\n# Implement\nscroll to the BOTTOM")
 
         # Create agent directories (all 12)
         for agent_dir, subdir in CompleteLaneMigration.AGENT_DIRS:

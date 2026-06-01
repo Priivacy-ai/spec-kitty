@@ -12,8 +12,8 @@ These tests verify:
 import pytest
 
 from doctrine.artifact_kinds import ArtifactKind
-from doctrine.mission_step_contracts.models import MissionStepContract
-from doctrine.mission_step_contracts.repository import MissionStepContractRepository
+from doctrine.missions.step_contracts import MissionStepContract
+from doctrine.missions.step_contracts import MissionStepContractRepository
 from doctrine.service import DoctrineService
 
 

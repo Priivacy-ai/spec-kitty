@@ -32,6 +32,8 @@ from specify_cli.next.runtime_bridge import (
 
 pytestmark = pytest.mark.fast
 
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+
 
 # ---------------------------------------------------------------------------
 # Frozen-template helpers
@@ -74,36 +76,38 @@ def _write_frozen_template(
 def test_builtin_software_dev_specify_returns_true() -> None:
     """Built-in ``software-dev/specify`` routes through composition unconditionally.
 
-    The fast path uses the in-process ``_COMPOSED_ACTIONS_BY_MISSION`` table,
-    so ``run_dir`` is unnecessary.
+    Since WP07 (FR-007 / FR-008), the fast path is the live charter lookup via
+    ``charter.resolve_action_sequence``. ``repo_root`` is required; without it
+    the charter lookup is skipped and the gate falls through. The caller always
+    supplies ``repo_root`` at runtime.
     """
-    assert _should_dispatch_via_composition("software-dev", "specify") is True
+    assert _should_dispatch_via_composition("software-dev", "specify", repo_root=_REPO_ROOT) is True
 
 
 def test_builtin_software_dev_all_composed_actions_return_true() -> None:
     """Every member of the built-in composed-action set routes through composition."""
     for action in ("specify", "plan", "tasks", "implement", "review"):
-        assert _should_dispatch_via_composition("software-dev", action) is True, (
+        assert _should_dispatch_via_composition("software-dev", action, repo_root=_REPO_ROOT) is True, (
             f"Built-in software-dev/{action} should dispatch via composition"
         )
 
 
 def test_builtin_software_dev_short_circuits_without_run_dir(tmp_path: Path) -> None:
-    """The built-in fast path MUST NOT call ``_resolve_step_agent_profile``.
+    """The charter fast path MUST NOT call ``_resolve_step_agent_profile``.
 
-    Critical regression trap: any future refactor that reorders the gate to
-    consult the frozen template before checking the built-in allow-list would
-    couple built-in dispatch correctness to template-on-disk state and break
-    PR #797's invariant. We patch ``_resolve_step_agent_profile`` and assert
-    it was never called.
+    Critical regression trap: the charter lookup (``charter.resolve_action_sequence``)
+    is the fast path for built-in missions since WP07. It short-circuits before any
+    frozen-template I/O, preserving the PR #797 invariant that built-in dispatch
+    correctness does not depend on template-on-disk state.
+    We patch ``_resolve_step_agent_profile`` and assert it was never called.
     """
     with patch(
         "specify_cli.next.runtime_bridge._resolve_step_agent_profile"
     ) as mock_resolve:
-        # With run_dir provided, the resolver could be called. The fast path
-        # must short-circuit before that happens.
+        # Charter lookup returns True for software-dev/specify before
+        # _resolve_step_agent_profile (frozen-template path) is ever reached.
         result = _should_dispatch_via_composition(
-            "software-dev", "specify", run_dir=tmp_path
+            "software-dev", "specify", run_dir=tmp_path, repo_root=_REPO_ROOT
         )
 
     assert result is True

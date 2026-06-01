@@ -33,7 +33,7 @@ import yaml
 
 from charter._drg_helpers import load_validated_graph
 from doctrine.drg.query import resolve_context
-from doctrine.mission_step_contracts.repository import MissionStepContractRepository
+from doctrine.missions.step_contracts import MissionStepContractRepository
 from specify_cli.mission_step_contracts.executor import _ACTION_PROFILE_DEFAULTS
 
 
@@ -123,7 +123,7 @@ def test_all_research_contracts_load(action: str) -> None:
 
     assert contract is not None, (
         f"Missing shipped contract for research/{action}; expected a file at "
-        f"src/doctrine/mission_step_contracts/built-in/research-{action}.step-contract.yaml"
+        f"src/doctrine/missions/built_in_step_contracts/research-{action}.step-contract.yaml"
     )
     assert contract.mission == "research"
     assert contract.action == action

@@ -14,7 +14,7 @@ from ruamel.yaml import YAML
 
 from charter._drg_helpers import load_validated_graph
 from charter.drg import resolve_context
-from doctrine.mission_step_contracts.repository import MissionStepContractRepository
+from doctrine.missions.step_contracts import MissionStepContractRepository
 from specify_cli.invocation.writer import EVENTS_DIR
 from specify_cli.mission_step_contracts.executor import (
     StepContractExecutionContext,
@@ -28,7 +28,7 @@ pytestmark = pytest.mark.fast
 
 def test_charter_mission_steps_facade_reexports_step_inputs() -> None:
     """The runtime-facing facade exposes the doctrine input model by identity."""
-    from doctrine.mission_step_contracts.models import MissionStepInput
+    from doctrine.missions.step_contracts import MissionStepInput
 
     facade = importlib.reload(importlib.import_module("charter.mission_steps"))
 

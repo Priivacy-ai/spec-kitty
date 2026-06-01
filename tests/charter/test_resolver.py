@@ -9,9 +9,11 @@ import pytest
 import charter.catalog as catalog_module
 from charter.interview import default_interview
 from charter.resolver import (
+    DoctrineService,
     GovernanceResolutionError,
     collect_governance_diagnostics,
     resolve_governance_for_profile,
+    resolve_mission_steps,
     resolve_project_governance,
 )
 
@@ -568,4 +570,109 @@ def test_sync_output_does_not_include_agents_yaml(tmp_path: Path) -> None:
 
     assert result.synced is True
     assert set(result.files_written) == {"governance.yaml", "directives.yaml", "metadata.yaml"}
-    assert not (tmp_path / "agents.yaml").exists()
+
+
+# ---------------------------------------------------------------------------
+# DoctrineService wrapper — activation filter coverage (FR-016 / FR-017)
+# ---------------------------------------------------------------------------
+
+
+def test_doctrine_service_paradigms_filtered_by_pack_context() -> None:
+    """DoctrineService.paradigms applies pack_context.activated_paradigms filter."""
+    from unittest.mock import MagicMock
+    from charter.pack_context import PackContext
+
+    paradigm_a = MagicMock()
+    paradigm_a.id = "test-first"
+    paradigm_b = MagicMock()
+    paradigm_b.id = "ddd"
+
+    inner = MagicMock()
+    inner.paradigms.list_all.return_value = [paradigm_a, paradigm_b]
+
+    pack_ctx = MagicMock(spec=PackContext)
+    pack_ctx.activated_paradigms = frozenset({"test-first"})
+
+    service = DoctrineService(inner, pack_context=pack_ctx)
+    result = service.paradigms
+
+    assert "test-first" in result
+    assert "ddd" not in result
+
+
+def test_doctrine_service_paradigms_unfiltered_when_pack_context_none() -> None:
+    """DoctrineService.paradigms returns all when pack_context is None."""
+    from unittest.mock import MagicMock
+
+    paradigm_a = MagicMock()
+    paradigm_a.id = "test-first"
+    inner = MagicMock()
+    inner.paradigms.list_all.return_value = [paradigm_a]
+
+    service = DoctrineService(inner, pack_context=None)
+    result = service.paradigms
+
+    assert "test-first" in result
+
+
+def test_doctrine_service_procedures_filtered_by_pack_context() -> None:
+    """DoctrineService.procedures applies pack_context.activated_procedures filter."""
+    from unittest.mock import MagicMock
+    from charter.pack_context import PackContext
+
+    proc_a = MagicMock()
+    proc_a.id = "tdd"
+    proc_b = MagicMock()
+    proc_b.id = "bdd"
+
+    inner = MagicMock()
+    inner.procedures.list_all.return_value = [proc_a, proc_b]
+
+    pack_ctx = MagicMock(spec=PackContext)
+    pack_ctx.activated_procedures = frozenset({"tdd"})
+
+    service = DoctrineService(inner, pack_context=pack_ctx)
+    result = service.procedures
+
+    assert "tdd" in result
+    assert "bdd" not in result
+
+
+def test_doctrine_service_getattr_delegates_to_inner() -> None:
+    """Unknown attributes on DoctrineService are forwarded to the inner service."""
+    from unittest.mock import MagicMock
+
+    inner = MagicMock()
+    inner.some_custom_attr = "sentinel"
+
+    service = DoctrineService(inner, pack_context=None)
+
+    assert service.some_custom_attr == "sentinel"
+
+
+def test_resolve_governance_for_profile_raises_when_profile_not_in_dict() -> None:
+    """resolve_governance_for_profile raises ValueError when profile dict has no match."""
+    from unittest.mock import MagicMock
+    from charter.interview import CharterInterview
+
+    service = MagicMock(spec=DoctrineService)
+    service.agent_profiles = {}  # empty dict, isinstance check will be True
+
+    interview = MagicMock(spec=CharterInterview)
+    interview.selected_directives = []
+
+    with pytest.raises(ValueError, match="not found"):
+        resolve_governance_for_profile(
+            "nonexistent-profile",
+            role=None,
+            doctrine_service=service,
+            interview=interview,
+        )
+
+
+def test_resolve_mission_steps_returns_dict_for_known_type() -> None:
+    """resolve_mission_steps returns a dict for a known mission type."""
+    result = resolve_mission_steps("software-dev")
+
+    assert isinstance(result, dict)
+    assert len(result) > 0

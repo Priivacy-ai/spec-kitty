@@ -50,19 +50,32 @@ __all__ = [
 # rather than import to keep this module free of charter imports; the
 # contract test sweep enforces drift detection between the two declarations
 # (C-009 binding).
+#
+# Mission ``charter-doctrine-mission-type-configuration-01KSWJVX`` (WP01 + WP11)
+# renames ``mission_step_contracts`` → ``mission_steps`` as the canonical plural
+# kind, aligning the DRG with the runtime domain model in
+# ``doctrine.missions.models.MissionStep``. The legacy plural is preserved as
+# an alias for one release so that org packs authored against the previous
+# universe continue to validate; the alias resolves to the same canonical
+# kind on parse, so downstream code only sees the canonical form.
 
-_ORG_DRG_CANONICAL_KINDS: frozenset[str] = frozenset(
-    {
-        "directives",
-        "tactics",
-        "styleguides",
-        "toolguides",
-        "paradigms",
-        "procedures",
-        "agent_profiles",
-        "mission_step_contracts",
-    }
-)
+#: Canonical plural-kind alias map. Keys = forms accepted on input; values =
+#: canonical form retained on the validated node. Identity entries (canonical
+#: → canonical) keep ``_ORG_DRG_CANONICAL_KINDS`` semantics intact.
+_ORG_DRG_KIND_ALIASES: dict[str, str] = {
+    "directives": "directives",
+    "tactics": "tactics",
+    "styleguides": "styleguides",
+    "toolguides": "toolguides",
+    "paradigms": "paradigms",
+    "procedures": "procedures",
+    "agent_profiles": "agent_profiles",
+    "mission_steps": "mission_steps",
+    # Backward-compat alias: pre-WP01 packs used `mission_step_contracts`.
+    "mission_step_contracts": "mission_steps",
+}
+
+_ORG_DRG_CANONICAL_KINDS: frozenset[str] = frozenset(_ORG_DRG_KIND_ALIASES.keys())
 
 
 # ---------------------------------------------------------------------------
@@ -158,7 +171,10 @@ class _OrgDRGNode(BaseModel):
                 f"unknown kind {value!r}: not in canonical 8-kind universe "
                 f"(C-009 binding): {sorted(_ORG_DRG_CANONICAL_KINDS)}"
             )
-        return value
+        # Resolve legacy aliases (e.g. ``mission_step_contracts`` →
+        # ``mission_steps``) to the canonical plural form so that downstream
+        # code only ever sees the post-WP01 vocabulary.
+        return _ORG_DRG_KIND_ALIASES.get(value, value)
 
 
 class _OrgDRGEdge(BaseModel):

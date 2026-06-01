@@ -1,0 +1,13 @@
+schema_version: 1
+id: documentation
+display_name: "Documentation"
+action_sequence:
+  - discover
+  - audit
+  - design
+  - generate
+  - validate
+  - publish
+  - accept
+governance_refs: []
+template_set: null

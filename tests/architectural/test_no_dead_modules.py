@@ -185,6 +185,15 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         "specify_cli.upgrade.migrations.m_3_2_4_repository_root_checkout_terminology",
         "specify_cli.upgrade.migrations.m_3_2_5_fix_prompt_file_workaround",
         "specify_cli.upgrade.migrations.m_3_2_6_charter_bundle_v2",
+        "specify_cli.upgrade.migrations.m_3_2_6_charter_manifest_defaults_repair",
+        # NOTE: WP01 (charter-pack-activation-layer-01KSYE4V) was expected to
+        # add the three entries below.  They are added here as a WP01 gap fix
+        # so the WP05 architectural gate passes before lanes are merged.
+        "specify_cli.upgrade.migrations.m_3_2_0rc28_github_diff_attributes",
+        "specify_cli.upgrade.migrations.m_3_2_0rc30_fix_runtime_next_result_default",
+        "specify_cli.upgrade.migrations.m_3_2_7_activate_builtin_mission_types",
+        # WP05 (charter-pack-activation-layer-01KSYE4V) migration added here.
+        "specify_cli.upgrade.migrations.m_3_2_8_default_charter_pack",
     }
 )
 
@@ -196,7 +205,6 @@ _CATEGORY_2_BUILD_SCHEMA_GENERATORS: frozenset[str] = frozenset(
     {
         "doctrine.agent_profiles.schema_models",
         "doctrine.import_candidates.models",
-        "doctrine.missions.models",
         "doctrine.model_task_routing.models",
     }
 )
@@ -269,6 +277,8 @@ _CATEGORY_5_WP_IN_FLIGHT_ADAPTERS: frozenset[str] = frozenset(
         # Priivacy-ai/spec-kitty#1356; once landed, the module gains a
         # runtime caller and this entry can be removed.
         "specify_cli.coordination.outbound",
+        # doctrine.missions.mission_step_repository: live caller landed in
+        # charter.mission_steps (charter-pack-activation-layer-01KSYE4V WP09)
     }
 )
 

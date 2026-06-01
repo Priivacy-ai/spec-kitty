@@ -1,0 +1,11 @@
+schema_version: 1
+id: research
+display_name: "Research"
+action_sequence:
+  - scoping
+  - methodology
+  - gathering
+  - synthesis
+  - output
+governance_refs: []
+template_set: null

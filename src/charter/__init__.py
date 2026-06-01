@@ -64,6 +64,9 @@ from .mission_type_profiles import (
     GovernancePayload,
     MissionTypeProfile,
     UnknownMissionTypeError,
+    existing_mission_types,
+    load_profile,
+    resolve_action_sequence,
     resolve_mission_type_governance,
 )
 from .resolver import (
@@ -74,6 +77,8 @@ from .resolver import (
     resolve_project_governance,
 )
 from .template_resolver import CharterTemplateResolver
+from .pack_context import PackContext
+from .exceptions import CharterActivationError
 
 __all__ = [
     "CANONICAL_MANIFEST",
@@ -127,6 +132,11 @@ __all__ = [
     "GovernancePayload",
     "MissionTypeProfile",
     "UnknownMissionTypeError",
+    "existing_mission_types",
+    "load_profile",
+    "resolve_action_sequence",
     "resolve_mission_type_governance",
     "CharterTemplateResolver",
+    "PackContext",
+    "CharterActivationError",
 ]

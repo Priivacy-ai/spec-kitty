@@ -2,13 +2,19 @@
 
 Resolves active governance from charter selections and validates
 selected references against available profile/tool catalogs.
+
+Exports ``DoctrineService`` — an activation-aware wrapper around
+:class:`doctrine.service.DoctrineService`.  The wrapper applies per-kind
+activation filters from :class:`~charter.pack_context.PackContext` to the
+``paradigms``, ``procedures``, and ``agent_profiles`` properties.  All other
+properties delegate to the inner doctrine service transparently.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from charter.catalog import DoctrineCatalog, load_doctrine_catalog
 from charter.reference_resolver import resolve_references_transitively
@@ -20,6 +26,7 @@ from charter.sync import (
 
 __all__ = [
     "DEFAULT_TOOL_REGISTRY",
+    "DoctrineService",
     "GovernanceResolution",
     "GovernanceResolutionError",
     "collect_governance_diagnostics",
@@ -29,12 +36,106 @@ __all__ = [
 
 
 if TYPE_CHECKING:
+    from doctrine.agent_profiles.profile import AgentProfile
     from doctrine.drg.models import DRGGraph
-    from doctrine.service import DoctrineService
+    from doctrine.paradigms.models import Paradigm
+    from doctrine.procedures.models import Procedure
+    import doctrine.service as _doctrine_service_module
     from charter.interview import CharterInterview
+    from charter.pack_context import PackContext
 
 DEFAULT_TEMPLATE_SET = "software-dev-default"
 DEFAULT_TOOL_REGISTRY: frozenset[str] = frozenset({"spec-kitty", "git"})
+
+
+# ---------------------------------------------------------------------------
+# Activation-aware DoctrineService wrapper (Pattern B + C wiring)
+# ---------------------------------------------------------------------------
+
+
+class DoctrineService:
+    """Activation-aware wrapper around :class:`doctrine.service.DoctrineService`.
+
+    Applies per-kind activation filters from
+    :class:`~charter.pack_context.PackContext` when accessing ``paradigms``,
+    ``procedures``, and ``agent_profiles``.  All other attributes delegate
+    transparently to the underlying doctrine service.
+
+    Layer rule
+    ----------
+    This class lives in ``charter.*`` so it can import ``PackContext``
+    without violating the ``doctrine ← charter`` dependency direction.
+    Callers in ``specify_cli.*`` pass a real :class:`PackContext`; callers
+    in ``charter.*`` may pass ``pack_context=None`` for unfiltered access.
+
+    Three-state filtering semantics
+    --------------------------------
+    * ``pack_context is None`` → no filtering; return all artifacts.
+    * ``pack_context.activated_<kind> is None`` → key absent from config;
+      return all artifacts (backward-compat / new-project default).
+    * ``pack_context.activated_<kind> == frozenset()`` → key present but
+      empty; return empty dict (explicit opt-out).
+    * ``pack_context.activated_<kind> = {ids}`` → return only those IDs.
+    """
+
+    def __init__(
+        self,
+        _inner: _doctrine_service_module.DoctrineService,
+        pack_context: PackContext | None = None,
+    ) -> None:
+        # Use object.__setattr__ to bypass any potential descriptor magic.
+        object.__setattr__(self, "_inner", _inner)
+        object.__setattr__(self, "_pack_context", pack_context)
+
+    # ------------------------------------------------------------------
+    # Pattern B: flat catalog activation filter (paradigms, procedures)
+    # ------------------------------------------------------------------
+
+    @property
+    def paradigms(self) -> dict[str, Paradigm]:
+        """Return paradigms dict, filtered by ``activated_paradigms`` when set."""
+        all_paradigms: dict[str, Paradigm] = {
+            item.id: item for item in self._inner.paradigms.list_all()
+        }
+        pack_ctx: PackContext | None = object.__getattribute__(self, "_pack_context")
+        if pack_ctx is not None and pack_ctx.activated_paradigms is not None:
+            return {k: v for k, v in all_paradigms.items() if k in pack_ctx.activated_paradigms}
+        return all_paradigms
+
+    @property
+    def procedures(self) -> dict[str, Procedure]:
+        """Return procedures dict, filtered by ``activated_procedures`` when set."""
+        all_procedures: dict[str, Procedure] = {
+            item.id: item for item in self._inner.procedures.list_all()
+        }
+        pack_ctx: PackContext | None = object.__getattribute__(self, "_pack_context")
+        if pack_ctx is not None and pack_ctx.activated_procedures is not None:
+            return {k: v for k, v in all_procedures.items() if k in pack_ctx.activated_procedures}
+        return all_procedures
+
+    # ------------------------------------------------------------------
+    # Pattern C: direct repository activation filter (agent_profiles)
+    # ------------------------------------------------------------------
+
+    @property
+    def agent_profiles(self) -> dict[str, AgentProfile]:
+        """Return agent profiles dict, filtered by ``activated_agent_profiles`` when set."""
+        all_profiles: dict[str, AgentProfile] = {
+            p.profile_id: p for p in self._inner.agent_profiles.list_all()
+        }
+        pack_ctx: PackContext | None = object.__getattribute__(self, "_pack_context")
+        if pack_ctx is not None and pack_ctx.activated_agent_profiles is not None:
+            return {k: v for k, v in all_profiles.items() if k in pack_ctx.activated_agent_profiles}
+        return all_profiles
+
+    # ------------------------------------------------------------------
+    # Delegation: all other attributes forwarded to the inner service
+    # ------------------------------------------------------------------
+
+    def __getattr__(self, name: str) -> Any:
+        """Delegate unknown attribute access to the inner doctrine service."""
+        inner = object.__getattribute__(self, "_inner")
+        return getattr(inner, name)
 
 
 class GovernanceResolutionError(ValueError):
@@ -253,10 +354,18 @@ def resolve_governance_for_profile(
     if not normalized_profile_id:
         raise ValueError("Profile ID is required for profile-aware governance resolution.")
 
-    try:
-        profile = doctrine_service.agent_profiles.resolve_profile(normalized_profile_id)
-    except KeyError as exc:
-        raise ValueError(f"Agent profile '{normalized_profile_id}' not found.") from exc
+    # Pattern C: agent_profiles may be a filtered dict (DoctrineService wrapper)
+    # or a repository (raw doctrine.service.DoctrineService / MagicMock in tests).
+    agent_profiles_attr = doctrine_service.agent_profiles
+    if isinstance(agent_profiles_attr, dict):
+        profile = agent_profiles_attr.get(normalized_profile_id)
+        if profile is None:
+            raise ValueError(f"Agent profile '{normalized_profile_id}' not found.")
+    else:
+        try:
+            profile = agent_profiles_attr.resolve_profile(normalized_profile_id)
+        except KeyError as exc:
+            raise ValueError(f"Agent profile '{normalized_profile_id}' not found.") from exc
 
     profile_directives = [ref.code.strip() for ref in profile.directive_references if ref.code.strip()]
     merged_directives = _merge_unique(profile_directives, interview.selected_directives)
@@ -306,6 +415,38 @@ def collect_governance_diagnostics(
     except GovernanceResolutionError as exc:
         return exc.issues
     return resolution.diagnostics
+
+
+def resolve_mission_steps(
+    mission_type_id: str,
+    pack_context: PackContext | None = None,
+) -> dict[str, Any]:
+    """Resolve all mission steps for ``mission_type_id`` with org/project shadowing.
+
+    Uses :class:`charter.mission_steps.MissionStepRepository` (the charter-layer
+    facade for FR-037 step resolution) to load the layered step catalog:
+    built-in → org packs → project overrides.
+
+    Parameters
+    ----------
+    mission_type_id:
+        The mission type identifier (e.g. ``"software-dev"``).
+    pack_context:
+        Optional :class:`~charter.pack_context.PackContext` for org and project
+        layer resolution.  When ``None``, only the built-in layer is queried.
+
+    Returns
+    -------
+    dict[str, MissionStep]
+        Mapping of ``step_id → MissionStep`` with layered shadowing applied.
+        Returns an empty dict when no steps exist for the given mission type.
+    """
+    from charter.mission_steps import MissionStepRepository  # noqa: PLC0415
+
+    return MissionStepRepository.default().resolve_all_for_mission_type(
+        mission_type_id,
+        pack_context=pack_context,
+    )
 
 
 def _merge_unique(primary: list[str], secondary: list[str]) -> list[str]:

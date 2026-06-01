@@ -33,20 +33,22 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 _IMPLEMENT_TEMPLATE = (
     _REPO_ROOT
     / "src"
-    / "specify_cli"
+    / "doctrine"
     / "missions"
+    / "mission-steps"
     / "software-dev"
-    / "command-templates"
-    / "implement.md"
+    / "implement"
+    / "prompt.md"
 )
 _REVIEW_TEMPLATE = (
     _REPO_ROOT
     / "src"
-    / "specify_cli"
+    / "doctrine"
     / "missions"
+    / "mission-steps"
     / "software-dev"
-    / "command-templates"
-    / "review.md"
+    / "review"
+    / "prompt.md"
 )
 
 _SECTION_HEADING_RE = re.compile(

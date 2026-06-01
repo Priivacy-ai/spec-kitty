@@ -79,7 +79,9 @@ def test_version_callback_renders_banner(monkeypatch: pytest.MonkeyPatch) -> Non
     def _fake_show_banner(*, force: bool = False) -> None:
         calls.append(force)
 
-    monkeypatch.setattr(cli_module, "show_banner", _fake_show_banner)
+    # version_callback imports show_banner locally from specify_cli.cli.helpers,
+    # so patch at the source module rather than on cli_module's namespace.
+    monkeypatch.setattr("specify_cli.cli.helpers.show_banner", _fake_show_banner)
     # Assumption check
     assert calls == []
     # Act / Assert

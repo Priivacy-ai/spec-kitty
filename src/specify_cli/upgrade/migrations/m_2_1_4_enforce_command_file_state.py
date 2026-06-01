@@ -88,10 +88,38 @@ def _file_has_current_version_marker(file_path: Path) -> bool:
 
 
 def _get_runtime_command_templates_dir() -> Path | None:
-    """Return the global runtime command-templates directory, or None if not found."""
-    from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
+    """Return the doctrine mission-steps directory for the active mission type.
 
-    # 1. Package-bundled assets (highest priority, always matches CLI version)
+    Templates now live under
+    ``doctrine/missions/mission-steps/<mission_type>/<step_id>/prompt.md``
+    (moved from ``specify_cli/missions/<mission_type>/command-templates/``
+    by the charter-doctrine-mission-type-configuration mission).
+
+    Resolution order (highest priority first):
+
+    1. Package-bundled doctrine assets (always matches installed CLI version).
+    2. Legacy ``command-templates/`` directory — retained for backwards
+       compatibility with older package installations.
+    3. Global runtime (``~/.kittify/``) legacy path — populated by historical
+       ``ensure_runtime()`` calls.
+    """
+    try:
+        import doctrine  # noqa: PLC0415
+
+        doctrine_steps = (
+            Path(doctrine.__file__).parent
+            / "missions"
+            / "mission-steps"
+            / _MISSION_NAME
+        )
+        if doctrine_steps.is_dir():
+            return doctrine_steps
+    except ImportError:
+        pass
+
+    # Fallback: legacy command-templates path for older installs without doctrine.
+    from specify_cli.runtime.home import get_kittify_home, get_package_asset_root  # noqa: PLC0415
+
     try:
         pkg_root = get_package_asset_root()
         pkg_templates = pkg_root / _MISSION_NAME / "command-templates"
@@ -100,12 +128,28 @@ def _get_runtime_command_templates_dir() -> Path | None:
     except FileNotFoundError:
         pass
 
-    # 2. Global runtime (~/.kittify/) — populated by ensure_runtime()
     runtime_templates = get_kittify_home() / "missions" / _MISSION_NAME / "command-templates"
     if runtime_templates.is_dir():
         return runtime_templates
 
     return None
+
+
+def _resolve_template_path(templates_dir: Path, command: str) -> Path:
+    """Return the full path to the source template for *command*.
+
+    Supports both the new doctrine layout
+    (``mission-steps/<mission_type>/<step_id>/prompt.md``)
+    and the legacy ``command-templates/<command>.md`` layout for older installs.
+    """
+    # New doctrine layout: templates_dir is the mission_type directory,
+    # and each step lives in a sub-directory named after the step.
+    doctrine_path = templates_dir / command / "prompt.md"
+    if doctrine_path.is_file():
+        return doctrine_path
+
+    # Legacy layout: templates_dir is the command-templates directory directly.
+    return templates_dir / f"{command}.md"
 
 
 def _resolve_script_type() -> str:
@@ -277,7 +321,7 @@ class EnforceCommandFileStateMigration(BaseMigration):
 
             # --- Prompt-driven commands: write full rendered prompt ---
             for command in sorted(PROMPT_DRIVEN_COMMANDS):
-                template_path = templates_dir / f"{command}.md"
+                template_path = _resolve_template_path(templates_dir, command)
                 if not template_path.is_file():
                     warnings.append(
                         f"Template not found for command '{command}' in {templates_dir} — skipping"

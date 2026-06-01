@@ -4,10 +4,10 @@ import pytest
 from pydantic import ValidationError
 
 from doctrine.artifact_kinds import ArtifactKind
-from doctrine.mission_step_contracts.models import (
+from doctrine.missions.step_contracts import (
     DelegatesTo,
-    MissionStep,
     MissionStepContract,
+    MissionStepContractStep as MissionStep,
 )
 
 pytestmark = pytest.mark.fast
@@ -212,7 +212,7 @@ class TestMissionStepContract:
     def test_json_schema_exposes_step_inputs_and_forbids_unknown_fields(self) -> None:
         schema = MissionStepContract.model_json_schema()
 
-        step_schema = schema["$defs"]["MissionStep"]
+        step_schema = schema["$defs"]["MissionStepContractStep"]
         assert step_schema["additionalProperties"] is False
         assert step_schema["properties"]["inputs"] == {
             "items": {"$ref": "#/$defs/MissionStepInput"},

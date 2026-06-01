@@ -480,11 +480,12 @@ def _state_to_action(
     }
     alias = _ALIASES.get(state)
     if alias:
-        # CLI-driven commands (shims) have no command template file — return
-        # the alias directly without verifying template existence.
-        from specify_cli.shims.registry import is_cli_driven
+        # Registered consumer skills (CLI-driven shims or prompt-driven
+        # commands) are known to the shim registry and do not require a
+        # resolvable template file to be considered valid.
+        from specify_cli.shims.registry import is_cli_driven, is_prompt_driven
 
-        if is_cli_driven(alias):
+        if is_cli_driven(alias) or is_prompt_driven(alias):
             return alias, None, None
         try:
             resolve_command(f"{alias}.md", repo_root, mission=mission_name)
@@ -523,22 +524,6 @@ def _build_prompt_safe(
     return path
 
 
-# Composed-action registry: actions dispatched via the composition layer rather
-# than file-based prompt templates. ``_build_prompt_or_error`` uses this to
-# emit a marker prompt file (satisfying the ``Decision.__post_init__`` invariant
-# that kind=step requires a non-empty, on-disk ``prompt_file``) without trying
-# to resolve a template that does not exist.
-#
-# Note: this mirrors ``_COMPOSED_ACTIONS_BY_MISSION`` in ``runtime_bridge`` —
-# the two must stay in sync. ``runtime_bridge`` cannot be imported here
-# (circular dependency), so a minimal read-only copy lives here.
-_COMPOSED_ACTIONS_FOR_PROMPT: dict[str, frozenset[str]] = {
-    "software-dev": frozenset({"specify", "plan", "tasks", "implement", "review"}),
-    "research": frozenset({"scoping", "methodology", "gathering", "synthesis", "output"}),
-    "documentation": frozenset(
-        {"discover", "audit", "design", "generate", "validate", "publish", "accept"}
-    ),
-}
 
 
 def _build_prompt_or_error(
@@ -570,7 +555,17 @@ def _build_prompt_or_error(
     # lightweight marker file and return its path so callers can emit a
     # ``kind=step`` Decision without hitting the ``if prompt_file is None``
     # blocked branch in ``_map_runtime_decision``.
-    if wp_id is None and action in _COMPOSED_ACTIONS_FOR_PROMPT.get(mission_type, frozenset()):
+    _is_composed_action = False
+    try:
+        from charter.mission_type_profiles import (  # noqa: PLC0415
+            resolve_action_sequence as _charter_resolve_action_sequence,
+        )
+
+        action_sequence = _charter_resolve_action_sequence(mission_type, repo_root)
+        _is_composed_action = wp_id is None and action in action_sequence
+    except Exception:
+        pass
+    if _is_composed_action:
         composed_prompt = (
             f"# {mission_type} — {action}\n\n"
             f"This step is dispatched via composition.\n"
@@ -609,6 +604,30 @@ def _build_prompt_or_error(
                 f"prompt template path is not stat-able for action '{action}': {exc}"
             )
         return path_str, None
+    except FileNotFoundError:
+        # No file-based template for this non-WP step (e.g. workflow-inserted
+        # steps like ``design-review``, or global-runtime steps like
+        # ``discovery`` that have no mission-step prompt file).  Rather than
+        # returning an error and causing ``_map_runtime_decision`` to emit a
+        # ``kind=blocked`` decision, write a minimal composition marker so the
+        # ``kind=step`` invariant is satisfied (FR-007 / T019).
+        if wp_id is None:
+            composed_prompt = (
+                f"# {mission_type} — {action}\n\n"
+                f"This step is dispatched via composition.\n"
+                f"Run `spec-kitty next --agent <name>` to advance.\n"
+            )
+            marker_fd, marker_path = tempfile.mkstemp(
+                prefix=f"spec-kitty-composed-{action}-",
+                suffix=".md",
+            )
+            os.write(marker_fd, composed_prompt.encode("utf-8"))
+            os.close(marker_fd)
+            return marker_path, None
+        return None, (
+            f"prompt resolution failed for action '{action}': "
+            f"FileNotFoundError: no template found"
+        )
     except Exception as exc:
         return None, (
             f"prompt resolution failed for action '{action}': "

@@ -1,0 +1,8 @@
+id: specify
+display_name: "Specification"
+step_type: agent
+prompt_template: prompt.md
+agent_profile: null
+guidance: null
+delegates_to: []
+depends_on: []

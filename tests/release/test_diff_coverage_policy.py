@@ -145,7 +145,6 @@ def test_validation_report_close_path_populated() -> None:
             )
 
 
-@pytest.mark.fast
 def test_close_with_evidence_does_not_modify_workflow() -> None:
     """FR-011: when decision == close_with_evidence, git diff against main
     on ci-quality.yml must be empty OR contain only 'name:' field changes.

@@ -503,14 +503,8 @@ def test_generic_safe_commit_targets_current_git_worktree(tmp_path: Path) -> Non
 
 def test_charter_template_uses_safe_commit_command() -> None:
     """Slash prompt must route commits through Spec Kitty, not raw git commit."""
-    import specify_cli
-
-    template = (
-        Path(specify_cli.__file__).parent
-        / "missions"
-        / "software-dev"
-        / "command-templates"
-        / "charter.md"
+    template = Path(
+        "src/doctrine/missions/mission-steps/software-dev/charter/prompt.md"
     ).read_text(encoding="utf-8")
 
     assert "spec-kitty safe-commit" in template

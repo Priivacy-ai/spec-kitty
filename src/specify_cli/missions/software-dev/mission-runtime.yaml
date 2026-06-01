@@ -15,7 +15,7 @@
 #
 # v2.2.0: Collapse the public tasks action back to a single "tasks" planning
 # step. The outline/packages/finalize substructure now lives inside
-# src/doctrine/mission_step_contracts/built-in/tasks.step-contract.yaml.
+# src/doctrine/missions/built_in_step_contracts/tasks.step-contract.yaml.
 
 mission:
   key: software-dev

@@ -14,9 +14,12 @@ yet shipped — they simply return an empty finding list.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from specify_cli.charter_runtime.lint.findings import LintFinding
+
+if TYPE_CHECKING:
+    from charter.pack_context import PackContext
 
 
 _OVERRIDABLE_ARTIFACT_TYPES: tuple[str, ...] = (
@@ -157,8 +160,17 @@ class OrgCharterDeviationChecker:
         except ImportError:
             return []
 
+        _pack_ctx = None
         try:
-            policies = load_org_charter_policies(repo_root)
+            from charter.invocation_context import ProjectContext  # noqa: PLC0415
+
+            _ctx = ProjectContext.from_repo(repo_root)
+            _pack_ctx = _ctx.require_pack_context()
+        except Exception:  # noqa: BLE001 — activation filter is best-effort
+            pass
+
+        try:
+            policies = load_org_charter_policies(repo_root, pack_context=_pack_ctx)
         except Exception:  # noqa: BLE001
             return []
         governance_policies = list(getattr(policies, "governance_policies", []) or [])
@@ -201,8 +213,17 @@ class OrgCharterDeviationChecker:
 # ---------------------------------------------------------------------------
 
 
-def _build_service_with_org_layer(repo_root: Path, registry: Any) -> Any:
-    """Construct a ``DoctrineService`` rooted at built-in + project + configured org packs."""
+def _build_service_with_org_layer(
+    repo_root: Path,
+    registry: Any,
+    pack_context: PackContext | None = None,
+) -> Any:
+    """Construct a ``DoctrineService`` rooted at built-in + project + configured org packs.
+
+    When *pack_context* is supplied, the returned service is wrapped in
+    :class:`charter.resolver.DoctrineService` for activation filtering
+    (Pattern B + C).
+    """
     try:
         from charter._doctrine_paths import resolve_project_root
         from charter.catalog import resolve_doctrine_root
@@ -215,15 +236,29 @@ def _build_service_with_org_layer(repo_root: Path, registry: Any) -> Any:
     org_roots = [p.local_path for p in registry.packs if p.local_path.exists()]
     if not org_roots:
         return None
-    return DoctrineService(
+    inner = DoctrineService(
         built_in_root=doctrine_root,
         project_root=project_root,
         org_roots=org_roots,
     )
+    if pack_context is not None:
+        try:
+            from charter.resolver import DoctrineService as ActivationDoctrineService  # noqa: PLC0415
+            return ActivationDoctrineService(inner, pack_context=pack_context)
+        except ImportError:
+            pass
+    return inner
 
 
-def _build_built_in_only_service(repo_root: Path) -> Any:
-    """Construct a ``DoctrineService`` rooted at built-in + project only (no org)."""
+def _build_built_in_only_service(
+    repo_root: Path,
+    pack_context: PackContext | None = None,
+) -> Any:
+    """Construct a ``DoctrineService`` rooted at built-in + project only (no org).
+
+    When *pack_context* is supplied, the returned service is wrapped in
+    :class:`charter.resolver.DoctrineService` for activation filtering.
+    """
     try:
         from charter._doctrine_paths import resolve_project_root
         from charter.catalog import resolve_doctrine_root
@@ -233,7 +268,14 @@ def _build_built_in_only_service(repo_root: Path) -> Any:
 
     doctrine_root = resolve_doctrine_root()
     project_root = resolve_project_root(repo_root)
-    return DoctrineService(built_in_root=doctrine_root, project_root=project_root)
+    inner = DoctrineService(built_in_root=doctrine_root, project_root=project_root)
+    if pack_context is not None:
+        try:
+            from charter.resolver import DoctrineService as ActivationDoctrineService  # noqa: PLC0415
+            return ActivationDoctrineService(inner, pack_context=pack_context)
+        except ImportError:
+            pass
+    return inner
 
 
 def _load_project_charter_fields(repo_root: Path) -> dict[str, Any]:

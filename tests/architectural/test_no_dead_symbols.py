@@ -83,7 +83,6 @@ _CATEGORY_A_SLICE_F_DEFERRED: frozenset[str] = frozenset(
         "charter.activations::REGISTERED_TRIGGERS",
         "charter.compact::CompactView",
         "charter.compact::extract_section_anchors",
-        "charter.mission_type_profiles::load_profile",
         "charter.synthesizer.provenance::ProvenanceEntry",
         "charter.synthesizer.write_pipeline::StagedArtifact",
         "charter.synthesizer.write_pipeline::promote",
@@ -107,8 +106,16 @@ _CATEGORY_A_SLICE_F_DEFERRED: frozenset[str] = frozenset(
 _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
     {
         "doctrine.directives::ArtifactKind",
-        "doctrine.mission_step_contracts::ArtifactKind",
         "doctrine.missions::MissionRepository",
+        # doctrine.missions.models symbols are used internally by
+        # MissionTypeRepository but not imported directly by specify_cli
+        # callers; grandfathered into the baseline until a follow-up
+        # sweep wires or removes them (FR-303).
+        "doctrine.missions.models::IDENTIFIER_PATTERN",
+        "doctrine.missions.models::Mission",
+        "doctrine.missions.models::MissionOrchestration",
+        "doctrine.missions.models::MissionStateObject",
+        "doctrine.missions.models::MissionTransition",
         "doctrine.procedures::ArtifactKind",
         "doctrine.shared::ConflictType",
         "doctrine.shared::ExtractedTerm",
@@ -300,10 +307,12 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
         "specify_cli.scripts.tasks.acceptance_support::AcceptanceSummary",
         "specify_cli.scripts.tasks.acceptance_support::ArtifactEncodingError",
         "specify_cli.scripts.tasks.acceptance_support::WorkPackageState",
+        "specify_cli.scripts.tasks.acceptance_support::acceptance_lane_derivations",
         "specify_cli.scripts.tasks.acceptance_support::choose_mode",
         "specify_cli.scripts.tasks.acceptance_support::collect_feature_summary",
         "specify_cli.scripts.tasks.acceptance_support::detect_mission_slug",
         "specify_cli.scripts.tasks.acceptance_support::normalize_feature_encoding",
+        "specify_cli.scripts.tasks.acceptance_support::resolve_acceptance_actor",
         "specify_cli.scripts.tasks.acceptance_support::perform_acceptance",
         "specify_cli.shims::SkillRegistry",
         "specify_cli.shims::generate_shims",
@@ -392,7 +401,21 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
 # CharterScopeConflict, CharterScopeNotFound into the live src/ import
 # graph. All four symbols have live callers; the allowlist is empty.
 # See HIGH-1 in the mission-review-report.md for the full rationale.
-_CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE: frozenset[str] = frozenset()
+# specced, wiring deferred to follow-on mission (charter-pack-activation-layer WP03)
+_CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE: frozenset[str] = frozenset(
+    {
+        "charter.invocation_context::OperationalContext",
+        "charter.invocation_context::build_operational_context",
+        "charter.invocation_context::OperationalContext.require_active_profile",
+        "charter.invocation_context::OperationalContext.require_active_role",
+        # ProjectContext: live callers landed in charter-pack-activation-layer-01KSYE4V
+        # ContextPreconditionError: raised internally; no direct import in other src/ modules yet
+        "charter.invocation_context::ContextPreconditionError",
+        # run_consistency_check: live callers landed in charter/pack.py (WP06)
+        # ConsistencyReport: no src/ caller yet — remains allowlisted
+        "charter.consistency_check::ConsistencyReport",
+    }
+)
 
 # ---------- C. WP-in-flight Slice F workflow registry symbols ----------
 # WP11 removal trigger reached: get_workflow, UnknownWorkflowError,
@@ -446,6 +469,65 @@ _CATEGORY_C_WP_IN_FLIGHT_COORDINATION_BRANCH: frozenset[str] = frozenset(
 )
 
 
+# ---------- C. WP-in-flight unified MissionStep model (mission 01KSWJVX) ----------
+# Mission ``charter-doctrine-mission-type-configuration-01KSWJVX`` WP01
+# unified the previously-fragmented ``MissionStep`` classes into
+# ``doctrine.missions.models.MissionStep`` and relocated the legacy
+# step-contract types to ``doctrine.missions.step_contracts``. The
+# public surface below ships ahead of the production callers that will
+# land in later WPs of the same mission (WP03 ``MissionTypeRepository``,
+# WP04 ``MissionStepRepository``, WP05 ``charter.resolve_action_sequence``).
+# Until those WPs land, the symbols are exposed in ``__all__`` so the
+# unified API is discoverable but carry only test callers. Follow-up
+# tracker: mission-internal WP03/WP04/WP05.
+_CATEGORY_C_WP_IN_FLIGHT_UNIFIED_MISSION_STEP: frozenset[str] = frozenset(
+    {
+        "doctrine.missions.models::IDENTIFIER_PATTERN",
+        "doctrine.missions.models::Mission",
+        "doctrine.missions.models::MissionOrchestration",
+        "doctrine.missions.models::MissionStateObject",
+        "doctrine.missions.models::MissionTransition",
+        "doctrine.missions.step_contracts::DelegatesTo",
+        # MissionStepRepository: live caller landed in charter.mission_steps (WP09)
+        "doctrine.missions.mission_step_repository::StepKey",
+    }
+)
+
+
+# ---------- C. WP-in-flight charter-pack activation layer (01KSYE4V) ----------
+# ---------- C. WP-in-flight charter pack activation layer (mission 01KSYE4V) ----------
+# Mission ``charter-pack-activation-layer-01KSYE4V`` WP05/WP06 introduce
+# new public symbols across charter, doctrine, and specify_cli whose only
+# callers today are in the test suite or in later WPs still being developed
+# in parallel lanes. Production callers (CLI commands, activation pipeline)
+# will wire these in follow-on WPs within the same mission.
+# Follow-up tracker: mission-internal WP06/WP08 (CLI wiring).
+_CATEGORY_C_WP_IN_FLIGHT_CHARTER_ACTIVATION: frozenset[str] = frozenset(
+    {
+        # charter.drg: PackContext is the DRG traversal context for pack-scoped
+        # activation; consumed by charter activation pipeline (WP06 wiring deferred)
+        "charter.drg::PackContext",
+        # charter.pack_manager: activation/merge result types consumed by CLI
+        # activation command (WP06 wiring deferred)
+        "charter.pack_manager::ActivationResult",
+        "charter.pack_manager::MergeResult",
+        # doctrine.missions.mission_step_repository: MissionStepRepository live caller landed
+        # in charter.mission_steps (WP09); StepKey still has test-only callers
+        "doctrine.missions.mission_step_repository::StepKey",
+        # specify_cli.charter_activate: AffectedMission and StepRemovalWarning are
+        # return/field types used indirectly; emit_step_removal_warnings,
+        # find_removed_steps, scan_inflight_missions wired from activate.py
+        # in charter-pack-activation-layer-01KSYE4V post-merge remediation.
+        "specify_cli.charter_activate::AffectedMission",
+        "specify_cli.charter_activate::StepRemovalWarning",
+        # specify_cli.doctrine.org_charter: cycle/extension error types consumed
+        # by CLI validation (WP06 wiring deferred)
+        "specify_cli.doctrine.org_charter::OrgCharterCycleError",
+        "specify_cli.doctrine.org_charter::OrgCharterExtensionError",
+    }
+)
+
+
 # Aggregate. The gate consults this; the per-category frozensets are
 # the surface introspected by the ratchet-baseline meta-test
 # (``tests/architectural/test_ratchet_baselines.py``).
@@ -456,6 +538,8 @@ _SYMBOL_ALLOWLIST: frozenset[str] = (
     | _CATEGORY_C_WP_IN_FLIGHT_WORKFLOW_REGISTRY
     | _CATEGORY_C_CHARTER_SPLIT_LEGACY_PATCH_SURFACE
     | _CATEGORY_C_WP_IN_FLIGHT_COORDINATION_BRANCH
+    | _CATEGORY_C_WP_IN_FLIGHT_UNIFIED_MISSION_STEP
+    | _CATEGORY_C_WP_IN_FLIGHT_CHARTER_ACTIVATION
 )
 
 

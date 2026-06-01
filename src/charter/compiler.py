@@ -532,9 +532,11 @@ def _resolve_transitive_reference_graph(
     doctrine_root: Path,
     directives: list[str],
     repo_root: Path | None,
+    pack_context: Any = None,
 ) -> Any:
     """Resolve directive transitive closure from built-in/project DRG layers."""
     from charter._drg_helpers import load_validated_graph
+    from charter.drg import filter_graph_by_activation
     from doctrine.drg.loader import load_graph_or_dir
     from doctrine.drg.models import Relation
     from doctrine.drg.query import ResolveTransitiveRefsResult, resolve_transitive_refs
@@ -553,6 +555,10 @@ def _resolve_transitive_reference_graph(
             assert_valid(merged)
     except Exception:
         return ResolveTransitiveRefsResult(directives=sorted(directives))
+
+    # FR-032, FR-035 (WP08): apply activation filter after load, before resolution.
+    if pack_context is not None:
+        merged = filter_graph_by_activation(merged, pack_context)
 
     return resolve_transitive_refs(
         merged,

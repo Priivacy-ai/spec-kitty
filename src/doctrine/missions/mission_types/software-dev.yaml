@@ -1,0 +1,15 @@
+schema_version: 1
+id: software-dev
+display_name: "Software Development"
+action_sequence:
+  - specify
+  - plan
+  - tasks
+  - implement
+  - review
+governance_refs:
+  - DIR-010
+  - DIR-011
+template_set:
+  spec: spec-template.md
+  plan: plan-template.md

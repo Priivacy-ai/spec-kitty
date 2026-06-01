@@ -6,7 +6,7 @@ These guidelines govern the quality and publication-readiness standards for the 
 
 ## Publication Readiness
 
-- The output phase ends with the **publication approval gate** (`gate_passed("publication_approved")`). This is the runtime predicate, declared in `src/doctrine/missions/research/mission.yaml` and enforced by `src/doctrine/mission_step_contracts/shipped/research-output.step-contract.yaml`, that gates advancement from `output` to `done`. Treat publication as a review event, not a rendering step — the host harness records `publication_approved` only after the operator has verified the readiness checks below.
+- The output phase ends with the **publication approval gate** (`gate_passed("publication_approved")`). This is the runtime predicate, declared in `src/doctrine/missions/research/mission.yaml` and enforced by `src/doctrine/missions/built_in_step_contracts/research-output.step-contract.yaml`, that gates advancement from `output` to `done`. Treat publication as a review event, not a rendering step — the host harness records `publication_approved` only after the operator has verified the readiness checks below.
 - A reader who arrives at the output without the source register or evidence log must still be able to evaluate the rigor of the work.
 - The published artifact and the underlying evidence base must be **consistent**: every claim in the output traces to an evidence row, and every high-confidence evidence row that informs a finding is reflected in the output.
 

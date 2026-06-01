@@ -149,7 +149,7 @@ def _artifact_schema_registry() -> dict[str, tuple[str, type[BaseModel]]]:
     """
     from doctrine.agent_profiles.profile import AgentProfile
     from doctrine.directives.models import Directive
-    from doctrine.mission_step_contracts.models import MissionStepContract
+    from doctrine.missions.step_contracts import MissionStepContract
     from doctrine.paradigms.models import Paradigm
     from doctrine.procedures.models import Procedure
     from doctrine.styleguides.models import Styleguide

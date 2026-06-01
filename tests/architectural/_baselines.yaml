@@ -19,13 +19,18 @@
 # tests/architectural/test_no_dead_modules.py
 # Per-category breakdown (FR-112 refactor).
 test_no_dead_modules:
-  # justification: 71 auto-discovered migration modules under
-  # src/specify_cli/upgrade/migrations/m_*.py. Grows when a new
-  # migration ships; growth here is expected and routine.
-  category_1_auto_discovered_migrations: 71
-  # justification: 4 schema generator modules consumed by
+  # justification: 75 auto-discovered migration modules under
+  # src/specify_cli/upgrade/migrations/m_*.py. +3 for
+  # m_3_2_0rc28_github_diff_attributes, m_3_2_7_activate_builtin_mission_types
+  # (WP01 gap filled here), and m_3_2_8_default_charter_pack (WP05,
+  # charter-pack-activation-layer-01KSYE4V). +1 for
+  # m_3_2_6_charter_manifest_defaults_repair (upstream #1480). Growth here is expected/routine.
+  category_1_auto_discovered_migrations: 75
+  # justification: 3 schema generator modules consumed by
   # scripts/generate_schemas.py via importlib.import_module.
-  category_2_build_schema_generators: 4
+  # Shrunk from 4 → 3 when doctrine.missions.models gained a live
+  # src/ caller via MissionTypeRepository (WP14 mission-type commands).
+  category_2_build_schema_generators: 3
   # justification: 4 external/CLI entry points invoked outside the
   # spec-kitty import graph (commit_guard_hook + 3 task helpers).
   category_3_external_cli_entrypoints: 4
@@ -41,7 +46,7 @@ test_no_dead_modules:
   # the mission's post-merge review). Migration is tracked under
   # Priivacy-ai/spec-kitty#1356; once landed, the module gains a
   # runtime caller and this baseline can drop back to 3.
-  category_5_wp_in_flight_adapters: 4
+  category_5_wp_in_flight_adapters: 4  # justification: specify_cli.compat._adapters.{detector,gate,version_checker} + specify_cli.coordination.outbound; doctrine.missions.mission_step_repository wired in charter-pack-activation-layer-01KSYE4V (removed)
   # justification: 3 frozen-contract internal re-exports under
   # next/_internal_runtime/ frozen by shared-package-boundary-cutover.
   category_6_frozen_runtime_reexports: 3
@@ -126,14 +131,19 @@ test_no_dead_symbols:
   # specify_cli whose ``__all__`` predates the WP02 gate. C-007 /
   # FR-121 scopes WP02 to charter+kernel; this category is the
   # carry-over surface for the next mission that widens the convention.
-  category_b_grandfathered_legacy: 276
+  category_b_grandfathered_legacy: 275
   # Removal trigger reached (post-merge remediation cycle 1, 2026-05-19):
   # prompt_builder imports build_with_scope which pulls CharterScope*
   # into the live src/ import graph. All four symbols now have live
   # callers; category shrunk from 4 to 0.
-  category_c_wp_in_flight_charter_scope: 0
+  category_c_wp_in_flight_charter_scope: 6  # justification: OperationalContext family (×4) + ConsistencyReport + ContextPreconditionError; ProjectContext/run_consistency_check wired in charter-pack-activation-layer-01KSYE4V post-merge remediation
   # WP11 removal trigger reached: all 4 workflow registry symbols now have
   # live src/ callers (planner.py imports get_workflow, UnknownWorkflowError,
   # list_available_workflows from workflow_registry, and ActionStep from
   # workflow_schema). Category shrunk to 0.
   category_c_wp_in_flight_workflow_registry: 0
+  # justification: 13 new public symbols introduced by WP05/WP06 of mission
+  # charter-pack-activation-layer-01KSYE4V whose production callers (CLI
+  # activation command, DRG pipeline) are in-flight in later WPs of the same
+  # mission. All symbols ship ahead of wiring per the activation-layer design.
+  category_c_wp_in_flight_charter_activation: 8  # justification: activate_cmd removed from __all__ (typer callback, consistent with deactivate/list); remaining 8 are type/error symbols with no direct src/ caller yet

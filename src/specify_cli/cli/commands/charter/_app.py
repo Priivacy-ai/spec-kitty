@@ -6,6 +6,7 @@ register their handler via ``@charter_app.command(...)``. ``app`` is kept as
 the canonical legacy alias so historic imports (and the registration of the
 ``charter_bundle`` sub-app + ``charter_preflight`` command) keep working.
 """
+
 from __future__ import annotations
 
 import logging
@@ -13,7 +14,12 @@ import logging
 import typer
 from rich.console import Console
 
+from specify_cli.cli.commands.charter.activate import activate_cmd
+from specify_cli.cli.commands.charter.deactivate import deactivate_cmd
+from specify_cli.cli.commands.charter.list_cmd import charter_list_app
+from specify_cli.cli.commands.charter.pack import charter_pack_app
 from specify_cli.cli.commands.charter_bundle import app as charter_bundle_app
+from specify_cli.cli.commands.charter.mission_type import charter_mission_type_app
 
 logger = logging.getLogger("specify_cli.cli.commands.charter")
 
@@ -34,6 +40,21 @@ app = charter_app
 # ``spec-kitty charter bundle validate`` from the unified CLI surface
 # (FR-013).
 charter_app.add_typer(charter_bundle_app, name="bundle")
+
+# WP14 (FR-016): ``spec-kitty charter mission-type list`` — activated types only.
+charter_app.add_typer(charter_mission_type_app, name="mission-type")
+
+# WP15 (FR-008): ``spec-kitty charter activate mission-type <id>`` — in-flight warning.
+charter_app.command("activate")(activate_cmd)
+
+# WP06 (FR-005): ``spec-kitty charter deactivate <kind> <id>`` — pack deactivation.
+charter_app.command("deactivate")(deactivate_cmd)
+
+# WP06 (FR-004/005/006/007): ``spec-kitty charter list`` — activation state table.
+charter_app.add_typer(charter_list_app, name="list")
+
+# WP06 (FR-011): ``spec-kitty charter pack consistency-check`` — pack management.
+charter_app.add_typer(charter_pack_app, name="pack")
 
 #: Module-level Rich console for all subcommand handlers.
 console = Console()

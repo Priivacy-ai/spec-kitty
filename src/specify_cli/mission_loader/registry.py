@@ -25,7 +25,7 @@ The registry is intentionally simple:
 
 WP03 only provides the façade :func:`lookup_contract`. WP04 owns the
 wiring change that routes
-:class:`~doctrine.mission_step_contracts.executor.StepContractExecutor`
+:class:`~specify_cli.mission_step_contracts.executor.StepContractExecutor`
 through this façade. Until WP04 lands, the executor still calls
 ``repository.get(...)`` directly and the shadow is unused at runtime.
 """

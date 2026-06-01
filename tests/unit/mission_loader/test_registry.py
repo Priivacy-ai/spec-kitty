@@ -14,8 +14,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from doctrine.mission_step_contracts.models import MissionStep, MissionStepContract
-from doctrine.mission_step_contracts.repository import MissionStepContractRepository
+from doctrine.missions.step_contracts import (
+    MissionStepContract,
+    MissionStepContractRepository,
+    MissionStepContractStep as MissionStep,
+)
 
 from specify_cli.mission_loader.registry import (
     RuntimeContractRegistry,
