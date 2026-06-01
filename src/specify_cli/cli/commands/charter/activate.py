@@ -74,7 +74,11 @@ def activate_cmd(
             step_warnings = scan_inflight_missions(removed, kitty_specs_dir)
             emit_step_removal_warnings(step_warnings, console)
 
-    result = CharterPackManager().activate(ctx_project, kind, artifact_id, cascade=cascade_bool)
+    try:
+        result = CharterPackManager().activate(ctx_project, kind, artifact_id, cascade=cascade_bool)
+    except ValueError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
     for msg in result.activated:
         console.print(f"[green]Activated[/green]: {msg}")
     # result.cascade_activated is dict[str, list[str]] — kind -> list of IDs

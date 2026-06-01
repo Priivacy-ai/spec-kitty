@@ -2,6 +2,16 @@
 # Contains all built-in artifact IDs across all 9 activation kinds.
 # Do not edit manually; update via spec-kitty upgrade.
 
+activated_kinds:
+  - directives
+  - tactics
+  - styleguides
+  - toolguides
+  - paradigms
+  - procedures
+  - agent_profiles
+  - mission_step_contracts
+
 mission_type_activations:
   - software-dev
   - documentation

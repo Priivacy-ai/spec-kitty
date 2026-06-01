@@ -88,6 +88,23 @@ def test_unknown_reference_detected(tmp_path: Path) -> None:
 
 
 @pytest.mark.doctrine
+def test_duplicate_activation_entry_detected(tmp_path: Path) -> None:
+    """Duplicate YAML entries must not be hidden by frozenset conversion."""
+    ctx = _ctx_with_config(
+        tmp_path,
+        (
+            "activated_directives:\n"
+            f"  - {_REAL_DIRECTIVE_ID}\n"
+            f"  - {_REAL_DIRECTIVE_ID}\n"
+        ),
+    )
+    report = run_consistency_check(ctx)
+
+    assert report.coherent is False
+    assert any("Duplicate entry" in v for v in report.kind_violations)
+
+
+@pytest.mark.doctrine
 def test_suggestion_contains_resolution_command(tmp_path: Path) -> None:
     """Suggestion for an unknown ID must contain 'charter deactivate'."""
     fake_id = "totally-fake-directive-zzz"

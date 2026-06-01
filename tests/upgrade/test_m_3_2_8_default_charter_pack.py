@@ -18,6 +18,8 @@ import pytest
 pytestmark = pytest.mark.upgrade
 from ruamel.yaml import YAML
 
+from charter.drg import DRGGraph, DRGNode, NodeKind, filter_graph_by_activation
+from charter.pack_context import PackContext
 from specify_cli.upgrade.migrations import m_3_2_8_default_charter_pack
 from specify_cli.upgrade.migrations.m_3_2_8_default_charter_pack import (
     DefaultCharterPackMigration,
@@ -91,6 +93,8 @@ def test_apply_writes_absent_keys_from_default_pack(tmp_path: Path) -> None:
             assert data[key] == expected.get(key, []), (
                 f"Key {key!r} does not match default.yaml"
             )
+        assert data["activated_kinds"] == expected["activated_kinds"]
+        assert data["activated_kinds"] != []
     else:
         # WP04 is not yet merged into this lane.  Create a minimal fixture
         # that exercises the same code path so the migration logic is verified
@@ -119,6 +123,39 @@ def test_apply_writes_absent_keys_from_default_pack(tmp_path: Path) -> None:
             assert data[key] == expected.get(key, []), (
                 f"Key {key!r} does not match fixture default.yaml"
             )
+
+
+@pytest.mark.fast
+def test_apply_writes_activation_kinds_that_keep_builtin_nodes_visible(
+    tmp_path: Path,
+) -> None:
+    """Migrated default config must not filter out every built-in DRG artifact."""
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir()
+    config = kittify / "config.yaml"
+    config.write_text("agents:\n  available: []\n", encoding="utf-8")
+
+    result = DefaultCharterPackMigration().apply(tmp_path)
+    assert result.success is True
+
+    ctx = PackContext.from_config(tmp_path)
+    graph = DRGGraph.model_construct(
+        schema_version="1.0",
+        generated_at="2026-06-01T00:00:00Z",
+        generated_by="test",
+        nodes=[
+            DRGNode(
+                urn="directive:001-architectural-integrity-standard",
+                kind=NodeKind.DIRECTIVE,
+            )
+        ],
+        edges=[],
+    )
+
+    filtered = filter_graph_by_activation(graph, ctx)
+    assert [node.urn for node in filtered.nodes] == [
+        "directive:001-architectural-integrity-standard"
+    ]
 
 
 @pytest.mark.fast

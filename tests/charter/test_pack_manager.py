@@ -83,23 +83,31 @@ class TestActivateNoneState:
         self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path
     ) -> None:
         """Activating on a fresh config materializes the default pack then adds the ID."""
-        result = manager.activate(ctx, kind="directive", artifact_id="my-custom-directive")
-        assert "my-custom-directive" in result.activated
+        result = manager.activate(
+            ctx,
+            kind="directive",
+            artifact_id="001-architectural-integrity-standard",
+        )
+        assert any("already activated" in w for w in result.warnings)
         # config.yaml must now contain the key
         config = project_root / ".kittify" / "config.yaml"
         data = yaml.safe_load(config.read_text())
-        assert "my-custom-directive" in data["activated_directives"]
+        assert "001-architectural-integrity-standard" in data["activated_directives"]
 
     def test_warns_about_initialization_from_default(
         self, manager: CharterPackManager, ctx: ProjectContext
     ) -> None:
-        result = manager.activate(ctx, kind="directive", artifact_id="x-new")
+        result = manager.activate(
+            ctx,
+            kind="directive",
+            artifact_id="001-architectural-integrity-standard",
+        )
         assert any("initialized from default pack" in w.lower() for w in result.warnings)
 
     def test_default_ids_are_present_after_materialize(
         self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path
     ) -> None:
-        manager.activate(ctx, kind="directive", artifact_id="x-new")
+        manager.activate(ctx, kind="directive", artifact_id="001-architectural-integrity-standard")
         config = project_root / ".kittify" / "config.yaml"
         data = yaml.safe_load(config.read_text())
         # At least one canonical built-in directive must be present
@@ -121,35 +129,35 @@ class TestActivateExistingSet:
             encoding="utf-8",
         )
         ctx = ProjectContext.from_repo(project_root)
-        result = manager.activate(ctx, kind="directive", artifact_id="new-directive")
-        assert "new-directive" in result.activated
+        result = manager.activate(ctx, kind="directive", artifact_id="003-decision-documentation-requirement")
+        assert "003-decision-documentation-requirement" in result.activated
         data = yaml.safe_load(config.read_text())
         assert "001-architectural-integrity-standard" in data["activated_directives"]
-        assert "new-directive" in data["activated_directives"]
+        assert "003-decision-documentation-requirement" in data["activated_directives"]
 
     def test_no_duplicate_on_double_activate(
         self, manager: CharterPackManager, project_root: Path
     ) -> None:
         config = project_root / ".kittify" / "config.yaml"
         config.write_text(
-            "activated_directives:\n  - already-here\n",
+            "activated_directives:\n  - 001-architectural-integrity-standard\n",
             encoding="utf-8",
         )
         ctx = ProjectContext.from_repo(project_root)
-        manager.activate(ctx, kind="directive", artifact_id="already-here")
+        manager.activate(ctx, kind="directive", artifact_id="001-architectural-integrity-standard")
         data = yaml.safe_load(config.read_text())
-        assert data["activated_directives"].count("already-here") == 1
+        assert data["activated_directives"].count("001-architectural-integrity-standard") == 1
 
     def test_comments_preserved_in_config(
         self, manager: CharterPackManager, project_root: Path
     ) -> None:
         config = project_root / ".kittify" / "config.yaml"
         config.write_text(
-            "# project-level comment\nactivated_directives:\n  - existing\n",
+            "# project-level comment\nactivated_directives:\n  - 001-architectural-integrity-standard\n",
             encoding="utf-8",
         )
         ctx = ProjectContext.from_repo(project_root)
-        manager.activate(ctx, kind="directive", artifact_id="new-one")
+        manager.activate(ctx, kind="directive", artifact_id="003-decision-documentation-requirement")
         raw = config.read_text()
         assert "# project-level comment" in raw
 
@@ -165,6 +173,12 @@ class TestActivateInvalidKind:
     ) -> None:
         with pytest.raises(ValueError, match="Unknown activation kind"):
             manager.activate(ctx, kind="nonexistent-kind", artifact_id="x")
+
+    def test_raises_value_error_for_unknown_artifact_id(
+        self, manager: CharterPackManager, ctx: ProjectContext
+    ) -> None:
+        with pytest.raises(ValueError, match="Unknown artifact ID"):
+            manager.activate(ctx, kind="directive", artifact_id="not-a-real-directive")
 
 
 # ---------------------------------------------------------------------------
@@ -328,9 +342,17 @@ class TestActivateCascadeWarning:
     ) -> None:
         """activate(cascade=True) emits a warning that DRG traversal is deferred."""
         config = project_root / ".kittify" / "config.yaml"
-        config.write_text("activated_directives:\n  - existing\n", encoding="utf-8")
+        config.write_text(
+            "activated_directives:\n  - 001-architectural-integrity-standard\n",
+            encoding="utf-8",
+        )
         ctx = ProjectContext.from_repo(project_root)
-        result = manager.activate(ctx, kind="directive", artifact_id="new-one", cascade=True)
+        result = manager.activate(
+            ctx,
+            kind="directive",
+            artifact_id="003-decision-documentation-requirement",
+            cascade=True,
+        )
         assert any("cascade" in w.lower() for w in result.warnings)
 
 

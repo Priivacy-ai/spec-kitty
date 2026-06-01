@@ -208,6 +208,11 @@ class CharterPackManager:
                 f"Unknown activation kind '{kind}'. "
                 f"Valid kinds: {sorted(YAML_KEY_MAP)}"
             )
+        if artifact_id not in self.list_available(ctx, kind):
+            raise ValueError(
+                f"Unknown artifact ID '{artifact_id}' for kind '{kind}'. "
+                "Run `charter list --show-available` to inspect available IDs."
+            )
 
         yaml_key = YAML_KEY_MAP[kind]
         data, yaml_inst = _load_config(config_path)

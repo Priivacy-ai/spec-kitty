@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 
+from ruamel.yaml import YAML
+
 from charter.invocation_context import ProjectContext
 from charter.pack_manager import YAML_KEY_MAP, CharterPackManager
 
@@ -100,19 +102,38 @@ def _get_activation_set(
 
 
 def _get_raw_activation_list(
-    activated_by_kind: dict[str, frozenset[str] | None],
+    raw_activated_by_kind: dict[str, list[str] | None],
     kind: str,
 ) -> list[str] | None:
     """Return the raw list of IDs for *kind*, or None when absent.
 
-    ``CharterPackManager.list_activated`` returns frozensets, which
-    deduplicate automatically.  The duplicate-detection loop is retained
-    for correctness; it is a structural no-op for frozenset-based configs.
+    The consistency check needs the un-deduplicated YAML list so duplicate
+    activation entries remain observable.
     """
-    activated = activated_by_kind.get(kind)
-    if activated is None:
-        return None
-    return list(activated)
+    return raw_activated_by_kind.get(kind)
+
+
+def _load_raw_activation_lists(ctx: ProjectContext) -> dict[str, list[str] | None]:
+    """Read activation lists from config.yaml without deduplicating entries."""
+    config_path = ctx.require_repo_root() / ".kittify" / "config.yaml"
+    if not config_path.exists():
+        return dict.fromkeys(YAML_KEY_MAP, None)
+
+    yaml = YAML(typ="safe")
+    data = yaml.load(config_path) or {}
+    if not isinstance(data, dict):
+        return dict.fromkeys(YAML_KEY_MAP, None)
+
+    result: dict[str, list[str] | None] = {}
+    for kind, yaml_key in YAML_KEY_MAP.items():
+        raw = data.get(yaml_key)
+        if raw is None:
+            result[kind] = None
+        elif isinstance(raw, list):
+            result[kind] = [str(item) for item in raw]
+        else:
+            result[kind] = []
+    return result
 
 
 def _collect_all_doctrine_ids(
@@ -250,12 +271,12 @@ def _inspect_drg_edge(
 
 
 def _check_duplicates(
-    activated_by_kind: dict[str, frozenset[str] | None],
+    raw_activated_by_kind: dict[str, list[str] | None],
     kind_violations: list[str],
 ) -> None:
     """Detect duplicate IDs within a single activation set."""
     for kind in YAML_KEY_MAP:
-        raw_list = _get_raw_activation_list(activated_by_kind, kind)
+        raw_list = _get_raw_activation_list(raw_activated_by_kind, kind)
         if raw_list is None:
             continue
         seen: set[str] = set()
@@ -322,7 +343,11 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
     suggestions: list[str] = []
 
     manager = CharterPackManager()
-    activated_by_kind = manager.list_activated(ctx)
+    raw_activated_by_kind = _load_raw_activation_lists(ctx)
+    activated_by_kind = {
+        kind: None if raw is None else frozenset(raw)
+        for kind, raw in raw_activated_by_kind.items()
+    }
     all_doctrine_ids = _collect_all_doctrine_ids(ctx, manager)
 
     _check_unknown_references(
@@ -331,7 +356,7 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
     _check_drg_cross_kind_refs(
         ctx, activated_by_kind, missing_from_doctrine, suggestions
     )
-    _check_duplicates(activated_by_kind, kind_violations)
+    _check_duplicates(raw_activated_by_kind, kind_violations)
     _check_kind_violations(
         activated_by_kind, all_doctrine_ids, unknown_references, kind_violations
     )

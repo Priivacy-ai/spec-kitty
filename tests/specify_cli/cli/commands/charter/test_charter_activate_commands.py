@@ -12,7 +12,6 @@ through CharterPackManager.activate() which writes to config.yaml directly).
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 import yaml
@@ -56,19 +55,38 @@ def _invoke_activate(project_root: Path, *args: str) -> object:
 class TestActivateCommand:
     def test_activate_directive_happy_path(self, project_root: Path) -> None:
         """Activating a directive kind writes to config.yaml."""
-        result = _invoke_activate(project_root, "directive", "some-directive")
+        result = _invoke_activate(
+            project_root,
+            "directive",
+            "001-architectural-integrity-standard",
+        )
         assert result.exit_code == 0, result.output
         config = project_root / ".kittify" / "config.yaml"
         data = yaml.safe_load(config.read_text())
-        assert "some-directive" in data["activated_directives"]
+        assert "001-architectural-integrity-standard" in data["activated_directives"]
 
     def test_activate_config_yaml_updated(self, project_root: Path) -> None:
         """config.yaml is updated, not an override file."""
-        _invoke_activate(project_root, "directive", "new-directive")
+        _invoke_activate(
+            project_root,
+            "directive",
+            "003-decision-documentation-requirement",
+        )
         config = project_root / ".kittify" / "config.yaml"
         data = yaml.safe_load(config.read_text())
         assert "activated_directives" in data
-        assert "new-directive" in data["activated_directives"]
+        assert "003-decision-documentation-requirement" in data["activated_directives"]
+
+    def test_activate_unknown_artifact_id_exits_1_without_mutating(
+        self, project_root: Path
+    ) -> None:
+        result = _invoke_activate(project_root, "directive", "not-a-real-directive")
+        assert result.exit_code == 1
+        assert "Unknown artifact ID" in result.output
+
+        config = project_root / ".kittify" / "config.yaml"
+        data = yaml.safe_load(config.read_text()) or {}
+        assert "activated_directives" not in data
 
     def test_activate_unknown_kind_exits_1(self, project_root: Path) -> None:
         """Activating with an unknown kind exits with code 1."""
@@ -90,7 +108,7 @@ class TestActivateCommand:
                 "--cascade",
                 "all",
                 "directive",
-                "my-directive",
+                "001-architectural-integrity-standard",
             ],
             catch_exceptions=False,
         )
@@ -100,7 +118,7 @@ class TestActivateCommand:
 
     def test_activate_cascade_calls_with_true(self, project_root: Path) -> None:
         """--cascade flag passes cascade=True to CharterPackManager.activate."""
-        from unittest.mock import MagicMock, patch
+        from unittest.mock import patch
         from charter.pack_manager import ActivationResult
 
         mock_result = ActivationResult(activated=["my-directive"], warnings=[])
@@ -133,9 +151,9 @@ class TestActivateCommand:
     def test_activate_already_active_emits_warning(self, project_root: Path) -> None:
         """Activating an already-active artifact emits a warning."""
         # First activation
-        _invoke_activate(project_root, "directive", "existing-directive")
+        _invoke_activate(project_root, "directive", "001-architectural-integrity-standard")
         # Second activation of the same artifact
-        result = _invoke_activate(project_root, "directive", "existing-directive")
+        result = _invoke_activate(project_root, "directive", "001-architectural-integrity-standard")
         assert result.exit_code == 0, result.output
         assert "Warning" in result.output or "already activated" in result.output.lower()
 
@@ -147,7 +165,10 @@ class TestActivateCommand:
 
     def test_activate_output_contains_activated(self, project_root: Path) -> None:
         """Successful activation prints 'Activated' in output."""
-        result = _invoke_activate(project_root, "tactic", "my-tactic")
+        (project_root / ".kittify" / "config.yaml").write_text(
+            "activated_tactics: []\n",
+            encoding="utf-8",
+        )
+        result = _invoke_activate(project_root, "tactic", "acceptance-test-first")
         assert result.exit_code == 0, result.output
         assert "Activated" in result.output
-
