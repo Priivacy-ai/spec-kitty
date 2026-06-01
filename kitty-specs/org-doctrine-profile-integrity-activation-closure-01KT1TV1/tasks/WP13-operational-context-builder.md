@@ -16,8 +16,8 @@ subtasks:
 - T059
 - T060
 - T061
-agent: claude:opus:python-pedro:implementer
-shell_pid: '1655372'
+agent: "claude:opus:python-pedro:implementer"
+shell_pid: "1655372"
 history:
 - at: '2026-06-01T16:49:18Z'
   actor: claude
@@ -94,3 +94,4 @@ Turn `build_operational_context()` from an all-None stub into a **pure explicit-
 ## Activity Log
 
 - 2026-06-01T17:29:16Z – claude:opus:python-pedro:implementer – shell_pid=1545161 – Assigned agent via action command
+- 2026-06-01T20:54:33Z – claude:opus:python-pedro:implementer – shell_pid=1655372 – Assigned agent via action command
