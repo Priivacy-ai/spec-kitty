@@ -451,10 +451,13 @@ def test_bundled_software_dev_templates_have_descriptions(tmp_path: Path) -> Non
     from specify_cli.template.renderer import parse_frontmatter
 
     repo_root = Path(__file__).resolve().parents[2]
-    templates_dir = repo_root / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates"
-    assert templates_dir.is_dir(), f"templates dir missing: {templates_dir}"
-
-    template_files = sorted(templates_dir.glob("*.md"))
+    legacy_templates_dir = repo_root / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates"
+    doctrine_templates_dir = repo_root / "src" / "doctrine" / "missions" / "mission-steps" / "software-dev"
+    template_files = (
+        sorted(legacy_templates_dir.glob("*.md"))
+        if legacy_templates_dir.is_dir()
+        else sorted(doctrine_templates_dir.glob("*/prompt.md"))
+    )
     assert template_files, "no command templates discovered — fixture is wrong"
 
     for template_file in template_files:

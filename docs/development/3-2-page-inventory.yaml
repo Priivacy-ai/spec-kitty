@@ -2675,6 +2675,13 @@
   current_target: true
   citation_refs: []
   notes: Docs landing page; provisional current.
+- path: docs/p0-baseline-refresh.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Internal P0 test baseline refresh evidence; not public docs navigation.
 - path: docs/migration/charter-ownership-consolidation.md
   tag: migration
   divio_type: none

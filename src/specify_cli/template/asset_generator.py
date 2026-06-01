@@ -19,11 +19,11 @@ def _get_cli_version() -> str:
     try:
         from importlib.metadata import version
 
-        return version("spec-kitty-cli")
+        return str(version("spec-kitty-cli"))
     except Exception:
         from specify_cli import __version__
 
-        return __version__
+        return str(__version__)
 
 
 def _toml_basic_string(value: str) -> str:
@@ -102,8 +102,6 @@ def generate_agent_assets(command_templates_dir: Path, project_path: Path, agent
         )
         ext = config["ext"]
         stem = template_path.stem
-        if agent_key == "codex":
-            stem = stem.replace("-", "_")
         filename = f"spec-kitty.{stem}.{ext}" if ext else f"spec-kitty.{stem}"
         (output_dir / filename).write_text(rendered, encoding="utf-8")
 

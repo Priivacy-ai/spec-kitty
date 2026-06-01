@@ -12,6 +12,7 @@ Asserts that after the WP04 edits:
 from __future__ import annotations
 
 
+from specify_cli.agent_utils.directories import AGENT_DIRS, AGENT_DIR_TO_KEY
 from specify_cli.core.config import (
     AI_CHOICES,
     AGENT_COMMAND_CONFIG,
@@ -92,6 +93,19 @@ def test_twelve_agents_still_in_command_config() -> None:
     assert not missing, f"Missing from AGENT_COMMAND_CONFIG: {missing}"
 
 
+def test_command_agent_directory_registry_is_consistent() -> None:
+    """Command-layer directory roots, keys, and config rows must stay aligned."""
+    agent_dir_roots = {root for root, _ in AGENT_DIRS}
+    command_config_roots = {
+        config["dir"].split("/", 1)[0]
+        for config in AGENT_COMMAND_CONFIG.values()
+    }
+
+    assert agent_dir_roots == set(AGENT_DIR_TO_KEY)
+    assert set(AGENT_DIR_TO_KEY.values()) == set(AGENT_COMMAND_CONFIG)
+    assert command_config_roots == set(AGENT_DIR_TO_KEY)
+
+
 # ---------------------------------------------------------------------------
 # AGENT_SKILL_CONFIG
 # ---------------------------------------------------------------------------
@@ -104,7 +118,7 @@ def test_command_skill_agents_are_shared_skill_roots() -> None:
         assert entry["class"] == SKILL_CLASS_SHARED, (
             f"{key!r} should have class SKILL_CLASS_SHARED, got {entry['class']!r}"
         )
-        roots: list[str] = entry["skill_roots"]  # type: ignore[assignment]
+        roots: list[str] = entry["skill_roots"]
         assert ".agents/skills/" in roots, (
             f"{key!r} skill_roots should contain '.agents/skills/', got {roots!r}"
         )
