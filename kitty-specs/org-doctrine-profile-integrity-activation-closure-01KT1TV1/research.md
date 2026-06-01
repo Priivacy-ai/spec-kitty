@@ -299,7 +299,11 @@ A read-only fan-out reviewed the code behind each FR cluster for enabling refact
 
 ### E. Runtime OperationalContext (FR-017..FR-020, C-006)
 
-- **IMPORTANT precondition: the dead-symbol gate `tests/architectural/test_no_dead_symbols.py` is ALREADY RED on this branch** (review agent ran it): ~5 fresh offenders (incl. `charter...activate::charter_activate_app`, `charter...deactivate::charter_deactivate_app`) + ~7 stale allowlist entries, independent of this mission. NFR-006's baseline is therefore not green today — **verify and reconcile at plan time** (this may warrant its own cleanup WP or a baseline note). See [[ci-retro-pending]] context.
+- **IMPORTANT precondition: the dead-symbol gate `tests/architectural/test_no_dead_symbols.py` is ALREADY RED at this branch point** — confirmed by running it: 5 offenders + 7 stale allowlist entries. **Investigated (git blame): all 5 are inherited from `main`, none introduced by this mission's own commits** (this branch added only docs/meta). All 5 are *very recent* (2026-05-31 / 06-01), so `main` itself is currently red on this gate — a regression that landed without the gate blocking it. Classification of the 5 offenders:
+  - **In-scope for this mission (2):** `specify_cli.cli.commands.charter.activate::charter_activate_app` and `...deactivate::charter_deactivate_app` — both from commit `5b594562e` ("charter CLI activate/deactivate/list/pack commands + FR-014 reader gap fix"), the exact surface this mission extends. These are the dead sub-apps cluster E flagged; **FR-020 already covers their removal**, so the mission naturally clears them.
+  - **Out of scope (3):** `charter.pack_context::CharterPackConfigError` (commit `bc04abae`, "fail closed on malformed pack activations"), `specify_cli.git.sparse_checkout::SparseCheckoutKind` (`aa330af9`, lane sparse-checkout), `specify_cli.lanes.lifecycle_sync::LANE_AUTO_REBASE_FAILED` (`8ad6bb40`, lane state sync). Unrelated recent infra additions whose symbols aren't yet wired/imported.
+  - The 7 stale allowlist entries (`next._internal_runtime.events::*`, `lanes.auto_rebase::AutoRebaseReport`) are symbols that *gained* callers — pure allowlist hygiene, also inherited.
+  - **Recommended handling:** scope NFR-006 to "this mission introduces no NEW offenders AND clears the 2 in-scope charter sub-apps via FR-020." Treat the 3 unrelated infra offenders + 7 stale entries as a **pre-existing `main` regression** to fix at the source (flag to the team / separate hygiene pass), not silently absorbed here. Re-confirm at plan time. See [[ci-retro-pending]].
 - **FR-017 strictly precedes FR-019.** OC symbols sit in allowlist category C (`test_no_dead_symbols.py:407-410`); removing them before wiring makes them offenders. The gate's stale-detector (`:771-802`) auto-fails if they stay allowlisted after wiring — so wiring forces the removal.
 - **Three production call sites** (inputs already available): WP claim via `workflow.py:1234` and `implement.py:740` (`start_implementation_status`), and `next` decision via `runtime_bridge.py:1980` `decide_next_via_runtime`. Inputs: `active_model`=`--agent`; `active_profile` via existing `_resolve_step_agent_profile` (`runtime_bridge.py:991`); `current_activity`=`step_id`/`mission_state`; `active_role`=claim actor; `tech_stack` from charter/meta.
 - **C-006 SAFE by construction** (layer order kernel←doctrine←charter←specify_cli): keep `build_operational_context()` in `charter/invocation_context.py:186` as a **pure explicit-parameter assembler**; call it from `specify_cli`. Do NOT build OC inside `doctrine.*`, nor inside the side-effect-free `next/discovery.py`. `decide_next_via_runtime` is already `# noqa: C901` — extract a `_build_operational_context_for_decision(...)` helper rather than inlining.
@@ -308,6 +312,36 @@ A read-only fan-out reviewed the code behind each FR cluster for enabling refact
 ### Cross-cutting synthesis
 
 Three independent clusters converge on the **same root cause flagged in R-009**: a kind/ID vocabulary that is re-declared per surface with no single source of truth — the dual config-stem-vs-DRG-`id` system (D), the hand-synced augmentation tables (R-010), and the per-command kind tables (R-009). A small canonical kind+ID resolver layer is the highest-leverage enabling refactor across FR-014/015/016, FR-022..FR-027, and FR-028..FR-032. Two clusters (B and C) converge on a second: **structured load diagnostics** introduced once on the profile loader feed both FR-005..FR-007 and FR-008..FR-010. Recommended ordering: (1) canonical kind/ID resolver + DRG enum member; (2) profile-loader `SkippedProfile` diagnostics; (3) `DoctrineHealthReport`; (4) `plan/commit` activation seam + `edges_to` reverse index; (5) OC wiring then allowlist prune.
+
+---
+
+## R-012 - DRG is the source of truth for relationships (operator directive)
+
+**Directive (operator)**: The DRG is to be the **canonical source of truth for doctrine relationships**, to enable extensibility. Adding a new relationship type should be a DRG-vocabulary change, not an N-times per-artifact-schema change.
+
+**This reverses R-011 cluster-A recommendation #3.** That finding suggested keeping the agent-profile *field* canonical and deriving the DRG edge from it. Per this directive, the polarity flips: the **DRG edge is canonical**; relationship resolution flows *from* the DRG, and any per-artifact relationship field is a convenience input that **projects into** the DRG, not an independent authority.
+
+**Why this is the right grain (extensibility)**: It is the same root friction as R-009 and R-010. Today a relationship like `enhances`/`overrides`/`specializes_from` must be added as a typed field to each artifact's Pydantic model (and JSON Schema), and each consumer reads the field directly — so FR-028..FR-032 means touching 4 more models, and any *future* relation repeats that churn. If relationships are first-class DRG edges, a new relation type is added once to `Relation` (`doctrine/drg/models.py:47`) and the auto-emit/validation vocabulary, with no per-kind schema change.
+
+### Resolved model (recommended interpretation)
+
+1. **Canonical representation**: a relationship exists iff there is a DRG edge for it. The merged DRG is the resolved truth.
+2. **Authoring**: retain the existing frontmatter fields (`enhances`/`overrides`/`specializes_from`) as **authoring projections** — they emit DRG edges via the auto-emitter. This keeps parity with the five kinds #1291 already shipped and avoids a disruptive authoring migration. (Strict alternative: move authoring entirely into DRG fragments and drop the fields — larger, migration-heavy; see OQ-2.)
+3. **Consumption**: consumers resolve relationships by DRG traversal (`walk_edges`, `edges_from`, and a future `edges_to`), **not** by re-reading per-kind fields. The agent-profile hierarchy resolver (`agent_profiles/repository.py:476-580`, 8+ direct `specializes_from` reads) is the first consumer to migrate onto DRG traversal — this also collapses the "two parallel lineage graphs" drift noted in R-011 cluster A.
+
+### Layering constraint (binding — resolve in planning)
+
+The doctrine-layer DRG loader exists (`doctrine/drg/loader.py`), but the **three-layer merge** (`merge_three_layers`) lives in `charter/drg.py`, and **doctrine must not import charter** (`tests/architectural/test_layer_rules.py:151`, ADR 2026-03-27-1, mission C-006). So a doctrine-layer consumer (the profile repository) can read the *built-in* DRG but cannot read the *org/project-merged* DRG without violating layering. Options for planning:
+- **(a)** Push the relationship-merge primitive down into `doctrine.drg` (doctrine-layer merge of built-in + provided org/project fragments as data), leaving charter as a thin caller. Doctrine consumers then resolve against the doctrine-layer merged graph. Cleanest for "DRG source of truth at every layer," larger refactor.
+- **(b)** Keep the merge in charter; doctrine-layer consumers resolve only the built-in graph; cross-layer (org/project) relationship resolution is a charter/specify_cli responsibility that passes merged data down. Smaller, but means "source of truth" is layer-qualified.
+
+**OQ-2 (pending operator/architect input)**: (i) authoring — fields-as-projection (recommended) vs DRG-fragment-only authoring; (ii) layering — option (a) push merge into doctrine, vs (b) keep charter merge with built-in-only doctrine resolution. These choices size the FR-001/FR-028 work and determine whether the profile hierarchy resolver fully migrates onto the DRG in this mission or in a follow-on.
+
+### Impact on existing requirements
+
+- **FR-001/FR-002**: `specializes_from` becomes a first-class DRG relation (already planned); the profile hierarchy resolver should consume it via DRG traversal rather than the field (subject to OQ-2 layering).
+- **FR-028..FR-032**: reframe from "add fields to 4 models" toward "augmentation/lineage are DRG edges; fields are projections." The auto-emit table consolidation (R-010, FR-030) becomes the central mechanism rather than a side cleanup.
+- **R-011 cluster A**: keep the *silent-drop fix* and the *enum-member-first* recommendations; replace "derive DRG from field (field canonical)" with "project field into DRG (DRG canonical)."
 
 ---
 
