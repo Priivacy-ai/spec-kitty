@@ -268,7 +268,7 @@ dispatch work in parallel wherever the dependency graph allows.
 - Once repo A reaches MVP (enough WPs merged for repo B to consume its
   APIs), begin repo B's phase 1 (specify) in parallel with repo A's
   remaining WPs.
-- If the user has authorized autonomy on repo C, spawn the full-mission-workflow
+- If the user has authorized autonomy on repo C, spawn the full-workflow
   sub-agent for repo C while repo A is still finishing. Nothing in phase
   1-3 depends on earlier repos being *merged* unless the spec explicitly
   requires consuming a merged API during planning (rare).
@@ -342,7 +342,7 @@ the workaround ready in your dispatch prompts.
 | Test-DB collisions across parallel lanes | Django-backed projects with ≥2 concurrent lane runs | `DJANGO_TEST_DATABASE_NAME=test_<proj>_lane_<letter> <project-test-command> --create-db` | #770 |
 | Stale lane on merge | Missions where multiple WPs touched `pyproject.toml` / `urls.py` / shared `__init__.py` | `cd .worktrees/<slug>-lane-<letter> && git merge kitty/mission-<slug>` per stale lane, resolve, retry outer merge | #771 |
 | Post-merge invariant check on `.worktrees/` | Every successful merge | `mv .worktrees /tmp/park && move-task WP## --to done && mv back` | #772 |
-| Silent repo fallback when target isn't initialized | Phase 1 on a repo without `.kittify/` scaffold | Detect via `ls <target>/kitty-specs/` after the mission workflow runs; if empty and another repo got the artifacts, relocate + `spec-kitty init --ai <agent>` in the real target | #773 |
+| Silent repo fallback when target isn't initialized | Phase 1 on a repo without `.kittify/` scaffold | Detect via `ls <target>/kitty-specs/` after the status commit phase; if empty and another repo got the artifacts, relocate + `spec-kitty init --ai <agent>` in the real target | #773 |
 | `spec-kitty decision` not found | Sub-agents referencing the `decision` command group | Use `spec-kitty agent decision ...` | #774 |
 | `review-request` is not a real command | Sub-agents trying to submit a WP for review | Use `spec-kitty agent tasks move-task WP## --to for_review` | #775 |
 

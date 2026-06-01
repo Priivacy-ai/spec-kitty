@@ -213,7 +213,7 @@ def format_subprocess_failure(
 
 
 def _checkout_e2e_status_commit_branch(project: Path) -> None:
-    """Run status-commit-writing E2E workflows away from protected main/master."""
+    """Run status-commit E2E workflows away from protected main/master."""
     subprocess.run(
         ["git", "checkout", "-b", E2E_STATUS_COMMIT_BRANCH],
         cwd=project,
@@ -230,7 +230,7 @@ def e2e_project(tmp_path: Path) -> Path:
     - Copies .kittify from the real repo root
     - Copies missions from src/specify_cli/missions/
     - Initializes git with main branch and initial commit
-    - Checks out an E2E status commit branch for status commit write operations
+    - Checks out an E2E status commit branch for workflow write operations
     - Aligns metadata version with source to avoid mismatch errors
     """
     project = tmp_path / "e2e-project"
