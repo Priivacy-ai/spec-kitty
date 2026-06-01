@@ -109,22 +109,30 @@ The former `2.x` branch was merged into `main` when the SaaS transformation reac
 
 ### CI and Branch Protection
 
-`main` has a **Protect Main Branch** GitHub Actions workflow that fails whenever code is pushed directly without going through a PR. The `spec-kitty merge` command pushes directly to main by design. This causes a **known, expected** CI failure on every feature merge. It is not a code bug and must not be treated as one.
+**All changes must land on `main` through a pull request. Direct pushes to `main` are never allowed — not for mission merges, hotfixes, doc updates, or any other reason.**
 
-**Rule for agents:** When CI shows "Protect Main Branch: failure" after `spec-kitty merge`, ignore it. Monitor **CI Quality** only — that is the authoritative signal for code correctness.
+`main` has a **Protect Main Branch** GitHub Actions workflow that enforces this. A "Protect Main Branch: failure" on CI is a real failure, not an expected artifact. It means code bypassed the PR requirement and must be addressed.
 
 ### Agent Push Authorization (binding)
 
-Agents are **not allowed** to push directly to `origin/main` during normal spec-kitty mission workflows. The protected-branch guard in `safe_commit` exists to prevent status commits from landing on local `main`; agents must not bypass it with raw `git commit` and `git push`.
+Agents are **not allowed** to push directly to `origin/main` under any circumstances. This includes `spec-kitty merge`.
 
-**Authorized push paths to `origin/main`:**
-- `spec-kitty merge` — the merge command pushes the final squash-merged result to `origin/main` as part of its atomic merge flow. This is the only automated path.
-- Express HiC (Human in Charge) authorization — if the human explicitly instructs the agent to push to `origin/main`, the agent may do so for that specific instruction only. Standing authorization does not carry across sessions or missions.
+**Required workflow for mission merges:**
+1. Run `spec-kitty merge` locally — this merges lane branches into local `main`.
+2. Immediately create a PR branch: `git checkout -b pr/<mission-slug>`
+3. Push the PR branch: `git push origin pr/<mission-slug>`
+4. Open a PR targeting `main`: `gh pr create --title "..." --body "..."`
+5. Do **not** run `spec-kitty merge --push` or `git push origin main`.
+
+**Required workflow for all other changes (hotfixes, docs, config):**
+1. Start work on a named branch, never on `main` directly.
+2. Push the branch and open a PR.
+3. Never push `main` directly.
 
 **When `safe_commit` refuses on a protected branch, agents must:**
 1. Use the mission lane branch/worktree as intended by the workflow.
-2. If planning artifacts need to land on `main`, ask the HiC whether to set `SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1` or create a PR branch.
-3. Never silently work around the guard with raw git commands.
+2. If planning artifacts need to land on `main`, create a PR branch instead of bypassing the guard.
+3. Never silently work around the guard with raw git commands or `SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1`.
 
 ### Historical Context
 
