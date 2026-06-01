@@ -158,12 +158,13 @@ may_call = runtime["dependency_rules"]["may_call"]
 | Field                        | Value             |
 |------------------------------|-------------------|
 | `canonical_package`          | `src/runtime/`    |
-| `extraction_sequencing_notes`| Target for mission #612. Extraction requires the architectural-tests and import-graph-enforcement ACs in #612 to be met, and deprecation scaffolding in #615 to land first. Import-graph enforcement is load-bearing because `dependency_rules` must be verified automatically after the slice boundary moves. |
+| `extraction_sequencing_notes`| Partially extracted by mission #612: the canonical next-step runtime/control-loop package now lives under `src/runtime/next/`; bootstrap, mission registry, and broader invocation helpers remain in `src/specify_cli/` pending narrower follow-ups. |
 
 **`current_state`**:
 - `src/specify_cli/runtime/` — runtime bootstrap, resolver, home-path, doctor, migration support
 - `src/specify_cli/missions/` — mission type registry and mission-level orchestration
-- `src/specify_cli/next/` — canonical `spec-kitty next` control-loop integration
+- `src/runtime/next/` — canonical `spec-kitty next` runtime/control-loop integration
+- `src/specify_cli/next/` — compatibility shim for legacy imports
 - `src/specify_cli/mission.py`, `src/specify_cli/mission_metadata.py` — mission model and metadata helpers
 
 **`adapter_responsibilities`**:
@@ -172,7 +173,8 @@ may_call = runtime["dependency_rules"]["may_call"]
 - `src/specify_cli/cli/commands/init.py` — `spec-kitty init` CLI entry point
 - All other `spec-kitty agent action *` CLI entry points
 
-**`shims`**: *(none — runtime has not yet been extracted; code lives directly in `src/specify_cli/runtime/`)*
+**`shims`**:
+- `specify_cli.next` → `runtime.next` (remove in `3.3.0`)
 
 **`seams`**:
 - CLI shell calls runtime to execute the next-step control loop (`spec-kitty next`)

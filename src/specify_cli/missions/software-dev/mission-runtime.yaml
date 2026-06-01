@@ -7,7 +7,7 @@
 # runtime owns DAG planning; the retired spec-kitty-runtime PyPI package is
 # no longer involved. The live action dispatch for
 # specify/plan/tasks/implement/review is handled by StepContractExecutor
-# composition in specify_cli.next.runtime_bridge.
+# composition in runtime.next.runtime_bridge.
 #
 # The runtime engine uses DAG-based step planning instead of action execution.
 # WP-level iteration within "implement" and "review" steps is managed by the

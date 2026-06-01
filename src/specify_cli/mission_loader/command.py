@@ -46,9 +46,9 @@ from specify_cli.mission_loader.errors import (
 from specify_cli.mission_loader.registry import get_runtime_contract_registry
 from specify_cli.mission_loader.validator import validate_custom_mission
 from specify_cli.mission_metadata import write_meta
-from specify_cli.next import runtime_bridge
-from specify_cli.next._internal_runtime.discovery import DiscoveryContext
-from specify_cli.next._internal_runtime.schema import MissionTemplate
+from runtime.next import runtime_bridge
+from runtime.next._internal_runtime.discovery import DiscoveryContext
+from runtime.next._internal_runtime.schema import MissionTemplate
 
 # Infrastructure-level error code emitted by this CLI layer when
 # ``runtime_bridge.get_or_start_run`` raises. Not part of the validator's

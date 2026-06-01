@@ -3,13 +3,14 @@
 These tests enforce the dependency direction documented in
 architecture/2.x/00_landscape/README.md:
 
-    kernel (root) <- doctrine <- charter <- glossary <- specify_cli
+    kernel (root) <- doctrine <- charter <- glossary/runtime <- specify_cli
 
 A violation here means a package imports from a package it should not.
 See ADR 2026-03-27-1 for rationale.
 """
 from __future__ import annotations
 
+import ast
 import importlib.util
 from pathlib import Path
 
@@ -41,7 +42,7 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 # Layer names as defined in the `landscape` fixture in conftest.py.
 # Keep this in sync with that fixture; both lists must agree.
 _DEFINED_LAYERS: frozenset[str] = frozenset(
-    ["kernel", "doctrine", "charter", "glossary", "specify_cli"]
+    ["kernel", "doctrine", "charter", "glossary", "runtime", "specify_cli"]
 )
 
 
@@ -191,6 +192,25 @@ class TestGlossaryBoundary:
             .access_layers_that()
             .are_named("specify_cli")
         ).assert_applies(evaluable)
+
+
+class TestRuntimeBoundary:
+    """runtime owns next-step decisions and must not import CLI presentation."""
+
+    def test_runtime_does_not_import_cli_commands(self) -> None:
+        offenders: list[str] = []
+        runtime_root = _SRC / "runtime"
+        forbidden_prefixes = ("specify_cli.cli", "specify_cli.next")
+        for path in runtime_root.rglob("*.py"):
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    for alias in node.names:
+                        if alias.name.startswith(forbidden_prefixes):
+                            offenders.append(f"{path.relative_to(_SRC)} imports {alias.name}")
+                elif isinstance(node, ast.ImportFrom) and node.module and node.module.startswith(forbidden_prefixes):
+                    offenders.append(f"{path.relative_to(_SRC)} imports {node.module}")
+        assert not offenders
 
 
 # --- Invariant 4: WP01 — unified MissionStep model location ---

@@ -31,7 +31,7 @@ from typing import Annotated
 from specify_cli.core.context_validation import require_main_repo
 from specify_cli.core.paths import locate_project_root
 from specify_cli.cli.selector_resolution import resolve_selector
-from specify_cli.next._runtime_pkg_notice import maybe_emit_runtime_pkg_notice
+from runtime.next._runtime_pkg_notice import maybe_emit_runtime_pkg_notice
 
 
 _VALID_RESULTS = ("success", "failed", "blocked")
@@ -39,7 +39,7 @@ _VALID_RESULTS = ("success", "failed", "blocked")
 
 def decide_next(agent: str, mission_slug: str, result: str, repo_root):
     """Patchable lazy wrapper for the next mutation engine."""
-    from specify_cli.next.decision import decide_next as _decide_next
+    from runtime.next.decision import decide_next as _decide_next
 
     return _decide_next(agent, mission_slug, result, repo_root)
 
@@ -343,7 +343,7 @@ def _run_query_mode(
     answered_id: str | None,
     answer: str | None,
 ) -> None:
-    from specify_cli.next.runtime_bridge import QueryModeValidationError, query_current_state
+    from runtime.next.runtime_bridge import QueryModeValidationError, query_current_state
 
     try:
         decision = query_current_state(agent, mission_slug, repo_root)
@@ -401,7 +401,7 @@ def _handle_answer(
     repo_root_path = Path(str(repo_root)) if not isinstance(repo_root, Path) else repo_root
 
     try:
-        from specify_cli.next.runtime_bridge import answer_decision_via_runtime, get_or_start_run
+        from runtime.next.runtime_bridge import answer_decision_via_runtime, get_or_start_run
         from specify_cli.mission import get_mission_type
 
         feature_dir = repo_root_path / "kitty-specs" / mission_slug
@@ -410,7 +410,7 @@ def _handle_answer(
 
         # If no decision_id provided, try to auto-resolve
         if decision_id is None:
-            from specify_cli.next._internal_runtime.engine import _read_snapshot
+            from runtime.next._internal_runtime.engine import _read_snapshot
 
             snapshot = _read_snapshot(Path(run_ref.run_dir))
             pending = snapshot.pending_decisions

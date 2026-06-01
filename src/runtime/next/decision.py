@@ -1,7 +1,7 @@
 """Core decision engine for ``spec-kitty next``.
 
 Delegates planning to the CLI-internal runtime
-(``specify_cli.next._internal_runtime``) via :mod:`runtime_bridge`.
+(``runtime.next._internal_runtime``) via :mod:`runtime_bridge`.
 Post-mission ``shared-package-boundary-cutover-01KQ22DS`` the standalone
 ``spec-kitty-runtime`` PyPI package is no longer involved in any
 production code path.
@@ -164,7 +164,7 @@ def derive_mission_state(feature_dir: Path, initial_state: str) -> str:
     .. deprecated:: 2.0.0
         No longer used by ``decide_next``.  Runtime state is now managed
         by the CLI-internal runtime
-        (``specify_cli.next._internal_runtime``) via ``state.json`` in the
+        (``runtime.next._internal_runtime``) via ``state.json`` in the
         run directory.
     """
     from specify_cli.mission_v1.events import read_events
@@ -378,7 +378,7 @@ def decide_next(
 
     Delegates to :func:`runtime_bridge.decide_next_via_runtime` which uses
     the CLI-internal runtime's DAG planner
-    (``specify_cli.next._internal_runtime.planner``) for step resolution
+    (``runtime.next._internal_runtime.planner``) for step resolution
     and manages run state locally under ``.kittify/runtime/runs/``.
 
     The canonical agent loop is::
@@ -388,7 +388,7 @@ def decide_next(
             if decision.kind == "terminal": break
             execute(decision.prompt_file)
     """
-    from specify_cli.next.runtime_bridge import decide_next_via_runtime
+    from runtime.next.runtime_bridge import decide_next_via_runtime
 
     return decide_next_via_runtime(agent, mission_slug, result, repo_root)
 
@@ -580,7 +580,7 @@ def _build_prompt_or_error(
         return marker_path, None
 
     try:
-        from specify_cli.next.prompt_builder import build_prompt
+        from runtime.next.prompt_builder import build_prompt
 
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             _, prompt_path = build_prompt(

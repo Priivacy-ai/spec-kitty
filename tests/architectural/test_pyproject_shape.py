@@ -19,7 +19,7 @@ These tests enforce the pyproject-level constraints documented in
 * **R6 / FR-006**: ``[project.dependencies]`` MUST NOT list
   ``spec-kitty-runtime``. The runtime PyPI surface is retired in this
   mission; the internalized runtime under
-  ``src/specify_cli/next/_internal_runtime/`` is the only authoritative
+  ``src/runtime/next/_internal_runtime/`` is the only authoritative
   source.
 
 These tests are TOML-shape assertions that run independently of the
@@ -90,7 +90,7 @@ def test_pyproject_does_not_list_spec_kitty_runtime() -> None:
         f"pyproject.toml lists spec-kitty-runtime: {offending}. "
         "Per FR-006, the CLI must not depend on the retired runtime PyPI "
         "package. Remove the dependency line; the internalized runtime at "
-        "src/specify_cli/next/_internal_runtime/ replaces it."
+        "src/runtime/next/_internal_runtime/ replaces it."
     )
 
 

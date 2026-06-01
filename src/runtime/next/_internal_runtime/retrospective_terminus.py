@@ -21,7 +21,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
-from specify_cli.next._internal_runtime.retrospective_hook import (
+from runtime.next._internal_runtime.retrospective_hook import (
     MissionCompletionBlocked,
     before_mark_done,
 )

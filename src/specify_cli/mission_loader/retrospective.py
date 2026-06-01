@@ -7,7 +7,7 @@ execution semantics by step id without breaking v1 mission YAML.
 
 from __future__ import annotations
 
-from specify_cli.next._internal_runtime.schema import MissionTemplate
+from runtime.next._internal_runtime.schema import MissionTemplate
 
 #: Stable step id that marks a custom mission's retrospective step.
 RETROSPECTIVE_MARKER_ID: str = "retrospective"

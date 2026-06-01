@@ -12,7 +12,7 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, ConfigDict, Field
 
-from specify_cli.next._internal_runtime.schema import (
+from runtime.next._internal_runtime.schema import (
     DiscoveredMission,
     MissionPackManifest,
     MissionRuntimeError,

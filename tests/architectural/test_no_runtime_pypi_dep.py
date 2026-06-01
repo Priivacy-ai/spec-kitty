@@ -4,7 +4,7 @@ WP05 of mission ``stability-and-hygiene-hardening-2026-04-01KQ4ARB``
 implements FR-025 (a constraint reaffirming the
 ``shared-package-boundary-cutover`` decision). The standalone
 ``spec-kitty-runtime`` PyPI package was retired; the runtime is now
-internal under ``src/specify_cli/next/_internal_runtime/``.
+internal under ``src/runtime/next/_internal_runtime/``.
 
 This test asserts:
 
@@ -12,7 +12,7 @@ This test asserts:
    ``[project.dependencies]`` or any production-flavored entry under
    ``[project.optional-dependencies]`` (test/lint/dev/docs extras are
    permitted; they are dev-only).
-2. ``specify_cli.next.decision`` imports cleanly in a sub-process where
+2. ``runtime.next.decision`` imports cleanly in a sub-process where
    ``spec_kitty_runtime`` has been hidden from ``sys.modules`` and
    ``sys.path``. This proves the production code path does not require
    the retired package even when one happens to be present in the dev
@@ -64,7 +64,7 @@ def test_pyproject_does_not_list_spec_kitty_runtime_in_production_deps() -> None
         "pyproject.toml [project.dependencies] lists spec-kitty-runtime "
         f"({offending}). Per FR-025 / C-003 the retired runtime package must "
         "not be a production dependency. Remove the line; the internal "
-        "runtime under src/specify_cli/next/_internal_runtime/ is the only "
+        "runtime under src/runtime/next/_internal_runtime/ is the only "
         "authoritative source."
     )
 
@@ -97,7 +97,7 @@ def test_cli_next_decision_imports_without_spec_kitty_runtime() -> None:
     """The CLI's next-decision entry point must import without ``spec_kitty_runtime``.
 
     Even when a developer venv has ``spec_kitty_runtime`` installed, the
-    production code path under ``specify_cli.next`` must not depend on it.
+    production code path under ``runtime.next`` must not depend on it.
     This sub-process test hides the package via a sitecustomize-style
     ``sys.modules`` block and verifies the import still succeeds.
     """
@@ -124,7 +124,7 @@ def test_cli_next_decision_imports_without_spec_kitty_runtime() -> None:
 
         # The actual import we are pinning. ``decide_next`` is the public
         # production entry point used by the next CLI command.
-        from specify_cli.next.decision import decide_next, Decision, DecisionKind
+        from runtime.next.decision import decide_next, Decision, DecisionKind
 
         # Sanity-touch the symbol so static analyzers cannot elide the import.
         assert callable(decide_next)
@@ -156,7 +156,7 @@ def test_cli_next_decision_imports_without_spec_kitty_runtime() -> None:
         timeout=60,
     )
     assert result.returncode == 0, (
-        "specify_cli.next.decision failed to import without spec_kitty_runtime.\n"
+        "runtime.next.decision failed to import without spec_kitty_runtime.\n"
         f"stdout:\n{result.stdout}\n"
         f"stderr:\n{result.stderr}\n"
         "FR-025 requires the production code path to be runtime-package-free."

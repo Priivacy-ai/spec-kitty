@@ -69,7 +69,7 @@ dependencies = [
     # tests/contract/spec_kitty_tracker_consumer/. Exact pinned versions live
     # in uv.lock, not here. spec-kitty-runtime is intentionally absent: the
     # CLI's runtime surface is internalized under
-    # src/specify_cli/next/_internal_runtime/ (see WP01 of mission
+    # src/runtime/next/ (see WP01 of mission
     # shared-package-boundary-cutover-01KQ22DS), and absence is enforced by
     # tests/architectural/test_pyproject_shape.py.
     # TeamSpace dry-run and legacy-envelope normalization require the 5.2.0 event contract.
@@ -129,7 +129,7 @@ build-backend = "hatchling.build"
 allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/kernel", "src/glossary", "src/specify_cli", "src/doctrine", "src/charter"]
+packages = ["src/kernel", "src/glossary", "src/runtime", "src/specify_cli", "src/doctrine", "src/charter"]
 exclude = [
     "src/specify_cli/**/tests/**",
 ]
@@ -142,6 +142,11 @@ artifacts = [
     "src/specify_cli/**/*.yml",
     "src/specify_cli/**/*.json",
     "src/specify_cli/**/*.jsonl",
+    "src/runtime/**/*.md",
+    "src/runtime/**/*.yaml",
+    "src/runtime/**/*.yml",
+    "src/runtime/**/*.json",
+    "src/runtime/**/*.jsonl",
     "src/charter/**/*.yaml",
     "src/charter/**/*.yml",
     "src/doctrine/**/*.md",
@@ -338,8 +343,8 @@ module = [
     "specify_cli.mission_v1.events",
     "specify_cli.mission_v1.runner",
     "specify_cli.mission_v1",
-    "specify_cli.next.decision",
-    "specify_cli.next.runtime_bridge",
+    "runtime.next.decision",
+    "runtime.next.runtime_bridge",
     "specify_cli.orchestrator_api.commands",
     "specify_cli.scripts.tasks.acceptance_support",
     "specify_cli.scripts.tasks.task_helpers",
@@ -458,7 +463,8 @@ also_copy = [
     "src/specify_cli/agent_utils/",  # Copy agent utilities
     "src/specify_cli/git/",  # Copy git utilities
     "src/specify_cli/sync/",  # Copy sync module
-    "src/specify_cli/next/",  # Copy next module
+    "src/runtime/next/",  # Copy canonical next runtime module
+    "src/specify_cli/next/",  # Copy deprecated next shim
     "src/specify_cli/validators/",  # Copy validators
     "src/specify_cli/template/",  # Copy template utilities
     "src/specify_cli/charter/",       # Copy charter

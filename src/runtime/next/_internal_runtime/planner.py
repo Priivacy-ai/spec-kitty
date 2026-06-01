@@ -20,7 +20,7 @@ internal ``plan_next`` (DAG engine, used by ``engine.py`` and
   workflow, and ``UnknownWorkflowError`` for unknown workflow ids.
 
 Layer rule (C-001 / NFR-003): this module lives inside the runtime package
-(``specify_cli.next._internal_runtime``).  The imports from
+(``runtime.next._internal_runtime``).  The imports from
 ``workflow_registry`` and ``workflow_schema`` stay within the same package;
 no ``charter``, ``doctrine`` (Python modules), or ``kernel`` imports.
 """
@@ -37,7 +37,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from specify_cli.next._internal_runtime.schema import (
+from runtime.next._internal_runtime.schema import (
     AuditStep,
     DecisionRequest,
     MissionPolicySnapshot,
@@ -47,11 +47,11 @@ from specify_cli.next._internal_runtime.schema import (
     PromptStep,
     StepContextBundle,
 )
-from specify_cli.next._internal_runtime.workflow_registry import (
+from runtime.next._internal_runtime.workflow_registry import (
     get_workflow,
     list_available_workflows,
 )
-from specify_cli.next._internal_runtime.workflow_schema import ActionStep, WorkflowSequence
+from runtime.next._internal_runtime.workflow_schema import ActionStep, WorkflowSequence
 
 # No __all__ declaration here: the workflow-resolver additions (PlanResult,
 # _resolve_workflow_for_mission, resolve_next_workflow_action) are intentionally

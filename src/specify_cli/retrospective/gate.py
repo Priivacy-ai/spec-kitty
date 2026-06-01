@@ -1,7 +1,7 @@
 """Lifecycle gate: single source of truth for mission completion decisions.
 
 AD-001 / Q1-C: the gate decides whether a mission is allowed to transition
-to ``done``. Both ``specify_cli.next`` and any status-transition surface that
+to ``done``. Both ``runtime.next`` and any status-transition surface that
 ever needs mission-level mode policy MUST consult this module.
 
 Source-of-truth contracts:
@@ -535,7 +535,7 @@ def is_completion_allowed(
     """Decide whether the mission is allowed to transition to done.
 
     This is the single source of truth for the retrospective gate (AD-001,
-    Q1-C).  Both ``specify_cli.next`` and any status-transition surface that
+    Q1-C).  Both ``runtime.next`` and any status-transition surface that
     ever needs mission-level mode policy MUST call this function.
 
     Decision matrix (gate_api.md):

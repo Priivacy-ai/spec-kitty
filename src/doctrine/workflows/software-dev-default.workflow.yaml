@@ -1,4 +1,4 @@
-# pydantic_model: specify_cli.next._internal_runtime.workflow_schema.WorkflowSequence
+# pydantic_model: runtime.next._internal_runtime.workflow_schema.WorkflowSequence
 # expect: valid
 workflow_id: software-dev-default
 description: |

@@ -25,10 +25,10 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from specify_cli.next._internal_runtime.schema import RACIRoleBinding, ResolvedRACIBinding
+from runtime.next._internal_runtime.schema import RACIRoleBinding, ResolvedRACIBinding
 
 if TYPE_CHECKING:
-    from specify_cli.next._internal_runtime.schema import MissionPolicySnapshot
+    from runtime.next._internal_runtime.schema import MissionPolicySnapshot
 
 
 # ---------------------------------------------------------------------------

@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.next.prompt_builder import _build_wp_prompt
+from runtime.next.prompt_builder import _build_wp_prompt
 from tests.lane_test_utils import write_single_lane_manifest
 
 

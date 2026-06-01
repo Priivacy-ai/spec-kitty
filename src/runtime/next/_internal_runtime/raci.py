@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Any, Literal, cast
 
-from specify_cli.next._internal_runtime.schema import (
+from runtime.next._internal_runtime.schema import (
     AuditStep,
     MissionPolicySnapshot,
     MissionRuntimeError,

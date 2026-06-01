@@ -2,7 +2,7 @@
 
 The leading underscore marks this package as CLI-internal. External Python
 importers MUST reach the runtime surface only through
-``specify_cli.next.runtime_bridge`` and the ``spec-kitty next`` command — never
+``runtime.next.runtime_bridge`` and the ``spec-kitty next`` command — never
 by importing this module directly.
 
 Internalized from spec-kitty-runtime 0.4.3 as part of
@@ -20,21 +20,21 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from specify_cli.next._internal_runtime.discovery import DiscoveryContext
-from specify_cli.next._internal_runtime.engine import (
+from runtime.next._internal_runtime.discovery import DiscoveryContext
+from runtime.next._internal_runtime.engine import (
     MissionRunRef,
     next_step,
     provide_decision_answer,
     start_mission_run,
 )
-from specify_cli.next._internal_runtime.events import NullEmitter
-from specify_cli.next._internal_runtime.schema import (
+from runtime.next._internal_runtime.events import NullEmitter
+from runtime.next._internal_runtime.schema import (
     MissionPolicySnapshot,
     NextDecision,
 )
 
 if TYPE_CHECKING:
-    from specify_cli.next._internal_runtime.retrospective_terminus import (
+    from runtime.next._internal_runtime.retrospective_terminus import (
         run_terminus as _run_retrospective_terminus,  # noqa: F401
     )
 

@@ -7,7 +7,7 @@ from pathlib import Path
 import typer
 
 from specify_cli.core.atomic import atomic_write
-from specify_cli.next._internal_runtime.workflow_registry import (
+from runtime.next._internal_runtime.workflow_registry import (
     list_available_workflows,
     load_workflow_file,
     resolve_workflow_path,

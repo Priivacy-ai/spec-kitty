@@ -17,8 +17,8 @@ from uuid import uuid4
 import yaml
 from pydantic import BaseModel, ConfigDict
 
-from specify_cli.next._internal_runtime.contracts import RemediationPayload
-from specify_cli.next._internal_runtime.discovery import DiscoveryContext, discover_missions, load_mission_template
+from runtime.next._internal_runtime.contracts import RemediationPayload
+from runtime.next._internal_runtime.discovery import DiscoveryContext, discover_missions, load_mission_template
 from spec_kitty_events.mission_next import (
     DecisionInputAnsweredPayload,
     DecisionInputRequestedPayload,
@@ -28,7 +28,7 @@ from spec_kitty_events.mission_next import (
     NextStepIssuedPayload,
     RuntimeActorIdentity,
 )
-from specify_cli.next._internal_runtime.events import (
+from runtime.next._internal_runtime.events import (
     DECISION_INPUT_ANSWERED,
     DECISION_INPUT_REQUESTED,
     MISSION_RUN_COMPLETED,
@@ -38,9 +38,9 @@ from specify_cli.next._internal_runtime.events import (
     NullEmitter,
     RuntimeEventEmitter,
 )
-from specify_cli.next._internal_runtime.planner import plan_next
-from specify_cli.next._internal_runtime.raci import infer_raci, resolve_raci
-from specify_cli.next._internal_runtime.schema import (
+from runtime.next._internal_runtime.planner import plan_next
+from runtime.next._internal_runtime.raci import infer_raci, resolve_raci
+from runtime.next._internal_runtime.schema import (
     ActorIdentity,
     AuditStep,
     ContextType,
@@ -58,7 +58,7 @@ from specify_cli.next._internal_runtime.schema import (
     StepContextContract,
     load_mission_template_file,
 )
-from specify_cli.next._internal_runtime.significance import (
+from runtime.next._internal_runtime.significance import (
     SignificanceEvaluatedPayload,
     SignificanceScore,
     SoftGateDecision,

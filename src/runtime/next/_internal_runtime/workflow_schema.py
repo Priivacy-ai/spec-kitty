@@ -4,7 +4,7 @@ Pydantic v2 models for the workflow YAML artifact.  Every ``.workflow.yaml``
 file under ``src/doctrine/workflows/`` MUST validate against ``WorkflowSequence``.
 
 Layer rule (C-001 / NFR-003): this module lives inside the runtime package
-(``specify_cli.next._internal_runtime``).  It MUST NOT import from ``charter``,
+(``runtime.next._internal_runtime``).  It MUST NOT import from ``charter``,
 ``doctrine`` (Python modules), or ``kernel``.  Doctrine YAML files are loaded
 as data by ``workflow_registry``; they are not imported as Python modules.
 """

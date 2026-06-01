@@ -557,7 +557,7 @@ def test_dispatch_logs_invocation_chain_on_success(
     fake_result.invocation_ids = ("inv-001", "inv-002", "inv-003", "inv-004")
 
     with (
-        caplog.at_level(logging.INFO, logger="specify_cli.next.runtime_bridge"),
+        caplog.at_level(logging.INFO, logger="runtime.next.runtime_bridge"),
         patch(
             "specify_cli.mission_step_contracts.executor.StepContractExecutor.execute",
             return_value=fake_result,
@@ -599,7 +599,7 @@ def test_dispatch_handles_non_sized_invocation_ids_and_returns_guard_failures(
     fake_result.invocation_ids = object()
 
     with (
-        caplog.at_level(logging.INFO, logger="specify_cli.next.runtime_bridge"),
+        caplog.at_level(logging.INFO, logger="runtime.next.runtime_bridge"),
         patch(
             "specify_cli.mission_step_contracts.executor.StepContractExecutor.execute",
             return_value=fake_result,

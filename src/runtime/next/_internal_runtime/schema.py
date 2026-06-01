@@ -175,7 +175,7 @@ class ContextType(BaseModel):
             error_message is None on success or contains the error message on failure
         """
         # Avoid circular import at module level — engine imports schema.
-        from specify_cli.next._internal_runtime.engine import validate_binding as _engine_validate
+        from runtime.next._internal_runtime.engine import validate_binding as _engine_validate
         return _engine_validate(value, self)
 
 
@@ -352,7 +352,7 @@ class SignificanceBlock(BaseModel):
 
     @model_validator(mode="after")
     def _validate_dimensions(self) -> SignificanceBlock:
-        from specify_cli.next._internal_runtime.significance import validate_dimension_scores, HARD_TRIGGER_REGISTRY
+        from runtime.next._internal_runtime.significance import validate_dimension_scores, HARD_TRIGGER_REGISTRY
         validate_dimension_scores(self.dimensions)
         for trigger_id in self.hard_triggers:
             if trigger_id not in HARD_TRIGGER_REGISTRY:

@@ -30,7 +30,7 @@ Gates are ordered alphabetically within each axis group.
 ### Axis 1 — Layer Direction
 
 - **`test_layer_rules.py`** — Enforces import direction: `kernel` must not import from `doctrine`, `doctrine` must not import from `charter`, `charter` must not import from `specify_cli`. Any upward import fails this gate.
-- **`test_runtime_charter_doctrine_boundary.py`** — Verifies the internal runtime (`specify_cli.next._internal_runtime`) accesses doctrine only through the charter facade, never by direct imports from `src/doctrine/`.
+- **`test_runtime_charter_doctrine_boundary.py`** — Verifies the internal runtime (`runtime.next._internal_runtime`) accesses doctrine only through the charter facade, never by direct imports from `src/doctrine/`.
 
 ### Axis 2 — Surface Completeness
 

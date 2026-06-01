@@ -13,7 +13,7 @@ Search precedence
 Layer rule (C-001 / NFR-003)
 -----------------------------
 This module lives inside the runtime package
-(``specify_cli.next._internal_runtime``).  It MUST NOT import from ``charter``,
+(``runtime.next._internal_runtime``).  It MUST NOT import from ``charter``,
 ``doctrine`` (Python modules), or ``kernel``.  Doctrine YAML files are loaded
 as raw data from disk; they are not imported as Python modules.
 
@@ -71,12 +71,12 @@ _WORKFLOW_ID_PATTERN: re.Pattern[str] = re.compile(r"[a-z0-9][a-z0-9-]*")
 # in a source-checkout and after installation via pip / uv.
 #
 # Path(__file__).resolve() is e.g.:
-#   <repo>/src/specify_cli/next/_internal_runtime/workflow_registry.py
-# parents[4] is <repo>/  (src/ is parents[0], specify_cli is parents[1],
-#   next is parents[2], _internal_runtime is parents[3] — wait, let's count:
+#   <repo>/src/runtime/next/_internal_runtime/workflow_registry.py
+# parents[4] is <repo>/  (src/ is parents[3], runtime is parents[2],
+#   next is parents[1], _internal_runtime is parents[0] — count:
 #   0: _internal_runtime/
 #   1: next/
-#   2: specify_cli/
+#   2: runtime/
 #   3: src/
 #   4: <repo root>
 # So parents[3] / "src" / "doctrine" / "workflows" is the canonical root.

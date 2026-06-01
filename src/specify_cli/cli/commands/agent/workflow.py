@@ -929,7 +929,7 @@ def _preview_claimable_wp_for_mission(repo_root: Path, mission_slug: str):
     as ``dependencies_not_satisfied`` when this command runs from a stale
     worktree.
     """
-    from specify_cli.next.discovery import preview_claimable_wp
+    from runtime.next.discovery import preview_claimable_wp
 
     feature_dir = get_main_repo_root(repo_root) / "kitty-specs" / mission_slug
     if not (feature_dir / "tasks").is_dir():
