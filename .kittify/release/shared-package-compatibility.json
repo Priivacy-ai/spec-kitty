@@ -1,0 +1,33 @@
+{
+  "release_train": "3.2.0",
+  "authority": "spec-kitty-cli release authority for shared package compatibility",
+  "packages": [
+    {
+      "package": "spec-kitty-events",
+      "source_repo": "Priivacy-ai/spec-kitty-events",
+      "cli_range": ">=5.2.0,<6.0.0",
+      "locked_version": "5.2.0",
+      "contract_surface": "event envelope and conformance fixtures"
+    },
+    {
+      "package": "spec-kitty-tracker",
+      "source_repo": "Priivacy-ai/spec-kitty-tracker",
+      "cli_range": ">=0.4,<0.5",
+      "locked_version": "0.4.3",
+      "contract_surface": "tracker discovery and sync SDK"
+    }
+  ],
+  "retired_packages": [
+    {
+      "package": "spec-kitty-runtime",
+      "status": "retired-for-cli-release"
+    }
+  ],
+  "consumers": [
+    {
+      "consumer": "spec-kitty-saas",
+      "contract_path": "contracts/consumer-compatibility.json",
+      "required_before_publish": true
+    }
+  ]
+}

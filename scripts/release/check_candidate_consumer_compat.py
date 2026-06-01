@@ -20,6 +20,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dist-dir", default="dist")
     parser.add_argument("--package", required=True)
     parser.add_argument("--consumer-contract", required=True)
+    parser.add_argument(
+        "--compatibility-manifest",
+        default=".kittify/release/shared-package-compatibility.json",
+        help="Machine-readable release authority listing required shared packages and consumers.",
+    )
     return parser.parse_args()
 
 
@@ -63,6 +68,47 @@ def load_contract(path: Path) -> dict[str, object]:
     if not isinstance(data, dict):
         raise SystemExit("Consumer contract must be a JSON object")
     return data
+
+
+def load_manifest(path: Path) -> dict[str, object]:
+    if not path.exists():
+        raise SystemExit(f"Compatibility manifest not found: {path}")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise SystemExit("Compatibility manifest must be a JSON object")
+    return data
+
+
+def manifest_packages(manifest: dict[str, object]) -> set[str]:
+    entries = manifest.get("packages")
+    if not isinstance(entries, list):
+        raise SystemExit("Compatibility manifest missing packages list")
+    packages: set[str] = set()
+    for entry in entries:
+        if not isinstance(entry, dict):
+            raise SystemExit("Compatibility manifest package entries must be objects")
+        package = entry.get("package")
+        if not isinstance(package, str):
+            raise SystemExit("Manifest package entries must include package")
+        packages.add(package)
+    return packages
+
+
+def manifest_required_consumers(manifest: dict[str, object]) -> set[str]:
+    entries = manifest.get("consumers", [])
+    if not isinstance(entries, list):
+        raise SystemExit("Compatibility manifest consumers must be a list")
+    consumers: set[str] = set()
+    for entry in entries:
+        if not isinstance(entry, dict):
+            raise SystemExit("Compatibility manifest consumer entries must be objects")
+        consumer = entry.get("consumer")
+        required = entry.get("required_before_publish")
+        if not isinstance(consumer, str) or not isinstance(required, bool):
+            raise SystemExit("Manifest consumer entries must include consumer and required_before_publish")
+        if required:
+            consumers.add(consumer)
+    return consumers
 
 
 def parse_requirement(raw: str) -> Requirement:
@@ -160,6 +206,7 @@ def main() -> int:
     wheel_path = locate_wheel(dist_dir, args.package)
     metadata = read_wheel_metadata(wheel_path)
     contract = load_contract(Path(args.consumer_contract))
+    manifest = load_manifest(Path(args.compatibility_manifest))
 
     requires_dist = metadata.get_all("Requires-Dist", [])
     requirements = extract_requirements(requires_dist)
@@ -168,11 +215,20 @@ def main() -> int:
     if not isinstance(families, list):
         raise SystemExit("Consumer contract missing contract_families list")
 
+    consumer = contract.get("consumer", "unknown")
+    required_consumers = manifest_required_consumers(manifest)
+    if required_consumers and consumer not in required_consumers:
+        raise SystemExit(
+            f"Consumer contract {consumer!r} is not a required pre-publish consumer "
+            f"in {args.compatibility_manifest}: {', '.join(sorted(required_consumers))}"
+        )
+
     summary: list[str] = [
         f"candidate: {metadata.get('Name', args.package)}=={metadata.get('Version', 'unknown')}",
-        f"consumer: {contract.get('consumer', 'unknown')}",
+        f"consumer: {consumer}",
     ]
     issues: list[str] = []
+    contract_packages: set[str] = set()
 
     for entry in families:
         if not isinstance(entry, dict):
@@ -181,6 +237,7 @@ def main() -> int:
         supported_range = entry.get("supported_range")
         if not isinstance(package, str) or not isinstance(supported_range, str):
             raise SystemExit("Contract family entries must include package and supported_range")
+        contract_packages.add(package)
 
         summary_line, issue = validate_package_requirement(
             package,
@@ -191,6 +248,13 @@ def main() -> int:
             summary.append(summary_line)
         if issue is not None:
             issues.append(issue)
+
+    missing_contract_packages = sorted(manifest_packages(manifest) - contract_packages)
+    if missing_contract_packages:
+        issues.append(
+            "Consumer contract is missing required shared-package families: "
+            + ", ".join(missing_contract_packages)
+        )
 
     print("Candidate Consumer Compatibility Summary")
     print("----------------------------------------")

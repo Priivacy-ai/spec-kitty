@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Charter governance references: `governance_references` declarations in `charter.md`
   now surface supporting public governance docs in `charter context` text/JSON and
   `charter status` diagnostics, with repo-root-scoped path safety.
+- Release authority now has a machine-readable shared-package compatibility
+  manifest, plus gates that validate CLI ranges, `uv.lock`, SaaS consumer
+  contracts, and exact PyPI installability for published artifacts.
 
 ### Fixed
 
@@ -22,6 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sync WebSocket connections now send ephemeral `ws_token` credentials in the
   `Authorization: Bearer` upgrade header instead of an ignored `?token=` query
   parameter, restoring authenticated live event delivery.
+- Prerelease PyPI publishing no longer waives downstream consumer evidence; the
+  release workflow now requires the private consumer suite before any PyPI
+  promotion.
 
 ### Documentation
 

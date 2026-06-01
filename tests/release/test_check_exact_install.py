@@ -120,3 +120,63 @@ def test_console_script_smoke_failure_fails_release_gate(
     assert exc.value.code
     assert "console script smoke test" in str(exc.value)
     assert "No module named 'click'" in str(exc.value)
+
+
+def test_from_index_installs_exact_version_without_local_wheel(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = load_script_module()
+    calls: list[list[str]] = []
+
+    def fake_run(
+        cmd: list[str], *, env: dict[str, str] | None = None
+    ) -> subprocess.CompletedProcess[str]:
+        calls.append(cmd)
+        stdout = "3.2.0rc99\n" if "-c" in cmd else ""
+        return subprocess.CompletedProcess(cmd, 0, stdout=stdout, stderr="")
+
+    monkeypatch.setattr(module, "run", fake_run)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            str(SCRIPT),
+            "--package",
+            "spec-kitty-cli",
+            "--version",
+            "3.2.0rc99",
+            "--from-index",
+            "--index-url",
+            "https://pypi.org/simple",
+        ],
+    )
+
+    assert module.main() == 0
+
+    assert any(
+        call[-3:] == [
+            "--index-url",
+            "https://pypi.org/simple",
+            "spec-kitty-cli==3.2.0rc99",
+        ]
+        for call in calls
+    )
+
+
+def test_from_index_requires_exact_version(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = load_script_module()
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            str(SCRIPT),
+            "--package",
+            "spec-kitty-cli",
+            "--from-index",
+        ],
+    )
+
+    with pytest.raises(SystemExit) as exc:
+        module.main()
+
+    assert "--version is required when --from-index is used" in str(exc.value)

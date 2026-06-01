@@ -16,6 +16,7 @@ WORKFLOWS = ROOT / ".github" / "workflows"
 RELEASE_OWNER_PATHS = {
     "pyproject.toml",
     "uv.lock",
+    ".kittify/release/shared-package-compatibility.json",
     "CHANGELOG.md",
     "RELEASE_CHECKLIST.md",
     "scripts/release/**",
@@ -78,6 +79,7 @@ def test_shared_drift_secret_job_uses_trusted_scripts_only() -> None:
     assert "github.event.pull_request.base.sha" in verify_dump
     assert "CROSS_REPO_TOKEN" not in repr(verify.get("env", {}))
     assert "check_candidate_consumer_compat.py" not in verify_dump
+    assert "candidate/.kittify/release/shared-package-compatibility.json" in verify_dump
 
     fetch_step = next(step for step in verify["steps"] if step.get("id") == "fetch_refs")
     assert "CROSS_REPO_TOKEN" in fetch_step["env"]
@@ -129,3 +131,25 @@ def test_quality_gate_fails_closed_for_release_required_package_jobs() -> None:
     assert 'if [ "$result" != "success" ]; then' in script
     for job_name in release_required - {"changes"}:
         assert f"needs.{job_name}.result" in script
+
+
+def test_release_publish_requires_downstream_evidence_before_pypi() -> None:
+    workflow = load_workflow("release.yml")
+    jobs = workflow["jobs"]
+    downstream_dump = repr(jobs["downstream-consumer-verify"])
+    publish_job = jobs["publish-pypi"]
+
+    assert "prerelease-waived" not in downstream_dump
+    assert "SPEC_KITTY_CANDIDATE_WHEEL" in downstream_dump
+    assert "SPEC_KITTY_SAAS_READ_TOKEN is required" in downstream_dump
+    assert "downstream-consumer-verify" in publish_job["needs"]
+
+
+def test_release_verifies_pypi_exact_install_after_publish() -> None:
+    workflow = load_workflow("release.yml")
+    job = workflow["jobs"]["verify-pypi-installability"]
+    job_dump = repr(job)
+
+    assert job["needs"] == "publish-pypi"
+    assert "--from-index" in job_dump
+    assert "spec-kitty-cli" in job_dump

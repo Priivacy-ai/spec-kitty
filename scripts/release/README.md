@@ -56,11 +56,12 @@ python scripts/release/extract_changelog.py 2.0.0
 
 ### `check_shared_package_drift.py`
 
-Validates that the CLI's compatible shared-package ranges contain the exact
-versions resolved in `uv.lock`, that SaaS pins agree with those resolved
-versions when the private SaaS pyproject is available, that no emergency
-`tool.uv` override remains in CLI metadata, and that retired
-`spec-kitty-runtime` is not a CLI dependency.
+Validates that `.kittify/release/shared-package-compatibility.json` is the
+release authority for the CLI's compatible shared-package ranges and exact
+`uv.lock` versions, that SaaS pins agree with those resolved versions when the
+private SaaS pyproject is available, that no emergency `tool.uv` override
+remains in CLI metadata, and that retired `spec-kitty-runtime` is not a CLI
+dependency.
 
 ```bash
 python scripts/release/check_shared_package_drift.py \
@@ -77,6 +78,14 @@ from PyPI.
 ```bash
 python scripts/release/check_exact_install.py \
   --package spec-kitty-cli \
+  --console-script spec-kitty \
+  --console-arg=--version
+
+# After PyPI publish, verify the exact public artifact with no local wheel.
+python scripts/release/check_exact_install.py \
+  --package spec-kitty-cli \
+  --version X.Y.Z \
+  --from-index \
   --console-script spec-kitty \
   --console-arg=--version
 ```
@@ -113,8 +122,11 @@ Tag-time publish workflow sequence:
 4. verify shared-package drift
 5. verify exact installability from the built wheel
 6. verify candidate compatibility against the SaaS consumer contract
-7. verify artifacts and extract changelog notes
-8. create GitHub Release
+7. verify downstream consumer evidence
+8. verify artifacts and extract changelog notes
+9. create GitHub Release
+10. publish to PyPI
+11. verify exact installability from PyPI with `pip install spec-kitty-cli==X.Y.Z`
 
 ## Local Release Workflow
 
