@@ -28,7 +28,7 @@ class TestProcedureModel:
 
     def test_enriched_procedure(self, enriched_procedure_data: dict) -> None:
         p = Procedure.model_validate(enriched_procedure_data)
-        assert p.id == "mission-merge-ceremony"
+        assert p.id == "mission-merge-workflow"
         assert p.steps[0].on_failure is not None
         # Post-WP02: step-level `tactic_refs` has been excised from
         # ProcedureStep; relationships live in src/doctrine/graph.yaml.
