@@ -1,7 +1,7 @@
 {
-  "event_count": 12,
-  "last_event_id": "01KT11NEZ1TG4D891ZE64X4Y7J",
-  "materialized_at": "2026-06-01T07:34:10.656870+00:00",
+  "event_count": 14,
+  "last_event_id": "01KT11NP30Z4T6S5V74PSGTGVQ",
+  "materialized_at": "2026-06-01T07:34:17.952597+00:00",
   "mission_number": "",
   "mission_slug": "rename-ceremony-to-status-commit-01KSPN6C",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 2,
+    "in_progress": 3,
     "in_review": 0,
-    "planned": 4
+    "planned": 3
   },
   "work_packages": {
     "WP01": {
@@ -32,11 +32,11 @@
       "last_transition_at": "2026-06-01T07:34:10.656870+00:00"
     },
     "WP03": {
-      "actor": "finalize-tasks",
+      "actor": "implement-command",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KSPQ72FY1DZV4VW7FSVH5T5D",
-      "last_transition_at": "2026-05-28T07:19:09.054955+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KT11NP30Z4T6S5V74PSGTGVQ",
+      "last_transition_at": "2026-06-01T07:34:17.952597+00:00"
     },
     "WP04": {
       "actor": "finalize-tasks",
