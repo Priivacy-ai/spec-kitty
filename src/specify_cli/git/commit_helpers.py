@@ -427,7 +427,7 @@ def assert_not_protected_branch(repo_path: Path, *, operation: str = "commit") -
       (``1``, ``true``, ``yes``) — opt-in for solo-fork operators who own ``main``.
     - ``SPEC_KITTY_TEST_MODE=1`` is set — the test-mode marker the conftest sets
       on its isolated environment. Test fixtures create projects on ``main`` and
-      exercise status-writing commands directly; forcing every fixture to fork a lane
+      exercise status commit operations directly; forcing every fixture to fork a lane
       branch would multiply boilerplate without testing anything the production
       guard cares about.
     """
@@ -445,7 +445,7 @@ def assert_not_protected_branch(repo_path: Path, *, operation: str = "commit") -
     if branch and branch in protected_branches(repo_path):
         raise ProtectedBranchCommitError(
             f"Refusing to {operation} on protected branch '{branch}' in {repo_path}. "
-            "Run status-writing operations from the mission lane branch/worktree."
+            "Run status commit operations from the mission lane branch/worktree."
         )
 
 
