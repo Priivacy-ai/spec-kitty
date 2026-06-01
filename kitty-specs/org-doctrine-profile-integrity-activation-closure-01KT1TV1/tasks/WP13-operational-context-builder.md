@@ -16,8 +16,8 @@ subtasks:
 - T059
 - T060
 - T061
-agent: claude:opus:python-pedro:implementer
-shell_pid: '1703621'
+agent: "claude:opus:python-pedro:implementer"
+shell_pid: "1703621"
 history:
 - at: '2026-06-01T16:49:18Z'
   actor: claude
@@ -96,3 +96,5 @@ Turn `build_operational_context()` from an all-None stub into a **pure explicit-
 - 2026-06-01T17:29:16Z – claude:opus:python-pedro:implementer – shell_pid=1545161 – Assigned agent via action command
 - 2026-06-01T20:54:33Z – claude:opus:python-pedro:implementer – shell_pid=1655372 – Assigned agent via action command
 - 2026-06-01T20:56:45Z – claude:opus:python-pedro:implementer – shell_pid=1655372 – WP13 recovered: OperationalContext assembler + guards; 15 tests green
+- 2026-06-01T23:26:55Z – claude:opus:python-pedro:implementer – shell_pid=1703621 – Assigned agent via action command
+- 2026-06-01T23:27:31Z – claude:opus:python-pedro:implementer – shell_pid=1703621 – WP13 ready
