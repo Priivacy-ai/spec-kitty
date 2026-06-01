@@ -268,11 +268,11 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | An ephemeral structured choice presented to the Human-in-Charge (HiC) or their delegated agent during the next-command loop. Each decision describes what needs to happen next and offers options to advance the mission. A Decision exists only for the duration of the loop iteration; once answered it is closed and has no further CLI lifecycle. |
+| **Definition** | A structured choice presented to the Human-in-Charge (HiC) or their delegated agent during the next-command loop. Each decision describes what needs to happen next and offers options to advance the mission. In event-backed runtimes, a pending Decision is tracked until answered, then closed. |
 | **Context** | Orchestration |
 | **Status** | canonical |
-| **Applicable to** | `1.x`, `2.x` |
-| **Lifecycle** | Opened by [Decision Input Request](#decision-input-request); closed by [Decision Input Answer](#decision-input-answer). |
+| **Applicable to** | `1.x`, `2.x`, `3.x` |
+| **Lifecycle** | In event-backed runtimes, opened by [Decision Input Request](#decision-input-request); closed by [Decision Input Answer](#decision-input-answer). |
 | **SaaS projection** | Materialised as a `DecisionInboxItem` (pending → answered) in the TeamSpace. |
 | **Not to be confused with** | SaaS `Decision` (an immutable recorded past collaboration choice); SaaS `DecisionPoint` (a first-class team-consultation entity that can be widened, deferred, or resolved independently of the loop). See the SaaS domain glossary at `architecture/domain-glossary.md`. |
 | **Related terms** | [Decision Kind](#decision-kind), [Decision Input Request](#decision-input-request), [Decision Input Answer](#decision-input-answer), [Human-in-Charge (HiC)](./identity.md#human-in-charge-hic) |
@@ -283,10 +283,10 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | The type of choice being presented — for example, selecting which step to run next, resolving a conflict, or assigning a work package to an agent. Carried in the `DecisionInputRequested` event payload as the `kind` field. |
+| **Definition** | The type of choice being presented — for example, selecting which step to run next, resolving a conflict, or assigning a work package to an agent. In the `spec-kitty next --json` contract this is carried as the top-level `kind` field; `DecisionInputRequested` events are emitted only for `decision_required` choices and do not repeat that field. |
 | **Context** | Orchestration |
 | **Status** | canonical |
-| **Applicable to** | `1.x`, `2.x` |
+| **Applicable to** | `1.x`, `2.x`, `3.x` |
 | **Related terms** | [Decision](#decision), [Decision Input Request](#decision-input-request) |
 
 ---
