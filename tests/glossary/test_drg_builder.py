@@ -15,14 +15,14 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.glossary.drg_builder import (
+from glossary.drg_builder import (
     GlossaryTermIndex,
     _normalize,
     build_index,
     glossary_urn,
 )
-from specify_cli.glossary.models import Provenance, SenseStatus, TermSense, TermSurface
-from specify_cli.glossary.store import GlossaryStore
+from glossary.models import Provenance, SenseStatus, TermSense, TermSurface
+from glossary.store import GlossaryStore
 
 pytestmark = pytest.mark.fast
 

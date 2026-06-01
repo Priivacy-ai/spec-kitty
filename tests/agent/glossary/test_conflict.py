@@ -3,9 +3,9 @@
 import pytest
 from datetime import datetime
 
-from specify_cli.glossary.models import TermSurface, TermSense, Provenance, SenseStatus, ConflictType, Severity
-from specify_cli.glossary.extraction import ExtractedTerm
-from specify_cli.glossary.conflict import classify_conflict, score_severity, create_conflict, make_sense_ref
+from glossary.models import TermSurface, TermSense, Provenance, SenseStatus, ConflictType, Severity
+from glossary.extraction import ExtractedTerm
+from glossary.conflict import classify_conflict, score_severity, create_conflict, make_sense_ref
 
 pytestmark = pytest.mark.fast
 

@@ -8,15 +8,15 @@ import time
 
 import pytest
 
-from specify_cli.glossary.exceptions import BlockedByConflict
-from specify_cli.glossary.models import (
+from glossary.exceptions import BlockedByConflict
+from glossary.models import (
     ConflictType,
     Severity,
 )
-from specify_cli.glossary.pipeline import (
+from glossary.pipeline import (
     create_standard_pipeline,
 )
-from specify_cli.glossary.strictness import Strictness
+from glossary.strictness import Strictness
 from specify_cli.missions import PrimitiveExecutionContext
 
 pytestmark = pytest.mark.fast
@@ -925,7 +925,7 @@ class TestExecuteWithGlossaryProductionHook:
 
     def test_glossary_aware_runner_execute(self, tmp_path):
         """GlossaryAwarePrimitiveRunner.execute() runs pipeline + primitive."""
-        from specify_cli.glossary.attachment import GlossaryAwarePrimitiveRunner
+        from glossary.attachment import GlossaryAwarePrimitiveRunner
 
         (tmp_path / ".kittify").mkdir()
 
@@ -996,7 +996,7 @@ class TestClarificationBeforeGate:
             return ("select", None)
 
         monkeypatch.setattr(
-            "specify_cli.glossary.pipeline.prompt_conflict_resolution_safe",
+            "glossary.pipeline.prompt_conflict_resolution_safe",
             mock_prompt,
         )
 
@@ -1040,7 +1040,7 @@ class TestClarificationBeforeGate:
             return ("select", None)
 
         monkeypatch.setattr(
-            "specify_cli.glossary.pipeline.prompt_conflict_resolution_safe",
+            "glossary.pipeline.prompt_conflict_resolution_safe",
             mock_prompt,
         )
 
@@ -1096,7 +1096,7 @@ class TestClarificationBeforeGate:
             return ("defer", None)
 
         monkeypatch.setattr(
-            "specify_cli.glossary.pipeline.prompt_conflict_resolution_safe",
+            "glossary.pipeline.prompt_conflict_resolution_safe",
             mock_prompt,
         )
 
@@ -1126,7 +1126,7 @@ class TestClarificationBeforeGate:
             return ("custom", "The project workspace directory on disk")
 
         monkeypatch.setattr(
-            "specify_cli.glossary.pipeline.prompt_conflict_resolution_safe",
+            "glossary.pipeline.prompt_conflict_resolution_safe",
             mock_prompt,
         )
 
@@ -1152,8 +1152,8 @@ class TestClarificationBeforeGate:
     def test_pipeline_order_verified_at_runtime(self, tmp_path):
         """Verify that in the standard pipeline, ClarificationMiddleware
         runs at index 2 (before GenerationGateMiddleware at index 3)."""
-        from specify_cli.glossary.clarification import ClarificationMiddleware
-        from specify_cli.glossary.middleware import GenerationGateMiddleware
+        from glossary.clarification import ClarificationMiddleware
+        from glossary.middleware import GenerationGateMiddleware
 
         (tmp_path / ".kittify").mkdir()
         pipeline = create_standard_pipeline(tmp_path)
@@ -1220,7 +1220,7 @@ class TestExecuteWithGlossaryEndToEnd:
             return ("select", None)
 
         monkeypatch.setattr(
-            "specify_cli.glossary.pipeline.prompt_conflict_resolution_safe",
+            "glossary.pipeline.prompt_conflict_resolution_safe",
             mock_prompt,
         )
 

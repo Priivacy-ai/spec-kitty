@@ -44,7 +44,7 @@ test_no_dead_modules:
   category_6_frozen_runtime_reexports: 3
   # Slice F WP01 T002 inherits 10 grandfathered orphans; T005-T007
   # delete 3 (doctrine.templates.repository,
-  # specify_cli.glossary.prompts, specify_cli.glossary.rendering)
+  # glossary.prompts, glossary.rendering)
   # bringing the live size to 7. Per C-006 this category MUST shrink
   # by >= 2 entries per major release; target = 0 by 4.0.
   category_7_grandfathered_orphans: 7

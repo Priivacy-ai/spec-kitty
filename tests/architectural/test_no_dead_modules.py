@@ -296,8 +296,8 @@ _CATEGORY_6_FROZEN_RUNTIME_REEXPORTS: frozenset[str] = frozenset(
 # Per Slice F C-006 (binding), Cat-7 MUST shrink by >= 2 entries
 # per major release; target = 0 by 4.0. WP01 of Slice F shrinks
 # this list from 10 -> 7 by deleting three modules outright
-# (doctrine.templates.repository, specify_cli.glossary.prompts,
-# specify_cli.glossary.rendering) per DM-01KRX6N0YAFBY7MTJC0CN3D3E4.
+# (doctrine.templates.repository, glossary.prompts,
+# glossary.rendering) per DM-01KRX6N0YAFBY7MTJC0CN3D3E4.
 _CATEGORY_7_GRANDFATHERED_ORPHANS: frozenset[str] = frozenset(
     {
         # TODO(triage): hidden_feature_option / LEGACY_FEATURE_HELP
@@ -562,8 +562,8 @@ def test_category_7_grandfathered_at_most_seven_entries() -> None:
 
     The Slice F mission shrank Cat-7 from 10 -> 7 by deleting
     ``doctrine.templates.repository`` (WP01 T005),
-    ``specify_cli.glossary.prompts`` and
-    ``specify_cli.glossary.rendering`` (WP01 T006). This assertion
+    ``glossary.prompts`` and
+    ``glossary.rendering`` (WP01 T006). This assertion
     locks in the new ceiling so any regression that re-adds a Cat-7
     entry without further burn-down is caught immediately, independently
     of the per-category baseline in ``_baselines.yaml``.

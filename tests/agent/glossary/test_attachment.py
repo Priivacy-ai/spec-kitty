@@ -2,13 +2,13 @@
 
 
 import pytest
-from specify_cli.glossary.attachment import (
+from glossary.attachment import (
     attach_glossary_pipeline,
     glossary_enabled,
     read_glossary_check_metadata,
     run_with_glossary,
 )
-from specify_cli.glossary.strictness import Strictness
+from glossary.strictness import Strictness
 from specify_cli.missions import PrimitiveExecutionContext
 
 pytestmark = pytest.mark.fast
@@ -227,13 +227,13 @@ class TestGlossaryAwarePrimitiveRunner:
     """Test GlossaryAwarePrimitiveRunner class (production call site)."""
 
     def test_runner_creates_successfully(self, tmp_path):
-        from specify_cli.glossary.attachment import GlossaryAwarePrimitiveRunner
+        from glossary.attachment import GlossaryAwarePrimitiveRunner
         (tmp_path / ".kittify").mkdir()
         runner = GlossaryAwarePrimitiveRunner(repo_root=tmp_path)
         assert runner is not None
 
     def test_runner_execute_calls_pipeline_then_primitive(self, tmp_path):
-        from specify_cli.glossary.attachment import GlossaryAwarePrimitiveRunner
+        from glossary.attachment import GlossaryAwarePrimitiveRunner
         (tmp_path / ".kittify").mkdir()
 
         runner = GlossaryAwarePrimitiveRunner(repo_root=tmp_path)
@@ -250,7 +250,7 @@ class TestGlossaryAwarePrimitiveRunner:
         assert result["strictness"] == Strictness.MEDIUM
 
     def test_runner_passes_extra_args_to_primitive(self, tmp_path):
-        from specify_cli.glossary.attachment import GlossaryAwarePrimitiveRunner
+        from glossary.attachment import GlossaryAwarePrimitiveRunner
         (tmp_path / ".kittify").mkdir()
 
         runner = GlossaryAwarePrimitiveRunner(
@@ -268,6 +268,6 @@ class TestGlossaryAwarePrimitiveRunner:
 
     def test_runner_is_importable_from_glossary_package(self):
         """GlossaryAwarePrimitiveRunner is exported from glossary package."""
-        from specify_cli.glossary import GlossaryAwarePrimitiveRunner
+        from glossary import GlossaryAwarePrimitiveRunner
 
         assert GlossaryAwarePrimitiveRunner is not None

@@ -2,7 +2,7 @@
 
 import pytest
 from datetime import datetime
-from specify_cli.glossary.models import (
+from glossary.models import (
     TermSurface, TermSense, SemanticConflict, Provenance,
     SenseStatus, ConflictType, Severity, SenseRef,
     term_surface_to_dict, term_sense_to_dict, semantic_conflict_to_dict,

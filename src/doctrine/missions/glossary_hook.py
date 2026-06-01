@@ -127,10 +127,10 @@ def execute_with_glossary(
     runner_cls = get_runner()
     if runner_cls is None:
         # Compatibility bootstrap: some callers import the doctrine hook
-        # directly before specify_cli.glossary has had a chance to register
+        # directly before glossary has had a chance to register
         # the concrete runner into the kernel registry.
         try:
-            module = import_module("specify_cli.glossary.attachment")
+            module = import_module("glossary.attachment")
             GlossaryAwarePrimitiveRunner = module.GlossaryAwarePrimitiveRunner
             register(GlossaryAwarePrimitiveRunner)
             runner_cls = get_runner()

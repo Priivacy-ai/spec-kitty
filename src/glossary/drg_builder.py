@@ -116,7 +116,7 @@ class GlossaryTermIndex:
     Attributes:
         surface_to_urn: Maps normalized surface -> ``glossary:<id>`` URN.
         surface_to_senses: Maps normalized surface -> list of active
-            :class:`~specify_cli.glossary.models.TermSense` objects.
+            :class:`~glossary.models.TermSense` objects.
         applicable_scope_set: Frozenset of scope strings that contributed
             senses to the index.
         term_count: Total number of unique URNs in the index.
@@ -141,7 +141,7 @@ def build_index(
     to the same URN (extremely unlikely with 8-hex-char SHA-256 prefixes).
 
     Args:
-        store: Populated :class:`~specify_cli.glossary.store.GlossaryStore`.
+        store: Populated :class:`~glossary.store.GlossaryStore`.
         applicable_scopes: Scope strings (``GlossaryScope.value``) to
             include in the index; senses in other scopes are skipped.
 
@@ -225,7 +225,7 @@ def build_glossary_drg_layer(
     (action URN, glossary URN) pair found in the built-in + project DRG graph.
 
     Args:
-        store: Populated :class:`~specify_cli.glossary.store.GlossaryStore`.
+        store: Populated :class:`~glossary.store.GlossaryStore`.
         applicable_scopes: Scope strings to include.
         repo_root: Project root used to locate the optional project DRG
             overlay at ``<repo_root>/.kittify/doctrine/graph.yaml``.

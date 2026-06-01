@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from specify_cli.glossary.extraction import (
+from glossary.extraction import (
     extract_metadata_hints,
     extract_quoted_phrases,
     extract_acronyms,

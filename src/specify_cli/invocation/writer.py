@@ -11,7 +11,7 @@ from specify_cli.invocation.errors import AlreadyClosedError, InvocationError, I
 from specify_cli.invocation.record import InvocationRecord
 
 if TYPE_CHECKING:
-    from specify_cli.glossary.chokepoint import GlossaryObservationBundle
+    from glossary.chokepoint import GlossaryObservationBundle
 
 EVENTS_DIR = ".kittify/events/profile-invocations"
 INDEX_PATH = ".kittify/events/invocation-index.jsonl"

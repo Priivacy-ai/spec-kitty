@@ -1,13 +1,13 @@
 """Scope: exceptions unit tests — no real git or subprocesses."""
 
 import pytest
-from specify_cli.glossary.exceptions import (
+from glossary.exceptions import (
     GlossaryError,
     BlockedByConflict,
     DeferredToAsync,
     AbortResume,
 )
-from specify_cli.glossary.models import (
+from glossary.models import (
     SemanticConflict,
     TermSurface,
     ConflictType,

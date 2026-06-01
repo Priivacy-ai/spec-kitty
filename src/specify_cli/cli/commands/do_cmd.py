@@ -141,7 +141,7 @@ def do(
 
     # Inline drift observation — reads glossary events written by the chokepoint
     # (WP5.2). Returns [] silently on any error; never blocks or crashes the CLI.
-    from specify_cli.glossary.observation import ObservationSurface  # lazy import
+    from glossary.observation import ObservationSurface  # lazy import
 
     _surface = ObservationSurface()
     _notices = _surface.collect_notices(repo_root, invocation_id=payload.invocation_id)

@@ -2,13 +2,13 @@
 
 import pytest
 
-from specify_cli.glossary.models import (
+from glossary.models import (
     SemanticConflict,
     Severity,
     TermSurface,
     ConflictType,
 )
-from specify_cli.glossary.strictness import (
+from glossary.strictness import (
     Strictness,
     resolve_strictness,
     load_global_strictness,
@@ -214,7 +214,7 @@ class TestShouldBlock:
     @pytest.fixture
     def medium_conflict(self):
         """Create a medium-severity conflict."""
-        from specify_cli.glossary.models import SenseRef
+        from glossary.models import SenseRef
 
         return SemanticConflict(
             term=TermSurface(surface_text="utility"),
@@ -231,7 +231,7 @@ class TestShouldBlock:
     @pytest.fixture
     def high_conflict(self):
         """Create a high-severity conflict."""
-        from specify_cli.glossary.models import SenseRef
+        from glossary.models import SenseRef
 
         return SemanticConflict(
             term=TermSurface(surface_text="workspace"),
@@ -401,7 +401,7 @@ class TestCategorizeConflicts:
 
     def test_mixed_severity_conflicts(self):
         """Mixed-severity conflicts are categorized into correct buckets."""
-        from specify_cli.glossary.models import SenseRef
+        from glossary.models import SenseRef
 
 
         low = SemanticConflict(

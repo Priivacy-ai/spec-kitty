@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from specify_cli.glossary.semantic_events import iter_semantic_conflicts
+from glossary.semantic_events import iter_semantic_conflicts
 
 logger = logging.getLogger(__name__)
 

@@ -17,22 +17,22 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from specify_cli.glossary.events import (
+from glossary.events import (
     _local_append_event,
     build_clarification_resolved,
     build_sense_updated,
     get_event_log_path,
     read_events,
 )
-from specify_cli.glossary.exceptions import SeedFileValidationError
-from specify_cli.glossary.models import (
+from glossary.exceptions import SeedFileValidationError
+from glossary.models import (
     TermSense,
     TermSurface,
 )
-from specify_cli.glossary.scope import GlossaryScope, _parse_sense_status, load_seed_file
-from specify_cli.glossary.seed_validation import validate_scope_filename, validate_seed_file_data
-from specify_cli.glossary.store import GlossaryStore
-from specify_cli.glossary.strictness import Strictness
+from glossary.scope import GlossaryScope, _parse_sense_status, load_seed_file
+from glossary.seed_validation import validate_scope_filename, validate_seed_file_data
+from glossary.store import GlossaryStore
+from glossary.strictness import Strictness
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +62,7 @@ def _load_store_from_seeds(repo_root: Path) -> GlossaryStore:
     """
     from datetime import datetime
 
-    from specify_cli.glossary.models import Provenance, SenseStatus
+    from glossary.models import Provenance, SenseStatus
 
     # Create a dummy event log path (store needs it but we read from seeds)
     event_log_path = repo_root / ".kittify" / "events" / "glossary" / "_cli.events.jsonl"
@@ -708,7 +708,7 @@ def show(
 ) -> None:
     """Render the entity page for a glossary term."""
     # Lazy imports to avoid circular imports
-    from specify_cli.glossary.entity_pages import GlossaryEntityPageRenderer, TermNotFoundError
+    from glossary.entity_pages import GlossaryEntityPageRenderer, TermNotFoundError
     from rich.markdown import Markdown
 
     repo_root = Path.cwd()

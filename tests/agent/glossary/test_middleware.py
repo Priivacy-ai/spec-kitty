@@ -4,15 +4,15 @@ import pytest
 from datetime import datetime
 from pathlib import Path
 
-from specify_cli.glossary.middleware import (
+from glossary.middleware import (
     GlossaryCandidateExtractionMiddleware,
     SemanticCheckMiddleware,
     MockContext,
 )
-from specify_cli.glossary.extraction import ExtractedTerm
-from specify_cli.glossary.models import TermSurface, TermSense, Provenance, SenseStatus, ConflictType, Severity
-from specify_cli.glossary.scope import GlossaryScope, SCOPE_RESOLUTION_ORDER
-from specify_cli.glossary.store import GlossaryStore
+from glossary.extraction import ExtractedTerm
+from glossary.models import TermSurface, TermSense, Provenance, SenseStatus, ConflictType, Severity
+from glossary.scope import GlossaryScope, SCOPE_RESOLUTION_ORDER
+from glossary.store import GlossaryStore
 
 pytestmark = pytest.mark.fast
 
@@ -810,7 +810,7 @@ class TestSemanticCheckMiddleware:
 
     def test_process_preserves_existing_conflicts(self, semantic_check_store: GlossaryStore):
         """Middleware extends existing conflicts list."""
-        from specify_cli.glossary.models import SemanticConflict
+        from glossary.models import SemanticConflict
 
         middleware = SemanticCheckMiddleware(semantic_check_store)
 

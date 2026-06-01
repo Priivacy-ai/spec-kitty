@@ -4,10 +4,10 @@ import pytest
 from datetime import datetime
 from pathlib import Path
 
-from specify_cli.glossary.models import TermSurface, TermSense, Provenance, SenseStatus
-from specify_cli.glossary.scope import GlossaryScope, SCOPE_RESOLUTION_ORDER
-from specify_cli.glossary.store import GlossaryStore
-from specify_cli.glossary.resolution import resolve_term
+from glossary.models import TermSurface, TermSense, Provenance, SenseStatus
+from glossary.scope import GlossaryScope, SCOPE_RESOLUTION_ORDER
+from glossary.store import GlossaryStore
+from glossary.resolution import resolve_term
 
 pytestmark = pytest.mark.fast
 

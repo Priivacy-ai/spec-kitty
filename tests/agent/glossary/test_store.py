@@ -2,8 +2,8 @@
 
 import pytest
 from datetime import datetime
-from specify_cli.glossary.store import GlossaryStore
-from specify_cli.glossary.models import (
+from glossary.store import GlossaryStore
+from glossary.models import (
     TermSurface, TermSense, Provenance,
 )
 

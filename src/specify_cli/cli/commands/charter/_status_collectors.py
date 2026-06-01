@@ -31,7 +31,7 @@ def _collect_charter_sync_status(repo_root: Path) -> dict[str, Any]:
         sync_result = _charter_pkg.ensure_charter_bundle_fresh(repo_root)
         # Generate glossary entity pages (non-blocking; silent on failure)
         try:
-            from specify_cli.glossary.entity_pages import GlossaryEntityPageRenderer
+            from glossary.entity_pages import GlossaryEntityPageRenderer
             GlossaryEntityPageRenderer(repo_root).generate_all()
         except Exception as _ep_exc:  # noqa: BLE001 — entity-page generation is optional; failure is logged and ignored
             logger.debug("entity page generation failed (non-fatal): %s", _ep_exc)

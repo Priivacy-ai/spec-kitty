@@ -18,7 +18,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from specify_cli.glossary.chokepoint import GlossaryObservationBundle
+from glossary.chokepoint import GlossaryObservationBundle
 from specify_cli.invocation.executor import InvocationPayload, ProfileInvocationExecutor
 from specify_cli.invocation.writer import EVENTS_DIR
 
@@ -104,7 +104,7 @@ class TestInvokeReturnsGlossaryObservations:
             "specify_cli.invocation.executor.build_charter_context",
             return_value=_COMPACT_CTX,
         ), patch(
-            "specify_cli.glossary.chokepoint.GlossaryChokepoint.run",
+            "glossary.chokepoint.GlossaryChokepoint.run",
             return_value=_clean_bundle(),
         ):
             executor = ProfileInvocationExecutor(tmp_path)
@@ -132,7 +132,7 @@ class TestToDictIncludesGlossaryObservations:
             "specify_cli.invocation.executor.build_charter_context",
             return_value=_COMPACT_CTX,
         ), patch(
-            "specify_cli.glossary.chokepoint.GlossaryChokepoint.run",
+            "glossary.chokepoint.GlossaryChokepoint.run",
             return_value=_clean_bundle(),
         ):
             executor = ProfileInvocationExecutor(tmp_path)
@@ -167,7 +167,7 @@ class TestChokepointExceptionHandled:
             "specify_cli.invocation.executor.build_charter_context",
             return_value=_COMPACT_CTX,
         ), patch(
-            "specify_cli.glossary.chokepoint.GlossaryChokepoint.run",
+            "glossary.chokepoint.GlossaryChokepoint.run",
             side_effect=RuntimeError("chokepoint exploded"),
         ):
             executor = ProfileInvocationExecutor(tmp_path)
@@ -201,7 +201,7 @@ class TestCleanInvocationNoGlossaryCheckedEvent:
             "specify_cli.invocation.executor.build_charter_context",
             return_value=_COMPACT_CTX,
         ), patch(
-            "specify_cli.glossary.chokepoint.GlossaryChokepoint.run",
+            "glossary.chokepoint.GlossaryChokepoint.run",
             return_value=_clean_bundle(),
         ):
             executor = ProfileInvocationExecutor(tmp_path)
@@ -236,7 +236,7 @@ class TestConflictInvocationWritesGlossaryCheckedEvent:
             "specify_cli.invocation.executor.build_charter_context",
             return_value=_COMPACT_CTX,
         ), patch(
-            "specify_cli.glossary.chokepoint.GlossaryChokepoint.run",
+            "glossary.chokepoint.GlossaryChokepoint.run",
             return_value=_conflict_bundle(),
         ):
             executor = ProfileInvocationExecutor(tmp_path)

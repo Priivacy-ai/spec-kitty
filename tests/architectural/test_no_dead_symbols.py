@@ -244,7 +244,7 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
         "specify_cli.git.sparse_checkout_remediation::STEP_VERIFY_CLEAN",
         "specify_cli.git.sparse_checkout_remediation::SparseCheckoutRemediationReport",
         "specify_cli.git.sparse_checkout_remediation::SparseCheckoutRemediationResult",
-        "specify_cli.glossary.semantic_events::SemanticConflictRecord",
+        "glossary.semantic_events::SemanticConflictRecord",
         "specify_cli.intake.brief_writer::CrossFilesystemWriteError",
         "specify_cli.intake.brief_writer::atomic_write_bytes",
         "specify_cli.intake.brief_writer::atomic_write_text",

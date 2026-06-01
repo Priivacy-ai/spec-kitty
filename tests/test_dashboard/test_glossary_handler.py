@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from specify_cli.glossary.models import Provenance, SenseStatus, TermSense, TermSurface
+from glossary.models import Provenance, SenseStatus, TermSense, TermSurface
 
 pytestmark = pytest.mark.fast
 
@@ -519,7 +519,7 @@ edges:
     def test_collect_all_senses_skips_scopes_that_fail(self, monkeypatch, tmp_path):
         """A single broken seed file does not prevent collecting other scopes."""
         from specify_cli.dashboard.handlers import glossary as gloss_module
-        from specify_cli.glossary.scope import GlossaryScope
+        from glossary.scope import GlossaryScope
 
         first_scope = list(GlossaryScope)[0]
         expected = _make_term("alpha", "definition", "active", 0.9)
@@ -530,7 +530,7 @@ edges:
                 return [expected]
             raise RuntimeError(f"missing seed for {scope.value}")
 
-        monkeypatch.setattr("specify_cli.glossary.scope.load_seed_file", fake_load_seed_file)
+        monkeypatch.setattr("glossary.scope.load_seed_file", fake_load_seed_file)
 
         assert gloss_module._collect_all_senses(tmp_path) == [expected]
 
@@ -545,7 +545,7 @@ edges:
         real_import = builtins.__import__
 
         def fake_import(name, globals=None, locals=None, fromlist=(), level=0):
-            if name == "specify_cli.glossary.scope":
+            if name == "glossary.scope":
                 raise ImportError("boom")
             return real_import(name, globals, locals, fromlist, level)
 
@@ -556,7 +556,7 @@ edges:
     def test_collect_all_senses_raises_when_root_level_recovery_refused(self, tmp_path):
         """The compatibility helper still raises when no safe recovery exists."""
         from specify_cli.dashboard.handlers import glossary as gloss_module
-        from specify_cli.glossary.exceptions import SeedFileValidationError
+        from glossary.exceptions import SeedFileValidationError
 
         seed_dir = tmp_path / ".kittify" / "glossaries"
         seed_dir.mkdir(parents=True)

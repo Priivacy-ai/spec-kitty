@@ -3,22 +3,22 @@
 import pytest
 from unittest.mock import MagicMock
 
-from specify_cli.glossary.exceptions import (
+from glossary.exceptions import (
     AbortResume,
     BlockedByConflict,
     DeferredToAsync,
 )
-from specify_cli.glossary.models import (
+from glossary.models import (
     ConflictType,
     SemanticConflict,
     Severity,
     TermSurface,
 )
-from specify_cli.glossary.pipeline import (
+from glossary.pipeline import (
     GlossaryMiddlewarePipeline,
     create_standard_pipeline,
 )
-from specify_cli.glossary.strictness import Strictness
+from glossary.strictness import Strictness
 from specify_cli.missions import PrimitiveExecutionContext
 
 pytestmark = pytest.mark.fast
@@ -310,8 +310,8 @@ class TestCreateStandardPipeline:
         Clarification runs BEFORE the gate so users can resolve conflicts
         interactively before the gate decides whether to block.
         """
-        from specify_cli.glossary.clarification import ClarificationMiddleware
-        from specify_cli.glossary.middleware import (
+        from glossary.clarification import ClarificationMiddleware
+        from glossary.middleware import (
             GlossaryCandidateExtractionMiddleware,
             GenerationGateMiddleware,
             ResumeMiddleware,
@@ -361,7 +361,7 @@ class TestCreateStandardPipeline:
 
     def test_interactive_mode_wires_prompt_fn(self, tmp_path):
         """Regression: interactive mode must wire a real prompt_fn."""
-        from specify_cli.glossary.clarification import ClarificationMiddleware
+        from glossary.clarification import ClarificationMiddleware
 
         (tmp_path / ".kittify").mkdir()
         pipeline = create_standard_pipeline(tmp_path, interaction_mode="interactive")
@@ -372,7 +372,7 @@ class TestCreateStandardPipeline:
 
     def test_non_interactive_mode_uses_none_prompt_fn(self, tmp_path):
         """Regression: non-interactive mode must use None prompt_fn."""
-        from specify_cli.glossary.clarification import ClarificationMiddleware
+        from glossary.clarification import ClarificationMiddleware
 
 
         (tmp_path / ".kittify").mkdir()
@@ -412,7 +412,7 @@ class TestInteractiveClarificationResolves:
 
         # Patch prompt_conflict_resolution_safe so the pipeline uses our mock
         monkeypatch.setattr(
-            "specify_cli.glossary.pipeline.prompt_conflict_resolution_safe",
+            "glossary.pipeline.prompt_conflict_resolution_safe",
             mock_prompt,
         )
 

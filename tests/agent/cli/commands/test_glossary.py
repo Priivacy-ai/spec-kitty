@@ -1210,7 +1210,7 @@ class TestStoreHelpers:
             _get_all_terms_from_store,
             _load_store_from_seeds,
         )
-        from specify_cli.glossary.scope import GlossaryScope
+        from glossary.scope import GlossaryScope
 
         store = _load_store_from_seeds(mock_glossary_store)
         terms = _get_all_terms_from_store(store, scope_filter=GlossaryScope.TEAM_DOMAIN)

@@ -4,7 +4,7 @@ import pytest
 import yaml
 from datetime import datetime
 from unittest.mock import patch
-from specify_cli.glossary.scope import (
+from glossary.scope import (
     GlossaryScope,
     SCOPE_RESOLUTION_ORDER,
     get_scope_precedence,
@@ -14,7 +14,7 @@ from specify_cli.glossary.scope import (
     validate_seed_file,
     activate_scope,
 )
-from specify_cli.glossary.models import Provenance, SenseStatus, TermSense, TermSurface
+from glossary.models import Provenance, SenseStatus, TermSense, TermSurface
 
 
 def _make_sense(surface: str, definition: str, *, confidence: float = 1.0, status: SenseStatus = SenseStatus.ACTIVE) -> TermSense:
@@ -97,7 +97,7 @@ def test_load_seed_file_missing(tmp_path):
 def test_activate_scope():
     """Emits GlossaryScopeActivated event via emit_scope_activated."""
     # Patch at events module level (scope.py uses local import inside activate_scope)
-    with patch("specify_cli.glossary.events.emit_scope_activated") as mock_emit:
+    with patch("glossary.events.emit_scope_activated") as mock_emit:
         mock_emit.return_value = {"event_type": "GlossaryScopeActivated"}
 
         activate_scope(

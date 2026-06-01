@@ -35,13 +35,14 @@ class TestLiveRegistry:
             data = yaml.load(fp)
         validate_registry(data)
 
-    def test_live_registry_is_empty_baseline(self) -> None:
+    def test_live_registry_contains_registered_glossary_shim(self) -> None:
         from ruamel.yaml import YAML
 
         yaml = YAML(typ="safe")
         with _REGISTRY_PATH.open() as fp:
             data = yaml.load(fp)
-        assert data["shims"] == [], "Baseline registry must be empty at mission-615 start"
+        legacy_paths = {entry["legacy_path"] for entry in data["shims"]}
+        assert "specify_cli.glossary" in legacy_paths
 
 
 class TestTopLevelStructure:

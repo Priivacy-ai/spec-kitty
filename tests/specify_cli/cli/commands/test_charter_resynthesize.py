@@ -124,7 +124,7 @@ def test_collect_charter_sync_status_passes_metadata_path_to_stale_check(
         ),
     )
 
-    from specify_cli.glossary import entity_pages as entity_pages_module
+    from glossary import entity_pages as entity_pages_module
 
     class _FakeRenderer:
         def __init__(self, repo_root: Path) -> None:

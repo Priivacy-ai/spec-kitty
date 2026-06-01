@@ -11,8 +11,8 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli import app as cli_app
-from specify_cli.glossary.chokepoint import GlossaryObservationBundle
-from specify_cli.glossary.models import (
+from glossary.chokepoint import GlossaryObservationBundle
+from glossary.models import (
     ConflictType,
     SemanticConflict,
     SenseRef,
@@ -154,7 +154,7 @@ class TestAdviseWithExplicitProfile:
                 return_value=_COMPACT_CTX,
             ),
             patch(
-                "specify_cli.glossary.chokepoint.GlossaryChokepoint.run",
+                "glossary.chokepoint.GlossaryChokepoint.run",
                 return_value=_high_severity_bundle(),
             ),
         ):

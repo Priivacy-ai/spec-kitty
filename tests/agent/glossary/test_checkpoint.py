@@ -6,7 +6,7 @@ from datetime import datetime, UTC
 
 import pytest
 
-from specify_cli.glossary.checkpoint import (
+from glossary.checkpoint import (
     VALID_CURSORS,
     ScopeRef,
     StepCheckpoint,
@@ -19,8 +19,8 @@ from specify_cli.glossary.checkpoint import (
     parse_checkpoint_event,
     verify_input_hash,
 )
-from specify_cli.glossary.scope import GlossaryScope
-from specify_cli.glossary.strictness import Strictness
+from glossary.scope import GlossaryScope
+from glossary.strictness import Strictness
 
 pytestmark = pytest.mark.fast
 # ---------------------------------------------------------------------------

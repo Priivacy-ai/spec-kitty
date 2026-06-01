@@ -9,7 +9,7 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.glossary import app
-from specify_cli.glossary.entity_pages import TermNotFoundError
+from glossary.entity_pages import TermNotFoundError
 
 pytestmark = [pytest.mark.unit]
 
@@ -32,7 +32,7 @@ class TestGlossaryShow:
 
         with (
             patch(
-                "specify_cli.glossary.entity_pages.GlossaryEntityPageRenderer.generate_one",
+                "glossary.entity_pages.GlossaryEntityPageRenderer.generate_one",
                 return_value=page_path,
             ) as mock_gen,
             patch("specify_cli.cli.commands.glossary.Path.cwd", return_value=tmp_path),
@@ -48,7 +48,7 @@ class TestGlossaryShow:
         """Failure: both generate_one calls raise TermNotFoundError → exit 1 + hint."""
         with (
             patch(
-                "specify_cli.glossary.entity_pages.GlossaryEntityPageRenderer.generate_one",
+                "glossary.entity_pages.GlossaryEntityPageRenderer.generate_one",
                 side_effect=TermNotFoundError("not found"),
             ),
             patch("specify_cli.cli.commands.glossary.Path.cwd", return_value=tmp_path),
@@ -67,7 +67,7 @@ class TestGlossaryShow:
 
         with (
             patch(
-                "specify_cli.glossary.entity_pages.GlossaryEntityPageRenderer.generate_one",
+                "glossary.entity_pages.GlossaryEntityPageRenderer.generate_one",
                 return_value=page_path,
             ) as mock_gen,
             patch("specify_cli.cli.commands.glossary.Path.cwd", return_value=tmp_path),
@@ -90,7 +90,7 @@ class TestGlossaryShow:
 
         with (
             patch(
-                "specify_cli.glossary.entity_pages.GlossaryEntityPageRenderer.generate_one",
+                "glossary.entity_pages.GlossaryEntityPageRenderer.generate_one",
                 side_effect=_mock_generate_one,
             ),
             patch("specify_cli.cli.commands.glossary.Path.cwd", return_value=tmp_path),

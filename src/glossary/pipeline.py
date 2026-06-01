@@ -26,15 +26,15 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
-from specify_cli.glossary.exceptions import (
+from glossary.exceptions import (
     AbortResume,
     BlockedByConflict,
     DeferredToAsync,
 )
-from specify_cli.glossary.strictness import Strictness
+from glossary.strictness import Strictness
 
 if TYPE_CHECKING:
-    from specify_cli.glossary.store import GlossaryStore
+    from glossary.store import GlossaryStore
 
 logger = logging.getLogger(__name__)
 
@@ -214,15 +214,15 @@ def create_standard_pipeline(
     decides whether to block. Only truly unresolved conflicts (those the
     user declined to fix or deferred) reach the gate.
     """
-    from specify_cli.glossary.checkpoint import ScopeRef  # noqa: F401 (used by store)
-    from specify_cli.glossary.clarification import ClarificationMiddleware
-    from specify_cli.glossary.middleware import (
+    from glossary.checkpoint import ScopeRef  # noqa: F401 (used by store)
+    from glossary.clarification import ClarificationMiddleware
+    from glossary.middleware import (
         GlossaryCandidateExtractionMiddleware,
         GenerationGateMiddleware,
         ResumeMiddleware,
         SemanticCheckMiddleware,
     )
-    from specify_cli.glossary.store import GlossaryStore
+    from glossary.store import GlossaryStore
 
     # Create glossary store (in-memory, backed by event log)
     events_dir = repo_root / ".kittify" / "events" / "glossary"
@@ -281,7 +281,7 @@ def _load_seed_files_into_store(repo_root: Path, store: GlossaryStore) -> None:
         repo_root: Repository root path.
         store: GlossaryStore to populate.
     """
-    from specify_cli.glossary.scope import GlossaryScope, load_seed_file
+    from glossary.scope import GlossaryScope, load_seed_file
 
     for scope in GlossaryScope:
         try:

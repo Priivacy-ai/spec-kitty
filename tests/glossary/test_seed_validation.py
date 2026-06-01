@@ -8,10 +8,10 @@ import pytest
 
 pytestmark = pytest.mark.fast
 
-from specify_cli.glossary.exceptions import SeedFileValidationError
-from specify_cli.glossary.scope import GlossaryScope
-from specify_cli.glossary.seed_schema import GlossarySeedFile
-from specify_cli.glossary.seed_validation import (
+from glossary.exceptions import SeedFileValidationError
+from glossary.scope import GlossaryScope
+from glossary.seed_schema import GlossarySeedFile
+from glossary.seed_validation import (
     VALID_SCOPE_FILENAMES,
     _translate_pydantic_errors,
     validate_scope_filename,
@@ -316,7 +316,7 @@ class TestTranslatePydanticErrors:
         """Try to validate data and return (exc, data) on failure."""
         from pydantic import ValidationError as PydanticValidationError
 
-        from specify_cli.glossary.seed_schema import GlossarySeedFile
+        from glossary.seed_schema import GlossarySeedFile
 
         try:
             GlossarySeedFile.model_validate(data)
