@@ -10,7 +10,7 @@ from typing import Any
 import pytest
 
 from specify_cli.coordination.status_transition import emit_status_transition_transactional
-from specify_cli.coordination.transaction import BookkeepingCommitFailed
+from specify_cli.coordination.transaction import BookkeepingCommitFailed, BookkeepingWorktreeMissing
 from specify_cli.status.models import TransitionRequest
 
 pytest_plugins = ("tests.conftest_saas_sink",)
@@ -108,3 +108,32 @@ def test_transactional_emit_skips_fanout_when_commit_rolls_back(
         check=False,
     )
     assert missing.returncode != 0
+
+
+def test_transactional_emit_fails_closed_when_coordination_branch_missing(
+    repo: Path,
+    mock_saas_sink: Any,
+) -> None:
+    _git(repo, "branch", "-D", COORD_BRANCH)
+
+    with pytest.raises(BookkeepingWorktreeMissing):
+        emit_status_transition_transactional(_request(repo), sync_dossier=False)
+
+    assert mock_saas_sink.call_count == 0
+    assert not (repo / "kitty-specs" / MISSION_DIRNAME / "status.events.jsonl").exists()
+
+
+def test_transactional_emit_fails_closed_on_malformed_meta(
+    repo: Path,
+    mock_saas_sink: Any,
+) -> None:
+    (repo / "kitty-specs" / MISSION_DIRNAME / "meta.json").write_text(
+        "{bad json",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="Malformed JSON"):
+        emit_status_transition_transactional(_request(repo), sync_dossier=False)
+
+    assert mock_saas_sink.call_count == 0
+    assert not (repo / "kitty-specs" / MISSION_DIRNAME / "status.events.jsonl").exists()

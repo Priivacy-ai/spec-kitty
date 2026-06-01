@@ -79,7 +79,7 @@ def _transaction_topology_available(identity: _TransactionIdentity, mission_slug
     if not _repo_supports_transactions(identity.repo_root):
         return False
     if identity.coordination_branch is not None:
-        return _branch_exists(identity.repo_root, identity.coordination_branch)
+        return True
     if identity.meta_exists:
         # Legacy missions with meta but no coordination_branch are handled by
         # BookkeepingTransaction's legacy lane fallback when its derived
@@ -105,10 +105,7 @@ def _identity_for_request(request: TransitionRequest) -> _TransactionIdentity:
     if mission_slug is None:
         raise TypeError("transactional status emit requires mission_slug")
 
-    try:
-        meta = load_meta(feature_dir)
-    except Exception:  # noqa: BLE001 -- legacy/corrupt meta degrades to legacy ids
-        meta = None
+    meta = load_meta(feature_dir)
 
     coord_branch: str | None = None
     mission_id: str | None = None
