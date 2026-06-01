@@ -190,6 +190,7 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # add the three entries below.  They are added here as a WP01 gap fix
         # so the WP05 architectural gate passes before lanes are merged.
         "specify_cli.upgrade.migrations.m_3_2_0rc28_github_diff_attributes",
+        "specify_cli.upgrade.migrations.m_3_2_0rc30_fix_runtime_next_result_default",
         "specify_cli.upgrade.migrations.m_3_2_7_activate_builtin_mission_types",
         # WP05 (charter-pack-activation-layer-01KSYE4V) migration added here.
         "specify_cli.upgrade.migrations.m_3_2_8_default_charter_pack",
