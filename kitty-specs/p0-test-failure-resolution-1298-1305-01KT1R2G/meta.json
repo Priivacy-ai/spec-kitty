@@ -1,4 +1,5 @@
 {
+  "baseline_merge_commit": "b02bd962c3af95e2a605a7072e2c7c46ae73898a",
   "coordination_branch": "kitty/mission-p0-test-failure-resolution-1298-1305-01KT1R2G",
   "created_at": "2026-06-01T14:05:47.386325+00:00",
   "friendly_name": "P0 Test Failure Resolution — Release Blockers 1298-1305",
