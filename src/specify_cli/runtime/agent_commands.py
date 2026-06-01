@@ -23,6 +23,7 @@ import logging
 import os
 from pathlib import Path
 
+from specify_cli.core.config import DEFAULT_MISSION_KEY
 from specify_cli.runtime.bootstrap import _get_cli_version, _lock_exclusive
 from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
 
@@ -30,7 +31,6 @@ logger = logging.getLogger(__name__)
 
 _VERSION_FILENAME = "agent-commands.lock"
 _LOCK_FILENAME = ".agent-commands.lock"
-_MISSION_NAME = "software-dev"
 _VERSION_MARKER_PREFIX = "<!-- spec-kitty-command-version:"
 _VERSION_MARKER_HEAD_LINES = 20
 
@@ -83,13 +83,13 @@ def _get_command_templates_dir() -> Path | None:
     """
     try:
         pkg_root = get_package_asset_root()
-        pkg_templates = pkg_root / _MISSION_NAME / "command-templates"
+        pkg_templates = pkg_root / DEFAULT_MISSION_KEY / "command-templates"
         if pkg_templates.is_dir():
             return pkg_templates
     except FileNotFoundError:
         pass
 
-    runtime_templates = get_kittify_home() / "missions" / _MISSION_NAME / "command-templates"
+    runtime_templates = get_kittify_home() / "missions" / DEFAULT_MISSION_KEY / "command-templates"
     if runtime_templates.is_dir():
         return runtime_templates
 
@@ -111,8 +111,6 @@ def _compute_output_filename(command: str, agent_key: str) -> str:
 
     ext: str = config["ext"]
     stem = command
-    if agent_key == "codex":
-        stem = stem.replace("-", "_")
     if ext:
         return f"spec-kitty.{stem}.{ext}"
     return f"spec-kitty.{stem}"

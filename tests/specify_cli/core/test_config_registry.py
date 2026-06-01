@@ -12,6 +12,7 @@ Asserts that after the WP04 edits:
 from __future__ import annotations
 
 
+from specify_cli.agent_utils.directories import AGENT_DIRS, AGENT_DIR_TO_KEY
 from specify_cli.core.config import (
     AI_CHOICES,
     AGENT_COMMAND_CONFIG,
@@ -90,6 +91,19 @@ def test_twelve_agents_still_in_command_config() -> None:
     }
     missing = expected - set(AGENT_COMMAND_CONFIG.keys())
     assert not missing, f"Missing from AGENT_COMMAND_CONFIG: {missing}"
+
+
+def test_command_agent_directory_registry_is_consistent() -> None:
+    """Command-layer directory roots, keys, and config rows must stay aligned."""
+    agent_dir_roots = {root for root, _ in AGENT_DIRS}
+    command_config_roots = {
+        config["dir"].split("/", 1)[0]
+        for config in AGENT_COMMAND_CONFIG.values()
+    }
+
+    assert agent_dir_roots == set(AGENT_DIR_TO_KEY)
+    assert set(AGENT_DIR_TO_KEY.values()) == set(AGENT_COMMAND_CONFIG)
+    assert command_config_roots == set(AGENT_DIR_TO_KEY)
 
 
 # ---------------------------------------------------------------------------
