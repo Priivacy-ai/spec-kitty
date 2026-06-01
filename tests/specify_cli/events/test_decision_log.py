@@ -26,12 +26,16 @@ from spec_kitty_events.mission_next import (
     NextStepIssuedPayload,
     RuntimeActorIdentity,
 )
+import pytest
+
 from specify_cli.events.decision_log import DecisionGitLog
 from specify_cli.next._internal_runtime.events import NullEmitter
 from specify_cli.next._internal_runtime.significance import (
     SignificanceEvaluatedPayload,
     TimeoutExpiredPayload,
 )
+
+pytestmark = [pytest.mark.unit]
 
 
 # ---------------------------------------------------------------------------
@@ -410,3 +414,61 @@ class TestDecisionsFilePath:
         log = _make_log(tmp_path, mission_slug="some-mission-01KT11")
         expected = tmp_path / "kitty-specs" / "some-mission-01KT11" / "decisions.events.jsonl"
         assert log._decisions_file == expected
+
+
+# ---------------------------------------------------------------------------
+# T011-I: mission_id in envelope uses ULID, not slug (RISK-2 fix)
+# ---------------------------------------------------------------------------
+
+
+class TestMissionIdInEnvelope:
+    """Verify that the ULID mission_id is written to event envelopes, not the slug."""
+
+    def _make_log_with_ulid(
+        self,
+        tmp_path: Path,
+        mission_slug: str = "my-feature-01KT119Y",
+        mission_id: str = "01KT119YA7GD2Y0D7MZRH5JSS3",
+    ) -> DecisionGitLog:
+        return DecisionGitLog(
+            repo_root=tmp_path,
+            worktree_root=tmp_path,
+            destination_ref="kitty/mission-my-feature-01KT119Y",
+            mission_slug=mission_slug,
+            inner=NullEmitter(),
+            mission_id=mission_id,
+        )
+
+    def test_ulid_written_to_envelope(self, tmp_path: Path) -> None:
+        """The envelope mission_id must be the ULID, not the human slug."""
+        ulid = "01KT119YA7GD2Y0D7MZRH5JSS3"
+        slug = "my-feature-01KT119Y"
+        log = self._make_log_with_ulid(tmp_path, mission_slug=slug, mission_id=ulid)
+
+        with patch("specify_cli.events.decision_log.safe_commit"):
+            log.emit_decision_input_requested(_requested_payload())
+
+        decisions_file = tmp_path / "kitty-specs" / slug / "decisions.events.jsonl"
+        lines = _read_lines(decisions_file)
+        assert lines[0]["mission_id"] == ulid, (
+            f"envelope must use ULID '{ulid}', got '{lines[0]['mission_id']}'"
+        )
+        assert lines[0]["mission_id"] != slug, "slug must not be used as mission_id"
+
+    def test_slug_fallback_when_no_mission_id(self, tmp_path: Path) -> None:
+        """When mission_id is not provided, mission_slug is used as fallback."""
+        slug = "fallback-slug-mission"
+        log = DecisionGitLog(
+            repo_root=tmp_path,
+            worktree_root=tmp_path,
+            destination_ref="kitty/mission-fallback-slug-mission",
+            mission_slug=slug,
+            inner=NullEmitter(),
+        )
+
+        with patch("specify_cli.events.decision_log.safe_commit"):
+            log.emit_decision_input_requested(_requested_payload())
+
+        decisions_file = tmp_path / "kitty-specs" / slug / "decisions.events.jsonl"
+        lines = _read_lines(decisions_file)
+        assert lines[0]["mission_id"] == slug

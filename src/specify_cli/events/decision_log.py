@@ -74,11 +74,14 @@ class DecisionGitLog:
         mission_slug: str,
         *,
         inner: RuntimeEventEmitter,
+        mission_id: str = "",
     ) -> None:
         self._repo_root = repo_root
         self._worktree_root = worktree_root
         self._destination_ref = destination_ref
         self._mission_slug = mission_slug
+        # Prefer the canonical ULID; fall back to slug for legacy callers.
+        self._mission_id = mission_id or mission_slug
         self._inner = inner
         self._decisions_file = (
             repo_root / "kitty-specs" / mission_slug / "decisions.events.jsonl"
@@ -153,7 +156,7 @@ class DecisionGitLog:
             "at": datetime.now(UTC).isoformat(),
             "event_id": _generate_event_id(),
             "event_type": event_type,
-            "mission_id": self._mission_slug,
+            "mission_id": self._mission_id,
             "payload": payload_dict,
         }
 

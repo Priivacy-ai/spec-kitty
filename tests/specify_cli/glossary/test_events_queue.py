@@ -16,6 +16,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from specify_cli.glossary.events import (
     emit_clarification_requested,
     emit_clarification_resolved,
@@ -29,6 +31,8 @@ from specify_cli.glossary.models import (
     Severity,
     TermSurface,
 )
+
+pytestmark = [pytest.mark.unit]
 
 
 # ---------------------------------------------------------------------------
@@ -309,3 +313,74 @@ class TestQueueIsolation:
 
         assert call_count_after_sense == 0, "GlossarySenseUpdated must not call _pkg_append_event"
         assert call_count_after_resolved == 1, "GlossaryClarificationResolved must call _pkg_append_event exactly once"
+
+
+# ---------------------------------------------------------------------------
+# T018-E: FR-021 — seed file write is deferred (Proposed, not Approved)
+# ---------------------------------------------------------------------------
+
+
+class TestFR021SeedWriteDeferred:
+    """Document FR-021 current behavior: seed file is NOT written synchronously.
+
+    FR-021 (Proposed — not Approved in delivery contract): "Immediately after a
+    GlossaryClarificationResolved event is emitted, the glossary seed file
+    (.kittify/glossaries/<scope>.yaml) is updated."
+
+    Current behavior: emit_clarification_resolved() queues the event to the SaaS
+    pipeline via _pkg_append_event. It does NOT synchronously write the seed file.
+    Seed file updates happen separately in the glossary pipeline (clarification.py
+    and downstream writers). This test pins that contract so a future FR-021
+    implementation does not silently change the queue-write behavior.
+
+    See: spec-kitty #1549, kitty-specs/event-architecture-cli-git-truth-01KT119Y/spec.md FR-021
+    """
+
+    def test_no_seed_file_written_by_emit(self, tmp_path: Path) -> None:
+        """emit_clarification_resolved must NOT write a seed file as a side effect."""
+        conflict = _make_conflict("workspace")
+        context = _make_context()
+        selected = _make_selected_sense()
+
+        seed_dir = tmp_path / ".kittify" / "glossaries"
+        seed_dir.mkdir(parents=True)
+
+        with patch("specify_cli.glossary.events.EVENTS_AVAILABLE", False):
+            emit_clarification_resolved(
+                conflict_id="conflict-fr021-001",
+                conflict=conflict,
+                selected_sense=selected,
+                context=context,
+                resolution_mode="interactive",
+                repo_root=tmp_path,
+            )
+
+        seed_files = list(seed_dir.glob("*.yaml"))
+        assert seed_files == [], (
+            "FR-021 seed write is deferred (Proposed, not Approved). "
+            "emit_clarification_resolved must not write seed files synchronously."
+        )
+
+    def test_queue_write_still_happens(self, tmp_path: Path) -> None:
+        """The SaaS queue write must occur even though the seed file is not written."""
+        conflict = _make_conflict("workspace")
+        context = _make_context()
+        selected = _make_selected_sense()
+
+        fake_cls = MagicMock(return_value=object())
+
+        with (
+            patch("specify_cli.glossary.events.EVENTS_AVAILABLE", True),
+            patch("specify_cli.glossary.events._pkg_append_event") as mock_queue,
+            patch("specify_cli.glossary.events._CanonicGlossaryClarificationResolved", fake_cls),
+        ):
+            emit_clarification_resolved(
+                conflict_id="conflict-fr021-002",
+                conflict=conflict,
+                selected_sense=selected,
+                context=context,
+                resolution_mode="interactive",
+                repo_root=tmp_path,
+            )
+
+        mock_queue.assert_called_once()

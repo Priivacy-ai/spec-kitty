@@ -79,6 +79,24 @@ def _resolve_coordination_branch(mission_slug: str, repo_root: Path) -> str:
     return f"kitty/mission-{mission_slug}"
 
 
+def _resolve_mission_ulid(mission_slug: str, repo_root: Path) -> str:
+    """Read the canonical ULID mission_id from meta.json.
+
+    Returns the ULID string when present, or the slug as a fallback so that
+    callers always receive a non-empty identifier.
+    """
+    meta_path = repo_root / "kitty-specs" / mission_slug / "meta.json"
+    if meta_path.exists():
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            meta = {}
+        mission_id = meta.get("mission_id") if isinstance(meta, dict) else None
+        if isinstance(mission_id, str) and mission_id.strip():
+            return mission_id.strip()
+    return mission_slug
+
+
 def _wrap_with_decision_git_log(
     emitter: SyncRuntimeEventEmitter,
     mission_slug: str,
@@ -94,12 +112,14 @@ def _wrap_with_decision_git_log(
         from specify_cli.events.decision_log import DecisionGitLog
 
         coordination_branch = _resolve_coordination_branch(mission_slug, repo_root)
+        mission_id = _resolve_mission_ulid(mission_slug, repo_root)
         return DecisionGitLog(
             repo_root=repo_root,
             worktree_root=repo_root,
             destination_ref=coordination_branch,
             mission_slug=mission_slug,
             inner=emitter,
+            mission_id=mission_id,
         )
     except Exception:
         logger.warning(

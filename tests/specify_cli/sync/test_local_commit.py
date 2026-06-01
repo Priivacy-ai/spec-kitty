@@ -20,6 +20,8 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 from specify_cli.sync.local_commit import (
     SyncState,
     emit_local_commit,
@@ -28,6 +30,8 @@ from specify_cli.sync.local_commit import (
     record_local_commit_ack,
     save_sync_state,
 )
+
+pytestmark = [pytest.mark.unit]
 
 # ---------------------------------------------------------------------------
 # Helpers
