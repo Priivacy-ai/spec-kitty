@@ -27,7 +27,7 @@ Use policy docs to answer "what should this mean?" and runtime artifacts to answ
 | Execution | CLI/tool invocation, generation boundaries, and collaboration modes. | `glossary/contexts/execution.md` |
 | Identity | Actors, roles, mission participation, and Human-in-Charge (HiC). | `glossary/contexts/identity.md` |
 | Lexical | Glossary internal data model — term surfaces, senses, provenance. | `glossary/contexts/lexical.md` |
-| Orchestration | Project/mission/feature/work-package lifecycle and runtime terms. | `glossary/contexts/orchestration.md` |
+| Orchestration | Project/mission/feature/work-package lifecycle and runtime terms. Includes **Decision**, **Decision Input Request**, and **Decision Input Answer** — see disambiguation note in that file and in the SaaS `architecture/domain-glossary.md`. | `glossary/contexts/orchestration.md` |
 | Governance | Charter/ADR/policy precedence and rules. | `glossary/contexts/governance.md` |
 | Doctrine | Doctrine domain model and artifact taxonomy. | `glossary/contexts/doctrine.md` |
 | System Events | Event envelope, replay, glossary evolution, and system event types. | `glossary/contexts/system-events.md` |
