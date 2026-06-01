@@ -95,3 +95,4 @@ Turn `build_operational_context()` from an all-None stub into a **pure explicit-
 
 - 2026-06-01T17:29:16Z – claude:opus:python-pedro:implementer – shell_pid=1545161 – Assigned agent via action command
 - 2026-06-01T20:54:33Z – claude:opus:python-pedro:implementer – shell_pid=1655372 – Assigned agent via action command
+- 2026-06-01T20:56:45Z – claude:opus:python-pedro:implementer – shell_pid=1655372 – WP13 recovered: OperationalContext assembler + guards; 15 tests green
