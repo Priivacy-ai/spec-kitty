@@ -18,8 +18,8 @@ subtasks:
 - T003
 - T004
 phase: Phase 1 - Foundation
-agent: claude
-shell_pid: '52951'
+agent: "claude:sonnet:reviewer:reviewer"
+shell_pid: "67940"
 history:
 - at: '2026-05-28T07:11:05Z'
   actor: system
@@ -164,3 +164,6 @@ Expected output: `Glossary OK: 3 new entries present with correct statuses.`
 ## Activity Log
 
 - 2026-06-01T07:36:37Z – claude – shell_pid=52951 – Ready for review
+- 2026-06-01T07:39:59Z – claude:sonnet:reviewer:reviewer – shell_pid=27127 – Started review via action command
+- 2026-06-01T07:42:18Z – claude:sonnet:reviewer:reviewer – shell_pid=53636 – Started review via action command
+- 2026-06-01T07:43:24Z – claude:sonnet:reviewer:reviewer – shell_pid=67940 – Started review via action command

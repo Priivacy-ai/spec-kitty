@@ -1,7 +1,7 @@
 {
-  "event_count": 21,
-  "last_event_id": "01KT11V0QTAY5K5J5MZENMM1ZD",
-  "materialized_at": "2026-06-01T07:37:12.698544+00:00",
+  "event_count": 24,
+  "last_event_id": "01KT126BD0M3VWYJYMF6G0GV6P",
+  "materialized_at": "2026-06-01T07:43:24.064939+00:00",
   "mission_number": "",
   "mission_slug": "rename-ceremony-to-status-commit-01KSPN6C",
   "mission_type": "software-dev",
@@ -11,32 +11,32 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 3,
-    "in_progress": 2,
-    "in_review": 0,
+    "for_review": 4,
+    "in_progress": 0,
+    "in_review": 1,
     "planned": 1
   },
   "work_packages": {
     "WP01": {
-      "actor": "user",
+      "actor": "claude:sonnet:reviewer:reviewer",
       "force_count": 2,
-      "lane": "for_review",
-      "last_event_id": "01KT11SYPEER56MJ3ZD42HP2JP",
-      "last_transition_at": "2026-06-01T07:36:37.838848+00:00"
+      "lane": "in_review",
+      "last_event_id": "01KT126BD0M3VWYJYMF6G0GV6P",
+      "last_transition_at": "2026-06-01T07:43:24.064939+00:00"
     },
     "WP02": {
-      "actor": "implement-command",
+      "actor": "user",
       "force_count": 1,
-      "lane": "in_progress",
-      "last_event_id": "01KT11NEZ1TG4D891ZE64X4Y7J",
-      "last_transition_at": "2026-06-01T07:34:10.656870+00:00"
+      "lane": "for_review",
+      "last_event_id": "01KT11X07N43HM8E7713ACF188",
+      "last_transition_at": "2026-06-01T07:38:17.717542+00:00"
     },
     "WP03": {
-      "actor": "implement-command",
+      "actor": "user",
       "force_count": 1,
-      "lane": "in_progress",
-      "last_event_id": "01KT11NP30Z4T6S5V74PSGTGVQ",
-      "last_transition_at": "2026-06-01T07:34:17.952597+00:00"
+      "lane": "for_review",
+      "last_event_id": "01KT11WEVM70858VRQKZTTG5NZ",
+      "last_transition_at": "2026-06-01T07:37:59.924600+00:00"
     },
     "WP04": {
       "actor": "user",
