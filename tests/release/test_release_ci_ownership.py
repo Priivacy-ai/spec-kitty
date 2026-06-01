@@ -129,3 +129,24 @@ def test_quality_gate_fails_closed_for_release_required_package_jobs() -> None:
     assert 'if [ "$result" != "success" ]; then' in script
     for job_name in release_required - {"changes"}:
         assert f"needs.{job_name}.result" in script
+
+
+def test_publish_release_requires_canary_verification_artifact() -> None:
+    workflow = load_workflow("release.yml")
+    jobs = workflow["jobs"]
+
+    assert "canary-verify" in jobs
+    publish = jobs["publish-pypi"]
+    assert "canary-verify" in publish["needs"]
+
+    canary_job_dump = repr(jobs["canary-verify"])
+    assert "SPEC_KITTY_CANARY_VERIFICATION_JSON" in canary_job_dump
+    assert "check_canary_verification.py" in canary_job_dump
+    assert "--required-clean-runs 4" in canary_job_dump
+    assert "canary-verified" in canary_job_dump
+
+    publish_dump = repr(publish)
+    assert "actions/checkout" in publish_dump
+    assert "Download canary verification artifact" in publish_dump
+    assert "Verify canary-verify produced an acceptable artifact" in publish_dump
+    assert "check_canary_verification.py" in publish_dump
