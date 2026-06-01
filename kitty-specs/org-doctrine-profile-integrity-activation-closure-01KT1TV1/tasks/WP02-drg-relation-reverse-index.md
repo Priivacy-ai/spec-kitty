@@ -17,8 +17,8 @@ subtasks:
 - T006
 - T007
 - T008
-agent: claude:opus:python-pedro:implementer
-shell_pid: '1686757'
+agent: "claude:opus:python-pedro:implementer"
+shell_pid: "1687431"
 history:
 - at: '2026-06-01T16:49:18Z'
   actor: claude
@@ -115,3 +115,4 @@ Add the `specializes_from` relation (FR-001) as a first-class DRG relation disti
 - 2026-06-01T19:09:32Z – claude:opus:python-pedro:implementer – shell_pid=1545161 – reset after test
 - 2026-06-01T20:49:07Z – claude:opus:python-pedro:implementer – shell_pid=1545161 – facet3 fix e2e test
 - 2026-06-01T20:49:37Z – claude:opus:python-pedro:implementer – shell_pid=1545161 – reset
+- 2026-06-01T22:53:19Z – claude:opus:python-pedro:implementer – shell_pid=1687431 – Assigned agent via action command
