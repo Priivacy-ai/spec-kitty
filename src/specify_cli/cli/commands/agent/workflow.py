@@ -753,8 +753,19 @@ def _is_missing_canonical_status_error(exc: BaseException) -> bool:
     return _CANONICAL_STATUS_NOT_FOUND in str(exc).lower()
 
 
-def _missing_canonical_status_message(wp_id: str, mission_slug: str) -> str:
-    """Return a consistent hard-fail message for missing canonical status."""
+def _missing_canonical_status_message(
+    wp_id: str, mission_slug: str, feature_dir: Path | None = None
+) -> str:
+    """Return a consistent hard-fail message for missing canonical status.
+
+    When *feature_dir* is provided, surface an unresolved WP dependency cycle as
+    the actionable root cause (#1589) instead of a "run finalize-tasks" hint that
+    loops while the cycle keeps aborting finalize.
+    """
+    if feature_dir is not None:
+        from specify_cli.status.uninitialized_hint import uninitialized_status_error
+
+        return uninitialized_status_error(mission_slug, wp_id, feature_dir)
     return f"WP {wp_id} has no canonical status. Run `spec-kitty agent mission finalize-tasks --mission {mission_slug}` to initialize."
 
 
@@ -1173,7 +1184,7 @@ def implement(
         _wf_snapshot = _wf_reduce(_wf_events) if _wf_events else None
         _wf_has_canonical = _wf_snapshot is not None and normalized_wp_id in _wf_snapshot.work_packages
         if not _wf_has_canonical:
-            raise RuntimeError(_missing_canonical_status_message(normalized_wp_id, mission_slug))
+            raise RuntimeError(_missing_canonical_status_message(normalized_wp_id, mission_slug, _wf_feature_dir))
         current_lane = _wf_get_wp_lane(_wf_feature_dir, normalized_wp_id)
         needs_agent_assignment = _wp_agent_assignment.tool == "unknown"
         feature_dir = main_repo_root / "kitty-specs" / mission_slug
@@ -1935,7 +1946,7 @@ def review(
         _rv_snapshot = _rv_reduce(_rv_events) if _rv_events else None
         _rv_has_canonical = _rv_snapshot is not None and normalized_wp_id in _rv_snapshot.work_packages
         if not _rv_has_canonical:
-            raise RuntimeError(_missing_canonical_status_message(normalized_wp_id, mission_slug))
+            raise RuntimeError(_missing_canonical_status_message(normalized_wp_id, mission_slug, feature_dir))
         current_lane = _rv_get_wp_lane(feature_dir, normalized_wp_id)
         review_workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)
         status_execution_mode = "direct_repo" if review_workspace.resolution_kind == "repo_root" else "worktree"

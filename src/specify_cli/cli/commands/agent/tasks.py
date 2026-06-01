@@ -1835,10 +1835,16 @@ def move_task(
                     current_event_lane = str(existing_event.to_lane)
                     break
             if current_event_lane is None:
-                # No canonical state for this WP — finalize-tasks must be run first
+                # No canonical state for this WP — finalize-tasks must be run
+                # first. If an unresolved dependency cycle is the reason finalize
+                # could not bootstrap status, surface that as the root cause
+                # (#1589) instead of a "run finalize-tasks" hint that loops.
+                from specify_cli.status.uninitialized_hint import (
+                    uninitialized_status_error,
+                )
+
                 raise RuntimeError(
-                    f"WP {task_id} has no canonical status in feature {mission_slug}. "
-                    f"Run `spec-kitty agent tasks finalize-tasks --mission {mission_slug}` to initialize."
+                    uninitialized_status_error(mission_slug, task_id, feature_dir)
                 )
 
             for target in transition_targets:
