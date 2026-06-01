@@ -1,7 +1,7 @@
 {
-  "event_count": 25,
-  "last_event_id": "01KT24KSN1NMWRNZ64A66T5HYS",
-  "materialized_at": "2026-06-01T17:44:56.225326+00:00",
+  "event_count": 28,
+  "last_event_id": "01KT24W5C38EW8KERA2K6D0Q03",
+  "materialized_at": "2026-06-01T17:49:30.371119+00:00",
   "mission_number": "",
   "mission_slug": "p0-test-failure-resolution-1298-1305-01KT1R2G",
   "mission_type": "software-dev",
@@ -11,10 +11,10 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
+    "for_review": 1,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 2
+    "planned": 1
   },
   "work_packages": {
     "WP01": {
@@ -46,11 +46,11 @@
       "last_transition_at": "2026-06-01T17:44:56.225326+00:00"
     },
     "WP05": {
-      "actor": "finalize-tasks",
-      "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KT1W5JKYMRFD3PJ6Y7FDA783",
-      "last_transition_at": "2026-06-01T15:17:21.662182+00:00"
+      "actor": "user",
+      "force_count": 2,
+      "lane": "for_review",
+      "last_event_id": "01KT24W5C38EW8KERA2K6D0Q03",
+      "last_transition_at": "2026-06-01T17:49:30.371119+00:00"
     },
     "WP06": {
       "actor": "finalize-tasks",

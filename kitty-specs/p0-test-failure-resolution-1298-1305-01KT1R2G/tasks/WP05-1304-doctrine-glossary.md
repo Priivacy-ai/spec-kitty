@@ -254,3 +254,8 @@ spec-kitty agent action implement WP05 --agent claude
 - **Anchor format ambiguity**: If the glossary context files use a non-obvious anchor format, read several existing files before adding new entries.
 - **Tactic ref targets may not exist**: If the refs in `five-paradigm-parallel-debugging` point to terms that were genuinely removed, decide whether to remove the ref (simplest) or recreate the term (only if it's clearly needed). Default to removing the ref.
 - **New anchor creates unexpected failures**: Adding an anchor may cause other tests to discover it — run the full doctrine suite to check.
+
+## Activity Log
+
+- 2026-06-01T17:46:14Z – claude – WP05 claimed by claude (lane-d worktree created)
+- 2026-06-01T17:49:30Z – claude – Ready for review (cycle 1/3). WP05 is stale — all #1304 doctrine tests pass pre-implementation. FR-007 guards confirmed active. FR-008 results appended to docs/p0-baseline-refresh.md.
