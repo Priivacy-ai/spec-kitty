@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0rc33] - 2026-06-01
+
+### Changed
+
+- Tag-time PyPI publishing now stays focused on release-local checks. Live
+  canary evidence and the cross-repo end-to-end consumer scenario are no longer
+  blocking jobs in `.github/workflows/release.yml`; operators can still run
+  those suites locally before cutting a release.
+- Release metadata now aligns `.kittify/metadata.yaml` with `pyproject.toml`
+  for `3.2.0rc33`.
+
+## [Unreleased - rc32 follow-ups]
+
 ### Added
 
 - Charter governance references: `governance_references` declarations in `charter.md`
