@@ -270,3 +270,8 @@ spec-kitty agent action implement WP03 --agent claude
 
 - **T011/T012 require source changes**: If the source behavior genuinely changed, the fix may be non-trivial. In that case, prefer fixing the source to match the test's documented intent, not the other way around.
 - **Scope creep**: Stay within `tests/contract/`, `tests/sync/`, and `src/specify_cli/sync/`. Do not touch `tests/next/`, `tests/doctrine/`, or `tests/charter/`.
+
+## Activity Log
+
+- 2026-06-01T17:23:16Z – claude – Starting WP03 implementation: contract fixtures and sync lifecycle
+- 2026-06-01T17:31:31Z – claude – Ready for review (cycle 1/3). All target tests pass after WP02 fix. FR-007 guard documented. FR-008 results appended to docs/p0-baseline-refresh.md. 1951 passed, 0 failed.

@@ -104,11 +104,11 @@ Start with `pip show spec-kitty-events` or `uv pip show spec-kitty-events` to in
 
 #### Subtasks
 
-- [ ] T009 Update `WPCreated` contract fixture payload to include `actor` + `wp_title` fields (WP03)
-- [ ] T010 Add `# pydantic_model:` frontmatter to YAML codeblock in `check_docs_freshness.md` (WP03)
-- [ ] T011 Fix `test_init_emits_project_init_event_offline` (sync lifecycle offline mode) (WP03)
-- [ ] T012 Fix `test_event_queued_when_no_websocket` (offline queue tracker origin) (WP03)
-- [ ] T013 Run full #1301 targeted test slice and broader sync/contract suite (WP03)
+- [x] T009 Update `WPCreated` contract fixture payload to include `actor` + `wp_title` fields (WP03)
+- [x] T010 Add `# pydantic_model:` frontmatter to YAML codeblock in `check_docs_freshness.md` (WP03)
+- [x] T011 Fix `test_init_emits_project_init_event_offline` (sync lifecycle offline mode) (WP03)
+- [x] T012 Fix `test_event_queued_when_no_websocket` (offline queue tracker origin) (WP03)
+- [x] T013 Run full #1301 targeted test slice and broader sync/contract suite (WP03)
 
 #### Implementation Notes
 
