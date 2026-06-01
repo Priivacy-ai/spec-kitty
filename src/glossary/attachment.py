@@ -39,13 +39,13 @@ from pathlib import Path
 from typing import Any
 from collections.abc import Callable
 
-from specify_cli.glossary.exceptions import (
+from glossary.exceptions import (
     AbortResume,
     BlockedByConflict,
     DeferredToAsync,
 )
-from specify_cli.glossary.pipeline import create_standard_pipeline
-from specify_cli.glossary.strictness import Strictness
+from glossary.pipeline import create_standard_pipeline
+from glossary.strictness import Strictness
 
 logger = logging.getLogger(__name__)
 

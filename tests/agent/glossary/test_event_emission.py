@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 
 import pytest
 
-from specify_cli.glossary.events import (
+from glossary.events import (
     EVENTS_AVAILABLE,
     _local_append_event,
     _persist_event,
@@ -49,16 +49,16 @@ from specify_cli.glossary.events import (
     read_events,
     _sanitize_mission_id,
 )
-from specify_cli.glossary.extraction import ExtractedTerm
-from specify_cli.glossary.models import (
+from glossary.extraction import ExtractedTerm
+from glossary.models import (
     ConflictType,
     SemanticConflict,
     SenseRef,
     Severity,
     TermSurface,
 )
-from specify_cli.glossary.scope import GlossaryScope
-from specify_cli.glossary.strictness import Strictness
+from glossary.scope import GlossaryScope
+from glossary.strictness import Strictness
 
 pytestmark = pytest.mark.fast
 # ---------------------------------------------------------------------------
@@ -724,7 +724,7 @@ class TestStepCheckpointedEmission:
 
     def test_emits_checkpoint_event(self, tmp_path):
         """StepCheckpointed emitted with correct fields."""
-        from specify_cli.glossary.checkpoint import create_checkpoint, ScopeRef
+        from glossary.checkpoint import create_checkpoint, ScopeRef
 
         checkpoint = create_checkpoint(
             mission_id="041-mission",
@@ -744,7 +744,7 @@ class TestStepCheckpointedEmission:
 
     def test_logs_only_without_project_root(self):
         """Without project_root, checkpoint is logged but not persisted."""
-        from specify_cli.glossary.checkpoint import create_checkpoint
+        from glossary.checkpoint import create_checkpoint
 
         checkpoint = create_checkpoint(
             mission_id="m",
@@ -964,12 +964,12 @@ class TestClarificationMiddlewareEmitsEvents:
 
     def test_deferred_emits_clarification_requested(self, tmp_path, mock_context, sample_conflict):
         """ClarificationMiddleware emits GlossaryClarificationRequested when deferring."""
-        from specify_cli.glossary.clarification import ClarificationMiddleware
+        from glossary.clarification import ClarificationMiddleware
 
         mock_context.conflicts = [sample_conflict]
 
         # Patch at the events module level (clarification.py uses local imports)
-        with patch("specify_cli.glossary.events.emit_clarification_requested") as mock_emit:
+        with patch("glossary.events.emit_clarification_requested") as mock_emit:
             mock_emit.return_value = {"event_type": "GlossaryClarificationRequested"}
             middleware = ClarificationMiddleware(repo_root=tmp_path)
             middleware.process(mock_context)
@@ -980,7 +980,7 @@ class TestClarificationMiddlewareEmitsEvents:
 
     def test_select_emits_clarification_resolved(self, tmp_path, mock_context, sample_conflict):
         """ClarificationMiddleware emits GlossaryClarificationResolved on selection."""
-        from specify_cli.glossary.clarification import ClarificationMiddleware
+        from glossary.clarification import ClarificationMiddleware
 
         mock_context.conflicts = [sample_conflict]
 
@@ -991,8 +991,8 @@ class TestClarificationMiddlewareEmitsEvents:
 
         # Patch at the events module level (clarification.py uses local imports)
         with (
-            patch("specify_cli.glossary.events.emit_clarification_requested") as mock_requested,
-            patch("specify_cli.glossary.events.emit_clarification_resolved") as mock_emit,
+            patch("glossary.events.emit_clarification_requested") as mock_requested,
+            patch("glossary.events.emit_clarification_resolved") as mock_emit,
         ):
             mock_requested.return_value = {"event_type": "GlossaryClarificationRequested"}
             mock_emit.return_value = {"event_type": "GlossaryClarificationResolved"}
@@ -1006,7 +1006,7 @@ class TestClarificationMiddlewareEmitsEvents:
 
     def test_custom_sense_emits_sense_updated(self, tmp_path, mock_context, sample_conflict):
         """ClarificationMiddleware emits GlossarySenseUpdated on custom definition."""
-        from specify_cli.glossary.clarification import ClarificationMiddleware
+        from glossary.clarification import ClarificationMiddleware
 
         mock_context.conflicts = [sample_conflict]
 
@@ -1016,7 +1016,7 @@ class TestClarificationMiddlewareEmitsEvents:
         middleware = ClarificationMiddleware(repo_root=tmp_path, prompt_fn=fake_prompt)
 
         # Patch at the events module level (clarification.py uses local imports)
-        with patch("specify_cli.glossary.events.emit_sense_updated") as mock_emit:
+        with patch("glossary.events.emit_sense_updated") as mock_emit:
             mock_emit.return_value = {"event_type": "GlossarySenseUpdated"}
             middleware.process(mock_context)
             mock_emit.assert_called_once()
@@ -1027,8 +1027,8 @@ class TestClarificationMiddlewareEmitsEvents:
 
     def test_custom_sense_updates_store_for_same_run_resolution(self, tmp_path, mock_context, sample_conflict):
         """Custom sense updates are immediately visible to subsequent lookups."""
-        from specify_cli.glossary.clarification import ClarificationMiddleware
-        from specify_cli.glossary.store import GlossaryStore
+        from glossary.clarification import ClarificationMiddleware
+        from glossary.store import GlossaryStore
 
         mock_context.conflicts = [sample_conflict]
 
@@ -1042,7 +1042,7 @@ class TestClarificationMiddlewareEmitsEvents:
             glossary_store=store,
         )
 
-        with patch("specify_cli.glossary.events.emit_sense_updated") as mock_emit:
+        with patch("glossary.events.emit_sense_updated") as mock_emit:
             mock_emit.return_value = {"event_type": "GlossarySenseUpdated"}
             middleware.process(mock_context)
 
@@ -1051,7 +1051,7 @@ class TestClarificationMiddlewareEmitsEvents:
 
     def test_middleware_removes_resolved_conflicts(self, tmp_path, mock_context, sample_conflict):
         """Resolved conflicts are removed from context.conflicts."""
-        from specify_cli.glossary.clarification import ClarificationMiddleware
+        from glossary.clarification import ClarificationMiddleware
 
         mock_context.conflicts = [sample_conflict]
 
@@ -1066,7 +1066,7 @@ class TestClarificationMiddlewareEmitsEvents:
 
     def test_no_conflicts_returns_context_unchanged(self, tmp_path, mock_context):
         """No conflicts means no events emitted."""
-        from specify_cli.glossary.clarification import ClarificationMiddleware
+        from glossary.clarification import ClarificationMiddleware
 
         mock_context.conflicts = []
         middleware = ClarificationMiddleware(repo_root=tmp_path)
@@ -1084,10 +1084,10 @@ class TestScopeActivationEmitsEvent:
 
     def test_activate_scope_calls_emit_scope_activated(self, tmp_path):
         """activate_scope() calls emit_scope_activated with correct params."""
-        from specify_cli.glossary.scope import activate_scope, GlossaryScope
+        from glossary.scope import activate_scope, GlossaryScope
 
         # Patch at events module level (scope.py uses local import inside activate_scope)
-        with patch("specify_cli.glossary.events.emit_scope_activated") as mock_emit:
+        with patch("glossary.events.emit_scope_activated") as mock_emit:
             mock_emit.return_value = {"event_type": "GlossaryScopeActivated"}
             activate_scope(
                 scope=GlossaryScope.TEAM_DOMAIN,
@@ -1106,10 +1106,10 @@ class TestScopeActivationEmitsEvent:
 
     def test_activate_scope_no_repo_root(self):
         """activate_scope() works without repo_root (log only)."""
-        from specify_cli.glossary.scope import activate_scope, GlossaryScope
+        from glossary.scope import activate_scope, GlossaryScope
 
         # Patch at events module level (scope.py uses local import inside activate_scope)
-        with patch("specify_cli.glossary.events.emit_scope_activated") as mock_emit:
+        with patch("glossary.events.emit_scope_activated") as mock_emit:
             mock_emit.return_value = {"event_type": "GlossaryScopeActivated"}
             activate_scope(
                 scope=GlossaryScope.MISSION_LOCAL,
@@ -1150,7 +1150,7 @@ class TestCanonicalEventContracts:
 
     def test_append_event_delegates_when_available(self):
         """When EVENTS_AVAILABLE is True, append_event delegates to _pkg_append_event."""
-        import specify_cli.glossary.events as events_mod
+        import glossary.events as events_mod
 
         # Simulate EVENTS_AVAILABLE = True by temporarily adding _pkg_append_event
         mock_pkg_append = MagicMock()
@@ -1165,7 +1165,7 @@ class TestCanonicalEventContracts:
 
     def test_append_event_writes_disk_when_unavailable(self, tmp_path):
         """When EVENTS_AVAILABLE is False, append_event falls back to local JSONL."""
-        import specify_cli.glossary.events as events_mod
+        import glossary.events as events_mod
 
         with patch.object(events_mod, "EVENTS_AVAILABLE", False):
             log_path = tmp_path / "test.jsonl"
@@ -1174,7 +1174,7 @@ class TestCanonicalEventContracts:
 
     def test_persist_event_instantiates_canonical_class_when_available(self, tmp_path):
         """_persist_event creates a canonical class INSTANCE and passes it to _pkg_append_event."""
-        import specify_cli.glossary.events as events_mod
+        import glossary.events as events_mod
 
         mock_pkg_append = MagicMock()
         mock_canonical_cls = MagicMock()
@@ -1206,7 +1206,7 @@ class TestCanonicalEventContracts:
 
     def test_emit_term_creates_canonical_instance_when_available(self, tmp_path, sample_extracted_term, mock_context):
         """emit_term_candidate_observed uses _CanonicTermCandidateObserved when available."""
-        import specify_cli.glossary.events as events_mod
+        import glossary.events as events_mod
 
         mock_pkg_append = MagicMock()
         mock_canonical_cls = MagicMock()
@@ -1234,7 +1234,7 @@ class TestCanonicalEventContracts:
 
     def test_emit_blocked_creates_canonical_instance_when_available(self, tmp_path, sample_conflict):
         """emit_generation_blocked_event uses _CanonicGenerationBlockedBySemanticConflict."""
-        import specify_cli.glossary.events as events_mod
+        import glossary.events as events_mod
 
         mock_pkg_append = MagicMock()
         mock_canonical_cls = MagicMock()
@@ -1262,7 +1262,7 @@ class TestCanonicalEventContracts:
 
     def test_emit_scope_creates_canonical_instance_when_available(self, tmp_path):
         """emit_scope_activated uses _CanonicGlossaryScopeActivated."""
-        import specify_cli.glossary.events as events_mod
+        import glossary.events as events_mod
 
         mock_pkg_append = MagicMock()
         mock_canonical_cls = MagicMock()
@@ -1289,7 +1289,7 @@ class TestCanonicalEventContracts:
 
     def test_canonical_import_path_correct(self):
         """The import path for canonical classes is spec_kitty_events.glossary.events."""
-        import specify_cli.glossary.events as mod
+        import glossary.events as mod
 
         assert hasattr(mod, "EVENTS_AVAILABLE")
         assert mod.EVENTS_AVAILABLE is False
@@ -1305,7 +1305,7 @@ class TestMiddlewareEventIntegration:
 
     def test_extraction_middleware_emits_events(self, tmp_path):
         """GlossaryCandidateExtractionMiddleware emits TermCandidateObserved."""
-        from specify_cli.glossary.middleware import (
+        from glossary.middleware import (
             GlossaryCandidateExtractionMiddleware,
             MockContext,
         )
@@ -1331,8 +1331,8 @@ class TestMiddlewareEventIntegration:
 
     def test_generation_gate_emits_blocked_event(self, tmp_path, sample_conflict):
         """GenerationGateMiddleware raises BlockedByConflict."""
-        from specify_cli.glossary.middleware import GenerationGateMiddleware
-        from specify_cli.glossary.exceptions import BlockedByConflict
+        from glossary.middleware import GenerationGateMiddleware
+        from glossary.exceptions import BlockedByConflict
 
         context = MockContext(
             step_id="step-001",
@@ -1361,7 +1361,7 @@ class TestAll8EventTypes:
 
     def test_all_8_event_types_have_emitters(self):
         """All 8 event types have corresponding emit_* functions."""
-        from specify_cli.glossary import events
+        from glossary import events
 
         assert callable(events.emit_scope_activated)
         assert callable(events.emit_term_candidate_observed)
@@ -1376,7 +1376,7 @@ class TestAll8EventTypes:
         self, tmp_path, mock_context, sample_conflict, sample_extracted_term
     ):
         """Each emitter returns dict with correct event_type field."""
-        from specify_cli.glossary.checkpoint import create_checkpoint
+        from glossary.checkpoint import create_checkpoint
 
         events_returned = {}
 
@@ -1488,7 +1488,7 @@ class TestEventEmissionErrorHandling:
 
     def test_emission_error_when_available_falls_back_local(self, mock_context, sample_extracted_term, tmp_path):
         """When canonical persistence fails, local JSONL fallback still returns an event."""
-        import specify_cli.glossary.events as events_mod
+        import glossary.events as events_mod
 
 
         mock_pkg_append = MagicMock(side_effect=OSError("disk full"))

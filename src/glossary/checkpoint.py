@@ -26,8 +26,8 @@ from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
-from specify_cli.glossary.scope import GlossaryScope
-from specify_cli.glossary.strictness import Strictness
+from glossary.scope import GlossaryScope
+from glossary.strictness import Strictness
 
 logger = logging.getLogger(__name__)
 

@@ -94,17 +94,20 @@ runtime_mission_execution:
 glossary:
   canonical_package: src/glossary/
   current_state:
-    - src/specify_cli/glossary/
+    - src/glossary/
   adapter_responsibilities:
     - src/specify_cli/cli/commands/glossary.py — CLI argument parsing and Rich rendering for spec-kitty glossary commands
-  shims: []
+  shims:
+    - path: src/specify_cli/glossary/__init__.py
+      canonical_import: glossary
+      removal_release: "3.3.0"
   seams:
     - Doctrine registers a glossary runner via kernel.glossary_runner.register(); runtime reads via get_runner() (ADR 2026-03-25-1)
     - Runtime reads canonical terminology via glossary.store to validate Work Package and Mission naming
   extraction_sequencing_notes: >
-    Target for mission #613. Depends on the architectural-tests acceptance criteria in
-    #613 and the deprecation scaffolding in #615 landing first. Import-graph tooling
-    (an AC in #612) is nice-to-have, not blocking, for the glossary slice.
+    Extracted by mission #613. Keep the specify_cli.glossary shim registered until
+    its removal target. Import-graph tooling (an AC in #612) remains nice-to-have,
+    not blocking, for the glossary slice.
 
 lifecycle_status:
   canonical_package: src/lifecycle/

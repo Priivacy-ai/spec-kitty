@@ -33,7 +33,7 @@ Usage — consumer (doctrine)::
 Usage — provider (specify_cli)::
 
     from kernel.glossary_runner import register
-    from specify_cli.glossary.attachment import GlossaryAwarePrimitiveRunner
+    from glossary.attachment import GlossaryAwarePrimitiveRunner
 
     register(GlossaryAwarePrimitiveRunner)
 """

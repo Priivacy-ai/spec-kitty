@@ -14,7 +14,7 @@ It flows through the glossary middleware pipeline, accumulating state
 """
 
 from doctrine.missions.primitives import PrimitiveExecutionContext
-from specify_cli.glossary.strictness import Strictness
+from glossary.strictness import Strictness
 import pytest
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
@@ -83,7 +83,7 @@ class TestGlossaryEnablementContract:
 class TestStrictnessResolution:
     """Verify strictness extraction from config and metadata.
 
-    Strictness levels (from specify_cli.glossary.strictness):
+    Strictness levels (from glossary.strictness):
     - OFF: No validation (development mode)
     - MEDIUM: Warn on conflicts (default production)
     - MAX: Block on unresolved conflicts (strict production)

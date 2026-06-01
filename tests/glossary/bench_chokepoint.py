@@ -26,11 +26,11 @@ import sys
 _REPO_ROOT = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(_REPO_ROOT / "src"))
 
-from specify_cli.glossary.chokepoint import DEFAULT_APPLICABLE_SCOPES, GlossaryChokepoint  # noqa: E402
-from specify_cli.glossary.drg_builder import build_index  # noqa: E402
-from specify_cli.glossary.models import Provenance, SenseStatus, TermSense, TermSurface  # noqa: E402
-from specify_cli.glossary.scope import GlossaryScope  # noqa: E402
-from specify_cli.glossary.store import GlossaryStore  # noqa: E402
+from glossary.chokepoint import DEFAULT_APPLICABLE_SCOPES, GlossaryChokepoint  # noqa: E402
+from glossary.drg_builder import build_index  # noqa: E402
+from glossary.models import Provenance, SenseStatus, TermSense, TermSurface  # noqa: E402
+from glossary.scope import GlossaryScope  # noqa: E402
+from glossary.store import GlossaryStore  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Synthetic index: 500 unique lower-case terms
@@ -52,7 +52,7 @@ while len(_TERMS) < 500:
         _TERMS.append(word)
 
 
-def _build_synthetic_index() -> "GlossaryChokepoint":
+def _build_synthetic_index() -> GlossaryChokepoint:
     """Return a chokepoint pre-loaded with a 500-term synthetic index."""
     store = GlossaryStore(_FAKE_LOG)
     for term in _TERMS:

@@ -18,13 +18,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from specify_cli.glossary.events import (
+from glossary.events import (
     emit_clarification_requested,
     emit_clarification_resolved,
     emit_sense_updated,
     get_event_log_path,
 )
-from specify_cli.glossary.models import (
+from glossary.models import (
     ConflictType,
     SemanticConflict,
     SenseRef,
@@ -88,7 +88,7 @@ class TestGlossarySenseUpdatedNotQueued:
         conflict = _make_conflict()
         context = _make_context()
 
-        with patch("specify_cli.glossary.events._pkg_append_event") as mock_queue:
+        with patch("glossary.events._pkg_append_event") as mock_queue:
             result = emit_sense_updated(
                 conflict=conflict,
                 custom_definition="A bounded area of work for a team",
@@ -106,7 +106,7 @@ class TestGlossarySenseUpdatedNotQueued:
         conflict = _make_conflict("pipeline")
         context = _make_context(mission_id="test-pipeline-mission")
 
-        with patch("specify_cli.glossary.events._pkg_append_event"):
+        with patch("glossary.events._pkg_append_event"):
             emit_sense_updated(
                 conflict=conflict,
                 custom_definition="A data processing pipeline",
@@ -128,7 +128,7 @@ class TestGlossarySenseUpdatedNotQueued:
         conflict = _make_conflict("feature")
         context = _make_context(mission_id="test-term-mission")
 
-        with patch("specify_cli.glossary.events._pkg_append_event"):
+        with patch("glossary.events._pkg_append_event"):
             emit_sense_updated(
                 conflict=conflict,
                 custom_definition="A user-facing capability (legacy term, use Mission instead)",
@@ -147,7 +147,7 @@ class TestGlossarySenseUpdatedNotQueued:
         conflict = _make_conflict()
         context = _make_context()
 
-        with patch("specify_cli.glossary.events._pkg_append_event") as mock_queue:
+        with patch("glossary.events._pkg_append_event") as mock_queue:
             result = emit_sense_updated(
                 conflict=conflict,
                 custom_definition="Some definition",
@@ -180,9 +180,9 @@ class TestGlossaryClarificationResolvedQueued:
         fake_cls = MagicMock(return_value=fake_canonical_instance)
 
         with (
-            patch("specify_cli.glossary.events.EVENTS_AVAILABLE", True),
-            patch("specify_cli.glossary.events._pkg_append_event") as mock_queue,
-            patch("specify_cli.glossary.events._CanonicGlossaryClarificationResolved", fake_cls),
+            patch("glossary.events.EVENTS_AVAILABLE", True),
+            patch("glossary.events._pkg_append_event") as mock_queue,
+            patch("glossary.events._CanonicGlossaryClarificationResolved", fake_cls),
         ):
             result = emit_clarification_resolved(
                 conflict_id="conflict-uuid-001",
@@ -202,7 +202,7 @@ class TestGlossaryClarificationResolvedQueued:
         context = _make_context(mission_id="test-resolved-local")
         selected = _make_selected_sense()
 
-        with patch("specify_cli.glossary.events.EVENTS_AVAILABLE", False):
+        with patch("glossary.events.EVENTS_AVAILABLE", False):
             emit_clarification_resolved(
                 conflict_id="conflict-uuid-002",
                 conflict=conflict,
@@ -235,9 +235,9 @@ class TestGlossaryClarificationRequestedQueued:
         fake_cls = MagicMock(return_value=fake_canonical_instance)
 
         with (
-            patch("specify_cli.glossary.events.EVENTS_AVAILABLE", True),
-            patch("specify_cli.glossary.events._pkg_append_event") as mock_queue,
-            patch("specify_cli.glossary.events._CanonicGlossaryClarificationRequested", fake_cls),
+            patch("glossary.events.EVENTS_AVAILABLE", True),
+            patch("glossary.events._pkg_append_event") as mock_queue,
+            patch("glossary.events._CanonicGlossaryClarificationRequested", fake_cls),
         ):
             result = emit_clarification_requested(
                 conflict=conflict,
@@ -254,7 +254,7 @@ class TestGlossaryClarificationRequestedQueued:
         conflict = _make_conflict()
         context = _make_context(mission_id="test-requested-local")
 
-        with patch("specify_cli.glossary.events.EVENTS_AVAILABLE", False):
+        with patch("glossary.events.EVENTS_AVAILABLE", False):
             emit_clarification_requested(
                 conflict=conflict,
                 context=context,
@@ -285,9 +285,9 @@ class TestQueueIsolation:
         fake_cls = MagicMock(return_value=object())
 
         with (
-            patch("specify_cli.glossary.events.EVENTS_AVAILABLE", True),
-            patch("specify_cli.glossary.events._pkg_append_event") as mock_queue,
-            patch("specify_cli.glossary.events._CanonicGlossaryClarificationResolved", fake_cls),
+            patch("glossary.events.EVENTS_AVAILABLE", True),
+            patch("glossary.events._pkg_append_event") as mock_queue,
+            patch("glossary.events._CanonicGlossaryClarificationResolved", fake_cls),
         ):
             # Sense update — must NOT queue
             emit_sense_updated(
@@ -345,7 +345,7 @@ class TestFR021SeedWriteDeferred:
         seed_dir = tmp_path / ".kittify" / "glossaries"
         seed_dir.mkdir(parents=True)
 
-        with patch("specify_cli.glossary.events.EVENTS_AVAILABLE", False):
+        with patch("glossary.events.EVENTS_AVAILABLE", False):
             emit_clarification_resolved(
                 conflict_id="conflict-fr021-001",
                 conflict=conflict,
@@ -370,9 +370,9 @@ class TestFR021SeedWriteDeferred:
         fake_cls = MagicMock(return_value=object())
 
         with (
-            patch("specify_cli.glossary.events.EVENTS_AVAILABLE", True),
-            patch("specify_cli.glossary.events._pkg_append_event") as mock_queue,
-            patch("specify_cli.glossary.events._CanonicGlossaryClarificationResolved", fake_cls),
+            patch("glossary.events.EVENTS_AVAILABLE", True),
+            patch("glossary.events._pkg_append_event") as mock_queue,
+            patch("glossary.events._CanonicGlossaryClarificationResolved", fake_cls),
         ):
             emit_clarification_resolved(
                 conflict_id="conflict-fr021-002",

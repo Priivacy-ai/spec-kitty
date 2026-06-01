@@ -21,7 +21,7 @@ from unittest.mock import MagicMock
 
 from rich.console import Console
 
-from specify_cli.glossary.observation import InlineNotice, ObservationSurface
+from glossary.observation import InlineNotice, ObservationSurface
 
 # ---------------------------------------------------------------------------
 # Helpers

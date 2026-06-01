@@ -72,7 +72,7 @@ class GlossaryObservationBundle:
         """Return a JSON-serialisable representation of this bundle.
 
         All :class:`SemanticConflict` objects are serialised via
-        :func:`specify_cli.glossary.models.semantic_conflict_to_dict`.
+        :func:`glossary.models.semantic_conflict_to_dict`.
         """
         from .models import semantic_conflict_to_dict
 

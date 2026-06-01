@@ -8,12 +8,12 @@ import pytest
 
 pytestmark = pytest.mark.fast
 
-from specify_cli.glossary.exceptions import (
+from glossary.exceptions import (
     GlossaryError,
     SeedFileValidationError,
 )
-from specify_cli.glossary.models import SenseStatus, TermSense, TermSurface, Provenance
-from specify_cli.glossary.scope import (
+from glossary.models import SenseStatus, TermSense, TermSurface, Provenance
+from glossary.scope import (
     GlossaryScope,
     load_seed_file,
     save_seed_file,

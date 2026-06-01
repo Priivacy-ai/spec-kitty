@@ -19,20 +19,20 @@ from unittest.mock import patch
 
 import pytest
 
-from specify_cli.glossary.chokepoint import (
+from glossary.chokepoint import (
     DEFAULT_APPLICABLE_SCOPES,
     GlossaryChokepoint,
     GlossaryObservationBundle,
 )
-from specify_cli.glossary.drg_builder import GlossaryTermIndex
-from specify_cli.glossary.models import (
+from glossary.drg_builder import GlossaryTermIndex
+from glossary.models import (
     Provenance,
     SenseStatus,
     TermSense,
     TermSurface,
 )
-from specify_cli.glossary.scope import GlossaryScope
-from specify_cli.glossary.store import GlossaryStore
+from glossary.scope import GlossaryScope
+from glossary.store import GlossaryStore
 
 pytestmark = pytest.mark.fast
 
@@ -67,7 +67,7 @@ def _make_store(*senses: TermSense) -> GlossaryStore:
 
 def _chokepoint_with_store(store: GlossaryStore, repo_root: Path | None = None) -> GlossaryChokepoint:
     """Return a GlossaryChokepoint that has its index pre-built from *store*."""
-    from specify_cli.glossary.drg_builder import build_index
+    from glossary.drg_builder import build_index
 
     cp = GlossaryChokepoint(repo_root or Path("/tmp/fake"))
     # Pre-build the index so no filesystem access is needed
@@ -231,7 +231,7 @@ def test_unknown_term_emits_candidate_event_for_profile_invocation(tmp_path: Pat
     """Unknown invocation terms should emit TermCandidateObserved without failing the scan."""
     cp = _chokepoint_with_store(_make_store(), repo_root=tmp_path)
 
-    with patch("specify_cli.glossary.events.emit_term_candidate_observed") as emit_mock:
+    with patch("glossary.events.emit_term_candidate_observed") as emit_mock:
         bundle = cp.run(
             "frobnicator",
             invocation_id="01HXYZ1234567890ABCDEFGHJK",

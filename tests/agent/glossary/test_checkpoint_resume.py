@@ -15,29 +15,29 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-import specify_cli.glossary.events as _events_mod
+import glossary.events as _events_mod
 
-from specify_cli.glossary.checkpoint import (
+from glossary.checkpoint import (
     ScopeRef,
     StepCheckpoint,
     checkpoint_to_dict,
     compute_input_hash,
     create_checkpoint,
 )
-from specify_cli.glossary.exceptions import AbortResume, BlockedByConflict
-from specify_cli.glossary.middleware import (
+from glossary.exceptions import AbortResume, BlockedByConflict
+from glossary.middleware import (
     GenerationGateMiddleware,
     ResumeMiddleware,
 )
-from specify_cli.glossary.models import (
+from glossary.models import (
     ConflictType,
     SemanticConflict,
     SenseRef,
     Severity,
     TermSurface,
 )
-from specify_cli.glossary.scope import GlossaryScope
-from specify_cli.glossary.strictness import Strictness
+from glossary.scope import GlossaryScope
+from glossary.strictness import Strictness
 
 pytestmark = pytest.mark.fast
 
@@ -483,7 +483,7 @@ class TestGenerationGateCheckpointEmission:
 
     def test_checkpoint_emission_order(self, mock_context, high_severity_conflict, tmp_path, monkeypatch):
         """Checkpoint is emitted BEFORE generation-blocked event."""
-        from specify_cli.glossary import events
+        from glossary import events
 
         emission_order = []
 
@@ -520,7 +520,7 @@ class TestGenerationGateCheckpointEmission:
         self, mock_context, high_severity_conflict, tmp_path, monkeypatch
     ):
         """BlockedByConflict is raised even if checkpoint emission fails."""
-        from specify_cli.glossary import events
+        from glossary import events
 
 
         def failing_emit(checkpoint, project_root=None):

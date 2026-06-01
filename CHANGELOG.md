@@ -56,6 +56,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added migration guidance for constitution-era `.kittify/memory/constitution.md`
   and `.kittify/constitution/*` layouts.
 
+## [3.2.0rc32] - 2026-06-01
+
+### Changed
+
+- Release metadata now aligns `.kittify/metadata.yaml` with `pyproject.toml`
+  for `3.2.0rc32`.
+- Glossary runtime modules are packaged under canonical top-level `glossary`
+  while `specify_cli.glossary` remains a registered compatibility shim.
+
 ## [3.2.0rc31] - 2026-05-31
 
 ### Fixed

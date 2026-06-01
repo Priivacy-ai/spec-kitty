@@ -6,15 +6,15 @@ from unittest.mock import MagicMock
 from dataclasses import dataclass, field
 from typing import Any
 
-from specify_cli.glossary.middleware import GenerationGateMiddleware
-from specify_cli.glossary.models import (
+from glossary.middleware import GenerationGateMiddleware
+from glossary.models import (
     SemanticConflict,
     Severity,
     TermSurface,
     ConflictType,
 )
-from specify_cli.glossary.strictness import Strictness
-from specify_cli.glossary.exceptions import BlockedByConflict
+from glossary.strictness import Strictness
+from glossary.exceptions import BlockedByConflict
 import contextlib
 
 pytestmark = pytest.mark.fast
@@ -44,7 +44,7 @@ def mock_context():
 @pytest.fixture
 def high_severity_conflict():
     """Create high-severity conflict for testing."""
-    from specify_cli.glossary.models import SenseRef
+    from glossary.models import SenseRef
 
     return SemanticConflict(
         term=TermSurface(surface_text="workspace"),
@@ -62,7 +62,7 @@ def high_severity_conflict():
 @pytest.fixture
 def medium_severity_conflict():
     """Create medium-severity conflict for testing."""
-    from specify_cli.glossary.models import SenseRef
+    from glossary.models import SenseRef
 
     return SemanticConflict(
         term=TermSurface(surface_text="utility"),
@@ -294,7 +294,7 @@ class TestPrecedenceResolution:
         mock_context.step_strictness = Strictness.MAX
 
         # Add high-severity conflict
-        from specify_cli.glossary.models import SenseRef
+        from glossary.models import SenseRef
 
         mock_context.conflicts = [
             SemanticConflict(
@@ -391,7 +391,7 @@ class TestEventEmission:
 
     def test_event_emitted_before_blocking(self, mock_context, high_severity_conflict, monkeypatch):
         """Verify event is emitted BEFORE exception is raised."""
-        from specify_cli.glossary import events
+        from glossary import events
 
         emission_order = []
 
@@ -413,7 +413,7 @@ class TestEventEmission:
 
     def test_event_includes_context_info(self, mock_context, high_severity_conflict, monkeypatch):
         """Event emission includes step_id, mission_id, conflicts, and strictness."""
-        from specify_cli.glossary import events
+        from glossary import events
 
         captured_args = {}
 
@@ -437,7 +437,7 @@ class TestEventEmission:
 
     def test_no_event_when_not_blocking(self, mock_context, low_severity_conflict, monkeypatch):
         """Event is not emitted when generation is allowed."""
-        from specify_cli.glossary import events
+        from glossary import events
 
         emission_count = [0]
 
@@ -460,7 +460,7 @@ class TestErrorMessages:
 
     def test_message_includes_high_severity_count(self, mock_context):
         """Error message includes high-severity conflict count."""
-        from specify_cli.glossary.models import SenseRef
+        from glossary.models import SenseRef
 
         high1 = SemanticConflict(
             term=TermSurface(surface_text="test1"),
@@ -584,7 +584,7 @@ class TestEdgeCases:
         (transport failure, serialization, etc.), the middleware must still
         raise BlockedByConflict so that generation is never allowed through.
         """
-        from specify_cli.glossary import events
+        from glossary import events
 
         def failing_emit(*args, **kwargs):
             raise RuntimeError("Transport failure in event emission")
@@ -604,7 +604,7 @@ class TestEdgeCases:
     def test_event_emission_error_is_logged(self, mock_context, high_severity_conflict, monkeypatch, caplog):
         """When event emission fails, the error is logged."""
         import logging
-        from specify_cli.glossary import events
+        from glossary import events
 
 
         def failing_emit(*args, **kwargs):

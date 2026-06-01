@@ -3,7 +3,7 @@
 These tests enforce the dependency direction documented in
 architecture/2.x/00_landscape/README.md:
 
-    kernel (root) <- doctrine <- charter <- specify_cli
+    kernel (root) <- doctrine <- charter <- glossary <- specify_cli
 
 A violation here means a package imports from a package it should not.
 See ADR 2026-03-27-1 for rationale.
@@ -41,7 +41,7 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 # Layer names as defined in the `landscape` fixture in conftest.py.
 # Keep this in sync with that fixture; both lists must agree.
 _DEFINED_LAYERS: frozenset[str] = frozenset(
-    ["kernel", "doctrine", "charter", "specify_cli"]
+    ["kernel", "doctrine", "charter", "glossary", "specify_cli"]
 )
 
 
@@ -172,6 +172,21 @@ class TestCharterBoundary:
             .based_on(landscape)
             .layers_that()
             .are_named("charter")
+            .should_not()
+            .access_layers_that()
+            .are_named("specify_cli")
+        ).assert_applies(evaluable)
+
+
+class TestGlossaryBoundary:
+    """glossary may import lower layers, but not specify_cli adapters."""
+
+    def test_glossary_does_not_import_specify_cli(self, evaluable, landscape):
+        (
+            LayerRule()
+            .based_on(landscape)
+            .layers_that()
+            .are_named("glossary")
             .should_not()
             .access_layers_that()
             .are_named("specify_cli")

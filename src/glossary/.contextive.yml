@@ -5,5 +5,5 @@
 # See .kittify/traceability/contextive-map.yaml for the scope mapping.
 
 imports:
-  - "../.contextive/lexical.yml"
-  - "../.contextive/system-events.yml"
+  - "../specify_cli/.contextive/lexical.yml"
+  - "../specify_cli/.contextive/system-events.yml"

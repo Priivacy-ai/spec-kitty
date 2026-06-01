@@ -9,12 +9,12 @@ import pytest
 pytestmark = pytest.mark.fast
 from pydantic import ValidationError
 
-from specify_cli.glossary.exceptions import (
+from glossary.exceptions import (
     GlossaryError,
     SeedFileValidationError,
     SeedValidationError,
 )
-from specify_cli.glossary.seed_schema import GlossarySeedFile, GlossarySeedTerm
+from glossary.seed_schema import GlossarySeedFile, GlossarySeedTerm
 
 
 # ---------------------------------------------------------------------------

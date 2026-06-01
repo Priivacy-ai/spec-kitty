@@ -129,7 +129,7 @@ build-backend = "hatchling.build"
 allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/kernel", "src/specify_cli", "src/doctrine", "src/charter"]
+packages = ["src/kernel", "src/glossary", "src/specify_cli", "src/doctrine", "src/charter"]
 exclude = [
     "src/specify_cli/**/tests/**",
 ]
@@ -329,8 +329,8 @@ module = [
     "specify_cli.events.adapter",
     "specify_cli.frontmatter",
     "specify_cli.gap_analysis",
-    "specify_cli.glossary.events",
-    "specify_cli.glossary.middleware",
+    "glossary.events",
+    "glossary.middleware",
     "specify_cli.manifest",
     "specify_cli.merge.ordering",
     "specify_cli.mission",
@@ -452,7 +452,8 @@ also_copy = [
     "src/doctrine/",         # Copy doctrine package for imports
     "src/charter/",          # Copy charter package
     "src/specify_cli/status/",  # Copy status module for status transitions
-    "src/specify_cli/glossary/",  # Copy glossary module
+    "src/glossary/",          # Copy canonical glossary package
+    "src/specify_cli/glossary/",  # Copy deprecated glossary shim
     "src/specify_cli/cli/",   # Copy CLI commands
     "src/specify_cli/agent_utils/",  # Copy agent utilities
     "src/specify_cli/git/",  # Copy git utilities

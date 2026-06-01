@@ -132,7 +132,7 @@ def should_block(
         True if generation should be blocked, False otherwise
 
     Examples:
-        >>> from specify_cli.glossary.models import SemanticConflict, Severity, TermSurface, ConflictType
+        >>> from glossary.models import SemanticConflict, Severity, TermSurface, ConflictType
         >>> high_conflict = SemanticConflict(
         ...     term=TermSurface(surface_text="test"),
         ...     conflict_type=ConflictType.AMBIGUOUS,
@@ -184,7 +184,7 @@ def categorize_conflicts(
         even if some have empty lists.
 
     Examples:
-        >>> from specify_cli.glossary.models import (
+        >>> from glossary.models import (
         ...     SemanticConflict, Severity, TermSurface, ConflictType
         ... )
         >>> low = SemanticConflict(

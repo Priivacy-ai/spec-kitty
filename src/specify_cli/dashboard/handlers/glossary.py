@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.core.constants import KITTIFY_DIR
-from specify_cli.glossary.exceptions import SeedFileValidationError
-from specify_cli.glossary.semantic_events import iter_semantic_conflicts
+from glossary.exceptions import SeedFileValidationError
+from glossary.semantic_events import iter_semantic_conflicts
 
 from ..api_types import GlossaryHealthResponse, GlossaryTermRecord
 from .base import DashboardHandler
@@ -82,7 +82,7 @@ def _collect_all_senses(repo_root: Path) -> list[Any]:
 def _collect_all_senses_with_errors(repo_root: Path) -> tuple[list[Any], list[SeedFileValidationError]]:
     """Load glossary senses and retain validation errors for health reporting."""
     try:
-        from specify_cli.glossary.scope import GlossaryScope, load_seed_file
+        from glossary.scope import GlossaryScope, load_seed_file
 
         senses = []
         validation_errors: list[SeedFileValidationError] = []
@@ -129,13 +129,13 @@ def _recover_valid_senses(
 
         from ruamel.yaml import YAML
 
-        from specify_cli.glossary.models import (
+        from glossary.models import (
             Provenance,
             TermSense,
             TermSurface,
         )
-        from specify_cli.glossary.scope import _parse_sense_status
-        from specify_cli.glossary.seed_schema import GlossarySeedTerm
+        from glossary.scope import _parse_sense_status
+        from glossary.seed_schema import GlossarySeedTerm
 
         seed_path = repo_root / _KITTIFY_PATH / "glossaries" / f"{scope.value}.yaml"
         if not seed_path.exists():

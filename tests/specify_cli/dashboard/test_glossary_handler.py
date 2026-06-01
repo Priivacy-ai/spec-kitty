@@ -10,8 +10,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from specify_cli.glossary.exceptions import SeedFileValidationError, SeedValidationError
-from specify_cli.glossary.models import Provenance, SenseStatus, TermSense, TermSurface
+from glossary.exceptions import SeedFileValidationError, SeedValidationError
+from glossary.models import Provenance, SenseStatus, TermSense, TermSurface
 
 pytestmark = pytest.mark.fast
 
@@ -480,7 +480,7 @@ class TestCollectAllSenses:
 
         with (
             patch("specify_cli.dashboard.handlers.glossary.SeedFileValidationError", SeedFileValidationError),
-            patch("specify_cli.glossary.scope.load_seed_file", side_effect=exc),
+            patch("glossary.scope.load_seed_file", side_effect=exc),
             pytest.raises(SeedFileValidationError),
         ):
             _collect_all_senses(tmp_path)
@@ -489,7 +489,7 @@ class TestCollectAllSenses:
         """Non-validation exceptions are caught, returning empty list."""
         from specify_cli.dashboard.handlers.glossary import _collect_all_senses
 
-        with patch("specify_cli.glossary.scope.load_seed_file", side_effect=RuntimeError("oops")):
+        with patch("glossary.scope.load_seed_file", side_effect=RuntimeError("oops")):
             result = _collect_all_senses(tmp_path)
 
         assert result == []

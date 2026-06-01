@@ -15,13 +15,13 @@ import time
 
 import pytest
 
-from specify_cli.glossary.exceptions import BlockedByConflict
-from specify_cli.glossary.models import ConflictType, Severity
-from specify_cli.glossary.pipeline import (
+from glossary.exceptions import BlockedByConflict
+from glossary.models import ConflictType, Severity
+from glossary.pipeline import (
     GlossaryMiddlewarePipeline,
     create_standard_pipeline,
 )
-from specify_cli.glossary.strictness import Strictness
+from glossary.strictness import Strictness
 from specify_cli.missions import PrimitiveExecutionContext
 
 pytestmark = pytest.mark.fast
@@ -122,7 +122,7 @@ class TestFullWorkflowSpecifyClarifyResume:
             return ("select", None)
 
         monkeypatch.setattr(
-            "specify_cli.glossary.pipeline.prompt_conflict_resolution_safe",
+            "glossary.pipeline.prompt_conflict_resolution_safe",
             mock_prompt,
         )
 
@@ -172,7 +172,7 @@ class TestFullWorkflowSpecifyClarifyResume:
             return ("custom", "The project working directory on disk")
 
         monkeypatch.setattr(
-            "specify_cli.glossary.pipeline.prompt_conflict_resolution_safe",
+            "glossary.pipeline.prompt_conflict_resolution_safe",
             mock_prompt,
         )
 
@@ -216,7 +216,7 @@ class TestFullWorkflowSpecifyClarifyResume:
             return ("select", None)
 
         monkeypatch.setattr(
-            "specify_cli.glossary.pipeline.prompt_conflict_resolution_safe",
+            "glossary.pipeline.prompt_conflict_resolution_safe",
             mock_prompt,
         )
 
@@ -266,7 +266,7 @@ class TestDeferWorkflow:
             return ("defer", None)
 
         monkeypatch.setattr(
-            "specify_cli.glossary.pipeline.prompt_conflict_resolution_safe",
+            "glossary.pipeline.prompt_conflict_resolution_safe",
             mock_prompt,
         )
 
@@ -303,7 +303,7 @@ class TestDeferWorkflow:
             return ("defer", None)
 
         monkeypatch.setattr(
-            "specify_cli.glossary.pipeline.prompt_conflict_resolution_safe",
+            "glossary.pipeline.prompt_conflict_resolution_safe",
             mock_prompt,
         )
 
@@ -710,7 +710,7 @@ class TestMultipleConflictsSingleStep:
             return ("select", None)
 
         monkeypatch.setattr(
-            "specify_cli.glossary.pipeline.prompt_conflict_resolution_safe",
+            "glossary.pipeline.prompt_conflict_resolution_safe",
             mock_prompt,
         )
 
@@ -781,7 +781,7 @@ class TestMultipleConflictsSingleStep:
                 return ("defer", None)
 
         monkeypatch.setattr(
-            "specify_cli.glossary.pipeline.prompt_conflict_resolution_safe",
+            "glossary.pipeline.prompt_conflict_resolution_safe",
             mock_prompt,
         )
 
@@ -917,8 +917,8 @@ class TestEventEmissionEndToEnd:
         """Term extraction stage should emit TermCandidateObserved events."""
         (tmp_path / ".kittify").mkdir()
 
-        from specify_cli.glossary.events import emit_term_candidate_observed
-        from specify_cli.glossary.extraction import ExtractedTerm
+        from glossary.events import emit_term_candidate_observed
+        from glossary.extraction import ExtractedTerm
 
         term = ExtractedTerm(
             surface="workspace",
@@ -946,8 +946,8 @@ class TestEventEmissionEndToEnd:
 
     def test_semantic_check_emits_evaluation_event(self, tmp_path):
         """Semantic check stage should emit SemanticCheckEvaluated event."""
-        from specify_cli.glossary.events import emit_semantic_check_evaluated
-        from specify_cli.glossary.models import (
+        from glossary.events import emit_semantic_check_evaluated
+        from glossary.models import (
             ConflictType,
             SemanticConflict,
             SenseRef,
@@ -988,8 +988,8 @@ class TestEventEmissionEndToEnd:
 
     def test_generation_blocked_emits_event(self, tmp_path):
         """Generation gate blocking should emit GenerationBlockedBySemanticConflict."""
-        from specify_cli.glossary.events import emit_generation_blocked_event
-        from specify_cli.glossary.models import (
+        from glossary.events import emit_generation_blocked_event
+        from glossary.models import (
             ConflictType,
             SemanticConflict,
             SenseRef,
@@ -1023,8 +1023,8 @@ class TestEventEmissionEndToEnd:
 
     def test_clarification_requested_emits_event(self, tmp_path):
         """Deferred conflict should emit GlossaryClarificationRequested."""
-        from specify_cli.glossary.events import emit_clarification_requested
-        from specify_cli.glossary.models import (
+        from glossary.events import emit_clarification_requested
+        from glossary.models import (
             ConflictType,
             SemanticConflict,
             SenseRef,
@@ -1066,8 +1066,8 @@ class TestEventEmissionEndToEnd:
 
     def test_clarification_resolved_emits_event(self, tmp_path):
         """Resolved conflict should emit GlossaryClarificationResolved."""
-        from specify_cli.glossary.events import emit_clarification_resolved
-        from specify_cli.glossary.models import (
+        from glossary.events import emit_clarification_resolved
+        from glossary.models import (
             ConflictType,
             SemanticConflict,
             SenseRef,
@@ -1131,7 +1131,7 @@ class TestProductionCodePath:
             return ("select", None)
 
         monkeypatch.setattr(
-            "specify_cli.glossary.pipeline.prompt_conflict_resolution_safe",
+            "glossary.pipeline.prompt_conflict_resolution_safe",
             mock_prompt,
         )
 
@@ -1295,7 +1295,7 @@ class TestErrorHandlingEdgeCases:
             raise RuntimeError("Simulated prompt failure")
 
         monkeypatch.setattr(
-            "specify_cli.glossary.pipeline.prompt_conflict_resolution_safe",
+            "glossary.pipeline.prompt_conflict_resolution_safe",
             broken_prompt,
         )
 
@@ -1366,7 +1366,7 @@ class TestIntegrationPerformance:
             return ("select", None)
 
         monkeypatch.setattr(
-            "specify_cli.glossary.pipeline.prompt_conflict_resolution_safe",
+            "glossary.pipeline.prompt_conflict_resolution_safe",
             mock_prompt,
         )
 

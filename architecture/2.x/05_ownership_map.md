@@ -34,13 +34,13 @@
 
 **Worked example — Glossary extraction (mission #613)**:
 
-- `current_state`: `src/specify_cli/glossary/` (14 modules).
+- `current_state`: `src/glossary/`.
 - `canonical_package`: `src/glossary/`.
 - `adapter_responsibilities`: CLI argument parsing and Rich rendering for `spec-kitty glossary *` commands stays in `src/specify_cli/cli/commands/glossary.py`.
-- `shims`: one shim at `src/specify_cli/glossary/` with `canonical_import: glossary`, `removal_release: 3.4.0`.
+- `shims`: one registered shim at `src/specify_cli/glossary/__init__.py` with `canonical_import: glossary`, `removal_release: 3.3.0`.
 - `seams`: doctrine registers a glossary runner via `kernel.glossary_runner.register()`; mission execution reads via `get_runner()` (resolved by ADR `2026-03-25-1`).
-- `extraction_sequencing_notes`: depends on the architectural-tests and deprecation-scaffolding ACs in #613 and #615 landing first.
-- PR moves all 14 modules to `src/glossary/`, adds the shim, ticks every field off in the PR description.
+- `extraction_sequencing_notes`: extracted by mission #613; keep the shim registered until its removal target.
+- PR moved canonical modules to `src/glossary/`, added the shim, and ticked every field off in the PR description.
 
 ---
 
@@ -192,15 +192,18 @@ may_call = runtime["dependency_rules"]["may_call"]
 | Field                        | Value                                                                                                                               |
 |------------------------------|-------------------------------------------------------------------------------------------------------------------------------------|
 | `canonical_package`          | `src/glossary/`                                                                                                                     |
-| `extraction_sequencing_notes`| Target for mission #613. Depends on the architectural-tests AC in #613 and deprecation scaffolding in #615 landing first. Import-graph tooling (AC in #612) is nice-to-have, not blocking. |
+| `extraction_sequencing_notes`| Extracted by mission #613. Keep the `specify_cli.glossary` shim registered until its removal target. Import-graph tooling (AC in #612) remains nice-to-have, not blocking, for this slice. |
 
 **`current_state`**:
-- `src/specify_cli/glossary/`
+- `src/glossary/`
 
 **`adapter_responsibilities`**:
 - `src/specify_cli/cli/commands/glossary.py` — CLI argument parsing and Rich rendering for `spec-kitty glossary *` commands
 
-**`shims`**: *(none — glossary has not yet been extracted)*
+**`shims`**:
+- `path`: `src/specify_cli/glossary/__init__.py`
+- `canonical_import`: `glossary`
+- `removal_release`: `3.3.0`
 
 **`seams`**:
 - Doctrine registers a glossary runner via `kernel.glossary_runner.register()`; runtime reads via `get_runner()` (resolved by ADR `2026-03-25-1`)

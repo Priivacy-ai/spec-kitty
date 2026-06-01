@@ -1,215 +1,55 @@
-"""Glossary semantic integrity runtime for mission framework.
+"""Compatibility shim for the extracted glossary package.
 
-Public API
-----------
-Models:
-    TermSurface, TermSense, SemanticConflict, SenseRef, Provenance,
-    SenseStatus, ConflictType, Severity
-
-Exceptions:
-    GlossaryError, BlockedByConflict, DeferredToAsync, AbortResume
-
-Scopes & Resolution:
-    GlossaryScope, resolve_term, GlossaryStore
-
-Conflict Detection:
-    classify_conflict, score_severity, create_conflict
-
-Strictness:
-    Strictness, resolve_strictness, load_global_strictness,
-    should_block, categorize_conflicts
-
-Middleware:
-    GlossaryMiddlewarePipeline, GlossaryMiddleware,
-    GlossaryCandidateExtractionMiddleware, SemanticCheckMiddleware,
-    GenerationGateMiddleware, ResumeMiddleware, ClarificationMiddleware
-
-Checkpoint:
-    StepCheckpoint, ScopeRef, compute_input_hash, create_checkpoint,
-    verify_input_hash, handle_context_change, load_checkpoint,
-    parse_checkpoint_event, checkpoint_to_dict, compute_input_diff
-
-Extraction:
-    ExtractedTerm, extract_all_terms
-
-Events:
-    EVENTS_AVAILABLE, get_event_log_path, append_event, read_events,
-    emit_term_candidate_observed, emit_semantic_check_evaluated,
-    emit_generation_blocked_event, emit_step_checkpointed,
-    emit_clarification_requested, emit_clarification_resolved,
-    emit_sense_updated, emit_scope_activated
-
-Pipeline:
-    create_standard_pipeline, prompt_conflict_resolution_safe
-
-Attachment:
-    GlossaryAwarePrimitiveRunner, attach_glossary_pipeline,
-    glossary_enabled, read_glossary_check_metadata, run_with_glossary
+Deprecated: import from ``glossary`` instead. Scheduled for removal in 3.3.0.
 """
 
 from __future__ import annotations
 
-from .models import (
-    Provenance,
-    SenseRef,
-    TermSurface,
-    TermSense,
-    SemanticConflict,
-    SenseStatus,
-    ConflictType,
-    Severity,
-)
-from .exceptions import (
-    GlossaryError,
-    BlockedByConflict,
-    DeferredToAsync,
-    AbortResume,
-    SeedValidationError,
-    SeedFileValidationError,
-)
-from .scope import GlossaryScope, load_seed_file, save_seed_file
-from .seed_schema import GlossarySeedFile, GlossarySeedTerm
-from .seed_validation import validate_seed_file_data, validate_scope_filename
-from .store import GlossaryStore
-from .resolution import resolve_term
-from .extraction import ExtractedTerm, extract_all_terms
-from .conflict import classify_conflict, score_severity, create_conflict
-from .middleware import (
-    GlossaryCandidateExtractionMiddleware,
-    SemanticCheckMiddleware,
-    GenerationGateMiddleware,
-    ResumeMiddleware,
-)
-from .clarification import ClarificationMiddleware
-from .strictness import (
-    Strictness,
-    resolve_strictness,
-    load_global_strictness,
-    should_block,
-    categorize_conflicts,
-)
-from .checkpoint import (
-    StepCheckpoint,
-    ScopeRef,
-    compute_input_hash,
-    create_checkpoint,
-    verify_input_hash,
-    handle_context_change,
-    load_checkpoint,
-    parse_checkpoint_event,
-    checkpoint_to_dict,
-    compute_input_diff,
-)
-from .events import (
-    EVENTS_AVAILABLE,
-    get_event_log_path,
-    append_event,
-    read_events,
-    emit_term_candidate_observed,
-    emit_semantic_check_evaluated,
-    emit_generation_blocked_event,
-    emit_step_checkpointed,
-    emit_clarification_requested,
-    emit_clarification_resolved,
-    emit_sense_updated,
-    emit_scope_activated,
-)
-from .pipeline import (
-    GlossaryMiddlewarePipeline,
-    GlossaryMiddleware,
-    create_standard_pipeline,
-)
-from .attachment import (
-    GlossaryAwarePrimitiveRunner,
-    attach_glossary_pipeline,
-    glossary_enabled,
-    read_glossary_check_metadata,
-    run_with_glossary,
-)
-from .pipeline import prompt_conflict_resolution_safe
+import importlib
+import sys
+import warnings
 
-__all__ = [
-    # Models
-    "Provenance",
-    "SenseRef",
-    "TermSurface",
-    "TermSense",
-    "SemanticConflict",
-    "SenseStatus",
-    "ConflictType",
-    "Severity",
-    # Exceptions
-    "GlossaryError",
-    "BlockedByConflict",
-    "DeferredToAsync",
-    "AbortResume",
-    "SeedValidationError",
-    "SeedFileValidationError",
-    # Scopes & Resolution
-    "GlossaryScope",
-    "load_seed_file",
-    "save_seed_file",
-    # Seed Schema & Validation
-    "GlossarySeedFile",
-    "GlossarySeedTerm",
-    "validate_seed_file_data",
-    "validate_scope_filename",
-    "GlossaryStore",
-    "resolve_term",
-    # Extraction
-    "ExtractedTerm",
-    "extract_all_terms",
-    # Conflict Detection
-    "classify_conflict",
-    "score_severity",
-    "create_conflict",
-    # Middleware
-    "GlossaryCandidateExtractionMiddleware",
-    "SemanticCheckMiddleware",
-    "GenerationGateMiddleware",
-    "ResumeMiddleware",
-    "ClarificationMiddleware",
-    # Strictness
-    "Strictness",
-    "resolve_strictness",
-    "load_global_strictness",
-    "should_block",
-    "categorize_conflicts",
-    # Checkpoint
-    "StepCheckpoint",
-    "ScopeRef",
-    "compute_input_hash",
-    "create_checkpoint",
-    "verify_input_hash",
-    "handle_context_change",
-    "load_checkpoint",
-    "parse_checkpoint_event",
-    "checkpoint_to_dict",
-    "compute_input_diff",
-    # Events
-    "EVENTS_AVAILABLE",
-    "get_event_log_path",
-    "append_event",
-    "read_events",
-    "emit_term_candidate_observed",
-    "emit_semantic_check_evaluated",
-    "emit_generation_blocked_event",
-    "emit_step_checkpointed",
-    "emit_clarification_requested",
-    "emit_clarification_resolved",
-    "emit_sense_updated",
-    "emit_scope_activated",
-    # Pipeline
-    "GlossaryMiddlewarePipeline",
-    "GlossaryMiddleware",
-    "create_standard_pipeline",
-    "prompt_conflict_resolution_safe",
-    # Attachment
-    "GlossaryAwarePrimitiveRunner",
-    "attach_glossary_pipeline",
-    "glossary_enabled",
-    "read_glossary_check_metadata",
-    "run_with_glossary",
-]
+from glossary import *  # noqa: F401,F403
+from glossary import __all__ as __all__
 
-__version__ = "0.1.0"
+__deprecated__ = True
+__canonical_import__ = "glossary"
+__removal_release__ = "3.3.0"
+__deprecation_message__ = (
+    "specify_cli.glossary is deprecated; import from glossary. "
+    "Scheduled for removal in 3.3.0."
+)
+
+warnings.warn(__deprecation_message__, DeprecationWarning, stacklevel=2)
+
+_SUBMODULES = (
+    "attachment",
+    "checkpoint",
+    "chokepoint",
+    "clarification",
+    "conflict",
+    "drg_builder",
+    "entity_pages",
+    "events",
+    "exceptions",
+    "extraction",
+    "middleware",
+    "models",
+    "observation",
+    "pipeline",
+    "resolution",
+    "scope",
+    "seed_schema",
+    "seed_validation",
+    "semantic_events",
+    "store",
+    "strictness",
+)
+
+for _name in _SUBMODULES:
+    _module = importlib.import_module(f"glossary.{_name}")
+    sys.modules[f"{__name__}.{_name}"] = _module
+    globals()[_name] = _module
+
+del _module
+del _name

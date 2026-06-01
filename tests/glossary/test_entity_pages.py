@@ -18,7 +18,7 @@ from typing import Any
 
 import pytest
 
-from specify_cli.glossary.entity_pages import (
+from glossary.entity_pages import (
     BacklinkEntry,
     GlossaryEntityPageRenderer,
     TermNotFoundError,

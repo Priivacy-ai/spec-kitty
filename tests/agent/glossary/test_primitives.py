@@ -2,7 +2,7 @@
 
 
 import pytest
-from specify_cli.glossary.strictness import Strictness
+from glossary.strictness import Strictness
 from specify_cli.missions import PrimitiveExecutionContext
 
 pytestmark = pytest.mark.fast

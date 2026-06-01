@@ -20,7 +20,7 @@
 context_base_dir: "src/specify_cli/.contextive"
 
 scopes:
-  - path: "src/specify_cli/glossary"
+  - path: "src/glossary"
     description: "Core glossary subsystem — term model, pipeline, and events"
     contexts:
       - lexical

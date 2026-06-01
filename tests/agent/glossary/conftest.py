@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from specify_cli.glossary.models import (
+from glossary.models import (
     TermSurface,
     TermSense,
     Provenance,

@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
-    from specify_cli.glossary.chokepoint import (
+    from glossary.chokepoint import (
         GlossaryChokepoint,
         GlossaryObservationBundle,
     )
@@ -190,7 +190,7 @@ class ProfileInvocationExecutor:
         # Severity routing: bundle.high_severity = HIGH only; bundle.all_conflicts = all severities.
         # This routing is performed inside GlossaryChokepoint._run_inner() (WP02 code).
         # Exception guard: any failure returns an error-bundle; the invocation always continues.
-        from specify_cli.glossary.chokepoint import GlossaryChokepoint, GlossaryObservationBundle
+        from glossary.chokepoint import GlossaryChokepoint, GlossaryObservationBundle
         try:
             if self._chokepoint is None:
                 self._chokepoint = GlossaryChokepoint(self._repo_root)

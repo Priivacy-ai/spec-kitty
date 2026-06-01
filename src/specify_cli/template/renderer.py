@@ -159,8 +159,8 @@ def _annotate_glossary_refs_from_store(content: str, template_path: Path | None 
         return content
 
     # Import lazily to avoid hard dependency at module load time
-    from specify_cli.glossary.store import GlossaryStore
-    from specify_cli.glossary.scope import GlossaryScope, load_seed_file
+    from glossary.store import GlossaryStore
+    from glossary.scope import GlossaryScope, load_seed_file
 
     event_log_path = repo_root / ".kittify" / "events" / "glossary" / "_renderer.events.jsonl"
     store = GlossaryStore(event_log_path)
