@@ -8,12 +8,16 @@ tracker_refs: []
 planning_base_branch: mission/org-doctrine-profile-integrity-activation-closure
 merge_target_branch: mission/org-doctrine-profile-integrity-activation-closure
 branch_strategy: Planning artifacts for this mission were generated on mission/org-doctrine-profile-integrity-activation-closure. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into mission/org-doctrine-profile-integrity-activation-closure unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-org-doctrine-profile-integrity-activation-closure-01KT1TV1
+base_commit: 6dc78aef7152eead9575eca807a347fa1e5aeee5
+created_at: '2026-06-01T17:28:53.786690+00:00'
 subtasks:
 - T001
 - T002
 - T003
 - T004
 agent: claude
+shell_pid: '1544264'
 history:
 - at: '2026-06-01T16:49:18Z'
   actor: claude
