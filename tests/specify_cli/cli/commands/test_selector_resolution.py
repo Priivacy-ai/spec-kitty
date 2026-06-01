@@ -28,13 +28,18 @@ from specify_cli.cli.selector_resolution import resolve_selector
 
 pytestmark = [pytest.mark.fast, pytest.mark.non_sandbox]  # non_sandbox: warning assertion fails in sandbox
 runner = CliRunner()
-top_level_lifecycle_app = typer.Typer()
-top_level_lifecycle_app.command(name="tasks")(lifecycle_tasks)
 
 
-@top_level_lifecycle_app.command(name="noop")
-def _noop() -> None:
-    """Force Typer to exercise subcommand parsing in this local test app."""
+def _build_top_level_lifecycle_app() -> typer.Typer:
+    """Build a fresh local app for top-level lifecycle command tests."""
+    app = typer.Typer()
+    app.command(name="tasks")(lifecycle_tasks)
+
+    @app.command(name="noop")
+    def _noop() -> None:
+        """Force Typer to exercise subcommand parsing in this local test app."""
+
+    return app
 
 
 @pytest.fixture(autouse=True)
@@ -623,7 +628,7 @@ def test_top_level_tasks_mission_selector_forwards_to_finalize_tasks() -> None:
         patch("specify_cli.cli.commands.lifecycle.agent_feature.finalize_tasks", side_effect=fake_finalize_tasks),
     ):
         result = runner.invoke(
-            top_level_lifecycle_app,
+            _build_top_level_lifecycle_app(),
             ["tasks", "--mission", "077-demo-mission", "--json"],
         )
 
@@ -634,7 +639,7 @@ def test_top_level_tasks_mission_selector_forwards_to_finalize_tasks() -> None:
 def test_top_level_tasks_selector_conflict_gives_ambiguity_guidance() -> None:
     with patch("specify_cli.cli.commands.lifecycle._enforce_initialized"):
         result = runner.invoke(
-            top_level_lifecycle_app,
+            _build_top_level_lifecycle_app(),
             ["tasks", "--mission", "077-a", "--feature", "077-b", "--json"],
         )
 
@@ -656,7 +661,7 @@ def test_top_level_tasks_without_selector_emits_mission_disambiguation(
         patch("specify_cli.cli.commands.lifecycle._enforce_initialized"),
         patch("specify_cli.cli.commands.lifecycle.locate_project_root", return_value=tmp_path),
     ):
-        result = runner.invoke(top_level_lifecycle_app, ["tasks", "--json"])
+        result = runner.invoke(_build_top_level_lifecycle_app(), ["tasks", "--json"])
 
     assert result.exit_code == 1, result.output
     payload = _extract_json(result.output)
