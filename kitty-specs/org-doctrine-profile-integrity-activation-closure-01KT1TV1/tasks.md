@@ -104,7 +104,7 @@
 ### WP02 — DRG relation vocabulary + reverse index
 - **Goal**: Add `SPECIALIZES_FROM` (distinct from `DELEGATES_TO`) and `DRGGraph.edges_to` (FR-001/002).
 - **Priority**: P0. **Independent test**: no-leak guard; edges_to reverse adjacency.
-- **Subtasks**: - [ ] T005 (WP02) · - [ ] T006 (WP02) · - [ ] T007 (WP02) · - [ ] T008 (WP02)
+- **Subtasks**: - [x] T005 (WP02) · - [x] T006 (WP02) · - [x] T007 (WP02) · - [x] T008 (WP02)
 - **Dependencies**: none. **Prompt**: [tasks/WP02-drg-relation-reverse-index.md](tasks/WP02-drg-relation-reverse-index.md) (~210 lines)
 
 ### WP03 — Relocate three-layer merge into doctrine
