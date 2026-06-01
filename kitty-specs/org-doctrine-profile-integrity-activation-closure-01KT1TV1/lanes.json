@@ -338,6 +338,7 @@
         "WP15"
       ],
       "write_scope": [
+        "tests/architectural/_baselines.yaml",
         "tests/architectural/test_no_dead_symbols.py"
       ],
       "predicted_surfaces": [
@@ -371,7 +372,7 @@
       "parallel_group": 5
     }
   ],
-  "computed_at": "2026-06-01T17:05:24.445842+00:00",
+  "computed_at": "2026-06-01T17:39:36.694553+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": []
 }
