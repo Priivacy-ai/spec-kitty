@@ -45,7 +45,7 @@ def enriched_procedure_data() -> dict:
     """
     return {
         "schema_version": "1.0",
-        "id": "mission-merge-ceremony",
+        "id": "mission-merge-workflow",
         "name": "Feature Merge Ceremony",
         "purpose": "Merge completed work packages into the target branch.",
         "entry_condition": "All work packages in done lane with passing tests.",
