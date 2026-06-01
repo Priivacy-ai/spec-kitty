@@ -17,7 +17,7 @@ subtasks:
 - T003
 - T004
 agent: "claude:opus:python-pedro:implementer"
-shell_pid: "1544264"
+shell_pid: "1685112"
 history:
 - at: '2026-06-01T16:49:18Z'
   actor: claude
@@ -143,3 +143,4 @@ Create the single canonical mapping for two vocabularies that are currently re-d
 - 2026-06-01T17:28:54Z – claude:opus:python-pedro:implementer – shell_pid=1544264 – Assigned agent via action command
 - 2026-06-01T17:34:38Z – claude:opus:python-pedro:implementer – shell_pid=1544264 – Implementation complete & committed (RED+GREEN); ruff/mypy/pytest green (36 tests). Subtasks T001-T004 marked done. BLOCKED on move-task to for_review: WP has no canonical lane status (status.json event_count=0, work_packages={}); event log holds WPCreated/Specify/Plan events but ZERO lane-transition events for any WP. Lane status never bootstrapped (guard: lane states WP01=uninitialized). Fix is mission-wide finalize-tasks/bootstrap, outside WP01 owned-file scope and forbidden by WP-isolation rules. Needs orchestrator/mission-setup action.
 - 2026-06-01T19:14:50Z – claude:opus:python-pedro:implementer – shell_pid=1544264 – reset blocked->planned
+- 2026-06-01T22:52:13Z – claude:opus:python-pedro:implementer – shell_pid=1685112 – Started implementation via action command
