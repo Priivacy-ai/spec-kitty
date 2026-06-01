@@ -1,9 +1,9 @@
 {
-  "event_count": 18,
-  "last_event_id": "01KT2RJMNHZM4XASGA9K8S3GX8",
-  "materialized_at": "2026-06-01T23:33:49.873169+00:00",
+  "event_count": 0,
+  "last_event_id": null,
+  "materialized_at": "",
   "mission_number": "",
-  "mission_slug": "org-doctrine-profile-integrity-activation-closure-01KT1TV1",
+  "mission_slug": "",
   "mission_type": "software-dev",
   "summary": {
     "approved": 0,
@@ -14,134 +14,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 18
+    "planned": 0
   },
-  "work_packages": {
-    "WP01": {
-      "actor": "finalize-tasks",
-      "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KT2RJDHKATGJZZ1004FXJRG5",
-      "last_transition_at": "2026-06-01T23:33:42.579823+00:00"
-    },
-    "WP02": {
-      "actor": "finalize-tasks",
-      "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KT2RJE16GSTWSNX8JVYXSCG8",
-      "last_transition_at": "2026-06-01T23:33:43.078078+00:00"
-    },
-    "WP03": {
-      "actor": "finalize-tasks",
-      "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KT2RJEE6CAHPEV113JYMV36W",
-      "last_transition_at": "2026-06-01T23:33:43.494208+00:00"
-    },
-    "WP04": {
-      "actor": "finalize-tasks",
-      "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KT2RJEVE3CAZPWDGEHGZT4XZ",
-      "last_transition_at": "2026-06-01T23:33:43.918263+00:00"
-    },
-    "WP05": {
-      "actor": "finalize-tasks",
-      "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KT2RJF8R13R9HY024GDBTZQ4",
-      "last_transition_at": "2026-06-01T23:33:44.344855+00:00"
-    },
-    "WP06": {
-      "actor": "finalize-tasks",
-      "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KT2RJFNY3BY0M08M4EJ0F2MT",
-      "last_transition_at": "2026-06-01T23:33:44.766999+00:00"
-    },
-    "WP07": {
-      "actor": "finalize-tasks",
-      "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KT2RJG39KNGV0X92F9PP37DA",
-      "last_transition_at": "2026-06-01T23:33:45.193701+00:00"
-    },
-    "WP08": {
-      "actor": "finalize-tasks",
-      "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KT2RJGGG0P8V5YYGZ6G0DYRP",
-      "last_transition_at": "2026-06-01T23:33:45.616593+00:00"
-    },
-    "WP09": {
-      "actor": "finalize-tasks",
-      "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KT2RJGXXAYRGWX2BMBH4CCJN",
-      "last_transition_at": "2026-06-01T23:33:46.045926+00:00"
-    },
-    "WP10": {
-      "actor": "finalize-tasks",
-      "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KT2RJHB79RARTCGVADGM7Z55",
-      "last_transition_at": "2026-06-01T23:33:46.471094+00:00"
-    },
-    "WP11": {
-      "actor": "finalize-tasks",
-      "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KT2RJHRG4F5DJN39ADY3KTB2",
-      "last_transition_at": "2026-06-01T23:33:46.896778+00:00"
-    },
-    "WP12": {
-      "actor": "finalize-tasks",
-      "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KT2RJJ5QS6NBM2E9SQW4M277",
-      "last_transition_at": "2026-06-01T23:33:47.319104+00:00"
-    },
-    "WP13": {
-      "actor": "finalize-tasks",
-      "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KT2RJJJW2M4VJ0JNPJHVZSEX",
-      "last_transition_at": "2026-06-01T23:33:47.740344+00:00"
-    },
-    "WP14": {
-      "actor": "finalize-tasks",
-      "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KT2RJK081H56DYJWYHJWZAY0",
-      "last_transition_at": "2026-06-01T23:33:48.168288+00:00"
-    },
-    "WP15": {
-      "actor": "finalize-tasks",
-      "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KT2RJKD9MTF07ZPEX2VCY4PH",
-      "last_transition_at": "2026-06-01T23:33:48.585255+00:00"
-    },
-    "WP16": {
-      "actor": "finalize-tasks",
-      "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KT2RJKTN0M7M6MYWBTRQE82X",
-      "last_transition_at": "2026-06-01T23:33:49.013664+00:00"
-    },
-    "WP17": {
-      "actor": "finalize-tasks",
-      "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KT2RJM7XFA566K29T2DJPJGS",
-      "last_transition_at": "2026-06-01T23:33:49.437219+00:00"
-    },
-    "WP18": {
-      "actor": "finalize-tasks",
-      "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KT2RJMNHZM4XASGA9K8S3GX8",
-      "last_transition_at": "2026-06-01T23:33:49.873169+00:00"
-    }
-  }
+  "work_packages": {}
 }
