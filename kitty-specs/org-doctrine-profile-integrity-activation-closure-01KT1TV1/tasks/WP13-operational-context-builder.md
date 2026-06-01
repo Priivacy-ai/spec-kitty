@@ -16,8 +16,8 @@ subtasks:
 - T059
 - T060
 - T061
-agent: claude:opus:python-pedro:implementer
-shell_pid: '1727048'
+agent: "claude:opus:python-pedro:implementer"
+shell_pid: "1727048"
 history:
 - at: '2026-06-01T16:49:18Z'
   actor: claude
@@ -98,3 +98,5 @@ Turn `build_operational_context()` from an all-None stub into a **pure explicit-
 - 2026-06-01T20:56:45Z – claude:opus:python-pedro:implementer – shell_pid=1655372 – WP13 recovered: OperationalContext assembler + guards; 15 tests green
 - 2026-06-01T23:26:55Z – claude:opus:python-pedro:implementer – shell_pid=1703621 – Assigned agent via action command
 - 2026-06-01T23:27:31Z – claude:opus:python-pedro:implementer – shell_pid=1703621 – WP13 ready
+- 2026-06-01T23:49:33Z – claude:opus:python-pedro:implementer – shell_pid=1727048 – Assigned agent via action command
+- 2026-06-01T23:55:01Z – claude:opus:python-pedro:implementer – shell_pid=1727048 – Ready for review: pure build_operational_context assembler (FR-017) + actionable ContextPreconditionError guards (FR-018), C-006 preserved (no specify_cli/doctrine imports). pytest tests/charter/test_operational_context.py = 14 passed (exit 0); ruff src/charter/invocation_context.py tests/charter/test_operational_context.py = exit 0.
