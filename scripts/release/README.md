@@ -114,6 +114,12 @@ Release PR check ownership:
 2. `CI Quality` owns tests, wheel build, lockfile checks, exact install verification, and SaaS consumer compatibility evidence.
 3. `Check Shared Package Drift` owns shared-package pin drift evidence.
 
+Live canary and cross-repo end-to-end runs are release-candidate hygiene, not
+tag-time publish jobs. The charter still requires them before a release
+candidate is tagged; the release owner must run them locally from a trusted
+runner and record the pass, product failure, inconclusive result, or explicit
+maintainer waiver.
+
 Tag-time publish workflow sequence:
 
 1. run tests
@@ -149,21 +155,28 @@ python scripts/release/check_candidate_consumer_compat.py \
   --consumer-contract ../spec-kitty-saas/contracts/consumer-compatibility.json
 twine check dist/*
 
-# 3) clean build artifacts
+# 3) release-candidate hygiene (local trusted-runner evidence, before tagging)
+pushd ../../spec-kitty-end-to-end-testing
+uv sync
+SPEC_KITTY_ENABLE_SAAS_SYNC=1 uv run pytest tests/ -v
+./scripts/run-canary.sh --profile local --phase all
+popd
+
+# 4) clean build artifacts
 rm -rf dist/ build/
 
-# 4) commit, push, and merge the release metadata through a PR
+# 5) commit, push, and merge the release metadata through a PR
 spec-kitty safe-commit --message "chore(release): prepare 3.1.0a0" pyproject.toml CHANGELOG.md
 git push origin release/3.1.0a0
 gh pr create --base main --title "Release 3.1.0a0" --fill
 
-# 5a) prerelease publish from updated main
+# 6a) prerelease publish from updated main
 git checkout main
 git pull origin main
 git tag v3.1.0a0 -m "Release 3.1.0a0"
 git push origin v3.1.0a0
 
-# 5b) stable publish from updated main
+# 6b) stable publish from updated main
 #     Edit pyproject.toml to "3.1.0" and rename the changelog heading to [3.1.0]
 git tag v3.1.0 -m "Release 3.1.0"
 git push origin v3.1.0
