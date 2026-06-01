@@ -104,8 +104,15 @@ jobs:
 
       - name: Validate shared package drift
         run: |
+          MANIFEST_ARGS=()
+          if python scripts/release/check_shared_package_drift.py --help | grep -q -- '--compatibility-manifest'; then
+            MANIFEST_ARGS=(
+              --compatibility-manifest candidate/.kittify/release/shared-package-compatibility.json
+            )
+          fi
+
           python scripts/release/check_shared_package_drift.py \
             --pyproject candidate/pyproject.toml \
             --lockfile candidate/uv.lock \
-            --compatibility-manifest candidate/.kittify/release/shared-package-compatibility.json \
+            "${MANIFEST_ARGS[@]}" \
             --saas-pyproject "${{ steps.fetch_refs.outputs.saas_pyproject }}"

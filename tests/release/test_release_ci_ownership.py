@@ -80,6 +80,8 @@ def test_shared_drift_secret_job_uses_trusted_scripts_only() -> None:
     assert "CROSS_REPO_TOKEN" not in repr(verify.get("env", {}))
     assert "check_candidate_consumer_compat.py" not in verify_dump
     assert "candidate/.kittify/release/shared-package-compatibility.json" in verify_dump
+    assert "check_shared_package_drift.py --help" in verify_dump
+    assert "MANIFEST_ARGS" in verify_dump
 
     fetch_step = next(step for step in verify["steps"] if step.get("id") == "fetch_refs")
     assert "CROSS_REPO_TOKEN" in fetch_step["env"]
@@ -94,9 +96,13 @@ def test_ci_quality_consumer_compatibility_reuses_ci_wheel_with_trusted_scripts(
     assert "needs.changes.outputs.release == 'true'" in job["if"]
     assert "github.event.pull_request.base.sha" in job_dump
     assert "spec-kitty-cli-wheel" in job_dump
+    assert "release-compatibility-manifest" in job_dump
+    assert "candidate/.kittify/release/shared-package-compatibility.json" in job_dump
     assert "CROSS_REPO_TOKEN" not in repr(job.get("env", {}))
     assert "IS_FORK_PR" in job["env"]
     assert "check_candidate_consumer_compat.py" in job_dump
+    assert "check_candidate_consumer_compat.py --help" in job_dump
+    assert "MANIFEST_ARGS" in job_dump
 
     fetch_step = next(step for step in job["steps"] if step.get("id") == "fetch_contract")
     assert "CROSS_REPO_TOKEN" in fetch_step["env"]

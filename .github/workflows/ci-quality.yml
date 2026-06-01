@@ -2331,6 +2331,14 @@ jobs:
           path: dist/spec_kitty_cli-*.whl
           retention-days: 7
 
+      - name: Upload release compatibility manifest
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-compatibility-manifest
+          path: .kittify/release/shared-package-compatibility.json
+          if-no-files-found: error
+          retention-days: 7
+
   # ---------------------------------------------------------------------------
   # clean-install-verification: structurally proves `spec-kitty next` runs in
   # a fresh venv without `spec-kitty-runtime` installed (FR-010, FR-017,
@@ -2439,6 +2447,12 @@ jobs:
           name: spec-kitty-cli-wheel
           path: dist/
 
+      - name: Download candidate release compatibility manifest
+        uses: actions/download-artifact@v8
+        with:
+          name: release-compatibility-manifest
+          path: candidate/.kittify/release/
+
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -2488,8 +2502,16 @@ jobs:
       - name: Validate candidate against SaaS consumer contract
         if: steps.fetch_contract.outputs.saas_fetched == 'true'
         run: |
+          MANIFEST_ARGS=()
+          if python scripts/release/check_candidate_consumer_compat.py --help | grep -q -- '--compatibility-manifest'; then
+            MANIFEST_ARGS=(
+              --compatibility-manifest candidate/.kittify/release/shared-package-compatibility.json
+            )
+          fi
+
           python scripts/release/check_candidate_consumer_compat.py \
             --package spec-kitty-cli \
+            "${MANIFEST_ARGS[@]}" \
             --consumer-contract "${{ steps.fetch_contract.outputs.consumer_contract }}"
 
   # ---------------------------------------------------------------------------
