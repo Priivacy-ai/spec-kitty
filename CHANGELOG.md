@@ -34,6 +34,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Prerelease PyPI publishing no longer waives downstream consumer evidence; the
   release workflow now requires the private consumer suite before any PyPI
   promotion.
+- A circular work-package dependency in `tasks.md` no longer leaves the canonical
+  status uninitialized with a misleading, looping error (#1589). `finalize-tasks`
+  aborts on the cycle before bootstrapping status; `spec-kitty next`/`move-task`
+  and lane reads now name the dependency cycle as the root cause instead of an
+  infinite "run finalize-tasks to bootstrap the event log" hint.
+- `spec-kitty agent status doctor` no longer reports a mission as "Healthy" when
+  it has work-package definitions but no canonical status (e.g. after a
+  cycle-aborted `finalize-tasks`); it now emits an `uninitialized_status` warning
+  naming the cycle when present (#1589).
+- CI: the shared-package drift check now skips gracefully when
+  `SPEC_KITTY_SAAS_READ_TOKEN` is unavailable (fork PRs) instead of hard-failing;
+  the cross-repo drift is still enforced by the push-to-main CI that holds the
+  secret.
 
 ### Documentation
 
