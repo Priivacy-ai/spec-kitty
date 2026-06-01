@@ -1,0 +1,128 @@
+{
+  "version": 1,
+  "mission_slug": "p0-test-failure-resolution-1298-1305-01KT1R2G",
+  "mission_id": "01KT1R2GZRSH1RVG4JJ1VNFC6A",
+  "mission_branch": "kitty/mission-p0-test-failure-resolution-1298-1305-01KT1R2G",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/p0-baseline-refresh.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "pyproject.toml",
+        "src/specify_cli/spec_kitty_events/**",
+        "tests/sync/test_daemon_intent_gate.py",
+        "uv.lock"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-planning"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/how-to/check_docs_freshness.md",
+        "tests/contract/fixtures/**",
+        "tests/contract/test_example_round_trip.py",
+        "tests/contract/test_handoff_fixtures.py",
+        "tests/sync/test_lifecycle_readiness.py",
+        "tests/sync/tracker/test_origin_integration.py"
+      ],
+      "predicted_surfaces": [
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/next/**",
+        "tests/next/**"
+      ],
+      "predicted_surfaces": [
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "glossary/contexts/**",
+        "src/specify_cli/doctrine/**",
+        "tests/doctrine/**"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 4
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/charter_lint/**",
+        "src/specify_cli/path_guard.py",
+        "tests/charter/synthesizer/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-d"
+      ],
+      "parallel_group": 5
+    }
+  ],
+  "computed_at": "2026-06-01T15:17:21.755449+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP01"
+  ]
+}

@@ -8,7 +8,7 @@ requirement_refs:
 tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Execution worktree is allocated per computed lane from lanes.json. Do not branch manually.
+branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T001
 - T002
@@ -17,10 +17,10 @@ subtasks:
 agent: claude
 history: []
 agent_profile: debugger-debbie
-authoritative_surface: kitty-specs/p0-test-failure-resolution-1298-1305-01KT1R2G/
+authoritative_surface: docs/
 execution_mode: planning_artifact
 owned_files:
-- kitty-specs/p0-test-failure-resolution-1298-1305-01KT1R2G/baseline-refresh.md
+- docs/p0-baseline-refresh.md
 role: investigator
 tags: []
 ---
@@ -142,7 +142,7 @@ For each cluster:
 **Purpose**: Produce the gating artifact that downstream WPs depend on.
 
 **Steps**:
-Create `kitty-specs/p0-test-failure-resolution-1298-1305-01KT1R2G/baseline-refresh.md` with this structure:
+Create `docs/p0-baseline-refresh.md` with this structure:
 
 ```markdown
 # Baseline Refresh — P0 Test Failures
@@ -172,12 +172,12 @@ WPs to skip (stale): [list resolved issues]
 
 Commit the document:
 ```bash
-git add kitty-specs/p0-test-failure-resolution-1298-1305-01KT1R2G/baseline-refresh.md
+git add docs/p0-baseline-refresh.md
 git commit -m "docs: add baseline-refresh for P0 test failure mission"
 ```
 
 **Validation**:
-- [ ] `baseline-refresh.md` written and committed
+- [ ] `docs/p0-baseline-refresh.md` written and committed
 - [ ] All four clusters have a clear STILL REPRODUCES / STALE status
 
 ---

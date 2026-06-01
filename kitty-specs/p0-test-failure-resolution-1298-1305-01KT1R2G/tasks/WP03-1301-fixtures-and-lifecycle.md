@@ -10,7 +10,7 @@ requirement_refs:
 tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Execution worktree is allocated per computed lane from lanes.json. Do not branch manually.
+branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T009
 - T010
@@ -28,7 +28,7 @@ owned_files:
 - tests/contract/test_example_round_trip.py
 - tests/sync/test_lifecycle_readiness.py
 - tests/sync/tracker/test_origin_integration.py
-- docs/**
+- docs/how-to/check_docs_freshness.md
 role: implementer
 tags: []
 ---
