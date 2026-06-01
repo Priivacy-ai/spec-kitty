@@ -548,6 +548,27 @@ def _collect_snapshot_wps(feature: str, feature_dir: Path, activity_issues: list
     return snapshot.work_packages
 
 
+def _status_read_feature_dir(repo_root: Path, feature: str, feature_dir: Path) -> Path:
+    """Return canonical status read path for acceptance lane validation."""
+    mid8 = ""
+    try:
+        meta = load_meta(feature_dir) or {}
+    except Exception:  # noqa: BLE001 — fall back to suffix detection
+        meta = {}
+    raw_mid8 = meta.get("mid8")
+    if isinstance(raw_mid8, str) and raw_mid8:
+        mid8 = raw_mid8
+    elif "-" in feature:
+        tail = feature.rsplit("-", 1)[-1]
+        if len(tail) == 8 and tail.isalnum() and tail.isupper():
+            mid8 = tail
+
+    from specify_cli.missions._read_path_resolver import resolve_mission_read_path
+
+    status_dir = resolve_mission_read_path(repo_root, feature, mid8)
+    return status_dir if status_dir.exists() else feature_dir
+
+
 def _validate_wp_readiness(
     expected_wp_ids: list[str],
     snapshot_wps: dict[str, dict[str, Any]],
@@ -834,7 +855,8 @@ def collect_feature_summary(
     skipped_checks: list[AcceptanceCheckDiagnostic] = []
     blocked_checks: list[AcceptanceCheckDiagnostic] = []
 
-    snapshot_wps = _collect_snapshot_wps(feature, feature_dir, activity_issues)
+    status_feature_dir = _status_read_feature_dir(repo_root, feature, feature_dir)
+    snapshot_wps = _collect_snapshot_wps(feature, status_feature_dir, activity_issues)
 
     expected_wp_ids: list[str] = []
     for wp in _iter_work_packages(repo_root, feature):
@@ -877,7 +899,7 @@ def collect_feature_summary(
             )
         )
 
-    _validate_wp_readiness(expected_wp_ids, snapshot_wps, feature_dir / EVENTS_FILENAME, activity_issues)
+    _validate_wp_readiness(expected_wp_ids, snapshot_wps, status_feature_dir / EVENTS_FILENAME, activity_issues)
 
     unchecked_tasks = _find_unchecked_tasks(feature_dir / TASKS_FILE)
     needs_clarification = _check_needs_clarification(

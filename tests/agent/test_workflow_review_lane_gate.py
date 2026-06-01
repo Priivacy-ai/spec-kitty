@@ -353,6 +353,60 @@ def test_workflow_implement_emits_rework_to_coord_status_path(
     assert primary_snapshot.work_packages["WP01"]["lane"] == Lane.PLANNED
 
 
+def test_commit_workflow_change_syncs_lane_after_coord_commit(
+    workflow_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    mission_slug = "demo-feature-01J6XW9K"
+    mid8 = "01J6XW9K"
+    mission_id = "01J6XW9KABCDEFGHJKMNPQRSTV"
+    coord_branch = f"kitty/mission-{mission_slug}"
+    feature_dir = workflow_repo / "kitty-specs" / mission_slug
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_slug": mission_slug,
+                "mission_id": mission_id,
+                "mid8": mid8,
+                "coordination_branch": coord_branch,
+            }
+        ),
+        encoding="utf-8",
+    )
+    event_path = feature_dir / "status.events.jsonl"
+    event_path.write_text("", encoding="utf-8")
+
+    calls: list[str] = []
+
+    def fake_commit(**_kwargs: object) -> None:
+        calls.append("commit")
+
+    def fake_sync(**kwargs: object) -> None:
+        calls.append("sync")
+        assert kwargs["coord_branch"] == coord_branch
+        assert kwargs["wp_id"] == "WP01"
+
+    monkeypatch.setattr(workflow, "_commit_via_coordination_transaction", fake_commit)
+    monkeypatch.setattr(workflow, "_sync_lane_after_coordination_commit", fake_sync)
+
+    workflow._commit_workflow_change(
+        repo_root=workflow_repo,
+        feature_dir=feature_dir,
+        mission_slug=mission_slug,
+        target_branch="main",
+        paths=[event_path],
+        message="chore: Start WP01 implementation [agent]",
+        operation="planned -> claimed for WP01",
+        wp_id="WP01",
+        pre_emit_event_size=0,
+        pre_emit_status_bytes=None,
+        auto_rebase_lane_after_commit=True,
+    )
+
+    assert calls == ["commit", "sync"]
+
+
 def test_workflow_review_tracks_reviewer_agent_name(workflow_repo: Path) -> None:
     """Review command should write the reviewer agent name into WP frontmatter.
 

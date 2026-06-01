@@ -295,6 +295,40 @@ def _commit_via_coordination_transaction(
     )
 
 
+def _render_lane_auto_rebase_failure(exc: BaseException) -> None:
+    from specify_cli.lanes.lifecycle_sync import LaneAutoRebaseSyncError
+
+    if not isinstance(exc, LaneAutoRebaseSyncError):
+        print(f"Error: {exc}")
+        return
+
+    payload = exc.to_dict()
+    print(f"Error: {payload['error_code']}: {payload['halt_reason']}")
+    print(f"  lane_id: {payload['lane_id']}")
+    print(f"  lane_worktree_path: {payload['lane_worktree_path']}")
+    print(f"  coordination_branch: {payload['coordination_branch']}")
+    print(f"  coordination_head: {payload['coordination_head']}")
+
+
+def _sync_lane_after_coordination_commit(
+    *,
+    repo_root: Path,
+    feature_dir: Path,
+    mission_slug: str,
+    wp_id: str,
+    coord_branch: str,
+) -> None:
+    from specify_cli.lanes.lifecycle_sync import sync_lane_after_coordination_commit
+
+    sync_lane_after_coordination_commit(
+        repo_root=repo_root,
+        feature_dir=feature_dir,
+        mission_slug=mission_slug,
+        wp_id=wp_id,
+        coordination_branch=coord_branch,
+    )
+
+
 def _commit_via_legacy_safe_commit(
     *,
     repo_root: Path,
@@ -332,6 +366,7 @@ def _commit_workflow_change(
     wp_id: str,
     pre_emit_event_size: int,
     pre_emit_status_bytes: bytes | None,
+    auto_rebase_lane_after_commit: bool = False,
 ) -> None:
     """Commit a workflow change with atomic event-log rollback on failure.
 
@@ -368,7 +403,6 @@ def _commit_workflow_change(
                 operation=operation,
                 wp_id=wp_id,
             )
-            return
         except typer.Exit:
             _restore_status_artifacts(
                 events_path=events_path,
@@ -397,6 +431,19 @@ def _commit_workflow_change(
                 f"Error: Failed to record {operation} via BookkeepingTransaction: {exc}"
             )
             raise typer.Exit(1) from exc
+        if auto_rebase_lane_after_commit:
+            try:
+                _sync_lane_after_coordination_commit(
+                    repo_root=repo_root,
+                    feature_dir=feature_dir,
+                    mission_slug=mission_slug,
+                    wp_id=wp_id,
+                    coord_branch=str(coord_branch),
+                )
+            except Exception as exc:  # noqa: BLE001 — structured sync refusal
+                _render_lane_auto_rebase_failure(exc)
+                raise typer.Exit(1) from exc
+        return
 
     # Legacy fallback (TODO(WP08): replace with the legacy bridge).
     try:
@@ -1175,6 +1222,7 @@ def implement(
                 wp_id=normalized_wp_id,
                 pre_emit_event_size=_pre_emit_event_size,
                 pre_emit_status_bytes=_pre_emit_status_bytes,
+                auto_rebase_lane_after_commit=True,
             )
 
             print(f"✓ Claimed {normalized_wp_id} (agent: {agent}, PID: {shell_pid}, target: {target_branch})")
@@ -1987,6 +2035,7 @@ def review(
                     wp_id=normalized_wp_id,
                     pre_emit_event_size=_pre_emit_event_size_rev,
                     pre_emit_status_bytes=_pre_emit_status_bytes_rev,
+                    auto_rebase_lane_after_commit=True,
                 )
 
             print(f"✓ Claimed {normalized_wp_id} for review (agent: {agent}, PID: {shell_pid}, target: {target_branch})")
