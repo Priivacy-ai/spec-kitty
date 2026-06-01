@@ -118,7 +118,7 @@ def test_command_skill_agents_are_shared_skill_roots() -> None:
         assert entry["class"] == SKILL_CLASS_SHARED, (
             f"{key!r} should have class SKILL_CLASS_SHARED, got {entry['class']!r}"
         )
-        roots: list[str] = entry["skill_roots"]  # type: ignore[assignment]
+        roots: list[str] = entry["skill_roots"]
         assert ".agents/skills/" in roots, (
             f"{key!r} skill_roots should contain '.agents/skills/', got {roots!r}"
         )

@@ -66,7 +66,7 @@ def get_global_command_dir(agent_key: str) -> Path:
         return Path.home() / ".config" / "opencode" / "commands"
 
     config = AGENT_COMMAND_CONFIG[agent_key]
-    return Path.home() / config["dir"]
+    return Path.home() / str(config["dir"])
 
 
 # ---------------------------------------------------------------------------
@@ -85,13 +85,13 @@ def _get_command_templates_dir() -> Path | None:
         pkg_root = get_package_asset_root()
         pkg_templates = pkg_root / DEFAULT_MISSION_KEY / "command-templates"
         if pkg_templates.is_dir():
-            return pkg_templates
+            return Path(pkg_templates)
     except FileNotFoundError:
         pass
 
     runtime_templates = get_kittify_home() / "missions" / DEFAULT_MISSION_KEY / "command-templates"
     if runtime_templates.is_dir():
-        return runtime_templates
+        return Path(runtime_templates)
 
     return None
 

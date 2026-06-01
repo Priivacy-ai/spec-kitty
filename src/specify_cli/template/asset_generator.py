@@ -19,11 +19,11 @@ def _get_cli_version() -> str:
     try:
         from importlib.metadata import version
 
-        return version("spec-kitty-cli")
+        return str(version("spec-kitty-cli"))
     except Exception:
         from specify_cli import __version__
 
-        return __version__
+        return str(__version__)
 
 
 def _toml_basic_string(value: str) -> str:
