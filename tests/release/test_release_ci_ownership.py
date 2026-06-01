@@ -16,6 +16,7 @@ WORKFLOWS = ROOT / ".github" / "workflows"
 RELEASE_OWNER_PATHS = {
     "pyproject.toml",
     "uv.lock",
+    ".kittify/release/shared-package-compatibility.json",
     "CHANGELOG.md",
     "RELEASE_CHECKLIST.md",
     "scripts/release/**",
@@ -78,6 +79,9 @@ def test_shared_drift_secret_job_uses_trusted_scripts_only() -> None:
     assert "github.event.pull_request.base.sha" in verify_dump
     assert "CROSS_REPO_TOKEN" not in repr(verify.get("env", {}))
     assert "check_candidate_consumer_compat.py" not in verify_dump
+    assert "candidate/.kittify/release/shared-package-compatibility.json" in verify_dump
+    assert "check_shared_package_drift.py --help" in verify_dump
+    assert "MANIFEST_ARGS" in verify_dump
 
     fetch_step = next(step for step in verify["steps"] if step.get("id") == "fetch_refs")
     assert "CROSS_REPO_TOKEN" in fetch_step["env"]
@@ -92,9 +96,13 @@ def test_ci_quality_consumer_compatibility_reuses_ci_wheel_with_trusted_scripts(
     assert "needs.changes.outputs.release == 'true'" in job["if"]
     assert "github.event.pull_request.base.sha" in job_dump
     assert "spec-kitty-cli-wheel" in job_dump
+    assert "release-compatibility-manifest" in job_dump
+    assert "candidate/.kittify/release/shared-package-compatibility.json" in job_dump
     assert "CROSS_REPO_TOKEN" not in repr(job.get("env", {}))
     assert "IS_FORK_PR" in job["env"]
     assert "check_candidate_consumer_compat.py" in job_dump
+    assert "check_candidate_consumer_compat.py --help" in job_dump
+    assert "MANIFEST_ARGS" in job_dump
 
     fetch_step = next(step for step in job["steps"] if step.get("id") == "fetch_contract")
     assert "CROSS_REPO_TOKEN" in fetch_step["env"]
@@ -131,6 +139,28 @@ def test_quality_gate_fails_closed_for_release_required_package_jobs() -> None:
         assert f"needs.{job_name}.result" in script
 
 
+def test_release_publish_requires_downstream_evidence_before_pypi() -> None:
+    workflow = load_workflow("release.yml")
+    jobs = workflow["jobs"]
+    downstream_dump = repr(jobs["downstream-consumer-verify"])
+    publish_job = jobs["publish-pypi"]
+
+    assert "prerelease-waived" not in downstream_dump
+    assert "SPEC_KITTY_CANDIDATE_WHEEL" in downstream_dump
+    assert "SPEC_KITTY_SAAS_READ_TOKEN is required" in downstream_dump
+    assert "downstream-consumer-verify" in publish_job["needs"]
+
+
+def test_release_verifies_pypi_exact_install_after_publish() -> None:
+    workflow = load_workflow("release.yml")
+    job = workflow["jobs"]["verify-pypi-installability"]
+    job_dump = repr(job)
+
+    assert job["needs"] == "publish-pypi"
+    assert "--from-index" in job_dump
+    assert "spec-kitty-cli" in job_dump
+
+
 def test_publish_release_requires_canary_verification_artifact() -> None:
     workflow = load_workflow("release.yml")
     jobs = workflow["jobs"]
@@ -154,8 +184,12 @@ def test_publish_release_requires_canary_verification_artifact() -> None:
     assert "Create GitHub Release" in publish_dump
     assert "Create GitHub Release" not in repr(jobs["build-release"])
     assert "sbom.cdx.json" in repr(jobs["build-release"])
+    assert "Classify release channel" in publish_dump
 
     step_names = [step.get("name", "") for step in publish["steps"]]
+    assert step_names.index("Classify release channel") < step_names.index(
+        "Create GitHub Release"
+    )
     assert step_names.index("Verify downstream-consumer-verify produced a passing artifact") < step_names.index(
         "Create GitHub Release"
     )

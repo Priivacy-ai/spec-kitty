@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Sequence
 import email
 import os
 import shutil
@@ -12,13 +13,25 @@ import sys
 import tempfile
 import zipfile
 from pathlib import Path
-from collections.abc import Sequence
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dist-dir", default="dist")
     parser.add_argument("--package", required=True)
+    parser.add_argument(
+        "--version",
+        help="Exact package version to install. Required with --from-index.",
+    )
+    parser.add_argument(
+        "--from-index",
+        action="store_true",
+        help="Install package==version from the configured package index instead of a local wheel.",
+    )
+    parser.add_argument(
+        "--index-url",
+        help="Optional pip --index-url for --from-index verification.",
+    )
     parser.add_argument(
         "--python",
         default=sys.executable,
@@ -105,17 +118,27 @@ def require_success(result: subprocess.CompletedProcess[str], label: str) -> Non
 
 def main() -> int:
     args = parse_args()
-    dist_dir = Path(args.dist_dir)
-    if not dist_dir.exists():
-        raise SystemExit(f"Distribution directory not found: {dist_dir}")
+    wheel_path: Path | None = None
+    requires_dist: list[str] = []
 
-    wheel_path = locate_wheel(dist_dir, args.package)
-    metadata = read_wheel_metadata(wheel_path)
-    expected_version = metadata.get("Version")
+    if args.from_index:
+        if not args.version:
+            raise SystemExit("--version is required when --from-index is used")
+        expected_version = args.version
+        install_target = f"{args.package}=={expected_version}"
+    else:
+        dist_dir = Path(args.dist_dir)
+        if not dist_dir.exists():
+            raise SystemExit(f"Distribution directory not found: {dist_dir}")
+
+        wheel_path = locate_wheel(dist_dir, args.package)
+        metadata = read_wheel_metadata(wheel_path)
+        expected_version = metadata.get("Version")
+        requires_dist = metadata.get_all("Requires-Dist", [])
+        install_target = str(wheel_path)
+
     if not expected_version:
         raise SystemExit(f"Wheel metadata missing Version field: {wheel_path}")
-
-    requires_dist = metadata.get_all("Requires-Dist", [])
 
     temp_dir = Path(tempfile.mkdtemp(prefix="exact-install-"))
     try:
@@ -131,8 +154,13 @@ def main() -> int:
         upgrade_pip = run([*pip_cmd, "install", "--upgrade", "pip"])
         require_success(upgrade_pip, "pip upgrade")
 
-        install = run([*pip_cmd, "install", "--no-cache-dir", str(wheel_path)])
-        require_success(install, "wheel install")
+        install_cmd = [*pip_cmd, "install", "--no-cache-dir"]
+        if args.from_index and args.index_url:
+            install_cmd.extend(["--index-url", args.index_url])
+        install_cmd.append(install_target)
+        install = run(install_cmd)
+        install_label = "index install" if args.from_index else "wheel install"
+        require_success(install, install_label)
 
         verify = run(
             [
@@ -169,7 +197,10 @@ def main() -> int:
 
         print("Exact Install Summary")
         print("---------------------")
-        print(f"- wheel: {wheel_path.name}")
+        if wheel_path is not None:
+            print(f"- wheel: {wheel_path.name}")
+        else:
+            print("- source: package index")
         print(f"- package: {args.package}")
         print(f"- version: {installed_version}")
         if args.console_script:

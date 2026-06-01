@@ -53,7 +53,29 @@ def write_contract(
     path.write_text(json.dumps(payload), encoding="utf-8")
 
 
+def write_manifest(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "release_train": "3.2.0",
+        "packages": [
+            {"package": "spec-kitty-events", "cli_range": ">=5.0.0,<6.0.0", "locked_version": "5.0.0"},
+            {"package": "spec-kitty-tracker", "cli_range": ">=0.4,<0.5", "locked_version": "0.4.3"},
+        ],
+        "consumers": [
+            {
+                "consumer": "spec-kitty-saas",
+                "contract_path": "contracts/consumer-compatibility.json",
+                "required_before_publish": True,
+            }
+        ],
+    }
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+
 def run_check(tmp_path: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    manifest = tmp_path / ".kittify" / "release" / "shared-package-compatibility.json"
+    if not manifest.exists():
+        write_manifest(manifest)
     return subprocess.run(
         [sys.executable, str(SCRIPT), *args],
         cwd=tmp_path,
@@ -219,3 +241,39 @@ def test_candidate_consumer_compat_fails_when_both_sides_use_broad_ranges(
 
     assert result.returncode == 1
     assert "compatibility cannot be proven" in result.stdout
+
+
+def test_candidate_consumer_compat_fails_when_contract_omits_manifest_package(
+    tmp_path: Path,
+) -> None:
+    dist_dir = tmp_path / "dist"
+    dist_dir.mkdir()
+    contract = tmp_path / "consumer-compatibility.json"
+    payload = {
+        "consumer": "spec-kitty-saas",
+        "contract_families": [
+            {"package": "spec-kitty-events", "supported_range": "==5.0.0"},
+        ],
+    }
+    contract.write_text(json.dumps(payload), encoding="utf-8")
+    write_wheel(
+        dist_dir,
+        version="3.2.0rc5",
+        requirements=[
+            "spec-kitty-events>=5.0.0,<6.0.0",
+            "spec-kitty-tracker>=0.4,<0.5",
+        ],
+    )
+
+    result = run_check(
+        tmp_path,
+        "--dist-dir",
+        str(dist_dir),
+        "--package",
+        "spec-kitty-cli",
+        "--consumer-contract",
+        str(contract),
+    )
+
+    assert result.returncode == 1
+    assert "Consumer contract is missing required shared-package families: spec-kitty-tracker" in result.stdout

@@ -167,13 +167,13 @@ class SyncState:
 [engine requests decision]
     → DecisionInputRequested appended to decisions.events.jsonl (sanitized)
     → delegated to inner emitter (local debug log)
-    
+
 [user/agent answers]
     → DecisionInputAnswered appended to decisions.events.jsonl (sanitized)
     → safe_commit() → CommitResult.sha
     → LocalCommit frame emitted (triggers local_commit.emit_local_commit)
     → delegated to inner emitter
-    
+
 [session crash after request, before answer]
     → decisions.events.jsonl has orphaned Requested line
     → no git commit (acceptable; SaaS handles gracefully)
@@ -186,13 +186,13 @@ class SyncState:
     → build LocalCommit frame
     → if WebSocket connected: send immediately via send_event()
     → if not connected: append to sync-state.json pending_local_commits
-    
+
 [WebSocket reconnects]
     → flush_pending_local_commits() sends all pending frames in order
-    
+
 [SaaS sends LocalCommitAck(hash=H)]
     → record_local_commit_ack() removes H from pending, updates last_saas_confirmed_hash
-    
+
 [commit amended]
     → new LocalCommit frame (new hash, same build_id)
     → replace prior pending frame for this build_id in sync-state.json

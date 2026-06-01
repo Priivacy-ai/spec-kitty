@@ -57,6 +57,9 @@ Use this checklist for releases from `main`.
     --saas-pyproject ../spec-kitty-saas/pyproject.toml \
     --runtime-pyproject /path/to/spec-kitty-runtime/pyproject.toml
   ```
+- [ ] Confirm `.kittify/release/shared-package-compatibility.json` is the
+  authoritative 3.2.0 shared-package set and matches `pyproject.toml` plus
+  `uv.lock`.
 - [ ] If a SaaS consumer pin lands after the CLI candidate commit, rerun the
   shared-package drift workflow or the local drift command against the updated
   SaaS `main` before recording branch-health evidence.
@@ -189,10 +192,12 @@ package first, verify it is installable from PyPI, and only then tag the CLI.
   - checks shared-package drift
   - proves exact wheel installability with plain `pip`
   - validates candidate compatibility against the SaaS consumer contract
-  - validates four clean `spec-kitty-dev` canary runs or a structured waiver
   - builds distributions
-  - publishes to PyPI
+  - validates downstream consumer evidence before PyPI publish
+  - validates four clean `spec-kitty-dev` canary runs or a structured waiver
   - creates the GitHub release
+  - publishes to PyPI
+  - verifies exact installability from PyPI with no local wheel
 - [ ] If this is a prerelease, confirm GitHub marks the release as `Pre-release`.
 - [ ] Verify the publishing workflow result separately from branch health.
   A successful PyPI/GitHub release proves publication only; it does not prove

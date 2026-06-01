@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -60,7 +61,48 @@ def write_lockfile(path: Path, *, versions: dict[str, str]) -> None:
     )
 
 
+def write_manifest(
+    path: Path,
+    *,
+    events_range: str = ">=4.0.0,<5.0.0",
+    events_version: str = "4.0.0",
+    tracker_range: str = ">=0.4,<0.5",
+    tracker_version: str = "0.4.2",
+) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            {
+                "release_train": "3.2.0",
+                "authority": "test",
+                "packages": [
+                    {
+                        "package": "spec-kitty-events",
+                        "cli_range": events_range,
+                        "locked_version": events_version,
+                    },
+                    {
+                        "package": "spec-kitty-tracker",
+                        "cli_range": tracker_range,
+                        "locked_version": tracker_version,
+                    },
+                ],
+                "retired_packages": [
+                    {
+                        "package": "spec-kitty-runtime",
+                        "status": "retired-for-cli-release",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
 def run_check(tmp_path: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    manifest = tmp_path / ".kittify" / "release" / "shared-package-compatibility.json"
+    if not manifest.exists():
+        write_manifest(manifest)
     return subprocess.run(
         [sys.executable, str(SCRIPT), *args],
         cwd=tmp_path,
@@ -265,6 +307,82 @@ def test_shared_package_drift_fails_when_cli_constraint_is_unbounded(tmp_path: P
 
     assert result.returncode == 1
     assert "spec-kitty-events: dependency must use a bounded compatible range" in result.stderr
+
+
+def test_shared_package_drift_fails_when_cli_range_does_not_match_manifest(
+    tmp_path: Path,
+) -> None:
+    cli = tmp_path / "pyproject.toml"
+    lockfile = tmp_path / "uv.lock"
+    write_manifest(
+        tmp_path / ".kittify" / "release" / "shared-package-compatibility.json",
+        events_range=">=5.2.0,<6.0.0",
+        events_version="5.2.0",
+        tracker_version="0.4.2",
+    )
+
+    write_pyproject(
+        cli,
+        dependencies=[
+            "spec-kitty-events>=4.0.0,<5.0.0",
+            "spec-kitty-tracker>=0.4,<0.5",
+        ],
+    )
+    write_lockfile(
+        lockfile,
+        versions={
+            "spec-kitty-events": "5.2.0",
+            "spec-kitty-tracker": "0.4.2",
+        },
+    )
+
+    result = run_check(
+        tmp_path,
+        "--pyproject",
+        str(cli),
+        "--lockfile",
+        str(lockfile),
+    )
+
+    assert result.returncode == 1
+    assert "spec-kitty-events CLI range <5.0.0,>=4.0.0 does not match release authority <6.0.0,>=5.2.0" in result.stdout
+
+
+def test_shared_package_drift_fails_when_lock_does_not_match_manifest(
+    tmp_path: Path,
+) -> None:
+    cli = tmp_path / "pyproject.toml"
+    lockfile = tmp_path / "uv.lock"
+    write_manifest(
+        tmp_path / ".kittify" / "release" / "shared-package-compatibility.json",
+        events_version="4.0.1",
+    )
+
+    write_pyproject(
+        cli,
+        dependencies=[
+            "spec-kitty-events>=4.0.0,<5.0.0",
+            "spec-kitty-tracker>=0.4,<0.5",
+        ],
+    )
+    write_lockfile(
+        lockfile,
+        versions={
+            "spec-kitty-events": "4.0.0",
+            "spec-kitty-tracker": "0.4.2",
+        },
+    )
+
+    result = run_check(
+        tmp_path,
+        "--pyproject",
+        str(cli),
+        "--lockfile",
+        str(lockfile),
+    )
+
+    assert result.returncode == 1
+    assert "spec-kitty-events uv.lock version 4.0.0 does not match release authority 4.0.1" in result.stdout
 
 
 def test_installed_version_guard_passes_when_installed_version_matches_lock() -> None:

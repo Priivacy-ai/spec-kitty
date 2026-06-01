@@ -6,6 +6,7 @@ on:
     paths:
       - 'pyproject.toml'
       - 'uv.lock'
+      - '.kittify/release/shared-package-compatibility.json'
       - 'scripts/release/**'
       - '.github/workflows/check-spec-kitty-events-alignment.yml'
   push:
@@ -13,6 +14,7 @@ on:
     paths:
       - 'pyproject.toml'
       - 'uv.lock'
+      - '.kittify/release/shared-package-compatibility.json'
       - 'scripts/release/**'
       - '.github/workflows/check-spec-kitty-events-alignment.yml'
   schedule:
@@ -37,6 +39,7 @@ jobs:
           path: |
             pyproject.toml
             uv.lock
+            .kittify/release/shared-package-compatibility.json
           retention-days: 1
 
   verify-drift:
@@ -101,7 +104,15 @@ jobs:
 
       - name: Validate shared package drift
         run: |
+          MANIFEST_ARGS=()
+          if python scripts/release/check_shared_package_drift.py --help | grep -q -- '--compatibility-manifest'; then
+            MANIFEST_ARGS=(
+              --compatibility-manifest candidate/.kittify/release/shared-package-compatibility.json
+            )
+          fi
+
           python scripts/release/check_shared_package_drift.py \
             --pyproject candidate/pyproject.toml \
             --lockfile candidate/uv.lock \
+            "${MANIFEST_ARGS[@]}" \
             --saas-pyproject "${{ steps.fetch_refs.outputs.saas_pyproject }}"

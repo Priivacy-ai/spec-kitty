@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import importlib.metadata
+import json
 from collections.abc import Callable, Iterable
 from pathlib import Path
 
@@ -14,6 +15,7 @@ except ModuleNotFoundError:  # pragma: no cover
     import tomli as tomllib  # type: ignore
 
 from packaging.requirements import Requirement
+from packaging.specifiers import SpecifierSet
 from packaging.version import Version
 
 PACKAGES = (
@@ -28,6 +30,11 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--pyproject", default="pyproject.toml")
     parser.add_argument("--lockfile", default="uv.lock")
+    parser.add_argument(
+        "--compatibility-manifest",
+        default=".kittify/release/shared-package-compatibility.json",
+        help="Machine-readable release authority for shared package ranges and locks.",
+    )
     parser.add_argument("--saas-pyproject")
     parser.add_argument("--runtime-pyproject")
     parser.add_argument(
@@ -45,6 +52,16 @@ def load_toml(path: str | None) -> dict[str, object] | None:
     if not source.exists():
         raise SystemExit(f"TOML file not found: {source}")
     return tomllib.loads(source.read_text(encoding="utf-8"))
+
+
+def load_json(path: str) -> dict[str, object]:
+    source = Path(path)
+    if not source.exists():
+        raise SystemExit(f"Compatibility manifest not found: {source}")
+    data = json.loads(source.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise SystemExit("Compatibility manifest must be a JSON object")
+    return data
 
 
 def parse_requirement(raw: str) -> Requirement:
@@ -74,6 +91,10 @@ def requirement_contains_version(raw: str, version: str) -> bool:
     if not req.specifier:
         return True
     return req.specifier.contains(Version(version), prereleases=True)
+
+
+def requirement_specifier(raw: str) -> SpecifierSet:
+    return parse_requirement(raw).specifier
 
 
 def has_compatible_range(raw: str) -> bool:
@@ -151,6 +172,95 @@ def extract_absent_packages(dependencies: Iterable[str], *, packages: Iterable[s
         if package:
             found.append(raw)
     return found
+
+
+def extract_manifest_package_authority(
+    manifest: dict[str, object],
+    *,
+    packages: Iterable[str],
+) -> dict[str, dict[str, str]]:
+    entries = manifest.get("packages")
+    if not isinstance(entries, list):
+        raise SystemExit("Compatibility manifest missing packages list")
+
+    expected = set(packages)
+    authority: dict[str, dict[str, str]] = {}
+    issues: list[str] = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            raise SystemExit("Compatibility manifest package entries must be objects")
+        package = entry.get("package")
+        cli_range = entry.get("cli_range")
+        locked_version = entry.get("locked_version")
+        if not isinstance(package, str) or not isinstance(cli_range, str) or not isinstance(locked_version, str):
+            raise SystemExit("Manifest package entries must include package, cli_range, and locked_version")
+        if package not in expected:
+            issues.append(f"{package}: manifest package is not part of the CLI release authority set")
+            continue
+        if package in authority:
+            issues.append(f"{package}: duplicate manifest package entry")
+            continue
+        try:
+            SpecifierSet(cli_range)
+            Version(locked_version)
+        except Exception as exc:
+            raise SystemExit(f"{package}: invalid manifest version authority") from exc
+        authority[package] = {
+            "cli_range": cli_range,
+            "locked_version": locked_version,
+        }
+
+    missing = sorted(expected - set(authority))
+    if missing:
+        issues.append("manifest missing shared packages: " + ", ".join(missing))
+    if issues:
+        raise SystemExit("\n".join(issues))
+    return authority
+
+
+def extract_manifest_retired_packages(manifest: dict[str, object]) -> set[str]:
+    entries = manifest.get("retired_packages", [])
+    if not isinstance(entries, list):
+        raise SystemExit("Compatibility manifest retired_packages must be a list")
+    retired: set[str] = set()
+    for entry in entries:
+        if not isinstance(entry, dict):
+            raise SystemExit("Compatibility manifest retired package entries must be objects")
+        package = entry.get("package")
+        status = entry.get("status")
+        if not isinstance(package, str) or not isinstance(status, str):
+            raise SystemExit("Retired package entries must include package and status")
+        if status != "retired-for-cli-release":
+            raise SystemExit(f"{package}: unsupported retired package status {status!r}")
+        retired.add(package)
+    return retired
+
+
+def collect_manifest_alignment_issues(
+    cli_constraints: dict[str, str],
+    lock_versions: dict[str, str],
+    manifest_authority: dict[str, dict[str, str]],
+) -> list[str]:
+    issues: list[str] = []
+    for package, authority in manifest_authority.items():
+        expected_range = SpecifierSet(authority["cli_range"])
+        actual_range = requirement_specifier(cli_constraints[package])
+        if actual_range != expected_range:
+            issues.append(
+                f"{package} CLI range {actual_range} does not match release authority {expected_range}"
+            )
+
+        expected_lock = authority["locked_version"]
+        actual_lock = lock_versions[package]
+        if actual_lock != expected_lock:
+            issues.append(
+                f"{package} uv.lock version {actual_lock} does not match release authority {expected_lock}"
+            )
+        if Version(expected_lock) not in expected_range:
+            issues.append(
+                f"{package} release authority lock {expected_lock} is outside manifest CLI range {expected_range}"
+            )
+    return issues
 
 
 def extract_lock_versions(lockfile: dict[str, object], *, packages: Iterable[str]) -> dict[str, str]:
@@ -235,6 +345,16 @@ def collect_override_issues(overrides: Iterable[str]) -> list[str]:
 
 def main() -> int:
     args = parse_args()
+    manifest = load_json(args.compatibility_manifest)
+    manifest_authority = extract_manifest_package_authority(manifest, packages=PACKAGES)
+    manifest_retired = extract_manifest_retired_packages(manifest)
+    missing_retired = sorted(set(RETIRED_PACKAGES) - manifest_retired)
+    if missing_retired:
+        raise SystemExit(
+            "Compatibility manifest missing retired package authority: "
+            + ", ".join(missing_retired)
+        )
+
     cli_pyproject = load_toml(args.pyproject)
     assert cli_pyproject is not None
     cli_dependencies = extract_dependencies(cli_pyproject)
@@ -251,8 +371,12 @@ def main() -> int:
     lockfile = load_toml(args.lockfile)
     assert lockfile is not None
     lock_versions = extract_lock_versions(lockfile, packages=PACKAGES)
+    issues.extend(
+        collect_manifest_alignment_issues(cli_constraints, lock_versions, manifest_authority)
+    )
 
     summary: list[str] = [
+        f"release train: {manifest.get('release_train', 'unknown')}",
         f"cli spec-kitty-events: {cli_constraints['spec-kitty-events']} (uv.lock {lock_versions['spec-kitty-events']})",
         f"cli spec-kitty-tracker: {cli_constraints['spec-kitty-tracker']} (uv.lock {lock_versions['spec-kitty-tracker']})",
         "cli spec-kitty-runtime: retired / not a dependency",

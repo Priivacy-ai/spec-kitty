@@ -109,9 +109,8 @@ jobs:
           mkdir -p /tmp/spec-kitty-release-contracts
 
           if [ "${HAS_SAAS_READ_TOKEN}" != "true" ]; then
-            echo "saas_fetched=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::SPEC_KITTY_SAAS_READ_TOKEN is not configured; skipping private SaaS compatibility fetches for this release run."
-            exit 0
+            echo "::error::SPEC_KITTY_SAAS_READ_TOKEN is required for shared-package drift and SaaS consumer compatibility evidence before publish."
+            exit 1
           fi
 
           curl -fsSL \
@@ -146,7 +145,6 @@ jobs:
         run: python scripts/release/check_exact_install.py --package spec-kitty-cli --console-script spec-kitty --console-arg=--version
 
       - name: Validate candidate against SaaS consumer contract
-        if: steps.fetch_refs.outputs.saas_fetched == 'true'
         run: |
           python scripts/release/check_candidate_consumer_compat.py \
             --package spec-kitty-cli \
@@ -317,28 +315,17 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="${GITHUB_REF_NAME#v}"
-          if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(a|b|rc|alpha|beta)[0-9]*$ ]]; then
-            mkdir -p .kittify/release
-            cat > .kittify/release/downstream-verified.json <<EOF
-          {
-            "status": "passed",
-            "candidate_version": "${VERSION}",
-            "consumer": "spec-kitty-end-to-end-testing",
-            "scenario": "contract_drift_caught",
-            "verification_mode": "prerelease-waived",
-            "verified_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-            "workflow_run_id": "${GITHUB_RUN_ID}",
-            "commit_sha": "${GITHUB_SHA}"
-          }
-          EOF
-            cat .kittify/release/downstream-verified.json
-            exit 0
-          fi
-
           if [ "${HAS_SAAS_READ_TOKEN}" != "true" ]; then
-            echo "::error::SPEC_KITTY_SAAS_READ_TOKEN is required to fetch the private downstream consumer suite for stable releases."
+            echo "::error::SPEC_KITTY_SAAS_READ_TOKEN is required to fetch the private downstream consumer suite for all PyPI releases."
             exit 1
           fi
+
+          CANDIDATE_WHEEL=$(find dist-candidate -name 'spec_kitty_cli-*.whl' -type f | head -n 1 || true)
+          if [ -z "$CANDIDATE_WHEEL" ]; then
+            echo "::error::Downloaded release artifacts do not include a spec-kitty-cli wheel candidate."
+            exit 1
+          fi
+          echo "Using candidate wheel: $CANDIDATE_WHEEL"
 
           git clone \
             "https://x-access-token:${CROSS_REPO_TOKEN}@github.com/${REPO_OWNER}/spec-kitty-end-to-end-testing.git" \
@@ -350,7 +337,8 @@ jobs:
             echo "::error::FR-026 requires a downstream consumer suite to gate promotion."
             exit 1
           fi
-          python -m pytest "$SCENARIO" -v 2>&1 | tee downstream-verify.log
+          SPEC_KITTY_CANDIDATE_WHEEL="${GITHUB_WORKSPACE}/${CANDIDATE_WHEEL}" \
+            python -m pytest "$SCENARIO" -v 2>&1 | tee downstream-verify.log
 
       - name: Record verification artifact
         if: success()
@@ -529,6 +517,17 @@ jobs:
           python scripts/release/extract_changelog.py "${VERSION}" > release-notes.md
           cat release-notes.md
 
+      - name: Classify release channel
+        id: release_channel
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(a|b|rc|alpha|beta)[0-9]*$ ]]; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+        shell: bash
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3.0.0
         if: startsWith(github.ref, 'refs/tags/')
@@ -546,3 +545,26 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/
+
+  verify-pypi-installability:
+    name: Verify PyPI exact install
+    needs: publish-pypi
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Verify exact install from PyPI
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          python scripts/release/check_exact_install.py \
+            --package spec-kitty-cli \
+            --version "$VERSION" \
+            --from-index \
+            --console-script spec-kitty \
+            --console-arg=--version
