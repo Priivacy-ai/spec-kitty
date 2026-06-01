@@ -134,7 +134,7 @@ def _preview_from_candidates(
             has_active_candidate = True
     return ClaimablePreview(
         wp_id=None,
-        selection_reason=_selection_reason(
+        selection_reason=_claimable_selection_reason(
             has_dependency_blocked_candidate,
             has_active_candidate,
         ),
@@ -142,7 +142,7 @@ def _preview_from_candidates(
     )
 
 
-def _selection_reason(
+def _claimable_selection_reason(
     has_dependency_blocked_candidate: bool,
     has_active_candidate: bool,
 ) -> str:

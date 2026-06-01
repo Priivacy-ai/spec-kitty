@@ -584,113 +584,14 @@ def _start_self_check_tick(
     return timer
 
 
-def run_sync_daemon(port: int, daemon_token: str | None) -> None:
-    """Run the machine-global sync daemon forever.
-
-    Once the HTTP server is bound, this function writes the canonical
-    :class:`DaemonOwnerRecord` to ``<sync_root>/daemon/owner.json`` so the
-    foreground can detect ownership mismatches (FR-005/FR-006/FR-007) and
-    orphan crashes (FR-010). The record is removed on clean shutdown; if
-    the process is killed (SIGKILL, crash, power loss) the file remains
-    and orphan detection on the foreground side reconciles it.
-    """
-    import atexit
-    import signal as _signal
-
-    from specify_cli.sync.owner import (
-        build_record_for_current_process,
-        remove_owner_record,
-        write_owner_record,
-    )
-
-    handler_class = type(
-        "SyncDaemonRouter",
-        (SyncDaemonHandler,),
-        {"daemon_token": daemon_token},
-    )
-    server = HTTPServer(("127.0.0.1", port), handler_class)  # NOSONAR -- sync daemon control plane binds to localhost only
-
-    # Bind succeeded — record ownership BEFORE accepting traffic so any
-    # health probe that arrives in the first scheduling slice already sees
-    # a coherent owner field.
-    record = build_record_for_current_process(
-        pid=os.getpid(),
-        port=port,
-        token=daemon_token or "",
-        allow_network=False,
-    )
-    _write_initial_owner_record(write_owner_record, record)
-    _start_runtime_thread(
-        port=port,
-        daemon_token=daemon_token,
-        build_record_for_current_process=build_record_for_current_process,
-        write_owner_record=write_owner_record,
-    )
-
-    def _cleanup_owner_record() -> None:
-        _cleanup_owner_record_file(remove_owner_record)
-
-    atexit.register(_cleanup_owner_record)
-
-    def _signal_handler(signum: int, _frame: Any) -> None:
-        logger.info("Received signal %d; shutting down daemon", signum)
-        _cleanup_owner_record()
-        _shutdown_server_async(server)
-
-    # Best-effort signal handlers. ``signal.signal`` only works on the main
-    # thread, which is where ``run_sync_daemon`` always executes; if we are
-    # ever called off-main-thread (tests stubbing this in), we silently
-    # skip rather than raising.
-    for sig_name in ("SIGTERM", "SIGINT"):
-        sig = getattr(_signal, sig_name, None)
-        if sig is None:
-            continue
-        try:
-            _signal.signal(sig, _signal_handler)
-        except (ValueError, OSError):  # pragma: no cover - off main thread
-            pass
-
-    tick = _start_self_check_tick(server, my_port=port)
-    try:
-        server.serve_forever(poll_interval=DAEMON_SERVE_FOREVER_POLL_SECONDS)
-    finally:
-        tick.cancel()
-        _cleanup_owner_record()
-
-
-def _write_initial_owner_record(
-    write_owner_record: Callable[[Any], None],
-    record: Any,
-) -> None:
-    try:
-        write_owner_record(record)
-    except OSError as exc:  # pragma: no cover - filesystem catastrophe
-        logger.warning("Failed to write daemon owner record: %s", exc)
-
-
-def _start_runtime_thread(
-    *,
-    port: int,
-    daemon_token: str | None,
-    build_record_for_current_process: Callable[..., Any],
-    write_owner_record: Callable[[Any], None],
-) -> None:
+def _start_runtime_bootstrap_thread(port: int, daemon_token: str | None) -> None:
     def _start_runtime_in_background() -> None:
         try:
             time.sleep(_RUNTIME_BACKGROUND_START_DELAY_SECONDS)
             from specify_cli.sync.runtime import get_runtime
 
             get_runtime()
-            try:
-                enriched_record = build_record_for_current_process(
-                    pid=os.getpid(),
-                    port=port,
-                    token=daemon_token or "",
-                    allow_network=True,
-                )
-                write_owner_record(enriched_record)
-            except Exception:  # noqa: BLE001 — health remains valid with local-only owner data
-                logger.debug("Failed to enrich daemon owner record", exc_info=True)
+            _write_daemon_owner_record(port, daemon_token, allow_network=True)
         except Exception:  # noqa: BLE001 — health endpoint stays available
             logger.exception("Failed to start sync runtime")
 
@@ -701,21 +602,97 @@ def _start_runtime_thread(
     ).start()
 
 
-def _cleanup_owner_record_file(remove_owner_record: Callable[[], None]) -> None:
+def _write_daemon_owner_record(port: int, daemon_token: str | None, *, allow_network: bool) -> None:
+    from specify_cli.sync.owner import (
+        build_record_for_current_process,
+        write_owner_record,
+    )
+
+    record = build_record_for_current_process(
+        pid=os.getpid(),
+        port=port,
+        token=daemon_token or "",
+        allow_network=allow_network,
+    )
     try:
-        remove_owner_record()
-    except Exception:  # noqa: BLE001
-        logger.debug("Owner record cleanup raised; continuing")
+        write_owner_record(record)
+    except OSError as exc:  # pragma: no cover - filesystem catastrophe
+        logger.warning("Failed to write daemon owner record: %s", exc)
+    except Exception:  # noqa: BLE001 — health remains valid with local-only owner data
+        logger.debug("Failed to enrich daemon owner record", exc_info=True)
 
 
-def _shutdown_server_async(server: HTTPServer) -> None:
-    def _shutdown_off_thread() -> None:
+def _register_daemon_owner_cleanup() -> Callable[[], None]:
+    import atexit
+
+    from specify_cli.sync.owner import remove_owner_record
+
+    def _cleanup_owner_record() -> None:
         try:
-            server.shutdown()
-        except Exception:  # noqa: BLE001 — best-effort during shutdown
-            logger.debug("server.shutdown() raised during signal teardown")
+            remove_owner_record()
+        except Exception:  # noqa: BLE001
+            logger.debug("Owner record cleanup raised; continuing")
 
-    threading.Thread(target=_shutdown_off_thread, daemon=True).start()
+    atexit.register(_cleanup_owner_record)
+    return _cleanup_owner_record
+
+
+def _install_daemon_signal_handlers(server: HTTPServer, cleanup_owner_record: Callable[[], None]) -> None:
+    import signal as _signal
+
+    def _signal_handler(signum: int, _frame: Any) -> None:
+        logger.info("Received signal %d; shutting down daemon", signum)
+        cleanup_owner_record()
+
+        def _shutdown_off_thread() -> None:
+            try:
+                server.shutdown()
+            except Exception:  # noqa: BLE001 — best-effort during shutdown
+                logger.debug("server.shutdown() raised during signal teardown")
+
+        threading.Thread(target=_shutdown_off_thread, daemon=True).start()
+
+    for sig_name in ("SIGTERM", "SIGINT"):
+        sig = getattr(_signal, sig_name, None)
+        if sig is None:
+            continue
+        try:
+            _signal.signal(sig, _signal_handler)
+        except (ValueError, OSError):  # pragma: no cover - off main thread
+            pass
+
+
+def run_sync_daemon(port: int, daemon_token: str | None) -> None:
+    """Run the machine-global sync daemon forever.
+
+    Once the HTTP server is bound, this function writes the canonical
+    :class:`DaemonOwnerRecord` to ``<sync_root>/daemon/owner.json`` so the
+    foreground can detect ownership mismatches (FR-005/FR-006/FR-007) and
+    orphan crashes (FR-010). The record is removed on clean shutdown; if
+    the process is killed (SIGKILL, crash, power loss) the file remains
+    and orphan detection on the foreground side reconciles it.
+    """
+    handler_class = type(
+        "SyncDaemonRouter",
+        (SyncDaemonHandler,),
+        {"daemon_token": daemon_token},
+    )
+    server = HTTPServer(("127.0.0.1", port), handler_class)  # NOSONAR -- sync daemon control plane binds to localhost only
+
+    # Bind succeeded — record ownership BEFORE accepting traffic so any
+    # health probe that arrives in the first scheduling slice already sees
+    # a coherent owner field.
+    _write_daemon_owner_record(port, daemon_token, allow_network=False)
+    _start_runtime_bootstrap_thread(port, daemon_token)
+    cleanup_owner_record = _register_daemon_owner_cleanup()
+    _install_daemon_signal_handlers(server, cleanup_owner_record)
+
+    tick = _start_self_check_tick(server, my_port=port)
+    try:
+        server.serve_forever(poll_interval=DAEMON_SERVE_FOREVER_POLL_SECONDS)
+    finally:
+        tick.cancel()
+        cleanup_owner_record()
 
 
 def _background_script(port: int, daemon_token: str | None) -> str:
@@ -819,6 +796,54 @@ def _kill_and_cleanup(pid: int | None, *, wait_timeout: float = 2.0) -> None:
     DAEMON_STATE_FILE.unlink(missing_ok=True)
 
 
+def _daemon_start_skip_reason(
+    intent: DaemonIntent,
+    policy: object,
+) -> str | None:
+    from specify_cli.saas.rollout import is_saas_sync_enabled
+    from specify_cli.sync.config import BackgroundDaemonPolicy
+
+    if not is_saas_sync_enabled():
+        return "rollout_disabled"
+    if intent == DaemonIntent.LOCAL_ONLY:
+        return "intent_local_only"
+    if policy == BackgroundDaemonPolicy.MANUAL:
+        return "policy_manual"
+    return None
+
+
+def _acquire_daemon_lock(lock_fd: Any) -> bool:
+    for _ in range(100):
+        try:
+            if sys.platform == "win32":
+                msvcrt.locking(lock_fd.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return True
+        except OSError as exc:
+            if not _is_daemon_lock_contention(exc):
+                raise
+            time.sleep(0.1)
+    return False
+
+
+def _release_daemon_lock(lock_fd: Any) -> None:
+    if sys.platform == "win32":
+        msvcrt.locking(lock_fd.fileno(), msvcrt.LK_UNLCK, 1)
+    else:
+        fcntl.flock(lock_fd, fcntl.LOCK_UN)
+
+
+def _read_daemon_pid() -> int | None:
+    if not DAEMON_STATE_FILE.exists():
+        return None
+    try:
+        _u, _p, _t, pid = _parse_daemon_file(DAEMON_STATE_FILE)
+    except Exception:
+        return None
+    return pid
+
+
 def ensure_sync_daemon_running(  # noqa: C901 — lifecycle decision matrix plus lock/retry handling.
     *,
     intent: DaemonIntent,
@@ -840,24 +865,15 @@ def ensure_sync_daemon_running(  # noqa: C901 — lifecycle decision matrix plus
     Uses an advisory file lock (``DAEMON_LOCK_FILE``) to serialise
     concurrent spawn attempts and prevent TOCTOU races.
     """
-    from specify_cli.saas.rollout import is_saas_sync_enabled
     from specify_cli.sync.config import BackgroundDaemonPolicy, SyncConfig as _SyncConfig
 
     if config is None:
         config = _SyncConfig()
     policy = config.get_background_daemon()
 
-    # Row 1: rollout disabled
-    if not is_saas_sync_enabled():
-        return DaemonStartOutcome(started=False, skipped_reason="rollout_disabled", pid=None)
-
-    # Row 2: caller declared local-only intent
-    if intent == DaemonIntent.LOCAL_ONLY:
-        return DaemonStartOutcome(started=False, skipped_reason="intent_local_only", pid=None)
-
-    # Row 3: operator policy is manual
-    if policy == BackgroundDaemonPolicy.MANUAL:
-        return DaemonStartOutcome(started=False, skipped_reason="policy_manual", pid=None)
+    skip_reason = _daemon_start_skip_reason(intent, policy)
+    if skip_reason is not None:
+        return DaemonStartOutcome(started=False, skipped_reason=skip_reason, pid=None)
 
     # Row 4 & 5: AUTO + REMOTE_REQUIRED — attempt to start
     _daemon_root().mkdir(parents=True, exist_ok=True)
@@ -884,60 +900,23 @@ def ensure_sync_daemon_running(  # noqa: C901 — lifecycle decision matrix plus
                 skipped_reason="start_failed: could not acquire daemon lock within 10s",
                 pid=None,
             )
-        return _start_daemon_locked_outcome(health_wait_seconds)
+        try:
+            if health_wait_seconds is None:
+                _url, _port, _started = _ensure_sync_daemon_running_locked()
+            else:
+                _url, _port, _started = _ensure_sync_daemon_running_locked(
+                    health_wait_seconds=health_wait_seconds
+                )
+        except Exception as exc:
+            return DaemonStartOutcome(
+                started=False, skipped_reason=f"start_failed: {exc}", pid=None
+            )
+        pid = _read_daemon_pid()
+        return DaemonStartOutcome(started=True, skipped_reason=None, pid=pid)
     finally:
         if acquired:
-            if sys.platform == "win32":
-                msvcrt.locking(lock_fd.fileno(), msvcrt.LK_UNLCK, 1)
-            else:
-                fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            _release_daemon_lock(lock_fd)
         lock_fd.close()
-
-
-def _acquire_daemon_lock(lock_fd: Any) -> bool:
-    for _ in range(100):
-        try:
-            if sys.platform == "win32":
-                msvcrt.locking(lock_fd.fileno(), msvcrt.LK_NBLCK, 1)
-            else:
-                fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            return True
-        except OSError as exc:
-            if not _is_daemon_lock_contention(exc):
-                raise
-            time.sleep(0.1)
-    return False
-
-
-def _start_daemon_locked_outcome(
-    health_wait_seconds: float | None,
-) -> DaemonStartOutcome:
-    try:
-        if health_wait_seconds is None:
-            _ensure_sync_daemon_running_locked()
-        else:
-            _ensure_sync_daemon_running_locked(
-                health_wait_seconds=health_wait_seconds
-            )
-    except Exception as exc:
-        return DaemonStartOutcome(
-            started=False, skipped_reason=f"start_failed: {exc}", pid=None
-        )
-    return DaemonStartOutcome(
-        started=True,
-        skipped_reason=None,
-        pid=_daemon_state_pid(),
-    )
-
-
-def _daemon_state_pid() -> int | None:
-    if not DAEMON_STATE_FILE.exists():
-        return None
-    try:
-        _u, _p, _t, pid = _parse_daemon_file(DAEMON_STATE_FILE)
-    except Exception:
-        return None
-    return pid
 
 
 def _bounded_retry_delays(
@@ -962,7 +941,7 @@ def _ensure_sync_daemon_running_locked(
     health_wait_seconds: float | None = None,
 ) -> tuple[str, int, bool]:
     """Inner implementation — caller must hold the daemon lock file."""
-    existing = _reconcile_existing_daemon_state()
+    existing = _reuse_or_cleanup_existing_daemon()
     if existing is not None:
         return existing
 
@@ -972,20 +951,7 @@ def _ensure_sync_daemon_running_locked(
         port = _find_free_port()
     token = secrets.token_hex(16)
 
-    # Redirect daemon output to a log file for diagnostics
-    DAEMON_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-    log_fh = open(DAEMON_LOG_FILE, "a")  # noqa: SIM115
-
-    proc = subprocess.Popen(
-        [sys.executable, "-c", _background_script(port, token)],
-        stdout=log_fh,
-        stderr=log_fh,
-        stdin=subprocess.DEVNULL,
-        start_new_session=True,
-        env={**os.environ, "SPEC_KITTY_CLI_VERSION": _get_package_version()},
-    )
-    log_fh.close()
-
+    proc = _spawn_sync_daemon_process(port, token)
     url = f"http://127.0.0.1:{port}"
 
     # Wait up to ~20s for the daemon to become healthy (matching dashboard pattern)
@@ -1009,62 +975,54 @@ def _ensure_sync_daemon_running_locked(
     raise RuntimeError(f"Sync daemon failed health check on port {port}")
 
 
-def _reconcile_existing_daemon_state() -> tuple[str, int, bool] | None:
+def _reuse_or_cleanup_existing_daemon() -> tuple[str, int, bool] | None:
     if not DAEMON_STATE_FILE.exists():
         return None
 
-    existing_url, existing_port, existing_token, existing_pid = _parse_daemon_file(DAEMON_STATE_FILE)
-    if _existing_daemon_is_healthy(existing_port, existing_token):
-        return _reuse_or_recycle_daemon(
-            existing_url,
-            existing_port,
-            existing_token,
-            existing_pid,
-        )
-    _cleanup_unhealthy_existing_daemon(existing_pid)
-    return None
-
-
-def _existing_daemon_is_healthy(
-    existing_port: int | None,
-    existing_token: str | None,
-) -> bool:
-    return existing_port is not None and _check_sync_daemon_health(
-        existing_port,
-        existing_token,
-        timeout=_STARTUP_HEALTH_TIMEOUT_SECONDS,
+    existing_url, existing_port, existing_token, existing_pid = _parse_daemon_file(
+        DAEMON_STATE_FILE
     )
-
-
-def _reuse_or_recycle_daemon(
-    existing_url: str | None,
-    existing_port: int | None,
-    existing_token: str | None,
-    existing_pid: int | None,
-) -> tuple[str, int, bool] | None:
-    if existing_port is None:
-        return None
-    if _daemon_version_matches(
+    if existing_port is not None and _check_sync_daemon_health(
         existing_port,
         existing_token,
         timeout=_STARTUP_HEALTH_TIMEOUT_SECONDS,
     ):
-        return existing_url or f"http://127.0.0.1:{existing_port}", existing_port, False
+        if _daemon_version_matches(
+            existing_port,
+            existing_token,
+            timeout=_STARTUP_HEALTH_TIMEOUT_SECONDS,
+        ):
+            return existing_url or f"http://127.0.0.1:{existing_port}", existing_port, False
 
-    logger.info("Recycling sync daemon (version mismatch)")
-    _stop_daemon_by_http(existing_url or f"http://127.0.0.1:{existing_port}", existing_token)
-    _kill_and_cleanup(existing_pid)
+        logger.info("Recycling sync daemon (version mismatch)")
+        _stop_daemon_by_http(
+            existing_url or f"http://127.0.0.1:{existing_port}", existing_token
+        )
+        _kill_and_cleanup(existing_pid)
+        return None
+
+    if existing_pid is not None and not _is_process_alive(existing_pid):
+        DAEMON_STATE_FILE.unlink(missing_ok=True)
+    elif existing_pid is not None:
+        _kill_and_cleanup(existing_pid)
+    else:
+        DAEMON_STATE_FILE.unlink(missing_ok=True)
     return None
 
 
-def _cleanup_unhealthy_existing_daemon(existing_pid: int | None) -> None:
-    if existing_pid is not None and not _is_process_alive(existing_pid):
-        DAEMON_STATE_FILE.unlink(missing_ok=True)
-        return
-    if existing_pid is not None:
-        _kill_and_cleanup(existing_pid)
-        return
-    DAEMON_STATE_FILE.unlink(missing_ok=True)
+def _spawn_sync_daemon_process(port: int, token: str) -> subprocess.Popen[str]:
+    DAEMON_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    log_fh = open(DAEMON_LOG_FILE, "a")  # noqa: SIM115
+    proc = subprocess.Popen(
+        [sys.executable, "-c", _background_script(port, token)],
+        stdout=log_fh,
+        stderr=log_fh,
+        stdin=subprocess.DEVNULL,
+        start_new_session=True,
+        env={**os.environ, "SPEC_KITTY_CLI_VERSION": _get_package_version()},
+    )
+    log_fh.close()
+    return proc
 
 
 def _stop_daemon_by_http(url: str, token: str | None) -> None:
