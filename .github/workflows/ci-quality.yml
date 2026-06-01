@@ -2423,6 +2423,7 @@ jobs:
     env:
       REPO_OWNER: ${{ github.repository_owner }}
       HAS_SAAS_READ_TOKEN: ${{ secrets.SPEC_KITTY_SAAS_READ_TOKEN != '' }}
+      IS_FORK_PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
     steps:
       - name: Check out trusted validation scripts
         uses: actions/checkout@v6
@@ -2454,6 +2455,12 @@ jobs:
           mkdir -p /tmp/spec-kitty-release-contracts
 
           if [ "${HAS_SAAS_READ_TOKEN}" != "true" ]; then
+            if [ "${IS_FORK_PR}" = "true" ]; then
+              echo "saas_fetched=false" >> "$GITHUB_OUTPUT"
+              echo "::warning::SPEC_KITTY_SAAS_READ_TOKEN is unavailable for fork PRs; skipping private SaaS consumer compatibility evidence."
+              exit 0
+            fi
+
             echo "::error::SPEC_KITTY_SAAS_READ_TOKEN is required for SaaS consumer compatibility evidence."
             exit 1
           fi
@@ -2472,9 +2479,11 @@ jobs:
             exit 1
           fi
 
+          echo "saas_fetched=true" >> "$GITHUB_OUTPUT"
           echo "consumer_contract=/tmp/spec-kitty-release-contracts/consumer-compatibility.json" >> "$GITHUB_OUTPUT"
 
       - name: Validate candidate against SaaS consumer contract
+        if: steps.fetch_contract.outputs.saas_fetched == 'true'
         run: |
           python scripts/release/check_candidate_consumer_compat.py \
             --package spec-kitty-cli \

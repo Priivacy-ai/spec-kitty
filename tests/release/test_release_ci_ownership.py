@@ -93,10 +93,18 @@ def test_ci_quality_consumer_compatibility_reuses_ci_wheel_with_trusted_scripts(
     assert "github.event.pull_request.base.sha" in job_dump
     assert "spec-kitty-cli-wheel" in job_dump
     assert "CROSS_REPO_TOKEN" not in repr(job.get("env", {}))
+    assert "IS_FORK_PR" in job["env"]
     assert "check_candidate_consumer_compat.py" in job_dump
 
     fetch_step = next(step for step in job["steps"] if step.get("id") == "fetch_contract")
     assert "CROSS_REPO_TOKEN" in fetch_step["env"]
+    assert "saas_fetched=false" in fetch_step["run"]
+    assert "SPEC_KITTY_SAAS_READ_TOKEN is required" in fetch_step["run"]
+
+    validate_step = next(
+        step for step in job["steps"] if step["name"] == "Validate candidate against SaaS consumer contract"
+    )
+    assert validate_step["if"] == "steps.fetch_contract.outputs.saas_fetched == 'true'"
 
 
 def test_quality_gate_fails_closed_for_release_required_package_jobs() -> None:
