@@ -99,6 +99,25 @@ def test_safe_commit_happy_path(lane_repo: Path) -> None:
     assert "WP01: add alpha" in log
 
 
+def test_safe_commit_accepts_realpath_under_symlinked_worktree(lane_repo: Path, tmp_path: Path) -> None:
+    """Absolute paths resolved via the real path still normalize under a symlinked worktree."""
+    repo_alias = tmp_path / "repo-alias"
+    repo_alias.symlink_to(lane_repo, target_is_directory=True)
+
+    target = (lane_repo / "alpha.txt").resolve()
+    target.write_text("alpha v1\n", encoding="utf-8")
+
+    result = safe_commit(
+        repo_root=repo_alias,
+        worktree_root=repo_alias,
+        destination_ref="kitty/mission-test-01ABCDEF",
+        message="WP01: add alpha via alias",
+        paths=(target,),
+    )
+
+    assert isinstance(result, CommitResult)
+
+
 def test_safe_commit_head_mismatch(lane_repo: Path) -> None:
     """Worktree on a different branch → SafeCommitHeadMismatch with structured fields."""
     # Create + check out an *other* branch.

@@ -13,6 +13,7 @@ the small pure-Python shape changes.
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -89,3 +90,68 @@ class TestImplementModuleImports:
 
         # Just ensure the symbol is importable as a Typer command.
         assert callable(implement)
+
+
+class TestPlanningArtifactAutoCommit:
+    """Planning artifacts stage from the transaction worktree, not the caller checkout."""
+
+    def test_auto_commit_uses_coordination_worktree_paths(self, tmp_path: Path) -> None:
+        from specify_cli.cli.commands.implement import _ensure_planning_artifacts_committed_git
+
+        repo = tmp_path / "repo"
+        repo.mkdir()
+
+        def git(*args: str) -> str:
+            return subprocess.run(
+                ["git", *args],
+                cwd=repo,
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+
+        mission_slug = "demo-feature"
+        mission_id = "01J6XW9K00000000000000000P"
+        mid8 = mission_id[:8]
+        coord_branch = f"kitty/mission-{mission_slug}-{mid8}"
+
+        git("init", "-q", "-b", "main")
+        git("config", "user.email", "t@example.com")
+        git("config", "user.name", "Test")
+        git("config", "commit.gpgsign", "false")
+        (repo / "seed.txt").write_text("seed\n", encoding="utf-8")
+        git("add", "seed.txt")
+        git("commit", "-q", "-m", "initial")
+        git("branch", coord_branch)
+
+        feature_dir = repo / "kitty-specs" / mission_slug
+        _make_meta(
+            feature_dir,
+            with_coord=True,
+            mission_id=mission_id,
+            mission_slug=mission_slug,
+        )
+        (feature_dir / "tasks.md").write_text("# tasks\n", encoding="utf-8")
+
+        _ensure_planning_artifacts_committed_git(
+            repo_root=repo,
+            feature_dir=feature_dir,
+            mission_slug=mission_slug,
+            wp_id="WP01",
+            planning_branch="main",
+            auto_commit=True,
+        )
+
+        assert git("rev-parse", "main") != git("rev-parse", coord_branch)
+        assert (
+            git("show", f"{coord_branch}:kitty-specs/{mission_slug}/tasks.md").strip()
+            == "# tasks"
+        )
+        main_tasks = subprocess.run(
+            ["git", "show", f"main:kitty-specs/{mission_slug}/tasks.md"],
+            cwd=repo,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert main_tasks.returncode != 0

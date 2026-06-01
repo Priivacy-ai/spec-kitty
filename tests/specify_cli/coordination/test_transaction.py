@@ -222,6 +222,37 @@ def test_mission_slug_path_traversal_is_rejected(repo: Path) -> None:
         )
 
 
+@pytest.mark.parametrize(
+    ("field_name", "mission_slug", "mid8"),
+    [
+        ("mission_slug", " demo-feature", MID8),
+        ("mission_slug", "demo-feature ", MID8),
+        ("mid8", MISSION_SLUG, " 01J6XW9K"),
+        ("mid8", MISSION_SLUG, "01J6XW9K "),
+    ],
+)
+def test_whitespace_bearing_selectors_are_rejected(
+    repo: Path, field_name: str, mission_slug: str, mid8: str,
+) -> None:
+    with pytest.raises(
+        BookkeepingError,
+        match=rf"{field_name} must not contain leading or trailing whitespace",
+    ):
+        BookkeepingTransaction.acquire(
+            repo_root=repo,
+            mission_id=MISSION_ID,
+            mission_slug=mission_slug,
+            mid8=mid8,
+            destination_ref=COORD_BRANCH,
+            operation="unsafe_whitespace",
+        )
+
+
+def test_legacy_warning_marker_confines_mission_id(repo: Path) -> None:
+    with pytest.raises(BookkeepingError, match="mission_id must be a single safe path segment"):
+        transaction_module._legacy_warning_marker_path(repo, "../escape")
+
+
 # ---------------------------------------------------------------------------
 # Rollback (byte-identical via SHA-256)
 # ---------------------------------------------------------------------------
