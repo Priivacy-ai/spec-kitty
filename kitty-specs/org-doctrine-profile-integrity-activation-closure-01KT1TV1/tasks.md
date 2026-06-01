@@ -182,7 +182,7 @@
 ### WP13 — OperationalContext assembler + guards
 - **Goal**: Pure explicit-parameter `build_operational_context`; guards raise `ContextPreconditionError` (FR-017 builder/FR-018, C-006).
 - **Priority**: P3. **Independent test**: guards raise with actionable messages.
-- **Subtasks**: - [ ] T059 (WP13) · - [ ] T060 (WP13) · - [ ] T061 (WP13)
+- **Subtasks**: - [x] T059 (WP13) · - [x] T060 (WP13) · - [x] T061 (WP13)
 - **Dependencies**: none. **Prompt**: [tasks/WP13-operational-context-builder.md](tasks/WP13-operational-context-builder.md) (~180 lines)
 
 ### WP14 — Wire OperationalContext at runtime entry points
