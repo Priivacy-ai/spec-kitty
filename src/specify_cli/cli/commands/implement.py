@@ -214,13 +214,36 @@ def _git_stdout(repo_root: Path, args: list[str]) -> str:
 
 
 def _feature_dir_status_paths(repo_root: Path, feature_dir: Path) -> list[str]:
-    output = _git_stdout(
-        repo_root,
-        ["status", "--porcelain", "--untracked-files=all", str(feature_dir)],
+    # NOTE: must read raw stdout here, NOT via _git_stdout(): porcelain v1 emits
+    # "XY<space>PATH" (a fixed 3-char prefix). For a tracked file that is
+    # modified-but-not-staged, X is a space (" M path"); _git_stdout()'s outer
+    # .strip() would remove the leading space of the *first* line, shifting its
+    # columns so line[3:] truncated the first path character ("kitty-specs" ->
+    # "itty-specs"). The bogus path fails the source.exists() check downstream,
+    # the planning-artifact transaction stages nothing, and the claim dies with
+    # "commit() called with no events or artifacts to commit". Slice column 3
+    # from each *unstripped* line so the path is always intact.
+    result = subprocess.run(
+        ["git", "status", "--porcelain", "--untracked-files=all", str(feature_dir)],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
     )
-    if not output:
+    if result.returncode != 0:
         return []
-    return [line[3:].strip() for line in output.splitlines() if len(line) >= 4]
+    paths: list[str] = []
+    for line in result.stdout.splitlines():
+        if len(line) <= 3:
+            continue
+        path = line[3:]
+        # Rename/copy entries render as "old -> new"; the committable path is new.
+        if " -> " in path:
+            path = path.split(" -> ", 1)[1]
+        paths.append(path.strip())
+    return paths
 
 
 def _print_uncommitted_planning_artifacts(files_to_commit: list[str]) -> None:
