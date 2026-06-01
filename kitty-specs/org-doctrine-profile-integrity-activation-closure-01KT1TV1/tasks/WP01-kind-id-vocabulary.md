@@ -16,8 +16,8 @@ subtasks:
 - T002
 - T003
 - T004
-agent: claude
-shell_pid: '1544264'
+agent: "claude:opus:python-pedro:implementer"
+shell_pid: "1544264"
 history:
 - at: '2026-06-01T16:49:18Z'
   actor: claude
@@ -137,3 +137,7 @@ Create the single canonical mapping for two vocabularies that are currently re-d
 - Confirm no silent fallback on unknown tokens (R-009/CL-1 intent).
 - Confirm the ID resolver takes roots as data (C-008) and does not import `specify_cli`.
 - Verify the canonical-universe docstring matches the 8+mission-type reality.
+
+## Activity Log
+
+- 2026-06-01T17:28:54Z – claude:opus:python-pedro:implementer – shell_pid=1544264 – Assigned agent via action command
