@@ -27,12 +27,12 @@ from spec_kitty_events.mission_next import (
     NextStepAutoCompletedPayload,
     NextStepIssuedPayload,
 )
-from specify_cli.next._internal_runtime.significance import (
+from runtime.next._internal_runtime.significance import (
     SignificanceEvaluatedPayload,
     TimeoutExpiredPayload,
 )
 
-# Explicit re-exports so `from specify_cli.next._internal_runtime.events import X`
+# Explicit re-exports so `from runtime.next._internal_runtime.events import X`
 # resolves under `mypy --strict` (otherwise `attr-defined` flags the indirected names).
 __all__ = [
     "DECISION_INPUT_ANSWERED",
@@ -148,7 +148,7 @@ class JsonlEventLog:
         if not self._path.exists():
             return []
         records: list[dict[str, Any]] = []
-        with open(self._path, "r", encoding="utf-8") as handle:
+        with open(self._path, encoding="utf-8") as handle:
             for line in handle:
                 stripped = line.strip()
                 if stripped:

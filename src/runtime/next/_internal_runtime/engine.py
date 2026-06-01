@@ -9,7 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any, Literal, cast
 from uuid import uuid4
@@ -17,8 +17,8 @@ from uuid import uuid4
 import yaml
 from pydantic import BaseModel, ConfigDict
 
-from specify_cli.next._internal_runtime.contracts import RemediationPayload
-from specify_cli.next._internal_runtime.discovery import DiscoveryContext, discover_missions, load_mission_template
+from runtime.next._internal_runtime.contracts import RemediationPayload
+from runtime.next._internal_runtime.discovery import DiscoveryContext, discover_missions, load_mission_template
 from spec_kitty_events.mission_next import (
     DecisionInputAnsweredPayload,
     DecisionInputRequestedPayload,
@@ -28,7 +28,7 @@ from spec_kitty_events.mission_next import (
     NextStepIssuedPayload,
     RuntimeActorIdentity,
 )
-from specify_cli.next._internal_runtime.events import (
+from runtime.next._internal_runtime.events import (
     DECISION_INPUT_ANSWERED,
     DECISION_INPUT_REQUESTED,
     MISSION_RUN_COMPLETED,
@@ -38,9 +38,9 @@ from specify_cli.next._internal_runtime.events import (
     NullEmitter,
     RuntimeEventEmitter,
 )
-from specify_cli.next._internal_runtime.planner import plan_next
-from specify_cli.next._internal_runtime.raci import infer_raci, resolve_raci
-from specify_cli.next._internal_runtime.schema import (
+from runtime.next._internal_runtime.planner import plan_next
+from runtime.next._internal_runtime.raci import infer_raci, resolve_raci
+from runtime.next._internal_runtime.schema import (
     ActorIdentity,
     AuditStep,
     ContextType,
@@ -58,7 +58,7 @@ from specify_cli.next._internal_runtime.schema import (
     StepContextContract,
     load_mission_template_file,
 )
-from specify_cli.next._internal_runtime.significance import (
+from runtime.next._internal_runtime.significance import (
     SignificanceEvaluatedPayload,
     SignificanceScore,
     SoftGateDecision,
@@ -108,7 +108,7 @@ def _append_event(run_dir: Path, event_type: str, payload: dict[str, Any]) -> No
     # canonical-producer-exempt: #1248 -- local runtime journal mirrors package-retired schema.
     event = {
         "event_type": event_type,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "payload": payload,
     }
     with open(event_file, "a", encoding="utf-8") as handle:
@@ -116,7 +116,7 @@ def _append_event(run_dir: Path, event_type: str, payload: dict[str, Any]) -> No
 
 
 def _read_snapshot(run_dir: Path) -> MissionRunSnapshot:
-    with open(run_dir / "state.json", "r", encoding="utf-8") as handle:
+    with open(run_dir / "state.json", encoding="utf-8") as handle:
         raw = json.load(handle)
     return MissionRunSnapshot.model_validate(raw)
 
@@ -227,13 +227,13 @@ def start_mission_run(
     return MissionRunRef(run_id=run_id, run_dir=str(run_dir), mission_key=template.mission.key)
 
 
-def next_step(
+def next_step(  # noqa: C901
     run_ref: MissionRunRef,
     agent_id: str,
     result: ResultType = "success",
     policy_snapshot: MissionPolicySnapshot | None = None,
     actor_context: dict[str, Any] | None = None,
-    context: DiscoveryContext | None = None,
+    context: DiscoveryContext | None = None,  # noqa: ARG001
     emitter: RuntimeEventEmitter | None = None,
 ) -> NextDecision:
     """Advance current issued step and compute the next deterministic decision.
@@ -440,7 +440,7 @@ def next_step(
                 question=decision.question or "",
                 options=decision.options or [],
                 requested_by=dr_actor,
-                requested_at=datetime.now(timezone.utc),
+                requested_at=datetime.now(UTC),
             )
             pending_decisions[decision.decision_id] = req.model_dump(mode="json")
 
@@ -485,7 +485,7 @@ def next_step(
     return decision
 
 
-def provide_decision_answer(
+def provide_decision_answer(  # noqa: C901
     run_ref: MissionRunRef,
     decision_id: str,
     answer: str,
@@ -613,7 +613,7 @@ def provide_decision_answer(
         decision_id=decision_id,
         answer=answer,
         answered_by=actor,
-        answered_at=datetime.now(timezone.utc),
+        answered_at=datetime.now(UTC),
     )
     decision_record = answer_data.model_dump(mode="json")
     decision_record.update(_authority_metadata(
@@ -650,7 +650,7 @@ def provide_decision_answer(
                 decision_id=decision_id,
                 action=_soft_gate_action,
                 actor=RACIRoleBinding(actor_type=_actor_type_lit, actor_id=actor.actor_id),
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 significance_score=_sig_score_obj,
                 outcome=_soft_gate_action if answer == "decide_solo" else None,
             )
@@ -775,10 +775,7 @@ def notify_decision_timeout(
     snapshot = _read_snapshot(run_dir)
 
     # Extract step_id from decision_id (strip "audit:" prefix)
-    if decision_id.startswith("audit:"):
-        step_id = decision_id[len("audit:"):]
-    else:
-        step_id = decision_id
+    step_id = decision_id[len("audit:"):] if decision_id.startswith("audit:") else decision_id
 
     # Load RACI binding from decisions
     raci_key = f"raci:{step_id}"
@@ -795,10 +792,7 @@ def notify_decision_timeout(
 
     # Determine effective_band from stored significance score
     effective_band_data = sig_data.get("effective_band")
-    if isinstance(effective_band_data, dict):
-        effective_band = effective_band_data.get("name")
-    else:
-        effective_band = effective_band_data
+    effective_band = effective_band_data.get("name") if isinstance(effective_band_data, dict) else effective_band_data
 
     if effective_band not in ("medium", "high"):
         raise MissionRuntimeError(
@@ -966,7 +960,7 @@ def resolve_context(
     context_name: str,
     context_type: ContextType,
     available_bindings: dict[str, Any],
-    registry: ContextTypeRegistry,
+    registry: ContextTypeRegistry,  # noqa: ARG001
     local_discovery_root: Path | None = None
 ) -> Any | RemediationPayload:
     """Resolve a context using the 5-point precedence chain.
@@ -1258,7 +1252,7 @@ def _resolve_mission_metadata(
 
 def _resolve_local_discovery(
     context_name: str,
-    context_type: ContextType,
+    context_type: ContextType,  # noqa: ARG001
     available_bindings: dict[str, Any],
     local_discovery_root: Path
 ) -> list[dict[str, Any]]:
@@ -1363,10 +1357,7 @@ def _resolve_fallback_local(
     if context_name in fallback_resolvers:
         resolver_data = fallback_resolvers[context_name]
         # Handle both dict and non-dict values
-        if isinstance(resolver_data, dict):
-            value = resolver_data.get("value", resolver_data)
-        else:
-            value = resolver_data
+        value = resolver_data.get("value", resolver_data) if isinstance(resolver_data, dict) else resolver_data
 
         candidates.append({
             "value": value,

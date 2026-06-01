@@ -13,7 +13,7 @@ name.
 
 from __future__ import annotations
 
-from specify_cli.next._internal_runtime.engine import (
+from runtime.next._internal_runtime.engine import (
     next_step,
     provide_decision_answer,
     start_mission_run,

@@ -11,7 +11,7 @@ inventory.
 
 from __future__ import annotations
 
-from specify_cli.next._internal_runtime.events import (
+from runtime.next._internal_runtime.events import (
     NullEmitter,
     RuntimeEventEmitter,
 )

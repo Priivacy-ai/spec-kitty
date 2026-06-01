@@ -6,7 +6,7 @@ These tests enforce the boundary constraints documented in
 * **R1 / C-001 / FR-001, FR-002**: No production module under ``src/`` may
   import :mod:`spec_kitty_runtime` (top-level, sub-module, or lazy). The
   runtime PyPI surface is retired in this mission; the internalized runtime
-  at ``src/specify_cli/next/_internal_runtime/`` is the only authoritative
+  at ``src/runtime/next/_internal_runtime/`` is the only authoritative
   source.
 
 * **R2 / C-002 / FR-003, FR-004**: No production module under ``src/`` may
@@ -45,13 +45,13 @@ _SRC = _REPO_ROOT / "src"
 
 # Production package roots that MUST stay free of retired imports. Mirrors
 # the layer definitions in tests/architectural/conftest.py::landscape.
-_PRODUCTION_PACKAGE_REGEX = r"^src\.(specify_cli|charter|doctrine|kernel)(\..*)?$"
+_PRODUCTION_PACKAGE_REGEX = r"^src\.(specify_cli|runtime|charter|doctrine|kernel)(\..*)?$"
 
 # Historical exclusion regex retained for reference only: the vendored tree
 # under ``src/specify_cli/spec_kitty_events/`` was deleted in WP05, so the
 # subtree-suppression term in the regex is now a no-op (no files match).
 _PRODUCTION_OUTSIDE_VENDORED_EVENTS_REGEX = (
-    r"^src\.(charter|doctrine|kernel|specify_cli(?!\.spec_kitty_events)(\..*)?)$"
+    r"^src\.(charter|doctrine|kernel|runtime|specify_cli(?!\.spec_kitty_events)(\..*)?)$"
 )
 
 
@@ -94,7 +94,13 @@ class TestNoProductionImportsOfSpecKittyRuntime:
         with an AST walk so the rule catches every form.
         """
         offenders = _ast_scan_for_imports(
-            roots=[_SRC / "specify_cli", _SRC / "charter", _SRC / "doctrine", _SRC / "kernel"],
+            roots=[
+                _SRC / "specify_cli",
+                _SRC / "runtime",
+                _SRC / "charter",
+                _SRC / "doctrine",
+                _SRC / "kernel",
+            ],
             forbidden_prefix="spec_kitty_runtime",
             # The internalized runtime documents (in module docstrings and
             # comments) that it replaces ``spec_kitty_runtime``; those are
@@ -106,7 +112,7 @@ class TestNoProductionImportsOfSpecKittyRuntime:
             "Production modules import the retired spec_kitty_runtime PyPI "
             f"surface (R1 / C-001 violation):\n  - "
             + "\n  - ".join(f"{path}:{lineno} -> {target}" for path, lineno, target in offenders)
-            + "\nUse src/specify_cli/next/_internal_runtime/ instead."
+            + "\nUse src/runtime/next/_internal_runtime/ instead."
         )
 
     def test_injection_proves_rule_is_real(self, tmp_path: Path) -> None:

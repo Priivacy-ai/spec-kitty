@@ -14,9 +14,9 @@ task layout.
 
 from __future__ import annotations
 
-from specify_cli.next._internal_runtime.discovery import DiscoveryContext
-from specify_cli.next._internal_runtime.engine import MissionRunRef
-from specify_cli.next._internal_runtime.schema import (
+from runtime.next._internal_runtime.discovery import DiscoveryContext
+from runtime.next._internal_runtime.engine import MissionRunRef
+from runtime.next._internal_runtime.schema import (
     MissionPolicySnapshot,
     NextDecision,
 )

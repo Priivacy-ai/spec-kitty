@@ -260,7 +260,7 @@ _CATEGORY_5_WP_IN_FLIGHT_ADAPTERS: frozenset[str] = frozenset(
         "specify_cli.compat._adapters.detector",
         "specify_cli.compat._adapters.gate",
         "specify_cli.compat._adapters.version_checker",
-        # specify_cli.next._internal_runtime.workflow_registry removed:
+        # runtime.next._internal_runtime.workflow_registry removed:
         # WP11 wired get_workflow() into planner.py (planner imports it
         # via workflow_registry at module scope), so the module now has a
         # live src/ caller.  WP11 removal trigger reached.
@@ -280,9 +280,9 @@ _CATEGORY_5_WP_IN_FLIGHT_ADAPTERS: frozenset[str] = frozenset(
 # kitty-specs/.../contracts/internal_runtime_surface.md.
 _CATEGORY_6_FROZEN_RUNTIME_REEXPORTS: frozenset[str] = frozenset(
     {
-        "specify_cli.next._internal_runtime.emitter",
-        "specify_cli.next._internal_runtime.lifecycle",
-        "specify_cli.next._internal_runtime.models",
+        "runtime.next._internal_runtime.emitter",
+        "runtime.next._internal_runtime.lifecycle",
+        "runtime.next._internal_runtime.models",
     }
 )
 

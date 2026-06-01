@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import shutil
 import tempfile
 from datetime import UTC, datetime
@@ -29,7 +30,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from specify_cli.next._internal_runtime import (
+from runtime.next._internal_runtime import (
     DiscoveryContext,
     MissionPolicySnapshot,
     MissionRunRef,
@@ -39,14 +40,14 @@ from specify_cli.next._internal_runtime import (
     provide_decision_answer as runtime_provide_decision_answer,
     start_mission_run,
 )
-from specify_cli.next._internal_runtime.schema import ActorIdentity, load_mission_template_file
+from runtime.next._internal_runtime.schema import ActorIdentity, load_mission_template_file
 
 from specify_cli.core.atomic import atomic_write
 from specify_cli.mission import get_mission_type
 from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
 from specify_cli.status.models import Lane
 from specify_cli.status.wp_state import wp_state_for
-from specify_cli.next.decision import (
+from runtime.next.decision import (
     Decision,
     DecisionKind,
     InvalidStepDecision,
@@ -140,6 +141,43 @@ class QueryModeValidationError(ValueError):
 # ---------------------------------------------------------------------------
 
 _FEATURE_RUNS_FILE = "feature-runs.json"
+
+
+def _parse_wp_sections_from_tasks_md(tasks_content: str) -> dict[str, str]:
+    """Extract WP sections from tasks.md keyed by WP ID."""
+    sections: dict[str, str] = {}
+    matches = list(
+        re.finditer(
+            r"(?m)^#{2,4}\s+(?:Work Package\s+)?(WP\d{2})(?:\b|:)",
+            tasks_content,
+        )
+    )
+
+    for idx, match in enumerate(matches):
+        wp_id = match.group(1)
+        start = match.end()
+        end = matches[idx + 1].start() if idx + 1 < len(matches) else len(tasks_content)
+        sections[wp_id] = tasks_content[start:end]
+
+    return sections
+
+
+def _parse_requirement_refs_from_tasks_md(tasks_content: str) -> dict[str, list[str]]:
+    """Parse requirement references per WP from tasks.md content."""
+    requirement_refs: dict[str, list[str]] = {}
+
+    for wp_id, section_content in _parse_wp_sections_from_tasks_md(tasks_content).items():
+        refs: list[str] = []
+        ref_line_matches = re.findall(
+            r"\*?\*?Requirements?\s*(?:Refs)?\*?\*?\s*:\s*(.+)",
+            section_content,
+            re.IGNORECASE,
+        )
+        for match in ref_line_matches:
+            refs.extend(ref_id.upper() for ref_id in re.findall(r"\b(?:FR|NFR|C)-\d+\b", match, re.IGNORECASE))
+        requirement_refs[wp_id] = list(dict.fromkeys(refs))
+
+    return requirement_refs
 
 
 class _BufferingRuntimeEmitter:
@@ -803,8 +841,6 @@ def _check_requirement_mapping_ready(feature_dir: Path) -> list[str]:
         if wps_manifest is None:
             tasks_md = feature_dir / TASKS_ARTIFACT
             if tasks_md.exists():
-                from specify_cli.cli.commands.agent.mission import _parse_requirement_refs_from_tasks_md
-
                 tasks_md_refs = _parse_requirement_refs_from_tasks_md(tasks_md.read_text(encoding="utf-8"))
                 for wp_id, refs in tasks_md_refs.items():
                     if refs and not wp_requirement_refs.get(wp_id):
@@ -973,7 +1009,7 @@ def _resolve_step_binding(run_dir: Path, step_id: str) -> tuple[str | None, str 
     executor's structured error surface.
     """
     try:
-        from specify_cli.next._internal_runtime.engine import _load_frozen_template
+        from runtime.next._internal_runtime.engine import _load_frozen_template
 
         template = _load_frozen_template(run_dir)
     except Exception:
@@ -1026,7 +1062,7 @@ def _resolve_runtime_contract_for_step(
         )
         from specify_cli.mission_loader.contract_synthesis import synthesize_contracts
         from specify_cli.mission_loader.registry import lookup_contract
-        from specify_cli.next._internal_runtime.engine import _load_frozen_template
+        from runtime.next._internal_runtime.engine import _load_frozen_template
 
         template = _load_frozen_template(run_dir)
     except Exception:
@@ -1490,13 +1526,13 @@ def _advance_run_state_after_composition(
     # focused and mirror the pattern used by ``_dispatch_via_composition``.
     from datetime import UTC, datetime
 
-    from specify_cli.next._internal_runtime.engine import (
+    from runtime.next._internal_runtime.engine import (
         _append_event,
         _load_frozen_template,
         _read_snapshot,
         _write_snapshot,
     )
-    from specify_cli.next._internal_runtime.events import (
+    from runtime.next._internal_runtime.events import (
         DECISION_INPUT_REQUESTED,
         MISSION_RUN_COMPLETED,
         NEXT_STEP_AUTO_COMPLETED,
@@ -1509,8 +1545,8 @@ def _advance_run_state_after_composition(
         NextStepIssuedPayload,
         RuntimeActorIdentity,
     )
-    from specify_cli.next._internal_runtime.planner import plan_next
-    from specify_cli.next._internal_runtime.schema import DecisionRequest, MissionRunSnapshot
+    from runtime.next._internal_runtime.planner import plan_next
+    from runtime.next._internal_runtime.schema import DecisionRequest, MissionRunSnapshot
 
     run_dir = Path(run_ref.run_dir)
     snapshot = _read_snapshot(run_dir)
@@ -1843,9 +1879,9 @@ def _workflow_runtime_template(
     if workflow_id is None:
         return None, None
 
-    from specify_cli.next._internal_runtime.discovery import load_mission_template
-    from specify_cli.next._internal_runtime.planner import compose_template_with_workflow
-    from specify_cli.next._internal_runtime.workflow_registry import get_workflow
+    from runtime.next._internal_runtime.discovery import load_mission_template
+    from runtime.next._internal_runtime.planner import compose_template_with_workflow
+    from runtime.next._internal_runtime.workflow_registry import get_workflow
 
     context = _build_discovery_context(repo_root)
     base_template = load_mission_template(template_key, context=context)
@@ -2059,7 +2095,7 @@ def decide_next_via_runtime(  # noqa: C901
 
     # Read current run state
     try:
-        from specify_cli.next._internal_runtime.engine import _read_snapshot
+        from runtime.next._internal_runtime.engine import _read_snapshot
 
         snapshot = _read_snapshot(Path(run_ref.run_dir))
         current_step_id = snapshot.issued_step_id
@@ -2517,7 +2553,7 @@ def _build_finalized_override_query_decision(
         preview_step = finalized_override
         reason = None
         if finalized_override == "implement":
-            from specify_cli.next.discovery import preview_claimable_wp
+            from runtime.next.discovery import preview_claimable_wp
 
             preview = preview_claimable_wp(feature_dir)
             override_wp_id = preview.wp_id
@@ -2669,8 +2705,8 @@ def query_current_state(  # noqa: C901
     # on every return path (success, raise, or early exit).
     try:
         try:
-            from specify_cli.next._internal_runtime import engine
-            from specify_cli.next._internal_runtime.planner import plan_next
+            from runtime.next._internal_runtime import engine
+            from runtime.next._internal_runtime.planner import plan_next
 
             if run_ref is None:
                 run_ref, ephemeral_run_store = _start_ephemeral_query_run(
@@ -2782,7 +2818,7 @@ def answer_decision_via_runtime(
         mission_type=mission_type,
     )
     try:
-        from specify_cli.next._internal_runtime.engine import _read_snapshot
+        from runtime.next._internal_runtime.engine import _read_snapshot
 
         sync_emitter.seed_from_snapshot(_read_snapshot(Path(run_ref.run_dir)))
     except Exception:
@@ -2976,7 +3012,7 @@ def _map_runtime_decision(
     if decision.kind == "decision_required":
         prompt_file = None
         if decision.question:
-            from specify_cli.next.prompt_builder import build_decision_prompt
+            from runtime.next.prompt_builder import build_decision_prompt
 
             try:
                 _, prompt_path = build_decision_prompt(

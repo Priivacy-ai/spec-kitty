@@ -38,7 +38,7 @@ from collections.abc import Iterable, Iterator
 from charter.mission_steps import MissionStepContract, MissionStepContractRepository
 
 from specify_cli.mission_loader.contract_synthesis import synthesize_contracts
-from specify_cli.next._internal_runtime.schema import MissionTemplate
+from runtime.next._internal_runtime.schema import MissionTemplate
 
 
 class RuntimeContractRegistry:

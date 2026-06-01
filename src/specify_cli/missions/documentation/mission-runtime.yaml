@@ -6,7 +6,7 @@
 # Used by spec-kitty next for run-state planning. The CLI-internal runtime
 # owns DAG planning. Live action dispatch for discover/audit/design/generate/
 # validate/publish is handled by StepContractExecutor composition in
-# specify_cli.next.runtime_bridge after this rewrite lands. Composition uses
+# runtime.next.runtime_bridge after this rewrite lands. Composition uses
 # the contract-synthesis path (no contract_ref set on these PromptSteps), so
 # the built-in step contracts under
 # src/doctrine/missions/built_in_step_contracts/documentation-*.step-contract.yaml

@@ -16,7 +16,7 @@ Boundary notes:
 - The validator does NOT register synthesized contracts. Contract synthesis
   is WP03 / WP05 territory.
 - Discovery is performed via
-  :func:`specify_cli.next._internal_runtime.discovery.discover_missions_with_warnings`;
+  :func:`runtime.next._internal_runtime.discovery.discover_missions_with_warnings`;
   no parallel loader is introduced (FR-003).
 """
 
@@ -39,14 +39,14 @@ from specify_cli.mission_loader.retrospective import (
     RETROSPECTIVE_MARKER_ID,
     has_retrospective_marker,
 )
-from specify_cli.next._internal_runtime.discovery import (
+from runtime.next._internal_runtime.discovery import (
     DiscoveryContext,
     DiscoveryResult,
     DiscoveryWarning,
     discover_missions_with_warnings,
     is_reserved_key,
 )
-from specify_cli.next._internal_runtime.schema import (
+from runtime.next._internal_runtime.schema import (
     DiscoveredMission,
     MissionRuntimeError,
     load_mission_template_file,
@@ -508,7 +508,7 @@ def _reserved_keys() -> set[str]:
     Wrapped to avoid leaking the frozen-set type into JSON serialization
     paths that may not handle ``frozenset``.
     """
-    from specify_cli.next._internal_runtime.discovery import RESERVED_BUILTIN_KEYS
+    from runtime.next._internal_runtime.discovery import RESERVED_BUILTIN_KEYS
 
     return set(RESERVED_BUILTIN_KEYS)
 

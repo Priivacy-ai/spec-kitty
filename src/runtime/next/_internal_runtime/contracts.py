@@ -6,7 +6,7 @@
 # public-API inventory.
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -34,7 +34,7 @@ class RemediationPayload(BaseModel):
         description="Debug info: resolver name, precedence position, validation rules"
     )
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         description="When remediation was generated"
     )
 
@@ -103,10 +103,11 @@ class RemediationPayload(BaseModel):
             resolver_metadata: Optional debug information
         """
         failures = validation_failures or []
-        if failures:
-            hint = f"Context value must pass validation: {'; '.join(failures)}"
-        else:
-            hint = f"Context {context_name} failed validation against declared rules"
+        hint = (
+            f"Context value must pass validation: {'; '.join(failures)}"
+            if failures
+            else f"Context {context_name} failed validation against declared rules"
+        )
 
         return RemediationPayload(
             error_code="CONTEXT_INVALID",

@@ -19,7 +19,7 @@ from typing import Any
 
 from specify_cli.events.sanitizer import sanitize_event_for_log
 from specify_cli.git.commit_helpers import SafeCommitError, safe_commit
-from specify_cli.next._internal_runtime.events import (
+from runtime.next._internal_runtime.events import (
     DECISION_INPUT_ANSWERED,
     DECISION_INPUT_REQUESTED,
     DecisionInputAnsweredPayload,
@@ -30,7 +30,7 @@ from specify_cli.next._internal_runtime.events import (
     NextStepIssuedPayload,
     RuntimeEventEmitter,
 )
-from specify_cli.next._internal_runtime.significance import (
+from runtime.next._internal_runtime.significance import (
     SignificanceEvaluatedPayload,
     TimeoutExpiredPayload,
 )

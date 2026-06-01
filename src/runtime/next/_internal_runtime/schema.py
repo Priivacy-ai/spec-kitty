@@ -13,17 +13,12 @@ from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from spec_kitty_events.mission_next import RuntimeActorIdentity
 
 
 class MissionRuntimeError(RuntimeError):
     """Raised for runtime loading/planning errors."""
 
-
-# ---------------------------------------------------------------------------
-# Domain value objects
-# ---------------------------------------------------------------------------
-
-from spec_kitty_events.mission_next import RuntimeActorIdentity
 
 ActorIdentity = RuntimeActorIdentity
 
@@ -175,7 +170,7 @@ class ContextType(BaseModel):
             error_message is None on success or contains the error message on failure
         """
         # Avoid circular import at module level — engine imports schema.
-        from specify_cli.next._internal_runtime.engine import validate_binding as _engine_validate
+        from runtime.next._internal_runtime.engine import validate_binding as _engine_validate
         return _engine_validate(value, self)
 
 
@@ -352,7 +347,7 @@ class SignificanceBlock(BaseModel):
 
     @model_validator(mode="after")
     def _validate_dimensions(self) -> SignificanceBlock:
-        from specify_cli.next._internal_runtime.significance import validate_dimension_scores, HARD_TRIGGER_REGISTRY
+        from runtime.next._internal_runtime.significance import validate_dimension_scores, HARD_TRIGGER_REGISTRY
         validate_dimension_scores(self.dimensions)
         for trigger_id in self.hard_triggers:
             if trigger_id not in HARD_TRIGGER_REGISTRY:
@@ -550,7 +545,7 @@ def load_mission_template_file(path: Path) -> MissionTemplate:
     if not path.exists():
         raise MissionRuntimeError(f"Mission template not found: {path}")
 
-    with open(path, "r", encoding="utf-8") as handle:
+    with open(path, encoding="utf-8") as handle:
         raw = yaml.safe_load(handle) or {}
 
     if not isinstance(raw, dict):

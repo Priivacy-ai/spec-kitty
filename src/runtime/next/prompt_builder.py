@@ -45,7 +45,7 @@ def _workflow_for(mission_dir_str: str):
     Project-authored workflow files are mutable, so this helper intentionally
     performs a fresh load.
     """
-    from specify_cli.next._internal_runtime.planner import _resolve_workflow_for_mission
+    from runtime.next._internal_runtime.planner import _resolve_workflow_for_mission
 
     return _resolve_workflow_for_mission(Path(mission_dir_str))
 

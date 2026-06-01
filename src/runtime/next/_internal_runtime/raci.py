@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Any, Literal, cast
 
-from specify_cli.next._internal_runtime.schema import (
+from runtime.next._internal_runtime.schema import (
     AuditStep,
     MissionPolicySnapshot,
     MissionRuntimeError,
@@ -26,7 +26,7 @@ from specify_cli.next._internal_runtime.schema import (
 
 def infer_raci(
     step: PromptStep | AuditStep,
-    mission_policy: MissionPolicySnapshot,
+    mission_policy: MissionPolicySnapshot,  # noqa: ARG001
 ) -> ResolvedRACIBinding:
     """Infer default RACI bindings from step type.
 
@@ -99,12 +99,15 @@ def validate_raci_assignment(
         )
 
     # For blocking audit: responsible must be human
-    if isinstance(step, AuditStep) and step.audit.enforcement == "blocking":
-        if assignment.responsible.actor_type != "human":
-            errors.append(
-                f"Blocking audit step '{step.id}': responsible must be human, "
-                f"got '{assignment.responsible.actor_type}'"
-            )
+    if (
+        isinstance(step, AuditStep)
+        and step.audit.enforcement == "blocking"
+        and assignment.responsible.actor_type != "human"
+    ):
+        errors.append(
+            f"Blocking audit step '{step.id}': responsible must be human, "
+            f"got '{assignment.responsible.actor_type}'"
+        )
 
     return (len(errors) == 0, errors)
 

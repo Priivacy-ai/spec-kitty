@@ -22,3 +22,10 @@ shims:
     tracker_issue: "#613"
     grandfathered: false
     notes: "Package-level shim for the glossary runtime extraction; submodule imports are aliased from glossary.*."
+  - legacy_path: specify_cli.next
+    canonical_import: runtime.next
+    introduced_in_release: "3.2.0"
+    removal_target_release: "3.3.0"
+    tracker_issue: "#612"
+    grandfathered: false
+    notes: "Package-level shim for the runtime next-step extraction; submodule imports are aliased from runtime.next.*."

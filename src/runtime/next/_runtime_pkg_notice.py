@@ -49,10 +49,7 @@ def _marker_path() -> Path:
     survives across CLI invocations but never lands in the repo tree.
     """
     state_home = os.environ.get("XDG_STATE_HOME")
-    if state_home:
-        base = Path(state_home)
-    else:
-        base = Path.home() / ".cache"
+    base = Path(state_home) if state_home else Path.home() / ".cache"
     return base / "spec-kitty" / _MARKER_FILENAME
 
 

@@ -115,7 +115,7 @@ class TestRuntimeBridgeBlockedReasonIsConcrete:
         regression guard for future edits.
         """
         runtime_bridge_path = (
-            _REPO_ROOT / "src" / "specify_cli" / "next" / "runtime_bridge.py"
+            _REPO_ROOT / "src" / "runtime" / "next" / "runtime_bridge.py"
         )
         text = runtime_bridge_path.read_text(encoding="utf-8")
         # Acceptable: "no result provided" appearing inside human-readable

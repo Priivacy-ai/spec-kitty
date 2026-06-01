@@ -59,9 +59,10 @@ doctrine:
 runtime_mission_execution:
   canonical_package: src/runtime/
   current_state:
+    - src/runtime/next/
     - src/specify_cli/runtime/
     - src/specify_cli/missions/
-    - src/specify_cli/next/
+    - src/specify_cli/next/  # compatibility shim for runtime.next
     - src/specify_cli/mission.py
     - src/specify_cli/mission_metadata.py
   adapter_responsibilities:
@@ -69,7 +70,10 @@ runtime_mission_execution:
     - src/specify_cli/cli/commands/accept.py — spec-kitty accept CLI entry point
     - src/specify_cli/cli/commands/init.py — spec-kitty init CLI entry point
     - All other spec-kitty agent action CLI entry points
-  shims: []
+  shims:
+    - legacy_path: specify_cli.next
+      canonical_import: runtime.next
+      removal_release: 3.3.0
   seams:
     - CLI shell calls runtime to execute the next-step control loop (spec-kitty next)
     - Runtime reads charter context at mission start via charter.build_charter_context
@@ -77,11 +81,9 @@ runtime_mission_execution:
     - Runtime reads lifecycle lane state via status.lane_reader.get_wp_lane() to decide which Work Package to claim next
     - Runtime reads glossary state via glossary for terminology validation during mission execution
   extraction_sequencing_notes: >
-    Target for mission #612. Extraction requires the architectural-tests and
-    import-graph-enforcement acceptance criteria in #612 to be met before the slice
-    boundary moves. Deprecation scaffolding and shim registry are owned by #615 and
-    must land before extraction. Import-graph enforcement is load-bearing because
-    dependency_rules must be automatically verified after the slice boundary moves.
+    Partially extracted by mission #612: the canonical next-step runtime/control-loop
+    package now lives under src/runtime/next/. Bootstrap, mission registry, and broader
+    invocation helpers remain in src/specify_cli/ pending narrower follow-ups.
   dependency_rules:
     may_call:
       - charter_governance

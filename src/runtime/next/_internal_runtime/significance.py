@@ -21,14 +21,14 @@ All registries are fixed in V1 (no custom dimensions or triggers).
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from specify_cli.next._internal_runtime.schema import RACIRoleBinding, ResolvedRACIBinding
+from runtime.next._internal_runtime.schema import RACIRoleBinding, ResolvedRACIBinding
 
 if TYPE_CHECKING:
-    from specify_cli.next._internal_runtime.schema import MissionPolicySnapshot
+    from runtime.next._internal_runtime.schema import MissionPolicySnapshot
 
 
 # ---------------------------------------------------------------------------
@@ -404,12 +404,8 @@ def evaluate_significance(
     # Resolve hard triggers
     triggers = resolve_hard_triggers(hard_trigger_classes or [])
 
-    # Determine effective_band
-    if triggers:
-        # Hard triggers override to high band
-        effective_band = next(b for b in bands if b.name == "high")
-    else:
-        effective_band = band
+    # Hard triggers override to high band.
+    effective_band = next(b for b in bands if b.name == "high") if triggers else band
 
     return SignificanceScore(
         dimensions=dims,

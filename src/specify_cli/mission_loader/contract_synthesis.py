@@ -51,7 +51,7 @@ from __future__ import annotations
 from charter.mission_steps import MissionStepContract, MissionStepContractStep
 
 from specify_cli.mission_loader.retrospective import RETROSPECTIVE_MARKER_ID
-from specify_cli.next._internal_runtime.schema import MissionTemplate, PromptStep
+from runtime.next._internal_runtime.schema import MissionTemplate, PromptStep
 
 
 _SYNTHESIZED_SCHEMA_VERSION = "1.0"
