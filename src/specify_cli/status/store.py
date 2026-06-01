@@ -92,8 +92,16 @@ class EventPersistenceError(StoreError):
 
 
 def _events_path(feature_dir: Path) -> Path:
-    """Return the canonical path to the events JSONL file."""
-    return feature_dir / EVENTS_FILENAME
+    """Return the canonical path to the events JSONL file.
+
+    Resolves to the per-mission coordination worktree when one exists (#1589
+    facet 3), so reads and non-transactional writes target the same canonical
+    log the transactional emit path commits to. A strict no-op for legacy /
+    no-coord missions and for paths already inside a ``-coord`` worktree.
+    """
+    from .coord_read import resolve_status_dir
+
+    return resolve_status_dir(feature_dir) / EVENTS_FILENAME
 
 
 class _SlugResolver:
@@ -207,7 +215,7 @@ def _event_matches_expected(actual: StatusEvent, expected: StatusEvent) -> bool:
         return False
     if expected.mission_id is not None and actual.mission_id != expected.mission_id:
         return False
-    return actual.wp_id == expected.wp_id and actual.to_lane == expected.to_lane
+    return bool(actual.wp_id == expected.wp_id and actual.to_lane == expected.to_lane)
 
 
 def verify_event_readback(feature_dir: Path, expected: StatusEvent) -> None:
