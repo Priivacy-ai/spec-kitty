@@ -1,7 +1,7 @@
 # Tasks: P0 Test Failure Resolution — Release Blockers 1298-1305
 
 **Mission**: p0-test-failure-resolution-1298-1305-01KT1R2G  
-**Branch**: `kitty/mission-p0-test-failure-resolution-1298-1305-01KT1R2G` → merge target: `main`  
+**Branch**: `main` → merge target: `main`  
 **Generated**: 2026-06-01
 
 ---

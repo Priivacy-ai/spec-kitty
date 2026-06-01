@@ -54,7 +54,9 @@ This WP does **not** touch contract fixtures or sync lifecycle tests — those a
 
 ## Context
 
-The #1301 issue (filed per DIR-013) describes `spec_kitty_events 5.0.0` being installed while `uv.lock` pins `5.2.0`. WP02 of mission `01KSF9HJ` resolved the bulk of the cascade, but three sub-items survived:
+The #1301 issue (filed per DIR-013) describes `spec_kitty_events 5.0.0` being installed while `uv.lock` pins `5.2.0`. WP02 of mission `01KSF9HJ` resolved the bulk of the cascade, but three sub-items survived.
+
+**Triage reference**: The authoritative root-cause analysis is in `docs/01KSF9HJ-triage/triage.md` on branch `kitty/mission-test-stabilization-and-debt-pass-01KSF9HJ`. To read it: `git show kitty/mission-test-stabilization-and-debt-pass-01KSF9HJ:docs/01KSF9HJ-triage/triage.md | less`. It is not on `main` and should not be merged as part of this WP.
 
 - **Vendored copy**: `src/specify_cli/spec_kitty_events/` may have been reintroduced (violates the shared-package-boundary cutover ADR 2026-04-25-1).
 - **Daemon allowlist**: `test_no_unauthorized_daemon_call_sites` fails because a new events call site was added without updating the allowlist.
@@ -76,6 +78,7 @@ pytest tests/sync/ tests/contract/ -q --tb=short -p no:cacheprovider 2>&1 | tee 
 Record: which tests fail, the exact error messages.
 
 Key tests to watch:
+- `tests/sync/test_events.py` (12 failures driven by version drift — should clear after T006)
 - `tests/sync/test_daemon_intent_gate.py::test_no_unauthorized_daemon_call_sites`
 - `tests/sync/test_lifecycle_readiness.py::*`
 - `tests/sync/tracker/test_origin_integration.py::*`
@@ -214,6 +217,8 @@ spec-kitty agent action implement WP02 --agent claude
 - [ ] `src/specify_cli/spec_kitty_events/` does not exist
 - [ ] `test_no_unauthorized_daemon_call_sites` passes
 - [ ] `test_packaging_no_vendored_events` passes
+- [ ] `tests/sync/test_events.py` passes (version drift cleared)
+- [ ] **FR-007**: At least one regression test added or updated to prevent silent re-drift (e.g., a test asserting `spec_kitty_events.__version__` matches the uv.lock pin, or the existing `test_packaging_no_vendored_events` is confirmed sufficient — document which)
 - [ ] Changes committed with issue-scoped message
 - [ ] No previously passing tests newly broken
 

@@ -163,7 +163,7 @@ After WP02 resolves the packaging and daemon items, these contract/lifecycle tes
    b. **Source behavior changed** (the source no longer emits the event in offline mode) — fix the source.
    c. **A new module import issue** from the spec_kitty_events version upgrade — add/update the import.
 
-4. Apply the minimal fix. If touching source under `src/specify_cli/sync/`, stay within the sync module only.
+4. Apply the minimal fix. Stay within `src/specify_cli/sync/` only — do not touch `src/specify_cli/next/` (WP04's domain).
 
 5. Run the test again to confirm it passes.
 
@@ -187,7 +187,7 @@ After WP02 resolves the packaging and daemon items, these contract/lifecycle tes
 
 3. Investigate the failure cause (same pattern as T011 — stale mock, behavior drift, or import change).
 
-4. Apply the minimal fix within `tests/sync/tracker/test_origin_integration.py` or the source path it exercises (stay within `src/specify_cli/sync/` or `src/specify_cli/next/`).
+4. Apply the minimal fix within `tests/sync/tracker/test_origin_integration.py` or the source path it exercises (stay within `src/specify_cli/sync/` only — `src/specify_cli/next/` is WP04's scope; if the fix requires changes there, carry the task forward to WP04).
 
 5. Confirm the test passes.
 
@@ -213,15 +213,27 @@ After WP02 resolves the packaging and daemon items, these contract/lifecycle tes
    pytest tests/ -q --tb=no -p no:cacheprovider --ignore=tests/next/ --ignore=tests/doctrine/ --ignore=tests/charter/ -x 2>&1 | tail -5
    ```
 
-4. Commit all WP03 changes:
+4. **FR-007 — Add/confirm regression test**: Verify that the test changes made in T009–T012 constitute a regression guard. If any fix was purely mechanical (e.g., adding a field to a fixture), add a comment or assertion that would catch the same drift next time. Document which test serves as the regression guard in the commit message.
+
+5. **FR-008 — Record post-fix results**: Save the verification output:
+   ```bash
+   cat /tmp/wp03-after.txt >> docs/p0-baseline-refresh.md
+   # Append a "## WP03 Post-Fix Results" section with the summary line
+   ```
+
+6. Commit all WP03 changes:
    ```bash
    git add -p
    git commit -m "fix(#1301): update contract fixtures, YAML frontmatter, and offline sync lifecycle"
    ```
 
+**Note on `owned_files`**: This WP declares `docs/how-to/check_docs_freshness.md` as an owned file, but the actual path is discovered at runtime via `find`. Update the WP frontmatter `owned_files` list to the real path before committing (use `git diff --name-only HEAD` to confirm the actual file changed).
+
 **Validation**:
 - [ ] Zero failures in `tests/sync/` and `tests/contract/`
 - [ ] No regressions in the broader slice
+- [ ] Regression guard identified/added per FR-007
+- [ ] Post-fix results appended to `docs/p0-baseline-refresh.md` per FR-008
 - [ ] Changes committed
 
 ---
@@ -247,6 +259,9 @@ spec-kitty agent action implement WP03 --agent claude
 - [ ] `test_event_queued_when_no_websocket` passes
 - [ ] Full `tests/sync/` + `tests/contract/` run shows zero failures
 - [ ] No regressions in broader test slice
+- [ ] **FR-007**: Regression guard identified/added (documented in commit message)
+- [ ] **FR-008**: Post-fix results appended to `docs/p0-baseline-refresh.md`
+- [ ] No changes made to `src/specify_cli/next/` (WP04's domain)
 - [ ] Changes committed with issue-scoped message
 
 ---

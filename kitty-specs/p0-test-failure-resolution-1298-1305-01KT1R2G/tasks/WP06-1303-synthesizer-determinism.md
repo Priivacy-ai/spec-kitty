@@ -228,20 +228,53 @@ Record:
    PWHEADLESS=1 pytest tests/ -q --tb=no -p no:cacheprovider 2>&1 | tee /tmp/final-suite.txt
    tail -3 /tmp/final-suite.txt
    ```
-   Compare to the count in `baseline-refresh.md` from WP01.
+   Compare to the count in `docs/p0-baseline-refresh.md` from WP01.
 
-3. Commit all WP06 changes:
+3. **NFR-001 — Coverage gate** (charter-mandated, applies to WP04+WP06 which touch Python source):
+   ```bash
+   pytest tests/next/ tests/charter/synthesizer/ \
+     --cov=src/specify_cli/next --cov=src/specify_cli/charter_lint \
+     --cov-report=term-missing --cov-fail-under=90 -q
+   ```
+   Must report ≥90% line coverage for modified modules. If below threshold, add tests before committing.
+
+4. **NFR-002 — mypy gate** (charter-mandated):
+   ```bash
+   .venv/bin/mypy src/specify_cli/next/ src/specify_cli/charter_lint/ --strict 2>&1 | tail -5
+   ```
+   Must report zero errors for modified modules. Fix any type errors introduced by the fixes.
+
+5. **FR-007 — Regression test**: The determinism fix should include a test that calls the synthesizer twice with the same input and asserts the hashes are equal. If `test_manifest` already does this, confirm and note it. Otherwise add one.
+
+6. **FR-008 — Record final post-fix results**: Write the final mission closure to `docs/p0-baseline-refresh.md`:
+   ```bash
+   cat >> docs/p0-baseline-refresh.md << 'EOF'
+
+   ## Final Post-Fix Suite Result
+
+   **Date**: <ISO date>
+   **Full suite**: <N failed, M passed from /tmp/final-suite.txt>
+   **All P0 clusters**: RESOLVED
+   **mypy**: zero errors in modified modules
+   **Coverage**: ≥90% for modified source
+   EOF
+   git add docs/p0-baseline-refresh.md
+   ```
+
+7. Commit all WP06 changes:
    ```bash
    git add -p
    git commit -m "fix(#1303): make synthesizer manifest hash deterministic and route writes through path_guard"
    ```
 
-4. Write a brief summary comment in `baseline-refresh.md` noting the post-fix state (optional but helpful for the reviewer).
-
 **Validation**:
 - [ ] All 5 `tests/charter/synthesizer/` tests pass
-- [ ] Full suite failure count ≤ count in `baseline-refresh.md`
+- [ ] Full suite failure count ≤ count in `docs/p0-baseline-refresh.md`
 - [ ] No regressions in sync/contract/next/doctrine tests
+- [ ] **NFR-001**: ≥90% coverage for modified modules (`next/`, `charter_lint/`)
+- [ ] **NFR-002**: `mypy --strict` reports zero new errors
+- [ ] **FR-007**: Determinism regression test present (new or confirmed existing)
+- [ ] **FR-008**: Final post-fix results written to `docs/p0-baseline-refresh.md`
 - [ ] Changes committed with issue-scoped message
 
 ---
@@ -268,6 +301,10 @@ spec-kitty agent action implement WP06 --agent claude
 - [ ] `test_bundle_validate_cli` passes
 - [ ] Full suite failure count ≤ WP01 baseline
 - [ ] Synthesizer produces identical output on repeated runs (manually verified)
+- [ ] **NFR-001**: Coverage ≥90% for `src/specify_cli/next/` and `src/specify_cli/charter_lint/`
+- [ ] **NFR-002**: `mypy --strict` zero new errors in modified modules
+- [ ] **FR-007**: Determinism regression test present (new or confirmed existing)
+- [ ] **FR-008**: Final post-fix results written to `docs/p0-baseline-refresh.md`
 - [ ] Changes committed with issue-scoped message
 
 ---

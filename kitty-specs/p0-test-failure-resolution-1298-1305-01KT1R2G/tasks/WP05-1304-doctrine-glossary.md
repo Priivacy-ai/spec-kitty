@@ -200,6 +200,14 @@ pytest tests/ -q --tb=no -p no:cacheprovider \
   -x 2>&1 | tail -5
 ```
 
+**FR-007 — Regression test**: The link-integrity and tactic-compliance tests themselves are the regression guards — confirm they are not marked `xfail` or skipped. If the anchor format required discovery (e.g., the format was not obvious from context), add a brief inline comment in the context file explaining the expected format so future contributors maintain it correctly.
+
+**FR-008 — Record post-fix results**: Append to `docs/p0-baseline-refresh.md`:
+```bash
+echo "\n## WP05 Post-Fix Results (#1304)" >> docs/p0-baseline-refresh.md
+cat /tmp/wp05-after.txt | grep "passed\|failed" | tail -1 >> docs/p0-baseline-refresh.md
+```
+
 Commit:
 ```bash
 git add glossary/contexts/ src/specify_cli/doctrine/
@@ -210,6 +218,8 @@ git commit -m "fix(#1304): add missing glossary anchors and fix five-paradigm ta
 **Validation**:
 - [ ] All 4 `tests/doctrine/` tests pass
 - [ ] No regressions in sync/contract/next tests
+- [ ] **FR-007**: Regression guards confirmed active (not xfail/skipped)
+- [ ] **FR-008**: Post-fix results appended to `docs/p0-baseline-refresh.md`
 - [ ] Changes committed
 
 ---
@@ -233,6 +243,8 @@ spec-kitty agent action implement WP05 --agent claude
 - [ ] `test_glossary_link_integrity` passes for `platform-darwin--platform-linux` anchor
 - [ ] Both `test_tactic_compliance` tests for `five-paradigm-parallel-debugging` pass
 - [ ] No regressions in any other doctrine, sync, contract, or next tests
+- [ ] **FR-007**: Regression guards confirmed active (link-integrity + tactic-compliance tests not skipped)
+- [ ] **FR-008**: Post-fix results appended to `docs/p0-baseline-refresh.md`
 - [ ] Changes committed with issue-scoped message
 
 ---

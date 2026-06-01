@@ -54,7 +54,7 @@ Issue #1305 (filed per DIR-013, cluster C99-f) reports that the `next` CLI is re
 **Affected tests**:
 - `tests/next/test_next_command_integration.py::test_blocked_result_exit_code`
 - `tests/next/test_next_command_integration.py::test_terminal_state_exit_code_zero`
-- `tests/next/test_next_command_integration.py::test_advancing_mode_with_result_…`
+- `tests/next/test_next_command_integration.py::test_advancing_mode_with_result_still_advances_normally`
 - `tests/next/test_query_mode_unit.py::test_result_success_calls_decide_not_query`
 
 The most likely root cause: a refactor of `src/specify_cli/next/` moved or renamed `decide_next`, but the test mock targets still reference the old import path.
@@ -161,7 +161,7 @@ Record:
 **Validation**:
 - [ ] `test_terminal_state_exit_code_zero` passes (exit code 0)
 - [ ] `test_blocked_result_exit_code` passes (exit code matches test expectation)
-- [ ] `test_advancing_mode_with_result_…` passes
+- [ ] `test_advancing_mode_with_result_still_advances_normally` passes
 
 ---
 
@@ -181,6 +181,14 @@ pytest tests/ -q --tb=no -p no:cacheprovider \
   -x 2>&1 | tail -5
 ```
 
+**FR-007 — Add regression test**: If the root cause was a stale mock path, add an import-path assertion test or update the mock to use `spec_kitty.next.<actual_module>.decide_next` so that future refactors break the test rather than silently changing behavior. Document the regression guard in the commit message.
+
+**FR-008 — Record post-fix results**: Append the verification summary to `docs/p0-baseline-refresh.md`:
+```bash
+echo "\n## WP04 Post-Fix Results (#1305)" >> docs/p0-baseline-refresh.md
+cat /tmp/wp04-after.txt | grep "passed\|failed" | tail -1 >> docs/p0-baseline-refresh.md
+```
+
 Commit:
 ```bash
 git add -p
@@ -190,6 +198,8 @@ git commit -m "fix(#1305): restore decide_next dispatch and exit-code contract i
 **Validation**:
 - [ ] All 4 `tests/next/` tests pass
 - [ ] No regressions in `tests/sync/`, `tests/contract/`
+- [ ] **FR-007**: Regression guard added/confirmed (documented in commit message)
+- [ ] **FR-008**: Post-fix results appended to `docs/p0-baseline-refresh.md`
 - [ ] Changes committed
 
 ---
@@ -211,10 +221,12 @@ spec-kitty agent action implement WP04 --agent claude
 
 - [ ] `test_blocked_result_exit_code` passes
 - [ ] `test_terminal_state_exit_code_zero` passes
-- [ ] `test_advancing_mode_with_result_…` passes
+- [ ] `test_advancing_mode_with_result_still_advances_normally` passes
 - [ ] `test_result_success_calls_decide_not_query` passes
 - [ ] `decide_next` is verifiably invoked in mocked tests
 - [ ] No regressions in `tests/sync/` or `tests/contract/`
+- [ ] **FR-007**: Regression guard added/confirmed
+- [ ] **FR-008**: Post-fix results appended to `docs/p0-baseline-refresh.md`
 - [ ] Changes committed with issue-scoped message
 
 ---

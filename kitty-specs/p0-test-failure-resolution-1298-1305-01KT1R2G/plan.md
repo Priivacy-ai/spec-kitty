@@ -84,10 +84,11 @@ All WPs are sequential. Each depends on the one before it.
 | WP | Title | Cluster | Key deliverable |
 |----|-------|---------|-----------------|
 | WP01 | Baseline Refresh | #1298 | Documented current-main failure count + still-reproducing cluster list |
-| WP02 | Shared-Package Events Drift Fix | #1301 | `tests/sync/` + `tests/contract/` green |
-| WP03 | `next` CLI Exit-Code Fix | #1305 | `tests/next/` green |
-| WP04 | Doctrine / Glossary Anchor Fix | #1304 | `tests/doctrine/` green |
-| WP05 | Charter Synthesizer Determinism Fix | #1303 | `tests/charter/synthesizer/` green |
+| WP02 | #1301 Part A: Package Version, Vendored Tree & Daemon Allowlist | #1301 | Version sync, vendored tree removed, daemon allowlist fixed |
+| WP03 | #1301 Part B: Contract Fixtures & Sync Lifecycle | #1301 | `tests/sync/` + `tests/contract/` green |
+| WP04 | `next` CLI Exit-Code Fix | #1305 | `tests/next/` green |
+| WP05 | Doctrine / Glossary Anchor Fix | #1304 | `tests/doctrine/` green |
+| WP06 | Charter Synthesizer Determinism Fix | #1303 | `tests/charter/synthesizer/` green |
 
 ## Execution Rules
 
