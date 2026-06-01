@@ -1,0 +1,123 @@
+{
+  "version": 1,
+  "mission_slug": "event-architecture-cli-git-truth-01KT119Y",
+  "mission_id": "01KT119YA7GD2Y0D7MZRH5JSS3",
+  "mission_branch": "kitty/mission-event-architecture-cli-git-truth-01KT119Y",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/events/__init__.py",
+        "src/specify_cli/events/sanitizer.py",
+        "tests/specify_cli/events/test_sanitizer.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/glossary/events.py",
+        "tests/specify_cli/glossary/test_events_queue.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/sync/local_commit.py",
+        "tests/specify_cli/sync/test_local_commit.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/events/decision_log.py",
+        "src/specify_cli/next/runtime_bridge.py",
+        "tests/specify_cli/events/test_decision_log.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/decisions/emit.py",
+        "src/specify_cli/status/store.py",
+        "tests/specify_cli/status/test_store_sanitized.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/git/commit_helpers.py",
+        "src/specify_cli/sync/client.py",
+        "tests/specify_cli/sync/test_local_commit_wiring.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-e"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-06-01T07:55:08.523533+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

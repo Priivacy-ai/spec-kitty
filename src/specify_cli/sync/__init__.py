@@ -72,6 +72,13 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "ensure_sync_daemon_running": (".daemon", "ensure_sync_daemon_running"),
     "get_sync_daemon_status": (".daemon", "get_sync_daemon_status"),
     "stop_sync_daemon": (".daemon", "stop_sync_daemon"),
+    # LocalCommit core (WP05): SyncState and frame lifecycle.
+    "SyncState": (".local_commit", "SyncState"),
+    "load_sync_state": (".local_commit", "load_sync_state"),
+    "save_sync_state": (".local_commit", "save_sync_state"),
+    "emit_local_commit": (".local_commit", "emit_local_commit"),
+    "flush_pending_local_commits": (".local_commit", "flush_pending_local_commits"),
+    "record_local_commit_ack": (".local_commit", "record_local_commit_ack"),
 }
 
 
@@ -126,6 +133,13 @@ __all__ = [
     "saas_sync_disabled_message",
     "emit_diagnostic",
     "register_default_handlers",
+    # LocalCommit core (WP05)
+    "SyncState",
+    "load_sync_state",
+    "save_sync_state",
+    "emit_local_commit",
+    "flush_pending_local_commits",
+    "record_local_commit_ack",
 ]
 
 

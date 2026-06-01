@@ -45,7 +45,8 @@ _CanonicTermCandidateObserved: Any = None
 _CanonicSemanticCheckEvaluated: Any = None
 _CanonicGlossaryClarificationRequested: Any = None
 _CanonicGlossaryClarificationResolved: Any = None
-_CanonicGlossarySenseUpdated: Any = None
+# Note: _CanonicGlossarySenseUpdated is intentionally not imported — GlossarySenseUpdated
+# is local-only and must not reach the canonical SaaS queue (spec-kitty #1549).
 _CanonicGenerationBlockedBySemanticConflict: Any = None
 _CanonicStepCheckpointed: Any = None
 _pkg_append_event: Any = None
@@ -57,7 +58,6 @@ try:
         SemanticCheckEvaluated as _CanonicSemanticCheckEvaluated,
         GlossaryClarificationRequested as _CanonicGlossaryClarificationRequested,
         GlossaryClarificationResolved as _CanonicGlossaryClarificationResolved,
-        GlossarySenseUpdated as _CanonicGlossarySenseUpdated,
         GenerationBlockedBySemanticConflict as _CanonicGenerationBlockedBySemanticConflict,
         StepCheckpointed as _CanonicStepCheckpointed,
     )
@@ -1029,7 +1029,12 @@ def emit_sense_updated(
 
     try:
         if repo_root is not None:
-            _persist_event(event, repo_root, mission_id, canonical_cls=_CanonicGlossarySenseUpdated)
+            # GlossarySenseUpdated is local-only — not queued for SaaS delivery (spec-kitty #1549).
+            # The seed file is the authoritative current glossary state.
+            # Per-extraction noise (hundreds of events per session) must not pollute the SaaS queue.
+            event_log_path = get_event_log_path(repo_root, mission_id)
+            event.setdefault("event_id", str(uuid.uuid4()))
+            _local_append_event(event, event_log_path)
         else:
             logger.info("glossary.GlossarySenseUpdated: term=%s", conflict.term.surface_text)
     except Exception as exc:

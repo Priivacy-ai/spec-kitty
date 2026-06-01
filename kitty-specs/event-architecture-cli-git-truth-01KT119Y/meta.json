@@ -1,0 +1,15 @@
+{
+  "coordination_branch": "kitty/mission-event-architecture-cli-git-truth-01KT119Y",
+  "created_at": "2026-06-01T07:27:53.159899+00:00",
+  "friendly_name": "Event Architecture: Git Semantic Truth + WebSocket Awareness (CLI)",
+  "mission_id": "01KT119YA7GD2Y0D7MZRH5JSS3",
+  "mission_number": 126,
+  "mission_slug": "event-architecture-cli-git-truth-01KT119Y",
+  "mission_type": "software-dev",
+  "purpose_context": "The current CLI event system routes decision events only through a SQLite queue, embeds PII in event envelopes, has no way to notify the SaaS of local commits before a push, and floods the queue with per-extraction glossary noise. This mission fixes all four issues: decision events become durable git commits, a new LocalCommit WebSocket frame gives the SaaS real-time build-surface awareness, a sanitizer removes PII at the write boundary, and the glossary queue is trimmed to only semantically meaningful human decisions.",
+  "purpose_tldr": "Establish git as the durable record for decision events, add real-time local-commit WebSocket notifications, strip PII from all event envelopes, and reduce glossary queue noise.",
+  "slug": "event-architecture-cli-git-truth-01KT119Y",
+  "source_description": "spec-kitty #1546, #1547, #1548, #1549 — Epic: spec-kitty-saas #290 (Event Architecture Redesign)",
+  "target_branch": "main",
+  "vcs": "git"
+}

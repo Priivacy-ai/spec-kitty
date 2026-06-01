@@ -1,0 +1,63 @@
+{
+  "event_count": 27,
+  "last_event_id": "01KT15D8GYGM9N4G3XVNZ62MZ7",
+  "materialized_at": "2026-06-01T08:39:36.222587+00:00",
+  "mission_number": "",
+  "mission_slug": "event-architecture-cli-git-truth-01KT119Y",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 3,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 3,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KT14Y8HMVAFBHWAR86T4PFCT",
+      "last_transition_at": "2026-06-01T08:31:24.724444+00:00"
+    },
+    "WP02": {
+      "actor": "implement-command",
+      "force_count": 1,
+      "lane": "in_progress",
+      "last_event_id": "01KT155V73J52NKM5AXWATYZ1F",
+      "last_transition_at": "2026-06-01T08:35:33.218809+00:00"
+    },
+    "WP03": {
+      "actor": "claude:claude-sonnet-4-6:orchestrator:orchestrator",
+      "force_count": 1,
+      "lane": "in_progress",
+      "last_event_id": "01KT15ANYQX74XK6E9ZE02HYKM",
+      "last_transition_at": "2026-06-01T08:38:11.671207+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KT14ZHRQGD1R6TYE1W9H3Q3S",
+      "last_transition_at": "2026-06-01T08:32:06.935757+00:00"
+    },
+    "WP05": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KT14ZEF99SETKJ62BWPQ9WNY",
+      "last_transition_at": "2026-06-01T08:32:03.561351+00:00"
+    },
+    "WP06": {
+      "actor": "claude:claude-sonnet-4-6:orchestrator:orchestrator",
+      "force_count": 1,
+      "lane": "in_progress",
+      "last_event_id": "01KT15D8GYGM9N4G3XVNZ62MZ7",
+      "last_transition_at": "2026-06-01T08:39:36.222587+00:00"
+    }
+  }
+}
