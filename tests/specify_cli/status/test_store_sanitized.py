@@ -200,7 +200,7 @@ def test_pii_absent_from_decision_point_opened_event_top_level(
     from specify_cli.decisions.emit import _append_raw_event
 
     events_path = tmp_path / "status.events.jsonl"
-    # canonical-producer-exempt: #1546 -- raw event fixture verifies sanitization before persistence
+    # canonical-producer-exempt: #1198 -- sanitizer regression test injects top-level PII into raw event envelope.
     event_dict: dict = {
         "event_id": "01HXYZ0123456789ABCDEFGHJK",
         "at": "2026-06-01T10:00:00+00:00",
@@ -232,7 +232,7 @@ def test_pii_absent_from_decision_point_opened_event_nested(
     from specify_cli.decisions.emit import _append_raw_event
 
     events_path = tmp_path / "status.events.jsonl"
-    # canonical-producer-exempt: #1546 -- raw event fixture verifies sanitization before persistence
+    # canonical-producer-exempt: #1198 -- sanitizer regression test injects nested PII into raw event envelope.
     event_dict: dict = {
         "event_id": "01HXYZ0123456789ABCDEFGHJK",
         "at": "2026-06-01T10:00:00+00:00",
@@ -265,7 +265,7 @@ def test_pii_absent_from_decision_point_resolved_event(
     from specify_cli.decisions.emit import _append_raw_event
 
     events_path = tmp_path / "status.events.jsonl"
-    # canonical-producer-exempt: #1546 -- raw event fixture verifies sanitization before persistence
+    # canonical-producer-exempt: #1198 -- sanitizer regression test injects nested PII into raw event envelope.
     event_dict: dict = {
         "event_id": "01HXYZ0123456789ABCDEFGHJM",
         "at": "2026-06-01T10:01:00+00:00",
@@ -295,7 +295,7 @@ def test_non_pii_fields_preserved_in_decision_event(tmp_path: Path) -> None:
     from specify_cli.decisions.emit import _append_raw_event
 
     events_path = tmp_path / "status.events.jsonl"
-    # canonical-producer-exempt: #1546 -- raw event fixture verifies sanitization before persistence
+    # canonical-producer-exempt: #1198 -- sanitizer regression test asserts raw decision envelope preservation.
     event_dict = {
         "event_id": "01HXYZ0123456789ABCDEFGHJK",
         "at": "2026-06-01T10:00:00+00:00",

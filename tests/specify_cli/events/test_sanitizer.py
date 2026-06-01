@@ -50,7 +50,7 @@ def test_pii_field_stripped_top_level(pii_field: str) -> None:
 )
 def test_pii_field_stripped_nested(pii_field: str) -> None:
     """Each PII field is removed when nested inside a payload dict."""
-    # canonical-producer-exempt: #1546 -- sanitizer test intentionally uses raw event dicts
+    # canonical-producer-exempt: #1198 -- sanitizer unit test must exercise raw envelope input.
     envelope = {
         "event_type": "TestEvent",
         "payload": {pii_field: "sensitive-value", "safe_field": "keep"},
@@ -80,7 +80,7 @@ def test_all_pii_fields_stripped_together() -> None:
 
 def test_pii_stripped_from_nested_payload() -> None:
     """PII is removed from nested payload dict; safe fields survive."""
-    # canonical-producer-exempt: #1546 -- sanitizer test intentionally uses raw event dicts
+    # canonical-producer-exempt: #1198 -- sanitizer unit test must exercise raw envelope input.
     envelope = {
         "event_type": "E",
         "payload": {"machine_name": "x", "safe_field": "keep"},
@@ -137,7 +137,7 @@ def test_does_not_mutate_input() -> None:
 
 def test_non_pii_fields_preserved() -> None:
     """Fields that are explicitly NOT PII are passed through unchanged."""
-    # canonical-producer-exempt: #1546 -- sanitizer test intentionally uses raw event dicts
+    # canonical-producer-exempt: #1198 -- sanitizer unit test must exercise raw envelope input.
     preserved_fields = {
         "node_id": "node-abc",
         "build_id": "build-123",
@@ -161,7 +161,7 @@ def test_empty_envelope_returned_unchanged() -> None:
 
 def test_envelope_with_no_pii_unchanged() -> None:
     """Envelope with no PII or timestamp fields is returned structurally identical."""
-    # canonical-producer-exempt: #1546 -- sanitizer test intentionally uses raw event dicts
+    # canonical-producer-exempt: #1198 -- sanitizer unit test must exercise raw envelope input.
     envelope = {
         "event_type": "Foo",
         "mission_id": "m1",
@@ -278,7 +278,7 @@ def test_session_duration_already_present_not_overwritten() -> None:
 
 def test_pii_and_timestamps_stripped_together() -> None:
     """PII removal and timestamp replacement operate correctly in combination."""
-    # canonical-producer-exempt: #1546 -- sanitizer test intentionally uses raw event dicts
+    # canonical-producer-exempt: #1198 -- sanitizer unit test must exercise raw envelope input.
     envelope = {
         "event_type": "DecisionInputRequested",
         "machine_name": "roberts-mbp",
