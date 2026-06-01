@@ -895,7 +895,7 @@ def detect_legacy_rows_for_scope(scope: str) -> LegacyRowCounts:
             if not _table_exists(conn, table):
                 continue
             row = conn.execute(
-                f"SELECT COUNT(*) FROM {table}"  # noqa: S608 — table names are static / schema-derived
+                f"SELECT COUNT(*) FROM {table}"  # noqa: S608  # nosec B608 - table names are static / schema-derived
             ).fetchone()
             count = int(row[0]) if row else 0
             if count <= 0:
@@ -1530,7 +1530,7 @@ class OfflineQueue:
         try:
             placeholders = ",".join("?" * len(event_ids))
             cursor = conn.execute(
-                f"DELETE FROM queue WHERE event_id IN ({placeholders})",  # noqa: S608 - placeholders are count-derived only
+                f"DELETE FROM queue WHERE event_id IN ({placeholders})",  # noqa: S608  # nosec B608 - placeholders are count-derived only
                 event_ids,
             )
             deleted = cursor.rowcount if cursor.rowcount is not None and cursor.rowcount >= 0 else 0
@@ -1559,7 +1559,7 @@ class OfflineQueue:
         try:
             placeholders = ",".join("?" * len(event_ids))
             conn.execute(
-                f"UPDATE queue SET retry_count = retry_count + 1 WHERE event_id IN ({placeholders})",  # noqa: S608 - placeholders are count-derived only
+                f"UPDATE queue SET retry_count = retry_count + 1 WHERE event_id IN ({placeholders})",  # noqa: S608  # nosec B608 - placeholders are count-derived only
                 event_ids,
             )
             conn.commit()
@@ -1624,7 +1624,7 @@ class OfflineQueue:
 
             placeholders = ",".join("?" * len(matching_ids))
             conn.execute(
-                f"DELETE FROM queue WHERE event_id IN ({placeholders})",  # noqa: S608 - placeholders are count-derived only
+                f"DELETE FROM queue WHERE event_id IN ({placeholders})",  # noqa: S608  # nosec B608 - placeholders are count-derived only
                 matching_ids,
             )
             conn.commit()
@@ -1689,14 +1689,14 @@ class OfflineQueue:
             if synced_or_duplicate:
                 placeholders = ",".join("?" * len(synced_or_duplicate))
                 cursor = conn.execute(
-                    f"DELETE FROM queue WHERE event_id IN ({placeholders})",  # noqa: S608 - placeholders are count-derived only
+                    f"DELETE FROM queue WHERE event_id IN ({placeholders})",  # noqa: S608  # nosec B608 - placeholders are count-derived only
                     synced_or_duplicate,
                 )
                 deleted = cursor.rowcount if cursor.rowcount is not None and cursor.rowcount >= 0 else 0
             if rejected:
                 placeholders = ",".join("?" * len(rejected))
                 conn.execute(
-                    f"UPDATE queue SET retry_count = retry_count + 1 WHERE event_id IN ({placeholders})",  # noqa: S608 - placeholders are count-derived only
+                    f"UPDATE queue SET retry_count = retry_count + 1 WHERE event_id IN ({placeholders})",  # noqa: S608  # nosec B608 - placeholders are count-derived only
                     rejected,
                 )
             conn.commit()

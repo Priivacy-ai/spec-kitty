@@ -10,6 +10,7 @@
 ## Request
 
 ### Headers
+
 ```
 POST /api/v1/ws-token HTTP/1.1
 Host: api.spec-kitty.com
@@ -33,6 +34,7 @@ Accept: application/json
 | `team_id` | string | Yes | Team ID to request WebSocket access for (from `/api/v1/me` teams array) |
 
 ### Field Constraints
+
 - `team_id`: non-empty team identifier (must be one of user's teams from `/api/v1/me`)
 
 ---
@@ -63,6 +65,7 @@ Accept: application/json
 | `ws_url` | string | WebSocket endpoint to connect to |
 
 ### Field Constraints
+
 - `ws_token`: opaque string; never empty
 - `expires_in`: positive integer; typically 3600 seconds (1 hour)
 - `session_id`: session identifier from current session
@@ -123,17 +126,21 @@ Accept: application/json
 **After obtaining `ws_token` and `ws_url`, CLI upgrades to WebSocket**:
 
 ### WebSocket Connection Request
+
 ```
-GET /ws?token=<ws_token> HTTP/1.1
+GET /ws HTTP/1.1
 Host: api.spec-kitty.com
+Authorization: Bearer <ws_token>
 Upgrade: websocket
 Connection: Upgrade
 ```
 
 ### WebSocket Handshake Headers
+
 ```
-GET /ws?token=<ws_token> HTTP/1.1
+GET /ws HTTP/1.1
 Host: api.spec-kitty.com:443
+Authorization: Bearer <ws_token>
 Upgrade: websocket
 Connection: Upgrade
 Sec-WebSocket-Key: <base64-encoded-16-bytes>
@@ -141,19 +148,27 @@ Sec-WebSocket-Version: 13
 ```
 
 ### Token Location
-- Passed as **query parameter**: `?token=<ws_token>` appended to `ws_url`
-- NOT in headers (WebSocket upgrade does not allow `Authorization` header)
+
+- Passed as an **Authorization header**: `Authorization: Bearer <ws_token>`
+- NOT in the URL query string; `?token=` is ignored by the SaaS WebSocket middleware
 - Single-use: token is consumed on successful handshake
 
 ### Connection URL Formula
-Use the `ws_url` from the `/api/v1/ws-token` response:
+
+Use the `ws_url` from the `/api/v1/ws-token` response unchanged and attach
+the bearer header:
+
 ```
-{ws_url}?token={ws_token}
+websockets.connect(
+    ws_url,
+    additional_headers={"Authorization": f"Bearer {ws_token}"}
+)
 ```
 
 **Example**:
 ```
-wss://api.spec-kitty.com/ws?token=ws_eyJ0eXAi...
+wss://api.spec-kitty.com/ws
+Authorization: Bearer ws_eyJ0eXAi...
 ```
 
 ---
@@ -232,7 +247,7 @@ wss://api.spec-kitty.com/ws?token=ws_eyJ0eXAi...
 1. **WebSocket connection needed** (e.g., live tracker update)
 2. **TokenManager._ensure_fresh()**: Check access token expiry; refresh if needed
 3. **POST /api/v1/ws-token**: Obtain ephemeral token
-4. **WebSocket GET upgrade**: Include token as query parameter
+4. **WebSocket GET upgrade**: Include token as `Authorization: Bearer <ws_token>`
 5. **On successful upgrade**: WebSocket connection authenticated and ready
 6. **On failure** (invalid token, expired, etc.): Force re-login and retry
 

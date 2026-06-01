@@ -30,14 +30,14 @@ shell_pid: "94889"
 **Objective**: Build the `auth/websocket/` package that obtains ephemeral
 WebSocket tokens via `/api/v1/ws-token`. The CLI calls this just before
 opening a WebSocket connection — the ephemeral token is then passed as a
-query parameter on the WS upgrade.
+bearer token on the WS upgrade.
 
 **Context**: The SaaS WebSocket endpoint requires a separate ephemeral
 token (1-hour TTL) issued via REST. The flow is:
 1. Refresh access token if it expires within 5 minutes (NFR-005 buffer)
 2. POST `/api/v1/ws-token` with bearer token + team_id
 3. Receive `{ws_token, ws_url, expires_in}`
-4. Open WS connection at `ws_url?token=<ws_token>`
+4. Open WS connection at `ws_url` with `Authorization: Bearer <ws_token>`
 
 WP09 owns ONLY the new `auth/websocket/` package. The integration into
 `sync/client.py` (where the WS connection is actually opened) is handled by

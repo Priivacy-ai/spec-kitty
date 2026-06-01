@@ -393,6 +393,7 @@ File permissions: 0600 (owner read/write only)
 **SaaS Endpoint:** `GET https://api.spec-kitty.com/oauth/authorize`
 
 **Parameters:**
+
 | Param | Required | Type | Description |
 |---|---|---|---|
 | `client_id` | Yes | String | CLI client ID: `cli_native` |
@@ -447,6 +448,7 @@ Browser redirect to `redirect_uri?code=AUTHZ_CODE&state=STATE_PARAM`
 **SaaS Endpoint:** `POST https://api.spec-kitty.com/oauth/token`
 
 #### Authorization Code Exchange
+
 ```json
 {
   "grant_type": "authorization_code",
@@ -458,6 +460,7 @@ Browser redirect to `redirect_uri?code=AUTHZ_CODE&state=STATE_PARAM`
 ```
 
 #### Device Code Exchange
+
 ```json
 {
   "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
@@ -467,6 +470,7 @@ Browser redirect to `redirect_uri?code=AUTHZ_CODE&state=STATE_PARAM`
 ```
 
 #### Refresh Token Exchange
+
 ```json
 {
   "grant_type": "refresh_token",
@@ -577,7 +581,7 @@ Content-Type: application/json
 - The access token is passed as a `Authorization: Bearer` header (NOT in the request body)
 - The `team_id` in the request body scopes the WS token to a specific team
 - Exchanges access token for WebSocket-specific token (short-lived, bound to session)
-- WebSocket server validates `ws_token` (from `ws_url?token=<ws_token>`) for authentication
+- WebSocket server validates `ws_token` from the `Authorization: Bearer` upgrade header
 - On token expiry, client must re-call this endpoint (using refresh flow first if needed)
 
 ### 8.6 Me Endpoint

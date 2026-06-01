@@ -23,12 +23,44 @@ import respx
 from specify_cli.auth.secure_storage import SecureStorage
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.auth.token_manager import TokenManager
-from specify_cli.sync.client import WebSocketClient, ConnectionStatus
+from specify_cli.sync.client import (
+    WebSocketClient,
+    ConnectionStatus,
+    _websocket_auth_headers_kwarg,
+)
 from specify_cli.sync.project_identity import ProjectIdentity
 
 pytestmark = pytest.mark.fast
 
 _SAAS_BASE_URL = "https://saas.example"
+
+
+def test_websocket_auth_headers_kwarg_uses_additional_headers(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Current websockets releases expect Authorization in additional_headers."""
+
+    def _connect(_uri: str, *, additional_headers: dict[str, str] | None = None) -> None:
+        pass
+
+    monkeypatch.setattr("specify_cli.sync.client.websockets.connect", _connect)
+
+    assert _websocket_auth_headers_kwarg("ws-tok") == {
+        "additional_headers": {"Authorization": "Bearer ws-tok"}
+    }
+
+
+def test_websocket_auth_headers_kwarg_uses_extra_headers_for_legacy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Older supported websockets releases expect Authorization in extra_headers."""
+
+    def _connect(_uri: str, *, extra_headers: dict[str, str] | None = None) -> None:
+        pass
+
+    monkeypatch.setattr("specify_cli.sync.client.websockets.connect", _connect)
+
+    assert _websocket_auth_headers_kwarg("ws-tok") == {
+        "extra_headers": {"Authorization": "Bearer ws-tok"}
+    }
 
 
 @pytest.mark.asyncio

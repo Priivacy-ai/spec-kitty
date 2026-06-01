@@ -50,7 +50,7 @@ src/specify_cli/
 │   ├── websocket/
 │   │   ├── __init__.py
 │   │   ├── token_provisioner.py    # Pre-connect refresh + ws-token acquisition
-│   │   └── session_binder.py       # WebSocket auth via query parameter
+│   │   └── session_binder.py       # WebSocket auth via bearer header
 │   ├── http/
 │   │   ├── __init__.py
 │   │   ├── transport.py            # HTTP client with OAuth integration
@@ -288,7 +288,7 @@ HTTP request:
 
 **Components**:
 - `TokenProvisioner`: Pre-connect refresh + ws-token acquisition
-- `SessionBinder`: Bind session to WebSocket upgrade (query parameter)
+- `SessionBinder`: Bind session to WebSocket upgrade (bearer header)
 
 **Behavior**:
 ```
