@@ -402,17 +402,36 @@ historical_preservation:
     - "Past release tags (history is not rewritten; spec C-003)"
     - "The user's local checkout path `spec-kitty-dev/ceremony/...` (local naming; spec C-002)"
 
-system_tracking_files:
-  description: >
-    Mission-management artifacts written by the spec-kitty runtime (status events,
-    snapshots, WP frontmatter). These appear in lane diffs because WP status
-    transitions (planned → in_progress → for_review) are recorded here. They are
-    NOT rename targets and contain no forbidden terminology in their data.
-  action: do_not_change
-  paths:
-    - "kitty-specs/*/status.events.jsonl"
-    - "kitty-specs/*/status.json"
-    - "kitty-specs/*/tasks/WP*.md (WP frontmatter updated by runtime status transitions)"
+# ──────────────────────────────────────────────────────────────────────
+# EXCEPTIONS (recognized by the bulk-edit gate; top-level key)
+# ──────────────────────────────────────────────────────────────────────
+exceptions:
+  - path: "kitty-specs/*/status.events.jsonl"
+    action: do_not_change
+    reason: >
+      Runtime-written status event log. Modified by WP state transitions
+      (planned → in_progress → for_review) during the implement-review loop.
+      Contains no forbidden terminology; it is a system artifact, not a rename target.
+  - path: "kitty-specs/*/status.json"
+    action: do_not_change
+    reason: >
+      Runtime-written status snapshot derived from status.events.jsonl.
+      System artifact; not a rename target.
+  - path: "kitty-specs/*/tasks/WP*.md"
+    action: do_not_change
+    reason: >
+      WP task-file frontmatter updated by the runtime during status transitions.
+      The prose content is rename-target prose (covered by user_facing_strings),
+      but lane/status metadata fields are system writes.
+  - path: "kitty-specs/*/tasks.md"
+    action: do_not_change
+    reason: >
+      Mission tasks index updated by runtime. System artifact.
+  - path: "kitty-specs/*/occurrence_map.yaml"
+    action: do_not_change
+    reason: >
+      Occurrence map updated during sprint to add system_tracking_files exception.
+      This file is a planning artifact, not a rename target.
 
 # ──────────────────────────────────────────────────────────────────────
 # DEAD CODE CANDIDATES
