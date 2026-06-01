@@ -35,6 +35,25 @@ class TestSyncRuntimeEventEmitter:
             mission_id=_MISSION_ID,
         )
 
+        # Spy on the decision emit methods: DecisionInputRequested and
+        # DecisionInputAnswered are git-routed (spec-kitty #1546) and are
+        # excluded from the SQLite offline queue by OfflineQueue._QUEUE_EXCLUDED_EVENT_TYPES.
+        # We verify the adapter calls the inner emitter, not the queue contents.
+        decision_calls: list[str] = []
+        _orig_req = emitter.emit_decision_input_requested
+        _orig_ans = emitter.emit_decision_input_answered
+
+        def _spy_req(payload: object, **kwargs: object) -> object:
+            decision_calls.append("DecisionInputRequested")
+            return _orig_req(payload, **kwargs)
+
+        def _spy_ans(payload: object, **kwargs: object) -> object:
+            decision_calls.append("DecisionInputAnswered")
+            return _orig_ans(payload, **kwargs)
+
+        emitter.emit_decision_input_requested = _spy_req  # type: ignore[method-assign]
+        emitter.emit_decision_input_answered = _spy_ans  # type: ignore[method-assign]
+
         adapter.emit_mission_run_started(
             SimpleNamespace(
                 run_id="run-001",
@@ -77,14 +96,17 @@ class TestSyncRuntimeEventEmitter:
             )
         )
 
+        # Decision events are git-routed (spec-kitty #1546, OfflineQueue._QUEUE_EXCLUDED_EVENT_TYPES).
+        # They do not appear in the SQLite queue; assert via the spy instead.
+        assert decision_calls == ["DecisionInputRequested", "DecisionInputAnswered"], "Adapter must forward both decision events to the inner emitter"
+
+        # Queue holds the non-decision lifecycle events only.
         events = temp_queue.drain_queue()
         assert [event["event_type"] for event in events] == [
             "MissionRunStarted",
             "MissionStarted",
             "PhaseEntered",
             "NextStepIssued",
-            "DecisionInputRequested",
-            "DecisionInputAnswered",
             "MissionRunCompleted",
             "MissionCompleted",
         ]

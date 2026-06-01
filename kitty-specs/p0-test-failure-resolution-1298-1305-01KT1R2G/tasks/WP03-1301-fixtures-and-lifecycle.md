@@ -17,7 +17,7 @@ subtasks:
 - T011
 - T012
 - T013
-agent: claude
+agent: "claude:sonnet-4-6:reviewer:reviewer"
 history: []
 agent_profile: python-pedro
 authoritative_surface: tests/contract/
@@ -31,6 +31,7 @@ owned_files:
 - docs/how-to/check_docs_freshness.md
 role: implementer
 tags: []
+shell_pid: "62316"
 ---
 
 ## ⚡ Do This First: Load Agent Profile
@@ -275,4 +276,4 @@ spec-kitty agent action implement WP03 --agent claude
 
 - 2026-06-01T17:23:16Z – claude – Starting WP03 implementation: contract fixtures and sync lifecycle
 - 2026-06-01T17:31:31Z – claude – Ready for review (cycle 1/3). All target tests pass after WP02 fix. FR-007 guard documented. FR-008 results appended to docs/p0-baseline-refresh.md. 1951 passed, 0 failed.
-- 2026-06-01T17:36:09Z – claude – Review passed: All four WP03 target tests pass. WP02 resolved root cause; FR-007 guard and FR-008 docs committed on lane-a.
+- 2026-06-01T17:31:51Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=62316 – Started review via action command

@@ -238,4 +238,3 @@ spec-kitty agent action implement WP02 --agent claude
 
 - 2026-06-01T17:16:49Z – claude – shell_pid=25057 – Ready for review (cycle 1/3). Fixed test_adapter_emits_mission_run_and_lifecycle_sequence by aligning assertion with git-routed decision events architecture (#1546). Added FR-007 version drift regression guard. Tests pass (1951 passed, 0 failed), lint clean.
 - 2026-06-01T17:17:14Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=40690 – Started review via action command
-- 2026-06-01T17:21:29Z – claude:sonnet-4-6:reviewer:reviewer – shell_pid=40690 – Review passed: vendored tree absent, version pin guard added (FR-007), daemon allowlist passes, runtime emitter test aligned with git-routed decision events. 1951 tests pass.
