@@ -194,6 +194,43 @@ Decision needed: retain structured load diagnostics in the repository and expose
 
 ---
 
+## R-009 - Refactoring & Cleanup Opportunities (do these first)
+
+A critical read of the code paths behind FR-022..FR-026 shows the new findings are **symptoms of kind-vocabulary fragmentation**, not isolated bugs. Doing the small consolidation below first turns each FR into a one-line dispatch change instead of another special-case patch, and prevents the same gaps reappearing for sibling kinds (e.g. `mission-step-contract`).
+
+### Observed state: one concept, five tables, three spellings
+
+The set of doctrine artifact kinds is declared independently in at least five places, in three incompatible spellings:
+
+| Location | Spelling | Shape | Used by |
+|----------|----------|-------|---------|
+| `doctrine/artifact_kinds.py` `ArtifactKind` (`_PLURALS`, `_PATTERNS`) | underscore singular (`agent_profile`) | **canonical** enum + plural + glob | doctrine layer (zero-dependency) |
+| `charter/activations.py` `_SINGULAR_TO_PLURAL_KIND` / `normalize_artifact_kind()` | underscore singular -> plural | singular->plural map | activation registry resolution |
+| `charter/pack_manager.py` `YAML_KEY_MAP` | **hyphen** (`agent-profile`, `mission-type`) | CLI token -> config YAML key | `charter activate` / `deactivate` |
+| `charter/pack_manager.py` `_KIND_TO_DOCTRINE_DIR` | **hyphen** | CLI token -> (built-in dir, suffix) | `list_available()` |
+| `cli/commands/charter/list_cmd.py` `_KIND_ORDER` | **hyphen** | display order | `charter list` |
+| `charter/context.py` renderers dict + `_render_generic_artifact_include` candidate tuple | underscore singular | kind -> (service attr, label, renderer) | `charter context --include` |
+
+`_PLURALS` (artifact_kinds) and `_SINGULAR_TO_PLURAL_KIND` (activations) are byte-for-byte the same data. `_PATTERNS` (artifact_kinds) equals the suffix column of `_KIND_TO_DOCTRINE_DIR`. None of the charter tables reference `ArtifactKind`.
+
+### Root cause of FR-022 / FR-023
+
+`charter context --include` (`build_charter_context_include`) lowercases the kind but applies **no hyphen->underscore normalization**, and its renderer table is keyed on the underscore form. Operators type the hyphenated `agent-profile` (the form `charter activate` documents and accepts), so it falls through to `Unsupported --include selector kind`. Note the existing `normalize_artifact_kind()` would **not** fix this either: it only maps singular->plural, not hyphen->underscore. So the canonical normalizer is itself incomplete for the operator token.
+
+### Recommended cleanups (sequence before the FR work)
+
+- **CL-1 — One operator-token normalizer.** Extend the canonical kind layer (preferably `doctrine.artifact_kinds`, with a thin `from_operator_token()` / hyphen-aware accessor) so a single function maps the operator hyphen token (`agent-profile`, `mission-step-contract`) to the canonical `ArtifactKind`, and route `charter context --include`, `activate`, `deactivate`, and `list` through it. Resolves FR-023; makes FR-022 a dispatch fix. Keep `mission-type` handled explicitly (see CL-4).
+- **CL-2 — Collapse the context `--include` kind table onto the registry.** Replace the hand-maintained renderers dict + duplicated candidate-kind tuple in `context.py` so the supported kinds derive from the canonical set. This guarantees `agent-profile` (FR-022) *and* its siblings are reachable through the same path, instead of patching one kind.
+- **CL-3 — Decouple layer from kind in `_KIND_TO_DOCTRINE_DIR`.** Today the constant bakes the `built-in` path segment into each entry and re-declares the file suffix that `ArtifactKind.glob_pattern` already owns. Split kind -> (base dir, glob from `ArtifactKind`) from the layer segment so `list_available()` can iterate {built-in, org, project} roots in a loop. This makes FR-025/FR-026 a clean traversal rather than a second hardcoded table.
+- **CL-4 — Account for `mission-type` living outside `ArtifactKind`.** The charter surfaces cover **9** kinds; `ArtifactKind` enumerates 8 doctrine artifact kinds (plus `template`, minus `mission_type`). Mission types are a separate subsystem. Any consolidation must treat the charter kind set as `ArtifactKind` artifact kinds **plus** the explicit `mission-type` token, so planning does not assume one enum covers all nine. Flagging this prevents a refactor that silently drops or mis-routes mission-type.
+- **CL-5 — `list_available()` signature carries layer roots as data, not `ctx`.** The `ctx` parameter is explicitly unused ("reserved for future org-pack support") — FR-026 is that future. Per C-008, resolve org/project roots in `specify_cli` (as `charter context` already does for `org_root`) and pass them in as data; do not reach into `specify_cli` from `charter`.
+
+### Scope discipline
+
+These are **enabling** refactors scoped to the kind-vocabulary surfaces this mission already edits. They are not a license to rewrite the activation engine, the DRG, or the broader doctrine loader. If CL-1..CL-3 prove larger than a contained change during planning, the fallback is the minimal patch (hyphen-normalize in `--include` only, add a parallel org/project scan) with a follow-on cleanup ticket — but the consolidated approach is preferred because it removes the drift that produced both findings.
+
+---
+
 ## Deferred Research
 
 - #1333 should become a follow-on mission for doctrine template discovery and DRG-backed template resolution.

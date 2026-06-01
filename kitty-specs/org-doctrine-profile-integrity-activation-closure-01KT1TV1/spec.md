@@ -112,6 +112,7 @@ An operator wants a complete inventory of what they could activate, not just wha
 | FR-024 | The `charter context --include` help text SHALL advertise the agent-profile selector (alongside the existing directive/styleguide/section examples) so the supported kinds are discoverable. | Should | Proposed |
 | FR-025 | `charter list --all` SHALL list every available artifact per kind across built-in, organisation-pack, and project layers, annotated by source layer; `--all` implies and supersedes `--show-available`. | Must | Proposed |
 | FR-026 | `CharterPackManager.list_available()` SHALL include organisation-pack and project doctrine artifacts in addition to built-in artifacts, removing the built-in-only scan, so availability is not understated for packaged artifacts. | Must | Proposed |
+| FR-027 | The operator-facing kind vocabulary used by `charter context --include`, `activate`, `deactivate`, and `list` SHALL resolve through a single canonical kind mapping (building on `doctrine.artifact_kinds.ArtifactKind`) rather than re-declaring the kind set per command, so hyphenated kind tokens normalize consistently and FR-022/FR-023/FR-025/FR-026 are not per-kind special cases. See research R-009 (CL-1..CL-5). | Should | Proposed |
 
 ---
 
