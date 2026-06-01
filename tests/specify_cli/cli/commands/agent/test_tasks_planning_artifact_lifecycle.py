@@ -76,7 +76,7 @@ def _make_wp_record(mission_slug: str, wp_file: Path, current_lane: str, executi
 
 
 class TestPlanningArtifactLifecycle:
-    @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition")
+    @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional")
     @patch("specify_cli.cli.commands.agent.tasks.feature_status_lock")
     @patch("specify_cli.cli.commands.agent.tasks._validate_ready_for_review")
     @patch("specify_cli.cli.commands.agent.tasks._check_unchecked_subtasks")
@@ -129,7 +129,7 @@ class TestPlanningArtifactLifecycle:
         assert result.exit_code == 0, f"CLI error: {result.output}"
 
     @patch("specify_cli.cli.commands.agent.tasks._wp_branch_merged_into_target")
-    @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition")
+    @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional")
     @patch("specify_cli.cli.commands.agent.tasks.feature_status_lock")
     @patch("specify_cli.cli.commands.agent.tasks._validate_ready_for_review")
     @patch("specify_cli.cli.commands.agent.tasks._check_unchecked_subtasks")

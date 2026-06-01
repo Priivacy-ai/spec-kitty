@@ -227,7 +227,7 @@ class TestEventDedupGuard:
         feature_dir = tmp_path / "kitty-specs" / MISSION_ID
         feature_dir.mkdir(parents=True)
 
-        assert _has_transition_to(feature_dir, "WP01", "done") is False
+        assert _has_transition_to(feature_dir, MISSION_ID, "WP01", "done", tmp_path) is False
 
     def test_has_transition_to_finds_match(self, tmp_path: Path):
         """Returns True when the target transition exists in the log."""
@@ -251,7 +251,7 @@ class TestEventDedupGuard:
         }
         events_file.write_text(json.dumps(event, sort_keys=True) + "\n", encoding="utf-8")
 
-        assert _has_transition_to(feature_dir, "WP01", "done") is True
+        assert _has_transition_to(feature_dir, MISSION_ID, "WP01", "done", tmp_path) is True
 
     def test_has_transition_to_no_match(self, tmp_path: Path):
         """Returns False when the target transition does not match."""
@@ -275,8 +275,8 @@ class TestEventDedupGuard:
         events_file.write_text(json.dumps(event, sort_keys=True) + "\n", encoding="utf-8")
 
         # WP01 has approved but NOT done
-        assert _has_transition_to(feature_dir, "WP01", "done") is False
-        assert _has_transition_to(feature_dir, "WP01", "approved") is True
+        assert _has_transition_to(feature_dir, MISSION_ID, "WP01", "done", tmp_path) is False
+        assert _has_transition_to(feature_dir, MISSION_ID, "WP01", "approved", tmp_path) is True
 
     def test_has_transition_to_different_wp(self, tmp_path: Path):
         """Dedup is per-WP: WP02 done does not match WP01."""
@@ -299,8 +299,8 @@ class TestEventDedupGuard:
         }
         events_file.write_text(json.dumps(event, sort_keys=True) + "\n", encoding="utf-8")
 
-        assert _has_transition_to(feature_dir, "WP01", "done") is False
-        assert _has_transition_to(feature_dir, "WP02", "done") is True
+        assert _has_transition_to(feature_dir, MISSION_ID, "WP01", "done", tmp_path) is False
+        assert _has_transition_to(feature_dir, MISSION_ID, "WP02", "done", tmp_path) is True
 
     def test_reconcile_completed_wps_drops_missing_done_evidence(self, tmp_path: Path):
         """Resume state cannot skip a WP when its uncommitted done event was lost."""
@@ -319,6 +319,7 @@ class TestEventDedupGuard:
 
         confirmed = _reconcile_completed_wps_for_resume(
             feature_dir=feature_dir,
+            mission_slug=MISSION_ID,
             merge_state=state,
             repo_root=tmp_path,
         )
@@ -363,6 +364,7 @@ class TestEventDedupGuard:
 
         confirmed = _reconcile_completed_wps_for_resume(
             feature_dir=feature_dir,
+            mission_slug=MISSION_ID,
             merge_state=state,
             repo_root=tmp_path,
         )

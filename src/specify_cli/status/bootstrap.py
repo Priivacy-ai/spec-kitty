@@ -5,8 +5,8 @@ for existing state, and emits initial ``planned`` events for any WP
 that lacks one.  After seeding, materializes ``status.json`` so the
 snapshot is immediately consistent.
 
-This module uses the existing ``emit_status_transition`` pipeline --
-it does **not** reimplement event emission or validation.
+This module uses the transactional status-transition pipeline; it does
+not reimplement event emission or validation.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from specify_cli.frontmatter import FrontmatterError
-from specify_cli.status.emit import emit_status_transition
+from specify_cli.coordination.status_transition import emit_status_transition_transactional
 from specify_cli.status.models import TransitionRequest
 from specify_cli.status.reducer import materialize
 from specify_cli.status.store import read_events
@@ -97,7 +97,7 @@ def bootstrap_canonical_state(
     Scans ``feature_dir/tasks/`` for ``WP*.md`` files, reads each
     file's frontmatter to extract ``work_package_id``, then checks
     the canonical event log for existing events.  Uninitialized WPs
-    receive a ``planned`` event via :func:`emit_status_transition`.
+    receive a ``planned`` event via the transactional status emitter.
 
     After all events are emitted (unless *dry_run*), calls
     :func:`materialize` to write a fresh ``status.json``.
@@ -137,20 +137,22 @@ def bootstrap_canonical_state(
 
     # Emit planned events for uninitialized WPs
     for wp_id in wps_to_seed:
-        emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug=mission_slug,
-            wp_id=wp_id,
-            to_lane="planned",
-            actor="finalize-tasks",
-            force=True,
-            reason="canonical bootstrap",
-        ))
+        emit_status_transition_transactional(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug=mission_slug,
+                wp_id=wp_id,
+                to_lane="planned",
+                actor="finalize-tasks",
+                force=True,
+                reason="canonical bootstrap",
+            )
+        )
         result.newly_seeded += 1
         result.wp_details[wp_id] = _INITIALIZED
 
     # Materialize snapshot after all events are emitted.
-    # emit_status_transition already calls materialize per event, but
+    # The transactional emitter materializes per event, but
     # we call it once more to guarantee the final snapshot is coherent
     # across all newly seeded WPs.
     if wps_to_seed:

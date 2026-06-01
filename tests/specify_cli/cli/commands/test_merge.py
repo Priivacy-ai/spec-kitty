@@ -20,6 +20,7 @@ Verifies that:
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
@@ -219,12 +220,12 @@ def test_mark_wp_merged_done_emits_done_when_lane_is_approved(
     tasks_dir.mkdir(parents=True)
     _write_wp(tasks_dir / "WP01-test.md", reviewed_by="reviewer-1")
 
-    emit_calls: list[dict[str, object]] = []
+    emit_calls: list[Any] = []
 
-    def fake_emit(**kwargs: object) -> None:
-        emit_calls.append(kwargs)
+    def fake_emit(request: Any, **_kwargs: object) -> None:
+        emit_calls.append(request)
 
-    monkeypatch.setattr("specify_cli.status.emit.emit_status_transition", fake_emit)
+    monkeypatch.setattr("specify_cli.coordination.status_transition.emit_status_transition_transactional", fake_emit)
     monkeypatch.setattr(
         "specify_cli.status.lane_reader.get_wp_lane",
         lambda *_a, **_kw: "approved",
@@ -233,8 +234,8 @@ def test_mark_wp_merged_done_emits_done_when_lane_is_approved(
     _mark_wp_merged_done(tmp_path, mission_slug, "WP01", "main")
 
     assert len(emit_calls) == 1
-    assert emit_calls[0]["to_lane"] == "done"
-    assert emit_calls[0]["actor"] == "merge"
+    assert emit_calls[0].to_lane == "done"
+    assert emit_calls[0].actor == "merge"
 
 
 def test_mark_wp_merged_done_skips_when_already_done(
@@ -248,7 +249,7 @@ def test_mark_wp_merged_done_skips_when_already_done(
     _write_wp(tasks_dir / "WP01-test.md")
 
     emit_mock = Mock()
-    monkeypatch.setattr("specify_cli.status.emit.emit_status_transition", emit_mock)
+    monkeypatch.setattr("specify_cli.coordination.status_transition.emit_status_transition_transactional", emit_mock)
     monkeypatch.setattr(
         "specify_cli.status.lane_reader.get_wp_lane",
         lambda *_a, **_kw: "done",
@@ -271,7 +272,7 @@ def test_mark_wp_merged_done_skips_when_no_approval_metadata_for_non_approved(
     _write_wp(tasks_dir / "WP01-test.md", review_status="", reviewed_by="")
 
     emit_mock = Mock()
-    monkeypatch.setattr("specify_cli.status.emit.emit_status_transition", emit_mock)
+    monkeypatch.setattr("specify_cli.coordination.status_transition.emit_status_transition_transactional", emit_mock)
     monkeypatch.setattr(
         "specify_cli.status.lane_reader.get_wp_lane",
         lambda *_a, **_kw: "in_progress",

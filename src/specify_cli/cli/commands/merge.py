@@ -192,15 +192,27 @@ def _emit_remediation_hint(hint_console: Console) -> None:
     )
 
 
-def _has_transition_to(feature_dir: Path, wp_id: str, to_lane: str) -> bool:
+def _has_transition_to(
+    feature_dir: Path,
+    mission_slug: str,
+    wp_id: str,
+    to_lane: str,
+    repo_root: Path,
+) -> bool:
     """Check whether the event log already contains a transition for *wp_id* to *to_lane*.
 
     This dedup guard prevents duplicate events when ``_mark_wp_merged_done`` is
     called again on retry/resume.
     """
-    from specify_cli.status.store import read_events
+    from specify_cli.coordination.status_transition import has_transition_to_transactional
 
-    return any(event.wp_id == wp_id and event.to_lane == to_lane for event in read_events(feature_dir))
+    return has_transition_to_transactional(
+        feature_dir=feature_dir,
+        mission_slug=mission_slug,
+        wp_id=wp_id,
+        to_lane=to_lane,
+        repo_root=repo_root,
+    )
 
 
 def _mark_wp_merged_done(
@@ -224,21 +236,28 @@ def _mark_wp_merged_done(
         return
 
     metadata, _body = read_wp_frontmatter(wp_path)
-    from specify_cli.status.lane_reader import get_wp_lane
     from specify_cli.status.models import DoneEvidence, ReviewApproval
-    from specify_cli.status.emit import emit_status_transition, TransitionError
+    from specify_cli.coordination.status_transition import (
+        emit_status_transition_transactional,
+        read_current_wp_state_transactional,
+    )
+    from specify_cli.status.emit import TransitionError
+    from specify_cli.status.models import TransitionRequest
     from specify_cli.status.history_parser import extract_done_evidence
-    from specify_cli.status.transitions import resolve_lane_alias
 
     from specify_cli.status.models import Lane as _Lane
 
-    lane_str = resolve_lane_alias(get_wp_lane(feature_dir, wp_id))
-    lane = _Lane(lane_str)
+    lane, _actor = read_current_wp_state_transactional(
+        feature_dir=feature_dir,
+        mission_slug=mission_slug,
+        wp_id=wp_id,
+        repo_root=repo_root,
+    )
     if lane == _Lane.DONE:
         return
 
     # Dedup guard: if we already have a done transition in the log, skip everything.
-    if _has_transition_to(feature_dir, wp_id, "done"):
+    if _has_transition_to(feature_dir, mission_slug, wp_id, "done", repo_root):
         logger.debug("Dedup: %s already has 'done' transition, skipping", wp_id)
         return
 
@@ -259,26 +278,28 @@ def _mark_wp_merged_done(
     _pre_approved_lanes = frozenset({_Lane.PLANNED, _Lane.CLAIMED, _Lane.IN_PROGRESS, _Lane.FOR_REVIEW})
     if lane in _pre_approved_lanes and evidence is not None:
         # Dedup guard for the intermediate approved transition
-        if _has_transition_to(feature_dir, wp_id, "approved"):
+        if _has_transition_to(feature_dir, mission_slug, wp_id, "approved", repo_root):
             logger.debug("Dedup: %s already has 'approved' transition, skipping emit", wp_id)
         else:
             try:
-                emit_status_transition(
-                    feature_dir=feature_dir,
-                    mission_slug=mission_slug,
-                    wp_id=wp_id,
-                    to_lane="approved",
-                    actor="merge",
-                    reason=f"Recorded prior review approval for merged {wp_id}",
-                    evidence=evidence.to_dict(),
-                    workspace_context=f"merge:{repo_root}",
-                    repo_root=repo_root,
+                emit_status_transition_transactional(
+                    TransitionRequest(
+                        feature_dir=feature_dir,
+                        mission_slug=mission_slug,
+                        wp_id=wp_id,
+                        to_lane="approved",
+                        actor="merge",
+                        reason=f"Recorded prior review approval for merged {wp_id}",
+                        evidence=evidence.to_dict(),
+                        workspace_context=f"merge:{repo_root}",
+                        repo_root=repo_root,
+                        policy_metadata={
+                            "merge_phase": "lane_integrated",
+                            "target_branch": target_branch,
+                        },
+                    ),
                     ensure_sync_daemon=False,
                     sync_dossier=False,
-                    policy_metadata={
-                        "merge_phase": "lane_integrated",
-                        "target_branch": target_branch,
-                    },
                 )
             except TransitionError as exc:
                 console.print(f"[yellow]Warning:[/yellow] Failed to mark {wp_id} approved before done: {exc}")
@@ -296,22 +317,24 @@ def _mark_wp_merged_done(
         # which target branch they landed on. The transition is emitted once
         # per WP after Stage 1 (lane->coord) completes and before Stage 2
         # (coord->target) runs the post-merge bookkeeping.
-        emit_status_transition(
-            feature_dir=feature_dir,
-            mission_slug=mission_slug,
-            wp_id=wp_id,
-            to_lane="done",
-            actor="merge",
-            reason=f"Merged {wp_id} into {target_branch}",
-            evidence=evidence.to_dict(),
-            workspace_context=f"merge:{repo_root}",
-            repo_root=repo_root,
+        emit_status_transition_transactional(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug=mission_slug,
+                wp_id=wp_id,
+                to_lane="done",
+                actor="merge",
+                reason=f"Merged {wp_id} into {target_branch}",
+                evidence=evidence.to_dict(),
+                workspace_context=f"merge:{repo_root}",
+                repo_root=repo_root,
+                policy_metadata={
+                    "merge_phase": "lane_integrated",
+                    "target_branch": target_branch,
+                },
+            ),
             ensure_sync_daemon=False,
             sync_dossier=False,
-            policy_metadata={
-                "merge_phase": "lane_integrated",
-                "target_branch": target_branch,
-            },
         )
     except TransitionError as exc:
         console.print(f"[yellow]Warning:[/yellow] Failed to mark {wp_id} done after merge: {exc}")
@@ -355,6 +378,7 @@ def _assert_merged_wps_reached_done(
 def _reconcile_completed_wps_for_resume(
     *,
     feature_dir: Path,
+    mission_slug: str,
     merge_state: MergeState,
     repo_root: Path,
 ) -> set[str]:
@@ -372,7 +396,7 @@ def _reconcile_completed_wps_for_resume(
     confirmed = [
         wp_id
         for wp_id in merge_state.completed_wps
-        if _has_transition_to(feature_dir, wp_id, "done")
+        if _has_transition_to(feature_dir, mission_slug, wp_id, "done", repo_root)
     ]
     if len(confirmed) != len(merge_state.completed_wps):
         dropped = sorted(set(merge_state.completed_wps) - set(confirmed))
@@ -1635,6 +1659,7 @@ def _run_lane_based_merge_locked(
     console.print("  [dim]Recording merged work packages as done...[/dim]")
     completed_set = _reconcile_completed_wps_for_resume(
         feature_dir=feature_dir,
+        mission_slug=mission_slug,
         merge_state=state,
         repo_root=main_repo,
     )

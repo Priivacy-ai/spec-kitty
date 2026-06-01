@@ -28,7 +28,8 @@ from specify_cli.git import safe_commit
 from specify_cli.git.commit_helpers import protected_branches
 from specify_cli.lanes.implement_support import create_lane_workspace
 from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, require_lanes_json
-from specify_cli.status.emit import TransitionError, emit_status_transition
+from specify_cli.coordination.status_transition import emit_status_transition_transactional
+from specify_cli.status.emit import TransitionError
 from specify_cli.status.models import Lane, TransitionRequest
 from specify_cli.status.work_package_lifecycle import WorkPackageClaimConflict, start_implementation_status
 from specify_cli.task_utils import TaskCliError, find_repo_root
@@ -775,17 +776,19 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         current_lane = _get_wp_lane_from_event_log(feature_dir, wp_id)
         if current_lane in {Lane.PLANNED, Lane.CLAIMED, Lane.IN_PROGRESS}:
             try:
-                emit_status_transition(TransitionRequest(
-                    feature_dir=feature_dir,
-                    mission_slug=mission_slug,
-                    wp_id=wp_id,
-                    to_lane=Lane.BLOCKED,
-                    actor=effective_actor,
-                    execution_mode=status_execution_mode,
-                    reason="worktree_alloc_failed",
-                    policy_metadata={"evidence": str(exc)},
-                    repo_root=repo_root,
-                ))
+                emit_status_transition_transactional(
+                    TransitionRequest(
+                        feature_dir=feature_dir,
+                        mission_slug=mission_slug,
+                        wp_id=wp_id,
+                        to_lane=Lane.BLOCKED,
+                        actor=effective_actor,
+                        execution_mode=status_execution_mode,
+                        reason="worktree_alloc_failed",
+                        policy_metadata={"evidence": str(exc)},
+                        repo_root=repo_root,
+                    )
+                )
             except Exception as _blocked_exc:
                 console.print(
                     f"[yellow]Warning:[/yellow] Could not emit blocked transition after alloc failure: {_blocked_exc}"

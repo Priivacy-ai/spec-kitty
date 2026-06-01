@@ -579,14 +579,14 @@ Test content.
         )
 
         recorded_targets: list[str] = []
-        real_emit = tasks_cli.emit_status_transition
+        real_emit = tasks_cli.emit_status_transition_transactional
 
         def tracking_emit(request):
             recorded_targets.append(str(request.to_lane))
             return real_emit(request)
 
         with (
-            patch("specify_cli.cli.commands.agent.tasks.emit_status_transition", side_effect=tracking_emit),
+            patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional", side_effect=tracking_emit),
             patch("specify_cli.cli.commands.agent.tasks.safe_commit", return_value=True),
             patch("specify_cli.cli.commands.agent.tasks.console.print") as mock_print,
         ):

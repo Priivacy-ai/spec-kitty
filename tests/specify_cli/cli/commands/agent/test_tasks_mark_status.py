@@ -130,7 +130,7 @@ def test_wp_id_rejected_with_move_task_guidance(tmp_path: Path) -> None:
     slug = "003-wp-mark-done"
     _write_mission(tmp_path, slug, "# Tasks\n\n## WP02\n", wp_ids=("WP02",))
 
-    with patch("specify_cli.cli.commands.agent.tasks.emit_status_transition") as emit_mock:
+    with patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional") as emit_mock:
         payload = _invoke_mark_status(tmp_path, slug, "WP02", expected_exit_code=1)
 
     result = _result_by_id(payload, "WP02")
@@ -152,7 +152,7 @@ def test_wp_id_rejection_is_actionable_in_human_output(tmp_path: Path) -> None:
         patch("specify_cli.cli.commands.agent.tasks._emit_sparse_session_warning"),
         patch("specify_cli.cli.commands.agent.tasks.feature_status_lock", _null_lock),
         patch("specify_cli.cli.commands.agent.tasks.emit_history_added"),
-        patch("specify_cli.cli.commands.agent.tasks.emit_status_transition") as emit_mock,
+        patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional") as emit_mock,
     ):
         result = runner.invoke(
             app,

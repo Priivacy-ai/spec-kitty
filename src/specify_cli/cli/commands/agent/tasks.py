@@ -24,7 +24,7 @@ from specify_cli.sync.events import (
     emit_error_logged,
 )
 
-from specify_cli.status.emit import emit_status_transition
+from specify_cli.coordination.status_transition import emit_status_transition_transactional
 from specify_cli.status.models import Lane, StatusEvent, TransitionRequest
 from specify_cli.status.preflight import is_dossier_snapshot as _is_dossier_snapshot
 from specify_cli.status.progress import PROGRESS_SEMANTICS, compute_done_percentage, compute_weighted_progress
@@ -1880,7 +1880,7 @@ def move_task(
                         verdict=review_section.get("verdict", Lane.APPROVED),
                         reference=review_section.get("reference", f"auto-forward:{task_id}"),
                     )
-                event = emit_status_transition(TransitionRequest(
+                event = emit_status_transition_transactional(TransitionRequest(
                     feature_dir=feature_dir,
                     mission_slug=mission_slug,
                     wp_id=task_id,

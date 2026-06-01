@@ -46,7 +46,7 @@ def test_mark_wp_merged_done_emits_done_transition(tmp_path: Path, monkeypatch) 
     _write_wp(tasks_dir / "WP01-test.md", review_status="approved", reviewed_by="reviewer-1")
 
     emit_mock = Mock()
-    monkeypatch.setattr("specify_cli.status.emit.emit_status_transition", emit_mock)
+    monkeypatch.setattr("specify_cli.coordination.status_transition.emit_status_transition_transactional", emit_mock)
     # Lane is event-log-driven; seed it as "approved" via lane_reader
     monkeypatch.setattr(
         "specify_cli.status.lane_reader.get_wp_lane",
@@ -56,11 +56,11 @@ def test_mark_wp_merged_done_emits_done_transition(tmp_path: Path, monkeypatch) 
     _mark_wp_merged_done(repo_root, "021-test", "WP01", "main")
 
     emit_mock.assert_called_once()
-    kwargs = emit_mock.call_args.kwargs
-    assert kwargs["to_lane"] == "done"
-    assert kwargs["actor"] == "merge"
-    assert kwargs["reason"] == "Merged WP01 into main"
-    assert kwargs["evidence"]["review"]["reviewer"] == "reviewer-1"
+    request = emit_mock.call_args.args[0]
+    assert request.to_lane == "done"
+    assert request.actor == "merge"
+    assert request.reason == "Merged WP01 into main"
+    assert request.evidence["review"]["reviewer"] == "reviewer-1"
 
 
 def test_mark_wp_merged_done_approved_without_review_metadata_synthesizes_evidence(tmp_path: Path, monkeypatch) -> None:
@@ -72,7 +72,7 @@ def test_mark_wp_merged_done_approved_without_review_metadata_synthesizes_eviden
     _write_wp(tasks_dir / "WP01-test.md")
 
     emit_mock = Mock()
-    monkeypatch.setattr("specify_cli.status.emit.emit_status_transition", emit_mock)
+    monkeypatch.setattr("specify_cli.coordination.status_transition.emit_status_transition_transactional", emit_mock)
     monkeypatch.setattr(
         "specify_cli.status.lane_reader.get_wp_lane",
         lambda *_a, **_kw: "approved",
@@ -81,11 +81,11 @@ def test_mark_wp_merged_done_approved_without_review_metadata_synthesizes_eviden
     _mark_wp_merged_done(repo_root, "021-test", "WP01", "main")
 
     emit_mock.assert_called_once()
-    kwargs = emit_mock.call_args.kwargs
-    assert kwargs["to_lane"] == "done"
-    assert kwargs["actor"] == "merge"
-    assert kwargs["evidence"]["review"]["verdict"] == "approved"
-    assert kwargs["evidence"]["review"]["reference"] == "lane-approved:WP01"
+    request = emit_mock.call_args.args[0]
+    assert request.to_lane == "done"
+    assert request.actor == "merge"
+    assert request.evidence["review"]["verdict"] == "approved"
+    assert request.evidence["review"]["reference"] == "lane-approved:WP01"
 
 
 def test_mark_wp_merged_done_for_review_without_metadata_skips(tmp_path: Path, monkeypatch) -> None:
@@ -97,7 +97,7 @@ def test_mark_wp_merged_done_for_review_without_metadata_skips(tmp_path: Path, m
     _write_wp(tasks_dir / "WP01-test.md")
 
     emit_mock = Mock()
-    monkeypatch.setattr("specify_cli.status.emit.emit_status_transition", emit_mock)
+    monkeypatch.setattr("specify_cli.coordination.status_transition.emit_status_transition_transactional", emit_mock)
     monkeypatch.setattr(
         "specify_cli.status.lane_reader.get_wp_lane",
         lambda *_a, **_kw: "for_review",
@@ -119,7 +119,7 @@ def test_mark_wp_merged_done_records_approved_before_done_for_legacy_for_review(
     _write_wp(tasks_dir / "WP01-test.md", review_status="approved", reviewed_by="reviewer-1")
 
     emit_mock = Mock()
-    monkeypatch.setattr("specify_cli.status.emit.emit_status_transition", emit_mock)
+    monkeypatch.setattr("specify_cli.coordination.status_transition.emit_status_transition_transactional", emit_mock)
     monkeypatch.setattr(
         "specify_cli.status.lane_reader.get_wp_lane",
         lambda *_a, **_kw: "for_review",
@@ -128,10 +128,10 @@ def test_mark_wp_merged_done_records_approved_before_done_for_legacy_for_review(
     _mark_wp_merged_done(repo_root, "021-test", "WP01", "main")
 
     assert emit_mock.call_count == 2
-    first_kwargs = emit_mock.call_args_list[0].kwargs
-    second_kwargs = emit_mock.call_args_list[1].kwargs
-    assert first_kwargs["to_lane"] == "approved"
-    assert second_kwargs["to_lane"] == "done"
+    first_request = emit_mock.call_args_list[0].args[0]
+    second_request = emit_mock.call_args_list[1].args[0]
+    assert first_request.to_lane == "approved"
+    assert second_request.to_lane == "done"
 
 
 @pytest.mark.parametrize("lane_name", ["planned", "claimed", "in_progress"])
@@ -147,7 +147,7 @@ def test_mark_wp_merged_done_recovers_reviewed_wps_from_pre_review_lanes(
     _write_wp(tasks_dir / "WP01-test.md", review_status="approved", reviewed_by="reviewer-1")
 
     emit_mock = Mock()
-    monkeypatch.setattr("specify_cli.status.emit.emit_status_transition", emit_mock)
+    monkeypatch.setattr("specify_cli.coordination.status_transition.emit_status_transition_transactional", emit_mock)
     monkeypatch.setattr(
         "specify_cli.status.lane_reader.get_wp_lane",
         lambda *_a, **_kw: lane_name,
@@ -156,8 +156,8 @@ def test_mark_wp_merged_done_recovers_reviewed_wps_from_pre_review_lanes(
     _mark_wp_merged_done(repo_root, "021-test", "WP01", "main")
 
     assert emit_mock.call_count == 2
-    assert emit_mock.call_args_list[0].kwargs["to_lane"] == "approved"
-    assert emit_mock.call_args_list[1].kwargs["to_lane"] == "done"
+    assert emit_mock.call_args_list[0].args[0].to_lane == "approved"
+    assert emit_mock.call_args_list[1].args[0].to_lane == "done"
 
 
 def test_mark_wp_merged_done_synthesized_evidence_uses_typed_agent(
@@ -172,7 +172,7 @@ def test_mark_wp_merged_done_synthesized_evidence_uses_typed_agent(
     _write_wp(tasks_dir / "WP01-test.md", agent="gemini-cli")
 
     emit_mock = Mock()
-    monkeypatch.setattr("specify_cli.status.emit.emit_status_transition", emit_mock)
+    monkeypatch.setattr("specify_cli.coordination.status_transition.emit_status_transition_transactional", emit_mock)
     monkeypatch.setattr(
         "specify_cli.status.lane_reader.get_wp_lane",
         lambda *_a, **_kw: "approved",
@@ -181,8 +181,8 @@ def test_mark_wp_merged_done_synthesized_evidence_uses_typed_agent(
     _mark_wp_merged_done(repo_root, "021-test", "WP01", "main")
 
     emit_mock.assert_called_once()
-    kwargs = emit_mock.call_args.kwargs
-    assert kwargs["evidence"]["review"]["reviewer"] == "gemini-cli"
+    request = emit_mock.call_args.args[0]
+    assert request.evidence["review"]["reviewer"] == "gemini-cli"
 
 
 def test_mark_wp_merged_done_uses_typed_frontmatter(

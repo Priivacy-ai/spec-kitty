@@ -225,13 +225,15 @@ def emit(
                 raise typer.Exit(1)
 
         # Lazy import to avoid circular imports
+        from specify_cli.coordination.status_transition import (
+            emit_status_transition_transactional,
+        )
         from specify_cli.status.emit import (
             TransitionError,
-            emit_status_transition,
         )
         from specify_cli.status.models import TransitionRequest
 
-        event = emit_status_transition(TransitionRequest(
+        event = emit_status_transition_transactional(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug=mission_slug,
             wp_id=wp_id,

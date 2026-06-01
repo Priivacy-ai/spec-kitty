@@ -104,9 +104,9 @@ def _now_utc() -> str:
 #
 # Workflow call sites compose ``build_status_event`` + the coordination
 # transaction's ``append_event`` (which calls into store + reducer).
-# Legacy callers that haven't migrated yet continue to use
-# ``emit_status_transition`` -- it now composes these helpers internally
-# and emits a DeprecationWarning when used outside a transaction.
+# Compatibility callers may still use ``emit_status_transition``.
+# Production workflow code routes through coordination.status_transition
+# so event append + outbound fanout are transactionally ordered.
 
 def build_status_event(  # noqa: PLR0913 -- pass-through to a dataclass constructor
     *,
@@ -115,6 +115,7 @@ def build_status_event(  # noqa: PLR0913 -- pass-through to a dataclass construc
     from_lane: str,
     to_lane: str,
     actor: str,
+    at: str | None = None,
     mission_id: str | None = None,
     force: bool = False,
     execution_mode: str = "worktree",
@@ -135,6 +136,7 @@ def build_status_event(  # noqa: PLR0913 -- pass-through to a dataclass construc
         from_lane: Canonical lane the WP is leaving.
         to_lane: Canonical lane the WP enters.
         actor: Identity of the actor performing the transition.
+        at: Optional producer occurrence timestamp; defaults to now.
         mission_id: ULID-based machine identity (optional for legacy).
         force: True if this transition bypasses guard conditions.
         execution_mode: ``"worktree"`` or ``"direct_repo"``.
@@ -152,7 +154,7 @@ def build_status_event(  # noqa: PLR0913 -- pass-through to a dataclass construc
         wp_id=wp_id,
         from_lane=Lane(from_lane),
         to_lane=Lane(to_lane),
-        at=_now_utc(),
+        at=at or _now_utc(),
         actor=actor,
         force=force,
         execution_mode=execution_mode,
