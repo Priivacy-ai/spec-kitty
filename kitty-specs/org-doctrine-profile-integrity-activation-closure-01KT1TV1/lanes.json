@@ -33,7 +33,8 @@
         "tests/doctrine/test_drg_relations.py"
       ],
       "predicted_surfaces": [
-        "api"
+        "api",
+        "tests"
       ],
       "depends_on_lanes": [],
       "parallel_group": 0
@@ -372,7 +373,7 @@
       "parallel_group": 5
     }
   ],
-  "computed_at": "2026-06-01T18:54:07.849261+00:00",
+  "computed_at": "2026-06-01T23:23:37.558117+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": []
 }
