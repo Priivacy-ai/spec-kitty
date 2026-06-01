@@ -618,7 +618,9 @@ def _write_daemon_owner_record(port: int, daemon_token: str | None, *, allow_net
         write_owner_record(record)
     except OSError as exc:  # pragma: no cover - filesystem catastrophe
         logger.warning("Failed to write daemon owner record: %s", exc)
-    except Exception:  # noqa: BLE001 — health remains valid with local-only owner data
+    except Exception:
+        if not allow_network:
+            raise
         logger.debug("Failed to enrich daemon owner record", exc_info=True)
 
 

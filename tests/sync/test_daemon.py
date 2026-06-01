@@ -147,6 +147,40 @@ class TestBackgroundScript:
         assert "'abc'" in script
 
 
+class TestDaemonOwnerRecordWrite:
+    """Initial owner-record write fails closed; enrichment stays best-effort."""
+
+    def test_initial_write_propagates_non_oserror(self, monkeypatch):
+        monkeypatch.setattr(
+            "specify_cli.sync.owner.build_record_for_current_process",
+            lambda **kwargs: {"pid": kwargs["pid"], "port": kwargs["port"]},
+        )
+
+        def fail_write(_record):
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr("specify_cli.sync.owner.write_owner_record", fail_write)
+
+        with pytest.raises(RuntimeError, match="boom"):
+            daemon._write_daemon_owner_record(9410, "tok", allow_network=False)
+
+    def test_enrichment_write_swallows_non_oserror(self, monkeypatch, caplog):
+        monkeypatch.setattr(
+            "specify_cli.sync.owner.build_record_for_current_process",
+            lambda **kwargs: {"pid": kwargs["pid"], "port": kwargs["port"]},
+        )
+
+        def fail_write(_record):
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr("specify_cli.sync.owner.write_owner_record", fail_write)
+
+        with caplog.at_level("DEBUG"):
+            daemon._write_daemon_owner_record(9410, "tok", allow_network=True)
+
+        assert "Failed to enrich daemon owner record" in caplog.text
+
+
 # ---------------------------------------------------------------------------
 # Fix #3 — Daemon log file for stderr/stdout
 # ---------------------------------------------------------------------------

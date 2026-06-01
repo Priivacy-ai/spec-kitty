@@ -151,9 +151,11 @@ def _kitty_specs_dir_name(mission_slug: str, mid8: str) -> str:
 
 def _validate_safe_segment(name: str, value: str) -> str:
     """Return a single safe path segment or raise a bookkeeping error."""
-    candidate = value.strip()
-    if not candidate:
+    if not value:
         raise BookkeepingError(f"{name} cannot be empty")
+    if value != value.strip():
+        raise BookkeepingError(f"{name} must not contain leading or trailing whitespace")
+    candidate = value
     if candidate in {".", ".."} or "/" in candidate or "\\" in candidate:
         raise BookkeepingError(f"{name} must be a single safe path segment")
     if _SAFE_PATH_SEGMENT_RE.fullmatch(candidate) is None:
@@ -275,7 +277,8 @@ def _resolve_legacy_lane_destination(
 
 def _legacy_warning_marker_path(repo_root: Path, mission_id: str) -> Path:
     """Path of the per-mission once-only deprecation warning marker."""
-    return repo_root / ".kittify" / f"legacy-warning-shown-{mission_id}"
+    safe_mission_id = _validate_safe_segment("mission_id", mission_id)
+    return repo_root / ".kittify" / f"legacy-warning-shown-{safe_mission_id}"
 
 
 def _emit_legacy_warning_once(

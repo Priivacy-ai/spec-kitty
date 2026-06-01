@@ -847,13 +847,14 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
         )
 
     # 7-9. Stage + backstop + commit, with prior-staging preservation.
+    resolved_worktree_root = worktree_root.resolve()
     normalized_files: list[str] = []
     for path in paths:
         candidate: Path = path
         if candidate.is_absolute():
             # If the path is not under worktree_root, pass as-is.
             with contextlib.suppress(ValueError):
-                candidate = candidate.relative_to(worktree_root)
+                candidate = candidate.resolve().relative_to(resolved_worktree_root)
         normalized_files.append(str(candidate))
 
     stash_message = f"spec-kitty-safe-commit:{uuid.uuid4()}"

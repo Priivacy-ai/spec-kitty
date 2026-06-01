@@ -213,7 +213,10 @@ def _git_stdout(repo_root: Path, args: list[str]) -> str:
 
 
 def _feature_dir_status_paths(repo_root: Path, feature_dir: Path) -> list[str]:
-    output = _git_stdout(repo_root, ["status", "--porcelain", str(feature_dir)])
+    output = _git_stdout(
+        repo_root,
+        ["status", "--porcelain", "--untracked-files=all", str(feature_dir)],
+    )
     if not output:
         return []
     return [line[3:].strip() for line in output.splitlines() if len(line) >= 4]
@@ -373,9 +376,11 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
         operation=f"planning artifacts for {mission_slug}",
     ) as txn:
         for path_str in files_to_commit:
-            p = (repo_root / path_str).resolve()
-            if p.exists():
-                txn.stage_path(p)
+            repo_path = Path(path_str)
+            source_path = (repo_root / repo_path).resolve()
+            if not source_path.exists():
+                continue
+            txn.write_artifact(repo_path, source_path.read_bytes())
         try:
             txn.commit(commit_msg)
         except Exception as exc:  # noqa: BLE001 — surface as exit-1
