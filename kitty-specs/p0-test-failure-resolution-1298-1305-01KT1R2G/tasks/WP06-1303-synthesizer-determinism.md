@@ -315,3 +315,7 @@ spec-kitty agent action implement WP06 --agent claude
 - **Fixture regeneration order**: Do T025 and T026 completely before T028. Regenerating fixtures too early will just lock in the wrong (non-deterministic) hash.
 - **path_guard API mismatch**: If path_guard.py has a different API than expected, read the file fully before routing writes through it.
 - **Chokepoint test is brittle**: If `test_chokepoint_coverage` uses string matching on source code to enumerate call sites, adding the write in T026 may need a specific format (e.g., a specific comment or registration call) to be recognized.
+
+## Activity Log
+
+- 2026-06-01T18:03:11Z – claude – Ready for review (cycle 1/3). #1303 confirmed stale at WP01 baseline. All 372 charter synthesizer tests pass. Coverage 90%. mypy clean.

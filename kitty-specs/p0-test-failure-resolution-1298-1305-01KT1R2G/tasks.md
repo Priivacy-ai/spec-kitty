@@ -184,12 +184,12 @@ T020 and T021 are marked `[P]` because they touch different anchor files and can
 
 #### Subtasks
 
-- [ ] T024 Run targeted tests to reproduce #1303 cluster (WP06)
-- [ ] T025 Fix synthesizer manifest hash non-determinism (sort keys, ordered construction) (WP06)
-- [ ] T026 Route any direct write primitives through `path_guard.py` (WP06)
-- [ ] T027 Add/fix chokepoint coverage registration in synthesizer tests (WP06)
-- [ ] T028 Regenerate/update fixture hashes after determinism fix (WP06)
-- [ ] T029 Run targeted tests and verify all 5 charter synthesizer tests pass (WP06)
+- [x] T024 Run targeted tests to reproduce #1303 cluster (WP06)
+- [x] T025 Fix synthesizer manifest hash non-determinism (sort keys, ordered construction) (WP06)
+- [x] T026 Route any direct write primitives through `path_guard.py` (WP06)
+- [x] T027 Add/fix chokepoint coverage registration in synthesizer tests (WP06)
+- [x] T028 Regenerate/update fixture hashes after determinism fix (WP06)
+- [x] T029 Run targeted tests and verify all 5 charter synthesizer tests pass (WP06)
 
 #### Implementation Notes
 
