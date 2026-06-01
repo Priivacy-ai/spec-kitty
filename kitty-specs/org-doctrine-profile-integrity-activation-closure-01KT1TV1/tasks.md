@@ -161,7 +161,7 @@
 - **Goal**: `plan_activation`/`commit_plan` so validation provably precedes the single write; unknown-ID fail-closed (FR-011/012/021, NFR-003).
 - **Priority**: P2. **Independent test**: config bytes unchanged after a failing plan.
 - **Subtasks**: - [ ] T044 (WP10) · - [ ] T045 (WP10) · - [ ] T046 (WP10) · - [ ] T047 (WP10)
-- **Dependencies**: WP01, WP09. **Prompt**: [tasks/WP10-activation-engine.md](tasks/WP10-activation-engine.md) (~250 lines)
+- **Dependencies**: WP01. **Prompt**: [tasks/WP10-activation-engine.md](tasks/WP10-activation-engine.md) (~250 lines)
 
 ### WP11 — Cascade engine (scope + shared-reference safety)
 - **Goal**: `CascadeScope`, scoped cascade activation, no-cascade warning, shared-reference-safe deactivation via `edges_to` (FR-013/014/015/016, C-005).
@@ -220,8 +220,9 @@
 ## Dependency graph (summary)
 
 ```
-WP01 ─┬─▶ WP09 ─▶ WP10 ─▶ WP11 ─▶ WP12 ─▶ WP15
-      ├─▶ WP16        ╲________________________▶ WP15
+WP01 ─┬─▶ WP10 ─▶ WP09 ─▶ WP16
+      ├─▶ WP10 ─▶ WP11 ─▶ WP12 ─▶ WP15
+      ├─▶ WP16
       ├─▶ WP17
       └─▶ WP18 ─▶ WP16, WP17
 WP02 ─┬─▶ WP03 ─▶ WP05, WP07, WP18
@@ -230,10 +231,11 @@ WP02 ─┬─▶ WP03 ─▶ WP05, WP07, WP18
 WP06 ◀── WP07 ;  WP05 ◀── WP06, WP03 ;  WP08 ◀── WP05
 WP13 ─▶ WP14 ─▶ WP15
 ```
+(WP10 is self-contained on WP01; WP09 delegates to WP10. Acyclic: WP01→WP10→WP09.)
 
 **MVP / first lane**: WP01 + WP02 (independent foundations) unblock the widest fan-out. WP13 is independent and can run in parallel early.
 
-**Parallelization**: WP01, WP02, WP13 have no dependencies → 3 parallel starts. Wave 1 (WP04/WP05/WP06/WP07/WP08) forms a partially-ordered chain (WP07→WP06→WP05→WP08; WP04 feeds WP07). Wave 3 activation is a chain (WP09→WP10→WP11→WP12). Catalog UX (WP16/WP17) depends on WP18.
+**Parallelization**: WP01, WP02, WP13 have no dependencies → 3 parallel starts. Wave 1 (WP04/WP05/WP06/WP07/WP08) forms a partially-ordered chain (WP07→WP06→WP05→WP08; WP04 feeds WP07). Wave 3 activation: WP10 (engine, on WP01) unblocks WP09 (pack-manager delegates to it) and WP11→WP12 (cascade→CLI). Catalog UX (WP16/WP17) depends on WP18.
 
 ## Notes
 - **ATDD test-first (C-011, binding)**: each WP lists its test subtask **last for readability only** — execute it **first**. Commit the failing acceptance test as a separate commit (RED on `planning_base_branch`) BEFORE any implementation commit; reviewer verifies red→green. See contracts CC-3.
