@@ -118,10 +118,28 @@ def write_snapshot(
             ],
         )
 
-    # Replace local_path atomically.
-    if local_path.exists():
-        shutil.rmtree(local_path)
-    shutil.move(str(tmp_dir), str(local_path))
+    # Replace local_path by first moving the old snapshot aside. This avoids
+    # the delete-then-move ENOENT window and preserves the old tree if promote
+    # fails before the new snapshot is in place.
+    old_dir: Path | None = None
+    try:
+        if local_path.exists():
+            old_dir = local_path.parent / f".old-{local_path.name}-{uuid4().hex}"
+            local_path.replace(old_dir)
+        tmp_dir.replace(local_path)
+    except OSError as exc:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        if old_dir is not None and old_dir.exists() and not local_path.exists():
+            old_dir.replace(local_path)
+        return FetchResult(
+            ok=False,
+            artifacts_written=result.artifacts_written,
+            pack_version=result.pack_version,
+            errors=[f"Failed to replace snapshot: {exc}"],
+        )
+    finally:
+        if old_dir is not None and old_dir.exists():
+            shutil.rmtree(old_dir, ignore_errors=True)
 
     resolved_url = source_url if source_url is not None else getattr(source, "url", "")
     resolved_type = source_type or _infer_source_type(source)

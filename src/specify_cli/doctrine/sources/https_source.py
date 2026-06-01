@@ -20,6 +20,14 @@ import requests
 
 from .protocol import FetchResult
 
+MAX_ARCHIVE_BYTES = 100 * 1024 * 1024
+MAX_EXTRACTED_BYTES = 512 * 1024 * 1024
+MAX_ARCHIVE_MEMBERS = 10_000
+
+
+class ArchiveSizeLimitError(Exception):
+    """Raised when a fetched archive exceeds doctrine source safety limits."""
+
 
 @dataclass
 class HttpsBundleSource:
@@ -85,15 +93,29 @@ class HttpsBundleSource:
                 ],
             )
 
+        tmp_path: Path | None = None
         try:
+            content_length = _parse_content_length(response.headers.get("Content-Length"))
+            if content_length is not None and content_length > MAX_ARCHIVE_BYTES:
+                raise ArchiveSizeLimitError(
+                    f"Archive exceeds raw byte limit: {content_length} > {MAX_ARCHIVE_BYTES}"
+                )
             with tempfile.NamedTemporaryFile(
                 delete=False, suffix=f".{archive_kind}"
             ) as tmp:
+                tmp_path = Path(tmp.name)
+                total = 0
                 for chunk in response.iter_content(chunk_size=64 * 1024):
                     if chunk:
+                        total += len(chunk)
+                        if total > MAX_ARCHIVE_BYTES:
+                            raise ArchiveSizeLimitError(
+                                f"Archive exceeds raw byte limit: {total} > {MAX_ARCHIVE_BYTES}"
+                            )
                         tmp.write(chunk)
-                tmp_path = Path(tmp.name)
-        except OSError as exc:
+        except (ArchiveSizeLimitError, OSError) as exc:
+            if tmp_path is not None:
+                tmp_path.unlink(missing_ok=True)
             return FetchResult(
                 ok=False,
                 artifacts_written=0,
@@ -102,8 +124,9 @@ class HttpsBundleSource:
             )
 
         try:
+            assert tmp_path is not None
             extracted = self._extract(tmp_path, target_dir, archive_kind)
-        except (tarfile.TarError, zipfile.BadZipFile, OSError) as exc:
+        except (ArchiveSizeLimitError, tarfile.TarError, zipfile.BadZipFile, OSError) as exc:
             return FetchResult(
                 ok=False,
                 artifacts_written=0,
@@ -195,6 +218,16 @@ def _parse_retry_after(value: Any) -> float:
         return 2.0
 
 
+def _parse_content_length(value: Any) -> int | None:
+    if value is None:
+        return None
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed >= 0 else None
+
+
 def _safe_extract_tar(tf: tarfile.TarFile, target_dir: Path) -> None:
     """Extract *tf* into *target_dir* with defence against common tar attacks.
 
@@ -210,7 +243,13 @@ def _safe_extract_tar(tf: tarfile.TarFile, target_dir: Path) -> None:
        FIFOs and other special files are refused.
     """
     base = target_dir.resolve()
-    for member in tf.getmembers():
+    members = tf.getmembers()
+    if len(members) > MAX_ARCHIVE_MEMBERS:
+        raise ArchiveSizeLimitError(
+            f"Archive exceeds member count limit: {len(members)} > {MAX_ARCHIVE_MEMBERS}"
+        )
+    extracted_bytes = 0
+    for member in members:
         # --- type guard (before path check) ---
         if member.issym() or member.islnk():
             raise tarfile.TarError(
@@ -221,6 +260,13 @@ def _safe_extract_tar(tf: tarfile.TarFile, target_dir: Path) -> None:
                 f"Refusing non-file/non-dir entry: {member.name} "
                 f"(type={member.type!r})"
             )
+        if member.isfile():
+            extracted_bytes += member.size
+            if extracted_bytes > MAX_EXTRACTED_BYTES:
+                raise ArchiveSizeLimitError(
+                    "Archive exceeds extracted byte limit: "
+                    f"{extracted_bytes} > {MAX_EXTRACTED_BYTES}"
+                )
         # --- path traversal guard (use relative_to, not startswith) ---
         member_path = (target_dir / member.name).resolve()
         try:
@@ -239,7 +285,21 @@ def _safe_extract_zip(zf: zipfile.ZipFile, target_dir: Path) -> None:
     which was vulnerable to the sibling-prefix bypass (P1 fix 2026-05).
     """
     base = target_dir.resolve()
-    for name in zf.namelist():
+    members = zf.infolist()
+    if len(members) > MAX_ARCHIVE_MEMBERS:
+        raise ArchiveSizeLimitError(
+            f"Archive exceeds member count limit: {len(members)} > {MAX_ARCHIVE_MEMBERS}"
+        )
+    extracted_bytes = 0
+    for info in members:
+        name = info.filename
+        if not info.is_dir():
+            extracted_bytes += info.file_size
+            if extracted_bytes > MAX_EXTRACTED_BYTES:
+                raise ArchiveSizeLimitError(
+                    "Archive exceeds extracted byte limit: "
+                    f"{extracted_bytes} > {MAX_EXTRACTED_BYTES}"
+                )
         member_path = (target_dir / name).resolve()
         try:
             member_path.relative_to(base)

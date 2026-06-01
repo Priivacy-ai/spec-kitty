@@ -34,6 +34,8 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from .pack_validator import validate_pack
+from .snapshot import write_pack_manifest
+from .sources.protocol import FetchResult
 
 __all__ = [
     "ConflictItem",
@@ -289,6 +291,17 @@ def assemble_pack(
                 )
                 _maybe_write_conflicts(conflicts_out, result)
                 return result
+            if not _has_recognisable_pack_manifest(output_dir):
+                result = AssemblyResult(
+                    ok=False,
+                    errors=[
+                        f"refusing to delete non-pack output directory {output_dir}; "
+                        "with --force, the directory must contain a recognisable "
+                        "pack-manifest.yaml"
+                    ],
+                )
+                _maybe_write_conflicts(conflicts_out, result)
+                return result
             shutil.rmtree(output_dir)
             output_dir.mkdir(parents=True)
     else:
@@ -329,6 +342,17 @@ def assemble_pack(
         artifacts_written=artifacts_written,
         conflicts=all_conflicts if force else [],
     )
+    write_pack_manifest(
+        output_dir,
+        FetchResult(
+            ok=True,
+            artifacts_written=artifacts_written,
+            pack_version=None,
+            errors=[],
+        ),
+        source_url=",".join(str(p) for p in input_packs),
+        source_type="assemble",
+    )
     _maybe_write_conflicts(conflicts_out, result)
     return result
 
@@ -336,6 +360,30 @@ def assemble_pack(
 # ---------------------------------------------------------------------------
 # Internals
 # ---------------------------------------------------------------------------
+
+
+def _has_recognisable_pack_manifest(output_dir: Path) -> bool:
+    manifest = output_dir / "pack-manifest.yaml"
+    if not manifest.is_file():
+        return False
+    try:
+        payload = _yaml().load(manifest)
+    except (YAMLError, OSError):
+        return False
+    if not isinstance(payload, dict):
+        return False
+    required_keys = {
+        "artifact_counts",
+        "fetched_at",
+        "pack_version",
+        "source_type",
+        "source_url",
+    }
+    if not required_keys.issubset(payload):
+        return False
+    if not isinstance(payload.get("artifact_counts"), dict):
+        return False
+    return payload.get("source_type") in {"assemble", "git", "https", "api"}
 
 
 def _copy_artifacts(

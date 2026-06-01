@@ -52,6 +52,12 @@ from .schemas import (
     CharterTestingConfig,
     emit_yaml,
 )
+from .scope import (
+    CharterScope,
+    CharterScopeConfig,
+    CharterScopeConflict,
+    CharterScopeNotFound,
+)
 from .sync import (
     SyncResult,
     load_directives_config,
@@ -118,6 +124,10 @@ __all__ = [
     "SectionsParsed",
     "CharterTestingConfig",
     "emit_yaml",
+    "CharterScope",
+    "CharterScopeConfig",
+    "CharterScopeConflict",
+    "CharterScopeNotFound",
     "SyncResult",
     "load_directives_config",
     "load_governance_config",
