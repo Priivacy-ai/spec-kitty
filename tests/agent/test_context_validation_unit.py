@@ -425,29 +425,17 @@ class TestWorktreeNestingPrevention:
 class TestEdgeCases:
     """Tests for edge cases in context detection."""
 
-    def test_detect_without_repo_markers(self, tmp_path: Path, monkeypatch):
+    def test_detect_without_repo_markers(self, tmp_path: Path):
         """Test detection when no .kittify or .git found."""
+        # Empty directory
         empty_dir = tmp_path / "no-repo"
         empty_dir.mkdir()
-
-        # Bound the filesystem walk to within tmp_path so that ambient markers
-        # in ancestor directories (e.g. /tmp/.kittify on CI) don't leak in.
-        original_exists = Path.exists
-
-        def bounded_exists(p: Path) -> bool:
-            try:
-                p.relative_to(tmp_path)
-                return original_exists(p)
-            except ValueError:
-                return False
-
-        monkeypatch.setattr(Path, "exists", bounded_exists)
 
         ctx = detect_execution_context(cwd=empty_dir)
 
         # Should still detect as main repo (default)
         assert ctx.location == ExecutionContext.MAIN_REPO
-        # But repo_root will be None since no markers exist under tmp_path
+        # But repo_root will be None
         assert ctx.repo_root is None
 
     def test_detect_from_deep_subdirectory(self, tmp_path: Path):
