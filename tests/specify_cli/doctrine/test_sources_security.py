@@ -15,9 +15,11 @@ from __future__ import annotations
 
 import contextlib
 import io
+import subprocess
 import tarfile
 import zipfile
 from pathlib import Path
+from urllib.parse import quote
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -70,6 +72,21 @@ def _make_zip(members: list[tuple[str, bytes]]) -> bytes:
         for name, data in members:
             zf.writestr(name, data)
     return buf.getvalue()
+
+
+def _make_stream_response(
+    chunks: list[bytes],
+    *,
+    url: str = "https://example.com/pack.zip",
+    headers: dict[str, str] | None = None,
+) -> MagicMock:
+    resp = MagicMock()
+    resp.status_code = 200
+    resp.reason = "OK"
+    resp.url = url
+    resp.headers = headers or {}
+    resp.iter_content.return_value = iter(chunks)
+    return resp
 
 
 # ---------------------------------------------------------------------------
@@ -314,3 +331,120 @@ class TestApiSourceFilenameTraversal:
         assert written == 0, (
             f"Evil DRG filename {evil_filename!r} must not be written; got written={written}"
         )
+
+
+# ---------------------------------------------------------------------------
+# HttpsBundleSource — size-limit / decompression-bomb guards
+# ---------------------------------------------------------------------------
+
+
+class TestHttpsBundleSourceSizeLimits:
+    def test_declared_raw_archive_limit_is_rejected(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from specify_cli.doctrine.sources import https_source  # noqa: PLC0415
+        from specify_cli.doctrine.sources.https_source import HttpsBundleSource  # noqa: PLC0415
+
+        monkeypatch.setattr(https_source, "MAX_ARCHIVE_BYTES", 4)
+        source = HttpsBundleSource(url="https://example.com/pack.zip")
+        response = _make_stream_response(
+            [],
+            headers={"Content-Length": "5"},
+        )
+        monkeypatch.setattr(source, "_get_with_retry", lambda: response)
+
+        result = source.fetch(tmp_path)
+
+        assert result.ok is False
+        assert "raw byte limit" in " ".join(result.errors)
+        assert not any(tmp_path.iterdir())
+
+    def test_streamed_raw_archive_limit_is_rejected(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from specify_cli.doctrine.sources import https_source  # noqa: PLC0415
+        from specify_cli.doctrine.sources.https_source import HttpsBundleSource  # noqa: PLC0415
+
+        monkeypatch.setattr(https_source, "MAX_ARCHIVE_BYTES", 3)
+        source = HttpsBundleSource(url="https://example.com/pack.zip")
+        response = _make_stream_response([b"ab", b"cd"])
+        monkeypatch.setattr(source, "_get_with_retry", lambda: response)
+
+        result = source.fetch(tmp_path)
+
+        assert result.ok is False
+        assert "raw byte limit" in " ".join(result.errors)
+        assert not any(tmp_path.iterdir())
+
+    def test_tar_extracted_byte_limit_is_rejected(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from specify_cli.doctrine.sources import https_source  # noqa: PLC0415
+        from specify_cli.doctrine.sources.https_source import _safe_extract_tar  # noqa: PLC0415
+
+        monkeypatch.setattr(https_source, "MAX_EXTRACTED_BYTES", 1)
+        data = _make_tar_gz([("file.yaml", b"xx")])
+
+        with (
+            tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as tf,
+            pytest.raises(
+                https_source.ArchiveSizeLimitError,
+                match="extracted byte limit",
+            ),
+        ):
+            _safe_extract_tar(tf, tmp_path)
+
+    def test_zip_member_count_limit_is_rejected(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from specify_cli.doctrine.sources import https_source  # noqa: PLC0415
+        from specify_cli.doctrine.sources.https_source import _safe_extract_zip  # noqa: PLC0415
+
+        monkeypatch.setattr(https_source, "MAX_ARCHIVE_MEMBERS", 0)
+        data = _make_zip([("file.yaml", b"x")])
+
+        with (
+            zipfile.ZipFile(io.BytesIO(data)) as zf,
+            pytest.raises(
+                https_source.ArchiveSizeLimitError,
+                match="member count limit",
+            ),
+        ):
+            _safe_extract_zip(zf, tmp_path)
+
+
+# ---------------------------------------------------------------------------
+# GitSource — token redaction
+# ---------------------------------------------------------------------------
+
+
+def test_git_source_redacts_injected_oauth_token_from_stderr(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from specify_cli.doctrine.sources.git_source import GitSource  # noqa: PLC0415
+
+    token = "ghp_secret/with@reserved"
+    monkeypatch.setenv("GIT_TOKEN", token)
+    source = GitSource(url="https://github.com/acme/private-pack.git")
+
+    def _fake_git(argv: list[str]) -> subprocess.CompletedProcess[str]:
+        assert all(token not in part for part in argv)
+        assert any(quote(token, safe="") in part for part in argv)
+        return subprocess.CompletedProcess(
+            argv,
+            128,
+            stdout="",
+            stderr=(
+                "fatal: unable to access "
+                "'https://oauth2:ghp_secret/with@reserved@github.com/acme/private-pack.git/'"
+            ),
+        )
+
+    monkeypatch.setattr(source, "_run_git", _fake_git)
+
+    result = source.fetch(tmp_path / "clone")
+
+    assert result.ok is False
+    error_text = " ".join(result.errors)
+    assert token not in error_text
+    assert "oauth2:<redacted>@" in error_text

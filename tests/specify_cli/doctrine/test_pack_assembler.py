@@ -89,6 +89,7 @@ class TestAssemblePack:
         assert result.artifacts_written == 3
         assert (output / "directives").is_dir()
         assert len(list((output / "directives").glob("*.directive.yaml"))) == 3
+        assert (output / "pack-manifest.yaml").is_file()
 
     def test_two_packs_no_conflict(self, tmp_path: Path) -> None:
         a = _make_pack(tmp_path, "alpha", directives=["A-001"])
@@ -212,6 +213,56 @@ class TestAssemblePack:
         result = assemble_pack([ghost], tmp_path / "out")
         assert result.ok is False
         assert any("not found" in e for e in result.errors)
+
+    def test_force_refuses_to_delete_non_pack_output_dir(
+        self, tmp_path: Path
+    ) -> None:
+        pack = _make_pack(tmp_path, "alpha", directives=["SAFE-001"])
+        output = tmp_path / "important-data"
+        output.mkdir()
+        marker = output / "do-not-delete.txt"
+        marker.write_text("keep\n", encoding="utf-8")
+
+        result = assemble_pack([pack], output, force=True)
+
+        assert result.ok is False
+        assert "refusing to delete non-pack" in " ".join(result.errors)
+        assert marker.read_text(encoding="utf-8") == "keep\n"
+
+    def test_force_refuses_spoofed_minimal_pack_manifest(
+        self, tmp_path: Path
+    ) -> None:
+        pack = _make_pack(tmp_path, "alpha", directives=["SAFE-002"])
+        output = tmp_path / "important-data"
+        output.mkdir()
+        (output / "pack-manifest.yaml").write_text(
+            "source_type: assemble\n",
+            encoding="utf-8",
+        )
+        marker = output / "do-not-delete.txt"
+        marker.write_text("keep\n", encoding="utf-8")
+
+        result = assemble_pack([pack], output, force=True)
+
+        assert result.ok is False
+        assert "refusing to delete non-pack" in " ".join(result.errors)
+        assert marker.read_text(encoding="utf-8") == "keep\n"
+
+    def test_force_allows_replacing_previous_pack_output(
+        self, tmp_path: Path
+    ) -> None:
+        first = _make_pack(tmp_path, "alpha", directives=["OLD-001"])
+        second = _make_pack(tmp_path, "bravo", directives=["NEW-001"])
+        output = tmp_path / "out"
+
+        first_result = assemble_pack([first], output)
+        assert first_result.ok is True, first_result.errors
+
+        second_result = assemble_pack([second], output, force=True)
+
+        assert second_result.ok is True, second_result.errors
+        assert not (output / "directives" / "old-001.directive.yaml").exists()
+        assert (output / "directives" / "new-001.directive.yaml").exists()
 
 
 # ---------------------------------------------------------------------------

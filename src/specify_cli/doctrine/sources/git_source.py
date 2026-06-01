@@ -13,10 +13,12 @@ CI can pass a short-lived token without modifying ``~/.gitconfig``.
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import quote
 
 from .protocol import FetchResult
 
@@ -61,7 +63,10 @@ class GitSource:
                 ok=False,
                 artifacts_written=0,
                 pack_version=None,
-                errors=[clone_proc.stderr.strip() or "git clone failed"],
+                errors=[
+                    _redact_git_tokens(clone_proc.stderr.strip())
+                    or "git clone failed"
+                ],
             )
 
         if self.ref:
@@ -74,7 +79,10 @@ class GitSource:
                     ok=False,
                     artifacts_written=0,
                     pack_version=None,
-                    errors=[checkout_proc.stderr.strip() or "git checkout failed"],
+                    errors=[
+                        _redact_git_tokens(checkout_proc.stderr.strip())
+                        or "git checkout failed"
+                    ],
                 )
 
         return self._success_result(target_dir)
@@ -89,7 +97,10 @@ class GitSource:
                 ok=False,
                 artifacts_written=0,
                 pack_version=None,
-                errors=[fetch_proc.stderr.strip() or "git fetch failed"],
+                errors=[
+                    _redact_git_tokens(fetch_proc.stderr.strip())
+                    or "git fetch failed"
+                ],
             )
 
         reset_target = self.ref if self.ref else "origin/HEAD"
@@ -101,7 +112,10 @@ class GitSource:
                 ok=False,
                 artifacts_written=0,
                 pack_version=None,
-                errors=[reset_proc.stderr.strip() or "git reset failed"],
+                errors=[
+                    _redact_git_tokens(reset_proc.stderr.strip())
+                    or "git reset failed"
+                ],
             )
 
         return self._success_result(target_dir)
@@ -130,9 +144,9 @@ class GitSource:
             return url
         if not url.startswith("https://"):
             return url
-        # Insert token as oauth2 user. The token never appears in logs because
-        # this transformed URL is only passed to subprocess as an argv member.
-        return url.replace("https://", f"https://oauth2:{token}@", 1)
+        # Insert token as oauth2 user. URL-encode so reserved chars cannot
+        # split the credential field; stderr is redacted before returning.
+        return url.replace("https://", f"https://oauth2:{quote(token, safe='')}@", 1)
 
     @staticmethod
     def _run_git(argv: list[str]) -> subprocess.CompletedProcess[str]:
@@ -154,3 +168,12 @@ def _count_yaml_files(target_dir: Path) -> int:
             continue
         count += 1
     return count
+
+
+def _redact_git_tokens(text: str) -> str:
+    """Remove OAuth2 credentials from git stderr before operator-facing output."""
+    return re.sub(
+        r"oauth2:[^\s'\"]+@(?=[^@\s/'\"]+(?::\d+)?(?:/|$))",
+        "oauth2:<redacted>@",
+        text,
+    )

@@ -57,6 +57,7 @@ from unittest.mock import patch
 import pytest
 
 from charter.context import build_charter_context
+from charter.scope import CharterScopeNotFound
 from specify_cli.next.prompt_builder import _build_wp_prompt, _governance_context
 from tests.lane_test_utils import write_single_lane_manifest
 
@@ -1089,3 +1090,18 @@ class TestGovernanceContextUsesMonorepoAwarePath:
             "Without it, monorepo operators always get the root-project charter."
         )
         assert captured_feature_dir[0] == feature_dir
+
+    def test_governance_context_does_not_mask_scope_routing_failures(
+        self, project_with_implement_wp: tuple[Path, Path, str]
+    ) -> None:
+        """Scope resolver failures must fail closed instead of falling back."""
+        repo_root, feature_dir, _mission_slug = project_with_implement_wp
+
+        with (
+            patch(
+                "specify_cli.next.prompt_builder.build_with_scope",
+                side_effect=CharterScopeNotFound("feature outside configured charter scopes"),
+            ),
+            pytest.raises(CharterScopeNotFound),
+        ):
+            _governance_context(repo_root, feature_dir=feature_dir, action="implement")

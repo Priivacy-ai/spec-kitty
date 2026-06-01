@@ -20,12 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from charter.context import CharterContextResult, build_charter_context
-from charter.scope import (
-    CharterScope,
-    CharterScopeConfig,  # noqa: F401 — live-caller import for dead-symbol gate
-    CharterScopeConflict,  # noqa: F401 — live-caller import for dead-symbol gate
-    CharterScopeNotFound,  # noqa: F401 — live-caller import for dead-symbol gate
-)
+from charter.scope import CharterScope
 
 __all__ = ["build_with_scope"]
 

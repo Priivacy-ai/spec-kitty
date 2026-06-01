@@ -212,6 +212,22 @@ class TestPromptBuilderGovernanceContext:
         assert isinstance(text, str)
         assert text.strip()
 
+    def test_scope_not_found_is_not_swallowed(self, tmp_path: Path) -> None:
+        from charter.scope import CharterScopeNotFound
+
+        with (
+            patch(
+                "specify_cli.next.prompt_builder.build_with_scope",
+                side_effect=CharterScopeNotFound("outside configured scopes"),
+            ),
+            pytest.raises(CharterScopeNotFound, match="outside configured scopes"),
+        ):
+            _governance_context(
+                tmp_path,
+                action="implement",
+                feature_dir=tmp_path / "outside" / "mission",
+            )
+
     def test_no_action_uses_legacy_governance(self, tmp_path: Path) -> None:
         """Calling _governance_context without action uses legacy path directly."""
         _make_charter_bundle(tmp_path)

@@ -18,6 +18,7 @@ import tempfile
 from pathlib import Path
 
 from charter.context import build_charter_context
+from charter.scope import CharterScopeConflict, CharterScopeNotFound
 from charter.scope_router import build_with_scope
 from charter.mission_type_profiles import (
     UnknownMissionTypeError,
@@ -402,6 +403,11 @@ def _governance_context(
                 )
             if context.mode != "missing":
                 return context.text
+        except (CharterScopeConflict, CharterScopeNotFound):
+            # Scope routing failures mean the operator-authored monorepo
+            # governance config does not cover this feature path. Falling back
+            # to root governance would silently cross a trust boundary.
+            raise
         except Exception:
             # Non-fatal: fall back to compact governance rendering.
             pass

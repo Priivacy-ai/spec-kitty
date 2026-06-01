@@ -546,3 +546,20 @@ class TestGovernanceContext:
         mock_resolve.side_effect = RuntimeError("boom")
         text = _governance_context(feature_dir.parent.parent)
         assert "Governance: unavailable" in text
+
+    @pytest.mark.fast
+    def test_scope_not_found_is_not_swallowed(self, feature_dir: Path) -> None:
+        from charter.scope import CharterScopeNotFound
+
+        with (
+            patch(
+                "specify_cli.next.prompt_builder.build_with_scope",
+                side_effect=CharterScopeNotFound("outside configured scopes"),
+            ),
+            pytest.raises(CharterScopeNotFound, match="outside configured scopes"),
+        ):
+            _governance_context(
+                feature_dir.parent.parent,
+                action="implement",
+                feature_dir=feature_dir,
+            )

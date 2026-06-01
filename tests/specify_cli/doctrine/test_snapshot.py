@@ -111,6 +111,35 @@ class TestWriteSnapshot:
         assert (local_path / "directives" / "new.directive.yaml").is_file()
         assert not (local_path / "stale.txt").exists()
 
+    def test_replace_failure_restores_existing_snapshot(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        local_path = tmp_path / "doctrine"
+        _populate_valid_pack(local_path)
+        (local_path / "marker").write_text("keep-me\n")
+
+        source = _ScriptedSource(
+            layout=_populate_valid_pack,
+            result=FetchResult(ok=True, artifacts_written=2, pack_version="v2"),
+        )
+
+        original_replace = Path.replace
+
+        def _flaky_replace(self: Path, target: Path) -> Path:
+            if self.name.startswith(".tmp-"):
+                raise OSError("promote failed")
+            return original_replace(self, target)
+
+        monkeypatch.setattr(Path, "replace", _flaky_replace)
+
+        result = write_snapshot(source, local_path)
+
+        assert result.ok is False
+        assert "promote failed" in " ".join(result.errors)
+        assert (local_path / "marker").read_text() == "keep-me\n"
+        assert not list(tmp_path.glob(".tmp-*"))
+        assert not list(tmp_path.glob(".old-*"))
+
     def test_empty_snapshot_rejected(self, tmp_path: Path) -> None:
         local_path = tmp_path / "doctrine"
 
