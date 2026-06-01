@@ -2,11 +2,43 @@
 
 Single source of truth for artifact type names, plural forms, and glob patterns.
 Zero-dependency: no imports from specify_cli or other doctrine subpackages.
+
+Canonical charter kind universe (R-009)
+---------------------------------------
+The charter command surfaces (``activate`` / ``deactivate`` / ``list`` /
+``context --include``) operate over the *charter kind universe*, which is::
+
+    the 8 artifact ``ArtifactKind`` kinds  +  ``mission-type``
+
+``mission-type`` is **not** an :class:`ArtifactKind` member — it is a mission-tier
+concept handled separately (see FR-032 / WP04). Callers route a mission-type
+token explicitly; :meth:`ArtifactKind.from_operator_token` raises the distinct,
+documented :class:`MissionTypeNotAnArtifactKind` for it rather than silently
+mapping it to an artifact kind (R-009 / CL-1: no silent fallback).
+
+``template`` *is* an :class:`ArtifactKind` member but is resolved specially
+(mission-tier, empty glob — see :attr:`ArtifactKind.glob_pattern`); it is not one
+of the 8 non-template artifact tokens enumerated in :data:`CHARTER_KIND_TOKENS`.
+
+Consumers must route every operator kind string through
+:meth:`ArtifactKind.from_operator_token` (CC-4) — no second kind enumeration
+may be re-declared elsewhere.
 """
 
 from __future__ import annotations
 
 from enum import StrEnum
+
+
+class MissionTypeNotAnArtifactKind(ValueError):
+    """Raised when ``mission-type`` is passed to :meth:`ArtifactKind.from_operator_token`.
+
+    ``mission-type`` is part of the charter kind universe but is *not* an
+    :class:`ArtifactKind` member. Callers must route it explicitly to the
+    mission-tier handling path. This is a distinct, documented error (a
+    :class:`ValueError` subclass) so callers can catch it specifically and
+    branch, instead of treating mission-type as an unknown token.
+    """
 
 _PLURALS: dict[str, str] = {
     "directive": "directives",
@@ -31,6 +63,11 @@ _PATTERNS: dict[str, str] = {
     "mission_step_contract": "*.step-contract.yaml",
     "template": "",
 }
+
+#: Operator token (hyphenated CLI surface) that callers must explicitly route to
+#: the mission-tier path; it is part of the charter kind universe but not an
+#: :class:`ArtifactKind` member. See :class:`MissionTypeNotAnArtifactKind`.
+MISSION_TYPE_TOKEN = "mission-type"  # noqa: S105 - kind token, not a secret
 
 
 class ArtifactKind(StrEnum):
@@ -63,6 +100,16 @@ class ArtifactKind(StrEnum):
         """
         return _PATTERNS[self.value]
 
+    @property
+    def operator_token(self) -> str:
+        """Hyphenated operator token for this kind (CLI surface, help text).
+
+        Inverse of :meth:`from_operator_token`. The token is the canonical
+        singular value with underscores replaced by hyphens
+        (e.g. ``ArtifactKind.AGENT_PROFILE.operator_token == "agent-profile"``).
+        """
+        return self.value.replace("_", "-")
+
     @classmethod
     def from_plural(cls, plural: str) -> ArtifactKind:
         """Return the enum member matching a plural directory name.
@@ -74,5 +121,61 @@ class ArtifactKind(StrEnum):
                 return member
         raise KeyError(f"No ArtifactKind with plural {plural!r}")
 
+    @classmethod
+    def from_operator_token(cls, token: str) -> ArtifactKind:
+        """Return the :class:`ArtifactKind` for a documented operator token.
 
-__all__ = ["ArtifactKind"]
+        Normalizes the operator token (the hyphenated CLI surface form) to the
+        canonical underscore singular and resolves it. Accepts both the
+        hyphenated form (``agent-profile``) and the already-canonical underscore
+        form (``agent_profile``); matching is case-insensitive.
+
+        This is the **single** entry point charter surfaces use to turn a kind
+        string into a canonical kind — no surface may re-declare the kind set
+        (R-009 / CC-4).
+
+        Args:
+            token: Operator kind token, e.g. ``"agent-profile"``,
+                ``"mission-step-contract"``, ``"directive"``.
+
+        Returns:
+            The matching :class:`ArtifactKind` member.
+
+        Raises:
+            MissionTypeNotAnArtifactKind: if *token* is ``"mission-type"``. This
+                is part of the charter kind universe but is mission-tier, not an
+                artifact kind — callers must route it explicitly.
+            ValueError: if *token* is not a documented operator token. The error
+                message lists the valid operator tokens (no silent fallback —
+                R-009 / CL-1).
+        """
+        normalized = token.strip().lower().replace("-", "_")
+        if normalized == MISSION_TYPE_TOKEN.replace("-", "_"):
+            raise MissionTypeNotAnArtifactKind(
+                "'mission-type' is part of the charter kind universe but is not "
+                "an ArtifactKind; route it through the mission-tier handler."
+            )
+        for member in cls:
+            if member.value == normalized:
+                return member
+        valid = ", ".join(member.operator_token for member in cls)
+        raise ValueError(
+            f"Unknown artifact kind token {token!r}. "
+            f"Valid operator tokens: {valid}."
+        )
+
+
+#: Charter kind universe: the 8 non-template artifact operator tokens + the
+#: special ``mission-type`` token. ``template`` is an :class:`ArtifactKind`
+#: member but resolves specially (no glob) and is *not* listed here.
+CHARTER_KIND_TOKENS: tuple[str, ...] = tuple(
+    member.operator_token for member in ArtifactKind if member is not ArtifactKind.TEMPLATE
+) + (MISSION_TYPE_TOKEN,)
+
+
+__all__ = [
+    "ArtifactKind",
+    "CHARTER_KIND_TOKENS",
+    "MISSION_TYPE_TOKEN",
+    "MissionTypeNotAnArtifactKind",
+]
