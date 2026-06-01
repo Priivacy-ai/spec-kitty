@@ -12,4 +12,4 @@ See `src/doctrine/schemas/procedure.schema.yaml`.
 ## Examples
 
 - Work package review cycle
-- Feature merge ceremony
+- Feature merge workflow
