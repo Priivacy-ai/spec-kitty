@@ -130,11 +130,11 @@ Run `pytest tests/contract/test_handoff_fixtures.py -q --tb=long` to see exact m
 
 #### Subtasks
 
-- [ ] T014 Run targeted tests to reproduce #1305 cluster; capture exact failure output (WP04)
-- [ ] T015 Locate `decide_next` call-site divergence between source and test mocks (WP04)
-- [ ] T016 Fix dispatch/import so `decide_next` is correctly invoked (WP04)
-- [ ] T017 Fix exit-code logic for terminal and successful-advance scenarios (WP04)
-- [ ] T018 Run targeted tests and verify all 4 `tests/next/` tests pass (WP04)
+- [x] T014 Run targeted tests to reproduce #1305 cluster; capture exact failure output (WP04)
+- [x] T015 Locate `decide_next` call-site divergence between source and test mocks (WP04)
+- [x] T016 Fix dispatch/import so `decide_next` is correctly invoked (WP04)
+- [x] T017 Fix exit-code logic for terminal and successful-advance scenarios (WP04)
+- [x] T018 Run targeted tests and verify all 4 `tests/next/` tests pass (WP04)
 
 #### Implementation Notes
 

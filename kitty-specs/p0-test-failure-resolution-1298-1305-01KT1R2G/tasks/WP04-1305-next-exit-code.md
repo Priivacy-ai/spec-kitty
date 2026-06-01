@@ -236,3 +236,8 @@ spec-kitty agent action implement WP04 --agent claude
 - **Intentional refactor**: If `decide_next` was moved as part of a deliberate refactor (not a bug), the correct fix is to update the tests — not to revert the refactor. Check git log.
 - **Multiple call paths**: The `next` CLI may have a "query mode" and an "advance mode" with different dispatch. Read both before fixing.
 - **Exit-code semantics**: The test `test_blocked_result_exit_code` may expect a non-zero exit for "blocked" — read it before assuming everything should be 0.
+
+## Activity Log
+
+- 2026-06-01T17:41:42Z – claude – WP04 claimed by claude (all target tests already passing)
+- 2026-06-01T17:42:14Z – claude – Ready for review (cycle 1/3). All 4 target tests confirmed passing. WP04 was stale — no source changes required. 464 next tests pass, 1951 sync/contract tests pass.
