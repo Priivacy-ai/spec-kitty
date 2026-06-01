@@ -241,26 +241,6 @@ jobs:
           sha256sum dist/* > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
-      - name: Extract changelog for release
-        id: changelog
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          python scripts/release/extract_changelog.py "${VERSION}" > release-notes.md
-          cat release-notes.md
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3.0.0
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          body_path: release-notes.md
-          files: |
-            dist/*.whl
-            dist/*.tar.gz
-            SHA256SUMS.txt
-            sbom.cdx.json
-          draft: false
-          prerelease: ${{ steps.release_channel.outputs.is_prerelease }}
-
       - name: Upload test output
         uses: actions/upload-artifact@v7
         if: always()
@@ -277,6 +257,7 @@ jobs:
           path: |
             dist/
             SHA256SUMS.txt
+            sbom.cdx.json
           retention-days: 30
 
   downstream-consumer-verify:
@@ -467,6 +448,7 @@ jobs:
       - canary-verify
     runs-on: ubuntu-latest
     permissions:
+      contents: write
       id-token: write
     environment:
       name: pypi
@@ -539,6 +521,26 @@ jobs:
             --expected-target "https://spec-kitty-dev.fly.dev/" \
             --required-clean-runs 4 \
             --allow-waiver
+
+      - name: Extract changelog for release
+        id: changelog
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          python scripts/release/extract_changelog.py "${VERSION}" > release-notes.md
+          cat release-notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3.0.0
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          body_path: release-notes.md
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
+            SHA256SUMS.txt
+            sbom.cdx.json
+          draft: false
+          prerelease: ${{ steps.release_channel.outputs.is_prerelease }}
 
       - name: Publish distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
