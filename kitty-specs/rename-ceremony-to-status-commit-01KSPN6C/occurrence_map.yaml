@@ -402,6 +402,18 @@ historical_preservation:
     - "Past release tags (history is not rewritten; spec C-003)"
     - "The user's local checkout path `spec-kitty-dev/ceremony/...` (local naming; spec C-002)"
 
+system_tracking_files:
+  description: >
+    Mission-management artifacts written by the spec-kitty runtime (status events,
+    snapshots, WP frontmatter). These appear in lane diffs because WP status
+    transitions (planned → in_progress → for_review) are recorded here. They are
+    NOT rename targets and contain no forbidden terminology in their data.
+  action: do_not_change
+  paths:
+    - "kitty-specs/*/status.events.jsonl"
+    - "kitty-specs/*/status.json"
+    - "kitty-specs/*/tasks/WP*.md (WP frontmatter updated by runtime status transitions)"
+
 # ──────────────────────────────────────────────────────────────────────
 # DEAD CODE CANDIDATES
 # ──────────────────────────────────────────────────────────────────────

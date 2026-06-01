@@ -230,3 +230,7 @@ Expected: **zero hits**. If any hit appears, classify per occurrence_map and app
 - Decision: [../decisions/DM-01KSPP3SSZ5GKHTTB1C9EJQ13V.md](../decisions/DM-01KSPP3SSZ5GKHTTB1C9EJQ13V.md)
 - Occurrence map: [../occurrence_map.yaml](../occurrence_map.yaml) — `dd-007` through `dd-014`
 - Term-rename contract: [../contracts/term-rename-contract.md](../contracts/term-rename-contract.md) — Rules R1, R2, R6
+
+## Activity Log
+
+- 2026-06-01T07:37:12Z – claude – shell_pid=61077 – Ready for review: 7 ceremony occurrences rewritten in 4 docs files per occurrence_map dd-007 through dd-014. grep -rn 'ceremony' docs/ returns zero hits. Config flag renamed to vcs.allow_status_commits_on_target_branch (FR-010). Only the 4 owned_files were modified.

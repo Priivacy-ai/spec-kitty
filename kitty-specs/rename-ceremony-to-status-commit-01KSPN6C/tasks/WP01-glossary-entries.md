@@ -160,3 +160,7 @@ Expected output: `Glossary OK: 3 new entries present with correct statuses.`
 - Plan: [../plan.md](../plan.md) — Phase 1 data model section
 - Data model: [../data-model.md](../data-model.md) — full field values
 - Occurrence map: [../occurrence_map.yaml](../occurrence_map.yaml) — `glossary_edits` section
+
+## Activity Log
+
+- 2026-06-01T07:36:37Z – claude – shell_pid=52951 – Ready for review

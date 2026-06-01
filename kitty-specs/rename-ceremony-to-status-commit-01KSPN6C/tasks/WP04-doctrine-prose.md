@@ -199,3 +199,7 @@ Expected: **zero hits**. If any hit appears, classify per occurrence_map (commit
 - Decision: [../decisions/DM-01KSPP3SSZ5GKHTTB1C9EJQ13V.md](../decisions/DM-01KSPP3SSZ5GKHTTB1C9EJQ13V.md)
 - Occurrence map: [../occurrence_map.yaml](../occurrence_map.yaml) — `dd-001` through `dd-006`
 - Term-rename contract: [../contracts/term-rename-contract.md](../contracts/term-rename-contract.md) — Rule R2
+
+## Activity Log
+
+- 2026-06-01T07:36:54Z – claude – shell_pid=59803 – Ready for review

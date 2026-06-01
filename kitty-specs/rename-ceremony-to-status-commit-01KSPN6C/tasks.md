@@ -76,10 +76,10 @@ The `[P]` markers in the Parallel column above are reference-only; status tracki
 
 ### Subtasks
 
-- [ ] T001 Add canonical `status commit` entry to `.kittify/glossaries/spec_kitty_core.yaml` w/ `status: active`, definition from spec FR-006, synonyms_to_avoid list (WP01)
-- [ ] T002 Add deprecated `ceremony commit` entry w/ `status: deprecated` and definition pointing to canonical (WP01)
-- [ ] T003 Add deprecated `status-writing operation` entry w/ `status: deprecated` and definition pointing to canonical (WP01)
-- [ ] T004 Verify glossary loads via ruamel.yaml and all three surfaces present w/ correct status values (WP01)
+- [x] T001 Add canonical `status commit` entry to `.kittify/glossaries/spec_kitty_core.yaml` w/ `status: active`, definition from spec FR-006, synonyms_to_avoid list (WP01)
+- [x] T002 Add deprecated `ceremony commit` entry w/ `status: deprecated` and definition pointing to canonical (WP01)
+- [x] T003 Add deprecated `status-writing operation` entry w/ `status: deprecated` and definition pointing to canonical (WP01)
+- [x] T004 Verify glossary loads via ruamel.yaml and all three surfaces present w/ correct status values (WP01)
 
 ---
 
@@ -99,9 +99,9 @@ The `[P]` markers in the Parallel column above are reference-only; status tracki
 
 ### Subtasks
 
-- [ ] T005 Update `src/specify_cli/git/commit_helpers.py` line 141 comment ("status-writing commands" → "status commit operations") (WP02)
-- [ ] T006 Update line 159 error string to canonical: `"Run status commit operations from the mission lane branch/worktree."` matching spec FR-003 (WP02)
-- [ ] T007 Run targeted tests; if any test asserted the pre-rename error string, update to canonical (WP02)
+- [x] T005 Update `src/specify_cli/git/commit_helpers.py` line 141 comment ("status-writing commands" → "status commit operations") (WP02)
+- [x] T006 Update line 159 error string to canonical: `"Run status commit operations from the mission lane branch/worktree."` matching spec FR-003 (WP02)
+- [x] T007 Run targeted tests; if any test asserted the pre-rename error string, update to canonical (WP02)
 
 ---
 
@@ -121,13 +121,13 @@ The `[P]` markers in the Parallel column above are reference-only; status tracki
 
 ### Subtasks
 
-- [ ] T008 Rename `E2E_CEREMONY_BRANCH = "e2e-ceremony"` → `E2E_STATUS_COMMIT_BRANCH = "e2e-status-commit"` in `tests/e2e/conftest.py:25` (WP03)
-- [ ] T009 Rename `_checkout_e2e_ceremony_branch` (def L214 + calls L324, L399) and rewrite its docstring (L215) + the comment at L232 (WP03)
-- [ ] T010 Rename `mission-merge-ceremony` fixture ID → `mission-merge-workflow` in `tests/doctrine/procedures/conftest.py:48` (WP03)
-- [ ] T011 Update assertion in `tests/doctrine/procedures/test_models.py:31` to match new fixture ID (WP03)
-- [ ] T012 Rewrite `tests/architectural/_baselines.yaml:17` comment ("no ceremony" → "no extra workflow steps") (WP03)
-- [ ] T013 Run `pytest tests/e2e/ tests/doctrine/procedures/ tests/architectural/` and confirm green (WP03)
-- [ ] T014 `grep -rn 'ceremony' tests/` from repo root and confirm zero hits in tests-scope (WP03)
+- [x] T008 Rename `E2E_CEREMONY_BRANCH = "e2e-ceremony"` → `E2E_STATUS_COMMIT_BRANCH = "e2e-status-commit"` in `tests/e2e/conftest.py:25` (WP03)
+- [x] T009 Rename `_checkout_e2e_ceremony_branch` (def L214 + calls L324, L399) and rewrite its docstring (L215) + the comment at L232 (WP03)
+- [x] T010 Rename `mission-merge-ceremony` fixture ID → `mission-merge-workflow` in `tests/doctrine/procedures/conftest.py:48` (WP03)
+- [x] T011 Update assertion in `tests/doctrine/procedures/test_models.py:31` to match new fixture ID (WP03)
+- [x] T012 Rewrite `tests/architectural/_baselines.yaml:17` comment ("no ceremony" → "no extra workflow steps") (WP03)
+- [x] T013 Run `pytest tests/e2e/ tests/doctrine/procedures/ tests/architectural/` and confirm green (WP03)
+- [x] T014 `grep -rn 'ceremony' tests/` from repo root and confirm zero hits in tests-scope (WP03)
 
 ---
 
@@ -147,10 +147,10 @@ The `[P]` markers in the Parallel column above are reference-only; status tracki
 
 ### Subtasks
 
-- [ ] T015 Rewrite `src/doctrine/procedures/README.md:15` per occurrence_map dd-001 (WP04)
-- [ ] T016 Rewrite `src/doctrine/missions/software-dev/actions/tasks/guidelines.md:26` per occurrence_map dd-002 (WP04)
-- [ ] T017 Rewrite all 4 occurrences in `src/doctrine/skills/spec-kitty-program-orchestrate/SKILL.md` (lines 9, 269, 343, 366) per occurrence_map dd-003 through dd-006 (WP04)
-- [ ] T018 `grep -rn 'ceremony' src/doctrine/` returns zero hits (WP04)
+- [x] T015 Rewrite `src/doctrine/procedures/README.md:15` per occurrence_map dd-001 (WP04)
+- [x] T016 Rewrite `src/doctrine/missions/software-dev/actions/tasks/guidelines.md:26` per occurrence_map dd-002 (WP04)
+- [x] T017 Rewrite all 4 occurrences in `src/doctrine/skills/spec-kitty-program-orchestrate/SKILL.md` (lines 9, 269, 343, 366) per occurrence_map dd-003 through dd-006 (WP04)
+- [x] T018 `grep -rn 'ceremony' src/doctrine/` returns zero hits (WP04)
 
 ---
 
@@ -170,11 +170,11 @@ The `[P]` markers in the Parallel column above are reference-only; status tracki
 
 ### Subtasks
 
-- [ ] T019 Rewrite `docs/development/org-doctrine-layer-architecture-review.md:481` per occurrence_map dd-007 (English-idiom rewrite) (WP05)
-- [ ] T020 Rewrite `docs/development/3-2-publication-checklist.md:210` per occurrence_map dd-008 (WP05)
-- [ ] T021 Rewrite `docs/engineering_notes/reflections/README.md:12` per occurrence_map dd-009 (WP05)
-- [ ] T022 Rewrite all 5 occurrences in `docs/engineering_notes/finding/2026-05-24-mission-01KSAF14-orchestration-findings.md` (lines 257, 264, 272, 277, 280) per occurrence_map dd-010 through dd-014 — incl. flag-name rewrite at line 280 (WP05)
-- [ ] T023 `grep -rn 'ceremony' docs/` returns zero hits (WP05)
+- [x] T019 Rewrite `docs/development/org-doctrine-layer-architecture-review.md:481` per occurrence_map dd-007 (English-idiom rewrite) (WP05)
+- [x] T020 Rewrite `docs/development/3-2-publication-checklist.md:210` per occurrence_map dd-008 (WP05)
+- [x] T021 Rewrite `docs/engineering_notes/reflections/README.md:12` per occurrence_map dd-009 (WP05)
+- [x] T022 Rewrite all 5 occurrences in `docs/engineering_notes/finding/2026-05-24-mission-01KSAF14-orchestration-findings.md` (lines 257, 264, 272, 277, 280) per occurrence_map dd-010 through dd-014 — incl. flag-name rewrite at line 280 (WP05)
+- [x] T023 `grep -rn 'ceremony' docs/` returns zero hits (WP05)
 
 ---
 
