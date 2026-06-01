@@ -17,8 +17,8 @@ subtasks:
 - T006
 - T007
 - T008
-agent: claude
-shell_pid: '1545161'
+agent: "claude:opus:python-pedro:implementer"
+shell_pid: "1545161"
 history:
 - at: '2026-06-01T16:49:18Z'
   actor: claude
@@ -106,3 +106,7 @@ Add the `specializes_from` relation (FR-001) as a first-class DRG relation disti
 
 - Confirm the no-leak test genuinely exercises a `DELEGATES_TO` query against a lineage-only graph.
 - Confirm `edges_to` semantics mirror `edges_from` exactly (direction inverted).
+
+## Activity Log
+
+- 2026-06-01T17:29:12Z – claude:opus:python-pedro:implementer – shell_pid=1545161 – Assigned agent via action command
