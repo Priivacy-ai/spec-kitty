@@ -7,7 +7,9 @@ agent lifecycle implementations.
 from __future__ import annotations
 
 import contextlib
+import json
 import re
+from pathlib import Path
 
 import typer
 from rich.console import Console
@@ -152,12 +154,62 @@ def plan(
                     )
 
 
+def _emit_tasks_missing_mission_guidance(repo_root: Path, *, json_output: bool) -> None:
+    payload = agent_feature._build_setup_plan_detection_error(  # noqa: SLF001
+        repo_root,
+        "--mission <slug> is required",
+        None,
+        error_code="FEATURE_CONTEXT_UNRESOLVED",
+        command_name="finalize-tasks",
+        command_args=["--json"] if json_output else [],
+    )
+    missions = payload.get("available_missions")
+    if isinstance(missions, list) and missions:
+        args_suffix = " --json" if json_output else ""
+        payload["example_command"] = f"spec-kitty tasks --mission {missions[0]}{args_suffix}"
+
+    if json_output:
+        print(json.dumps(payload))
+    else:
+        _console.print(f"[red]Error:[/red] {payload['error']}")
+        if isinstance(missions, list):
+            for slug in missions[:10]:
+                _console.print(f"  - {slug}")
+        if "example_command" in payload:
+            _console.print(f"  {payload['example_command']}")
+
+
 def tasks(
+    mission: str | None = typer.Option(None, "--mission", help="Mission slug (e.g., 001-user-authentication)"),
+    feature: str | None = typer.Option(None, "--feature", hidden=True, help="(deprecated) Use --mission"),
     json_output: bool = typer.Option(False, "--json", help="Emit JSON result"),
 ) -> None:
     """Finalize tasks metadata after task generation."""
     _enforce_initialized()
-    agent_feature.finalize_tasks(json_output=json_output)
+    resolved_mission = None
+    if mission is not None or feature is not None:
+        try:
+            resolved = resolve_selector(
+                canonical_value=mission,
+                canonical_flag="--mission",
+                alias_value=feature,
+                alias_flag="--feature",
+                suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
+                command_hint="--mission <slug>",
+            )
+        except typer.BadParameter as exc:
+            if json_output:
+                print(json.dumps({"error": str(exc)}))
+            else:
+                _console.print(f"[red]Error:[/red] {exc}")
+            raise typer.Exit(1) from exc
+        resolved_mission = resolved.canonical_value
+    else:
+        repo_root = locate_project_root()
+        if repo_root is not None:
+            _emit_tasks_missing_mission_guidance(repo_root, json_output=json_output)
+            raise typer.Exit(1)
+    agent_feature.finalize_tasks(feature=resolved_mission, json_output=json_output)
 
 
 __all__ = ["specify", "plan", "tasks"]
