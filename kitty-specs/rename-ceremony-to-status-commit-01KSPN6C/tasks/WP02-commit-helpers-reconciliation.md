@@ -19,8 +19,8 @@ subtasks:
 - T006
 - T007
 phase: Phase 1 - Foundation
-agent: claude
-shell_pid: '57023'
+agent: "claude:sonnet:reviewer:reviewer"
+shell_pid: "69792"
 history:
 - at: '2026-05-28T07:11:05Z'
   actor: system
@@ -182,3 +182,8 @@ PWHEADLESS=1 pytest tests/architectural/ -v
 - Plan: [../plan.md](../plan.md)
 - Occurrence map: [../occurrence_map.yaml](../occurrence_map.yaml) — entries `ufs-001`, `ufs-002`
 - Term-rename contract: [../contracts/term-rename-contract.md](../contracts/term-rename-contract.md) — Rule R1
+
+## Activity Log
+
+- 2026-06-01T07:38:17Z – claude – shell_pid=57023 – Ready for review
+- 2026-06-01T07:43:33Z – claude:sonnet:reviewer:reviewer – shell_pid=69792 – Started review via action command
