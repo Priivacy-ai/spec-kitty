@@ -282,6 +282,29 @@ Python 3.11+ (existing spec-kitty codebase): Follow standard conventions
 - 023-documentation-sprint-agent-management-cleanup: Added Markdown (documentation only) + None (pure documentation)
 <!-- MANUAL ADDITIONS START -->
 
+## ⚠️ CRITICAL: Always Use a PR — Never Push Directly to Main
+
+**NEVER push commits directly to `main`. Always create a PR.**
+
+After `spec-kitty merge` completes (which merges mission lanes locally into `main`), immediately create a PR branch before pushing:
+
+```bash
+# 1. Create a PR branch from your local main (which has the merge)
+git checkout -b pr/<mission-slug>
+
+# 2. Push the PR branch (NOT main)
+git push origin pr/<mission-slug>
+
+# 3. Create the PR targeting main
+gh pr create --title "..." --body "..."
+
+# 4. Do NOT push main directly
+```
+
+This applies to ALL work: mission merges, hotfixes, doc updates, everything. The only commits that go directly to `main` are automated merges triggered by an approved PR.
+
+---
+
 ## PyPI Release (Quick Reference)
 
 **CRITICAL: NEVER create releases without explicit user instruction!**
