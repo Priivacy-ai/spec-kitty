@@ -93,6 +93,85 @@ class TestFeatureDirStatusPaths:
         assert (repo / paths[0]).exists()
 
 
+class TestPlanningArtifactIdempotentCommit:
+    """Sequential claims must not fail on already-committed planning edits.
+
+    The coordination model commits a claim's planning-artifact edits to the
+    coordination branch but leaves them uncommitted in the main checkout. A
+    later claim re-discovers those edits as "uncommitted"; committing the
+    identical content again is an empty commit, which ``safe_commit`` rejects
+    with "git commit failed" — blocking every claim after the first. The commit
+    path must treat already-on-coord content as an idempotent no-op.
+    """
+
+    def test_committing_content_already_on_coord_is_noop(self, tmp_path: Path) -> None:
+        from specify_cli.cli.commands.implement import (
+            _ensure_planning_artifacts_committed_git,
+        )
+
+        repo = tmp_path / "repo"
+        repo.mkdir()
+
+        def git(*args: str) -> str:
+            return subprocess.run(
+                ["git", *args], cwd=repo, check=True, capture_output=True, text=True
+            ).stdout.strip()
+
+        mission_slug = "demo-feature"
+        mission_id = "01J6XW9K00000000000000000P"
+        mid8 = mission_id[:8]
+        coord_branch = f"kitty/mission-{mission_slug}-{mid8}"
+
+        git("init", "-q", "-b", "main")
+        git("config", "user.email", "t@example.com")
+        git("config", "user.name", "Test")
+        git("config", "commit.gpgsign", "false")
+        (repo / "seed.txt").write_text("seed\n", encoding="utf-8")
+        git("add", "seed.txt")
+        git("commit", "-q", "-m", "initial")
+
+        feature_dir = repo / "kitty-specs" / mission_slug
+        _make_meta(
+            feature_dir,
+            with_coord=True,
+            mission_id=mission_id,
+            mission_slug=mission_slug,
+        )
+        wp = feature_dir / "tasks" / "WP01.md"
+        wp.parent.mkdir(parents=True, exist_ok=True)
+
+        # 1) Commit the WP file with content X; point coord at it (coord HEAD == X).
+        wp.write_text("lane: in_progress\n", encoding="utf-8")
+        git("add", "-A")
+        git("commit", "-q", "-m", "feature dir @ X")
+        git("branch", coord_branch)
+        coord_before = git("rev-parse", coord_branch)
+
+        # 2) Advance main HEAD so the tracked WP file differs (content Y).
+        wp.write_text("lane: in_progress\nY\n", encoding="utf-8")
+        git("add", "-A")
+        git("commit", "-q", "-m", "main @ Y")
+
+        # 3) Working tree: restore content X. Now `git status` reports WP as
+        #    modified (differs from main HEAD=Y) but its content equals coord=X.
+        wp.write_text("lane: in_progress\n", encoding="utf-8")
+        assert git("status", "--porcelain", str(feature_dir))  # dirty
+
+        # MUST NOT raise: the only dirty file already matches coord, so the
+        # commit is an idempotent no-op (previously raised "git commit failed").
+        _ensure_planning_artifacts_committed_git(
+            repo_root=repo,
+            feature_dir=feature_dir,
+            mission_slug=mission_slug,
+            wp_id="WP02",
+            planning_branch="main",
+            auto_commit=True,
+        )
+
+        # No empty commit was created on the coordination branch.
+        assert git("rev-parse", coord_branch) == coord_before
+
+
 class TestPlanningArtifactPath:
     """Modern (post-WP03) mission routes planning artifacts through coord branch."""
 

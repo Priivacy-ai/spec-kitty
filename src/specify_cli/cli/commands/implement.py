@@ -311,6 +311,45 @@ def _resolve_bookkeeping_transaction_identifiers(
     return coord_branch, mission_id, mid8, effective_mission_id, effective_mid8
 
 
+def _coord_branch_blob(repo_root: Path, ref: str, repo_rel_path: str) -> bytes | None:
+    """Return the bytes of *repo_rel_path* at *ref*, or ``None`` if absent there."""
+    result = subprocess.run(
+        ["git", "show", f"{ref}:{repo_rel_path}"],
+        cwd=repo_root,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout
+
+
+def _files_changed_vs_ref(
+    repo_root: Path, files: list[str], ref: str | None
+) -> list[str]:
+    """Drop files whose working-tree content already matches *ref*.
+
+    The coordination model commits claim-time planning-artifact edits to the
+    coordination branch but leaves them uncommitted in the main checkout. The
+    next claim re-discovers those edits as "uncommitted" even though their
+    content is already on the coordination branch. Committing them again would
+    produce an empty commit, which ``safe_commit`` rejects ("git commit failed")
+    — silently blocking every claim after the first. Filtering to genuinely
+    changed files makes the planning-artifact commit idempotent.
+    """
+    if not ref:
+        return files
+    changed: list[str] = []
+    for repo_rel in files:
+        source = (repo_root / Path(repo_rel)).resolve()
+        if not source.exists():
+            # Deletions are not handled by the artifact-write path anyway.
+            continue
+        if _coord_branch_blob(repo_root, ref, repo_rel) != source.read_bytes():
+            changed.append(repo_rel)
+    return changed
+
+
 def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestration helper; unrelated to issue #1386
     repo_root: Path,
     feature_dir: Path,
@@ -323,6 +362,18 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
     """Ensure planning artifacts are committed on the feature planning branch."""
     current_branch = _git_stdout(repo_root, ["rev-parse", "--abbrev-ref", "HEAD"])
     files_to_commit = _feature_dir_status_paths(repo_root, feature_dir)
+    if not files_to_commit:
+        return
+
+    # Idempotency guard: skip files already identical on the coordination branch
+    # so a re-discovered (but already-committed) edit does not produce an empty
+    # commit that ``safe_commit`` rejects. See ``_files_changed_vs_ref``.
+    coord_branch_for_filter = _resolve_bookkeeping_transaction_identifiers(
+        feature_dir, mission_slug
+    )[0]
+    files_to_commit = _files_changed_vs_ref(
+        repo_root, files_to_commit, coord_branch_for_filter
+    )
     if not files_to_commit:
         return
 
