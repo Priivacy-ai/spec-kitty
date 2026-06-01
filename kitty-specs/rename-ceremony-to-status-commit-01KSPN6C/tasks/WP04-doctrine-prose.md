@@ -18,8 +18,8 @@ subtasks:
 - T017
 - T018
 phase: Phase 1 - Foundation
-agent: claude
-shell_pid: '59803'
+agent: "claude:sonnet:reviewer:reviewer"
+shell_pid: "72403"
 history:
 - at: '2026-05-28T07:11:05Z'
   actor: system
@@ -203,3 +203,4 @@ Expected: **zero hits**. If any hit appears, classify per occurrence_map (commit
 ## Activity Log
 
 - 2026-06-01T07:36:54Z – claude – shell_pid=59803 – Ready for review
+- 2026-06-01T07:43:45Z – claude:sonnet:reviewer:reviewer – shell_pid=72403 – Started review via action command
