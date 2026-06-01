@@ -45,7 +45,7 @@ def _protected_branch_status_commit_error(branch: str, repo_root: Path) -> str |
         return None
     return (
         f"Refusing to start implementation status on protected branch '{branch}' "
-        "before mutating status files. Run this ceremony from an allowed "
+        "before mutating status files. Run this status commit from an allowed "
         "coordination/lane branch, or rerun with --no-auto-commit when you "
         "intentionally want to handle the status artifact commit manually."
     )

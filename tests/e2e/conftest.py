@@ -23,7 +23,7 @@ from specify_cli.migration.schema_version import MAX_SUPPORTED_SCHEMA, SCHEMA_CA
 from charter.sync import sync as sync_charter
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-E2E_CEREMONY_BRANCH = "e2e-ceremony"
+E2E_STATUS_COMMIT_BRANCH = "e2e-status-commit"
 
 
 def _write_built_in_only_manifest(project: Path) -> None:
@@ -212,10 +212,10 @@ def format_subprocess_failure(
     )
 
 
-def _checkout_e2e_ceremony_branch(project: Path) -> None:
-    """Run ceremony-writing E2E workflows away from protected main/master."""
+def _checkout_e2e_status_commit_branch(project: Path) -> None:
+    """Run status-commit E2E workflows away from protected main/master."""
     subprocess.run(
-        ["git", "checkout", "-b", E2E_CEREMONY_BRANCH],
+        ["git", "checkout", "-b", E2E_STATUS_COMMIT_BRANCH],
         cwd=project,
         check=True,
         capture_output=True,
@@ -230,7 +230,7 @@ def e2e_project(tmp_path: Path) -> Path:
     - Copies .kittify from the real repo root
     - Copies missions from src/specify_cli/missions/
     - Initializes git with main branch and initial commit
-    - Checks out an E2E ceremony branch for workflow write operations
+    - Checks out an E2E status commit branch for workflow write operations
     - Aligns metadata version with source to avoid mismatch errors
     """
     project = tmp_path / "e2e-project"
@@ -371,7 +371,7 @@ def e2e_project(tmp_path: Path) -> Path:
         check=True,
         capture_output=True,
     )
-    _checkout_e2e_ceremony_branch(project)
+    _checkout_e2e_status_commit_branch(project)
 
     return project
 
@@ -446,6 +446,6 @@ def fresh_e2e_project(tmp_path: Path) -> Path:
         check=True,
         capture_output=True,
     )
-    _checkout_e2e_ceremony_branch(project)
+    _checkout_e2e_status_commit_branch(project)
 
     return project

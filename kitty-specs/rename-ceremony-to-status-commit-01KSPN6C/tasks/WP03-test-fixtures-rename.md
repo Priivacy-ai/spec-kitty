@@ -10,7 +10,9 @@ tracker_refs: []
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
-created_at: '2026-05-28T07:11:05Z'
+base_branch: kitty/mission-rename-ceremony-to-status-commit-01KSPN6C
+base_commit: 6a553f0a7841a3e2c17652192160cd11af4bfcfa
+created_at: '2026-06-01T07:34:17.933996+00:00'
 subtasks:
 - T008
 - T009
@@ -20,7 +22,8 @@ subtasks:
 - T013
 - T014
 phase: Phase 1 - Foundation
-agent: claude
+agent: "claude:sonnet:reviewer:reviewer"
+shell_pid: "71097"
 history:
 - at: '2026-05-28T07:11:05Z'
   actor: system
@@ -260,3 +263,8 @@ Note: this grep covers all of `tests/`, not only this WP's owned files. Other WP
 - Spec: [../spec.md](../spec.md) — FR-001, FR-005, FR-011
 - Occurrence map: [../occurrence_map.yaml](../occurrence_map.yaml) — `cs-001..004`, `sk-001..003`, `tf-001..003`
 - Term-rename contract: [../contracts/term-rename-contract.md](../contracts/term-rename-contract.md) — Rules R3, R4
+
+## Activity Log
+
+- 2026-06-01T07:38:00Z – claude – shell_pid=58533 – Ready for review
+- 2026-06-01T07:43:39Z – claude:sonnet:reviewer:reviewer – shell_pid=71097 – Started review via action command
