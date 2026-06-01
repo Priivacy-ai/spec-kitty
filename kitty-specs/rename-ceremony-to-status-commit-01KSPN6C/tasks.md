@@ -194,9 +194,9 @@ The `[P]` markers in the Parallel column above are reference-only; status tracki
 
 ### Subtasks
 
-- [ ] T024 Create `tests/architectural/test_no_legacy_terminology.py` with grep-based test functions for "ceremony" and "status-writing"; exclude `kitty-specs/`, `.worktrees/`, `.venv/`, `node_modules/`; build forbidden terms from string fragments to avoid self-flag (WP06)
-- [ ] T025 Run new test from lane workspace after preceding WPs are merged; confirm green (WP06)
-- [ ] T026 Run full `pytest tests/architectural/` to confirm no regression in existing arch tests (WP06)
+- [x] T024 Create `tests/architectural/test_no_legacy_terminology.py` with grep-based test functions for "ceremony" and "status-writing"; exclude `kitty-specs/`, `.worktrees/`, `.venv/`, `node_modules/`; build forbidden terms from string fragments to avoid self-flag (WP06)
+- [x] T025 Run new test from lane workspace after preceding WPs are merged; confirm green (WP06)
+- [x] T026 Run full `pytest tests/architectural/` to confirm no regression in existing arch tests (WP06)
 
 ---
 
