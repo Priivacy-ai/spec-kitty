@@ -242,6 +242,15 @@ def append_event_verified(feature_dir: Path, event: StatusEvent) -> None:
     verify_event_readback(feature_dir, event)
 
 
+def append_primary_checkout_event_verified(feature_dir: Path, event: StatusEvent) -> None:
+    """Append one event to the primary-checkout event log.
+
+    Coordination worktree callers must not use this helper; they route through
+    ``coordination.status_service.EventLogWriteContract`` instead.
+    """
+    append_event_verified(feature_dir, event)
+
+
 def append_events_atomic(feature_dir: Path, events: list[StatusEvent]) -> None:
     """Atomically persist a batch of StatusEvents as JSONL lines.
 
@@ -288,6 +297,14 @@ def append_events_atomic_verified(feature_dir: Path, events: list[StatusEvent]) 
         ) from exc
     for event in events:
         verify_event_readback(feature_dir, event)
+
+
+def append_primary_checkout_events_atomic_verified(
+    feature_dir: Path,
+    events: list[StatusEvent],
+) -> None:
+    """Append a batch to the primary-checkout event log."""
+    append_events_atomic_verified(feature_dir, events)
 
 
 def read_events_raw(feature_dir: Path) -> list[dict[str, Any]]:

@@ -14,13 +14,16 @@ from pathlib import Path
 from typing import cast
 
 from specify_cli.coordination.outbound import queue_saas_emission
+from specify_cli.coordination.status_service import (
+    EventLogReadContract,
+    read_event_log,
+    wp_lane_actor_from_events,
+)
 from specify_cli.coordination.transaction import BookkeepingTransaction
 from specify_cli.mission_metadata import load_meta
 from specify_cli.status import emit as _emit
 from specify_cli.status.adapters import fire_dossier_sync
 from specify_cli.status.models import DoneEvidence, GuardContext, Lane, StatusEvent, TransitionRequest
-from specify_cli.status.reducer import reduce
-from specify_cli.status.store import EVENTS_FILENAME, read_events, read_events_from_text
 from specify_cli.status.transitions import resolve_lane_alias, validate_transition
 from specify_cli.workspace import canonicalize_feature_dir
 
@@ -236,9 +239,9 @@ def _read_events_from_transaction_target(
 ) -> list[StatusEvent]:
     """Read target status events without creating worktrees or commits."""
     if not _transaction_topology_available(identity, mission_slug):
-        return read_events(identity.feature_dir)
+        return read_event_log(EventLogReadContract.primary_checkout(identity.feature_dir))
     if identity.coordination_branch is None:
-        return read_events(identity.feature_dir)
+        return read_event_log(EventLogReadContract.primary_checkout(identity.feature_dir))
 
     from specify_cli.coordination.workspace import CoordinationWorkspace  # noqa: PLC0415
 
@@ -252,39 +255,18 @@ def _read_events_from_transaction_target(
         identity.mid8,
     )
     if worktree_root.exists():
-        return read_events(transaction_feature_dir)
+        return read_event_log(
+            EventLogReadContract.coordination_worktree(transaction_feature_dir)
+        )
 
-    events_ref = (
-        f"{identity.destination_ref}:"
-        f"kitty-specs/{transaction_feature_dir.name}/{EVENTS_FILENAME}"
+    return read_event_log(
+        EventLogReadContract.coordination_branch_ref(
+            repo_root=identity.repo_root,
+            destination_ref=identity.destination_ref,
+            feature_dir=transaction_feature_dir,
+            parser_feature_dir=identity.feature_dir,
+        )
     )
-    result = subprocess.run(
-        ["git", "-C", str(identity.repo_root), "show", events_ref],
-        check=False,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-    )
-    if result.returncode != 0:
-        return []
-    return read_events_from_text(identity.feature_dir, result.stdout)
-
-
-def _state_from_events(events: list[StatusEvent], wp_id: str) -> tuple[Lane, str | None]:
-    if not events:
-        return Lane.PLANNED, None
-    snapshot = reduce(events)
-    state = snapshot.work_packages.get(wp_id)
-    if not state:
-        return Lane.PLANNED, None
-    try:
-        lane = Lane(str(state.get("lane", Lane.PLANNED)))
-    except ValueError:
-        lane = Lane.PLANNED
-    actor = state.get("actor")
-    actor_key = str(actor).strip() if actor is not None else ""
-    return lane, actor_key or None
 
 
 def read_current_wp_state_transactional(
@@ -305,7 +287,8 @@ def read_current_wp_state_transactional(
             repo_root=repo_root,
         )
     )
-    events = _read_events_from_transaction_target(identity, mission_slug)
+    contract = _read_contract_from_transaction_target(identity, mission_slug)
+    events = read_event_log(contract)
     if not events and not _transaction_topology_available(identity, mission_slug):
         from specify_cli.status.lane_reader import get_wp_lane  # noqa: PLC0415
 
@@ -313,7 +296,38 @@ def read_current_wp_state_transactional(
             return Lane(resolve_lane_alias(get_wp_lane(identity.feature_dir, wp_id))), None
         except Exception:  # noqa: BLE001 -- non-git test fixtures may lack WP files
             return Lane.PLANNED, None
-    return _state_from_events(events, wp_id)
+    return wp_lane_actor_from_events(events, wp_id)
+
+
+def _read_contract_from_transaction_target(
+    identity: _TransactionIdentity,
+    mission_slug: str,
+) -> EventLogReadContract:
+    """Resolve the read-only contract for the transaction write target."""
+    if not _transaction_topology_available(identity, mission_slug):
+        return EventLogReadContract.primary_checkout(identity.feature_dir)
+    if identity.coordination_branch is None:
+        return EventLogReadContract.primary_checkout(identity.feature_dir)
+
+    from specify_cli.coordination.workspace import CoordinationWorkspace  # noqa: PLC0415
+
+    worktree_root = CoordinationWorkspace.worktree_path(
+        identity.repo_root,
+        mission_slug,
+        identity.mid8,
+    )
+    transaction_feature_dir = worktree_root / "kitty-specs" / _transaction_dir_name(
+        mission_slug,
+        identity.mid8,
+    )
+    if worktree_root.exists():
+        return EventLogReadContract.coordination_worktree(transaction_feature_dir)
+    return EventLogReadContract.coordination_branch_ref(
+        repo_root=identity.repo_root,
+        destination_ref=identity.destination_ref,
+        feature_dir=transaction_feature_dir,
+        parser_feature_dir=identity.feature_dir,
+    )
 
 
 def read_events_transactional(

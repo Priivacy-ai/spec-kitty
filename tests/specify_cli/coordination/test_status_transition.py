@@ -13,8 +13,16 @@ from specify_cli.coordination.status_transition import (
     emit_status_transition_transactional,
     read_events_transactional,
 )
+from specify_cli.coordination.status_service import (
+    EventLogReadContract,
+    EventLogWriteContract,
+    StatusContractError,
+    append_event_log,
+    merge_append_preserving_coordination_event_log_bytes,
+    read_event_log,
+)
 from specify_cli.coordination.transaction import BookkeepingCommitFailed, BookkeepingWorktreeMissing
-from specify_cli.status.models import TransitionRequest
+from specify_cli.status.models import Lane, StatusEvent, TransitionRequest
 
 pytest_plugins = ("tests.conftest_saas_sink",)
 
@@ -76,6 +84,21 @@ def _request(repo: Path) -> TransitionRequest:
     )
 
 
+def _status_event(event_id: str, *, to_lane: str = "claimed") -> StatusEvent:
+    return StatusEvent(
+        event_id=event_id,
+        mission_slug=MISSION_SLUG,
+        mission_id=MISSION_ID,
+        wp_id="WP01",
+        from_lane=Lane.PLANNED,
+        to_lane=Lane(to_lane),
+        at="2026-06-01T00:00:00+00:00",
+        actor="contract-test",
+        force=False,
+        execution_mode="worktree",
+    )
+
+
 def test_transactional_emit_fans_out_only_after_commit(
     repo: Path,
     mock_saas_sink: Any,
@@ -100,6 +123,66 @@ def test_transactional_read_targets_coordination_branch(repo: Path) -> None:
 
     assert [e.event_id for e in events] == [event.event_id]
     assert not (repo / "kitty-specs" / MISSION_DIRNAME / "status.events.jsonl").exists()
+
+
+def test_primary_checkout_event_log_read_remains_explicit(repo: Path) -> None:
+    feature_dir = repo / "kitty-specs" / MISSION_DIRNAME
+    event = _status_event("01PRIMARY00000000000000000")
+
+    append_event_log(EventLogWriteContract.primary_checkout_append(feature_dir), event)
+    events = read_event_log(EventLogReadContract.primary_checkout(feature_dir))
+
+    assert [e.event_id for e in events] == [event.event_id]
+    assert (feature_dir / "status.events.jsonl").exists()
+
+
+def test_coordination_branch_ref_read_ignores_stale_primary_checkout(repo: Path) -> None:
+    feature_dir = repo / "kitty-specs" / MISSION_DIRNAME
+    primary_event = _status_event("01PRIMARYSTALE00000000000", to_lane="planned")
+    coord_event = _status_event("01COORDCURRENT00000000000", to_lane="claimed")
+    append_event_log(EventLogWriteContract.primary_checkout_append(feature_dir), primary_event)
+
+    worktree = repo / ".worktrees" / "seed-coord"
+    _git(repo, "worktree", "add", "-q", str(worktree), COORD_BRANCH)
+    coord_feature_dir = worktree / "kitty-specs" / MISSION_DIRNAME
+    append_event_log(
+        EventLogWriteContract.coordination_transaction_append(coord_feature_dir),
+        coord_event,
+    )
+    _git(worktree, "add", "kitty-specs")
+    _git(worktree, "commit", "-q", "-m", "seed coord event")
+    _git(repo, "worktree", "remove", "-f", str(worktree))
+
+    events = read_event_log(
+        EventLogReadContract.coordination_branch_ref(
+            repo_root=repo,
+            destination_ref=COORD_BRANCH,
+            feature_dir=coord_feature_dir,
+            parser_feature_dir=feature_dir,
+        )
+    )
+
+    assert [e.event_id for e in events] == [coord_event.event_id]
+    assert read_event_log(EventLogReadContract.primary_checkout(feature_dir))[0].event_id == primary_event.event_id
+
+
+def test_read_contract_cannot_be_used_as_write_contract(repo: Path) -> None:
+    event = _status_event("01CONTRACTFAIL000000000000")
+
+    with pytest.raises(StatusContractError):
+        append_event_log(  # type: ignore[arg-type]
+            EventLogReadContract.primary_checkout(repo / "kitty-specs" / MISSION_DIRNAME),
+            event,
+        )
+
+
+def test_append_preserving_coordination_merge_keeps_existing_history() -> None:
+    coord = b'{"event_id":"existing"}\n'
+    incoming = b'{"event_id":"existing"}\n{"event_id":"new"}\n'
+
+    merged = merge_append_preserving_coordination_event_log_bytes(coord, incoming)
+
+    assert merged == b'{"event_id":"existing"}\n{"event_id":"new"}\n'
 
 
 def test_transactional_read_does_not_create_coordination_worktree(repo: Path) -> None:
