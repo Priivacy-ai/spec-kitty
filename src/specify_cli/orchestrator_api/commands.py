@@ -235,11 +235,29 @@ def _get_main_repo_root() -> Path:
 
 
 def _resolve_mission_dir(main_repo_root: Path, mission_slug: str) -> Path | None:
-    """Return the mission directory if it exists, else None."""
-    mission_dir = main_repo_root / "kitty-specs" / mission_slug
-    if not mission_dir.exists():
+    """Return the coord-aware mission status directory if it exists, else None.
+
+    For modern missions (coord-branch topology), returns the coordination
+    worktree path. For legacy missions, returns the primary checkout path.
+    Falls back to None when neither exists.
+    """
+    from specify_cli.missions._read_path_resolver import (
+        resolve_mission_read_path,
+        StatusReadPathNotFound,
+    )
+
+    mid8 = ""
+    if "-" in mission_slug:
+        tail = mission_slug.rsplit("-", 1)[-1]
+        if len(tail) == 8 and tail.isalnum() and tail.isupper():
+            mid8 = tail
+
+    try:
+        mission_dir = resolve_mission_read_path(main_repo_root, mission_slug, mid8)
+    except StatusReadPathNotFound:
         return None
-    return mission_dir
+
+    return mission_dir if mission_dir.exists() else None
 
 
 def _mission_identity_payload(mission_dir: Path) -> dict[str, str]:
