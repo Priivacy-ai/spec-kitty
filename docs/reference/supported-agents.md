@@ -1,12 +1,14 @@
 # Supported AI Agents Reference
 
-Spec Kitty currently exposes **13 slash-command agent surfaces**. This page documents the agents that get user-global command directories such as `~/.claude/commands/` or `~/.opencode/command/`.
+Spec Kitty currently exposes **17 agent surfaces**: 13 slash-command or prompt-file hosts and 4 project-local command-skill hosts.
 
-Related assistant integrations such as Codex CLI, Vibe, Pi, and Letta Code use shared skill roots rather than slash-command directories, so they are intentionally out of scope for this specific table.
+Slash-command agents get user-global command directories such as `~/.claude/commands/` or `~/.opencode/command/`. Codex CLI, Vibe, Pi, and Letta Code use shared project-local Agent Skills under `.agents/skills/spec-kitty.<command>/`.
 
 ---
 
 ## Agent Overview
+
+### Slash-command and prompt-file agents
 
 | Agent | Global Directory | Commands Subdirectory | Slash Commands |
 |-------|------------------|----------------------|----------------|
@@ -24,11 +26,22 @@ Related assistant integrations such as Codex CLI, Vibe, Pi, and Letta Code use s
 | Amazon Q (legacy) | `~/.amazonq/` | `prompts/` | `/spec-kitty.*` |
 | Kiro | `~/.kiro/` | `prompts/` | `/spec-kitty.*` |
 
+### Command-skill agents
+
+| Agent | Agent Key | Project Directory | Invocation Form |
+|-------|-----------|-------------------|-----------------|
+| Codex CLI | `codex` | `.agents/skills/spec-kitty.<command>/` | `$spec-kitty.<command>` |
+| Mistral Vibe | `vibe` | `.agents/skills/spec-kitty.<command>/` via `.vibe/config.toml` | Host skill syntax |
+| Pi | `pi` | `.agents/skills/spec-kitty.<command>/` | `/skill:spec-kitty.<command>` |
+| Letta Code | `letta` | `.agents/skills/spec-kitty.<command>/` | `/spec-kitty.<command>` |
+
+Command-skill packages share the same `SKILL.md` files. `.kittify/command-skills-manifest.json` records which configured agents own each package so removing one agent does not delete skills still used by another agent.
+
 ---
 
 ## Managing Active Agents
 
-Spec-kitty supports 13 AI agents (listed above). You can activate or deactivate agents at any time using the `spec-kitty agent config` command family.
+Spec-kitty supports 17 AI agents (listed above). You can activate or deactivate agents at any time using the `spec-kitty agent config` command family.
 
 To manage which agents are active in your project:
 - **View configured agents**: `spec-kitty agent config list`
@@ -36,6 +49,8 @@ To manage which agents are active in your project:
 - **Remove agents**: `spec-kitty agent config remove <agents>`
 
 See [Managing AI Agents](../how-to/manage-agents.md) for complete documentation on agent management workflows.
+
+For per-harness usage guides, see [Codex](../how-to/harnesses/codex.md), [Pi TUI](../how-to/harnesses/pi-tui.md), and [Letta Code](../how-to/harnesses/letta.md).
 
 ---
 
@@ -305,11 +320,10 @@ This registers all specified agents, allowing team members to use their preferre
 To add agent support to an existing project:
 
 ```bash
-# Upgrade refreshes global command files and project-local skill packages
-spec-kitty upgrade
+spec-kitty agent config add pi letta
 ```
 
-For project configuration, use `spec-kitty agent config add <agent>` rather than manually copying command files.
+For project configuration, use `spec-kitty agent config add <agent>` rather than manually copying command files. After upgrading an older project, `spec-kitty upgrade` refreshes missing `.pi/`, `.letta/`, and `.agents/skills/` backfill state for configured Pi and Letta projects.
 
 ---
 
@@ -333,6 +347,8 @@ All agents support the same 13 slash commands:
 | `/spec-kitty.analyze` | Analyze codebase |
 
 See [Slash Commands](slash-commands.md) for complete documentation.
+
+Command-skill hosts use the same Spec Kitty workflow commands but expose them through their host-specific skill invocation syntax. See [Supported Harnesses](supported-harnesses.md) for current tier status and per-harness links.
 
 ---
 
@@ -379,6 +395,7 @@ export CODEX_HOME="$(pwd)/.codex"
 ## See Also
 
 - [Slash Commands](slash-commands.md) — Complete command reference
+- [Supported Harnesses](supported-harnesses.md) — Support matrix for every agent surface
 - [CLI Commands](cli-commands.md) — `spec-kitty` command reference
 - [Install & Upgrade](../how-to/install-spec-kitty.md) — Installation guide
 

@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "mission_slug": "pi-and-letta-agent-support-01KT4Q26",
+  "mission_id": "01KT4Q26YT9B4ZNBC4GH0D2WNM",
+  "mission_branch": "kitty/mission-pi-and-letta-agent-support-01KT4Q26",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/upgrade/migrations/m_3_2_10_pi_letta_backfill.py",
+        "tests/specify_cli/upgrade/migrations/test_m_3_2_10_pi_letta_backfill.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "CLAUDE.md",
+        "architecture/3.x/adr/2026-06-02-1-pi-agent-skill-only-support.md",
+        "architecture/3.x/adr/2026-06-02-2-letta-agent-skill-only-support.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-06-02T17:58:41.068179+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP02"
+  ]
+}

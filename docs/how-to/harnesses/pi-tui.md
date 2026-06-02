@@ -29,6 +29,9 @@ Per the [supported-harnesses matrix](../../reference/supported-harnesses.md), Pi
 - **Directory:** `.agents/skills/spec-kitty.<command>/`
 - **Files:** one `SKILL.md` per command (`spec-kitty.specify/SKILL.md`, `spec-kitty.plan/SKILL.md`, `spec-kitty.tasks/SKILL.md`, `spec-kitty.implement/SKILL.md`, etc.).
 - **Manifest:** `.kittify/command-skills-manifest.json` records that Pi references each command-skill package.
+- **Runtime ignore entry:** `.pi/` is added to `.gitignore` when Pi is configured.
+
+The shared `.agents/skills/` tree can be co-owned by Codex, Vibe, Pi, and Letta. Do not copy or edit the generated `SKILL.md` files manually; use `spec-kitty agent config sync` or `spec-kitty upgrade` to refresh them.
 
 ## Canonical invocation
 

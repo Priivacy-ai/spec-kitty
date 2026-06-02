@@ -190,3 +190,4 @@ pytest-of-*/
 .kittify/pending-origin.yaml
 .kittify/mission-brief.md
 .kittify/brief-source.yaml
+.kittify/charter/synthesis-manifest.yaml
