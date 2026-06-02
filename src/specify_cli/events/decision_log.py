@@ -84,7 +84,7 @@ class DecisionGitLog:
         self._mission_id = mission_id or mission_slug
         self._inner = inner
         self._decisions_file = (
-            repo_root / "kitty-specs" / mission_slug / "decisions.events.jsonl"
+            worktree_root / "kitty-specs" / mission_slug / "decisions.events.jsonl"
         )
 
     # ------------------------------------------------------------------
@@ -197,14 +197,25 @@ class DecisionGitLog:
                 paths=(self._decisions_file,),
             )
         except SafeCommitError as exc:
+            _observed = getattr(exc, "observed_head", None)
             logger.warning(
-                "DecisionGitLog: safe_commit failed for mission %s: %s",
+                "DecisionGitLog: safe_commit failed for mission %s "
+                "(decisions_file=%s, worktree_root=%s, destination_ref=%s, "
+                "observed_head=%s, error=%s)",
                 self._mission_slug,
+                self._decisions_file,
+                self._worktree_root,
+                self._destination_ref,
+                _observed,
                 exc,
             )
         except Exception:
             logger.warning(
-                "DecisionGitLog: unexpected error in safe_commit for mission %s",
+                "DecisionGitLog: unexpected error in safe_commit for mission %s "
+                "(decisions_file=%s, worktree_root=%s, destination_ref=%s)",
                 self._mission_slug,
+                self._decisions_file,
+                self._worktree_root,
+                self._destination_ref,
                 exc_info=True,
             )

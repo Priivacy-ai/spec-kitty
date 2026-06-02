@@ -113,13 +113,26 @@ def _wrap_with_decision_git_log(
     blocked.
     """
     try:
+        from specify_cli.coordination.workspace import CoordinationWorkspace
         from specify_cli.events.decision_log import DecisionGitLog
 
         coordination_branch = _resolve_coordination_branch(mission_slug, repo_root)
         mission_id = _resolve_mission_ulid(mission_slug, repo_root)
+
+        # Resolve coord worktree path (pure static method, no side effects).
+        # Extract mid8 from slug (post-083 slugs end in "-<8-char-ULID-prefix>").
+        # Fall back to repo_root for legacy missions or pre-init runs.
+        _mid8 = ""
+        if "-" in mission_slug:
+            _tail = mission_slug.rsplit("-", 1)[-1]
+            if len(_tail) == 8 and _tail.isalnum() and _tail.isupper():
+                _mid8 = _tail
+        _coord_path = CoordinationWorkspace.worktree_path(repo_root, mission_slug, _mid8)
+        worktree_root = _coord_path if _coord_path.exists() else repo_root
+
         return DecisionGitLog(
             repo_root=repo_root,
-            worktree_root=repo_root,
+            worktree_root=worktree_root,
             destination_ref=coordination_branch,
             mission_slug=mission_slug,
             inner=emitter,
@@ -2193,7 +2206,17 @@ def decide_next_via_runtime(  # noqa: C901
     4. For non-WP steps: call next_step(run_ref, agent, result) directly
     5. Map NextDecision -> Decision (preserving JSON contract)
     """
-    feature_dir = repo_root / "kitty-specs" / mission_slug
+    from specify_cli.missions._read_path_resolver import (
+        resolve_mission_read_path as _resolve_read_path,
+    )
+
+    _mid8 = ""
+    if "-" in mission_slug:
+        _tail = mission_slug.rsplit("-", 1)[-1]
+        if len(_tail) == 8 and _tail.isalnum() and _tail.isupper():
+            _mid8 = _tail
+
+    feature_dir = _resolve_read_path(repo_root, mission_slug, _mid8)
     now = datetime.now(UTC).isoformat()
 
     if not feature_dir.is_dir():
