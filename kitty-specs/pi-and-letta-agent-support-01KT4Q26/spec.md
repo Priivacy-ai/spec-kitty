@@ -2,7 +2,7 @@
 
 ## Overview
 
-Add Pi (`pi-coding-agent`) and Letta Code (`letta`) as first-class Spec Kitty-supported agents. Both agents use the existing `.agents/skills/` discovery path and support headless non-interactive automation, making them compatible with Spec Kitty's orchestration model. This mission is structured as a design spike with prototyping deliverables: working invokers, configuration, skills installation, optional prompt/command template directories, and documented design decisions for each agent's unique behavioral model.
+Add Pi (`pi-coding-agent`) and Letta Code (`letta`) as first-class Spec Kitty-supported agents. Both agents use the existing `.agents/skills/` discovery path and support headless non-interactive automation, making them compatible with Spec Kitty's orchestration model. This mission delivers: agent configuration registration, Agent Skills installation, an upgrade migration to backfill existing projects, and documented design decisions (ADRs) for each agent's CLI model. Orchestrator invokers (`PiInvoker`, `LettaInvoker`) are explicitly out of scope for this mission and tracked in a follow-up (see FR-009, FR-010, FR-011).
 
 ## Problem Statement
 
@@ -12,8 +12,8 @@ Spec Kitty supports 17 AI agents but does not include Pi or Letta Code. Both age
 
 - Register Pi and Letta Code in all agent configuration layers so they are available via `spec-kitty agent config add pi` and `spec-kitty agent config add letta`.
 - Install Spec Kitty command skills into `.agents/skills/` for both agents at `spec-kitty init` / `spec-kitty upgrade` time.
-- Provide working orchestrator invokers (`PiInvoker`, `LettaInvoker`) so the implement/review loop can dispatch work packages to these agents.
-- Resolve the key design questions unique to each agent (Pi: JSON vs RPC output mode; Letta: stateless vs sticky session model) through prototyping and document the decisions.
+- Document design decisions for each agent's CLI model (Pi: skill-only, no `.pi/prompts/` templates; Letta: skill-only, no `.letta/commands/` templates; orchestrator invokers deferred).
+- Backfill existing projects that already have pi or letta configured via an upgrade migration.
 
 ## Non-Goals
 
@@ -27,33 +27,30 @@ Spec Kitty supports 17 AI agents but does not include Pi or Letta Code. Both age
 A developer adds Pi to a Spec Kitty project with `spec-kitty agent config add pi`, runs `spec-kitty upgrade`, and sees `.agents/skills/spec-kitty.*/SKILL.md` populated. They then run `spec-kitty next --agent pi --mission <handle>`, and Pi receives and executes a `spec-kitty agent action implement WP01` prompt non-interactively.
 
 **Scenario 2 — Letta Code agent onboarding:**
-A developer adds Letta Code with `spec-kitty agent config add letta`, runs `spec-kitty upgrade`, and sees `.agents/skills/` populated and (if configured) `.letta/commands/` populated with slash commands. They run `spec-kitty next --agent letta --mission <handle>`, and the orchestrator dispatches work using `letta -p` in headless mode.
+A developer adds Letta Code with `spec-kitty agent config add letta`, runs `spec-kitty upgrade`, and sees `.agents/skills/spec-kitty.*/SKILL.md` populated. The agent can invoke Spec Kitty skills via the `.agents/skills/` discovery root.
 
-**Scenario 3 — Orchestrator error recovery:**
-The Pi invoker receives a non-zero exit code or malformed JSON event stream; the orchestrator surfaces a structured error and does not mark the work package as complete. Same for Letta's stream-json events.
-
-**Scenario 4 — Config-aware agent directories:**
+**Scenario 3 — Config-aware agent directories:**
 A project configures only `pi` in `config.yaml`. Running `spec-kitty upgrade` creates `.agents/skills/` entries for Pi but does not create or touch Letta directories.
 
 ## Functional Requirements
 
 | ID | Description | Status |
 |----|-------------|--------|
-| FR-001 | `pi` is a valid agent key in `AI_CHOICES`, `AGENT_TOOL_REQUIREMENTS`, `AGENT_COMMAND_CONFIG`, and `AGENT_SKILL_CONFIG` in `src/specify_cli/core/config.py`. | Proposed |
-| FR-002 | `letta` is a valid agent key in `AI_CHOICES`, `AGENT_TOOL_REQUIREMENTS`, `AGENT_COMMAND_CONFIG`, and `AGENT_SKILL_CONFIG` in `src/specify_cli/core/config.py`. | Proposed |
-| FR-003 | `src/specify_cli/agent_utils/directories.py` includes a directory mapping for Pi (`.pi/prompts/` subdirectory) so that `get_agent_dirs_for_project()` returns it when `pi` is configured. | Proposed |
-| FR-004 | `src/specify_cli/agent_utils/directories.py` includes a directory mapping for Letta Code (`.letta/commands/` subdirectory) so that `get_agent_dirs_for_project()` returns it when `letta` is configured. | Proposed |
-| FR-005 | `spec-kitty init` and `spec-kitty upgrade` install Spec Kitty command skills into `.agents/skills/spec-kitty.*/SKILL.md` for Pi when `pi` is in the configured agent list. (Pi already discovers `.agents/skills/` natively; no extra config file is required.) | Proposed |
-| FR-006 | `spec-kitty init` and `spec-kitty upgrade` install Spec Kitty command skills into `.agents/skills/spec-kitty.*/SKILL.md` for Letta Code when `letta` is in the configured agent list. (Letta already discovers `.agents/skills/` natively.) | Proposed |
-| FR-007 | The design decision for Pi prompt templates (generate `.pi/prompts/spec-kitty.<command>.md` or rely on skills only) is prototyped and documented, with the chosen approach implemented. | Proposed |
-| FR-008 | The design decision for Letta slash commands (generate `.letta/commands/spec-kitty.<command>.md` or rely on skills only) is prototyped and documented, with the chosen approach implemented. | Proposed |
-| FR-009 | A `PiInvoker` is implemented in `spec-kitty-orchestrator` that constructs a `pi -p` command, selects between `--mode json` and `--mode rpc` output, and parses modified-file list, errors, and final status from the output stream. | Proposed |
-| FR-010 | A `LettaInvoker` is implemented in `spec-kitty-orchestrator` that constructs a `letta -p` command with `--output-format json` (or `stream-json`), parses system/message/usage/final-result events, and extracts modified files, errors, and final status. | Proposed |
-| FR-011 | The Letta session model design decision (stateless `--new`/`--new-agent` per WP cycle vs. sticky project agent with per-conversation `--new`) is prototyped and documented, with the chosen approach implemented in `LettaInvoker`. | Proposed |
-| FR-012 | `spec-kitty agent config add pi` and `spec-kitty agent config add letta` succeed and are reflected in `.kittify/config.yaml` without errors. | Proposed |
-| FR-013 | Migrations that update slash commands respect the configured agent list: Pi and Letta directories are created only when those agents are configured; they are not created for unconfigured agents. | Proposed |
-| FR-014 | Sandbox and security caveats for Pi (default tool set can read, write, edit, and run bash) are documented in the developer guide or agent configuration documentation. | Proposed |
-| FR-015 | Permission model caveats for Letta Code (`--yolo`, `--permission-mode`, `--tools`, `--allowedTools`, `--disallowedTools`) relevant to Spec Kitty's orchestration use case are documented. | Proposed |
+| FR-001 | `pi` is a valid agent key in `AI_CHOICES`, `AGENT_TOOL_REQUIREMENTS`, and `AGENT_SKILL_CONFIG` in `src/specify_cli/core/config.py`. Pi is a `SKILL_CLASS_SHARED` agent and is intentionally **absent** from `AGENT_COMMAND_CONFIG` (no slash-command directory). | Delivered |
+| FR-002 | `letta` is a valid agent key in `AI_CHOICES`, `AGENT_TOOL_REQUIREMENTS`, and `AGENT_SKILL_CONFIG` in `src/specify_cli/core/config.py`. Letta is a `SKILL_CLASS_SHARED` agent and is intentionally **absent** from `AGENT_COMMAND_CONFIG`. | Delivered |
+| FR-003 | Pi is registered in `SKILL_ONLY_AGENTS` in `src/specify_cli/cli/commands/agent/config.py` and in `src/specify_cli/gitignore_manager.py` with a `.pi/` gitignore entry. No `.pi/prompts/` directory mapping is added to `AGENT_DIRS` — Pi is skill-only (see ADR 2026-06-02-1). | Delivered |
+| FR-004 | Letta is registered in `SKILL_ONLY_AGENTS` and in `src/specify_cli/gitignore_manager.py` with a `.letta/` gitignore entry. No `.letta/commands/` directory mapping is added to `AGENT_DIRS` — Letta is skill-only (see ADR 2026-06-02-2). | Delivered |
+| FR-005 | `spec-kitty init` and `spec-kitty upgrade` install Spec Kitty command skills into `.agents/skills/spec-kitty.*/SKILL.md` for Pi when `pi` is in the configured agent list. (Pi discovers `.agents/skills/` and `.pi/skills/` natively; no extra config required.) | Delivered |
+| FR-006 | `spec-kitty init` and `spec-kitty upgrade` install Spec Kitty command skills into `.agents/skills/spec-kitty.*/SKILL.md` for Letta Code when `letta` is in the configured agent list. | Delivered |
+| FR-007 | The design decision for Pi prompt templates (skill-only chosen; `.pi/prompts/` not generated) is documented in ADR `architecture/3.x/adr/2026-06-02-1-pi-agent-skill-only-support.md`. | Delivered |
+| FR-008 | The design decision for Letta slash commands (skill-only chosen; `.letta/commands/` not generated) is documented in ADR `architecture/3.x/adr/2026-06-02-2-letta-agent-skill-only-support.md`. | Delivered |
+| FR-009 | A `PiInvoker` is implemented in `spec-kitty-orchestrator`. | **Deferred** — out of scope for this mission; tracked in follow-up issue (see References). |
+| FR-010 | A `LettaInvoker` is implemented in `spec-kitty-orchestrator`. | **Deferred** — out of scope for this mission; tracked in follow-up issue (see References). |
+| FR-011 | The Letta session model design decision (stateless vs. sticky) is implemented in `LettaInvoker`. | **Deferred** — depends on FR-010; tracked in follow-up issue (see References). |
+| FR-012 | `spec-kitty agent config add pi` and `spec-kitty agent config add letta` succeed and are reflected in `.kittify/config.yaml` without errors. | Delivered |
+| FR-013 | The upgrade migration (`m_3_2_10_pi_letta_backfill`) respects the configured agent list: only configured agents receive gitignore backfill and skill repair. | Delivered |
+| FR-014 | Sandbox and security caveats for Pi are documented in ADR `2026-06-02-1` (More Information section). | Delivered |
+| FR-015 | Permission model caveats for Letta Code are documented in ADR `2026-06-02-2` (More Information section). | Delivered |
 
 ## Non-Functional Requirements
 
@@ -61,7 +58,7 @@ A project configures only `pi` in `config.yaml`. Running `spec-kitty upgrade` cr
 |----|-------------|-----------|--------|
 | NFR-001 | Test coverage for new code paths (invokers, config entries, directory mappings). | ≥ 90% line coverage for new modules. | Proposed |
 | NFR-002 | Static type correctness for all new Python code. | `mypy --strict` passes with zero new errors. | Proposed |
-| NFR-003 | Invoker invocations must not block indefinitely when the underlying binary is absent. | Timeout or missing-binary error surfaced within 10 seconds. | Proposed |
+| NFR-003 | Invoker invocations must not block indefinitely when the underlying binary is absent. | Timeout or missing-binary error surfaced within 10 seconds. | **Deferred** — no invokers implemented in this mission; applies to follow-up FR-009/FR-010. |
 | NFR-004 | Agent config additions are backward-compatible: existing projects without `pi` or `letta` in config continue to behave identically. | Zero regressions in existing agent config tests. | Proposed |
 
 ## Constraints
@@ -72,17 +69,16 @@ A project configures only `pi` in `config.yaml`. Running `spec-kitty upgrade` cr
 | C-002 | Letta Code requires Node.js 18+ and `@letta-ai/letta-code`; Spec Kitty does not install them. Presence is checked at invocation time, not at install time. | Proposed |
 | C-003 | New migrations must use `get_agent_dirs_for_project()` from `m_0_9_1_complete_lane_migration` and must not recreate directories that don't exist (respect user deletions). | Proposed |
 | C-004 | `AGENT_DIRS` must not be hardcoded in new migrations; import from `m_0_9_1_complete_lane_migration`. | Proposed |
-| C-005 | Agent key mappings: `pi` maps to `.pi/prompts/`; `letta` maps to `.letta/commands/`. These keys are used in `AGENT_DIR_TO_KEY` and related structures. | Proposed |
+| C-005 | Pi and Letta are skill-only agents. Neither `.pi` nor `.letta` appear in `AGENT_DIRS` or `AGENT_DIR_TO_KEY`. The `.pi/` and `.letta/` entries exist only as gitignore entries (managed by `GitignoreManager`), not as slash-command directories. | Delivered |
 
 ## Key Entities
 
 | Entity | Description |
 |--------|-------------|
-| `PiInvoker` | Orchestrator class that builds and executes `pi -p` commands and parses Pi's JSON event stream for work package results. |
-| `LettaInvoker` | Orchestrator class that builds and executes `letta -p` commands and parses Letta's JSON or stream-JSON output for work package results. |
-| Pi prompt templates | Files in `.pi/prompts/spec-kitty.<command>.md` — the Pi equivalent of slash commands; generated at `init`/`upgrade` time if the design decision confirms they add value beyond skills alone. |
-| Letta slash commands | Files in `.letta/commands/spec-kitty.<command>.md` — the Letta equivalent of slash commands; generated at `init`/`upgrade` time if the design decision confirms they add value beyond skills alone. |
-| Agent Skills | Shared skill packages in `.agents/skills/spec-kitty.*/SKILL.md` consumed natively by Pi, Letta, Codex, Vibe, and Pi without extra configuration. |
+| `PiInvoker` | Deferred. Orchestrator class for `pi -p` dispatch — tracked in follow-up issue (see References). |
+| `LettaInvoker` | Deferred. Orchestrator class for `letta -p` dispatch — tracked in follow-up issue (see References). |
+| `PiLettaBackfillMigration` | Upgrade migration (`m_3_2_10_pi_letta_backfill`) that adds `.pi/` / `.letta/` gitignore entries and repairs missing Agent Skills for existing projects with these agents configured. |
+| Agent Skills | Shared skill packages in `.agents/skills/spec-kitty.*/SKILL.md` consumed natively by Pi, Letta, Codex, and Vibe without extra configuration. |
 
 ## Assumptions
 
@@ -93,9 +89,9 @@ A project configures only `pi` in `config.yaml`. Running `spec-kitty upgrade` cr
 
 ## Success Criteria
 
-- A developer can add `pi` or `letta` to a Spec Kitty project and run a full implement/review loop work package dispatch without manual workarounds.
-- The orchestrator correctly parses output from both agents and marks work packages with the right final status.
-- Design decisions for Pi output mode and Letta session model are recorded in the mission artifacts and referenced from developer documentation.
+- A developer can add `pi` or `letta` to a Spec Kitty project and see `.agents/skills/spec-kitty.*/SKILL.md` populated after `spec-kitty init` or `spec-kitty upgrade`.
+- Existing projects with pi or letta configured receive `.pi/` / `.letta/` gitignore entries and skill repair via `spec-kitty upgrade`.
+- Design decisions (skill-only, deferred invoker) are recorded in accepted ADRs and referenced from CLAUDE.md.
 - All new code passes `mypy --strict` and achieves ≥ 90% test coverage.
 - Existing agent config tests continue to pass without modification.
 
@@ -108,3 +104,4 @@ A project configures only `pi` in `config.yaml`. Running `spec-kitty upgrade` cr
 - `src/specify_cli/skills/command_renderer.py` and `command_installer.py` — skill package generation
 - `spec-kitty-orchestrator/src/spec_kitty_orchestrator/agents/__init__.py` — invoker registry
 - CLAUDE.md §Agent Management Best Practices — migration authoring rules
+- GitHub issue #1633 — follow-up: implement PiInvoker and LettaInvoker (deferred FR-009, FR-010, FR-011)

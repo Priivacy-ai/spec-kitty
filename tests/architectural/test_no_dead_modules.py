@@ -200,6 +200,10 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # allowlisted Cat-1 orphan by design). Test-exercised by
         # tests/specify_cli/test_sync_state_gitignore_migration.py.
         "specify_cli.upgrade.migrations.m_3_2_9_sync_state_gitignore",
+        # pi-and-letta-agent-support-01KT4Q26 WP01: backfill migration for
+        # .pi/ and .letta/ gitignore entries and skill-pack repair.
+        # Auto-discovered via pkgutil.iter_modules; never statically imported.
+        "specify_cli.upgrade.migrations.m_3_2_10_pi_letta_backfill",
     }
 )
 
