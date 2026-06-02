@@ -54,7 +54,8 @@ kitty-specs/org-doctrine-profile-integrity-closeout-01KT3G68/
 src/
 ├── specify_cli/
 │   └── cli/commands/
-│       ├── doctor.py                     # FR-001: _collect_profile_health must not fail-to-green; FR-012 (opt) extract render helpers
+│       ├── doctor.py                     # FR-001 (consumer): _collect_profile_health reports healthy:false; FR-012 (opt) extract render helpers
+│       └── _doctrine_health.py           # FR-001: DoctrineHealthReport.healthy invariant (all([])==True green-on-empty mechanism, line ~112)
 │       └── charter/
 │           ├── activate.py               # FR-006: route ArtifactKind/MissionTypeNotAnArtifactKind via charter facade
 │           └── list_cmd.py               # FR-006: route CHARTER_KIND_TOKENS/ResolutionTier/template_catalog via charter facades
@@ -64,8 +65,8 @@ src/
 │   └── kind_vocabulary.py / resolution.py # FR-006: existing facades reused (no change expected)
 └── doctrine/
     ├── agent_profiles/
-    │   ├── repository.py                 # FR-001/003: inline-ref rejection skip-vs-propagate decision
-    │   └── diagnostics.py                # FR-003: docstring consistency
+    │   ├── repository.py                 # FR-001 (PRIMARY edit): _load_layer catches InlineReferenceRejectedError -> _record_skip
+    │   └── diagnostics.py                # FR-003: docstring reconciled to "surfaced skip"
     ├── drg/merge.py                      # FR-005: _tag_source generic over BaseModel; FR-013 (opt) provenance typing
     └── (events) specify_cli/next/_internal_runtime/events.py  # FR-009: drop redundant re-exports OR scope claim
 
@@ -85,10 +86,10 @@ kitty-specs/<parent>/acceptance-matrix.json # FR-010: populate per-FR criteria +
 
 ## Implementation Approach (by finding)
 
-- **I-1/I-2 (merge blockers, do first):** decide inline-ref skip-vs-propagate (research R1) → fix `_collect_profile_health` to surface invalid profiles as `healthy:false`; add the missing integration test driving `doctor doctrine` against a `tactic_refs` org profile (RED→GREEN). Add `pytestmark` to the 5 named test files.
+- **I-1/I-2 (merge blockers, do first):** per R1 (revised after review), fix at the **load layer** — `repository._load_layer` catches `InlineReferenceRejectedError` → `_record_skip` so valid sibling profiles still load and the skip carries `{path, id, error_summary}`; `_collect_profile_health` then reports `healthy:false`. A consumer-only catch is insufficient (loading is eager/all-or-nothing; can't keep valid profiles visible — alphonso A1 / debbie DD-1). Add the integration test driving `doctor doctrine` against a `tactic_refs` org profile (RED→GREEN); it also proves C2 (no fail-to-green) and asserts valid siblings remain visible. **Exit code stays 0** (out of scope — A3). Add `pytestmark` to the 5 named test files, **with correct per-file markers** (P-3/P-4): `integration` for the I/O-heavy `test_operational_context_wiring.py` and the new doctor test; `fast`/`unit` for the 4 pure files (the convention gate only checks presence, not correctness).
 - **I-3:** `_tag_source[T: BaseModel](obj: T) -> T`; verify `mypy --strict src/doctrine/drg/merge.py` clean.
-- **I-4/I-7-boundary:** add `charter/template_catalog.py` facade; repoint `activate.py`/`list_cmd.py` imports to `charter.*`; remove both `_BASELINE_ALLOWLIST` entries; set `_baselines.yaml` boundary baseline to 0.
-- **I-5:** stop the CLI passing `cascade=True` to `pack_manager` (CLI owns cascade) or delete the stale warning blocks; test asserts the string is absent.
+- **I-4/I-7-boundary:** add `charter/template_catalog.py` facade; repoint the **module-level** `activate.py`/`list_cmd.py` imports to `charter.*`; remove both `_BASELINE_ALLOWLIST` entries; set `_baselines.yaml` boundary baseline to 0. NOTE (renata R-2): the boundary gate counts **module-level imports only** — the surviving lazy `mission_type_repository`/`MissionTemplateRepository` imports (`# noqa: PLC0415`) are boundary-invisible and need no facade; do not scope them.
+- **I-5:** per R3 (revised) — **delete both** stale `pack_manager` warning branches (the `if cascade:` and the `if not cascade:` blocks for activate, plus the deactivate equivalent); passing `cascade=False` does NOT work (fires the other "deferred" branch — A2/P-2/DD-3). Test asserts "not yet implemented"/"deferred" absent from activate AND deactivate `--cascade` output; **update** existing `test_activate_cascade_calls_with_true` + `test_activate_cascade_flag_accepted` (DD-4).
 - **I-6:** drop redundant `events.py` re-exports masking real callers (or scope the FR-036 claim); update dead-symbol allowlist.
 - **I-7/I-8/I-12:** populate `acceptance-matrix.json` with real per-FR criteria + test IDs; add CLAUDE.md section; file a tracker for the pre-existing `ceremony`/`git_repo` failures.
 - **I-9:** reconcile `diagnostics.py` docstring with `repository.py` in lockstep with I-1.

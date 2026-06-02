@@ -18,6 +18,6 @@ Per-FR verification recipes (run from repo root on `mission/org-doctrine-profile
 
 ## Whole-mission regression gate (NFR-001/002)
 ```
-PWHEADLESS=1 pytest tests/charter/ tests/doctrine/ tests/specify_cli/cli/commands/charter/ tests/architectural/ -q
+PWHEADLESS=1 pytest tests/charter/ tests/doctrine/ tests/specify_cli/ tests/architectural/ -q
 ```
-Must stay green (modulo the pre-existing-on-main failures tracked by FR-014); no new dead symbols, no allowlist growth.
+**P-1 fix:** the gate now includes `tests/specify_cli/` (not just `tests/specify_cli/cli/commands/charter/`) — the flagship I-1 test (`tests/specify_cli/test_doctor_doctrine.py`) and the FR-009 events check (`tests/specify_cli/next/`) live there and were previously outside the gate. Must stay green (modulo the pre-existing-on-main failures tracked by FR-014); no new dead symbols, no allowlist growth.

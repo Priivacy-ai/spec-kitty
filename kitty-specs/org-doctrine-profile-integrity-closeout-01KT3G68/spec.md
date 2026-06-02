@@ -51,14 +51,14 @@ Deferred quality items carry trackers; pre-existing architectural failures (lega
 
 | ID | Requirement | Source finding | Severity |
 |----|-------------|----------------|----------|
-| FR-001 | `_collect_profile_health` (doctor) MUST NOT degrade to a healthy/empty report when a profile raises `InlineReferenceRejectedError`; the pack reports `healthy: false` and the invalid profile is surfaced. | I-1 | HIGH |
+| FR-001 | An inline-ref-invalid profile MUST make `doctor doctrine` report `healthy: false` and surface that profile (`{path, id, error_summary}`), while **valid sibling profiles (same pack, other packs, built-in layer) remain visible**. (Fix at the load layer — `repository._load_layer` → `_record_skip` — since loading is eager/all-or-nothing; a consumer-only catch cannot keep valid profiles visible. Exit code stays 0 — out of scope.) | I-1 | HIGH |
 | FR-002 | A new integration test MUST drive `doctor doctrine` against an org profile carrying a forbidden inline-ref field and assert `healthy: false` + the profile is surfaced (the currently-missing `_collect_profile_health` seam). | I-1 | HIGH |
 | FR-003 | The inline-reference-rejection contract (skip vs propagate) MUST be consistent: `diagnostics.py` documentation and `repository.py` behavior/comments agree. | I-9 | LOW |
 | FR-004 | Every test file authored by the parent mission MUST declare a module-level `pytestmark`; `test_pytest_marker_convention` passes. (Known files: `test_kind_vocabulary.py`, `test_operational_context.py`, `test_drg_merge.py`, `test_relationship_migration.py`, `test_operational_context_wiring.py`.) | I-2 | HIGH |
 | FR-005 | `src/doctrine/drg/merge.py` MUST pass `mypy --strict` (make `_tag_source` generic over `BaseModel`). | I-3 | HIGH |
 | FR-006 | The charter CLI commands (`activate.py`, `list_cmd.py`) MUST import doctrine symbols only through charter facades; add a `charter.template_catalog` re-export facade for `discover_templates`/`TemplateRef`/`TierRoot`. | I-4 | MEDIUM |
 | FR-007 | `_BASELINE_ALLOWLIST` in `test_runtime_charter_doctrine_boundary.py` MUST return to 0 and `_baselines.yaml` MUST record 0; the boundary + ratchet gates pass. | I-4 | MEDIUM |
-| FR-008 | The activation/deactivation CLI MUST NOT emit "cascade not yet implemented / deferred" warnings; a test asserts that string is absent from `--cascade` output. | I-5 | MEDIUM |
+| FR-008 | The activation/deactivation CLI MUST NOT emit "cascade not yet implemented / deferred" warnings (delete **both** stale `pack_manager` branches — passing `cascade=False` does not work); a test asserts the string is absent from both activate AND deactivate `--cascade` output, and the existing `test_activate_cascade_calls_with_true` / `test_activate_cascade_flag_accepted` are updated to the new contract. | I-5 | MEDIUM |
 | FR-009 | The parent mission's FR-036 dead-symbol claim MUST be accurate: redundant `events.py` re-exports masking real callers are removed (or the claim is scoped precisely), and `test_no_dead_symbols` reflects the true surface. | I-6 | MEDIUM |
 | FR-010 | `kitty-specs/<parent>/acceptance-matrix.json` MUST be populated with real per-FR acceptance criteria and the proving test IDs; `overall_verdict` is set (not `pending`). | I-7 | MEDIUM |
 | FR-011 | `CLAUDE.md` MUST gain a section covering the charter activation/cascade model, the canonical kind vocabulary, and the `specializes_from` lineage relation. | I-8 | MEDIUM |
@@ -68,7 +68,7 @@ Deferred quality items carry trackers; pre-existing architectural failures (lega
 
 ## Non-Functional Requirements
 
-- **NFR-001** No regression to the parent mission's 36 FRs: the full `tests/charter/ tests/doctrine/ tests/specify_cli/cli/commands/charter/` + architectural suites stay green.
+- **NFR-001** No regression to the parent mission's 36 FRs: the full `tests/charter/ tests/doctrine/ tests/specify_cli/ tests/architectural/` suites stay green. (The gate root is `tests/specify_cli/` — not just `.../cli/commands/charter/` — so the flagship I-1 test and the FR-009 events check are inside the gate — review P-1.)
 - **NFR-002** This close-out introduces no new dead symbols, no new boundary-allowlist growth, and no new architectural-gate failures (net allowlist must not grow; `test_ratchet_baselines` passes).
 - **NFR-003** ATDD-first (C-011): every behavioral fix (FR-001/005/008) lands with a test that fails before the fix and passes after; documentation/tracker FRs are verified by inspection.
 - **NFR-004** All work lands on `mission/org-doctrine-profile-integrity-activation-closure` (base = target = merge = coordination); nothing forks from or targets `main`.
@@ -83,6 +83,7 @@ Deferred quality items carry trackers; pre-existing architectural failures (lega
 - **SC-006** `acceptance-matrix.json` has zero `pending`/`null` entries for implemented FRs and a set `overall_verdict` (FR-010).
 - **SC-007** `CLAUDE.md` contains the new-subsystem section (FR-011).
 - **SC-008** Trackers exist for any deferred FR-012/013 work and for FR-014's pre-existing failures.
+- **SC-009** `test_no_dead_symbols` passes with the two payload re-exports absent from `events.py.__all__` and their allowlist entries removed (their `import` lines retained as annotations); the FR-036 claim is accurate (FR-009). FR-003/FR-009-docstring reconciliation is inspection-verified.
 
 ## Out of Scope
 

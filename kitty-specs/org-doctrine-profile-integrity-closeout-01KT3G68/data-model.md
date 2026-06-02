@@ -9,8 +9,10 @@ No new persistent entities. This mission touches the *semantics* of two existing
 - **Surfacing rule:** an inline-ref-rejected profile appears in the report's invalid/skipped set with `{path, id, error_summary}` (same shape as a schema-invalid profile), so `doctor doctrine` shows it.
 
 ### `InlineReferenceRejectedError` contract (existing — `src/doctrine/agent_profiles/repository.py`)
-- **State:** load-layer behavior unchanged (propagates / fail-closed for general callers — R1).
-- **Consumer rule (FR-001/FR-003):** the doctor health collector catches it specifically and degrades the affected `PackHealth` to `healthy=False`; `diagnostics.py` documentation is reconciled to describe this propagate-then-surface flow (no contradiction).
+- **State (REVISED — R1/A1/DD-1):** the **load layer** (`repository._load_layer`) catches it and calls `_record_skip`, so it becomes a recoverable, surfaced skip; valid sibling profiles still load (loading is eager/all-or-nothing, so a consumer-only catch cannot keep valid profiles visible). The exception's fields (`file_path`, `forbidden_field`, `artifact_kind`, `migration_hint`) plus the in-hand YAML give the `SkippedProfile` its `{layer, path, profile_id, error_summary}`.
+- **Consumer rule (FR-001):** with the load-layer skip, `_collect_profile_health` sees a non-empty skipped set → reports `healthy=False` and surfaces the profile; no change to its broad-except is required, but the FR-001 edit target is the **load layer**, not just `doctor.py`.
+- **Contract reconciliation (FR-003/I-9):** `diagnostics.py` (already calls it a skip) and the `repository.py` comment (currently "must propagate") are reconciled to "surfaced skip."
+- **NOTE:** `PackHealth` is defined in **both** `_doctrine_health.py` and `diagnostics.py`; the FR-001 health invariant (`all([]) == True` green-on-empty) is at `_doctrine_health.py:112`. Tasks must target the correct definition.
 
 ### `SkippedProfile` (existing — `src/doctrine/agent_profiles/diagnostics.py`)
 - Unchanged shape; its docstring's enumeration of failure reasons is corrected for consistency with the load contract (FR-003).
@@ -22,6 +24,7 @@ No new persistent entities. This mission touches the *semantics* of two existing
 
 ## Dead-symbol surface (FR-009)
 - `events.py` drops `SignificanceEvaluatedPayload` / `TimeoutExpiredPayload` from `__all__` (canonical home: `…_internal_runtime/significance.py`); `_SYMBOL_ALLOWLIST` loses the two stale entries; `JsonlEventLog` stays (no `src/` caller, rationale retained).
+- **KEEP the `import` lines** (A6): both symbols are used as type annotations in `events.py` (~lines 81/83/114/117) — only the `__all__` membership is removed, not the import.
 
 ## Boundary allowlist (FR-007)
 - `tests/architectural/_baselines.yaml::test_runtime_charter_doctrine_boundary.baseline_allowlist`: 2 → 0.
