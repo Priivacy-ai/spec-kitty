@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0rc35] - 2026-06-02
+
+### Added
+
+- Added agent upgrade prompts and slash-command repair diagnostics so project
+  upgrades can detect and repair stale agent command surfaces.
+- Added doctrine/profile activation closure work, including canonical kind
+  resolution, DRG-backed profile lineage, layered charter listing, template
+  discovery, and single-source doctrine health reporting.
+
+### Changed
+
+- Reworked parent-mission acceptance docs and charter boundary documentation
+  around status-commit terminology and profile integrity closeout.
+- Tightened coordination topology handling across runtime prompts, decision
+  logs, dependency gates, move-task transitions, and orchestrator API paths.
+
+### Fixed
+
+- Fixed slash-command install and audit gaps that left generated command files
+  stale after upgrades.
+- Fixed coordination-topology edge cases that could read stale checkout state,
+  miss decision logs, or proceed across topology gaps without failing closed.
+- Fixed charter activation and closeout CI instability, including layer-aware
+  activation and clean-install latency recalibration.
+
 ## [3.2.0rc34] - 2026-06-02
 
 ### Changed
