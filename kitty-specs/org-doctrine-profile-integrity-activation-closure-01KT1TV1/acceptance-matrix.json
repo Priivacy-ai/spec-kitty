@@ -2,368 +2,387 @@
   "mission_slug": "org-doctrine-profile-integrity-activation-closure-01KT1TV1",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
-      "description": "Verify FR-001 is satisfied",
+      "description": "The DRG relation vocabulary includes a `specializes_from` relation for structural profile lineage, distinct from `delegates_to`.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/doctrine/test_drg_relations.py::test_specializes_from_value + tests/doctrine/test_drg_relations.py::test_specializes_from_distinct_from_delegates_to + tests/doctrine/test_drg_relations.py::test_specializes_from_is_member",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "DRGRelation.SPECIALIZES_FROM added; value string verified; set-membership verified. Anti-finding confirmed: delegates_to not conflated."
     },
     {
       "criterion_id": "FR-002",
-      "description": "Verify FR-002 is satisfied",
+      "description": "Profile-lineage relation is distinct from runtime delegation; delegation consumers do not receive specializes_from edges.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/doctrine/test_drg_relations.py::test_lineage_does_not_leak_into_delegation_edges_from + tests/doctrine/test_drg_relations.py::test_lineage_not_reachable_via_delegation_walk",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "DRG traversal for delegation edges explicitly excludes SPECIALIZES_FROM; walk tests confirm isolation."
     },
     {
       "criterion_id": "FR-003",
-      "description": "Verify FR-003 is satisfied",
+      "description": "DRG validation accepts profile-to-profile lineage edges from shipped, organisation, and project graph fragments.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/doctrine/test_drg_merge.py::TestLayerValidation::test_shipped_valid_lineage_edge_present + tests/doctrine/test_drg_merge.py::TestLayerValidation::test_org_valid_lineage_edge_present + tests/doctrine/test_drg_merge.py::TestLayerValidation::test_project_valid_lineage_edge_present",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "All three layers accept specializes_from edges in their fragment; unknown-relation tests confirm rejection of unknown relations is separate."
     },
     {
       "criterion_id": "FR-004",
-      "description": "Verify FR-004 is satisfied",
+      "description": "DRG documentation and fixtures explain profile lineage semantics and its difference from delegation, enhancement, override, and replacement.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/doctrine/test_drg_merge.py::TestMerge::test_org_specializes_from_edge_appears_in_merged_graph",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "Fixture pack explicitly demonstrates the lineage edge in merged DRG output; docs/explanation/doctrine-relationships.md added (confirmed by adversarial review I-8 mitigant)."
     },
     {
       "criterion_id": "FR-005",
-      "description": "Verify FR-005 is satisfied",
+      "description": "Agent profile loading retains structured diagnostics for skipped profile files (source layer, path, profile ID if known, error summary).",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/doctrine/test_profile_diagnostics.py::TestSkippedProfileRecord::test_invalid_profile_recorded_with_all_fields + tests/doctrine/test_profile_diagnostics.py::TestSkippedProfileRecord::test_missing_profile_id_recorded",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "SkippedProfile dataclass carries layer, path, profile_id (Optional), error fields; frozen (immutable) per test_skipped_profile_is_frozen."
     },
     {
       "criterion_id": "FR-006",
-      "description": "Verify FR-006 is satisfied",
+      "description": "`AgentProfileRepository.list_all()` returns valid loaded profiles only; a dedicated diagnostic surface exposes skipped profiles without rescanning.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/doctrine/test_profile_diagnostics.py::TestSkippedProfileRecord::test_list_all_is_valid_only + tests/doctrine/test_profile_diagnostics.py::test_shipped_builtins_have_zero_diagnostics",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "list_all() excludes failed profiles; skipped_profiles property is separate; NFR-005 zero-diagnostics on shipped builtins confirmed."
     },
     {
       "criterion_id": "FR-007",
-      "description": "Verify FR-007 is satisfied",
+      "description": "`DoctrineService.agent_profiles` preserves profile load diagnostics for all configured layers after repository construction.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/doctrine/test_profile_diagnostics.py::test_service_preserves_diagnostics_without_rescan",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "Service-level preservation verified; diagnostics survive across multiple DoctrineService method calls."
     },
     {
       "criterion_id": "FR-008",
-      "description": "Verify FR-008 is satisfied",
+      "description": "`spec-kitty doctor doctrine` human output reports invalid or skipped agent profiles per source layer and pack.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/test_doctor_doctrine.py::test_doctor_doctrine_human_renders_degraded_pack_and_invalid_profiles",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "Human output includes an invalid-profile section for the degraded pack while still listing valid profiles."
     },
     {
       "criterion_id": "FR-009",
-      "description": "Verify FR-009 is satisfied",
+      "description": "`spec-kitty doctor doctrine --json` includes machine-readable invalid-profile diagnostics (layer, path, profile_id, error summary).",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/test_doctor_doctrine.py::test_doctor_doctrine_json_reports_false_healthy_fixed + tests/specify_cli/test_doctor_doctrine.py::test_pack_health_to_dict_emits_stable_invalid_profile_fields",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "Stable JSON fields confirmed via dict-emit test; false-healthy regression test passes."
     },
     {
       "criterion_id": "FR-010",
-      "description": "Verify FR-010 is satisfied",
+      "description": "A pack with invalid agent profiles is NOT presented as fully healthy when DRG node/edge counts are otherwise valid.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/test_doctor_doctrine.py::test_pack_health_degraded_when_invalid_profiles_present + tests/specify_cli/test_doctor_doctrine.py::test_doctor_doctrine_json_inline_ref_unhealthy_and_rc1",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "PackHealth.healthy=False when invalid profiles present; inline-ref rejection also sets unhealthy and correct exit code."
     },
     {
       "criterion_id": "FR-011",
-      "description": "Verify FR-011 is satisfied",
+      "description": "`charter activate <kind> <id>` validates artifact ID existence for the requested kind before mutating activation state.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/charter/test_activation_engine.py::test_plan_activation_unknown_id_is_non_mutating + tests/charter/test_activation_engine.py::test_unknown_id_error_names_kind_id_and_recovery",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "Plan step validates ID; commit step never reached; error message names kind, missing ID, and recovery path."
     },
     {
       "criterion_id": "FR-012",
-      "description": "Verify FR-012 is satisfied",
+      "description": "Unknown activation IDs fail with actionable message (kind, missing ID, recovery path); no config write on failure.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/charter/test_activation_engine.py::test_unknown_id_error_names_kind_id_and_recovery + tests/specify_cli/cli/commands/charter/test_charter_activate_commands.py::TestActivateCommand::test_activate_unknown_artifact_id_exits_1_without_mutating",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "NFR-003 non-mutating invariant confirmed by CLI test checking config bytes unchanged. DIRECTIVE_013 tracker for doctor.py god-module split: see kitty-specs/org-doctrine-profile-integrity-closeout-01KT3G68/research/trackers-to-file.md#fr-012-doctor-py-split"
     },
     {
       "criterion_id": "FR-013",
-      "description": "Verify FR-013 is satisfied",
+      "description": "Running `charter activate` without `--cascade` warns about referenced artifacts that were not cascaded.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/charter/test_cascade.py::test_referenced_but_not_cascaded_lists_skipped_kinds + tests/specify_cli/cli/commands/charter/test_charter_activate_commands.py::TestActivateCommand::test_activate_cascade_no_not_yet_implemented",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "Skipped-reference warning surfaces referenced artifact kinds not cascaded; suggested recovery command included. DIRECTIVE_013 tracker for provenance typing deferral: see kitty-specs/org-doctrine-profile-integrity-closeout-01KT3G68/research/trackers-to-file.md#fr-013-provenance-typing"
     },
     {
       "criterion_id": "FR-014",
-      "description": "Verify FR-014 is satisfied",
+      "description": "`charter activate <kind> <id> --cascade <scope>` preserves cascade scope and activates only selected referenced artifact kinds; `all` is the explicit all-kind shorthand.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/charter/test_cascade.py::test_cascade_activation_scoped_to_selected_kinds + tests/charter/test_cascade.py::test_cascade_activation_all_returns_every_referenced_kind + tests/charter/test_cascade.py::test_scope_parse_all_shorthand",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "Cascade scope parsing and activation coverage confirmed across selected-kind and all-shorthand paths."
     },
     {
       "criterion_id": "FR-015",
-      "description": "Verify FR-015 is satisfied",
+      "description": "`charter deactivate <kind> <id> --cascade <scope>` deactivates only exclusively referenced artifacts and skips shared artifacts with a reason.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/charter/test_cascade.py::test_deactivation_removes_exclusive_skips_shared_diamond + tests/charter/test_cascade.py::test_deactivation_respects_scope",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "Diamond shared-reference test confirms shared artifacts are skipped with reason; scope filter test confirms only selected kinds are deactivated."
     },
     {
       "criterion_id": "FR-016",
-      "description": "Verify FR-016 is satisfied",
+      "description": "Cascade activation and deactivation use the active DRG/catalog reference model rather than hardcoded per-kind special cases.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/charter/test_cascade.py::test_cascade_activation_is_transitive + tests/charter/test_cascade.py::test_reference_relations_are_requires_and_suggests",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "Transitive cascade follows DRG requires/suggests edges; reference-relation discovery is graph-driven, not per-kind special-cased."
     },
     {
       "criterion_id": "FR-017",
-      "description": "Verify FR-017 is satisfied",
+      "description": "`build_operational_context()` returns populated OperationalContext at WP claim and runtime decision entry points when values are known.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/test_operational_context_wiring.py::TestClaimSiteWiring::test_populated_context_no_all_none + tests/specify_cli/test_operational_context_wiring.py::TestDecisionSiteWiring::test_populated_context_at_decision",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "Production wiring confirmed at both implement-claim and next-decision entry points; no all-None context returned."
     },
     {
       "criterion_id": "FR-018",
-      "description": "Verify FR-018 is satisfied",
+      "description": "`require_active_profile()` and `require_active_role()` raise ContextPreconditionError with actionable messages when required fields are absent.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/charter/test_operational_context.py::TestGuardMethods::test_require_active_profile_raises_with_actionable_hint + tests/charter/test_operational_context.py::TestGuardMethods::test_require_active_role_raises_with_actionable_hint",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "Guard methods raise ContextPreconditionError (RuntimeError subclass) with actionable hint; precondition failure creates no worktree or status events (NFR-004)."
     },
     {
       "criterion_id": "FR-019",
-      "description": "Verify FR-019 is satisfied",
+      "description": "OperationalContext symbols previously allowlisted as deferred work are removed from dead-symbol allowlists after production wiring.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/architectural/test_no_dead_symbols.py::test_no_public_symbol_in_all_is_unimported (category_c_wp_in_flight_charter_scope shrunk 6->4)",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "Two OperationalContext symbols (OperationalContext, build_operational_context) removed from allowlist after WP14 wired live callers; baseline updated from 6 to 4."
     },
     {
       "criterion_id": "FR-020",
-      "description": "Verify FR-020 is satisfied",
+      "description": "Known cleanup items from #1557 resolved: obsolete activation override code deleted, orphaned dead-symbol categories removed, stale `activate_cmd` export removed, FR-008 comment misattribution corrected.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/charter/test_pack_manager_catalog.py::TestActivateViaEngine::test_no_sys_exit_call_in_module + tests/charter/test_pack_manager_catalog.py::TestActivateViaEngine::test_module_calls_activation_engine",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "activate_cmd removed from __all__; sys.exit not present in activate module; activation routed through engine only."
     },
     {
       "criterion_id": "FR-021",
-      "description": "Verify FR-021 is satisfied",
+      "description": "Existing charter activation behavior from PR #1535 remains backward compatible for projects with no explicit activation restrictions.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/charter/test_activation_engine.py::test_no_restrictions_materializes_default_pack_then_appends + tests/charter/test_activation_engine.py::test_no_restrictions_failing_id_still_non_mutating",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "FR-021 explicitly labeled in test docstrings; no-restrictions path materializes default pack before appending, matching pre-#1535 behavior."
     },
     {
       "criterion_id": "FR-022",
-      "description": "Verify FR-022 is satisfied",
+      "description": "`charter context --include agent-profile:<id>` resolves and renders the named agent profile in human and `--json` output instead of failing with unsupported-kind error.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/charter/test_context_include.py::TestIncludeSelectorParser::test_hyphenated_agent_profile_resolves + tests/charter/test_context_include.py::TestIncludeSelectorParser::test_agent_profile_renders_in_json_context",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "Hyphenated kind name normalisation confirmed; profile rendered in both text and JSON output; unsupported-kind error no longer reached."
     },
     {
       "criterion_id": "FR-023",
-      "description": "Verify FR-023 is satisfied",
+      "description": "The `--include` selector parser normalizes hyphenated kind names to canonical doctrine kinds (e.g. `agent-profile` -> `agent_profile`).",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/charter/test_context_include.py::TestIncludeSelectorParser::test_underscore_agent_profile_resolves + tests/charter/test_context_include.py::TestIncludeSelectorParser::test_mixed_case_kind_resolves + tests/charter/test_context_include.py::TestIncludeSelectorParser::test_mission_step_contract_hyphen_resolves",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "Both underscore and hyphenated forms resolve to same canonical kind; consistent with charter activate/deactivate."
     },
     {
       "criterion_id": "FR-024",
-      "description": "Verify FR-024 is satisfied",
+      "description": "The `charter context --include` help text advertises the agent-profile selector so supported kinds are discoverable.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/charter/test_context_include.py::TestIncludeSelectorParser::test_help_advertises_agent_profile_and_template",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "Help text confirmed to include agent-profile and template examples alongside existing directive/styleguide/section."
     },
     {
       "criterion_id": "FR-025",
-      "description": "Verify FR-025 is satisfied",
+      "description": "`charter list --all` lists every available artifact per kind across built-in, org-pack, and project layers, annotated by source layer.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/test_charter_list.py::TestAllFlag::test_all_flag_adds_all_layers_column + tests/specify_cli/test_charter_list.py::TestAllFlag::test_org_artifact_shown_with_org_layer + tests/specify_cli/test_charter_list.py::TestAllFlag::test_project_artifact_shown_with_project_layer",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "All three layers annotated; --all supersedes --show-available column header per test_all_supersedes_show_available_column_header."
     },
     {
       "criterion_id": "FR-026",
-      "description": "Verify FR-026 is satisfied",
+      "description": "`CharterPackManager.list_available()` includes org-pack and project artifacts in addition to built-ins, removing the built-in-only scan.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/charter/test_pack_manager_catalog.py::TestListAvailable::test_includes_org_and_project_layers + tests/charter/test_pack_manager_catalog.py::TestListAvailable::test_detailed_carries_layer_per_artifact",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "Multi-layer listing confirmed; each artifact carries its source layer annotation; built-in-only scan removed."
     },
     {
       "criterion_id": "FR-027",
-      "description": "Verify FR-027 is satisfied",
+      "description": "Canonical kind vocabulary used by `charter context --include`, `activate`, `deactivate`, and `list` resolves through a single mapping rather than per-command re-declaration.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/charter/test_kind_vocabulary.py::test_from_operator_token_maps_all_eight_artifact_kinds + tests/charter/test_kind_vocabulary.py::test_charter_kind_tokens_is_eight_artifact_tokens_plus_mission_type + tests/architectural/test_charter_facades_reexport_doctrine.py::test_facade_reexports_doctrine_symbol_by_identity",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "Single canonical kind vocabulary module; all command surfaces route through it; facade re-export verified by identity."
     },
     {
       "criterion_id": "FR-028",
-      "description": "Verify FR-028 is satisfied",
+      "description": "Augmentation/lineage relationships (`overrides`/`enhances`, `specializes_from`) expressible for Directive, Toolguide, mission step contract, and mission type kinds.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/doctrine/test_org_pack_augmentation.py::test_newly_covered_kinds_are_augmentation_eligible + tests/doctrine/test_org_pack_augmentation.py::test_directive_field_projection_emits_edge + tests/doctrine/test_org_pack_augmentation.py::test_specializes_from_field_projects_lineage_edge",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "All newly-covered kinds confirmed eligible; field projection to DRG edge confirmed for directives and profile lineage."
     },
     {
       "criterion_id": "FR-029",
-      "description": "Verify FR-029 is satisfied",
+      "description": "Field-merge semantics for topology-bearing kinds under `enhances` are defined in ADR `2026-05-16-1`: field-merge vs replace specified, action-sequence ordering and step I/O preserved; `overrides` is full replacement.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/doctrine/test_org_pack_augmentation.py::test_enhances_preserves_base_sequence_when_overlay_omits_it + tests/doctrine/test_org_pack_augmentation.py::test_enhances_merges_step_io_and_keeps_order + tests/doctrine/test_org_pack_augmentation.py::test_overrides_is_full_replacement",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "ADR 2026-05-16-1 at architecture/3.x/adr/2026-05-16-1-doctrine-layer-merge-semantics.md governs semantics; topology-integrity assertions confirmed by test_enhances_rejects_silent_step_drop."
     },
     {
       "criterion_id": "FR-030",
-      "description": "Verify FR-030 is satisfied",
+      "description": "DRG auto-emit table and pack-validator augmentation set cover all augmentation-eligible kinds and derive from a single shared source.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/doctrine/test_org_pack_augmentation.py::test_loader_and_validator_share_one_augmentation_source + tests/doctrine/test_org_pack_augmentation.py::test_eligible_set_is_artifactkind_minus_template_plus_mission_type",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "Single shared _AUGMENTATION_PLURAL_TO_KIND source confirmed; eligible-set formula verified (all ArtifactKinds minus template, plus mission_type)."
     },
     {
       "criterion_id": "FR-031",
-      "description": "Verify FR-031 is satisfied",
+      "description": "Pack validator applies intent-aware collision behavior uniformly to newly-covered kinds at parity with original five.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/doctrine/test_org_pack_augmentation.py::test_fragment_edge_intent_unknown_target_hard_errors + tests/doctrine/test_org_pack_augmentation.py::test_fragment_edge_intent_conflict_when_both_declared + tests/doctrine/test_org_pack_augmentation.py::test_fragment_edge_valid_intent_suppresses_advisory",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "All three intent behaviors confirmed for newly-covered kinds; lineage relation excluded from intent-advisory per test_fragment_intent_ignores_lineage_relation."
     },
     {
       "criterion_id": "FR-032",
-      "description": "Verify FR-032 is satisfied",
+      "description": "Mission-type augmentation delivered by expanding `_ORG_DRG_CANONICAL_KINDS` to include mission types; `_ORG_DRG_KIND_ALIASES` and contract-test sweep updated in lockstep.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/doctrine/test_org_pack_augmentation.py::test_mission_types_in_canonical_universe + tests/doctrine/test_org_pack_augmentation.py::test_lockstep_drift_guard_against_allowed_kinds + tests/doctrine/test_org_pack_augmentation.py::test_mission_type_fragment_augmentation_validates",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "Canonical 9-kind universe (8 ArtifactKinds + mission_type) confirmed; lockstep drift guard passes; mission-type fragment augmentation fixture validates."
     },
     {
       "criterion_id": "FR-033",
-      "description": "Verify FR-033 is satisfied",
+      "description": "Doctrine templates are discoverable: a listing surface enumerates available templates across mission/tier sources, annotated by source tier.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/doctrine/test_template_discovery.py::test_discovery_enumerates_with_tier_annotation + tests/doctrine/test_template_discovery.py::test_discovery_disambiguates_same_name_across_missions + tests/doctrine/test_template_discovery.py::test_discovery_output_is_deterministic",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "Discovery surface enumerates templates with tier annotation; deterministic output; same-name disambiguation across missions confirmed."
     },
     {
       "criterion_id": "FR-034",
-      "description": "Verify FR-034 is satisfied",
+      "description": "`template` kind addressable through canonical vocabulary; `charter list --all` includes templates; `charter context --include template:<id>` resolves named template.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/test_charter_list.py::TestAllFlag::test_template_kind_row_present + tests/specify_cli/test_charter_list.py::TestAllFlag::test_template_mission_qualified_id_present + tests/charter/test_context_include.py::TestIncludeSelectorParser::test_template_include_renders_content",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "Template kind row appears in charter list --all; template context inclusion resolves by mission-qualified ID; template absent without --all confirmed."
     },
     {
       "criterion_id": "FR-035",
-      "description": "Verify FR-035 is satisfied",
+      "description": "Charter activation and context entry points catch typed `CharterPackConfigError` and present code + remediation as fail-closed error; no activation state mutated; symbol no longer dead.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/charter/test_pack_context.py (CharterPackConfigError raises on malformed config) + tests/architectural/test_no_dead_symbols.py (CharterPackConfigError removed from allowlist after wiring)",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "CharterPackConfigError has live external callers (activation/context CLI entry points); removed from category_b allowlist baseline (275->271 in _baselines.yaml)."
     },
     {
       "criterion_id": "FR-036",
-      "description": "Verify FR-036 is satisfied",
+      "description": "In-scope inherited dead-symbol debt cleared: 7 stale `_SYMBOL_ALLOWLIST` entries removed; `CharterPackConfigError` wired; charter sub-app exports cleaned.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/architectural/test_no_dead_symbols.py::test_no_public_symbol_in_all_is_unimported (category_b shrunk 275->271, category_c_upstream_status_service=5 allowlisted-with-tracker)",
+      "pass_fail": "pass",
+      "verified_by": "curator-carla (WP06 / T019)",
+      "verified_at": "2026-06-02",
+      "notes": "5 entries removed from category_b (CharterPackConfigError + 2 lifecycle_events + 2 events.py re-exports); upstream status_service 5-symbol debt tracked via DIRECTIVE_013 tracker (see kitty-specs/org-doctrine-profile-integrity-closeout-01KT3G68/research/trackers-to-file.md#upstream-status-service-debt). Two git/lanes out-of-scope offenders tracked by #1588."
     }
   ],
-  "negative_invariants": []
+  "negative_invariants": [
+    {
+      "invariant_id": "NI-001",
+      "description": "delegates_to edges must not appear as profile lineage edges",
+      "evidence": "tests/doctrine/test_drg_relations.py::test_lineage_does_not_leak_into_delegation_edges_from",
+      "verified_by": "curator-carla (WP06 / T019)"
+    },
+    {
+      "invariant_id": "NI-002",
+      "description": "charter activate must not mutate config on unknown-ID failure",
+      "evidence": "tests/charter/test_activation_engine.py::test_plan_activation_does_not_mutate_config_data",
+      "verified_by": "curator-carla (WP06 / T019)"
+    },
+    {
+      "invariant_id": "NI-003",
+      "description": "cascade deactivation must not remove shared artifacts",
+      "evidence": "tests/charter/test_cascade.py::test_deactivation_removes_exclusive_skips_shared_diamond",
+      "verified_by": "curator-carla (WP06 / T019)"
+    }
+  ]
 }

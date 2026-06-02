@@ -998,6 +998,104 @@ Architectural enforcement of these invariants lives in `tests/architectural/test
 
 ADR: [`architecture/3.x/adr/2026-04-25-1-shared-package-boundary.md`](architecture/3.x/adr/2026-04-25-1-shared-package-boundary.md). Migration runbook: [`docs/migration/shared-package-boundary-cutover.md`](docs/migration/shared-package-boundary-cutover.md).
 
+## Charter Activation and Doctrine Integrity Model (org-doctrine-profile-integrity-activation-closure-01KT1TV1)
+
+This section documents the charter activation/cascade subsystem, the canonical kind vocabulary, and the DRG profile-lineage relation introduced by the org-doctrine-profile-integrity mission. Governing ADR: [`architecture/3.x/adr/2026-05-16-1-doctrine-layer-merge-semantics.md`](architecture/3.x/adr/2026-05-16-1-doctrine-layer-merge-semantics.md).
+
+### Charter Activation Engine (`charter.activation_engine`)
+
+The plan/commit seam separates validation from mutation. `plan_activation()` validates the artifact ID and kind against the live doctrine catalog; `commit_activation()` writes to config only after the plan succeeds. This guarantees the activation/deactivation commands cannot corrupt configuration on unknown-ID failure.
+
+```python
+# Plan step: validates ID, returns an ActivationPlan (non-mutating)
+plan = plan_activation(kind="directive", artifact_id="010-...", pack_context=ctx)
+
+# Commit step: writes to .kittify/config.yaml
+commit_activation(plan, project_root=Path("."))
+```
+
+**`CharterPackConfigError`** (`charter.pack_context`): raised on malformed `.kittify/config.yaml` charter-pack shape. Activation and context entry points catch it and present its `CHARTER_PACK_CONFIG_INVALID` code + remediation as a fail-closed error; no activation state is mutated. The symbol has live external callers (CLI entry points) and is no longer in the dead-symbol allowlist.
+
+**Key rules:**
+- `charter activate` / `charter deactivate` do NOT mutate config on validation failure (NFR-003).
+- Projects with no explicit activation restrictions continue to behave as pre-#1535 (FR-021 backward compatibility).
+
+### Charter Cascade (`charter.cascade`)
+
+Cascade activation / deactivation follows DRG `requires` and `suggests` reference edges rather than hardcoded per-kind special cases. Scope is explicit:
+
+```bash
+# Activate with cascade — all referenced kinds
+charter activate mission-type research --cascade all
+
+# Activate with cascade — selected referenced kinds only
+charter activate mission-type research --cascade agent-profile,tactic
+
+# Deactivate with cascade (shared-reference safety: skips artifacts still referenced elsewhere)
+charter deactivate mission-type research --cascade all
+```
+
+Without `--cascade`, the command completes the direct activation and warns about referenced artifacts that were not cascaded, naming the skipped kinds and a suggested recovery command (FR-013).
+
+**Shared-reference safety (C-005):** cascade deactivation never removes an artifact still referenced by another active artifact; skipped entries include the active artifact that still references them.
+
+### Canonical Kind Vocabulary (`doctrine.artifact_kinds` + `charter.kind_vocabulary`)
+
+A single canonical mapping (`charter.kind_vocabulary.from_operator_token`) normalises all operator-facing kind tokens across `charter context --include`, `charter activate`, `charter deactivate`, and `charter list`. Hyphenated forms are normalised to canonical doctrine kinds at input boundaries:
+
+| Operator token | Canonical kind |
+|----------------|----------------|
+| `agent-profile` | `agent_profile` |
+| `mission-step-contract` | `mission_step_contract` |
+| `directive` | `directive` |
+| `tactic` | `tactic` |
+| `styleguide` | `styleguide` |
+| `toolguide` | `toolguide` |
+| `paradigm` | `paradigm` |
+| `template` | `template` |
+| `mission-type` (special) | raises `MissionTypeNotAnArtifactKind` — mission types are addressed separately |
+
+`charter list --all` includes all artifact kinds (including `template`) across built-in, org-pack, and project layers, each annotated with its source layer.
+
+### `specializes_from` DRG Lineage Relation
+
+Profile lineage is represented as a DRG edge — not a field on the profile model — per the C-009 binding constraint (DRG is canonical source of truth for doctrine relationships).
+
+```yaml
+# Org-pack DRG fragment: declare a profile as a specialization of a built-in
+nodes:
+  - urn: "urn:profile:my-analyst"
+    kind: agent_profile
+    id: my-analyst
+edges:
+  - source: "urn:profile:my-analyst"
+    target: "urn:profile:researcher-ryan"   # built-in
+    relation: specializes_from
+```
+
+**Key rules:**
+- `specializes_from` is DISTINCT from `delegates_to` (runtime work handoff). Delegation consumers do not receive lineage edges; lineage consumers do not receive delegation edges.
+- Profile hierarchy resolution (`AgentProfileRepository.resolve_profile`) follows `specializes_from` edges via DRG traversal, not the retired per-profile `specializes_from` field.
+- The retired field form is rejected at load time (`test_relationship_fields_rejected.py` full negative matrix).
+- Augmentation relations (`enhances`, `overrides`) are also DRG edges; the `specializes_from` relation is intentionally excluded from the intent-advisory logic.
+
+**Field-merge semantics for topology-bearing kinds** (mission step contracts and mission types): `enhances` field-merges preserving action-sequence ordering and step I/O contracts; `overrides` is full replacement. Silently dropping steps or stripping step I/O is rejected. Governing ADR: `architecture/3.x/adr/2026-05-16-1-doctrine-layer-merge-semantics.md`.
+
+### Profile Load Diagnostics
+
+`AgentProfileRepository.skipped_profiles` exposes structured diagnostics for profiles that failed to load, without requiring callers to rescan the filesystem. `DoctrineService.agent_profiles` preserves diagnostics across all configured layers. `spec-kitty doctor doctrine --json` includes the diagnostics as a stable machine-readable field.
+
+A pack with invalid agent profiles is NOT reported as fully healthy by `doctor doctrine`, even if its DRG node/edge counts are otherwise valid (FR-010).
+
+### Deferred Items (DIRECTIVE_013 Trackers)
+
+The following items are tracked but NOT resolved in this mission:
+
+- **4 `git_repo` marker gaps** (`tests/architectural/test_no_legacy_terminology.py`, `tests/specify_cli/sync/test_local_commit_wiring.py`, `tests/specify_cli/test_sync_state_gitignore_migration.py`, `tests/status/test_bootstrap.py`): DIRECTIVE_013 tracker (to file) — see `kitty-specs/org-doctrine-profile-integrity-closeout-01KT3G68/research/trackers-to-file.md#git-repo-marker-gaps`
+- **Upstream `coordination.status_service` + `lifecycle_events` dead-symbol debt**: DIRECTIVE_013 tracker (to file) — see `kitty-specs/org-doctrine-profile-integrity-closeout-01KT3G68/research/trackers-to-file.md#upstream-status-service-debt`
+- **FR-012 (`doctor.py` god-module split)**: DIRECTIVE_013 tracker (to file) — see `kitty-specs/org-doctrine-profile-integrity-closeout-01KT3G68/research/trackers-to-file.md#fr-012-doctor-py-split`
+- **FR-013 (`_tag_source` provenance typing)**: DIRECTIVE_013 tracker (to file) — see `kitty-specs/org-doctrine-profile-integrity-closeout-01KT3G68/research/trackers-to-file.md#fr-013-provenance-typing`
+
 <!-- MANUAL ADDITIONS END -->
 
 ## Skill routing
