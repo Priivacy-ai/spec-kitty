@@ -1,0 +1,14 @@
+{
+  "coordination_branch": "kitty/mission-pi-and-letta-agent-support-01KT4Q26",
+  "created_at": "2026-06-02T17:45:51.837061+00:00",
+  "friendly_name": "Pi and Letta Code Agent Support",
+  "mission_id": "01KT4Q26YT9B4ZNBC4GH0D2WNM",
+  "mission_number": null,
+  "mission_slug": "pi-and-letta-agent-support-01KT4Q26",
+  "mission_type": "software-dev",
+  "purpose_context": "Spec Kitty currently supports 17 AI agents. This mission adds Pi (pi-coding-agent) and Letta Code to the roster, covering agent configuration, Agent Skills installation, orchestrator invokers, prompt templates, and documented design decisions for each agent's unique CLI model.",
+  "purpose_tldr": "Add Pi and Letta Code as first-class Spec Kitty-supported coding agents.",
+  "slug": "pi-and-letta-agent-support-01KT4Q26",
+  "target_branch": "main",
+  "vcs": "git"
+}
