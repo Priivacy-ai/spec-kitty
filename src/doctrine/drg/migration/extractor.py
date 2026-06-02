@@ -41,6 +41,30 @@ _KIND_MAP: dict[str, NodeKind] = {
 _SKIP_REF_TYPES: frozenset[str] = frozenset()
 
 _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
+    # WP06/WP07 (FR-001/FR-028 hard cutover): built-in profile lineage is now
+    # authored directly as DRG ``specializes_from`` edges. The legacy
+    # ``specializes-from`` profile field has been retired (and is rejected by the
+    # profile model), so these edges are the single source of lineage truth.
+    (
+        "agent_profile:python-pedro",
+        "agent_profile:implementer-ivan",
+        Relation.SPECIALIZES_FROM,
+    ),
+    (
+        "agent_profile:java-jenny",
+        "agent_profile:implementer-ivan",
+        Relation.SPECIALIZES_FROM,
+    ),
+    (
+        "agent_profile:node-norris",
+        "agent_profile:implementer-ivan",
+        Relation.SPECIALIZES_FROM,
+    ),
+    (
+        "agent_profile:frontend-freddy",
+        "agent_profile:implementer-ivan",
+        Relation.SPECIALIZES_FROM,
+    ),
     (
         "paradigm:specification-by-example",
         "tactic:acceptance-test-first",
@@ -434,21 +458,6 @@ def extract_artifact_edges(  # noqa: C901
                     ref_id=ref_id,
                     relation=Relation.REQUIRES,
                     reason=ref.get("rationale"),
-                )
-
-            # WP07 (FR-001): profile lineage. The ``specializes-from`` field on a
-            # built-in profile names its parent profile; emit it as an
-            # authoritative ``specializes_from`` DRG edge so the shipped graph is
-            # the single source of lineage truth.
-            specializes_from = data.get("specializes-from")
-            if specializes_from:
-                _add_ref_edge(
-                    nodes_by_urn=nodes_by_urn,
-                    add_edge=_add_edge,
-                    source=src_urn,
-                    ref_type="agent_profile",
-                    ref_id=str(specializes_from),
-                    relation=Relation.SPECIALIZES_FROM,
                 )
 
     for source, target, relation in _CURATED_ARTIFACT_EDGES:

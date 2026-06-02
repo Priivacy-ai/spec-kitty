@@ -6,7 +6,6 @@ roles:
   - implementer
 applies_to_languages:
   - java
-specializes-from: implementer-ivan
 capabilities:
   - java-implementation
   - junit-testing

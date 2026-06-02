@@ -6,7 +6,6 @@ roles:
   - implementer
 applies_to_languages:
   - python
-specializes-from: implementer-ivan
 capabilities:
   - python-implementation
   - pytest-testing
