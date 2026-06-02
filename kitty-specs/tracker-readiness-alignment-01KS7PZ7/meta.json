@@ -1,0 +1,10 @@
+{
+  "created_at": "1970-01-01T00:00:00+00:00",
+  "friendly_name": "tracker-readiness-alignment-01KS7PZ7",
+  "mission_id": "55XP3JSA4YZ9RCVNQPFTVW2VDB",
+  "mission_number": null,
+  "mission_slug": "tracker-readiness-alignment-01KS7PZ7",
+  "mission_type": "software-dev",
+  "slug": "tracker-readiness-alignment-01KS7PZ7",
+  "target_branch": "main"
+}
