@@ -36,13 +36,14 @@ from charter.cascade import (
 from charter.catalog import resolve_doctrine_root
 from charter.invocation_context import ProjectContext
 from charter.kind_vocabulary import (
+    ArtifactKind,
+    MissionTypeNotAnArtifactKind,
     UnknownArtifactIdError,
     resolve_artifact_urn,
     resolve_config_id,
 )
 from charter.pack_context import CharterPackConfigError, PackContext
 from charter.pack_manager import YAML_KEY_MAP, CharterPackManager
-from doctrine.artifact_kinds import ArtifactKind, MissionTypeNotAnArtifactKind
 
 __all__ = ["activate_cmd"]
 
@@ -114,7 +115,7 @@ def _emit_step_removal_warnings(kind: str, artifact_id: str, repo_root: Path) ->
     if kind != "mission-type":
         return
 
-    from doctrine.missions.mission_type_repository import (  # noqa: PLC0415
+    from doctrine.missions.mission_type_repository import (  # noqa: PLC0415  # boundary: lazy import intentionally not facaded (PLC0415; boundary-invisible)
         MissionTypeRepository,
     )
 

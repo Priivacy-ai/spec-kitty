@@ -9,10 +9,10 @@ from rich.console import Console
 from rich.table import Table
 
 from charter.invocation_context import ProjectContext
+from charter.kind_vocabulary import CHARTER_KIND_TOKENS
 from charter.pack_manager import AvailableArtifact, CharterPackManager
-from doctrine.artifact_kinds import CHARTER_KIND_TOKENS
-from doctrine.resolver import ResolutionTier
-from doctrine.template_catalog import TemplateRef, TierRoot, discover_templates
+from charter.resolution import ResolutionTier
+from charter.template_catalog import TemplateRef, TierRoot, discover_templates
 
 __all__ = ["charter_list_app"]
 
@@ -82,7 +82,7 @@ def _template_tier_roots(repo_root: Path, layer_roots: dict[str, Path]) -> list[
     Roots are returned override → package so :func:`discover_templates`
     deduplicates same ``<mission>/<name>`` IDs to the highest-precedence tier.
     """
-    from doctrine.missions.repository import MissionTemplateRepository
+    from doctrine.missions.repository import MissionTemplateRepository  # noqa: PLC0415  # boundary: lazy import intentionally not facaded (PLC0415; boundary-invisible)
 
     tier_roots: list[TierRoot] = []
 
