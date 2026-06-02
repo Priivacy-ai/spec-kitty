@@ -51,3 +51,5 @@ Use the shared template at [`../../adr-template.md`](../../adr-template.md).
 | 2026-05-14 | [Stale-lane auto-rebase classifier policy](2026-05-14-1-stale-lane-auto-rebase-classifier-policy.md) |
 | 2026-05-16 | [Doctrine layer merge semantics](2026-05-16-1-doctrine-layer-merge-semantics.md) |
 | 2026-05-19 | [Retrospective default-on policy architecture](2026-05-19-1-retrospective-default-policy-architecture.md) |
+| 2026-06-02 | [Pi agent is skill-only: no prompt templates, invoker deferred](2026-06-02-1-pi-agent-skill-only-support.md) |
+| 2026-06-02 | [Letta agent is skill-only: no slash-command templates, invoker and session model deferred](2026-06-02-2-letta-agent-skill-only-support.md) |
