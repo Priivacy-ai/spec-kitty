@@ -32,8 +32,6 @@ owned_files:
 - tests/specify_cli/invocation/**/*.py
 - tests/specify_cli/migration/test_schema_version.py
 - tests/specify_cli/status/test_wp_metadata.py
-- kitty-specs/**/tasks/*.json
-- kitty-specs/**/tasks/*.md
 role: implementer
 tags: []
 ---
