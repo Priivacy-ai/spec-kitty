@@ -17,7 +17,37 @@ import pytest
 
 from doctrine.agent_profiles.profile import AgentProfile, Role, TaskContext
 from doctrine.agent_profiles.repository import AgentProfileRepository
+from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+
+
+def _lineage_drg(*pairs: tuple[str, str]) -> DRGGraph:
+    """Build a DRG with ``specializes_from`` edges for ``(child, parent)`` pairs.
+
+    Lineage is authored as DRG ``specializes_from`` edges (FR-002 / WP05); the
+    retired ``specializes-from`` profile field is gone.
+    """
+    ids = {pid for pair in pairs for pid in pair}
+    return DRGGraph(
+        schema_version="1.0",
+        generated_at="2026-06-02T00:00:00Z",
+        generated_by="test_profile_repository",
+        nodes=[DRGNode(urn=f"agent_profile:{pid}", kind=NodeKind.AGENT_PROFILE) for pid in sorted(ids)],
+        edges=[
+            DRGEdge(
+                source=f"agent_profile:{child}",
+                target=f"agent_profile:{parent}",
+                relation=Relation.SPECIALIZES_FROM,
+            )
+            for child, parent in pairs
+        ],
+    )
+
+
+def _shipped_drg() -> DRGGraph:
+    """Lineage DRG for the ``shipped_profiles_dir`` fixture."""
+    return _lineage_drg(("python-pedro", "generic-implementer"))
 
 
 
@@ -73,7 +103,6 @@ purpose: Python implementation specialist
 roles:
   - implementer
 routing-priority: 90
-specializes-from: generic-implementer
 specialization:
   primary-focus: Python development
   domain-keywords:
@@ -442,13 +471,12 @@ class TestAgentProfileRepositoryExceptions:
         shipped = tmp_path / "built-in"
         shipped.mkdir()
 
-        # Create cycle: A → B → C → A
+        # Create cycle: A → B → C → A (lineage authored as DRG edges)
         (shipped / "a.agent.yaml").write_text("""profile-id: profile-a
 name: Profile A
 purpose: Test
 roles:
   - implementer
-specializes-from: profile-c
 specialization:
   primary-focus: Testing
 """)
@@ -457,7 +485,6 @@ name: Profile B
 purpose: Test
 roles:
   - implementer
-specializes-from: profile-a
 specialization:
   primary-focus: Testing
 """)
@@ -466,12 +493,16 @@ name: Profile C
 purpose: Test
 roles:
   - implementer
-specializes-from: profile-b
 specialization:
   primary-focus: Testing
 """)
 
-        repo = AgentProfileRepository(built_in_dir=shipped, project_dir=None)
+        drg = _lineage_drg(
+            ("profile-a", "profile-c"),
+            ("profile-b", "profile-a"),
+            ("profile-c", "profile-b"),
+        )
+        repo = AgentProfileRepository(built_in_dir=shipped, project_dir=None, drg=drg)
         errors = repo.validate_hierarchy()
         assert len(errors) > 0
         assert any("cycle" in err.lower() for err in errors)
@@ -486,12 +517,12 @@ name: Orphan Child
 purpose: Test
 roles:
   - implementer
-specializes-from: nonexistent-parent
 specialization:
   primary-focus: Testing
 """)
 
-        repo = AgentProfileRepository(built_in_dir=shipped, project_dir=None)
+        drg = _lineage_drg(("orphan-child", "nonexistent-parent"))
+        repo = AgentProfileRepository(built_in_dir=shipped, project_dir=None, drg=drg)
         errors = repo.validate_hierarchy()
         assert len(errors) > 0
         assert any("orphan" in err.lower() or "nonexistent" in err.lower() for err in errors)
@@ -525,7 +556,9 @@ class TestAgentProfileRepositoryHierarchy:
 
     def test_get_children(self, shipped_profiles_dir: Path):
         """Get children returns direct descendants."""
-        repo = AgentProfileRepository(built_in_dir=shipped_profiles_dir, project_dir=None)
+        repo = AgentProfileRepository(
+            built_in_dir=shipped_profiles_dir, project_dir=None, drg=_shipped_drg()
+        )
         children = repo.get_children("generic-implementer")
         assert len(children) == 1
         assert children[0].profile_id == "python-pedro"
@@ -537,7 +570,9 @@ class TestAgentProfileRepositoryHierarchy:
 
     def test_get_ancestors(self, shipped_profiles_dir: Path):
         """Get ancestors returns parent chain."""
-        repo = AgentProfileRepository(built_in_dir=shipped_profiles_dir, project_dir=None)
+        repo = AgentProfileRepository(
+            built_in_dir=shipped_profiles_dir, project_dir=None, drg=_shipped_drg()
+        )
         ancestors = repo.get_ancestors("python-pedro")
         assert ancestors == ["generic-implementer"]
 
@@ -548,7 +583,9 @@ class TestAgentProfileRepositoryHierarchy:
 
     def test_get_hierarchy_tree(self, shipped_profiles_dir: Path):
         """Get hierarchy tree returns nested structure."""
-        repo = AgentProfileRepository(built_in_dir=shipped_profiles_dir, project_dir=None)
+        repo = AgentProfileRepository(
+            built_in_dir=shipped_profiles_dir, project_dir=None, drg=_shipped_drg()
+        )
         tree = repo.get_hierarchy_tree()
 
         # Should have 2 roots: architect-alphonso and generic-implementer
@@ -564,7 +601,9 @@ class TestAgentProfileRepositoryMatching:
 
     def test_find_best_match_with_language(self, shipped_profiles_dir: Path):
         """Find best match returns specialist for matching language."""
-        repo = AgentProfileRepository(built_in_dir=shipped_profiles_dir, project_dir=None)
+        repo = AgentProfileRepository(
+            built_in_dir=shipped_profiles_dir, project_dir=None, drg=_shipped_drg()
+        )
         context = TaskContext(
             task_type="implement",
             language="python",
@@ -578,7 +617,9 @@ class TestAgentProfileRepositoryMatching:
         self, shipped_profiles_dir: Path
     ):
         """Find best match with no context returns highest routing_priority."""
-        repo = AgentProfileRepository(built_in_dir=shipped_profiles_dir, project_dir=None)
+        repo = AgentProfileRepository(
+            built_in_dir=shipped_profiles_dir, project_dir=None, drg=_shipped_drg()
+        )
         context = TaskContext(task_type="implement", complexity="medium")
         match = repo.find_best_match(context)
         assert match is not None
@@ -587,7 +628,9 @@ class TestAgentProfileRepositoryMatching:
 
     def test_find_best_match_with_workload_penalty(self, shipped_profiles_dir: Path):
         """Workload penalty reduces score for busy profiles."""
-        repo = AgentProfileRepository(built_in_dir=shipped_profiles_dir, project_dir=None)
+        repo = AgentProfileRepository(
+            built_in_dir=shipped_profiles_dir, project_dir=None, drg=_shipped_drg()
+        )
         context = TaskContext(
             task_type="implement",
             language="python",
@@ -757,25 +800,26 @@ class TestAgentProfileRepositoryLoader:
         repo = AgentProfileRepository(built_in_dir=shipped, project_dir=None)
         assert repo.list_all() == []
 
-    def test_project_profile_missing_profile_id_emits_warning(
+    def test_project_profile_missing_profile_id_is_recorded(
         self, shipped_profiles_dir: Path, tmp_path: Path
     ):
-        """Project YAML with no profile-id key emits UserWarning and is skipped."""
+        """Project YAML with no profile-id key is recorded as skipped (FR-005/006/007)."""
         project = tmp_path / "project"
         project.mkdir()
         (project / "no-id.agent.yaml").write_text(
             "name: No ID Profile\npurpose: Test\nroles:\n  - implementer\n"
             "specialization:\n  primary-focus: Testing\n"
         )
-        with pytest.warns(UserWarning, match="no profile-id"):
-            repo = AgentProfileRepository(
-                built_in_dir=shipped_profiles_dir, project_dir=project
-            )
+        repo = AgentProfileRepository(
+            built_in_dir=shipped_profiles_dir, project_dir=project, drg=_shipped_drg()
+        )
         ids = {p.profile_id for p in repo.list_all()}
         assert "no-id" not in ids
+        skipped = repo.skipped_profiles()
+        assert any(s.layer == "project" and s.profile_id is None for s in skipped)
 
-    def test_invalid_shipped_yaml_emits_warning(self, tmp_path: Path):
-        """Shipped YAML with parse error emits UserWarning and loads other profiles."""
+    def test_invalid_shipped_yaml_is_recorded(self, tmp_path: Path):
+        """Shipped YAML with parse error is recorded as skipped and other profiles load."""
         shipped = tmp_path / "built-in"
         shipped.mkdir()
         (shipped / "good.agent.yaml").write_text(
@@ -783,32 +827,31 @@ class TestAgentProfileRepositoryLoader:
             "roles:\n  - implementer\nspecialization:\n  primary-focus: Testing\n"
         )
         (shipped / "bad.agent.yaml").write_text("invalid: yaml: {")
-        with pytest.warns(UserWarning):
-            repo = AgentProfileRepository(built_in_dir=shipped, project_dir=None)
+        repo = AgentProfileRepository(built_in_dir=shipped, project_dir=None)
         assert repo.get("good") is not None
         assert repo.get("bad") is None
+        assert any(s.layer == "builtin" for s in repo.skipped_profiles())
 
-    def test_warning_fires_once_per_invalid_shipped_file(self, tmp_path: Path):
-        """A single invalid built-in file produces exactly one UserWarning on load."""
+    def test_skip_recorded_once_per_invalid_shipped_file(self, tmp_path: Path):
+        """A single invalid built-in file produces exactly one skip record on load."""
         shipped = tmp_path / "built-in"
         shipped.mkdir()
         (shipped / "bad.agent.yaml").write_text("invalid: yaml: {")
-        with pytest.warns(UserWarning) as record:
-            AgentProfileRepository(built_in_dir=shipped, project_dir=None)
-        user_warnings = [w for w in record if issubclass(w.category, UserWarning)]
-        assert len(user_warnings) == 1
+        repo = AgentProfileRepository(built_in_dir=shipped, project_dir=None)
+        builtin_skips = [s for s in repo.skipped_profiles() if s.layer == "builtin"]
+        assert len(builtin_skips) == 1
 
-    def test_invalid_project_yaml_emits_warning(
+    def test_invalid_project_yaml_is_recorded(
         self, shipped_profiles_dir: Path, tmp_path: Path
     ):
-        """Project YAML with parse error emits UserWarning for that file."""
+        """Project YAML with parse error is recorded as skipped for that file."""
         project = tmp_path / "project"
         project.mkdir()
         (project / "broken.agent.yaml").write_text("broken: yaml: {")
-        with pytest.warns(UserWarning):
-            AgentProfileRepository(
-                built_in_dir=shipped_profiles_dir, project_dir=project
-            )
+        repo = AgentProfileRepository(
+            built_in_dir=shipped_profiles_dir, project_dir=project, drg=_shipped_drg()
+        )
+        assert any(s.layer == "project" for s in repo.skipped_profiles())
 
 
 # ── _apply_excluding tests ─────────────────────────────────────────────────
@@ -829,7 +872,6 @@ class TestResolveProfileWithExcluding:
         (shipped / "child.agent.yaml").write_text(
             "profile-id: child\nname: Child\npurpose: Child profile\n"
             "roles:\n  - implementer\nrouting-priority: 60\n"
-            "specializes-from: base\n"
             "specialization:\n  primary-focus: Child implementation\n"
             "excluding:\n  capabilities:\n    - edit\n"
         )
@@ -838,7 +880,9 @@ class TestResolveProfileWithExcluding:
     def test_excluding_dict_removes_specific_list_values(self, tmp_path: Path):
         """Child's excluding dict removes named values from parent list fields."""
         shipped = self._make_shipped_dir(tmp_path)
-        repo = AgentProfileRepository(built_in_dir=shipped, project_dir=None)
+        repo = AgentProfileRepository(
+            built_in_dir=shipped, project_dir=None, drg=_lineage_drg(("child", "base"))
+        )
         child = repo.resolve_profile("child")
         assert "edit" not in child.capabilities
         assert "read" in child.capabilities
@@ -856,11 +900,13 @@ class TestResolveProfileWithExcluding:
         )
         (shipped / "child2.agent.yaml").write_text(
             "profile-id: child2\nname: Child2\npurpose: Child2 profile\n"
-            "roles:\n  - implementer\nspecializes-from: base2\n"
+            "roles:\n  - implementer\n"
             "specialization:\n  primary-focus: Child2 implementation\n"
             "excluding:\n  - capabilities\n"
         )
-        repo = AgentProfileRepository(built_in_dir=shipped, project_dir=None)
+        repo = AgentProfileRepository(
+            built_in_dir=shipped, project_dir=None, drg=_lineage_drg(("child2", "base2"))
+        )
         child = repo.resolve_profile("child2")
         assert child.capabilities == []
 
@@ -925,23 +971,30 @@ class TestMultiLevelHierarchy:
         )
         (shipped / "mid.agent.yaml").write_text(
             "profile-id: mid\nname: Mid\npurpose: Mid\nroles:\n  - implementer\n"
-            "specializes-from: root\nspecialization:\n  primary-focus: Mid\n"
+            "specialization:\n  primary-focus: Mid\n"
         )
         (shipped / "leaf.agent.yaml").write_text(
             "profile-id: leaf\nname: Leaf\npurpose: Leaf\nroles:\n  - implementer\n"
-            "specializes-from: mid\nspecialization:\n  primary-focus: Leaf\n"
+            "specialization:\n  primary-focus: Leaf\n"
         )
         return shipped
 
+    def _three_level_drg(self) -> DRGGraph:
+        return _lineage_drg(("mid", "root"), ("leaf", "mid"))
+
     def test_get_ancestors_returns_full_chain_nearest_first(self, tmp_path: Path):
         shipped = self._three_level_shipped(tmp_path)
-        repo = AgentProfileRepository(built_in_dir=shipped, project_dir=None)
+        repo = AgentProfileRepository(
+            built_in_dir=shipped, project_dir=None, drg=self._three_level_drg()
+        )
         ancestors = repo.get_ancestors("leaf")
         assert ancestors == ["mid", "root"]
 
     def test_get_children_returns_only_direct_children(self, tmp_path: Path):
         shipped = self._three_level_shipped(tmp_path)
-        repo = AgentProfileRepository(built_in_dir=shipped, project_dir=None)
+        repo = AgentProfileRepository(
+            built_in_dir=shipped, project_dir=None, drg=self._three_level_drg()
+        )
         root_children = repo.get_children("root")
         assert [p.profile_id for p in root_children] == ["mid"]
         # leaf is NOT a direct child of root
@@ -957,16 +1010,20 @@ class TestMultiLevelHierarchy:
         )
         (shipped / "mid.agent.yaml").write_text(
             "profile-id: mid\nname: Mid\npurpose: Mid\nroles:\n  - implementer\n"
-            "specializes-from: root\ncapabilities:\n  - write\n"
+            "capabilities:\n  - write\n"
             "specialization:\n  primary-focus: Mid\n"
         )
         (shipped / "leaf.agent.yaml").write_text(
             "profile-id: leaf\nname: Leaf\npurpose: Leaf\nroles:\n  - implementer\n"
-            "specializes-from: mid\ncapabilities:\n  - search\n"
+            "capabilities:\n  - search\n"
             "routing-priority: 90\n"
             "specialization:\n  primary-focus: Leaf\n"
         )
-        repo = AgentProfileRepository(built_in_dir=shipped, project_dir=None)
+        repo = AgentProfileRepository(
+            built_in_dir=shipped,
+            project_dir=None,
+            drg=_lineage_drg(("mid", "root"), ("leaf", "mid")),
+        )
         resolved = repo.resolve_profile("leaf")
         # Leaf overrides root's routing-priority
         assert resolved.routing_priority == 90

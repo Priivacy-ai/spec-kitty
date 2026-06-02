@@ -6,6 +6,7 @@ for defining agent behavioral identities in spec-kitty.
 """
 
 from doctrine.agent_profiles.capabilities import DEFAULT_ROLE_CAPABILITIES, RoleCapabilities, get_capabilities
+from doctrine.agent_profiles.diagnostics import SkippedProfile
 from doctrine.agent_profiles.profile import (
     AgentProfile,
     CollaborationContract,
@@ -38,4 +39,6 @@ __all__ = [
     "get_capabilities",
     # Repository
     "AgentProfileRepository",
+    # Diagnostics
+    "SkippedProfile",
 ]

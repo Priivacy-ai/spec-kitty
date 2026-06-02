@@ -37,12 +37,14 @@ def _make_profile(
     profile_id: str = "test-p",
     role: Role | str = Role.IMPLEMENTER,
     routing_priority: int = 50,
-    specializes_from: str | None = None,
     languages: list[str] | None = None,
     frameworks: list[str] | None = None,
     file_patterns: list[str] | None = None,
     domain_keywords: list[str] | None = None,
 ) -> AgentProfile:
+    # Lineage (``specializes-from``) is no longer a profile field (FR-002 / WP06
+    # hard cutover); it is resolved from DRG ``specializes_from`` edges and
+    # surfaces to scoring as the ``is_specialist`` flag on ``_score_profile``.
     ctx = None
     if any(x is not None for x in (languages, frameworks, file_patterns, domain_keywords)):
         ctx = SpecializationContext(
@@ -58,7 +60,6 @@ def _make_profile(
             "purpose": "test",
             "role": role,
             "routing-priority": routing_priority,
-            "specializes-from": specializes_from,
             "specialization": {"primary-focus": "Testing"},
             "specialization-context": ctx.model_dump(by_alias=True) if ctx else None,
         }
@@ -381,7 +382,10 @@ class TestScoreProfile:
         assert _score_profile(ctx_light, profile) > _score_profile(ctx_heavy, profile)
 
     def test_specialist_high_complexity_bonus_applies(self):
-        specialist = _make_profile("spec", routing_priority=50, specializes_from="parent")
+        specialist = _make_profile("spec", routing_priority=50)
         generalist = _make_profile("gen", routing_priority=50)
         ctx = TaskContext(complexity="high")
-        assert _score_profile(ctx, specialist) > _score_profile(ctx, generalist)
+        # is_specialist now comes from DRG lineage resolution, passed explicitly.
+        assert _score_profile(ctx, specialist, is_specialist=True) > _score_profile(
+            ctx, generalist, is_specialist=False
+        )
