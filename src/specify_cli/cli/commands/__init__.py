@@ -4,7 +4,108 @@ from __future__ import annotations
 
 import sys
 
+import click
 import typer
+from typer.core import TyperGroup
+from typer.models import DefaultPlaceholder, TyperInfo
+
+
+class HelpOnEmptyTopLevelGroup(TyperGroup):
+    """Render help with exit 0 for empty top-level command-group invocation."""
+
+    def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
+        if not args and self.no_args_is_help and not ctx.resilient_parsing:
+            click.echo(ctx.get_help(), color=ctx.color)
+            ctx.exit(0)
+        return super().parse_args(ctx, args)
+
+
+_HELP_ON_EMPTY_GROUP_CLASS_CACHE: dict[type[TyperGroup], type[TyperGroup]] = {}
+
+_TOP_LEVEL_GROUP_EMPTY_INVOCATION_EXCEPTIONS = frozenset(
+    {
+        # These groups intentionally run a default action when invoked without
+        # a subcommand.
+        "context",
+        "migrate",
+        # This surface is JSON-first; even usage failures must remain JSON
+        # envelopes, not Rich/prose help.
+        "orchestrator-api",
+    }
+)
+
+
+def _is_explicit_typer_setting(value: object) -> bool:
+    return not isinstance(value, DefaultPlaceholder)
+
+
+def _top_level_group_name(group_info: TyperInfo) -> str | None:
+    if _is_explicit_typer_setting(group_info.name) and group_info.name is not None:
+        return str(group_info.name)
+
+    child_name = group_info.typer_instance.info.name
+    if _is_explicit_typer_setting(child_name) and child_name is not None:
+        return str(child_name)
+
+    return None
+
+
+def _top_level_group_invokes_without_command(group_info: TyperInfo) -> bool:
+    values = (
+        group_info.invoke_without_command,
+        group_info.typer_instance.info.invoke_without_command,
+    )
+    return any(_is_explicit_typer_setting(value) and bool(value) for value in values)
+
+
+def _top_level_group_base_class(group_info: TyperInfo) -> type[TyperGroup]:
+    if _is_explicit_typer_setting(group_info.cls):
+        return group_info.cls
+
+    child_cls = group_info.typer_instance.info.cls
+    if _is_explicit_typer_setting(child_cls):
+        return child_cls
+
+    return TyperGroup
+
+
+def _help_on_empty_group_class(base_class: type[TyperGroup]) -> type[TyperGroup]:
+    if issubclass(base_class, HelpOnEmptyTopLevelGroup):
+        return base_class
+    if base_class is TyperGroup:
+        return HelpOnEmptyTopLevelGroup
+
+    cached = _HELP_ON_EMPTY_GROUP_CLASS_CACHE.get(base_class)
+    if cached is not None:
+        return cached
+
+    wrapped = type(
+        f"HelpOnEmpty{base_class.__name__}",
+        (HelpOnEmptyTopLevelGroup, base_class),
+        {},
+    )
+    _HELP_ON_EMPTY_GROUP_CLASS_CACHE[base_class] = wrapped
+    return wrapped
+
+
+def _enforce_top_level_empty_group_help(app: typer.Typer) -> None:
+    """Make empty top-level command groups render help by default.
+
+    Typer defaults nested command groups to "Missing command" unless each group
+    opts into no_args_is_help.  Enforcing that policy at root registration keeps
+    future top-level groups consistent while preserving explicit default-action
+    and machine-contract exceptions.
+    """
+    for group_info in app.registered_groups:
+        group_name = _top_level_group_name(group_info)
+        if group_name in _TOP_LEVEL_GROUP_EMPTY_INVOCATION_EXCEPTIONS:
+            continue
+        if _top_level_group_invokes_without_command(group_info):
+            continue
+
+        group_info.no_args_is_help = True
+        group_info.cls = _help_on_empty_group_class(_top_level_group_base_class(group_info))
+        group_info.typer_instance.info.no_args_is_help = True
 
 
 def _is_next_fast_path(argv: list[str]) -> bool:
@@ -45,6 +146,7 @@ def register_commands(app: typer.Typer) -> None:
         from . import doctor as doctor_module
 
         app.add_typer(doctor_module.app, name="doctor", help="Project health diagnostics")
+        _enforce_top_level_empty_group_help(app)
         return
 
     from . import accept as accept_module
@@ -136,6 +238,7 @@ def register_commands(app: typer.Typer) -> None:
 
     from specify_cli.cli.commands.retrospect import app as retrospect_app  # WP05 (replaces WP09 single-command registration)
     app.add_typer(retrospect_app, name="retrospect", help="Retrospective authoring and summary (create / backfill / summary)")
+    _enforce_top_level_empty_group_help(app)
 
 
 __all__ = ["register_commands"]
