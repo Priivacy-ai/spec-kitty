@@ -35,7 +35,7 @@ src/doctrine/missions/mission-steps/{mission_type}/{step_id}/prompt.md  (SOURCE 
 
 ## Supported AI Agents
 
-Spec Kitty supports **17 AI agents** total: 13 use the slash-command pipeline (Amazon Q/`q` retained as legacy alongside its rebrand Kiro) and 4 use the Agent Skills pipeline. When adding features that affect slash commands, migrations, or templates, ensure all command-layer agents are updated.
+Spec Kitty supports **19 AI agents** total: 13 use the slash-command pipeline (Amazon Q/`q` retained as legacy alongside its rebrand Kiro) and 6 use the Agent Skills pipeline. When adding features that affect slash commands, migrations, or templates, ensure all command-layer agents are updated.
 
 ### Slash-Command Agents (13)
 
@@ -55,7 +55,7 @@ Spec Kitty supports **17 AI agents** total: 13 use the slash-command pipeline (A
 | Kiro | `.kiro/` | `prompts/` | `/spec-kitty.*` |
 | Google Antigravity | `.agent/` | `workflows/` | `/spec-kitty.*` |
 
-### Agent Skills Agents (4)
+### Agent Skills Agents (6)
 
 | Agent | Skills Root | Command Surface | Key |
 |-------|-------------|-----------------|-----|
