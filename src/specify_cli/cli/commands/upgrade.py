@@ -386,6 +386,11 @@ def _agent_check_payload() -> dict[str, object]:
         payload["reason"] = "always_upgrade"
         return payload
 
+    if hint.command is None:
+        payload["action"] = "guidance"
+        payload["reason"] = "manual_upgrade_required"
+        return payload
+
     payload["action"] = "prompt"
     payload["reason"] = "upgrade_available"
     return payload

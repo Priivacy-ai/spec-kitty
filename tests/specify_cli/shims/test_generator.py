@@ -73,8 +73,8 @@ class TestGenerateShimContent:
     def test_total_line_count(self) -> None:
         content = generate_shim_content("implement", "claude", "$ARGUMENTS")
         lines = content.rstrip("\n").splitlines()
-        assert len(lines) > 9
-        assert "## Startup Upgrade Check" in lines
+        assert len(lines) <= 10
+        assert "## Startup Upgrade Check" not in lines
 
     def test_starts_with_yaml_frontmatter(self) -> None:
         """Line 1 must be ``---`` so Claude Code parses the description."""
@@ -110,19 +110,17 @@ class TestGenerateShimContent:
         lines = content.splitlines()
         assert lines[3].startswith("<!-- spec-kitty-command-version:")
 
-    def test_upgrade_check_after_version_marker(self) -> None:
+    def test_command_instruction_after_version_marker(self) -> None:
         content = generate_shim_content("implement", "claude", "$ARGUMENTS")
         lines = content.splitlines()
         assert lines[3].startswith("<!-- spec-kitty-command-version:")
-        assert lines[4] == "## Startup Upgrade Check"
-        assert "spec-kitty upgrade --agent-check --json" in content
+        assert lines[4] == "Run this exact command and treat its output as authoritative."
+        assert "spec-kitty upgrade --agent-check --json" not in content
 
     def test_invariant_line_position(self) -> None:
         content = generate_shim_content("implement", "claude", "$ARGUMENTS")
         lines = content.splitlines()
-        assert lines.index("Run this exact command and treat its output as authoritative.") > lines.index(
-            "## Startup Upgrade Check"
-        )
+        assert lines.index("Run this exact command and treat its output as authoritative.") == 4
 
     def test_prohibition_line_position(self) -> None:
         content = generate_shim_content("implement", "claude", "$ARGUMENTS")
@@ -417,7 +415,7 @@ class TestGenerateShimContentToml:
         parsed = tomllib.loads(content)
         assert "Run this exact command and treat its output as authoritative." in parsed["prompt"]
         assert "Do not rediscover context" in parsed["prompt"]
-        assert "spec-kitty upgrade --agent-check --json" in parsed["prompt"]
+        assert "spec-kitty upgrade --agent-check --json" not in parsed["prompt"]
 
     def test_canonical_cli_call_in_prompt(self) -> None:
         import tomllib
@@ -434,13 +432,13 @@ class TestGenerateShimContentToml:
 
 class TestGenerateShimContentForAgent:
     @pytest.mark.parametrize("agent_key", sorted(AGENT_COMMAND_CONFIG))
-    def test_all_command_agents_include_upgrade_check(self, agent_key: str) -> None:
+    def test_command_shims_do_not_embed_upgrade_check(self, agent_key: str) -> None:
         import tomllib
 
         content = generate_shim_content_for_agent("implement", agent_key)
         searchable = tomllib.loads(content)["prompt"] if AGENT_COMMAND_CONFIG[agent_key]["ext"] == "toml" else content
-        assert "## Startup Upgrade Check" in searchable
-        assert "spec-kitty upgrade --agent-check --json" in searchable
+        assert "## Startup Upgrade Check" not in searchable
+        assert "spec-kitty upgrade --agent-check --json" not in searchable
 
     def test_gemini_returns_toml(self) -> None:
         import tomllib
