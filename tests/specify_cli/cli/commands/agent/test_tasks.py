@@ -21,6 +21,8 @@ from typer.main import get_command
 
 from specify_cli.cli.commands.agent.tasks import (
     _get_latest_review_cycle_verdict,
+    _lane_targets_for_emit,
+    _wp_lane_from_status_events,
     _VALID_VERDICTS,
     app,
 )
@@ -52,6 +54,27 @@ def test_move_task_help_surfaces_review_artifact_override_audit_path() -> None:
     assert "requires --note" in skip_review_help
     assert "records override" in skip_review_help
     assert "evidence" in skip_review_help
+
+
+def test_move_task_lane_chain_uses_canonical_status_events() -> None:
+    """Coord-backed current lane must not restart forward chains from planned."""
+    event = StatusEvent(
+        event_id="test-WP01-for-review",
+        mission_slug="test-mission",
+        wp_id="WP01",
+        from_lane=Lane.IN_PROGRESS,
+        to_lane=Lane.FOR_REVIEW,
+        at="2026-01-01T00:00:00+00:00",
+        actor="test",
+        force=False,
+        execution_mode="worktree",
+    )
+
+    current_lane = _wp_lane_from_status_events([event], "WP01")
+    targets = _lane_targets_for_emit(current_lane, Lane.APPROVED)
+
+    assert current_lane == Lane.FOR_REVIEW
+    assert targets == [Lane.IN_REVIEW, Lane.APPROVED]
 
 
 # ---------------------------------------------------------------------------
@@ -199,7 +222,7 @@ class TestVerdictGuardInMoveTask:
 
     @patch("specify_cli.cli.commands.agent.tasks.safe_commit")
     @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional")
-    @patch("specify_cli.cli.commands.agent.tasks.read_events")
+    @patch("specify_cli.cli.commands.agent.tasks.read_events_transactional")
     @patch("specify_cli.cli.commands.agent.tasks.feature_status_lock")
     @patch("specify_cli.cli.commands.agent.tasks._validate_ready_for_review")
     @patch("specify_cli.cli.commands.agent.tasks._check_unchecked_subtasks")
@@ -272,7 +295,7 @@ class TestVerdictGuardInMoveTask:
 
     @patch("specify_cli.cli.commands.agent.tasks.safe_commit")
     @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional")
-    @patch("specify_cli.cli.commands.agent.tasks.read_events")
+    @patch("specify_cli.cli.commands.agent.tasks.read_events_transactional")
     @patch("specify_cli.cli.commands.agent.tasks.feature_status_lock")
     @patch("specify_cli.cli.commands.agent.tasks._validate_ready_for_review")
     @patch("specify_cli.cli.commands.agent.tasks._check_unchecked_subtasks")
@@ -343,7 +366,7 @@ class TestVerdictGuardInMoveTask:
 
     @patch("specify_cli.cli.commands.agent.tasks.safe_commit")
     @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional")
-    @patch("specify_cli.cli.commands.agent.tasks.read_events")
+    @patch("specify_cli.cli.commands.agent.tasks.read_events_transactional")
     @patch("specify_cli.cli.commands.agent.tasks.feature_status_lock")
     @patch("specify_cli.cli.commands.agent.tasks._validate_ready_for_review")
     @patch("specify_cli.cli.commands.agent.tasks._check_unchecked_subtasks")
@@ -416,7 +439,7 @@ class TestSkipReviewArtifactCheck:
 
     @patch("specify_cli.cli.commands.agent.tasks.safe_commit")
     @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional")
-    @patch("specify_cli.cli.commands.agent.tasks.read_events")
+    @patch("specify_cli.cli.commands.agent.tasks.read_events_transactional")
     @patch("specify_cli.cli.commands.agent.tasks.feature_status_lock")
     @patch("specify_cli.cli.commands.agent.tasks._validate_ready_for_review")
     @patch("specify_cli.cli.commands.agent.tasks._check_unchecked_subtasks")
@@ -505,7 +528,7 @@ class TestSkipReviewArtifactCheck:
 
     @patch("specify_cli.cli.commands.agent.tasks.safe_commit")
     @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional")
-    @patch("specify_cli.cli.commands.agent.tasks.read_events")
+    @patch("specify_cli.cli.commands.agent.tasks.read_events_transactional")
     @patch("specify_cli.cli.commands.agent.tasks.feature_status_lock")
     @patch("specify_cli.cli.commands.agent.tasks._validate_ready_for_review")
     @patch("specify_cli.cli.commands.agent.tasks._check_unchecked_subtasks")

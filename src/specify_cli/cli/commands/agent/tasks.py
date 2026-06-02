@@ -24,12 +24,15 @@ from specify_cli.sync.events import (
     emit_error_logged,
 )
 
-from specify_cli.coordination.status_transition import emit_status_transition_transactional
+from specify_cli.coordination.status_transition import (
+    emit_status_transition_transactional,
+    read_events_transactional,
+)
 from specify_cli.status.models import Lane, StatusEvent, TransitionRequest
 from specify_cli.status.preflight import is_dossier_snapshot as _is_dossier_snapshot
 from specify_cli.status.progress import PROGRESS_SEMANTICS, compute_done_percentage, compute_weighted_progress
 from specify_cli.status.transitions import resolve_lane_alias
-from specify_cli.status.store import EventPersistenceError, EVENTS_FILENAME, read_events
+from specify_cli.status.store import EventPersistenceError, EVENTS_FILENAME
 
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 from specify_cli.lanes.persistence import MissingLanesError
@@ -259,6 +262,49 @@ def _is_backward_transition(current_lane: str, target_lane: str) -> bool:
     if c not in _FORWARD_ORDER or t not in _FORWARD_ORDER:
         return False
     return _FORWARD_ORDER.index(t) < _FORWARD_ORDER.index(c)
+
+
+def _lane_targets_for_emit(current_lane: str, requested_lane: str) -> list[str]:
+    """Return forward intermediate lane hops from current to requested lane."""
+    current = resolve_lane_alias(current_lane)
+    target = resolve_lane_alias(requested_lane)
+    if current in _FORWARD_ORDER and target in _FORWARD_ORDER:
+        current_idx = _FORWARD_ORDER.index(current)
+        target_idx = _FORWARD_ORDER.index(target)
+        if target_idx > current_idx:
+            return _FORWARD_ORDER[current_idx + 1 : target_idx + 1]
+    return [target]
+
+
+def _wp_lane_from_status_events(events: list[StatusEvent], wp_id: str) -> Lane:
+    """Return a WP's current lane from canonical status events."""
+    if not events:
+        return Lane.PLANNED
+    from specify_cli.status.reducer import reduce as _reduce_status_events
+
+    snapshot = _reduce_status_events(events)
+    state = snapshot.work_packages.get(wp_id)
+    if not state:
+        return Lane.PLANNED
+    return Lane(state.get("lane", Lane.PLANNED))
+
+
+def _read_transactional_wp_lane(
+    *,
+    feature_dir: Path,
+    mission_slug: str,
+    wp_id: str,
+    repo_root: Path,
+) -> Lane:
+    """Read the WP lane from the same status target transactional writes use."""
+    return _wp_lane_from_status_events(
+        read_events_transactional(
+            feature_dir=feature_dir,
+            mission_slug=mission_slug,
+            repo_root=repo_root,
+        ),
+        wp_id,
+    )
 
 
 def _review_cycle_number(path: Path) -> int:
@@ -1615,16 +1661,12 @@ def move_task(
         wp = locate_work_package(repo_root, mission_slug, task_id)
         # Lane is event-log-only; read from canonical event log not frontmatter
         _mt_feature_dir = main_repo_root / "kitty-specs" / mission_slug
-        try:
-            from specify_cli.status.store import read_events as _mt_read_events
-            from specify_cli.status.reducer import reduce as _mt_reduce
-
-            _mt_events = _mt_read_events(_mt_feature_dir)
-            _mt_snapshot = _mt_reduce(_mt_events) if _mt_events else None
-            _mt_state = _mt_snapshot.work_packages.get(task_id) if _mt_snapshot else None
-            old_lane = Lane(_mt_state.get("lane", Lane.PLANNED)) if _mt_state else Lane.PLANNED
-        except Exception:
-            old_lane = Lane.PLANNED
+        old_lane = _read_transactional_wp_lane(
+            feature_dir=_mt_feature_dir,
+            mission_slug=mission_slug,
+            wp_id=task_id,
+            repo_root=main_repo_root,
+        )
 
         # AGENT OWNERSHIP CHECK: Warn if agent doesn't match WP's current agent
         # This helps prevent agents from accidentally modifying WPs they don't own
@@ -1871,9 +1913,11 @@ def move_task(
 
             if _is_arbiter_override(feature_dir, task_id, old_lane, resolve_lane_alias(target_lane), force):
                 # Derive review_ref from the latest rejection event
-                from specify_cli.status.store import read_events as _arb_read_events
-
-                _arb_events = _arb_read_events(feature_dir)
+                _arb_events = read_events_transactional(
+                    feature_dir=feature_dir,
+                    mission_slug=mission_slug,
+                    repo_root=main_repo_root,
+                )
                 _arb_wp_events = [e for e in _arb_events if e.wp_id == task_id]
                 _arb_latest = _arb_wp_events[-1] if _arb_wp_events else None
                 _arb_review_ref = _arb_latest.review_ref if _arb_latest else None
@@ -1932,16 +1976,6 @@ def move_task(
                 reason_parts.append(original_reason)
             emit_reason = ": ".join(reason_parts)
 
-        def _lane_targets_for_emit(current_lane: str, requested_lane: str) -> list[str]:
-            current = resolve_lane_alias(current_lane)
-            target = resolve_lane_alias(requested_lane)
-            if current in _FORWARD_ORDER and target in _FORWARD_ORDER:
-                current_idx = _FORWARD_ORDER.index(current)
-                target_idx = _FORWARD_ORDER.index(target)
-                if target_idx > current_idx:
-                    return _FORWARD_ORDER[current_idx + 1 : target_idx + 1]
-            return [target]
-
         transition_targets = [canonical_lane]
         if not emit_force:
             transition_targets = _lane_targets_for_emit(old_lane, canonical_lane)
@@ -1949,7 +1983,13 @@ def move_task(
         with feature_status_lock(main_repo_root, mission_slug):
             event = None
             current_event_lane = None
-            for existing_event in reversed(read_events(feature_dir)):
+            for existing_event in reversed(
+                read_events_transactional(
+                    feature_dir=feature_dir,
+                    mission_slug=mission_slug,
+                    repo_root=main_repo_root,
+                )
+            ):
                 if existing_event.wp_id == task_id:
                     current_event_lane = str(existing_event.to_lane)
                     break

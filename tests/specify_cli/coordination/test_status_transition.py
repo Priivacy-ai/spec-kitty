@@ -9,7 +9,10 @@ from typing import Any
 
 import pytest
 
-from specify_cli.coordination.status_transition import emit_status_transition_transactional
+from specify_cli.coordination.status_transition import (
+    emit_status_transition_transactional,
+    read_events_transactional,
+)
 from specify_cli.coordination.transaction import BookkeepingCommitFailed, BookkeepingWorktreeMissing
 from specify_cli.status.models import TransitionRequest
 
@@ -84,6 +87,33 @@ def test_transactional_emit_fans_out_only_after_commit(
 
     show = _git(repo, "show", f"{COORD_BRANCH}:kitty-specs/{MISSION_DIRNAME}/status.events.jsonl")
     assert event.event_id in show.stdout
+
+
+def test_transactional_read_targets_coordination_branch(repo: Path) -> None:
+    event = emit_status_transition_transactional(_request(repo), sync_dossier=False)
+
+    events = read_events_transactional(
+        feature_dir=repo / "kitty-specs" / MISSION_DIRNAME,
+        mission_slug=MISSION_SLUG,
+        repo_root=repo,
+    )
+
+    assert [e.event_id for e in events] == [event.event_id]
+    assert not (repo / "kitty-specs" / MISSION_DIRNAME / "status.events.jsonl").exists()
+
+
+def test_transactional_read_does_not_create_coordination_worktree(repo: Path) -> None:
+    assert not (repo / ".worktrees").exists()
+
+    events = read_events_transactional(
+        feature_dir=repo / "kitty-specs" / MISSION_DIRNAME,
+        mission_slug=MISSION_SLUG,
+        repo_root=repo,
+    )
+
+    assert events == []
+    assert not (repo / ".worktrees").exists()
+    assert _git(repo, "status", "--short").stdout == ""
 
 
 def test_transactional_emit_skips_fanout_when_commit_rolls_back(

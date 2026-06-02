@@ -89,6 +89,16 @@ def test_research_evidence_logs_are_trackable():
     assert _is_ignored(repo_root, generic)
 
 
+def test_charter_synthesis_artifacts_are_trackable():
+    """KD-2 charter synthesis artifacts must be commit-ready."""
+
+    repo_root = Path(__file__).resolve().parents[2]
+
+    assert not _is_ignored(repo_root, ".kittify/charter/synthesis-manifest.yaml")
+    assert not _is_ignored(repo_root, ".kittify/charter/provenance/directive-demo.yaml")
+    assert not _is_ignored(repo_root, ".kittify/doctrine/graph.yaml")
+
+
 def _is_ignored(repo_root: Path, path: str) -> bool:
     result = subprocess.run(
         ["git", "check-ignore", "--quiet", path],

@@ -66,6 +66,7 @@ pyproject.local.toml
 .kittify/dossiers/
 .kittify/workspaces/
 .kittify/merge-state.json
+.kittify/sync-state.json
 .kittify/lint-report.json
 .kittify/preflight-warning.json
 .kittify/.migration-backup/
@@ -80,8 +81,6 @@ kitty-specs/**/.kittify/dossiers/
 kitty-specs/*/.kittify/dossiers/*/snapshot-latest.json
 .kittify/charter/context-state.json
 .kittify/charter/directives.yaml
-.kittify/charter/provenance/
-.kittify/charter/synthesis-manifest.yaml
 
 # Doctrine artifacts are version-controlled — that is the point of
 # `spec-kitty agent retrospect synthesize --apply` writing them. Use
@@ -98,6 +97,7 @@ kitty-specs/*/.kittify/dossiers/*/snapshot-latest.json
 !.kittify/doctrine/procedure/**
 !.kittify/doctrine/overlays/
 !.kittify/doctrine/overlays/**
+!.kittify/doctrine/graph.yaml
 
 # Generated glossary entity pages — never commit
 .kittify/charter/compiled/glossary/

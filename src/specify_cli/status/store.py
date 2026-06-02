@@ -207,7 +207,7 @@ def _event_matches_expected(actual: StatusEvent, expected: StatusEvent) -> bool:
         return False
     if expected.mission_id is not None and actual.mission_id != expected.mission_id:
         return False
-    return actual.wp_id == expected.wp_id and actual.to_lane == expected.to_lane
+    return bool(actual.wp_id == expected.wp_id and actual.to_lane == expected.to_lane)
 
 
 def verify_event_readback(feature_dir: Path, expected: StatusEvent) -> None:
@@ -358,6 +358,49 @@ def _should_skip_status_event(obj: dict[str, Any]) -> bool:
     return "event_type" in obj
 
 
+def read_events_from_text(feature_dir: Path, content: str) -> list[StatusEvent]:
+    """Deserialize StatusEvent objects from JSONL text.
+
+    Handles both legacy events (``mission_slug`` only) and new events
+    (``mission_slug`` + ``mission_id``).  For legacy events, the
+    ``mission_id`` is resolved from the corresponding ``meta.json`` via
+    the slug resolver (cached per call).
+
+    Blank lines are silently skipped.
+    Raises :class:`StoreError` on invalid JSON **or** invalid event
+    structure, including the 1-based line number in the message.
+    """
+    resolver = _SlugResolver(feature_dir)
+    results: list[StatusEvent] = []
+    for line_number, raw_line in enumerate(content.splitlines(), start=1):
+        stripped = raw_line.strip()
+        if not stripped:
+            continue
+        try:
+            obj = json.loads(stripped)
+        except json.JSONDecodeError as exc:
+            raise StoreError(f"Invalid JSON on line {line_number}: {exc}") from exc
+        if not isinstance(obj, dict):
+            raise StoreError(
+                f"Invalid event structure on line {line_number}: expected JSON object"
+            )
+        if _should_skip_status_event(obj):
+            continue
+
+        try:
+            # Resolve mission_id from the raw dict before parsing,
+            # so that from_dict() receives it even for legacy events.
+            resolved_mission_id = _resolve_mission_id_from_dict(obj, resolver)
+            if resolved_mission_id is not None and "mission_id" not in obj:
+                # Inject resolved value so from_dict() populates the field
+                obj = {**obj, "mission_id": resolved_mission_id}
+            event = StatusEvent.from_dict(obj)
+        except (KeyError, ValueError, TypeError) as exc:
+            raise StoreError(f"Invalid event structure on line {line_number}: {exc}") from exc
+        results.append(event)
+    return results
+
+
 def read_events(feature_dir: Path) -> list[StatusEvent]:
     """Read and deserialize StatusEvent objects from the events file.
 
@@ -375,33 +418,4 @@ def read_events(feature_dir: Path) -> list[StatusEvent]:
     if not path.exists():
         return []
 
-    resolver = _SlugResolver(feature_dir)
-    results: list[StatusEvent] = []
-    with path.open("r", encoding="utf-8") as fh:
-        for line_number, raw_line in enumerate(fh, start=1):
-            stripped = raw_line.strip()
-            if not stripped:
-                continue
-            try:
-                obj = json.loads(stripped)
-            except json.JSONDecodeError as exc:
-                raise StoreError(f"Invalid JSON on line {line_number}: {exc}") from exc
-            if not isinstance(obj, dict):
-                raise StoreError(
-                    f"Invalid event structure on line {line_number}: expected JSON object"
-                )
-            if _should_skip_status_event(obj):
-                continue
-
-            try:
-                # Resolve mission_id from the raw dict before parsing,
-                # so that from_dict() receives it even for legacy events.
-                resolved_mission_id = _resolve_mission_id_from_dict(obj, resolver)
-                if resolved_mission_id is not None and "mission_id" not in obj:
-                    # Inject resolved value so from_dict() populates the field
-                    obj = {**obj, "mission_id": resolved_mission_id}
-                event = StatusEvent.from_dict(obj)
-            except (KeyError, ValueError, TypeError) as exc:
-                raise StoreError(f"Invalid event structure on line {line_number}: {exc}") from exc
-            results.append(event)
-    return results
+    return read_events_from_text(feature_dir, path.read_text(encoding="utf-8"))
