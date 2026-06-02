@@ -140,6 +140,94 @@ _VALID_VERDICTS: frozenset[str] = frozenset(
 )
 
 
+def _issue_matrix_approval_blocker(feature_dir: Path) -> str | None:
+    """Return a blocking message when referenced issues still lack final verdicts."""
+    spec_path = feature_dir / "spec.md"
+    if not spec_path.exists():
+        return None
+
+    try:
+        from specify_cli.cli.commands.review._diagnostics import MissionReviewDiagnostic
+        from specify_cli.cli.commands.review._issue_matrix import validate_issue_matrix
+        from specify_cli.tasks.issue_matrix import detect_issue_references
+
+        refs = detect_issue_references(spec_path)
+    except Exception as exc:  # noqa: BLE001 -- approval guard must fail closed
+        logger.debug("Could not evaluate issue-matrix approval blocker: %s", exc)
+        return (
+            "ERROR: issue-matrix.md could not be evaluated before approval.\n"
+            f"Reason: {exc}\n"
+            "Fix the issue-matrix check before approving."
+        )
+
+    if not refs:
+        return None
+
+    matrix_path = feature_dir / "issue-matrix.md"
+    if not matrix_path.exists():
+        issue_list = ", ".join(f"#{ref.number}" for ref in refs)
+        return (
+            "ERROR: issue-matrix.md is required before approval.\n"
+            f"Referenced issues: {issue_list}\n"
+            "Fill verdicts before approving."
+        )
+
+    result = validate_issue_matrix(matrix_path)
+    referenced_issues = {f"#{ref.number}" for ref in refs}
+    matrix_issues = {row.issue for row in result.rows}
+    for diagnostic in result.diagnostics:
+        match = re.search(r"Row for issue '([^']+)'", diagnostic.get("message", ""))
+        if match:
+            matrix_issues.add(match.group(1))
+    missing_issues = sorted(referenced_issues - matrix_issues)
+    if result.passed and not missing_issues:
+        return None
+
+    unknown_issues: list[str] = []
+    other_messages: list[str] = []
+    for diagnostic in result.diagnostics:
+        message = diagnostic.get("message", "")
+        if diagnostic.get("diagnostic_code") == str(MissionReviewDiagnostic.ISSUE_MATRIX_VERDICT_UNKNOWN):
+            match = re.search(r"issue '([^']+)'", message)
+            unknown_issues.append(match.group(1) if match else message)
+        else:
+            other_messages.append(message)
+
+    lines = ["ERROR: issue-matrix.md has unresolved entries. Fill in verdicts before approving."]
+    if missing_issues:
+        lines.append(f"Missing rows: {', '.join(missing_issues)}")
+    if unknown_issues:
+        lines.append(f"Unknown: {', '.join(sorted(set(unknown_issues)))}")
+    for message in other_messages:
+        lines.append(f"- {message}")
+    return "\n".join(lines)
+
+
+def _self_review_fallback_option_error(
+    *,
+    enabled: bool,
+    target_lane: str,
+    force: bool,
+    intended_reviewer: str | None,
+    failure_reason: str | None,
+) -> str | None:
+    """Validate explicit self-review fallback metadata before approval."""
+    if not enabled:
+        if intended_reviewer or failure_reason:
+            return "--intended-reviewer/--reviewer-failure-reason require --self-review-fallback."
+        return None
+
+    if resolve_lane_alias(target_lane) not in (Lane.APPROVED, Lane.DONE):
+        return "--self-review-fallback is only valid when approving or marking done."
+    if not force:
+        return "--self-review-fallback requires --force so force_count records the independence override."
+    if not (intended_reviewer or "").strip():
+        return "--self-review-fallback requires --intended-reviewer <agent>."
+    if not (failure_reason or "").strip():
+        return "--self-review-fallback requires --reviewer-failure-reason <reason>."
+    return None
+
+
 # ---------------------------------------------------------------------------
 # WP01: Backward transition detection
 # ---------------------------------------------------------------------------
@@ -1415,6 +1503,21 @@ def move_task(
     ] = None,
     approval_ref: Annotated[str | None, typer.Option("--approval-ref", help="Approval reference for approval/done transitions (e.g., PR#42)")] = None,
     reviewer: Annotated[str | None, typer.Option("--reviewer", help="Reviewer name (auto-detected from git if omitted)")] = None,
+    self_review_fallback: Annotated[
+        bool,
+        typer.Option(
+            "--self-review-fallback",
+            help="Record that approval is a self-review fallback after the intended reviewer failed.",
+        ),
+    ] = False,
+    intended_reviewer: Annotated[
+        str | None,
+        typer.Option("--intended-reviewer", help="Reviewer that should have reviewed this WP before fallback."),
+    ] = None,
+    reviewer_failure_reason: Annotated[
+        str | None,
+        typer.Option("--reviewer-failure-reason", help="Reason the intended reviewer failed."),
+    ] = None,
     done_override_reason: Annotated[
         str | None,
         typer.Option("--done-override-reason", help="Required when --to done and merge ancestry cannot be verified; recorded in history/event reason"),
@@ -1454,6 +1557,16 @@ def move_task(
     try:
         # Validate lane
         target_lane = ensure_lane(to)
+        self_review_error = _self_review_fallback_option_error(
+            enabled=self_review_fallback,
+            target_lane=str(target_lane),
+            force=force,
+            intended_reviewer=intended_reviewer,
+            failure_reason=reviewer_failure_reason,
+        )
+        if self_review_error:
+            _output_error(json_output, self_review_error)
+            raise typer.Exit(1)
 
         # Get repo root and feature slug
         repo_root = locate_project_root()
@@ -1794,6 +1907,12 @@ def move_task(
         except ImportError:
             pass  # review package not available yet
 
+        if target_lane in (Lane.APPROVED, Lane.DONE):
+            issue_matrix_blocker = _issue_matrix_approval_blocker(feature_dir)
+            if issue_matrix_blocker:
+                _output_error(json_output, issue_matrix_blocker)
+                raise typer.Exit(1)
+
         # Keep force semantics strict: only user-requested --force should bypass guards.
         emit_force = force
         if not emit_reason:
@@ -1904,6 +2023,19 @@ def move_task(
                 ))
                 # review_ref only applies to rollback transitions, never to forward chain hops
                 emit_review_ref = None
+
+            if self_review_fallback:
+                from specify_cli.status.lifecycle_events import emit_reviewer_self_approval
+
+                emit_reviewer_self_approval(
+                    feature_dir,
+                    mission_slug=mission_slug,
+                    wp_id=task_id,
+                    implementing_actor=actor,
+                    intended_reviewer=(intended_reviewer or "").strip(),
+                    failure_reason=(reviewer_failure_reason or "").strip(),
+                    fallback_approved=True,
+                )
 
             # --- Post-emit: apply operational metadata fields to WP file ---
             # The event log is the sole authority for lane/review state.

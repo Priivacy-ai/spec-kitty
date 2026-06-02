@@ -29,9 +29,12 @@ pytestmark = [pytest.mark.unit]
 from specify_cli.retrospective.generator import (
     GENERATOR_VERSION,
     LOW_RISK_PROPOSAL_KINDS,
+    _EvidenceRegistry,
+    _build_event_mining_findings,
     _classify_risk,
     generate_retrospective,
 )
+from specify_cli.status.lifecycle_events import emit_reviewer_self_approval
 from specify_cli.retrospective.policy import default_policy
 from specify_cli.retrospective.schema import (
     GenActor,
@@ -214,6 +217,33 @@ class TestFindingsClassification:
 
         assert _detect_rejection_cycles(events) == {"WP02": 1}
         assert _detect_lane_friction(events) == {"WP01": 1, "WP03": 1}
+
+    def test_reviewer_self_approval_is_process_finding(self, tmp_path: Path) -> None:
+        feature_dir = tmp_path / "kitty-specs" / "demo"
+        feature_dir.mkdir(parents=True)
+        event = emit_reviewer_self_approval(
+            feature_dir,
+            mission_slug="demo",
+            wp_id="WP02",
+            implementing_actor="codex",
+            intended_reviewer="claude",
+            failure_reason="exit 1",
+        )
+        assert event is not None
+
+        not_helpful, gaps = _build_event_mining_findings(
+            events=[event],
+            events_rel="kitty-specs/demo/status.events.jsonl",
+            finding_id_counters={},
+            ev_reg=_EvidenceRegistry(),
+        )
+
+        assert gaps == []
+        assert len(not_helpful) == 1
+        finding = not_helpful[0]
+        assert finding.category == "process"
+        assert "self-review fallback" in finding.summary
+        assert "claude failed" in finding.details
 
     def test_mid_with_backward_moves_has_lane_friction(self) -> None:
         """Backward moves without reviewer feedback are process friction, not rejections."""

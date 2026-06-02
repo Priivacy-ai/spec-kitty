@@ -19,15 +19,118 @@ from specify_cli.cli.commands.agent.tasks import (
     _check_unchecked_subtasks,
     _collect_status_artifacts,
     _detect_reviewer_name,
+    _issue_matrix_approval_blocker,
     _is_pipe_table_task_row,
     _output_error,
     _output_result,
     _parse_pipe_table_header,
     _resolve_git_common_dir,
     _resolve_wp_slug,
+    _self_review_fallback_option_error,
 )
 
 pytestmark = pytest.mark.fast
+
+
+def _write_issue_matrix(
+    feature_dir: Path,
+    verdict: str,
+    evidence_ref: str = "tests/test_demo.py",
+    issue: str = "#1582",
+) -> None:
+    (feature_dir / "issue-matrix.md").write_text(
+        "\n".join(
+            [
+                "| issue | verdict | evidence_ref |",
+                "| --- | --- | --- |",
+                f"| {issue} | {verdict} | {evidence_ref} |",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+
+# ---------------------------------------------------------------------------
+# review-independence / issue-matrix approval guards
+# ---------------------------------------------------------------------------
+
+
+def test_self_review_fallback_requires_explicit_force_and_metadata() -> None:
+    assert _self_review_fallback_option_error(
+        enabled=False,
+        target_lane="approved",
+        force=False,
+        intended_reviewer="codex",
+        failure_reason=None,
+    ) == "--intended-reviewer/--reviewer-failure-reason require --self-review-fallback."
+
+    assert _self_review_fallback_option_error(
+        enabled=True,
+        target_lane="for_review",
+        force=True,
+        intended_reviewer="codex",
+        failure_reason="exit 1",
+    ) == "--self-review-fallback is only valid when approving or marking done."
+
+    assert _self_review_fallback_option_error(
+        enabled=True,
+        target_lane="approved",
+        force=False,
+        intended_reviewer="codex",
+        failure_reason="exit 1",
+    ) == "--self-review-fallback requires --force so force_count records the independence override."
+
+    assert _self_review_fallback_option_error(
+        enabled=True,
+        target_lane="approved",
+        force=True,
+        intended_reviewer="codex",
+        failure_reason="exit 1",
+    ) is None
+
+
+def test_issue_matrix_approval_blocker_requires_resolved_verdicts(tmp_path: Path) -> None:
+    feature_dir = tmp_path / "kitty-specs" / "demo"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "spec.md").write_text("Fix Priivacy-ai/spec-kitty issue #1582.\n", encoding="utf-8")
+
+    blocker = _issue_matrix_approval_blocker(feature_dir)
+    assert blocker is not None
+    assert "issue-matrix.md is required" in blocker
+    assert "#1582" in blocker
+
+    _write_issue_matrix(feature_dir, "unknown")
+    blocker = _issue_matrix_approval_blocker(feature_dir)
+    assert blocker is not None
+    assert "Unknown: #1582" in blocker
+
+    _write_issue_matrix(feature_dir, "fixed", issue="#1111")
+    blocker = _issue_matrix_approval_blocker(feature_dir)
+    assert blocker is not None
+    assert "Missing rows: #1582" in blocker
+
+    _write_issue_matrix(feature_dir, "fixed")
+    assert _issue_matrix_approval_blocker(feature_dir) is None
+
+
+def test_issue_matrix_approval_blocker_fails_closed_on_evaluation_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    feature_dir = tmp_path / "kitty-specs" / "demo"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "spec.md").write_text("Fix Priivacy-ai/spec-kitty issue #1582.\n", encoding="utf-8")
+
+    def _boom(_path: Path):
+        raise RuntimeError("parser unavailable")
+
+    monkeypatch.setattr("specify_cli.tasks.issue_matrix.detect_issue_references", _boom)
+
+    blocker = _issue_matrix_approval_blocker(feature_dir)
+
+    assert blocker is not None
+    assert "could not be evaluated" in blocker
+    assert "parser unavailable" in blocker
 
 
 # ---------------------------------------------------------------------------

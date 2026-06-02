@@ -18,11 +18,14 @@ from specify_cli.status.doctor import (
     Finding,
     Severity,
     check_drift,
+    check_issue_matrix,
     check_orphan_workspaces,
+    check_reviewer_self_approval,
     check_sparse_checkout,
     check_stale_claims,
     run_doctor,
 )
+from specify_cli.status.lifecycle_events import emit_reviewer_self_approval
 
 pytestmark = pytest.mark.fast
 
@@ -238,6 +241,97 @@ class TestEnums:
         assert Category.ORPHAN_WORKSPACE == "orphan_workspace"
         assert Category.MATERIALIZATION_DRIFT == "materialization_drift"
         assert Category.DERIVED_VIEW_DRIFT == "derived_view_drift"
+        assert Category.REVIEW_INDEPENDENCE == "review_independence"
+        assert Category.ISSUE_MATRIX == "issue_matrix"
+
+
+def test_check_reviewer_self_approval_reports_independence_risk(tmp_path: Path) -> None:
+    feature_dir = tmp_path / "kitty-specs" / "034-test"
+    feature_dir.mkdir(parents=True)
+    emit_reviewer_self_approval(
+        feature_dir,
+        mission_slug="034-test",
+        wp_id="WP02",
+        implementing_actor="codex:gpt-5:implementer",
+        intended_reviewer="claude:sonnet:reviewer",
+        failure_reason="exit 1",
+    )
+
+    findings = check_reviewer_self_approval(feature_dir)
+
+    assert len(findings) == 1
+    assert findings[0].category == Category.REVIEW_INDEPENDENCE
+    assert findings[0].wp_id == "WP02"
+    assert "self-review fallback" in findings[0].message
+
+
+def test_check_issue_matrix_reports_missing_and_unknown(tmp_path: Path) -> None:
+    feature_dir = tmp_path / "kitty-specs" / "034-test"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "spec.md").write_text("Addresses Priivacy-ai/spec-kitty issue #1582.\n", encoding="utf-8")
+
+    missing = check_issue_matrix(feature_dir)
+    assert len(missing) == 1
+    assert missing[0].category == Category.ISSUE_MATRIX
+    assert "#1582" in missing[0].message
+
+    (feature_dir / "issue-matrix.md").write_text(
+        "\n".join(
+            [
+                "| issue | verdict | evidence_ref |",
+                "| --- | --- | --- |",
+                "| #1582 | unknown | tests/test_demo.py |",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    unresolved = check_issue_matrix(feature_dir)
+    assert len(unresolved) == 1
+    assert "verdict 'unknown'" in unresolved[0].message
+
+    (feature_dir / "issue-matrix.md").write_text(
+        "\n".join(
+            [
+                "| issue | verdict | evidence_ref |",
+                "| --- | --- | --- |",
+                "| #1111 | fixed | tests/test_demo.py |",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    missing_row = check_issue_matrix(feature_dir)
+    assert len(missing_row) == 1
+    assert "missing rows" in missing_row[0].message
+    assert "#1582" in missing_row[0].message
+
+
+def test_check_issue_matrix_reports_evaluation_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    feature_dir = tmp_path / "kitty-specs" / "034-test"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "spec.md").write_text("Addresses Priivacy-ai/spec-kitty issue #1582.\n", encoding="utf-8")
+
+    def _boom(_path: Path):
+        raise RuntimeError("parser unavailable")
+
+    monkeypatch.setattr("specify_cli.tasks.issue_matrix.detect_issue_references", _boom)
+
+    findings = check_issue_matrix(feature_dir)
+
+    assert len(findings) == 1
+    assert findings[0].category == Category.ISSUE_MATRIX
+    assert "could not be evaluated" in findings[0].message
+    assert "parser unavailable" in findings[0].message
+
+
+def test_check_issue_matrix_no_refs_is_clean(tmp_path: Path) -> None:
+    feature_dir = tmp_path / "kitty-specs" / "034-test"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "spec.md").write_text("No GitHub issue references here.\n", encoding="utf-8")
+
+    assert check_issue_matrix(feature_dir) == []
 
 
 # ---------------------------------------------------------------------------
