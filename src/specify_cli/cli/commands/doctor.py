@@ -1889,9 +1889,12 @@ def _render_doctrine_pack(pack_entry: dict[str, object], pack_index: int) -> Non
     # matching layer (attached by the report builder), or ``None`` if no
     # agent-profile surface was discovered for this pack.
     pack_health = pack_entry.get("pack_health")
-    healthy = True
+    # WP01: default to degraded, not green. A present pack with no/partial
+    # ``pack_health`` must render degraded (loud-over-hidden) rather than
+    # silently green — only an explicit ``healthy: true`` greens the header.
+    healthy = False
     if isinstance(pack_health, dict):
-        healthy = bool(pack_health.get("healthy", True))
+        healthy = bool(pack_health.get("healthy", False))
     color = "green" if healthy else "yellow"
     status_suffix = "" if healthy else "  [yellow](degraded)[/yellow]"
     console.print(
@@ -1928,7 +1931,10 @@ def _collect_profile_health(repo_root: Path) -> DoctrineHealthReport:
     NFR-001 cost).
 
     Diagnostics are READ-ONLY and must never crash on operator
-    misconfiguration; profile-load failures degrade to an empty pack list.
+    misconfiguration. A profile-load failure no longer degrades to a silent,
+    vacuously-green empty report (the #1584 false-healthy class): the crash is
+    *recorded* (into ``org_drg["errors"]``) so the report is honestly unhealthy
+    and "collector crashed" is distinguishable from "genuinely zero profiles".
     """
     from ._doctrine_health import DoctrineHealthReport, build_pack_health_by_layer
 
@@ -1936,6 +1942,7 @@ def _collect_profile_health(repo_root: Path) -> DoctrineHealthReport:
 
     provenance_by_layer: dict[str, int] = {}
     skipped: list[SkippedProfile] = []
+    load_error: str | None = None
     try:
         from doctrine.service import DoctrineService
         from specify_cli.doctrine.config import resolve_org_roots
@@ -1952,15 +1959,26 @@ def _collect_profile_health(repo_root: Path) -> DoctrineHealthReport:
             layer = repo.get_provenance(profile.profile_id) or "unknown"
             provenance_by_layer[layer] = provenance_by_layer.get(layer, 0) + 1
         skipped = list(repo.skipped_profiles())
-    except Exception:  # noqa: BLE001 — diagnostics must never crash
+    except Exception as exc:  # noqa: BLE001 — diagnostics must never crash
         provenance_by_layer = {}
         skipped = []
+        load_error = f"profile-health load error: {exc}"
 
     packs = build_pack_health_by_layer(
         provenance_by_layer=provenance_by_layer,
         skipped_profiles=skipped,
     )
     org_drg = _collect_org_layer_data(repo_root)
+    if load_error is not None:
+        # Record the crash so the honest ``healthy`` flag (which checks
+        # ``org_drg['errors']``) reports unhealthy rather than vacuously green.
+        if isinstance(org_drg, dict):
+            existing = org_drg.get("errors")
+            errors = list(existing) if isinstance(existing, list) else []
+            errors.append(load_error)
+            org_drg["errors"] = errors
+        else:  # pragma: no cover — _collect_org_layer_data always returns a dict
+            org_drg = {"errors": [load_error]}
     return DoctrineHealthReport(packs=packs, org_drg=org_drg)
 
 
@@ -2119,7 +2137,10 @@ def doctrine_check(
 ) -> None:
     """Check org doctrine snapshot status and list installed pack artifacts.
 
-    Exit code is always 0 — this surface is a diagnostic, not a gate.  It
+    Exit code reflects health (WP01, operator directive: loud over hidden): the
+    command exits **1 when the report is unhealthy** and 0 only when healthy
+    (``report.healthy`` drives the code on every output path). A clear RC=1 with
+    a surfaced error is preferred over an RC=0 that hides a defect.  It
     enumerates each configured org pack (from ``.kittify/config.yaml``), prints
     its on-disk version (``git describe`` for git-managed packs, otherwise the
     ``pack-manifest.yaml`` ``pack_version``), per-artifact YAML counts, and
@@ -2151,9 +2172,13 @@ def doctrine_check(
     # org packs are configured, so build it for both branches.
     selection_block = _build_selection_block(repo_root)
 
+    # WP01 (C5, operator directive): loud RC=1 over hidden RC=0. The honest
+    # ``report.healthy`` flag drives the exit code on every output path.
+    exit_code = 0 if report.healthy else 1
+
     if not registry.packs:
         _emit_doctrine_no_packs(report, selection_block, json_output=json_output)
-        raise typer.Exit(0)
+        raise typer.Exit(exit_code)
 
     pack_entries = _build_pack_entries(registry)
 
@@ -2173,7 +2198,7 @@ def doctrine_check(
             collision_summaries=collision_summaries,
             selection_block=selection_block,
         )
-        raise typer.Exit(0)
+        raise typer.Exit(exit_code)
 
     _emit_doctrine_human(
         pack_entries,
@@ -2181,7 +2206,7 @@ def doctrine_check(
         selection_block,
         repo_root,
     )
-    raise typer.Exit(0)
+    raise typer.Exit(exit_code)
 
 
 def _collect_doctrine_collisions(repo_root: Path) -> list[dict[str, object]]:

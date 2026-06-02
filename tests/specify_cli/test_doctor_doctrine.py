@@ -250,7 +250,8 @@ def test_doctor_doctrine_json_reports_false_healthy_fixed(
     ):
         result = runner.invoke(doctor_app, ["doctrine", "--json"])
 
-    assert result.exit_code == 0, result.output
+    # WP01 (C5): an invalid profile makes the report unhealthy → RC=1.
+    assert result.exit_code == 1, result.output
     payload = json.loads(result.output)
     assert "profile_health" in payload
     health = payload["profile_health"]
@@ -326,7 +327,8 @@ def test_doctor_doctrine_human_and_json_share_one_report(
         doctor_mod, "locate_project_root", return_value=repo_with_invalid_project_profile
     ):
         result = runner.invoke(doctor_mod.app, ["doctrine", "--json"])
-    assert result.exit_code == 0, result.output
+    # WP01 (C5): the fixture's invalid profile makes the report unhealthy → RC=1.
+    assert result.exit_code == 1, result.output
     # The report is built exactly once per invocation (single source).
     assert calls == [1]
 
@@ -348,3 +350,230 @@ def test_doctor_doctrine_within_two_second_budget(
     _collect_profile_health(repo_with_invalid_project_profile)
     elapsed = time.perf_counter() - start
     assert elapsed < 2.0, f"report build exceeded 2s budget: {elapsed:.3f}s"
+
+
+# ---------------------------------------------------------------------------
+# WP01 — fail-to-green class: load-layer skip + honest healthy + RC=1 (C1-C5)
+# ---------------------------------------------------------------------------
+
+# An org profile carrying a forbidden inline-reference field (``tactic_refs``).
+# Before the WP01 fix this RAISED mid-iteration in ``repository._load_layer``,
+# aborting the whole org layer load (blanking valid siblings) and the doctor
+# collector swallowed it to an empty (vacuously-green) report.
+_INLINE_REF_PROFILE = dedent(
+    """\
+    profile-id: inline-ivan
+    name: Inline Ivan
+    roles:
+      - reviewer
+    purpose: An org profile that illegally inlines references.
+    tactic_refs:
+      - some-tactic
+    specialization:
+      primary-focus: Carrying a forbidden inline reference.
+      secondary-awareness: Nothing.
+      avoidance-boundary: Valid YAML.
+      success-definition: Should be surfaced as a skip.
+    """
+)
+
+# A valid org sibling in the SAME pack as the inline-ref profile; it MUST remain
+# visible (C1 headline requirement) even though its sibling is invalid.
+_VALID_ORG_SIBLING = dedent(
+    """\
+    profile-id: valid-vera
+    name: Valid Vera
+    roles:
+      - reviewer
+    purpose: A valid org sibling that must keep loading.
+    specialization:
+      primary-focus: Staying visible next to a broken sibling.
+      secondary-awareness: Nothing.
+      avoidance-boundary: Invalid YAML.
+      success-definition: Loads successfully.
+    """
+)
+
+
+@pytest.fixture
+def repo_with_inline_ref_org_profile(tmp_path: Path) -> Path:
+    """Repo whose ORG doctrine layer holds an inline-ref profile + a valid sibling.
+
+    Registers the pack via the canonical ``doctrine.org.packs[]`` config so
+    ``resolve_org_roots`` picks it up as an org layer (not the project layer),
+    exercising the eager/all-or-nothing org load path the #1584 false-healthy
+    class lives on.
+    """
+    org_pack = tmp_path / "org-pack"
+    profiles_dir = org_pack / "agent_profiles"
+    profiles_dir.mkdir(parents=True)
+    (profiles_dir / "inline-ivan.agent.yaml").write_text(
+        _INLINE_REF_PROFILE, encoding="utf-8"
+    )
+    (profiles_dir / "valid-vera.agent.yaml").write_text(
+        _VALID_ORG_SIBLING, encoding="utf-8"
+    )
+
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir(parents=True, exist_ok=True)
+    (kittify / "config.yaml").write_text(
+        "agents:\n"
+        "  available:\n"
+        "    - claude\n"
+        "doctrine:\n"
+        "  org:\n"
+        "    packs:\n"
+        "      - name: example-org\n"
+        f"        local_path: {org_pack}\n",
+        encoding="utf-8",
+    )
+    return tmp_path
+
+
+@pytest.mark.integration
+def test_collect_profile_health_surfaces_inline_ref_and_keeps_siblings(
+    repo_with_inline_ref_org_profile: Path,
+) -> None:
+    """C1/C2: inline-ref org profile ⇒ surfaced skip + healthy=false + valid sibling visible.
+
+    Function-level integration override (module marker is ``unit``, P-4): this
+    drives the real ``DoctrineService``/``AgentProfileRepository`` org load.
+    """
+    from specify_cli.cli.commands.doctor import _collect_profile_health
+
+    report = _collect_profile_health(repo_with_inline_ref_org_profile)
+
+    # Honest health: the surfaced skip forces healthy=false (not vacuous green).
+    assert report.healthy is False
+
+    # The invalid profile is surfaced with {path, id, error_summary}.
+    invalid = report.invalid_profiles
+    inline = [s for s in invalid if s.path.endswith("inline-ivan.agent.yaml")]
+    assert inline, "inline-ivan must be surfaced as a skipped profile"
+    skip = inline[0]
+    assert skip.layer == "org"
+    # DD-2: the load-layer skip has the YAML in hand, so the id is populated.
+    assert skip.profile_id == "inline-ivan"
+    # Readable error: names the forbidden field + a migration hint.
+    assert "tactic_refs" in skip.error_summary
+    assert "graph.yaml" in skip.error_summary
+
+    # C1 headline: the valid sibling in the SAME pack must remain visible.
+    org_packs = [p for p in report.packs if p.layer == "org"]
+    assert org_packs, "expected an org-layer PackHealth"
+    assert org_packs[0].valid_count >= 1, "valid sibling must keep loading"
+
+
+@pytest.mark.integration
+def test_doctor_doctrine_json_inline_ref_unhealthy_and_rc1(
+    repo_with_inline_ref_org_profile: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """C1/C5 + contract pin (#645): --json keys + healthy=false + exit_code == 1."""
+    from specify_cli.cli.commands.doctor import app as doctor_app
+
+    monkeypatch.chdir(repo_with_inline_ref_org_profile)
+    with patch(
+        "specify_cli.cli.commands.doctor.locate_project_root",
+        return_value=repo_with_inline_ref_org_profile,
+    ):
+        result = runner.invoke(doctor_app, ["doctrine", "--json"])
+
+    # C5: loud RC=1 over a hidden RC=0.
+    assert result.exit_code == 1, result.output
+
+    payload = json.loads(result.output)
+    # Contract pin: stable top-level + health keys cannot silently regress.
+    assert "profile_health" in payload
+    health = payload["profile_health"]
+    assert set(health) == {"healthy", "packs", "org_drg"}
+    assert health["healthy"] is False
+
+    # Surfaced invalid profile with the stable fields + readable error.
+    invalid = [
+        s
+        for pack in health["packs"]
+        for s in pack["invalid_profiles"]
+        if s["path"].endswith("inline-ivan.agent.yaml")
+    ]
+    assert invalid, "inline-ivan must be surfaced in --json"
+    assert set(invalid[0]) == {"layer", "path", "profile_id", "error_summary"}
+    assert invalid[0]["profile_id"] == "inline-ivan"
+    assert "tactic_refs" in invalid[0]["error_summary"]
+
+    # Valid sibling stays visible: the org pack still reports a valid load.
+    org_packs = [p for p in health["packs"] if p["layer"] == "org"]
+    assert org_packs and org_packs[0]["valid_count"] >= 1
+
+
+@pytest.mark.integration
+def test_doctor_doctrine_json_healthy_exits_zero(
+    repo_with_invalid_project_profile: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """C5 contract pin: a HEALTHY report must still exit 0 (RC mapping 0/1)."""
+    from specify_cli.cli.commands.doctor import app as doctor_app
+
+    # A clean built-in-only repo (no invalid project/org profiles) is healthy.
+    clean = repo_with_invalid_project_profile
+    # Remove the invalid profile so the report is healthy.
+    bad = (
+        clean / ".kittify" / "doctrine" / "agent_profiles" / "broken-bart.agent.yaml"
+    )
+    bad.unlink()
+
+    monkeypatch.chdir(clean)
+    with patch(
+        "specify_cli.cli.commands.doctor.locate_project_root",
+        return_value=clean,
+    ):
+        result = runner.invoke(doctor_app, ["doctrine", "--json"])
+
+    payload = json.loads(result.output)
+    assert payload["profile_health"]["healthy"] is True
+    assert result.exit_code == 0, result.output
+
+
+@pytest.mark.integration
+def test_collector_crash_is_unhealthy_not_vacuous_green() -> None:
+    """C2: when the profile load crashes, the report is healthy=false (recorded error).
+
+    'Collector crashed' must be distinguishable from 'genuinely zero profiles'
+    and must NEVER be vacuously green (``all([]) == True``).
+    """
+    from pathlib import Path as _Path
+
+    from specify_cli.cli.commands import doctor as doctor_mod
+
+    def _boom(*_args: object, **_kwargs: object):  # noqa: ANN202
+        raise RuntimeError("simulated profile-load crash")
+
+    # ``DoctrineService`` is imported locally inside ``_collect_profile_health``,
+    # so patch it at its definition site to force the load to crash.
+    with patch("doctrine.service.DoctrineService", side_effect=_boom):
+        report = doctor_mod._collect_profile_health(_Path("/nonexistent-repo"))
+
+    assert report.healthy is False, "a crashed collector must not be green"
+    # The crash is recorded (distinguishable from zero profiles), not swallowed.
+    errors = report.org_drg.get("errors") if isinstance(report.org_drg, dict) else None
+    has_recorded_error = bool(errors) or bool(report.invalid_profiles)
+    assert has_recorded_error, "collector crash must be recorded, not vacuously green"
+
+
+def test_report_unhealthy_when_org_drg_has_errors() -> None:
+    """(b) honest flag: a non-empty ``org_drg['errors']`` forces healthy=false.
+
+    Even with all packs individually healthy, an org-DRG error must not be a
+    blind spot (kills the ``all(...)``-only health computation).
+    """
+    healthy_pack = PackHealth("builtin", "builtin", 2, 2)
+    report = DoctrineHealthReport(
+        packs=[healthy_pack],
+        org_drg={"configured_packs": [], "collision_warnings": [], "errors": ["boom"]},
+    )
+    assert report.healthy is False
+
+
+def test_report_empty_packs_is_not_vacuously_healthy() -> None:
+    """(b) honest flag: an empty pack list must NOT be vacuously healthy (all([])==True)."""
+    assert DoctrineHealthReport(packs=[]).healthy is False

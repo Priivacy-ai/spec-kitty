@@ -89,7 +89,11 @@ def test_doctor_doctrine_text_shows_collisions(tmp_path: Path) -> None:
     finally:
         os.chdir(old_cwd)
 
-    assert result.exit_code == 0, result.stdout
+    # WP01 (C5): the configured org pack has no fetched DRG fragment, so the
+    # org-DRG load records a "pack missing" error → the honest health flag
+    # reports unhealthy and the command exits 1 (loud over hidden). Collision
+    # rendering is unaffected.
+    assert result.exit_code == 1, result.stdout
     # The Collisions section must appear and include the shadowed id.
     assert "Collisions" in result.stdout
     assert built_in_id in result.stdout
@@ -113,7 +117,8 @@ def test_doctor_doctrine_text_reports_no_collisions_when_pack_disjoint(tmp_path:
     finally:
         os.chdir(old_cwd)
 
-    assert result.exit_code == 0, result.stdout
+    # WP01 (C5): missing org-DRG fragment → unhealthy → RC=1 (loud over hidden).
+    assert result.exit_code == 1, result.stdout
     assert "none — every artifact resolves from a single layer" in result.stdout
 
 
@@ -137,7 +142,8 @@ def test_doctor_doctrine_json_emits_collisions_array(tmp_path: Path) -> None:
     finally:
         os.chdir(old_cwd)
 
-    assert result.exit_code == 0, result.stdout
+    # WP01 (C5): missing org-DRG fragment → unhealthy → RC=1 (loud over hidden).
+    assert result.exit_code == 1, result.stdout
     payload = json.loads(result.stdout)
     assert payload["org_configured"] is True
     assert isinstance(payload["collisions"], list)

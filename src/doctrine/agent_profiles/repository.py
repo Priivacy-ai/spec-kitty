@@ -22,6 +22,7 @@ from ruamel.yaml.error import YAMLError
 
 from doctrine.drg.loader import DRGLoadError, load_graph
 from doctrine.drg.models import DRGGraph, NodeKind, Relation
+from doctrine.shared.exceptions import InlineReferenceRejectedError
 from doctrine.shared.scoping import applies_to_languages_match, normalize_languages
 
 from .diagnostics import SkippedProfile
@@ -420,10 +421,27 @@ class AgentProfileRepository:
 
             profile_id = data.get("profile-id") or data.get("profile_id") if isinstance(data, dict) else None
 
-            # Inline-reference rejection is a hard, fail-closed contract violation
-            # (not a recoverable skip): it must propagate so the author fixes the
-            # YAML. This preserves the pre-WP05 behavior of the loader.
-            reject_agent_profile_inline_refs(data, file_path=str(yaml_file))
+            # Inline-reference rejection is a *surfaced skip*, consistent with the
+            # ``diagnostics.py`` docstring (FR-003 / I-9). Loading is eager and
+            # all-or-nothing: a propagated raise would abort the whole layer load
+            # and blank out valid sibling profiles (the #1584 false-healthy
+            # class). We catch it here — where the YAML is in hand, so we can
+            # populate ``profile_id`` (the exception lacks it, DD-2) and a clear,
+            # readable ``error_summary`` (forbidden field + migration hint) — and
+            # record it via ``_record_skip``. Valid siblings keep loading.
+            try:
+                reject_agent_profile_inline_refs(data, file_path=str(yaml_file))
+            except InlineReferenceRejectedError as exc:
+                self._record_skip(
+                    layer=layer,
+                    path=yaml_file,
+                    profile_id=profile_id,
+                    error_summary=(
+                        f"Forbidden inline-reference field '{exc.forbidden_field}'. "
+                        f"{exc.migration_hint}"
+                    ),
+                )
+                continue
 
             if not profile_id:
                 schema_errors = (

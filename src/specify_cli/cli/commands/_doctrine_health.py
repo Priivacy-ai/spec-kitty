@@ -108,8 +108,26 @@ class DoctrineHealthReport:
 
     @property
     def healthy(self) -> bool:
-        """The whole doctrine surface is healthy iff every pack/layer is."""
-        return all(pack.healthy for pack in self.packs)
+        """The whole doctrine surface is healthy iff it is *honestly* green.
+
+        Three conditions, all required (WP01 fail-to-green hardening):
+
+        * ``bool(self.packs)`` — an empty pack list is **not** vacuously healthy.
+          ``all([]) == True`` previously reported green-when-broken whenever the
+          profile load crashed and degraded to an empty report (the #1584
+          false-healthy class).
+        * every pack/layer is individually healthy.
+        * ``not self.org_drg.get("errors")`` — a non-empty org-DRG error list is
+          no longer a blind spot; an org-DRG load failure forces unhealthy.
+        """
+        org_errors = (
+            self.org_drg.get("errors") if isinstance(self.org_drg, dict) else None
+        )
+        return (
+            bool(self.packs)
+            and all(pack.healthy for pack in self.packs)
+            and not org_errors
+        )
 
     @property
     def invalid_profiles(self) -> list[SkippedProfile]:
