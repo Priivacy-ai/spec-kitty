@@ -158,8 +158,9 @@ class TestRuntimeTemplateKey:
         repo_root = _scaffold_project(tmp_path)
 
         import specify_cli.next.runtime_bridge as runtime_bridge
+        import specify_cli
 
-        builtin_root = Path(runtime_bridge.__file__).resolve().parent.parent / "missions"
+        builtin_root = Path(specify_cli.__file__).resolve().parent / "missions"
 
         # Force deterministic discovery context for this test so user-global
         # ~/.kittify content cannot shadow the builtin fallback tier.
@@ -174,7 +175,7 @@ class TestRuntimeTemplateKey:
         )
 
         result = runtime_bridge._runtime_template_key("software-dev", repo_root)
-        assert "src/specify_cli/missions/software-dev/mission-runtime.yaml" in result
+        assert result == str((builtin_root / "software-dev" / "mission-runtime.yaml").resolve())
 
 
 class TestWorkflowRuntimeTemplate:
@@ -285,8 +286,9 @@ class TestWorkflowRuntimeTemplate:
         repo_root = _scaffold_project(tmp_path)
 
         import specify_cli.next.runtime_bridge as runtime_bridge
+        import specify_cli
 
-        builtin_root = Path(runtime_bridge.__file__).resolve().parent.parent / "missions"
+        builtin_root = Path(specify_cli.__file__).resolve().parent / "missions"
         user_home = tmp_path / "home"
         global_runtime = user_home / ".kittify" / "missions" / "software-dev" / "mission-runtime.yaml"
         global_runtime.parent.mkdir(parents=True)
@@ -311,7 +313,7 @@ class TestWorkflowRuntimeTemplate:
 
         result = runtime_bridge._runtime_template_key("software-dev", repo_root)
         assert result != str(global_runtime.resolve())
-        assert "src/specify_cli/missions/software-dev/mission-runtime.yaml" in result
+        assert result == str((builtin_root / "software-dev" / "mission-runtime.yaml").resolve())
 
     def test_project_legacy_used_when_override_absent(self, tmp_path: Path) -> None:
         """Legacy .kittify/missions path remains supported after override tier."""

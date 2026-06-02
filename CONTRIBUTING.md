@@ -6,6 +6,31 @@ Spec Kitty is inspired by GitHub's [Spec Kit](https://github.com/github/spec-kit
 
 Please note that this project is released with a [Contributor Code of Conduct](CODE_OF_CONDUCT.md). By participating in this project you agree to abide by its terms.
 
+## Developer Setup
+
+After cloning, bootstrap your environment:
+
+```bash
+uv sync --frozen --all-extras
+make dev-setup
+```
+
+`make dev-setup` syncs dependencies and installs all spec-kitty slash commands
+for your configured AI agents (including `/spec-kitty.specify` and related
+commands in Claude Code). Re-run after pulling changes or after any
+spec-kitty template change.
+
+Without running `make dev-setup`, planning commands like `/spec-kitty.specify`
+may be absent from your AI coding agent. `make dev-setup` always repairs this —
+it is idempotent, so running it multiple times is safe.
+
+> **Windows users**: `make` requires WSL or a GNU Make equivalent.
+> Alternatively, run the setup steps manually:
+> ```bash
+> uv sync --frozen --all-extras
+> uv run spec-kitty doctor skills --fix
+> ```
+
 ## Contributor Recognition
 
 This repository uses [All Contributors](https://allcontributors.org/) to recognize project contributions beyond code.

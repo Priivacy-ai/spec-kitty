@@ -18,14 +18,14 @@ for the design rationale.
 
 from __future__ import annotations
 
-import contextlib
 import logging
 import os
 from pathlib import Path
+from typing import cast
 
 from specify_cli.core.config import DEFAULT_MISSION_KEY
 from specify_cli.runtime.bootstrap import _get_cli_version, _lock_exclusive
-from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
+from specify_cli.runtime.home import get_kittify_home
 
 logger = logging.getLogger(__name__)
 
@@ -74,26 +74,23 @@ def get_global_command_dir(agent_key: str) -> Path:
 # ---------------------------------------------------------------------------
 
 
-def _get_command_templates_dir() -> Path | None:
-    """Return the command-templates directory for the current CLI version.
+def _get_command_templates_dir() -> Path:
+    """Return the command-templates directory from the doctrine package.
 
-    Resolution order:
-    1. Package-bundled assets (highest priority, always matches CLI version).
-    2. Global runtime (``~/.kittify/missions/software-dev/command-templates/``).
+    Uses ``doctrine.__file__`` as an anchor so this works identically in
+    editable and wheel installs — no hardcoded paths required.
+
+    Raises ``FileNotFoundError`` if the doctrine package is absent, which
+    indicates a corrupted install.
     """
-    try:
-        pkg_root = get_package_asset_root()
-        pkg_templates = pkg_root / DEFAULT_MISSION_KEY / "command-templates"
-        if pkg_templates.is_dir():
-            return Path(pkg_templates)
-    except FileNotFoundError:
-        pass
+    import doctrine  # noqa: PLC0415
 
-    runtime_templates = get_kittify_home() / "missions" / DEFAULT_MISSION_KEY / "command-templates"
-    if runtime_templates.is_dir():
-        return Path(runtime_templates)
-
-    return None
+    doctrine_file = cast(str | None, doctrine.__file__)
+    if doctrine_file is None:
+        raise FileNotFoundError("doctrine package has no __file__; installation may be corrupted")
+    doctrine_path: Path = Path(doctrine_file).parent
+    mission_key = cast(str, DEFAULT_MISSION_KEY)
+    return doctrine_path / "missions" / "mission-steps" / mission_key
 
 
 def _resolve_script_type() -> str:
@@ -125,10 +122,11 @@ def _expected_command_filenames(agent_key: str, templates_dir: Path) -> set[str]
     """
     from specify_cli.shims.registry import CLI_DRIVEN_COMMANDS, PROMPT_DRIVEN_COMMANDS
 
+    # Templates now live under per-step subdirectories: {step}/prompt.md
     template_commands = {
-        template_path.stem
-        for template_path in templates_dir.glob("*.md")
-        if template_path.is_file()
+        step_dir.name
+        for step_dir in templates_dir.iterdir()
+        if step_dir.is_dir() and (step_dir / "prompt.md").is_file()
     }
     if not template_commands >= PROMPT_DRIVEN_COMMANDS:
         return set()
@@ -177,21 +175,26 @@ def _agent_commands_healthy(agent_key: str, templates_dir: Path, cli_version: st
     )
 
 
-def _all_global_agent_commands_healthy(templates_dir: Path, cli_version: str) -> bool:
+def _all_global_agent_commands_healthy(
+    templates_dir: Path,
+    cli_version: str,
+    agent_keys: list[str] | None = None,
+) -> bool:
     """Return True when every command-layer agent has a complete command set."""
     from specify_cli.core.config import AGENT_COMMAND_CONFIG
 
+    keys = agent_keys if agent_keys is not None else list(AGENT_COMMAND_CONFIG.keys())
     return all(
         _agent_commands_healthy(agent_key, templates_dir, cli_version)
-        for agent_key in AGENT_COMMAND_CONFIG
+        for agent_key in keys
     )
 
 
 def _sync_agent_commands(agent_key: str, templates_dir: Path, script_type: str) -> None:
     """Install all 15 command files for *agent_key* into its global root.
 
-    * Prompt-driven commands (8): rendered from full template files via
-      ``render_command_template()``.
+    * Prompt-driven commands (8): rendered from per-step ``{step}/prompt.md``
+      templates via ``render_command_template()``.
     * CLI-driven commands (7): thin shims via ``generate_shim_content()``.
     * Stale ``spec-kitty.*`` files no longer in the canonical set are removed.
     * All written files are set read-only (``chmod mode & ~0o222``).
@@ -217,10 +220,20 @@ def _sync_agent_commands(agent_key: str, templates_dir: Path, script_type: str) 
 
     canonical_filenames: set[str] = set()
 
-    # --- Prompt-driven commands ---
-    for template_path in sorted(templates_dir.glob("*.md")):
-        command = template_path.stem
+    # --- Prompt-driven commands (per-step subdirectory layout) ---
+    for step_dir in sorted(templates_dir.iterdir()):
+        if not step_dir.is_dir():
+            continue
+        command = step_dir.name
         if command not in PROMPT_DRIVEN_COMMANDS:
+            continue
+        template_path = step_dir / "prompt.md"
+        if not template_path.exists():
+            logger.warning(
+                "Step %r has no prompt.md; skipping command %r",
+                str(step_dir),
+                command,
+            )
             continue
         filename = _compute_output_filename(command, agent_key)
         canonical_filenames.add(filename)
@@ -281,28 +294,36 @@ def _sync_agent_commands(agent_key: str, templates_dir: Path, script_type: str) 
 # ---------------------------------------------------------------------------
 
 
-def ensure_global_agent_commands() -> None:
+def ensure_global_agent_commands(*, agent_keys: list[str] | None = None) -> None:
     """Ensure user-global command files are installed for the current CLI version.
 
     Called unconditionally at every CLI startup (in ``main_callback()``).
     Uses a version-lock fast path so the cost of a no-op call is a single
     file read.  An exclusive file lock guards the slow path against concurrent
     CLI invocations.
+
+    Args:
+        agent_keys: Optional list of agent keys to scope the install to.
+            Defaults to all agents in ``AGENT_COMMAND_CONFIG``.
+            Pass a non-``None`` value to limit repair to specific agents
+            (e.g., from ``doctor skills --fix``).
     """
+    from specify_cli.core.config import AGENT_COMMAND_CONFIG
+
     templates_dir = _get_command_templates_dir()
-    if templates_dir is None:
-        logger.debug("Command templates not found; skipping global command installation")
-        return
 
     kittify_home = get_kittify_home()
     kittify_home.mkdir(parents=True, exist_ok=True)
     cache_dir = kittify_home / "cache"
     cache_dir.mkdir(parents=True, exist_ok=True)
 
+    keys_to_process = agent_keys if agent_keys is not None else list(AGENT_COMMAND_CONFIG.keys())
+
     version_file = cache_dir / _VERSION_FILENAME
     cli_version = _get_cli_version()
     if (
-        version_file.exists()
+        agent_keys is None  # skip fast path when scoped to specific agents
+        and version_file.exists()
         and version_file.read_text().strip() == cli_version
         and _all_global_agent_commands_healthy(templates_dir, cli_version)
     ):
@@ -314,31 +335,26 @@ def ensure_global_agent_commands() -> None:
         _lock_exclusive(lock_fd)
         # Re-check after acquiring lock (another process may have finished).
         if (
-            version_file.exists()
+            agent_keys is None
+            and version_file.exists()
             and version_file.read_text().strip() == cli_version
             and _all_global_agent_commands_healthy(templates_dir, cli_version)
         ):
             return
 
-        from specify_cli.core.config import AGENT_COMMAND_CONFIG
-
         script_type = _resolve_script_type()
-        for agent_key in AGENT_COMMAND_CONFIG:
-            try:
+        try:
+            for agent_key in keys_to_process:
                 _sync_agent_commands(agent_key, templates_dir, script_type)
-            except Exception:
-                logger.warning(
-                    "Failed to install global commands for agent %r",
-                    agent_key,
-                    exc_info=True,
-                )
+        except Exception:
+            logger.warning("Command sync failed; version lock not updated", exc_info=True)
+            raise
 
-        # Write version last, and only after validating the complete managed
-        # command surface.  A partial install must not poison the fast path.
-        if _all_global_agent_commands_healthy(templates_dir, cli_version):
+        # Write version lock only after all agents synced successfully.
+        # Scoped calls (agent_keys != None) never update the global lock.
+        if agent_keys is None and _all_global_agent_commands_healthy(
+            templates_dir, cli_version
+        ):
             version_file.write_text(cli_version)
-        else:
-            with contextlib.suppress(FileNotFoundError):
-                version_file.unlink()
     finally:
         lock_fd.close()

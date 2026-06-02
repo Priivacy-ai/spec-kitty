@@ -1736,8 +1736,11 @@ def _advance_run_state_after_composition(
 
 def _build_discovery_context(repo_root: Path) -> DiscoveryContext:
     """Build a DiscoveryContext that finds the runtime mission template."""
-    # Point at the missions directory so the runtime can discover mission-runtime.yaml
-    package_root = Path(__file__).resolve().parent.parent / "missions"
+    import specify_cli  # noqa: PLC0415
+
+    # Runtime bridge uses the legacy runtime templates under specify_cli/missions.
+    # The doctrine mission catalog is not behaviorally equivalent yet.
+    package_root = Path(specify_cli.__file__).resolve().parent / "missions"
     return DiscoveryContext(
         project_dir=repo_root,
         builtin_roots=[package_root],
