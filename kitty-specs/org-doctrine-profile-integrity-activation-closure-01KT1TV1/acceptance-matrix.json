@@ -122,7 +122,7 @@
       "pass_fail": "pass",
       "verified_by": "curator-carla (WP06 / T019)",
       "verified_at": "2026-06-02",
-      "notes": "NFR-003 non-mutating invariant confirmed by CLI test checking config bytes unchanged. DIRECTIVE_013 tracker for doctor.py god-module split: see kitty-specs/org-doctrine-profile-integrity-closeout-01KT3G68/research/trackers-to-file.md#fr-012-doctor-py-split"
+      "notes": "NFR-003 non-mutating invariant confirmed by CLI test checking config bytes unchanged. DIRECTIVE_013 tracker for doctor.py god-module split (FR-012): Priivacy-ai/spec-kitty#1623"
     },
     {
       "criterion_id": "FR-013",
@@ -132,7 +132,7 @@
       "pass_fail": "pass",
       "verified_by": "curator-carla (WP06 / T019)",
       "verified_at": "2026-06-02",
-      "notes": "Skipped-reference warning surfaces referenced artifact kinds not cascaded; suggested recovery command included. DIRECTIVE_013 tracker for provenance typing deferral: see kitty-specs/org-doctrine-profile-integrity-closeout-01KT3G68/research/trackers-to-file.md#fr-013-provenance-typing"
+      "notes": "Skipped-reference warning surfaces referenced artifact kinds not cascaded; suggested recovery command included. DIRECTIVE_013 tracker for provenance sidecar typing deferral (FR-013; generic TypeVar fix landed in WP04): Priivacy-ai/spec-kitty#1624"
     },
     {
       "criterion_id": "FR-014",
@@ -362,7 +362,7 @@
       "pass_fail": "pass",
       "verified_by": "curator-carla (WP06 / T019)",
       "verified_at": "2026-06-02",
-      "notes": "5 entries removed from category_b (CharterPackConfigError + 2 lifecycle_events + 2 events.py re-exports); upstream status_service 5-symbol debt tracked via DIRECTIVE_013 tracker (see kitty-specs/org-doctrine-profile-integrity-closeout-01KT3G68/research/trackers-to-file.md#upstream-status-service-debt). Two git/lanes out-of-scope offenders tracked by #1588."
+      "notes": "5 entries removed from category_b (CharterPackConfigError + 2 lifecycle_events + 2 events.py re-exports); upstream status_service 5-symbol debt tracked via DIRECTIVE_013 tracker Priivacy-ai/spec-kitty#1622. Two git/lanes out-of-scope offenders tracked by #1588."
     }
   ],
   "negative_invariants": [

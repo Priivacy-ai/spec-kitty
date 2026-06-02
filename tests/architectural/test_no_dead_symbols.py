@@ -548,8 +548,8 @@ _CATEGORY_C_WP_IN_FLIGHT_CHARTER_ACTIVATION: frozenset[str] = frozenset(
 # the import graph, so all four remain genuinely unimported and are
 # re-allowlisted here. ``charter.kind_vocabulary::CHARTER_KIND_TOKENS`` is NOT
 # listed: it already has a live caller and is not flagged.
-# Follow-up tracker: org-doctrine-profile-integrity-closeout WP06/T021
-# (DIRECTIVE_013) wires or prunes each symbol.
+# Follow-up: these are mission-authored symbols awaiting live callers; they
+# are re-derived each cycle, not a standing tracker (the mission owns them).
 _CATEGORY_C_ORG_DOCTRINE_CLOSEOUT: frozenset[str] = frozenset(
     {
         "charter.activation_engine::ActivationPlan",
@@ -578,8 +578,8 @@ _CATEGORY_C_ORG_DOCTRINE_CLOSEOUT: frozenset[str] = frozenset(
 # because the upstream rebase brought the module into the close-out branch.
 # They are NOT this mission's code; the close-out must not patch upstream
 # coordination internals. Allowlisted-with-tracker so the gate is GREEN.
-# Follow-up tracker placeholder (DIRECTIVE_013): org-doctrine close-out
-# WP06/T021 files the upstream wiring/prune ticket.
+# Follow-up tracker (DIRECTIVE_013): Priivacy-ai/spec-kitty#1622 tracks
+# wiring or pruning these upstream symbols and shrinking this baseline.
 _CATEGORY_C_UPSTREAM_STATUS_SERVICE: frozenset[str] = frozenset(
     {
         "specify_cli.coordination.status_service::EventLogWriteTarget",

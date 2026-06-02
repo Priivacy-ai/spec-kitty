@@ -1089,12 +1089,13 @@ A pack with invalid agent profiles is NOT reported as fully healthy by `doctor d
 
 ### Deferred Items (DIRECTIVE_013 Trackers)
 
-The following items are tracked but NOT resolved in this mission:
+Filed DIRECTIVE_013 trackers (deferred, non-blocking):
 
-- **4 `git_repo` marker gaps** (`tests/architectural/test_no_legacy_terminology.py`, `tests/specify_cli/sync/test_local_commit_wiring.py`, `tests/specify_cli/test_sync_state_gitignore_migration.py`, `tests/status/test_bootstrap.py`): DIRECTIVE_013 tracker (to file) — see `kitty-specs/org-doctrine-profile-integrity-closeout-01KT3G68/research/trackers-to-file.md#git-repo-marker-gaps`
-- **Upstream `coordination.status_service` + `lifecycle_events` dead-symbol debt**: DIRECTIVE_013 tracker (to file) — see `kitty-specs/org-doctrine-profile-integrity-closeout-01KT3G68/research/trackers-to-file.md#upstream-status-service-debt`
-- **FR-012 (`doctor.py` god-module split)**: DIRECTIVE_013 tracker (to file) — see `kitty-specs/org-doctrine-profile-integrity-closeout-01KT3G68/research/trackers-to-file.md#fr-012-doctor-py-split`
-- **FR-013 (`_tag_source` provenance typing)**: DIRECTIVE_013 tracker (to file) — see `kitty-specs/org-doctrine-profile-integrity-closeout-01KT3G68/research/trackers-to-file.md#fr-013-provenance-typing`
+- **Upstream `coordination.status_service` dead-symbol debt** (5 symbols, pre-existing on `upstream/main` via #1614): [Priivacy-ai/spec-kitty#1622](https://github.com/Priivacy-ai/spec-kitty/issues/1622). (The related `status.lifecycle_events` pair was resolved in WP04, not deferred.)
+- **FR-012 (`doctor.py` god-module split, I-10)**: [Priivacy-ai/spec-kitty#1623](https://github.com/Priivacy-ai/spec-kitty/issues/1623).
+- **FR-013 (`_tag_source` provenance sidecar typing, I-11)**: [Priivacy-ai/spec-kitty#1624](https://github.com/Priivacy-ai/spec-kitty/issues/1624). The generic `TypeVar` fix (the I-3 mypy class) was landed in WP04; only the `Provenanced[T]` sidecar refactor is deferred.
+
+Absorbed in this close-out (not tracked — fixed directly): the pre-existing pytest-marker gate failures (`git_repo`/convention markers on 6 non-mission test files) were greened as an operator-approved boyscout scope increase rather than tracker-only.
 
 <!-- MANUAL ADDITIONS END -->
 

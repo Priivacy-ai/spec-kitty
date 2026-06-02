@@ -3,7 +3,12 @@
 **Prepared by:** curator-carla (WP06 / T021)
 **Date:** 2026-06-02
 **Directive:** DIRECTIVE_013 — pre-existing failures and deferred items that are NOT absorbed by this mission must be tracked before merge.
-**Status:** Ready to file; awaiting orchestrator confirmation before `gh issue create`.
+
+**FINAL DISPOSITION (orchestrator, 2026-06-02):**
+- **Group A (4 `git_repo` marker gaps) — ABSORBED, not filed.** Per operator decision, the pre-existing pytest-marker gate failures were fixed directly in this close-out (commit `7cdb3f5c5`) as a boyscout scope increase rather than tracker-only. The drafts below are retained for provenance.
+- **Group B (upstream `status_service` debt) — FILED: [Priivacy-ai/spec-kitty#1622](https://github.com/Priivacy-ai/spec-kitty/issues/1622).** (The `lifecycle_events` pair was resolved in WP04, so the issue covers only the 5 `status_service` symbols.)
+- **Group C (FR-012 doctor.py split) — FILED: [Priivacy-ai/spec-kitty#1623](https://github.com/Priivacy-ai/spec-kitty/issues/1623).**
+- **Group D (FR-013 provenance typing) — FILED: [Priivacy-ai/spec-kitty#1624](https://github.com/Priivacy-ai/spec-kitty/issues/1624).** Reframed: the generic `TypeVar` fix (I-3 mypy class) landed in WP04; only the `Provenanced[T]` sidecar refactor is deferred.
 
 ---
 
@@ -285,11 +290,11 @@ DIRECTIVE_013
 
 ## Reference Index
 
-| Anchor | Issue title (short) | Blocking? |
-|--------|---------------------|-----------|
-| `#git-repo-marker-gaps` (A-1..A-4) | 4 missing `git_repo` pytestmarks | No — pre-existing, non-blocking |
-| `#upstream-status-service-debt` (B-1) | Upstream dead symbols: status_service + lifecycle_events | No — upstream pre-existing |
-| `#fr-012-doctor-py-split` (C-1) | doctor.py god-module split | No — deferred cleanup |
-| `#fr-013-provenance-typing` (D-1) | `_tag_source` generic typing | No — deferred mypy cleanup |
+| Anchor | Issue title (short) | Disposition |
+|--------|---------------------|-------------|
+| `#git-repo-marker-gaps` (A-1..A-4) | 4 missing `git_repo` pytestmarks | **ABSORBED** — fixed in commit `7cdb3f5c5` |
+| `#upstream-status-service-debt` (B-1) | Upstream dead symbols: status_service (5) | **FILED** — #1622 |
+| `#fr-012-doctor-py-split` (C-1) | doctor.py god-module split | **FILED** — #1623 |
+| `#fr-013-provenance-typing` (D-1) | `_tag_source` provenance sidecar typing | **FILED** — #1624 |
 
-All items labeled DIRECTIVE_013. None block this mission's merge.
+All filed items labeled `deferred` + `priority:P3` (no `DIRECTIVE_013` label exists upstream; the token is carried in the issue title/body). None block this mission's merge.

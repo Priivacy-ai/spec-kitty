@@ -158,6 +158,6 @@ test_no_dead_symbols:
   # justification: 5 pre-existing upstream specify_cli.coordination.status_service
   # public symbols (landed on upstream/main via #1614, no live caller there);
   # surfaced in the close-out branch via the upstream rebase. NOT this mission's
-  # code; allowlisted-with-tracker so the gate is GREEN. Tracker: WP06/T021
-  # (DIRECTIVE_013) files the upstream wiring/prune ticket.
+  # code; allowlisted-with-tracker so the gate is GREEN. Tracker (DIRECTIVE_013):
+  # Priivacy-ai/spec-kitty#1622 (wire or prune; then shrink this baseline).
   category_c_upstream_status_service: 5
