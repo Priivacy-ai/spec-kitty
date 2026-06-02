@@ -745,6 +745,46 @@ def _protected_branch_status_commit_error(branch: str, repo_root: Path, command:
     )
 
 
+def _coord_topology_active(repo_root: Path, mission_slug: str) -> bool:
+    """Return True if the coordination worktree exists for this mission."""
+    try:
+        from specify_cli.coordination.workspace import CoordinationWorkspace
+        from specify_cli.lanes.branch_naming import mid8_from_slug
+        mid8 = mid8_from_slug(mission_slug)
+        path = CoordinationWorkspace.worktree_path(repo_root, mission_slug, mid8)
+        return path.exists()
+    except Exception:
+        return False
+
+
+def _skip_target_branch_commit(repo_root: Path, mission_slug: str, target_branch: str) -> bool:
+    """Return True when coord topology makes protected target commits redundant."""
+    return (
+        _coord_topology_active(repo_root, mission_slug)
+        and target_branch in protected_branches(repo_root)
+    )
+
+
+def _coord_status_events_path(repo_root: Path, mission_slug: str) -> Path | None:
+    """Return coord-worktree status event path when coord topology is active."""
+    try:
+        from specify_cli.coordination.workspace import CoordinationWorkspace
+        from specify_cli.lanes.branch_naming import mid8_from_slug
+
+        mid8 = mid8_from_slug(mission_slug)
+        if not mid8:
+            return None
+        mission_dir = (
+            mission_slug if mission_slug.endswith(f"-{mid8}") else f"{mission_slug}-{mid8}"
+        )
+        coord_root = CoordinationWorkspace.worktree_path(repo_root, mission_slug, mid8)
+        if not coord_root.exists():
+            return None
+        return coord_root / "kitty-specs" / mission_dir / EVENTS_FILENAME
+    except Exception:
+        return None
+
+
 def _status_event_result_fields(event: object | None) -> dict[str, str | None]:
     """Return JSON-safe status event fields for command output."""
     if event is None:
@@ -1632,7 +1672,36 @@ def move_task(
 
         # Ensure we operate on the target branch for this feature
         main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
-        if auto_commit:
+        skip_target_branch_commit = (
+            _skip_target_branch_commit(main_repo_root, mission_slug, target_branch)
+            if auto_commit else False
+        )
+        tracker_ref_values = [t.strip() for t in (tracker_ref or []) if t and t.strip()]
+        unsupported_skip_metadata: list[str] = []
+        if skip_target_branch_commit:
+            if tracker_ref_values:
+                unsupported_skip_metadata.append("tracker_refs")
+            if assignee:
+                unsupported_skip_metadata.append("assignee")
+            if shell_pid:
+                unsupported_skip_metadata.append("shell_pid")
+            if note:
+                unsupported_skip_metadata.append("activity_log")
+        if unsupported_skip_metadata:
+            _output_error(
+                json_output,
+                "Cannot persist WP frontmatter/activity metadata on protected "
+                f"branch '{target_branch}' while coordination topology is active: "
+                f"{', '.join(unsupported_skip_metadata)}. Rerun from an allowed "
+                "branch, omit those metadata flags, or use --no-auto-commit.",
+                diagnostic={
+                    "error": "WP_METADATA_UNSUPPORTED_ON_PROTECTED_COORD_BRANCH",
+                    "target_branch": target_branch,
+                    "fields": unsupported_skip_metadata,
+                },
+            )
+            raise typer.Exit(1)
+        if auto_commit and not skip_target_branch_commit:
             protected_error = _protected_branch_status_commit_error(
                 target_branch,
                 main_repo_root,
@@ -2111,6 +2180,7 @@ def move_task(
             updated_doc = build_document(updated_front, updated_body, updated_padding)
 
             file_written = False
+            _skip_target_commit = skip_target_branch_commit
             if auto_commit:
                 spec_number = mission_slug.split("-")[0] if "-" in mission_slug else mission_slug
 
@@ -2121,27 +2191,35 @@ def move_task(
                 try:
                     actual_file_path = wp.path.resolve()
 
-                    write_text_within_directory(wp.path, updated_doc, root=main_repo_root, encoding="utf-8")
-                    file_written = True
-
                     # Commit the WP file together with all status artifacts
                     # so that events.jsonl, status.json, and tasks.md
                     # changes are captured in the same atomic commit.
-                    status_artifacts = _collect_status_artifacts(feature_dir)
-                    commit_success = safe_commit(
-                        repo_root=main_repo_root,
-                        worktree_root=main_repo_root,
-                        destination_ref=target_branch,
-                        message=commit_msg,
-                        paths=tuple([actual_file_path] + status_artifacts),
-                    )
+                    if _skip_target_commit:
+                        if not json_output:
+                            console.print(
+                                f"[dim]Note: WP file update not committed to '{target_branch}' "
+                                "(protected branch, coord topology active). "
+                                "The status transition is committed to the coordination branch "
+                                "and is authoritative.[/dim]"
+                            )
+                        commit_success = False
+                    else:
+                        write_text_within_directory(wp.path, updated_doc, root=main_repo_root, encoding="utf-8")
+                        file_written = True
+                        status_artifacts = _collect_status_artifacts(feature_dir)
+                        commit_success = safe_commit(
+                            repo_root=main_repo_root,
+                            worktree_root=main_repo_root,
+                            destination_ref=target_branch,
+                            message=commit_msg,
+                            paths=tuple([actual_file_path] + status_artifacts),
+                        )
 
                     if commit_success:
                         if not json_output:
                             console.print(f"[cyan]→ Committed status change to {target_branch} branch[/cyan]")
-                    else:
-                        if not json_output:
-                            console.print("[yellow]Warning:[/yellow] Failed to auto-commit")
+                    elif not _skip_target_commit and not json_output:
+                        console.print("[yellow]Warning:[/yellow] Failed to auto-commit")
 
                 except Exception as e:
                     if not file_written:
@@ -2154,8 +2232,7 @@ def move_task(
             # T040 / FR-011 (F-10): persist --tracker-ref values into the WP frontmatter.
             # Done AFTER the standard frontmatter write so we operate on the latest
             # on-disk content via the typed Pydantic model.
-            tracker_ref_values = [t.strip() for t in (tracker_ref or []) if t and t.strip()]
-            if tracker_ref_values:
+            if tracker_ref_values and not _skip_target_commit:
                 try:
                     from specify_cli.frontmatter import write_frontmatter as _write_fm
                     from specify_cli.status.wp_metadata import (
@@ -2197,6 +2274,10 @@ def move_task(
 
         # Output result
         event_fields = _status_event_result_fields(event)
+        status_events_path = (
+            _coord_status_events_path(main_repo_root, mission_slug)
+            if skip_target_branch_commit else None
+        )
         result = {
             "result": "success",
             "task_id": task_id,
@@ -2206,8 +2287,16 @@ def move_task(
             "event_id": event_fields["event_id"],
             "work_package_id": task_id,
             "to_lane": event_fields["to_lane"] or canonical_lane,
-            "status_events_path": str(feature_dir / EVENTS_FILENAME),
+            "status_events_path": str(status_events_path or (feature_dir / EVENTS_FILENAME)),
         }
+        if skip_target_branch_commit:
+            result["wp_file_update"] = "skipped"
+            result["wp_file_update_reason"] = (
+                "protected branch with coordination topology; status event "
+                "is authoritative on the coordination branch"
+            )
+            if agent:
+                result["frontmatter_fields_skipped"] = ["agent"]
         if review_feedback_pointer is not None:
             result["review_feedback"] = review_feedback_pointer
 
@@ -3717,15 +3806,12 @@ def status(
         from specify_cli.missions._read_path_resolver import (
             resolve_mission_read_path,
         )
+        from specify_cli.lanes.branch_naming import mid8_from_slug
 
         # Derive mid8 from the resolved slug when it carries the
         # post-WP03 ``-<mid8>`` suffix.  For legacy slugs the suffix is
         # absent and the resolver falls back to the primary checkout.
-        _mid8 = ""
-        if "-" in mission_slug:
-            _tail = mission_slug.rsplit("-", 1)[-1]
-            if len(_tail) == 8 and _tail.isalnum() and _tail.isupper():
-                _mid8 = _tail
+        _mid8 = mid8_from_slug(mission_slug)
         # Legacy worktree-aware fallback for #984 (detached-worktree
         # status reads): only used when neither the coord worktree nor
         # the primary checkout view exists.  Kept for back-compat with

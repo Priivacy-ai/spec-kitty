@@ -102,6 +102,24 @@ def mid8(mission_id: str) -> str:
     return mission_id[:8]
 
 
+def mid8_from_slug(slug: str) -> str:
+    """Extract the mid8 suffix from a mission slug, or return empty string.
+
+    Recognises the 8-character Crockford base32 tail appended to mission slugs
+    by the mission-identity system (e.g. ``my-feature-01KT3YBD`` → ``01KT3YBD``).
+
+    The check is ``tail == tail.upper()`` rather than ``tail.isupper()`` so that
+    all-digit tails (valid in ULID base32) are accepted correctly — ``str.isupper()``
+    returns ``False`` for strings that contain no cased characters.
+    """
+    if "-" not in slug:
+        return ""
+    tail = slug.rsplit("-", 1)[-1]
+    if _MID8_RE.match(tail):
+        return tail
+    return ""
+
+
 # ---------------------------------------------------------------------------
 # Branch name constructors
 # ---------------------------------------------------------------------------

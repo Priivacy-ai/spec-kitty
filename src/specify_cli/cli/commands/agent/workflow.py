@@ -57,6 +57,7 @@ from specify_cli.core.dependency_graph import (
     get_dependents,
 )
 from specify_cli.core.paths import get_main_repo_root, is_worktree_context, locate_project_root
+from specify_cli.lanes.branch_naming import mid8_from_slug
 from specify_cli.core.utils import write_text_within_directory
 from specify_cli.git import safe_commit
 from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
@@ -222,12 +223,7 @@ def _mid8_for_mission_read_path(primary_feature_dir: Path, mission_slug: str) ->
     if meta_mid8:
         return str(meta_mid8)
 
-    if "-" in mission_slug:
-        tail = mission_slug.rsplit("-", 1)[-1]
-        if len(tail) == 8 and tail.isalnum() and tail.isupper():
-            return tail
-
-    return ""
+    return mid8_from_slug(mission_slug)
 
 
 def _canonical_status_feature_dir(main_repo_root: Path, mission_slug: str) -> Path:
@@ -750,7 +746,7 @@ def _shared_artifact_guidance(workspace, repo_root: Path, mission_slug: str) -> 
     if workspace.lane_id:
         return [
             "📚 SHARED MISSION ARTIFACTS:",
-            f"   Spec, plan, tasks, and status live in main repo: {repo_root}/kitty-specs/{mission_slug}/",
+            "   Spec, plan, and tasks live in the main repo. Status authority is the coordination branch for modern missions.",
             "   Use this lane workspace for code/tests; do not expect shared mission artifacts here",
         ]
 
@@ -1531,7 +1527,7 @@ def implement(
         lines.append("")
         lines.append("📋 STATUS TRACKING:")
         lines.append(f"   kitty-specs/ status is tracked in {target_branch} branch (visible to all agents)")
-        lines.append(f"   Status changes auto-commit to {target_branch} branch (visible to all agents)")
+        lines.append("   Status changes auto-commit to the coordination branch (visible to all agents)")
         lines.append("   ⚠️  You will see commits from other agents - IGNORE THEM")
         lines.append("=" * 80)
         lines.append("")
@@ -1935,7 +1931,7 @@ def review(
     This command outputs the full work package prompt (including any review
     feedback from previous reviews) so agents can review the implementation.
 
-    Automatically moves WP from for_review to in_progress (requires --agent to track who is reviewing).
+    Automatically moves WP from for_review to in_review (requires --agent to track who is reviewing).
 
     Examples:
         spec-kitty agent action review WP01 --agent claude
@@ -1978,7 +1974,7 @@ def review(
         # Move to in_progress lane if not already there.
         # Explicit WP review requests must target for_review (or already review-claimed in_progress).
         # Lane is event-log-only; read from canonical event log (no frontmatter fallback)
-        feature_dir = main_repo_root / "kitty-specs" / mission_slug
+        feature_dir = _canonical_status_feature_dir(main_repo_root, mission_slug)
         from specify_cli.status.lane_reader import get_wp_lane as _rv_get_wp_lane
         from specify_cli.status.store import read_events as _rv_read_events
         from specify_cli.status.reducer import reduce as _rv_reduce
@@ -2416,7 +2412,7 @@ def review(
         lines.append("")
         lines.append("📋 STATUS TRACKING:")
         lines.append(f"   kitty-specs/ status is tracked in {target_branch} branch (visible to all agents)")
-        lines.append(f"   Status changes auto-commit to {target_branch} branch (visible to all agents)")
+        lines.append("   Status changes auto-commit to the coordination branch (visible to all agents)")
         lines.append("   ⚠️  You will see commits from other agents - IGNORE THEM")
         lines.append("=" * 80)
         lines.append("")

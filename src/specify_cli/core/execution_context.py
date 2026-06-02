@@ -13,6 +13,7 @@ from typing import Any, Literal, Mapping, cast, get_args
 
 from specify_cli.core.dependency_graph import parse_wp_dependencies
 from specify_cli.core.paths import get_feature_target_branch, require_explicit_feature
+from specify_cli.lanes.branch_naming import mid8_from_slug
 from specify_cli.status.models import Lane
 from specify_cli.status.transitions import resolve_lane_alias
 from specify_cli.task_utils import locate_work_package
@@ -88,11 +89,7 @@ def _resolve_mission_slug(
         raise ActionContextError("FEATURE_CONTEXT_UNRESOLVED", str(exc)) from exc
 
     # Derive mid8 from the post-WP03 ``<slug>-<mid8>`` shape when present.
-    mid8 = ""
-    if "-" in slug:
-        tail = slug.rsplit("-", 1)[-1]
-        if len(tail) == 8 and tail.isalnum() and tail.isupper():
-            mid8 = tail
+    mid8 = mid8_from_slug(slug)
 
     # Late import to avoid a hard module-load dependency for legacy
     # consumers of execution_context that pre-date the resolver.

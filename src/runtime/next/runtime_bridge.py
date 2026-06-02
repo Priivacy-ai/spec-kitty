@@ -65,6 +65,10 @@ from specify_cli.sync.runtime_event_emitter import SyncRuntimeEventEmitter
 logger = logging.getLogger(__name__)
 
 
+class DecisionGitLogUnavailable(RuntimeError):
+    """Decision audit logging cannot be made durable for a modern mission."""
+
+
 def _resolve_coordination_branch(mission_slug: str, repo_root: Path) -> str:
     """Return the coordination branch for a mission from meta.json.
 
@@ -101,6 +105,19 @@ def _resolve_mission_ulid(mission_slug: str, repo_root: Path) -> str:
     return mission_slug
 
 
+def _mission_declares_coordination_branch(mission_slug: str, repo_root: Path) -> bool:
+    """Return True when meta.json explicitly declares coord-branch topology."""
+    meta_path = repo_root / "kitty-specs" / mission_slug / "meta.json"
+    if not meta_path.exists():
+        return False
+    try:
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    branch = meta.get("coordination_branch") if isinstance(meta, dict) else None
+    return isinstance(branch, str) and bool(branch.strip())
+
+
 def _wrap_with_decision_git_log(
     emitter: SyncRuntimeEventEmitter,
     mission_slug: str,
@@ -112,20 +129,49 @@ def _wrap_with_decision_git_log(
     the original emitter is returned unchanged so mission execution is not
     blocked.
     """
+    declared_coord_topology = _mission_declares_coordination_branch(
+        mission_slug, repo_root,
+    )
     try:
+        from specify_cli.coordination.workspace import CoordinationWorkspace
         from specify_cli.events.decision_log import DecisionGitLog
 
         coordination_branch = _resolve_coordination_branch(mission_slug, repo_root)
         mission_id = _resolve_mission_ulid(mission_slug, repo_root)
+
+        # Resolve coord worktree path (pure static method, no side effects).
+        # Extract mid8 from slug (post-083 slugs end in "-<8-char-ULID-prefix>").
+        # Fall back to repo_root only for legacy missions or pre-init runs that
+        # do not yet declare coord-branch topology.  Modern missions with a
+        # missing coord worktree fail closed to avoid dirtying the primary
+        # checkout with coord-branch decision events.
+        from specify_cli.lanes.branch_naming import mid8_from_slug as _mid8_from_slug
+        _mid8 = _mid8_from_slug(mission_slug)
+        _coord_path = CoordinationWorkspace.worktree_path(repo_root, mission_slug, _mid8)
+        if _coord_path.exists():
+            worktree_root = _coord_path
+        elif declared_coord_topology:
+            worktree_root = CoordinationWorkspace.resolve(
+                repo_root, mission_slug, _mid8,
+            )
+        else:
+            worktree_root = repo_root
+
         return DecisionGitLog(
             repo_root=repo_root,
-            worktree_root=repo_root,
+            worktree_root=worktree_root,
             destination_ref=coordination_branch,
             mission_slug=mission_slug,
             inner=emitter,
             mission_id=mission_id,
         )
-    except Exception:
+    except Exception as exc:
+        if declared_coord_topology:
+            raise DecisionGitLogUnavailable(
+                "DecisionGitLog construction failed for declared coordination "
+                f"topology mission {mission_slug!r}; refusing to continue "
+                "without durable decision evidence."
+            ) from exc
         logger.warning(
             "DecisionGitLog construction failed for mission %s; "
             "falling back to plain emitter.",
@@ -2193,7 +2239,14 @@ def decide_next_via_runtime(  # noqa: C901
     4. For non-WP steps: call next_step(run_ref, agent, result) directly
     5. Map NextDecision -> Decision (preserving JSON contract)
     """
-    feature_dir = repo_root / "kitty-specs" / mission_slug
+    from specify_cli.missions._read_path_resolver import (
+        resolve_mission_read_path as _resolve_read_path,
+    )
+    from specify_cli.lanes.branch_naming import mid8_from_slug as _mid8_from_slug
+
+    _mid8 = _mid8_from_slug(mission_slug)
+
+    feature_dir = _resolve_read_path(repo_root, mission_slug, _mid8)
     now = datetime.now(UTC).isoformat()
 
     if not feature_dir.is_dir():

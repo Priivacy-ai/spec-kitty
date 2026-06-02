@@ -746,10 +746,16 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
 
         from specify_cli.status.reducer import reduce as _reduce_events
         from specify_cli.status.store import read_events as _read_events
+        from specify_cli.missions._read_path_resolver import resolve_mission_read_path as _resolve_read_path
+        from specify_cli.lanes.branch_naming import mid8_from_slug as _mid8_from_slug
+
+        _mid8 = _mid8_from_slug(mission_slug)
+
+        _status_feature_dir = _resolve_read_path(repo_root, mission_slug, _mid8)
 
         _wp_lanes = {
             _wp_id: _state.get("lane", Lane.PLANNED)
-            for _wp_id, _state in _reduce_events(_read_events(feature_dir)).work_packages.items()
+            for _wp_id, _state in _reduce_events(_read_events(_status_feature_dir)).work_packages.items()
         }
         _dependency_readiness = dependency_readiness_for_wp(wp_id, declared_deps, _wp_lanes)
         if not _dependency_readiness.satisfied:
