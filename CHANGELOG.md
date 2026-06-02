@@ -9,11 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Documentation
+## [3.2.0rc34] - 2026-06-02
+
+### Changed
 
 - Clarified that live canary and cross-repo end-to-end runs remain required
   release-candidate hygiene under the charter, but are run locally before
   tagging instead of as tag-time PyPI publish workflow blockers.
+- Transactional mission status reads now resolve the coordination worktree
+  without creating or mutating checkout state, keeping lane views aligned with
+  the coordination branch.
+
+### Fixed
+
+- Planning-artifact commits now preserve append-only coordination event logs
+  instead of clobbering lane history with stale primary-checkout copies.
+- Planning-artifact claim commits now parse git porcelain status structurally,
+  fail closed on unrelated structural changes, and skip idempotent
+  already-on-coordination content.
+- Move-task transitions now derive source and target lanes from transactional
+  coordination status so review handoffs do not fail after coordination/feature
+  branch desync.
+- `.kittify/sync-state.json` is treated as local relay state, while charter
+  synthesis provenance can be tracked with the required commit reminder.
 
 ## [3.2.0rc33] - 2026-06-01
 
