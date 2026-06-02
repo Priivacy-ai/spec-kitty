@@ -1,0 +1,12 @@
+# DEPRECATED FORM — authors lineage via the `specializes-from:` artifact FIELD
+# instead of a DRG `specializes_from` edge. This is the anti-pattern WP07 migrates
+# away from and WP06 turns into a hard error. WP06's field-rejection test points
+# here. Do NOT copy this shape into real doctrine.
+profile-id: legacy-specialist
+name: Legacy Specialist
+purpose: Negative fixture demonstrating the retired field-authored lineage form
+roles:
+  - implementer
+specializes-from: legacy-base
+specialization:
+  primary-focus: Holding the deprecated specializes-from field for WP06's rejection test

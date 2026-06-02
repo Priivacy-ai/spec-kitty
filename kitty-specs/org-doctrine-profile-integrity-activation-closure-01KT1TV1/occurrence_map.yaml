@@ -47,6 +47,43 @@ categories:
       `overrides:`, `specializes_from:`) and re-author the equivalent relationship as a
       DRG-fragment edge in graph.yaml. Per-occurrence decision: REMOVE_KEY_MIGRATE_TO_EDGE.
       Zero-loss: each removed key => exactly one merged DRG edge (WP07 NFR-007 test).
+    # --- AS EXECUTED (WP07) -------------------------------------------------
+    # Discovery (grep of built-in artifact YAML, not assumed counts): the ONLY
+    # field-authored relationships in shipped doctrine are 4 agent-profile
+    # `specializes-from:` keys. No built-in tactic/styleguide/paradigm/procedure
+    # carries `enhances:`/`overrides:` values (those appear only in schemas +
+    # Pydantic models, owned by WP06).
+    as_executed:
+      additive_migration_done:  # edges added to src/doctrine/graph.yaml
+        - source: agent_profile:python-pedro
+          target: agent_profile:implementer-ivan
+          relation: specializes_from
+        - source: agent_profile:java-jenny
+          target: agent_profile:implementer-ivan
+          relation: specializes_from
+        - source: agent_profile:node-norris
+          target: agent_profile:implementer-ivan
+          relation: specializes_from
+        - source: agent_profile:frontend-freddy
+          target: agent_profile:implementer-ivan
+          relation: specializes_from
+      key_removal_deferred:
+        files:
+          - src/doctrine/agent_profiles/built-in/python-pedro.agent.yaml
+          - src/doctrine/agent_profiles/built-in/java-jenny.agent.yaml
+          - src/doctrine/agent_profiles/built-in/node-norris.agent.yaml
+          - src/doctrine/agent_profiles/built-in/frontend-freddy.agent.yaml
+        decision: KEEP_FIELD_UNTIL_WP05_RESOLVER_MIGRATION
+        reason: >
+          The `specializes-from:` FIELD is still the live authority for the agent-profile
+          inheritance RESOLVER (`src/doctrine/agent_profiles/repository.py`
+          resolve_profile/get_ancestors). Migrating that resolver to read the DRG
+          `specializes_from` edge is owned by WP05 (per WP06's own note: "the lineage
+          resolver migrates in WP05"). WP05 is NOT a declared dependency of WP07 and is
+          absent from this integration base. Removing the field value now makes
+          get_ancestors() return [] (verified empirically) — a silent inheritance
+          regression, NOT zero-loss. The additive DRG edge above makes the graph the
+          authoritative source today; physical field removal lands with WP05+WP06.
 
   cli_commands:
     action: do_not_change
@@ -67,6 +104,23 @@ categories:
       Field-acceptance tests flip to field-rejection (negative) tests; relationship-behavior
       tests migrate fixtures to fragment edges. Add the legacy-field-pack negative fixture and
       the zero-loss migration test.
+    # --- AS EXECUTED (WP07) -------------------------------------------------
+    as_executed:
+      added:
+        - tests/doctrine/test_relationship_migration.py  # zero-loss (NFR-007) + fixture validation
+        - tests/doctrine/_relationship_graph.py          # empty-built-in helper for fixture merges
+        - tests/doctrine/fixtures/relationship_packs/README.md
+        - tests/doctrine/fixtures/relationship_packs/lineage-pack/drg/fragment.yaml          # Scenario 1
+        - tests/doctrine/fixtures/relationship_packs/augment-all-kinds-pack/drg/fragment.yaml # Scenario 10
+        - tests/doctrine/fixtures/relationship_packs/legacy-field-pack/drg/fragment.yaml      # negative pack
+        - tests/doctrine/fixtures/relationship_packs/legacy-field-pack/profiles/legacy-specialist.agent.yaml  # WP06 rejection target
+      notes: >
+        The zero-loss test DISCOVERS the field-authored baseline by grepping built-in
+        artifact YAML (no hardcoded count) and asserts each maps to exactly one merged
+        DRG edge. Scenario-10 mission_type augmentation is asserted at the fragment
+        (authoring) level: the `doctrine.drg.merge` plural->singular bridge does not yet
+        map `mission_types` (owned by the DRG merge/parity WPs, not WP07), so the merge
+        assertion covers the bridge-supported subset.
 
   logs_telemetry:
     action: manual_review
