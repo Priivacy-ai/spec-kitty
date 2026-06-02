@@ -286,7 +286,25 @@ def build_charter_context_include(
     action: str | None = None,
     org_root: Path | None = None,
 ) -> str:
-    """Render one fetch-deferred governance selector."""
+    """Render one fetch-deferred governance selector.
+
+    The selector kind is routed through the canonical
+    :meth:`~doctrine.artifact_kinds.ArtifactKind.from_operator_token` resolver
+    (WP01), so hyphenated operator tokens such as ``agent-profile`` and
+    ``mission-step-contract`` resolve to their canonical underscore kinds
+    without a per-surface kind table (R-009 / CC-4). The two non-artifact
+    selectors — ``section`` (a charter heading) and ``artifact`` (the
+    best-effort activation selector) — are handled before the canonical
+    resolver. ``template:<mission>/<name>`` resolves through WP18's
+    :func:`doctrine.template_catalog.resolve_template_by_id` (FR-034).
+
+    Unknown selector kinds fail closed with the canonical vocabulary error
+    raised by :meth:`ArtifactKind.from_operator_token` (no silent fallback).
+    """
+    from doctrine.artifact_kinds import (
+        ArtifactKind,
+        MissionTypeNotAnArtifactKind,
+    )
 
     kind, separator, identifier = selector.partition(":")
     kind = kind.strip().lower()
@@ -310,18 +328,108 @@ def build_charter_context_include(
         return section
 
     org_roots = [org_root] if org_root is not None else None
-    service = _build_doctrine_service(repo_root, org_roots=org_roots)
-    if kind == "directive":
-        return _render_directive_include(service, identifier, selector)
-    if kind == "tactic":
-        return _render_tactic_include(service, identifier, selector)
+
     if kind == "artifact":
+        service = _build_doctrine_service(repo_root, org_roots=org_roots)
         return _render_generic_artifact_include(service, identifier)
-    artifact = _render_doctrine_artifact_include(service, kind, identifier)
+
+    # Route every other kind through the canonical operator-token resolver so
+    # hyphenated tokens (``agent-profile``) and canonical underscore tokens
+    # (``agent_profile``) both resolve, and unknown tokens fail closed with the
+    # shared vocabulary error (no second kind enumeration here — CC-4).
+    try:
+        resolved_kind = ArtifactKind.from_operator_token(kind)
+    except MissionTypeNotAnArtifactKind as exc:
+        raise ValueError(
+            f"--include does not support the 'mission-type' selector "
+            f"(selector {selector!r}); mission types are not addressable "
+            "governance artifacts."
+        ) from exc
+
+    if resolved_kind is ArtifactKind.TEMPLATE:
+        return _render_template_include(repo_root, identifier, selector)
+
+    service = _build_doctrine_service(repo_root, org_roots=org_roots)
+    canonical_kind = resolved_kind.value
+    if canonical_kind == ArtifactKind.DIRECTIVE.value:
+        return _render_directive_include(service, identifier, selector)
+    if canonical_kind == ArtifactKind.TACTIC.value:
+        return _render_tactic_include(service, identifier, selector)
+    artifact = _render_doctrine_artifact_include(service, canonical_kind, identifier)
     if artifact is not None:
         return artifact
 
     raise ValueError(f"Unsupported --include selector kind '{kind}'.")
+
+
+def _render_template_include(
+    repo_root: Path,
+    identifier: str,
+    selector: str,
+) -> str:
+    """Render a ``template:<mission>/<name>`` selector via WP18 (FR-034).
+
+    Resolves the mission-qualified template ID through the doctrine
+    5-tier chain (:func:`doctrine.template_catalog.resolve_template_by_id`)
+    and renders the resolved template file's content. The project root
+    (the directory containing ``.kittify/``) is supplied as data so the
+    project-scoped override/legacy tiers participate in resolution.
+
+    Fails closed on malformed pack configuration: a
+    :class:`charter.pack_context.CharterPackConfigError` raised while
+    resolving the project root is re-raised rather than swallowed, matching
+    WP12's fail-closed contract for the context entry point.
+    """
+    from doctrine.resolver import ResolutionTier
+    from doctrine.template_catalog import TierRoot, resolve_template_by_id
+
+    from charter.pack_context import CharterPackConfigError
+
+    try:
+        project_root = resolve_project_root(repo_root)
+    except CharterPackConfigError:
+        # Fail closed (parity with WP12): a malformed charter pack config
+        # must surface, not silently degrade to a partial template lookup.
+        raise
+
+    tier_roots = [
+        TierRoot(
+            tier=ResolutionTier.PACKAGE_DEFAULT,
+            missions_root=_default_missions_root(),
+            project_dir=project_root,
+        )
+    ]
+    try:
+        result = resolve_template_by_id(identifier, tier_roots=tier_roots)
+    except FileNotFoundError as exc:
+        raise ValueError(
+            f"No template found for selector '{selector}'."
+        ) from exc
+    except ValueError as exc:
+        raise ValueError(
+            f"Malformed template selector '{selector}': {exc}"
+        ) from exc
+
+    try:
+        content = result.path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise ValueError(
+            f"Template for selector '{selector}' could not be read: {exc}"
+        ) from exc
+
+    return "\n".join(
+        [
+            f"Template {identifier} (tier: {result.tier.value}):",
+            content.rstrip("\n"),
+        ]
+    )
+
+
+def _default_missions_root() -> Path:
+    """Return the doctrine-bundled missions root (PACKAGE_DEFAULT tier)."""
+    from doctrine.missions import MissionTemplateRepository
+
+    return MissionTemplateRepository.default_missions_root()
 
 
 def _render_directive_include(service: object, identifier: str, selector: str) -> str:
@@ -360,16 +468,17 @@ def _render_tactic_include(service: object, identifier: str, selector: str) -> s
 def _render_generic_artifact_include(service: object, identifier: str) -> str:
     """Resolve a best-effort ``artifact:<id>`` selector emitted by activations."""
 
+    from doctrine.artifact_kinds import ArtifactKind
+
+    # Derive the candidate kinds from the canonical ArtifactKind set rather
+    # than re-declaring a parallel tuple (R-009 / CC-4). ``TEMPLATE`` is
+    # excluded: templates are mission-qualified (``<mission>/<name>``) and are
+    # not addressable by a bare ``artifact:<id>`` probe.
     matches: list[tuple[str, str]] = []
     for candidate_kind in (
-        "directive",
-        "tactic",
-        "paradigm",
-        "styleguide",
-        "toolguide",
-        "procedure",
-        "agent_profile",
-        "mission_step_contract",
+        member.value
+        for member in ArtifactKind
+        if member is not ArtifactKind.TEMPLATE
     ):
         selector = f"{candidate_kind}:{identifier}"
         try:
