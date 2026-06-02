@@ -749,11 +749,8 @@ def _coord_topology_active(repo_root: Path, mission_slug: str) -> bool:
     """Return True if the coordination worktree exists for this mission."""
     try:
         from specify_cli.coordination.workspace import CoordinationWorkspace
-        mid8 = ""
-        if "-" in mission_slug:
-            tail = mission_slug.rsplit("-", 1)[-1]
-            if len(tail) == 8 and tail.isalnum() and tail.isupper():
-                mid8 = tail
+        from specify_cli.lanes.branch_naming import mid8_from_slug
+        mid8 = mid8_from_slug(mission_slug)
         path = CoordinationWorkspace.worktree_path(repo_root, mission_slug, mid8)
         return path.exists()
     except Exception:
@@ -3745,15 +3742,12 @@ def status(
         from specify_cli.missions._read_path_resolver import (
             resolve_mission_read_path,
         )
+        from specify_cli.lanes.branch_naming import mid8_from_slug
 
         # Derive mid8 from the resolved slug when it carries the
         # post-WP03 ``-<mid8>`` suffix.  For legacy slugs the suffix is
         # absent and the resolver falls back to the primary checkout.
-        _mid8 = ""
-        if "-" in mission_slug:
-            _tail = mission_slug.rsplit("-", 1)[-1]
-            if len(_tail) == 8 and _tail.isalnum() and _tail.isupper():
-                _mid8 = _tail
+        _mid8 = mid8_from_slug(mission_slug)
         # Legacy worktree-aware fallback for #984 (detached-worktree
         # status reads): only used when neither the coord worktree nor
         # the primary checkout view exists.  Kept for back-compat with

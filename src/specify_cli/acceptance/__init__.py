@@ -558,10 +558,9 @@ def _status_read_feature_dir(repo_root: Path, feature: str, feature_dir: Path) -
     raw_mid8 = meta.get("mid8")
     if isinstance(raw_mid8, str) and raw_mid8:
         mid8 = raw_mid8
-    elif "-" in feature:
-        tail = feature.rsplit("-", 1)[-1]
-        if len(tail) == 8 and tail.isalnum() and tail.isupper():
-            mid8 = tail
+    else:
+        from specify_cli.lanes.branch_naming import mid8_from_slug
+        mid8 = mid8_from_slug(feature)
 
     from specify_cli.missions._read_path_resolver import resolve_mission_read_path
 

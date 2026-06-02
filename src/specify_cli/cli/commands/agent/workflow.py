@@ -57,6 +57,7 @@ from specify_cli.core.dependency_graph import (
     get_dependents,
 )
 from specify_cli.core.paths import get_main_repo_root, is_worktree_context, locate_project_root
+from specify_cli.lanes.branch_naming import mid8_from_slug
 from specify_cli.core.utils import write_text_within_directory
 from specify_cli.git import safe_commit
 from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
@@ -222,12 +223,7 @@ def _mid8_for_mission_read_path(primary_feature_dir: Path, mission_slug: str) ->
     if meta_mid8:
         return str(meta_mid8)
 
-    if "-" in mission_slug:
-        tail = mission_slug.rsplit("-", 1)[-1]
-        if len(tail) == 8 and tail.isalnum() and tail.isupper():
-            return tail
-
-    return ""
+    return mid8_from_slug(mission_slug)
 
 
 def _canonical_status_feature_dir(main_repo_root: Path, mission_slug: str) -> Path:

@@ -122,11 +122,8 @@ def _wrap_with_decision_git_log(
         # Resolve coord worktree path (pure static method, no side effects).
         # Extract mid8 from slug (post-083 slugs end in "-<8-char-ULID-prefix>").
         # Fall back to repo_root for legacy missions or pre-init runs.
-        _mid8 = ""
-        if "-" in mission_slug:
-            _tail = mission_slug.rsplit("-", 1)[-1]
-            if len(_tail) == 8 and _tail.isalnum() and _tail.isupper():
-                _mid8 = _tail
+        from specify_cli.lanes.branch_naming import mid8_from_slug as _mid8_from_slug
+        _mid8 = _mid8_from_slug(mission_slug)
         _coord_path = CoordinationWorkspace.worktree_path(repo_root, mission_slug, _mid8)
         worktree_root = _coord_path if _coord_path.exists() else repo_root
 
@@ -2209,12 +2206,9 @@ def decide_next_via_runtime(  # noqa: C901
     from specify_cli.missions._read_path_resolver import (
         resolve_mission_read_path as _resolve_read_path,
     )
+    from specify_cli.lanes.branch_naming import mid8_from_slug as _mid8_from_slug
 
-    _mid8 = ""
-    if "-" in mission_slug:
-        _tail = mission_slug.rsplit("-", 1)[-1]
-        if len(_tail) == 8 and _tail.isalnum() and _tail.isupper():
-            _mid8 = _tail
+    _mid8 = _mid8_from_slug(mission_slug)
 
     feature_dir = _resolve_read_path(repo_root, mission_slug, _mid8)
     now = datetime.now(UTC).isoformat()

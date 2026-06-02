@@ -747,12 +747,9 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         from specify_cli.status.reducer import reduce as _reduce_events
         from specify_cli.status.store import read_events as _read_events
         from specify_cli.missions._read_path_resolver import resolve_mission_read_path as _resolve_read_path
+        from specify_cli.lanes.branch_naming import mid8_from_slug as _mid8_from_slug
 
-        _mid8 = ""
-        if "-" in mission_slug:
-            _tail = mission_slug.rsplit("-", 1)[-1]
-            if len(_tail) == 8 and _tail.isalnum() and _tail.isupper():
-                _mid8 = _tail
+        _mid8 = _mid8_from_slug(mission_slug)
 
         _status_feature_dir = _resolve_read_path(repo_root, mission_slug, _mid8)
 

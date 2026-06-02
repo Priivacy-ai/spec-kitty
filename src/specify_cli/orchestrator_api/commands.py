@@ -245,12 +245,9 @@ def _resolve_mission_dir(main_repo_root: Path, mission_slug: str) -> Path | None
         resolve_mission_read_path,
         StatusReadPathNotFound,
     )
+    from specify_cli.lanes.branch_naming import mid8_from_slug
 
-    mid8 = ""
-    if "-" in mission_slug:
-        tail = mission_slug.rsplit("-", 1)[-1]
-        if len(tail) == 8 and tail.isalnum() and tail.isupper():
-            mid8 = tail
+    mid8 = mid8_from_slug(mission_slug)
 
     try:
         mission_dir = resolve_mission_read_path(main_repo_root, mission_slug, mid8)
