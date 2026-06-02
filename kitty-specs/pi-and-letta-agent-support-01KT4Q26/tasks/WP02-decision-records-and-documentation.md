@@ -20,8 +20,8 @@ subtasks:
 - T008
 - T009
 phase: Phase 0 - Closure
-agent: "user"
-shell_pid: "18631"
+agent: "claude:claude-sonnet-4-6:curator-carla:reviewer"
+shell_pid: "33209"
 history:
 - timestamp: '2026-06-02T17:52:08Z'
   lane: planned
@@ -259,3 +259,5 @@ No `--base` flag needed — this WP has no dependencies and can run in parallel 
 ## Activity Log
 
 - 2026-06-02T20:18:31Z – user – shell_pid=18631 – Started implementation via action command
+- 2026-06-02T20:21:44Z – user – shell_pid=18631 – ADRs written for Pi (2026-06-02-1) and Letta (2026-06-02-2), CLAUDE.md updated to 19 agents, ADR README index updated, GitHub issues #1050 and #1054 closed
+- 2026-06-02T20:22:04Z – claude:claude-sonnet-4-6:curator-carla:reviewer – shell_pid=33209 – Started review via action command
