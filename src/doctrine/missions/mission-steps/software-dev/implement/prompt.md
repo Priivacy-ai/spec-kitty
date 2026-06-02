@@ -142,8 +142,8 @@ available profile for the WP's `task_type` and `authoritative_surface`.
 
 ### 3. Verify Dependencies
 
-Confirm all dependency WPs are in `done` status before proceeding.
-If any are not done, stop and report which dependencies are blocking.
+Confirm all dependency WPs are in `approved` or `done` status before proceeding.
+If any are not approved or done, stop and report which dependencies are blocking.
 
 ### 4. Implement Subtasks
 
