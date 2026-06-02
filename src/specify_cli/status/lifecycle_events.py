@@ -60,6 +60,7 @@ PLAN_COMPLETED = "PlanCompleted"
 TASKS_STARTED = "TasksStarted"
 TASKS_COMPLETED = "TasksCompleted"
 WP_CREATED = "WPCreated"
+REVIEWER_SELF_APPROVAL = "ReviewerSelfApproval"
 
 LIFECYCLE_EVENT_TYPES = frozenset({
     PROJECT_INITIALIZED,
@@ -71,6 +72,7 @@ LIFECYCLE_EVENT_TYPES = frozenset({
     TASKS_STARTED,
     TASKS_COMPLETED,
     WP_CREATED,
+    REVIEWER_SELF_APPROVAL,
 })
 
 PROJECT_EVENTS_FILENAME = "canonical-events.jsonl"
@@ -633,6 +635,48 @@ def emit_wp_created_local(
     )
 
 
+def emit_reviewer_self_approval(
+    feature_dir: Path,
+    *,
+    mission_slug: str,
+    wp_id: str,
+    implementing_actor: str,
+    intended_reviewer: str,
+    failure_reason: str,
+    fallback_approved: bool = True,
+    project_uuid: str | None = None,
+    project_slug: str | None = None,
+    at: str | None = None,
+) -> dict[str, Any] | None:
+    """Record that a WP was approved by its implementing actor after reviewer failure."""
+    payload = {
+        "mission_slug": mission_slug,
+        "wp_id": wp_id,
+        "implementing_actor": implementing_actor,
+        "intended_reviewer": intended_reviewer,
+        "failure_reason": failure_reason,
+        "fallback_approved": fallback_approved,
+        "timestamp": at or _now_iso(),
+    }
+    log_path = mission_event_log_path(feature_dir)
+    return append_lifecycle_event(
+        log_path,
+        REVIEWER_SELF_APPROVAL,
+        payload,
+        aggregate_id=wp_id,
+        aggregate_type="WorkPackage",
+        project_uuid=project_uuid,
+        project_slug=project_slug,
+        dedup_keys={
+            "mission_slug": mission_slug,
+            "wp_id": wp_id,
+            "implementing_actor": implementing_actor,
+            "intended_reviewer": intended_reviewer,
+            "failure_reason": failure_reason,
+        },
+    )
+
+
 # ---------------------------------------------------------------------------
 # Diagnostics / merge guard helpers
 # ---------------------------------------------------------------------------
@@ -704,6 +748,7 @@ __all__ = [
     "TASKS_STARTED",
     "TASKS_COMPLETED",
     "WP_CREATED",
+    "REVIEWER_SELF_APPROVAL",
     "LIFECYCLE_EVENT_TYPES",
     "PROJECT_EVENTS_FILENAME",
     "MISSION_EVENTS_FILENAME",
@@ -715,6 +760,7 @@ __all__ = [
     "emit_mission_created_local",
     "emit_artifact_phase",
     "emit_wp_created_local",
+    "emit_reviewer_self_approval",
     "read_lifecycle_events",
     "has_non_bootstrap_status_history",
 ]

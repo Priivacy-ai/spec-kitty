@@ -74,10 +74,13 @@ cat kitty-specs/<slug>/status.events.jsonl
 ```
 
 The event log tells you: how many rejection cycles each WP had, which WPs were
-forced (unusual transitions that bypassed normal flow), and whether any WPs
-were approved by arbiter override rather than clean review. A WP with 3+
-rejection cycles that ended in an arbiter-forced approval is a high-priority
-target for your analysis — the disagreement history is a signal.
+forced (unusual transitions that bypassed normal flow), whether any WPs were
+approved by arbiter override rather than clean review, and whether any WP has a
+`ReviewerSelfApproval` event. A WP with 3+ rejection cycles that ended in an
+arbiter-forced approval is a high-priority target for your analysis — the
+disagreement history is a signal. A WP with `ReviewerSelfApproval` is also
+high-priority: flag it as an independence/process risk and verify whether an
+independent reviewer later re-reviewed it.
 
 ---
 

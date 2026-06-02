@@ -21,6 +21,7 @@ from specify_cli.status.lifecycle_events import (
     LIFECYCLE_EVENT_TYPES,
     MISSION_CREATED,
     PROJECT_INITIALIZED,
+    REVIEWER_SELF_APPROVAL,
     SPECIFY_COMPLETED,
     TASKS_COMPLETED,
     WP_CREATED,
@@ -28,6 +29,7 @@ from specify_cli.status.lifecycle_events import (
     emit_artifact_phase,
     emit_mission_created_local,
     emit_project_initialized,
+    emit_reviewer_self_approval,
     emit_wp_created_local,
     has_lifecycle_event,
     has_non_bootstrap_status_history,
@@ -267,6 +269,34 @@ def test_wp_created_full_roster_writes_one_event_per_wp(feature_dir: Path) -> No
     assert sorted(e["aggregate_id"] for e in entries) == ["WP01", "WP02", "WP03"]
 
 
+def test_reviewer_self_approval_persists_and_dedupes(feature_dir: Path) -> None:
+    env1 = emit_reviewer_self_approval(
+        feature_dir,
+        mission_slug="demo-mission",
+        wp_id="WP01",
+        implementing_actor="codex:gpt-5:implementer",
+        intended_reviewer="claude:sonnet:reviewer",
+        failure_reason="reviewer exited 1",
+    )
+    env2 = emit_reviewer_self_approval(
+        feature_dir,
+        mission_slug="demo-mission",
+        wp_id="WP01",
+        implementing_actor="codex:gpt-5:implementer",
+        intended_reviewer="claude:sonnet:reviewer",
+        failure_reason="reviewer exited 1",
+    )
+
+    assert env1 is not None
+    assert env1["event_type"] == REVIEWER_SELF_APPROVAL
+    assert env2 is None
+    entries = read_lifecycle_events(mission_event_log_path(feature_dir))
+    assert len(entries) == 1
+    assert entries[0]["aggregate_id"] == "WP01"
+    assert entries[0]["payload"]["intended_reviewer"] == "claude:sonnet:reviewer"
+    assert entries[0]["payload"]["fallback_approved"] is True
+
+
 def test_wp_created_records_optional_metadata(feature_dir: Path) -> None:
     emit_wp_created_local(
         feature_dir,
@@ -453,6 +483,7 @@ def test_lifecycle_event_types_complete() -> None:
         SPECIFY_COMPLETED,
         TASKS_COMPLETED,
         WP_CREATED,
+        REVIEWER_SELF_APPROVAL,
     } <= LIFECYCLE_EVENT_TYPES
 
 

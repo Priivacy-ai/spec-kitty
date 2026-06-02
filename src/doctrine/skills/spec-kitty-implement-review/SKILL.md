@@ -36,9 +36,6 @@ Spec-kitty selects agents from `.kittify/config.yaml`:
 ```yaml
 agents:
   available: [claude, codex, opencode]
-  selection:
-    preferred_implementer: claude
-    preferred_reviewer: codex
   auto_commit: true
 ```
 
@@ -383,6 +380,29 @@ claude -p "$(cat /tmp/review-prompt-WP##.md)" --output-format json -C "$WORKTREE
 gemini -p "$(cat /tmp/review-prompt-WP##.md)" --yolo --output-format json -C "$WORKTREE"
 ```
 
+Capture the reviewer command exit status. If the configured/chosen reviewer
+fails, do not silently approve and do not fall back to the implementing agent.
+Print a structured error and halt in unattended/noninteractive mode:
+
+```text
+ERROR: Configured reviewer '<agent>' failed (<exit code or reason>).
+Options:
+  a) Retry with '<agent>' after fixing the error
+  b) Switch reviewer: spec-kitty agent action review WP## --mission <slug> --agent <other-reviewer>
+  c) Proceed with self-review -- WARNING: no independent review
+```
+
+Self-review fallback is only allowed after an explicit operator decision. The
+approval command must preserve the failure metadata:
+
+```bash
+spec-kitty agent tasks move-task WP## --to approved --force \
+  --self-review-fallback \
+  --intended-reviewer <failed-agent> \
+  --reviewer-failure-reason "<exit code or reason>" \
+  --note "Self-review fallback after reviewer failure: <summary>"
+```
+
 **If the reviewer is Tier 3 (GUI-only) or cannot run move-task:**
 
 After the reviewer completes, the orchestrator must:
@@ -410,6 +430,11 @@ spec-kitty agent tasks status
 # If reviewer output was captured to a file:
 cat /tmp/review-result-WP##.md
 ```
+
+Before final approval, if `spec.md` references GitHub issues, ensure
+`issue-matrix.md` exists and every referenced issue has a final verdict:
+`fixed`, `verified-already-fixed`, or a documented follow-up. `unknown` verdicts
+block approval. The CLI enforces this guard on `move-task --to approved/done`.
 
 ---
 

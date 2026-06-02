@@ -32,6 +32,8 @@ class Category(StrEnum):
     ORPHAN_WORKSPACE = "orphan_workspace"
     MATERIALIZATION_DRIFT = "materialization_drift"
     DERIVED_VIEW_DRIFT = "derived_view_drift"
+    REVIEW_INDEPENDENCE = "review_independence"
+    ISSUE_MATRIX = "issue_matrix"
     SPARSE_CHECKOUT = "sparse_checkout"
     UNINITIALIZED_STATUS = "uninitialized_status"
 
@@ -319,6 +321,92 @@ def check_drift(feature_dir: Path) -> list[Finding]:
     return findings
 
 
+def check_reviewer_self_approval(feature_dir: Path) -> list[Finding]:
+    """Flag explicit self-review fallback events as review-independence risk."""
+    findings: list[Finding] = []
+    try:
+        from specify_cli.status.lifecycle_events import (
+            REVIEWER_SELF_APPROVAL,
+            mission_event_log_path,
+            read_lifecycle_events,
+        )
+    except ImportError:
+        return findings
+
+    for event in read_lifecycle_events(mission_event_log_path(feature_dir)):
+        if event.get("event_type") != REVIEWER_SELF_APPROVAL:
+            continue
+        payload = event.get("payload", {})
+        if not isinstance(payload, dict):
+            payload = {}
+        wp_id = str(payload.get("wp_id") or event.get("aggregate_id") or "")
+        implementing_actor = str(payload.get("implementing_actor") or "unknown")
+        intended_reviewer = str(payload.get("intended_reviewer") or "unknown")
+        failure_reason = str(payload.get("failure_reason") or "reviewer_failed")
+        findings.append(
+            Finding(
+                severity=Severity.WARNING,
+                category=Category.REVIEW_INDEPENDENCE,
+                wp_id=wp_id or None,
+                message=(
+                    f"{wp_id or 'A work package'} used self-review fallback: "
+                    f"{implementing_actor} approved after intended reviewer "
+                    f"{intended_reviewer} failed ({failure_reason})."
+                ),
+                recommended_action="Re-review with an independent reviewer before merge/release.",
+            )
+        )
+
+    return findings
+
+
+def check_issue_matrix(feature_dir: Path) -> list[Finding]:
+    """Flag missions with issue references whose issue-matrix verdicts are missing."""
+    spec_path = feature_dir / "spec.md"
+    if not spec_path.exists():
+        return []
+
+    try:
+        from specify_cli.cli.commands.review._issue_matrix import validate_issue_matrix
+        from specify_cli.tasks.issue_matrix import detect_issue_references
+
+        refs = detect_issue_references(spec_path)
+    except Exception:
+        logger.debug("Could not evaluate issue-matrix doctor check", exc_info=True)
+        return []
+
+    if not refs:
+        return []
+
+    matrix_path = feature_dir / "issue-matrix.md"
+    if not matrix_path.exists():
+        issue_list = ", ".join(f"#{ref.number}" for ref in refs)
+        return [
+            Finding(
+                severity=Severity.WARNING,
+                category=Category.ISSUE_MATRIX,
+                wp_id=None,
+                message=f"spec.md references GitHub issues but issue-matrix.md is missing: {issue_list}.",
+                recommended_action="Create issue-matrix.md and record final verdicts before approval/merge.",
+            )
+        ]
+
+    result = validate_issue_matrix(matrix_path)
+    findings: list[Finding] = []
+    for diagnostic in result.diagnostics:
+        findings.append(
+            Finding(
+                severity=Severity.WARNING,
+                category=Category.ISSUE_MATRIX,
+                wp_id=None,
+                message=str(diagnostic.get("message", "issue-matrix.md contains an unresolved issue verdict.")),
+                recommended_action="Replace unknown/deferred issue verdicts with fixed, verified-already-fixed, or a documented follow-up.",
+            )
+        )
+
+    return findings
+
+
 def check_sparse_checkout(repo_root: Path) -> list[Finding]:
     """Repo-level check: legacy sparse-checkout state lingering from pre-3.x.
 
@@ -448,6 +536,9 @@ def run_doctor(
         )
         result.findings.extend(check_orphan_workspaces(repo_root, mission_slug, snapshot))
         result.findings.extend(check_drift(feature_dir))
+
+    result.findings.extend(check_reviewer_self_approval(feature_dir))
+    result.findings.extend(check_issue_matrix(feature_dir))
 
     # Repo-level sparse-checkout finding (FR-002). Appended last so existing
     # findings keep their position — scripts scraping doctor output rely on

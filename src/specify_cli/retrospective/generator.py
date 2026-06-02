@@ -34,6 +34,7 @@ from specify_cli.retrospective.schema import (
     ProvenanceKind,
     validate_record,
 )
+from specify_cli.status.lifecycle_events import REVIEWER_SELF_APPROVAL
 
 if TYPE_CHECKING:
     from specify_cli.retrospective.policy import RetrospectivePolicy
@@ -319,6 +320,34 @@ def _detect_force_overrides(events: list[dict]) -> dict[str, int]:
     return counts
 
 
+def _event_wp_id(event: dict) -> str:
+    """Return WP id from status event top-level fields or lifecycle payload."""
+    wp_id = event.get("wp_id")
+    if isinstance(wp_id, str) and wp_id:
+        return wp_id
+    payload = event.get("payload")
+    if isinstance(payload, dict):
+        payload_wp_id = payload.get("wp_id")
+        if isinstance(payload_wp_id, str):
+            return payload_wp_id
+    return ""
+
+
+def _is_reviewer_self_approval_event(event: dict) -> bool:
+    return event.get("event_type") == REVIEWER_SELF_APPROVAL
+
+
+def _detect_reviewer_self_approvals(events: list[dict]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for event in events:
+        if not _is_reviewer_self_approval_event(event):
+            continue
+        wp_id = _event_wp_id(event)
+        if wp_id:
+            counts[wp_id] = counts.get(wp_id, 0) + 1
+    return counts
+
+
 def _event_note(event: dict) -> str:
     """Return the human-readable note/reason text from an event, lower-cased."""
     parts: list[str] = []
@@ -413,7 +442,7 @@ def _event_id_range_for(events: list[dict], wp_id: str, predicate) -> str:  # ty
     ids = [
         str(ev.get("event_id", ""))
         for ev in events
-        if ev.get("wp_id") == wp_id and predicate(ev)
+        if _event_wp_id(ev) == wp_id and predicate(ev)
     ]
     if len(ids) > 1:
         return f"{ids[0]}..{ids[-1]}"
@@ -447,6 +476,33 @@ def _build_event_mining_findings(
                     f"WP {wp_id} required {count} operator-driven --force lane transition(s). "
                     "Force overrides typically indicate the runtime guard failed or "
                     "the operator routed around it; investigate the underlying cause."
+                ),
+                evidence_refs=[ev_id],
+            )
+        )
+
+    # Self-review fallback → not_helpful
+    for wp_id, count in sorted(_detect_reviewer_self_approvals(events).items()):
+        range_str = _event_id_range_for(events, wp_id, _is_reviewer_self_approval_event)
+        ev_id = ev_reg.add_event_range(events_rel, range_str or "reviewer_self_approval", f"reviewer_self_approval_{wp_id}")
+        matching_payloads = [
+            ev.get("payload", {})
+            for ev in events
+            if _event_wp_id(ev) == wp_id and _is_reviewer_self_approval_event(ev)
+        ]
+        first_payload = matching_payloads[0] if matching_payloads and isinstance(matching_payloads[0], dict) else {}
+        intended = str(first_payload.get("intended_reviewer") or "unknown")
+        actor = str(first_payload.get("implementing_actor") or "unknown")
+        reason = str(first_payload.get("failure_reason") or "reviewer_failed")
+        not_helpful.append(
+            GenFinding(
+                id=_next_finding_id("n", finding_id_counters),
+                category="process",
+                summary=f"{wp_id} used self-review fallback instead of independent review",
+                details=(
+                    f"WP {wp_id} recorded {count} ReviewerSelfApproval event(s): "
+                    f"{actor} self-reviewed after intended reviewer {intended} failed "
+                    f"({reason}). Treat this as a review-independence gap."
                 ),
                 evidence_refs=[ev_id],
             )

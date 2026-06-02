@@ -20,6 +20,7 @@ import json
 import logging
 import os
 import re
+import sys
 import time
 from pathlib import Path
 
@@ -72,6 +73,7 @@ from specify_cli.sync import emit_diff_summary_recorded, emit_mission_closed
 from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
 from specify_cli.status.wp_metadata import read_wp_frontmatter
 from specify_cli.task_utils import TaskCliError, find_repo_root
+from specify_cli.status.lifecycle_events import REVIEWER_SELF_APPROVAL
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +92,7 @@ LINEAR_HISTORY_REJECTION_TOKENS: tuple[str, ...] = (
 )
 
 MissionBranchBlocker = dict[str, str | bool]
+HollowReviewWarnings = dict[str, list[str]]
 
 
 class BaselineMergeCommitError(RuntimeError):
@@ -1361,6 +1364,85 @@ def _enforce_review_artifact_consistency(
     raise typer.Exit(1)
 
 
+def _collect_hollow_review_warnings(feature_dir: Path, wp_ids: list[str]) -> HollowReviewWarnings:
+    """Return WPs whose approval history indicates missing independent review."""
+    warnings: HollowReviewWarnings = {}
+    wp_set = set(wp_ids)
+
+    status_path = feature_dir / _STATUS_FILENAME
+    if status_path.exists():
+        try:
+            status = json.loads(status_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            status = {}
+        work_packages = status.get("work_packages", {}) if isinstance(status, dict) else {}
+        if isinstance(work_packages, dict):
+            for wp_id in sorted(wp_set):
+                wp_state = work_packages.get(wp_id, {})
+                if not isinstance(wp_state, dict):
+                    continue
+                try:
+                    force_count = int(wp_state.get("force_count", 0))
+                except (TypeError, ValueError):
+                    force_count = 0
+                if force_count >= 2:
+                    warnings.setdefault(wp_id, []).append(f"force_count={force_count}")
+
+    events_path = feature_dir / _STATUS_EVENTS_FILENAME
+    if events_path.exists():
+        try:
+            raw_lines = events_path.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            raw_lines = []
+        for raw_line in raw_lines:
+            try:
+                event = json.loads(raw_line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(event, dict) or event.get("event_type") != REVIEWER_SELF_APPROVAL:
+                continue
+            payload = event.get("payload", {})
+            if not isinstance(payload, dict):
+                continue
+            wp_id = str(payload.get("wp_id") or "")
+            if wp_id not in wp_set:
+                continue
+            intended = str(payload.get("intended_reviewer") or "unknown")
+            actor = str(payload.get("implementing_actor") or "unknown")
+            reason = str(payload.get("failure_reason") or "reviewer_failed")
+            warnings.setdefault(wp_id, []).append(
+                f"ReviewerSelfApproval ({intended} failed: {reason}; {actor} self-reviewed)"
+            )
+
+    return warnings
+
+
+def _warn_or_confirm_hollow_reviews(
+    *,
+    feature_dir: Path,
+    wp_ids: list[str],
+    assume_yes: bool,
+) -> None:
+    warnings = _collect_hollow_review_warnings(feature_dir, wp_ids)
+    if not warnings:
+        return
+
+    console.print("\n[bold yellow]MERGE WARNING: Hollow reviews detected[/bold yellow]\n")
+    console.print("The following WPs were approved without clear independent review:")
+    for wp_id in sorted(warnings):
+        console.print(f"  {wp_id}: {' + '.join(warnings[wp_id])}")
+    console.print()
+    console.print("These WPs may have been approved by the implementing agent, not an independent reviewer.")
+    console.print("Consider re-reviewing before merge.\n")
+
+    if assume_yes or not sys.stdin.isatty():
+        console.print("[yellow]Proceeding without interactive confirmation.[/yellow]")
+        return
+
+    if not typer.confirm("Proceed?", default=False):
+        raise typer.Exit(1)
+
+
 def _run_lane_based_merge(
     repo_root: Path,
     mission_slug: str,
@@ -1371,6 +1453,7 @@ def _run_lane_based_merge(
     target_override: str | None = None,
     strategy: MergeStrategy = MergeStrategy.SQUASH,
     allow_sparse_checkout: bool = False,
+    assume_yes: bool = False,
 ) -> None:
     """Execute the lane-only merge flow with MergeState lifecycle for recovery.
 
@@ -1462,6 +1545,7 @@ def _run_lane_based_merge(
             delete_branch=delete_branch,
             remove_worktree=remove_worktree,
             strategy=strategy,
+            assume_yes=assume_yes,
         )
     finally:
         release_merge_lock(_GLOBAL_MERGE_LOCK_ID, main_repo)
@@ -1478,6 +1562,7 @@ def _run_lane_based_merge_locked(
     delete_branch: bool,
     remove_worktree: bool,
     strategy: MergeStrategy = MergeStrategy.SQUASH,
+    assume_yes: bool = False,
 ) -> None:
     """Inner merge flow, called with the global merge lock held."""
     from specify_cli.lanes.branch_naming import lane_branch_name
@@ -1541,6 +1626,11 @@ def _run_lane_based_merge_locked(
         feature_dir=feature_dir,
         mission_slug=mission_slug,
         wp_ids=all_wp_ids,
+    )
+    _warn_or_confirm_hollow_reviews(
+        feature_dir=feature_dir,
+        wp_ids=all_wp_ids,
+        assume_yes=assume_yes,
     )
 
     # -- Lane merges (skip lanes whose WPs are all already completed) --
@@ -1982,6 +2072,7 @@ def merge(
             "data-loss backstop."
         ),
     ),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Proceed after merge warnings without prompts"),
 ) -> None:
     """Merge a lane-based feature into its target branch."""
     del context_token, keep_workspace
@@ -2240,6 +2331,7 @@ def merge(
             target_override=resolved_target_branch,
             strategy=resolved_strategy,
             allow_sparse_checkout=allow_sparse_checkout,
+            assume_yes=yes,
         )
     except SparseCheckoutPreflightError as exc:
         # WP05/T020: surface sparse-checkout preflight as user-facing error
