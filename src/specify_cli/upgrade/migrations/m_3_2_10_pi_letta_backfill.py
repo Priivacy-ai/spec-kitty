@@ -1,0 +1,148 @@
+"""Migration: backfill .pi/ and .letta/ gitignore entries and skill files.
+
+Existing projects initialised before Pi/Letta support was added may be missing
+both the gitignore protection entries for the agent runtime directories and the
+Agent-Skills files under ``.agents/skills/``.  This migration detects both gaps
+and repairs them idempotently.
+"""
+
+from __future__ import annotations
+
+import logging
+from pathlib import Path
+
+from specify_cli.gitignore_manager import GitignoreManager
+
+from ..registry import MigrationRegistry
+from .base import BaseMigration, MigrationResult
+
+logger = logging.getLogger(__name__)
+
+# Maps agent key -> gitignore entry that must be present for that agent.
+_AGENT_GITIGNORE_ENTRIES: dict[str, str] = {
+    "pi": ".pi/",
+    "letta": ".letta/",
+}
+
+# The skills sub-directory shared by both agents (canonical install location).
+_SKILLS_ROOT = ".agents/skills"
+
+
+def _skills_complete(project_path: Path) -> bool:
+    """Return True if every CANONICAL_COMMANDS SKILL.md exists under _SKILLS_ROOT."""
+    from specify_cli.skills.command_installer import CANONICAL_COMMANDS
+
+    for cmd in CANONICAL_COMMANDS:
+        skill_file = project_path / _SKILLS_ROOT / f"spec-kitty.{cmd}" / "SKILL.md"
+        if not skill_file.exists():
+            return False
+    return True
+
+
+@MigrationRegistry.register
+class PiLettaBackfillMigration(BaseMigration):
+    """Backfill .pi/ and .letta/ gitignore entries and skill files for configured agents."""
+
+    migration_id = "3.2.10_pi_letta_agent_backfill"
+    description = "Backfill .pi/ and .letta/ gitignore entries and skill files for configured agents"
+    target_version = "3.2.10"
+
+    def detect(self, project_path: Path) -> bool:
+        """Return True when the project needs pi/letta gitignore or skill backfill."""
+        from specify_cli.core.agent_config import get_configured_agents
+
+        if not (project_path / ".kittify").is_dir():
+            return False
+
+        try:
+            configured = set(get_configured_agents(project_path))
+        except Exception:
+            return False
+
+        pi_letta_configured = configured & {"pi", "letta"}
+        if not pi_letta_configured:
+            return False
+
+        # Check for missing gitignore entries.
+        gitignore_path = project_path / ".gitignore"
+        gitignore_text = (
+            gitignore_path.read_text(encoding="utf-8")
+            if gitignore_path.exists()
+            else ""
+        )
+        for agent_key in pi_letta_configured:
+            entry = _AGENT_GITIGNORE_ENTRIES[agent_key]
+            if entry not in gitignore_text:
+                return True
+
+        # Check for missing skill files.
+        return bool(pi_letta_configured and not _skills_complete(project_path))
+
+    def can_apply(self, project_path: Path) -> tuple[bool, str]:
+        if not project_path.exists():
+            return False, f"Project path does not exist: {project_path}"
+        return True, ""
+
+    def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
+        """Add missing gitignore entries and trigger skill-pack repair as needed."""
+        from specify_cli.core.agent_config import get_configured_agents
+
+        changes: list[str] = []
+        warnings: list[str] = []
+        errors: list[str] = []
+
+        try:
+            configured = set(get_configured_agents(project_path))
+        except Exception as exc:
+            errors.append(f"Could not load agent config: {exc}")
+            return MigrationResult(success=False, changes_made=changes, errors=errors)
+
+        # --- Gitignore backfill ---
+        manager = GitignoreManager(project_path)
+
+        for agent_key, entry in _AGENT_GITIGNORE_ENTRIES.items():
+            if agent_key not in configured:
+                continue
+
+            gitignore_text = (
+                (project_path / ".gitignore").read_text(encoding="utf-8")
+                if (project_path / ".gitignore").exists()
+                else ""
+            )
+            if entry in gitignore_text:
+                continue
+
+            if dry_run:
+                changes.append(f"Would add {entry} to .gitignore")
+            else:
+                manager.ensure_entries([entry])
+                changes.append(f"Added {entry} to .gitignore")
+
+        # --- Skill-pack backfill ---
+        for agent_key in ("pi", "letta"):
+            if agent_key not in configured:
+                continue
+
+            if _skills_complete(project_path):
+                continue
+
+            if dry_run:
+                changes.append(f"Would repair skill pack for {agent_key}")
+                continue
+
+            try:
+                from specify_cli.skills import command_installer as _ci
+
+                _ci.install(project_path, agent_key)
+                changes.append(f"Repaired skill pack for {agent_key}")
+            except Exception as exc:
+                warnings.append(
+                    f"Skill repair for {agent_key} skipped: {exc}"
+                )
+
+        return MigrationResult(
+            success=True,
+            changes_made=changes,
+            warnings=warnings,
+            errors=errors,
+        )
