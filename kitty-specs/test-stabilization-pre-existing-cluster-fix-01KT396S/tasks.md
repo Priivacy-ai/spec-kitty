@@ -61,11 +61,11 @@
 **Goal**: Repair two broken markdown link fragments in `glossary/contexts/` and fix the invalid `five-paradigm-parallel-debugging` tactic schema. Makes `test_glossary_link_integrity` (× 2) and `test_tactic_compliance` (× 2) pass.
 
 **Subtasks**:
-- [ ] T001 Locate the two broken glossary context files with bad link fragments (WP01)
-- [ ] T002 Fix `#doctrine-pack` anchor — add heading or correct fragment (WP01)
-- [ ] T003 Fix `#platform-darwin--platform-linux` anchor — add heading or correct fragment (WP01)
-- [ ] T004 Locate and fix `five-paradigm-parallel-debugging` tactic schema (WP01)
-- [ ] T005 Run `pytest tests/doctrine/` to confirm green (WP01)
+- [x] T001 Locate the two broken glossary context files with bad link fragments (WP01)
+- [x] T002 Fix `#doctrine-pack` anchor — add heading or correct fragment (WP01)
+- [x] T003 Fix `#platform-darwin--platform-linux` anchor — add heading or correct fragment (WP01)
+- [x] T004 Locate and fix `five-paradigm-parallel-debugging` tactic schema (WP01)
+- [x] T005 Run `pytest tests/doctrine/` to confirm green (WP01)
 
 **Parallel opportunities**: T002, T003, T004 can be fixed in parallel (different files).
 
