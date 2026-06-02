@@ -39,7 +39,7 @@ from charter.kind_vocabulary import (
 )
 from charter.pack_context import CharterPackConfigError
 from charter.pack_manager import YAML_KEY_MAP, CharterPackManager
-from doctrine.artifact_kinds import ArtifactKind, MissionTypeNotAnArtifactKind
+from charter.kind_vocabulary import ArtifactKind, MissionTypeNotAnArtifactKind
 
 from specify_cli.cli.commands.charter.activate import (
     render_pack_config_error,

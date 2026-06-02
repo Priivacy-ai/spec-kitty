@@ -26,7 +26,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from doctrine.agent_profiles.diagnostics import SkippedProfile
+from charter.profiles import SkippedProfile
 
 __all__ = ["PackHealth", "DoctrineHealthReport", "build_pack_health_by_layer"]
 

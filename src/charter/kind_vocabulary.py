@@ -51,6 +51,7 @@ from doctrine.artifact_kinds import (
 )
 
 __all__ = [
+    "ArtifactKind",
     "CHARTER_KIND_TOKENS",
     "MISSION_TYPE_TOKEN",
     "MissionTypeNotAnArtifactKind",

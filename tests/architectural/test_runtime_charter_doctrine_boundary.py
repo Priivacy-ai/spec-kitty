@@ -66,7 +66,24 @@ _EXEMPT_SUBPACKAGE = _RUNTIME_ROOT / "doctrine"
 # documented exceptions if a future migration is genuinely lossy; each
 # such addition MUST include a one-line rationale immediately above the
 # entry, and must be paired with a tracker ticket for follow-up removal.
-_BASELINE_ALLOWLIST: frozenset[str] = frozenset()
+_BASELINE_ALLOWLIST: frozenset[str] = frozenset(
+    {
+        # Mission org-doctrine-profile-integrity-activation-closure-01KT1TV1 (C-004,
+        # ≤2 documented exceptions). These two charter-activation CLI commands are
+        # the doctrine/charter *management* surface and need doctrine pack-management
+        # types that charter does not yet expose via a facade:
+        #   - activate.py: doctrine.missions.mission_type_repository (mission-type
+        #     step-removal warnings); artifact-kind types already routed via
+        #     charter.kind_vocabulary.
+        #   - list_cmd.py: doctrine.template_catalog (discover_templates/TemplateRef/
+        #     TierRoot) + doctrine.missions.repository for `charter list --all`
+        #     catalog completeness; ResolutionTier/kind tokens routed via charter.
+        # Follow-up tracker (add charter facades for template-catalog + mission
+        # repositories, then remove these): Priivacy-ai/spec-kitty#1588.
+        "src/specify_cli/cli/commands/charter/activate.py",
+        "src/specify_cli/cli/commands/charter/list_cmd.py",
+    }
+)
 
 
 def _is_exempt_subpackage(path: Path) -> bool:
