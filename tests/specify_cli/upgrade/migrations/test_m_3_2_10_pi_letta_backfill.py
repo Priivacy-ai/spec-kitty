@@ -1,0 +1,204 @@
+"""Integration tests for the 3.2.10 Pi/Letta gitignore and skill backfill migration.
+
+All tests operate on real filesystem paths via ``tmp_path``.  Installer calls
+that would require a full package wheel are patched with ``unittest.mock`` so
+the migration logic can be verified without a live package dependency.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from specify_cli.skills.command_installer import CANONICAL_COMMANDS
+from specify_cli.upgrade.migrations.m_3_2_10_pi_letta_backfill import (
+    PiLettaBackfillMigration,
+)
+
+pytestmark = pytest.mark.integration
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _make_project(
+    tmp_path: Path,
+    agents: list[str],
+    gitignore_lines: list[str] | None = None,
+    install_skills: bool = False,
+) -> Path:
+    """Create a minimal kittify project tree in *tmp_path*."""
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir(parents=True)
+
+    # Write config.yaml
+    config_yaml = kittify / "config.yaml"
+    available = "\n".join(f"    - {a}" for a in agents)
+    config_yaml.write_text(
+        f"agents:\n  available:\n{available}\n",
+        encoding="utf-8",
+    )
+
+    # Optionally write .gitignore
+    if gitignore_lines is not None:
+        (tmp_path / ".gitignore").write_text(
+            "\n".join(gitignore_lines) + "\n",
+            encoding="utf-8",
+        )
+
+    # Optionally pre-install skill files
+    if install_skills:
+        for cmd in CANONICAL_COMMANDS:
+            skill_file = (
+                tmp_path / ".agents" / "skills" / f"spec-kitty.{cmd}" / "SKILL.md"
+            )
+            skill_file.parent.mkdir(parents=True, exist_ok=True)
+            skill_file.write_text(f"# skill: {cmd}\n", encoding="utf-8")
+
+    return tmp_path
+
+
+# ---------------------------------------------------------------------------
+# Gitignore tests
+# ---------------------------------------------------------------------------
+
+
+def test_adds_pi_gitignore_when_configured(tmp_path: Path) -> None:
+    """Migration adds .pi/ to .gitignore when pi is configured and entry missing."""
+    project = _make_project(tmp_path, agents=["pi"], install_skills=True)
+
+    migration = PiLettaBackfillMigration()
+    result = migration.apply(project)
+
+    assert result.success
+    gitignore_text = (project / ".gitignore").read_text(encoding="utf-8")
+    assert ".pi/" in gitignore_text
+    assert any(".pi/" in change for change in result.changes_made)
+
+
+def test_adds_letta_gitignore_when_configured(tmp_path: Path) -> None:
+    """Migration adds .letta/ to .gitignore when letta is configured and entry missing."""
+    project = _make_project(tmp_path, agents=["letta"], install_skills=True)
+
+    migration = PiLettaBackfillMigration()
+    result = migration.apply(project)
+
+    assert result.success
+    gitignore_text = (project / ".gitignore").read_text(encoding="utf-8")
+    assert ".letta/" in gitignore_text
+    assert any(".letta/" in change for change in result.changes_made)
+
+
+def test_skips_gitignore_if_already_present(tmp_path: Path) -> None:
+    """Migration does not duplicate an existing .pi/ entry."""
+    project = _make_project(
+        tmp_path, agents=["pi"], gitignore_lines=[".pi/"], install_skills=True
+    )
+
+    migration = PiLettaBackfillMigration()
+    result = migration.apply(project)
+
+    assert result.success
+    gitignore_text = (project / ".gitignore").read_text(encoding="utf-8")
+    assert gitignore_text.count(".pi/") == 1
+    # No gitignore change reported
+    assert not any(".pi/" in change and "Added" in change for change in result.changes_made)
+
+
+def test_skips_unconfigured_agent(tmp_path: Path) -> None:
+    """Migration leaves .gitignore untouched for agents not in config."""
+    project = _make_project(tmp_path, agents=["claude"], install_skills=True)
+    # .gitignore does not exist yet
+    assert not (project / ".gitignore").exists()
+
+    migration = PiLettaBackfillMigration()
+    result = migration.apply(project)
+
+    assert result.success
+    # Nothing written (no pi/letta configured)
+    assert not (project / ".gitignore").exists() or (
+        ".pi/" not in (project / ".gitignore").read_text(encoding="utf-8")
+        and ".letta/" not in (project / ".gitignore").read_text(encoding="utf-8")
+    )
+    assert result.changes_made == []
+
+
+def test_dry_run_does_not_mutate(tmp_path: Path) -> None:
+    """dry_run=True reports changes without writing to disk."""
+    project = _make_project(tmp_path, agents=["pi"], install_skills=True)
+
+    migration = PiLettaBackfillMigration()
+    result = migration.apply(project, dry_run=True)
+
+    assert result.success
+    # .gitignore must NOT have been created/written
+    gitignore_path = project / ".gitignore"
+    assert not gitignore_path.exists() or ".pi/" not in gitignore_path.read_text(
+        encoding="utf-8"
+    )
+    # But a "Would add" change is reported
+    assert any("Would add" in change for change in result.changes_made)
+
+
+def test_idempotent(tmp_path: Path) -> None:
+    """Running the migration twice produces no duplicate gitignore entries."""
+    project = _make_project(tmp_path, agents=["pi", "letta"], install_skills=True)
+
+    migration = PiLettaBackfillMigration()
+    first = migration.apply(project)
+    second = migration.apply(project)
+
+    assert first.success
+    assert second.success
+    assert second.changes_made == []
+
+    gitignore_text = (project / ".gitignore").read_text(encoding="utf-8")
+    assert gitignore_text.count(".pi/") == 1
+    assert gitignore_text.count(".letta/") == 1
+
+
+# ---------------------------------------------------------------------------
+# Skill repair tests
+# ---------------------------------------------------------------------------
+
+
+def test_skill_repair_triggered_when_skills_missing(tmp_path: Path) -> None:
+    """Installer is called when skill files are absent for a configured pi agent."""
+    project = _make_project(
+        tmp_path, agents=["pi"], gitignore_lines=[".pi/"], install_skills=False
+    )
+
+    with patch(
+        "specify_cli.skills.command_installer.install"
+    ) as mock_install:
+        mock_install.return_value = MagicMock()
+        migration = PiLettaBackfillMigration()
+        result = migration.apply(project)
+
+    assert result.success
+    mock_install.assert_called_once_with(project, "pi")
+    assert any("Repaired skill pack" in change for change in result.changes_made)
+
+
+def test_no_skill_repair_when_skills_present(tmp_path: Path) -> None:
+    """Installer is NOT called when all skill files are already present."""
+    project = _make_project(
+        tmp_path,
+        agents=["pi"],
+        gitignore_lines=[".pi/"],
+        install_skills=True,
+    )
+
+    with patch(
+        "specify_cli.skills.command_installer.install"
+    ) as mock_install:
+        migration = PiLettaBackfillMigration()
+        result = migration.apply(project)
+
+    assert result.success
+    mock_install.assert_not_called()
+    assert result.changes_made == []
