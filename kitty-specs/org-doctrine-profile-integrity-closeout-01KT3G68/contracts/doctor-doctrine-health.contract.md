@@ -21,5 +21,7 @@ Behavioral contract for the I-1 fix. The proving test (`tests/specify_cli/test_d
 ## C4 — General load contract (R1, revised)
 - Under the load-layer skip, general callers (`resolve_profile`/`get_ancestors`) treat an inline-ref-invalid profile as **unavailable/skipped** (no longer raising). NFR-001 regression (incl. `tests/doctrine/test_inline_ref_rejection.py`, `tests/doctrine/agent_profiles/`) MUST confirm no caller regresses.
 
-## Exit code — explicitly OUT OF SCOPE
-- `doctor doctrine` currently always `raise typer.Exit(0)` (alphonso A3). This contract does **not** introduce a non-zero exit; the #1584 objective is the *report* content (`healthy:false` + surfaced profile), not the exit code. Any exit-code change would be a separate FR + test and is deliberately excluded here.
+## C5 — Non-zero exit on unhealthy (operator preference: loud over hidden)
+- `doctor doctrine` currently always `raise typer.Exit(0)` (alphonso A3). Per the operator's explicit preference — **a clear RC=1 with a surfaced error is preferred over RC=0 hiding a defect** — this contract REQUIRES the command to exit **1 when the report is unhealthy** and 0 only when healthy (`raise typer.Exit(0 if report.healthy else 1)`).
+- The surfaced invalid profile MUST carry a clear, readable `error_summary` (forbidden field + migration hint), not a vague "skipped."
+- The integration test (FR-002) asserts `exit_code == 1` for the inline-ref scenario.

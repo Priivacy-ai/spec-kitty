@@ -9,7 +9,7 @@ requirement_refs:
 tracker_refs: []
 planning_base_branch: mission/org-doctrine-profile-integrity-activation-closure
 merge_target_branch: mission/org-doctrine-profile-integrity-activation-closure
-branch_strategy: Execution worktrees are allocated per computed lane from lanes.json; planning base and merge target are mission/org-doctrine-profile-integrity-activation-closure.
+branch_strategy: Planning artifacts for this mission were generated on mission/org-doctrine-profile-integrity-activation-closure. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into mission/org-doctrine-profile-integrity-activation-closure unless the human explicitly redirects the landing branch.
 subtasks:
 - T012
 - T013
@@ -33,7 +33,7 @@ tags: []
 Load `python-pedro` (implementer) via `/ad-hoc-profile-load` before anything else.
 
 ## Objective (FR-005, FR-009, FR-013 · finding I-3, I-6, I-11)
-Restore the `mypy --strict` gate on mission-authored `merge.py`, and make the FR-036 dead-symbol claim accurate.
+Restore the `mypy --strict` gate on mission-authored `merge.py`, and make the parent mission's dead-symbol completion claim accurate.
 
 ## Subtasks
 ### T012 — Generic `_tag_source` (FR-005, I-3)

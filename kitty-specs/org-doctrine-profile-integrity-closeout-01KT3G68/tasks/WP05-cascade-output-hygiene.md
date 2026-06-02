@@ -7,7 +7,7 @@ requirement_refs:
 tracker_refs: []
 planning_base_branch: mission/org-doctrine-profile-integrity-activation-closure
 merge_target_branch: mission/org-doctrine-profile-integrity-activation-closure
-branch_strategy: Execution worktrees are allocated per computed lane from lanes.json; planning base and merge target are mission/org-doctrine-profile-integrity-activation-closure.
+branch_strategy: Planning artifacts for this mission were generated on mission/org-doctrine-profile-integrity-activation-closure. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into mission/org-doctrine-profile-integrity-activation-closure unless the human explicitly redirects the landing branch.
 subtasks:
 - T016
 - T017
