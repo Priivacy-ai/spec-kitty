@@ -200,7 +200,9 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
         "specify_cli.core.worktree_topology::render_topology_text",
         # Pre-existing main drift surfaced when #612 triggers core-misc.
         # Follow-up: FR-303 should wire or de-export these public names.
-        "charter.pack_context::CharterPackConfigError",
+        # WP04 (org-doctrine-profile-integrity-closeout): removed
+        # ``charter.pack_context::CharterPackConfigError`` — WP12 wired a
+        # live src/ caller, so the gate now reports it as a stale entry.
         "specify_cli.dashboard.api_types::ArtifactDirectoryFile",
         "specify_cli.dashboard.api_types::ArtifactInfo",
         "specify_cli.dashboard.api_types::CurrentFeatureDetected",
@@ -283,8 +285,6 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
         "specify_cli.missions::execute_with_glossary",
         "runtime.next._internal_runtime.emitter::RuntimeEventEmitter",
         "runtime.next._internal_runtime.events::JsonlEventLog",
-        "runtime.next._internal_runtime.events::SignificanceEvaluatedPayload",
-        "runtime.next._internal_runtime.events::TimeoutExpiredPayload",
         "runtime.next.discovery::ClaimablePreview",
         "specify_cli.ownership.inference::SRC_FALLBACK_GLOB",
         "specify_cli.ownership.inference::SRC_FALLBACK_WARNING",
@@ -330,9 +330,10 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
         "specify_cli.status.lifecycle_events::WP_CREATED",
         "specify_cli.status.lifecycle_events::append_lifecycle_event",
         "specify_cli.status.lifecycle_events::has_lifecycle_event",
-        "specify_cli.status.lifecycle_events::mission_event_log_path",
+        # WP04 (org-doctrine-profile-integrity-closeout): removed
+        # ``mission_event_log_path`` and ``read_lifecycle_events`` — both are
+        # now wired from live src/ callers, so the gate reports them stale.
         "specify_cli.status.lifecycle_events::project_event_log_path",
-        "specify_cli.status.lifecycle_events::read_lifecycle_events",
         "specify_cli.sync.diagnostics::SyncDiagnostic",
         "specify_cli.sync.diagnostics::reset_emitted_codes",
         "specify_cli.sync.orphan_sweep::SweepReport",
@@ -405,8 +406,12 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
 # specced, wiring deferred to follow-on mission (charter-pack-activation-layer WP03)
 _CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE: frozenset[str] = frozenset(
     {
-        "charter.invocation_context::OperationalContext",
-        "charter.invocation_context::build_operational_context",
+        # WP04 (org-doctrine-profile-integrity-closeout): removed
+        # ``charter.invocation_context::OperationalContext`` and
+        # ``build_operational_context`` — WP14 wired live src/ callers, so
+        # the gate now reports both as stale allowlist entries. The
+        # method-level and ContextPreconditionError entries below remain
+        # (not flagged: no live module-level ``__all__`` caller yet).
         "charter.invocation_context::OperationalContext.require_active_profile",
         "charter.invocation_context::OperationalContext.require_active_role",
         # ProjectContext: live callers landed in charter-pack-activation-layer-01KSYE4V
@@ -529,6 +534,63 @@ _CATEGORY_C_WP_IN_FLIGHT_CHARTER_ACTIVATION: frozenset[str] = frozenset(
 )
 
 
+# ---------- C. org-doctrine close-out (mission-authored public surface) ----------
+# Mission ``org-doctrine-profile-integrity-activation-closure-01KT1TV1`` and
+# its close-out (``org-doctrine-profile-integrity-closeout-01KT3G68``)
+# introduced public charter/doctrine API symbols whose production callers
+# either ship in later WPs of the same mission family or are intentionally
+# part of a discoverable public surface that is only test-exercised today.
+# The parent's WP15 allowlist covering these symbols was dropped during the
+# ``specify_cli.next`` -> ``runtime.next`` upstream rebase (it conflicted with
+# the namespace migration); WP04 re-derives it against the live import graph
+# in the current ``runtime.*`` namespace. WP03's ``charter.template_catalog``
+# facade did NOT pull the ``doctrine.template_catalog`` accessor functions into
+# the import graph, so all four remain genuinely unimported and are
+# re-allowlisted here. ``charter.kind_vocabulary::CHARTER_KIND_TOKENS`` is NOT
+# listed: it already has a live caller and is not flagged.
+# Follow-up tracker: org-doctrine-profile-integrity-closeout WP06/T021
+# (DIRECTIVE_013) wires or prunes each symbol.
+_CATEGORY_C_ORG_DOCTRINE_CLOSEOUT: frozenset[str] = frozenset(
+    {
+        "charter.activation_engine::ActivationPlan",
+        "charter.cascade::DeactivationPlan",
+        "charter.cascade::REFERENCE_RELATIONS",
+        "charter.cascade::ReferencedArtifact",
+        "charter.cascade::SharedSkip",
+        "charter.drg::UnknownRelationError",
+        "charter.kind_vocabulary::MISSION_TYPE_TOKEN",
+        "doctrine.drg.org_pack_loader::AUGMENTATION_RELATIONS",
+        "doctrine.drg.org_pack_loader::TOPOLOGY_KINDS",
+        "doctrine.drg.org_pack_loader::merge_topology_artifact",
+        "doctrine.template_catalog::template_id_for",
+        "doctrine.template_catalog::template_node",
+        "doctrine.template_catalog::template_nodes",
+        "doctrine.template_catalog::template_urn",
+        "specify_cli.cli.commands._doctrine_health::PackHealth",
+    }
+)
+
+
+# ---------- C. Upstream coordination status_service (pre-existing on main) ----------
+# These five public symbols in ``specify_cli.coordination.status_service``
+# predate this mission — they landed on ``upstream/main`` via #1614 and have
+# no live src/ caller there either. They surfaced in this WP's gate run only
+# because the upstream rebase brought the module into the close-out branch.
+# They are NOT this mission's code; the close-out must not patch upstream
+# coordination internals. Allowlisted-with-tracker so the gate is GREEN.
+# Follow-up tracker placeholder (DIRECTIVE_013): org-doctrine close-out
+# WP06/T021 files the upstream wiring/prune ticket.
+_CATEGORY_C_UPSTREAM_STATUS_SERVICE: frozenset[str] = frozenset(
+    {
+        "specify_cli.coordination.status_service::EventLogWriteTarget",
+        "specify_cli.coordination.status_service::StatusContractError",
+        "specify_cli.coordination.status_service::StatusReadSource",
+        "specify_cli.coordination.status_service::append_event_log_batch",
+        "specify_cli.coordination.status_service::read_wp_lane_actor",
+    }
+)
+
+
 # Aggregate. The gate consults this; the per-category frozensets are
 # the surface introspected by the ratchet-baseline meta-test
 # (``tests/architectural/test_ratchet_baselines.py``).
@@ -541,6 +603,8 @@ _SYMBOL_ALLOWLIST: frozenset[str] = (
     | _CATEGORY_C_WP_IN_FLIGHT_COORDINATION_BRANCH
     | _CATEGORY_C_WP_IN_FLIGHT_UNIFIED_MISSION_STEP
     | _CATEGORY_C_WP_IN_FLIGHT_CHARTER_ACTIVATION
+    | _CATEGORY_C_ORG_DOCTRINE_CLOSEOUT
+    | _CATEGORY_C_UPSTREAM_STATUS_SERVICE
 )
 
 

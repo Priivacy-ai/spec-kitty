@@ -34,12 +34,19 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any, Literal, TypeVar
 
 from pydantic import BaseModel
 
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from doctrine.drg.org_pack_loader import OrgDRGFragment
+
+# WP04 (org-doctrine-profile-integrity-closeout): ``_tag_source`` is generic
+# over the concrete frozen-model type so callers (DRGNode / DRGEdge) retain
+# their precise type through provenance tagging instead of being widened to
+# ``BaseModel`` (which produced 4 ``mypy --strict`` errors at the merge sites).
+# Python 3.11 has no PEP 695 inline syntax, so a module-level ``TypeVar`` is used.
+_ModelT = TypeVar("_ModelT", bound=BaseModel)
 
 __all__ = [
     "OrgDRGConflict",
@@ -181,7 +188,7 @@ class UnknownRelationError(Exception):
 # ---------------------------------------------------------------------------
 
 
-def _tag_source(obj: BaseModel, source: str) -> BaseModel:
+def _tag_source(obj: _ModelT, source: str) -> _ModelT:
     """Attach a ``provenance`` sidecar attribute to a frozen Pydantic model.
 
     DRGNode / DRGEdge are :class:`BaseModel` instances with no native
@@ -198,6 +205,16 @@ def _tag_source(obj: BaseModel, source: str) -> BaseModel:
 
     The Pydantic v2 ``object.__setattr__`` workaround is needed because
     BaseModel restricts attribute assignment to declared fields by default.
+
+    .. note:: T013 (FR-013) — provenance sidecar typing.
+        A fully-typed provenance carrier (a declared optional field on the
+        DRG models or a typed wrapper dataclass) would change the public
+        shape of ``DRGNode`` / ``DRGEdge`` and ripple into every consumer
+        that reads ``getattr(node, "provenance", None)`` across the doctrine,
+        charter, and specify_cli layers. That is not a low-risk change for a
+        close-out WP, so the typed-provenance refactor is deferred to a
+        tracker per the "SHOULD … OR tracker" disposition. Follow-up tracker:
+        org-doctrine-profile-integrity-closeout WP06/T021 (DIRECTIVE_013).
     """
     object.__setattr__(obj, "provenance", source)
     return obj

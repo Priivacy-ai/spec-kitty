@@ -194,6 +194,12 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         "specify_cli.upgrade.migrations.m_3_2_7_activate_builtin_mission_types",
         # WP05 (charter-pack-activation-layer-01KSYE4V) migration added here.
         "specify_cli.upgrade.migrations.m_3_2_8_default_charter_pack",
+        # org-doctrine-profile-integrity-closeout WP04: upstream rebase added
+        # this auto-discovered migration (loaded via pkgutil.iter_modules in
+        # migrations/__init__.py, never statically imported -> always an
+        # allowlisted Cat-1 orphan by design). Test-exercised by
+        # tests/specify_cli/test_sync_state_gitignore_migration.py.
+        "specify_cli.upgrade.migrations.m_3_2_9_sync_state_gitignore",
     }
 )
 
