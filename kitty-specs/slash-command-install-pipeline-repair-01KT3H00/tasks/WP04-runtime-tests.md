@@ -54,9 +54,9 @@ spec-kitty agent action implement WP04 --agent claude
 
 ## Context
 
-Target file: `tests/specify_cli/runtime/test_agent_commands.py` (create if absent; `tests/specify_cli/runtime/__init__.py` already exists).
+Target file: `tests/specify_cli/runtime/test_agent_commands.py`. WP01 committed a minimal failing ATDD stub (`test_resolver_returns_path_not_none`) to this file as its first commit. **Start by expanding that stub** into the full `TestGetCommandTemplatesDir` class rather than creating a new file from scratch. The stub is already RED→GREEN after WP01; WP04 adds the remaining test classes.
 
-All tests must use `tmp_path` and `monkeypatch`. Tests must **not** read from or write to the real `~/.claude/commands/` directory — mock `doctrine.__file__` and `get_global_command_dir`.
+All tests must use `tmp_path` and `monkeypatch`. Tests must **not** read from or write to the real `~/.claude/commands/` directory — mock `doctrine.__file__` and `get_global_command_dir`. T004 and T022 are both methods in `TestGetCommandTemplatesDir`.
 
 ---
 
@@ -149,15 +149,16 @@ class TestSyncAgentCommandsIntegration:
 
 ---
 
-## Subtask T022 — Test: resolver returns correct doctrine path (mocked doctrine)
+## Subtask T022 — Add `sys.modules` monkeypatch method to `TestGetCommandTemplatesDir`
 
-Add `TestResolverMocked` (complements T004 with a stricter monkeypatch approach):
+T022 is implemented as a **second method** inside the same `TestGetCommandTemplatesDir` class from T004 (not a separate class). This avoids near-duplicate test classes while covering both patching strategies.
+
+Add this method to `TestGetCommandTemplatesDir`:
 
 ```python
-class TestResolverMocked:
-    def test_resolver_with_monkeypatched_module(self, tmp_path, monkeypatch):
-        """Resolver uses doctrine.__file__ as its anchor."""
-        import types
+    def test_resolver_with_sys_modules_monkeypatch(self, tmp_path, monkeypatch):
+        """Resolver uses doctrine.__file__ as its anchor (sys.modules approach)."""
+        import sys, types
         fake_mod = types.ModuleType("doctrine")
         fake_mod.__file__ = str(tmp_path / "doctrine" / "__init__.py")
         monkeypatch.setitem(sys.modules, "doctrine", fake_mod)
@@ -166,8 +167,6 @@ class TestResolverMocked:
         result = _get_command_templates_dir()
         assert result == tmp_path / "doctrine" / "missions" / "mission-steps" / "software-dev"
 ```
-
-Add `import sys` at the top of the test file.
 
 ---
 

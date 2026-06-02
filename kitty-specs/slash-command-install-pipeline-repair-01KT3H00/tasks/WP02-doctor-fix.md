@@ -43,9 +43,27 @@ tags: []
 
 ---
 
+## ⚑ ATDD-First commit (charter C-011 — mandatory)
+
+Before writing any implementation code, commit a minimal failing test to `tests/specify_cli/cli/commands/test_doctor_slash_commands.py` (create the file if absent):
+
+```python
+def test_doctor_skills_output_includes_slash_commands_section():
+    """Fails until FR-005/FR-007 is implemented: doctor currently has no Slash Commands section."""
+    from click.testing import CliRunner
+    from specify_cli.cli.main import app
+    runner = CliRunner()
+    result = runner.invoke(app, ["doctor", "skills"])
+    assert "Slash Commands" in result.output  # fails until WP02 adds the audit section
+```
+
+Run this test — it must be **RED** before you proceed. Commit it alone as the first commit of this lane. The reviewer will verify red → green.
+
+---
+
 ## Objective
 
-Extend `src/specify_cli/cli/commands/doctor.py` to detect and repair slash-command gaps for configured agents (GitHub #1609). Also extend `src/specify_cli/runtime/agent_commands.py` with an `agent_keys` parameter so `--fix` can scope its repair.
+Extend `src/specify_cli/cli/commands/doctor.py` to detect and repair slash-command gaps for configured agents (GitHub #1609). Also extend `src/specify_cli/runtime/agent_commands.py` with an `agent_keys` parameter so `--fix` can scope its repair (T014 — this is a downstream extension to a file owned by WP01; WP01 remains the authoritative owner of `agent_commands.py`).
 
 **Prerequisite**: WP01 merged.
 
@@ -211,23 +229,26 @@ if fix and slash_gaps:
 
 ---
 
-## Subtask T016 — Verify idempotency
+## Subtask T016 — Implement early-return guard
 
-`--fix` must be a no-op when all files are present: `_repair_slash_command_state()` returns early when `gaps` is empty. The installer itself (`ensure_global_agent_commands`) writes files only when content differs. Confirm: no file write when all commands are already present and current.
+`_repair_slash_command_state()` must return `[]` immediately when `gaps` is empty, without calling `ensure_global_agent_commands`. The installer itself also writes files only when content differs. This is a behavioral constraint (not a test); idempotency is verified by T027 in WP05.
 
 ---
 
 ## Definition of Done
 
+- [ ] ATDD stub committed and confirmed RED on `planning_base_branch` before first implementation commit
 - [ ] `_get_slash_command_agents()` returns configured slash-command agents only
 - [ ] `_load_slash_command_state()` detects missing and stale files
 - [ ] `doctor skills` output includes Slash Commands section
 - [ ] `doctor skills` exits non-zero when slash-command files are missing
-- [ ] `ensure_global_agent_commands()` accepts `agent_keys` (backward-compatible)
+- [ ] `ensure_global_agent_commands()` accepts `agent_keys` (backward-compatible; WP01 owns the file)
+- [ ] `_repair_slash_command_state()` returns `[]` immediately when `gaps` is empty (T016)
 - [ ] `doctor skills --fix` repairs gaps scoped to configured agents only
-- [ ] `--fix` is idempotent (no-op when healthy)
+- [ ] ATDD stub test now GREEN
 - [ ] `mypy --strict` on changed functions — zero errors
 - [ ] `ruff check` — zero violations
+- [ ] Timing gate: `time uv run spec-kitty doctor skills` < 3 seconds (NFR-002)
 
 ## Risks
 

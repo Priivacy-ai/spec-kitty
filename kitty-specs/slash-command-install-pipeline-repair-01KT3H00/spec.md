@@ -68,14 +68,14 @@ Fix #1608 unblocks #1609 and #1610. All three are required for a complete remedy
 |----|-------------|--------|
 | FR-001 | `_get_command_templates_dir()` must resolve the correct template directory from the doctrine layer (`src/doctrine/missions/mission-steps/software-dev/*/prompt.md`) in both editable and wheel installs. | Required |
 | FR-002 | `_sync_agent_commands()` must enumerate templates from the per-step subdirectory layout (`{step}/prompt.md`) rather than a flat `*.md` glob. | Required |
-| FR-003 | After the resolver fix, `ensure_global_agent_commands()` must install all 8 prompt-driven commands (`specify`, `plan`, `tasks`, `tasks-outline`, `tasks-packages`, `analyze`, `charter`, `research`) to the global command directory for each configured slash-command agent. | Required |
-| FR-004 | `ensure_global_agent_commands()` must write the version lock only after all command files are successfully written, so a partial install does not mark the run as complete. | Required |
+| FR-003 | After the resolver fix, `ensure_global_agent_commands()` must install all commands in `PROMPT_DRIVEN_COMMANDS` (currently: `specify`, `plan`, `tasks`, `tasks-outline`, `tasks-packages`, `analyze`, `charter`, `research`) to the global command directory for each configured slash-command agent. The count is derived from the runtime set, not hardcoded here. | Required |
+| FR-004 | `ensure_global_agent_commands()` must write the version lock only after all command files are successfully written, so a partial install does not mark the run as complete. If sync fails for any configured agent, the lock must not be updated for any agent — the try/except wraps the full agent-iteration loop, not individual agents. | Required |
 | FR-005 | `doctor skills` must check, for each agent in `config.yaml`'s `available` list that uses the slash-command pipeline, whether all canonical commands are present and match the current source. | Required |
 | FR-006 | `doctor skills --fix` must invoke `ensure_global_agent_commands()` (or equivalent) to reinstall missing or stale slash-command files for configured agents, scoped to only those in `config.yaml`. | Required |
 | FR-007 | `doctor skills` must report missing slash-command files explicitly by name; it must not report healthy when files are absent. | Required |
 | FR-008 | A `make dev-setup` target (or equivalent contributor script) must exist and must invoke the global command installer, so contributors can bootstrap a working dev environment with a single command. | Required |
-| FR-009 | Installing the package in editable mode (`pip install -e .`) must trigger installation of all canonical global commands for configured agents, via a post-install hook or equivalent mechanism. | Required |
-| FR-010 | The bootstrap path (`make dev-setup`, editable install hook, and `doctor skills --fix`) must be idempotent: repeated execution must not duplicate files or produce errors. | Required |
+| FR-009 | After installing the package (editable or wheel), the first invocation of any `spec-kitty` CLI command must ensure all canonical global commands are installed for configured agents. The approved implementation mechanism is Layer C (CLI startup auto-repair via `ensure_global_agent_commands()`, which already runs on every invocation). No separate post-install hook is used; this avoids fragile hook mechanisms and satisfies C-003. **Limitation**: a developer who installs in editable mode and opens Claude Code without running any `spec-kitty` command directly will not yet have commands installed until their first CLI invocation (e.g., via `make dev-setup`). | Required |
+| FR-010 | The bootstrap path (`make dev-setup`, CLI startup auto-repair, and `doctor skills --fix`) must be idempotent: repeated execution must not duplicate files or produce errors. | Required |
 | FR-011 | The fix must not touch agent directories for agents not present in `config.yaml`'s `available` list, even if those directories exist on disk. | Required |
 | FR-012 | The agent-commands version lock must be updated to the current CLI version after a successful full install, so subsequent CLI startups skip the slow path. | Required |
 
@@ -85,8 +85,8 @@ Fix #1608 unblocks #1609 and #1610. All three are required for a complete remedy
 
 | ID | Description | Threshold | Status |
 |----|-------------|-----------|--------|
-| NFR-001 | The slow-path install (when lock version mismatches) must complete within 5 seconds on a warm filesystem for a project with ≤4 configured agents. | ≤ 5 seconds | Required |
-| NFR-002 | `doctor skills` (read-only health check, no `--fix`) must complete within 3 seconds. | ≤ 3 seconds | Required |
+| NFR-001 | The slow-path install (when lock version mismatches) must complete within 5 seconds on a warm filesystem for a project with ≤4 configured agents. The fast path (lock current) must complete within the charter's standard < 2-second CLI operation budget. Note: the 5-second threshold applies only to the cold/upgrade scenario, not to normal CLI invocations. | ≤ 5 seconds (slow path); < 2 seconds (fast path) | Required |
+| NFR-002 | `doctor skills` (read-only health check, no `--fix`) must complete within 3 seconds on a first run. Subsequent runs with a warm filesystem are expected to be < 2 seconds per the charter's CLI operation budget. | ≤ 3 seconds | Required |
 | NFR-003 | The fix must not introduce regressions in the existing Agent Skills pipeline (codex/vibe/pi/letta); existing `doctor skills` behaviour for those agents must be unchanged. | Zero regressions on Agent Skills pipeline | Required |
 | NFR-004 | All new code paths must be covered by tests (unit or integration); no new branch may be left uncovered. | 100% branch coverage on new code | Required |
 | NFR-005 | All new code must pass `mypy --strict` and `ruff check`. | Zero mypy errors, zero ruff violations | Required |
@@ -108,7 +108,7 @@ Fix #1608 unblocks #1609 and #1610. All three are required for a complete remedy
 ## Assumptions
 
 - The doctrine package (`src/doctrine/`) ships as part of the spec-kitty distribution and is always present alongside the CLI.
-- The 8 prompt-driven commands (`specify`, `plan`, `tasks`, `tasks-outline`, `tasks-packages`, `analyze`, `charter`, `research`) are stable and no renaming is needed as part of this mission.
+- The 8 prompt-driven commands (`specify`, `plan`, `tasks`, `tasks-outline`, `tasks-packages`, `analyze`, `charter`, `research`) are stable and no renaming is needed as part of this mission. The 7 CLI-driven shim commands are (`implement`, `review`, `accept`, `merge`, `status`, `next`, `advise`). Together they constitute the 15 canonical commands referenced in success criteria.
 - `config.yaml` is always present in `.kittify/` for any project that has run `spec-kitty init`; projects without `config.yaml` fall back to the existing legacy behaviour (all agents).
 - The `make` toolchain is available in the dev environment but cannot be assumed for end-user installations (hence C-003).
 
@@ -136,6 +136,7 @@ Fix #1608 unblocks #1609 and #1610. All three are required for a complete remedy
 | `AGENT_COMMAND_CONFIG` | Dict in `src/specify_cli/core/config.py` mapping agent keys to their global command directory, extension, and arg format. Source of truth for slash-command agents. |
 | `config.yaml` available list | `.kittify/config.yaml`; determines which agents are active. Doctor and installer must respect this list (FR-011, C-002). |
 | `agent-commands.lock` | Version lock file in `~/.kittify/cache/`; gates the slow-path install on every CLI startup. Must be updated after a successful complete install (FR-012). |
+| Stale command file | A command file is *stale* when its version marker (first `_VERSION_MARKER_HEAD_LINES` lines) does not contain the string `"{_VERSION_MARKER_PREFIX} {current_version}"`. A file is *missing* when it does not exist on disk. Both states count as gaps for `doctor skills` and `--fix`. |
 | Doctrine layer templates | `src/doctrine/missions/mission-steps/software-dev/{step}/prompt.md`; canonical source for prompt-driven commands. |
 
 ---

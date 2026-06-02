@@ -40,6 +40,34 @@ tags: []
 
 ---
 
+## ⚑ Preflight (before first implementation commit)
+
+### 1. Assign GitHub issues to HiC (charter binding)
+
+```bash
+unset GITHUB_TOKEN
+gh issue edit 1608 --assignee rdouglass
+gh issue edit 1609 --assignee rdouglass
+gh issue edit 1610 --assignee rdouglass
+```
+
+### 2. ATDD-First commit (charter C-011 — mandatory)
+
+Before writing any implementation code, commit a minimal failing test to `tests/specify_cli/runtime/test_agent_commands.py` (create the file if absent):
+
+```python
+def test_resolver_returns_path_not_none():
+    """Fails until FR-001 is implemented: resolver currently returns None."""
+    from specify_cli.runtime.agent_commands import _get_command_templates_dir
+    result = _get_command_templates_dir()
+    assert result is not None
+    assert result.is_absolute()
+```
+
+Run `pytest tests/specify_cli/runtime/test_agent_commands.py::test_resolver_returns_path_not_none -v` — it must be **RED** before you proceed. Commit this test alone as the first commit of this lane. The reviewer will verify the test was red on `planning_base_branch` and green on the final commit.
+
+---
+
 ## Objective
 
 Fix `src/specify_cli/runtime/agent_commands.py` to repair the three broken behaviours that cause 8 of 15 slash commands to never be installed (GitHub #1608):
@@ -162,13 +190,17 @@ If the lock write is already after the loop, confirm and leave it. If it's befor
 
 ## Definition of Done
 
+- [ ] ATDD stub committed and confirmed RED on `planning_base_branch` before first implementation commit
+- [ ] GitHub issues #1608, #1609, #1610 assigned to HiC
 - [ ] `_get_command_templates_dir()` returns `Path` (not `Path | None`)
 - [ ] `None` guard removed from `ensure_global_agent_commands()`
 - [ ] `_sync_agent_commands()` iterates `step_dir/prompt.md` (not flat glob)
 - [ ] Missing `prompt.md` skipped with warning, not exception
-- [ ] Version lock written only after all syncs succeed
+- [ ] Version lock written only after all syncs succeed (full agent loop wrapped in try/except)
+- [ ] ATDD stub test now GREEN
 - [ ] `mypy --strict src/specify_cli/runtime/agent_commands.py` — zero errors
 - [ ] `ruff check src/specify_cli/runtime/agent_commands.py` — zero violations
+- [ ] Timing gate: `time uv run spec-kitty doctor skills` < 2 seconds on warm filesystem (fast-path sanity)
 
 ## Risks
 

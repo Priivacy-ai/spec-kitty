@@ -2,7 +2,7 @@
 
 **Mission**: slash-command-install-pipeline-repair-01KT3H00  
 **Branch**: kitty/mission-slash-command-install-pipeline-repair-01KT3H00  
-**Merge target**: kitty/mission-slash-command-install-pipeline-repair-01KT3H00  
+**Merge target**: main  
 **GitHub issues**: #1608, #1609, #1610
 
 ---
@@ -24,8 +24,9 @@ Charter is present. Relevant directives:
 - **DIR-001**: Cross-platform (Linux, macOS, Windows 10+) — bootstrap approach must not require `make` for end-user installs (C-003 compliant: layered; `make dev-setup` is dev-only, CLI-startup auto-repair is cross-platform)
 - **DIR-005**: Tests added for all new functionality — all three fix branches require test coverage
 - **DIR-006**: mypy --strict passes — all new code fully annotated
-- **C-011 (ATDD-First)**: Tests written before or alongside implementation, not after
+- **C-011 (ATDD-First)**: Each implementation WP (WP01, WP02) must commit a minimal failing ATDD test as its very first commit before any implementation commit. WP04 and WP05 expand these stubs into the full test suite.
 - **C-004 (Burn-down)**: Close issues #1608, #1609, #1610 in this mission
+- **Performance exception**: NFR-001 (≤5s) and NFR-002 (≤3s) apply to the slow-path / first-run scenarios. The fast path (lock current) and warm-filesystem doctor run remain within the charter's blanket < 2-second budget. This distinction is documented in spec.md NFR-001/002.
 
 No conflicts with charter.
 
@@ -80,7 +81,7 @@ dev-setup:
 	uv run spec-kitty doctor skills --fix
 ```
 
-**Layer C** — no additional hook needed. Fix 1 makes `ensure_global_agent_commands()` work correctly; it already runs on every CLI startup. First `spec-kitty` invocation after editable install writes all missing files automatically. This avoids fragile post-install hooks while satisfying FR-009 and C-003.
+**Layer C** — no additional post-install hook. Fix 1 makes `ensure_global_agent_commands()` work correctly; it already runs on every CLI startup. First `spec-kitty` invocation after editable install writes all missing files automatically. This avoids fragile post-install hooks and satisfies FR-009 (approved substitute per spec amendment) and C-003. **Known limitation**: a developer who goes directly from `pip install -e .` into Claude Code without invoking `spec-kitty` will not have commands until their first CLI call — `make dev-setup` eliminates this gap by running `spec-kitty doctor skills --fix` explicitly.
 
 ---
 
@@ -107,7 +108,7 @@ No open unknowns requiring external research. All technical facts confirmed from
 | `src/specify_cli/cli/commands/doctor.py` | Add `_load_slash_command_state()`, `_repair_slash_command_state()`, extend `skills` output and `--fix` |
 | `Makefile` (new) | `dev-setup` target |
 | `tests/specify_cli/runtime/test_agent_commands.py` | New: cover resolver, per-step iteration, lock write position |
-| `tests/specify_cli/cli/commands/test_doctor_slash.py` | New: cover audit, false-positive prevention, `--fix` repair, scope guard |
+| `tests/specify_cli/cli/commands/test_doctor_slash_commands.py` | New: cover audit, false-positive prevention, `--fix` repair, scope guard, NFR-003 regression |
 
 ### Internal contract: template resolution
 
@@ -123,6 +124,7 @@ Formalised in `contracts/template-resolver.md`.
 
 - **Input**: `config.available`, `AGENT_COMMAND_CONFIG`, `PROMPT_DRIVEN_COMMANDS | CLI_DRIVEN_COMMANDS`
 - **Output**: list of `(agent_key, command, status)` tuples where status ∈ {missing, stale, ok}
+- **Staleness definition**: A file is *stale* when its first `_VERSION_MARKER_HEAD_LINES` lines do not contain `"{_VERSION_MARKER_PREFIX} {current_version}"`. A file is *missing* when it does not exist on disk. Both are gaps.
 - **Scope**: only `config.available ∩ AGENT_COMMAND_CONFIG.keys()`
 - **`--fix`**: calls `ensure_global_agent_commands()` scoped to configured agents; idempotent
 
@@ -130,13 +132,14 @@ Formalised in `contracts/doctor-slash-audit.md`.
 
 ---
 
-## Work Package Sketch (input for /spec-kitty.tasks)
+## Work Package Sketch (finalized 5-WP structure)
 
 | WP | Scope | Depends on |
 |----|-------|-----------|
-| WP01 | Fix `_get_command_templates_dir()` — doctrine-based resolver, `Path` return type, remove stale fallback paths | — |
-| WP02 | Fix `_sync_agent_commands()` — per-step iteration, lock write position | WP01 |
-| WP03 | Add slash-command audit to `doctor skills` — detect gaps for configured agents | WP01 |
-| WP04 | Wire `doctor skills --fix` to repair slash-command gaps | WP02, WP03 |
-| WP05 | Add `Makefile` `dev-setup` target + update `CONTRIBUTING.md` | WP04 |
-| WP06 | Tests — resolver, renderer, doctor audit, `--fix`, idempotency, scope guard | WP01–WP05 |
+| WP01 | All `agent_commands.py` fixes — doctrine-based resolver (`Path` return), per-step renderer, post-sync lock write. **First commit: failing ATDD stub (C-011).** | — |
+| WP02 | `doctor.py` slash-command audit + `--fix` repair; `ensure_global_agent_commands()` `agent_keys` extension. **First commit: failing ATDD stub (C-011).** | WP01 |
+| WP03 | `Makefile` `dev-setup` target + `CONTRIBUTING.md` developer setup section | WP02 |
+| WP04 | Full runtime test suite for `agent_commands.py` fixes (expands WP01 ATDD stubs) | WP01 |
+| WP05 | Full doctor test suite + mypy sign-off + NFR-003 regression tests (expands WP02 ATDD stubs) | WP02 |
+
+Parallelization: `WP01 → WP02 → WP03` and `WP01 → WP04`, `WP02 → WP05`. WP04 and WP02 can run concurrently after WP01.

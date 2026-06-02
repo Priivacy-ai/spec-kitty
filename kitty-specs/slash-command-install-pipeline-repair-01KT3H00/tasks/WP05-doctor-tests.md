@@ -21,6 +21,7 @@ subtasks:
 - T026
 - T027
 - T028
+- T029
 agent: claude
 history:
 - date: '2026-06-02'
@@ -56,7 +57,7 @@ spec-kitty agent action implement WP05 --agent claude
 
 ## Context
 
-Target file: `tests/specify_cli/cli/commands/test_doctor_slash_commands.py` (create if absent; `tests/specify_cli/cli/commands/__init__.py` already exists).
+Target file: `tests/specify_cli/cli/commands/test_doctor_slash_commands.py`. WP02 committed a minimal failing ATDD stub (`test_doctor_skills_output_includes_slash_commands_section`) to this file as its first commit. **Start by expanding that stub** into the full test suite rather than creating a new file from scratch.
 
 All tests use `tmp_path` and `monkeypatch`. Do **not** read from or write to the real `~/.claude/commands/`. Mock `get_global_command_dir`, `_load_slash_command_state`, and `ensure_global_agent_commands` where appropriate.
 
@@ -290,10 +291,29 @@ Fix any type errors before marking this subtask done.
 
 ---
 
+## Subtask T029 — NFR-003 regression: Agent Skills pipeline unaffected
+
+Run the targeted Agent Skills doctor test surface to confirm no regressions:
+
+```bash
+uv run pytest tests/runtime/test_doctor_unit.py tests/runtime/test_doctor_command_file_health.py -v
+```
+
+If those paths don't exist, find the equivalent with:
+```bash
+find tests -name "*doctor*" -name "*.py" | grep -v slash | head -10
+```
+
+All tests must pass. If any fail, investigate before proceeding — per charter Pre-existing Failure Reporting Rule, open a GitHub issue if failures appear pre-existing rather than introduced.
+
+---
+
 ## Definition of Done
 
-- [ ] `tests/specify_cli/cli/commands/test_doctor_slash_commands.py` created with all 6 subtask test classes
+- [ ] ATDD stub (from WP02) expanded into full test suite
+- [ ] `tests/specify_cli/cli/commands/test_doctor_slash_commands.py` contains all subtask test classes
 - [ ] `pytest tests/specify_cli/cli/commands/test_doctor_slash_commands.py -v` — all tests pass
+- [ ] T029: Agent Skills doctor tests pass (NFR-003 confirmed)
 - [ ] Tests do not touch real `~/.claude/commands/` or any real agent directory
 - [ ] `ruff check tests/specify_cli/cli/commands/test_doctor_slash_commands.py` — zero violations
 - [ ] `mypy --strict src/specify_cli/runtime/agent_commands.py src/specify_cli/cli/commands/doctor.py` — zero errors
