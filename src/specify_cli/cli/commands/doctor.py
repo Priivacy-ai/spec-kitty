@@ -116,6 +116,116 @@ def _vibe_skill_path_configured(project_path: Path) -> bool:
     return False
 
 
+def _get_slash_command_agents(project_path: Path) -> list[str]:
+    """Return configured slash-command agents (excludes Agent-Skills agents)."""
+    from specify_cli.core.agent_config import load_agent_config
+    from specify_cli.core.config import AGENT_COMMAND_CONFIG
+    from specify_cli.skills.command_installer import SUPPORTED_AGENTS
+
+    try:
+        config = load_agent_config(project_path)
+        available = set(config.available)
+    except Exception:
+        available = set(AGENT_COMMAND_CONFIG.keys())
+    slash_agents = set(AGENT_COMMAND_CONFIG.keys()) - set(SUPPORTED_AGENTS)
+    return sorted(available & slash_agents)
+
+
+@dataclass
+class SlashCommandGap:
+    agent_key: str
+    command: str
+    expected_path: Path
+    status: str  # "missing" | "stale"
+
+
+def _load_slash_command_state(
+    project_path: Path,
+) -> tuple[list[str], list[SlashCommandGap]]:
+    """Return (configured_agents, gaps) for the slash-command pipeline."""
+    from specify_cli.core.config import AGENT_COMMAND_CONFIG
+    from specify_cli.runtime.agent_commands import (
+        _VERSION_MARKER_HEAD_LINES,
+        _VERSION_MARKER_PREFIX,
+        _compute_output_filename,
+        get_global_command_dir,
+    )
+    from specify_cli.runtime.bootstrap import _get_cli_version
+    from specify_cli.shims.registry import CLI_DRIVEN_COMMANDS, PROMPT_DRIVEN_COMMANDS
+
+    current_version = _get_cli_version()
+    configured = _get_slash_command_agents(project_path)
+    gaps: list[SlashCommandGap] = []
+    for agent_key in configured:
+        cfg = AGENT_COMMAND_CONFIG.get(agent_key)
+        if cfg is None:
+            continue
+        cmd_dir = get_global_command_dir(agent_key)
+        for command in sorted(PROMPT_DRIVEN_COMMANDS | CLI_DRIVEN_COMMANDS):
+            filename = _compute_output_filename(command, agent_key)
+            path = cmd_dir / filename
+            if not path.exists():
+                gaps.append(SlashCommandGap(agent_key, command, path, "missing"))
+            else:
+                try:
+                    head = "\n".join(
+                        path.read_text(encoding="utf-8", errors="replace")
+                        .splitlines()[:_VERSION_MARKER_HEAD_LINES]
+                    )
+                    if f"{_VERSION_MARKER_PREFIX} {current_version}" not in head:
+                        gaps.append(SlashCommandGap(agent_key, command, path, "stale"))
+                except OSError:
+                    gaps.append(SlashCommandGap(agent_key, command, path, "missing"))
+    return configured, gaps
+
+
+def _print_slash_command_report(
+    configured_slash: list[str],
+    slash_gaps: list[SlashCommandGap],
+    fix: bool,
+) -> bool:
+    """Render slash-command audit section and return True if healthy."""
+    slash_healthy = not slash_gaps
+    if not configured_slash:
+        return slash_healthy
+    console.print()
+    if not slash_gaps:
+        console.print(
+            f"[green]✓ Slash Commands[/green]: all configured agents healthy"
+            f" ({len(configured_slash)} agent(s))"
+        )
+        return slash_healthy
+    console.print("[bold]Slash Commands[/bold] — gap(s) found\n")
+    for agent_key in configured_slash:
+        agent_gaps = [g for g in slash_gaps if g.agent_key == agent_key]
+        if agent_gaps:
+            console.print(f"  [red]✗[/red] {agent_key}: {len(agent_gaps)} gap(s)")
+            for gap in agent_gaps[:5]:
+                console.print(f"      {gap.status}: {gap.expected_path.name}")
+            if len(agent_gaps) > 5:
+                console.print(f"      ... and {len(agent_gaps) - 5} more")
+        else:
+            console.print(f"  [green]✓[/green] {agent_key}: all commands present")
+    if not fix:
+        console.print(
+            "\nRun [cyan]spec-kitty doctor skills --fix[/cyan] to reinstall."
+        )
+    return slash_healthy
+
+
+def _repair_slash_command_state(
+    configured_agents: list[str],
+    gaps: list[SlashCommandGap],
+) -> list[str]:
+    """Reinstall missing/stale slash-command files. Returns list of repaired paths."""
+    if not gaps:
+        return []
+    from specify_cli.runtime.agent_commands import ensure_global_agent_commands
+
+    ensure_global_agent_commands(agent_keys=configured_agents)
+    return [str(g.expected_path) for g in gaps]
+
+
 def _load_command_skill_state(
     project_path: Path,
 ) -> tuple[SkillsManifest, VerifyReport, list[str], list[str], list[str], bool]:
@@ -484,7 +594,22 @@ def skills(
         raise typer.Exit(0 if payload["ok"] else 1)
 
     _print_command_skill_report(payload, fix)
-    raise typer.Exit(0 if payload["ok"] else 1)
+
+    # --- Slash Commands audit ---
+    slash_healthy = True
+    try:
+        configured_slash, slash_gaps = _load_slash_command_state(project_path)
+        slash_healthy = _print_slash_command_report(configured_slash, slash_gaps, fix)
+        if fix and slash_gaps:
+            repaired_slash = _repair_slash_command_state(configured_slash, slash_gaps)
+            console.print(f"\n[green]Repaired:[/green] {len(repaired_slash)} slash command file(s)")
+            _, remaining = _load_slash_command_state(project_path)
+            slash_healthy = not remaining
+    except Exception as exc:
+        logger.debug("Slash-command audit failed: %s", exc, exc_info=True)
+
+    overall_healthy = bool(payload["ok"]) and slash_healthy
+    raise typer.Exit(0 if overall_healthy else 1)
 
 
 @app.command(name="state-roots")
