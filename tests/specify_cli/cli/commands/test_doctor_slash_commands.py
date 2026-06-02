@@ -4,8 +4,8 @@ from __future__ import annotations
 
 def test_doctor_skills_output_includes_slash_commands_section(tmp_path):
     """Fails until FR-005/FR-007 is implemented: doctor currently has no Slash Commands section."""
-    from click.testing import CliRunner
-    from specify_cli.cli.main import app
+    from typer.testing import CliRunner
+    from specify_cli import app
 
     runner = CliRunner()
     result = runner.invoke(app, ["doctor", "skills"])
