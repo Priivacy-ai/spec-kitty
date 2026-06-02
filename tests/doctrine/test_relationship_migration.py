@@ -120,14 +120,23 @@ def _merged_relationship_edges() -> set[tuple[str, str, Relation]]:
 
 
 class TestZeroLossMigration:
-    def test_built_in_relationships_discovered(self) -> None:
-        """Sanity: the built-in doctrine actually declares relationships, so the
-        zero-loss assertion is non-vacuous. (Guards against a silent grep that
-        matches nothing — which would make the migration test pass trivially.)"""
-        baseline = _discover_field_authored_relations()
-        assert baseline, (
-            "No field-authored relationships discovered in built-in doctrine; "
-            "the zero-loss baseline would be vacuous. Check the discovery globs."
+    def test_built_in_relationships_authored_in_drg(self) -> None:
+        """Sanity: the shipped DRG actually declares relationship edges, so the
+        downstream assertions are non-vacuous.
+
+        Post-cutover (WP06 FR-028) lineage/augmentation is no longer authored as
+        profile *fields* — the legacy field set is empty by design — so the guard
+        now verifies the migration *result*: the merged shipped DRG carries the
+        relationship edges (e.g. the four ``specializes_from`` profile-lineage
+        edges authored directly in ``graph.yaml``)."""
+        assert not _discover_field_authored_relations(), (
+            "Found field-authored relationships in built-in doctrine; the WP06 "
+            "hard cutover requires lineage/augmentation to be DRG edges only."
+        )
+        merged = _merged_relationship_edges()
+        assert merged, (
+            "No relationship edges in the shipped DRG; lineage authoring is "
+            "vacuous. Check graph.yaml / the extractor curated edges."
         )
 
     def test_every_field_relationship_has_exactly_one_merged_edge(self) -> None:
