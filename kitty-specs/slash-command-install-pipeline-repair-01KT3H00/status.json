@@ -1,9 +1,9 @@
 {
-  "event_count": 30,
-  "last_event_id": "01KT3K2G4KZ45HYCS1DBF8X88B",
-  "materialized_at": "2026-06-02T07:16:52.499930+00:00",
+  "event_count": 0,
+  "last_event_id": null,
+  "materialized_at": "",
   "mission_number": "",
-  "mission_slug": "slash-command-install-pipeline-repair-01KT3H00",
+  "mission_slug": "",
   "mission_type": "software-dev",
   "summary": {
     "approved": 0,
@@ -14,43 +14,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 5
+    "planned": 0
   },
-  "work_packages": {
-    "WP01": {
-      "actor": "finalize-tasks",
-      "force_count": 6,
-      "lane": "planned",
-      "last_event_id": "01KT3K2C14HVG4KXG0VP6Q3VMW",
-      "last_transition_at": "2026-06-02T07:16:48.293042+00:00"
-    },
-    "WP02": {
-      "actor": "finalize-tasks",
-      "force_count": 6,
-      "lane": "planned",
-      "last_event_id": "01KT3K2DBQTGFNFVQQF2BH38Q9",
-      "last_transition_at": "2026-06-02T07:16:49.655898+00:00"
-    },
-    "WP03": {
-      "actor": "finalize-tasks",
-      "force_count": 6,
-      "lane": "planned",
-      "last_event_id": "01KT3K2EA7HCJR936XR1TFCWAK",
-      "last_transition_at": "2026-06-02T07:16:50.631311+00:00"
-    },
-    "WP04": {
-      "actor": "finalize-tasks",
-      "force_count": 6,
-      "lane": "planned",
-      "last_event_id": "01KT3K2F63JAYVSW9ECC61HPMJ",
-      "last_transition_at": "2026-06-02T07:16:51.523705+00:00"
-    },
-    "WP05": {
-      "actor": "finalize-tasks",
-      "force_count": 6,
-      "lane": "planned",
-      "last_event_id": "01KT3K2G4KZ45HYCS1DBF8X88B",
-      "last_transition_at": "2026-06-02T07:16:52.499930+00:00"
-    }
-  }
+  "work_packages": {}
 }
