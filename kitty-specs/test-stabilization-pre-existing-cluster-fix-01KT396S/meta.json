@@ -1,0 +1,15 @@
+{
+  "coordination_branch": "kitty/mission-test-stabilization-pre-existing-cluster-fix-01KT396S",
+  "created_at": "2026-06-02T04:24:27.862331+00:00",
+  "friendly_name": "Test Stabilization: Pre-Existing Failure Cluster Fix",
+  "mission_id": "01KT396SYME74WRQ976RS2ZA0S",
+  "mission_number": null,
+  "mission_slug": "test-stabilization-pre-existing-cluster-fix-01KT396S",
+  "mission_type": "software-dev",
+  "purpose_context": "During mission test-stabilization-and-debt-pass-01KSF9HJ, 90 pre-existing ('C99') test failures were deferred into ten sub-issues (#1301–#1310). This mission addresses five of those: #1303 (charter synthesizer manifest hash non-determinism and PathGuard chokepoint gaps), #1304 (doctrine glossary missing anchors and invalid tactic schema), #1305 (next CLI exit-code contract regressions), #1307 (charter integration suite failures), and the 8 residual sub-failures from #1310 (auth transport exit code, invocation JSON noise, WP Pydantic validation, mypy strict, implement base-flag plumbing, and mission switching). The goal is a measurably smaller failing test count and all five GitHub issues closed.",
+  "purpose_tldr": "Resolve five clusters of pre-existing test failures across charter synthesizer, doctrine/glossary, next CLI, charter integration, and auth/invocation/mypy subsystems.",
+  "slug": "test-stabilization-pre-existing-cluster-fix-01KT396S",
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-02T04:53:02.382854+00:00"
+}
