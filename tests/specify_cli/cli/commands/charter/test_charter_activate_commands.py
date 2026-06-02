@@ -100,7 +100,7 @@ class TestActivateCommand:
         assert "Unknown kind" in result.output
 
     def test_activate_cascade_flag_accepted(self, project_root: Path) -> None:
-        """--cascade flag is accepted and processed without error."""
+        """--cascade flag is accepted and processed without error; no deferral warning emitted."""
         result = runner.invoke(
             charter_app,
             [
@@ -115,11 +115,12 @@ class TestActivateCommand:
             catch_exceptions=False,
         )
         assert result.exit_code == 0, result.output
-        # CharterPackManager emits a cascade warning (deferred DRG traversal)
-        assert "cascade" in result.output.lower() or "Warning" in result.output
+        # SC-005: stale deferral strings must be absent from output
+        assert "not yet implemented" not in result.output
+        assert "deferred" not in result.output.lower()
 
     def test_activate_accepts_options_after_positional_args(self, project_root: Path) -> None:
-        """Contract examples place --cascade after <kind> <id>."""
+        """Contract examples place --cascade after <kind> <id>; no deferral warning emitted."""
         result = runner.invoke(
             charter_app,
             [
@@ -135,10 +136,12 @@ class TestActivateCommand:
         )
 
         assert result.exit_code == 0, result.output
-        assert "cascade" in result.output.lower() or "Warning" in result.output
+        # SC-005: stale deferral strings must be absent from output
+        assert "not yet implemented" not in result.output
+        assert "deferred" not in result.output.lower()
 
     def test_activate_cascade_calls_with_true(self, project_root: Path) -> None:
-        """--cascade flag passes cascade=True to CharterPackManager.activate."""
+        """--cascade flag passes cascade=True to CharterPackManager.activate (DD-4: parameter kept for stability)."""
         from unittest.mock import patch
         from charter.pack_manager import ActivationResult
 
@@ -193,3 +196,68 @@ class TestActivateCommand:
         result = _invoke_activate(project_root, "tactic", "acceptance-test-first")
         assert result.exit_code == 0, result.output
         assert "Activated" in result.output
+
+
+# ---------------------------------------------------------------------------
+# T017 — cascade-output absence test (SC-005)
+# ---------------------------------------------------------------------------
+
+
+class TestCascadeOutputAbsence:
+    """Verify that stale deferral warning strings are absent from --cascade output."""
+
+    def test_activate_cascade_no_not_yet_implemented(self, project_root: Path) -> None:
+        """'not yet implemented' must not appear in charter activate --cascade output."""
+        result = runner.invoke(
+            charter_app,
+            [
+                "activate",
+                "--repo-root",
+                str(project_root),
+                "--cascade",
+                "all",
+                "directive",
+                "001-architectural-integrity-standard",
+            ],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0, result.output
+        assert "not yet implemented" not in result.output
+
+    def test_activate_cascade_no_deferred(self, project_root: Path) -> None:
+        """'deferred' must not appear in charter activate --cascade output."""
+        result = runner.invoke(
+            charter_app,
+            [
+                "activate",
+                "--repo-root",
+                str(project_root),
+                "--cascade",
+                "all",
+                "directive",
+                "001-architectural-integrity-standard",
+            ],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0, result.output
+        assert "deferred" not in result.output.lower()
+
+    def test_activate_cascade_still_activates(self, project_root: Path) -> None:
+        """cascade=True still activates the target artifact (real behavior unchanged)."""
+        result = runner.invoke(
+            charter_app,
+            [
+                "activate",
+                "--repo-root",
+                str(project_root),
+                "--cascade",
+                "all",
+                "directive",
+                "001-architectural-integrity-standard",
+            ],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0, result.output
+        config = project_root / ".kittify" / "config.yaml"
+        data = yaml.safe_load(config.read_text())
+        assert "001-architectural-integrity-standard" in data["activated_directives"]

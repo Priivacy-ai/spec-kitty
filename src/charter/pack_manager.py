@@ -43,12 +43,14 @@ then perform the single ``commit_plan`` write. The legacy ``sys.exit(1)`` in
 :class:`~charter.activation_engine.NoActivationRestrictionsError` that the CLI
 (WP12) surfaces.
 
-Cascade deferral (FR-006/007)
-------------------------------
-``activate()`` and ``deactivate()`` accept ``cascade=True`` but DRG edge
-traversal is **not** implemented in this WP. A warning is emitted when
-``cascade=True`` is passed. FR-007 (cascade execute) is explicitly deferred to a
-follow-on WP (the engine's ``cascade_scope`` seam is threaded but not consumed).
+Cascade parameter (FR-006/007)
+--------------------------------
+``activate()`` and ``deactivate()`` accept a ``cascade`` parameter for
+signature stability, but DRG edge traversal is owned by the CLI layer
+(``charter.cascade``). **No warning is emitted** when ``cascade=True`` is
+passed; the parameter is silently accepted and forwarded. FR-007 (cascade
+execute) is a CLI-level concern — ``pack_manager`` does not interpret or act
+on this flag.
 """
 
 from __future__ import annotations
@@ -350,7 +352,7 @@ class CharterPackManager:
         kind: str,
         artifact_id: str,
         *,
-        cascade: bool = False,
+        cascade: bool = False,  # noqa: ARG002 — kept for caller API stability
     ) -> ActivationResult:
         """Activate ``artifact_id`` for ``kind`` in the project charter pack.
 
@@ -371,8 +373,8 @@ class CharterPackManager:
         artifact_id:
             Artifact ID to activate.
         cascade:
-            Accepted but DRG edge traversal is deferred to a follow-on WP.
-            A warning is emitted when ``True``.
+            Accepted for signature stability; DRG edge traversal is handled by
+            the CLI-level ``charter cascade`` command. No warning is emitted.
 
         Returns
         -------
@@ -412,22 +414,6 @@ class CharterPackManager:
 
         result = ActivationResult(activated=list(plan.activated), warnings=list(plan.warnings))
 
-        # FR-006: warn about non-cascaded cross-kind dependencies (static hint;
-        # DRG traversal deferred per FR-007).
-        if not cascade and result.activated:
-            result.warnings.append(
-                f"'{artifact_id}' may reference artifacts of other kinds that were "
-                "not activated. Run `charter pack consistency-check` to verify "
-                "coherence, or re-run with `--cascade` to activate referenced kinds "
-                "automatically (cascade execution deferred to a follow-on mission)."
-            )
-        if cascade:
-            result.warnings.append(
-                "cascade=True requested but DRG edge traversal is not yet implemented "
-                "(deferred to follow-on mission). Manual activation of cross-kind "
-                "dependencies may be required."
-            )
-
         commit_plan(config_path, data, plan, save=functools.partial(_save_config, yaml=yaml_inst))
         return result
 
@@ -437,7 +423,7 @@ class CharterPackManager:
         kind: str,
         artifact_id: str,
         *,
-        cascade: bool = False,
+        cascade: bool = False,  # noqa: ARG002 — kept for caller API stability
     ) -> ActivationResult:
         """Deactivate ``artifact_id`` for ``kind`` in the project charter pack.
 
@@ -457,8 +443,8 @@ class CharterPackManager:
         artifact_id:
             Artifact ID to deactivate.
         cascade:
-            Accepted but DRG shared-reference analysis is deferred.
-            A warning is emitted when ``True``.
+            Accepted for signature stability; DRG shared-reference analysis is
+            handled by the CLI-level ``charter cascade`` command. No warning is emitted.
 
         Returns
         -------
@@ -488,14 +474,6 @@ class CharterPackManager:
         )
 
         result = ActivationResult(deactivated=list(plan.deactivated), warnings=list(plan.warnings))
-
-        # Cascade: DRG shared-reference analysis deferred to follow-on WP.
-        if cascade:
-            result.warnings.append(
-                "cascade=True requested but DRG shared-reference analysis is not yet "
-                "implemented (deferred to follow-on mission). Cross-kind cascade "
-                "deactivation was skipped."
-            )
 
         # No-op removal (ID not present): nothing to write, leave config bytes
         # untouched.
