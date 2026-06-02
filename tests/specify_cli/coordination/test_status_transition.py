@@ -176,6 +176,35 @@ def test_read_contract_cannot_be_used_as_write_contract(repo: Path) -> None:
         )
 
 
+def test_wrong_write_target_fails_loudly(repo: Path) -> None:
+    event = _status_event("01WRONGTARGET000000000000")
+    primary_feature_dir = repo / "kitty-specs" / MISSION_DIRNAME
+    coordination_feature_dir = repo / ".worktrees" / "coord" / "kitty-specs" / MISSION_DIRNAME
+
+    with pytest.raises(StatusContractError, match="primary_checkout_append"):
+        append_event_log(
+            EventLogWriteContract.primary_checkout_append(coordination_feature_dir),
+            event,
+        )
+
+    with pytest.raises(StatusContractError, match="coordination_transaction_append"):
+        append_event_log(
+            EventLogWriteContract.coordination_transaction_append(primary_feature_dir),
+            event,
+        )
+
+
+def test_wrong_read_source_fails_loudly(repo: Path) -> None:
+    primary_feature_dir = repo / "kitty-specs" / MISSION_DIRNAME
+    coordination_feature_dir = repo / ".worktrees" / "coord" / "kitty-specs" / MISSION_DIRNAME
+
+    with pytest.raises(StatusContractError, match="primary_checkout"):
+        read_event_log(EventLogReadContract.primary_checkout(coordination_feature_dir))
+
+    with pytest.raises(StatusContractError, match="coordination_worktree"):
+        read_event_log(EventLogReadContract.coordination_worktree(primary_feature_dir))
+
+
 def test_append_preserving_coordination_merge_keeps_existing_history() -> None:
     coord = b'{"event_id":"existing"}\n'
     incoming = b'{"event_id":"existing"}\n{"event_id":"new"}\n'

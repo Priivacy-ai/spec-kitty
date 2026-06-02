@@ -50,6 +50,11 @@ class StatusContractError(TypeError):
     """Raised when a read-only contract is used for mutation or vice versa."""
 
 
+def _is_coordination_worktree_path(path: Path) -> bool:
+    """Return True for paths rooted under the in-repo coordination worktree dir."""
+    return ".worktrees" in path.parts
+
+
 @dataclass(frozen=True)
 class EventLogReadContract:
     """Read-only event-log contract.
@@ -125,6 +130,20 @@ def read_event_log(contract: EventLogReadContract) -> list[StatusEvent]:
         StatusReadSource.PRIMARY_CHECKOUT,
         StatusReadSource.COORDINATION_WORKTREE,
     }:
+        if (
+            contract.source == StatusReadSource.PRIMARY_CHECKOUT
+            and _is_coordination_worktree_path(contract.feature_dir)
+        ):
+            raise StatusContractError(
+                "primary_checkout reads must not target coordination worktree paths"
+            )
+        if (
+            contract.source == StatusReadSource.COORDINATION_WORKTREE
+            and not _is_coordination_worktree_path(contract.feature_dir)
+        ):
+            raise StatusContractError(
+                "coordination_worktree reads require a coordination worktree path"
+            )
         return read_events(contract.feature_dir)
 
     if contract.source == StatusReadSource.COORDINATION_BRANCH_REF:
@@ -186,6 +205,7 @@ def append_event_log(contract: EventLogWriteContract, event: StatusEvent) -> Non
 
     if not isinstance(contract, EventLogWriteContract):
         raise StatusContractError("append_event_log requires EventLogWriteContract")
+    _validate_write_contract(contract)
     _store.append_event_verified(contract.feature_dir, event)
 
 
@@ -198,7 +218,25 @@ def append_event_log_batch(
 
     if not isinstance(contract, EventLogWriteContract):
         raise StatusContractError("append_event_log_batch requires EventLogWriteContract")
+    _validate_write_contract(contract)
     _store.append_events_atomic_verified(contract.feature_dir, events)
+
+
+def _validate_write_contract(contract: EventLogWriteContract) -> None:
+    if (
+        contract.target == EventLogWriteTarget.PRIMARY_CHECKOUT_APPEND
+        and _is_coordination_worktree_path(contract.feature_dir)
+    ):
+        raise StatusContractError(
+            "primary_checkout_append must not target coordination worktree paths"
+        )
+    if (
+        contract.target == EventLogWriteTarget.COORDINATION_TRANSACTION_APPEND
+        and not _is_coordination_worktree_path(contract.feature_dir)
+    ):
+        raise StatusContractError(
+            "coordination_transaction_append requires a coordination worktree path"
+        )
 
 
 def merge_append_preserving_coordination_event_log_bytes(
