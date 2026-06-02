@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, UTC
 from enum import StrEnum
@@ -371,9 +372,17 @@ def check_issue_matrix(feature_dir: Path) -> list[Finding]:
         from specify_cli.tasks.issue_matrix import detect_issue_references
 
         refs = detect_issue_references(spec_path)
-    except Exception:
+    except Exception as exc:
         logger.debug("Could not evaluate issue-matrix doctor check", exc_info=True)
-        return []
+        return [
+            Finding(
+                severity=Severity.WARNING,
+                category=Category.ISSUE_MATRIX,
+                wp_id=None,
+                message=f"issue-matrix.md could not be evaluated: {exc}",
+                recommended_action="Fix the issue-matrix check before approval/merge.",
+            )
+        ]
 
     if not refs:
         return []
@@ -393,6 +402,26 @@ def check_issue_matrix(feature_dir: Path) -> list[Finding]:
 
     result = validate_issue_matrix(matrix_path)
     findings: list[Finding] = []
+    referenced_issues = {f"#{ref.number}" for ref in refs}
+    matrix_issues = {row.issue for row in result.rows}
+    for diagnostic in result.diagnostics:
+        match = re.search(r"Row for issue '([^']+)'", diagnostic.get("message", ""))
+        if match:
+            matrix_issues.add(match.group(1))
+    missing_issues = sorted(referenced_issues - matrix_issues)
+    if missing_issues:
+        findings.append(
+            Finding(
+                severity=Severity.WARNING,
+                category=Category.ISSUE_MATRIX,
+                wp_id=None,
+                message=(
+                    "issue-matrix.md is missing rows for referenced issue(s): "
+                    f"{', '.join(missing_issues)}."
+                ),
+                recommended_action="Add one row per referenced issue before approval/merge.",
+            )
+        )
     for diagnostic in result.diagnostics:
         findings.append(
             Finding(

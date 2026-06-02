@@ -152,9 +152,13 @@ def _issue_matrix_approval_blocker(feature_dir: Path) -> str | None:
         from specify_cli.tasks.issue_matrix import detect_issue_references
 
         refs = detect_issue_references(spec_path)
-    except Exception as exc:  # noqa: BLE001 -- approval guard must fail closed only on concrete diagnostics
+    except Exception as exc:  # noqa: BLE001 -- approval guard must fail closed
         logger.debug("Could not evaluate issue-matrix approval blocker: %s", exc)
-        return None
+        return (
+            "ERROR: issue-matrix.md could not be evaluated before approval.\n"
+            f"Reason: {exc}\n"
+            "Fix the issue-matrix check before approving."
+        )
 
     if not refs:
         return None
@@ -169,7 +173,14 @@ def _issue_matrix_approval_blocker(feature_dir: Path) -> str | None:
         )
 
     result = validate_issue_matrix(matrix_path)
-    if result.passed:
+    referenced_issues = {f"#{ref.number}" for ref in refs}
+    matrix_issues = {row.issue for row in result.rows}
+    for diagnostic in result.diagnostics:
+        match = re.search(r"Row for issue '([^']+)'", diagnostic.get("message", ""))
+        if match:
+            matrix_issues.add(match.group(1))
+    missing_issues = sorted(referenced_issues - matrix_issues)
+    if result.passed and not missing_issues:
         return None
 
     unknown_issues: list[str] = []
@@ -183,6 +194,8 @@ def _issue_matrix_approval_blocker(feature_dir: Path) -> str | None:
             other_messages.append(message)
 
     lines = ["ERROR: issue-matrix.md has unresolved entries. Fill in verdicts before approving."]
+    if missing_issues:
+        lines.append(f"Missing rows: {', '.join(missing_issues)}")
     if unknown_issues:
         lines.append(f"Unknown: {', '.join(sorted(set(unknown_issues)))}")
     for message in other_messages:

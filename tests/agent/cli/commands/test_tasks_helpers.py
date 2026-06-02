@@ -32,13 +32,18 @@ from specify_cli.cli.commands.agent.tasks import (
 pytestmark = pytest.mark.fast
 
 
-def _write_issue_matrix(feature_dir: Path, verdict: str, evidence_ref: str = "tests/test_demo.py") -> None:
+def _write_issue_matrix(
+    feature_dir: Path,
+    verdict: str,
+    evidence_ref: str = "tests/test_demo.py",
+    issue: str = "#1582",
+) -> None:
     (feature_dir / "issue-matrix.md").write_text(
         "\n".join(
             [
                 "| issue | verdict | evidence_ref |",
                 "| --- | --- | --- |",
-                f"| #1582 | {verdict} | {evidence_ref} |",
+                f"| {issue} | {verdict} | {evidence_ref} |",
             ]
         ),
         encoding="utf-8",
@@ -99,8 +104,33 @@ def test_issue_matrix_approval_blocker_requires_resolved_verdicts(tmp_path: Path
     assert blocker is not None
     assert "Unknown: #1582" in blocker
 
+    _write_issue_matrix(feature_dir, "fixed", issue="#1111")
+    blocker = _issue_matrix_approval_blocker(feature_dir)
+    assert blocker is not None
+    assert "Missing rows: #1582" in blocker
+
     _write_issue_matrix(feature_dir, "fixed")
     assert _issue_matrix_approval_blocker(feature_dir) is None
+
+
+def test_issue_matrix_approval_blocker_fails_closed_on_evaluation_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    feature_dir = tmp_path / "kitty-specs" / "demo"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "spec.md").write_text("Fix Priivacy-ai/spec-kitty issue #1582.\n", encoding="utf-8")
+
+    def _boom(_path: Path):
+        raise RuntimeError("parser unavailable")
+
+    monkeypatch.setattr("specify_cli.tasks.issue_matrix.detect_issue_references", _boom)
+
+    blocker = _issue_matrix_approval_blocker(feature_dir)
+
+    assert blocker is not None
+    assert "could not be evaluated" in blocker
+    assert "parser unavailable" in blocker
 
 
 # ---------------------------------------------------------------------------
