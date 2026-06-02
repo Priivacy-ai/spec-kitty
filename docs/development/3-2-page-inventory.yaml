@@ -2003,6 +2003,13 @@
   current_target: false
   citation_refs: []
   notes: null
+- path: docs/development/facet3-status-read-desync-design.md
+  tag: internal
+  divio_type: explanation
+  owning_workstream: status-coordination
+  current_target: false
+  citation_refs: []
+  notes: Design note for PR #1597 status read coordination worktree desync.
 - path: docs/development/issue-1040-scope-assessment.md
   tag: internal
   divio_type: none

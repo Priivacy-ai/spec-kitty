@@ -1,6 +1,6 @@
 # Design: fix #1589 facet 3 — coordination/mission status read desync
 
-**Status:** proposed (design-first; no code yet)
+**Status:** implemented in PR #1597
 **Scope:** `spec-kitty` status read path for lane-based missions
 **Related:** [#1589](https://github.com/Priivacy-ai/spec-kitty/issues/1589) facet 3; builds on #1590 (facets 1 & 2)
 
