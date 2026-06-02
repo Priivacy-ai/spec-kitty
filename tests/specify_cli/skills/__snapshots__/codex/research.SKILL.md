@@ -3,6 +3,38 @@ name: spec-kitty.research
 description: Generate research documents for the current mission
 user-invocable: true
 ---
+## Startup Upgrade Check
+
+Before continuing, run:
+
+```bash
+spec-kitty upgrade --agent-check --json
+```
+
+If JSON `action` is `none`, continue.
+If `action` is `auto_upgrade`, run `upgrade_command` before continuing. If it fails, tell the user and continue with the current Spec Kitty version.
+If `action` is `guidance`, show `upgrade_note` briefly, then continue.
+If `action` is `prompt`, ask the user with the host-native question UI when available:
+
+`Spec Kitty {latest_version} is available. You are on {installed_version}. Upgrade now?`
+
+Use these choices:
+
+1. Upgrade now (recommended) - record `upgrade_now`, run `upgrade_command`, then continue.
+2. Always keep me up to date - record `always`, run `upgrade_command`, then continue.
+3. Not now - record `not_now`, then continue.
+4. Never ask again - record `never_ask`, then continue.
+
+Record the selected choice before continuing:
+
+```bash
+spec-kitty upgrade --agent-choice <upgrade_now|always|not_now|never_ask> --agent-latest <latest_version> --json
+```
+
+If no host-native question UI is available, present the same four choices in plain text and wait for the user.
+In non-interactive hosts, choose `not_now` and continue.
+
+
 **Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
 
 **In repos with multiple missions, always pass `--mission <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.

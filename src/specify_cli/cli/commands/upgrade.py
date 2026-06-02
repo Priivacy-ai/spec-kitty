@@ -39,9 +39,10 @@ See also: docs/how-to/install-and-upgrade.md
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 import typer
@@ -277,6 +278,180 @@ def _run_cli_mode(
 
 
 # ---------------------------------------------------------------------------
+# Agent-host upgrade prompt helpers
+# ---------------------------------------------------------------------------
+
+
+def _version_is_newer(latest: str | None, installed: str) -> bool:
+    if latest is None:
+        return False
+    try:
+        from packaging.version import Version
+
+        return Version(latest) > Version(installed)
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _is_truthy(raw: str | None) -> bool:
+    if not raw:
+        return False
+    return raw.strip().casefold() in {"1", "true", "yes", "on"}
+
+
+def _agent_check_payload() -> dict[str, object]:
+    """Return machine-readable upgrade readiness for agent prompt preambles."""
+    from specify_cli.compat import (
+        Invocation,
+        NagCache,
+        UpgradeConfig,
+        build_upgrade_hint,
+        detect_install_method,
+        is_ci_env,
+        plan as compat_plan,
+    )
+    from specify_cli.compat._detect.install_method import is_safe_for_auto_upgrade
+    from specify_cli.readiness.upgrade_ux import (
+        ENV_UPGRADE_DISABLED,
+        is_currently_snoozed,
+        needs_reset,
+        resolve_effective_preference,
+    )
+
+    now = datetime.now(UTC)
+    invocation = Invocation(
+        command_path=("upgrade",),
+        raw_args=("--agent-check", "--json"),
+        is_help=False,
+        is_version=False,
+        flag_no_nag=False,
+        env_ci=is_ci_env(),
+        stdout_is_tty=True,
+    )
+    result = compat_plan(invocation, now=now)
+    cli_status = result.cli_status
+    install_method = detect_install_method()
+    hint = build_upgrade_hint(install_method)
+
+    payload: dict[str, object] = {
+        "schema_version": 1,
+        "action": "none",
+        "installed_version": cli_status.installed_version,
+        "latest_version": cli_status.latest_version,
+        "latest_source": cli_status.latest_source,
+        "install_method": str(install_method),
+        "upgrade_command": hint.command,
+        "upgrade_note": hint.note,
+        "reason": "up_to_date",
+    }
+
+    config = UpgradeConfig.load()
+    if not config.nag_enabled:
+        payload["reason"] = "nag_disabled"
+        return payload
+
+    latest_version = cli_status.latest_version
+    if not _version_is_newer(latest_version, cli_status.installed_version):
+        return payload
+
+    if _is_truthy(os.environ.get(ENV_UPGRADE_DISABLED)):
+        payload["reason"] = "upgrade_disabled"
+        return payload
+
+    cache = NagCache.default()
+    existing = cache.read()
+    remote_version_seen = existing.remote_version_seen if existing is not None else None
+    reset_anchor = needs_reset(record_remote_version=remote_version_seen, current_latest=latest_version)
+    snoozed_until = None if reset_anchor or existing is None else existing.snoozed_until
+    persisted_never_ask = False if reset_anchor or existing is None else existing.never_ask
+    persisted_always_upgrade = False if existing is None else existing.always_upgrade
+
+    pref = resolve_effective_preference(
+        persisted_never_ask=persisted_never_ask,
+        persisted_always_upgrade=persisted_always_upgrade,
+    )
+    if pref.disabled:
+        payload["reason"] = "upgrade_disabled"
+        return payload
+    if pref.never_ask:
+        payload["reason"] = "never_ask"
+        return payload
+    if is_currently_snoozed(snoozed_until=snoozed_until, now=now):
+        payload["reason"] = "snoozed"
+        return payload
+
+    safe = is_safe_for_auto_upgrade(install_method)
+    if pref.always_upgrade:
+        payload["action"] = "auto_upgrade" if safe and hint.command is not None else "guidance"
+        payload["reason"] = "always_upgrade"
+        return payload
+
+    payload["action"] = "prompt"
+    payload["reason"] = "upgrade_available"
+    return payload
+
+
+def _run_agent_check(*, json_output: bool) -> None:
+    payload = _agent_check_payload()
+    if json_output:
+        print(json.dumps(payload, indent=2))
+    elif payload.get("action") != "none":
+        latest = payload.get("latest_version") or "unknown"
+        installed = payload.get("installed_version") or "unknown"
+        print(f"Spec Kitty upgrade available: {installed} -> {latest}")
+    raise typer.Exit(0)
+
+
+def _record_agent_choice(
+    *,
+    choice_raw: str,
+    latest_version: str | None,
+    json_output: bool,
+) -> None:
+    from specify_cli import __version__
+    from specify_cli.compat import NagCache, NagCacheRecord
+    from specify_cli.readiness.upgrade_ux import UpgradeChoice, apply_choice, needs_reset
+
+    try:
+        choice = UpgradeChoice(choice_raw)
+    except ValueError:
+        payload = {"status": "error", "error": "invalid_agent_choice", "choice": choice_raw}
+        print(json.dumps(payload) if json_output else "Error: invalid agent choice")
+        raise typer.Exit(2) from None
+
+    if not latest_version:
+        payload = {"status": "error", "error": "missing_agent_latest"}
+        print(json.dumps(payload) if json_output else "Error: --agent-latest is required")
+        raise typer.Exit(2)
+
+    now = datetime.now(UTC)
+    cache = NagCache.default()
+    existing = cache.read()
+    reset_anchor = existing is not None and needs_reset(
+        record_remote_version=existing.remote_version_seen,
+        current_latest=latest_version,
+    )
+    record_kwargs: dict[str, object] = {
+        "cli_version_key": __version__,
+        "latest_version": latest_version,
+        "latest_source": "pypi",
+        "fetched_at": now,
+        "last_shown_at": now,
+        "remote_version_seen": None if reset_anchor or existing is None else existing.remote_version_seen,
+        "snooze_step": None if reset_anchor or existing is None else existing.snooze_step,
+        "snoozed_until": None if reset_anchor or existing is None else existing.snoozed_until,
+        "always_upgrade": False if existing is None else existing.always_upgrade,
+        "never_ask": False if reset_anchor or existing is None else existing.never_ask,
+    }
+    updated = apply_choice(record_kwargs, choice=choice, current_latest=latest_version, now=now)
+    cache.write(NagCacheRecord(**updated))
+
+    payload = {"status": "recorded", "choice": choice.value, "latest_version": latest_version}
+    print(json.dumps(payload, indent=2) if json_output else f"Recorded {choice.value}")
+    raise typer.Exit(0)
+
+
+# ---------------------------------------------------------------------------
 # T036 — helpers for project mode (skip CLI nag in output)
 # ---------------------------------------------------------------------------
 
@@ -367,6 +542,9 @@ def upgrade(  # noqa: C901
     project: bool = typer.Option(False, "--project", help="Restrict to current-project compat + migrations (FR-015)"),
     yes: bool = typer.Option(False, "--yes", "-y", help="Non-interactive confirmation; alias for --force (FR-017)"),
     no_nag: bool = typer.Option(False, "--no-nag", help="Suppress upgrade-nag output explicitly"),
+    agent_check: bool = typer.Option(False, "--agent-check", help="Emit agent-host upgrade prompt JSON", hidden=True),
+    agent_choice: str | None = typer.Option(None, "--agent-choice", help="Record an agent-host upgrade choice", hidden=True),
+    agent_latest: str | None = typer.Option(None, "--agent-latest", help="Latest version for --agent-choice", hidden=True),
 ) -> None:
     """Upgrade a Spec Kitty project to the current version.
 
@@ -403,6 +581,20 @@ def upgrade(  # noqa: C901
         spec-kitty upgrade --yes        # Non-interactive (same as --force)
         spec-kitty upgrade --dry-run --json  # Machine-readable plan
     """
+    if agent_check and agent_choice is not None:
+        console.print("[red]Error:[/red] --agent-check and --agent-choice are mutually exclusive.")
+        raise typer.Exit(2)
+    if agent_check:
+        _run_agent_check(json_output=json_output)
+        return
+    if agent_choice is not None:
+        _record_agent_choice(
+            choice_raw=agent_choice,
+            latest_version=agent_latest,
+            json_output=json_output,
+        )
+        return
+
     # T034 — mutual exclusion check
     if cli and project:
         console.print("[red]Error:[/red] --cli and --project are mutually exclusive.")

@@ -11,6 +11,7 @@ from collections.abc import Mapping
 import yaml
 
 from specify_cli.core.config import AGENT_COMMAND_CONFIG
+from specify_cli.agent_upgrade_prompt import prepend_agent_upgrade_check
 from specify_cli.template.renderer import parse_frontmatter, render_template_text, rewrite_paths
 
 
@@ -166,6 +167,9 @@ def render_command_template(
         frontmatter_clean = rewrite_paths(frontmatter_clean)
 
     version_marker = f"<!-- spec-kitty-command-version: {_get_cli_version()} -->\n"
+
+    if agent_key in AGENT_COMMAND_CONFIG:
+        rendered_body = prepend_agent_upgrade_check(rendered_body)
 
     if extension == "toml":
         # Convert Markdown variable syntax to TOML/Gemini variable syntax

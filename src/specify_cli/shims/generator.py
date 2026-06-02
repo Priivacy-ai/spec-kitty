@@ -24,6 +24,7 @@ from specify_cli.agent_utils.directories import (
     AGENT_DIR_TO_KEY,
     get_agent_dirs_for_project,
 )
+from specify_cli.agent_upgrade_prompt import prepend_agent_upgrade_check
 from specify_cli.shims.registry import CLI_DRIVEN_COMMANDS
 
 # Human-readable one-line descriptions shown by agent slash-command pickers
@@ -119,16 +120,19 @@ def generate_shim_content(command: str, agent_name: str, arg_placeholder: str) -
     version = _get_cli_version()
     cli_call = _canonical_command(command, agent_name, arg_placeholder)
     description = SHIM_DESCRIPTIONS.get(command, f"spec-kitty {command}")
-    return (
-        "---\n"
-        f"description: {description}\n"
-        "---\n"
-        f"<!-- spec-kitty-command-version: {version} -->\n"
+    body = prepend_agent_upgrade_check(
         "Run this exact command and treat its output as authoritative.\n"
         "Do not rediscover context from branches, files, prompt contents, or separate charter loads.\n"
         "When mission selection is required, pass --mission <handle> (mission_id, mid8, or mission_slug).\n"
         "\n"
         f"`{cli_call}`\n"
+    )
+    return (
+        "---\n"
+        f"description: {description}\n"
+        "---\n"
+        f"<!-- spec-kitty-command-version: {version} -->\n"
+        f"{body}"
     )
 
 
@@ -151,8 +155,7 @@ def generate_shim_content_toml(
     version = _get_cli_version()
     cli_call = _canonical_command(command, agent_name, arg_placeholder)
     description = SHIM_DESCRIPTIONS.get(command, f"spec-kitty {command}")
-    body = (
-        f"<!-- spec-kitty-command-version: {version} -->\n"
+    body = f"<!-- spec-kitty-command-version: {version} -->\n" + prepend_agent_upgrade_check(
         "Run this exact command and treat its output as authoritative.\n"
         "Do not rediscover context from branches, files, prompt contents, or separate charter loads.\n"
         "When mission selection is required, pass --mission <handle> (mission_id, mid8, or mission_slug).\n"

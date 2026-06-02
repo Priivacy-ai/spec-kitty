@@ -3,6 +3,38 @@ name: spec-kitty.analyze
 description: Cross-artifact consistency and quality analysis
 user-invocable: true
 ---
+## Startup Upgrade Check
+
+Before continuing, run:
+
+```bash
+spec-kitty upgrade --agent-check --json
+```
+
+If JSON `action` is `none`, continue.
+If `action` is `auto_upgrade`, run `upgrade_command` before continuing. If it fails, tell the user and continue with the current Spec Kitty version.
+If `action` is `guidance`, show `upgrade_note` briefly, then continue.
+If `action` is `prompt`, ask the user with the host-native question UI when available:
+
+`Spec Kitty {latest_version} is available. You are on {installed_version}. Upgrade now?`
+
+Use these choices:
+
+1. Upgrade now (recommended) - record `upgrade_now`, run `upgrade_command`, then continue.
+2. Always keep me up to date - record `always`, run `upgrade_command`, then continue.
+3. Not now - record `not_now`, then continue.
+4. Never ask again - record `never_ask`, then continue.
+
+Record the selected choice before continuing:
+
+```bash
+spec-kitty upgrade --agent-choice <upgrade_now|always|not_now|never_ask> --agent-latest <latest_version> --json
+```
+
+If no host-native question UI is available, present the same four choices in plain text and wait for the user.
+In non-interactive hosts, choose `not_now` and continue.
+
+
 ## User Input
 
 The content of the user's message that invoked this skill (everything after the skill invocation token, e.g. after `/spec-kitty.<command>` or `$spec-kitty.<command>`) is the User Input referenced elsewhere in these instructions.
